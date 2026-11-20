@@ -66,6 +66,7 @@ export type DiscussionReaction = {
 };
 
 export type DiscussionMessage = {
+ mentionedPeople?: DiscussionPerson[];
   id: string;
   seq?: number;
   author: DiscussionPerson;
@@ -104,6 +105,7 @@ export type DiscussionDraftInput = {
   body: string;
   attachments: DiscussionAttachment[];
   mentionIds: string[];
+  mentionHandles?: string[];
   askZyra: boolean;
   skinId?: string | null;
   requestId: string;
@@ -119,7 +121,7 @@ export type DiscussionForwardDraft = {
   error?: DiscussionSendError;
   replayTarget?: { threadId: string; messageId: string };
 };
-export type DiscussionMention = { id: string; name: string; mention: string; role?: "student" | "tutor" | "admin"; context?: string | null; hasNamesake?: boolean; ambiguous?: boolean };
+export type DiscussionMention = { avatarUrl?: string | null; id: string; name: string; mention: string; role?: "student" | "tutor" | "admin"; context?: string | null; hasNamesake?: boolean; ambiguous?: boolean };
 
 export type DiscussionWorkspaceProps = {
   viewer: DiscussionPerson;
@@ -136,6 +138,7 @@ export type DiscussionWorkspaceProps = {
   selectedQuestion: DiscussionQuestion | null;
   messages: DiscussionMessage[];
   selectedChannelId: string | null;
+  channelFilterLocked?: boolean;
   selectedQuestionId: string | null;
   selectedMessageId?: string | null;
   search: string;
@@ -159,7 +162,9 @@ export type DiscussionWorkspaceProps = {
   onLoadMoreMessages?: () => Promise<void>;
   onCreateQuestion: (input: DiscussionDraftInput & { channelId: string; title?: string }) => Promise<DiscussionSendFailure | void>;
   onSendReply: (input: DiscussionDraftInput & { questionId: string; messageType: "answer" | "reply"; replyToMessageId?: string }) => Promise<DiscussionSendFailure | void>;
-  onUploadImage: (input: { file: File; channelId: string; questionId?: string }) => Promise<DiscussionUploadResult>;
+  composerAudience?: string;
+  canAskZyra?: boolean;
+  onUploadImage?: (input: { file: File; channelId: string; questionId?: string }) => Promise<DiscussionUploadResult>;
   onSearchMentions: (input: { channelId: string; questionId?: string; query: string }) => Promise<DiscussionMention[]>;
   onSearchChannels: (input: { search: string; cursor?: string; courseId?: string; kind?: "course"; kinds?: ("global" | "course")[] }) => Promise<{ items: DiscussionChannel[]; nextCursor: string | null }>;
   onSearchForwardTargets: (input: { channelId?: string; search: string; cursor?: string }) => Promise<{ items: DiscussionForwardTarget[]; nextCursor: string | null }>;

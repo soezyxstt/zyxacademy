@@ -854,6 +854,14 @@ describe("discussion authorization and transactions", { concurrency: false }, ()
   const thread = await service.createThread("alice", { ...submit("profile-q"), channelId: "global", title: "Profil" });
   await service.reply("tutor", { ...submit("profile-tutor"), threadId: thread.threadId, messageType: "answer" });
   const deletedAnswer = await service.reply("carol", { ...submit("profile-carol"), threadId: thread.threadId, messageType: "answer" });
+  expect(await service.getDiscussionAuthorProfile("alice", thread.threadId, "carol")).toMatchObject({
+   kind: "student", profile: { publicId: null, baseXpMicro: null, major: null, faculty: null, canFollow: false },
+  });
+  await db.insert(schema.gamificationBlocks).values({ blockerId: "carol", blockedId: "alice" });
+  expect(await service.getDiscussionAuthorProfile("alice", thread.threadId, "carol")).toMatchObject({
+   kind: "limited", visibilityReason: "blocked",
+  });
+  await db.delete(schema.gamificationBlocks).where(and(eq(schema.gamificationBlocks.blockerId, "carol"), eq(schema.gamificationBlocks.blockedId, "alice")));
   await service.deleteMessage("carol", deletedAnswer.messageId);
   await db.insert(schema.gamificationProfiles).values([
    { userId: "alice", publicId: "pub-alice", displayName: "Alice Public", visibility: "members", leaderboardOptIn: true, allowFollows: true },

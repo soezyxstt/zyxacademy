@@ -2,6 +2,10 @@
 
 import React, { useEffect, useRef, type CSSProperties } from "react";
 import { Brain, Check, X, RotateCw, RefreshCw, SkipForward } from "lucide-react";
+import { TutorAppearanceContext } from "@/components/course/tutor-message-frame";
+import { ZyraCosmeticAvatar } from "@/components/gamification/zyra-cosmetic-avatar";
+import { DEFAULT_PET_ID } from "@/lib/gamification/pet-studio";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
@@ -23,8 +27,29 @@ export function FlashcardClient(props: FlashcardSessionProps) {
   return <FlashcardSession key={JSON.stringify([props.studentId, props.courseId])} {...props} />;
 }
 
+function PetRecall({ avatarId, isFlipped }: { avatarId: string | null; isFlipped: boolean }) {
+  const t = useTranslations("learning");
+  const [note, setNote] = React.useState("");
+  if (isFlipped && !note.trim()) return null;
+  return (
+    <details className="px-1">
+      <summary className="w-fit cursor-pointer rounded-md text-body-sm focus-visible:outline-primary">
+        <span className="inline-flex items-center gap-2 align-middle">
+          <ZyraCosmeticAvatar cosmeticId={avatarId ?? DEFAULT_PET_ID} headOnly size={32} />
+          {t("flashcards.recallWithPet")}
+        </span>
+      </summary>
+      <label className="mt-2 block text-body-xs">
+        {t(isFlipped ? "flashcards.compareRecall" : "flashcards.writeRecall")}
+        <Textarea className="mt-1" value={note} onChange={event => setNote(event.target.value)} readOnly={isFlipped} />
+      </label>
+    </details>
+  );
+}
+
 function FlashcardSession(props: FlashcardSessionProps) {
   const { adapter } = props;
+  const appearance = React.useContext(TutorAppearanceContext);
   const t = useTranslations("learning");
   const {
     queue, activeBatch, currentItem, batchOffset, currentIndex, isFlipped, mode,
@@ -150,6 +175,10 @@ function FlashcardSession(props: FlashcardSessionProps) {
           </RadioGroup>
         </div>
       </div>
+
+      {appearance.petAccess && !adapter && mode === "standard" && (
+        <PetRecall key={JSON.stringify([batchOffset + currentIndex, activeCard.id])} avatarId={appearance.avatarId} isFlipped={isFlipped} />
+      )}
 
       {/* Spaced Repetition Info Alert */}
       {currentItem.dueStatus === "review" && (

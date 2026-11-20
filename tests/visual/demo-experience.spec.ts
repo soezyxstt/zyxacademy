@@ -305,3 +305,61 @@ test("Diktat summary and completion use fictional account state", async ({ page 
  await visit(page, "documents"); await capture(page, info, "diktat-list-completed");
  expect(failures).toEqual([]);
 });
+
+test("course discussion shows an authored conversation and persists a local answer", async ({ page }, info) => {
+ const failures = guard(page);
+ await visit(page, "course-discussions");
+ const list = page.getByRole("complementary", { name: "Daftar pertanyaan" });
+ await expect(list.getByRole("button", { name: /Kasus uji untuk rata-rata/ })).toBeVisible();
+ await expect(list.getByRole("button", { name: /CO₂|Limit di x/ })).toHaveCount(0);
+ await capture(page, info, "course-discussions-list");
+ await list.getByRole("button", { name: /Kasus uji untuk rata-rata/ }).click();
+ await expect(page.getByText(/Daftar \[0\] punya rata-rata 0/)).toBeVisible();
+ await capture(page, info, "course-discussion-thread");
+
+ const text = "Aku juga mencoba daftar [0, 0]. Hasilnya tetap 0.";
+ await page.locator("[data-discussion-composer] [contenteditable=true]").fill(text);
+ await page.getByRole("button", { name: "Kirim jawaban", exact: true }).click();
+ await expect(page.getByText(text, { exact: true })).toBeVisible();
+ await page.reload();
+ await expect(page.getByText(text, { exact: true })).toBeVisible();
+ await page.getByText(text, { exact: true }).scrollIntoViewIfNeeded();
+ await capture(page, info, "course-discussion-answer");
+ expect(failures).toEqual([]);
+});
+
+test("global discussion opens a peer profile with its own rewards", async ({ page }, info) => {
+ const failures = guard(page);
+ await visit(page, "discussions");
+ await expect(page.getByRole("button", { name: /Cara mengulang flashcard/ })).toBeVisible();
+ await expect(page.getByRole("button", { name: /Limit di x/ })).toBeVisible();
+ await capture(page, info, "global-discussions-list");
+ await page.getByRole("button", { name: /Limit di x/ }).click();
+ await page.getByRole("button", { name: /Alya Putri/ }).first().click();
+ const profile = page.getByRole("dialog", { name: "Profil siswa" });
+ await expect(profile.getByRole("heading", { name: "Alya Putri" })).toBeVisible();
+ await expect(profile.getByText("Matematika · FMIPA")).toBeVisible();
+ await capture(page, info, "discussion-peer-profile");
+ expect(failures).toEqual([]);
+});
+
+test("pet inventory can remove and re-equip a suit and keep it on the profile", async ({ page }, info) => {
+ const failures = guard(page);
+ await visit(page, "pet");
+ await capture(page, info, "pet-active");
+ await page.getByRole("tab", { name: "Pakaian", exact: true }).click();
+ const suit = page.getByRole("listitem").filter({ hasText: /Seragam olahraga/i });
+ await expect(suit.getByText("Dipakai", { exact: true })).toBeVisible();
+ await suit.getByRole("button", { name: "Lepas", exact: true }).click();
+ await expect(suit.getByText("Dimiliki", { exact: true })).toBeVisible();
+ await capture(page, info, "pet-suit-removed");
+ await suit.getByRole("button", { name: "Pakai", exact: true }).click();
+ await expect(suit.getByText("Dipakai", { exact: true })).toBeVisible();
+ await visit(page, "profile");
+ await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("zyx-demo-gamification:v2") ?? "{}").equipped?.pet_suit)).toBe("pet-suit-itb-sport-outfit");
+ await capture(page, info, "profile-pet-equipped");
+ await visit(page, "reflections");
+ await expect(page.getByText(/Minggu/).first()).toBeVisible();
+ await capture(page, info, "profile-reflections");
+ expect(failures).toEqual([]);
+});

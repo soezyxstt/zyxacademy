@@ -52,12 +52,6 @@ if (isBun) {
   discussionChannelCandidateScope: () => undefined,
  }));
  bunTest.mock.module("@/lib/discussions/recipient-access", () => ({ getDiscussionRecipientAccess: async (_id, ids) => new Map(ids.map(id => [id, { role: "student" }])) }));
- bunTest.mock.module("@/lib/discussions/policy", () => ({
-  canDeleteDiscussionMessage: () => false, canEditDiscussionMessage: () => false, canForwardDiscussion: () => false,
-  deriveInitialDiscussionTitle: () => "Pertanyaan baru",
-  DISCUSSION_REACTIONS: ["👍", "❤️", "🎉", "🤔", "🙏"], validDiscussionId: id => typeof id === "string" && id.length > 0,
-  validDiscussionReplyType: () => true, validDiscussionText: () => true,
- }));
  bunTest.mock.module("@/lib/discussions/images", () => ({ attachDiscussionImages: async () => {}, listDiscussionAttachmentsForMessages: async () => new Map() }));
  bunTest.mock.module("@/lib/discussions/rewards", () => ({ enqueueDiscussionReward: async () => {} }));
  bunTest.mock.module("@/lib/discussions/notifications", () => ({ clearDiscussionNotificationsThroughSeq: async () => {} }));
@@ -70,8 +64,7 @@ if (isBun) {
   if (parent?.filename.endsWith(path.join("lib", "discussions", "service.ts"))) {
    if (request === "./access") return access;
    if (request === "./recipient-access") return { getDiscussionRecipientAccess: async (_id, ids) => new Map(ids.map(id => [id, { role: "student" }])) };
-   if (request === "./policy") return { validDiscussionId: id => typeof id === "string" && id.length > 0 };
-   if (request.startsWith("./") && request !== "./count-cache") return {};
+   if (request.startsWith("./") && request !== "./count-cache" && request !== "./policy") return {};
    if (request === "@/lib/auth-secret" || request === "@/lib/pka-config") return {};
   }
   return load.call(this, request.startsWith("@/") ? path.join(root, request.slice(2)) : request, parent, isMain);

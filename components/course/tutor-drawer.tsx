@@ -112,7 +112,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (isOpen) setHasOpened(true);
   }, [isOpen]);
-  const [appearance, setAppearance] = React.useState<{skinId: string | null; avatarId: string | null}>({skinId: null, avatarId: null});
+  const [appearance, setAppearance] = React.useState<React.ContextType<typeof TutorAppearanceContext>>({skinId: null, avatarId: null});
   React.useEffect(() => {
     if (experience.mode === "demo" || !realPathname?.startsWith("/courses/")) return;
     let active = true;
@@ -212,9 +212,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       <div className="relative flex min-h-screen w-full flex-row overflow-x-clip bg-background">
-        {children}
+        <TutorAppearanceContext.Provider value={appearance}>{children}</TutorAppearanceContext.Provider>
 
         {pathname?.startsWith("/courses/") &&
+          !(experience.mode === "demo" && pathname.endsWith("/discussions")) &&
           !pathname.includes("/live/host") &&
           !pathname.endsWith("/daftar") &&
           !suppressPet &&

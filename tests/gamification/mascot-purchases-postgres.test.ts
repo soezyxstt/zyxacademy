@@ -62,7 +62,7 @@ beforeAll(async () => {
     );
     create table gamification_profiles (
       user_id text primary key references "user", public_id text not null unique, display_name text,
-      visibility text not null default 'private', show_major boolean not null default false,
+      visibility text not null default 'members', show_major boolean not null default false,
       show_faculty boolean not null default false, allow_follows boolean not null default false,
       leaderboard_opt_in boolean not null default false, avatar_mode text not null default 'photo',
       badge_tier bigint, avatar_badge_id text, featured_badge_ids jsonb not null default '[]',

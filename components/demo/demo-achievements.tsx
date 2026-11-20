@@ -36,6 +36,6 @@ export function DemoAchievements() {
     </div>}
     {tab === "badges" && <BadgeList badges={demoBadges} locale={locale} labels={{ family: family => familyLabels[family], tier: tier => t("achievementPage.tier", { tier }), progress: t("achievementPage.progress"), complete: t("achievementPage.complete"), reward: lp => `${lp} LP`, locked: t("achievementPage.locked"), earned: t("achievementPage.earned") }} />}
     {tab === "missions" && <MissionList missions={demoMissions} locale={locale} labels={{ mission: kind => t(`achievementPage.mission.${kind}`), category: kind => t(`achievementPage.missionCategory.${kind}`), reward: lp => `${lp} LP`, ends: t("achievementPage.ends"), complete: t("achievementPage.complete"), progress: t("achievementPage.progress") }} />}
-    {tab === "rewards" && <RewardList rewards={demoRewards(state)} balance={state.balance} appearance={{ name: account?.name ?? "Pelajar Demo", frameId: state.equipped.frame, themeId: state.equipped.theme }} onChangeReward={changeReward} missionsHref={href("/achievements?tab=missions")} />}
+    {tab === "rewards" && <RewardList rewards={demoRewards(state)} balance={state.balance} appearance={{ name: account?.name ?? "Pelajar Demo", frameId: state.equipped.frame, themeId: state.equipped.theme }} onChangeReward={changeReward} petHref={href("/pet")} missionsHref={href("/achievements?tab=missions")} />}
   </ApplicationPage>;
 }

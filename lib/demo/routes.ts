@@ -1,6 +1,6 @@
 import type { Locale } from "@/lib/i18n/locale";
 import { localizedPublicPath } from "@/lib/public-locale-routes";
-export type DemoRouteView = "dashboard" | "courses" | "overview" | "documents" | "progress" | "history" | "article" | "diktat" | "flashcards" | "quiz" | "quiz-review" | "quiz-summary" | "quiz-list" | "quiz-start" | "tryout" | "tryout-review" | "tryout-list" | "zyra" | "schedule" | "groups" | "leaderboard" | "achievements" | "course-leaderboard" | "profile" | "profile-edit" | "feedback" | "reflections" | "settings" | "notifications" | "video" | "playground" | "path" | "mastery" | "results" | "live";
+export type DemoRouteView = "dashboard" | "courses" | "overview" | "documents" | "progress" | "history" | "article" | "diktat" | "flashcards" | "quiz" | "quiz-review" | "quiz-summary" | "quiz-list" | "quiz-start" | "tryout" | "tryout-review" | "tryout-list" | "zyra" | "schedule" | "groups" | "leaderboard" | "achievements" | "course-leaderboard" | "profile" | "profile-edit" | "feedback" | "reflections" | "settings" | "notifications" | "video" | "playground" | "path" | "mastery" | "results" | "live" | "pet" | "discussions" | "course-discussions";
 export function demoRoute(locale: Locale, view: DemoRouteView, courseId: string): string {
   const path = view === "dashboard" ? "/demo" : `/demo/${view}`;
   const destination = localizedPublicPath(locale, path) ?? `/${locale}${path}`;
@@ -12,13 +12,14 @@ export function demoCoursePath(courseId: string): string { return `/courses/${en
 const courseViews: Record<string, DemoRouteView> = {
   material: "documents", flashcard: "flashcards", quiz: "quiz-list", tryout: "tryout-list",
   progress: "progress", "my-results": "results", mastery: "mastery", path: "path",
-  leaderboard: "course-leaderboard", video: "video", playground: "playground", live: "live",
+  leaderboard: "course-leaderboard", video: "video", playground: "playground", live: "live", discussions: "course-discussions",
 };
 const detailViews: Record<string, DemoRouteView> = { material: "article", quiz: "quiz-start", tryout: "tryout" };
 const accountViews: Record<string, DemoRouteView> = {
   "/dashboard": "dashboard", "/courses": "courses", "/dashboard/schedule": "schedule",
   "/dashboard/groups": "groups", "/leaderboard": "leaderboard", "/achievements": "achievements", "/profile": "profile",
   "/feedback": "feedback", "/profile/edit": "profile-edit", "/profile/reflections": "reflections",
+  "/dashboard/discussions": "discussions", "/discussions": "discussions", "/pet": "pet",
   "/settings": "settings", "/settings/notifications": "notifications",
 };
 
@@ -49,6 +50,7 @@ export function demoStudentHref(locale: Locale, studentPath: string, selectedCou
     if (attempt && detail === "quiz-review") destination.searchParams.set("attempt", attempt);
     const type = url.searchParams.get("type");
     if (type === "quiz" || type === "simulation") destination.searchParams.set("type", type);
+    if (view === "course-discussions") copyDiscussionParams(url, destination);
     const access = url.searchParams.get("access");
     if (access === "free" || access === "premium") destination.searchParams.set("access",access);
     return `${destination.pathname}${destination.search}`;
@@ -57,6 +59,8 @@ export function demoStudentHref(locale: Locale, studentPath: string, selectedCou
   if (view) {
     const courseId = url.searchParams.get("course");
     const destination = new URL(demoRoute(locale, view, view === "leaderboard" || view === "achievements" ? selectedCourseId : courseId ?? selectedCourseId), "https://demo.invalid");
+    if (view === "discussions") copyDiscussionParams(url, destination);
+    if (view === "pet" && url.searchParams.has("tab")) destination.searchParams.set("tab", url.searchParams.get("tab")!);
     if (view === "schedule" && courseId) destination.searchParams.set("course", courseId);
     if (view === "achievements" || view === "leaderboard") {
       for (const key of view === "achievements" ? ["tab"] : ["tab", "period", "scope", "cursor"]) {
@@ -70,6 +74,13 @@ export function demoStudentHref(locale: Locale, studentPath: string, selectedCou
   if (["/plans", "/sign-in"].includes(url.pathname)) return studentPath;
   return demoRoute(locale, "dashboard", selectedCourseId);
   } catch { return demoRoute(locale, "dashboard", selectedCourseId); }
+}
+
+function copyDiscussionParams(source: URL, destination: URL) {
+  for (const key of ["channel", "thread", "message"]) {
+    const value = source.searchParams.get(key);
+    if (value) destination.searchParams.set(key, value);
+  }
 }
 
 export function demoStudentPath(view: DemoRouteView, courseId: string): string {
