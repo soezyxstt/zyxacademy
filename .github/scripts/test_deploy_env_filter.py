@@ -18,10 +18,6 @@ def job(workflow, name):
 
 
 class DeployEnvFilterTest(unittest.TestCase):
-    def test_production_hold_also_blocks_automatic_worker_release(self):
-        workflow = (WORKFLOWS / "ci.yml").read_text()
-        self.assertIn("(github.ref != 'refs/heads/main' || vars.HOLD_WEB_DEPLOYMENT != 'true')", job(workflow, "deploy-worker"))
-
     def test_both_explicit_targets_keep_their_own_database_storage_and_inngest(self):
         for environment, target in TARGETS.items():
             with self.subTest(environment=environment):

@@ -201,9 +201,11 @@ class DeploymentGateTest(unittest.TestCase):
             with self.subTest(worker_result=result):
                 self.assertFalse(self.allowed('deploy-web', worker_result=result, web='true'))
 
-    def test_worker_only_recovery_holds_every_web_entry_point(self):
+    def test_production_hold_blocks_automatic_releases_but_keeps_staging_worker(self):
         self.assertFalse(self.allowed('deploy-web', web_hold='true', web='true'))
-        self.assertTrue(self.allowed('deploy-worker', web_hold='true', worker='true'))
+        self.assertFalse(self.allowed('deploy-worker', web_hold='true', worker='true'))
+        self.assertFalse(self.allowed('deploy-worker', web_hold='true', v4='true'))
+        self.assertTrue(self.allowed('deploy-worker', branch='staging', web_hold='true', worker='true'))
         text = (ROOT / '.github/workflows/deploy-web.yml').read_text()
         self.assertIn("if: github.ref == 'refs/heads/main' && vars.HOLD_WEB_DEPLOYMENT != 'true'", text)
 
