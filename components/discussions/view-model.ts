@@ -138,6 +138,7 @@ export type DiscussionWorkspaceProps = {
   selectedQuestion: DiscussionQuestion | null;
   messages: DiscussionMessage[];
   selectedChannelId: string | null;
+  channelFilterLocked?: boolean;
   selectedQuestionId: string | null;
   selectedMessageId?: string | null;
   search: string;

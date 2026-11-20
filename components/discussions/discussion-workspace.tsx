@@ -247,7 +247,11 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
           <aside aria-label={t("questionList")} className={cn("min-h-0 min-w-0 flex-1 flex-col @min-[52rem]/discussions:flex @min-[52rem]/discussions:w-[21rem] @min-[52rem]/discussions:flex-none @min-[52rem]/discussions:border-r @min-[52rem]/discussions:border-border", props.selectedQuestionId || composeActive ? "hidden" : "flex")}>
             <header data-discussion-list-toolbar="" className="shrink-0 border-b border-border py-1.5 @min-[52rem]/discussions:pr-3">
               <div className="flex min-w-0 items-center gap-1.5">
-                {!searchVisible && <div className="min-w-0 flex-1 animate-in fade-in duration-150 motion-reduce:animate-none"><DiscussionChannelPicker value={props.channels.find((item) => item.id === props.selectedChannelId) ?? null} label={t("filterChannel")} placeholder={t("allChannels")} allowAll onSearch={props.onSearchChannels} onChange={(next) => { setNewOpen(false); props.onSelectChannel(next); }} /></div>}
+                {!searchVisible && <div className="min-w-0 flex-1 animate-in fade-in duration-150 motion-reduce:animate-none">
+                  {props.channelFilterLocked && selectedChannel
+                    ? <span className="block break-words px-2 text-body-sm"><ChannelName channel={selectedChannel} /></span>
+                    : <DiscussionChannelPicker value={props.channels.find((item) => item.id === props.selectedChannelId) ?? null} label={t("filterChannel")} placeholder={t("allChannels")} allowAll onSearch={props.onSearchChannels} onChange={(next) => { setNewOpen(false); props.onSelectChannel(next); }} />}
+                </div>}
                 {!searchVisible && selectedChannel && <Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon-sm" disabled={mutePending} aria-label={t(selectedChannel.muted ? "unmuteChannel" : "muteChannel", { name: discussionChannelLabel(selectedChannel, t) })} onClick={() => void toggleMute()}>{selectedChannel.muted ? <BellOff /> : <Bell />}</Button></TooltipTrigger><TooltipContent>{t(selectedChannel.muted ? "unmute" : "mute")}</TooltipContent></Tooltip>}
                 <SearchBar
                   size="sm"

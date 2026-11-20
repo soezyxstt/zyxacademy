@@ -190,7 +190,7 @@ export function DemoDiscussions({ courseId }: { courseId?: string }) {
     {!ready ? <DiscussionWorkspaceSkeleton label={t("loadingThread")} /> : <DiscussionWorkspace
       viewer={viewer} channels={channels} questions={filtered.filter(item => item.status !== "resolved")}
       resolvedQuestions={resolvedOpen ? filtered.filter(item => item.status === "resolved") : []} resolvedOpen={resolvedOpen} onResolvedOpenChange={setResolvedOpen}
-      selectedQuestion={selectedQuestion} selectedChannelId={selectedChannelId} selectedQuestionId={selectedQuestion?.id ?? null}
+      selectedQuestion={selectedQuestion} selectedChannelId={selectedChannelId} channelFilterLocked={Boolean(courseId)} selectedQuestionId={selectedQuestion?.id ?? null}
       selectedMessageId={query.get("message")} messages={messages} search={search} onSearchChange={setSearch}
       listState="ready" threadState="ready" onRetryQuestions={noRetry} onRetryMessages={noRetry}
       onSelectChannel={channel => setSelection(channel?.id ?? null, null)} onSelectQuestion={selectQuestion}
