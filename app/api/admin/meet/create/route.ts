@@ -1,3 +1,4 @@
+import { googleOperationError } from "@/lib/google-operation-error";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
@@ -131,7 +132,7 @@ export async function POST(req: Request) {
             `${result.email}: hak ${result.role === "COHOST" ? "co-host" : "akses"} belum dapat diberikan`
         ),
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to create Google Meet space" }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ code: googleOperationError(error) }, { status: 500 });
   }
 }

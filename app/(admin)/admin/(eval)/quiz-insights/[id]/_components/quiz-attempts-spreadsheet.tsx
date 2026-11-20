@@ -2,15 +2,13 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   ChevronDown,
   ListFilter,
-  Download,
   FileSpreadsheet,
   CheckCircle2,
   XCircle,
-  RefreshCw,
   Info,
   Users,
   AlertTriangle,
@@ -179,24 +177,10 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
     });
   }, [attempts, statusFilter, searchQuery]);
 
-  // Trigger CSV Download via API
-  const handleExportCsv = (type: "matrix" | "summary") => {
-    const url = `/api/admin/quiz-insights/${templateId}/attempts?export=csv&exportType=${type}&includeInProgress=${includeInProgress}`;
-    window.open(url, "_blank");
-    toast.success(t("quizAttempts.csvDownloadStarted", { type: type === "matrix" ? t("quizAttempts.matrix") : t("quizAttempts.summary") }));
-    setExportDialogOpen(false);
-  };
-
-  const attemptedExportTypeRef = useRef<"matrix" | "summary">("matrix");
-  const { exporting: exportingSheets, confirmDialog, runExport } = useSpreadsheetExport({
-    onSuccess: ({ spreadsheetUrl }) => {
-      window.open(spreadsheetUrl, "_blank");
-      toast.success(t("quizAttempts.googleSheetCreated"));
-      setExportDialogOpen(false);
-    },
+  const { sheetControls, confirmDialog, resultPanel, runExport } = useSpreadsheetExport({
+    scope: `${templateId}:${exportType}`, entityType: "quiz", enabled: translationNamespace === "adminEval",
     onError: (message) => {
       toast.error(message);
-      handleExportCsv(attemptedExportTypeRef.current);
     },
   });
 
@@ -232,7 +216,6 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
       });
     }
 
-    attemptedExportTypeRef.current = type;
     runExport({
       entityType: "quiz",
       entityId: `${templateId}:${type}`,
@@ -240,7 +223,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
       title: `${quizTitle} (${type === "matrix" ? t("quizAttempts.matrix") : t("quizAttempts.summary")})`,
       headers: headersRow,
       rows: rowsMatrix,
-    });
+    }, Boolean(searchQuery.trim()) || statusFilter !== "all" || !includeInProgress);
   };
 
   const formatDuration = (secs: number) => {
@@ -329,12 +312,13 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
           <span className="text-body-xs tabular-nums text-muted-foreground" aria-live="polite">
             {t("quizAttempts.attempts")} {filteredAttempts.length}{filteredAttempts.length !== attempts.length ? ` / ${attempts.length}` : ""}
           </span>
-          <Button type="button" size="lg" onClick={() => setExportDialogOpen(true)}>
+          {translationNamespace === "adminEval" && <Button type="button" size="lg" onClick={() => setExportDialogOpen(true)}>
             <FileSpreadsheet aria-hidden />
             {t("quizAttempts.export")}
-          </Button>
+          </Button>}
         </div>
       </section>
+      {resultPanel}
 
       <div className="divide-y divide-border border-y border-border md:hidden">
         {filteredAttempts.length === 0 ? (
@@ -645,7 +629,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
         </div>
       </div>
 
-      {/* Modal Dialog Export CSV */}
+      {/* Spreadsheet export */}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
@@ -706,23 +690,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
             >
               {t("quizAttempts.cancel")}
             </Button>
-            <Button
-              onClick={() => handleExportGoogleSheets(exportType)}
-              disabled={exportingSheets}
-              variant="outline"
-              className="border-brand-primary/30 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 rounded-lg gap-2"
-            >
-              <RefreshCw className={`size-4 ${exportingSheets ? "animate-spin" : "hidden"}`} />
-              <FileSpreadsheet className="size-4" />
-              {exportingSheets ? t("quizAttempts.exporting") : t("quizAttempts.exportGoogleSheets")}
-            </Button>
-            <Button
-              onClick={() => handleExportCsv(exportType)}
-              className="bg-brand-primary hover:bg-brand-primary/90 text-primary-foreground rounded-lg gap-2"
-            >
-              <Download className="size-4" />
-              {t("quizAttempts.downloadCsv")}
-            </Button>
+            {sheetControls(() => handleExportGoogleSheets(exportType), !filteredAttempts.length)}
           </DialogFooter>
         </DialogContent>
       </Dialog>

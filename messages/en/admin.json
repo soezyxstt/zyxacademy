@@ -1,4 +1,19 @@
 {
+  "googleSetup": {
+    "title": "Google setup",
+    "library": "Open the Google Cloud API library",
+    "meet": "Enable the Google Meet REST API in the Zyx OAuth project.",
+    "sheets": "Enable the Google Sheets API and Google Drive API in the Zyx OAuth project.",
+    "client": "Add https://developers.google.com/oauthplayground as a redirect URI on the web application OAuth client.",
+    "authorize": "In Playground settings, select your own OAuth credentials and offline access. Authorize all services used by Zyx with the organizer account, then exchange the code for a refresh token.",
+    "deploy": "Save GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN as deployment secrets, then redeploy.",
+    "credentials": "Check the OAuth credentials and renew the refresh token using Google setup.",
+    "apiDisabled": "Enable the required API in the Google Cloud project using Google setup.",
+    "permission": "Check the Google account permissions and token scopes for this service.",
+    "failed": "The request failed. Check the result in Google before retrying.",
+    "adminAccess": "Sign in again with an admin account.",
+    "network": "Connection interrupted. Check Google Drive for the spreadsheet before retrying."
+  },
   "docs": {
     "title": "Admin documentation",
     "navigation": "Documentation navigation",
@@ -130,6 +145,16 @@
     "unknownDifficulty": "Other"
   },
   "export": {
+    "created": "Spreadsheet created",
+    "updated": "Spreadsheet updated",
+    "open": "Open spreadsheet",
+    "sheet": "Google Sheets",
+    "createSheet": "Create sheet",
+    "updateSheet": "Update sheet",
+    "filteredTitle": "Export filtered results?",
+    "filteredDescription": "The spreadsheet “{title}” will contain {count} rows. If the file exists, these filtered results replace its previous data rows.",
+    "filteredConfirm": "Export filtered results",
+    "sharingIncomplete": "File saved. Some editor permissions may be missing. Ask the owner to check Share in Google Drive.",
     "overwriteTitle": "Overwrite manual edits?",
     "overwriteConfirm": "Yes, overwrite",
     "overwriteDescription": "The export will overwrite the Zyx data area. Areas outside the data block, including columns to the right and rows below, will remain untouched:",
@@ -195,8 +220,8 @@
     "incorrect": "INCORRECT",
     "studentChoice": "Student choice:",
     "none": "None",
-    "exportTitle": "Export to CSV / Google Sheets",
-    "exportDescription": "Choose the CSV format to download for quiz {quizTitle}. The file works with Google Sheets and Microsoft Excel.",
+    "exportTitle": "Google Sheets",
+    "exportDescription": "Select the data for the {quizTitle} spreadsheet.",
     "matrixTitle": "1. Detailed answer matrix (item-response matrix)",
     "matrixDescription": "One column per question (Q1, Q2, ..., QN) with the question text, student answer, and correctness (CORRECT / INCORRECT / UNANSWERED). Useful for detailed item analysis.",
     "summaryTitle": "2. Student attempt summary",

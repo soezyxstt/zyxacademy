@@ -221,7 +221,7 @@ Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (
 - `BETTER_AUTH_SECRET` ; 32+ char high-entropy secret (`openssl rand -base64 32`)
 - `BETTER_AUTH_URL` ; app origin for OAuth callbacks
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` ; Google OAuth
-- `GOOGLE_REFRESH_TOKEN` ; Unified Google OAuth refresh token for Meet, Forms, Sheets, Drive (fallbacks: `GOOGLE_MEET_REFRESH_TOKEN`, `GOOGLE_FORMS_REFRESH_TOKEN`)
+- `GOOGLE_REFRESH_TOKEN` ; Unified Google OAuth refresh token for Meet, Forms, Sheets, Drive
 - `UPLOADTHING_TOKEN` ; UploadThing API token
 - `GEMINI_API_KEY` ; Google Gemini API key (4-key rotation supported)
 - `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` ; Inngest job queue
@@ -504,7 +504,7 @@ Configure the five density and reading-size preset values in `app/appearance-pre
 
 Exports route through `lib/google-sheets.ts` and `POST /api/admin/export-spreadsheet`. The spreadsheet is updated in place; the app owns only the data block at A1 (header + data rows) and writes it with an explicit `GridRange`, so admin edits in the reserved manual zone (columns right of the data, rows below it) are never overwritten.
 
-Before an overwrite the current grid is read and diffed against `export_spreadsheets.last_written_fingerprint` plus the stored row/column counts. Detected manual edits inside the owned block, growing rows over manual cells, or growing headers over manual columns return `needsConfirmation` with `block_modified`, `manual_rows`, or `manual_columns` codes. Client callers use `useSpreadsheetExport` (`components/admin/spreadsheet-export.tsx`) to show a confirm dialog and re-send with `confirmOverwrite: true`. New spreadsheets store the baseline so later re-exports can warn precisely; legacy sheets without metadata infer the previous block from the current grid on the first re-export.
+Before an overwrite the current grid is read and diffed against `export_spreadsheets.last_written_fingerprint` plus the stored row/column counts. Detected manual edits inside the owned block, growing rows over manual cells, or growing headers over manual columns return `needsConfirmation` with `block_modified`, `manual_rows`, or `manual_columns` codes. Client callers use `useSpreadsheetExport` (`components/admin/spreadsheet-export.tsx`) to show a confirm dialog and re-send with the returned `confirmedRevision` fingerprint. New spreadsheets store the baseline so later re-exports can warn precisely; legacy sheets without metadata infer the previous block from the current grid on the first re-export.
 
 Set `FEATURE_DRIVE_EDITOR_SYNC=1` to grant every active admin email `writer` access on exported spreadsheets, Google Forms, recording files, transcripts, and new export folders.
 
