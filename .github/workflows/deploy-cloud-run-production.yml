@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Inspect or pause legacy writers, build a candidate, promote, or roll back
+        description: Inspect production Vercel control plane, build a candidate, promote, or roll back
         required: true
         type: choice
         default: candidate
-        options: [inventory, pause-inngest, candidate, promote, rollback]
+        options: [inventory, candidate, promote, rollback]
       revision:
         description: Exact verified revision for promote or rollback
         type: string
@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   inventory:
-    if: github.repository == 'soezyxstt/zyxacademy' && github.ref == 'refs/heads/main' && (inputs.operation == 'inventory' || inputs.operation == 'pause-inngest')
+    if: github.repository == 'soezyxstt/zyxacademy' && github.ref == 'refs/heads/main' && inputs.operation == 'inventory'
     environment: production
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -34,11 +34,9 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - name: Inspect production writers or explicitly pause legacy functions
+      - name: Inspect production Vercel control plane without mutation
         env:
           CONTROL_PLANE_OPERATION: ${{ inputs.operation }}
-          CONTROL_PLANE_REVIEWED: ${{ inputs.reviewed }}
-          INNGEST_API_KEY: ${{ secrets.INNGEST_API_KEY }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: python3 .github/scripts/production_control_plane.py
       - uses: actions/upload-artifact@v4

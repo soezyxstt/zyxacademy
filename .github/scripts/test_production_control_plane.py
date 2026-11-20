@@ -1,52 +1,47 @@
+import json
 import unittest
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
 
 import production_control_plane as control
 
 
 class InventoryTest(unittest.TestCase):
-    def test_protobuf_terminal_pages_omit_false_and_empty_data(self):
-        for payload, expected in [({"metadata": {}, "page": {"limit": 100}}, []),
-                                  ({"data": [{"id": "last"}], "page": {"cursor": "retained", "limit": 100}}, [{"id": "last"}])]:
-            with patch.object(control, "request", return_value=(200, payload)):
-                self.assertEqual(control.inngest_pages("/v2/runs", "synthetic"), expected)
-        for payload in [{"data": []}, {"data": [], "page": {"hasMore": "false"}},
-                        {"data": [], "page": {"unexpected": True}}, {"data": [], "page": {"hasMore": True}}]:
-            with patch.object(control, "request", return_value=(200, payload)):
-                with self.assertRaisesRegex(ValueError, "PAGINATION_UNVERIFIED"):
-                    control.inngest_pages("/v2/runs", "synthetic")
+    def test_inventory_inspects_vercel_without_inngest(self):
+        firewall = {
+            "configured": True,
+            "version": 3,
+            "rules": [{"id": "rule-1", "name": "Fence API", "active": True}],
+        }
+        with patch.dict(control.os.environ, {"GITHUB_REPOSITORY": "soezyxstt/zyxacademy", "GITHUB_REF": "refs/heads/main", "VERCEL_TOKEN": "synthetic"}, clear=True), \
+             patch.object(control, "request", side_effect=[(200, {"id": control.PROJECT}), (200, firewall)]) as call, \
+             patch.object(Path, "mkdir"), patch.object(Path, "write_text") as write:
+            result = control.inventory()
+            self.assertEqual(call.call_count, 2)
+            self.assertEqual(result["vercel"]["projectId"], control.PROJECT)
+            self.assertEqual(result["vercel"]["firewallStatus"], 200)
+            self.assertEqual(result["vercel"]["rules"], [{"id": "rule-1", "name": "Fence API", "active": True}])
+            self.assertEqual(json.loads(write.call_args.args[0]), result)
 
-    def test_inventory_pins_the_configured_environment_not_builtin_production(self):
-        pages = [[{"id": "other", "type": "PRODUCTION"}, {"id": control.ENVIRONMENT, "type": "TEST", "name": "Production"}],
-                 [{"id": "owned", "app": {"id": "zyx-academy"}}], []]
-        with patch.dict(control.os.environ, {"GITHUB_REPOSITORY": "soezyxstt/zyxacademy", "GITHUB_REF": "refs/heads/main", "INNGEST_API_KEY": "synthetic"}), \
-             patch.object(control, "inngest_pages", side_effect=pages), \
+    def test_inventory_tolerates_missing_vercel_firewall_config(self):
+        with patch.dict(control.os.environ, {"GITHUB_REPOSITORY": "soezyxstt/zyxacademy", "GITHUB_REF": "refs/heads/main", "VERCEL_TOKEN": "synthetic"}, clear=True), \
              patch.object(control, "request", side_effect=[(200, {"id": control.PROJECT}), (404, {})]), \
              patch.object(Path, "mkdir"), patch.object(Path, "write_text"):
             result = control.inventory()
-            self.assertEqual(result["environmentId"], control.ENVIRONMENT)
-            self.assertFalse(result["functions"][0]["paused"])
+            self.assertEqual(result["vercel"]["firewallStatus"], 404)
+            self.assertEqual(result["vercel"]["rules"], [])
 
-    def test_pause_requires_review_and_verifies_each_result_without_claiming_drain(self):
-        result = {"environmentId": control.ENVIRONMENT, "functions": [{"id": "owned", "paused": False}, {"id": "already", "paused": True}]}
-        with patch.dict(control.os.environ, {"CONTROL_PLANE_REVIEWED": "false"}):
-            with self.assertRaisesRegex(ValueError, "REQUIRES_REVIEWED_PRODUCTION"):
-                control.pause_legacy(result)
-        response = {"data": [{"functionId": "owned", "function": {"id": "owned", "app": {"id": "zyx-academy"}, "isPaused": True}}]}
-        with patch.dict(control.os.environ, {"CONTROL_PLANE_REVIEWED": "true", "INNGEST_API_KEY": "synthetic"}), \
-             patch.object(control, "request", return_value=(200, response)) as call, patch.object(Path, "write_text") as write:
-            control.pause_legacy(result)
-            self.assertEqual(call.call_args.args[-1], {"functionIds": ["owned"]})
-            self.assertIn('"drainVerified": false', write.call_args.args[0])
-        response["data"][0]["function"]["isPaused"] = False
-        with patch.dict(control.os.environ, {"CONTROL_PLANE_REVIEWED": "true", "INNGEST_API_KEY": "synthetic"}), \
-             patch.object(control, "request", return_value=(200, response)):
-            with self.assertRaisesRegex(ValueError, "OUTCOME_UNVERIFIED"):
-                control.pause_legacy(result)
+    def test_inventory_requires_vercel_token_and_exact_project(self):
+        with patch.dict(control.os.environ, {"GITHUB_REPOSITORY": "soezyxstt/zyxacademy", "GITHUB_REF": "refs/heads/main"}, clear=True):
+            with self.assertRaisesRegex(ValueError, "VERCEL_TOKEN_REQUIRED"):
+                control.inventory()
+        with patch.dict(control.os.environ, {"GITHUB_REPOSITORY": "soezyxstt/zyxacademy", "GITHUB_REF": "refs/heads/main", "VERCEL_TOKEN": "synthetic"}, clear=True), \
+             patch.object(control, "request", return_value=(200, {"id": "other"})):
+            with self.assertRaisesRegex(ValueError, "VERCEL_PRODUCTION_PROJECT_UNVERIFIED"):
+                control.inventory()
 
     def test_failure_reports_only_fixed_codes_without_raw_credentials(self):
-        for error, expected in [(ValueError("INNGEST_API_KEY_REQUIRED"), "INNGEST_API_KEY_REQUIRED"),
+        for error, expected in [(ValueError("VERCEL_TOKEN_REQUIRED"), "VERCEL_TOKEN_REQUIRED"),
                                 (ValueError("token=synthetic-secret"), "PRODUCTION_CONTROL_PLANE_INVENTORY_FAILED"),
                                 (OSError("synthetic-secret"), "PRODUCTION_CONTROL_PLANE_INVENTORY_FAILED")]:
             with patch.object(control, "inventory", side_effect=error):
@@ -54,19 +49,16 @@ class InventoryTest(unittest.TestCase):
                     control.main()
                 self.assertEqual(result.exception.code, expected)
 
-    def test_pagination_cannot_silently_truncate_writer_inventory(self):
-        page = {"data": [{"id": "owned"}], "page": {"hasMore": True, "cursor": "same"}}
-        with patch.object(control, "request", return_value=(200, page)):
-            with self.assertRaisesRegex(ValueError, "PAGINATION_UNVERIFIED"):
-                control.inngest_pages("/v2/runs", "synthetic")
-        with patch.object(control, "request", return_value=(401, {})):
-            with self.assertRaisesRegex(ValueError, "INVENTORY_UNAVAILABLE"):
-                control.inngest_pages("/v2/runs", "synthetic")
-
     def test_inventory_requires_exact_main_repository(self):
-        with patch.dict(control.os.environ, {"GITHUB_REPOSITORY": "soezyxstt/zyxacademy", "GITHUB_REF": "refs/heads/staging"}):
+        with patch.dict(control.os.environ, {"GITHUB_REPOSITORY": "soezyxstt/zyxacademy", "GITHUB_REF": "refs/heads/staging", "VERCEL_TOKEN": "synthetic"}, clear=True):
             with self.assertRaisesRegex(ValueError, "PRODUCTION_BRANCH_REQUIRED"):
                 control.inventory()
+
+    def test_rejects_legacy_pause_inngest_operation(self):
+        with patch.dict(control.os.environ, {"CONTROL_PLANE_OPERATION": "pause-inngest"}, clear=True):
+            with self.assertRaises(SystemExit) as result:
+                control.main()
+            self.assertEqual(result.exception.code, "CONTROL_PLANE_OPERATION_INVALID")
 
 
 if __name__ == "__main__":
