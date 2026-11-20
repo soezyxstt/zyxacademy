@@ -1,4 +1,4 @@
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 import { db } from "@/db";
 import { user, studentConceptMastery, studentConceptMasteryHistory } from "@/db/schema";
 import { daysAgo, todayUtc } from "@/lib/date-utils";
@@ -6,7 +6,7 @@ import { recomputeTrends } from "@/lib/mastery-store";
 import { enqueueRecompute, processQueueBatch, recomputePerIdeaMastery } from "@/lib/mastery-recompute";
 import { eq, and, gt, inArray } from "drizzle-orm";
 
-export const masteryRecomputeWorker = inngest.createFunction(
+export const masteryRecomputeWorker = defineJob(
   {
     id: "mastery-recompute-worker",
     name: "Mastery Recompute Worker",
@@ -28,7 +28,7 @@ export const masteryRecomputeWorker = inngest.createFunction(
   }
 );
 
-export const ideaMasteryRecomputeWorker = inngest.createFunction(
+export const ideaMasteryRecomputeWorker = defineJob(
   {
     id: "idea-mastery-recompute-v1",
     name: "Per-Idea Mastery Recompute V1",
@@ -64,7 +64,7 @@ export const ideaMasteryRecomputeWorker = inngest.createFunction(
  * Daily cron running off-peak (19:00 UTC) to snapshot student mastery
  * and update trend directions.
  */
-export const masterySnapshotCron = inngest.createFunction(
+export const masterySnapshotCron = defineJob(
   {
     id: "mastery-snapshot-cron",
     name: "Mastery Snapshot Cron",

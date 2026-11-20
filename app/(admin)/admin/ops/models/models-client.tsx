@@ -320,13 +320,11 @@ export function ModelsClient({
           label={t("modelsUI.customChains")}
           value={customCount}
           icon={SlidersHorizontal}
-          tone={customCount > 0 ? "brand" : "default"}
         />
         <AdminStatStripItem
           label={t("modelsUI.defaultChains")}
           value={defaultCount}
           icon={CheckCircle2}
-          tone="success"
         />
         <AdminStatStripItem
           label={t("modelsUI.availableModels")}
@@ -428,7 +426,7 @@ export function ModelsClient({
                 </h2>
               </div>
 
-              <div className="divide-y divide-border/60 overflow-hidden rounded-lg border border-border bg-card">
+              <div className="divide-y divide-border/60 border-y border-border">
                 {items.map((view) => {
                   const draftModels = getDraftModels(view);
                   const isDirty = !sameModels(draftModels, view.models);

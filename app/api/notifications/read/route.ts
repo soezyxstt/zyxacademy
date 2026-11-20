@@ -12,6 +12,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
+import { notificationVisibility } from "@/lib/notifications/discussion-history";
 import { eq, inArray, and } from "drizzle-orm";
 import { z } from "zod";
 
@@ -43,12 +44,13 @@ export async function PATCH(req: NextRequest) {
  const userId = session.user.id;
 
  try {
+ const visible = await notificationVisibility(userId, userId, "all" in parsed.data ? { unreadOnly: true } : { ids: parsed.data.ids });
  if ("all" in parsed.data) {
  // Mark all as read
  await db
  .update(notifications)
  .set({ read: true })
- .where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
+ .where(and(eq(notifications.userId, userId), eq(notifications.read, false), visible));
  } else {
  // Mark specific IDs ; enforce userId ownership so users can't mark others' notifications
  await db
@@ -57,7 +59,7 @@ export async function PATCH(req: NextRequest) {
  .where(
  and(
  eq(notifications.userId, userId),
- inArray(notifications.id, parsed.data.ids)
+ inArray(notifications.id, parsed.data.ids), visible
  )
  );
  }

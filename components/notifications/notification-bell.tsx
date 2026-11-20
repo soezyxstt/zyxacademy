@@ -12,7 +12,8 @@
  * - Foreground FCM messages refresh the list and surface a toast.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { DISCUSSION_COUNTS_CHANGED } from "@/components/discussions/discussion-count-badge";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -24,6 +25,7 @@ import {
   BellRing,
   ClipboardList,
   Inbox,
+  MessagesSquare,
 } from "lucide-react";
 import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
 import { useStudentExperience } from "@/components/student-experience-provider";
@@ -58,6 +60,7 @@ const TYPE_ICONS: Record<string, typeof Bell> = {
   payment_success: CreditCard,
   admin_broadcast: Megaphone,
   announcement: BellRing,
+  discussion: MessagesSquare,
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -67,6 +70,7 @@ const TYPE_COLORS: Record<string, string> = {
   payment_success: "text-status-success",
   admin_broadcast: "text-brand-secondary",
   announcement: "text-status-warning",
+  discussion: "text-brand-primary",
 };
 
 // ─── Relative time helper ─────────────────────────────────────────────────────
@@ -96,7 +100,7 @@ interface NotificationBellProps {
 }
 
 export function NotificationBell(props: NotificationBellProps) {
-  return <StudentAccountBoundary>{state => <NotificationBellContent {...props} account={state} />}</StudentAccountBoundary>;
+  return <StudentAccountBoundary>{state => <NotificationBellContent key={state.data?.user?.id ?? "anonymous"} {...props} account={state} />}</StudentAccountBoundary>;
 }
 
 function NotificationBellContent({ variant = "sidebar", account }: NotificationBellProps & { account: StudentAccountState }) {
@@ -111,9 +115,15 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
   const [rows, setRows] = useState<NotificationRow[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
+  const identity = session?.user?.id;
+  const currentIdentity = useRef(identity);
+  currentIdentity.current = identity;
+  const unreadVersion = useRef(0);
+  const historyVersion = useRef(0);
 
   const fetchHistory = useCallback(async () => {
-    if (demo) return;
+    if (demo || !identity) return;
+    const version = ++historyVersion.current, countVersion = ++unreadVersion.current;
     try {
       setLoading(true);
       const res = await fetch("/api/notifications/history?limit=20", {
@@ -121,28 +131,38 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
       });
       if (!res.ok) return;
       const data = (await res.json()) as HistoryResponse;
+      if (identity !== currentIdentity.current || version !== historyVersion.current) return;
       setRows(data.notifications);
-      setUnread(data.unreadCount);
+      if (countVersion === unreadVersion.current) setUnread(data.unreadCount);
     } catch {
       // Silent; the bell is an enhancement.
     } finally {
-      setLoading(false);
+      if (identity === currentIdentity.current && version === historyVersion.current) setLoading(false);
     }
-  }, [demo]);
+  }, [demo, identity]);
 
   const fetchUnreadCount = useCallback(async () => {
-    if (demo) return;
+    if (demo || !identity) return;
+    const version = ++unreadVersion.current;
     try {
       const res = await fetch("/api/notifications/history?countOnly=true", {
         credentials: "include",
       });
       if (!res.ok) return;
       const data = (await res.json()) as HistoryResponse;
+      if (identity !== currentIdentity.current || version !== unreadVersion.current) return;
       setUnread(data.unreadCount);
     } catch {
       // Silent; the bell is an enhancement.
     }
-  }, [demo]);
+  }, [demo, identity]);
+
+  useEffect(() => {
+    if (demo || !identity) return;
+    const refresh = () => { void (open ? fetchHistory() : fetchUnreadCount()); };
+    window.addEventListener(DISCUSSION_COUNTS_CHANGED, refresh);
+    return () => window.removeEventListener(DISCUSSION_COUNTS_CHANGED, refresh);
+  }, [demo, identity, open, fetchHistory, fetchUnreadCount]);
 
   // Fetch only unread count once on initial mount
   useEffect(() => {
@@ -180,17 +200,18 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
 
   const badge = unread > 0 ? (unread > 99 ? "99+" : String(unread)) : null;
 
-  const markRead = async (ids: string[]) => {
-    if (demo) return;
+  const markRead = async (selection: { ids: string[] } | { all: true }) => {
+    if (demo) return false;
     try {
-      await fetch("/api/notifications/read", {
+      const response = await fetch("/api/notifications/read", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ ids }),
+        body: JSON.stringify(selection),
       });
+      return response.ok;
     } catch {
-      // Silent.
+      return false;
     }
   };
 
@@ -203,7 +224,7 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
 
   const handleClickRow = async (row: NotificationRow) => {
     if (!row.read) {
-      void markRead([row.id]);
+      void markRead({ ids: [row.id] });
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, read: true } : r)));
       setUnread((prev) => Math.max(0, prev - 1));
     }
@@ -215,9 +236,7 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
   };
 
   const handleMarkAllRead = async () => {
-    const unreadIds = rows.filter((r) => !r.read).map((r) => r.id);
-    if (unreadIds.length === 0) return;
-    void markRead(unreadIds);
+    if (!unread || !(await markRead({ all: true }))) return;
     setRows((prev) => prev.map((r) => ({ ...r, read: true })));
     setUnread(0);
   };
@@ -225,7 +244,7 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
   const triggerClass =
     variant === "navbar"
       ? "relative inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
-      : "relative inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:text-foreground cursor-pointer";
+      : "relative inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground cursor-pointer";
 
   return (
     <Popover open={open} onOpenChange={handleOpen}>

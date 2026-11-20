@@ -22,6 +22,7 @@ import {
   pengguna,
   quizTemplates,
   reviewFlashcard,
+  soal,
   studentConceptMastery,
   tutorCourses,
   websiteMaterials,
@@ -328,6 +329,7 @@ export async function dualWriteQuizAttempt(
   tx: CompatibilityTx,
   attempt: LegacyQuizAttemptMirror,
   actorId?: string | null,
+  options?: { heldCanonicalRows: readonly (typeof soal.$inferSelect)[] },
 ): Promise<void> {
   if (!isEnabled()) return;
   await requirePengguna(tx, attempt.studentId);
@@ -350,7 +352,7 @@ export async function dualWriteQuizAttempt(
         closeAt: template.closeAt,
         showDiscussion: template.showDiscussion ?? undefined,
         creatorId: actorId ?? null,
-      }, tx as any);
+      }, tx as any, options);
       targetAssessment = { id: template.id };
     } else {
       throw new Error(`Dual-write target assessment is missing for ${attempt.templateId}`);

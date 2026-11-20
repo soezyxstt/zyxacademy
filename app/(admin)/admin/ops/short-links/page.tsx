@@ -146,7 +146,7 @@ export default function ShortLinksPage() {
       </form>
 
       <TooltipProvider>
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="border-y border-border">
           {loading ? (
             <div role="status" aria-label={t("shortLinksUI.loading")} className="divide-y divide-border">{[0, 1, 2, 3].map((row) => <div key={row} className="flex items-center justify-between gap-3 p-3 sm:p-3.5"><div className="min-w-0 flex-1 space-y-1.5"><Skeleton className="h-4 w-40 max-w-full" /><Skeleton className="h-3 w-3/4" /><Skeleton className="h-3 w-24" /></div><div className="flex gap-1"><Skeleton className="size-8" /><Skeleton className="size-8" /></div></div>)}</div>
           ) : loadError ? (

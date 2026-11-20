@@ -10,7 +10,7 @@ import { runSemanticValidators, SemanticViolation } from "./ai/validation";
 import { hashSanitizedInput, hashEvidence, recordGenerationTrace } from "./ai/provenance";
 import type { ProviderInputPart } from "@/lib/ai/provider/provider-adapter";
 import { providerRouterV2Enabled, type ProviderRouteRequest } from "@/lib/ai-router";
-import { RequestLifecycleError } from "@/lib/ai/request-lifecycle";
+import { ProviderNotDispatchedError, RequestLifecycleError, isConfirmedHttpFailure } from "@/lib/ai/request-lifecycle";
 
 export interface SystemPrompt<TVars> {
   version: string;
@@ -24,6 +24,7 @@ export type ExecutionOutcome =
   | 'success'
   | 'rejected'
   | 'quota_exceeded'
+  | 'uncertain'
   | 'provider_failure'
   | 'invalid_contract';
 
@@ -56,6 +57,22 @@ export function promptExecutorOwnsAllowance(allowanceEnabled: boolean, providerR
   return allowanceEnabled && !providerRouterEnabled;
 }
 
+function isAllowanceQuotaFailure(reason?: string): boolean {
+  return ["PER_MINUTE_LIMIT", "TOTAL_INTERACTION_LIMIT", "PROVIDER_TURN_LIMIT", "PROVIDER_TURNS_EXHAUSTED", "PREMIUM_LIMIT"].includes(reason ?? "");
+}
+
+async function commitOwnedAllowance(
+  leaseId: string,
+  metadata: Parameters<typeof UsageBudgetService.commit>[1],
+): Promise<void> {
+  const result = await UsageBudgetService.commit(leaseId, metadata).catch((error) => {
+    throw new RequestLifecycleError("LIFECYCLE_RECONCILIATION_FAILURE", "application allowance commit failed", undefined, error);
+  });
+  if (!result || result.status !== "committed") {
+    throw new RequestLifecycleError("LIFECYCLE_RECONCILIATION_FAILURE", "application allowance commit was rejected");
+  }
+}
+
 export interface PromptExecutionResult<TOutput> {
   success: boolean;
   outcome: ExecutionOutcome;
@@ -82,6 +99,7 @@ export interface RunParams<TVars, TOutput> {
   cacheKey?: string;
   cacheTtlSeconds?: number;
   maxAttempts?: number;
+  singleDispatch?: boolean;
   structuredOutputMode?: "native-only" | "legacy-fallback";
   /** Optional sanitized image parts. They bypass all shared response caches. */
   providerParts?: readonly ProviderInputPart[];
@@ -129,19 +147,27 @@ export class PromptExecutor {
       };
     }
 
-    return await this.executeContract(params.userId, contract, params.variables, params.schema, {
-      quotaLimit: params.quotaLimit,
-      feature: params.feature,
-      evidenceContext: params.evidenceContext,
-      premium: params.premium,
-      idempotencyKey: params.idempotencyKey,
-      cachePolicy: params.cachePolicy,
-      cacheKey: params.cacheKey,
-      cacheTtlSeconds: params.cacheTtlSeconds,
-      structuredOutputMode: params.structuredOutputMode ?? contract.structuredOutputMode,
-      providerParts: params.providerParts,
-      providerRoute: params.providerRoute,
-    });
+    try {
+      return await this.executeContract(params.userId, contract, params.variables, params.schema, {
+        quotaLimit: params.quotaLimit,
+        feature: params.feature,
+        evidenceContext: params.evidenceContext,
+        premium: params.premium,
+        idempotencyKey: params.idempotencyKey,
+        cachePolicy: params.cachePolicy,
+        cacheKey: params.cacheKey,
+        cacheTtlSeconds: params.cacheTtlSeconds,
+        structuredOutputMode: params.structuredOutputMode ?? contract.structuredOutputMode,
+        providerParts: params.providerParts,
+        providerRoute: params.providerRoute,
+        singleDispatch: params.singleDispatch,
+      });
+    } catch (error) {
+      if (params.singleDispatch && error instanceof RequestLifecycleError && error.code === "LIFECYCLE_RECONCILIATION_FAILURE") {
+        return { success: false, outcome: "uncertain", errors: ["AI request requires reconciliation"], violationCodes: ["PROVIDER_OUTCOME_UNCERTAIN"], retryCount: 0 };
+      }
+      throw error;
+    }
   }
 
   /**
@@ -165,6 +191,7 @@ export class PromptExecutor {
       structuredOutputMode?: "native-only" | "legacy-fallback";
       providerParts?: readonly ProviderInputPart[];
       providerRoute?: ProviderRouteRequest;
+      singleDispatch?: boolean;
     }
   ): Promise<PromptExecutionResult<TOutput>> {
     const t0 = Date.now();
@@ -191,6 +218,9 @@ export class PromptExecutor {
 
     // 4. Reserve the authoritative application allowance when enabled.
     const allowanceEnabled = UsageBudgetService.isAllowanceEnabled();
+    if (options?.singleDispatch && (!options.idempotencyKey?.trim() || !allowanceEnabled)) {
+      return { success: false, outcome: "invalid_contract", errors: ["Single dispatch requires an idempotency key and application allowance"], violationCodes: ["SINGLE_DISPATCH_UNAVAILABLE"], retryCount: 0 };
+    }
     const ownsAllowance = promptExecutorOwnsAllowance(allowanceEnabled, providerRouterV2Enabled());
     let allowanceLeaseId: string | undefined;
     if (ownsAllowance) {
@@ -204,9 +234,10 @@ export class PromptExecutor {
       });
       if (!reservation.accepted) {
         const allowanceViolation = `ALLOWANCE_${reservation.reason}`;
-        const quotaError = reservation.reason === "PERSISTENCE_FAILURE"
-          ? "ALLOWANCE_UNAVAILABLE: AI allowance persistence is unavailable."
-          : "DAILY_QUOTA_EXCEEDED: You have exhausted your current AI allowance.";
+        const quotaFailure = isAllowanceQuotaFailure(reservation.reason);
+        const quotaError = quotaFailure
+          ? "DAILY_QUOTA_EXCEEDED: You have exhausted your current AI allowance."
+          : "ALLOWANCE_UNAVAILABLE: AI allowance could not be reserved.";
         const traceId = await recordGenerationTrace({
           userId,
           useCase: contract.useCase,
@@ -222,17 +253,29 @@ export class PromptExecutor {
           inputTokens: 0,
           outputTokens: 0,
           retryCount: 0,
-          terminalOutcome: "quota_exceeded",
+          terminalOutcome: quotaFailure ? "quota_exceeded" : "provider_failure",
           violationCodes: [allowanceViolation],
           latencyMs: Date.now() - t0,
         });
         return {
           success: false,
-          outcome: "quota_exceeded",
+          outcome: quotaFailure ? "quota_exceeded" : "provider_failure",
           errors: [quotaError],
           violationCodes: [allowanceViolation],
           retryCount: 0,
           traceId,
+        };
+      }
+      if (reservation.idempotent || reservation.lease.status !== "reserved") {
+        const code = reservation.lease.status === "reserved" || reservation.lease.status === "dispatched"
+          ? "IDEMPOTENCY_IN_PROGRESS"
+          : "IDEMPOTENCY_REPLAY_UNAVAILABLE";
+        return {
+          success: false,
+          outcome: options?.singleDispatch ? "uncertain" : "provider_failure",
+          errors: ["AI request has already been submitted"],
+          violationCodes: [code],
+          retryCount: 0,
         };
       }
       allowanceLeaseId = reservation.lease.id;
@@ -298,20 +341,19 @@ export class PromptExecutor {
     let outputTokens = 0;
 
     // 5. Initial AI Router Execution
-    try {
-      if (allowanceLeaseId) {
-        const dispatch = await UsageBudgetService.markDispatched(allowanceLeaseId);
-        if (!dispatch || dispatch.status !== "dispatched") {
-          await UsageBudgetService.refund(allowanceLeaseId);
-          return {
-            success: false,
-            outcome: "provider_failure",
-            errors: ["AI allowance dispatch could not be persisted"],
-            violationCodes: ["ALLOWANCE_DISPATCH_FAILURE"],
-            retryCount: 0,
-          };
-        }
+    if (allowanceLeaseId) {
+      const dispatch = await UsageBudgetService.markDispatched(allowanceLeaseId).catch(() => null);
+      if (!dispatch || dispatch.status !== "dispatched" || !dispatch.changed) {
+        return {
+          success: false,
+          outcome: options?.singleDispatch ? "uncertain" : "provider_failure",
+          errors: ["AI allowance dispatch could not be persisted"],
+          violationCodes: ["ALLOWANCE_DISPATCH_FAILURE"],
+          retryCount: 0,
+        };
       }
+    }
+    try {
       const providerContents = options?.providerParts && options.providerParts.length > 0
         ? [
             { text: userInstruction },
@@ -328,9 +370,10 @@ export class PromptExecutor {
         requestId: options?.idempotencyKey,
         feature: effectiveFeature,
         route: options?.providerRoute ?? (options?.providerParts?.length ? { multimodal: true, visualMode: true } : undefined),
-        cachePolicy: options?.providerParts?.length ? "bypass" : options?.cachePolicy,
-        cacheKey: options?.providerParts?.length ? undefined : options?.cacheKey,
-        cacheTtlSeconds: options?.providerParts?.length ? undefined : options?.cacheTtlSeconds,
+        cachePolicy: options?.singleDispatch || options?.providerParts?.length ? "bypass" : options?.cachePolicy,
+        cacheKey: options?.singleDispatch || options?.providerParts?.length ? undefined : options?.cacheKey,
+        cacheTtlSeconds: options?.singleDispatch || options?.providerParts?.length ? undefined : options?.cacheTtlSeconds,
+        singleDispatch: options?.singleDispatch,
       });
 
       modelUsedName = result.modelUsed;
@@ -338,12 +381,28 @@ export class PromptExecutor {
       inputTokens = result.promptTokenCount ?? 0;
       outputTokens = result.candidatesTokenCount ?? 0;
     } catch (err: any) {
-      if (allowanceLeaseId) {
-        await UsageBudgetService.commit(allowanceLeaseId, { model: "unknown" });
+      const providerNotDispatched = err instanceof ProviderNotDispatchedError;
+      const confirmedLegacyFailure = !!allowanceLeaseId && !options?.singleDispatch && isConfirmedHttpFailure(err);
+      if (allowanceLeaseId && (providerNotDispatched || confirmedLegacyFailure)) {
+        const refund = await UsageBudgetService.refund(allowanceLeaseId).catch(() => null);
+        if (!refund || refund.status !== "refunded") {
+          throw new RequestLifecycleError("LIFECYCLE_RECONCILIATION_FAILURE", "allowance failure settlement failed");
+        }
       }
-      const lifecycleQuotaFailure = err instanceof RequestLifecycleError && err.code === "ALLOWANCE_REJECTED";
-      const lifecycleReason = lifecycleQuotaFailure ? err.reason ?? "UNKNOWN" : null;
-      const providerError = `Gemini generation failed: ${err?.message || err}`;
+      const lifecycleAllowanceFailure = err instanceof RequestLifecycleError && err.code === "ALLOWANCE_REJECTED";
+      const lifecycleReason = lifecycleAllowanceFailure ? err.reason ?? "UNKNOWN" : null;
+      const lifecycleQuotaFailure = lifecycleAllowanceFailure && isAllowanceQuotaFailure(lifecycleReason ?? undefined);
+      const uncertain = !providerNotDispatched && !lifecycleAllowanceFailure && (
+        (!!allowanceLeaseId && !confirmedLegacyFailure) ||
+        (err instanceof RequestLifecycleError && ["PROVIDER_OUTCOME_UNCERTAIN", "LIFECYCLE_RECONCILIATION_FAILURE", "IDEMPOTENCY_IN_PROGRESS", "IDEMPOTENCY_REPLAY_UNAVAILABLE"].includes(err.code)) ||
+        (options?.singleDispatch && (!(err instanceof RequestLifecycleError) || ["LIFECYCLE_RECONCILIATION_FAILURE", "IDEMPOTENCY_IN_PROGRESS", "IDEMPOTENCY_REPLAY_UNAVAILABLE"].includes(err.code)))
+      );
+      const failureCode = uncertain ? "PROVIDER_OUTCOME_UNCERTAIN" : lifecycleAllowanceFailure ? `ALLOWANCE_${lifecycleReason}` : err instanceof RequestLifecycleError ? err.code : "PROVIDER_ERROR";
+      const providerError = uncertain
+        ? "Provider outcome requires reconciliation"
+        : lifecycleAllowanceFailure
+        ? "AI allowance could not be reserved"
+        : `Gemini generation failed: ${err?.message || err}`;
       const traceId = await recordGenerationTrace({
         userId,
         useCase: contract.useCase,
@@ -360,17 +419,17 @@ export class PromptExecutor {
         outputTokens: 0,
         retryCount: 0,
         terminalOutcome: lifecycleQuotaFailure ? "quota_exceeded" : "provider_failure",
-        violationCodes: [lifecycleQuotaFailure ? `ALLOWANCE_${lifecycleReason}` : "PROVIDER_ERROR"],
+        violationCodes: [failureCode],
         latencyMs: Date.now() - t0,
       });
 
       return {
         success: false,
-        outcome: lifecycleQuotaFailure ? "quota_exceeded" : "provider_failure",
+        outcome: lifecycleQuotaFailure ? "quota_exceeded" : uncertain ? "uncertain" : "provider_failure",
         errors: [lifecycleQuotaFailure
           ? "DAILY_QUOTA_EXCEEDED: You have exhausted your current AI allowance."
           : providerError],
-        violationCodes: [lifecycleQuotaFailure ? `ALLOWANCE_${lifecycleReason}` : "PROVIDER_ERROR"],
+        violationCodes: [failureCode],
         retryCount: 0,
         traceId,
       };
@@ -378,7 +437,7 @@ export class PromptExecutor {
 
     if (!rawText.trim()) {
       if (allowanceLeaseId) {
-        await UsageBudgetService.commit(allowanceLeaseId, {
+        await commitOwnedAllowance(allowanceLeaseId, {
           model: modelUsedName,
           inputTokens,
           outputTokens,
@@ -494,12 +553,12 @@ export class PromptExecutor {
     // 7. Check if Initial Output is Valid
     if (errors.length === 0 && zodData !== undefined) {
       if (allowanceLeaseId) {
-        await UsageBudgetService.commit(allowanceLeaseId, {
+        await commitOwnedAllowance(allowanceLeaseId, {
           model: modelUsedName,
           inputTokens,
           outputTokens,
         });
-      } else {
+      } else if (!allowanceEnabled) {
         await UsageBudgetService.recordUsage({
           userId,
           feature: effectiveFeature,
@@ -546,12 +605,12 @@ export class PromptExecutor {
     // second provider request for structured-output repair under that same
     // request, because the repair path has its own lifecycle entry point.
     const isFreeAllowanceRequest = options?.idempotencyKey?.startsWith(FREE_ALLOWANCE_IDEMPOTENCY_PREFIX) === true;
-    const maxRepairs = isFreeAllowanceRequest
+    const maxRepairs = options?.singleDispatch || isFreeAllowanceRequest
       ? 0
       : contract.maxAttempts !== undefined ? Math.max(0, contract.maxAttempts - 1) : 1;
     if (maxRepairs <= 0) {
       if (allowanceLeaseId) {
-        await UsageBudgetService.commit(allowanceLeaseId, {
+        await commitOwnedAllowance(allowanceLeaseId, {
           model: modelUsedName,
           inputTokens,
           outputTokens,
@@ -609,6 +668,7 @@ export class PromptExecutor {
       t0,
       evidenceContext: options?.evidenceContext,
       allowanceLeaseId,
+      legacyUsage: !allowanceEnabled,
     });
   }
 
@@ -637,11 +697,12 @@ export class PromptExecutor {
     t0: number;
     evidenceContext?: Record<string, any>;
     allowanceLeaseId?: string;
+    legacyUsage: boolean;
   }): Promise<PromptExecutionResult<TOutput>> {
     const repairableFields = params.contract.repairableFields;
     if (repairableFields !== undefined && repairableFields.length === 0) {
       if (params.allowanceLeaseId) {
-        await UsageBudgetService.commit(params.allowanceLeaseId, {
+        await commitOwnedAllowance(params.allowanceLeaseId, {
           model: params.originalModel,
           inputTokens: params.initialInputTokens,
           outputTokens: params.initialOutputTokens,
@@ -718,10 +779,14 @@ Instructions:
       repairOutputTokens = result.candidatesTokenCount ?? 0;
     } catch (err: any) {
       const repairErr = `Gemini repair generation failed: ${err?.message || err}`;
+      const uncertain = err instanceof RequestLifecycleError
+        ? ["PROVIDER_OUTCOME_UNCERTAIN", "LIFECYCLE_RECONCILIATION_FAILURE", "IDEMPOTENCY_IN_PROGRESS", "IDEMPOTENCY_REPLAY_UNAVAILABLE"].includes(err.code)
+        : !(err instanceof ProviderNotDispatchedError) && !isConfirmedHttpFailure(err);
+      const failureCode = uncertain ? "PROVIDER_OUTCOME_UNCERTAIN" : "PROVIDER_ERROR";
       const cumulativeInputTokens = params.initialInputTokens + repairInputTokens;
       const cumulativeOutputTokens = params.initialOutputTokens + repairOutputTokens;
       if (params.allowanceLeaseId) {
-        await UsageBudgetService.commit(params.allowanceLeaseId, {
+        await commitOwnedAllowance(params.allowanceLeaseId, {
           model: repairModelUsed,
           inputTokens: cumulativeInputTokens,
           outputTokens: cumulativeOutputTokens,
@@ -745,15 +810,15 @@ Instructions:
         outputTokens: cumulativeOutputTokens,
         retryCount: 1,
         terminalOutcome: "provider_failure",
-        violationCodes: [...params.initialViolationCodes, "PROVIDER_ERROR"],
+        violationCodes: [...params.initialViolationCodes, failureCode],
         latencyMs: Date.now() - params.t0,
       });
 
       return {
         success: false,
-        outcome: "provider_failure",
+        outcome: uncertain ? "uncertain" : "provider_failure",
         errors: [...params.initialErrors, repairErr],
-        violationCodes: [...params.initialViolationCodes, "PROVIDER_ERROR"],
+        violationCodes: [...params.initialViolationCodes, failureCode],
         retryCount: 1,
         traceId,
       };
@@ -861,13 +926,13 @@ Instructions:
 
     if (repairedData !== undefined && repairErrors.length === 0) {
       if (params.allowanceLeaseId) {
-        await UsageBudgetService.commit(params.allowanceLeaseId, {
+        await commitOwnedAllowance(params.allowanceLeaseId, {
           model: repairModelUsed,
           inputTokens: cumulativeInputTokens,
           outputTokens: cumulativeOutputTokens,
           requestType: `${params.contract.stageId}:${params.contract.promptVersion}:repaired`,
         });
-      } else {
+      } else if (params.legacyUsage) {
         await UsageBudgetService.recordUsage({
           userId: params.userId,
           feature: params.feature,
@@ -912,7 +977,7 @@ Instructions:
     // Terminal rejection after repair attempt
     const finalViolationCodes = [...new Set([...params.initialViolationCodes, ...repairViolationCodes])];
     if (params.allowanceLeaseId) {
-      await UsageBudgetService.commit(params.allowanceLeaseId, {
+      await commitOwnedAllowance(params.allowanceLeaseId, {
         model: repairModelUsed,
         inputTokens: cumulativeInputTokens,
         outputTokens: cumulativeOutputTokens,

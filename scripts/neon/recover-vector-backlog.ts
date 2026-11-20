@@ -1,3 +1,4 @@
+import { expectedComputeFunctionCount } from "./worker-function-count.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
@@ -132,7 +133,7 @@ async function main() {
     assert.equal(health.status, 200);
     const identity = await health.json();
     assert.equal(identity.version, config.ZYX_COMPUTE_REVISION);
-    assert.equal(identity.functions, 22);
+    assert.equal(identity.functions, expectedComputeFunctionCount);
     const snapshotExists = await storage.exists(key("snapshot.json"));
     if (phase === "plan") {
       assert.equal(snapshotExists, false, "RECOVERY_SNAPSHOT_ALREADY_EXISTS");

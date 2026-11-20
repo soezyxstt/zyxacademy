@@ -21,7 +21,7 @@ export default async function StudentSchedulePage({ searchParams }: { searchPara
   return (
     <Suspense
       fallback={
-        <ApplicationPage spacing="space-y-4">
+        <ApplicationPage spacing="space-y-(--related-gap)">
           <PageHeader icon={CalendarDays} title={<TranslatedText namespace="student" messageKey="schedule.title" />} />
           <ScheduleCalendarSkeleton />
         </ApplicationPage>

@@ -24,9 +24,9 @@ const highlight = HighlightStyle.define([
 ]);
 
 const theme = EditorView.theme({
-  "&": { color: "var(--foreground)", backgroundColor: "var(--background)", fontSize: "14px", height: "100%", maxHeight: "var(--python-editor-max-height, 400px)" },
+  "&": { color: "var(--foreground)", backgroundColor: "var(--background)", fontSize: "inherit", height: "100%", maxHeight: "var(--python-editor-max-height, 400px)" },
   "&.cm-focused": { outline: "none" },
-  ".cm-scroller": { overflowY: "auto", overflowX: "hidden", fontFamily: "var(--font-mono, ui-monospace, monospace)", lineHeight: "1.6" },
+  ".cm-scroller": { overflowY: "auto", overflowX: "hidden", fontFamily: "var(--font-mono, ui-monospace, monospace)", lineHeight: "inherit" },
   ".cm-content": { minHeight: "220px", padding: "12px 0", caretColor: "var(--foreground)" },
   ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--foreground)" },
   ".cm-gutters": { backgroundColor: "var(--background)", color: "var(--code-gutter)", border: "none" },
@@ -90,7 +90,7 @@ export function PythonEditor({ value, onChange, label = "Kode Python", className
     if (editor && value !== editor.state.doc.toString()) editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value } });
   }, [value]);
   return <>
-    <div ref={host} className={cn("min-w-0 max-h-[var(--python-editor-max-height,400px)] overflow-hidden rounded-lg border border-border transition-colors focus-within:border-ring", className)} />
+    <div ref={host} className={cn("min-w-0 max-h-[var(--python-editor-max-height,400px)] overflow-hidden rounded-lg border border-border text-code transition-colors focus-within:border-ring", className)} />
     {selection && onExplainSelection && <div data-slot="python-selection-actions" role="toolbar" aria-label="Pilihan kode" className="fixed z-50 flex items-center gap-1 rounded-lg border border-border bg-card p-1 shadow-lg max-md:inset-x-4 max-md:bottom-[max(1rem,env(safe-area-inset-bottom))]" style={typeof window !== "undefined" && window.innerWidth >= 768 ? { top: Math.max(8, selection.top - 44), left: Math.max(8, Math.min(selection.left, window.innerWidth - 190)) } : undefined}>
       <Button type="button" size="sm" className="max-md:min-h-11 max-md:flex-1" onPointerDown={event => event.preventDefault()} onClick={() => { onExplainSelection(selection.text); setSelection(null); }}>Jelaskan pilihan</Button>
       <Button type="button" variant="ghost" size="icon" aria-label="Tutup pilihan kode" onPointerDown={event => event.preventDefault()} onClick={() => setSelection(null)}><X className="size-4" /></Button>

@@ -7,6 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Flag, Timer, BookOpen, AlertCircle, FileText, Trash2, ArrowLeft, ArrowRight, UploadCloud } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
@@ -67,6 +69,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [questionMapOpen, setQuestionMapOpen] = useState(false);
 
   // Real Cloudflare R2 upload for essay attachments
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -250,6 +253,93 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
 
   if (submitted) return null;
 
+  const renderQuestionMap = (onSelect?: () => void) => (
+    <div className="space-y-3">
+      {/* Grid buttons */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(2.5rem,1fr))] gap-2 lg:grid-cols-5">
+        {sorted.map((question, idx) => {
+          const active = index === idx;
+          const isDone = isQuestionAnswered(question);
+          const isFlagged = !!flags[question.id];
+
+          return (
+            <button
+              key={question.id}
+              type="button"
+              aria-current={active ? "step" : undefined}
+              aria-label={`${t("tryout.questionNavigation")} ${idx + 1}, ${t(isFlagged ? "tryout.unsure" : isDone ? "tryout.answered" : "tryout.unanswered")}`}
+              onClick={() => {
+                setIndex(idx);
+                onSelect?.();
+              }}
+              className={cn(
+                "flex size-10 items-center justify-center rounded-xl font-heading font-bold text-body-sm transition-colors border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                active
+                  ? "border-brand-primary ring-2 ring-brand-primary/20"
+                  : "border-transparent",
+                isFlagged
+                  ? "bg-brand-secondary/15 text-brand-secondary border-brand-secondary/60 hover:bg-brand-secondary/25"
+                  : isDone
+                  ? "bg-tertiary-1/15 text-tertiary-1 border-tertiary-1/50 hover:bg-tertiary-1/25"
+                  : "bg-muted/40 text-muted-foreground border-border/50 hover:bg-muted/80"
+              )}
+            >
+              {idx + 1}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Indicators Legend */}
+      <div className="border-t border-border pt-4 space-y-2 text-body-xs">
+        <span className="font-semibold text-foreground block">{t("tryout.legend")}</span>
+        <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <span className="size-3 rounded bg-muted/40 border border-border/50 shrink-0" />
+            <span>{t("tryout.unanswered")}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="size-3 rounded bg-tertiary-1/15 border border-tertiary-1/50 shrink-0" />
+            <span>{t("tryout.answered")}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="size-3 rounded bg-brand-secondary/15 border border-brand-secondary/60 shrink-0" />
+            <span>{t("tryout.unsure")}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="size-3 rounded border-2 border-brand-primary shrink-0" />
+            <span>{t("tryout.active")}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const mobileQuestionMap = (
+    <Sheet open={questionMapOpen} onOpenChange={setQuestionMapOpen}>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <SheetTrigger asChild>
+              <Button type="button" size="icon-lg" variant="outline" className="shrink-0 lg:hidden" aria-label={t("tryout.questionNavigation")}>
+                <BookOpen aria-hidden />
+              </Button>
+            </SheetTrigger>
+          </TooltipTrigger>
+          <TooltipContent>{t("tryout.questionNavigation")}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <SheetContent side="bottom" className="max-h-[75dvh] gap-0 rounded-t-xl" aria-describedby={undefined}>
+        <SheetHeader className="pr-14">
+          <SheetTitle>{t("tryout.questionNavigation")}</SheetTitle>
+        </SheetHeader>
+        <div className="min-h-0 overflow-y-auto px-4 pb-4">
+          {renderQuestionMap(() => setQuestionMapOpen(false))}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start font-sans">
       
@@ -257,9 +347,9 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
       <div className="lg:col-span-8 space-y-4">
         
         {/* Progress Tracker Bar */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex-1 space-y-1.5">
-            <div className="flex items-center justify-between text-body-xs font-semibold text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0 flex-1 basis-36 space-y-1.5">
+            <div className="flex items-center justify-between gap-2 text-body-xs font-semibold text-muted-foreground">
               <span>{t("tryout.examSimulation")}</span>
               <span>{t("tryout.questionProgress", { current: index + 1, total: sorted.length })}</span>
             </div>
@@ -272,15 +362,17 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
           </div>
 
           <div className="shrink-0 flex items-center gap-1.5 bg-brand-secondary/10 border border-brand-secondary/35 text-brand-secondary px-3.5 py-1.5 rounded-xl font-mono text-body-sm font-bold">
-            <Timer className="size-4 animate-pulse" />
+            <Timer aria-hidden className="size-4" />
+            <span className="sr-only">{t("tryout.timeRemaining")} </span>
             <span>{formatTime(timeLeft)}</span>
           </div>
+          {mobileQuestionMap}
         </div>
 
         {/* Card for Active Question */}
         <div
           className={cn(
-            "rounded-xl border border-border bg-card p-4 relative",
+            "relative min-w-0",
             "motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300",
             currentFlagged && "ring-1 ring-brand-secondary/35 border-brand-secondary/40"
           )}
@@ -290,14 +382,14 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
             <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-body-sm font-bold text-primary-foreground shadow-xs">
               {index + 1}
             </span>
-            <div className="min-w-0 flex-1 font-sans text-body-base leading-relaxed text-foreground">
-              <InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "prompt" }}><MarkdownRenderer content={q.prompt} className="space-y-3" /></InteractiveDocumentTryout>
+            <div className="min-w-0 flex-1 font-sans text-body-base text-foreground">
+              <InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "prompt" }}><MarkdownRenderer content={q.prompt} /></InteractiveDocumentTryout>
             </div>
           </div>
 
           {/* RENDER A: Pilihan Ganda (Single Choice) */}
           {q.type === "multiple_choice" && ans.type === "multiple_choice" ? (
-            <fieldset className="mt-4 space-y-2">
+            <fieldset className="mt-5 space-y-2">
               <legend className="sr-only">{t("tryout.chooseOne")}</legend>
               <RadioGroup aria-label={t("tryout.chooseOne")} value={ans.index === null ? "" : String(ans.index)} onValueChange={(value) => setAnswerFor(q.id, { type: "multiple_choice", index: Number(value) })}>
               {q.options.map((opt, i) => {
@@ -310,7 +402,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
                       setAnswerFor(q.id, { type: "multiple_choice", index: i });
                     }}
                     className={cn(
-                      "flex cursor-pointer items-start gap-3.5 rounded-lg border px-3 py-2.5 transition-all duration-200",
+                      "flex cursor-pointer min-h-11 items-start gap-3 rounded-lg border px-3 py-3 transition-all duration-200",
                       selected
                         ? "border-brand-primary bg-brand-primary/10 shadow-sm"
                         : "border-border/70 bg-muted/10 hover:border-brand-primary/45"
@@ -320,7 +412,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
                     <span id={`tryout-letter-${q.id}-${i}`} className="text-body-sm font-semibold text-foreground mr-1">
                       {String.fromCharCode(65 + i)}.
                     </span>
-                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 break-words text-body-sm text-foreground leading-normal"><InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "option", option: i }}><MarkdownRenderer content={opt} density="compact" /></InteractiveDocumentTryout></div>
+                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 wrap-break-word text-foreground"><InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "option", option: i }}><MarkdownRenderer content={opt} density="compact" /></InteractiveDocumentTryout></div>
                   </div>
                 );
               })}
@@ -330,7 +422,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
 
           {/* RENDER B: Pilihan Ganda Kompleks (Multi Select) */}
           {q.type === "multiple_choices" && ans.type === "multiple_choices" ? (
-            <fieldset className="mt-4 space-y-2">
+            <fieldset className="mt-5 space-y-2">
               <legend className="sr-only">{t("tryout.chooseAll")}</legend>
               {q.options.map((opt, i) => {
                 const checked = ans.indices.includes(i);
@@ -343,7 +435,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
                       setAnswerFor(q.id, { type: "multiple_choices", indices });
                     }}
                     className={cn(
-                      "flex cursor-pointer items-start gap-3.5 rounded-lg border px-3 py-2.5 transition-all duration-200",
+                      "flex cursor-pointer min-h-11 items-start gap-3 rounded-lg border px-3 py-3 transition-all duration-200",
                       checked
                         ? "border-tertiary-1 bg-tertiary-1/10 shadow-sm"
                         : "border-border/70 bg-muted/10 hover:border-tertiary-1/45"
@@ -363,7 +455,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
                     <span id={`tryout-letter-${q.id}-${i}`} className="text-body-sm font-semibold text-foreground mr-1">
                       {String.fromCharCode(65 + i)}.
                     </span>
-                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 break-words text-body-sm text-foreground leading-normal"><InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "option", option: i }}><MarkdownRenderer content={opt} density="compact" /></InteractiveDocumentTryout></div>
+                    <div id={`tryout-option-${q.id}-${i}`} className="min-w-0 flex-1 wrap-break-word text-foreground"><InteractiveDocumentTryout value={transport ? null : { courseId: visualCourseId, examId: exam.id, questionId: q.id, field: "option", option: i }}><MarkdownRenderer content={opt} density="compact" /></InteractiveDocumentTryout></div>
                   </div>
                 );
               })}
@@ -487,25 +579,28 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
           <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
         </div>
 
-        {/* Back and Forth Control buttons */}
+        <TooltipProvider>
         <div className="flex flex-wrap items-center justify-between gap-2">
+          <Tooltip><TooltipTrigger asChild>
           <Button
             type="button"
-            variant="outline"
-            className="gap-1 border-border/80"
+            variant="ghost"
+            size="icon-lg"
+            aria-label={t("tryout.previous")}
             onClick={goPrev}
             disabled={index === 0}
           >
-            <ArrowLeft className="size-4" />
-            {t("tryout.previous")}
+            <ArrowLeft aria-hidden />
           </Button>
+          </TooltipTrigger><TooltipContent>{t("tryout.previous")}</TooltipContent></Tooltip>
 
           <div className="flex gap-2">
             {index < sorted.length - 1 ? (
-              <Button type="button" className="gap-1 bg-foreground text-background hover:bg-foreground/90 px-6" onClick={goNext}>
-                {t("tryout.next")}
-                <ArrowRight className="size-4" />
-              </Button>
+              <Tooltip><TooltipTrigger asChild>
+                <Button type="button" size="icon-lg" aria-label={t("tryout.next")} onClick={goNext}>
+                  <ArrowRight aria-hidden />
+                </Button>
+              </TooltipTrigger><TooltipContent>{t("tryout.next")}</TooltipContent></Tooltip>
             ) : (
               <Button
                 type="button"
@@ -518,6 +613,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
             )}
           </div>
         </div>
+        </TooltipProvider>
 
       </div>
 
@@ -525,68 +621,15 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
       <div className="lg:col-span-4 space-y-4">
         
         {/* Navigation grid panel */}
-        <div className="rounded-xl border border-border bg-card p-4 space-y-4">
-          <div>
+        <div className="space-y-4">
+          <div className="hidden border-t border-border pt-3 lg:block">
             <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
               <BookOpen className="size-4 text-brand-primary" />
               {t("tryout.questionNavigation")}
             </h3>
           </div>
 
-          {/* Grid buttons */}
-          <div className="grid grid-cols-5 gap-2.5">
-            {sorted.map((question, idx) => {
-              const active = index === idx;
-              const isDone = isQuestionAnswered(question);
-              const isFlagged = !!flags[question.id];
-
-              return (
-                <button
-                  key={question.id}
-                  type="button"
-                  aria-current={active ? "step" : undefined}
-                  aria-label={`${t("tryout.questionNavigation")} ${idx + 1}`}
-                  onClick={() => setIndex(idx)}
-                  className={cn(
-                    "flex size-10 items-center justify-center rounded-xl font-heading font-bold text-body-xs transition-all border-2",
-                    active
-                      ? "border-brand-primary ring-2 ring-brand-primary/20"
-                      : "border-transparent",
-                    isFlagged
-                      ? "bg-brand-secondary/15 text-brand-secondary border-brand-secondary/60 hover:bg-brand-secondary/25"
-                      : isDone
-                      ? "bg-tertiary-1/15 text-tertiary-1 border-tertiary-1/50 hover:bg-tertiary-1/25"
-                      : "bg-muted/40 text-muted-foreground border-border/50 hover:bg-muted/80"
-                  )}
-                >
-                  {idx + 1}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Indicators Legend */}
-          <div className="border-t border-border pt-4 space-y-2 text-body-xs">
-            <span className="font-semibold text-foreground block">{t("tryout.legend")}</span>
-            <div className="grid grid-cols-2 gap-2 text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <span className="size-3 rounded bg-muted/40 border border-border/50 shrink-0" />
-                <span>{t("tryout.unanswered")}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-3 rounded bg-tertiary-1/15 border border-tertiary-1/50 shrink-0" />
-                <span>{t("tryout.answered")}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-3 rounded bg-brand-secondary/15 border border-brand-secondary/60 shrink-0" />
-                <span>{t("tryout.unsure")}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-3 rounded border-2 border-brand-primary shrink-0" />
-                <span>{t("tryout.active")}</span>
-              </div>
-            </div>
-          </div>
+          <div className="hidden lg:block">{renderQuestionMap()}</div>
 
           {/* Sidebar Submit shortcut */}
           <div className="border-t border-border pt-3">

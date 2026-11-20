@@ -1,0 +1,3 @@
+ALTER TABLE "discussion_channel_preferences" ADD COLUMN "read_revision" bigint DEFAULT 0 NOT NULL;--> statement-breakpoint
+CREATE INDEX "idx_notifications_user_type_read_thread" ON "notifications" USING btree ("user_id","type","read",("metadata"->>'threadId')) WHERE "notifications"."metadata"->>'threadId' is not null;--> statement-breakpoint
+ALTER TABLE "discussion_channel_preferences" ADD CONSTRAINT "discussion_channel_preferences_read_revision_check" CHECK ("discussion_channel_preferences"."read_revision" >= 0);

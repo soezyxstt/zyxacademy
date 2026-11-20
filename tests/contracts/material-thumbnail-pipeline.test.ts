@@ -1,16 +1,64 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { QueryObserver } from "@tanstack/react-query";
 import { createMaterialCoverSvg, wrapCoverTitle } from "@/lib/material-cover";
+import { createQueryClient } from "@/lib/query/client";
+import { studentCourseQuery } from "@/lib/student/navigation-query";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("student sidebar course context", () => {
   test("route context switches the sidebar before course metadata resolves", () => {
     const sidebar = source("components/student-sidebar.tsx");
+    const data = source("hooks/use-student-sidebar-data.ts");
+    expect(sidebar).toContain('const activeCourseId = courseIdFromPath ?? (pathname === "/dashboard/schedule" ? courseIdFromSchedule : undefined)');
     expect(sidebar).toContain("if (activeCourseId)");
-    expect(sidebar).toContain("activeCourse && activeCourse.userId === userId && activeCourse.course.id === activeCourseId");
+    expect(sidebar).toContain("useStudentSidebarData({ userId, activeCourseId, pathname, enabled: !demo })");
+    expect(data).toContain('studentCourseQuery(userId ?? "", activeCourseId ?? "")');
+    expect(data).toContain("courses.find(course => course.id === activeCourseId)");
     expect(sidebar).toContain("const base = `/courses/${activeCourseId}`");
     expect(sidebar).not.toContain("if (activeCourse) {");
+    expect(sidebar).not.toContain("if (activeCourseMetadata) {");
+  });
+
+  test("course metadata never carries over to a different course or account while loading", async () => {
+    const originalFetch = globalThis.fetch;
+    const client = createQueryClient();
+    const first = studentCourseQuery("student-a", "course-a");
+    const second = studentCourseQuery("student-a", "course-b");
+    const otherAccount = studentCourseQuery("student-b", "course-b");
+    expect(first.queryKey).not.toEqual(second.queryKey);
+    expect(second.queryKey).not.toEqual(otherAccount.queryKey);
+    const calls: Array<{ courseId: string | null; userId: string | null }> = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const courseId = new URL(String(input), "http://localhost").searchParams.get("courseId");
+      const userId = new Headers(init?.headers).get("x-student-id");
+      calls.push({ courseId, userId });
+      return Response.json({ id: courseId, title: `${userId}:${courseId}` });
+    }) as unknown as typeof fetch;
+    client.setQueryData(first.queryKey, () => ({ id: "course-a", title: "Course A" }));
+    const observer = new QueryObserver(client, first);
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      expect(observer.getCurrentResult().data?.title).toBe("Course A");
+      observer.setOptions(second);
+      expect(observer.getCurrentResult().isPending).toBe(true);
+      expect(observer.getCurrentResult().data).toBeUndefined();
+      expect((await observer.refetch()).data).toEqual({ id: "course-b", title: "student-a:course-b" });
+
+      observer.setOptions(otherAccount);
+      expect(observer.getCurrentResult().isPending).toBe(true);
+      expect(observer.getCurrentResult().data).toBeUndefined();
+      expect((await observer.refetch()).data).toEqual({ id: "course-b", title: "student-b:course-b" });
+      expect(calls).toEqual([
+        { courseId: "course-b", userId: "student-a" },
+        { courseId: "course-b", userId: "student-b" },
+      ]);
+    } finally {
+      unsubscribe();
+      client.clear();
+      globalThis.fetch = originalFetch;
+    }
   });
 });
 

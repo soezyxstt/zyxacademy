@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { StudentAccountBoundary } from "@/components/student-account-boundary";
+import { useQuizAnalytics } from "@/hooks/use-quiz-analytics";
+import { ApiError } from "@/lib/query/http";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { ComputedQuizMetrics, StudentQuizDiagnosis } from "@/lib/student-quiz-analytics/types";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { QuizAnalyticsData } from "@/lib/quiz/analytics-client";
+export type { QuizAnalyticsData } from "@/lib/quiz/analytics-client";
 import {
   BookOpen,
   Brain,
@@ -26,7 +30,6 @@ import { useTranslations } from "@/lib/i18n/client";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
 
-export type QuizAnalyticsData = { status: string; computedMetrics?: ComputedQuizMetrics; aiDiagnosis?: StudentQuizDiagnosis; errorMessage?: string };
 
 interface QuizAnalyticsViewProps {
   initialData?: QuizAnalyticsData;
@@ -35,65 +38,86 @@ interface QuizAnalyticsViewProps {
 }
 
 export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnalyticsViewProps) {
+  if (initialData) return <QuizAnalyticsContent courseId={courseId} data={initialData} loading={false} recomputing={false} fetchAnalytics={() => {}} handleRecompute={() => {}} />;
+  return <StudentAccountBoundary>{({ data }) => data?.user
+    ? <LiveQuizAnalytics key={`${data.user.id}:${attemptId}`} userId={data.user.id} attemptId={attemptId} courseId={courseId} />
+    : <div className="h-40 animate-pulse rounded-xl bg-muted" aria-busy="true" />}
+  </StudentAccountBoundary>;
+}
+
+function LiveQuizAnalytics({ userId, attemptId, courseId }: { userId: string; attemptId: string; courseId: string }) {
+  const { query, recompute } = useQuizAnalytics(userId, attemptId);
+  const accessDenied = [query.error, recompute.error].some((error) => error instanceof ApiError && [401, 403, 404, 409].includes(error.status));
+  return <QuizAnalyticsContent
+    courseId={courseId} data={accessDenied ? undefined : query.data} loading={query.isPending} recomputing={recompute.isPending}
+    error={Boolean(query.error || recompute.error)}
+    fetchAnalytics={() => {
+      void query.refetch().then((result) => { if (result.isSuccess) recompute.reset(); });
+    }}
+    handleRecompute={() => recompute.mutate()}
+  />;
+}
+
+function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fetchAnalytics, handleRecompute }: {
+  courseId: string;
+  data?: QuizAnalyticsData;
+  loading: boolean;
+  recomputing: boolean;
+  error?: boolean;
+  fetchAnalytics: () => void;
+  handleRecompute: () => void;
+}) {
   const t = useTranslations("studentCourse");
   const experience = useStudentExperience();
   const href = (path: string) => experience.href?.(path) ?? path;
-  const [data, setData] = useState<QuizAnalyticsData | null>(initialData ?? null);
-  const [loading, setLoading] = useState(true);
-  const [recomputing, setRecomputing] = useState(false);
 
-  const fetchAnalytics = useCallback(async () => {
-    try {
-      if (initialData) { setData(initialData); return; }
-      setLoading(true);
-      const res = await fetch(`/api/quiz/attempts/${attemptId}/analytics`);
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-      }
-    } catch (err) {
-      console.error("Failed to load quiz analytics:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [attemptId, initialData]);
-
-  async function handleRecompute() {
-    try {
-      if (initialData) { setData(initialData); return; }
-      setRecomputing(true);
-      await fetch(`/api/quiz/attempts/${attemptId}/analytics`, { method: "POST" });
-      await fetchAnalytics();
-    } catch (err) {
-      console.error("Failed to trigger recompute:", err);
-    } finally {
-      setRecomputing(false);
-    }
+  if (error && !data) {
+    return <div className="flex items-center gap-2 py-4 text-body-sm text-status-error" role="alert">
+      <TriangleAlert className="size-4" />
+      <span>{t("attemptReview.loadFailed")}</span>
+      <Button variant="ghost" size="sm" onClick={fetchAnalytics}>{t("attemptReview.retry")}</Button>
+    </div>;
   }
-
-  const isStatusProcessing = data?.status === "processing";
-
-  useEffect(() => {
-    fetchAnalytics();
-
-    // Auto poll if processing
-    const timer = setInterval(() => {
-      if (isStatusProcessing) {
-        fetchAnalytics();
-      }
-    }, 4000);
-
-    return () => clearInterval(timer);
-  }, [attemptId, fetchAnalytics, isStatusProcessing]);
 
   if (loading && !data) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 space-y-4 text-center">
-        <Loader2 className="size-8 animate-spin text-brand-primary" />
-        <p className="font-heading text-body-base font-bold text-foreground">{t("quizAnalytics.loadingTitle")}</p>
-        <p className="text-body-sm text-muted-foreground max-w-md">
-          {t("quizAnalytics.loadingDescription")}
-        </p>
+      <div className="space-y-6 font-sans" role="status" aria-busy="true">
+        <span className="sr-only">{t("quizAnalytics.loadingTitle")}</span>
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2.5 flex-1 max-w-2xl">
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-28 animate-pulse rounded-md bg-muted" />
+                <div className="h-5 w-20 animate-pulse rounded-md bg-muted" />
+              </div>
+              <div className="h-6 w-3/4 animate-pulse rounded-md bg-muted" />
+              <div className="h-4 w-full animate-pulse rounded-md bg-muted" />
+              <div className="h-4 w-2/3 animate-pulse rounded-md bg-muted" />
+            </div>
+            <div className="flex items-center gap-3 md:border-l md:border-border/70 md:pl-5">
+              <div className="h-8 w-16 animate-pulse rounded-md bg-muted" />
+              <div className="h-6 w-20 animate-pulse rounded-md bg-muted" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-5 border-y border-border py-3 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="flex items-center justify-between py-2">
+                <div className="h-4 w-20 animate-pulse rounded-md bg-muted" />
+                <div className="h-6 w-12 animate-pulse rounded-md bg-muted" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3 border-t border-border pt-4">
+          <div className="h-5 w-44 animate-pulse rounded-md bg-muted" />
+          <div className="space-y-2.5">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="h-11 w-full animate-pulse rounded-lg bg-muted/70" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -104,7 +128,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
 
   if (!metrics && !diagnosis) {
     return (
-      <div className="rounded-xl border border-border bg-card p-4 text-center space-y-5 shadow-xs">
+      <div className="space-y-4 py-4 text-center">
         <div className="flex size-14 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary mx-auto ring-1 ring-brand-primary/20">
           <Brain className="size-7" />
         </div>
@@ -127,19 +151,26 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
   }
 
   return (
-    <div className="space-y-8 font-sans">
+    <div className="space-y-6 font-sans">
+      {error && <div className="flex items-center gap-2 text-body-sm text-status-error" role="alert">
+        <TriangleAlert className="size-4" />
+        <span>{t("attemptReview.loadFailed")}</span>
+        <Button variant="ghost" size="sm" onClick={fetchAnalytics}>{t("attemptReview.retry")}</Button>
+      </div>}
       {/* Processing Banner if analysis is still running */}
       {isProcessing && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-primary/30 bg-brand-primary/10 p-4 text-brand-primary">
+        <div className="flex items-center justify-between gap-3 border-b border-border py-2 text-brand-primary">
           <div className="flex min-w-0 items-center gap-3">
             <Loader2 className="size-5 animate-spin shrink-0" />
             <div className="text-body-sm">
               <span className="font-bold">{t("quizAnalytics.analysisInProgress")}</span> {t("quizAnalytics.analysisInProgressDescription")}
             </div>
           </div>
-          <Button onClick={fetchAnalytics} variant="ghost" size="sm" className="text-brand-primary hover:bg-brand-primary/20 rounded-md">
-            {t("quizAnalytics.refreshStatus")}
-          </Button>
+          <TooltipProvider><Tooltip><TooltipTrigger asChild>
+            <Button type="button" onClick={fetchAnalytics} variant="ghost" size="icon-lg" aria-label={t("quizAnalytics.refreshStatus")}>
+              <RefreshCw aria-hidden />
+            </Button>
+          </TooltipTrigger><TooltipContent>{t("quizAnalytics.refreshStatus")}</TooltipContent></Tooltip></TooltipProvider>
         </div>
       )}
 
@@ -148,7 +179,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
           ───────────────────────────────────────────────────────────────────────── */}
       <div className="space-y-4">
         {/* Main Headline Banner */}
-        <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4">
+        <div className="min-w-0">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-2xl">
               <div className="flex flex-wrap items-center gap-2">
@@ -213,7 +244,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
       <div className="space-y-6">
         {/* SECTION A: PENGUASAAN KONSEP (CONCEPT MASTERY TABLE) */}
         {metrics && metrics.conceptMastery.length > 0 && (
-          <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
+          <div className="space-y-3 border-t border-border pt-3">
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
@@ -328,7 +359,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
 
         {/* SECTION C: POLA KESALAHAN (ERROR PATTERNS) */}
         {diagnosis?.error_patterns && diagnosis.error_patterns.length > 0 && (
-          <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
+          <div className="space-y-3 border-t border-border pt-3">
             <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
               <BarChart3 className="size-5 text-brand-secondary" /> {t("quizAnalytics.errorPatterns")}
             </h4>
@@ -356,7 +387,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
         {metrics && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Cognitive Skills Matrix */}
-            {metrics.cognitiveSkills.length > 0 && <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
+            {metrics.cognitiveSkills.length > 0 && <div className="space-y-3 border-t border-border pt-3">
               <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                 <BarChart3 className="size-5 text-brand-primary" /> {t("quizAnalytics.cognitiveSkills")}
               </h4>
@@ -379,7 +410,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
             </div>}
 
             {/* Time & Speed Insights */}
-            <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
+            <div className="space-y-3 border-t border-border pt-3">
               <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                 <Zap className="size-5 text-tertiary-1" /> {t("quizAnalytics.speedEfficiency")}
               </h4>
@@ -413,18 +444,26 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
           LAYER 3: RENCANA BELAJAR PERSONAL (3-STEP ACTION PLAN)
           ───────────────────────────────────────────────────────────────────────── */}
       <div className="@container/study-plan space-y-4 pt-4 border-t border-border">
-        <div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <BookOpen className="size-5 text-brand-primary" /> {t("quizAnalytics.studyPlan")}
           </h3>
+          {diagnosis?.study_plan?.length ? (
+            <Button asChild size="lg">
+              <Link href={href(`/courses/${courseId}`)}>
+                {t("quizAnalytics.startLearning")}
+                <ArrowUpRight aria-hidden />
+              </Link>
+            </Button>
+          ) : null}
         </div>
 
         {diagnosis?.study_plan && diagnosis.study_plan.length > 0 ? (
-          <div className="grid grid-cols-1 gap-5 @min-[36rem]/study-plan:grid-cols-2 @min-[55rem]/study-plan:grid-cols-3">
+          <div className="divide-y divide-border">
             {diagnosis.study_plan.map((step, idx) => (
               <div
                 key={idx}
-                className="flex flex-col justify-between rounded-xl border border-brand-primary/30 bg-card p-5 shadow-xs relative overflow-hidden group hover:border-brand-primary/60 transition-all"
+                className="py-3"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -433,7 +472,7 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
                     </Badge>
                   </div>
 
-                  <h4 className="font-heading text-body-base font-bold text-foreground group-hover:text-brand-primary transition-colors">
+                  <h4 className="font-heading text-body-base font-bold text-foreground">
                     <MathText as="span">{step.focus}</MathText>
                   </h4>
 
@@ -449,31 +488,18 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
                   </div>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-border/60">
-                  <Button asChild className="w-full">
-                    <Link href={href(`/courses/${courseId}`)}>
-                      {t("quizAnalytics.startLearning")}
-                      <ArrowUpRight className="ml-1.5 size-3.5" />
-                    </Link>
-                  </Button>
-                </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-border/80 bg-card p-5 text-center space-y-3">
-            <p className="text-body-sm text-muted-foreground">
-              {t("quizAnalytics.keepGoing")}
-            </p>
-            <Button asChild variant="outline" size="sm" className="rounded-md border-border">
-              <Link href={href(`/courses/${courseId}`)}>{t("quizAnalytics.backToCourse")}</Link>
-            </Button>
-          </div>
+          <p className="text-body-sm text-muted-foreground">
+            {t("quizAnalytics.keepGoing")}
+          </p>
         )}
 
         {/* Encouragement Footer */}
         {diagnosis?.encouragement && (
-          <div className="rounded-xl border border-border/60 bg-muted/30 p-4 text-center">
+          <div className="border-t border-border py-3">
             <p className="font-heading text-body-base font-semibold text-foreground italic">
               &ldquo;<MathText as="span">{diagnosis.encouragement}</MathText>&rdquo;
             </p>

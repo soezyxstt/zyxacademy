@@ -3,7 +3,6 @@
 import { LiveCodingExercise } from "@/components/coding/live-coding-exercise";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
@@ -104,7 +103,7 @@ export default function LiveStudentPage() {
   if (!process.env.NEXT_PUBLIC_REALTIME_URL) {
     return (
       <CoursePageShell title={title} icon={Play}>
-        <div className="mx-auto max-w-md px-4 py-12 text-center rounded-xl border border-dashed border-border bg-card/50">
+        <div className="mx-auto max-w-md px-4 py-5 text-center">
           <Play className="mx-auto mb-3 size-10 text-muted-foreground/40" />
           <h3 className="font-heading text-body-base font-bold text-foreground">
             {t("noSessionTitle")}
@@ -112,11 +111,6 @@ export default function LiveStudentPage() {
           <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
             {t("noSessionDescription")}
           </p>
-          <Button asChild size="sm" variant="outline" className="mt-5 rounded-md text-body-xs">
-            <Link href={experience.href?.(`/courses/${courseId}`) ?? `/courses/${courseId}`}>
-              {t("backToCourse")}
-            </Link>
-          </Button>
         </div>
       </CoursePageShell>
     );
@@ -125,7 +119,7 @@ export default function LiveStudentPage() {
   if (phase === "join") {
     return (
       <CoursePageShell title={title} icon={Play}>
-        <div className="mx-auto flex max-w-xs flex-col items-center gap-6 px-4 py-20">
+        <div className="mx-auto flex max-w-xs flex-col items-center gap-(--section-gap) px-4 py-20">
           <h1 className="font-heading text-h5 font-semibold text-foreground">{t("joinTitle")}</h1>
           <Input
             className="rounded-lg text-center font-sans text-body-sm tracking-widest uppercase"
@@ -203,7 +197,7 @@ function LiveView({ state, sendAnswer, courseId, sessionId }: LiveViewProps) {
   );
 
   return (
-    <div className="relative min-h-[70vh] space-y-6 px-4 py-8">
+    <div className="relative min-h-[70vh] space-y-(--section-gap) px-4 py-(--reading-section-gap)">
       {/* Connection dot */}
       <div className="absolute right-4 top-4 flex items-center gap-2" role="status">
         <span className="text-body-xs text-muted-foreground">{connectionLabel}</span>
@@ -231,7 +225,7 @@ function LiveView({ state, sendAnswer, courseId, sessionId }: LiveViewProps) {
 
       {/* Question */}
       {(sessionState === "question" || sessionState === "reveal") && currentQuestion && (
-        <div className="mx-auto max-w-xl space-y-5">
+        <div className="mx-auto max-w-xl space-y-(--related-gap)">
           {/* Countdown */}
           <div className="flex items-center justify-between">
             <span className="text-body-sm text-muted-foreground tabular-nums" aria-label={t("questionPosition", { current: currentQuestion.questionIndex + 1, total: currentQuestion.total })}>
@@ -240,7 +234,7 @@ function LiveView({ state, sendAnswer, courseId, sessionId }: LiveViewProps) {
             {sessionState === "question" && (
               <span
                 className={cn(
-                  "font-heading text-h5 font-semibold tabular-nums transition-colors duration-300",
+                  "text-body-sm font-semibold tabular-nums transition-colors duration-300",
                   countdown <= 5 ? "text-status-error" : "text-foreground"
                 )}
                 aria-label={t("timeRemaining", { seconds: countdown })}
@@ -271,14 +265,14 @@ function LiveView({ state, sendAnswer, courseId, sessionId }: LiveViewProps) {
                     disabled={locked}
                     onClick={() => handleAnswer(i)}
                     className={cn(
-                      quizOptionClasses(optState),
+                      quizOptionClasses(optState, "min-h-11 items-start py-3 font-normal"),
                       locked && "opacity-60 pointer-events-none"
                     )}
                   >
                     <span className={quizOptionLetterClasses(optState)}>
                       {String.fromCharCode(65 + i)}
                     </span>
-                    <MathText className="flex-1 text-left leading-normal" as="span">{opt}</MathText>
+                    <MathText className="min-w-0 flex-1 wrap-break-word text-left text-body-base" as="span">{opt}</MathText>
                   </button>
                 </li>
               );
@@ -307,7 +301,7 @@ function LiveView({ state, sendAnswer, courseId, sessionId }: LiveViewProps) {
 
       {/* Final */}
       {sessionState === "ended" && (
-        <div className="mx-auto max-w-lg space-y-6">
+        <div className="mx-auto max-w-lg space-y-(--section-gap)">
           <div className="text-center">
             <p className="font-heading text-body-base font-bold text-foreground">{t("sessionEnded")}</p>
             <p className="mt-1 text-body-sm text-muted-foreground">
@@ -356,7 +350,7 @@ function Leaderboard({ top10, yourRank, yourScore, title }: LeaderboardProps) {
           <span className="tabular-nums text-body-sm font-bold text-primary">{yourScore}</span>
         </div>
       )}
-      <div className="divide-y divide-border rounded-xl border border-border">
+      <div className="divide-y divide-border">
         {top10.map((entry) => {
           const isMe = entry.rank === yourRank;
           return (

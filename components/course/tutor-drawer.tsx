@@ -1,5 +1,7 @@
 "use client";
 
+import { getMyZyraAppearance } from "@/app/(student)/profile/edit/zyra-appearance-action";
+import { TutorAppearanceContext } from "./tutor-message-frame";
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
@@ -106,6 +108,17 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   const caps = getTutorCapabilities(courseIdFromPath);
 
   const [isOpen, setIsOpen] = React.useState(false);
+  const [hasOpened, setHasOpened] = React.useState(false);
+  React.useEffect(() => {
+    if (isOpen) setHasOpened(true);
+  }, [isOpen]);
+  const [appearance, setAppearance] = React.useState<{skinId: string | null; avatarId: string | null}>({skinId: null, avatarId: null});
+  React.useEffect(() => {
+    if (experience.mode === "demo" || !realPathname?.startsWith("/courses/")) return;
+    let active = true;
+    void getMyZyraAppearance().then(value => { if (active) setAppearance(value); }).catch(() => {});
+    return () => { active = false; };
+  }, [experience.mode, realPathname]);
   const [activeMode, setActiveMode] = React.useState<TutorMode>(null);
   const [suppressPet, setSuppressPet] = React.useState(false);
 
@@ -208,7 +221,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
           !isOpen &&
           (caps.pet ? (
             <div className="contents" onPointerEnter={preloadTutorDrawer} onPointerDownCapture={preloadTutorDrawer} onFocusCapture={preloadTutorDrawer}>
-              <ZyraFloatingPet state="idle" onOpen={openChat} />
+              <ZyraFloatingPet cosmeticId={appearance.avatarId} state="idle" onOpen={openChat} />
             </div>
           ) : (
             <button
@@ -228,8 +241,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
             </button>
           ))}
 
-        {isOpen && (
-          <ZyraWelcomeCopyGuard>
+        {(isOpen || hasOpened) && (
+          <TutorAppearanceContext.Provider value={appearance}><ZyraWelcomeCopyGuard>
             <TutorDrawerView
               isOpen={isOpen}
               onClose={close}
@@ -244,7 +257,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
               quotedContext={quotedContext}
               onClearQuotedContext={() => setQuotedContext(null)}
             />
-          </ZyraWelcomeCopyGuard>
+          </ZyraWelcomeCopyGuard></TutorAppearanceContext.Provider>
         )}
       </div>
     </TutorContext.Provider>

@@ -63,12 +63,11 @@ class DeployEnvFilterTest(unittest.TestCase):
                 self.assertIn("uses: ./.github/workflows/deploy-neon-worker.yml", block)
                 self.assertIn("environment: " + environment, block)
                 self.assertIn("github.event_name != 'pull_request'", block)
-                for flag in ("runtime_diagnostics", "browser_diagnostics", "restore_turso_worker"):
+                for flag in ("business_acceptance", "browser_diagnostics"):
                     self.assertIn("!inputs." + flag, block)
-        for name in ("runtime-diagnostics", "browser-diagnostics"):
-            block = job(workflow, name)
-            self.assertNotIn("scripts/neon/deploy-worker.mjs", block)
-            self.assertNotIn("scripts/neon/sync-worker.mjs", block)
+        block = job(workflow, "browser-diagnostics")
+        self.assertNotIn("scripts/neon/deploy-worker.mjs", block)
+        self.assertNotIn("scripts/neon/sync-worker.mjs", block)
 
     def test_reusable_workflow_passes_the_selected_environment_before_cutover(self):
         workflow = (WORKFLOWS / "deploy-neon-worker.yml").read_text()
@@ -85,7 +84,7 @@ class DeployEnvFilterTest(unittest.TestCase):
         workflow = (WORKFLOWS / "deploy-neon-worker.yml").read_text()
         match = re.search(r"^          path: \|\n((?:            .+\n)+)", workflow, re.MULTILINE)
         self.assertIsNotNone(match)
-        allowed = {"inventory.json", "before.json", "after.json", "sync.json", "http-smoke.json", "inngest-smoke.json", "business-smoke.json"}
+        allowed = {"inventory.json", "before.json", "after.json", "sync.json", "http-smoke.json", "inngest-smoke.json", "cloud-tasks-smoke.json", "business-smoke.json"}
         paths = [PurePosixPath(line.strip()) for line in match.group(1).splitlines()]
         self.assertTrue(paths)
         for path in paths:

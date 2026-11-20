@@ -2,7 +2,7 @@ import { attachDatabasePool } from "@neon/functions";
 
 const startupAt = performance.now(), startupCpu = process.cpuUsage();
 Object.assign(process.env, { ZYX_COMPUTE_RUNTIME: "neon" });
-for (const name of ["INNGEST_SIGNING_KEY", "COMPUTE_SERVICE_SECRET", "INNGEST_SERVE_ORIGIN", "ZYX_COMPUTE_BUILD_RUNTIME"]) {
+for (const name of [...(process.env.QUEUE_PROVIDER === "cloud-tasks" ? [] : ["INNGEST_SIGNING_KEY"]), "COMPUTE_SERVICE_SECRET", "INNGEST_SERVE_ORIGIN", "ZYX_COMPUTE_BUILD_RUNTIME"]) {
   if (!process.env[name]) throw new Error(`NEON_COMPUTE_ENV_REQUIRED:${name}`);
 }
 const origin = new URL(process.env.INNGEST_SERVE_ORIGIN!);

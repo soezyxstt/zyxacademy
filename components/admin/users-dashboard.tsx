@@ -8,11 +8,10 @@ import {
   ShieldCheck,
   GraduationCap,
   BookOpen,
-  UserCheck,
   RotateCcw,
   UserCog,
   ShieldAlert,
-  Mail,
+  MoreHorizontal,
 } from "lucide-react";
 import {
   AdminStatStrip,
@@ -26,6 +25,13 @@ import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -80,8 +86,9 @@ const ROLE_OPTIONS: Array<{ code: PeranCode; label: string; description: string 
 
 function UserAvatar({ name, image }: { name: string; image: string | null }) {
   const [failedImage, setFailedImage] = useState<string | null>(null);
-  if (image && failedImage !== image) {
-    return <Image unoptimized loading="eager" width={32} height={32} src={image} alt="" onError={() => setFailedImage(image)} className="size-8 rounded-full object-cover shrink-0 border border-border" />;
+  const src = image?.trim() || null;
+  if (src && failedImage !== src) {
+    return <Image unoptimized loading="eager" width={32} height={32} src={src} alt="" onError={() => setFailedImage(src)} className="size-8 rounded-full object-cover shrink-0 border border-border bg-muted" />;
   }
   return (
     <div aria-hidden className="size-8 rounded-full bg-muted text-foreground font-bold text-body-xs flex items-center justify-center shrink-0 border border-border">
@@ -223,13 +230,13 @@ export function UsersDashboard({
           label={t("usersUI.admins")}
           value={stats.adminCount}
           icon={ShieldCheck}
-          tone="brand"
+          tone="default"
         />
         <AdminStatStripItem
           label={t("usersUI.tutors")}
           value={stats.tutorCount}
           icon={GraduationCap}
-          tone="info"
+          tone="default"
         />
         <AdminStatStripItem
           label={t("usersUI.students")}
@@ -238,28 +245,27 @@ export function UsersDashboard({
           tone="default"
         />
         <AdminStatStripItem
-          label={t("usersUI.activeUsers")}
-          value={stats.activeCount}
-          icon={UserCheck}
-          tone="success"
+          label={t("usersUI.suspended")}
+          value={stats.suspendedCount}
+          icon={ShieldAlert}
+          tone={stats.suspendedCount > 0 ? "warning" : "default"}
         />
       </AdminStatStrip>
 
       {/* Inline Responsive Filter Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex-1 min-w-[140px] max-w-sm">
-          <SearchBar
-            size="sm"
-            value={searchQuery}
-            onSearch={(value) => { setPage(1); setSearchQuery(value); }}
-            onClear={() => { setPage(1); setSearchQuery(""); }}
-            isLoading={loading}
-            placeholder={t("usersUI.search")}
-          />
-        </div>
+      <div className="flex flex-wrap items-center gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true])]:hidden">
+        <SearchBar
+          collapsible
+          size="sm"
+          value={searchQuery}
+          onSearch={(value) => { setPage(1); setSearchQuery(value); }}
+          onClear={() => { setPage(1); setSearchQuery(""); }}
+          isLoading={loading}
+          placeholder={t("usersUI.search")}
+        />
 
         <Select value={roleFilter} onValueChange={(value) => { setPage(1); setRoleFilter(value); }}>
-          <SelectTrigger className="h-9 w-[130px] shrink-0 text-body-sm bg-card rounded-lg border-border">
+          <SelectTrigger variant="inline" aria-label={t("usersUI.role")} className="max-w-44 shrink-0">
             <SelectValue placeholder={t("usersUI.allRoles")} />
           </SelectTrigger>
           <SelectContent className="rounded-lg text-body-sm">
@@ -271,7 +277,7 @@ export function UsersDashboard({
         </Select>
 
         <Select value={statusFilter} onValueChange={(value) => { setPage(1); setStatusFilter(value); }}>
-          <SelectTrigger className="h-9 w-[140px] shrink-0 text-body-sm bg-card rounded-lg border-border">
+          <SelectTrigger variant="inline" aria-label={t("usersUI.status")} className="max-w-44 shrink-0">
             <SelectValue placeholder={t("usersUI.allStatuses")} />
           </SelectTrigger>
           <SelectContent className="rounded-lg text-body-sm">
@@ -314,27 +320,118 @@ export function UsersDashboard({
         />
       ) : (
         <AdminTable className={stale ? "opacity-60" : undefined}>
+          <div className="md:hidden divide-y divide-border">
+            {filteredUsers.map((userItem) => {
+              const isSelf = userItem.id === currentUserId;
+              const isSuspended = userItem.status === "suspended";
+              const elevatedRoles = userItem.roles.filter((role) => role === "admin" || role === "tutor");
+
+              return (
+                <div
+                  key={userItem.id}
+                  className={`flex items-start justify-between gap-2.5 px-3.5 py-3 ${isSuspended ? "bg-muted/20 opacity-75" : ""}`}
+                >
+                  <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                    <UserAvatar name={userItem.name} image={userItem.image ?? null} />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-semibold text-body-sm text-foreground break-words">
+                          {userItem.name}
+                        </span>
+                        {isSelf && (
+                          <span className="text-body-2xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+                            {t("usersUI.you")}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-body-xs text-muted-foreground break-all">
+                        {userItem.email}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {elevatedRoles.map((role) => (
+                          <StatusBadge key={role} tone={role === "admin" ? "brand" : "info"}>
+                            {role === "admin" ? t("usersUI.admin") : t("usersUI.tutor")}
+                          </StatusBadge>
+                        ))}
+                        {isSuspended && (
+                          <StatusBadge tone="error">{t("usersUI.suspended")}</StatusBadge>
+                        )}
+                        {userItem.createdAt && (
+                          <span className="text-body-xs text-muted-foreground">
+                            <FormattedDate date={userItem.createdAt} options={{ dateStyle: "medium" }} />
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={stale}
+                        aria-label={t("usersUI.openActions", { name: userItem.name })}
+                        className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onSelect={() => handleOpenRoleModal(userItem)}>
+                        <UserCog className="size-4 text-muted-foreground" />
+                        <span>{t("usersUI.setRoles")}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        disabled={isSelf}
+                        onSelect={() => setStatusTargetUser(userItem)}
+                        className={
+                          userItem.status === "active"
+                            ? "text-status-error focus:text-status-error"
+                            : "text-status-success focus:text-status-success"
+                        }
+                      >
+                        {userItem.status === "active" ? (
+                          <>
+                            <ShieldAlert className="size-4" />
+                            <span>{t("usersUI.suspend")}</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="size-4" />
+                            <span>{t("usersUI.activate")}</span>
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              );
+            })}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
           <table aria-busy={loading} className="w-full min-w-[640px] text-left text-body-sm border-collapse">
             <AdminTableHead>
               <tr>
-                <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.user")}</th>
-                <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.role")}</th>
-                <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.status")}</th>
-                <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.joined")}</th>
-                <th className="px-4 py-3 font-semibold text-foreground text-right">{t("usersUI.actions")}</th>
+                <th className="px-4 py-(--table-row-padding) font-semibold text-foreground">{t("usersUI.user")}</th>
+                <th className="px-4 py-(--table-row-padding) font-semibold text-foreground">{t("usersUI.access")}</th>
+                <th className="px-4 py-(--table-row-padding) font-semibold text-foreground">{t("usersUI.joined")}</th>
+                <th className="px-4 py-(--table-row-padding) font-semibold text-foreground text-right">{t("usersUI.actions")}</th>
               </tr>
             </AdminTableHead>
             <tbody className="divide-y divide-border">
               {filteredUsers.map((userItem) => {
                 const isSelf = userItem.id === currentUserId;
+                const isSuspended = userItem.status === "suspended";
+                const elevatedRoles = userItem.roles.filter((role) => role === "admin" || role === "tutor");
 
                 return (
                   <tr
                     key={userItem.id}
-                    className="hover:bg-muted/40 transition-colors"
+                    className={`transition-colors hover:bg-muted/40 ${isSuspended ? "bg-muted/20 opacity-75" : ""}`}
                   >
                     {/* User info */}
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-(--table-row-padding)">
                       <div className="flex items-center gap-3">
                         <UserAvatar name={userItem.name} image={userItem.image ?? null} />
                         <div className="min-w-0">
@@ -344,49 +441,47 @@ export function UsersDashboard({
                             </span>
                             {isSelf && (
                               <span className="text-body-2xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-                                Anda
+                                {t("usersUI.you")}
                               </span>
                             )}
                           </div>
-                          <div className="text-body-xs text-muted-foreground flex items-center gap-1 truncate">
-                            <Mail className="size-3 shrink-0" />
-                            <span className="truncate">{userItem.email}</span>
-                          </div>
+                          <p className="text-body-xs text-muted-foreground truncate">
+                            {userItem.email}
+                          </p>
                         </div>
                       </div>
                     </td>
 
-                    {/* Roles */}
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-1">
-                        {userItem.roles.map((role) => (
-                          <StatusBadge
-                            key={role}
-                            tone={
-                              role === "admin"
-                                ? "brand"
-                                : role === "tutor"
-                                ? "info"
-                                : "muted"
-                            }
-                          >
-                            {role === "admin" ? t("usersUI.admin") : role === "tutor" ? t("usersUI.tutor") : t("usersUI.student")}
-                          </StatusBadge>
-                        ))}
-                      </div>
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-4 py-3">
-                      <StatusBadge
-                        tone={userItem.status === "active" ? "success" : "error"}
-                      >
-                        {userItem.status === "active" ? t("usersUI.active") : t("usersUI.suspended")}
-                      </StatusBadge>
+                    {/* Exceptions-only access & status */}
+                    <td className="px-4 py-(--table-row-padding)">
+                      <span className="sr-only">
+                        {userItem.roles.map((role) => (role === "admin" ? t("usersUI.admin") : role === "tutor" ? t("usersUI.tutor") : t("usersUI.student"))).join(", ")}
+                        {", "}
+                        {isSuspended ? t("usersUI.suspended") : t("usersUI.active")}
+                      </span>
+                      {elevatedRoles.length > 0 || isSuspended ? (
+                        <div className="flex flex-wrap items-center gap-1">
+                          {elevatedRoles.map((role) => (
+                            <StatusBadge
+                              key={role}
+                              tone={role === "admin" ? "brand" : "info"}
+                            >
+                              {role === "admin" ? t("usersUI.admin") : t("usersUI.tutor")}
+                            </StatusBadge>
+                          ))}
+                          {isSuspended && (
+                            <StatusBadge tone="error">
+                              {t("usersUI.suspended")}
+                            </StatusBadge>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-body-xs text-muted-foreground">-</span>
+                      )}
                     </td>
 
                     {/* Created Date */}
-                    <td className="px-4 py-3 text-body-xs text-muted-foreground whitespace-nowrap">
+                    <td className="px-4 py-(--table-row-padding) text-body-xs text-muted-foreground whitespace-nowrap">
                       {userItem.createdAt ? (
                         <FormattedDate date={userItem.createdAt} options={{ dateStyle: "medium" }} />
                       ) : (
@@ -394,57 +489,56 @@ export function UsersDashboard({
                       )}
                     </td>
 
-                    {/* Action buttons */}
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenRoleModal(userItem)}
-                          disabled={stale}
-                          className="h-8 px-2.5 rounded-lg text-body-sm gap-1.5"
-                        >
-                          <UserCog className="size-3.5" />
-                          <span>{t("usersUI.setRoles")}</span>
-                        </Button>
-
-                        <Button
-                          variant={userItem.status === "active" ? "ghost" : "outline"}
-                          size="sm"
-                          disabled={isSelf || stale}
-                          onClick={() => setStatusTargetUser(userItem)}
-                          className={`h-8 px-2.5 rounded-lg text-body-sm gap-1.5 ${
-                            userItem.status === "active"
-                              ? "text-status-error hover:bg-status-error/10 hover:text-status-error"
-                              : "text-status-success hover:bg-status-success/10 hover:text-status-success"
-                          }`}
-                          title={
-                            isSelf
-                              ? t("usersUI.cannotSuspendSelf")
-                              : userItem.status === "active"
-                              ? t("usersUI.suspendAccount")
-                              : t("usersUI.activateAccount")
-                          }
-                        >
-                          {userItem.status === "active" ? (
-                            <>
-                              <ShieldAlert className="size-3.5" />
-                              <span className="hidden sm:inline">{t("usersUI.suspend")}</span>
-                            </>
-                          ) : (
-                            <>
-                              <ShieldCheck className="size-3.5" />
-                              <span className="hidden sm:inline">{t("usersUI.activate")}</span>
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                    {/* Per-row overflow menu */}
+                    <td className="px-4 py-(--table-row-padding) text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            disabled={stale}
+                            aria-label={t("usersUI.openActions", { name: userItem.name })}
+                            className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onSelect={() => handleOpenRoleModal(userItem)}>
+                            <UserCog className="size-4 text-muted-foreground" />
+                            <span>{t("usersUI.setRoles")}</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            disabled={isSelf}
+                            onSelect={() => setStatusTargetUser(userItem)}
+                            className={
+                              userItem.status === "active"
+                                ? "text-status-error focus:text-status-error"
+                                : "text-status-success focus:text-status-success"
+                            }
+                          >
+                            {userItem.status === "active" ? (
+                              <>
+                                <ShieldAlert className="size-4" />
+                                <span>{t("usersUI.suspend")}</span>
+                              </>
+                            ) : (
+                              <>
+                                <ShieldCheck className="size-4" />
+                                <span>{t("usersUI.activate")}</span>
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+          </div>
         </AdminTable>
       )}
 
@@ -506,7 +600,7 @@ export function UsersDashboard({
                       {t(`usersUI.${opt.code === "murid" ? "studentRoleDesc" : `${opt.code}RoleDesc`}`)}
                     </p>
                     {isSelfAdmin && (
-                      <p className="text-[10px] text-status-warning font-medium">
+                      <p className="text-body-xs text-status-warning font-medium">
                         {t("usersUI.selfAdminRequired")}
                       </p>
                     )}

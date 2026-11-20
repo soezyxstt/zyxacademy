@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { RotateCcw } from "lucide-react";
+import { useAppReducedMotion } from "@/components/appearance-preferences";
 import { cn } from "@/lib/utils";
 import { DemoFrame } from "@/components/landing/demo/demo-frame";
 import { useTranslations } from "@/lib/i18n/client";
@@ -42,6 +43,7 @@ function TypingIndicator({ label }: { label: string }) {
  */
 export function TutorChatDemo({ messages }: TutorChatDemoProps) {
   const t = useTranslations("marketing");
+  const reducedMotion = useAppReducedMotion();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [shown, setShown] = useState(0);
   const [started, setStarted] = useState(false);
@@ -50,12 +52,9 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
   // Start playback once scrolled into view.
   useEffect(() => {
     const node = containerRef.current;
-    if (!node || started) return;
+    if (!node || started || reducedMotion) return;
 
-    if (
-      typeof window.IntersectionObserver === "undefined" ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
+    if (typeof window.IntersectionObserver === "undefined") {
       setStarted(true);
       setShown(messages.length);
       return;
@@ -72,20 +71,20 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [messages.length, started]);
+  }, [messages.length, reducedMotion, started]);
 
   // Advance the script.
   useEffect(() => {
-    if (!started || shown >= messages.length) return;
+    if (reducedMotion || !started || shown >= messages.length) return;
     const next = messages[shown];
     const timer = window.setTimeout(
       () => setShown((count) => count + 1),
       next.role === "ai" ? AI_DELAY : STUDENT_DELAY,
     );
     return () => window.clearTimeout(timer);
-  }, [started, shown, messages, playKey]);
+  }, [started, shown, messages, playKey, reducedMotion]);
 
-  const waitingForAi = started && shown < messages.length && messages[shown].role === "ai";
+  const waitingForAi = !reducedMotion && started && shown < messages.length && messages[shown].role === "ai";
   const done = shown >= messages.length;
 
   function replay() {
@@ -101,7 +100,7 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
         bodyClassName="flex min-h-[380px] flex-col p-4 md:p-5"
       >
         <div className="flex flex-1 flex-col justify-end gap-3" aria-live="polite">
-          {messages.slice(0, shown).map((message) => (
+          {messages.slice(0, reducedMotion ? messages.length : shown).map((message) => (
             <div
               key={`${playKey}-${message.id}`}
               className={cn(
@@ -121,7 +120,7 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
               </div>
               {message.sources ? (
                 <div className="mt-2">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <p className="text-body-2xs font-bold uppercase tracking-wider text-muted-foreground">
                     {t("home.sourceLabel")}
                   </p>
                   <div className="mt-1 flex flex-wrap gap-1.5">{message.sources}</div>
@@ -136,7 +135,7 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
           <button
             type="button"
             onClick={replay}
-            disabled={!done}
+            disabled={reducedMotion || !done}
             className="inline-flex items-center gap-1.5 rounded-md text-body-sm font-semibold text-primary transition-colors hover:text-primary/80 disabled:opacity-40"
           >
             <RotateCcw className="size-3.5" aria-hidden />

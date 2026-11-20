@@ -5,7 +5,6 @@ import {
   BookOpen,
   HelpCircle,
   Lightbulb,
-  Sparkles,
   ArrowRight,
   MessageSquareText,
   Loader2,
@@ -186,7 +185,7 @@ export function ZyraSelectionToolbar({
                   onClick={() => handleFetchQuickExplanation("simplify")}
                   className="h-7 text-body-xs font-semibold text-foreground hover:bg-muted gap-1 px-2.5 cursor-pointer"
                 >
-                  <Sparkles className="size-3 text-brand-primary" />
+                  <Lightbulb className="size-3 text-brand-primary" />
                   <span>{t("selectionToolbar.explainCore")}</span>
                 </Button>
                 <Button
@@ -233,7 +232,7 @@ export function ZyraSelectionToolbar({
           <div className="space-y-3">
             <div className="flex items-center justify-between border-b border-border/60 pb-2">
               <div className="flex items-center gap-1.5 min-w-0">
-                <Sparkles className="size-3.5 text-brand-primary shrink-0" />
+                <Lightbulb className="size-3.5 text-brand-primary shrink-0" />
                 <span className="font-heading text-body-xs font-bold text-brand-primary truncate">
                   {isShortTerm ? t("selectionToolbar.quickDefinition") : t("selectionToolbar.conceptSummary")}
                 </span>

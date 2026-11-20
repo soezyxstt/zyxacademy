@@ -1,5 +1,6 @@
 "use client";
 
+import { getAppScrollBehavior } from "@/components/appearance-preferences";
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
@@ -60,7 +61,7 @@ export function BundleImporterTab() {
 
   useEffect(() => {
     if (terminalEndRef.current) {
-      terminalEndRef.current.scrollIntoView({ behavior: "smooth" });
+      terminalEndRef.current.scrollIntoView({ behavior: getAppScrollBehavior() });
     }
   }, [result?.logs, loading]);
 
@@ -432,7 +433,7 @@ export function BundleImporterTab() {
             { label: "Ujian / Kuis", value: result.stats.asCount, icon: HelpCircle },
             { label: "Soal Terindex", value: result.stats.aoCount, icon: GitBranch },
           ].map((stat, idx) => (
-            <AdminStatStripItem key={idx} icon={stat.icon} label={stat.label} value={stat.value} tone="brand" />
+            <AdminStatStripItem key={idx} icon={stat.icon} label={stat.label} value={stat.value} />
           ))}
         </AdminStatStrip>
       )}

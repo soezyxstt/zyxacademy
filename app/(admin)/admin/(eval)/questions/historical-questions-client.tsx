@@ -1,5 +1,6 @@
 "use client";
 
+import { getAppScrollBehavior } from "@/components/appearance-preferences";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -122,6 +123,8 @@ function reviewActionFor(question: Pick<HistoricalSelectionItem, "reviewStatus" 
   return historicalReviewActionFor(question);
 }
 
+const DEFAULT_HISTORICAL_QUERY = normalizeHistoricalQuery({ tab: "historical" });
+
 /**
  * Interactive client studio component for managing historical reference questions.
  *
@@ -138,7 +141,7 @@ export function HistoricalQuestionsClient({
 }: Props) {
   const t = useTranslations("adminEval.historicalQuestions");
   const router = useRouter();
-  const query = providedQuery ?? normalizeHistoricalQuery({ tab: "historical" });
+  const query = providedQuery ?? DEFAULT_HISTORICAL_QUERY;
   const total = providedTotal ?? questions.length;
 
   const coordinator = useRef(createHistoricalQueryCoordinator(query));
@@ -314,7 +317,7 @@ export function HistoricalQuestionsClient({
   const goToPage = (page: number) => {
     const target = Math.max(1, Math.min(totalPages, page));
     setCurrentPage(target);
-    tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    tableRef.current?.scrollIntoView({ behavior: getAppScrollBehavior(), block: "start" });
   };
 
   const activeFilterCount = [filterCourse, filterCategory, filterDifficulty]
@@ -329,11 +332,11 @@ export function HistoricalQuestionsClient({
     <div className="w-full space-y-6">
       <QuestionBankToolbar>
         <SearchBar
+          collapsible
           size="sm"
           placeholder={t("search")}
           value={searchTerm}
           onSearch={setSearchTerm}
-          containerClassName="min-w-[140px] flex-1"
         />
         <QuestionFilterPopover activeCount={activeFilterCount} onReset={resetFilters}>
           <QuestionFilterField label={t("course")}>
@@ -461,7 +464,53 @@ export function HistoricalQuestionsClient({
         {total === 0 ? (
           <AdminEmptyState compact title={t("empty")} />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="md:hidden divide-y divide-border">
+            {paginatedQuestions.map((question) => {
+              const isExpanded = expandedId === question.id;
+              const reviewAction = reviewActionFor(question);
+              const textExcerpt = question.questionMarkdown.length > 140
+                ? question.questionMarkdown.slice(0, 140) + "..."
+                : question.questionMarkdown;
+              return (
+                <div key={question.id} className="space-y-2 px-3.5 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                      {reviewAction ? (
+                        <button type="button" onClick={() => toggleSelect(question.id)} aria-label={t("selectQuestion", { question: question.sourceQuestionNumber || question.id })} className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground">
+                          {selectedEntries.has(question.id) ? <CheckSquare className="size-4 text-brand-primary" /> : <Square className="size-4" />}
+                        </button>
+                      ) : null}
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <StatusBadge tone={statusTone[question.reviewStatus]} subtle>{t(`status.${question.reviewStatus}`)}</StatusBadge>
+                          <DifficultyBadge difficulty={question.difficulty} subtle />
+                          <StatusBadge tone={question.quizEligible ? "success" : "muted"} subtle>
+                            {question.quizEligible ? t("quizEligible") : t("referenceOnly")}
+                          </StatusBadge>
+                        </div>
+                        {isExpanded ? (
+                          <div className="rounded border border-border/50 bg-background/40 p-2.5">
+                            <MarkdownRenderer content={question.questionMarkdown} className="space-y-3" />
+                          </div>
+                        ) : <MathText className="block text-body-sm font-medium text-foreground break-words line-clamp-3" as="div">{textExcerpt}</MathText>}
+                        <p className="text-body-xs text-muted-foreground break-words">
+                          <span className="font-medium text-foreground">{courseMap[question.courseId] || t("course")}</span>
+                          {" · "}
+                          {question.sourceTitle}
+                          {question.sourceYear ? ` (${question.sourceYear})` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setExpandedId(isExpanded ? null : question.id)} aria-label={isExpanded ? t("hideDetails") : t("viewDetails")} className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                      {isExpanded ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <AdminTableHead>
                 <tr>
@@ -531,6 +580,7 @@ export function HistoricalQuestionsClient({
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {totalPages > 1 && (
@@ -575,7 +625,7 @@ export function HistoricalQuestionsClient({
         const options = normalizeOptions(question.options);
         const reviewAction = reviewActionFor(question);
         return (
-          <section key={"detail-" + question.id} className="space-y-4 rounded-xl border border-border bg-card p-4">
+          <section key={"detail-" + question.id} className="space-y-4 border-b border-border pb-4">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
               <div>
                 <p className="text-body-sm font-semibold text-foreground">{t("detailTitle")}</p>

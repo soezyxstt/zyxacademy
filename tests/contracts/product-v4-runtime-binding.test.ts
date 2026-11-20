@@ -1,5 +1,7 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { createHash } from "node:crypto";
+import * as fs from "node:fs";
+import { resolve } from "node:path";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
 import { PRODUCT_V4_RUNTIME_FILES, readProductV4RuntimeFingerprint, assertProductV4RuntimeFingerprint, buildProductV4RuntimeBinding, expectedChromiumRuntime, loadProductV4StaticFigureAssets, productV4DependencyChecksum, resolveProductV4LoadedRuntime, type ProductV4LiveDependency } from "@/lib/compute/product-v4-runtime-binding";
 import { loadDiktatWorkerAssets } from "@/lib/compute/product-diktat-worker-assets";
@@ -24,6 +26,64 @@ const row = { id: "import", bundleId: "bundle", bundleType: "product" as const, 
 
 test("runtime closure binds interactive guidance, scene and shared expression sources", () => {
   for (const file of ["lib/authoring/interactive-visual-guidance.ts", "lib/authoring/question-visual-references.ts", "lib/authoring/question-visual-assets.ts", "lib/bundle/product-staged-worker.ts", "lib/bundle/product-v4-verification-core.ts", "lib/bundle/product-v4-verification-worker.ts", "lib/compute/product-diktat-worker-assets.ts", "lib/compute/product-v4-pdf-evidence-shared.ts", "lib/compute/product-v4-http-asset-validation.ts", "lib/materials/interactive-document-png-worker.cjs", "lib/materials/interactive-scene.ts", "lib/materials/diktat-scene-svg.ts", "lib/materials/interactive-document-verified.ts", "lib/materials/interactive-document-markdown.ts", "lib/compute/product-v4-document-wire.ts", "lib/zyra/canvas/expression.ts", "scripts/authoring/local-v4-bundle.ts"] as const) expect(PRODUCT_V4_RUNTIME_FILES).toContain(file);
+});
+
+const articleReadingRuntimeFiles = [
+  "components/course/structured-article-section-content.tsx",
+  "hooks/use-article-reading-progress.ts", "hooks/use-query-account.ts",
+  "lib/articles/progress-contract.ts", "lib/articles/progress-query.ts", "lib/articles/progress-mutation.ts",
+  "lib/query/client.ts", "lib/query/http.ts", "lib/query/keys.ts", "lib/query/invalidation.ts",
+  "lib/activity-signal.ts", "lib/auth-client.ts", "components/providers/query-provider.tsx",
+] as const;
+const articleReadingPackageManifests = [
+  "node_modules/@tanstack/react-query/package.json", "node_modules/@tanstack/query-core/package.json",
+] as const;
+
+test("extracted article and query runtime dependencies remain in the API source trace", async () => {
+  const { default: createConfig } = await import("../../next.config");
+  const nextConfig = await createConfig();
+  const includes = nextConfig.outputFileTracingIncludes?.["/api/**"] ?? [];
+  for (const path of articleReadingRuntimeFiles) expect(PRODUCT_V4_RUNTIME_FILES).toContain(path);
+  for (const path of [...articleReadingRuntimeFiles, ...articleReadingPackageManifests]) {
+    expect(fs.existsSync(path)).toBe(true);
+    expect(includes.some(pattern => new Bun.Glob(pattern).match(`./${path}`)), path).toBe(true);
+  }
+});
+
+test("changing extracted article sources or Query versions invalidates renderer evidence", async () => {
+  const webRuntime = process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
+  const computeRuntime = process.env.ZYX_COMPUTE_RUNTIME;
+  const readFile = fs.readFileSync;
+  let changedPath: string | undefined;
+  let intercepted = false;
+  const read = spyOn(fs, "readFileSync").mockImplementation(((...args: Parameters<typeof fs.readFileSync>) => {
+    const content = Reflect.apply(readFile, fs, args) as string | Buffer;
+    if (!changedPath || String(args[0]) !== changedPath) return content;
+    intercepted = true;
+    const updated = changedPath.endsWith("package.json")
+      ? JSON.stringify({ ...JSON.parse(content.toString()), version: "0.0.0-verification-change" })
+      : `${content.toString()}\n// Changed reader dependency for verification.\n`;
+    return typeof content === "string" ? updated : Buffer.from(updated);
+  }) as typeof fs.readFileSync);
+  try {
+    delete process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
+    delete process.env.ZYX_COMPUTE_RUNTIME;
+    const baseline = await readProductV4RuntimeFingerprint();
+    for (const path of [...articleReadingRuntimeFiles, ...articleReadingPackageManifests]) {
+      changedPath = resolve(path);
+      intercepted = false;
+      const changed = await readProductV4RuntimeFingerprint();
+      expect(intercepted).toBe(true);
+      expect(changed.rendererChecksum).not.toBe(baseline.rendererChecksum);
+      expect(() => assertProductV4RuntimeFingerprint(baseline, changed)).toThrow("RUNTIME_MISMATCH:rendererChecksum");
+    }
+  } finally {
+    read.mockRestore();
+    if (webRuntime === undefined) delete process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
+    else process.env.NEXT_PUBLIC_V4_WEB_RUNTIME = webRuntime;
+    if (computeRuntime === undefined) delete process.env.ZYX_COMPUTE_RUNTIME;
+    else process.env.ZYX_COMPUTE_RUNTIME = computeRuntime;
+  }
 });
 
 test("runtime attestation rejects every changed fingerprint field and reads installed Chromium metadata", () => {

@@ -23,48 +23,48 @@ export function StreakCalendarStrip({ current, weeklyActivity = [] }: StreakCale
   const currentDayIndex = mounted ? localWeekdayIndex(new Date()) : null;
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card p-3.5 select-none">
-      <div className="flex items-center justify-between mb-2">
-        <span className="font-heading text-body-xs font-semibold text-foreground">{t("dashboard.weeklyStreak")}</span>
-        <div className="flex items-center gap-1">
-          <Flame
-            className={cn(
-              "size-4 shrink-0 animate-pulse",
-              hasStreak ? "text-brand-secondary fill-brand-secondary/20" : "text-muted-foreground"
-            )}
-          />
-          <span className="font-sans text-body-xs font-bold tabular-nums text-foreground">
-            {t("dashboard.streakDays", { count: current })}
-          </span>
-        </div>
+    <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2 select-none">
+      <div className="flex items-center gap-1 shrink-0" title={t("dashboard.weeklyStreak")}>
+        <Flame
+          className={cn(
+            "size-3.5 shrink-0",
+            hasStreak ? "text-brand-secondary fill-brand-secondary/20" : "text-muted-foreground"
+          )}
+        />
+        <span className="font-sans text-body-xs font-semibold tabular-nums text-foreground">
+          {t("dashboard.streakDays", { count: current })}
+        </span>
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="flex items-center gap-1">
         {days.map((day, idx) => {
           const isActive = weeklyActivity[idx] || false;
           const isToday = idx === currentDayIndex;
 
           return (
-            <div key={idx} className="flex flex-col items-center gap-1.5 min-w-0">
-              <span className="font-sans text-body-xs font-bold text-foreground leading-none" title={t(`dashboard.weekdays.${day}`)}>
+            <div
+              key={idx}
+              title={`${t(`dashboard.weekdays.${day}`)}: ${isActive ? t("dashboard.dayDone") : t("dashboard.dayNotDone")}`}
+              className="flex flex-col items-center gap-0.5"
+            >
+              <span className="font-sans text-[9px] font-medium leading-none text-muted-foreground">
                 {t(`dashboard.weekdaysShort.${day}`)}
               </span>
-              <div
-                title={`${t(`dashboard.weekdays.${day}`)}: ${isActive ? t("dashboard.dayDone") : t("dashboard.dayNotDone")}`}
+              <span
                 className={cn(
-                  "flex w-full aspect-square max-w-[24px] items-center justify-center rounded-md text-[10px] font-bold transition-colors",
+                  "flex size-3.5 items-center justify-center rounded-full transition-colors",
                   isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted/60 text-muted-foreground/40 border border-border/50",
-                  isToday && "ring-1.5 ring-brand-primary ring-offset-1 ring-offset-background"
+                    ? "bg-brand-secondary text-white"
+                    : "bg-muted/70 text-muted-foreground/40",
+                  isToday && "ring-1 ring-brand-secondary/80 ring-offset-1 ring-offset-card"
                 )}
               >
                 {isActive ? (
-                  <Check className="size-3.5 stroke-[2.5]" />
+                  <Check className="size-2.5 stroke-[3]" />
                 ) : (
-                  <span className="size-1 rounded-full bg-muted-foreground/30" />
+                  <span className="size-1 rounded-full bg-muted-foreground/35" />
                 )}
-              </div>
+              </span>
             </div>
           );
         })}

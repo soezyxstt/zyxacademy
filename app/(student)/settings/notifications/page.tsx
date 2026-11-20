@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { Bell } from "lucide-react";
 import { NotificationPreferencesForm } from "./notification-preferences-form";
 import { auth } from "@/lib/auth";
 import { getEmailNotificationPreferences } from "@/lib/email-preferences/repository";
@@ -25,14 +24,11 @@ export default async function NotificationPreferencesPage() {
 
   const preferences = await getEmailNotificationPreferences(session.user.id);
   return (
-    <ApplicationPage>
+    <ApplicationPage spacing="space-y-(--compact-gap)">
       <PageHeader
         title={<TranslatedText namespace="student" messageKey="notificationPreferences.title" />}
-        icon={Bell}
-        backHref="/settings"
-        backLabel={<TranslatedText namespace="student" messageKey="settings.title" />}
       />
-      <Reveal className="mt-6">
+      <Reveal>
         <NotificationPreferencesForm accountEmail={session.user.email} initialPreferences={preferences} />
       </Reveal>
     </ApplicationPage>

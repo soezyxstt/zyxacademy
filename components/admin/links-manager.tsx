@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -317,7 +318,7 @@ export function LinksManager() {
   };
 
   const renderGrid = () => (
-    <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+    <div className="divide-y divide-border border-y border-border">
       {filteredLinks.map((link) => {
         const color = linkColor(link.color);
         const index = links.findIndex((l) => l.id === link.id);
@@ -470,10 +471,9 @@ export function LinksManager() {
             </button>
           ))}
         </div>
-        <Button onClick={openCreate}>
+        <AdminIconAction label={t("addLink")} onClick={openCreate}>
           <Plus className="size-4" />
-          {t("addLink")}
-        </Button>
+        </AdminIconAction>
       </div>
 
       {loading ? (

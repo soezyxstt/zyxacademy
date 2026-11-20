@@ -36,6 +36,7 @@ import { readInteractiveDocumentAsset, stageInteractiveDocumentAssets } from "@/
 import { validateQuestionVisualAssets, type QuestionVisualAssets } from "@/lib/authoring/question-visual-assets";
 import { collectQuestionVisualReferences } from "@/lib/authoring/question-visual-references";
 import { stageQuestionVisualBinding, verifyQuestionVisualBinding } from "@/lib/materials/question-visual-binding";
+import { lockCanonicalQuestionRows, lockQuestionBankRows } from "@/lib/question-row-locks";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -637,9 +638,13 @@ export async function createCanonicalQuestionBatch(input: QuestionAuthoringBatch
   const results = await db.transaction(async (tx) => {
     await requireCreator(tx, input.creatorId);
     await validatePreparedBatch(tx, { ...prepared, items: offloadedItems });
-    const results: PersistResult[] = [];
-    for (const item of offloadedItems) {
-      results.push(await persistQuestionWithLinks(
+    const ids = offloadedItems.flatMap(item => item.questionId ? [item.questionId] : []);
+    await lockCanonicalQuestionRows(tx, ids, 'update');
+    await lockQuestionBankRows(tx, ids);
+    const results: PersistResult[] = new Array(offloadedItems.length);
+    const ordered = offloadedItems.map((item, index) => ({ item, index })).sort((a, b) => (a.item.questionId ?? '').localeCompare(b.item.questionId ?? ''));
+    for (const { item, index } of ordered) {
+      results[index] = await persistQuestionWithLinks(
         tx,
         context,
         item.question,
@@ -649,7 +654,7 @@ export async function createCanonicalQuestionBatch(input: QuestionAuthoringBatch
         prepared.reviewStatus,
         item.questionId,
         input.createOnly ?? false,
-      ));
+      );
     }
     return results;
   });
@@ -767,10 +772,10 @@ export async function updateCanonicalQuestion(input: QuestionAuthoringInput, cre
     await requireCreator(tx, creatorId);
     await validateIdeaLinks(tx, context, parsed.ideaLinks);
     await validateKnowledgeObject(tx, context, question.knowledgeObjectId);
+    const [canonical] = await lockCanonicalQuestionRows(tx, [questionId], 'update');
+    await lockQuestionBankRows(tx, [questionId]);
     if (retainedSnapshot || expectedContext) {
-      // Bulk status writes lock the compatibility row before the canonical row.
-      await tx.select({ id: aiQuestionBank.id }).from(aiQuestionBank).where(eq(aiQuestionBank.id, questionId)).limit(1).for("update");
-      const [current] = await tx.select({ version: soal.version, courseId: soal.mataKuliahId, chapterId: soal.babId, origin: soal.origin, status: soal.status, updatedAt: soal.updatedAt }).from(soal).where(eq(soal.id, questionId)).limit(1).for("update");
+      const current = canonical && { version: canonical.version, courseId: canonical.mataKuliahId, chapterId: canonical.babId, origin: canonical.origin, status: canonical.status, updatedAt: canonical.updatedAt };
       checkExpectedContext(current);
       if (retainedSnapshot && (!current || current.version !== retainedSnapshot.version || current.updatedAt.getTime() !== retainedSnapshot.updatedAt.getTime() || current.status !== retainedSnapshot.status || current.courseId !== retainedSnapshot.courseId || current.chapterId !== retainedSnapshot.chapterId || current.origin !== retainedSnapshot.origin)) fail("QUESTION_AUTHORING_CONFLICT", "Soal telah berubah. Muat ulang sebelum menyimpan.");
     }

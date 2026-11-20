@@ -25,11 +25,15 @@ test("participant search, filter and groups remain usable", async ({ page }, inf
   await filter.click();
   await capture("filter-open");
   await page.getByRole("option", { name: "Langsung", exact: true }).click();
+  const openSearch = page.getByRole("button", { name: /Cari nama/ });
+  await openSearch.click();
   const search = page.getByRole("textbox", { name: /Cari nama/ });
+  await expect(search).toBeFocused();
   await search.fill("tidak cocok");
   await expect(page.getByText("Visual murid")).not.toBeVisible();
   await capture("no-results");
-  await search.clear();
+  await search.press("Escape");
+  await expect(openSearch).toBeFocused();
   await page.getByRole("tab", { name: "Kelompok belajar" }).click();
   await capture("groups-empty");
   expect(errors).toEqual([]);

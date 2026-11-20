@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useTranslations } from "@/lib/i18n/client";
@@ -78,7 +76,7 @@ export function LandingSubjectShowcase() {
 
   return (
     <div>
-      <div className="rounded-2xl bg-background p-4 md:p-6" role="region" aria-label={t("subjects.regionLabel")}>
+      <div className="bg-background" role="region" aria-label={t("subjects.regionLabel")}>
         <div className="w-full overflow-x-auto scrollbar-hide">
           <ToggleGroup
             type="single"
@@ -98,16 +96,16 @@ export function LandingSubjectShowcase() {
           </ToggleGroup>
         </div>
 
-        <div className="mt-6 grid gap-6 rounded-2xl border border-border bg-card p-4 shadow-sm transition-opacity duration-200 md:grid-cols-2 md:p-6">
+        <div className="mt-4 grid gap-5 border-t border-border pt-4 transition-opacity duration-200 md:grid-cols-2">
           <div className="flex min-h-0 flex-col">
             <h3 className="font-heading text-body-base font-bold text-card-foreground">{t(s.titleKey)}</h3>
             <p className="mt-2 text-body-base text-muted-foreground">{t(s.blurbKey)}</p>
             <p className="mt-4 font-heading text-body-sm font-semibold text-card-foreground">{t("subjects.topics")}</p>
-            <ul className="mt-2 flex flex-1 flex-col gap-2 overflow-y-auto">
+            <ul className="mt-2 flex flex-1 flex-col divide-y divide-border overflow-y-auto">
               {s.courses.map((c) => (
                 <li
                   key={c}
-                  className="rounded-xl border border-border bg-background px-3 py-2 text-body-sm font-medium text-foreground"
+                  className="py-2 text-body-sm font-medium text-foreground"
                 >
                   {c}
                 </li>
@@ -117,13 +115,6 @@ export function LandingSubjectShowcase() {
           <SubjectVisual accent={s.accent} bar={s.bar} label={t("subjects.diagramLabel")} />
         </div>
       </div>
-
-      <p className="mt-6 text-center text-body-sm text-muted-foreground">
-        <Link href="/courses" className="interactive inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:text-primary/80 hover:underline">
-          {t("subjects.catalogLink")}
-          <ArrowUpRight className="size-4" aria-hidden />
-        </Link>
-      </p>
     </div>
   );
 }

@@ -203,6 +203,7 @@ function extractFixedQuestionIds(selectionRules: Record<string, unknown>): strin
 export async function createAssessmentWithLegacyProjection(
   input: QuizCanonicalSyncInput,
   callerTx?: Tx,
+  options?: { heldCanonicalRows: readonly (typeof soal.$inferSelect)[] },
 ): Promise<QuizCanonicalSyncResult> {
   const execute = async (tx: Tx): Promise<QuizCanonicalSyncResult> => {
     const templateId = input.id ?? randomUUID();
@@ -321,11 +322,11 @@ export async function createAssessmentWithLegacyProjection(
     // 4. Write Fixed Items (Item Asesmen) if specified
     const fixedQuestionIds = extractFixedQuestionIds(selectionRules);
     for (const [orderIndex, qId] of fixedQuestionIds.entries()) {
-      const [canonicalSoal] = await tx
-        .select()
-        .from(soal)
-        .where(eq(soal.id, qId))
-        .limit(1);
+      // A submission may already hold bank rows. Never discover a new canonical
+      // row here: its implicit item FK lock would reverse the editor lock order.
+      const canonicalSoal = options
+        ? options.heldCanonicalRows.find(row => row.id === qId)
+        : (await tx.select().from(soal).where(eq(soal.id, qId)).limit(1))[0];
 
       if (canonicalSoal) {
         await tx

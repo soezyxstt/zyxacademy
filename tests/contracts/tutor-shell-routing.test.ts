@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, mock, beforeEach } from "bun:test";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NextIntlClientProvider } from "next-intl";
 import { loadMessages } from "@/lib/i18n/catalogs";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -13,8 +14,11 @@ import { hasAnyPeran } from "@/lib/auth/authorization";
 
 const messages = await loadMessages("id");
 function renderWithMessages(node: React.ReactNode) {
-  return renderToStaticMarkup(React.createElement(NextIntlClientProvider, {
-    locale: "id", timeZone: "Asia/Jakarta", messages, children: node,
+  return renderToStaticMarkup(React.createElement(QueryClientProvider, {
+    client: new QueryClient(),
+    children: React.createElement(NextIntlClientProvider, {
+      locale: "id", timeZone: "Asia/Jakarta", messages, children: node,
+    }),
   }));
 }
 

@@ -1,38 +1,25 @@
 "use client";
 
+import { prefersAppReducedMotion } from "@/components/appearance-preferences";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   BookOpen,
   CheckCircle2,
   Circle,
-  Clock,
   ChevronLeft,
   ChevronRight,
   PanelRightClose,
   PanelRight,
-  Search,
   X,
-  AlertTriangle,
-  HelpCircle,
-  Brain,
-  Calculator,
-  Sigma,
-  BookOpenCheck,
-  Layers,
-  BookmarkCheck,
   Award,
-  FileText,
-  AlignLeft,
   Menu,
   Maximize2,
   Minimize2,
   MessageSquareText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import {
   Sheet,
   SheetContent,
@@ -46,8 +33,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { emitActivityUpdated } from "@/lib/activity-signal";
 import { useTutor } from "@/components/course/tutor-drawer";
 import { isZyraSelectionAskEnabled } from "@/lib/zyra/murid";
 import { extractZyraSelection, type ZyraSelectionContext } from "@/lib/zyra/selection-serializer";
@@ -58,19 +43,15 @@ import {
   resolveActiveSection,
   searchArticleContent,
 } from "@/lib/articles/structured-read-model";
-import { ArticleCodingProvider, ArticleMarkdownScope } from "@/components/coding/article-coding";
-import { ArticleParts } from "@/components/course/article-parts";
+import { ArticleCodingProvider } from "@/components/coding/article-coding";
 import { MathText } from "@/components/course/math-text";
-import { ProductLearningVisual } from "@/components/course/product-learning-visual";
-import { InteractiveDocumentArticle, InteractiveDocumentArticleLocation } from "@/components/course/interactive-document-context";
-import {
-  ProductWorkedExample,
-  ProductFormativeCheck,
-  ProductLearningTimeBadge,
-} from "@/components/course/product-learning-blocks";
-import { formatReaderTocTitle, resolveReaderBlockTitle } from "@/lib/materials/reader-toc";
+import { InteractiveDocumentArticle } from "@/components/course/interactive-document-context";
+import { formatReaderTocTitle } from "@/lib/materials/reader-toc";
 import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/reader-mode";
 import { useTranslations } from "@/lib/i18n/client";
+import { useArticleReadingProgress } from "@/hooks/use-article-reading-progress";
+import { useQueryAccountCurrent } from "@/hooks/use-query-account";
+import { StructuredArticleSectionContent, getBlockTitle } from "./structured-article-section-content";
 
 export interface MaterialNavigationItem {
   id: string;
@@ -80,6 +61,7 @@ export interface MaterialNavigationItem {
 
 export interface StructuredArticleReaderProps {
   article: PublicArticleReadModel;
+  studentId?: string;
   course?: { id?: string; title: string } | null;
   mode?: MaterialReaderMode;
   pythonBrowserOnly?: boolean;
@@ -94,328 +76,20 @@ export interface StructuredArticleReaderProps {
   adapter?: { onComplete: () => void; completed: boolean; ready: boolean };
 }
 
-interface BlockMetadata {
-  label: string;
-  icon: React.ElementType;
-  containerClass: string;
-  badgeClass: string;
+export { StructuredArticleSectionContent } from "./structured-article-section-content";
+
+export function StructuredArticleReader(props: StructuredArticleReaderProps) {
+  const currentAccount = useQueryAccountCurrent(props.studentId ?? "");
+  if (props.studentId && !props.adapter && !currentAccount) return null;
+  return <StructuredArticleReaderContent key={JSON.stringify([props.studentId ?? "preview", props.article.id, props.article.version])} {...props} />;
 }
 
-function getBlockMetadata(blockType: string, t: ReturnType<typeof useTranslations>): BlockMetadata {
-  switch (blockType) {
-    case "problem_introduction":
-      return {
-        label: t("articleReader.blockTypes.problemIntroduction"),
-        icon: HelpCircle,
-        containerClass: "border-l-4 border-l-status-warning border-t border-r border-b border-border/60 bg-status-warning/[0.03]",
-        badgeClass: "text-status-warning bg-status-warning/10",
-      };
-    case "prior_knowledge_activation":
-      return {
-        label: t("articleReader.blockTypes.priorKnowledge"),
-        icon: BookOpenCheck,
-        containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/60 bg-primary/[0.03]",
-        badgeClass: "text-primary bg-primary/10",
-      };
-    case "verbal_representation":
-      return {
-        label: t("articleReader.blockTypes.verbalRepresentation"),
-        icon: AlignLeft,
-        containerClass: "",
-        badgeClass: "text-primary bg-primary/10",
-      };
-    case "mathematical_representation":
-      return {
-        label: t("articleReader.blockTypes.mathematicalRepresentation"),
-        icon: Calculator,
-        containerClass: "",
-        badgeClass: "text-status-success bg-status-success/10",
-      };
-    case "analogy":
-      return {
-        label: t("articleReader.blockTypes.analogy"),
-        icon: Sigma,
-        containerClass: "border-l-4 border-l-status-warning/70 border-t border-r border-b border-border/70 bg-card",
-        badgeClass: "text-status-warning bg-status-warning/10",
-      };
-    case "worked_example":
-      return {
-        label: t("articleReader.blockTypes.workedExample"),
-        icon: BookOpen,
-        containerClass: "border-l-4 border-l-status-success border-t border-r border-b border-border/70 bg-card",
-        badgeClass: "text-status-success bg-status-success/10",
-      };
-    case "misconception":
-      return {
-        label: t("articleReader.blockTypes.misconception"),
-        icon: AlertTriangle,
-        containerClass: "border-l-4 border-l-status-error border-t border-r border-b border-border/70 bg-card",
-        badgeClass: "text-status-error bg-status-error/10",
-      };
-    case "application":
-      return {
-        label: t("articleReader.blockTypes.application"),
-        icon: FileText,
-        containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/70 bg-card",
-        badgeClass: "text-primary bg-primary/10",
-      };
-    case "retrieval_prompt":
-      return {
-        label: t("articleReader.blockTypes.retrievalPrompt"),
-        icon: Brain,
-        containerClass: "border-l-4 border-l-status-warning border-t border-r border-b border-border/70 bg-card",
-        badgeClass: "text-status-warning bg-status-warning/10",
-      };
-    case "cross_idea_synthesis":
-      return {
-        label: t("articleReader.blockTypes.synthesis"),
-        icon: Layers,
-        containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/70 bg-card",
-        badgeClass: "text-primary bg-primary/10",
-      };
-    case "summary":
-      return {
-        label: t("articleReader.blockTypes.summary"),
-        icon: BookmarkCheck,
-        containerClass: "border-l-4 border-l-border border-t border-r border-b border-border/70 bg-muted/25",
-        badgeClass: "text-muted-foreground bg-muted",
-      };
-    case "retrieval_close":
-      return {
-        label: t("articleReader.blockTypes.reflection"),
-        icon: Award,
-        containerClass: "border-l-4 border-l-status-success border-t border-r border-b border-border/70 bg-card",
-        badgeClass: "text-status-success bg-status-success/10",
-      };
-    case "explanation":
-    default:
-      return {
-        label: t("articleReader.blockTypes.explanation"),
-        icon: AlignLeft,
-        containerClass: "",
-        badgeClass: "text-muted-foreground bg-muted",
-      };
-  }
-}
-
-function BlockVisuals({ visuals }: { visuals?: PublicSectionReadModel["visuals"] }) {
-  if (!visuals || visuals.length === 0) return null;
-  return (
-    <div className="space-y-4 pt-2">
-      {visuals.map((visual) => (
-        <ProductLearningVisual key={visual.id} spec={visual} />
-      ))}
-    </div>
-  );
-}
-
-function getBlockTitle(block: PublicSectionReadModel["blocks"][number], sectionTitle: string, t: ReturnType<typeof useTranslations>) {
-  const fallback = block.blockType === "worked_example" && block.workedExample
-    ? t("articleReader.blockTypes.stepByStepExample")
-    : block.formativeCheck ? t("articleReader.blockTypes.selfCheck") : getBlockMetadata(block.blockType, t).label;
-  return resolveReaderBlockTitle(block.title, fallback, sectionTitle);
-}
-
-export function StructuredArticleSectionContent({
-  section,
-  articleId,
-  articleVersion,
-  completed = false,
-  showProgress = true,
-  interactiveChecks = true,
-}: {
-  section: PublicSectionReadModel;
-  articleId: string;
-  articleVersion: number;
-  completed?: boolean;
-  showProgress?: boolean;
-  interactiveChecks?: boolean;
-}) {
-  const t = useTranslations("studentCourse");
-  return (
-    <>
-      <header className="space-y-3 border-b border-border/80 pb-5">
-        <div className="flex flex-wrap items-center gap-2 text-body-xs font-semibold text-muted-foreground">
-          <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-primary">
-            {section.sectionNumber}
-          </span>
-          {!section.learningTimeEstimate ? (
-            <span className="flex items-center gap-1">
-              <Clock className="size-3.5" />
-              {t("articleReader.readingMinutes", { count: section.estimatedReadingMinutes })}
-            </span>
-          ) : null}
-          {showProgress && completed ? (
-            <span className="flex items-center gap-1 text-status-success">
-              <CheckCircle2 className="size-3.5" />
-              {t("articleReader.readComplete")}
-            </span>
-          ) : null}
-        </div>
-        <h2 className={cn("font-heading font-bold tracking-tight text-foreground", section.blocks.some((block) => block.parts?.length) ? "text-h5" : "text-h4 sm:text-h3")}>
-          <MathText className="normal-case">{section.title}</MathText>
-        </h2>
-
-        {/* Learning Time Estimate Heuristics */}
-        {section.learningTimeEstimate ? (
-          <ProductLearningTimeBadge
-            timeEstimate={section.learningTimeEstimate}
-            className="w-fit"
-          />
-        ) : null}
-
-        {section.learningObjective ? (
-          <div className="mt-3 border-l-2 border-primary/60 pl-3.5 py-1">
-            <p className="text-body-base leading-relaxed text-muted-foreground">
-              <MathText className="normal-case">{section.learningObjective}</MathText>
-            </p>
-          </div>
-        ) : null}
-      </header>
-
-      {/* Typed Visuals */}
-      {!section.blocks.some((block) => block.parts?.length) && section.visuals && section.visuals.length > 0 ? (
-        <div className="space-y-4 py-2">
-          {section.visuals.map((visual) => (
-            <InteractiveDocumentArticleLocation key={visual.id} sectionId={section.id} field="section_visual"><ProductLearningVisual spec={visual} /></InteractiveDocumentArticleLocation>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="space-y-6 py-2">
-        {section.blocks.map((block, blockIndex) => {
-          const renderBlock = () => {
-          if (block.blockType === "worked_example" && block.workedExample) {
-            return (
-              <div
-                key={block.id || blockIndex}
-                id={block.id ? `block-${block.id}` : undefined}
-                data-block-type="worked_example"
-                data-block-title={block.title || t("articleReader.blockTypes.workedExample")}
-                className="scroll-mt-24"
-              >
-                <ProductWorkedExample
-                  title={block.title}
-                  content={block.content}
-                  contentNode={block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : undefined}
-                  workedExample={block.workedExample}
-                />
-                {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
-              </div>
-            );
-          }
-
-          if (
-            (block.blockType === "retrieval_prompt" || block.blockType === "retrieval_close") &&
-            block.formativeCheck && interactiveChecks
-          ) {
-            return (
-              <div
-                key={block.id || blockIndex}
-                id={block.id ? `block-${block.id}` : undefined}
-                data-block-type={block.blockType}
-                data-block-title={block.title || t("articleReader.blockTypes.retrievalPrompt")}
-                className="scroll-mt-24"
-              >
-                <ProductFormativeCheck
-                  title={block.title}
-                  content={block.content}
-                  contentNode={block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : undefined}
-                  formativeCheck={block.formativeCheck}
-                  locator={{
-                    articleId,
-                    articleVersion,
-                    sectionId: section.id,
-                    blockId: block.id,
-                  }}
-                />
-                {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
-              </div>
-            );
-          }
-
-          const meta = getBlockMetadata(block.blockType, t);
-          const Icon = meta.icon;
-          const displayTitle = getBlockTitle(block, section.title, t);
-
-          const isCoreDocument =
-            block.blockType === "explanation" ||
-            block.blockType === "verbal_representation" ||
-            block.blockType === "mathematical_representation";
-
-          if (isCoreDocument) {
-            return (
-              <div
-                key={block.id || blockIndex}
-                id={block.id ? `block-${block.id}` : undefined}
-                data-block-type={block.blockType}
-                data-block-title={displayTitle || meta.label}
-                className={cn(
-                  "space-y-3 py-1 scroll-mt-24",
-                  block.blockType === "mathematical_representation" && "space-y-1.5 py-0.5",
-                )}
-              >
-                {displayTitle &&
-                displayTitle !== section.title &&
-                displayTitle !== meta.label ? (
-                  <h3 className={cn("font-heading font-bold tracking-tight text-foreground pt-3", block.parts?.length ? "text-body-base" : "text-h5")}>
-                    <MathText className="normal-case">{displayTitle}</MathText>
-                  </h3>
-                ) : null}
-                <div className="text-body-base leading-relaxed text-foreground">
-                  {block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : <MarkdownRenderer content={block.content} density="default" />}
-                </div>
-                {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
-              </div>
-            );
-          }
-
-          return (
-            <div
-              key={block.id || blockIndex}
-              id={block.id ? `block-${block.id}` : undefined}
-              data-block-type={block.blockType}
-              data-block-title={displayTitle || meta.label}
-              className={cn(
-                "rounded-r-lg p-4 sm:p-5 space-y-3 shadow-xs my-3 scroll-mt-24",
-                meta.containerClass,
-              )}
-            >
-              <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "flex size-6 shrink-0 items-center justify-center rounded-md",
-                      meta.badgeClass,
-                    )}
-                  >
-                    <Icon className="size-3.5" />
-                  </span>
-                  <h3 className="font-heading text-body-sm font-bold text-foreground">
-                    <MathText className="normal-case">{displayTitle}</MathText>
-                  </h3>
-                </div>
-              </div>
-              <div className="text-body-base leading-relaxed text-foreground">
-                {block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : <MarkdownRenderer content={block.content} density="compact" />}
-              </div>
-              {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
-            </div>
-          );
-          };
-          return <ArticleMarkdownScope key={block.id || blockIndex} id={JSON.stringify([section.id, block.id || blockIndex])}><InteractiveDocumentArticleLocation sectionId={section.id} blockId={block.id} field="content">{renderBlock()}</InteractiveDocumentArticleLocation></ArticleMarkdownScope>;
-        })}
-      </div>
-    </>
-  );
-}
-
-export function StructuredArticleReader({
+function StructuredArticleReaderContent({
   article,
+  studentId,
   course,
   mode = "learner",
   pythonBrowserOnly = false,
-  backHref,
   prevMaterial,
   nextMaterial,
   isTocOpen: controlledTocOpen,
@@ -495,29 +169,13 @@ export function StructuredArticleReader({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isFocusMode, exitFocusMode]);
 
-  // Reading progress tracking state
-  const [sectionProgressMap, setSectionProgressMap] = useState<
-    Record<string, { maxReadPercent: number; completed: boolean; timeSpentSeconds: number }>
-  >(() => {
-    return article.progress?.sectionProgress ?? {};
+  const { sectionProgressMap, contentContainerRef, completeRemaining } = useArticleReadingProgress({
+    article,
+    studentId,
+    courseId: course?.id,
+    activeSection,
+    enabled: learnerMode && !adapter,
   });
-
-  const activeTimeSpentRef = useRef(0);
-  const maxScrollPercentRef = useRef(0);
-  const contentContainerRef = useRef<HTMLDivElement | null>(null);
-  const completedSectionsSentRef = useRef<Set<string>>(new Set());
-
-  // Initialize completed sections set from article progress
-  useEffect(() => {
-    const initProg = article.progress?.sectionProgress;
-    if (initProg) {
-      for (const [id, p] of Object.entries(initProg)) {
-        if (p.completed || (p.maxReadPercent ?? 0) >= 90) {
-          completedSectionsSentRef.current.add(id);
-        }
-      }
-    }
-  }, [article.progress]);
 
   // Zyra selection hooks & state
   const { openExplain, openChatWithQuestion, isOpen: isTutorOpen } = useTutor();
@@ -564,7 +222,7 @@ export function StructuredArticleReader({
       cancelAnimationFrame(frame);
       document.removeEventListener("selectionchange", handleSelectionChange);
     };
-  }, [learnerMode, selectionAskEnabled, isMobileSelection, isTutorOpen, article.title]);
+  }, [learnerMode, selectionAskEnabled, isMobileSelection, isTutorOpen, article.title, contentContainerRef]);
 
   // Auto-collapse TOC ("BAB INI") on laptop screens when Zyra panel opens
   const tocWasOpenBeforeTutorRef = useRef<boolean | null>(null);
@@ -588,9 +246,7 @@ export function StructuredArticleReader({
       setIsMobileSheetOpen(false);
       const el = document.getElementById(`section-${section.slug}`);
       if (el) {
-        const reduceMotion =
-          typeof window !== "undefined" &&
-          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const reduceMotion = prefersAppReducedMotion();
         el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
       }
       try {
@@ -607,9 +263,7 @@ export function StructuredArticleReader({
       setIsMobileSheetOpen(false);
       const el = document.getElementById(`block-${blockId}`);
       if (el) {
-        const reduceMotion =
-          typeof window !== "undefined" &&
-          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const reduceMotion = prefersAppReducedMotion();
         el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
       }
     },
@@ -625,11 +279,8 @@ export function StructuredArticleReader({
       const el = document.getElementById(`section-${targetSlug}`);
       if (el) {
         initialScrolledRef.current = true;
-        const reduceMotion =
-          typeof window !== "undefined" &&
-          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         setTimeout(() => {
-          el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+          el.scrollIntoView({ behavior: prefersAppReducedMotion() ? "auto" : "smooth", block: "start" });
         }, 80);
       }
     }
@@ -695,123 +346,6 @@ export function StructuredArticleReader({
   useEffect(() => () => {
     if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
   }, []);
-
-  // Report progress to server
-  const sendProgressUpdate = useCallback(
-    async (
-      sectionId: string,
-      percent: number,
-      timeSpent: number,
-      markCompleted?: boolean,
-    ) => {
-      if (!learnerMode || adapter) return;
-      try {
-        const res = await fetch(`/api/student/articles/${article.id}/progress`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sectionId,
-            percent: Math.round(percent),
-            timeSpentSeconds: Math.round(timeSpent),
-            completed: markCompleted,
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setSectionProgressMap((prev) => ({
-            ...prev,
-            [sectionId]: {
-              maxReadPercent: data.maxReadPercent,
-              completed: data.completed,
-              timeSpentSeconds: data.timeSpentSeconds,
-            },
-          }));
-          if (data.completed || markCompleted) {
-            emitActivityUpdated({ type: "article", courseId: course?.id, materialId: article.id, sectionId });
-          }
-        }
-      } catch {}
-    },
-    [article.id, course?.id, learnerMode, adapter],
-  );
-
-  // Reset scroll & timer tracking on active section change
-  useEffect(() => {
-    if (!learnerMode || adapter) return;
-    activeTimeSpentRef.current = 0;
-    maxScrollPercentRef.current = 0;
-
-    const interval = setInterval(() => {
-      activeTimeSpentRef.current += 1;
-    }, 1000);
-
-    return () => {
-      clearInterval(interval);
-      if (activeSection && activeTimeSpentRef.current > 2) {
-        sendProgressUpdate(
-          activeSection.id,
-          maxScrollPercentRef.current,
-          activeTimeSpentRef.current,
-        );
-      }
-    };
-  }, [activeSection, learnerMode, adapter, sendProgressUpdate]);
-
-  // Scroll listener to track read percentage and completion across all sections in continuous flow
-  useEffect(() => {
-    if (!learnerMode || adapter) return;
-    const handleScroll = () => {
-      const el = contentContainerRef.current;
-      if (!el) return;
-
-      const windowHeight = window.innerHeight;
-
-      for (const sec of article.sections) {
-        const sectionEl = document.getElementById(`section-${sec.slug}`);
-        if (!sectionEl) continue;
-
-        const rect = sectionEl.getBoundingClientRect();
-        const totalHeight = rect.height;
-        if (totalHeight <= 0) continue;
-
-        const scrolledPast = Math.max(0, windowHeight - rect.top);
-        const percent = Math.min(100, Math.max(0, Math.round((scrolledPast / totalHeight) * 100)));
-
-        // Read through if 85%+ scrolled or bottom is near upper viewport
-        const isReadThrough =
-          percent >= 85 || (rect.bottom <= windowHeight * 0.85 && rect.top < windowHeight * 0.4);
-
-        if (isReadThrough) {
-          if (!completedSectionsSentRef.current.has(sec.id)) {
-            completedSectionsSentRef.current.add(sec.id);
-            setSectionProgressMap((prev) => ({
-              ...prev,
-              [sec.id]: {
-                maxReadPercent: Math.max(prev[sec.id]?.maxReadPercent ?? 0, 100),
-                completed: true,
-                timeSpentSeconds:
-                  (prev[sec.id]?.timeSpentSeconds ?? 0) +
-                  (activeSection?.id === sec.id ? activeTimeSpentRef.current : 5),
-              },
-            }));
-            sendProgressUpdate(
-              sec.id,
-              100,
-              activeSection?.id === sec.id ? activeTimeSpentRef.current : 5,
-              true,
-            );
-          }
-        } else if (activeSection?.id === sec.id && percent > maxScrollPercentRef.current) {
-          maxScrollPercentRef.current = percent;
-        }
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [activeSection, article.sections, learnerMode, adapter, sendProgressUpdate]);
 
   // Selection listener for selection-to-Zyra toolbar using mouseup and keyup
   useEffect(() => {
@@ -884,7 +418,7 @@ export function StructuredArticleReader({
         container.removeEventListener("keyup", handleKeyUp);
       }
     };
-  }, [learnerMode, selectionAskEnabled, article.title, isMobileSelection]);
+  }, [learnerMode, selectionAskEnabled, article.title, isMobileSelection, contentContainerRef]);
 
   const handleToolbarOpenChange = (open: boolean) => {
     setIsSelectionToolbarOpen(open);
@@ -954,41 +488,22 @@ export function StructuredArticleReader({
   const overallPercent = Math.min(100, Math.round((completedCount / totalSections) * 100));
 
   const handleFinishArticle = () => {
-    if (adapter) { if (adapter.ready) { adapter.onComplete(); router.push(backHref ?? `/courses/${article.courseId}/material`); } return; }
-    if (learnerMode) {
-      for (const sec of article.sections) {
-        if (!completedSectionsSentRef.current.has(sec.id)) {
-          completedSectionsSentRef.current.add(sec.id);
-          sendProgressUpdate(sec.id, 100, 5, true);
-        }
-      }
+    if (adapter) {
+      if (adapter.ready) adapter.onComplete();
+      return;
     }
-    router.push(backHref ?? `/courses/${article.courseId}/material`);
+    completeRemaining();
   };
 
   const handleNextMaterial = () => {
-    if (learnerMode) {
-      for (const sec of article.sections) {
-        if (!completedSectionsSentRef.current.has(sec.id)) {
-          completedSectionsSentRef.current.add(sec.id);
-          sendProgressUpdate(sec.id, 100, 5, true);
-        }
-      }
-    }
+    completeRemaining();
     if (nextMaterial?.href) {
       router.push(nextMaterial.href);
     }
   };
 
   const handlePrevMaterial = () => {
-    if (learnerMode) {
-      for (const sec of article.sections) {
-        if (!completedSectionsSentRef.current.has(sec.id)) {
-          completedSectionsSentRef.current.add(sec.id);
-          sendProgressUpdate(sec.id, 100, 5, true);
-        }
-      }
-    }
+    completeRemaining();
     if (prevMaterial?.href) {
       router.push(prevMaterial.href);
     }
@@ -996,33 +511,21 @@ export function StructuredArticleReader({
 
   const courseTitle = course?.title || t("articleReader.courseMaterial");
 
-  const renderTocContent = () => (
-    <div className="flex flex-col h-full">
-      {/* Search Bar */}
-      <div className="p-3 border-b border-border/70">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            type="search"
-            aria-label={t("articleReader.searchArticle")}
-            placeholder={t("articleReader.searchArticle")}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full pl-8 pr-8 text-body-sm"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              aria-label={t("articleReader.clearSearch")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
+  const tocSearch = (
+    <SearchBar
+      collapsible
+      size="sm"
+      type="search"
+      aria-label={t("articleReader.searchArticle")}
+      placeholder={t("articleReader.searchArticle")}
+      value={searchQuery}
+      onSearch={setSearchQuery}
+      containerClassName="min-w-0 flex-1"
+    />
+  );
 
+  const renderTocContent = () => (
+    <div className="flex min-h-0 flex-1 flex-col">
       {/* List items: Search results or TOC list */}
       <div className="flex-1 overflow-y-auto p-3 space-y-1">
         {searchQuery.trim().length >= 2 ? (
@@ -1065,10 +568,7 @@ export function StructuredArticleReader({
           </div>
         ) : (
           <div>
-            <div className="flex items-center justify-between px-2 py-1 mb-1">
-              <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("articleReader.thisChapter")}
-              </span>
+            <div className="mb-1 flex items-center justify-end px-2 py-1">
               <span className="text-body-xs font-semibold text-muted-foreground">
                 {t("articleReader.sectionsComplete", { completed: completedCount, total: totalSections })}
               </span>
@@ -1173,29 +673,8 @@ export function StructuredArticleReader({
           <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-sm">
             <TooltipProvider delayDuration={150}>
               <div className="flex items-center justify-between px-4 py-2 gap-3 max-w-7xl mx-auto w-full">
-                {/* Left: Back button + Chapter Title */}
+                {/* Left: Chapter Title */}
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        asChild
-                        className="text-muted-foreground hover:text-foreground shrink-0 rounded-lg"
-                        aria-label={t("articleReader.backToMaterial")}
-                      >
-                        <Link href={backHref ?? `/courses/${article.courseId}/material`}>
-                          <ArrowLeft className="size-4" />
-                        </Link>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" align="start">
-                      <span>{t("articleReader.backToMaterial")}</span>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <div className="h-4 w-px bg-border/70 shrink-0" />
-
                   <div className="min-w-0">
                     <p className="truncate text-body-2xs font-medium text-muted-foreground uppercase tracking-wider">
                       <MathText className="normal-case">{courseTitle}</MathText>
@@ -1297,66 +776,59 @@ export function StructuredArticleReader({
 
       {/* Mobile Sheet for TOC & Search */}
       <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
-        <SheetContent side="right" className="w-[300px] sm:w-[360px] p-0 flex flex-col">
-          <SheetHeader className="p-4 border-b border-border/80">
-            <SheetTitle className="text-body-sm font-bold font-heading">
-              <MathText className="normal-case">{article.title}</MathText>
-            </SheetTitle>
+        <SheetContent side="right" className="gap-0" aria-describedby={undefined}>
+          <SheetHeader className="group/toc min-h-14 flex-row items-center gap-2 border-b border-border/80 py-2 pl-3 pr-14">
+            <SheetTitle className="min-w-0 flex-1 text-body-sm group-has-[[data-search-expanded=true]]/toc:sr-only">{t("articleReader.thisChapter")}</SheetTitle>
+            {tocSearch}
           </SheetHeader>
-          <div className="flex-1 overflow-hidden">{renderTocContent()}</div>
+          {renderTocContent()}
         </SheetContent>
       </Sheet>
 
       {/* Main Layout Body */}
       <div className={cn("flex-1 flex w-full", isFocusMode && "max-w-4xl mx-auto")}>
         {/* Main Content Area (75 character measure) */}
-        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-8 pb-32">
+        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 pb-32">
           {article.sections.length > 0 ? (
             <div
               ref={contentContainerRef}
               id="article-reading-content"
               className={cn(
-                "max-w-[75ch] mx-auto space-y-10",
+                "max-w-[75ch] mx-auto",
                 temporaryHighlight && "ring-2 ring-status-warning/60 ring-offset-4 ring-offset-background",
               )}
             >
               {temporaryHighlight ? (
-                <div role="status" className="rounded-lg border border-status-warning/40 bg-status-warning/10 px-4 py-3 text-body-sm text-foreground">
+                <div role="status" className="mb-4 rounded-lg border border-status-warning/40 bg-status-warning/10 px-4 py-3 text-body-sm text-foreground">
                   Menampilkan hasil untuk <span className="font-semibold">{temporaryHighlight}</span>. Sorotan akan hilang otomatis.
                 </div>
               ) : null}
 
-              {article.sections.map((sec, secIdx) => {
-                const isLast = secIdx === article.sections.length - 1;
+              {article.sections.map((sec) => {
                 const isSecDone = Boolean(
                   sectionProgressMap[sec.id]?.completed ||
                   (sectionProgressMap[sec.id]?.maxReadPercent ?? 0) >= 90
                 );
                 return (
-                  <React.Fragment key={sec.id}>
-                    <article
-                      id={`section-${sec.slug}`}
-                      data-section-slug={sec.slug}
-                      className="scroll-mt-20 space-y-6"
-                    >
-                      <StructuredArticleSectionContent
-                        section={sec}
-                        articleId={article.id}
-                        articleVersion={article.version}
-                        completed={adapter ? adapter.completed : isSecDone}
-                        interactiveChecks
-                      />
-                    </article>
-
-                    {!isLast ? (
-                      <hr className="my-12 border-t border-border/80" />
-                    ) : null}
-                  </React.Fragment>
+                  <article
+                    key={sec.id}
+                    id={`section-${sec.slug}`}
+                    data-section-slug={sec.slug}
+                    className="scroll-mt-20 space-y-(--related-gap) [&+article]:mt-[calc(var(--reading-section-gap)*0.5)] [&+article]:border-t [&+article]:border-border/80 [&+article]:pt-[calc(var(--reading-section-gap)*0.5)] lg:[&+article]:mt-[calc(var(--reading-section-gap)*0.75)] lg:[&+article]:pt-[calc(var(--reading-section-gap)*0.75)]"
+                  >
+                    <StructuredArticleSectionContent
+                      section={sec}
+                      articleId={article.id}
+                      articleVersion={article.version}
+                      completed={adapter ? adapter.completed : isSecDone}
+                      interactiveChecks
+                    />
+                  </article>
                 );
               })}
 
               {/* End of chapter card */}
-              <div className="mt-16 rounded-xl border border-border bg-card p-6 sm:p-8 text-center space-y-4 shadow-sm">
+              <div className="mt-(--reading-section-gap) rounded-xl border border-border bg-card p-(--panel-padding) sm:p-(--section-gap) text-center space-y-(--related-gap) shadow-sm">
                 <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-status-success/15 text-status-success">
                   <Award className="size-6" />
                 </div>
@@ -1401,24 +873,11 @@ export function StructuredArticleReader({
                       variant="default"
                       size="default"
                       onClick={handleFinishArticle}
-                      disabled={adapter ? !adapter.ready : false}
+                      disabled={adapter ? (!adapter.ready || adapter.completed) : overallPercent >= 100}
                       className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold gap-1.5"
                     >
-                      <span>{t("articleReader.backToMaterials")}</span>
-                      <ChevronRight className="size-4" />
-                    </Button>
-                  )}
-
-                  {nextMaterial && (
-                    <Button
-                      variant="ghost"
-                      size="default"
-                      asChild
-                      className="rounded-lg text-muted-foreground hover:text-foreground font-semibold"
-                    >
-                      <Link href={backHref ?? `/courses/${article.courseId}/material`}>
-                        <span>{t("articleReader.materialList")}</span>
-                      </Link>
+                      <CheckCircle2 className="size-4" />
+                      <span>{t("articleReader.readComplete")}</span>
                     </Button>
                   )}
                 </div>
@@ -1431,18 +890,17 @@ export function StructuredArticleReader({
               <p className="text-body-sm text-muted-foreground">
                 {t("articleReader.noPublishedSections")}
               </p>
-              <Button asChild variant="outline">
-                <Link href={backHref ?? `/courses/${article.courseId}/material`}>
-                  {t("articleReader.backToMaterials")}
-                </Link>
-              </Button>
             </div>
           )}
         </main>
 
         {/* Desktop Collapsible Table of Contents */}
         {!isFocusMode && isTocOpen && (
-          <aside className="hidden md:block w-72 lg:w-80 shrink-0 border-l border-border/80 h-[calc(100vh-53px)] sticky top-[53px] overflow-hidden bg-card/40">
+          <aside className="hidden md:flex flex-col w-72 lg:w-80 shrink-0 border-l border-border/80 h-[calc(100vh-53px)] sticky top-[53px] overflow-hidden bg-card/40">
+            <div className="group/toc flex items-center gap-2 border-b border-border/70 px-3 py-1">
+              <h2 className="min-w-0 flex-1 text-body-sm font-semibold group-has-[[data-search-expanded=true]]/toc:sr-only">{t("articleReader.thisChapter")}</h2>
+              {tocSearch}
+            </div>
             {renderTocContent()}
           </aside>
         )}

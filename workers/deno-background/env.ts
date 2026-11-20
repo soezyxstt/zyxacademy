@@ -13,14 +13,18 @@ const optionalUrl = z.preprocess(
 export const WorkerEnvSchema = z.object({
   // Database
   DATABASE_URL: optionalString,
+  ZYRA_CONTROL_PLANE_URL: optionalUrl,
+  ZYRA_CONTROL_PLANE_TOKEN: optionalString,
   TURSO_CONNECTION_URL: optionalString,
   TURSO_DATABASE_URL: optionalString,
   TURSO_AUTH_TOKEN: optionalString,
 
+  QUEUE_PROVIDER: z.enum(["inngest", "cloud-tasks", "memory", "noop"]).default("inngest"),
+
   // Inngest
   INNGEST_EVENT_KEY: optionalString,
   INNGEST_SIGNING_KEY: optionalString,
-  INNGEST_SERVE_ORIGIN: optionalUrl.default("https://zyx-background.soezyxst.deno.net"),
+  INNGEST_SERVE_ORIGIN: optionalUrl,
   INNGEST_SERVE_PATH: z.string().default("/api/inngest"),
 
   // Diktat PDF renderer (Cloudflare Browser Run Quick Action Worker)
@@ -64,7 +68,6 @@ export const WorkerEnvSchema = z.object({
   RESEND_API_KEY: optionalString,
   NEXT_PUBLIC_BRAND_EMAIL: optionalString,
   COMPUTE_SERVICE_SECRET: optionalString,
-  DENO_DEPLOYMENT_ID: optionalString,
   NODE_ENV: z.string().default("production"),
 });
 
@@ -73,9 +76,6 @@ export type WorkerEnv = z.infer<typeof WorkerEnvSchema>;
 function getRuntimeEnv(): Record<string, string | undefined> {
   if (typeof process !== "undefined" && process.env) {
     return process.env;
-  }
-  if (typeof (globalThis as any).Deno !== "undefined") {
-    return (globalThis as any).Deno.env.toObject();
   }
   return {};
 }

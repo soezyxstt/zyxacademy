@@ -136,6 +136,39 @@ export function buildZyraAttachmentKey(input: {
   return assertSafeObjectKey(`zyx-attachments/${day}/${input.attachmentId}.${input.extension}`);
 }
 
+export function buildDiscussionImageKey(input: {
+  channelId: string;
+  attachmentId: string;
+  extension: "jpg" | "png" | "webp";
+  variant?: "preview";
+}): string {
+  if (!/^[a-zA-Z0-9_-]{1,160}$/.test(input.channelId) || !/^[a-zA-Z0-9_-]{1,160}$/.test(input.attachmentId)) {
+    throw new Error(INVALID_OBJECT_KEY);
+  }
+  return joinKey("discussions", input.channelId, input.variant === "preview" ? "previews" : "images", `${input.attachmentId}.${input.extension}`);
+}
+
+export function isPrivateAttachmentKey(value: string): boolean {
+  let decoded = value;
+  for (;;) {
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next;
+    } catch {
+      break;
+    }
+  }
+  const parts = decoded.replace(/\\/g, "/").split("/").filter(Boolean);
+  if (parts[0] === "discussions" || parts[0] === "zyx-attachments") return true;
+  const segments: string[] = [];
+  for (const part of parts) {
+    if (part === "..") segments.pop();
+    else if (part && part !== ".") segments.push(part);
+  }
+  return segments[0] === "discussions" || segments[0] === "zyx-attachments";
+}
+
 export function leafFilename(key: string): string {
   const leaf = key.split("/").filter(Boolean).pop() || key;
   return leaf.replace(/^\d+-[a-f0-9]{8}-/, "");

@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import type { ZyraOpsMetrics } from "../../lib/zyra/ops/contracts";
 
 test.setTimeout(90_000);
 
@@ -149,17 +150,28 @@ const cases = {
   ops: {
     url: "**/api/admin/zyra/ops",
     data: {
+      checkedAt: "2026-10-25T00:00:00Z",
+      externalUsageUnknown: true,
+      projectSlotCount: 4,
+      projectSlots: [
+        { slot: 1, alias: "masked", health: "healthy" },
+        { slot: 2, alias: "masked", health: "healthy" },
+        { slot: 3, alias: "masked", health: "healthy" },
+        { slot: 4, alias: "masked", health: "healthy" },
+      ],
       ledger: {
         committedProviderTurns: 2,
         activeReservations: 0,
+        refundedReservations: 0,
         cacheSavedTurns: 1,
       },
-      image: { failed: 0 },
-      projectSlotCount: 1,
-      traces: { validationViolations: 0 },
+      image: { uploaded: 0, dispatched: 0, expired: 0, failed: 0 },
+      traces: { success: 2, failure: 0, validationViolations: 0 },
+      events: [],
+      configuredModels: [],
       capacity: { modelPools: [] },
       alerts: [],
-    },
+    } satisfies ZyraOpsMetrics,
     ready: "Zyra operations",
   },
   usage: {

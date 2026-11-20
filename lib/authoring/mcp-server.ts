@@ -37,6 +37,7 @@ import { buildSourcePageImageKey } from "@/lib/storage/keys";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { and, asc, desc, eq, inArray, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { recordAuthorizedGlobalDisclosures } from "@/lib/gamification/question-exposure";
 import { aiQuestionBank, asalIde, artikel, artikelIde, assessmentSources, auditMutasi, bab, bagianArtikel, blokArtikel, buktiPdfBundle, diktatIde, diktatMateri, flashcard, flashcardIde, ide, ketergantunganProduk, mataKuliah, pembahasanSoal, potonganSumber, questionReferenceLinks, relasiIde, reviewPedagogiBundle, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
 import { normalizeDate } from "@/lib/date-utils";
 import { serializeDeterministically, validateIdeaBundleZip, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
@@ -2718,6 +2719,7 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
       acceptableAnswers: compatibility?.acceptableAnswers ?? [],
       provenance: question.answerProvenance,
     };
+    await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: principal.userId, questions: [{ questionId: question.id, courseId: question.courseId }], requestId: crypto.randomUUID() }));
     return {
       ok: true,
       scope: runScope(run),
@@ -3996,6 +3998,7 @@ function registerKnowledgeTools(server: McpServer, principal: McpPrincipal): voi
       const dependencies = await resolveProductDependencyState("question", row.id, links);
       const detail = await loadQuestionExplanationAndSolution(row);
       const ideaLinks = links.map(({ ideId, code, weight, role }) => ({ ideId, code, weight, role }));
+      if (includeContent) await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: principal.userId, questions: [{ questionId: row.id, courseId: row.mataKuliahId }], requestId: crypto.randomUUID() }));
       return {
         ok: true,
         productType: "question",
@@ -4302,6 +4305,7 @@ function registerAssessmentAnalysisTools(server: McpServer, principal: McpPrinci
       notes: questionReferenceLinks.notes,
     }).from(questionReferenceLinks).where(eq(questionReferenceLinks.questionId, questionId));
     const detail = await loadQuestionExplanationAndSolution(question);
+    await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: principal.userId, questions: [{ questionId: question.id, courseId: question.mataKuliahId }], requestId: crypto.randomUUID() }));
     return {
       ok: true,
       scope: runScope(run),

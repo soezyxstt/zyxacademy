@@ -1,5 +1,6 @@
 "use client";
 
+import { ApplicationPage } from "@/components/application-page";
 import { QuizzesClient } from "@/app/(tutor)/tutor/[courseId]/quizzes/quizzes-client";
 
 const questionBank = Array.from({ length: 21 }, (_, index) => ({
@@ -17,12 +18,14 @@ const questionBank = Array.from({ length: 21 }, (_, index) => ({
 
 export default function TutorQuizListFixture() {
   return (
-    <main className="min-h-screen bg-background p-4 text-foreground">
-      <QuizzesClient courseId="visual-math" initialQuestionBank={questionBank} initialTemplates={[{
-        id: "quiz-1", courseId: "visual-math", title: "Kuis turunan dan penerapannya", category: "weekly",
-        visibility: "free", status: "draft", manualStatus: "open", timeLimitSeconds: 1800,
-        maxAttempts: 2, selectionRules: { count: 2, fixedQuestionIds: ["q-1", "q-2"] }, creatorName: "Pengajar",
-      }]} />
+    <main className="min-h-screen bg-background text-foreground">
+      <ApplicationPage>
+        <QuizzesClient courseId="visual-math" initialQuestionBank={questionBank} initialTemplates={[{
+          id: "quiz-1", courseId: "visual-math", title: "Kuis turunan dan penerapannya", category: "weekly",
+          visibility: "free", status: "draft", manualStatus: "open", timeLimitSeconds: 1800,
+          maxAttempts: 2, selectionRules: { count: 2, fixedQuestionIds: ["q-1", "q-2"] }, creatorName: "Pengajar",
+        }]} />
+      </ApplicationPage>
     </main>
   );
 }

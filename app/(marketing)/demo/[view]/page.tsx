@@ -39,12 +39,12 @@ type Props = {
   searchParams: Promise<DemoSearchParams>;
 };
 
-const supportedViews = ["feedback", "tryout-review", "quiz-review", "quiz-summary", "profile-edit", "reflections", "leaderboard", "course-leaderboard", "playground", "live", "profile", "settings", "notifications", "groups", "schedule", "video", "path", "mastery", "tryout-list", "results", "quiz-list", "quiz-start", "documents", "overview", "courses", "progress", "history", "article", "diktat", "flashcards", "quiz", "tryout", "zyra"] as const;
+const supportedViews = ["feedback", "tryout-review", "quiz-review", "quiz-summary", "profile-edit", "reflections", "achievements", "leaderboard", "course-leaderboard", "playground", "live", "profile", "settings", "notifications", "groups", "schedule", "video", "path", "mastery", "tryout-list", "results", "quiz-list", "quiz-start", "documents", "overview", "courses", "progress", "history", "article", "diktat", "flashcards", "quiz", "tryout", "zyra"] as const;
 type SupportedView = (typeof supportedViews)[number];
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { view } = await params;
-  const key = isSupportedView(view) && !["courses", "progress", "history", "overview", "documents", "quiz-list", "quiz-start", "results", "tryout-list", "profile", "settings", "notifications", "groups", "schedule", "video", "path", "mastery", "leaderboard", "course-leaderboard", "playground", "live", "profile-edit", "reflections", "quiz-review", "quiz-summary", "tryout-review", "feedback"].includes(view) ? `demo.views.${view}` : "meta.demo.title";
+  const key = isSupportedView(view) && !["courses", "progress", "history", "overview", "documents", "quiz-list", "quiz-start", "results", "tryout-list", "profile", "settings", "notifications", "groups", "schedule", "video", "path", "mastery", "leaderboard", "achievements", "course-leaderboard", "playground", "live", "profile-edit", "reflections", "quiz-review", "quiz-summary", "tryout-review", "feedback"].includes(view) ? `demo.views.${view}` : "meta.demo.title";
   return createLocalizedMetadata({ path: `/demo/${view}`, titleKey: key, descriptionKey: "meta.demo.description", noIndex: true });
 }
 
@@ -81,7 +81,7 @@ async function DemoViewBody({ view, summary, selection, experiences, whatsappHre
       const mastery = await getDemoMastery([courseId]);
       return <DemoStudentPage view={view} experience={summary} mastery={mastery[courseId]} />;
     }
-    case "feedback": case "profile-edit": case "reflections": case "leaderboard": case "course-leaderboard": case "playground": case "live": case "profile": case "settings": case "notifications": case "groups": case "schedule": case "video": case "path":
+    case "feedback": case "profile-edit": case "reflections": case "achievements": case "leaderboard": case "course-leaderboard": case "playground": case "live": case "profile": case "settings": case "notifications": case "groups": case "schedule": case "video": case "path":
       return <DemoStudentPage view={view} experience={summary} />;
     case "overview": case "zyra": {
       const catalogue = await getDemoCatalogue(courseId);

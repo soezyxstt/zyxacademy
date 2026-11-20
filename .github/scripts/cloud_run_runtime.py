@@ -12,7 +12,7 @@ DATABASE_URL TURSO_DATABASE_URL TURSO_CONNECTION_URL TURSO_AUTH_TOKEN
 BETTER_AUTH_SECRET GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REFRESH_TOKEN
 RESEND_API_KEY WHATSAPP_ADMIN_NUMBER GEMINI_API_KEY GEMINI_API_KEY_2 GEMINI_API_KEY_3
 GEMINI_API_KEY_4 GEMINI_PROJECT_ALIAS_1 GEMINI_PROJECT_ALIAS_2 GEMINI_PROJECT_ALIAS_3
-GEMINI_PROJECT_ALIAS_4 INNGEST_EVENT_KEY INNGEST_SIGNING_KEY INNGEST_ENV
+GEMINI_PROJECT_ALIAS_4 QUEUE_PROVIDER INNGEST_EVENT_KEY INNGEST_SIGNING_KEY INNGEST_ENV
 R2_ENDPOINT R2_BUCKET R2_PUBLIC_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY STORAGE_PROVIDER_MODE
 NEON_STORAGE_BUCKET AWS_ENDPOINT_URL_S3 AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
 CF_ACCOUNT_ID CF_API_TOKEN CF_BROWSER_API_TOKEN CF_AI_GATEWAY_URL CF_AI_GATEWAY_TOKEN CF_KV_NAMESPACE_ID
@@ -106,9 +106,11 @@ def prepare_runtime(service, secrets, variables, origin):
     validate_staging_target({key: item.get("value", "") for key, item in merged.items()}, variables)
     merged.pop("SKIP_ENV_VALIDATION", None)
     # Never propagate CI-only secrets, including anything accidentally set manually.
-    for name in ("GCP_SERVICE_ACCOUNT_KEY", "GITHUB_TOKEN", "VERCEL_TOKEN", "DENO_DEPLOY_TOKEN"):
+    for name in ("GCP_SERVICE_ACCOUNT_KEY", "GITHUB_TOKEN", "VERCEL_TOKEN"):
         merged.pop(name, None)
     for key in REQUIRED:
+        if key == "INNGEST_EVENT_KEY" and merged.get("QUEUE_PROVIDER", {}).get("value") == "cloud-tasks":
+            continue
         item = merged.get(key, {})
         if not item.get("value") and not item.get("valueFrom", {}).get("secretKeyRef"):
             raise ValueError("Missing required GitHub staging runtime setting: " + key)

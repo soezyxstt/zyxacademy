@@ -1,5 +1,6 @@
 "use server";
 
+import { recordStaffCourseDisclosures } from "@/lib/gamification/question-exposure";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 
 import { db } from "@/db";
@@ -881,7 +882,7 @@ export async function toggleQuizTemplateStatusAction(
 }
 
 export async function getQuizTemplatePreviewAction(courseId: string, templateId: string) {
-  const { access } = await verifyTutorAccess(courseId);
+  const { access, session } = await verifyTutorAccess(courseId);
 
   const [template] = await db
     .select()
@@ -1009,6 +1010,7 @@ export async function getQuizTemplatePreviewAction(courseId: string, templateId:
     };
   });
 
+  await db.transaction(tx => recordStaffCourseDisclosures(tx, { userId: session.user.id, courseId, questionIds: mappedQuestions.map(q => q.id), contextId: `template-preview:${templateId}`, requestId: randomUUID() }));
   return { success: true, questions: mappedQuestions };
 }
 
@@ -1966,6 +1968,7 @@ export async function submitTryoutAction(courseId: string, examId: string, answe
 
     return {
       id: q.id,
+      ...(typeof qContent.bankQuestionId === "string" ? { bankQuestionId: qContent.bankQuestionId } : {}),
       order: q.order,
       type: q.type,
       prompt: qContent.prompt,

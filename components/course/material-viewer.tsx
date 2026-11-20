@@ -1,13 +1,13 @@
 "use client";
 
+import { prefersAppReducedMotion } from "@/components/appearance-preferences";
+
 import { useStudentExperience } from "@/components/student-experience-provider";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useSearchParams, usePathname } from "next/navigation";
 import { 
-  ArrowLeft,
   Download, 
   ExternalLink, 
   ZoomIn, 
@@ -31,20 +31,18 @@ import {
   Trash2,
   X,
   Check,
-  Loader2,
-  AlertTriangle,
   Menu,
   Circle,
 } from "lucide-react";
 import { SearchBar } from "@/components/ui/search-bar";
 import { toast } from "@/components/ui/toast";
-import { emitActivityUpdated } from "@/lib/activity-signal";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet";
 import {
   Tooltip,
@@ -56,11 +54,9 @@ import { useScrollProgress } from "@/hooks/useScrollProgress";
 // Fixture imports removed
 import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
-import { updateMaterialProgress } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
 import { getViewablePdfUrl } from "@/lib/pdf-utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { MathText } from "@/components/course/math-text";
 import { useTutor } from "@/components/course/tutor-drawer";
 import { TermPopover } from "@/components/course/term-popover";
 import { matchTerm, type TermIndexEntry } from "@/lib/term-match";
@@ -70,9 +66,13 @@ import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/re
 import { useTranslations } from "@/lib/i18n/client";
 import type { CourseAccessTier } from "@/lib/student/course-access";
 import type { StudentCourseAccessTier } from "@/lib/course-utils";
+import { ChapterSummarySheet } from "@/components/course/chapter-summary-sheet";
+import { useMaterialReadingProgress } from "@/hooks/use-material-reading-progress";
+import { useQueryAccountCurrent } from "@/hooks/use-query-account";
 
 type MaterialViewerProps = {
   material: CourseMaterial;
+  studentId?: string;
   /** Chapter to summarize. When absent, the Summarize action is hidden. */
   chapterId?: string;
   /** P3 grounded-tutor feature flag, resolved on the server. */
@@ -90,137 +90,6 @@ type MaterialViewerProps = {
   /** Free Diktat access is inline-only and must not expose a download action. */
   canDownload?: boolean;
 };
-
-interface ChapterSummary {
-  keyConcepts: string[];
-  commonMistakes: string[];
-  importantFormulas: string[];
-  practiceRecommendations: string[];
-}
-
-function SummarySkeleton() {
-  return (
-    <div className="space-y-6">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="space-y-2">
-          <div className="w-24 h-3 bg-muted rounded-md animate-pulse" />
-          <div className="space-y-1.5">
-            <div className="h-4 bg-muted rounded-md animate-pulse" />
-            <div className="h-4 bg-muted rounded-md animate-pulse" />
-            <div className="h-4 bg-muted rounded-md animate-pulse w-2/3" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SummarySection({
-  title,
-  items,
-  asMath,
-}: {
-  title: string;
-  items: string[];
-  asMath?: boolean;
-}) {
-  if (!items || items.length === 0) return null;
-  return (
-    <div>
-      <h3 className="text-body-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-        {title}
-      </h3>
-      <ul className="list-disc pl-4 space-y-1 text-body-base">
-        {items.map((item, i) => (
-          <li key={i}>{asMath ? <MathText>{item}</MathText> : item}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function ChapterSummarySheet({
-  chapterId,
-  chapterTitle,
-}: {
-  chapterId: string;
-  chapterTitle: string;
-}) {
-  const t = useTranslations("learning");
-  const experience = useStudentExperience();
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState<ChapterSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function loadSummary() {
-    setOpen(true);
-    if (summary || loading) return;
-    if (experience.mode === "demo") {
-      setSummary({ keyConcepts: [chapterTitle], commonMistakes: ["Melewatkan definisi dan syarat penggunaan konsep."], importantFormulas: [], practiceRecommendations: ["Kerjakan contoh, lalu periksa setiap langkah."] });
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/student/summarize-chapter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chapterId }),
-      });
-      if (!res.ok) throw new Error("request failed");
-      const data = await res.json();
-      if (data.budgetExhausted) {
-        setError(t("reader.dailyLimit"));
-      } else {
-        setSummary(data.summary as ChapterSummary);
-      }
-    } catch {
-      setError(t("reader.summaryFailed"));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <>
-      <Button
-        variant="outline"
-        size="sm"
-        className="rounded-md text-body-xs py-1 h-auto"
-        onClick={loadSummary}
-      >
-        {loading ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <FileText className="size-4 mr-1.5" />}
-        {t("reader.summary")}
-      </Button>
-
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-          <SheetHeader>
-          <SheetTitle className="text-body-base font-heading">{chapterTitle}</SheetTitle>
-          </SheetHeader>
-          <div className="px-4 pb-6">
-            {loading && <SummarySkeleton />}
-            {!loading && error && (
-              <div className="flex items-start gap-2 text-body-sm">
-                <AlertTriangle className="size-4 text-status-error shrink-0 mt-0.5" />
-                <span className="text-muted-foreground">{error}</span>
-              </div>
-            )}
-            {!loading && !error && summary && (
-              <div className="space-y-6">
-                <SummarySection title={t("reader.keyConcepts")} items={summary.keyConcepts} />
-                <SummarySection title={t("reader.commonMistakes")} items={summary.commonMistakes} />
-                <SummarySection title={t("reader.importantFormulas")} items={summary.importantFormulas} asMath />
-                <SummarySection title={t("reader.practice")} items={summary.practiceRecommendations} />
-              </div>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
-    </>
-  );
-}
 
 type ThemeMode = "light" | "sepia" | "cream" | "dark";
 
@@ -592,8 +461,15 @@ const getConceptTags = (courseId: string, materialTitle: string) => {
   return ["Kalkulus", "Sains"];
 };
 
-export function MaterialViewer({
+export function MaterialViewer(props: MaterialViewerProps) {
+  const currentAccount = useQueryAccountCurrent(props.studentId ?? "");
+  if (props.studentId && !currentAccount) return null;
+  return <MaterialViewerContent key={JSON.stringify([props.studentId ?? "preview", props.material.courseId, props.material.id])} {...props} />;
+}
+
+function MaterialViewerContent({
   material,
+  studentId,
   chapterId,
   ragEnabled,
   accessTier,
@@ -601,7 +477,6 @@ export function MaterialViewer({
   materialLiveEnabled,
   course,
   mode = "learner",
-  backHref,
   hideHeader = false,
   canDownload = true,
 }: MaterialViewerProps) {
@@ -618,11 +493,6 @@ export function MaterialViewer({
       setItem: (key: string, value: string) => { try { (demo ? window.sessionStorage : window.localStorage).setItem(prefix + key,value); } catch { fallback.set(key,value); } },
     };
   }, [demo, material.courseId, revision]);
-  const [done, setDone] = useState(material.completed);
-  const doneRef = useRef(material.completed);
-  useEffect(() => {
-    doneRef.current = done;
-  }, [done]);
   const [viewerType, setViewerType] = useState<"custom" | "chrome">("chrome");
   const [showDemoViewer, setShowDemoViewer] = useState(false);
 
@@ -739,7 +609,7 @@ export function MaterialViewer({
         const timer = setTimeout(() => {
           const el = document.getElementById(`diktat-section-${targetIdx}`);
           if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "start" });
+            el.scrollIntoView({ behavior: prefersAppReducedMotion() ? "auto" : "smooth", block: "start" });
           }
         }, 250);
         return () => clearTimeout(timer);
@@ -797,6 +667,13 @@ export function MaterialViewer({
   
   const articleScrollRef = useRef<HTMLDivElement>(null);
   const articleProgress = useScrollProgress(articleScrollRef);
+  const { done, markDone, markingDone } = useMaterialReadingProgress({
+    material, studentId, learnerMode,
+    sectionCount: articleSections.length,
+    sectionIndex: activeSectionIdx,
+    sectionTitle: articleSections[activeSectionIdx]?.title,
+    page,
+  });
   const progressPercent = useMemo(() => {
     if (material.kind === "article") return articleProgress;
     // PDFs and other kinds are binary: completed or not. The mock page counter
@@ -913,131 +790,6 @@ export function MaterialViewer({
     };
   }, [learnerMode]);
 
-  // Set document as in progress on mount
-  useEffect(() => {
-    if (!learnerMode || demo) return;
-    updateMaterialProgress(material.id, "in_progress").catch((err) =>
-      console.error("Error updating progress to in_progress:", err)
-    );
-  }, [learnerMode, material.id, demo]);
-
-  const lastSavedCompletionPercentRef = useRef<number | null>(null);
-  const lastSavedSectionIdxRef = useRef<number | null>(null);
-  const lastSavedPageRef = useRef<number | null>(null);
-
-  // Periodic tracking of material reading progress
-  useEffect(() => {
-    if (!learnerMode || demo) return;
-    let secondsSinceLastSave = 0;
-    const interval = setInterval(() => {
-      secondsSinceLastSave += 1;
-    }, 1000);
-
-    const saveProgress = async (finalTimeIncrement?: number, force: boolean = false) => {
-      const timeToReport = finalTimeIncrement !== undefined ? finalTimeIncrement : secondsSinceLastSave;
-      if (timeToReport <= 0) return;
-
-      let completionPercent = 0;
-      let lastSectionId = "";
-      let lastPosition: { type: "pdf" | "article"; page?: number; section?: string } | null = null;
-
-      if (material.kind === "article" && articleSections && articleSections.length > 0) {
-        completionPercent = Math.min(100, Math.round(((activeSectionIdx + 1) / articleSections.length) * 100));
-        lastSectionId = articleSections[activeSectionIdx]?.title || `Section ${activeSectionIdx}`;
-        lastPosition = { type: "article", section: activeSectionIdx.toString() };
-      } else {
-        // Real PDFs render in an iframe with no reliable page tracking, so
-        // completion is binary: only "Tandai Selesai" marks it done. Never
-        // derive a percentage from the dev-only mock pages.
-        completionPercent = doneRef.current ? 100 : 0;
-        lastSectionId = `Halaman ${page}`;
-        lastPosition = { type: "pdf", page: page };
-      }
-
-      // Delta check
-      const hasMeaningfulDelta =
-        lastSavedCompletionPercentRef.current === null ||
-        Math.abs(completionPercent - lastSavedCompletionPercentRef.current) >= 5 ||
-        (material.kind === "article" && activeSectionIdx !== lastSavedSectionIdxRef.current) ||
-        (material.kind === "pdf" && page !== lastSavedPageRef.current);
-
-      if (!force && !hasMeaningfulDelta) {
-        return; // Skip saving to respect write limits
-      }
-
-      if (finalTimeIncrement === undefined) {
-        secondsSinceLastSave = 0;
-      }
-
-      // Update last saved states
-      lastSavedCompletionPercentRef.current = completionPercent;
-      lastSavedSectionIdxRef.current = activeSectionIdx;
-      lastSavedPageRef.current = page;
-
-      try {
-        await fetch("/api/student/material-progress", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            materialId: material.id,
-            completionPercent,
-            lastSectionId,
-            lastPosition,
-            timeSpentSeconds: timeToReport,
-          }),
-        });
-      } catch (err) {
-        console.error("Failed to auto-save material progress:", err);
-      }
-    };
-
-    const periodicSaveInterval = setInterval(() => {
-      saveProgress(undefined, false);
-    }, 20000);
-
-    return () => {
-      clearInterval(interval);
-      clearInterval(periodicSaveInterval);
-      if (secondsSinceLastSave > 0) {
-        const finalTime = secondsSinceLastSave;
-        let completionPercent = 0;
-        let lastSectionId = "";
-        let lastPosition: { type: "pdf" | "article"; page?: number; section?: string } | null = null;
-
-        if (material.kind === "article" && articleSections && articleSections.length > 0) {
-          completionPercent = Math.min(100, Math.round(((activeSectionIdx + 1) / articleSections.length) * 100));
-          lastSectionId = articleSections[activeSectionIdx]?.title || `Section ${activeSectionIdx}`;
-          lastPosition = { type: "article", section: activeSectionIdx.toString() };
-        } else {
-          const total = MOCK_PAGES_META.length || 1;
-          completionPercent = Math.min(100, Math.round((visitedPages.size / total) * 100));
-          lastSectionId = `Page ${page}`;
-          lastPosition = { type: "pdf", page: page };
-        }
-
-        const payload = JSON.stringify({
-          materialId: material.id,
-          completionPercent,
-          lastSectionId,
-          lastPosition,
-          timeSpentSeconds: finalTime,
-        });
-
-        if (typeof navigator !== "undefined" && navigator.sendBeacon) {
-          navigator.sendBeacon("/api/student/material-progress", new Blob([payload], { type: "application/json" }));
-        } else {
-          fetch("/api/student/material-progress", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: payload,
-          }).catch(() => {});
-        }
-      }
-    };
-  }, [learnerMode, material.id, material.kind, articleSections, activeSectionIdx, visitedPages, page, demo]);
-
   // Load personalization states from localStorage
   useEffect(() => {
     if (!learnerMode) return;
@@ -1087,24 +839,6 @@ export function MaterialViewer({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [learnerMode, visitedPages]);
-
-  async function markDone() {
-    if (!learnerMode) return;
-    if (demo) { if (!experience.ready) return; experience.record?.("article", material.id); setDone(true); toast.success(t("reader.markedComplete")); return; }
-    try {
-      const res = await updateMaterialProgress(material.id, "completed");
-      if (res.success) {
-        setDone(true);
-toast.success(t("reader.markedComplete"));
-        emitActivityUpdated({ type: "material", courseId: material.courseId, materialId: material.id });
-      } else {
-        toast.error(t("reader.saveProgressFailed"));
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error(t("reader.connectionError"));
-    }
-  }
 
   // Toggle Fullscreen
   function toggleFullscreen() {
@@ -1286,7 +1020,7 @@ toast.success(t("reader.markedComplete"));
     }
   };
 
-  const openUrl = getViewablePdfUrl(material.url) || "#";
+  const openUrl = getViewablePdfUrl(material.url);
 
   const tutorPopover = learnerMode && selectionCoords && selectedText ? (
     <div
@@ -1339,170 +1073,148 @@ toast.success(t("reader.markedComplete"));
 
   if (material.kind === "article" && material.body) {
     const conceptTags = getConceptTags(material.courseId, material.title);
+    const summaryChapterId = !hideHeader && learnerMode && accessTier !== "free" && ragEnabled ? chapterId : undefined;
+    const articleTocSearch = (
+      <SearchBar
+        collapsible
+        type="search"
+        value={articleTocSearchQuery}
+        onSearch={setArticleTocSearchQuery}
+        onClear={() => setArticleTocSearchQuery("")}
+        aria-label={material.docCategory === "diktat" ? t("reader.searchDiktat") : t("reader.searchArticle")}
+        placeholder={material.docCategory === "diktat" ? t("reader.searchDiktat") : t("reader.searchArticle")}
+        variant="bordered"
+        size="sm"
+        containerClassName="min-w-0 flex-1"
+      />
+    );
+    const articleTocPosition = (
+      <span className="shrink-0 text-body-xs font-semibold text-muted-foreground group-has-[[data-search-expanded=true]]/toc:hidden">
+        {activeSectionIdx + 1}/{articleSections.length}
+      </span>
+    );
     const renderArticleTocContent = () => (
-      <div className="flex h-full flex-col">
-        <div className="border-b border-border/70 p-3">
-          <SearchBar
-            type="search"
-            value={articleTocSearchQuery}
-            onSearch={setArticleTocSearchQuery}
-            onClear={() => setArticleTocSearchQuery("")}
-            aria-label={material.docCategory === "diktat" ? t("reader.searchDiktat") : t("reader.searchArticle")}
-            placeholder={material.docCategory === "diktat" ? t("reader.searchDiktat") : t("reader.searchArticle")}
-            variant="bordered"
-            size="sm"
-          />
-        </div>
-        <div className="flex-1 space-y-1 overflow-y-auto p-3">
-          <div className="mb-1 flex items-center justify-between px-2 py-1">
-            <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Daftar Isi
-            </span>
-            <span className="text-body-xs font-semibold text-muted-foreground">
-              {activeSectionIdx + 1}/{articleSections.length}
-            </span>
-          </div>
-          {visibleArticleSections.length === 0 ? (
-            <p className="px-2 py-3 text-center text-body-xs text-muted-foreground">
-              Tidak ada bagian yang cocok.
-            </p>
-          ) : (
-            visibleArticleSections.map(({ section, index }) => {
-              const isActive = index === activeSectionIdx;
-              const isPassed = index < activeSectionIdx;
-              return (
-                <button
-                  key={`${section.title}-${index}`}
-                  type="button"
-                  aria-current={isActive ? "location" : undefined}
-                  onClick={() => {
-                    setActiveSectionIdx(index);
-                    setShowOutlineSheet(false);
-                    const el = document.getElementById(`diktat-section-${index}`);
-                    if (el) {
-                      el.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }
-                  }}
-                  className={cn(
-                    "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-body-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                    isActive
-                      ? "border-l-2 border-primary bg-primary/10 text-primary"
-                      : "text-foreground hover:bg-muted/60",
-                  )}
-                >
-                  {isPassed ? (
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-status-success" />
-                  ) : isActive ? (
-                    <Circle className="mt-0.5 size-4 shrink-0 fill-primary/20 text-primary" />
-                  ) : (
-                    <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" />
-                  )}
-                  <span className="min-w-0 break-words py-0.5 font-semibold leading-snug">
-                    {formatReaderTocTitle(section.title)}
-                  </span>
-                </button>
-              );
-            })
-          )}
-        </div>
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
+        {visibleArticleSections.length === 0 ? (
+          <p className="px-2 py-3 text-center text-body-xs text-muted-foreground">
+            Tidak ada bagian yang cocok.
+          </p>
+        ) : (
+          visibleArticleSections.map(({ section, index }) => {
+            const isActive = index === activeSectionIdx;
+            const isPassed = index < activeSectionIdx;
+            return (
+              <button
+                key={`${section.title}-${index}`}
+                type="button"
+                aria-current={isActive ? "location" : undefined}
+                onClick={() => {
+                  setActiveSectionIdx(index);
+                  setShowOutlineSheet(false);
+                  const el = document.getElementById(`diktat-section-${index}`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: prefersAppReducedMotion() ? "auto" : "smooth", block: "start" });
+                  }
+                }}
+                className={cn(
+                  "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-body-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  isActive
+                    ? "border-l-2 border-primary bg-primary/10 text-primary"
+                    : "text-foreground hover:bg-muted/60",
+                )}
+              >
+                {isPassed ? (
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-status-success" />
+                ) : isActive ? (
+                  <Circle className="mt-0.5 size-4 shrink-0 fill-primary/20 text-primary" />
+                ) : (
+                  <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" />
+                )}
+                <span className="min-w-0 break-words py-0.5 font-semibold leading-snug">
+                  {formatReaderTocTitle(section.title)}
+                </span>
+              </button>
+            );
+          })
+        )}
       </div>
     );
 
     return (
       <div className="flex flex-col h-full w-full overflow-hidden bg-background">
-        {!hideHeader && learnerMode && (
-          <header className="relative flex w-full shrink-0 items-center justify-between gap-3 border-b border-border/80 bg-background/95 px-4 py-2.5 backdrop-blur-sm">
-            <div className="flex min-w-0 items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="shrink-0 gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground"
-              >
-                <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label={t("reader.backToMaterials")}>
-                  <ArrowLeft className="size-4" />
-                  <span className="hidden sm:inline">{t("reader.backToMaterial")}</span>
-                </Link>
-              </Button>
-              <div className="hidden h-4 w-px shrink-0 bg-border sm:block" />
-              <div className="min-w-0">
-                <p className="truncate text-body-xs font-medium text-muted-foreground">
-                  {course?.title ?? t("reader.courseMaterials")}
-                </p>
-                <h1 className="truncate font-heading text-body-sm font-bold text-foreground">
-                  {material.title}
-                </h1>
-              </div>
-            </div>
-
-            <div className="flex shrink-0 items-center gap-2">
-              <div className="hidden items-center gap-2 text-body-xs text-muted-foreground md:flex">
-                <div className="h-2 w-24 overflow-hidden rounded-md bg-muted">
-                  <div className="h-full rounded-md bg-primary transition-all duration-300" style={{ width: `${progressPercent}%` }} />
-                </div>
-                <span className="font-semibold text-foreground">{progressPercent}%</span>
-              </div>
-              {material.url && canDownload && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  asChild
-                  className="interactive gap-1.5 text-body-xs font-semibold"
-                >
-                  <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                    <Download className="size-3.5" aria-hidden />
-                    <span className="hidden sm:inline">{t("reader.downloadPdf")}</span>
-                    <span className="sm:hidden">{t("reader.download")}</span>
-                  </a>
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowOutlineSheet(true)}
-                className="gap-1.5 text-body-xs md:hidden"
-              >
-                <Menu className="size-4" />
-                <span>{t("reader.tableOfContents")}</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsArticleTocOpen((open) => !open)}
-                className="hidden gap-1.5 text-body-xs md:flex"
-              >
-                {isArticleTocOpen ? <PanelRightClose className="size-4" /> : <PanelRight className="size-4" />}
-                <span>{isArticleTocOpen ? t("reader.hideMenu") : t("reader.openMenu")}</span>
-              </Button>
-              {learnerMode && accessTier !== "free" && ragEnabled && chapterId && (
-                <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
-              )}
-              {learnerMode && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={markDone}
-                  aria-label={done ? t("reader.complete") : t("reader.markComplete")}
-                  disabled={done}
-                  className="interactive gap-1.5 text-body-xs font-semibold"
-                >
-                  <CheckCircle2 className={cn("size-3.5", done ? "text-emerald-500 fill-emerald-500/10" : "text-muted-foreground")} />
-                  <span className="hidden lg:inline">{done ? t("reader.complete") : t("reader.markComplete")}</span>
-                </Button>
-              )}
-            </div>
-            <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
-          </header>
-        )}
-
         <Sheet open={showOutlineSheet} onOpenChange={setShowOutlineSheet}>
-          <SheetContent side="right" className="flex h-full w-[300px] flex-col p-0 sm:w-[360px]">
-            <SheetHeader className="border-b border-border/80 p-4">
-              <SheetTitle className="font-heading text-body-sm font-bold">
-                {material.title}
-              </SheetTitle>
+          {!hideHeader && learnerMode && (
+            <header className="relative flex w-full shrink-0 items-center flex-wrap justify-between gap-x-2 gap-y-1 border-b border-border/80 bg-background/95 px-2 py-1 sm:px-4 backdrop-blur-sm">
+              <div className="flex min-w-0 flex-1 basis-32 items-center gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-body-xs font-medium text-muted-foreground">
+                    {course?.title ?? t("reader.courseMaterials")}
+                  </p>
+                  <h1 className="break-words font-heading text-body-sm font-bold text-foreground">
+                    {material.title}
+                  </h1>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2">
+                <div className="hidden items-center gap-2 text-body-xs text-muted-foreground md:flex">
+                  <div className="h-2 w-24 overflow-hidden rounded-md bg-muted">
+                    <div className="h-full rounded-md bg-primary transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+                  </div>
+                  <span className="font-semibold text-foreground">{progressPercent}%</span>
+                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <SheetTrigger asChild>
+                        <Button variant="ghost" size="icon-lg" className="md:hidden" aria-label={t("reader.tableOfContents")}>
+                          <Menu aria-hidden />
+                        </Button>
+                      </SheetTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("reader.tableOfContents")}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-lg"
+                        className="hidden md:inline-flex"
+                        aria-label={isArticleTocOpen ? t("reader.hideMenu") : t("reader.openMenu")}
+                        aria-expanded={isArticleTocOpen}
+                        onClick={() => setIsArticleTocOpen((open) => !open)}
+                      >
+                        {isArticleTocOpen ? <PanelRightClose aria-hidden /> : <PanelRight aria-hidden />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{isArticleTocOpen ? t("reader.hideMenu") : t("reader.openMenu")}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {learnerMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={markDone}
+                    aria-label={done ? t("reader.complete") : t("reader.markComplete")}
+                    disabled={done || markingDone}
+                    className="interactive gap-1.5 font-semibold"
+                  >
+                    <CheckCircle2 className={cn("size-3.5", done ? "text-emerald-500 fill-emerald-500/10" : "text-muted-foreground")} />
+                    <span>{done ? t("reader.complete") : t("reader.markComplete")}</span>
+                  </Button>
+                )}
+              </div>
+              <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
+            </header>
+          )}
+
+          <SheetContent side="right" className="gap-0" aria-describedby={undefined}>
+            <SheetHeader className="group/toc min-h-14 flex-row items-center gap-2 border-b border-border/80 py-2 pl-3 pr-14">
+              <SheetTitle className="min-w-0 flex-1 truncate text-body-sm group-has-[[data-search-expanded=true]]/toc:sr-only">{t("reader.tableOfContents")}</SheetTitle>
+              {articleTocPosition}
+              {articleTocSearch}
             </SheetHeader>
-            <div className="flex-1 overflow-hidden">{renderArticleTocContent()}</div>
+            {renderArticleTocContent()}
           </SheetContent>
         </Sheet>
 
@@ -1514,9 +1226,9 @@ toast.success(t("reader.markedComplete"));
               data-theme={theme}
               className="w-full flex-1 overflow-y-auto bg-background text-foreground transition-colors duration-300"
             >
-              <div className="max-w-[75ch] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+              <div className="max-w-[75ch] mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 pb-8 space-y-(--reading-section-gap)">
                 {/* Document / Diktat Header */}
-                <header className="space-y-3 border-b border-border/80 pb-6">
+                <header className="space-y-2 border-b border-border/80 pb-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2 text-body-xs font-semibold text-muted-foreground">
                       <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-primary">
@@ -1524,18 +1236,26 @@ toast.success(t("reader.markedComplete"));
                       </span>
                       {course?.title && <span>· {course.title}</span>}
                     </div>
-                    {material.url && canDownload && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="gap-1.5 text-body-xs font-semibold"
-                      >
-                        <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                          <Download className="size-3.5" aria-hidden />
-                          <span>{t("reader.downloadPdf")}</span>
-                        </a>
-                      </Button>
+                    {((material.url && canDownload) || summaryChapterId) && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {material.url && canDownload && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="outline" size="icon-lg" asChild>
+                                  <a href={material.url} download target="_blank" rel="noopener noreferrer" aria-label={t("reader.downloadPdf")}>
+                                    <Download aria-hidden />
+                                  </a>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        {summaryChapterId && (
+                          <ChapterSummarySheet studentId={studentId} chapterId={summaryChapterId} chapterTitle={material.title} />
+                        )}
+                      </div>
                     )}
                   </div>
                   <h1 className="font-heading text-h3 font-bold tracking-tight text-foreground sm:text-h2">
@@ -1564,7 +1284,7 @@ toast.success(t("reader.markedComplete"));
                         <section
                           id={`diktat-section-${idx}`}
                           data-section-idx={idx}
-                          className="scroll-mt-16 space-y-4"
+                          className="scroll-mt-16 space-y-(--paragraph-gap)"
                         >
                           <div className="border-b border-border/60 pb-3">
                             <span className="text-body-xs font-semibold text-primary/80">
@@ -1606,7 +1326,7 @@ toast.success(t("reader.markedComplete"));
                 )}
 
                 {/* End of Diktat milestone */}
-                <div className="mt-16 rounded-xl border border-border bg-card p-6 sm:p-8 text-center space-y-4 shadow-sm">
+                <div className="space-y-(--related-gap) border-t border-border/40 pt-(--section-gap) text-center">
                   <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-status-success/15 text-status-success">
                     <CheckCircle2 className="size-6 text-status-success" />
                   </div>
@@ -1623,7 +1343,7 @@ toast.success(t("reader.markedComplete"));
                       <Button
                         variant="default"
                         onClick={markDone}
-                        disabled={done}
+                        disabled={done || markingDone}
                         className="gap-2 bg-status-success hover:bg-status-success/95 text-white font-bold"
                       >
                         <CheckCircle2 className="size-4" />
@@ -1648,7 +1368,12 @@ toast.success(t("reader.markedComplete"));
             </div>
           </div>
           {isArticleTocOpen && (
-            <aside className="hidden w-72 shrink-0 overflow-hidden border-l border-border/80 bg-card/40 md:block lg:w-80">
+            <aside className="hidden w-72 shrink-0 overflow-hidden border-l border-border/80 bg-card/40 md:flex md:flex-col lg:w-80">
+              <div className="group/toc flex items-center gap-2 border-b border-border/70 px-3 py-1">
+                <h2 className="min-w-0 flex-1 text-body-sm font-semibold group-has-[[data-search-expanded=true]]/toc:sr-only">{t("reader.tableOfContents")}</h2>
+                {articleTocPosition}
+                {articleTocSearch}
+              </div>
               {renderArticleTocContent()}
             </aside>
           )}
@@ -1658,34 +1383,95 @@ toast.success(t("reader.markedComplete"));
     );
   }
 
+  const pdfToolbarControls = material.kind === "pdf" ? (
+    <>
+      {showDemoViewer && (
+        <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/60 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewerType("custom")}
+            aria-pressed={viewerType === "custom"}
+            className={cn(
+              "px-2 py-0.5 rounded-md text-body-xs font-semibold transition-all",
+              viewerType === "custom"
+                ? "bg-card text-brand-primary shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Mode Interaktif
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewerType("chrome")}
+            aria-pressed={viewerType === "chrome"}
+            className={cn(
+              "px-2 py-0.5 rounded-md text-body-xs font-semibold transition-all",
+              viewerType === "chrome"
+                ? "bg-card text-brand-primary shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Mode Dokumen
+          </button>
+        </div>
+      )}
+      {material.url && (
+        <TooltipProvider>
+          {canDownload && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild variant="outline" size="icon-sm" className="size-7">
+                  <a href={material.url} download target="_blank" rel="noopener noreferrer" aria-label={t("reader.downloadPdf")}>
+                    <Download className="size-3.5" aria-hidden />
+                  </a>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
+            </Tooltip>
+          )}
+          {openUrl && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="icon-sm"
+                  className={cn("size-7", viewerType === "chrome" && "hidden md:inline-flex")}
+                >
+                  <a href={openUrl} target="_blank" rel="noopener noreferrer" aria-label={t("reader.openOriginal")}>
+                    <ExternalLink className="size-3.5" aria-hidden />
+                  </a>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("reader.openOriginal")}</TooltipContent>
+            </Tooltip>
+          )}
+        </TooltipProvider>
+      )}
+    </>
+  ) : null;
+
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-background font-sans">
       {/* Sticky Topbar */}
-      {!hideHeader && learnerMode && (
-        <div className="h-10 w-full border-b border-border bg-background/80 backdrop-blur-sm flex items-center justify-between px-4 shrink-0">
-          <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
+      {(!hideHeader && (learnerMode || material.kind === "pdf")) && (
+        <div className="relative min-h-10 w-full border-b border-border bg-background/80 backdrop-blur-sm flex flex-wrap items-center justify-between gap-2 px-4 py-1 shrink-0">
+          {learnerMode && (
+            <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
+          )}
           
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="h-7 px-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
-            >
-                <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label={t("reader.backToMaterials")}>
-                <ArrowLeft className="size-3.5 mr-1" />
-                <span>{t("reader.back")}</span>
-              </Link>
-            </Button>
-            <span className="text-border">|</span>
-            <span className="text-body-xs text-muted-foreground font-mono font-semibold">
-              {progressPercent}%
-            </span>
+            {learnerMode && (
+              <span className="text-body-xs text-muted-foreground font-mono font-semibold">
+                {progressPercent}%
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {pdfToolbarControls}
             {learnerMode && accessTier !== "free" && ragEnabled && chapterId && (
-              <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
+              <ChapterSummarySheet studentId={studentId} chapterId={chapterId} chapterTitle={material.title} />
             )}
             {learnerMode && (
               <Button
@@ -1693,7 +1479,7 @@ toast.success(t("reader.markedComplete"));
                 size="sm"
                 onClick={markDone}
                 aria-label={done ? t("reader.complete") : t("reader.markComplete")}
-                disabled={done}
+                disabled={done || markingDone}
                 className="h-7 text-body-sm font-semibold flex items-center gap-1.5 rounded-md interactive"
               >
                 <CheckCircle2 className={cn("size-3.5", done ? "text-status-success fill-status-success/10" : "text-muted-foreground")} />
@@ -1703,6 +1489,11 @@ toast.success(t("reader.markedComplete"));
           </div>
         </div>
       )}
+      {hideHeader && material.kind === "pdf" && (
+        <div className="flex flex-wrap items-center justify-end gap-1.5 border-b border-border bg-background/80 px-3 py-1 shrink-0">
+          {pdfToolbarControls}
+        </div>
+      )}
 
       {/* Main Material Display container */}
       <div className="flex-1 min-h-0 w-full relative overflow-hidden flex flex-col bg-background">
@@ -1710,61 +1501,6 @@ toast.success(t("reader.markedComplete"));
         {/* Render PDF Document (Integrated custom viewer or standard Chrome) */}
         {material.kind === "pdf" ? (
           <div className="flex flex-col w-full h-full relative bg-background overflow-hidden">
-            {/* Viewer Engine Toggle (rendered at the top of PDF viewer container) */}
-            <div className="flex items-center justify-between gap-4 p-3 border-b border-border bg-card shrink-0">
-              <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border">
-                {showDemoViewer && (
-                  <button
-                    type="button"
-                    onClick={() => setViewerType("custom")}
-                    className={cn(
-                      "px-2.5 py-1 rounded-md text-[10px] font-semibold flex items-center gap-1 transition-all",
-                      viewerType === "custom"
-                        ? "bg-card text-brand-primary shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Mode Interaktif
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setViewerType("chrome")}
-                  className={cn(
-                    "px-2.5 py-1 rounded-md text-[10px] font-semibold flex items-center gap-1 transition-all",
-                    viewerType === "chrome"
-                      ? "bg-card text-brand-primary shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Mode Dokumen
-                </button>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                {material.url && (
-                  <>
-                    {canDownload && (
-                      <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
-                        <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                          <Download className="mr-1 size-3" aria-hidden />
-                          <span className="hidden sm:inline">{t("reader.downloadPdf")}</span>
-                          <span className="sm:hidden">{t("reader.download")}</span>
-                        </a>
-                      </Button>
-                    )}
-                    <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
-                      <a href={openUrl} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="mr-1 size-3" aria-hidden />
-                        <span className="hidden sm:inline">{t("reader.openOriginal")}</span>
-                        <span className="sm:hidden">{t("reader.open")}</span>
-                      </a>
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-
             {viewerType === "custom" ? (
               <div
                 ref={viewerRef}
@@ -1813,7 +1549,7 @@ toast.success(t("reader.markedComplete"));
                       <button
                         onClick={() => setSidebarTab("outline")}
                         className={cn(
-                          "py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold transition-all gap-0.5",
+                          "min-h-11 min-w-0 wrap-break-word py-1.5 rounded-lg flex flex-col items-center justify-center text-body-xs font-semibold transition-all gap-0.5",
                           sidebarTab === "outline" ? "bg-card text-brand-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
                         )}
                         title={t("reader.tableOfContents")}
@@ -1824,7 +1560,7 @@ toast.success(t("reader.markedComplete"));
                       <button
                         onClick={() => setSidebarTab("thumbnails")}
                         className={cn(
-                          "py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold transition-all gap-0.5",
+                          "min-h-11 min-w-0 wrap-break-word py-1.5 rounded-lg flex flex-col items-center justify-center text-body-xs font-semibold transition-all gap-0.5",
                           sidebarTab === "thumbnails" ? "bg-card text-brand-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
                         )}
                         title={t("reader.pageThumbnails")}
@@ -1835,7 +1571,7 @@ toast.success(t("reader.markedComplete"));
                       <button
                         onClick={() => setSidebarTab("search")}
                         className={cn(
-                          "py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold transition-all gap-0.5 relative",
+                          "min-h-11 min-w-0 wrap-break-word py-1.5 rounded-lg flex flex-col items-center justify-center text-body-xs font-semibold transition-all gap-0.5 relative",
                           sidebarTab === "search" ? "bg-card text-brand-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
                         )}
                         title={t("reader.searchWords")}
@@ -1849,7 +1585,7 @@ toast.success(t("reader.markedComplete"));
                       <button
                         onClick={() => setSidebarTab("notes")}
                         className={cn(
-                          "py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold transition-all gap-0.5 relative",
+                          "min-h-11 min-w-0 wrap-break-word py-1.5 rounded-lg flex flex-col items-center justify-center text-body-xs font-semibold transition-all gap-0.5 relative",
                           sidebarTab === "notes" ? "bg-card text-brand-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
                         )}
                         title={t("reader.notesAndBookmarks")}
@@ -1857,7 +1593,7 @@ toast.success(t("reader.markedComplete"));
                         <NotebookPen className="size-3.5" />
                         <span>{t("reader.notes")}</span>
                         {(Object.keys(notes).length > 0 || bookmarks.length > 0) && (
-                          <span className="absolute top-1 right-2 bg-brand-secondary/90 text-white rounded-md px-1 text-[10px] font-mono leading-none">
+                          <span className="absolute top-1 right-2 bg-brand-secondary/90 text-white rounded-md px-1 text-body-2xs font-mono leading-none">
                             {Object.keys(notes).length + bookmarks.length}
                           </span>
                         )}
@@ -1998,7 +1734,7 @@ toast.success(t("reader.markedComplete"));
                                           Hal {r.pageNum}
                                         </span>
                                       </div>
-                                      <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed bg-muted/20 p-1.5 rounded-lg border border-border/40 font-mono">
+                                      <p className="text-body-xs text-muted-foreground line-clamp-2 bg-muted/20 p-1.5 rounded-lg border border-border/40 font-mono">
                                         <Highlight text={r.searchText} query={searchQuery} />
                                       </p>
                                     </button>
@@ -2018,12 +1754,12 @@ toast.success(t("reader.markedComplete"));
 
                           {activeHighlightQuery && (
                             <div className="bg-amber-500/10 border border-amber-500/25 p-3 rounded-2xl flex items-center justify-between gap-1">
-                              <div className="text-[10px] text-amber-900 dark:text-amber-200">
+                              <div className="text-body-xs text-amber-900 dark:text-amber-200">
                                 Sorotan kata <b className="font-mono font-bold bg-amber-500/20 px-1 rounded">&ldquo;{activeHighlightQuery}&rdquo;</b> aktif di halaman.
                               </div>
                               <button
                                 onClick={() => setActiveHighlightQuery("")}
-                                className="text-[10px] text-destructive font-semibold hover:underline flex items-center gap-0.5 shrink-0"
+                                className="text-body-sm text-destructive font-semibold hover:underline flex items-center gap-0.5 shrink-0"
                               >
                                 Hapus
                               </button>
@@ -2127,7 +1863,7 @@ toast.success(t("reader.markedComplete"));
                                       <div className="flex items-center justify-between">
                                         <button
                                           onClick={() => setPage(pNum)}
-                                          className="font-semibold text-brand-primary hover:underline font-mono text-[10px]"
+                                          className="font-semibold text-brand-primary hover:underline font-mono text-body-sm"
                                         >
                                           Halaman {pNum}
                                         </button>
@@ -2334,17 +2070,12 @@ toast.success(t("reader.markedComplete"));
                   <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                     <FileText className="size-6 text-[#ea4335]" />
                   </div>
-                  <div>
-                    <h3 className="font-heading text-body-sm font-bold text-foreground">{material.title}</h3>
-                    <p className="text-body-xs text-muted-foreground mt-1 max-w-xs">
-                      Buka dokumen di penampil PDF peramban Anda.
-                    </p>
-                  </div>
-                  {openUrl && openUrl !== "#" ? (
+                  <h3 className="font-heading text-body-sm font-bold text-foreground">{material.title}</h3>
+                  {openUrl ? (
                     <Button asChild size="sm" className="rounded-md font-semibold text-body-xs">
                       <a href={openUrl} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="mr-1.5 size-3.5" />
-                        Buka Dokumen PDF
+                        {t("reader.openOriginal")}
                       </a>
                     </Button>
                   ) : null}
@@ -2352,9 +2083,6 @@ toast.success(t("reader.markedComplete"));
 
                 {/* Native Browser PDF Viewer (iframe fallback for desktop) */}
                 <div className="hidden md:flex flex-col flex-1 w-full min-h-0">
-                  <p className="text-body-xs text-muted-foreground mb-2 shrink-0">
-                    Pratinjau PDF bawaan browser di bawah ini. Gunakan tombol unduh atau buka berkas jika pratinjau tidak termuat.
-                  </p>
                   <div className="flex-1 w-full overflow-hidden border border-border bg-[#333] dark:bg-black-3 rounded-xl sm:rounded-2xl relative shadow-md min-h-[500px]">
                     <iframe
                       title={material.title}
@@ -2378,6 +2106,7 @@ toast.success(t("reader.markedComplete"));
                   <div className="relative w-full h-full rounded-xl overflow-hidden">
                     <Image
                       src={material.url}
+                      unoptimized
                       alt={material.title}
                       fill
                       className="object-cover"

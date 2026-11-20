@@ -12,7 +12,7 @@ export function ContentVisualQuizFixture() {
     transport={transport}
     exam={{
       id: "visual-content-quiz", title: "Kemiringan garis",
-      settings: { timeLimitSeconds: 3600, shuffleOptions: false, shuffleQuestions: false },
+      settings: { timeLimitSeconds: 3600, shuffleOptions: false, shuffleQuestions: false, perQuestionTimerEnabled: true, defaultQuestionTimerSeconds: 900 },
       questions: [{ id: "visual-question", order: 1, type: "multiple_choice", prompt, options }],
     }}
   />;

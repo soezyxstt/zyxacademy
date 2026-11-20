@@ -14,7 +14,7 @@ async function LiveQuizVignette() {
  const t = await getTranslations("marketing");
  return (
   <DemoFrame tone="dark" title={t("tutors.liveQuizTitle")} bodyClassName="p-4 text-center md:p-5">
- <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">{t("tutors.joinCode")}</p>
+ <p className="text-body-2xs font-bold uppercase tracking-wider text-white/50">{t("tutors.joinCode")}</p>
  <p className="mt-1 font-heading text-h3 font-bold tracking-[0.18em] text-white">X4K2P9</p>
  <div className="mt-4 flex items-center justify-center gap-2">
  <span className="flex -space-x-2" aria-hidden>
@@ -22,7 +22,7 @@ async function LiveQuizVignette() {
  <span
  key={initials}
  className={cn(
- "flex size-7 items-center justify-center rounded-full border-2 border-black-3 text-[10px] font-bold text-white",
+ "flex size-7 items-center justify-center rounded-full border-2 border-black-3 text-body-2xs font-bold text-white",
  index === 0 && "bg-primary",
  index === 1 && "bg-[var(--zx-accent)]",
  index === 2 && "bg-tertiary-1",
@@ -135,7 +135,7 @@ export async function LandingForTutors() {
  </div>
 
  <LandingVisible className="mt-14">
- <div className="landing-stagger-on-visible grid gap-8 md:grid-cols-3 md:gap-6 lg:gap-8 [&>*:nth-child(1)]:[animation-delay:0ms] [&>*:nth-child(2)]:[animation-delay:120ms] [&>*:nth-child(3)]:[animation-delay:240ms]">
+ <div className="landing-stagger-on-visible grid gap-(--section-gap) md:grid-cols-3 lg:gap-(--reading-section-gap) [&>*:nth-child(1)]:[animation-delay:0ms] [&>*:nth-child(2)]:[animation-delay:120ms] [&>*:nth-child(3)]:[animation-delay:240ms]">
  {vignettes.map((vignette) => (
   <div key={vignette.id}>
   {vignette.node}

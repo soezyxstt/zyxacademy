@@ -9,10 +9,8 @@ mock.module("next/navigation", () => ({
   usePathname: () => mockPathname,
 }));
 
-const actualMotion = await import("motion/react");
-mock.module("motion/react", () => ({
-  ...actualMotion,
-  useReducedMotion: () => mockReducedMotion,
+mock.module("../../components/appearance-preferences", () => ({
+  useAppReducedMotion: () => mockReducedMotion,
 }));
 const { PageTransition } = await import("../../components/ui/page-transition");
 
@@ -41,7 +39,7 @@ describe("PageTransition SSR Visibility", () => {
     expect(html).toMatch(/opacity:\s*0/i);
   });
 
-  it("preserves reduced motion behavior on marketing pages (no initial opacity 0)", () => {
+  it("skips the marketing entrance when reduced motion is active", () => {
     mockPathname = "/";
     mockReducedMotion = true;
 

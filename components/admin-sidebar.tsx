@@ -38,13 +38,13 @@ import {
   Trophy,
   MousePointerClick,
   Activity,
-  ArrowLeft,
   Layers,
   Calculator,
   Check,
   ChevronDown,
   Cpu,
   Search,
+  MessageSquareText,
 } from "lucide-react";
 import {
   SidebarShell,
@@ -143,6 +143,7 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   { id: "courses", label: "Mata Kuliah", href: "/admin/courses", icon: GraduationCap, group: "akademik" },
   { id: "schedules", label: "Jadwal Umum", href: "/admin/schedules", icon: CalendarDays, group: "akademik" },
   { id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "akademik" },
+  { id: "discussions", label: "Diskusi dan laporan", href: "/admin/discussions", icon: MessageSquareText, group: "akademik" },
 
   // Alat & Komunikasi
   { id: "pricing", label: "Kalkulator Harga", href: "/admin/pricing", icon: Calculator, group: "alat" },
@@ -191,6 +192,7 @@ const ADMIN_TAB_MESSAGE_KEYS: Record<string, string> = {
 
 function AdminSidebarInner() {
   const t = useTranslations("admin.navigation");
+  const tDiscussion = useTranslations("tutor.schedule");
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
@@ -426,7 +428,7 @@ function AdminSidebarInner() {
   const isArchived = (id: string) => mounted && archivedTabs.includes(id);
   const isPinned = (id: string) => mounted && pinnedTabs.includes(id);
 
-  const tabLabel = (tab: AdminTabDef) => t(ADMIN_TAB_MESSAGE_KEYS[tab.id] ?? "dashboard");
+  const tabLabel = (tab: AdminTabDef) => tab.id === "discussions" ? tDiscussion("discussion") : t(ADMIN_TAB_MESSAGE_KEYS[tab.id] ?? "dashboard");
 
   const renderTabItem = (tab: AdminTabDef, collapsed: boolean, isChild = false) => {
     const active = isTabActive(tab);
@@ -457,25 +459,10 @@ function AdminSidebarInner() {
           className={cn(
             "flex flex-1 flex-col gap-1 py-3 font-sans text-left",
             c
-              ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
-              : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
+              ? "min-h-0 px-1 items-center overflow-y-auto overflow-x-hidden sidebar-scroll-hidden"
+              : "min-h-0 px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
           )}
         >
-          {/* Back link to /admin/courses */}
-          <SidebarTooltip label={t("allCourses")} collapsed={c}>
-            <Link
-              href="/admin/courses"
-              title={c ? t("allCourses") : undefined}
-              className={cn(
-                "flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors mb-2",
-                c && "justify-center size-10 px-0 mx-auto"
-              )}
-            >
-              <ArrowLeft className="size-4 shrink-0" />
-              {!c && <span>{t("allCourses")}</span>}
-            </Link>
-          </SidebarTooltip>
-
           {c ? (
             <div className="mb-2 flex w-full justify-center">
               <DropdownMenu>
@@ -666,8 +653,8 @@ function AdminSidebarInner() {
         className={cn(
           "flex flex-1 flex-col gap-1 py-3 font-sans text-left",
           c
-            ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
-            : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
+            ? "min-h-0 px-1 items-center overflow-y-auto overflow-x-hidden sidebar-scroll-hidden"
+            : "min-h-0 px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
         )}
       >
         {/* Pinned Section */}

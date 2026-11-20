@@ -5,7 +5,7 @@ import { useTranslations } from "@/lib/i18n/client";
 import { ExternalLink, GraduationCap } from "lucide-react";
 import { AdminPageHeader, type BreadcrumbItem } from "@/components/admin/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 
 export type AdminCourseHeaderData = {
   id: string;
@@ -39,12 +39,11 @@ export function CourseDetailHeader({ course, breadcrumbs }: Props) {
           <Badge variant="secondary" className="rounded-md text-body-xs">
             {course.category}
           </Badge>
-          <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg text-body-sm">
+          <AdminIconAction asChild variant="ghost" label={t("courses.studentView")}>
             <Link href={`/courses/${course.id}`} target="_blank">
-              <span>{t("courses.studentView")}</span>
-              <ExternalLink className="size-3.5" />
+              <ExternalLink className="size-4" />
             </Link>
-          </Button>
+          </AdminIconAction>
         </div>
       }
     />

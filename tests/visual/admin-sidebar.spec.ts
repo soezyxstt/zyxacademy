@@ -18,6 +18,7 @@ test("admin navigation opens, closes and keeps accessible names", async ({ page 
   expect((await page.goto("/admin", { waitUntil: "domcontentloaded" }))?.status()).toBe(200);
   const sidebar = page.locator("aside[data-sidebar-ready=true]").first();
   await expect(sidebar).toHaveCount(1, { timeout: 30_000 });
+  await expect(sidebar.locator('a[href="/admin/gamification"]')).toHaveCount(0);
   if (info.project.name === "mobile-380") {
     await expect(sidebar).toHaveAttribute("inert", "");
     await page.getByRole("button", { name: "Buka navigasi" }).click();
@@ -35,7 +36,7 @@ test("admin navigation opens, closes and keeps accessible names", async ({ page 
     await sidebar.getByRole("button", { name: "Tutup sidebar" }).click();
     await expect(sidebar.getByRole("link", { name: "Panel admin", exact: true })).toBeVisible();
     await capture(page, info, "desktop-collapsed");
-    await sidebar.getByRole("button", { name: "Akademik dan konten" }).click();
+    await sidebar.getByRole("button", { name: "Akademik" }).click();
     await expect(page.getByRole("link", { name: "Mata kuliah", exact: true })).toBeVisible();
     await capture(page, info, "desktop-collapsed-menu");
   }

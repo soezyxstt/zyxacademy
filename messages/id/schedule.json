@@ -197,6 +197,7 @@
     "noSlotsHelp": "Pilih minggu atau filter lain, atau hubungi tutor untuk menambah slot."
   },
   "calendar": {
+    "view": "Tampilan kalender",
     "day": "Hari",
     "week": "Minggu",
     "month": "Bulan",
@@ -217,6 +218,7 @@
     "deleteSlot": "Hapus slot",
     "allDay": "Sepanjang hari",
     "offline": "Luring",
-    "createScheduleAt": "Buat jadwal pada {date} pukul {hour}"
+    "createScheduleAt": "Buat jadwal pada {date} pukul {hour}",
+    "zeroSessions": "0 sesi"
   }
 }

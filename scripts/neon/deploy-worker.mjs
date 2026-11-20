@@ -1,3 +1,4 @@
+import { expectedComputeFunctionCount } from "./worker-function-count.mjs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { parseEnv } from "node:util";
 import { createHash } from "node:crypto";
@@ -20,15 +21,17 @@ const api = async (path, init = {}) => {
 };
 const actual = await api(`/projects/${project}/branches/${branch}`);
 if (actual.branch?.id !== branch || actual.branch?.name !== target.branchName || actual.branch?.protected !== target.protected) throw new Error("COMPUTE_BRANCH_MISMATCH");
-const inngestHeaders = { Authorization: `Bearer ${raw.INNGEST_SIGNING_KEY}`, "X-Inngest-Env": raw.INNGEST_ENV };
-const identity = await fetch("https://api.inngest.com/v2/envs?limit=250", { headers: inngestHeaders, signal: AbortSignal.timeout(30_000) });
-if (!identity.ok) throw new Error(`INNGEST_IDENTITY_FAILED:${identity.status}`);
-const environments = await identity.json();
-if (environments.data?.length !== 1 || environments.data[0].id !== raw.INNGEST_ENV) throw new Error("COMPUTE_INNGEST_KEY_MISMATCH");
-const eventKeysResponse = await fetch("https://api.inngest.com/v2/keys/events?limit=100", { headers: inngestHeaders, signal: AbortSignal.timeout(30_000) });
-if (!eventKeysResponse.ok) throw new Error(`INNGEST_EVENT_KEY_IDENTITY_FAILED:${eventKeysResponse.status}`);
-const eventKeys = await eventKeysResponse.json();
-if (!eventKeys.data?.some(key => key.key === raw.INNGEST_EVENT_KEY)) throw new Error("COMPUTE_INNGEST_EVENT_KEY_MISMATCH");
+if (raw.QUEUE_PROVIDER !== "cloud-tasks") {
+  const inngestHeaders = { Authorization: `Bearer ${raw.INNGEST_SIGNING_KEY}`, "X-Inngest-Env": raw.INNGEST_ENV };
+  const identity = await fetch("https://api.inngest.com/v2/envs?limit=250", { headers: inngestHeaders, signal: AbortSignal.timeout(30_000) });
+  if (!identity.ok) throw new Error(`INNGEST_IDENTITY_FAILED:${identity.status}`);
+  const environments = await identity.json();
+  if (environments.data?.length !== 1 || environments.data[0].id !== raw.INNGEST_ENV) throw new Error("COMPUTE_INNGEST_KEY_MISMATCH");
+  const eventKeysResponse = await fetch("https://api.inngest.com/v2/keys/events?limit=100", { headers: inngestHeaders, signal: AbortSignal.timeout(30_000) });
+  if (!eventKeysResponse.ok) throw new Error(`INNGEST_EVENT_KEY_IDENTITY_FAILED:${eventKeysResponse.status}`);
+  const eventKeys = await eventKeysResponse.json();
+  if (!eventKeys.data?.some(key => key.key === raw.INNGEST_EVENT_KEY)) throw new Error("COMPUTE_INNGEST_EVENT_KEY_MISMATCH");
+}
 const previous = await api(`/projects/${project}/branches/${branch}/functions`);
 await mkdir(target.output, { recursive: true });
 await writeFile(`${target.output}/before.json`, JSON.stringify({ project, branch, functions: previous.functions?.map(fn => ({ slug: fn.slug, invocation_url: fn.invocation_url, deployment: fn.latest_deployment?.id })) ?? [], sourceRevision: source.sourceRevision }, null, 2), { flag: "wx" }).catch(error => { if (error.code !== "EEXIST") throw error; });
@@ -41,7 +44,7 @@ environment.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "cloudflare";
 environment.INNGEST_SERVE_ORIGIN = target.origin;
 environment.INNGEST_SERVE_PATH = "/api/inngest";
 environment.ZYX_COMPUTE_REVISION = createHash("sha256").update(await readFile("artifacts/neon-worker/worker.zip")).digest("hex");
-for (const name of ["INNGEST_SIGNING_KEY", "COMPUTE_SERVICE_SECRET", "DIKTAT_RENDERER_SECRET", "AWS_SECRET_ACCESS_KEY"]) if (!environment[name]) throw new Error(`COMPUTE_ENV_REQUIRED:${name}`);
+for (const name of [...(raw.QUEUE_PROVIDER === "cloud-tasks" ? [] : ["INNGEST_SIGNING_KEY"]), "COMPUTE_SERVICE_SECRET", "DIKTAT_RENDERER_SECRET", "AWS_SECRET_ACCESS_KEY"]) if (!environment[name]) throw new Error(`COMPUTE_ENV_REQUIRED:${name}`);
 await writeFile(`${target.output}/.env.${target.name}.json`, JSON.stringify(environment));
 const form = new FormData();
 form.set("zip", new Blob([await readFile("artifacts/neon-worker/worker.zip")], { type: "application/zip" }), "worker.zip");
@@ -59,7 +62,7 @@ for (let attempt = 0; attempt < 90; attempt++) {
     const response = await fetch(`${environment.INNGEST_SERVE_ORIGIN}/health?probe=${crypto.randomUUID()}`, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
     if (!response.ok) throw new Error(`NEON_HEALTH_FAILED:${response.status}:${(await response.text()).slice(0, 300)}`);
     const health = await response.json();
-    healthyProbes = health.version === environment.ZYX_COMPUTE_REVISION && health.functions === 22 ? healthyProbes + 1 : 0;
+    healthyProbes = health.version === environment.ZYX_COMPUTE_REVISION && health.functions === expectedComputeFunctionCount ? healthyProbes + 1 : 0;
     if (healthyProbes >= 3) {
       const after = { project, branch, slug, deploymentId: current.active_deployment.id, url: current.invocation_url, checksum: health.version, functions: health.functions };
       await writeFile(`${target.output}/after.json`, JSON.stringify(after, null, 2));

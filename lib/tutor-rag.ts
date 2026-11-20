@@ -24,7 +24,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { kvGet, kvPut } from "@/lib/kv-cache";
-import { PromptExecutor, type SystemPrompt } from "@/lib/prompt-executor";
+import { PromptExecutor, type SystemPrompt, type ExecutionOutcome } from "@/lib/prompt-executor";
 import { getConversationMemory, latestConversationSources } from "@/lib/zyra/conversation-memory";
 import { isCurrentQuizContextQuery, isMetaExamQuery, executeMetaQuery } from "./assessment-intelligence-service";
 import {
@@ -770,9 +770,10 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       }
     }
 
-    emitOperationalOutcome(result.success ? "CONVERSATION" : "CONVERSATION_FALLBACK");
+    emitOperationalOutcome(result.outcome === "uncertain" ? "PROVIDER_OUTCOME_UNCERTAIN" : result.success ? "CONVERSATION" : "CONVERSATION_FALLBACK");
     return {
-      answer: ansText,
+      answer: result.outcome === "uncertain" ? "" : ansText,
+      ...(result.outcome === "uncertain" ? { failureCode: "provider_unavailable" as const } : {}),
       responseLanguage,
       sources: [],
       matchedConcepts: result.success && result.data ? result.data.matchedConcepts : [],
@@ -1093,6 +1094,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         // Tier 1 shared generation: ZERO student history in prompt
         let result: {
           success: boolean;
+          outcome?: ExecutionOutcome;
           data?: z.infer<typeof GroundedSchema>;
           errors: string[];
           violationCodes: string[];
@@ -1194,7 +1196,9 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             const legacy = teachingResponseToTutorAnswer(pedagogyResult.response, pedagogySources);
             pedagogyCanvasSpec = legacy.canvasSpec ?? null;
 
-            if (pedagogyResult.usedFallback) {
+            if (pedagogyResult.outcome === "uncertain") {
+              result = { success: false, outcome: "uncertain", errors: ["Provider outcome requires reconciliation"], violationCodes: pedagogyResult.violationCodes };
+            } else if (pedagogyResult.usedFallback) {
               const legacyFallback = await PromptExecutor.run({
                 userId: studentId,
                 prompt: hasCodingContext ? (pageContext?.id.startsWith("coding:generate:") && attemptState === "none" ? codingGenerationAnswer : codingGroundedAnswer) : tutorGroundedAnswer,
@@ -1221,6 +1225,8 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
                   errors: [],
                   violationCodes: legacyFallback.violationCodes,
                 };
+              } else if (legacyFallback.outcome === "uncertain") {
+                result = legacyFallback;
               } else {
                 result = {
                   success: true,

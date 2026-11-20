@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { StudentAccountBoundary } from "@/components/student-account-boundary";
+import { useQuizAttempt } from "@/hooks/use-quiz-attempt";
+import { checkReviewAnswerCorrectness } from "@/lib/quiz/review";
 import {
  ChevronDown,
  Loader2,
@@ -21,59 +23,9 @@ import { MathText } from "@/components/course/math-text";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { cn } from "@/lib/utils";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
-import { isShortAnswerCorrect, deduplicateAcceptableAnswers } from "@/lib/quiz/short-answer";
+import { deduplicateAcceptableAnswers } from "@/lib/quiz/short-answer";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { useTranslations } from "@/lib/i18n/client";
-
-interface QuestionSnapshot {
- id: string;
- prompt: string;
- options: string[];
- correct_indices: number[];
- type?: string;
- origin?: "zyx_original" | "historical_reference" | "itb_example";
- sourceEventName?: string | null;
- sourceReferenceId?: string | null;
-}
-
-interface AttemptData {
- id: string;
- templateId: string;
- score: number;
- durationSeconds: number | null;
- status: string;
- questionsSnapshot: QuestionSnapshot[];
- answersSnapshot: Record<string, number[]>;
- submittedAt: string;
- strongAreas: string[] | null;
- weakAreas: string[] | null;
- recommendedNextSteps: Array<{
- id: string;
- kind: "flashcards" | "quiz" | "module";
- title: string;
- count?: number;
- href: string;
- }> | null;
- feedback: Array<{
- questionIndex: number;
- payload: {
- whyWrong: string;
- misconceptionName?: string | null;
- correctApproach: string[];
- reviewHref: string;
- };
- }>;
- remediation?: {
- concepts: Array<{ conceptName: string; before: number; after: number; delta: number }>;
- rootCauses: Array<{
- conceptName: string;
- mastery: number;
- blockedBy: Array<{ conceptName: string; mastery: number }>;
- }>;
- misconceptions: Array<{ misconceptionName: string; whyWrong: string; reviewHref: string }>;
- estimatedMinutes: number;
- } | null;
-}
 
 const KIND_ICON = {
  flashcards: Layers,
@@ -81,87 +33,17 @@ const KIND_ICON = {
  module: BookOpen,
 };
 
-/**
- * Determines whether a submitted student answer is correct during review,
- * correctly handling short-answer, essay, single-choice, and multi-choice questions.
- */
-function checkReviewAnswerCorrectness(q: any, submitted: any): boolean {
-  if (!q) return false;
-  const qType = q.question_type || q.questionType || q.type;
-  if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0) || (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers.length > 0)) {
-    const acceptable = Array.isArray(q.acceptable_answers) ? q.acceptable_answers : Array.isArray(q.acceptableAnswers) ? q.acceptableAnswers : [];
-    return isShortAnswerCorrect(submitted, acceptable);
-  }
-  if (qType === "essay") {
-    const text = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
-    return text.trim().length > 0;
-  }
-  const indices = Array.isArray(submitted) ? submitted : [];
-  const correct = Array.isArray(q.correct_indices) ? q.correct_indices : Array.isArray(q.correctIndices) ? q.correctIndices : [];
-  if (correct.length === 0) return false;
-  const isMultiple = qType === "multiple_choices" || correct.length > 1;
-  if (!isMultiple && (qType === "multiple_choice" || !qType)) {
-    const firstIdx = indices[0];
-    return firstIdx !== undefined && correct.includes(firstIdx);
-  }
-  return indices.length === correct.length && indices.every((i: number) => correct.includes(i));
+export function AttemptReview({ attemptId }: { attemptId: string }) {
+ return <StudentAccountBoundary>{({ data }) => data?.user
+   ? <LiveAttemptReview key={`${data.user.id}:${attemptId}`} userId={data.user.id} attemptId={attemptId} />
+   : <div className="h-40 animate-pulse rounded-md bg-muted" aria-busy="true" />}
+ </StudentAccountBoundary>;
 }
 
-export function AttemptReview({ attemptId }: { attemptId: string }) {
+function LiveAttemptReview({ userId, attemptId }: { userId: string; attemptId: string }) {
  const t = useTranslations("studentCourse");
- const [pollCount, setPollCount] = useState(0);
  const [openFeedback, setOpenFeedback] = useState<Record<number, boolean>>({});
-
- const { data: attempt, error, refetch, isFetching } = useQuery<AttemptData>({
- queryKey: ["quiz-attempt", attemptId],
- queryFn: async () => {
- const res = await fetch(`/api/quiz/attempts/${attemptId}`);
- if (!res.ok) throw new Error(t("attemptReview.loadDataFailed"));
- return res.json();
- },
- refetchInterval: (query) => {
- const data = query.state.data;
- if (!data) return 3000;
-
- // Count incorrect questions
- let incorrectCount = 0;
- data.questionsSnapshot.forEach((q) => {
- const submitted = data.answersSnapshot?.[q.id];
- if (!checkReviewAnswerCorrectness(q, submitted)) incorrectCount++;
- });
-
- // Stop if all wrong answers have feedback
- if (data.feedback && data.feedback.length >= incorrectCount) {
- return false;
- }
-
- // Max 30 seconds (10 poll attempts of 3s)
- if (pollCount >= 10) {
- return false;
- }
-
- return 3000;
- },
- });
-
- // Track the poll count increment
- useEffect(() => {
- if (isFetching && attempt) {
- let incorrectCount = 0;
- attempt.questionsSnapshot.forEach((q) => {
- const submitted = attempt.answersSnapshot?.[q.id];
- if (!checkReviewAnswerCorrectness(q, submitted)) incorrectCount++;
- });
-
- const feedbackCount = attempt.feedback?.length ?? 0;
- if (feedbackCount < incorrectCount && pollCount < 10) {
- const timer = setTimeout(() => {
- setPollCount((c) => c + 1);
- }, 3000);
- return () => clearTimeout(timer);
- }
- }
- }, [isFetching, attempt, pollCount]);
+ const { data: attempt, error, retry, isFeedbackPending, isFeedbackTimeout } = useQuizAttempt(userId, attemptId);
 
  if (error) {
  return (
@@ -171,10 +53,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  <Button
  variant="ghost"
  size="sm"
- onClick={() => {
- setPollCount(0);
- refetch();
- }}
+ onClick={retry}
  >
  {t("attemptReview.retry")}
  </Button>
@@ -201,11 +80,6 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  });
  const totalCount = questionsSnapshot.length;
 
- // Compute if feedback is still pending
- const incorrectCount = totalCount - correctCount;
- const isFeedbackPending = (feedback?.length ?? 0) < incorrectCount && pollCount < 10;
- const isFeedbackTimeout = (feedback?.length ?? 0) < incorrectCount && pollCount >= 10;
-
  const toggleFeedback = (idx: number) => {
  setOpenFeedback((prev) => ({ ...prev, [idx]: !prev[idx] }));
  };
@@ -215,7 +89,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  {/* Header */}
  <div>
  <h2 className="font-heading text-h5 font-bold text-foreground">
- {score}
+ {score ?? "-"}
  <span className="text-body-sm font-normal text-muted-foreground ml-1">/100</span>
  </h2>
  <p className="text-body-sm text-muted-foreground mt-1">
@@ -330,11 +204,11 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  const fbItem = feedback?.find((f) => f.questionIndex === idx);
  const hasFb = !!fbItem;
 
- const qType = (q as any).question_type || (q as any).questionType || (q as any).type;
+ const qType = q.question_type || q.questionType || q.type;
  const submittedOptions = qType !== "short_answer" && qType !== "essay" && Array.isArray(submitted)
    ? submitted.map((index: number) => q.options?.[index] ?? `Opsi ${index}`)
    : null;
- const correctOptionIndices: number[] = Array.isArray(q.correct_indices) ? q.correct_indices : (q as any).correctIndices || [];
+ const correctOptionIndices: number[] = Array.isArray(q.correct_indices) ? q.correct_indices : q.correctIndices || [];
  const correctOptions = qType !== "short_answer" && qType !== "essay"
    ? correctOptionIndices.map((index) => q.options?.[index] ?? `Opsi ${index}`)
    : null;
@@ -349,17 +223,17 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  let correctLabel = "";
  let acceptableArray: string[] = [];
  if (qType === "short_answer") {
-   const acc = (q as any).acceptable_answers || (q as any).acceptableAnswers || [];
+   const acc = q.acceptable_answers || q.acceptableAnswers || [];
    acceptableArray = Array.isArray(acc) ? deduplicateAcceptableAnswers(acc) : [];
    correctLabel = acceptableArray.join(", ");
  } else if (qType === "essay") {
- correctLabel = (q as any).explanation || t("attemptReview.essayAnswer");
+ correctLabel = q.explanation || t("attemptReview.essayAnswer");
  } else {
-   const correctArr = Array.isArray(q.correct_indices) ? q.correct_indices : (q as any).correctIndices || [];
+   const correctArr = Array.isArray(q.correct_indices) ? q.correct_indices : q.correctIndices || [];
    correctLabel = correctArr.map((i: number) => q.options?.[i] ?? `Opsi ${i}`).join(", ");
  }
 
- const isQuestionMultiple = qType === "multiple_choices" || (Array.isArray(q.correct_indices) && q.correct_indices.length > 1) || (Array.isArray((q as any).correctIndices) && (q as any).correctIndices.length > 1);
+ const isQuestionMultiple = qType === "multiple_choices" || (Array.isArray(q.correct_indices) && q.correct_indices.length > 1) || (Array.isArray(q.correctIndices) && q.correctIndices.length > 1);
 
  return (
  <div key={q.id} className="py-6 first:pt-0">
@@ -495,10 +369,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  variant="ghost"
  size="sm"
  className="h-auto p-0"
- onClick={() => {
- setPollCount(0);
- refetch();
- }}
+ onClick={retry}
  >
  {t("attemptReview.retry")}
  </Button>

@@ -264,19 +264,19 @@ export function FormPresetsPanel({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
+          <div className="max-h-80 divide-y divide-border overflow-y-auto">
             {presets.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-border p-6 text-center text-body-sm text-muted-foreground">
+              <p className="py-3 text-body-sm text-muted-foreground">
                 {t("presets.empty")}
               </p>
             ) : (
               presets.map((preset) => (
                 <div
                   key={preset.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-sm"
+                  className="flex flex-wrap items-center justify-between gap-2 py-3"
                 >
-                  <div className="min-w-0 space-y-1">
-                    <p className="truncate text-body-sm font-semibold text-foreground">{preset.name}</p>
+                  <div className="min-w-0 flex-1 basis-36 space-y-1">
+                    <p className="wrap-anywhere text-body-sm font-semibold text-foreground">{preset.name}</p>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Badge variant="secondary" className="bg-brand-primary/10 text-brand-primary text-[10px] font-semibold uppercase tracking-wider">
                         {["survey", "feedback", "quiz", "registration"].includes(preset.category) ? t(`presets.${preset.category}`) : preset.category}
@@ -289,7 +289,7 @@ export function FormPresetsPanel({
                       )}
                     </div>
                     {preset.description && (
-                      <p className="truncate text-body-xs text-muted-foreground">{preset.description}</p>
+                      <p className="wrap-anywhere text-body-xs text-muted-foreground">{preset.description}</p>
                     )}
                   </div>
 
@@ -297,20 +297,19 @@ export function FormPresetsPanel({
                     <Button
                       size="sm"
                       onClick={() => handleApply(preset)}
-                      className="text-body-xs font-semibold"
                     >
                       {t("presets.apply")}
                     </Button>
                     <Button
                       variant="ghost"
-                      size="icon-sm"
+                      size="sm"
                       disabled={deletingId === preset.id}
                       isLoading={deletingId === preset.id}
                       onClick={() => handleDelete(preset.id)}
-                      title={t("presets.delete")}
                       className="text-status-error hover:text-status-error"
                     >
-                      <Trash2 className="size-3.5" />
+                      <Trash2 className="size-3.5" aria-hidden />
+                      {t("presets.delete")}
                     </Button>
                   </div>
                 </div>

@@ -16,6 +16,8 @@ export async function GET(request: Request) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const expectedUserId = request.headers.get("x-student-id");
+  if (expectedUserId && expectedUserId !== session.user.id) return NextResponse.json({ error: "Account changed" }, { status: 409 });
 
   const courseId = new URL(request.url).searchParams.get("courseId")?.trim() || null;
   if (!courseId || courseId === "unknown") {
@@ -36,5 +38,5 @@ export async function GET(request: Request) {
   }
 
   const { userId: _userId, ...publicSummary } = summary;
-  return NextResponse.json({ summary: { ...publicSummary, accessTier } });
+  return NextResponse.json({ summary: { ...publicSummary, accessTier } }, { headers: { "Cache-Control": "private, no-store" } });
 }

@@ -551,7 +551,10 @@
     "activateDescription": "Yakin ingin mengaktifkan kembali akun {name}?",
     "confirmSuspend": "Ya, tangguhkan",
     "confirmActivate": "Ya, aktifkan",
-    "rolesSaved": "Peran untuk {name} berhasil diperbarui."
+    "rolesSaved": "Peran untuk {name} berhasil diperbarui.",
+    "you": "Anda",
+    "access": "Akses",
+    "openActions": "Aksi pengguna untuk {name}"
   },
   "pkaScheduleUI": {
     "invalidTime": "Waktu pelaksanaan tidak valid.",
@@ -937,7 +940,11 @@
     "tutorPrefix": "Tutor: {name}",
     "requestType": "Permohonan {type}",
     "automationSuccess": "Otomasi selesai: {count} tautan Google Meet baru dibuat",
-    "deleteSlotPlaceholder": "Contoh: Permintaan tutor atau penyesuaian jadwal operasional"
+    "deleteSlotPlaceholder": "Contoh: Permintaan tutor atau penyesuaian jadwal operasional",
+    "moreActions": "Aksi jadwal lainnya",
+    "coverageShort": "{ready}/{total}",
+    "coverageTitle": "Ketersediaan tutor pekan ini",
+    "zeroSessions": "0 sesi"
   },
   "meetMainUI": {
     "title": "Meet",

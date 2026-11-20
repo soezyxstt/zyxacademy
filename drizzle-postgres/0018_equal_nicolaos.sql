@@ -1,0 +1,2 @@
+ALTER TABLE "gamification_question_exposures" ADD COLUMN "causal_order" bigserial NOT NULL;--> statement-breakpoint
+CREATE INDEX "gamification_question_exposure_order_idx" ON "gamification_question_exposures" USING btree ("user_id","question_id","causal_order");

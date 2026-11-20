@@ -42,23 +42,22 @@ export default async function TestimonialPage() {
  </SectionHeading>
  </div>
 
- <div className="relative z-10 columns-1 gap-6 sm:columns-2 lg:columns-3">
+ <div className="relative z-10 grid gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
  {testimonialStories.map((story) => (
  <figure
  key={story.id}
  itemScope
  itemType="https://schema.org/Review"
- className="mb-6 flex break-inside-avoid flex-col rounded-xl border border-border bg-card"
+ className="flex flex-col gap-(--related-gap) border-t border-border py-(--group-gap)"
  >
- <div className="relative z-10 flex flex-1 flex-col gap-4 p-6">
  <blockquote
  itemProp="reviewBody"
- className="flex-1 text-body-base leading-relaxed text-foreground/90"
+ className="flex-1 text-body-base text-foreground/90"
  >
  &ldquo;{story.quote}&rdquo;
  </blockquote>
 
- <figcaption className="flex items-center gap-3 border-t border-border pt-4">
+ <figcaption className="flex items-center gap-3">
  <Image
  src={story.avatarSrc}
  alt={t("testimonial.studentPhoto", { name: story.name })}
@@ -80,7 +79,6 @@ export default async function TestimonialPage() {
  </span>
  </div>
  </figcaption>
- </div>
  </figure>
  ))}
  </div>
@@ -89,7 +87,7 @@ export default async function TestimonialPage() {
 
  <Reveal>
  <SectionContainer className="border-b border-border bg-background/40 py-16 text-center md:py-20">
- <div className="mx-auto max-w-2xl space-y-4">
+ <div className="mx-auto max-w-2xl space-y-(--related-gap)">
  <SectionHeading as="h2" tier="secondary" className="text-foreground">
  {t("testimonial.ctaTitle")}
  </SectionHeading>

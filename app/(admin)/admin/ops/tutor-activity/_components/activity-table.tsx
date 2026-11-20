@@ -62,7 +62,7 @@ export function ActivityTable({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-card p-8">
+      <div className="border-y border-border py-5">
         <AdminEmptyState
           icon={ScrollText}
           title={t("tutorActivityUI.emptyTitle")}
@@ -168,7 +168,7 @@ export function ActivityTable({
       </div>
 
       {/* Mobile Stacked Rows View (shown only on small screens / 380px safe) */}
-      <div className="md:hidden divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+      <div className="md:hidden divide-y divide-border border-y border-border">
         {items.map((item) => (
           <div
             key={item.id}

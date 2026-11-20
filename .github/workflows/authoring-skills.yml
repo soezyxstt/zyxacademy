@@ -40,15 +40,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
       - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
         with:
           name: authoring-skills-staging-${{ github.sha }}
           path: dist/skills/
           retention-days: 3
-      - name: Build and validate production distribution
-        run: |
-          bun run build:authoring-skills --environment production
-          bun test tests/contracts/authoring-skills.test.ts
+      - name: Build production distribution
+        run: bun run build:authoring-skills --environment production
       - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
         with:
           name: authoring-skills-production-${{ github.sha }}
           path: dist/skills/

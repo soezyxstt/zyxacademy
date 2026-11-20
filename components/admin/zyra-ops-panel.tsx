@@ -2,32 +2,16 @@
 
 import { ZyraOpsSkeleton } from "@/components/admin/content-loading-skeletons";
 
-import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Activity, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
-import type { ZyraOpsMetrics } from "@/lib/zyra/ops/contracts";
+import { useQueryAccountId } from "@/hooks/use-query-account";
+import { zyraOpsQuery } from "@/lib/zyra/ops-query";
 
 export function ZyraOpsPanel() {
-  const [metrics, setMetrics] = React.useState<ZyraOpsMetrics | null>(null);
-  const [error, setError] = React.useState(false);
-  const [loading, setLoading] = React.useState(false);
-
-  const load = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/admin/zyra/ops", { cache: "no-store" });
-      if (!response.ok) throw new Error("OPS_UNAVAILABLE");
-      setMetrics(await response.json() as ZyraOpsMetrics);
-      setError(false);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  React.useEffect(() => { void load(); }, [load]);
+  const userId = useQueryAccountId();
+  const { data: metrics, error, isFetching: loading, refetch } = useQuery(zyraOpsQuery(userId ?? ""));
 
   if (error) {
     return <p className="flex items-center gap-2 text-body-sm text-status-warning"><TriangleAlert className="size-4" /> Zyra ops belum tersedia.</p>;
@@ -43,7 +27,7 @@ export function ZyraOpsPanel() {
           </h2>
           <p className="text-body-sm text-muted-foreground">Usage Zyx, health, cache, image, dan validation. Saldo provider eksternal tetap unknown.</p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+        <Button type="button" variant="outline" size="sm" onClick={() => void refetch()} disabled={loading}>
           <RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} /> Refresh
         </Button>
       </div>

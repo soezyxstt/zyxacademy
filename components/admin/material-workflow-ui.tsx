@@ -1,9 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ArrowRight, BookOpen, Check, Eye, FileArchive } from "lucide-react";
+import { ArrowRight, BookOpen, Check, ChevronDown, Eye, FileArchive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { cn } from "@/lib/utils";
@@ -211,13 +212,18 @@ export function MaterialArtifactCard({
         <p className="text-body-xs text-muted-foreground">
           {authorLabel ?? t("materials.unknownAdmin")} · {itemSummary(row, kind, t)}
         </p>
-        <details className="text-body-xs text-muted-foreground">
-          <summary className="cursor-pointer font-medium hover:text-foreground">{t("materials.technicalIdentity")}</summary>
-          <div className="mt-2 space-y-1 border-l-2 border-border pl-3">
-            <p className="break-all">{t("materials.bundleId")}: {row.bundleId}</p>
-            <p className="break-all">{t("materials.checksum")}: {row.checksum}</p>
-          </div>
-        </details>
+        <Collapsible className="text-body-xs text-muted-foreground">
+          <CollapsibleTrigger className="group inline-flex cursor-pointer items-center gap-1 font-medium hover:text-foreground">
+            <ChevronDown className="size-3 shrink-0 transition-transform duration-200 -rotate-90 group-data-[state=open]:rotate-0 motion-reduce:transition-none" aria-hidden="true" />
+            {t("materials.technicalIdentity")}
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="mt-2 space-y-1 border-l-2 border-border pl-3">
+              <p className="break-all">{t("materials.bundleId")}: {row.bundleId}</p>
+              <p className="break-all">{t("materials.checksum")}: {row.checksum}</p>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
       <Button type="button" size="sm" variant="outline" disabled={loading} onClick={onInspect}>
         <Eye className="size-4" />

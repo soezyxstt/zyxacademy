@@ -118,7 +118,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
           />
         </Reveal>
 
-        <div className="mx-auto max-w-7xl space-y-14 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+        <div className="mx-auto max-w-7xl space-y-(--reading-section-gap) px-(--page-gutter) py-10 lg:py-14">
           <nav aria-label={t("blog.categoryNav")} className="flex flex-wrap gap-2">
             {CATEGORIES.map((category) => {
               const href = category.value ? `/blog?category=${category.value}` : "/blog";
@@ -153,9 +153,9 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
               </div>
 
               {filteredArticles.length > 0 ? (
-                <div className="grid gap-6 @2xl/blog:grid-cols-2 @4xl/blog:grid-cols-3">
+                <div className="divide-y divide-border border-y border-border">
                   {filteredArticles.map((article) => (
-                    <ArticleCard key={article.id} article={article} t={t} />
+                    <ArticleEntry key={article.id} article={article} t={t} />
                   ))}
                 </div>
               ) : (
@@ -177,7 +177,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                 {featuredArticles.length > 0 ? (
                   <div className="grid gap-6 @2xl/blog:grid-cols-2 @4xl/blog:grid-cols-3">
                     {featuredArticles.map((article) => (
-                    <ArticleCard key={article.id} article={article} t={t} />
+                      <ArticleEntry key={article.id} article={article} t={t} featured />
                     ))}
                   </div>
                 ) : (
@@ -204,16 +204,16 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                         {t("blog.viewAll")}
                       </LocalizedPublicLink>
                     </div>
-                    <div className="grid gap-6 @2xl/blog:grid-cols-2 @4xl/blog:grid-cols-3">
+                    <div className="divide-y divide-border border-b border-border">
                       {remainingArticles.map((article) => (
-                        <ArticleCard key={article.id} article={article} t={t} />
+                        <ArticleEntry key={article.id} article={article} t={t} />
                       ))}
                     </div>
                   </section>
                 );
               })}
 
-              <section aria-labelledby="blog-features-heading" className="space-y-6 border-t border-border pt-10">
+              <section aria-labelledby="blog-features-heading" className="space-y-(--section-gap) border-t border-border pt-8">
                 <div className="max-w-2xl space-y-2">
                     <SectionHeading as="h2" id="blog-features-heading" tier="secondary" className="text-foreground">
                     {t("blog.featuresTitle")}
@@ -222,11 +222,11 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                     {t("blog.featuresDescription")}
                   </p>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-5">
                   {APP_FEATURES.map((feature) => {
                     const Icon = feature.icon;
                     return (
-                    <div key={feature.titleKey} className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 shadow-xs">
+                      <div key={feature.titleKey} className="flex flex-col gap-3 border-t border-border py-4">
                         <div className={cn("w-fit rounded-lg border p-2.5", feature.bg)}>
                           <Icon className="size-5" aria-hidden="true" />
                         </div>
@@ -255,7 +255,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
 
 function BlogEmptyState({ title, description }: { title: string; description: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border px-6 py-16 text-center">
+    <div className="flex flex-col items-center justify-center gap-3 border-y border-border px-6 py-10 text-center">
       <FileText className="size-8 text-muted-foreground" aria-hidden="true" />
       <h3 className="font-heading text-h5 font-semibold text-foreground">{title}</h3>
       <p className="max-w-md text-body-base text-muted-foreground">{description}</p>
@@ -263,43 +263,48 @@ function BlogEmptyState({ title, description }: { title: string; description: st
   );
 }
 
-function ArticleCard({ article, t }: { article: any; t: Awaited<ReturnType<typeof getTranslations>> }) {
+function ArticleEntry({ article, t, featured = false }: { article: any; t: Awaited<ReturnType<typeof getTranslations>>; featured?: boolean }) {
   const isDraft = article.status === "draft";
   return (
     <LocalizedPublicLink
       href={`/blog/${article.slug}`}
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      className={cn(
+        "group relative min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        featured
+          ? "flex h-full flex-col gap-3 border-t border-border pt-3"
+          : "grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-3 py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-5",
+      )}
     >
       {isDraft && (
-        <Badge className="absolute left-3 top-3 z-20 rounded-md bg-status-warning text-status-warning-foreground hover:bg-status-warning/90">
+        <Badge className={cn("absolute left-1 z-20 rounded-md bg-status-warning text-status-warning-foreground hover:bg-status-warning/90", featured ? "top-1" : "top-5")}>
           {t("blog.draft")}
         </Badge>
       )}
-      <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden border-b border-border/50 bg-muted">
+      <div className={cn("relative aspect-[4/3] w-full overflow-hidden bg-muted", featured ? "rounded-lg" : "rounded-md")}>
         {article.thumbnailUrl ? (
           <Image
             src={article.thumbnailUrl.startsWith("http") ? storage.getUrl(article.thumbnailUrl) : article.thumbnailUrl}
             alt={article.title}
             fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 33vw, 400px"
+            sizes={featured ? "(max-width: 768px) 100vw, (max-width: 1280px) 33vw, 400px" : "(max-width: 640px) 80px, 144px"}
             className="object-cover"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-muted/80">
-            <span className="font-heading text-body-sm text-muted-foreground">Zyx Blog</span>
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+            <FileText className="size-5" aria-hidden="true" />
           </div>
         )}
       </div>
 
-      <div className="flex flex-1 flex-col justify-between p-5">
+      <div className="flex min-w-0 flex-1 flex-col justify-between">
         <div className="space-y-2">
-          <h3 className="line-clamp-2 font-heading text-body-base font-bold leading-snug text-foreground transition-colors group-hover:text-primary">
+          <h3 className="wrap-anywhere font-heading text-body-base font-bold leading-snug text-foreground transition-colors group-hover:text-primary">
             {article.title}
           </h3>
           <p className="line-clamp-3 text-body-sm text-muted-foreground">{article.summary}</p>
         </div>
 
-        <div className="mt-4 flex items-center gap-4 border-t border-border/50 pt-4 text-body-xs text-muted-foreground">
+        <div className={cn("mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-body-xs text-muted-foreground", featured && "border-t border-border/50 pt-3")}>
           {article.publishedAt ? (
             <span className="flex items-center">
               <Calendar className="mr-1.5 size-3.5" aria-hidden="true" />

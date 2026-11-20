@@ -1,18 +1,13 @@
-import { courseDocs } from "./courses";
-import { authoringDocs } from "./authoring";
-import { operationsDocs } from "./operations";
-import { additionalDocs } from "./additional";
+import { getAdminDocs, searchAdminDocs as searchLocalizedAdminDocs } from "@/lib/docs/admin";
+import { docSectionId } from "@/lib/docs/search";
+import type { DocEntry, DocLocale } from "@/lib/docs/types";
 
-export const adminDocs = [...courseDocs, ...authoringDocs, ...operationsDocs, ...additionalDocs];
+export type AdminDoc = DocEntry;
 
-export function docSectionId(index: number) {
-  return `bagian-${index + 1}`;
-}
+export const adminDocs: AdminDoc[] = getAdminDocs("id");
 
-export function searchAdminDocs(query: string) {
-  const terms = query.trim().toLocaleLowerCase("id").split(/\s+/).filter(Boolean);
-  return adminDocs.filter((doc) => {
-    const content = [doc.title, doc.summary, doc.category, ...doc.keywords, ...doc.sections.flatMap((section) => [section.title, ...(section.paragraphs ?? []), ...(section.steps ?? []), ...(section.examples ?? [])])].join(" ").toLocaleLowerCase("id");
-    return terms.every((term) => content.includes(term));
-  });
+export { docSectionId, getAdminDocs };
+
+export function searchAdminDocs(query: string, locale: DocLocale = "id"): AdminDoc[] {
+  return searchLocalizedAdminDocs(query, locale);
 }

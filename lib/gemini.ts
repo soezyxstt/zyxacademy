@@ -14,13 +14,17 @@ import {
   modelSupportsAiGateway,
 } from "@/lib/ai/provider/model-registry";
 import {
+  assertGenerationModel,
+  normalizeInputParts,
   type ProviderInputPart,
   type ProviderGenerationResult,
+  type GeminiGenerateClient,
+  type GeminiInteractionsClient,
 } from "@/lib/ai/provider/provider-adapter";
 import { ProviderAdapterError } from "@/lib/ai/provider/errors";
 import { geminiKeyPool } from "@/lib/gemini-keys";
 import { getModelChain, getProviderRoutePlan, providerRouterV2Enabled, type ProviderRouteRequest } from "@/lib/ai-router";
-import { RequestLifecycle } from "@/lib/ai/request-lifecycle";
+import { ProviderNotDispatchedError, RequestLifecycle, RequestLifecycleError, isConfirmedHttpFailure, providerFailureAllowsFallback } from "@/lib/ai/request-lifecycle";
 import { buildAiGatewayHeaders } from "@/lib/ai/gateway-metadata";
 
 interface ClientPriority {
@@ -107,6 +111,44 @@ export interface GenerateContentParams {
   cachePolicy?: "public_scaffold" | "personalized" | "active_assessment" | "bypass";
   cacheKey?: string;
   cacheTtlSeconds?: number;
+  singleDispatch?: boolean;
+}
+
+function singleDispatchClient(client: GoogleGenAI, viaGateway: boolean): GeminiGenerateClient & GeminiInteractionsClient {
+  const headers = viaGateway ? { "cf-aig-max-attempts": "1", "cf-aig-skip-cache": "true" } : {};
+  return {
+    models: {
+      generateContent: ((input: any) => client.models.generateContent({
+        ...input,
+        config: { ...input.config, httpOptions: { ...input.config?.httpOptions, headers: { ...input.config?.httpOptions?.headers, ...headers }, retryOptions: { attempts: 1 } } },
+      })) as GoogleGenAI["models"]["generateContent"],
+    },
+    interactions: {
+      create: ((input: any, options: any) => client.interactions.create(input, { ...options, headers: { ...options?.headers, ...headers }, maxRetries: 0 })) as GoogleGenAI["interactions"]["create"],
+    },
+  };
+}
+
+function withoutInteractionRetries(client: GeminiInteractionsClient): GeminiInteractionsClient {
+  return { interactions: {
+    create: ((params: any, options: any) => client.interactions.create(params, { ...options, maxRetries: 0 })) as GoogleGenAI["interactions"]["create"],
+  } };
+}
+
+function singleDispatchSdkClient(key: typeof geminiKeyPool["keys"][0], viaGateway: boolean, timeout?: number, headers?: Record<string, string>): GoogleGenAI {
+  return new GoogleGenAI({
+    apiKey: key.key,
+    httpOptions: {
+      ...(viaGateway && zyraRuntimeEnv.CF_AI_GATEWAY_URL ? { baseUrl: zyraRuntimeEnv.CF_AI_GATEWAY_URL } : {}),
+      headers: {
+        ...headers,
+        ...(viaGateway && zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN ? { "cf-aig-authorization": `Bearer ${zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN}` } : {}),
+        ...(viaGateway ? { "cf-aig-max-attempts": "1", "cf-aig-skip-cache": "true" } : {}),
+      },
+      ...(timeout ? { timeout } : {}),
+      retryOptions: { attempts: 1 },
+    },
+  });
 }
 
 function toProviderParts(contents: GenerateContentParams["contents"]): ProviderInputPart[] {
@@ -149,7 +191,7 @@ function makeCompatibilityResponse(result: {
   };
 }
 
-async function invokeProviderThroughControlPlane(input: {
+function prepareProviderThroughControlPlane(input: {
   requestId: string;
   userCohort: string;
   feature: string;
@@ -161,94 +203,90 @@ async function invokeProviderThroughControlPlane(input: {
   cachePolicy?: GenerateContentParams["cachePolicy"];
   cacheKey?: string;
   cacheTtlSeconds?: number;
-}): Promise<ProviderGenerationResult> {
+  singleDispatch?: boolean;
+}): () => Promise<ProviderGenerationResult> {
   const key = geminiKeyPool.getKeyByProjectAlias(input.projectAlias);
   if (!key) {
-    throw new ProviderAdapterError({
-      code: "PROVIDER_ERROR",
-      message: "selected provider project is not configured",
-      retryClassification: "unknown",
-      modelId: input.modelId,
-    });
+    throw new ProviderNotDispatchedError("selected provider project is not configured");
   }
 
-  const entry = getModelEntry(input.modelId);
+  const entry = assertGenerationModel(input.modelId);
+  normalizeInputParts(input.parts, entry);
   const viaGateway = Boolean(
     zyraRuntimeEnv.CF_AI_GATEWAY_URL && modelSupportsAiGateway(input.modelId),
   );
-  const client = geminiKeyPool.createRequestClient(input.projectAlias, {
+  const headers = viaGateway
+    ? buildAiGatewayHeaders({
+        requestId: input.requestId,
+        userCohort: input.userCohort,
+        feature: input.feature,
+        routeClass: input.routeClass,
+        modelId: input.modelId,
+        cachePolicy: input.cachePolicy,
+        cacheKey: input.cacheKey,
+        cacheTtlSeconds: input.cacheTtlSeconds,
+        deadlineMs: entry.deadlineMs,
+      })
+    : undefined;
+  const client = input.singleDispatch ? singleDispatchSdkClient(key, viaGateway, entry.deadlineMs, headers) : geminiKeyPool.createRequestClient(input.projectAlias, {
     viaGateway,
     timeoutMs: entry.deadlineMs,
-    headers: viaGateway
-      ? buildAiGatewayHeaders({
-          requestId: input.requestId,
-          userCohort: input.userCohort,
-          feature: input.feature,
-          routeClass: input.routeClass,
-          modelId: input.modelId,
-          cachePolicy: input.cachePolicy,
-          cacheKey: input.cacheKey,
-          cacheTtlSeconds: input.cacheTtlSeconds,
-          deadlineMs: entry.deadlineMs,
-        })
-      : undefined,
+    headers,
   });
   if (!client) {
-    throw new ProviderAdapterError({
-      code: "PROVIDER_ERROR",
-      message: "selected provider client is unavailable",
-      retryClassification: "unknown",
-      modelId: input.modelId,
-    });
+    throw new ProviderNotDispatchedError("selected provider client is unavailable");
   }
 
-  const startedAt = Date.now();
-  try {
-    const adapter = entry.family === "interactions"
-      ? createGeminiInteractionsAdapter({ interactions: client.interactions })
-      : createGeminiGenerateAdapter({ models: client.models });
-    const result = await adapter.generate({
-      modelId: input.modelId,
-      parts: input.parts,
-      config: input.config,
-    });
-    geminiKeyPool.markSuccess(key.id, input.modelId);
-    logAiRequest({
-      operation: entry.family === "interactions" ? "interactions" : "generateContent",
-      model: input.modelId,
-      viaGateway,
-      latencyMs: Date.now() - startedAt,
-      success: true,
-    });
-    return {
-      ...result,
-      providerRequestId: result.providerRequestId ?? input.requestId,
-      viaGateway,
-    };
-  } catch (error) {
-    geminiKeyPool.markFailure(key.id, input.modelId, error instanceof Error ? error : new Error("Gemini request failed"));
-    const typedError = error instanceof ProviderAdapterError
-      ? error
-      : new ProviderAdapterError({
-          code: "PROVIDER_ERROR",
-          message: "Gemini provider request failed",
-          retryClassification: "unknown",
-          modelId: input.modelId,
-          cause: error,
-        });
-    logAiRequest({
-      operation: entry.family === "interactions" ? "interactions" : "generateContent",
-      model: input.modelId,
-      viaGateway,
-      latencyMs: Date.now() - startedAt,
-      success: false,
-      error: `${typedError.code}:${typedError.httpStatus ?? "none"}:${typedError.retryClassification}`,
-    });
-    console.warn(
-      `[ZyraProvider] request failed code=${typedError.code} status=${typedError.httpStatus ?? "none"} classification=${typedError.retryClassification} model=${input.modelId} family=${entry.family} transport=${viaGateway ? "gateway" : "direct"} request=${input.requestId}`,
-    );
-    throw error;
-  }
+  return async () => {
+    const startedAt = Date.now();
+    try {
+      const providerClient = input.singleDispatch ? singleDispatchClient(client, viaGateway) : client;
+      const adapter = entry.family === "interactions"
+        ? createGeminiInteractionsAdapter(withoutInteractionRetries(providerClient))
+        : createGeminiGenerateAdapter({ models: providerClient.models });
+      const result = await adapter.generate({
+        modelId: input.modelId,
+        parts: input.parts,
+        config: input.config,
+      });
+      geminiKeyPool.markSuccess(key.id, input.modelId);
+      logAiRequest({
+        operation: entry.family === "interactions" ? "interactions" : "generateContent",
+        model: input.modelId,
+        viaGateway,
+        latencyMs: Date.now() - startedAt,
+        success: true,
+      });
+      return {
+        ...result,
+        providerRequestId: result.providerRequestId ?? input.requestId,
+        viaGateway,
+      };
+    } catch (error) {
+      geminiKeyPool.markFailure(key.id, input.modelId, error instanceof Error ? error : new Error("Gemini request failed"));
+      const typedError = error instanceof ProviderAdapterError
+        ? error
+        : new ProviderAdapterError({
+            code: "PROVIDER_ERROR",
+            message: "Gemini provider request failed",
+            retryClassification: "unknown",
+            modelId: input.modelId,
+            cause: error,
+          });
+      logAiRequest({
+        operation: entry.family === "interactions" ? "interactions" : "generateContent",
+        model: input.modelId,
+        viaGateway,
+        latencyMs: Date.now() - startedAt,
+        success: false,
+        error: `${typedError.code}:${typedError.httpStatus ?? "none"}:${typedError.retryClassification}`,
+      });
+      console.warn(
+        `[ZyraProvider] request failed code=${typedError.code} status=${typedError.httpStatus ?? "none"} classification=${typedError.retryClassification} model=${input.modelId} family=${entry.family} transport=${viaGateway ? "gateway" : "direct"} request=${input.requestId}`,
+      );
+      throw error;
+    }
+  };
 }
 
 export async function generateContentWithFallback(
@@ -302,57 +340,70 @@ export async function generateContentWithFallback(
 
   if (providerRouterV2Enabled()) {
     if (!params.userId) {
-      throw new Error("ZYRA_PROVIDER_ROUTER_USER_ID_REQUIRED");
+      throw new RequestLifecycleError("ROUTER_INPUT_INVALID", "provider router requires a user");
     }
-    try {
-      const lifecycle = new RequestLifecycle({
-        invokeProvider: invokeProviderThroughControlPlane,
-      });
-      const result = await lifecycle.execute({
-        userId: params.userId,
-        idempotencyKey: params.requestId,
-        feature: params.feature ?? params.useCase ?? "zyra-provider-request",
-        parts: providerParts,
-        config: params.config,
-        route: params.route,
-        useCase: params.useCase,
-        cacheStatus: params.cacheStatus,
-        cachePolicy: params.cachePolicy,
-        cacheKey: params.cacheKey,
-        cacheTtlSeconds: params.cacheTtlSeconds,
-      });
-      const response = makeCompatibilityResponse(result.result);
-      return {
-        response,
-        modelUsed: result.modelId,
-        viaGateway: result.result.viaGateway ?? false,
-        promptTokenCount: result.result.usage?.promptTokens,
-        candidatesTokenCount: result.result.usage?.outputTokens,
-        projectAlias: result.projectAlias,
-        requestId: result.requestId,
-        outcome: result.outcome,
-      };
-    } catch (lifecycleErr) {
-      console.warn("Provider router execution failed, falling back to direct keypool:", lifecycleErr);
-    }
+    const lifecycle = new RequestLifecycle({
+      prepareProvider: prepareProviderThroughControlPlane,
+      invokeProvider: (input) => prepareProviderThroughControlPlane(input)(),
+    });
+    const result = await lifecycle.execute({
+      userId: params.userId,
+      idempotencyKey: params.requestId,
+      feature: params.feature ?? params.useCase ?? "zyra-provider-request",
+      parts: providerParts,
+      config: params.config,
+      route: params.route,
+      useCase: params.useCase,
+      cacheStatus: params.cacheStatus,
+      cachePolicy: params.singleDispatch ? "bypass" : params.cachePolicy,
+      cacheKey: params.singleDispatch ? undefined : params.cacheKey,
+      cacheTtlSeconds: params.singleDispatch ? undefined : params.cacheTtlSeconds,
+      singleDispatch: params.singleDispatch,
+    });
+    const response = makeCompatibilityResponse(result.result);
+    return {
+      response,
+      modelUsed: result.modelId,
+      viaGateway: result.result.viaGateway ?? false,
+      promptTokenCount: result.result.usage?.promptTokens,
+      candidatesTokenCount: result.result.usage?.outputTokens,
+      projectAlias: result.projectAlias,
+      requestId: result.requestId,
+      outcome: result.outcome,
+    };
   }
 
-  const defaultPriority = isVisual
-    ? getProviderRoutePlan({ ...params.route, multimodal: true, visualMode: true }).models.filter((model) => getModelEntry(model).input.image)
-    : getModelChain(params.useCase);
-  const modelPriority = await configuredModelChain(
-    {
-      feature: params.feature,
-      useCase: params.useCase,
-      visual: isVisual,
-    },
-    defaultPriority as import("@/lib/ai/provider/model-registry").ModelId[],
-  );
-  if (modelPriority.length === 0) throw new Error("No healthy multimodal model is available");
+  let modelPriority: readonly import("@/lib/ai/provider/model-registry").ModelId[];
+  try {
+    const defaultPriority = isVisual
+      ? getProviderRoutePlan({ ...params.route, multimodal: true, visualMode: true }).models.filter((model) => getModelEntry(model).input.image)
+      : getModelChain(params.useCase);
+    modelPriority = await configuredModelChain(
+      {
+        feature: params.feature,
+        useCase: params.useCase,
+        visual: isVisual,
+      },
+      defaultPriority as import("@/lib/ai/provider/model-registry").ModelId[],
+    );
+  } catch (error) {
+    throw new ProviderNotDispatchedError("provider model selection failed", error);
+  }
+  if (modelPriority.length === 0) throw new ProviderNotDispatchedError("No healthy multimodal model is available");
   let lastError: unknown = null;
+  let preflightError: unknown = null;
+  let providerAttempted = false;
+  let allFailuresConfirmed = true;
 
   for (const model of modelPriority) {
-    const entry = getModelEntry(model);
+    let entry: ReturnType<typeof assertGenerationModel>;
+    try {
+      entry = assertGenerationModel(model);
+      normalizeInputParts(providerParts, entry);
+    } catch (error) {
+      preflightError = error;
+      continue;
+    }
     const maxKeyAttempts = geminiKeyPool.getAllKeys().length;
     for (let attempt = 0; attempt < maxKeyAttempts; attempt++) {
       const key = geminiKeyPool.getBestKey(model);
@@ -363,14 +414,25 @@ export async function generateContentWithFallback(
         const clientLabel = viaGateway ? "gateway" : "direct";
         const startedAt = Date.now();
         try {
+          const providerClient = params.singleDispatch ? singleDispatchClient(singleDispatchSdkClient(key, viaGateway, entry.deadlineMs), viaGateway) : client;
           const adapter = entry.family === "interactions"
-            ? createGeminiInteractionsAdapter(client)
-            : createGeminiGenerateAdapter(client);
-          const result = await withGeminiRetry(() => adapter.generate({
-            modelId: model,
-            parts: providerParts,
-            config: params.config,
-          }));
+            ? createGeminiInteractionsAdapter(withoutInteractionRetries(providerClient))
+            : createGeminiGenerateAdapter(providerClient);
+          const result = await withGeminiRetry(async () => {
+            providerAttempted = true;
+            try {
+              return await adapter.generate({
+                modelId: model,
+                parts: providerParts,
+                config: params.config,
+              });
+            } catch (error) {
+              if (!isConfirmedHttpFailure(error) && !providerFailureAllowsFallback(error)) {
+                throw new RequestLifecycleError("PROVIDER_OUTCOME_UNCERTAIN", "provider outcome requires reconciliation", undefined, error);
+              }
+              throw error;
+            }
+          }, params.singleDispatch ? 1 : undefined);
           const response = makeCompatibilityResponse(result);
           logAiRequest({
             operation: "generateContent",
@@ -389,6 +451,7 @@ export async function generateContentWithFallback(
           };
         } catch (error: unknown) {
           lastError = error;
+          allFailuresConfirmed &&= isConfirmedHttpFailure(error);
           geminiKeyPool.markFailure(key.id, model, error instanceof Error ? error : new Error("Gemini request failed"));
           logAiRequest({
             operation: "generateContent",
@@ -399,12 +462,21 @@ export async function generateContentWithFallback(
             error: error instanceof Error ? error.message : "Gemini request failed",
           });
           console.warn(`Gemini model ${model} via ${clientLabel} (key ${key.id}) failed`);
+          if (params.singleDispatch || !allFailuresConfirmed) {
+            throw new RequestLifecycleError("PROVIDER_OUTCOME_UNCERTAIN", "provider outcome requires reconciliation", undefined, error);
+          }
+          if (!providerFailureAllowsFallback(error)) throw error;
         }
       }
     }
   }
 
-  throw lastError instanceof Error ? lastError : new Error("All Gemini models failed to generate content");
+  if (providerAttempted || lastError) {
+    if (providerAttempted && !allFailuresConfirmed) throw new RequestLifecycleError("PROVIDER_OUTCOME_UNCERTAIN", "provider attempts require reconciliation", undefined, lastError);
+    throw lastError instanceof Error && !(providerAttempted && lastError instanceof ProviderNotDispatchedError)
+      ? lastError : new Error("Gemini provider attempt failed", { cause: lastError });
+  }
+  throw new ProviderNotDispatchedError(preflightError ? "provider input or model is unavailable" : "No Gemini key is available", preflightError);
 }
 
 export { geminiKeyPool };

@@ -256,8 +256,7 @@ async function resolveCourseIdentity(
   requestedCourseId: string,
   client: typeof db,
 ): Promise<CourseIdentity> {
-  const [canonicalRows, legacyRows] = await Promise.all([
-    client
+  const canonicalRows = await client
       .select({
         id: mataKuliah.id,
         title: mataKuliah.title,
@@ -270,13 +269,12 @@ async function resolveCourseIdentity(
       })
       .from(mataKuliah)
       .where(or(eq(mataKuliah.id, requestedCourseId), eq(mataKuliah.legacyCourseId, requestedCourseId)))
-      .limit(2),
-    client
+      .limit(2);
+  const legacyRows = await client
       .select({ id: courses.id, title: courses.title })
       .from(courses)
       .where(eq(courses.id, requestedCourseId))
-      .limit(2),
-  ]);
+      .limit(2);
 
   return projectCourseIdentity(requestedCourseId, canonicalRows, legacyRows);
 }
@@ -361,6 +359,7 @@ function projectCourseIdentity(
 async function resolveActor(
   userId: string,
   client: typeof db,
+  provision = true,
 ): Promise<ActorState> {
   if (!userId) {
     return {
@@ -374,18 +373,16 @@ async function resolveActor(
     };
   }
 
-  const [[existingIdentity], [knownAuthUser]] = await Promise.all([
-    client
+  const [existingIdentity] = await client
       .select({ status: pengguna.status })
       .from(pengguna)
       .where(eq(pengguna.id, userId))
-      .limit(1),
-    client
+      .limit(1);
+  const [knownAuthUser] = await client
       .select({ id: authUser.id, createdAt: authUser.createdAt, updatedAt: authUser.updatedAt, role: authUser.role })
       .from(authUser)
       .where(eq(authUser.id, userId))
-      .limit(1),
-  ]);
+      .limit(1);
   let identity: { status: "active" | "suspended" } | null | undefined = existingIdentity;
   if (identity?.status === "suspended") {
     return {
@@ -402,44 +399,23 @@ async function resolveActor(
   // Older Better Auth accounts can predate the canonical identity migration.
   // Provision the identity before granting the Free lane so every downstream
   // canonical write, including allowance leases, has a valid FK target.
-  if (!identity && knownAuthUser) {
+  if (provision && !identity && knownAuthUser) {
     try {
-      // The legacy role must be carried into the canonical membership during
-      // provisioning. Otherwise a legacy staff account becomes roleless after
-      // its first Free-course request and canonical guards deny it.
-      const legacyRole = mapLegacyRole(knownAuthUser.role ?? "student");
-      if (!legacyRole) throw new Error("Unsupported Better Auth role");
-      const [roleRecord] = await client
-        .select({ id: peran.id })
-        .from(peran)
-        .where(eq(peran.code, legacyRole))
-        .limit(1);
-      if (!roleRecord) throw new Error("Canonical role seed is unavailable");
-
-      // Keep these idempotent writes on the caller's executor. Some supported
-      // SQLite test and edge adapters do not preserve an in-memory schema
-      // across a transaction handle, while the conflict guards still make
-      // concurrent provisioning safe.
-      await client
-        .insert(pengguna)
-        .values({
-          id: userId,
-          status: "active",
-          createdAt: knownAuthUser.createdAt,
-          updatedAt: knownAuthUser.updatedAt,
-        })
-        .onConflictDoNothing();
-      await client
-        .insert(penggunaPeran)
-        .values({
-          id: membershipIdFor(userId, legacyRole),
-          penggunaId: userId,
-          peranId: roleRecord.id,
-          source: "better_auth_user_create",
-          auditActorPenggunaId: null,
-          createdAt: knownAuthUser.createdAt,
-        })
-        .onConflictDoNothing();
+      await client.transaction(async tx => {
+        const legacyRole = mapLegacyRole(knownAuthUser.role ?? "student");
+        if (!legacyRole) throw new Error("Unsupported Better Auth role");
+        const [roleRecord] = await tx.select({ id: peran.id }).from(peran)
+          .where(eq(peran.code, legacyRole)).limit(1);
+        if (!roleRecord) throw new Error("Canonical role seed is unavailable");
+        const [created] = await tx.insert(pengguna).values({
+          id: userId, status: "active", createdAt: knownAuthUser.createdAt, updatedAt: knownAuthUser.updatedAt,
+        }).onConflictDoNothing().returning({ id: pengguna.id });
+        // Only the transaction creating the identity may grant its initial role.
+        if (created) await tx.insert(penggunaPeran).values({
+          id: membershipIdFor(userId, legacyRole), penggunaId: userId, peranId: roleRecord.id,
+          source: "better_auth_user_create", auditActorPenggunaId: null, createdAt: knownAuthUser.createdAt,
+        }).onConflictDoNothing();
+      });
       const [provisionedIdentity] = await client
         .select({ status: pengguna.status })
         .from(pengguna)
@@ -465,7 +441,7 @@ async function resolveActor(
     };
   }
 
-  let roleRows = await client
+  const roleRows = await client
     .select({ code: peran.code })
     .from(penggunaPeran)
     .innerJoin(pengguna, eq(penggunaPeran.penggunaId, pengguna.id))
@@ -476,48 +452,14 @@ async function resolveActor(
       inArray(peran.code, [...ROLE_CODES]),
     ));
 
-  // A previous request may have created the canonical identity before the
-  // membership write failed. Retry that missing membership on every request
-  // so a transient failure cannot permanently downgrade a legacy staff user.
-  if (roleRows.length === 0 && knownAuthUser) {
-    try {
-      const legacyRole = mapLegacyRole(knownAuthUser.role ?? "student");
-      if (legacyRole) {
-        const [roleRecord] = await client
-          .select({ id: peran.id })
-          .from(peran)
-          .where(eq(peran.code, legacyRole))
-          .limit(1);
-        if (roleRecord) {
-          await client
-            .insert(penggunaPeran)
-            .values({
-              id: membershipIdFor(userId, legacyRole),
-              penggunaId: userId,
-              peranId: roleRecord.id,
-              source: "better_auth_user_create",
-              auditActorPenggunaId: null,
-              createdAt: knownAuthUser.createdAt,
-            })
-            .onConflictDoNothing();
-          roleRows = [{ code: legacyRole }];
-        }
-      }
-    } catch {
-      // Keep the compatibility fallback for this request; the next request
-      // retries the membership repair before resolving the actor again.
-    }
-  }
   const roles = new Set<CourseAccessRoleCode>(
     roleRows
       .map((row) => row.code)
       .filter((code): code is CourseAccessRoleCode => ROLE_CODES.includes(code as CourseAccessRoleCode)),
   );
 
-  // Older rows can predate the normalized role membership. Keep their
-  // authenticated student behavior without trusting a session role hint,
-  // while never inferring staff capability from that compatibility fallback.
-  if (roles.size === 0) roles.add("murid");
+  // A roleless identity may have been deliberately revoked; never infer a replacement.
+  if (roles.size === 0) return { role: null, roles, isAdmin: false, isTutor: false, isMurid: false, isAuthenticated: true, isActive: false };
 
   const isAdmin = roles.has("admin");
   const isTutor = roles.has("tutor");
@@ -737,10 +679,8 @@ export async function resolveCourseAccess(
     }, false, "COURSE_NOT_FOUND");
   }
 
-  const [identity, actor] = await Promise.all([
-    resolveCourseIdentity(requestedCourseId, client),
-    resolveActor(userId, client),
-  ]);
+  const identity = await resolveCourseIdentity(requestedCourseId, client);
+  const actor = await resolveActor(userId, client);
   if (identity.status !== "active") {
     return deniedResult(normalizedInput, identity, actor, false, identity.reason);
   }
@@ -812,13 +752,13 @@ function projectCourseAccess(
 
 /** Batch course policy for an already authenticated request. All identity,
  * actor, enrollment and chapter decisions use the same rules as the single reader. */
-export async function resolveCourseAccessBatch(userId: string, courseIds: readonly string[], options?: { now?: Date; executor?: CourseAccessDbExecutor }): Promise<Map<string, CourseAccessResult>> {
+async function resolveCourseAccessBatchInternal(userId: string, courseIds: readonly string[], options: { now?: Date; executor?: CourseAccessDbExecutor } | undefined, includeChapters: boolean, provision: boolean): Promise<Map<string, CourseAccessResult>> {
   const client = (options?.executor ?? db) as typeof db;
   const now = options?.now ?? new Date();
   const ids = [...new Set(courseIds.map(normalizeId).filter(Boolean))];
   if (!ids.length) return new Map();
   const [actor, canonical, legacy] = await Promise.all([
-    resolveActor(normalizeId(userId), client),
+    resolveActor(normalizeId(userId), client, provision),
     client.select({ id: mataKuliah.id, title: mataKuliah.title, status: mataKuliah.status,
       legacyCourseId: mataKuliah.legacyCourseId, isDemo: mataKuliah.isDemo, pricingCategory: mataKuliah.pricingCategory, freeStartsAt: mataKuliah.freeStartsAt, freeEndsAt: mataKuliah.freeEndsAt }).from(mataKuliah)
       .where(or(inArray(mataKuliah.id, ids), inArray(mataKuliah.legacyCourseId, ids))),
@@ -836,10 +776,10 @@ export async function resolveCourseAccessBatch(userId: string, courseIds: readon
     legacyIds.length ? client.select({ id: enrollments.courseId }).from(enrollments).where(and(
       eq(enrollments.userId, userId), inArray(enrollments.courseId, legacyIds), gt(enrollments.expiresAt, now),
     )) : [],
-    canonicalIds.length ? client.select({ courseId: bab.mataKuliahId, id: bab.id, title: bab.title,
+    includeChapters && canonicalIds.length ? client.select({ courseId: bab.mataKuliahId, id: bab.id, title: bab.title,
       orderIndex: bab.orderIndex, legacyId: bab.legacyChapterId, status: bab.status }).from(bab)
       .where(inArray(bab.mataKuliahId, canonicalIds)).orderBy(asc(bab.orderIndex), asc(bab.id)) : [],
-    legacyIds.length ? client.select({ courseId: chapters.courseId, id: chapters.id, title: chapters.title,
+    includeChapters && legacyIds.length ? client.select({ courseId: chapters.courseId, id: chapters.id, title: chapters.title,
       orderIndex: chapters.orderIndex }).from(chapters)
       .where(and(inArray(chapters.courseId, legacyIds), eq(chapters.status, "published"))).orderBy(asc(chapters.orderIndex), asc(chapters.id)) : [],
   ]);
@@ -859,6 +799,15 @@ export async function resolveCourseAccessBatch(userId: string, courseIds: readon
     return [id, projectCourseAccess(id, identity, actor, isEnrolled, isStaff, activeRows, now)] as const;
   }));
   return new Map(results);
+}
+
+export async function resolveCourseAccessBatch(userId: string, courseIds: readonly string[], options?: { now?: Date; executor?: CourseAccessDbExecutor }): Promise<Map<string, CourseAccessResult>> {
+  return resolveCourseAccessBatchInternal(userId, courseIds, options, true, true);
+}
+
+/** Resolves course-level entitlement without chapter scope or identity provisioning. */
+export async function resolveCourseEntitlementsBatch(userId: string, courseIds: readonly string[], options?: { now?: Date; executor?: CourseAccessDbExecutor }): Promise<Map<string, Pick<CourseAccessResult, "canonicalCourseId" | "legacyCourseId" | "courseTitle" | "hasCourseAccess" | "hasFullContentAccess" | "tier" | "capabilities" | "reason">>> {
+  return resolveCourseAccessBatchInternal(userId, courseIds, options, false, false);
 }
 
 export const resolveStudentCourseAccess = resolveCourseAccess;

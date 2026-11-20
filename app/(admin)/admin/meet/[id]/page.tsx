@@ -20,8 +20,10 @@ import {
 import { formatIsoDate } from "@/lib/date-utils";
 import type { ComprehensiveMeetingAnalytics } from "@/lib/google-meet";
 import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminSectionTitle } from "@/components/admin/section-title";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 
@@ -93,16 +95,13 @@ export default function DetailedMeetingLogPage({
         backHref="/admin/meet"
         backLabel={translate("meetDetailUI.back")}
         actions={
-          <Button
+          <AdminIconAction label={translate("meetDetailUI.reload")}
             type="button"
             variant="outline"
-            size="sm"
             onClick={fetchAnalytics}
-            disabled={loading}
-          >
-            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-            {translate("meetDetailUI.reload")}
-          </Button>
+            disabled={loading}>
+            <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+          </AdminIconAction>
         }
       />
 
@@ -116,7 +115,7 @@ export default function DetailedMeetingLogPage({
       {loading ? (
         <MeetDetailSkeleton showHeader={false} />
       ) : !analytics ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
+        <div className="flex flex-col items-center justify-center py-6 text-center">
           <AlertCircle className="size-10 text-muted-foreground" />
           <p className="mt-3 font-heading text-body-base font-semibold text-foreground">
             {translate("meetDetailUI.notFound")}
@@ -132,7 +131,7 @@ export default function DetailedMeetingLogPage({
               value={formatDurationSec(analytics.totalDurationSeconds)}
               caption={`${formatIsoDate(new Date(analytics.startTime))} (${formatTimeOnly(analytics.startTime)} - ${formatTimeOnly(analytics.endTime)})`}
             />
-            <AdminStatStripItem icon={TrendingUp} label={translate("meetDetailUI.peak")} value={analytics.peakConcurrentParticipants} tone="brand" />
+            <AdminStatStripItem icon={TrendingUp} label={translate("meetDetailUI.peak")} value={analytics.peakConcurrentParticipants} />
             <AdminStatStripItem icon={Users} label={translate("meetDetailUI.participants")} value={analytics.participantCount} />
             <AdminStatStripItem icon={PlayCircle} label={translate("meetDetailUI.recordings")} value={analytics.recordings.length} />
             <AdminStatStripItem icon={MessageSquare} label={translate("meetDetailUI.transcriptSpeech")} value={`${analytics.transcripts.reduce((acc, t) => acc + t.entries.length, 0)} ${translate("meetDetailUI.lines")}`} />
@@ -149,11 +148,11 @@ export default function DetailedMeetingLogPage({
             />
 
             {analytics.participants.length === 0 ? (
-              <div className="rounded-2xl border border-border bg-card p-8 text-center text-body-xs text-muted-foreground">
+              <div className="py-4 text-center text-body-xs text-muted-foreground">
                 {translate("meetDetailUI.noParticipants")}
               </div>
             ) : (
-              <div className="divide-y divide-border rounded-xl border border-border bg-card px-4">
+              <div className="divide-y divide-border border-y border-border">
                 {analytics.participants.map((p, idx) => (
                   <div
                     key={p.participantId || idx}
@@ -235,11 +234,11 @@ export default function DetailedMeetingLogPage({
           <section className="space-y-4">
             <AdminSectionTitle as="h2" size="h5" border icon={PlayCircle} title={translate("meetDetailUI.recordings")} />
             {analytics.recordings.length === 0 ? (
-              <div className="rounded-2xl border border-border bg-card p-6 text-center text-body-xs text-muted-foreground">
+              <div className="py-4 text-center text-body-xs text-muted-foreground">
                 {translate("meetDetailUI.noRecordings")}
               </div>
             ) : (
-              <div className="divide-y divide-border rounded-xl border border-border bg-card px-4">
+              <div className="divide-y divide-border border-y border-border">
                 {analytics.recordings.map((rec) => (
                   <div
                     key={rec.recordingId}
@@ -271,53 +270,53 @@ export default function DetailedMeetingLogPage({
           <section className="space-y-4">
             <AdminSectionTitle as="h2" size="h5" border icon={MessageSquare} title={translate("meetDetailUI.transcripts")} />
             {analytics.transcripts.length === 0 ? (
-              <div className="rounded-2xl border border-border bg-card p-6 text-center text-body-xs text-muted-foreground">
-                {translate("meetDetailUI.noTranscripts")}
-              </div>
+              <AdminEmptyState icon={MessageSquare} title={translate("meetDetailUI.noTranscripts")} />
             ) : (
-              analytics.transcripts.map((t) => (
-                <div key={t.transcriptId} className="rounded-xl border border-border bg-card p-4 space-y-3">
-                  <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                    <p className="text-body-xs font-bold text-foreground">
-                      {translate("meetDetailUI.transcriptDocument")} ({formatTimeOnly(t.startTime)} - {formatTimeOnly(t.endTime)})
-                    </p>
-                    {t.docsExportUri ? (
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={t.docsExportUri} target="_blank" rel="noreferrer">
-                          {translate("meetDetailUI.openDocs")} <ExternalLink className="size-3.5" />
-                        </a>
-                      </Button>
+              <div className="divide-y divide-border border-y border-border">
+                {analytics.transcripts.map((t) => (
+                  <div key={t.transcriptId} className="space-y-3 px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
+                      <p className="text-body-xs font-bold text-foreground">
+                        {translate("meetDetailUI.transcriptDocument")} ({formatTimeOnly(t.startTime)} - {formatTimeOnly(t.endTime)})
+                      </p>
+                      {t.docsExportUri ? (
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={t.docsExportUri} target="_blank" rel="noreferrer">
+                            {translate("meetDetailUI.openDocs")} <ExternalLink className="size-3.5" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
+                          {translate("meetDetailUI.processing")}
+                        </span>
+                      )}
+                    </div>
+
+                    {t.entries.length === 0 ? (
+                      <p className="text-body-sm text-muted-foreground italic">
+                        {translate("meetDetailUI.noTranscriptText")}
+                      </p>
                     ) : (
-                      <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
-                        {translate("meetDetailUI.processing")}
-                      </span>
+                      <div className="max-h-96 overflow-y-auto space-y-2.5 pr-2">
+                        {t.entries.map((entry) => (
+                          <div
+                            key={entry.entryId}
+                            className="border-b border-border/60 pb-3 last:border-0 text-body-sm leading-relaxed"
+                          >
+                            <div className="flex items-center justify-between text-body-xs font-semibold text-muted-foreground mb-1">
+                              <span className="text-brand-primary font-bold">
+                                {entry.participantResourceName || translate("meetDetailUI.participant")}
+                              </span>
+                              <span>{formatTimeOnly(entry.startTime)}</span>
+                            </div>
+                            <p className="text-foreground">{entry.text}</p>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
-
-                  {t.entries.length === 0 ? (
-                    <p className="text-body-sm text-muted-foreground italic">
-                      {translate("meetDetailUI.noTranscriptText")}
-                    </p>
-                  ) : (
-                    <div className="max-h-96 overflow-y-auto space-y-2.5 pr-2">
-                      {t.entries.map((entry) => (
-                        <div
-                          key={entry.entryId}
-                          className="border-b border-border/60 pb-3 last:border-0 text-body-sm leading-relaxed"
-                        >
-                          <div className="flex items-center justify-between text-body-xs font-semibold text-muted-foreground mb-1">
-                            <span className="text-brand-primary font-bold">
-                              {entry.participantResourceName || translate("meetDetailUI.participant")}
-                            </span>
-                            <span>{formatTimeOnly(entry.startTime)}</span>
-                          </div>
-                          <p className="text-foreground">{entry.text}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </section>
         </div>

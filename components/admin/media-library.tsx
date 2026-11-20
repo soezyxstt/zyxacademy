@@ -14,6 +14,7 @@ import {
   FileIcon,
   FileText,
   Folder,
+  FolderPlus,
   FolderOpen,
   Grid3X3,
   Image as ImageIcon,
@@ -33,6 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 import { scheduleAdminListRequest } from "@/lib/admin/list-request";
 import { Button } from "@/components/ui/button";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -772,12 +774,12 @@ export function MediaLibrary() {
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
       <SearchBar
+        collapsible
         value={query}
         onSearch={setQuery}
         onClear={() => setQuery("")}
         placeholder={t("media.search")}
         size="sm"
-        containerClassName="min-w-[140px] w-48 shrink-0 sm:w-64"
       />
       <div className="border-border flex rounded-lg border p-0.5">
         <button
@@ -805,18 +807,15 @@ export function MediaLibrary() {
           <List className="size-4" />
         </button>
       </div>
-      <Button variant="outline" size="sm" className="rounded-lg" onClick={refresh}>
-        <RefreshCw className="size-3.5" />
-        {t("media.reload")}
-      </Button>
-      <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setMkdirOpen(true)}>
-        <Plus className="size-3.5" />
-        {t("media.newFolder")}
-      </Button>
-      <Button size="sm" className="rounded-lg" onClick={() => uploadInputRef.current?.click()}>
-        <UploadCloud className="size-3.5" />
-        {t("media.upload")}
-      </Button>
+      <AdminIconAction label={t("media.reload")} variant="outline" onClick={refresh}>
+        <RefreshCw className="size-4" />
+      </AdminIconAction>
+      <AdminIconAction label={t("media.newFolder")} variant="outline" onClick={() => setMkdirOpen(true)}>
+        <FolderPlus className="size-4" />
+      </AdminIconAction>
+      <AdminIconAction label={t("media.upload")} onClick={() => uploadInputRef.current?.click()}>
+        <UploadCloud className="size-4" />
+      </AdminIconAction>
     </div>
   );
 
@@ -900,7 +899,7 @@ export function MediaLibrary() {
   );
 
   const renderGrid = (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,160px),1fr))] gap-px overflow-hidden rounded-xl border border-border bg-border">
       {visibleItems.map((item) =>
         item.kind === "folder" ? (
           <div
@@ -911,11 +910,11 @@ export function MediaLibrary() {
             onDragEnd={onItemDragEnd}
             {...getDropProps(item.path)}
             className={cn(
-              "border-border group relative select-none rounded-xl border bg-card p-2 shadow-sm transition-all",
+              "group relative min-w-0 select-none bg-card p-2 transition-colors",
               selected.includes(item.ref)
-                ? "border-primary ring-1 ring-primary/40"
-                : "hover:border-border/70",
-              dropFolder === item.path && "border-brand-primary bg-brand-primary/5 ring-2 ring-brand-primary/30"
+                ? "ring-1 ring-inset ring-primary"
+                : "hover:bg-muted",
+              dropFolder === item.path && "bg-primary/5 ring-2 ring-inset ring-primary/50"
             )}
           >
             <div className="relative">
@@ -957,8 +956,8 @@ export function MediaLibrary() {
             onDragStart={(e) => onItemDragStart(e, item.ref)}
             onDragEnd={onItemDragEnd}
             className={cn(
-              "border-border group relative select-none rounded-xl border bg-card p-2 shadow-sm transition-all",
-              selected.includes(item.ref) ? "border-primary ring-1 ring-primary/40" : "hover:border-border/70"
+              "group relative min-w-0 select-none bg-card p-2 transition-colors",
+              selected.includes(item.ref) ? "ring-1 ring-inset ring-primary" : "hover:bg-muted"
             )}
           >
             <div className="relative">
@@ -1009,7 +1008,7 @@ export function MediaLibrary() {
   );
 
   const renderTable = (
-    <div className="border-border overflow-x-auto rounded-xl border bg-card shadow-sm">
+    <div className="overflow-x-auto border-y border-border">
       <table className="w-full min-w-[640px] border-collapse text-left text-body-sm">
         <thead>
           <tr className="bg-muted/40 text-muted-foreground border-b">
@@ -1182,20 +1181,13 @@ export function MediaLibrary() {
           {loading ? (
             <MediaItemsSkeleton view={view} />
           ) : error ? (
-            <div className="border-border rounded-xl border bg-card p-6 shadow-sm">
-                <AdminErrorState
-                  message={error}
-                  onRetry={refresh}
-                />
-            </div>
+            <AdminErrorState message={error} onRetry={refresh} />
           ) : visibleItems.length === 0 ? (
-            <div className="border-border rounded-xl border bg-card shadow-sm">
-              <AdminEmptyState
-                icon={Folder}
-                title={query ? t("media.noResults") : t("media.emptyFolder")}
-                description={query ? undefined : t("media.emptyHelp")}
-              />
-            </div>
+            <AdminEmptyState
+              icon={Folder}
+              title={query ? t("media.noResults") : t("media.emptyFolder")}
+              description={query ? undefined : t("media.emptyHelp")}
+            />
           ) : (
             <div
               ref={listRef}

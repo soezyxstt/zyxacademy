@@ -94,7 +94,7 @@ export function AboutClient() {
 
       <Reveal>
         <SectionContainer className="relative z-10 border-b border-border bg-muted/20 py-16 md:py-24">
-          <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start lg:gap-16">
+          <div className="grid gap-(--reading-section-gap) lg:grid-cols-[0.9fr_1.1fr] lg:items-start lg:gap-marketing-section">
             <div className="space-y-4">
               <SectionHeading as="h2" tier="primary" className="text-foreground">
               {t("about.principlesTitle")}
@@ -118,7 +118,7 @@ export function AboutClient() {
 
       <Reveal>
         <SectionContainer className="relative z-10 border-b border-border bg-background py-16 md:py-24">
-          <div className="mx-auto max-w-5xl space-y-8">
+          <div className="mx-auto max-w-5xl space-y-(--reading-section-gap)">
             <div className="max-w-3xl space-y-3">
               <SectionHeading as="h2" tier="primary" className="text-foreground">
                 {t("about.founderSectionTitle")}
@@ -128,7 +128,7 @@ export function AboutClient() {
               </p>
             </div>
 
-            <article className="grid gap-6 rounded-xl border border-border bg-card p-6 md:grid-cols-[auto_minmax(0,1fr)] md:p-8">
+            <article className="grid gap-6 border-t border-border pt-6 sm:grid-cols-[auto_minmax(0,1fr)]">
               <div className="relative size-24 overflow-hidden rounded-xl border border-border/60">
                 <Image
                   src="/founders/adi.jpeg"
@@ -161,7 +161,7 @@ export function AboutClient() {
 
       <Reveal>
         <SectionContainer className="relative z-10 bg-background py-16 md:py-24">
-          <div className="mx-auto max-w-5xl space-y-10">
+          <div className="mx-auto max-w-5xl space-y-(--reading-section-gap)">
             <div className="max-w-3xl space-y-3">
               <SectionHeading as="h2" tier="primary" className="text-foreground">
                 {t("about.peopleTitle")}
@@ -171,11 +171,11 @@ export function AboutClient() {
               </p>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="divide-y divide-border border-y border-border">
               {founders.map((founder) => (
                 <article
                   key={founder.id}
-                  className="group flex flex-col gap-5 rounded-xl border border-border bg-card p-6 transition-colors hover:border-border-strong sm:flex-row sm:items-start"
+                  className="flex flex-col gap-5 py-6 sm:flex-row sm:items-start"
                 >
                   <div className="relative aspect-[3/4] w-28 shrink-0 overflow-hidden rounded-xl border border-border/60 sm:w-32">
                     <Image
@@ -194,7 +194,7 @@ export function AboutClient() {
                       <h3 className="mt-1 font-heading text-body-base font-bold leading-tight text-foreground">{founder.name}</h3>
                     </div>
                     <p className="text-body-sm leading-relaxed text-muted-foreground">{t(`about.founder${founder.id === "adi" ? "Adi" : founder.id === "dawam" ? "Dawam" : founder.id === "heidi" ? "Heidi" : "Raihan"}Bio`)}</p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border pt-4">
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
                       {founder.socials.website ? (
                         <ExternalProfileLink href={founder.socials.website} icon={<Globe className="size-3.5" />}>
                           {t("about.founderPortfolio")}

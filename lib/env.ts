@@ -46,7 +46,8 @@ export const env = createEnv({
  /** Non-secret alias for Gemini project slot 4. */
  GEMINI_PROJECT_ALIAS_4: z.string().optional(),
  /** Inngest event key for sending events */
- INNGEST_EVENT_KEY: z.string().min(1),
+ QUEUE_PROVIDER: z.enum(["inngest", "cloud-tasks", "noop", "memory"]).default("inngest"),
+ INNGEST_EVENT_KEY: process.env.QUEUE_PROVIDER === "cloud-tasks" ? z.string().optional() : z.string().min(1),
  /** Inngest signing key for production request verification */
  INNGEST_SIGNING_KEY: z.string().optional(),
  // ── Cloudflare R2 Storage ──────────────────────────────────────────────
@@ -195,6 +196,7 @@ export const env = createEnv({
   GEMINI_PROJECT_ALIAS_2: process.env.GEMINI_PROJECT_ALIAS_2,
   GEMINI_PROJECT_ALIAS_3: process.env.GEMINI_PROJECT_ALIAS_3,
   GEMINI_PROJECT_ALIAS_4: process.env.GEMINI_PROJECT_ALIAS_4,
+  QUEUE_PROVIDER: process.env.QUEUE_PROVIDER,
   INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
   INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
   PYTHON_RUNTIME_TOKEN_SECRET: process.env.PYTHON_RUNTIME_TOKEN_SECRET,

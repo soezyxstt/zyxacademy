@@ -4,8 +4,16 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Clock, Award, BookOpen, Calendar, Eye, Check, Edit } from "lucide-react";
+import { AdminIconAction } from "@/components/admin/icon-action";
+import { Plus, Trash2, Clock, Award, BookOpen, Calendar, Eye, Check, Edit, MoreHorizontal } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { CourseBadge, DifficultyBadge } from "@/components/admin/status-badges";
 import { AdminOptionLetter } from "@/components/admin/option-letter";
@@ -185,16 +193,16 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
         <span className="text-body-sm font-medium text-muted-foreground">
           {tx("registeredCount", { count: templates.length })}
         </span>
-        <Button asChild className="rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-bold shadow-xs">
-          <Link href={newQuizUrl} className="flex items-center gap-2">
-            <Plus className="size-4" /> {tx("createQuiz")}
+        <AdminIconAction asChild label={tx("createQuiz")}>
+          <Link href={newQuizUrl}>
+            <Plus className="size-4" />
           </Link>
-        </Button>
+        </AdminIconAction>
       </div>
 
       {/* Grid List */}
       {templates.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-card py-8 px-4 text-center shadow-xs flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center justify-center py-5 text-center">
           <div className="mx-auto flex size-14 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary mb-5 border border-brand-primary/20">
             <BookOpen className="size-6" />
           </div>
@@ -202,14 +210,9 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
           <p className="text-body-sm text-muted-foreground max-w-sm mx-auto mt-2 leading-relaxed">
             {tx("emptyDescription")}
           </p>
-          <Button asChild className="mt-6 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-bold shadow-md">
-            <Link href={newQuizUrl} className="flex items-center gap-2">
-              <Plus className="size-4" /> {tx("createQuiz")} Baru
-            </Link>
-          </Button>
         </div>
       ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card text-left">
+        <div className="divide-y divide-border border-y border-border text-left">
           {templates.map((template) => {
             const rules = template.selectionRules as Record<string, any>;
             const qCount = rules?.count ?? 0;
@@ -249,8 +252,8 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                         className={cn(
                           "inline-flex min-h-9 items-center rounded-md border px-2 text-body-sm font-semibold capitalize cursor-pointer transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           template.status === "published"
-                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
-                            : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
+                            ? "bg-status-success/10 text-status-success border-status-success/20"
+                            : "bg-status-warning/10 text-status-warning border-status-warning/20"
                         )}
                         title={tx("togglePublishTitle")}
                       >
@@ -287,7 +290,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                           : tx("unlimited")}
                       </span>
                       {perQuestionTimer && (
-                        <Badge variant="outline" className="rounded-md border-brand-primary/30 text-brand-primary text-[10px] h-4 px-1">
+                        <Badge variant="outline" className="rounded-md border-brand-primary/30 text-brand-primary text-body-2xs h-4 px-1">
                           {tx("perQuestionTimer")}
                         </Badge>
                       )}
@@ -322,12 +325,12 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                       </span>
                       <span
                         className={cn(
-                          "inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                          "inline-flex rounded-md border px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wide",
                           template.manualStatus === "open"
-                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                            ? "bg-status-success/10 text-status-success border-status-success/20"
                             : template.manualStatus === "closed"
-                            ? "bg-destructive/10 text-destructive border-destructive/20"
-                            : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20"
+                            ? "bg-status-error/10 text-status-error border-status-error/20"
+                            : "bg-status-info/10 text-status-info border-status-info/20"
                         )}
                       >
                         {template.manualStatus === "open"
@@ -373,7 +376,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                         className={cn(
                           "text-body-sm rounded-md cursor-pointer",
                           template.manualStatus === "open"
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                            ? "bg-status-success/15 text-status-success border-status-success/30"
                             : "text-muted-foreground hover:bg-muted"
                         )}
                         aria-pressed={template.manualStatus === "open"}
@@ -388,7 +391,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                         className={cn(
                           "text-body-sm rounded-md cursor-pointer",
                           template.manualStatus === "closed"
-                            ? "bg-destructive/15 text-destructive border-destructive/30"
+                            ? "bg-status-error/15 text-status-error border-status-error/30"
                             : "text-muted-foreground hover:bg-muted"
                         )}
                         aria-pressed={template.manualStatus === "closed"}
@@ -403,7 +406,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                         className={cn(
                           "text-body-sm rounded-md cursor-pointer",
                           template.manualStatus === "scheduled"
-                            ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30"
+                            ? "bg-status-info/15 text-status-info border-status-info/30"
                             : "text-muted-foreground hover:bg-muted"
                         )}
                         aria-pressed={template.manualStatus === "scheduled"}
@@ -440,17 +443,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                     {new Date(template.createdAt).toLocaleDateString(locale, { dateStyle: "medium" })}
                   </span>
 
-                  <div className="flex gap-1.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1 font-semibold text-body-sm h-8 px-2 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary border-border/80"
-                      onClick={() => handleOpenPreviewTpl(template)}
-                    >
-                      <Eye className="size-3.5" />
-                      {tx("preview")}
-                    </Button>
+                  <div className="flex items-center gap-1.5">
                     <Button
                       asChild
                       variant="outline"
@@ -462,16 +455,33 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                         {tx("edit")}
                       </Link>
                     </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon-sm"
-                      className="rounded-lg shrink-0 cursor-pointer shadow-xs transition-colors h-8 w-8 p-0"
-                      onClick={() => handleDeleteStart(template)}
-                      title={tx("deleteQuiz")}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="h-8 w-8 rounded-lg"
+                          aria-label={template.title}
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onSelect={() => handleOpenPreviewTpl(template)}>
+                          <Eye className="size-4 text-muted-foreground" />
+                          <span>{tx("preview")}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onSelect={() => handleDeleteStart(template)}
+                          className="text-status-error focus:text-status-error"
+                        >
+                          <Trash2 className="size-4" />
+                          <span>{tx("deleteQuiz")}</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </div>

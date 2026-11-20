@@ -41,6 +41,7 @@ const InputField = React.forwardRef<HTMLInputElement, InputFieldProps>(
             id={inputId}
             type={actualType}
             className={cn(
+              "max-sm:pointer-coarse:min-h-11 max-sm:pointer-coarse:text-touch-input",
               isPassword && "pr-10",
               error && "border-status-error focus-visible:ring-status-error/30 focus-visible:border-status-error",
               className
@@ -54,7 +55,7 @@ const InputField = React.forwardRef<HTMLInputElement, InputFieldProps>(
             <button
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute right-3 top-2.5 h-5 w-5 flex items-center justify-center text-muted-foreground hover:text-foreground focus:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-zx-accent rounded-sm transition-colors"
+              className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-zx-accent max-sm:pointer-coarse:w-11"
               title={passwordToggleLabel}
               aria-label={passwordToggleLabel}
             >

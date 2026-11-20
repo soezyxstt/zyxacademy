@@ -17,7 +17,7 @@ export function ShellPage({ title, children, className }: ShellPageProps) {
       <Reveal>
         <PageHeader title={title} />
       </Reveal>
-      <Reveal className="mt-5 md:mt-6">
+      <Reveal className="mt-2">
         <div>{children}</div>
       </Reveal>
     </ApplicationPage>

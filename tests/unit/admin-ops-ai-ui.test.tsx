@@ -32,7 +32,6 @@ import { CitationCards } from "@/components/admin/ops-ai/citation-cards";
 import { ActionProposalCard } from "@/components/admin/ops-ai/action-proposal-card";
 import { OpsAiTrigger } from "@/components/admin/ops-ai/ops-ai-trigger";
 import { OpsAiProvider } from "@/components/admin/ops-ai/ops-ai-context";
-import { OpsAiPanel } from "@/components/admin/ops-ai/ops-ai-panel";
 import { QuickActionsBar, extractQuickActions } from "@/components/admin/ops-ai/quick-actions-bar";
 import {
   OPS_AI_CITATION_OFFICIAL_LABEL,
@@ -42,6 +41,12 @@ import type {
   OpsAiCitation,
   OpsAiActionProposalV2,
 } from "@/lib/admin-ops-ai/contracts";
+
+// Bun does not replace server-action imports with Next.js client proxies.
+mock.module("@/app/(student)/profile/edit/zyra-appearance-action", () => ({
+  getMyZyraAppearance: async () => ({ skinId: null, avatarId: null }),
+}));
+const { OpsAiPanel } = await import("@/components/admin/ops-ai/ops-ai-panel");
 
 describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
   // Mock localStorage in test environment

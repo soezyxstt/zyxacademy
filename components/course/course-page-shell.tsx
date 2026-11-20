@@ -44,7 +44,7 @@ export function CoursePageShell({
   }
 
   return (
-    <ApplicationPage maxWidth={maxWidth} className={cn("relative pb-8", className)}>
+    <ApplicationPage maxWidth={maxWidth} spacing="space-y-(--compact-gap)" className={cn("relative pb-8", className)}>
       {!hideHeader && title && (
         <PageHeader
           title={title}
@@ -52,7 +52,7 @@ export function CoursePageShell({
           actions={actions}
           backHref={backHref}
           backLabel={backLabel}
-          className={hideMobileTitle ? undefined : "mb-3 flex md:mb-0"}
+          className={hideMobileTitle ? undefined : "mb-0"}
         />
       )}
       <div>{children}</div>

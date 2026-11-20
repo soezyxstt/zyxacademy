@@ -16,9 +16,11 @@ test("demo routes use the app transition, including localized routes and reduced
 
 test("demo student features are split by conditional client imports with a visible loading state", () => {
   const source = readFileSync("components/demo/demo-student-pages.tsx", "utf8");
-  for (const module of ["course-videos-client", "/live/page", "student-profile-view", "settings-client", "study-path-timeline", "concept-graph-view", "concept-map"]) {
+  for (const module of ["course-videos-client", "/live/page", "demo-profile", "demo-achievements", "demo-leaderboard", "demo-groups", "settings-client", "study-path-timeline", "concept-map"]) {
     expect(source).toMatch(new RegExp(`dynamic\\(\\(\\) => import\\([^\\n]*${module}`));
   }
+  expect(source).not.toContain("concept-graph-view");
+  expect(readFileSync("components/demo/demo-profile.tsx", "utf8")).toContain('<StudentProfileView');
   expect(source).toContain('role="status"');
   expect(source).toContain('aria-busy="true"');
   expect(source).not.toContain("ssr: false");

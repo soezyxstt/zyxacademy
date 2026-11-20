@@ -1,8 +1,12 @@
 import { relations, sql } from "drizzle-orm";
+import { nameSearchBigrams } from "./search-expressions";
+export { nameSearchBigrams } from "./search-expressions";
 import {
  pgTable,
  text,
  bigint,
+ bigserial,
+ integer,
  boolean,
  timestamp,
  jsonb,
@@ -14,6 +18,7 @@ import {
   primaryKey,
 } from "drizzle-orm/pg-core";
 import type { PricingDiscounts } from "@/lib/pricing-discounts";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 export const pricingSettings = pgTable("pricing_settings", {
  id: text("id").primaryKey(),
@@ -41,7 +46,7 @@ export const user = pgTable("user", {
  faculty: text("faculty"),
  major: text("major"),
  entryYear: bigint("entry_year", { mode: "number" }),
-});
+}, table => [index("user_name_bigrams_idx").using("gin", nameSearchBigrams(table.name))]);
 
 /** User-controlled optional email categories. Essential transactional email bypasses this table. */
 export const emailNotificationPreferences = pgTable("email_notification_preferences", {
@@ -4372,6 +4377,7 @@ export const userPushTokens = pgTable(
  },
  (table) => [
  index("idx_push_tokens_user").on(table.userId),
+ index("idx_push_tokens_user_id").on(table.userId, table.id),
  index("idx_push_tokens_token").on(table.token),
  ]
 );
@@ -4398,12 +4404,13 @@ export const notifications = pgTable(
  | "payment_success"
  | "admin_broadcast"
  | "announcement"
+ | "discussion"
  >()
  .notNull(),
   /** Whether the user has read/dismissed this notification. */
   read: boolean("read").default(false).notNull(),
   /** Arbitrary JSON payload (e.g. quizId, courseId, bookingId). */
-  metadata: jsonb("metadata").$defaultFn(() => ({})).notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().$defaultFn(() => ({})).notNull(),
   /** FCM delivery stats for the push attempt to this user's devices. */
   attempted: bigint("attempted", { mode: "number" }).default(0).notNull(),
   succeeded: bigint("succeeded", { mode: "number" }).default(0).notNull(),
@@ -4415,6 +4422,10 @@ export const notifications = pgTable(
  (table) => [
  index("idx_notifications_user_read").on(table.userId, table.read),
  index("idx_notifications_user_created").on(table.userId, table.createdAt),
+ index("idx_notifications_user_type_read_thread").on(table.userId, table.type, table.read, sql`(${table.metadata}->>'threadId')`)
+  .where(sql`${table.metadata}->>'threadId' is not null`),
+ index("idx_notifications_discussion_pending_push").on(sql`(${table.metadata}->>'eventId')`, table.userId)
+  .where(sql`${table.type} = 'discussion' and ${table.metadata}->>'pushState' = 'pending'`),
  ]
 );
 
@@ -6224,3 +6235,403 @@ export const aiModelSettings = pgTable("ai_model_settings", {
   updatedBy: text("updated_by").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+// Gamification projections and append-only evidence. All amounts are integer micro-XP.
+export const gamificationAccounts = pgTable('gamification_accounts', {
+ userId: text('user_id').primaryKey().references(() => user.id, { onDelete: 'cascade' }),
+ baseXpMicro: bigint('base_xp_micro', { mode: 'number' }).notNull().default(0),
+ bonusXpMicro: bigint('bonus_xp_micro', { mode: 'number' }).notNull().default(0),
+ courseCreditsMicro: bigint('course_credits_micro', { mode: 'number' }).notNull().default(0),
+ lpBalance: bigint('lp_balance', { mode: 'number' }).notNull().default(0),
+ rankKey: text('rank_key').notNull().default('rakyat'),
+ updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const gamificationProfiles = pgTable('gamification_profiles', {
+ userId: text('user_id').primaryKey().references(() => user.id, { onDelete: 'cascade' }),
+ publicId: text('public_id').notNull().unique(), displayName: text('display_name'),
+ visibility: text('visibility').$type<'private' | 'members'>().notNull().default('private'),
+ showMajor: boolean('show_major').notNull().default(false), showFaculty: boolean('show_faculty').notNull().default(false),
+ allowFollows: boolean('allow_follows').notNull().default(false), leaderboardOptIn: boolean('leaderboard_opt_in').notNull().default(false),
+ avatarMode: text('avatar_mode').$type<'photo' | 'badge'>().notNull().default('photo'), badgeTier: bigint('badge_tier', { mode: 'number' }),
+ avatarBadgeId: text('avatar_badge_id'), featuredBadgeIds: jsonb('featured_badge_ids').$type<string[]>().notNull().default([]),
+ equippedFrameId: text('equipped_frame_id'), equippedThemeId: text('equipped_theme_id'), equippedTitleId: text('equipped_title_id'),
+ equippedPetActionId: text('equipped_pet_action_id'), equippedPetSuitId: text('equipped_pet_suit_id'),
+ equippedZyraSkinId: text('equipped_zyra_skin_id'), equippedZyraAvatarId: text('equipped_zyra_avatar_id'),
+ followerCount: bigint('follower_count', { mode: 'number' }).notNull().default(0), followingCount: bigint('following_count', { mode: 'number' }).notNull().default(0),
+ updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('gamification_profiles_leaderboard_eligibility_idx').on(t.visibility, t.leaderboardOptIn, t.userId), check('gamification_profiles_visibility_check', sql`${t.visibility} in ('private', 'members')`), check('gamification_profiles_featured_limit', sql`jsonb_typeof(${t.featuredBadgeIds}) = 'array' and jsonb_array_length(${t.featuredBadgeIds}) <= 3`)]);
+export const gamificationFollows = pgTable('gamification_follows', {
+ followerId: text('follower_id').notNull().references(() => user.id, { onDelete: 'cascade' }), followingId: text('following_id').notNull().references(() => user.id, { onDelete: 'cascade' }), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.followerId, t.followingId] }), index('gamification_follows_following_idx').on(t.followingId), check('gamification_follows_not_self', sql`${t.followerId} <> ${t.followingId}`)]);
+export const gamificationBlocks = pgTable('gamification_blocks', {
+ blockerId: text('blocker_id').notNull().references(() => user.id, { onDelete: 'cascade' }), blockedId: text('blocked_id').notNull().references(() => user.id, { onDelete: 'cascade' }), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.blockerId, t.blockedId] }), index('gamification_blocks_blocked_idx').on(t.blockedId), check('gamification_blocks_not_self', sql`${t.blockerId} <> ${t.blockedId}`)]);
+export const gamificationReports = pgTable('gamification_reports', {
+ id: text('id').primaryKey(), reporterId: text('reporter_id').notNull().references(() => user.id), targetUserId: text('target_user_id').notNull().references(() => user.id), reason: text('reason').notNull(), status: text('status').notNull().default('pending'), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('gamification_reports_status_idx').on(t.status, t.createdAt), index('gamification_reports_reporter_created_idx').on(t.reporterId, t.createdAt)]);
+export const gamificationSocialRateLimits = pgTable('gamification_social_rate_limits', {
+ userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }), action: text('action').notNull(), windowKey: text('window_key').notNull(), attempts: bigint('attempts', { mode: 'number' }).notNull().default(0), expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.action, t.windowKey] }), index('gamification_social_rate_limits_expiry_idx').on(t.expiresAt), check('gamification_social_rate_limits_attempts_check', sql`${t.attempts} >= 0`)]);
+export const gamificationLeaderboardPeriods = pgTable('gamification_leaderboard_periods', {
+ userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }), periodKey: text('period_key').notNull(), baseXpMicro: bigint('base_xp_micro', { mode: 'number' }).notNull().default(0), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.userId, t.periodKey] }), index('gamification_leaderboard_score_idx').on(t.periodKey, t.baseXpMicro)]);
+export const gamificationChecklists = pgTable('gamification_checklists', {
+ id: text('id').primaryKey(), courseId: text('course_id').notNull().references(() => mataKuliah.id), version: bigint('version', { mode: 'number' }).notNull(), status: text('status').notNull().default('draft'), approvedBy: text('approved_by').references(() => user.id), approvedAt: timestamp('approved_at', { withTimezone: true }), totalXpMicro: bigint('total_xp_micro', { mode: 'number' }).notNull().default(0),
+}, t => [unique('gamification_checklists_course_version').on(t.courseId, t.version)]);
+export const gamificationChecklistItems = pgTable('gamification_checklist_items', {
+ id: text('id').primaryKey(), checklistId: text('checklist_id').notNull().references(() => gamificationChecklists.id), category: text('category').notNull(), sourceId: text('source_id').notNull(), contentVersion: text('content_version').notNull(), baseXpMicro: bigint('base_xp_micro', { mode: 'number' }).notNull(),
+}, t => [unique('gamification_checklist_items_identity').on(t.checklistId, t.category, t.sourceId)]);
+export const gamificationCourseStarts = pgTable('gamification_course_starts', {
+ userId: text('user_id').notNull().references(() => user.id), courseId: text('course_id').notNull().references(() => mataKuliah.id), checklistId: text('checklist_id').notNull().references(() => gamificationChecklists.id), startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(), completedAt: timestamp('completed_at', { withTimezone: true }),
+}, t => [primaryKey({ columns: [t.userId, t.courseId] })]);
+export const gamificationEventOutbox = pgTable('gamification_event_outbox', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), source: text('source').notNull(), sourceId: text('source_id').notNull(), evidenceId: text('evidence_id').notNull(), occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(), status: text('status').notNull().default('pending'), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), processedAt: timestamp('processed_at', { withTimezone: true }), errorCode: text('error_code'),
+}, t => [unique('gamification_event_evidence_unique').on(t.userId, t.source, t.evidenceId), index('gamification_event_pending_idx').on(t.status, t.createdAt), index('gamification_event_pending_order_idx').on(t.status, t.createdAt, t.id), index('gamification_event_user_pending_order_idx').on(t.userId, t.status, t.occurredAt, t.createdAt, t.id)]);
+export const gamificationEvidenceReceipts = pgTable('gamification_evidence_receipts', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), courseId: text('course_id').notNull().references(() => mataKuliah.id), source: text('source').notNull(), sourceId: text('source_id').notNull(), sourceVersion: text('source_version').notNull(), sourceEvidenceId: text('source_evidence_id').notNull(), occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(), details: jsonb('details').$type<Record<string, unknown>>().notNull(), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [unique('gamification_receipt_source_evidence_unique').on(t.source, t.sourceEvidenceId), index('gamification_receipt_user_source_idx').on(t.userId, t.source, t.sourceId), check('gamification_receipt_source_check', sql`${t.source} IN ('article', 'explanation', 'question', 'flashcard')`)]);
+// Append-only by application contract; the database does not prohibit updates.
+export const gamificationArticleCompletions = pgTable('gamification_article_completions', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), courseId: text('course_id').notNull().references(() => mataKuliah.id), articleId: text('article_id').notNull().references(() => artikel.id), articleVersion: bigint('article_version', { mode: 'number' }).notNull(), completedAt: timestamp('completed_at', { withTimezone: true }).notNull(), sectionIds: jsonb('section_ids').$type<string[]>().notNull(), evidence: jsonb('evidence').$type<{ id: string; sectionId: string; completedAt: string }[]>().notNull(),
+}, t => [unique('gamification_article_completion_unique').on(t.userId, t.articleId, t.articleVersion), index('gamification_article_completion_owner_source_idx').on(t.userId, t.courseId, t.articleId), check('gamification_article_completion_version_check', sql`${t.articleVersion} > 0`)]);
+export const gamificationExplanationCompletions = pgTable('gamification_explanation_completions', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), collectionId: text('collection_id').notNull().references(() => solutionCollections.id), completedAt: timestamp('completed_at', { withTimezone: true }).notNull(), itemIds: jsonb('item_ids').$type<string[]>().notNull(),
+}, t => [unique('gamification_explanation_completion_unique').on(t.userId, t.collectionId)]);
+export const gamificationXpLedger = pgTable('gamification_xp_ledger', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), eventId: text('event_id').notNull().references(() => gamificationEventOutbox.id), rewardKey: text('reward_key').notNull(), baseXpMicro: bigint('base_xp_micro', { mode: 'number' }).notNull(), bonusXpMicro: bigint('bonus_xp_micro', { mode: 'number' }).notNull(), rankKey: text('rank_key').notNull(), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [unique('gamification_xp_award_unique').on(t.userId, t.rewardKey), unique('gamification_xp_event_unique').on(t.eventId)]);
+export const gamificationLpLedger = pgTable('gamification_lp_ledger', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), rewardKey: text('reward_key').notNull(), amount: bigint('amount', { mode: 'number' }).notNull(), reason: text('reason').notNull(), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [unique('gamification_lp_reward_unique').on(t.userId, t.rewardKey)]);
+export const gamificationBadges = pgTable('gamification_badges', {
+ userId: text('user_id').notNull().references(() => user.id), family: text('family').notNull(), count: bigint('count', { mode: 'number' }).notNull().default(0), tier: bigint('tier', { mode: 'number' }).notNull().default(0), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.userId, t.family] })]);
+export const gamificationMissions = pgTable('gamification_missions', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), kind: text('kind').notNull(), windowKey: text('window_key').notNull(), target: bigint('target', { mode: 'number' }).notNull(), progress: bigint('progress', { mode: 'number' }).notNull().default(0), rewardLp: bigint('reward_lp', { mode: 'number' }).notNull(), startsAt: timestamp('starts_at', { withTimezone: true }).notNull(), endsAt: timestamp('ends_at', { withTimezone: true }).notNull(), completedAt: timestamp('completed_at', { withTimezone: true }),
+}, t => [unique('gamification_mission_window_unique').on(t.userId, t.kind, t.windowKey), index('gamification_mission_user_end_idx').on(t.userId, t.endsAt)]);
+export const gamificationCosmetics = pgTable('gamification_cosmetics', {
+ id: text('id').primaryKey(), name: text('name').notNull(), slot: text('slot').notNull(), priceLp: bigint('price_lp', { mode: 'number' }).notNull(), active: boolean('active').notNull().default(true),
+}, t => [check('gamification_cosmetics_price_check', sql`${t.priceLp} >= 0`)]);
+export const gamificationInventory = pgTable('gamification_inventory', {
+ userId: text('user_id').notNull().references(() => user.id), cosmeticId: text('cosmetic_id').notNull().references(() => gamificationCosmetics.id), acquiredAt: timestamp('acquired_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.userId, t.cosmeticId] })]);
+export const gamificationQualifiedDays = pgTable('gamification_qualified_days', {
+ userId: text('user_id').notNull().references(() => user.id), dayKey: text('day_key').notNull(), weekKey: text('week_key').notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.dayKey] }), index('gamification_qualified_week_idx').on(t.userId, t.weekKey)]);
+
+// Immutable server-written learning facts. Writers insert these in the same transaction as the domain action and receipt.
+export const gamificationLearningFacts = pgTable('gamification_learning_facts', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), courseId: text('course_id').notNull().references(() => mataKuliah.id),
+ source: text('source').$type<'question' | 'flashcard'>().notNull(), sourceId: text('source_id').notNull(), sourceVersion: text('source_version').notNull(), occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+ attemptId: text('attempt_id'), correct: boolean('correct'), lastRevealAttemptId: text('last_reveal_attempt_id'), lastRevealAt: timestamp('last_reveal_at', { withTimezone: true }),
+ adapter: text('adapter').$type<'canonical' | 'legacy'>(), grade: bigint('grade', { mode: 'number' }), previousDueAt: timestamp('previous_due_at', { withTimezone: true }),
+}, t => [index('gamification_learning_facts_owner_source_idx').on(t.userId, t.source, t.sourceId, t.occurredAt), index('gamification_question_comeback_lookup_idx').on(t.userId, t.source, t.sourceId, t.sourceVersion, t.correct, t.occurredAt), check('gamification_learning_facts_kind_check', sql`(${t.source} = 'question' and ${t.attemptId} is not null and ${t.correct} is not null and ((${t.lastRevealAttemptId} is null and ${t.lastRevealAt} is null) or (${t.lastRevealAttemptId} is not null and ${t.lastRevealAt} is not null)) and ${t.grade} is null and ${t.previousDueAt} is null and ${t.adapter} is null) or (${t.source} = 'flashcard' and ${t.grade} is not null and ${t.grade} between 0 and 4 and ${t.previousDueAt} is not null and ${t.adapter} in ('canonical', 'legacy') and ${t.attemptId} is null and ${t.correct} is null and ${t.lastRevealAttemptId} is null and ${t.lastRevealAt} is null)`)]);
+export const gamificationEligibleRecalls = pgTable('gamification_eligible_recalls', {
+ sourceEvidenceId: text('source_evidence_id').primaryKey().references(() => gamificationLearningFacts.id), userId: text('user_id').notNull().references(() => user.id), checklistItemId: text('checklist_item_id').notNull().references(() => gamificationChecklistItems.id), reviewedAt: timestamp('reviewed_at', { withTimezone: true }).notNull(), previousDueAt: timestamp('previous_due_at', { withTimezone: true }).notNull(),
+}, t => [index('gamification_eligible_recalls_lookup_idx').on(t.userId, t.checklistItemId, t.reviewedAt)]);
+export const gamificationBadgeActivities = pgTable('gamification_badge_activities', {
+ userId: text('user_id').notNull().references(() => user.id), family: text('family').notNull(), identity: text('identity').notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.family, t.identity] })]);
+export const gamificationDailyRankSnapshots = pgTable('gamification_daily_rank_snapshots', {
+ userId: text('user_id').notNull().references(() => user.id), dayKey: text('day_key').notNull(), rankKey: text('rank_key').notNull(), capturedAt: timestamp('captured_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.userId, t.dayKey] })]);
+export const gamificationExplanationCompletionsV2 = pgTable('gamification_explanation_completions_v2', {
+ id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => user.id), collectionId: text('collection_id').notNull().references(() => solutionCollections.id), collectionVersion: bigint('collection_version', { mode: 'number' }).notNull(), completedAt: timestamp('completed_at', { withTimezone: true }).notNull(), itemIds: jsonb('item_ids').$type<string[]>().notNull(),
+}, t => [unique('gamification_explanation_v2_identity').on(t.userId, t.collectionId, t.collectionVersion)]);
+
+/** Server-recorded answer disclosure history. Rows are append-only. */
+export const gamificationQuestionExposures = pgTable('gamification_question_exposures', {
+ id: text('id').primaryKey(),
+ userId: text('user_id').notNull().references(() => user.id),
+ questionId: text('question_id').notNull(),
+ courseId: text('course_id').notNull().references(() => mataKuliah.id),
+ sourceVersion: text('source_version').notNull(),
+ kind: text('kind').$type<'disclosure' | 'baseline'>().notNull(),
+ attemptIdentity: text('attempt_identity').notNull(),
+ exposedAt: timestamp('exposed_at', { withTimezone: true }).notNull().defaultNow(),
+ causalOrder: bigserial('causal_order', { mode: 'bigint' }).notNull(),
+}, t => [unique('gamification_question_exposure_identity').on(t.userId, t.questionId, t.kind, t.attemptIdentity), index('gamification_question_exposure_history_idx').on(t.userId, t.questionId, t.exposedAt), index('gamification_question_exposure_order_idx').on(t.userId, t.questionId, t.causalOrder), check('gamification_question_exposure_kind_check', sql`${t.kind} in ('disclosure', 'baseline')`)]);
+
+/** Marks that legacy history was checked, including when it was empty. */
+export const gamificationQuestionExposureInitializations = pgTable('gamification_question_exposure_initializations', {
+ userId: text('user_id').notNull().references(() => user.id),
+ questionId: text('question_id').notNull(),
+ initializedAt: timestamp('initialized_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.userId, t.questionId] })]);
+
+/** Staff may see a bank answer before the matching canonical question exists. */
+export const gamificationQuestionBankDisclosures = pgTable('gamification_question_bank_disclosures', {
+ id: text('id').primaryKey(),
+ userId: text('user_id').notNull().references(() => user.id),
+ questionId: text('question_id').notNull(),
+ courseId: text('course_id').notNull(),
+ exposedAt: timestamp('exposed_at', { withTimezone: true }).notNull(),
+}, t => [index('gamification_question_bank_disclosure_lookup_idx').on(t.userId, t.questionId)]);
+
+/** Compact maximum-time disclosure per viewer, course and question (or course wildcard). */
+export const gamificationQuestionExposureProjection = pgTable('gamification_question_exposure_projection', {
+ userId: text('user_id').notNull().references(() => user.id),
+ courseId: text('course_id').notNull(),
+ questionId: text('question_id').notNull(),
+ attemptIdentity: text('attempt_identity').notNull(),
+ exposedAt: timestamp('exposed_at', { withTimezone: true }).notNull(),
+ causalOrder: bigserial('causal_order', { mode: 'bigint' }).notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.courseId, t.questionId] })]);
+
+/** Immutable evidence selected under the viewer lock before the submission result is disclosed. */
+export const gamificationQuestionExposureObservations = pgTable('gamification_question_exposure_observations', {
+ userId: text('user_id').notNull().references(() => user.id),
+ attemptId: text('attempt_id').notNull().references(() => studentQuizAttempts.id),
+ questionId: text('question_id').notNull(),
+ courseId: text('course_id').notNull().references(() => mataKuliah.id),
+ sourceVersion: text('source_version').notNull(),
+ attemptIdentity: text('attempt_identity'),
+ exposedAt: timestamp('exposed_at', { withTimezone: true }),
+}, t => [primaryKey({ columns: [t.userId, t.attemptId, t.questionId] }), check('gamification_question_observation_pair_check', sql`(${t.attemptIdentity} is null) = (${t.exposedAt} is null)`)]);
+
+/** Frozen pre-cutover attempt reverse index. Two distinct IDs prove history excluding the current attempt. */
+export const gamificationQuestionLegacyIndex = pgTable('gamification_question_legacy_index', {
+ userId: text('user_id').notNull().references(() => user.id),
+ questionId: text('question_id').notNull(),
+ firstAttemptId: text('first_attempt_id').notNull(),
+ lastAttemptId: text('last_attempt_id').notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.questionId] })]);
+
+/** Absent until a verified, quiesced backfill commits. */
+export const gamificationQuestionHistoryCutover = pgTable('gamification_question_history_cutover', {
+ id: text('id').primaryKey(),
+ completedAt: timestamp('completed_at', { withTimezone: true }).notNull(),
+}, t => [check('gamification_question_history_cutover_singleton', sql`${t.id} = 'v1'`)]);
+
+export const discussionChannels = pgTable("discussion_channels", {
+ id: text("id").primaryKey(),
+ kind: text("kind").$type<"global" | "course" | "technical" | "academic">().notNull(),
+ title: text("title").notNull(),
+ courseId: text("course_id").references(() => mataKuliah.id),
+ legacyCourseId: text("legacy_course_id").references(() => courses.id),
+ requesterId: text("requester_id").references(() => user.id),
+ createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+ countRevision: bigint("count_revision", { mode: "bigint" }).notNull().default(sql`0`),
+}, t => [
+ uniqueIndex("discussion_channels_global_unique").on(t.kind).where(sql`${t.kind} = 'global'`),
+ uniqueIndex("discussion_channels_course_unique").on(t.courseId).where(sql`${t.kind} = 'course' and ${t.courseId} is not null`),
+ uniqueIndex("discussion_channels_legacy_course_unique").on(t.legacyCourseId).where(sql`${t.kind} = 'course' and ${t.legacyCourseId} is not null`),
+ uniqueIndex("discussion_channels_team_canonical_unique").on(t.requesterId, t.kind, t.courseId).where(sql`${t.kind} in ('technical', 'academic') and ${t.courseId} is not null`),
+ uniqueIndex("discussion_channels_team_legacy_unique").on(t.requesterId, t.kind, t.legacyCourseId).where(sql`${t.kind} in ('technical', 'academic') and ${t.legacyCourseId} is not null`),
+ uniqueIndex("discussion_channels_team_general_unique").on(t.requesterId, t.kind).where(sql`${t.kind} in ('technical', 'academic') and ${t.courseId} is null and ${t.legacyCourseId} is null`),
+ index("discussion_channels_requester_idx").on(t.requesterId, t.kind),
+ index("discussion_channels_active_kind_idx").on(t.kind, t.id).where(sql`${t.countRevision} > 0`),
+ index("discussion_channels_active_requester_idx").on(t.requesterId, t.id).where(sql`${t.countRevision} > 0`),
+ check("discussion_channels_count_revision_check", sql`${t.countRevision} >= 0`),
+ check("discussion_channels_scope_check", sql`(${t.kind} = 'global' and ${t.courseId} is null and ${t.legacyCourseId} is null and ${t.requesterId} is null) or (${t.kind} = 'course' and (${t.courseId} is not null or ${t.legacyCourseId} is not null) and ${t.requesterId} is null) or (${t.kind} in ('technical', 'academic') and ${t.requesterId} is not null)`),
+]);
+
+export const discussionThreads = pgTable("discussion_threads", {
+ id: text("id").primaryKey(),
+ channelId: text("channel_id").notNull().references(() => discussionChannels.id),
+ authorId: text("author_id").notNull().references(() => user.id),
+ title: text("title").notNull(),
+ status: text("status").$type<"open" | "resolved">().notNull().default("open"),
+ statusRevision: integer("status_revision").notNull().default(0),
+ labels: jsonb("labels").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+ helpKind: text("help_kind").$type<"academic" | "bug" | "feature" | "operations">(),
+ nextSeq: integer("next_seq").notNull().default(1),
+ answerCount: integer("answer_count").notNull().default(0),
+ createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+ lastActivityAt: timestamp("last_activity_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+ index("discussion_threads_channel_activity_idx").on(t.channelId, t.lastActivityAt, t.id),
+ index("discussion_threads_activity_idx").on(t.lastActivityAt, t.id),
+ index("discussion_threads_author_idx").on(t.authorId),
+ check("discussion_threads_status_check", sql`${t.status} in ('open', 'resolved')`),
+ check("discussion_threads_status_revision_check", sql`${t.statusRevision} >= 0`),
+ check("discussion_threads_sequence_check", sql`${t.nextSeq} > 0`),
+ check("discussion_threads_answer_count_check", sql`${t.answerCount} >= 0`),
+ check("discussion_threads_labels_check", sql`jsonb_typeof(${t.labels}) = 'array'`),
+ check("discussion_threads_help_kind_check", sql`${t.helpKind} is null or ${t.helpKind} in ('academic', 'bug', 'feature', 'operations')`),
+]);
+
+export const discussionMessages = pgTable("discussion_messages", {
+ id: text("id").primaryKey(),
+ threadId: text("thread_id").notNull().references(() => discussionThreads.id),
+ authorId: text("author_id").references(() => user.id),
+ kind: text("kind").$type<"human" | "zyra">().notNull(),
+ messageType: text("message_type").$type<"question" | "answer" | "reply" | "forward">().notNull(),
+ body: text("body").notNull(),
+ seq: integer("seq").notNull(),
+ requestId: text("request_id").notNull(),
+ submissionFingerprint: text("submission_fingerprint"),
+ revision: integer("revision").notNull().default(1),
+ replyToId: text("reply_to_id").references((): AnyPgColumn => discussionMessages.id),
+ forwardedFromId: text("forwarded_from_id").references((): AnyPgColumn => discussionMessages.id),
+ skinId: text("skin_id").references(() => gamificationCosmetics.id),
+ mentionIds: jsonb("mention_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+ askZyra: boolean("ask_zyra").notNull().default(false),
+ createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+ editedAt: timestamp("edited_at", { withTimezone: true }),
+ deletedAt: timestamp("deleted_at", { withTimezone: true }),
+ deletedById: text("deleted_by_id").references(() => user.id),
+}, t => [
+ unique("discussion_messages_thread_seq_unique").on(t.threadId, t.seq),
+ uniqueIndex("discussion_messages_actor_request_unique").on(t.authorId, t.requestId).where(sql`${t.authorId} is not null`),
+ index("discussion_messages_thread_type_idx").on(t.threadId, t.messageType, t.seq),
+ index("discussion_messages_thread_author_idx").on(t.threadId, t.authorId).where(sql`${t.authorId} is not null`),
+ index("discussion_messages_author_created_idx").on(t.authorId, t.createdAt),
+ check("discussion_messages_kind_check", sql`(${t.kind} = 'human' and ${t.authorId} is not null) or (${t.kind} = 'zyra' and ${t.authorId} is null and ${t.messageType} = 'answer' and not ${t.askZyra})`),
+ check("discussion_messages_type_check", sql`(${t.messageType} in ('question', 'answer') and ${t.replyToId} is null and ${t.forwardedFromId} is null) or (${t.messageType} = 'reply' and ${t.replyToId} is not null and ${t.forwardedFromId} is null) or (${t.messageType} = 'forward' and ${t.replyToId} is null and ${t.forwardedFromId} is not null)`),
+ check("discussion_messages_values_check", sql`${t.seq} > 0 and ${t.revision} > 0 and length(${t.requestId}) > 0 and jsonb_typeof(${t.mentionIds}) = 'array' and ((${t.deletedAt} is null) = (${t.deletedById} is null))`),
+]);
+
+export const discussionAttachments = pgTable("discussion_attachments", {
+ id: text("id").primaryKey(),
+ channelId: text("channel_id").notNull().references(() => discussionChannels.id),
+ uploaderId: text("uploader_id").notNull().references(() => user.id),
+ messageId: text("message_id").references(() => discussionMessages.id),
+ status: text("status").$type<"pending" | "ready" | "attached" | "deleting" | "failed" | "expired">().notNull().default("pending"),
+ storageKey: text("storage_key").notNull().unique(),
+ previewStorageKey: text("preview_storage_key"),
+ previewSize: integer("preview_size"),
+ name: text("name").notNull(),
+ mime: text("mime"),
+ size: integer("size"),
+ width: integer("width"),
+ height: integer("height"),
+ createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+ expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, t => [
+ index("discussion_attachments_message_idx").on(t.messageId),
+ index("discussion_attachments_expiry_idx").on(t.status, t.expiresAt),
+ check("discussion_attachments_status_check", sql`${t.status} in ('pending', 'ready', 'attached', 'deleting', 'failed', 'expired') and (${t.status} <> 'attached' or ${t.messageId} is not null) and (${t.status} <> 'expired' or ${t.messageId} is null)`),
+ check("discussion_attachments_dimensions_check", sql`(${t.size} is null or ${t.size} > 0) and (${t.width} is null or ${t.width} > 0) and (${t.height} is null or ${t.height} > 0)`),
+ check("discussion_attachments_preview_check", sql`${t.previewSize} is null or (${t.previewStorageKey} is not null and ${t.previewSize} > 0 and ${t.previewSize} <= 131072)`),
+]);
+
+export const discussionReactions = pgTable("discussion_reactions", {
+ messageId: text("message_id").notNull().references(() => discussionMessages.id),
+ userId: text("user_id").notNull().references(() => user.id),
+ emoji: text("emoji").notNull(),
+ createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.messageId, t.userId, t.emoji] }), index("discussion_reactions_user_idx").on(t.userId)]);
+
+export const discussionReports = pgTable("discussion_reports", {
+ id: text("id").primaryKey(),
+ messageId: text("message_id").notNull().references(() => discussionMessages.id),
+ reporterId: text("reporter_id").notNull().references(() => user.id),
+ reason: text("reason").notNull(),
+ status: text("status").$type<"pending" | "resolved" | "dismissed">().notNull().default("pending"),
+ createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+ resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+ resolvedById: text("resolved_by_id").references(() => user.id),
+}, t => [
+ uniqueIndex("discussion_reports_pending_unique").on(t.messageId, t.reporterId).where(sql`${t.status} = 'pending'`),
+ index("discussion_reports_status_created_idx").on(t.status, t.createdAt, t.id),
+ index("discussion_reports_reporter_created_idx").on(t.reporterId, t.createdAt),
+ check("discussion_reports_status_check", sql`(${t.status} = 'pending' and ${t.resolvedAt} is null and ${t.resolvedById} is null) or (${t.status} in ('resolved', 'dismissed') and ${t.resolvedAt} is not null and ${t.resolvedById} is not null)`),
+]);
+
+export const discussionChannelPreferences = pgTable("discussion_channel_preferences", {
+ userId: text("user_id").notNull().references(() => user.id),
+ channelId: text("channel_id").notNull().references(() => discussionChannels.id),
+ muted: boolean("muted").notNull().default(false),
+ readRevision: bigint("read_revision", { mode: "bigint" }).notNull().default(sql`0`),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.userId, t.channelId] }), check("discussion_channel_preferences_read_revision_check", sql`${t.readRevision} >= 0`)]);
+
+export const discussionThreadReads = pgTable("discussion_thread_reads", {
+ userId: text("user_id").notNull().references(() => user.id),
+ threadId: text("thread_id").notNull().references(() => discussionThreads.id),
+ throughSeq: integer("through_seq").notNull().default(0),
+ observedSeq: integer("observed_seq").notNull().default(0),
+ seenStatusRevision: integer("seen_status_revision"),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.userId, t.threadId] }), check("discussion_thread_reads_seq_check", sql`${t.throughSeq} >= 0 and ${t.observedSeq} >= ${t.throughSeq}`)]);
+
+export const discussionMessageObservations = pgTable("discussion_message_observations", {
+ messageId: text("message_id").notNull().references(() => discussionMessages.id, { onDelete: "cascade" }),
+ userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+ revision: integer("revision").notNull(),
+}, t => [primaryKey({ columns: [t.messageId, t.userId] }), check("discussion_message_observations_revision_check", sql`${t.revision} > 0`)]);
+
+export const discussionEvents = pgTable("discussion_events", {
+ id: text("id").primaryKey(),
+ channelId: text("channel_id").notNull().references(() => discussionChannels.id),
+ threadId: text("thread_id").notNull().references(() => discussionThreads.id),
+ messageId: text("message_id").references(() => discussionMessages.id),
+ messageRevision: integer("message_revision"),
+ statusRevision: integer("status_revision"),
+ // Captured under the thread lock; null for legacy events and reports.
+ participantThroughSeq: integer("participant_through_seq"),
+ actorId: text("actor_id").notNull().references(() => user.id),
+ kind: text("kind").$type<"question" | "message" | "edit" | "delete" | "resolved" | "report">().notNull(),
+ status: text("status").$type<"pending" | "processing" | "completed" | "failed">().notNull().default("pending"),
+ createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+ processedAt: timestamp("processed_at", { withTimezone: true }),
+ attempts: integer("attempts").notNull().default(0),
+ errorCode: text("error_code"),
+ recipientCursor: text("recipient_cursor"),
+ retryAt: timestamp("retry_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+ index("discussion_events_pending_idx").on(t.status, t.createdAt, t.id),
+ index("discussion_events_retry_idx").on(t.status, t.retryAt, t.createdAt, t.id),
+ index("discussion_events_thread_idx").on(t.threadId, t.createdAt),
+ check("discussion_events_values_check", sql`${t.kind} in ('question', 'message', 'edit', 'delete', 'resolved', 'report') and ${t.status} in ('pending', 'processing', 'completed', 'failed') and ${t.attempts} >= 0`),
+ check("discussion_events_participant_through_seq_check", sql`${t.participantThroughSeq} is null or ${t.participantThroughSeq} >= 0`),
+]);
+
+export const discussionAiRequests = pgTable("discussion_ai_requests", {
+ id: text("id").primaryKey(),
+ messageId: text("message_id").notNull().references(() => discussionMessages.id),
+ requestedById: text("requested_by_id").notNull().references(() => user.id),
+ kind: text("kind").$type<"zyra" | "label">().notNull(),
+ status: text("status").$type<"pending" | "processing" | "completed" | "failed" | "uncertain">().notNull().default("pending"),
+ requestId: text("request_id").notNull().unique(),
+ resultText: text("result_text"),
+ answerMessageId: text("answer_message_id").references(() => discussionMessages.id),
+ errorCode: text("error_code"),
+ attempts: integer("attempts").notNull().default(0),
+ createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+ startedAt: timestamp("started_at", { withTimezone: true }),
+ completedAt: timestamp("completed_at", { withTimezone: true }),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+ unique("discussion_ai_requests_message_kind_unique").on(t.messageId, t.kind),
+ index("discussion_ai_requests_pending_idx").on(t.status, t.createdAt, t.id),
+ check("discussion_ai_requests_values_check", sql`${t.kind} in ('zyra', 'label') and ${t.status} in ('pending', 'processing', 'completed', 'failed', 'uncertain') and ${t.attempts} >= 0`),
+]);
+
+export const discussionNotificationDeliveries = pgTable("discussion_notification_deliveries", {
+ eventId: text("event_id").notNull().references(() => discussionEvents.id, { onDelete: "cascade" }),
+ userId: text("user_id").notNull(),
+ staffOnly: boolean("staff_only").notNull().default(false),
+ attempts: integer("attempts").notNull().default(0),
+ retryAt: timestamp("retry_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+ primaryKey({ columns: [t.eventId, t.userId] }),
+ index("discussion_notification_deliveries_retry_idx").on(t.eventId, t.retryAt, t.userId),
+ check("discussion_notification_deliveries_attempts_check", sql`${t.attempts} >= 0`),
+]);
+
+export const discussionThreadParticipants = pgTable("discussion_thread_participants", {
+ threadId: text("thread_id").notNull().references(() => discussionThreads.id),
+ userId: text("user_id").notNull().references(() => user.id),
+ channelId: text("channel_id").references(() => discussionChannels.id),
+ firstSeq: integer("first_seq").notNull(),
+ firstCreatedAt: timestamp("first_created_at", { withTimezone: true }).notNull(),
+ earliestCreatedAt: timestamp("earliest_created_at", { withTimezone: true }).notNull(),
+ earliestCreatedSeq: integer("earliest_created_seq").notNull(),
+}, t => [
+ primaryKey({ columns: [t.threadId, t.userId] }),
+ index("discussion_thread_participants_channel_user_thread_idx").on(t.channelId, t.userId, t.threadId),
+ check("discussion_thread_participants_bounds_check", sql`${t.firstSeq} > 0 and ${t.earliestCreatedSeq} >= ${t.firstSeq} and ${t.earliestCreatedAt} <= ${t.firstCreatedAt}`),
+]);
+
+/** Completed task steps survive Cloud Tasks redelivery and worker restarts. */
+export const queueTaskCheckpoints = pgTable("queue_task_checkpoints", {
+ task: text("task").notNull(),
+ step: text("step").notNull(),
+ value: jsonb("value").notNull(),
+ recordedAt: timestamp("recorded_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+ primaryKey({ columns: [table.task, table.step] }),
+ index("queue_task_checkpoints_recorded_at_idx").on(table.recordedAt),
+]);

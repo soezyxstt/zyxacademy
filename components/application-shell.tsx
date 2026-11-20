@@ -11,6 +11,7 @@ export interface ApplicationShellProps {
   overlays?: ReactNode;
   ornamentsVariant?: "testimonial" | "plans" | "about";
   showOrnaments?: boolean;
+  personalizeTypographyAndSpacing?: boolean;
   className?: string;
   mainClassName?: string;
 }
@@ -22,11 +23,13 @@ export function ApplicationShell({
   overlays,
   ornamentsVariant = "about",
   showOrnaments = true,
+  personalizeTypographyAndSpacing = false,
   className,
   mainClassName,
 }: ApplicationShellProps) {
   return (
     <div
+      data-personalized-surface={personalizeTypographyAndSpacing ? "" : undefined}
       className={cn(
         "relative flex min-h-screen flex-col overflow-x-clip bg-background md:flex-row",
         className,

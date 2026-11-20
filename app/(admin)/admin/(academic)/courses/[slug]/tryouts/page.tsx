@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { TryoutsClient } from "@/app/(tutor)/tutor/[courseId]/tryouts/tryouts-client";
 import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";
 import { db } from "@/db";
+import { recordAuthorizedGlobalDisclosures, authorizedSnapshotDisclosures } from "@/lib/gamification/question-exposure";
 import { aiQuestionBank, exams, questions } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { getCourse } from "@/lib/course-utils";
@@ -21,8 +22,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AdminCourseTryoutsPage({ params }: Props) {
+  let actor: Awaited<ReturnType<typeof assertAdmin>>;
   try {
-    await assertAdmin();
+    actor = await assertAdmin();
   } catch {
     redirect("/admin");
   }
@@ -82,6 +84,19 @@ export default async function AdminCourseTryoutsPage({ params }: Props) {
       ? [{ ...question, origin: question.origin }]
       : [],
   );
+  const bankIds: { questionId: string; courseId: string }[] = [];
+  let unmapped = false;
+  for (const question of initialQuestions) {
+    let content: unknown = question.content;
+    if (typeof content === "string") {
+      try { content = JSON.parse(content); } catch { content = null; }
+    }
+    if (!content || typeof content !== "object" || Array.isArray(content)) { unmapped = true; continue; }
+    const bankId = (content as Record<string, unknown>).bankQuestionId;
+    if (typeof bankId === "string" && bankId) bankIds.push({ questionId: bankId, courseId });
+  }
+  if (unmapped) bankIds.push(...authorizedSnapshotDisclosures(courseId, [null]));
+  await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: actor.user.id, questions: bankIds, requestId: crypto.randomUUID() }));
 
   return (
     <div className="space-y-4 font-sans">

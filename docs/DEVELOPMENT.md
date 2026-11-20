@@ -1,5 +1,8 @@
 # Development Guide
 
+For gamification source and focused verification boundaries, see the [gamification contract](gamification.md). Prepared visual specs do not establish a passed visual check.
+
+
 The [Neon Functions worker runbook](operations/neon-functions-cutover.md) documents archive building, guarded deployment, Inngest synchronization and synthetic PDF tests. Supply an explicit environment and use its verified Neon target. Legacy local environment files must not supply production Inngest settings.
 
 Staging and production use separate guarded Neon PostgreSQL targets, and `bun run db:migrate` applies `drizzle-postgres/`. The legacy production push and canonical backfill are disabled. Both serving environments explicitly use private Neon S3-compatible buckets with `STORAGE_PROVIDER_MODE=neon`. Use [.env.neon.example](../.env.neon.example), the [staging migration runbook](operations/neon-migration.md) and [production cutover runbook](operations/neon-production-cutover.md). Do not reuse production sessions or integration credentials for development. SQLite and R2 setup instructions below are legacy compatibility references.
@@ -7,6 +10,8 @@ Staging and production use separate guarded Neon PostgreSQL targets, and `bun ru
 The staging importer can consume a signed local source snapshot using `NEON_SOURCE_SNAPSHOT` and `NEON_SOURCE_FREEZE_ACK=staging-writes-frozen`. The snapshot exporter requires the dedicated ignored `.env.neon-staging-cutover-source` file and independently verified staging write freeze. Snapshots and their manifests stay under ignored `.tmp`, with local access restricted to the operator. They contain business data and must not enter CI uploads. `scripts/neon/source-snapshot.test.ts` exercises only synthetic data.
 
 The serving staging target uses ignored `.env.neon-staging-cutover`; guarded source and import settings use `.env.neon-staging-cutover-source`. The earlier `.env.neon-staging` and `.env.neon-staging-source` refer to the separate preparation target. Do not substitute the production rehearsal environment. Apply generated migrations only to an independently verified target, and reconcile a frozen source before importing. The copy tool accepts only the pinned rehearsal, staging and production host/bucket pairs. Use forward slashes in Windows snapshot paths stored in dotenv files. Never upload environment files or real snapshots in deployment source archives.
+
+The background worker environment schema includes optional `ZYRA_CONTROL_PLANE_URL` and `ZYRA_CONTROL_PLANE_TOKEN`. The deployment archive filter derives its allowlist from that schema. Verify the intended environment and configured control plane before deployment; local schema projection tests do not prove deployed reachability.
 
 ## Quick Start
 
@@ -18,22 +23,15 @@ cp .env.example .env.local  # fill in secrets
 bun run dev                  # http://localhost:3000
 ```
 
-## Cloud Run staging build
+## Manual Vercel staging build
 
-The existing `.github/workflows/deploy-web.yml` builds `staging` as a standalone
-Node runtime image for Taiwan Artifact Registry. Only that build sets
-`NEXT_OUTPUT=standalone`; the production Vercel build retains its existing mode.
-`Dockerfile.cloud-run` expects an already completed `bun run build`; it does not
-compile the application. GitHub Environment `staging` supplies the public build
-settings, V4 browser identity, and the `GCP_SERVICE_ACCOUNT_KEY` JSON Secret. The account email is read from that key
-and used for both CI and the Cloud Run runtime. Application runtime credentials are synchronized from GitHub staging Secrets
-and Variables during deployment, using the explicit runtime allowlist and a
-private temporary environment file. They are not embedded in the image. Existing
-unmanaged settings and unreplaced Secret Manager references remain available. Follow the
-[Cloud Run staging runbook](operations/cloud-run-staging.md) before running the
-workflow or changing the staging origin. After one-time service/secret setup, each eligible staging push deploys the exact
-published digest and switches traffic only after readiness checks. Cloud Build
-is not used.
+Staging uses Vercel project `zyxacademy`, using its custom `staging` environment.
+Run `.github/workflows/deploy-web.yml` explicitly on branch `staging` after the
+required database and matching-worker gates pass. Staging pushes do not deploy
+web. Keep custom staging branch tracking unset and Git deployment disabled for staging.
+The job validates and syncs allowed GitHub staging runtime settings before a
+remote Vercel build; no Google service account or Docker image is required.
+See the [manual staging runbook](operations/vercel-staging.md).
 
 ## CI scope and incremental checks
 
@@ -209,6 +207,10 @@ bun test tests/contracts/zyra-chat-language-contract.test.ts tests/unit/zyra-str
 The account interface locale persists across visits. Conversation-specific Zyra overrides are in memory, limited to 32 sessions, and reset on drawer remount or reload and on account, course, or interface-locale changes. Do not describe that conversation override as durable storage. The final release candidate catalog gate passed 23 namespaces and 6,426 static translation calls, and the public route matrix passed 52 captures. The full role/state matrix remains incomplete; current browser evidence and its boundaries are tracked in `plans/bilingual-web-app.md`.
 
 Background dispatch imports must remain server-safe for Deno compute. Do not add Next.js or React imports to worker-consumed message, notification, preference, or email-template modules. `proxy.ts` owns only the finite public locale rewrite map; test origin preservation and `skipProxyUrlNormalize` when changing that request boundary. Full role, locale, state, and visual verification belongs to the bilingual plan's CP7 gate.
+
+## Background queue selection
+
+`QUEUE_PROVIDER` defaults to `inngest` for rollback. `cloud-tasks` selects the environment-specific Singapore queues. A test process, `noop`, or `memory` acknowledges enqueue locally. Cloud Run uses Application Default Credentials. Neon sends child tasks through the authenticated web relay so it does not need a Google service-account key.
 
 ## Environment Variables
 
@@ -484,6 +486,14 @@ Current approved vital flags (< 10 flags retained for high-impact runtime contro
 The admin flag page reads this catalog from `lib/feature-flags.ts`; arbitrary `FEATURE_*` variables are not surfaced. `FEATURE_STRUCTURED_ARTICLE_READER_V1` defaults to disabled. It is owned by Akademik dan Konten together with the Zyx platform owner. Its rollback disables V3 authoring, submission, and review selection without deleting V3 data or hiding products that are already published from students. See [the rollout runbook](operations/structured-article-v3-rollout.md). Decommissioned flags have been removed from `lib/env.ts`, runtime schemas, environment files, and operational scripts.
 
 ## Code Conventions
+
+### Typography and spacing
+
+Use the semantic text roles in `app/globals.css`. Learning prose uses `text-body-base` (16px / 26px), interface text uses `text-body-sm` (14px / 20px), and compact app headings use `text-section-title` (16px / 24px). Use `text-reading-major` and `text-reading-minor` inside the reading area, `text-support` for short prose, and `text-metadata` for dates, durations and counts.
+
+Use `--panel-padding` inside standard panels, `--row-padding` for list rows, `--table-row-padding` for compact tables, `--related-gap` between related groups, and `--section-gap` between sections. Readers use `--paragraph-gap` between paragraphs and `--reading-section-gap` between major sections. Assign spacing to one side of each boundary. Tailwind accepts these properties with classes such as `p-(--panel-padding)` and `gap-(--related-gap)`.
+
+Configure the five density and reading-size preset values in `app/appearance-preferences.css`. The personal scales activate when the Student or Tutor shell is mounted, including dialogs portaled to the page root. Fixed control sizes, page gutters, marketing sections and print layouts use their own sizing.
 
 - **DB schema**: `db/schema.ts` only. Edit → `bun run db:generate` → `bun run db:migrate`. Never hand-edit `drizzle/`.
 - **Auth**: Better-Auth (credentials + Google OAuth). Canonical access roles: `admin`, `tutor`, `murid`; `user.role` remains a legacy compatibility projection during expand.

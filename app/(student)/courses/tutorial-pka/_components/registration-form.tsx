@@ -93,9 +93,9 @@ export function PkaRegistrationForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-8">
+    <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-(--reading-section-gap)">
       {/* Follow CTA */}
-      <section className="flex flex-col gap-3 rounded-xl border border-border bg-muted/30 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <section className="flex flex-col gap-(--compact-gap) rounded-xl border border-border bg-muted/30 p-(--group-gap) sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
             <AtSign className="size-5" />
@@ -121,7 +121,7 @@ export function PkaRegistrationForm({
       </section>
 
       {/* Fields */}
-      <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+      <div className="space-y-(--related-gap) rounded-xl border border-border bg-card p-(--panel-padding)">
         <div className="space-y-1.5">
           <Label htmlFor="pka-fullname" className="text-body-sm font-medium text-foreground">
             {t("fullName")}

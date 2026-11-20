@@ -43,9 +43,9 @@ export default async function WebAnalyticsPage() {
       ) : (
         <>
           <AdminStatStrip className="sm:grid-cols-3">
-            <AdminStatStripItem icon={Eye} label={t("webAnalytics.views")} value={metrics.summary.views.toLocaleString(locale === "id" ? "id-ID" : "en-US")} tone="brand" />
-            <AdminStatStripItem icon={Users} label={t("webAnalytics.activeUsers")} value={metrics.summary.activeUsers.toLocaleString(locale === "id" ? "id-ID" : "en-US")} tone="info" />
-            <AdminStatStripItem icon={MousePointerClick} label={t("webAnalytics.sessions")} value={metrics.summary.sessions.toLocaleString(locale === "id" ? "id-ID" : "en-US")} tone="brand-secondary" />
+            <AdminStatStripItem icon={Eye} label={t("webAnalytics.views")} value={metrics.summary.views.toLocaleString(locale === "id" ? "id-ID" : "en-US")} />
+            <AdminStatStripItem icon={Users} label={t("webAnalytics.activeUsers")} value={metrics.summary.activeUsers.toLocaleString(locale === "id" ? "id-ID" : "en-US")} />
+            <AdminStatStripItem icon={MousePointerClick} label={t("webAnalytics.sessions")} value={metrics.summary.sessions.toLocaleString(locale === "id" ? "id-ID" : "en-US")} />
           </AdminStatStrip>
 
           <div className="space-y-3">
@@ -55,15 +55,15 @@ export default async function WebAnalyticsPage() {
             <WebAnalyticsCharts data={metrics.dailyData} />
           </div>
 
-          <div className="rounded-xl border border-border bg-card shadow-sm">
-            <div className="border-b border-border px-4 py-3">
+          <div className="space-y-2 border-y border-border">
+            <div className="border-b border-border py-3">
               <h2 className="font-heading text-body-base font-bold text-foreground">
                 {t("webAnalytics.topPages")}
               </h2>
             </div>
             <div className="divide-y divide-border">
               {metrics.topPages.map((page, i) => (
-                <div key={page.path} className="flex items-center justify-between gap-3 p-3 px-4 hover:bg-muted/30 transition-colors">
+                <div key={page.path} className="flex items-center justify-between gap-3 py-3 hover:bg-muted/30 transition-colors">
                   <div className="flex items-center gap-4 min-w-0">
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-body-sm font-semibold text-muted-foreground">
                       {i + 1}

@@ -13,6 +13,10 @@ import { summarizeChapterCached } from "@/lib/tutor-rag";
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const expectedUserId = req.headers.get("x-student-id");
+  if (expectedUserId && expectedUserId !== session.user.id) {
+    return NextResponse.json({ error: "Account changed" }, { status: 409 });
+  }
 
   const body = await req.json().catch(() => null);
   const chapterId = body?.chapterId as string | undefined;

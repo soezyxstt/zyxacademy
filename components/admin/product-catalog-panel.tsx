@@ -2,7 +2,8 @@
 
 import { ProductCatalogSkeleton } from "@/components/admin/content-loading-skeletons";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "@/lib/i18n/client";
 import {
   BookOpen,
@@ -42,7 +43,9 @@ import {
   QuestionProductView,
   AssessmentBlueprintProductView,
 } from "@/components/admin/material-review-detail";
-import type { AdminProductItem } from "@/app/api/admin/products/route";
+import { adminProductsQuery, type AdminProductItem } from "@/lib/admin/products-query";
+import { queryKeys } from "@/lib/query/keys";
+import { useQueryAccountId } from "@/hooks/use-query-account";
 import type { LockedCourseInfo } from "@/lib/admin/course-identity";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -67,11 +70,16 @@ type Props = {
   lockedCourse?: LockedCourseInfo;
 };
 
-export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) {
+const EMPTY_PRODUCTS: AdminProductItem[] = [];
+
+export function ProductCatalogPanel(props: Props) {
+  const userId = useQueryAccountId();
+  return <ProductCatalogContent key={userId ?? "pending"} {...props} userId={userId} />;
+}
+
+function ProductCatalogContent({ courseLabels = {}, lockedCourse, userId }: Props & { userId: string | undefined }) {
   const t = useTranslations("admin.products");
-  const [items, setItems] = useState<AdminProductItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // Filters
   const [activeType, setActiveType] = useUrlTab("productType", "all");
@@ -80,33 +88,19 @@ export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) 
 
   // Preview Drawer
   const [previewItem, setPreviewItem] = useState<AdminProductItem | null>(null);
+  const effectiveCourse = lockedCourse ? lockedCourse.id : selectedCourse;
+  const { data, isPending, isFetching, error, refetch } = useQuery(adminProductsQuery(userId ?? "", {
+    type: activeType,
+    courseId: effectiveCourse,
+    search: searchQuery,
+  }));
+  const items = data?.items ?? EMPTY_PRODUCTS;
+  const loading = isPending || !userId;
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (activeType !== "all") params.set("type", activeType);
-      const effectiveCourse = lockedCourse ? lockedCourse.id : selectedCourse;
-      if (effectiveCourse !== "all") params.set("courseId", effectiveCourse);
-      if (searchQuery.trim()) params.set("q", searchQuery.trim());
-
-      const res = await fetch(`/api/admin/products?${params.toString()}`);
-      if (!res.ok) {
-        throw new Error(t("loadFailed"));
-      }
-      const data = await res.json();
-      setItems(data.items || []);
-    } catch {
-      setError(t("loadFailed"));
-    } finally {
-      setLoading(false);
-    }
-  }, [activeType, selectedCourse, searchQuery, lockedCourse, t]);
-
-  useEffect(() => {
-    void fetchProducts();
-  }, [fetchProducts]);
+  const invalidateProducts = useCallback(async () => {
+    if (!userId) return;
+    await queryClient.invalidateQueries({ queryKey: queryKeys.admin.productsAll(userId) });
+  }, [queryClient, userId]);
 
   const uniqueCourseIds = useMemo(() => {
     const ids = new Set<string>();
@@ -118,8 +112,36 @@ export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) 
 
   return (
     <div className="space-y-5">
-      {/* Inline Responsive Filter Toolbar */}
+      {/* Inline Type Tabs + Responsive Filter Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2">
+        <Tabs value={activeType} onValueChange={setActiveType}>
+          <TabsList>
+            <TabsTrigger value="all">
+              Semua
+            </TabsTrigger>
+            <TabsTrigger value="diktat">
+              <FileText className="size-3.5" />
+              Diktat
+            </TabsTrigger>
+            <TabsTrigger value="article">
+              <BookOpen className="size-3.5" />
+              Artikel
+            </TabsTrigger>
+            <TabsTrigger value="flashcard">
+              <Layers className="size-3.5" />
+              Flashcard
+            </TabsTrigger>
+            <TabsTrigger value="question">
+              <HelpCircle className="size-3.5" />
+              Soal
+            </TabsTrigger>
+            <TabsTrigger value="blueprint">
+              <FileCheck2 className="size-3.5" />
+              Blueprint
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <div className="flex flex-wrap items-center gap-2">
           {/* Search */}
           <div className="min-w-[140px] flex-1 max-w-xs">
@@ -134,7 +156,7 @@ export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) 
 
           {/* Course Select */}
           {!lockedCourse && (
-            <div className="min-w-[180px]">
+            <div className="min-w-[180px] shrink-0">
               <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                 <SelectTrigger className="h-8 text-body-sm">
                   <SelectValue placeholder="Semua mata kuliah" />
@@ -150,57 +172,26 @@ export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) 
               </Select>
             </div>
           )}
-        </div>
 
-        <div className="flex items-center gap-2">
           <Button
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => void fetchProducts()}
-            disabled={loading}
-            className="h-8 gap-1.5 text-body-xs"
+            onClick={() => void refetch()}
+            disabled={loading || isFetching}
+            className="h-8 shrink-0 gap-1.5 text-body-xs"
           >
-            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
             Segarkan
           </Button>
         </div>
       </div>
 
-      {/* Type Filter Tabs */}
-      <Tabs value={activeType} onValueChange={setActiveType}>
-        <TabsList>
-          <TabsTrigger value="all">
-            Semua
-          </TabsTrigger>
-          <TabsTrigger value="diktat">
-            <FileText className="size-3.5" />
-            Diktat
-          </TabsTrigger>
-          <TabsTrigger value="article">
-            <BookOpen className="size-3.5" />
-            Artikel
-          </TabsTrigger>
-          <TabsTrigger value="flashcard">
-            <Layers className="size-3.5" />
-            Flashcard
-          </TabsTrigger>
-          <TabsTrigger value="question">
-            <HelpCircle className="size-3.5" />
-            Soal
-          </TabsTrigger>
-          <TabsTrigger value="blueprint">
-            <FileCheck2 className="size-3.5" />
-            Blueprint
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
       {/* Product List Content */}
       {loading ? (
         <ProductCatalogSkeleton />
       ) : error ? (
-        <AdminErrorState message={error} onRetry={() => void fetchProducts()} />
+        <AdminErrorState message={t("loadFailed")} onRetry={() => void refetch()} />
       ) : items.length === 0 ? (
         <AdminEmptyState
           icon={LayoutGrid}
@@ -306,7 +297,7 @@ export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) 
                     contentMarkdown: previewItem.contentMarkdown || "",
                     fileKey: previewItem.fileKey,
                   }}
-                  onPdfRendered={fetchProducts}
+                  onPdfRendered={invalidateProducts}
                 />
               )}
 
@@ -341,8 +332,8 @@ export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) 
 
               {previewItem.productType === "flashcard" && (
                 <div className="space-y-4">
-                  {((previewItem.extra?.cards as any[]) || []).length > 0 ? (
-                    ((previewItem.extra?.cards as any[]) || []).map((c, idx) => (
+                  {previewItem.extra.cards.length > 0 ? (
+                    previewItem.extra.cards.map((c, idx) => (
                       <FlashcardProductView
                         key={c.id || idx}
                         product={{
@@ -369,11 +360,9 @@ export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) 
                 <QuestionProductView
                   product={{
                     prompt: previewItem.contentMarkdown || previewItem.title,
-                    options: Array.isArray(previewItem.extra?.options)
-                      ? (previewItem.extra?.options as any)
-                      : [],
-                    difficulty: (previewItem.extra?.difficulty as any) || "medium",
-                    cognitiveLevel: (previewItem.extra?.cognitiveLevel as any) || "understand",
+                    options: previewItem.extra.options,
+                    difficulty: previewItem.extra.difficulty,
+                    cognitiveLevel: previewItem.extra.cognitiveLevel,
                   }}
                 />
               )}
@@ -382,10 +371,8 @@ export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) 
                 <AssessmentBlueprintProductView
                   product={{
                     title: previewItem.title,
-                    assessmentType: (previewItem.extra?.assessmentType as string) || "quiz",
-                    chapterIds: Array.isArray(previewItem.extra?.targetChapterIds)
-                      ? (previewItem.extra?.targetChapterIds as string[])
-                      : [],
+                    assessmentType: previewItem.extra.assessmentType,
+                    chapterIds: previewItem.extra.targetChapterIds ?? [],
                     questionIds: [],
                   }}
                 />

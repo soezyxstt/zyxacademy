@@ -3,8 +3,8 @@
 import * as React from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ZyraCharacter } from "@/components/course/zyra-character";
-import { ZyraPet, zyraPetLabels } from "@/components/course/zyra-pet";
+import { ZyraCosmeticAvatar } from "@/components/gamification/zyra-cosmetic-avatar";
+import { zyraPetLabels } from "@/components/course/zyra-pet";
 import type { ZyraPetState } from "@/lib/zyra/murid";
 import { cn } from "@/lib/utils";
 import { useZyraPetVisibility, ZYRA_PET_VISIBILITY_KEY as VISIBILITY_KEY } from "@/hooks/use-zyra-pet-visibility";
@@ -48,7 +48,7 @@ function studentContentLeft(): number {
   return sidebar ? Math.round(sidebar.getBoundingClientRect().right + EDGE_GAP) : EDGE_GAP;
 }
 
-export function ZyraFloatingPet({ state, onOpen }: { state: ZyraPetState; onOpen: () => void }) {
+export function ZyraFloatingPet({ state, onOpen, cosmeticId }: { cosmeticId?: string | null; state: ZyraPetState; onOpen: () => void }) {
   const [position, setPositionState] = React.useState<Point | null>(null);
   const [anchor, setAnchor] = React.useState<ZyraPetAnchor>("bottom-right");
   const [dragging, setDragging] = React.useState(false);
@@ -99,17 +99,17 @@ export function ZyraFloatingPet({ state, onOpen }: { state: ZyraPetState; onOpen
   };
   const handleClick = () => { if (suppressClickRef.current) { suppressClickRef.current = false; return; } onOpen(); };
 
-  if (!visible) return <Button type="button" variant="outline" size="icon" onClick={() => setPetVisibility(true)} className="fixed bottom-6 right-6 z-40 size-12 rounded-full border-brand-primary/40 bg-card/90 text-brand-primary shadow-lg backdrop-blur-md" aria-label="Tampilkan pet Zyra"><ZyraCharacter state="idle" className="size-10" /><Eye className="absolute -right-1 -top-1 size-4 rounded-full border border-border bg-card p-0.5 text-muted-foreground" /></Button>;
+  if (!visible) return <Button type="button" variant="outline" size="icon" onClick={() => setPetVisibility(true)} className="fixed bottom-6 right-6 z-40 size-12 rounded-full border-brand-primary/40 bg-card/90 text-brand-primary shadow-lg backdrop-blur-md" aria-label="Tampilkan pet Zyra"><ZyraCosmeticAvatar cosmeticId={cosmeticId} headOnly size={40} /><Eye className="absolute -right-1 -top-1 size-4 rounded-full border border-border bg-card p-0.5 text-muted-foreground" /></Button>;
   if (!position) return null;
 
   return (
     <div className={cn("group fixed z-40 select-none touch-none transition-[left,top] duration-200 ease-out motion-reduce:transition-none", dragging && "transition-none")} style={{ left: position.x, top: position.y, width: PET_WIDTH, height: PET_HEIGHT }} data-anchor={anchor}>
       <div className={cn("pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-brand-primary/30 bg-card/95 px-2.5 py-1 shadow-lg backdrop-blur-md transition-opacity", state !== "idle" ? "opacity-100" : "opacity-0 group-hover:opacity-100")}><span className="flex items-center gap-1.5 text-body-xs font-semibold"><span className={cn("size-1.5 rounded-full bg-brand-primary", state === "success" && "bg-status-success", state === "error" && "bg-status-error", state === "quota_resting" && "bg-status-warning")} />{zyraPetLabels[state]}</span></div>
       <button type="button" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={finishDrag} onPointerCancel={finishDrag} onClick={handleClick} className={cn("relative flex size-full flex-col items-center justify-end focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", dragging ? "cursor-grabbing" : "cursor-grab")} aria-label={`Zyra, ${zyraPetLabels[state]}. Seret ke sudut atau klik untuk chat.`}>
-        <div className={cn("transition-transform duration-200 group-hover:scale-105", !dragging && "animate-zyra-float")}><ZyraPet state={state} /></div>
+        <div className={cn("transition-transform duration-200 group-hover:scale-105", !dragging && "motion-safe:animate-zyra-float")}><ZyraCosmeticAvatar cosmeticId={cosmeticId} headOnly size={80} /></div>
         <div className="mt-0.5 h-1.5 w-10 rounded-[100%] bg-black/40 blur-[1.5px]" />
       </button>
-      <button type="button" onClick={(event) => { event.stopPropagation(); setPetVisibility(false); }} className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full border border-border bg-card/90 text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-foreground group-hover:opacity-100" aria-label="Sembunyikan pet Zyra"><EyeOff className="size-3" /></button>
+      <button type="button" onClick={(event) => { event.stopPropagation(); setPetVisibility(false); }} className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full border border-border bg-card/90 text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100" aria-label="Sembunyikan pet Zyra"><EyeOff className="size-3" /></button>
     </div>
   );
 }

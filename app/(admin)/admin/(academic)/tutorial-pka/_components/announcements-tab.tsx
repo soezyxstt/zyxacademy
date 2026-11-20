@@ -1,5 +1,6 @@
 "use client";
 
+import { getAppScrollBehavior } from "@/components/appearance-preferences";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Send, History, Megaphone, CheckCircle2, XCircle, Users, Pin, Edit2 } from "lucide-react";
@@ -74,7 +75,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
     setEditingId(row.id);
     setTitle(row.title);
     setBody(row.body);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: getAppScrollBehavior() });
   };
 
   const handleCancelEdit = () => {
@@ -126,8 +127,8 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
     <div className="space-y-4">
       <div className={cn("grid items-start gap-4", (title || body) && "lg:grid-cols-2")}>
         {/* Compose */}
-        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between border-b border-border bg-muted/30 px-5 py-3">
+        <div className="border-y border-border">
+          <div className="flex items-center justify-between border-b border-border py-3">
             <div className="flex items-center gap-2">
               {editingId ? <Edit2 className="size-4 text-brand-primary" aria-hidden /> : <Megaphone className="size-4 text-brand-primary" aria-hidden />}
               <h3 className="font-heading text-body-sm font-semibold text-foreground">
@@ -140,7 +141,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
               </Button>
             )}
           </div>
-          <form onSubmit={handleSubmit} className="space-y-4 p-4">
+          <form onSubmit={handleSubmit} className="space-y-4 py-4">
             <div className="space-y-1.5">
               <Label htmlFor="pka-ann-title" className="text-body-sm font-medium text-foreground">
                 {t("pkaAnnouncementUI.title")} {" "}
@@ -226,7 +227,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
           <AdminEmptyState icon={Megaphone} title={t("pkaAnnouncementUI.empty")} />
         ) : (
           <AdminTable>
-            <div className="hidden md:grid grid-cols-[1fr_120px_100px_120px_100px] gap-4 border-b border-border bg-muted/30 px-5 py-3">
+            <div className="hidden md:grid grid-cols-[1fr_120px_100px_120px_100px] gap-4 border-b border-border py-3">
               <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.announcement")}</span>
               <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.status")}</span>
               <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.recipients")}</span>

@@ -35,29 +35,27 @@ export function AdminStatCard({
   icon: Icon,
   iconClassName,
   tone = "default",
-  size = "md",
   className,
 }: AdminStatCardProps) {
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border bg-card px-4",
-        size === "sm" ? "min-h-10 py-2" : "min-h-14 py-3",
+        "inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 py-1 text-body-xs",
         className
       )}
     >
-      {Icon && <Icon className={cn("size-3.5 shrink-0", toneClasses[tone], iconClassName)} aria-hidden />}
-      <span className="min-w-0 text-body-sm text-muted-foreground">{label}</span>
-      <div className={cn("ml-auto min-w-0 break-words font-heading text-h5 font-bold", toneClasses[tone])}>
+      {Icon && <Icon className={cn("size-3.5 shrink-0 text-muted-foreground/70", iconClassName)} aria-hidden />}
+      <span className="min-w-0 text-muted-foreground">{label}</span>
+      <span className={cn("min-w-0 font-semibold tabular-nums", toneClasses[tone])}>
         {value}
-      </div>
-      {caption && <span className="basis-full text-body-xs text-muted-foreground">{caption}</span>}
+      </span>
+      {caption && <span className="text-body-2xs text-muted-foreground/80">({caption})</span>}
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  AdminStatStrip  (compact single-container KPI strip)               */
+/*  AdminStatStrip  (compact inline metadata bar, zero stat cards)     */
 /* ------------------------------------------------------------------ */
 
 export type AdminStatStripItemProps = {
@@ -79,7 +77,7 @@ export function AdminStatStrip({ children, className }: AdminStatStripProps) {
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2",
+        "flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border/40 pb-3.5",
         className
       )}
     >
@@ -95,21 +93,15 @@ export function AdminStatStripItem({
   icon: Icon,
   iconClassName,
   tone = "default",
-  compact,
 }: AdminStatStripItemProps) {
   return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 bg-card px-4",
-        compact ? "min-h-10 py-2" : "min-h-14 py-3"
-      )}
-    >
-      {Icon && <Icon className={cn("size-3.5 shrink-0", toneClasses[tone], iconClassName)} aria-hidden />}
-      <span className="min-w-0 text-body-sm text-muted-foreground">{label}</span>
-      <div className={cn("ml-auto min-w-0 break-words font-heading text-h5 font-bold", toneClasses[tone])}>
+    <div className="inline-flex min-w-0 items-center gap-1.5 text-body-xs">
+      {Icon && <Icon className={cn("size-3.5 shrink-0 text-muted-foreground/70", iconClassName)} aria-hidden />}
+      <span className="text-muted-foreground">{label}</span>
+      <span className={cn("font-semibold tabular-nums", toneClasses[tone])}>
         {value}
-      </div>
-      {caption && <span className="basis-full text-body-xs text-muted-foreground">{caption}</span>}
+      </span>
+      {caption && <span className="text-body-2xs text-muted-foreground/80">({caption})</span>}
     </div>
   );
 }

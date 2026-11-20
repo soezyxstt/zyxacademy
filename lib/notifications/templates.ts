@@ -48,6 +48,9 @@ export function quizPublishedPayload(
 /** Render an app-owned notification string for one recipient's language. */
 export function renderNotificationPayload(payload: NotificationPayload, locale: Locale): NotificationPayload {
  if (!payload.systemTemplate) return payload;
+ if (payload.systemTemplate.key === "discussion") {
+  return { ...payload, ...messages[locale].push.discussion, metadata: { ...payload.metadata, locale } };
+ }
  if (payload.systemTemplate.key === "pka_schedule") {
   const { scheduleTitle, sessionAt } = payload.systemTemplate.params;
   const sessionLabel = new Date(sessionAt).toLocaleString(locale === "en" ? "en-US" : "id-ID", {
@@ -100,6 +103,28 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
   title: text.title,
   body: interpolate(text.body, { quizTitle, courseTitle }),
   metadata: { ...payload.metadata, locale },
+ };
+}
+
+export function discussionNotificationLink(threadId: string, report = false, messageId?: string): string {
+ return report ? "/discussions?discussionTab=reports" : `/discussions?thread=${encodeURIComponent(threadId)}${messageId ? `&message=${encodeURIComponent(messageId)}` : ""}`;
+}
+
+export function discussionPayload(input: {
+ role: "student" | "tutor" | "admin";
+ channelId: string;
+ threadId: string;
+ seq: number;
+ messageId?: string | null;
+ report?: boolean;
+}): NotificationPayload {
+ const link = discussionNotificationLink(input.threadId, input.report, input.messageId ?? undefined);
+ return {
+  ...messages.id.push.discussion,
+  type: "discussion",
+  link,
+  metadata: { url: link, channelId: input.channelId, threadId: input.threadId, seq: String(input.seq), ...(!input.report && input.messageId ? { messageId: input.messageId } : {}) },
+  systemTemplate: { key: "discussion", params: {} },
  };
 }
 

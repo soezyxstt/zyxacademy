@@ -1,4 +1,4 @@
-import { inngest } from "./client";
+import { defineJob } from "./define-job";
 import { db } from "@/db";
 import { chapters, knowledgeObjects, masterTeachingDocuments, aiGenerationJobs } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -12,7 +12,7 @@ import { processBatch } from "./vector-sync";
 /**
  * Event-driven worker listening to "ai.bulk.chapter.generate"
  */
-export const bulkChapterGenerator = inngest.createFunction(
+export const bulkChapterGenerator = defineJob(
   {
     id: "bulk-chapter-generator",
     name: "Bulk Chapter Generator",
@@ -177,7 +177,7 @@ export const bulkChapterGenerator = inngest.createFunction(
 /**
  * Event-driven worker for the KO question-generation pipeline.
  */
-export const questionGenerationWorker = inngest.createFunction(
+export const questionGenerationWorker = defineJob(
   {
     id: "question-generation-worker",
     name: "Question Generation Worker",

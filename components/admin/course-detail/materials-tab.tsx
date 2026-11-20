@@ -331,7 +331,7 @@ export function MaterialsTab({
   return (
     <div className="space-y-4">
       {/* Direct PDF Upload Form */}
-      <div id="legacy-pdf-management" className="rounded-xl border border-border bg-card p-4 shadow-2xs">
+      <div id="legacy-pdf-management" className="border-b border-border pb-4">
         <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
           <h3 className="font-heading text-body-sm font-semibold text-foreground flex items-center gap-2">
             <Upload className="size-4 text-brand-secondary" />
@@ -571,7 +571,7 @@ export function MaterialsTab({
       </div>
 
       {/* Materials List */}
-      {showList && <div className="rounded-xl border border-border bg-card p-3 overflow-x-auto">
+      {showList && <div className="overflow-x-auto border-y border-border py-3">
         <h3 className="font-heading text-body-sm font-bold text-foreground mb-3 flex items-center gap-2">
           <FileText className="size-4 text-brand-primary" />
           Daftar PDF Terunggah ({materials.length})

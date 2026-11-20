@@ -87,3 +87,19 @@ test.describe("Video Player and Dual-Mode Admin Visuals", () => {
     saveScreenshot("admin-dialog-r2-editing.png", shot5, testInfo);
   });
 });
+
+test("mobile video search keeps the selected chapter visible", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 380, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/visual-fixtures/less-cards?screen=5", { timeout: 90_000 });
+  const chapter = page.getByRole("combobox", { name: "Semua bab" });
+  await chapter.click();
+  await page.getByRole("option", { name: /Sistem Bilangan/ }).click();
+  await page.getByRole("button", { name: "Cari video atau bab..." }).click();
+  const search = page.getByRole("textbox", { name: "Cari video atau bab..." });
+  await search.fill("Sistem");
+  await expect(chapter).toBeVisible();
+  await expect(chapter).toContainText("Sistem Bilangan");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("screenshots/active-chapter-during-search.png"), animations: "disabled" });
+});

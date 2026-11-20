@@ -8,14 +8,34 @@ import {
   CheckCircle2,
   Edit3,
   GraduationCap,
+  MoreHorizontal,
   Plus,
   Trash2,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -55,7 +75,6 @@ import {
   updateTutorCourses,
 } from "@/app/(admin)/admin/(academic)/schedules/actions";
 import { daysFrom, formatIsoDate, getJakartaNow, getWeekScheduleDays } from "@/lib/date-utils";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { useTranslations } from "@/lib/i18n/client";
 
@@ -533,104 +552,174 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
     </form>
   );
 
-  return (
-    <div className="space-y-3 font-sans">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-0 flex-1">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="calendar"><CalendarDays className="size-3.5" />{translate("academicScheduleUI.calendar")}</TabsTrigger>
-              <TabsTrigger value="academic">{translate("academicScheduleUI.list")}</TabsTrigger>
-              <TabsTrigger value="tutors">{translate("academicScheduleUI.tutors")}</TabsTrigger>
-              <TabsTrigger value="tickets">
-                {translate("academicScheduleUI.rescheduleTab")}
-                {pendingTickets > 0 ? <Badge className="h-4 min-w-4 bg-amber-500 px-1 py-0 text-body-2xs font-bold text-white">{pendingTickets}</Badge> : null}
-              </TabsTrigger>
-              <TabsTrigger value="audit">{translate("academicScheduleUI.audit")}</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+  const coverageRows: Array<{ tutorId: string; tutorName: string; available: number }> = data.coverage || [];
+  const readyTutorsCount = coverageRows.filter((row) => Number(row.available) > 0).length;
+  const hasZeroCoverage = coverageRows.some((row) => Number(row.available) === 0);
 
-        {activeTab === "calendar" ? (
-          <Select value={calendarMode} onValueChange={setCalendarMode}>
-            <SelectTrigger className="h-9 w-[150px] shrink-0 rounded-lg text-body-sm font-semibold">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{translate("academicScheduleUI.allSchedules")}</SelectItem>
-              <SelectItem value="tutorial">{translate("academicScheduleUI.tutorial")}</SelectItem>
-              <SelectItem value="academic">{translate("academicScheduleUI.academic")}</SelectItem>
-            </SelectContent>
-          </Select>
-        ) : null}
+  const viewSelect = (
+    <Select value={activeTab} onValueChange={setActiveTab}>
+      <SelectTrigger
+        aria-label={translate("academicScheduleUI.calendar")}
+        className="h-8 sm:h-9 w-auto min-w-[116px] sm:min-w-[126px] max-w-[180px] shrink-0 rounded-lg px-2.5 text-body-sm font-semibold"
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="calendar">{translate("academicScheduleUI.calendar")}</SelectItem>
+        <SelectItem value="academic">{translate("academicScheduleUI.list")}</SelectItem>
+        <SelectItem value="tutors">{translate("academicScheduleUI.tutors")}</SelectItem>
+        <SelectItem value="tickets">
+          {translate("academicScheduleUI.rescheduleTab")}{pendingTickets > 0 ? ` (${pendingTickets})` : ""}
+        </SelectItem>
+        <SelectItem value="audit">{translate("academicScheduleUI.audit")}</SelectItem>
+      </SelectContent>
+    </Select>
+  );
 
-        <Button variant="outline" size="sm" disabled={batchMeetLoading} onClick={handleBatchMeetAutomation} className="h-9 shrink-0 gap-1.5 rounded-lg px-2.5 text-body-sm font-semibold text-blue-600">
-          <Bot className="size-3.5" />
-          <span className="hidden sm:inline">{translate("academicScheduleUI.meetAutomation")}</span>
-        </Button>
+  const headerActions = (
+    <>
+      {activeTab === "calendar" && calendarMode !== "academic" && (
+        <Popover>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label={translate("academicScheduleUI.coverageTitle")}
+                  className={`h-8 sm:h-9 shrink-0 gap-1 rounded-lg px-2 sm:px-2.5 text-body-xs sm:text-body-sm ${
+                    hasZeroCoverage ? "border-status-warning/50 text-status-warning" : ""
+                  }`}
+                >
+                  <Users className="size-3.5" />
+                  <span>{translate("academicScheduleUI.coverageShort", { ready: readyTutorsCount, total: coverageRows.length })}</span>
+                </Button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent>{translate("academicScheduleUI.coverageTitle")}</TooltipContent>
+          </Tooltip>
+          <PopoverContent align="end" className="w-64 space-y-2 p-3 text-body-xs">
+            <p className="font-semibold text-foreground">{translate("academicScheduleUI.coverageTitle")}</p>
+            <div className="divide-y divide-border">
+              {coverageRows.map((row) => (
+                <div key={row.tutorId} className="flex items-center justify-between gap-2 py-1.5">
+                  <span className="truncate text-foreground">{row.tutorName}</span>
+                  <span className={Number(row.available) === 0 ? "shrink-0 font-semibold text-status-warning" : "shrink-0 text-muted-foreground"}>
+                    {row.available} {translate("academicScheduleUI.available")}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {Number(data.legacyNullDateSlotCount || 0) > 0 ? (
+              <p className="pt-1 text-status-warning">
+                {data.legacyNullDateSlotCount} {translate("academicScheduleUI.legacySlots")}
+              </p>
+            ) : null}
+          </PopoverContent>
+        </Popover>
+      )}
 
-        {activeTab === "calendar" && (calendarMode === "tutorial" || calendarMode === "all") && (
-          <Button
-            variant={calendarMode === "all" ? "outline" : "default"}
-            size="sm"
-            onClick={openAvailabilityDialog}
-            className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"
-          >
-            <Plus className="size-3.5" />
-            <span className={calendarMode === "all" ? "hidden sm:inline" : undefined}>{translate("academicScheduleUI.add")}</span> {translate("academicScheduleUI.availability")}
-          </Button>
-        )}
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-lg"
+                aria-label={translate("academicScheduleUI.moreActions")}
+              >
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>{translate("academicScheduleUI.moreActions")}</TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem onSelect={openAvailabilityDialog}>
+            <Plus className="size-4 text-muted-foreground" />
+            <span>{translate("academicScheduleUI.add")} {translate("academicScheduleUI.availability")}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={batchMeetLoading} onSelect={handleBatchMeetAutomation}>
+            <Bot className="size-4 text-muted-foreground" />
+            <span>{translate("academicScheduleUI.meetAutomation")}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
-        {(activeTab === "academic" || (activeTab === "calendar" && (calendarMode === "academic" || calendarMode === "all"))) && (
+      <Tooltip>
+        <TooltipTrigger asChild>
           <Button
             size="sm"
             onClick={handleOpenCreate}
-            className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"
+            aria-label={translate("academicScheduleUI.createButton")}
+            className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 shrink-0 gap-1.5 rounded-lg p-0 text-body-sm font-semibold"
           >
-            <Plus className="size-3.5" />
-            {translate("academicScheduleUI.createButton")}
+            <Plus className="size-4 sm:size-3.5" />
+            <span className="hidden sm:inline">{translate("academicScheduleUI.createButton")}</span>
           </Button>
-        )}
-      </div>
+        </TooltipTrigger>
+        <TooltipContent className="sm:hidden">{translate("academicScheduleUI.createButton")}</TooltipContent>
+      </Tooltip>
+    </>
+  );
+
+  return (
+    <TooltipProvider>
+    <div className="min-w-0 max-w-full space-y-2 font-sans">
+      {activeTab !== "calendar" && (
+        <div className="flex min-w-0 max-w-full flex-nowrap items-center justify-between gap-1.5 sm:gap-2">
+          {viewSelect}
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
+            {headerActions}
+          </div>
+        </div>
+      )}
 
       {activeTab === "calendar" && (
-        <div className="space-y-3">
-          {(calendarMode === "tutorial" || calendarMode === "all") && (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-body-xs">
-              <span className="text-muted-foreground">{translate("academicScheduleUI.coverage")}</span>
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                {(data.coverage || []).map((row: any) => (
-                  <Badge key={row.tutorId} variant="outline" className="rounded-md font-normal">{row.tutorName}: {row.available} {translate("academicScheduleUI.available")}</Badge>
-                ))}
-                {Number(data.legacyNullDateSlotCount || 0) > 0 ? <Badge variant="outline" className="rounded-md border-amber-500/40 text-amber-700">{data.legacyNullDateSlotCount} {translate("academicScheduleUI.legacySlots")}</Badge> : null}
+        <div className={calendarStyles.root}>
+          <ScheduleCalendarView
+            role="admin"
+            adminMode={calendarMode as "all" | "tutorial" | "academic"}
+            currentUserId=""
+            weekInfo={displayWeekInfo}
+            isWeekLocked={displayWeekLocked}
+            weekOffset={displayWeekOffset}
+            onWeekChange={handleWeekChange}
+            coursesList={data.courses}
+            tutorsList={data.tutors}
+            groupsList={data.groups}
+            slots={data.slots}
+            bookings={data.bookings}
+            academicSchedules={data.academicSchedules}
+            onCreateScheduleDirect={calendarMode === "academic" || calendarMode === "all" ? handleCreateDirect : undefined}
+            onAssignTutorialSlot={calendarMode === "tutorial" || calendarMode === "all" ? openAssignmentDialog : undefined}
+            onOpenSessionDetail={calendarMode === "tutorial" || calendarMode === "all" ? setSelectedSessionDetail : undefined}
+            onDeleteSlot={calendarMode === "tutorial" || calendarMode === "all" ? openDeleteSlotDialog : undefined}
+            onEditSchedule={handleOpenEdit}
+            onDeleteSchedule={setPendingDeleteSchedule}
+            onOpenAuditLog={setSelectedAuditBooking}
+            onOpenRescheduleTicket={setSelectedTicketBooking}
+            leadingToolbarControls={viewSelect}
+            trailingToolbarControls={headerActions}
+            hasExtraActiveFilter={calendarMode !== "all"}
+            filterControls={(
+              <div className="space-y-1.5">
+                <p className="text-body-xs font-semibold">{translate("academicScheduleUI.list")}</p>
+                <Select value={calendarMode} onValueChange={setCalendarMode}>
+                  <SelectTrigger className="h-9 w-full rounded-lg text-body-sm font-medium">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{translate("academicScheduleUI.allSchedules")}</SelectItem>
+                    <SelectItem value="tutorial">{translate("academicScheduleUI.tutorial")}</SelectItem>
+                    <SelectItem value="academic">{translate("academicScheduleUI.academic")}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-          )}
-          <div className={calendarStyles.root}>
-            <ScheduleCalendarView
-              role="admin"
-              adminMode={calendarMode as "all" | "tutorial" | "academic"}
-              currentUserId=""
-              weekInfo={displayWeekInfo}
-              isWeekLocked={displayWeekLocked}
-              weekOffset={displayWeekOffset}
-              onWeekChange={handleWeekChange}
-              coursesList={data.courses}
-              tutorsList={data.tutors}
-              groupsList={data.groups}
-              slots={data.slots}
-              bookings={data.bookings}
-              academicSchedules={data.academicSchedules}
-              onCreateScheduleDirect={calendarMode === "academic" || calendarMode === "all" ? handleCreateDirect : undefined}
-              onAssignTutorialSlot={calendarMode === "tutorial" || calendarMode === "all" ? openAssignmentDialog : undefined}
-              onOpenSessionDetail={calendarMode === "tutorial" || calendarMode === "all" ? setSelectedSessionDetail : undefined}
-              onDeleteSlot={calendarMode === "tutorial" || calendarMode === "all" ? openDeleteSlotDialog : undefined}
-              onEditSchedule={handleOpenEdit}
-              onDeleteSchedule={setPendingDeleteSchedule}
-              onOpenAuditLog={setSelectedAuditBooking}
-              onOpenRescheduleTicket={setSelectedTicketBooking}
-            />
-          </div>
+            )}
+          />
         </div>
       )}
 
@@ -646,15 +735,34 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
               ) : data.academicSchedules.map((schedule: any) => (
                 <tr key={schedule.id} className="align-top transition-colors hover:bg-muted/30">
                   <td className="max-w-md px-4 py-3">
-                    <p className="break-words font-bold leading-snug text-foreground">{schedule.title}</p>
-                    <p className="mt-1 text-body-2xs font-bold uppercase tracking-wide text-muted-foreground">{scheduleTypeLabel(schedule.type, translate)}</p>
-                    {schedule.description ? <p className="mt-2 line-clamp-3 whitespace-pre-wrap break-words text-body-xs text-muted-foreground">{schedule.description}</p> : null}
+                    <p className="break-words font-semibold leading-snug text-foreground">{schedule.title}</p>
+                    <p className="mt-1 text-body-xs text-muted-foreground">{scheduleTypeLabel(schedule.type, translate)}</p>
+                    {schedule.description ? <p className="mt-1.5 line-clamp-2 whitespace-pre-wrap break-words text-body-xs text-muted-foreground">{schedule.description}</p> : null}
                   </td>
                   <td className="px-4 py-3 text-body-xs">{schedule.course?.title || <span className="text-muted-foreground">{translate("academicScheduleUI.allCoursesLabel")}</span>}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-body-xs text-muted-foreground">{formatIsoDate(new Date(schedule.startDate))}{schedule.endDate ? ` - ${formatIsoDate(new Date(schedule.endDate))}` : ""}</td>
                   <td className="max-w-xs break-all px-4 py-3 text-body-xs text-muted-foreground">{schedule.location || "-"}</td>
                   <td className="px-4 py-3"><StatusBadge tone="success">{translate("academicScheduleUI.published")}</StatusBadge></td>
-                  <td className="px-4 py-3"><div className="flex justify-center gap-1"><Button variant="ghost" size="xs" onClick={() => handleOpenEdit(schedule)} title={translate("academicScheduleUI.edit")}><Edit3 className="size-4" /></Button><Button variant="ghost" size="xs" onClick={() => setPendingDeleteSchedule(schedule)} className="text-red-500" title={translate("academicScheduleUI.delete")}><Trash2 className="size-4" /></Button></div></td>
+                  <td className="px-4 py-3 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon-sm" aria-label={translate("academicScheduleUI.actions")} className="h-8 w-8 rounded-lg">
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem onSelect={() => handleOpenEdit(schedule)}>
+                          <Edit3 className="size-4 text-muted-foreground" />
+                          <span>{translate("academicScheduleUI.edit")}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => setPendingDeleteSchedule(schedule)} className="text-status-error focus:text-status-error">
+                          <Trash2 className="size-4" />
+                          <span>{translate("academicScheduleUI.delete")}</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -806,5 +914,6 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   );
 }

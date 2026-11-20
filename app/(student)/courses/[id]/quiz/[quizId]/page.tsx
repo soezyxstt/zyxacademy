@@ -3,13 +3,14 @@ import { StudentQuizGateway } from "@/components/course/student-quiz-gateway";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Lock, ArrowLeft } from "lucide-react";
+import { Lock } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { QuizPlayer } from "@/components/course/quiz-player";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { createMetadata} from "@/lib/site";
 import { db } from "@/db";
+import { recordAttemptDisclosures, recordAuthorizedCourseDisclosures } from "@/lib/gamification/question-exposure";
 import { quizTemplates, studentQuizAttempts, aiQuestionBank } from "@/db/schema";
 import { and, or, eq, desc, sql, inArray, notInArray } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
@@ -152,17 +153,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   if (!isAccessible) {
     return (
-      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.locked" />} description={<TranslatedText namespace="learning" messageKey="quizTake.premiumDescription" values={{ course: course.title }} />} hideHeader>
-        <div className="mb-4">
-          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
-            <Link href={`/courses/${id}/quiz`}>
-              <ArrowLeft className="size-3.5" />
-              <span><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></span>
-            </Link>
-          </Button>
-        </div>
+      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.locked" />} description={<TranslatedText namespace="learning" messageKey="quizTake.premiumDescription" values={{ course: course.title }} />} backHref={`/courses/${id}/quiz`} backLabel={<TranslatedText namespace="learning" messageKey="quizTake.backToList" />}>
         <Reveal>
-          <div className="rounded-lg border border-border/70 bg-card p-4">
+          <div className="border-t border-border/70 py-3">
             <div className="flex items-start gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
                 <Lock className="size-5" />
@@ -256,21 +249,18 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       return (
         <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.closed" />} description={template.title} hideHeader>
           <Reveal>
-            <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
+            <div className="py-4 text-center">
                 <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.closed" /></h3>
               <p className="mt-2 text-body-sm text-muted-foreground">
                 Kuis ini telah ditutup secara manual oleh admin/tutor.
               </p>
-              <div className="mt-5 flex items-center justify-center gap-3">
-                <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                  <Link href={`/courses/${id}/quiz`}><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></Link>
-                </Button>
-                {canViewDiscussion && (
+              {canViewDiscussion && (
+                <div className="mt-5 flex items-center justify-center gap-3">
                   <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground">
                     <Link href={`?viewDiscussion=true`}><TranslatedText namespace="learning" messageKey="quizTake.viewDiscussion" /></Link>
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </Reveal>
         </CoursePageShell>
@@ -282,17 +272,12 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         return (
           <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.notOpen" />} description={template.title} hideHeader>
             <Reveal>
-              <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
+              <div className="py-4 text-center">
                 <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.notOpen" /></h3>
                 <p className="mt-2 text-body-sm text-muted-foreground">
                   Kuis ini dijadwalkan untuk dibuka pada tanggal{" "}
                   <strong className="text-foreground">{openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
                 </p>
-                <div className="mt-5 flex items-center justify-center gap-3">
-                  <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                    <Link href={`/courses/${id}/quiz`}><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></Link>
-                  </Button>
-                </div>
               </div>
             </Reveal>
           </CoursePageShell>
@@ -303,22 +288,19 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         return (
           <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.closed" />} description={template.title} hideHeader>
             <Reveal>
-              <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
+              <div className="py-4 text-center">
                 <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.closed" /></h3>
                 <p className="mt-2 text-body-sm text-muted-foreground">
                   Akses kuis ini telah berakhir sejak tanggal{" "}
                   <strong className="text-foreground">{closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
                 </p>
-                <div className="mt-5 flex items-center justify-center gap-3">
-                  <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                    <Link href={`/courses/${id}/quiz`}><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></Link>
-                  </Button>
-                  {canViewDiscussion && (
+                {canViewDiscussion && (
+                  <div className="mt-5 flex items-center justify-center gap-3">
                     <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground">
                       <Link href={`?viewDiscussion=true`}><TranslatedText namespace="learning" messageKey="quizTake.viewDiscussion" /></Link>
                     </Button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </Reveal>
           </CoursePageShell>
@@ -431,6 +413,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         <Reveal>
           <QuizPlayer
             courseId={id}
+            expectedUserId={session.user.id}
             visualCourseId={template.courseId}
             exam={formattedExam}
             attemptId={targetAttempt.id}
@@ -538,6 +521,15 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           sourceReferenceId: q.sourceReferenceId,
         };
       });
+    }
+
+    if (isDiscussionOpen && (snapshot.length || unseenSnapshot.length)) {
+      const questionIds = snapshot.map(question => question.id).filter((value): value is string => typeof value === "string" && value.length > 0);
+      await db.transaction(tx => targetAttempt ? recordAttemptDisclosures(tx, {
+        userId: studentId, attemptId: targetAttempt.id, questionIds,
+        outsideSnapshot: { questionIds: unseenSnapshot.map(question => question.id), canonicalCourseId: course.canonicalId ?? course.id },
+        occurredAt: new Date(), requestId: crypto.randomUUID(),
+      }) : recordAuthorizedCourseDisclosures(tx, { userId: studentId, canonicalCourseId: course.canonicalId ?? course.id, questionIds: unseenSnapshot.map(question => question.id), contextId: quizId, occurredAt: new Date(), requestId: crypto.randomUUID() }));
     }
 
     return <StudentQuizReview id={id} visualCourseId={template.courseId} quizId={quizId} template={{ title: template.title }} targetAttempt={targetAttempt ? { id: targetAttempt.id, score: targetAttempt.score, durationSeconds: targetAttempt.durationSeconds, submittedAt: targetAttempt.submittedAt, gradingStatus: targetAttempt.gradingStatus } : null} snapshot={snapshot} answers={answers} unseenSnapshot={unseenSnapshot} discussionAvailable={isDiscussionOpen} />;

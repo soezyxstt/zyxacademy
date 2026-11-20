@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   quizPublishedPayload,
+  discussionPayload,
   renderNotificationPayload,
   tutorTicketDecisionPayload,
   tutorTicketMessagePayload,
@@ -9,6 +10,22 @@ import { renderReflectionEmail } from "@/lib/reflection-email-template";
 import { pkaAnnouncementEmailHtml, pkaScheduleEmailSubject, scheduleEmailHtml } from "@/lib/pka-email-template";
 
 describe("recipient-localized notification templates", () => {
+  test("uses generic discussion copy and links that survive role changes", () => {
+    for (const role of ["student", "tutor", "admin"] as const) {
+      const payload = discussionPayload({ role, channelId: "channel", threadId: "thread/private", seq: 2 });
+      expect(payload.link).toBe("/discussions?thread=thread%2Fprivate");
+      expect(payload.metadata?.url).toBe(payload.link);
+      expect(renderNotificationPayload(payload, "en").body).toBe("There is new activity in a discussion.");
+      expect(renderNotificationPayload(payload, "id").body).toBe("Ada aktivitas baru di diskusi.");
+    }
+    const report = discussionPayload({ role: "admin", channelId: "channel", threadId: "thread", seq: 2, report: true });
+    expect(report.link).toBe("/discussions?discussionTab=reports");
+    const targeted = discussionPayload({ role: "student", channelId: "channel", threadId: "long-thread", messageId: "message/450", seq: 450 });
+    expect(targeted.link).toBe("/discussions?thread=long-thread&message=message%2F450");
+    expect(targeted.metadata?.messageId).toBe("message/450");
+    expect(discussionPayload({ role: "admin", channelId: "channel", threadId: "thread", messageId: "private", seq: 2, report: true }).metadata).not.toHaveProperty("messageId");
+    expect(renderNotificationPayload(report, "en").body).toBe("There is new activity in a discussion.");
+  });
   test("renders quiz publication copy per recipient and records its locale", () => {
     const payload = quizPublishedPayload("$& {courseTitle}", "Kalkulus I", "/courses/c1/quiz/q1");
 

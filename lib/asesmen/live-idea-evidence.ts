@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { answerToStableOptionIds } from "@/lib/asesmen/attempt";
+import { snapshotExposureIdentity } from "@/lib/gamification/question-exposure-policy";
 
 export const LEGACY_IDEA_EVIDENCE_RUBRIC_VERSION = "legacy-quiz-idea.v1";
 
@@ -18,6 +19,7 @@ export type LegacyQuizQuestionSnapshot = {
   stable_option_ids?: string[];
   correct_indices?: number[];
   acceptable_answers?: string[];
+  gamificationProvenance?: unknown;
 };
 
 export type CanonicalIdeaLinkForLegacyQuestion = {
@@ -72,6 +74,44 @@ export type LegacyQuizIdeaMappingPlan =
       mappings: readonly MappedLegacyQuestion[];
       issues: readonly LegacyMappingIssue[];
     };
+
+/** Keep a pre-transaction candidate only when the locked question and Idea
+ * mapping still match, including the answer proof on provenanced snapshots. */
+export function canonicalEvidencePlanStillValid(input: {
+  initial: LegacyQuizIdeaMappingPlan;
+  current: LegacyQuizIdeaMappingPlan;
+  questions: readonly LegacyQuizQuestionSnapshot[];
+  canonicalRows: readonly { id: string; mataKuliahId: string; version: number; quizEligible: boolean; questionType: string; prompt: string; optionsSnapshot: unknown }[];
+}): boolean {
+  return input.initial.status === 'mapped' && input.current.status === 'mapped'
+    && canonicalEvidenceValidMappings(input).length === input.questions.length;
+}
+
+/** Revalidate each candidate independently against the rows held by the caller. */
+export function canonicalEvidenceValidMappings(input: {
+  initial: LegacyQuizIdeaMappingPlan;
+  current: LegacyQuizIdeaMappingPlan;
+  questions: readonly LegacyQuizQuestionSnapshot[];
+  canonicalRows: readonly { id: string; mataKuliahId: string; version: number; quizEligible: boolean; questionType: string; prompt: string; optionsSnapshot: unknown }[];
+}): MappedLegacyQuestion[] {
+  const byId = new Map(input.canonicalRows.map(row => [row.id, row]));
+  const initial = new Map(input.initial.mappings.map(mapping => [mapping.questionId, mapping]));
+  const current = new Map(input.current.mappings.map(mapping => [mapping.questionId, mapping]));
+  const invalid = new Set([...input.initial.issues, ...input.current.issues].map(issue => issue.questionId));
+  return input.questions.flatMap(question => {
+    const before = initial.get(question.id), mapping = current.get(question.id);
+    if (invalid.has(question.id) || !before || !mapping || JSON.stringify(before) !== JSON.stringify(mapping)) return [];
+    const row = byId.get(question.id);
+    if (!row || !row.quizEligible || row.questionType !== mapping.questionType || row.version !== mapping.questionVersion || row.prompt !== question.prompt) return [];
+    const options = row?.optionsSnapshot as { text?: unknown; isCorrect?: unknown }[] | undefined;
+    const objective = mapping.questionType === 'multiple_choice' || mapping.questionType === 'multiple_choices';
+    if (objective && !(Array.isArray(options) && options.every(option => option && typeof option === 'object')
+      && JSON.stringify(options.map(option => option.text)) === JSON.stringify(question.options)
+      && JSON.stringify(options.flatMap((option, index) => option.isCorrect ? [index] : [])) === JSON.stringify(question.correct_indices))) return [];
+    const identity = snapshotExposureIdentity(question);
+    return identity && identity.courseId === row.mataKuliahId && identity.sourceVersion === String(row.version) ? [mapping] : [];
+  });
+}
 
 export type LegacyAnswerEvidenceContribution = {
   ideaId: string;

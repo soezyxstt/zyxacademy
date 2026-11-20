@@ -33,7 +33,7 @@ function ActionTile({ card, labels }: { card: CourseOverviewActionCard; labels: 
   return (
     <Link
       href={card.href}
-      className="group flex min-w-0 items-center gap-2 p-2.5 transition-colors hover:bg-muted/30 active:bg-muted/50"
+      className="group flex min-w-0 items-center gap-2 py-2.5 transition-colors @min-[36rem]/course-actions:px-2.5 @min-[36rem]/course-actions:first:pl-0 @min-[36rem]/course-actions:last:pr-0 hover:bg-muted/30 active:bg-muted/50"
     >
       <span className={cn("hidden size-7 shrink-0 items-center justify-center rounded-lg @min-[36rem]/course-actions:flex", colorClass)}>
         <Icon className="size-3.5" aria-hidden="true" />
@@ -61,7 +61,7 @@ export function CoursePrimaryActions({
   const labels = { material: t("course.actions.material"), practice: t("course.actions.practice"), tutorial: t("course.actions.tutorial") };
   return (
     <div className={cn("@container/course-actions", className)}>
-      <div className="grid grid-cols-1 divide-y divide-border/60 @min-[36rem]/course-actions:grid-cols-3 @min-[36rem]/course-actions:divide-x @min-[36rem]/course-actions:divide-y-0 overflow-hidden rounded-xl border border-border/70 bg-card">
+      <div className="grid grid-cols-1 divide-y divide-border/60 border-y border-border/60 @min-[36rem]/course-actions:grid-cols-3 @min-[36rem]/course-actions:divide-x @min-[36rem]/course-actions:divide-y-0">
         <ActionTile card={reading} labels={labels} />
         <ActionTile card={quiz} labels={labels} />
         <ActionTile card={schedule} labels={labels} />
