@@ -107,7 +107,7 @@ export default async function RootLayout({
         {children}
         <AppearancePreferencesRuntime />
         <AppToaster />
-        {process.env.NODE_ENV === "production" && (
+        {process.env.NODE_ENV === "production" && process.env.VERCEL === "1" && (
           <TelemetryBoundary>
             <SpeedInsights />
             <Analytics />

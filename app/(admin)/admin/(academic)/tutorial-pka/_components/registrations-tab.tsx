@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import {
-  Download,
   AtSign,
   BellRing,
   BellOff,
@@ -11,7 +10,6 @@ import {
   GraduationCap,
   CalendarDays,
   ExternalLink,
-  RefreshCw,
   FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -116,25 +114,6 @@ function initials(name: string): string {
   return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
-function toCsv(rows: PkaRegistrationRow[], t: ReturnType<typeof useTranslations<"adminOps">>): string {
-  const header = ["name", "faculty", "email", "instagram", "announcements", "date", "proof"].map((key) => t(`pkaRegistrationUI.${key}`));
-  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const lines = rows.map((r) =>
-    [
-      r.fullName,
-      r.faculty,
-      r.email,
-      `@${r.instagramUsername}`,
-      r.receiveAnnouncements ? t("pkaRegistrationUI.yes") : t("pkaRegistrationUI.no"),
-      normalizeDate(r.createdAt).toISOString(),
-      typeof window !== "undefined" ? new URL(r.proofUrl, window.location.origin).toString() : r.proofUrl,
-    ]
-      .map(esc)
-      .join(","),
-  );
-  return [header.map(esc).join(","), ...lines].join("\n");
-}
-
 export function RegistrationsTab({ registrations }: { registrations: PkaRegistrationRow[] }) {
   const t = useTranslations("adminOps");
   const { locale } = useAppLocale();
@@ -152,25 +131,10 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
     );
   }, [query, registrations]);
 
-  const handleExport = () => {
-    const csv = toCsv(filtered, t);
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `pendaftar-tutorial-pka-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const { exporting: exportingSheets, confirmDialog, runExport } = useSpreadsheetExport({
-    onSuccess: ({ spreadsheetUrl }) => {
-      window.open(spreadsheetUrl, "_blank");
-      toast.success(t("pkaRegistrationUI.googleSheetCreated"));
-    },
+  const { sheetControls, confirmDialog, resultPanel, runExport } = useSpreadsheetExport({
+    scope: "tutorial-pka", entityType: "pka",
     onError: (message) => {
       toast.error(message);
-      handleExport();
     },
   });
 
@@ -203,7 +167,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
       title: t("pka.title"),
       headers: headersRow,
       rows: rowsMatrix,
-    });
+    }, Boolean(query.trim()));
   };
 
   if (registrations.length === 0) {
@@ -222,7 +186,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
       </AdminStatStrip>
 
       {/* Controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SearchBar
           collapsible
           size="sm"
@@ -231,17 +195,10 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
           onClear={() => setQuery("")}
           placeholder={t("pkaRegistrationUI.search")}
         />
-        <Button onClick={handleExportGoogleSheets} disabled={exportingSheets} variant="outline" size="sm" className="gap-2 rounded-lg text-brand-primary border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10 h-9 shrink-0">
-          <RefreshCw className={`size-3.5 ${exportingSheets ? "animate-spin" : "hidden"}`} />
-          <FileText className="size-3.5" />
-          {exportingSheets ? t("pkaRegistrationUI.exporting") : t("pkaRegistrationUI.exportSheets")}
-        </Button>
-
-        <Button onClick={handleExport} variant="outline" size="sm" className="gap-2 rounded-lg h-9 shrink-0">
-          <Download className="size-3.5" />
-          {t("pkaRegistrationUI.exportCsv")}
-        </Button>
+        {sheetControls(handleExportGoogleSheets, !filtered.length)}
       </div>
+
+      {resultPanel}
 
       {/* Table */}
       <AdminTable>

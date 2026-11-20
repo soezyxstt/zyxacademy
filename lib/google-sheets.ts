@@ -21,13 +21,16 @@ export interface SyncSpreadsheetInput {
   headers: string[];
   rows: (string | number | boolean | null | undefined)[][];
   folderSubpath?: string; // e.g. "forms/Feedback"
-  confirmOverwrite?: boolean;
+  confirmOverwrite?: boolean; // Trusted MCP callers verify the sheet fingerprint before syncing.
+  confirmedRevision?: string;
 }
 
 export interface SyncSpreadsheetResult {
   spreadsheetId: string;
   spreadsheetUrl: string;
   isNew: boolean;
+  sharingIncomplete?: boolean;
+  revision?: string;
   needsConfirmation?: boolean;
   conflicts?: SpreadsheetConflict[];
 }
@@ -80,8 +83,8 @@ export function detectConflicts(params: {
 
   // 2. Manual rows: any non-empty cell below the previous block within the previous columns.
   let hasManualRows = false;
-  for (let r = prevLastRow; r < prevGrid.length; r++) {
-    for (let c = 0; c < prevLastCol; c++) {
+  for (let r = prevLastRow; r < Math.min(prevGrid.length, newLastRow); r++) {
+    for (let c = 0; c < newLastCol; c++) {
       if ((prevGrid[r]?.[c] ?? "").trim() !== "") {
         hasManualRows = true;
         break;
@@ -98,8 +101,8 @@ export function detectConflicts(params: {
 
   // 3. Manual columns: any non-empty cell to the right of the previous block within the previous rows.
   let hasManualCols = false;
-  for (let c = prevLastCol; c < maxCols(prevGrid); c++) {
-    for (let r = 0; r < Math.min(prevLastRow, prevGrid.length); r++) {
+  for (let c = prevLastCol; c < newLastCol; c++) {
+    for (let r = 0; r < Math.min(prevLastRow, newLastRow, prevGrid.length); r++) {
       if ((prevGrid[r]?.[c] ?? "").trim() !== "") {
         hasManualCols = true;
         break;
@@ -115,14 +118,6 @@ export function detectConflicts(params: {
   }
 
   return conflicts;
-}
-
-function maxCols(grid: string[][]): number {
-  let max = 0;
-  for (const row of grid) {
-    if (row.length > max) max = row.length;
-  }
-  return max;
 }
 
 export async function ensureGoogleDriveFolderPath(segments: string[]): Promise<string> {
@@ -201,17 +196,24 @@ export async function grantDriveEditorAccess(fileId: string, emails: string[]) {
   const token = await getGoogleFormsAccessToken();
 
   const permsRes = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?fields=permissions(emailAddress,role)`,
+    `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?fields=permissions(id,emailAddress,role)`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
   if (!permsRes.ok) throw new Error(`Drive permissions list error: ${await permsRes.text()}`);
-  const permsData = (await permsRes.json()) as { permissions?: { emailAddress?: string }[] };
-  const existing = new Set(
-    (permsData.permissions ?? []).map((p) => p.emailAddress?.toLowerCase()).filter(Boolean)
-  );
+  const permsData = (await permsRes.json()) as { permissions?: { id?: string; emailAddress?: string; role?: string }[] };
+  const existing = new Map((permsData.permissions ?? []).map((p) => [p.emailAddress?.toLowerCase(), p]));
 
   for (const email of uniqueEmails) {
-    if (existing.has(email)) continue;
+    const permission = existing.get(email);
+    if (permission?.role && ["owner", "organizer", "fileOrganizer", "writer"].includes(permission.role)) continue;
+    if (permission?.id) {
+      const update = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}/permissions/${encodeURIComponent(permission.id)}?supportsAllDrives=true`,
+        { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ role: "writer" }) }
+      );
+      if (!update.ok) throw new Error("Could not update Drive editor permissions.");
+      continue;
+    }
     const createRes = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?supportsAllDrives=true&sendNotificationEmail=false`,
       {
@@ -238,15 +240,20 @@ export async function readSheetGrid(spreadsheetId: string): Promise<string[][] |
   const token = await getGoogleFormsAccessToken();
 
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1%3AZZ100000`,
-    { headers: { Authorization: `Bearer ${token}` } }
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGetByDataFilter`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ dataFilters: [{ gridRange: { sheetId: 0 } }], valueRenderOption: "FORMULA" }),
+    }
   );
 
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Sheets read error: ${await res.text()}`);
 
-  const data = (await res.json()) as { values?: unknown[][] };
-  return (data.values ?? []).map((row) => row.map((cell) => (cell === null || cell === undefined ? "" : String(cell))));
+  const data = (await res.json()) as { valueRanges?: { valueRange: { values?: unknown[][] } }[] };
+  if (!data.valueRanges?.length) throw new Error("Export tab unavailable");
+  return (data.valueRanges[0].valueRange.values ?? []).map((row) => row.map((cell) => (cell === null || cell === undefined ? "" : String(cell))));
 }
 
 /**
@@ -296,10 +303,10 @@ export async function writeOwnedBlock(
       updateCells: {
         range: {
           sheetId: 0,
-          startRow: 0,
-          startColumn: 0,
-          endRow: newLastRow,
-          endColumn: newLastCol,
+          startRowIndex: 0,
+          startColumnIndex: 0,
+          endRowIndex: newLastRow,
+          endColumnIndex: newLastCol,
         },
         fields: "userEnteredValue,userEnteredFormat",
         rows: [{ values: formattedHeaderValues }, ...formattedRows],
@@ -307,16 +314,33 @@ export async function writeOwnedBlock(
     },
   ];
 
+  const metadata = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets(properties(sheetId,gridProperties(rowCount,columnCount)))`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (metadata.status === 404) return false;
+  if (!metadata.ok) throw new Error(`Sheets metadata error: ${await metadata.text()}`);
+  type GridSheet = { properties: { sheetId: number; gridProperties: { rowCount: number; columnCount: number } } };
+  const { sheets } = await metadata.json() as { sheets: GridSheet[] };
+  const grid = sheets.find(sheet => sheet.properties.sheetId === 0)?.properties.gridProperties;
+  if (!grid) throw new Error("Export tab unavailable");
+  for (const [dimension, length] of [["ROWS", newLastRow - grid.rowCount], ["COLUMNS", newLastCol - grid.columnCount]] as const) {
+    if (length > 0) requests.unshift({ appendDimension: { sheetId: 0, dimension, length } });
+  }
+  // Manually deleted rows or columns no longer need to be cleared.
+  prevLastRow = Math.min(prevLastRow, grid.rowCount);
+  prevLastCol = Math.min(prevLastCol, grid.columnCount);
+
   // Clear the stale tail of the previously owned block (rows and/or columns that shrank).
   if (prevLastRow > newLastRow) {
     requests.push({
       updateCells: {
         range: {
           sheetId: 0,
-          startRow: newLastRow,
-          startColumn: 0,
-          endRow: prevLastRow,
-          endColumn: Math.max(prevLastCol, newLastCol),
+          startRowIndex: newLastRow,
+          startColumnIndex: 0,
+          endRowIndex: prevLastRow,
+          endColumnIndex: prevLastCol,
         },
         fields: "userEnteredValue,userEnteredFormat",
         rows: [],
@@ -328,10 +352,10 @@ export async function writeOwnedBlock(
       updateCells: {
         range: {
           sheetId: 0,
-          startRow: 0,
-          startColumn: newLastCol,
-          endRow: Math.max(prevLastRow, newLastRow),
-          endColumn: prevLastCol,
+          startRowIndex: 0,
+          startColumnIndex: newLastCol,
+          endRowIndex: prevLastRow,
+          endColumnIndex: prevLastCol,
         },
         fields: "userEnteredValue,userEnteredFormat",
         rows: [],
@@ -387,7 +411,8 @@ export async function createGoogleSpreadsheet(
       {
         properties: {
           title: "Responses & Data",
-          sheetId: 0
+          sheetId: 0,
+          gridProperties: { rowCount: Math.max(1000, rows.length + 1), columnCount: Math.max(26, headers.length) },
         },
         data: [
           {
@@ -421,7 +446,7 @@ export async function createGoogleSpreadsheet(
 }
 
 export async function syncGoogleSpreadsheet(input: SyncSpreadsheetInput): Promise<SyncSpreadsheetResult> {
-  const { entityType, entityId, title, headers, rows, folderSubpath, confirmOverwrite } = input;
+  const { entityType, entityId, title, headers, rows, folderSubpath, confirmedRevision } = input;
   const idStr = `${entityType}_${entityId}`;
 
   const existing = await db.query.exportSpreadsheets.findFirst({
@@ -433,6 +458,8 @@ export async function syncGoogleSpreadsheet(input: SyncSpreadsheetInput): Promis
   let driveFolderId = existing?.driveFolderId;
   let isNew = false;
   let needsConfirmation = false;
+  let revision: string | undefined;
+  let sharingIncomplete = false;
   let conflicts: SpreadsheetConflict[] = [];
 
   if (existing) {
@@ -463,7 +490,8 @@ export async function syncGoogleSpreadsheet(input: SyncSpreadsheetInput): Promis
         storedFingerprint: existing.lastWrittenFingerprint,
       });
 
-      if (conflicts.length > 0 && !confirmOverwrite) {
+      revision = createHash("sha256").update(JSON.stringify([spreadsheetId, prevGrid, headers, rows])).digest("hex");
+      if (conflicts.length > 0 && !input.confirmOverwrite && revision !== confirmedRevision) {
         needsConfirmation = true;
       } else {
         const ok = await writeOwnedBlock(spreadsheetId!, title, headers, rows, prevRowCount, prevHeaderCount);
@@ -529,8 +557,8 @@ export async function syncGoogleSpreadsheet(input: SyncSpreadsheetInput): Promis
       if (isNew && driveFolderId) {
         await grantDriveEditorAccess(driveFolderId, adminEmails);
       }
-    } catch (error: any) {
-      console.error("Failed to grant Drive editor access to admins:", error);
+    } catch {
+      sharingIncomplete = true;
     }
   }
 
@@ -539,6 +567,8 @@ export async function syncGoogleSpreadsheet(input: SyncSpreadsheetInput): Promis
     spreadsheetUrl: spreadsheetUrl!,
     isNew,
     needsConfirmation,
+    revision,
+    sharingIncomplete,
     conflicts,
   };
 }

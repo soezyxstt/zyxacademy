@@ -1,5 +1,7 @@
 "use client";
 
+import { googleErrorKey } from "@/lib/google-operation-error";
+import { GoogleSetupHelp } from "@/components/admin/google-setup-help";
 import { ParticipantPickerSkeleton } from "@/components/admin/content-loading-skeletons";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -86,6 +88,7 @@ function slugifyTitle(input: string): string {
 
 export default function AdminMeetPage() {
   const t = useTranslations("adminOps");
+  const googleError = useTranslations("admin.googleSetup");
   const { locale } = useAppLocale();
   const [creating, setCreating] = useState(false);
   const [ending, setEnding] = useState(false);
@@ -194,7 +197,7 @@ export default function AdminMeetPage() {
           toast.warning(t("meetMainUI.permissionWarning", { count: data.warnings.length }));
         }
       } else {
-        setErrorMsg(t("meetMainUI.createError"));
+        setErrorMsg(res.status === 401 || res.status === 403 ? googleError("adminAccess") : googleError(googleErrorKey(data.code)));
       }
     } catch {
       setErrorMsg(t("meetMainUI.networkError"));
@@ -549,6 +552,7 @@ export default function AdminMeetPage() {
               </div>
             )}
 
+            <GoogleSetupHelp service="meet" />
             <Button
               type="button"
               onClick={handleCreateSpace}

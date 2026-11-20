@@ -1104,7 +1104,7 @@
     "exporting": "Exporting...",
     "exportSheets": "Export to Google Sheets",
     "exportCsv": "Export to CSV",
-    "refresh": "Refresh",
+    "refresh": "Reload responses",
     "summaryTab": "Summary",
     "questionTab": "By question",
     "respondentTab": "By respondent",
