@@ -100,7 +100,7 @@ export class ZyraQuotaCoordinator extends DurableObject<WorkerEnv> {
     } catch {
       return quotaInternalError("quota_storage_unavailable");
     }
-    const ledger = new QuotaLedger(sql);
+    const ledger = new QuotaLedger(sql, Date.now, this.env.GEMINI_QUOTA_GROUPS?.split(",").map(s => s.trim()).filter(Boolean));
     const cacheLedger = new CacheFlightLedger(sql);
 
     if (url.pathname === "/cache/diagnostics") {
@@ -285,7 +285,7 @@ export class ZyraQuotaCoordinator extends DurableObject<WorkerEnv> {
   async alarm(): Promise<void> {
     const sql = sqlExecutor(this.ctx);
     ensureQuotaSchema(sql);
-    const ledger = new QuotaLedger(sql);
+    const ledger = new QuotaLedger(sql, Date.now, this.env.GEMINI_QUOTA_GROUPS?.split(",").map(s => s.trim()).filter(Boolean));
     ledger.expire();
     await this.scheduleAlarm(ledger);
   }

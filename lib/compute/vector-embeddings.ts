@@ -152,7 +152,7 @@ export async function embedWorkerVectorDocuments(documents: readonly WorkerVecto
   runtimeEmbedder ??= import("@/lib/gemini-keys").then(({ geminiKeyPool }) => {
     const clients = geminiKeyPool.getAllKeys().map((key): WorkerVectorEmbeddingClient => {
       const client = geminiKeyPool.createRequestClient(key.projectAlias, {
-        viaGateway: Boolean(key.clientGateway),
+        viaGateway: true,
         timeoutMs: HTTP_TIMEOUT_MS,
       });
       if (!client) {

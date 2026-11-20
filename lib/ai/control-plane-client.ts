@@ -32,6 +32,8 @@ const transitionSchema = z.union([
 
 const diagnosticsSchema = z.object({
   schemaVersion: z.string(),
+  projectGroupCount: z.number().optional(),
+  providerDay: z.string().optional(),
   activeLeaseCount: z.number(),
   terminalLeaseCount: z.number(),
   counters: z.array(z.object({

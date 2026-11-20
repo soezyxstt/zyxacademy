@@ -1,6 +1,26 @@
 import { ProviderAdapterError } from "./errors";
 
 export const MODEL_IDS = {
+  openai: "openai-gpt",
+  openai2: "openai-gpt-2",
+  openai3: "openai-gpt-3",
+  openai4: "openai-gpt-4",
+  deepseek: "deepseek-text",
+  deepseek2: "deepseek-text-2",
+  deepseek3: "deepseek-text-3",
+  meta: "meta-muse",
+  meta2: "meta-muse-2",
+  meta3: "meta-muse-3",
+  meta4: "meta-muse-4",
+  meta5: "meta-muse-5",
+  compatibleText: "compatible-text-pilot",
+  compatibleText2: "compatible-text-pilot-2",
+  compatibleText3: "compatible-text-pilot-3",
+  neon: "gemini-4-neon",
+  argon: "gemini-4-argon",
+  carbon: "gemini-4-carbon",
+  hydrogen: "gemini-4-hydrogen",
+  flash38: "gemini-3.8-flash",
   default: "gemini-3.5-flash-lite",
   fallbackFlashLite: "gemini-3.1-flash-lite",
   premiumPedagogy: "gemini-3.5-flash",
@@ -15,7 +35,7 @@ export const MODEL_IDS = {
 } as const;
 
 export type ModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];
-export type ModelFamily = "generate-content" | "interactions" | "embedding";
+export type ModelFamily = "chat-completions" | "generate-content" | "interactions" | "embedding";
 export type ModelStability = "stable" | "premium" | "emergency" | "quarantined" | "legacy";
 export type ModelOperation = "generate" | "embed";
 export type ModelRouteClass =
@@ -94,7 +114,69 @@ const GENERATION_LIMITS = {
   perProjectTpm: 1_000_000,
 } as const;
 
+export const TEXT_PROFILES = {
+  [MODEL_IDS.compatibleText]: { modelSuffix: "", label: "Custom", prefix: "AI_COMPATIBLE", group: "compatible-text", route: "" },
+  [MODEL_IDS.compatibleText2]: { modelSuffix: "_2", label: "Custom", prefix: "AI_COMPATIBLE", group: "compatible-text", route: "" },
+  [MODEL_IDS.compatibleText3]: { modelSuffix: "_3", label: "Custom", prefix: "AI_COMPATIBLE", group: "compatible-text", route: "" },
+  [MODEL_IDS.openai]: { modelSuffix: "", label: "OpenAI GPT", prefix: "AI_OPENAI", group: "openai", route: "openai" },
+  [MODEL_IDS.openai2]: { modelSuffix: "_2", label: "OpenAI GPT", prefix: "AI_OPENAI", group: "openai", route: "openai" },
+  [MODEL_IDS.openai3]: { modelSuffix: "_3", label: "OpenAI GPT", prefix: "AI_OPENAI", group: "openai", route: "openai" },
+  [MODEL_IDS.openai4]: { modelSuffix: "_4", label: "OpenAI GPT", prefix: "AI_OPENAI", group: "openai", route: "openai" },
+  [MODEL_IDS.deepseek]: { modelSuffix: "", label: "DeepSeek", prefix: "AI_DEEPSEEK", group: "deepseek", route: "deepseek" },
+  [MODEL_IDS.deepseek2]: { modelSuffix: "_2", label: "DeepSeek", prefix: "AI_DEEPSEEK", group: "deepseek", route: "deepseek" },
+  [MODEL_IDS.deepseek3]: { modelSuffix: "_3", label: "DeepSeek", prefix: "AI_DEEPSEEK", group: "deepseek", route: "deepseek" },
+  [MODEL_IDS.meta]: { modelSuffix: "", label: "Meta Muse", prefix: "AI_META", group: "meta", route: "" },
+  [MODEL_IDS.meta2]: { modelSuffix: "_2", label: "Meta Muse", prefix: "AI_META", group: "meta", route: "" },
+  [MODEL_IDS.meta3]: { modelSuffix: "_3", label: "Meta Muse", prefix: "AI_META", group: "meta", route: "" },
+  [MODEL_IDS.meta4]: { modelSuffix: "_4", label: "Meta Muse", prefix: "AI_META", group: "meta", route: "" },
+  [MODEL_IDS.meta5]: { modelSuffix: "_5", label: "Meta Muse", prefix: "AI_META", group: "meta", route: "" },
+} as const;
+// Only answer generation stages can invoke a configured text provider.
+export function supportsTextProvider(feature?: string) {
+  return feature === "playground" || feature === "zyra" || feature === "zyra-pedagogy";
+}
+
+export type TextProfileId = keyof typeof TEXT_PROFILES;
+export const textProfileIds = Object.keys(TEXT_PROFILES) as TextProfileId[];
+export function isTextProfile(id: string): id is TextProfileId {
+  return Object.hasOwn(TEXT_PROFILES, id);
+}
+const textDefaults = {
+    family: "chat-completions", stability: "stable",
+    operations: ["generate"], ordinaryRoutingAllowed: true,
+    // Internal staging budget shared by every pilot key.
+    limits: { perProjectRpm: 5, perProjectTpm: 10000, perProjectRpd: 20, initialUsableRpd: 20 },
+    deadlineMs: 15000, thinking: { kind: "none" }, outputFloor: 512, routeClasses: ["default"],
+    input: TEXT_INPUT, healthGate: STANDARD_HEALTH_GATE,
+} as const;
+// Conservative internal ceilings for individually assigned generation models.
+const assignedGoogleModel = {
+  family: "generate-content", stability: "stable", operations: ["generate"], ordinaryRoutingAllowed: true,
+  limits: { ...GENERATION_LIMITS, perProjectRpd: 20, initialUsableRpd: 64 },
+  deadlineMs: 15_000, thinking: { kind: "none" }, outputFloor: 512,
+  routeClasses: ["default"], input: TEXT_INPUT, healthGate: STANDARD_HEALTH_GATE,
+} as const;
 const REGISTRY = {
+  [MODEL_IDS.neon]: { ...assignedGoogleModel, id: MODEL_IDS.neon },
+  [MODEL_IDS.argon]: { ...assignedGoogleModel, id: MODEL_IDS.argon },
+  [MODEL_IDS.carbon]: { ...assignedGoogleModel, id: MODEL_IDS.carbon },
+  [MODEL_IDS.hydrogen]: { ...assignedGoogleModel, id: MODEL_IDS.hydrogen },
+  [MODEL_IDS.flash38]: { ...assignedGoogleModel, id: MODEL_IDS.flash38 },
+  [MODEL_IDS.compatibleText]: { ...textDefaults, id: MODEL_IDS.compatibleText },
+  [MODEL_IDS.compatibleText2]: { ...textDefaults, id: MODEL_IDS.compatibleText2 },
+  [MODEL_IDS.compatibleText3]: { ...textDefaults, id: MODEL_IDS.compatibleText3 },
+  [MODEL_IDS.openai]: { ...textDefaults, id: MODEL_IDS.openai },
+  [MODEL_IDS.openai2]: { ...textDefaults, id: MODEL_IDS.openai2 },
+  [MODEL_IDS.openai3]: { ...textDefaults, id: MODEL_IDS.openai3 },
+  [MODEL_IDS.openai4]: { ...textDefaults, id: MODEL_IDS.openai4 },
+  [MODEL_IDS.deepseek]: { ...textDefaults, id: MODEL_IDS.deepseek },
+  [MODEL_IDS.deepseek2]: { ...textDefaults, id: MODEL_IDS.deepseek2 },
+  [MODEL_IDS.deepseek3]: { ...textDefaults, id: MODEL_IDS.deepseek3 },
+  [MODEL_IDS.meta]: { ...textDefaults, id: MODEL_IDS.meta },
+  [MODEL_IDS.meta2]: { ...textDefaults, id: MODEL_IDS.meta2 },
+  [MODEL_IDS.meta3]: { ...textDefaults, id: MODEL_IDS.meta3 },
+  [MODEL_IDS.meta4]: { ...textDefaults, id: MODEL_IDS.meta4 },
+  [MODEL_IDS.meta5]: { ...textDefaults, id: MODEL_IDS.meta5 },
   [MODEL_IDS.default]: {
     id: MODEL_IDS.default,
     family: "generate-content",
@@ -290,14 +372,6 @@ export const ROUTE_POLICY = {
   emergency: [MODEL_IDS.emergencyText],
 } as const;
 
-/**
- * Cloudflare's Google AI Studio gateway supports the generateContent family.
- * Gemini Interactions uses a different endpoint and must use the direct client.
- */
-export function modelSupportsAiGateway(modelId: string): boolean {
-  return getModelEntry(modelId).family !== "interactions";
-}
-
 export function normalizeModelId(modelId: string): ModelId {
   const normalized = modelId.startsWith("models/") ? modelId.slice("models/".length) : modelId;
   if (!(normalized in MODEL_REGISTRY)) {
@@ -341,15 +415,12 @@ export function getTpmLimit(modelId: string): number {
 }
 
 /**
- * Resolves distinct provider project aliases with fallback defaults for missing or blank entries.
+ * Resolves provider project aliases with fallback defaults for missing or blank entries.
  */
 export function getProjectAliases(input: Partial<Record<`GEMINI_PROJECT_ALIAS_${1 | 2 | 3 | 4}`, string>> = {}): readonly string[] {
   const aliases = [1, 2, 3, 4].map((index) => {
     const raw = input[`GEMINI_PROJECT_ALIAS_${index as 1 | 2 | 3 | 4}`];
     return raw && raw.trim().length > 0 ? raw.trim() : `gemini-project-${index}`;
   });
-  if (new Set(aliases).size !== aliases.length) {
-    throw new Error("GEMINI_PROJECT_ALIASES_MUST_BE_DISTINCT");
-  }
   return aliases;
 }

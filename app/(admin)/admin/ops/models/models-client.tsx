@@ -1,23 +1,21 @@
 "use client";
 
+import { AdminIconAction } from "@/components/admin/icon-action";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
-  CheckCircle2,
-  Cpu,
   Image as ImageIcon,
-  Info,
-  Layers,
   RefreshCw,
   RotateCcw,
   Search,
-  SlidersHorizontal,
   Wrench,
   X,
 } from "lucide-react";
 import { AdminEmptyState } from "@/components/admin/state-panels";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { Button } from "@/components/ui/button";
+import { modelDisplayName } from "@/lib/ai/provider/recent-models";
+import { ModelPicker } from "./model-picker";
 import { SearchBar } from "@/components/ui/search-bar";
 import {
   Select,
@@ -31,12 +29,13 @@ import { toast } from "@/components/ui/toast";
 import {
   MODEL_FEATURE_GROUPS,
   getSelectableModelOption,
-  selectableModels,
   type FeatureModelSettingView,
   type ModelFeature,
   type ModelFeatureGroup,
 } from "@/lib/ai/model-settings";
-import type { ModelId } from "@/lib/ai/provider/model-registry";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
+import { EMBEDDING_PROFILES, type ModelId } from "@/lib/ai/provider/model-registry";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { useTranslations } from "@/lib/i18n/client";
 import {
@@ -87,6 +86,8 @@ export function ModelsClient({
   initialBannerError = null,
 }: ModelsClientProps) {
   const t = useTranslations("adminOps");
+  const [selectedTask, setTask] = useUrlTab("task", "all");
+  const task = ["zyra", "admin-ops-ai", "embedding"].includes(selectedTask) ? selectedTask : "all";
   const [views, setViews] = useState<FeatureModelSettingView[]>(initialViews);
   const [drafts, setDrafts] = useState<Partial<Record<ModelFeature, ModelTrio>>>({});
   const [pendingFeature, setPendingFeature] = useState<ModelFeature | null>(null);
@@ -102,7 +103,7 @@ export function ModelsClient({
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (
-        event.key === "/" &&
+        searchInputRef.current && event.key === "/" &&
         target?.tagName !== "INPUT" &&
         target?.tagName !== "TEXTAREA" &&
         !target?.isContentEditable
@@ -115,12 +116,6 @@ export function ModelsClient({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const customCount = useMemo(
-    () => views.filter((view) => view.isCustom).length,
-    [views],
-  );
-  const defaultCount = views.length - customCount;
-
   const groupCounts = useMemo(() => {
     const counts = new Map<ModelFeatureGroup, number>();
     for (const view of views) {
@@ -132,13 +127,14 @@ export function ModelsClient({
   const filteredViews = useMemo(() => {
     const query = search.trim().toLowerCase();
     return views.filter((view) => {
+      if (task !== "all") return view.feature === task;
       if (groupFilter !== "all" && view.group !== groupFilter) return false;
       if (statusFilter === "custom" && !view.isCustom) return false;
       if (statusFilter === "default" && view.isCustom) return false;
       if (!query) return true;
 
       const modelText = view.models
-        .map((id) => `${id} ${formatModelLabel(id)}`)
+        .map((id) => `${id} ${view.modelLabels?.[id] ?? ""} ${modelDisplayName(view.modelLabels?.[id] ?? formatModelLabel(id))}`)
         .join(" ")
         .toLowerCase();
       return (
@@ -148,7 +144,7 @@ export function ModelsClient({
         modelText.includes(query)
       );
     });
-  }, [views, groupFilter, statusFilter, search]);
+  }, [views, groupFilter, statusFilter, search, task]);
 
   const groupedViews = useMemo(() => {
     return MODEL_FEATURE_GROUPS.map(([groupKey]) => ({
@@ -310,30 +306,6 @@ export function ModelsClient({
 
   return (
     <div className="space-y-6">
-      <AdminStatStrip className="lg:grid-cols-4">
-        <AdminStatStripItem
-          label={t("modelsUI.totalFeatures")}
-          value={views.length}
-          icon={Layers}
-        />
-        <AdminStatStripItem
-          label={t("modelsUI.customChains")}
-          value={customCount}
-          icon={SlidersHorizontal}
-        />
-        <AdminStatStripItem
-          label={t("modelsUI.defaultChains")}
-          value={defaultCount}
-          icon={CheckCircle2}
-        />
-        <AdminStatStripItem
-          label={t("modelsUI.availableModels")}
-          value={selectableModels.length}
-
-          icon={Cpu}
-        />
-      </AdminStatStrip>
-
       {bannerError && (
         <div
           role="alert"
@@ -357,7 +329,32 @@ export function ModelsClient({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <Tabs value={task} onValueChange={setTask}>
+        <div className="flex min-w-0 items-center justify-between gap-2">
+        <TabsList className="min-w-0 flex-nowrap overflow-x-auto" aria-label={t("modelsUI.assignments")}>
+          <TabsTrigger value="all">{t("modelsUI.features")}</TabsTrigger>
+          <TabsTrigger value="zyra">Zyra</TabsTrigger>
+          <TabsTrigger value="admin-ops-ai">Ops AI</TabsTrigger>
+          <TabsTrigger value="embedding">Embedding</TabsTrigger>
+        </TabsList>
+        <AdminIconAction variant="outline" className="size-9 shrink-0" label={t("modelsUI.refresh")}
+          onClick={handleRefresh} disabled={isRefreshing || pendingFeature !== null}>
+          <RefreshCw aria-hidden className={isRefreshing ? "animate-spin" : ""} />
+        </AdminIconAction>
+        </div>
+        <TabsContent value="embedding">
+          <dl className="divide-y divide-border">
+            {Object.values(EMBEDDING_PROFILES).map(profile => (
+              <div key={profile.id} className="flex flex-wrap justify-between gap-2 py-3">
+                <dt className="text-body-sm font-semibold">{t(profile.id === "canonical-content-v2" ? "modelsUI.materialSearch" : "modelsUI.semanticCache")}</dt>
+                <dd className="text-body-sm">{profile.model} · {t("modelsUI.dimensions", { count: profile.dimensions })}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="text-body-xs text-muted-foreground">{t("modelsUI.embeddingMigration")}</p>
+        </TabsContent>
+        {task !== "embedding" && <TabsContent value={task} className="space-y-4">
+      {task === "all" && <div className="flex flex-wrap items-center gap-2">
         <SearchBar
           size="sm"
           ref={searchInputRef}
@@ -400,31 +397,20 @@ export function ModelsClient({
           </SelectContent>
         </Select>
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing || pendingFeature !== null}
-          className="h-9 px-3"
-        >
-          <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin text-brand-primary" : ""}`} />
-          <span>{t("modelsUI.refresh")}</span>
-        </Button>
-      </div>
+      </div>}
 
       {groupedViews.length === 0 ? (
-        <AdminEmptyState icon={Search} title={t("modelsUI.noMatchTitle")} description={t("modelsUI.noMatchDescription")}
+        <AdminEmptyState icon={Search} title={t("modelsUI.noMatchTitle")}
           action={hasActiveFilter ? <Button variant="outline" size="sm" onClick={clearFilters}>{t("modelsUI.clearFilters")}</Button> : undefined} />
       ) : (
         <div className="space-y-6">
           {groupedViews.map(({ groupKey, items }) => (
             <section key={groupKey} className="space-y-2.5">
-              <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+              {task === "all" && <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
                 <h2 className="font-heading text-body-base font-semibold text-foreground">
                   {t(`modelsUI.groups.${groupKey}`)}
                 </h2>
-              </div>
+              </div>}
 
               <div className="divide-y divide-border/60 border-y border-border">
                 {items.map((view) => {
@@ -472,17 +458,6 @@ export function ModelsClient({
                           )}
                         </div>
 
-                        <p className="text-body-xs text-muted-foreground leading-relaxed">
-                          {view.description}
-                        </p>
-
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body-xs text-muted-foreground">
-                          <span>
-                            {t("modelsUI.runtimeDefaultPrefix")}{" "}
-                            {view.runtimeDefaultModels.map(formatModelLabel).join(", ")}
-                          </span>
-                        </div>
-
                         {view.isCustom && view.updatedAt && (
                           <p className="text-body-xs text-muted-foreground">
                             {t("modelsUI.updatedMeta", { time: "" }).trim()} {" "}
@@ -490,6 +465,9 @@ export function ModelsClient({
                           </p>
                         )}
 
+                        {draftModels.some(id => view.modelLabels?.[id]?.endsWith("-contributor")) && (
+                          <p className="text-body-xs text-status-warning">{t("modelsUI.contributorUsage")}</p>
+                        )}
                         {view.supportsImages && !hasVisualInDraft && (
                           <p className="text-body-xs text-muted-foreground">
                             {t("modelsUI.visualFallbackHint")}
@@ -506,36 +484,11 @@ export function ModelsClient({
                                 <span className="block text-body-xs font-medium text-muted-foreground">
                                   {priorityLabels[slotIndex]}
                                 </span>
-                                <Select
-                                  value={selectedId}
-                                  disabled={isRowBusy}
-                                  onValueChange={(val) =>
-                                    handleModelChange(view, slotIndex, val as ModelId)
-                                  }
-                                >
-                                  <SelectTrigger
-                                    aria-label={`${view.label} ${priorityLabels[slotIndex]}`}
-                                    className="h-9 w-full min-w-0 rounded-lg text-body-sm [&>span]:truncate"
-                                  >
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {view.selectableModels.map((candidateId) => {
-                                      const opt = getSelectableModelOption(candidateId);
-                                      const inSlot = draftModels.indexOf(candidateId);
-                                      const slotSuffix =
-                                        inSlot !== -1 && inSlot !== slotIndex
-                                          ? ` (${priorityLabels[inSlot]})`
-                                          : "";
-                                      return (
-                                        <SelectItem key={candidateId} value={candidateId}>
-                                          {opt.label}
-                                          {slotSuffix}
-                                        </SelectItem>
-                                      );
-                                    })}
-                                  </SelectContent>
-                                </Select>
+                                <ModelPicker view={view} value={selectedId} disabled={isRowBusy}
+                                  label={view.label + " " + priorityLabels[slotIndex]}
+                                  priorities={Object.fromEntries(draftModels.map((id, index) => [id, priorityLabels[index]]))}
+                                  onChange={id => handleModelChange(view, slotIndex, id)}
+                                />
                               </div>
                             );
                           })}
@@ -591,17 +544,8 @@ export function ModelsClient({
         </div>
       )}
 
-      <div className="border-t border-border pt-4 space-y-2">
-        <div className="flex items-center gap-2 font-heading text-body-base font-semibold text-foreground">
-          <Info className="size-4 text-brand-primary" aria-hidden />
-          <span>{t("modelsUI.capabilityHeading")}</span>
-        </div>
-        <ul className="space-y-1.5 text-body-xs text-muted-foreground leading-relaxed list-disc pl-5">
-          <li>{t("modelsUI.capabilityDistinct")}</li>
-          <li>{t("modelsUI.capabilityOpsAi")}</li>
-          <li>{t("modelsUI.capabilityVisual")}</li>
-        </ul>
-      </div>
+        </TabsContent>}
+      </Tabs>
     </div>
   );
 }

@@ -1,6 +1,10 @@
+import { selectorCatalog } from "./provider/selector-catalog";
+import { compatibleSettings } from "./provider/compatible-text";
+import { isTextProfile, supportsTextProvider } from "./provider/model-registry";
 import { and, eq } from "drizzle-orm";
 import {
   buildFeatureModelSettingViews,
+  defaultEditableModels,
   compatibleModelChain,
   modelFeature,
   modelSettingSchema,
@@ -104,20 +108,34 @@ export async function configuredModelChain(
     throw new Error("Konfigurasi model tidak valid. Periksa pengaturan model AI.");
   }
 
-  return compatibleModelChain(parsed.data.models, {
+  // Several auxiliary tasks historically share the Zyra settings row.
+  // Keep their native defaults when the row now specifies an answer provider.
+  if (feature === "zyra" && parsed.data.models.some(isTextProfile) &&
+      (!supportsTextProvider(input.feature) || input.useCase === "chapter-summary")) return defaults;
+  const available = parsed.data.models.filter(profileAvailable);
+  return compatibleModelChain(available, {
     visual: Boolean(input.visual),
     fallbackModels: defaults,
     requireGenerateContent: Boolean(input.requireGenerateContent),
   });
 }
 
+function profileAvailable(id: string) {
+  return !isTextProfile(id) || Boolean(compatibleSettings(process.env, id));
+}
+
 export async function listModelSettingViews(): Promise<FeatureModelSettingView[]> {
   const handle = await resolveDatabaseHandle();
-  if (!handle) {
-    return buildFeatureModelSettingViews([]);
-  }
-  const rows = await handle.db.select().from(handle.aiModelSettings);
-  return buildFeatureModelSettingViews(rows);
+  const rows = handle ? await handle.db.select().from(handle.aiModelSettings) : [];
+  const catalog = await selectorCatalog();
+  return buildFeatureModelSettingViews(rows).map(view => ({
+    ...view,
+    modelLabels: Object.fromEntries(view.selectableModels.flatMap(id => {
+      const settings = isTextProfile(id) && compatibleSettings(process.env, id);
+      return settings ? [[id, settings.model]] : [];
+    })),
+    selectableModels: view.selectableModels.filter(id => catalog.has(id)),
+  }));
 }
 
 export async function saveModelSetting(input: {
@@ -143,6 +161,7 @@ export async function saveModelSetting(input: {
   const { db, aiModelSettings } = handle;
   const now = new Date();
   const nextModels = [...parsed.data.models];
+  const available = await selectorCatalog();
 
   return db.transaction(async (tx) => {
     const [existing] = await tx
@@ -156,6 +175,11 @@ export async function saveModelSetting(input: {
       if (currentIso !== input.expectedUpdatedAt) {
         throw new ModelSettingConflictError();
       }
+    }
+
+    const previous = existing?.models ?? defaultEditableModels(parsed.data.feature);
+    if (nextModels.some((id, index) => previous[index] !== id && !available.has(id))) {
+      throw new Error("Model belum tersedia. Muat ulang daftar model.");
     }
 
     if (!existing) {

@@ -25,9 +25,10 @@ import {
 import {
   getWorkerModelContract,
   PROJECT_ALIASES,
-  projectDailyCeiling,
+  projectDailyCeiling, textQuotaGroup,
   type WorkerModelContract
 } from "./model-contract";
+import { supportsTextProvider } from "../../../../lib/ai/provider/model-registry";
 import type { SqlExecutor } from "./schema";
 
 type LeaseRow = {
@@ -170,7 +171,7 @@ export class QuotaLedger {
     private readonly sql: SqlExecutor,
     private readonly now: () => number = Date.now,
     private readonly projectAliases: readonly string[] = PROJECT_ALIASES
-  ) {}
+  ) { this.projectAliases = [...new Set(projectAliases)]; }
 
   reserve(input: ReserveInput): ReserveResult {
     const failures = validateReserveInput(input);
@@ -180,6 +181,8 @@ export class QuotaLedger {
     if (!model.ordinaryRoutingAllowed || model.initialUsableRpd <= 0) {
       return { status: "fallback_allowed", code: "MODEL_QUARANTINED", modelId: input.modelId };
     }
+    const group = textQuotaGroup(model.id);
+    if (group && !supportsTextProvider(input.feature)) failures.push("unsupported_feature");
     if (!model.routeClasses.includes(input.routeClass)) failures.push("route_class_model_mismatch");
     if (failures.length > 0) return { status: "quota_exhausted", code: "INVALID_RESERVE_INPUT", modelId: input.modelId };
 
@@ -190,7 +193,7 @@ export class QuotaLedger {
     const providerDay = providerDayLabel(new Date(nowMs));
     const appDay = appDayLabel(new Date(nowMs));
     const minuteBucket = providerMinuteBucket(new Date(nowMs));
-    const candidates = this.projectAliases
+    const candidates = (group ? [group] : this.projectAliases)
       .map((projectAlias) => this.readCandidate(projectAlias, model, providerDay, minuteBucket, nowMs))
       .filter((candidate): candidate is Candidate => candidate !== null);
 
@@ -407,8 +410,9 @@ export class QuotaLedger {
        FROM zyra_quota_daily_counters d
        LEFT JOIN zyra_quota_minute_counters m
          ON m.model_id = d.model_id AND m.project_alias = d.project_alias AND m.minute_bucket = ?
+       WHERE d.provider_day = ?
        ORDER BY d.model_id, d.project_alias`,
-      minuteBucket
+      minuteBucket, providerDayLabel(new Date(nowMs))
     ).toArray();
     const health = this.sql.exec<HealthDiagnosticRow>(
       `SELECT model_id, project_alias, circuit_state, consecutive_failures, sample_count, failure_count
@@ -417,6 +421,8 @@ export class QuotaLedger {
 
     return {
       schemaVersion: "plan-003-v1",
+      projectGroupCount: this.projectAliases.length,
+      providerDay: providerDayLabel(new Date(nowMs)),
       activeLeaseCount: asNumber(active),
       terminalLeaseCount: asNumber(terminal),
       counters: counters.map((row) => ({
@@ -466,16 +472,17 @@ export class QuotaLedger {
     minuteBucket: string,
     nowMs: number
   ): Candidate | null {
+    const sharedGroup = textQuotaGroup(model.id) ?? null;
     const daily = this.sql.exec<CounterRow>(
-      `SELECT reserved_count, committed_count, last_selected_at_ms
-       FROM zyra_quota_daily_counters WHERE provider_day = ? AND model_id = ? AND project_alias = ?`,
-      providerDay,
+      `SELECT sum(reserved_count) AS reserved_count, sum(committed_count) AS committed_count, max(last_selected_at_ms) AS last_selected_at_ms
+       FROM zyra_quota_daily_counters WHERE provider_day = ? AND (? IS NOT NULL OR model_id = ?) AND project_alias = ?`,
+      providerDay, sharedGroup,
       model.id,
       projectAlias
     ).toArray()[0] ?? { reserved_count: 0, committed_count: 0, last_selected_at_ms: null };
     const minute = this.sql.exec<MinuteRow>(
-      `SELECT request_count FROM zyra_quota_minute_counters WHERE minute_bucket = ? AND model_id = ? AND project_alias = ?`,
-      minuteBucket,
+      `SELECT sum(request_count) AS request_count FROM zyra_quota_minute_counters WHERE minute_bucket = ? AND (? IS NOT NULL OR model_id = ?) AND project_alias = ?`,
+      minuteBucket, sharedGroup,
       model.id,
       projectAlias
     ).toArray()[0] ?? { request_count: 0 };

@@ -33,3 +33,45 @@ describe("Plan 003 atomic quota selection", () => {
     harness.close();
   });
 });
+
+test("pilot keys share a single five-request minute across the Playground", () => {
+  const harness = new BunSqliteHarness();
+  try {
+    ensureQuotaSchema(harness);
+    const ledger = new QuotaLedger(harness, () => Date.parse("2026-08-05T12:00:00Z"));
+    const reserve = (index: number, feature = "playground") => ledger.reserve({
+      idempotencyKey: `pilot-${index}`, userHash: "a".repeat(64), role: "murid", feature,
+      routeClass: "default", modelId: "compatible-text-pilot", cacheStatus: "miss",
+    });
+    expect(reserve(0, "chapter-summary").status).toBe("quota_exhausted");
+    for (let index = 1; index <= 5; index++) {
+      const result = reserve(index, index === 1 ? "zyra-pedagogy" : "playground");
+      expect(result.status).toBe("reserved");
+      if (result.status === "reserved") expect(result.lease.projectAlias).toBe("compatible-text");
+    }
+    expect(reserve(6).status).toBe("quota_exhausted");
+  } finally {
+    harness.close();
+  }
+});
+
+test("diagnostics count provider attempts for the current provider day and deduplicate shared projects", () => {
+  const harness = new BunSqliteHarness();
+  try {
+    ensureQuotaSchema(harness);
+    let time = Date.parse("2026-08-05T12:00:00Z");
+    const ledger = new QuotaLedger(harness, () => time, ["shared", "shared"]);
+    const reserved = ledger.reserve({
+      idempotencyKey: "failed-primary", userHash: "a".repeat(64), role:"murid", feature:"playground",
+      routeClass:"stable-fallback", modelId:"gemini-2.5-flash", cacheStatus:"miss",
+    });
+    expect(reserved.status).toBe("reserved");
+    if (reserved.status !== "reserved") return;
+    ledger.dispatch(reserved.lease.leaseId);
+    ledger.commit({leaseId: reserved.lease.leaseId, outcomeCode:"HTTP_503", outcomeClass:"provider_5xx"});
+    expect(ledger.diagnostics().projectGroupCount).toBe(1);
+    expect(ledger.diagnostics().counters[0].committedCount).toBe(1);
+    time += 86400000;
+    expect(ledger.diagnostics().counters).toEqual([]);
+  } finally { harness.close(); }
+});
