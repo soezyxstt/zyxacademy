@@ -36,6 +36,7 @@ class ScopeTest(unittest.TestCase):
             'deploy/cloud-run/origin-gateway.mjs',
             '.github/scripts/smoke-cloud-run.sh',
             '.github/workflows/deploy-cloud-run-staging.yml',
+            '.github/workflows/deploy-cloud-run-production.yml',
             'workers/staging-web-edge/index.mjs',
             'proxy.ts',
             'next.config.ts',

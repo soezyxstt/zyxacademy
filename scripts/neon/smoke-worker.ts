@@ -14,7 +14,7 @@ Object.assign(process.env, config);
 // The smoke client runs outside Neon and enqueues with the runner's Google identity.
 delete process.env.ZYX_COMPUTE_RUNTIME;
 const [{ storage }, { joinKey, buildSourceReadJobKey }] = await Promise.all([import("../../lib/storage"), import("../../lib/storage/keys")]);
-const queuePilot = target.name === "staging" && process.env.QUEUE_SMOKE_PROVIDER === "cloud-tasks";
+const queuePilot = config.QUEUE_PROVIDER === "cloud-tasks" && process.env.QUEUE_SMOKE_PROVIDER === "cloud-tasks";
 const checks: Array<{ name: string; status: "PASS"; durationMs: number }> = [];
 const objects: string[] = [];
 const pendingSources = new Set<string>();

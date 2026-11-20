@@ -26,6 +26,7 @@ export {
 
 export {
   courseAnalyticsSnapshotCron,
+  publicPageAnalyticsCron,
   studentQuizAnalyticsWorker,
 } from "./analytics";
 
@@ -48,6 +49,7 @@ import {
 } from "./mastery";
 import {
   courseAnalyticsSnapshotCron,
+  publicPageAnalyticsCron,
   studentQuizAnalyticsWorker,
 } from "./analytics";
 import { feedbackWorker } from "./feedback";
@@ -94,6 +96,7 @@ export const computeFunctions = [
   ideaMasteryRecomputeWorker,
   feedbackWorker,
   courseAnalyticsSnapshotCron,
+  publicPageAnalyticsCron,
   weeklyReflectionCron,
   masterySnapshotCron,
   assessmentIngestWorker,

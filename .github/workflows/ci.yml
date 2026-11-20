@@ -186,7 +186,7 @@ jobs:
           node-version: '24'
       - name: Check Cloud Run gateway, edge worker, and public media contracts
         run: |
-          node --test deploy/cloud-run/origin-gateway.test.mjs workers/staging-web-edge/index.test.mjs
+          node --test deploy/cloud-run/*.test.mjs workers/staging-web-edge/index.test.mjs
           node scripts/cloud-run/publish-public-media.mjs
       - name: Build and smoke-test the isolated Cloud Run image
         run: |

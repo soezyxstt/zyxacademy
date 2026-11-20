@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { buildOrigin } from "./build-origin.mjs";
 
 const publicNames = new Set([
   "NEXT_PUBLIC_APP_URL",
@@ -50,11 +51,7 @@ for (const [name, value] of Object.entries(settings)) {
   if (value) buildEnv[name] = value;
 }
 
-const origin = URL.parse(buildEnv.NEXT_PUBLIC_APP_URL ?? "");
-if (!origin || origin.protocol !== "https:" || origin.origin !== buildEnv.NEXT_PUBLIC_APP_URL ||
-    ["zyxacademy.com", "www.zyxacademy.com", "zyx.id", "www.zyx.id", "zyx.academy"].includes(origin.hostname)) {
-  throw new Error("NEXT_PUBLIC_APP_URL must be a canonical staging HTTPS origin");
-}
+const origin = buildOrigin(buildEnv.NEXT_PUBLIC_APP_URL, process.env.CLOUD_RUN_BUILD_ENVIRONMENT);
 if (buildEnv.AUTHORING_VERIFICATION_BROWSER_PROVIDER === "local_playwright") {
   throw new Error("Cloud Run requires a remote authoring browser provider");
 }

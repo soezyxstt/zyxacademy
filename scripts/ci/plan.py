@@ -188,7 +188,7 @@ def plan(changed, head, base=None, force=False):
         if path.startswith('tests/') and suffix in CODE or path == 'tsconfig.test.json':
             result['test_typecheck'] = True
     # Changing a reusable workflow explicitly revalidates its own surface.
-    workflows = {'deploy-web.yml': 'web', 'deploy-cloud-run-staging.yml': 'cloud_run', 'deploy.yml': 'worker',
+    workflows = {'deploy-web.yml': 'web', 'deploy-cloud-run-staging.yml': 'cloud_run', 'deploy-cloud-run-production.yml': 'cloud_run', 'deploy.yml': 'worker',
                  'deploy-neon-worker.yml': 'worker', 'authoring-skills.yml': 'authoring',
                  'schedule-regressions.yml': 'schedule', 'sync-plugin.yml': 'plugin'}
     for file, scope in workflows.items():

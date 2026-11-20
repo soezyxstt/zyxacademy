@@ -1,0 +1,18 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "zyx-academy-production-edge",
+  "main": "index.mjs",
+  "compatibility_date": "2026-11-20",
+  "workers_dev": false,
+  "preview_urls": false,
+  "vars": {
+    "ZYX_ENVIRONMENT": "production",
+    "PUBLIC_ORIGIN": "https://www.zyxacademy.com"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.01,
+    "logs": { "enabled": true, "invocation_logs": true },
+    "traces": { "enabled": false }
+  }
+}

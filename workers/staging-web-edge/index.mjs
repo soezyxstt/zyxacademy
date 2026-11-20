@@ -14,10 +14,12 @@ function getOrigins(env) {
   try {
     const edge = new URL(env.PUBLIC_ORIGIN);
     const origin = new URL(env.CLOUD_RUN_ORIGIN);
-    const isStagingEdge = edge.hostname === "staging.zyxacademy.com" ||
+    const production = env.ZYX_ENVIRONMENT === "production";
+    if (env.ZYX_ENVIRONMENT && !["staging", "production"].includes(env.ZYX_ENVIRONMENT)) return null;
+    const isStagingEdge = production ? edge.hostname === "www.zyxacademy.com" : edge.hostname === "staging.zyxacademy.com" ||
       /^zyx-academy-staging-edge\.[a-z0-9-]+\.workers\.dev$/.test(edge.hostname);
-    const isStagingCloudRun = /^(?:[a-z0-9-]+---)?zyx-academy-staging-web-[a-z0-9-]+\.[a-z0-9-]+\.run\.app$/.test(origin.hostname) ||
-      /^zyx-academy-staging-web-[a-z0-9-]+\.run\.app$/.test(origin.hostname);
+    const service = production ? "production" : "staging";
+    const isStagingCloudRun = new RegExp(`^(?:[a-z0-9-]+---)?zyx-academy-${service}-web-[a-z0-9-]+\\.(?:[a-z0-9-]+\\.)?run\\.app$`).test(origin.hostname);
     if (isStagingEdge && isStagingCloudRun &&
         [edge, origin].every(url => url.protocol === "https:" && !url.port && url.href === url.origin + "/") &&
         /^[A-Za-z0-9_-]{43,}$/.test(env.CLOUD_RUN_ORIGIN_TOKEN ?? "")) {
@@ -103,6 +105,11 @@ export default {
     if (!origins) return failure(503);
 
     const incoming = new URL(request.url);
+    if (env.ZYX_ENVIRONMENT === "production" && incoming.hostname === "zyxacademy.com") {
+      incoming.protocol = "https:";
+      incoming.host = origins.edge.host;
+      return Response.redirect(incoming, 308);
+    }
     if (incoming.host !== origins.edge.host) return failure(421);
     if (incoming.protocol !== "https:") {
       incoming.protocol = "https:";
