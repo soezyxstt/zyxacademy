@@ -89,6 +89,7 @@ export type ControlPlaneReserveInput = {
   readonly feature: string;
   readonly routeClass: ModelRouteClass;
   readonly modelId: ModelId;
+  probeProjectAlias?: string;
   readonly cacheStatus: "hit" | "miss" | "bypass";
 };
 

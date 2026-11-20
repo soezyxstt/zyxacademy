@@ -324,7 +324,7 @@ export async function generateContentWithFallback(
     const response = makeCompatibilityResponse(result.result);
     return {
       response,
-      modelUsed: result.modelId,
+      modelUsed: result.result.upstreamModel ?? result.modelId,
       viaGateway: result.result.viaGateway ?? false,
       promptTokenCount: result.result.usage?.promptTokens,
       candidatesTokenCount: result.result.usage?.outputTokens,

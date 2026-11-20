@@ -19,6 +19,7 @@ test("sends a single authenticated text call and returns usage", async () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://gateway.ai.cloudflare.com/v1/account/gateway/custom-test/chat/completions");
     const headers = new Headers(init?.headers);
+    expect(headers.get("cf-aig-no-wholesale")).toBe("true");
     expect(headers.has("Authorization")).toBe(false);
     expect(headers.get("cf-aig-max-attempts")).toBe("1");
     expect(headers.get("cf-aig-collect-log-payload")).toBe("false");
@@ -27,6 +28,7 @@ test("sends a single authenticated text call and returns usage", async () => {
     expect(headers.get("cf-aig-byok-alias")).toMatch(/^test-[ab]$/);
     expect(result.usage?.promptTokens).toBe(3);
     expect(result.text).toBe("result");
+    expect(result.upstreamModel).toBe(env.AI_COMPATIBLE_MODEL);
   } finally { fetchMock.mockRestore(); }
 });
 
@@ -47,8 +49,8 @@ test("isolates an unauthorized credential on later calls without replaying the f
 test("selects two configured providers without switching environment or sharing keys", async () => {
   const settings = { ...env, AI_OPENAI_MODEL: "gpt-test", AI_OPENAI_BYOK_ALIASES: "gpt-key",
     AI_DEEPSEEK_MODEL: "deepseek-test", AI_DEEPSEEK_BYOK_ALIASES: "deepseek-key" };
-  const mock = spyOn(globalThis, "fetch").mockImplementation(async () =>
-    Response.json({ choices: [{ message: { content: "ok" } }] }));
+  const reply = { choices: [{ message: { content: "ok" } }] };
+  const mock = spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(reply)).mockResolvedValueOnce(Response.json(reply));
   try {
     for (const [modelId, projectAlias] of [[MODEL_IDS.openai, "openai"], [MODEL_IDS.deepseek, "deepseek"]] as const) {
       await prepareCompatibleText({ ...input, modelId, projectAlias }, settings)();

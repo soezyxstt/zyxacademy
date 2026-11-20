@@ -113,7 +113,7 @@ export async function configuredModelChain(
   if (feature === "zyra" && parsed.data.models.some(isTextProfile) &&
       (!supportsTextProvider(input.feature) || input.useCase === "chapter-summary")) return defaults;
   const available = parsed.data.models.filter(profileAvailable);
-  return compatibleModelChain(available, {
+  return compatibleModelChain(available.length ? available : defaults, {
     visual: Boolean(input.visual),
     fallbackModels: defaults,
     requireGenerateContent: Boolean(input.requireGenerateContent),

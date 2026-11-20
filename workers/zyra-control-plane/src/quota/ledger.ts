@@ -182,7 +182,9 @@ export class QuotaLedger {
       return { status: "fallback_allowed", code: "MODEL_QUARANTINED", modelId: input.modelId };
     }
     const group = textQuotaGroup(model.id);
-    if (group && !supportsTextProvider(input.feature)) failures.push("unsupported_feature");
+    const probe = input.role === "admin" && input.feature === "selector-smoke";
+    if (input.probeProjectAlias && !probe) failures.push("invalid_probe_project");
+    if (group && !probe && !supportsTextProvider(input.feature)) failures.push("unsupported_feature");
     if (!model.routeClasses.includes(input.routeClass)) failures.push("route_class_model_mismatch");
     if (failures.length > 0) return { status: "quota_exhausted", code: "INVALID_RESERVE_INPUT", modelId: input.modelId };
 
@@ -194,6 +196,7 @@ export class QuotaLedger {
     const appDay = appDayLabel(new Date(nowMs));
     const minuteBucket = providerMinuteBucket(new Date(nowMs));
     const candidates = (group ? [group] : this.projectAliases)
+      .filter(alias => !input.probeProjectAlias || alias === input.probeProjectAlias)
       .map((projectAlias) => this.readCandidate(projectAlias, model, providerDay, minuteBucket, nowMs))
       .filter((candidate): candidate is Candidate => candidate !== null);
 

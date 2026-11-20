@@ -38,6 +38,7 @@ export type ReserveInput = {
   feature: string;
   routeClass: ModelRouteClass;
   modelId: ModelId;
+  probeProjectAlias?: string;
   cacheStatus: CacheStatus;
 };
 

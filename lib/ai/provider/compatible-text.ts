@@ -77,11 +77,12 @@ export function prepareCompatibleText(input: ProviderGenerateRequest & Omit<Gate
   const now = Date.now();
   for (const [id, until] of unavailableUntil) if (until <= now) unavailableUntil.delete(id);
   const available = settings.credentials.filter(key => !unavailableUntil.has(credentialId(settings.url, key)));
-  if (!available.length) throw new Error("No available text provider credential");
+  if (!available.length) throw new ProviderAdapterError({ code: "PROVIDER_AUTHENTICATION", message: "No available text provider credential", retryClassification: "authentication" });
   const credential = available[randomInt(available.length)];
   const headers: Record<string, string> = {"Content-Type": "application/json"};
   Object.assign(headers, buildAiGatewayHeaders({ ...input, deadlineMs: 15000 }));
   headers["cf-aig-authorization"] = "Bearer " + settings.token;
+  headers["cf-aig-no-wholesale"] = "true";
   headers["cf-aig-byok-alias"] = credential;
   return async (): Promise<ProviderGenerationResult> => {
     const started = Date.now();
@@ -93,7 +94,7 @@ export function prepareCompatibleText(input: ProviderGenerateRequest & Omit<Gate
       const choice = data?.choices?.[0];
       if (typeof choice?.message?.content !== "string" || !choice.message.content.trim()) throw new ProviderAdapterError({code:"MALFORMED_RESPONSE", message:"Missing provider text", retryClassification:"malformed_response"});
       logAiRequest({ operation: "chatCompletions", model: settings.model, viaGateway: true, latencyMs: Date.now() - started, success: true });
-      return {modelId: input.modelId, text: choice.message.content, finishReason: String(choice.finish_reason ?? "unknown"), latencyMs: Date.now() - started, viaGateway: true, retryClassification: "none",
+      return {modelId: input.modelId, upstreamModel: settings.model, text: choice.message.content, finishReason: String(choice.finish_reason ?? "unknown"), latencyMs: Date.now() - started, viaGateway: true, retryClassification: "none",
         usage: {promptTokens: data.usage?.prompt_tokens, outputTokens: data.usage?.completion_tokens, totalTokens: data.usage?.total_tokens}};
     } catch (error) {
       logAiRequest({ operation: "chatCompletions", model: settings.model, viaGateway: true, latencyMs: Date.now() - started, success: false });

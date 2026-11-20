@@ -3,7 +3,6 @@ import {
   MODEL_IDS,
   assertOrdinaryRoutingAllowed,
 } from "@/lib/ai/provider/model-registry";
-import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { logAiRequest } from "@/lib/ai/analytics";
 import { ProviderAdapterError } from "@/lib/ai/provider/errors";
 import { type GoogleGenAI } from "@google/genai";

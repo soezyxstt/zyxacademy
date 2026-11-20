@@ -214,6 +214,7 @@ export class ZyraQuotaCoordinator extends DurableObject<WorkerEnv> {
         feature,
         routeClass: routeClass as ModelRouteClass,
         modelId: modelId as ModelId,
+        probeProjectAlias: stringField(body, "probeProjectAlias") || undefined,
         cacheStatus: cacheStatus as CacheStatus
       };
       const result = ledger.reserve(input);
