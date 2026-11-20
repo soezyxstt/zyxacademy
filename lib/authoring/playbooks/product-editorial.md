@@ -58,10 +58,10 @@ Never embed executable JavaScript, raw HTML, raw `<svg>`, `<iframe>`, or remote 
 ### Required authoring decisions and evidence
 
 - Article is the student's only primary reading for the chapter. It must teach every objective without requiring the Source Pack, Ideas, Diktat, or flashcards. Source Pack and Ideas remain the provenance evidence, not alternative learner explanations.
-- Finish and review the Article before deriving Diktat and flashcards. Every fact, condition, formula, answer, and explanation in a derivative must point to learner-readable Article content. If a required fact is missing, teach it in the Article first. A link to an Idea or a section title is not derivation evidence.
-- Keep an objective-to-block and derivative-to-Article matrix outside the bundle ZIP. Record block decisions as `REQUIRED`, `OPTIONAL`, or `NOT_APPLICABLE`, with a reason and source evidence. Do not add unsupported planning fields to the bundle schema.
+- Author standalone Diktat and flashcards directly from verified source excerpts and published Ideas. When explicitly deriving a Diktat from an Article, trace each fact, condition and formula to learner-readable Article content.
+- Keep objective and provenance mappings outside the ZIP, including Diktat-to-Article derivation when declared. Record block decisions as `REQUIRED`, `OPTIONAL`, or `NOT_APPLICABLE`, with a reason and source evidence. Do not add unsupported planning fields to the bundle schema.
 - Worked examples are conditional: use one when a procedure, strategy choice, application, or verification needs a concrete case. Misconceptions and limits are conditional: include them when a predictable error, domain restriction, ambiguity, or source conflict changes understanding or correctness. Do not manufacture examples, traps, applications, or visuals to fill a template, page count, or word target.
-- When an optional block is omitted, update all explanation, formative-check, support, and visual references to avoid dangling IDs. Diktat must not reintroduce examples or misconceptions that the Article deliberately omitted as irrelevant.
+- When an optional block is omitted, update all explanation, formative-check, support, and visual references to avoid dangling IDs. Keep Diktat examples and misconceptions relevant to the selected Ideas.
 
 ### Formula and explanation sequence
 
@@ -94,6 +94,6 @@ Never embed executable JavaScript, raw HTML, raw `<svg>`, `<iframe>`, or remote 
 - Graphs need accessible descriptions, meaningful bounds, axes/units where relevant, labels, and static text/table fallback. Before/after curves use dashed original and solid result. Interactive controls need ID, label, min/max/step/default and a supported binding; use static visuals when interaction adds no learning insight.
 - Admin preview and learner rendering must preserve the same section/block visual references. Verify parity at the runtime boundary before claiming it; schema success alone is insufficient.
 
-1. **Purpose:** A Diktat is a high-density, print-ready A4 review sheet (target 1 to 4 rendered PDF pages) linked to its source Article (`sourceArticleId`, `sourceArticleVersion`, `sourceArticleHash`).
-2. **Structure:** Author V4 units with sourceElementRefs, ideaIds and ordered printable parts. Select compact definitions, formulas with validity conditions, method choices, exam traps and short reference examples. Derive contentMarkdown from units rather than maintaining a second prose document.
+1. **Purpose:** A Diktat is a high-density, print-ready A4 review sheet (target 1 to 4 rendered PDF pages).
+2. **Structure:** Author V4 units with ideaIds and ordered printable parts. Include sourceElementRefs only for explicit Article lineage. Select compact definitions, formulas with validity conditions, method choices, exam traps and short reference examples. Derive contentMarkdown from units rather than maintaining a second prose document.
 3. **PDF Page Budget:** Keep Markdown length, table widths, and display formulas compact so the A4 print renderer produces between 1 and 4 pages (`readyPageRange: { minPages: 1, maxPages: 4 }`) without `PAGE_BUDGET_EXCEEDED` or `LAYOUT_OVERFLOW`.

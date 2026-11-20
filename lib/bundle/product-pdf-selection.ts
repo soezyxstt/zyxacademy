@@ -3,6 +3,15 @@ import { PRODUCT_DIKTAT_PRINT_PROFILE } from "@/lib/materials/diktat-renderer-po
 import type { PdfArtifactEvidence } from "@/lib/materials/pdf-artifact-contract";
 import { parseProductV4VerificationReceipt, type ProductV4VerificationPlan } from "./product-v4-verification";
 
+/** The legacy PDF columns store the Diktat's own revision when it has no Article. */
+export function diktatPdfLineage(diktat: { id: string; version: number; generationHash: string; sourceArticleId?: string; sourceArticleVersion?: number; sourceArticleHash?: string }) {
+  return {
+    articleId: diktat.sourceArticleId ?? diktat.id,
+    articleVersion: diktat.sourceArticleVersion ?? diktat.version,
+    articleHash: diktat.sourceArticleHash ?? diktat.generationHash,
+  };
+}
+
 export interface ProductV4PdfBinding {
   storageKey: string;
   printProfile: string;

@@ -33,7 +33,7 @@ test("single-Article clients retain unambiguous inference while V4 rejects a dif
   const [article] = articles();
   const { productId: _productId, ...unscoped } = decision(article);
   expect(normalizeProductSectionDecisions([article], [unscoped])[0].productId).toBe(article.id);
-  expect(() => validateProductV4ReviewContext({ article, importId: "draft", checksum: "a".repeat(64), fingerprint: "fingerprint", review: { decision: "changes_requested", sectionDecisions: [{ ...decision(article, "other-article"), decision: "changes_requested", notes: "Revise explanation" }] } })).toThrow("PRODUCT_V4_REVIEW_SECTION_STALE");
+  expect(() => validateProductV4ReviewContext({ articles: [article], importId: "draft", checksum: "a".repeat(64), fingerprint: "fingerprint", review: { decision: "changes_requested", sectionDecisions: [{ ...decision(article, "other-article"), decision: "changes_requested", notes: "Revise explanation" }] } })).toThrow("PRODUCT_V4_REVIEW_SECTION_STALE");
 });
 
 test("publication and readiness cannot reuse Article A approval for Article B's same-named section", () => {

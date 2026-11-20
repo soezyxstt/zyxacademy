@@ -532,9 +532,9 @@ export async function executeBrowserProductV4Check(input: {
     } else {
       const diktat = bundle.products.find((product) => product.productType === "diktat" && product.id === requirement.target);
       const article = diktat?.productType === "diktat" ? bundle.products.find((product) => product.productType === "article" && product.id === diktat.sourceArticleId) : undefined;
-      if (!diktat || diktat.productType !== "diktat" || !article || article.productType !== "article") throw new Error("VERIFICATION_PRINT_SOURCE_MISSING");
+      if (!diktat || diktat.productType !== "diktat") throw new Error("VERIFICATION_PRINT_SOURCE_MISSING");
       await page.emulateMedia({ media: "print" });
-      await page.setContent(compileProductDiktatHtml({ article, diktat, staticFigureAssets: input.staticFigureAssets }), { waitUntil: "networkidle" });
+      await page.setContent(compileProductDiktatHtml({ article: article?.productType === "article" ? article : undefined, diktat, staticFigureAssets: input.staticFigureAssets }), { waitUntil: "networkidle" });
       const failures = await page.evaluate(inspectDiktatPrintReadiness);
       if (failures.length || errors.length) throw new Error([...failures, ...errors].join(","));
       const pdf = await page.pdf({ format: "A4", printBackground: true, displayHeaderFooter: true, headerTemplate: "<span></span>", footerTemplate: PRODUCT_DIKTAT_FOOTER_TEMPLATE, preferCSSPageSize: true });

@@ -1,3 +1,4 @@
+import { diktatPdfLineage } from "@/lib/bundle/product-pdf-selection";
 import { createHash } from "node:crypto";
 import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, parseProductV4VerificationReceipt, type ProductV4VerificationAuthority, type ProductV4VerificationPlan } from "@/lib/bundle/product-v4-verification";
 import type { ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-core";
@@ -18,8 +19,10 @@ export function deriveProductV4PdfEvidence(input: {
   const rows: Array<typeof buktiPdfBundle.$inferInsert> = [];
   for (const diktat of snapshot.bundle.products) {
     if (diktat.productType !== "diktat") continue;
-    const article = snapshot.bundle.products.find((product) => product.productType === "article" && product.id === diktat.sourceArticleId);
-    if (!article || article.productType !== "article" || article.generationHash !== diktat.sourceArticleHash || article.version !== diktat.sourceArticleVersion) throw new Error("PRODUCT_V4_PDF_LINEAGE_MISMATCH");
+    const { articleId, articleVersion, articleHash } = diktatPdfLineage(diktat);
+    if (diktat.sourceArticleId && !snapshot.bundle.products.some(product => product.productType === "article" && product.id === articleId && product.version === articleVersion && product.generationHash === articleHash)) {
+      throw new Error("PRODUCT_V4_PDF_LINEAGE_MISMATCH");
+    }
     const requirement = plan.requirements.find((check) => check.layer === "print" && check.artifactType === "application/pdf" && check.target === diktat.id);
     const check = receipt.results.find((result) => result.checkId === requirement?.id);
     const artifacts = check?.artifacts.filter((artifact) => artifact.mediaType === "application/pdf") ?? [];
@@ -28,7 +31,7 @@ export function deriveProductV4PdfEvidence(input: {
     const bytes = input.artifactBytes.get(artifact.id);
     if (!artifact.id.startsWith(`artifact-${attemptId}-`) || !bytes || bytes.length !== artifact.byteLength || Buffer.from(bytes.subarray(0, 5)).toString() !== "%PDF-" || createHash("sha256").update(bytes).digest("hex") !== artifact.checksum) throw new Error("PRODUCT_V4_PDF_ARTIFACT_MISMATCH");
     rows.push({ id: `pdf-v4-${createHash("sha256").update(`${snapshot.importId}:${diktat.id}:${diktat.generationHash}:${PRODUCT_DIKTAT_PRINT_PROFILE}`).digest("hex").slice(0, 32)}`,
-      imporBundleId: snapshot.importId, productId: diktat.id, articleVersion: article.version, articleHash: article.generationHash, diktatHash: diktat.generationHash,
+      imporBundleId: snapshot.importId, productId: diktat.id, articleVersion, articleHash, diktatHash: diktat.generationHash,
       rendererVersion: PRODUCT_DIKTAT_RENDERER_VERSION, printProfile: PRODUCT_DIKTAT_PRINT_PROFILE,
       storageKey: buildProductVerificationKey(plan.planHash, artifact.id), pageCount: check.pageCount, status: "ready" as const, failureCode: null });
   }

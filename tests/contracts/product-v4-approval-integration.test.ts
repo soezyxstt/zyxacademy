@@ -21,7 +21,7 @@ test("trusted current evidence flows into explicit section approval; stale plans
   const evaluation = evaluateProductV4Verification(plan, [receipt], authority);
   expect(evaluation.ready).toBe(true);
   const review = { decision: "approved", expectedRevision: hash, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: hash, verificationPlanHash: plan.planHash, verificationReceiptSignature: receipt.signature, sectionDecisions: [{ sectionId: "section", semanticHash: computeProductV4SectionSemanticHash(article, "section"), decision: "approved" as const }], criteria: PEDAGOGIC_CRITERION_IDS.map(criterionId => ({ criterionId, status: "met" as const, contentAnchors: [{ targetType: "section" as const, targetId: "section" }], reason: "Reviewed the exact current section." })) };
-  const context = { article, importId: "import", checksum: hash, fingerprint: hash, review, verification: { ready: evaluation.ready, planHash: plan.planHash, importId: "import", receiptSignature: receipt.signature } };
+  const context = { articles: [article], importId: "import", checksum: hash, fingerprint: hash, review, verification: { ready: evaluation.ready, planHash: plan.planHash, importId: "import", receiptSignature: receipt.signature } };
   expect(validateProductV4ReviewContext(context)).toHaveLength(1);
   const revised = structuredClone(bundle);
   if (revised.products[0].productType !== "article") throw new Error("Article required");
@@ -31,5 +31,5 @@ test("trusted current evidence flows into explicit section approval; stale plans
   expect(stale.ready).toBe(false);
   expect(() => validateProductV4ReviewContext({ ...context, verification: { ...context.verification, ready: stale.ready, planHash: current.planHash } })).toThrow("VERIFICATION_REQUIRED");
   expect(() => validateProductV4ReviewContext({ ...context, verification: { ...context.verification, receiptSignature: "b".repeat(64) } })).toThrow("VERIFICATION_REQUIRED");
-  expect(() => validateProductV4ReviewContext({ ...context, article: revised.products[0] })).toThrow("SECTION_STALE");
+  expect(() => validateProductV4ReviewContext({ ...context, articles: [revised.products[0]] })).toThrow("SECTION_STALE");
 });

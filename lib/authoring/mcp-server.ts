@@ -1096,7 +1096,7 @@ function computeCurrentProductImportReadiness(
         : contentFingerprint
           ? 1
           : 0;
-  const hasArticle = articleCount > 0 || Boolean(articleItem) || Boolean(contentFingerprint);
+  const hasArticle = articleCount > 0 || Boolean(articleItem);
   const articleTargetId = (typeof report.articleId === "string" && report.articleId ? report.articleId : null)
     ?? articleItem?.entityId
     ?? rawSavedIssues.find((issue) => issue.target?.targetType === "rubric")?.target.targetId
@@ -3074,7 +3074,7 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       manifest: bundle.manifest, products: bundle.products, dependencies: bundle.dependencies,
       items: row.items.map(item => ({ entityType: item.entityType, entityId: item.entityId, entityVersion: item.entityVersion, entityHash: item.entityHash })),
       policyVersion: quality.policyVersion, contentFingerprint: quality.contentFingerprint,
-      criterionIds: article ? PEDAGOGIC_CRITERION_IDS : [],
+      criterionIds: row.version === 4 || article ? PEDAGOGIC_CRITERION_IDS : [],
       sections: bundle.products.flatMap(product => product.productType === "article" ? product.sections.map(section => ({ articleId: product.id, productId: product.id, sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(product, section.id), blockIds: section.blocks.map(block => block.id) })) : []),
       verificationContentHash: row.version === 4 ? computeProductV4VerificationContentHash(bundle) : null,
       stagingRunId, currentRunMatchesStaging: stagingRunId ? stagingRunId === run.runId : null,
@@ -3109,7 +3109,7 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
 
     const { bundle } = await scopedLearningProductImport({ principal, ...input });
     if (bundle.manifest.schemaVersion === "product-bundle.v5") throw new Error("PRODUCT_V5_EXPLICIT_REVIEW_REQUIRED");
-    if (!bundle.products.some(product => product.productType === "article")) {
+    if (bundle.manifest.schemaVersion !== "product-bundle.v4" && !bundle.products.some(product => product.productType === "article")) {
       if (input.decision === "changes_requested") throw new Error("PRODUCT_BUNDLE_REVIEW_DECISION_UNSUPPORTED");
       if (input.decision === "rejected" && !(input.reason ?? input.notes)?.trim()) throw new Error("PRODUCT_BUNDLE_REVIEW_REASON_REQUIRED");
       const result = await reviewProductBundle({ importId: input.importId, reviewerId: principal.actorId, expectedRevision: input.expectedRevision, decision: input.decision, notes: input.reason?.trim() || input.notes?.trim() });

@@ -2,3 +2,5 @@
 export function productVersionId(id: string, version: number): string {
   return version === 1 ? id : `${id}:v${version}`;
 }
+
+export const STANDALONE_FLASHCARD_SET_PREFIX = "standalone-flashcards";

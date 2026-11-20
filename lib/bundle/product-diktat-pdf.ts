@@ -57,7 +57,7 @@ type ArticleProduct = Extract<ProductEntity, { productType: "article" }>;
 type DiktatProduct = Extract<ProductEntity, { productType: "diktat" }>;
 
 export interface ProductDiktatRenderSource {
-  article: ArticleProduct;
+  article?: ArticleProduct;
   diktat: DiktatProduct;
   staticFigureAssets?: DiktatSourceFigureAssets;
 }
@@ -125,17 +125,14 @@ const WATERMARK_CSS = `
 
 /** Compiles the authored Diktat into a compact print layout. */
 export function compileProductDiktatHtml(source: ProductDiktatRenderSource): string {
-  if (source.article.schemaVersion === "article.v4" && !source.diktat.units) throw new Error("DIKTAT_UNITS_REQUIRED");
-  if (
-    source.diktat.sourceArticleId !== source.article.id ||
-    source.diktat.sourceArticleVersion !== source.article.version ||
-    source.diktat.sourceArticleHash !== source.article.generationHash
-  ) {
+  const { article, diktat } = source;
+  const visuals = article?.visuals ?? diktat.visuals ?? [];
+  if ((article?.schemaVersion === "article.v4" || !article) && !diktat.units) throw new Error("DIKTAT_UNITS_REQUIRED");
+  if (diktat.sourceArticleId && (!article || diktat.sourceArticleId !== article.id || diktat.sourceArticleVersion !== article.version || diktat.sourceArticleHash !== article.generationHash)) {
     throw new Error("PRODUCT_DIKTAT_LINEAGE_MISMATCH");
   }
-
-  if (source.diktat.units) {
-    const errors = validateAuthoredDiktat(source.article, source.diktat);
+  if (diktat.units) {
+    const errors = validateAuthoredDiktat(article, diktat);
     if (errors.length) throw new Error(errors.join(":"));
   }
   const title = escapeHtml(source.diktat.title);
@@ -143,13 +140,13 @@ export function compileProductDiktatHtml(source: ProductDiktatRenderSource): str
   const content = source.diktat.units
     ? source.diktat.units.map((unit) => `<section class="diktat-unit">${unit.parts.map((part) => {
       if (part.kind === "visual_ref") {
-        const visual = source.article.visuals?.find((visual) => visual.id === part.visualId);
+        const visual = visuals.find((visual) => visual.id === part.visualId);
         if (!visual) throw new Error("DIKTAT_VISUAL_SOURCE_MISSING");
         return renderDiktatStaticVisual(visual, source.staticFigureAssets) + parseCanonicalDiktatMarkdownToHtml(part.staticMarkdown, source.diktat.title);
       }
       const markerMap = new Map<string, string>();
       const markdown = withoutRepeatedDocumentHeading(materializeAuthoredDiktat([{ ...unit, parts: [part] }])).replace(/<!-- visual:([^>]+) -->/g, (_marker, id: string) => {
-        const visual = source.article.visuals?.find((visual) => visual.id === id);
+        const visual = visuals.find((visual) => visual.id === id);
         if (!visual) throw new Error("DIKTAT_VISUAL_SOURCE_MISSING");
         const token = `ZYXSTATICVISUAL${markerMap.size}TOKEN`;
         markerMap.set(token, renderDiktatStaticVisual(visual, source.staticFigureAssets));

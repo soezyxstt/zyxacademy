@@ -36,7 +36,7 @@ export type ProductBundleQualityReport = AuthoringQualityReport<{
   articleCount: number;
   diktatCount: number;
   articles: Array<ArticleQualityMetrics & { id: string }>;
-  diktats: Array<DiktatQualityMetrics & { id: string; sourceArticleId: string; compressionRatio: number; estimatedReadingMinutes: number }>;
+  diktats: Array<DiktatQualityMetrics & { id: string; sourceArticleId?: string; compressionRatio: number | null; estimatedReadingMinutes: number }>;
 }>;
 
 function words(value: string): number {
@@ -230,7 +230,7 @@ export function evaluateProductBundleQuality(data: { products: readonly ProductE
   const articles = data.products.filter((product): product is Extract<ProductEntity, { productType: "article" }> => product.productType === "article");
   const diktats = data.products.filter((product): product is Extract<ProductEntity, { productType: "diktat" }> => product.productType === "diktat");
   const articleReports: Array<ArticleQualityMetrics & { id: string }> = [];
-  const diktatReports: Array<DiktatQualityMetrics & { id: string; sourceArticleId: string; compressionRatio: number; estimatedReadingMinutes: number }> = [];
+  const diktatReports: Array<DiktatQualityMetrics & { id: string; sourceArticleId?: string; compressionRatio: number | null; estimatedReadingMinutes: number }> = [];
 
   for (const article of articles) {
     const metrics = articleMetrics(article);
@@ -338,6 +338,11 @@ export function evaluateProductBundleQuality(data: { products: readonly ProductE
   const articleMetricsById = new Map(articleReports.map((report) => [report.id, report]));
   for (const diktat of diktats) {
     const rawMetrics = diktatMetrics(diktat);
+    if (!diktat.sourceArticleId) {
+      if (rawMetrics.wordCount > 2200) issues.push(qualityIssue("DIKTAT_WORD_BUDGET_EXCEEDED", `Diktat ${diktat.id} exceeds the early warning budget of 2,200 words before A4 rendering.`, "blocking", { entity: diktat.id, expected: 2200, observed: rawMetrics.wordCount }));
+      diktatReports.push({ id: diktat.id, ...rawMetrics, visuals: diktat.visuals?.length ?? 0, compressionRatio: null, estimatedReadingMinutes: Math.ceil(rawMetrics.wordCount / 200) });
+      continue;
+    }
     const article = articleById.get(diktat.sourceArticleId);
     const articleReport = articleMetricsById.get(diktat.sourceArticleId);
     if (!article || !articleReport) {

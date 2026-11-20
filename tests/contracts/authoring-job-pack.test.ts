@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, test } from "bun:test";
 import { strToU8, unzipSync, zipSync } from "fflate";
-import { buildAuthoringJobPack, validateAuthoringJobPack } from "@/lib/authoring/job-pack";
+import { authoringJobSchema, buildAuthoringJobPack, validateAuthoringJobPack } from "@/lib/authoring/job-pack";
 import { validateSourcePack } from "@/lib/authoring/source-pack";
 
 function hash(bytes: Uint8Array): string {
@@ -105,6 +105,9 @@ describe("Authoring Job Pack", () => {
     expect(validated.job.attribution).toEqual({ creatorId: "$UPLOADER", curatorId: "$APPROVING_REVIEWER" });
     expect(validated.job.workflow.ideaPublicationRequiredBeforeProducts).toBe(true);
     expect(validated.job.workflow.productBundleSchemaVersion).toBe("product-bundle.v4");
+    for (const product of ["diktat", "flashcard_set", "flashcard"]) {
+      expect(authoringJobSchema.safeParse({ ...validated.job, requestedProducts: [product] }).success).toBe(true);
+    }
     expect(unzipSync(pack.bytes)["contracts/product-bundle/product.schema.json"]).toBeDefined();
   });
 
