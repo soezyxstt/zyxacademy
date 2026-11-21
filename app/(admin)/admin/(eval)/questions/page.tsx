@@ -355,6 +355,8 @@ export default async function AIQuestionsPage({ searchParams }: { searchParams: 
 
   await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: user.id, questions: [...questions.map(q => ({ questionId: q.id, courseId: q.courseId })), ...historicalRows.map(q => ({ questionId: q.id, courseId: q.courseId }))], requestId: crypto.randomUUID() }));
 
+  const t = await getTranslations("adminEval");
+
   return (
     <div className="space-y-5">
       <AdminPageHeader
@@ -372,7 +374,7 @@ export default async function AIQuestionsPage({ searchParams }: { searchParams: 
         toolbarTrailing={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon-lg" aria-label="Question tools" className="shrink-0">
+              <Button variant="outline" size="icon-lg" aria-label={t("routes.questionTools")} className="shrink-0">
                 <MoreHorizontal className="size-4" aria-hidden />
               </Button>
             </DropdownMenuTrigger>

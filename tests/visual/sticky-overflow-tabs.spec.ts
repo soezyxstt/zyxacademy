@@ -43,7 +43,7 @@ test.describe("Sticky full-width horizontal tabs with GitHub-style More popover"
 
     // 3. Open More popover
     await moreTrigger.click();
-    const responsesOption = page.getByRole("menuitemradio", { name: /Responses/i });
+    const responsesOption = page.getByRole("menuitem", { name: /Responses/i });
     await expect(responsesOption).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("mobile-more-open.png") });
 
@@ -55,8 +55,8 @@ test.describe("Sticky full-width horizontal tabs with GitHub-style More popover"
 
     // 5. Re-open More to verify active left-bar indicator inside popover
     await moreTrigger.click();
-    await expect(page.getByRole("menuitemradio", { name: /Responses/i })).toHaveAttribute(
-      "aria-checked",
+    await expect(page.getByRole("menuitem", { name: /Responses/i })).toHaveAttribute(
+      "aria-current",
       "true"
     );
     await page.screenshot({ path: testInfo.outputPath("mobile-more-active-open.png") });

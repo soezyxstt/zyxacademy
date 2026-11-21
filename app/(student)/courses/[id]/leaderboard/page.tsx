@@ -1,7 +1,6 @@
 import { StudentCourseLeaderboardContent } from "@/components/course/student-course-leaderboard-content";
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Lock, Trophy } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseLeaderboardContentSkeleton } from "@/components/course/course-skeletons";
