@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { CapacitorConfig } from "@capacitor/cli";
 
 type AppChannel = "nightly" | "stable";
@@ -54,7 +55,7 @@ function detectAppVersion(): string {
   const explicit = process.env.ZYX_APP_VERSION?.trim().replace(/^v/i, "");
   if (explicit) return explicit;
   try {
-    const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as {
+    const pkg = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
       version?: string;
     };
     if (pkg.version?.trim()) return pkg.version.trim();
