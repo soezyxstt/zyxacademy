@@ -192,11 +192,24 @@ describe("in-app update checker helpers", () => {
         {
           tag_name: "app-v0.1.0-alpha.1",
           html_url: "https://github.com/soezyxstt/zyxacademy/releases/tag/app-v0.1.0-alpha.1",
+          published_at: "2026-11-21T12:00:00Z",
           assets: [],
         },
         {
           tag_name: "app-v0.1.0-alpha.1-nightly.20261121.d36d955",
           html_url: "https://github.com/soezyxstt/zyxacademy/releases/tag/app-v0.1.0-alpha.1-nightly.20261121.d36d955",
+          published_at: "2026-11-21T09:13:35Z",
+          assets: [
+            {
+              name: "zyx-academy-nightly-0.1.0-alpha.1-20261121-android.apk",
+              browser_download_url: "https://github.com/soezyxstt/zyxacademy/releases/download/old/app.apk",
+            },
+          ],
+        },
+        {
+          tag_name: "app-v0.1.0-alpha.1-nightly.20261121.a28ef10",
+          html_url: "https://github.com/soezyxstt/zyxacademy/releases/tag/app-v0.1.0-alpha.1-nightly.20261121.a28ef10",
+          published_at: "2026-11-21T11:58:18Z",
           assets: [
             {
               name: "zyx-academy-nightly-0.1.0-alpha.1-20261121-android.apk",
@@ -211,7 +224,7 @@ describe("in-app update checker helpers", () => {
       ],
       "nightly",
     );
-    expect(latestNightly?.buildId).toBe("d36d955");
+    expect(latestNightly?.buildId).toBe("a28ef10");
     expect(latestNightly?.downloads.android).toContain(".apk");
     expect(latestNightly?.downloads.windows).toContain(".exe");
   });

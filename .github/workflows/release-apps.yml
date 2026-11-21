@@ -231,15 +231,54 @@ jobs:
           ZYX_APP_BUILD_ID: ${{ needs.prepare.outputs.build_id }}
         run: npm run sync:android:${{ needs.prepare.outputs.channel }}
 
+      - name: Decode Android signing keystore (if configured)
+        id: signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$ANDROID_KEYSTORE_BASE64" && -n "$ANDROID_KEYSTORE_PASSWORD" && -n "$ANDROID_KEY_ALIAS" && -n "$ANDROID_KEY_PASSWORD" ]]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '\r\n ' | base64 --decode > "$RUNNER_TEMP/zyx-release.jks"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "build_type=release" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Android release signing secrets are not configured; building with ephemeral debug keystore. Configure ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD to enable seamless in-place APK updates."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "build_type=debug" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build Android APK (${{ needs.prepare.outputs.channel }})
         working-directory: apps/mobile/android
+        env:
+          ZYX_ANDROID_VERSION_CODE: ${{ github.run_number }}
+          ZYX_ANDROID_KEYSTORE_PATH: ${{ steps.signing.outputs.signed == 'true' && format('{0}/zyx-release.jks', runner.temp) || '' }}
+          ZYX_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ZYX_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ZYX_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          if [[ "${{ needs.prepare.outputs.channel }}" == "nightly" ]]; then
-            ./gradlew assembleNightlyDebug
+          if [[ "${{ steps.signing.outputs.signed }}" == "true" ]]; then
+            if [[ "${{ needs.prepare.outputs.channel }}" == "nightly" ]]; then
+              ./gradlew assembleNightlyRelease -PzyxVersionCode="${{ github.run_number }}"
+            else
+              ./gradlew assembleStableRelease -PzyxVersionCode="${{ github.run_number }}"
+            fi
           else
-            ./gradlew assembleStableDebug
+            if [[ "${{ needs.prepare.outputs.channel }}" == "nightly" ]]; then
+              ./gradlew assembleNightlyDebug -PzyxVersionCode="${{ github.run_number }}"
+            else
+              ./gradlew assembleStableDebug -PzyxVersionCode="${{ github.run_number }}"
+            fi
           fi
+
+      - name: Remove temporary Android keystore
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/zyx-release.jks"
 
       - name: Collect Android APK
         shell: bash
@@ -247,9 +286,10 @@ jobs:
           set -euo pipefail
           mkdir -p release-artifacts
           FLAVOR="${{ needs.prepare.outputs.channel }}"
-          APK=$(find "apps/mobile/android/app/build/outputs/apk/${FLAVOR}" -type f -name "*.apk" | head -n 1 || true)
+          BUILD_TYPE="${{ steps.signing.outputs.build_type }}"
+          APK=$(find "apps/mobile/android/app/build/outputs/apk/${FLAVOR}/${BUILD_TYPE}" -type f -name "*.apk" ! -name "*-unsigned.apk" | head -n 1 || true)
           if [[ -z "$APK" ]]; then
-            echo "No APK found for flavor ${FLAVOR}"
+            echo "No signed APK found for flavor ${FLAVOR} (${BUILD_TYPE})"
             exit 1
           fi
           TARGET="release-artifacts/${{ needs.prepare.outputs.file_prefix }}-android.apk"

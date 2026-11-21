@@ -137,9 +137,7 @@ async function checkForUpdates(options?: { manual?: boolean }) {
           } catch {
             // Ignore storage errors
           }
-          const label = latest.buildId
-            ? `v${latest.version} (${latest.buildId})`
-            : `v${latest.version}`;
+          const label = `v${latest.version}`;
           toast("Pembaruan aplikasi tersedia", {
             description: `Zyx Academy ${label} siap dipasang.`,
             action: {
@@ -211,12 +209,8 @@ export function AppUpdateControl({ variant }: AppUpdateControlProps) {
   // On mobile top navbar, stay completely invisible unless an update is ready.
   if (variant === "mobile" && !snapshot.updateAvailable) return null;
 
-  const currentLabel = snapshot.meta
-    ? `${snapshot.meta.version}${snapshot.meta.buildId ? ` (${snapshot.meta.buildId})` : ""}`
-    : "";
-  const latestLabel = snapshot.latest
-    ? `${snapshot.latest.version}${snapshot.latest.buildId ? ` (${snapshot.latest.buildId})` : ""}`
-    : "";
+  const currentLabel = snapshot.meta?.version ?? "";
+  const latestLabel = snapshot.latest?.version ?? "";
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
