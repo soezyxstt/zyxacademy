@@ -17,7 +17,7 @@ test.beforeAll(async () => {
       builder.onResolve({ filter: /^@\/components\/providers\/locale-provider$/ }, () => ({ path: "locale", namespace: "fixture" }));
       builder.onResolve({ filter: /^@\/app\/actions\/google-calendar$/ }, () => ({ path: "actions", namespace: "fixture" }));
       builder.onLoad({ filter: /.*/, namespace: "fixture" }, ({ path }) => ({ contents: path === "locale" ? 'export const useAppLocale = () => ({ locale: "id" })' : `
-        export async function getGoogleCalendarStatus() { return window.syncStatus; }
+        export async function getGoogleCalendarStatus() { if (window.statusFailure) throw new Error("fixture unavailable"); return window.syncStatus; }
         export async function requestGoogleCalendarSync() { window.syncStatus.pending = true; return { ok: true }; }
         export async function connectGoogleCalendar() { return { url: null }; }
       ` }));
@@ -26,7 +26,7 @@ test.beforeAll(async () => {
   script = bundle.outputFiles[0].text;
 });
 
-for (const state of ["disconnected", "ready", "pending", "failed", "reconnect", "unconfigured"]) {
+for (const state of ["disconnected", "ready", "pending", "failed", "reconnect", "unconfigured", "central-reconnect", "status-failed"]) {
   test(`calendar control ${state}`, async ({ page }, testInfo) => {
     const errors: string[] = [];
     page.on("pageerror", e => errors.push(e.message));
@@ -34,7 +34,9 @@ for (const state of ["disconnected", "ready", "pending", "failed", "reconnect", 
     await page.setContent('<!doctype html><html lang="id"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="root"></div></body></html>');
     await page.evaluate(state => {
       (window as any).syncStatus = { connected: state !== "disconnected", configured: state !== "unconfigured", pending: state === "pending", error: ["failed", "reconnect"].includes(state) ? state : null, lastSyncedAt: state === "ready" ? "2026-11-21T03:00:00Z" : null };
-      location.hash = state === "unconfigured" ? "central" : "";
+      (window as any).statusFailure = state === "status-failed";
+      if (state === "central-reconnect") (window as any).syncStatus.error = "reconnect";
+      location.hash = ["unconfigured", "central-reconnect"].includes(state) ? "central" : "";
     }, state);
     await page.addStyleTag({ content: styles });
     await page.addScriptTag({ content: script });
@@ -48,11 +50,19 @@ for (const state of ["disconnected", "ready", "pending", "failed", "reconnect", 
     await page.screenshot({ path: testInfo.outputPath("closed.png") });
     await trigger.press("Enter");
     await expect(page.getByRole("dialog")).toBeVisible();
-    const action = page.getByRole("button", { name: /Hubungkan|Sinkronkan sekarang/ });
+    const action = page.getByRole("button", { name: /Hubungkan|Sinkronkan sekarang|Muat ulang status/ });
     if (["pending", "unconfigured"].includes(state)) await expect(action).toBeDisabled();
     else await expect(action).toBeEnabled();
     await expect(page.locator("html")).toHaveJSProperty("scrollWidth", await page.locator("html").evaluate(e => e.clientWidth));
     await page.screenshot({ path: testInfo.outputPath("open.png") });
+    if (state === "central-reconnect") await expect(page.getByRole("status")).toContainText("token Google pusat");
+    if (state === "status-failed") {
+      await expect(action).toHaveText("Muat ulang status");
+      await page.evaluate(() => { (window as any).statusFailure = false; });
+      await action.click();
+      await expect(page.getByRole("button", { name: "Sinkronkan sekarang", exact: true })).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath("status-recovered.png") });
+    }
     if (state === "ready") {
       await action.click();
       await expect(action).toBeDisabled();

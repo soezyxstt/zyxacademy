@@ -234,6 +234,9 @@
     "lastSynced": "Last synced: {date}",
     "neverSynced": "Not synced yet.",
     "connect": "Connect Google Calendar",
-    "sync": "Sync now"
+    "sync": "Sync now",
+    "centralReconnect": "Renew the central Google token with Calendar permission, then sync again.",
+    "statusFailed": "Google Calendar status could not be loaded. Try again.",
+    "retryStatus": "Reload status"
   }
 }

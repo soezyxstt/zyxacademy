@@ -36,7 +36,12 @@ export async function syncGoogleCalendar(target: string) {
         const result = await auth.api.getAccessToken({ body: { providerId: "google", accountId: linked.accountId, userId } });
         if (!result.accessToken) throw new Error("Missing token");
         token = result.accessToken;
-      } catch { throw new CalendarApiError(401); }
+      } catch (error) {
+        const code = (error as { body?: { code?: string } } | null)?.body?.code;
+        if (["ACCOUNT_NOT_FOUND", "INVALID_REFRESH_TOKEN", "INVALID_GRANT"].includes(code ?? "")) throw new CalendarApiError(401);
+        // Better Auth may mask a transient provider failure. Unknown failures retry.
+        throw error;
+      }
       calendarId = "primary";
     } else {
       if (!centralCalendarConfigured()) {

@@ -234,6 +234,9 @@
     "lastSynced": "Terakhir disinkronkan: {date}",
     "neverSynced": "Belum disinkronkan.",
     "connect": "Hubungkan Google Calendar",
-    "sync": "Sinkronkan sekarang"
+    "sync": "Sinkronkan sekarang",
+    "centralReconnect": "Perbarui token Google pusat dengan izin Calendar, lalu sinkronkan lagi.",
+    "statusFailed": "Status Google Calendar belum dapat dimuat. Coba lagi.",
+    "retryStatus": "Muat ulang status"
   }
 }

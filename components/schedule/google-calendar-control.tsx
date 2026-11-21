@@ -44,7 +44,9 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
   async function submit() {
     setBusy(true); setFailed(false); setCallbackFailed(false);
     try {
-      if (!central && (!status?.connected || status.error === "reconnect")) {
+      if (!status) {
+        setStatus(await getGoogleCalendarStatus(central));
+      } else if (!central && (!status.connected || status.error === "reconnect")) {
         const result = await connectGoogleCalendar(window.location.pathname);
         if (!result.url) throw new Error("Connection failed");
         window.location.assign(result.url);
@@ -75,11 +77,11 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
           <p className="text-body-sm font-semibold">{title}</p>
           <p className="text-body-xs text-muted-foreground">{t(central ? "googleCalendar.centralHelp" : "googleCalendar.help")}</p>
           <div role="status" aria-live="polite" className="text-body-xs">
-            {failed || callbackFailed ? t("googleCalendar.failed") : !status ? t("googleCalendar.loading") : !status.configured ? t("googleCalendar.setup") : status.error ? t(status.error === "reconnect" ? "googleCalendar.reconnect" : "googleCalendar.failed") : status.pending ? t("googleCalendar.pending") : status.lastSyncedAt ? t("googleCalendar.lastSynced", { date: new Date(status.lastSyncedAt).toLocaleString(locale) }) : t("googleCalendar.neverSynced")}
+            {failed || callbackFailed ? t(!status && !callbackFailed ? "googleCalendar.statusFailed" : "googleCalendar.failed") : !status ? t("googleCalendar.loading") : !status.configured ? t("googleCalendar.setup") : status.error ? t(status.error === "reconnect" ? central ? "googleCalendar.centralReconnect" : "googleCalendar.reconnect" : "googleCalendar.failed") : status.pending ? t("googleCalendar.pending") : status.lastSyncedAt ? t("googleCalendar.lastSynced", { date: new Date(status.lastSyncedAt).toLocaleString(locale) }) : t("googleCalendar.neverSynced")}
           </div>
-          <Button type="button" className="w-full text-body-sm" disabled={Boolean(loading || (!status && !failed) || (central && !status?.configured))} onClick={submit}>
+          <Button type="button" className="w-full text-body-sm" disabled={Boolean(loading || (!status && !failed) || (central && status && !status.configured))} onClick={submit}>
             {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-            {t(!central && (!status?.connected || status.error === "reconnect") ? "googleCalendar.connect" : "googleCalendar.sync")}
+            {t(!status ? "googleCalendar.retryStatus" : !central && (!status.connected || status.error === "reconnect") ? "googleCalendar.connect" : "googleCalendar.sync")}
           </Button>
         </PopoverContent>
       </Popover>

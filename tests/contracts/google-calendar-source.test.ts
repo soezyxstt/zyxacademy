@@ -26,3 +26,19 @@ test("tutor mirror respects course scope and legacy assignments, and keeps quizz
   expect(quiz.start).toEqual(deadline);
   expect(quiz.end.getTime() - quiz.start.getTime()).toBe(60000);
 });
+
+let tokenError: unknown;
+mock.module("@/lib/auth", () => ({ auth: { api: { getAccessToken: async () => { throw tokenError; } } } }));
+const { syncGoogleCalendar } = await import("@/lib/google-calendar/sync");
+
+test("temporary token failures retry with sanitized errors, confirmed invalid grants reconnect", async () => {
+  await testDb.insert(schema.account).values({ id: "fixture-google", accountId: "google-fixture", providerId: "google", userId: "fixture-tutor", scope: "https://www.googleapis.com/auth/calendar.events", refreshToken: "fixture-refresh" });
+  tokenError = new Error("private provider failure: 503");
+  await expect(syncGoogleCalendar("user:fixture-tutor")).rejects.toThrow("Google Calendar sync failed");
+  let rows = await testDb.select().from(schema.googleCalendarSync);
+  expect(rows.find(row => row.target === "user:fixture-tutor")?.error).toBe("failed");
+  tokenError = { body: { code: "INVALID_REFRESH_TOKEN" } };
+  await syncGoogleCalendar("user:fixture-tutor");
+  rows = await testDb.select().from(schema.googleCalendarSync);
+  expect(rows.find(row => row.target === "user:fixture-tutor")?.error).toBe("reconnect");
+});
