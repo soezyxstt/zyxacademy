@@ -183,6 +183,9 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
   const textRef = useRef<ZyraComposerInputHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const pendingImagesRef = useRef(0);
   const inFlight = useRef(new Set<string>());
   const uploadsInFlight = useRef(new Set<string>());
   const [fileError, setFileError] = useState<"" | "maxImages" | "fileRequirements">("");
@@ -269,31 +272,35 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
 
   async function addFiles(rawFiles: readonly File[]) {
     if (rawFiles.length === 0) return;
-    if (rawFiles.length + draft.images.length > MAX_IMAGES) {
+    if (rawFiles.length + draftRef.current.images.length + pendingImagesRef.current > MAX_IMAGES) {
       setFileError("maxImages");
       return;
     }
-    const files = await prepareQuestionImageFiles(rawFiles);
-    if (files.some((file) => !IMAGE_TYPES.includes(file.type) || file.size > MAX_IMAGE_BYTES || file.size === 0)) {
-      setFileError("fileRequirements");
-      return;
+    pendingImagesRef.current += rawFiles.length;
+    try {
+      const files = await prepareQuestionImageFiles(rawFiles);
+      if (files.some((file) => !IMAGE_TYPES.includes(file.type) || file.size > MAX_IMAGE_BYTES || file.size === 0)) {
+        setFileError("fileRequirements");
+        return;
+      }
+      const remaining = Math.max(0, MAX_IMAGES - draftRef.current.images.length);
+      if (remaining === 0) {
+        setFileError("maxImages");
+        return;
+      }
+      const acceptedFiles = files.slice(0, remaining);
+      setFileError(files.length > remaining ? "maxImages" : "");
+      const accepted: ComposerImage[] = acceptedFiles.map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+        status: "uploading",
+      }));
+      update((current) => ({ ...current, images: [...current.images, ...accepted], requestId: undefined }));
+      accepted.forEach((image) => { void upload(image); });
+    } finally {
+      pendingImagesRef.current = Math.max(0, pendingImagesRef.current - rawFiles.length);
     }
-    setFileError("");
-    const candidateImages: ComposerImage[] = files.map((file) => ({ id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file), status: "uploading" }));
-    let accepted: ComposerImage[] = [];
-    let rejected: ComposerImage[] = [];
-    update((current) => {
-      const remaining = Math.max(0, MAX_IMAGES - current.images.length);
-      accepted = candidateImages.slice(0, remaining);
-      rejected = candidateImages.slice(remaining);
-      if (accepted.length === 0) return current;
-      return { ...current, images: [...current.images, ...accepted], requestId: undefined };
-    });
-    if (rejected.length > 0) {
-      rejected.forEach((image) => URL.revokeObjectURL(image.previewUrl));
-      setFileError("maxImages");
-    }
-    accepted.forEach((image) => { void upload(image); });
   }
 
   function pickImages(event: ChangeEvent<HTMLInputElement>) {
