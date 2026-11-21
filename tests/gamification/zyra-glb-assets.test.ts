@@ -80,7 +80,8 @@ test("all 35 wardrobe concepts retain a valid file for each of the four characte
   }
   const outfits = catalog.components.filter(item => item.slot === "outfit");
   const suits = COSMETIC_CATALOG.filter(item => item.slot === "pet_suit" && item.active);
-  expect(suits.map(item => item.id).sort()).toEqual(outfits.map(item => `pet-suit-${item.id}`).sort());
+  const suitIds = suits.map<string>(item => item.id).sort();
+  expect(suitIds).toEqual(outfits.map(item => `pet-suit-${item.id}`).sort());
   for (const outfit of outfits) for (const { character } of ZYRA_GLB_MASCOTS) {
     expect(getZyraGlbSuitSrc(character, outfit.id)).toBe(`/gamification/mascots/v10.1/${outfit.assets[character]}`);
   }
