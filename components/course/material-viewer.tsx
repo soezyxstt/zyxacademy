@@ -70,6 +70,9 @@ import { ChapterSummarySheet } from "@/components/course/chapter-summary-sheet";
 import { useMaterialReadingProgress } from "@/hooks/use-material-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
 import { saveTextMaterialOffline } from "@/lib/offline/reading-cache";
+import { ShareLinkButton } from "@/components/share-link-button";
+import { hapticSelection } from "@/lib/native/haptics";
+import { openAuthorizedFile, saveAuthorizedFile } from "@/lib/native/files";
 import {
   buildOfflineReadingKey,
   computeScrollRatio,
@@ -489,6 +492,7 @@ function MaterialViewerContent({
   canDownload = true,
 }: MaterialViewerProps) {
   const t = useTranslations("learning");
+  const common = useTranslations("common");
   const learnerMode = isLearnerReaderMode(mode);
   const experience = useStudentExperience();
   const demo = experience.mode === "demo";
@@ -967,6 +971,7 @@ function MaterialViewerContent({
     }
     setBookmarks(newBookmarks);
     storage.setItem(`zyx-bookmarks-${material.id}`, JSON.stringify(newBookmarks));
+    void hapticSelection();
   };
 
   // Save Personal Note
@@ -1109,6 +1114,42 @@ function MaterialViewerContent({
   };
 
   const openUrl = getViewablePdfUrl(material.url);
+  const [downloadingFile, setDownloadingFile] = useState(false);
+  const [openingFile, setOpeningFile] = useState(false);
+
+  const handleDownloadMaterial = async (targetTitle: string) => {
+    if (!material.url || downloadingFile) return;
+    setDownloadingFile(true);
+    try {
+      const result = await saveAuthorizedFile({
+        url: material.url,
+        fileName: `${targetTitle}.pdf`,
+        title: targetTitle,
+      });
+      if (!result.ok && !result.cancelled) {
+        toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.saveFailed"));
+      }
+    } finally {
+      setDownloadingFile(false);
+    }
+  };
+
+  const handleOpenMaterial = async () => {
+    if (!openUrl || openingFile) return;
+    setOpeningFile(true);
+    try {
+      const result = await openAuthorizedFile({
+        url: openUrl,
+        fileName: `${material.title}.pdf`,
+        title: material.title,
+      });
+      if (!result.ok && !result.cancelled) {
+        toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.openFailed"));
+      }
+    } finally {
+      setOpeningFile(false);
+    }
+  };
 
   const tutorPopover = learnerMode && selectionCoords && selectedText ? (
     <div
@@ -1324,27 +1365,35 @@ function MaterialViewerContent({
                       </span>
                       {course?.title && <span>· {course.title}</span>}
                     </div>
-                    {((material.url && canDownload) || summaryChapterId) && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {material.url && canDownload && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="outline" size="icon-lg" asChild>
-                                  <a href={material.url} download target="_blank" rel="noopener noreferrer" aria-label={t("reader.downloadPdf")}>
-                                    <Download aria-hidden />
-                                  </a>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        {summaryChapterId && (
-                          <ChapterSummarySheet studentId={studentId} chapterId={summaryChapterId} chapterTitle={material.title} />
-                        )}
-                      </div>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ShareLinkButton
+                        title={chapterTitle || material.title}
+                        variant="outline"
+                        size="icon-lg"
+                      />
+                      {material.url && canDownload && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-lg"
+                                aria-label={t("reader.downloadPdf")}
+                                disabled={downloadingFile}
+                                onClick={() => void handleDownloadMaterial(chapterTitle || material.title)}
+                              >
+                                <Download aria-hidden />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      {summaryChapterId && (
+                        <ChapterSummarySheet studentId={studentId} chapterId={summaryChapterId} chapterTitle={material.title} />
+                      )}
+                    </div>
                   </div>
                   <h1 className="font-heading text-h3 font-bold tracking-tight text-foreground sm:text-h2">
                     {chapterTitle || material.title}
@@ -1503,15 +1552,28 @@ function MaterialViewerContent({
           </button>
         </div>
       )}
+      <ShareLinkButton
+        title={material.title}
+        variant="outline"
+        size="icon-sm"
+        className="size-7"
+        iconClassName="size-3.5"
+      />
       {material.url && (
         <TooltipProvider>
           {canDownload && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button asChild variant="outline" size="icon-sm" className="size-7">
-                  <a href={material.url} download target="_blank" rel="noopener noreferrer" aria-label={t("reader.downloadPdf")}>
-                    <Download className="size-3.5" aria-hidden />
-                  </a>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  className="size-7"
+                  aria-label={t("reader.downloadPdf")}
+                  disabled={downloadingFile}
+                  onClick={() => void handleDownloadMaterial(material.title)}
+                >
+                  <Download className="size-3.5" aria-hidden />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
@@ -1521,14 +1583,15 @@ function MaterialViewerContent({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  asChild
+                  type="button"
                   variant="outline"
                   size="icon-sm"
                   className={cn("size-7", viewerType === "chrome" && "hidden md:inline-flex")}
+                  aria-label={t("reader.openOriginal")}
+                  disabled={openingFile}
+                  onClick={() => void handleOpenMaterial()}
                 >
-                  <a href={openUrl} target="_blank" rel="noopener noreferrer" aria-label={t("reader.openOriginal")}>
-                    <ExternalLink className="size-3.5" aria-hidden />
-                  </a>
+                  <ExternalLink className="size-3.5" aria-hidden />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t("reader.openOriginal")}</TooltipContent>

@@ -166,16 +166,52 @@ export interface CapacitorOfflineStorePlugin {
   clearOtherUsers: (options: { userId: string }) => Promise<void>;
 }
 
+export interface CapacitorHapticsPlugin {
+  impact?: (options: { style: "HEAVY" | "MEDIUM" | "LIGHT" }) => Promise<void>;
+  notification?: (options: { type: "SUCCESS" | "WARNING" | "ERROR" }) => Promise<void>;
+  vibrate?: (options?: { duration?: number }) => Promise<void>;
+  selectionStart?: () => Promise<void>;
+  selectionChanged?: () => Promise<void>;
+  selectionEnd?: () => Promise<void>;
+}
+
+export interface CapacitorSharePlugin {
+  share: (options: {
+    title?: string;
+    text?: string;
+    url?: string;
+    files?: string[];
+    dialogTitle?: string;
+  }) => Promise<{ activityType?: string } | void>;
+  canShare?: () => Promise<{ value: boolean }>;
+}
+
+export interface CapacitorFilesystemPlugin {
+  writeFile: (options: {
+    path: string;
+    data: string;
+    directory?: "DOCUMENTS" | "DATA" | "LIBRARY" | "CACHE" | "EXTERNAL" | "EXTERNAL_STORAGE";
+    recursive?: boolean;
+  }) => Promise<{ uri: string }>;
+  getUri?: (options: {
+    path: string;
+    directory?: "DOCUMENTS" | "DATA" | "LIBRARY" | "CACHE" | "EXTERNAL" | "EXTERNAL_STORAGE";
+  }) => Promise<{ uri: string }>;
+}
+
 export interface CapacitorGlobal {
   isNativePlatform?: () => boolean;
   getPlatform?: () => string;
   Plugins?: {
     App?: CapacitorAppPlugin;
     Browser?: CapacitorBrowserPlugin;
+    Filesystem?: CapacitorFilesystemPlugin;
+    Haptics?: CapacitorHapticsPlugin;
     LocalNotifications?: CapacitorLocalNotificationsPlugin;
     Network?: CapacitorNetworkPlugin;
     PushNotifications?: CapacitorPushNotificationsPlugin;
     Camera?: CapacitorCameraPlugin;
+    Share?: CapacitorSharePlugin;
     ZyxAppUpdater?: CapacitorUpdaterPlugin;
     ZyxOfflineStore?: CapacitorOfflineStorePlugin;
   };
@@ -189,6 +225,7 @@ export interface TauriNotificationGlobal {
 
 export interface TauriOpenerGlobal {
   openUrl?: (url: string, openWith?: string) => Promise<void>;
+  openPath?: (path: string, openWith?: string) => Promise<void>;
 }
 
 export interface TauriEventGlobal {

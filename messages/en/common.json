@@ -21,5 +21,23 @@
     "label": "Language",
     "indonesian": "Bahasa Indonesia",
     "english": "English"
+  },
+  "share": {
+    "button": "Share",
+    "linkCopied": "Link copied",
+    "failed": "Could not share link. Try again."
+  },
+  "files": {
+    "saveFailed": "Could not save file. Try again.",
+    "unauthorized": "You do not have access to this file.",
+    "openFailed": "Could not open file. Try again."
+  },
+  "pullToRefresh": {
+    "pull": "Pull to refresh",
+    "release": "Release to refresh",
+    "refreshing": "Refreshing...",
+    "failed": "Refresh failed. Try again.",
+    "retry": "Retry",
+    "dismiss": "Dismiss"
   }
 }

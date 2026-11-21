@@ -20,6 +20,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import { hapticSelection } from "@/lib/native/haptics";
+import { useHapticsPreference } from "@/hooks/use-haptics-preference";
 
 const THEMES = ["light", "dark", "system"] as const;
 const LANGUAGES = ["id", "en"] as const;
@@ -110,6 +112,7 @@ function DisplayPreferences() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { preferences, setPreference } = useAppearancePreferences();
+  const { enabled: hapticsEnabled, setEnabled: setHapticsEnabled } = useHapticsPreference();
 
   useEffect(() => setMounted(true), []);
 
@@ -198,6 +201,14 @@ function DisplayPreferences() {
           label={t("preferences.animations")}
           checked={preferences.animations}
           onCheckedChange={(checked) => setPreference("animations", checked)}
+        />
+        <PreferenceSwitch
+          label={t("preferences.haptics")}
+          checked={hapticsEnabled}
+          onCheckedChange={(checked) => {
+            setHapticsEnabled(checked);
+            if (checked) void hapticSelection();
+          }}
         />
         <PreferenceChoice
           label={t("preferences.toastPosition")}

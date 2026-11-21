@@ -87,6 +87,7 @@
     },
     "motionAndMessages": "Motion and alerts",
     "animations": "Animations",
+    "haptics": "Haptic feedback",
     "toastPosition": "On-screen alert position",
     "toastPreview": "Notifications will appear here",
     "toastOptions": {
