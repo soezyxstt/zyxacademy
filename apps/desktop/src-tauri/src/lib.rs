@@ -1,9 +1,12 @@
+mod window_state;
+
 use futures_util::StreamExt;
 use serde::Serialize;
 use std::io::Write;
 use tauri::{AppHandle, Emitter, Manager, Url};
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_updater::UpdaterExt;
 
 const SERVER_URL_ENV: &str = "ZYX_DESKTOP_SERVER_URL";
 
@@ -19,6 +22,15 @@ struct AppUpdateInfo {
 #[derive(Serialize, Clone)]
 struct UpdateProgressPayload {
     percent: u8,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NativeUpdaterCheckResult {
+    configured: bool,
+    update_available: bool,
+    version: Option<String>,
+    notes: Option<String>,
 }
 
 fn build_channel() -> &'static str {
@@ -131,6 +143,83 @@ fn get_app_update_info() -> AppUpdateInfo {
         build_id: build_sha(),
         platform: desktop_platform(),
     }
+}
+
+#[tauri::command]
+async fn check_native_updater(app: AppHandle) -> Result<NativeUpdaterCheckResult, String> {
+    let updater = match app.updater() {
+        Ok(updater) => updater,
+        Err(_) => {
+            return Ok(NativeUpdaterCheckResult {
+                configured: false,
+                update_available: false,
+                version: None,
+                notes: None,
+            });
+        }
+    };
+
+    match updater.check().await {
+        Ok(Some(update)) => Ok(NativeUpdaterCheckResult {
+            configured: true,
+            update_available: true,
+            version: Some(update.version),
+            notes: update.body,
+        }),
+        Ok(None) => Ok(NativeUpdaterCheckResult {
+            configured: true,
+            update_available: false,
+            version: None,
+            notes: None,
+        }),
+        Err(err) => Err(format!("Updater check failed: {err}")),
+    }
+}
+
+#[tauri::command]
+async fn install_native_update(app: AppHandle) -> Result<String, String> {
+    let updater = app
+        .updater()
+        .map_err(|_| "NATIVE_UPDATER_UNCONFIGURED".to_string())?;
+    let Some(update) = updater
+        .check()
+        .await
+        .map_err(|e| format!("Failed to check for update: {e}"))?
+    else {
+        return Err("NO_UPDATE_AVAILABLE".to_string());
+    };
+
+    let progress_app = app.clone();
+    let mut downloaded: u64 = 0;
+    let mut last_percent: u8 = 0;
+
+    update
+        .download_and_install(
+            move |chunk_length, content_length| {
+                downloaded = downloaded.saturating_add(chunk_length as u64);
+                if let Some(total) = content_length.filter(|&v| v > 0) {
+                    let percent = ((downloaded.saturating_mul(100)) / total).min(100) as u8;
+                    if percent != last_percent {
+                        last_percent = percent;
+                        let _ = progress_app
+                            .emit("zyx-update-progress", UpdateProgressPayload { percent });
+                    }
+                }
+            },
+            || {},
+        )
+        .await
+        .map_err(|e| format!("Failed to install update: {e}"))?;
+
+    let _ = app.emit("zyx-update-progress", UpdateProgressPayload { percent: 100 });
+
+    let restart_handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        restart_handle.restart();
+    });
+
+    Ok("restarting".to_string())
 }
 
 #[tauri::command]
@@ -304,6 +393,26 @@ fn resolve_deep_link_target(origin: &Url, incoming: &Url, scheme: &str) -> Optio
     Some(target)
 }
 
+fn focus_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+fn extract_deep_link_from_args(args: &[String], scheme: &str) -> Option<Url> {
+    args.iter().find_map(|arg| {
+        let trimmed = arg.trim();
+        let parsed = Url::parse(trimmed).ok()?;
+        if parsed.scheme().eq_ignore_ascii_case(scheme) {
+            Some(parsed)
+        } else {
+            None
+        }
+    })
+}
+
 fn route_deep_link(app: &AppHandle, origin: &Url, incoming: &Url) {
     let Some(target) = resolve_deep_link_target(origin, incoming, deep_link_scheme()) else {
         return;
@@ -320,18 +429,33 @@ fn route_deep_link(app: &AppHandle, origin: &Url, incoming: &Url) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let origin = configured_origin();
+    let single_instance_origin = origin.clone();
     let initial_origin = origin.clone();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(move |app, argv, _cwd| {
+            if let Some(url) = extract_deep_link_from_args(&argv, deep_link_scheme()) {
+                route_deep_link(app, &single_instance_origin, &url);
+            } else {
+                focus_main_window(app);
+            }
+        }))
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
             get_app_update_info,
+            check_native_updater,
+            install_native_update,
             download_and_launch_update
         ])
         .setup(move |app| {
             if let Some(window) = app.get_webview_window("main") {
+                window_state::restore_window_geometry(app.handle(), &window);
+                window_state::attach_window_state_listeners(app.handle().clone(), &window);
+
                 let default_origin =
                     Url::parse(default_server_url()).expect("default server URL must be valid");
                 if initial_origin != default_origin {
@@ -422,5 +546,29 @@ mod tests {
         let origin = Url::parse("https://www.zyxacademy.com").unwrap();
         let link = Url::parse("https://example.com/courses").unwrap();
         assert!(resolve_deep_link_target(&origin, &link, "zyxacademy").is_none());
+    }
+
+    #[test]
+    fn extracts_oauth_deep_link_from_second_instance_argv() {
+        let args = vec![
+            "C:\\Program Files\\Zyx Academy\\zyx-academy-desktop.exe".to_string(),
+            "zyxacademy://auth/native-finish#token=tok_123&state=abc123def4567890&next=%2Fdashboard"
+                .to_string(),
+        ];
+        let extracted = extract_deep_link_from_args(&args, "zyxacademy").unwrap();
+        assert_eq!(extracted.scheme(), "zyxacademy");
+        assert_eq!(extracted.host_str(), Some("auth"));
+        assert_eq!(extracted.path(), "/native-finish");
+        assert_eq!(
+            extracted.fragment(),
+            Some("token=tok_123&state=abc123def4567890&next=%2Fdashboard")
+        );
+
+        // Wrong channel scheme must be ignored
+        assert!(extract_deep_link_from_args(&args, "zyxacademy-nightly").is_none());
+
+        // Plain launch without deep link returns None (will just focus window)
+        let plain = vec!["/usr/bin/zyx-academy-desktop".to_string()];
+        assert!(extract_deep_link_from_args(&plain, "zyxacademy").is_none());
     }
 }

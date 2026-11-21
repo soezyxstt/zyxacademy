@@ -305,23 +305,171 @@ export function selectDownloadUrlForPlatform(
   }
 }
 
-export async function fetchLatestAppRelease(
+export type FetchLatestReleaseResult =
+  | { status: "ok"; release: LatestAppRelease }
+  | { status: "no_release" }
+  | { status: "error"; message: string; httpStatus?: number };
+
+export type NativeUpdaterCheckStatus =
+  | { status: "unconfigured" }
+  | { status: "up_to_date" }
+  | { status: "update_available"; version: string; notes: string | null }
+  | { status: "error"; message: string };
+
+export type UpdateCheckOutcome =
+  | { status: "update_available"; latest: LatestAppRelease; nativeUpdaterReady: boolean }
+  | { status: "up_to_date"; latest: LatestAppRelease | null }
+  | { status: "no_release"; latest: null }
+  | { status: "error"; latest: null; message: string };
+
+export async function checkLatestAppRelease(
   channel: AppUpdateChannel,
-): Promise<LatestAppRelease | null> {
+): Promise<FetchLatestReleaseResult> {
   try {
     const res = await fetch(`/api/app/latest?channel=${encodeURIComponent(channel)}`, {
       cache: "no-store",
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      return {
+        status: "error",
+        message: `HTTP ${res.status}`,
+        httpStatus: res.status,
+      };
+    }
     const data = (await res.json()) as { release?: LatestAppRelease | null };
-    return data.release ?? null;
-  } catch {
-    return null;
+    if (data && data.release) {
+      return { status: "ok", release: data.release };
+    }
+    return { status: "no_release" };
+  } catch (err) {
+    return {
+      status: "error",
+      message: err instanceof Error ? err.message : "Network error",
+    };
   }
+}
+
+export async function fetchLatestAppRelease(
+  channel: AppUpdateChannel,
+): Promise<LatestAppRelease | null> {
+  const result = await checkLatestAppRelease(channel);
+  return result.status === "ok" ? result.release : null;
+}
+
+export async function checkTauriNativeUpdater(): Promise<NativeUpdaterCheckStatus> {
+  if (typeof window === "undefined" || getNativeRuntime() !== "tauri") {
+    return { status: "unconfigured" };
+  }
+  const invoke = getTauri()?.core?.invoke;
+  if (!invoke) {
+    return { status: "unconfigured" };
+  }
+
+  try {
+    const result = await invoke<{
+      configured?: boolean;
+      updateAvailable?: boolean;
+      version?: string | null;
+      notes?: string | null;
+    }>("check_native_updater");
+
+    if (!result?.configured) {
+      return { status: "unconfigured" };
+    }
+    if (result.updateAvailable && result.version) {
+      return {
+        status: "update_available",
+        version: result.version,
+        notes: result.notes ?? null,
+      };
+    }
+    return { status: "up_to_date" };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Older desktop binaries without check_native_updater fall back to release API check
+    if (/not found|unknown command/i.test(msg)) {
+      return { status: "unconfigured" };
+    }
+    return { status: "error", message: msg };
+  }
+}
+
+export function resolveUpdateCheckOutcome(
+  meta: Pick<InstalledAppMeta, "channel" | "version" | "buildId">,
+  releaseResult: FetchLatestReleaseResult,
+  nativeUpdater: NativeUpdaterCheckStatus = { status: "unconfigured" },
+): UpdateCheckOutcome {
+  if (nativeUpdater.status === "update_available") {
+    const latest: LatestAppRelease =
+      releaseResult.status === "ok"
+        ? releaseResult.release
+        : {
+            channel: meta.channel,
+            tag: `app-v${nativeUpdater.version}`,
+            version: nativeUpdater.version,
+            buildId: null,
+            publishedAt: null,
+            releaseUrl: "https://github.com/soezyxstt/zyxacademy/releases",
+            downloads: {
+              android: null,
+              windows: null,
+              macos: null,
+              linuxDeb: null,
+              linuxAppImage: null,
+            },
+          };
+    return {
+      status: "update_available",
+      latest,
+      nativeUpdaterReady: true,
+    };
+  }
+
+  if (releaseResult.status === "ok") {
+    if (isUpdateAvailable(meta, releaseResult.release)) {
+      return {
+        status: "update_available",
+        latest: releaseResult.release,
+        nativeUpdaterReady: false,
+      };
+    }
+    return {
+      status: "up_to_date",
+      latest: releaseResult.release,
+    };
+  }
+
+  if (nativeUpdater.status === "up_to_date") {
+    return {
+      status: "up_to_date",
+      latest: null,
+    };
+  }
+
+  if (releaseResult.status === "no_release") {
+    if (nativeUpdater.status === "error") {
+      return {
+        status: "error",
+        latest: null,
+        message: nativeUpdater.message,
+      };
+    }
+    return {
+      status: "no_release",
+      latest: null,
+    };
+  }
+
+  return {
+    status: "error",
+    latest: null,
+    message: releaseResult.message,
+  };
 }
 
 export type InstallUpdateOutcome =
   | { status: "started" }
+  | { status: "restarting" }
   | { status: "permission_required" }
   | { status: "opened_external" }
   | { status: "error"; message: string };
@@ -330,6 +478,7 @@ export async function installAppUpdate(
   meta: InstalledAppMeta,
   release: LatestAppRelease,
   onProgress?: (percent: number) => void,
+  options?: { preferNativeUpdater?: boolean },
 ): Promise<InstallUpdateOutcome> {
   const downloadUrl = selectDownloadUrlForPlatform(release, meta.platform);
 
@@ -372,7 +521,7 @@ export async function installAppUpdate(
 
   if (meta.runtime === "tauri") {
     const tauri = getTauri();
-    if (downloadUrl && tauri?.core?.invoke) {
+    if (tauri?.core?.invoke) {
       let unlisten: (() => void) | null = null;
       try {
         if (tauri.event?.listen && onProgress) {
@@ -385,8 +534,27 @@ export async function installAppUpdate(
             },
           );
         }
-        await tauri.core.invoke("download_and_launch_update", { url: downloadUrl });
-        return { status: "started" };
+
+        if (options?.preferNativeUpdater) {
+          try {
+            await tauri.core.invoke("install_native_update");
+            return { status: "restarting" };
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            const isFallback =
+              msg.includes("NATIVE_UPDATER_UNCONFIGURED") ||
+              msg.includes("NO_UPDATE_AVAILABLE") ||
+              /not found|unknown command/i.test(msg);
+            if (!isFallback) {
+              return { status: "error", message: msg };
+            }
+          }
+        }
+
+        if (downloadUrl) {
+          await tauri.core.invoke("download_and_launch_update", { url: downloadUrl });
+          return { status: "started" };
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         return { status: "error", message: msg };

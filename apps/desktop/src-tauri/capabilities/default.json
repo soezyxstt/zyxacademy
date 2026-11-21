@@ -13,6 +13,8 @@
     "core:default",
     "notification:default",
     "opener:default",
-    "deep-link:default"
+    "deep-link:default",
+    "process:default",
+    "updater:default"
   ]
 }
