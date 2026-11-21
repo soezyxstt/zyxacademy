@@ -83,6 +83,17 @@ public class ZyxAppUpdaterPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void getAppCapabilities(PluginCall call) {
+        Context context = getContext();
+        int googleAppId = context
+            .getResources()
+            .getIdentifier("google_app_id", "string", context.getPackageName());
+        JSObject result = new JSObject();
+        result.put("fcmConfigured", googleAppId != 0);
+        call.resolve(result);
+    }
+
+    @PluginMethod
     public void downloadAndInstall(PluginCall call) {
         String downloadUrl = call.getString("url", "");
         if (!isAllowedDownloadUrl(downloadUrl)) {

@@ -126,7 +126,7 @@ fn is_allowed_redirect_host(host: &str) -> bool {
 #[tauri::command]
 fn get_app_update_info() -> AppUpdateInfo {
     AppUpdateInfo {
-        version: env!("CARGO_PKG_VERSION"),
+        version: env!("ZYX_BUILD_VERSION"),
         channel: build_channel(),
         build_id: build_sha(),
         platform: desktop_platform(),

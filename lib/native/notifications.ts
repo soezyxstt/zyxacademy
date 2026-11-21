@@ -32,11 +32,30 @@ async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Prom
   }
 }
 
+async function isCapacitorFcmConfigured(): Promise<boolean> {
+  const cap = getCapacitor();
+  if (!cap) return false;
+  if (cap.getPlatform?.() === "ios") return true;
+  const updater = cap.Plugins?.ZyxAppUpdater;
+  if (!updater?.getAppCapabilities) {
+    // Older Android builds without google-services.json will crash inside
+    // FirebaseMessaging.getInstance() if PushNotifications.register() is called.
+    return false;
+  }
+  try {
+    const caps = await updater.getAppCapabilities();
+    return caps?.fcmConfigured === true;
+  } catch {
+    return false;
+  }
+}
+
 export function isNotificationBridgeSupported(): boolean {
   if (typeof window === "undefined") return false;
   const runtime = getNativeRuntime();
   if (runtime === "capacitor") {
-    return Boolean(getCapacitor()?.Plugins?.PushNotifications);
+    const plugins = getCapacitor()?.Plugins;
+    return Boolean(plugins?.LocalNotifications || plugins?.PushNotifications);
   }
   if (runtime === "tauri") {
     return Boolean(getTauri()?.notification || getTauri()?.core?.invoke);
@@ -49,7 +68,18 @@ export async function getUnifiedNotificationPermission(): Promise<UnifiedNotific
   const runtime = getNativeRuntime();
 
   if (runtime === "capacitor") {
-    const plugin = getCapacitor()?.Plugins?.PushNotifications;
+    const plugins = getCapacitor()?.Plugins;
+    if (plugins?.LocalNotifications) {
+      try {
+        const status = await plugins.LocalNotifications.checkPermissions();
+        if (status.display === "granted") return "granted";
+        if (status.display === "denied") return "denied";
+        return "default";
+      } catch {
+        // Fall through to PushNotifications checkPermissions
+      }
+    }
+    const plugin = plugins?.PushNotifications;
     if (!plugin) return "unsupported";
     try {
       const status = await plugin.checkPermissions();
@@ -88,7 +118,18 @@ export async function requestUnifiedNotificationPermission(): Promise<UnifiedNot
   const runtime = getNativeRuntime();
 
   if (runtime === "capacitor") {
-    const plugin = getCapacitor()?.Plugins?.PushNotifications;
+    const plugins = getCapacitor()?.Plugins;
+    if (plugins?.LocalNotifications) {
+      try {
+        const status = await plugins.LocalNotifications.requestPermissions();
+        if (status.display === "granted") return "granted";
+        if (status.display === "denied") return "denied";
+        return "default";
+      } catch {
+        // Fall through to PushNotifications requestPermissions
+      }
+    }
+    const plugin = plugins?.PushNotifications;
     if (!plugin) return "unsupported";
     try {
       const status = await plugin.requestPermissions();
@@ -186,6 +227,9 @@ export async function registerUnifiedPushToken(
   const runtime = getNativeRuntime();
 
   if (runtime === "capacitor") {
+    if (!(await isCapacitorFcmConfigured())) {
+      return false;
+    }
     const token = await waitForCapacitorPushToken();
     if (!token || !isCurrent()) return false;
     const { shouldRegisterPushToken, markPushTokenRegistered } = await import("@/lib/firebase/messaging");
@@ -239,6 +283,7 @@ export async function subscribeNativeNotifications(handlers: {
   const runtime = getNativeRuntime();
 
   if (runtime === "capacitor") {
+    if (!(await isCapacitorFcmConfigured())) return () => {};
     const plugin = getCapacitor()?.Plugins?.PushNotifications;
     if (!plugin) return () => {};
     const handles: CapacitorPluginListenerHandle[] = [];

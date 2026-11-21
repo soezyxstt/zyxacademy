@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import type { CapacitorConfig } from "@capacitor/cli";
 
 type AppChannel = "nightly" | "stable";
@@ -49,9 +50,24 @@ function detectBuildId(): string {
   }
 }
 
+function detectAppVersion(): string {
+  const explicit = process.env.ZYX_APP_VERSION?.trim().replace(/^v/i, "");
+  if (explicit) return explicit;
+  try {
+    const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as {
+      version?: string;
+    };
+    if (pkg.version?.trim()) return pkg.version.trim();
+  } catch {
+    // Fallback below
+  }
+  return "0.1.0-alpha.2";
+}
+
 const channel = resolveChannel();
 const isNightly = channel === "nightly";
 const buildId = detectBuildId();
+const appVersion = detectAppVersion();
 
 const defaultServerUrl = isNightly
   ? "https://staging.zyxacademy.com"
@@ -88,10 +104,10 @@ const config: CapacitorConfig = {
     allowMixedContent: false,
     adjustMarginsForEdgeToEdge: "disable",
     flavor: channel,
-    appendUserAgent: `ZyxMobileApp/0.1.0-alpha.1 (Capacitor; ${channel}; build=${buildId})`,
+    appendUserAgent: `ZyxMobileApp/${appVersion} (Capacitor; ${channel}; build=${buildId})`,
   },
   ios: {
-    appendUserAgent: `ZyxMobileApp/0.1.0-alpha.1 (Capacitor; ${channel}; build=${buildId})`,
+    appendUserAgent: `ZyxMobileApp/${appVersion} (Capacitor; ${channel}; build=${buildId})`,
     contentInset: "automatic",
   },
 };
