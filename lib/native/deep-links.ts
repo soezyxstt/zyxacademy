@@ -190,6 +190,39 @@ export function createDeepLinkDedupeTracker(dedupeWindowMs = 3_000): DeepLinkDed
   };
 }
 
+const HANDLED_LAUNCH_URL_STORAGE_KEY = "zyx:native-handled-launch-url";
+let handledColdStartLaunchUrl: string | null = null;
+
+function readHandledLaunchUrl(): string | null {
+  if (handledColdStartLaunchUrl) return handledColdStartLaunchUrl;
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage?.getItem(HANDLED_LAUNCH_URL_STORAGE_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function markLaunchUrlHandled(rawUrl: string): void {
+  handledColdStartLaunchUrl = rawUrl;
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage?.setItem(HANDLED_LAUNCH_URL_STORAGE_KEY, rawUrl);
+  } catch {
+    // Ignore storage access errors in restricted WebViews.
+  }
+}
+
+export function resetHandledLaunchUrlForTest(): void {
+  handledColdStartLaunchUrl = null;
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage?.removeItem(HANDLED_LAUNCH_URL_STORAGE_KEY);
+  } catch {
+    // Ignore storage access errors.
+  }
+}
+
 export async function subscribeNativeDeepLinks(handlers: {
   onAuthFinish: (path: string) => void;
   onAppRoute: (path: string) => void;
@@ -233,7 +266,8 @@ export async function subscribeNativeDeepLinks(handlers: {
 
     if (typeof appPlugin.getLaunchUrl === "function") {
       const launch = await appPlugin.getLaunchUrl().catch(() => null);
-      if (!disposed && launch?.url) {
+      if (!disposed && launch?.url && readHandledLaunchUrl() !== launch.url) {
+        markLaunchUrlHandled(launch.url);
         dispatchUrl(launch.url);
       }
     }

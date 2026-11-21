@@ -345,9 +345,11 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
   }
 
   const addFilesRef = useRef(addFiles);
-  addFilesRef.current = addFiles;
   const updateRef = useRef(update);
-  updateRef.current = update;
+  useEffect(() => {
+    addFilesRef.current = addFiles;
+    updateRef.current = update;
+  });
 
   useEffect(() => {
     if (!channelId || !onUpload) return;

@@ -140,6 +140,15 @@ export const env = createEnv({
   SENTRY_OTLP_TRACES_URL: z.string().url().optional(),
   /** Sentry Vercel log drain endpoint */
   SENTRY_VERCEL_LOG_DRAIN_URL: z.string().url().optional(),
+  // Mobile App Links / Universal Links
+  /** Comma-separated SHA-256 certificate fingerprints for stable Android App Links */
+  ANDROID_APP_LINKS_SHA256_FINGERPRINTS: z.string().optional(),
+  /** Comma-separated SHA-256 certificate fingerprints for nightly Android App Links */
+  ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS: z.string().optional(),
+  /** Comma-separated Apple App Site Association appIDs (TEAMID.bundleId) */
+  APPLE_APP_SITE_ASSOCIATION_APP_IDS: z.string().optional(),
+  /** 10-character Apple Developer Team ID for Universal Links */
+  APPLE_APP_SITE_ASSOCIATION_TEAM_ID: z.string().optional(),
   },
  client: {
  /** Absolute origin for better-auth client (e.g. https://app.example.com). Falls back for local dev. */
@@ -249,5 +258,10 @@ export const env = createEnv({
   SENTRY_PUBLIC_KEY: process.env.SENTRY_PUBLIC_KEY,
   SENTRY_OTLP_TRACES_URL: process.env.SENTRY_OTLP_TRACES_URL,
   SENTRY_VERCEL_LOG_DRAIN_URL: process.env.SENTRY_VERCEL_LOG_DRAIN_URL,
+  // Mobile App Links / Universal Links
+  ANDROID_APP_LINKS_SHA256_FINGERPRINTS: process.env.ANDROID_APP_LINKS_SHA256_FINGERPRINTS,
+  ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS: process.env.ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS,
+  APPLE_APP_SITE_ASSOCIATION_APP_IDS: process.env.APPLE_APP_SITE_ASSOCIATION_APP_IDS,
+  APPLE_APP_SITE_ASSOCIATION_TEAM_ID: process.env.APPLE_APP_SITE_ASSOCIATION_TEAM_ID,
   },
 });

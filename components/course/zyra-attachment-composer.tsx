@@ -193,9 +193,11 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
   }, [addPreparedFiles]);
 
   const getDraftBodyRef = React.useRef(getDraftBody);
-  getDraftBodyRef.current = getDraftBody;
   const onRestoreDraftBodyRef = React.useRef(onRestoreDraftBody);
-  onRestoreDraftBodyRef.current = onRestoreDraftBody;
+  React.useEffect(() => {
+    getDraftBodyRef.current = getDraftBody;
+    onRestoreDraftBodyRef.current = onRestoreDraftBody;
+  }, [getDraftBody, onRestoreDraftBody]);
 
   const openCameraDialog = React.useCallback(() => {
     if (disabled) return;

@@ -19,6 +19,7 @@ import {
   createDeepLinkDedupeTracker,
   isSupportedAppDeepLinkPath,
   parseNativeDeepLink,
+  resetHandledLaunchUrlForTest,
   resolveDeepLinkNavigationPath,
   subscribeNativeDeepLinks,
 } from "@/lib/native/deep-links";
@@ -501,6 +502,15 @@ describe("Item #7: Direct deep links, safe redirects, and .well-known config", (
     expect(authRoutes).toEqual([]);
     expect(appRoutes).toEqual(["/sign-in?next=%2Fcalendar%3Fdate%3D2026-11-22"]);
     unsub();
+
+    // Remounting subscribeNativeDeepLinks later must NOT re-navigate to the same cold-start getLaunchUrl()
+    const unsub2 = await subscribeNativeDeepLinks({
+      onAuthFinish: (path) => authRoutes.push(path),
+      onAppRoute: (path) => appRoutes.push(path),
+    });
+    expect(appRoutes).toEqual(["/sign-in?next=%2Fcalendar%3Fdate%3D2026-11-22"]);
+    unsub2();
+    resetHandledLaunchUrlForTest();
   });
 
   test("builds valid Android assetlinks.json and Apple AASA payloads", () => {
@@ -544,6 +554,7 @@ describe("Item #7: Direct deep links, safe redirects, and .well-known config", (
     expect(manifest).toContain('android:pathPrefix="/courses"');
     expect(manifest).toContain('android:pathPrefix="/discussions"');
     expect(manifest).toContain('android:pathPrefix="/calendar"');
+    expect(manifest).toContain('android:pathPattern="/tutor/.*/discussions.*"');
     expect(manifest).toContain('android:pathPrefix="/tutor/schedule"');
 
     const entitlements = readFileSync(

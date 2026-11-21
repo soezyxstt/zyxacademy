@@ -118,28 +118,32 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
     prevQuestionId.current = props.selectedQuestionId;
   }, [props.selectedQuestionId, setNewOpen]);
 
+  const { viewer, channels, selectedQuestionId, onSelectQuestion } = props;
+
   useEffect(() => {
     const restoreComposerIfNeeded = () => {
       const pending = peekRestoredCameraPayload(
-        (target) => target.surface === "discussion" && target.viewerId === props.viewer.id,
+        (target) => target.surface === "discussion" && target.viewerId === viewer.id,
       );
       if (!pending || pending.target.surface !== "discussion") return;
-      if (pending.target.mode === "new") {
-        const matched = props.channels.find((item) => item.id === pending.target.channelId && item.canCreate);
+      const target = pending.target;
+      if (target.mode === "new") {
+        const targetChannelId = target.channelId;
+        const matched = channels.find((item) => item.id === targetChannelId && item.canCreate);
         if (matched) {
           setNewChannel(matched);
           setNewOpen(true);
         }
-      } else if (pending.target.mode === "reply" && props.selectedQuestionId !== pending.target.questionId) {
+      } else if (target.mode === "reply" && selectedQuestionId !== target.questionId) {
         setNewOpen(false);
-        props.onSelectQuestion(pending.target.questionId);
+        onSelectQuestion(target.questionId);
       }
     };
 
     restoreComposerIfNeeded();
     window.addEventListener(ZYX_CAMERA_RESTORED_EVENT, restoreComposerIfNeeded);
     return () => window.removeEventListener(ZYX_CAMERA_RESTORED_EVENT, restoreComposerIfNeeded);
-  }, [props.channels, props.onSelectQuestion, props.selectedQuestionId, props.viewer.id, setNewChannel, setNewOpen]);
+  }, [channels, onSelectQuestion, selectedQuestionId, viewer.id, setNewChannel, setNewOpen]);
 
   function updateDraft(key: string, change: (draft: ComposerDraft) => ComposerDraft) {
     setDrafts((current) => ({ ...current, [key]: change(current[key] ?? emptyComposerDraft()) }));
