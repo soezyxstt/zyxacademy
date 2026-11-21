@@ -1426,5 +1426,33 @@ export const operationsCatalog = [
     ],
     "status": "partial",
     "reason": "Related MCP operations are implemented; this source may contain additional UI actions. See docs/operations/admin-mcp.md for exact supported boundaries."
+  },
+  {
+    "source": "app/(admin)/admin/docs/page.tsx",
+    "actions": [],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Documentation navigation is available in the Admin UI."
+  },
+  {
+    "source": "app/(admin)/admin/docs/[slug]/page.tsx",
+    "actions": [],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Documentation reading is available in the Admin UI."
+  },
+  {
+    "source": "app/(admin)/admin/discussions/page.tsx",
+    "actions": [],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Discussion moderation and replies use the Admin UI."
+  },
+  {
+    "source": "app/(admin)/admin/ops/models/page.tsx",
+    "actions": [],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Model configuration uses the Admin UI. Feature flag reads do not cover model settings."
   }
 ] as const;

@@ -39,7 +39,7 @@ class PluginDistributionTest(unittest.TestCase):
         release = ce.load_release_metadata(self.source_copy)
         self.assertEqual(tuple(release["skills"]), original + focused)
         self.assertEqual(ce.EXPECTED_SKILLS, original + focused)
-        self.assertEqual(release["version"], "0.5.0")
+        self.assertEqual(release["version"], "0.5.1")
         self.assertEqual(release["bootstrapProtocol"], 1)
         self.assertEqual(release["minCompatibleVersion"], "0.2.0")
         server_source = (self.repo_plugin_root.parent.parent / "lib/authoring/mcp-playbook.ts").read_text(encoding="utf-8")
@@ -147,11 +147,11 @@ class PluginDistributionTest(unittest.TestCase):
             summary_a = ce.configure_plugin(self.source_copy, env_name, output_dir=out_a)
             summary_b = ce.configure_plugin(self.source_copy, env_name, output_dir=out_b)
             self.assertEqual(summary_a["payloadHash"], summary_b["payloadHash"])
-            self.assertEqual(summary_a["version"], "0.5.0")
+            self.assertEqual(summary_a["version"], "0.5.1")
             self.assertEqual(summary_a["bootstrapProtocol"], 1)
             for skill in ce.EXPECTED_SKILLS:
                 content = (out_a / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
-                self.assertIn('"pluginVersion": "0.5.0"', content)
+                self.assertIn('"pluginVersion": "0.5.1"', content)
                 self.assertNotIn('"pluginVersion": "0.4.1"', content)
 
             cfg = ce.ENVIRONMENTS[env_name]

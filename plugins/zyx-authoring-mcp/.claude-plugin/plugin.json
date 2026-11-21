@@ -1,7 +1,7 @@
 {
   "name": "zyx-authoring-mcp-staging",
-  "version": "0.5.0",
-  "description": "Zyx staging MCP workflows",
+  "version": "0.5.1",
+  "description": "Zyx staging content and ops",
   "author": {
     "name": "Zyx Academy"
   },

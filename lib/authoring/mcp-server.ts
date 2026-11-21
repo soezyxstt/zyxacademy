@@ -4547,7 +4547,7 @@ export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: st
       capabilities: { tools: {} },
       instructions:
         `Koneksi ini adalah ${identity.environment} di ${identity.origin}. ` +
-        "Sebelum operasi admin, panggil admin.environment dan cocokkan dengan target yang diminta pengguna. Jika target belum disebutkan, pastikan target dahulu; jangan memilih production secara default. Jangan substitusi staging dan production. Operasi data wajib menyebut expectedEnvironment dan expectedOrigin. Operasi admin memakai scope eksplisit; baca revisi target dan siapkan dryRun sebelum mutasi. Untuk authoring, panggil workflow.get_playbook sebelum memulai authoring, setiap berpindah tahap, dan saat melanjutkan run untuk mengambil playbook terbaru serta bootstrapToken bertanda tangan.",
+        "Sebelum operasi admin, panggil admin.environment dan cocokkan dengan target yang diminta pengguna. Jika target belum disebutkan, pastikan target dahulu; jangan memilih production secara default. Jangan substitusi staging dan production. Operasi data wajib menyebut expectedEnvironment dan expectedOrigin. Baca admin.capabilities untuk menemukan operasi dan scope yang tersedia. Periksa admin.operation_receipt atau status job jika hasil operasi belum pasti. Untuk revisi konten tersimpan, gunakan alur authoring.get_edit_context. Operasi admin memakai scope eksplisit; baca revisi target dan siapkan dryRun sebelum mutasi. Untuk authoring, panggil workflow.get_playbook sebelum memulai authoring, setiap berpindah tahap, dan saat melanjutkan run untuk mengambil playbook terbaru serta bootstrapToken bertanda tangan.",
     },
   );
   server.registerTool("admin.environment", {
