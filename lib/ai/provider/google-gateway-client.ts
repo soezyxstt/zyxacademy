@@ -19,7 +19,8 @@ export function googleGatewayClient(
   if (!metadata["cf-aig-cache-key"]) headers["cf-aig-skip-cache"] = "true";
   const client = new GoogleGenAI({
     apiKey, vertexai: false,
-    httpOptions: { baseUrl, timeout, retryOptions: { attempts: 1 }, headers },
+    // Omitting retryOptions sends once and preserves SDK HTTP status errors.
+    httpOptions: { baseUrl, timeout, headers },
   });
   // The Interactions transport drops SDK-level headers. Supply them per call.
   const interactions = client.interactions;

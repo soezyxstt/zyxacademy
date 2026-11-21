@@ -44,6 +44,14 @@ check; individual conditional jobs may legitimately be skipped. The specialized
 Authoring access security checks and migration-only Neon validation from staging
 retain their existing triggers and environment boundaries.
 
+Staging CI validates changes automatically but never starts web or Neon worker
+deployments. Use Actions > Run workflow with branch `staging`: select
+`deploy-cloud-run-staging.yml` for web releases, or `deploy-neon-worker.yml` with
+`environment=staging` for workers. The existing manual `deploy.yml` worker entry
+point also remains available. Keep environment reviewer approval and coordinate
+matching web and worker revisions before promotion. The automatic production
+paths below still apply only to `main` pushes.
+
 The first job runs `scripts/ci/plan.py` with Python's standard library. It installs
 no application packages. Checkout uses two commits; a multi-commit push fetches
 only the exact base SHA when needed. PR comparisons use the target base and the
@@ -61,14 +69,14 @@ planner instead of returning an empty plan.
 
 | Changed input | Selected work |
 | --- | --- |
-| Ordinary frontend component | Application typecheck, lint changed files, tests and test compilation affected through imports; web release on push |
-| Worker-only entry or module | Deno dependency audit, typecheck and asset smoke on PR; worker release on push; no web release unless the file is also a web dependency |
-| V4 renderer or fingerprinted CSS | V4 binding/verification contracts; coordinated web and worker releases on push; worker import checks only if worker code is also affected |
+| Ordinary frontend component | Application typecheck, lint changed files, tests and test compilation affected through imports; web release on main push |
+| Worker-only entry or module | Deno dependency audit, typecheck and asset smoke on PR; worker release on main push; no web release unless the file is also a web dependency |
+| V4 renderer or fingerprinted CSS | V4 binding/verification contracts; coordinated web and worker releases on main push; worker import checks only if worker code is also affected |
 | Schedule implementation or dependency | Schedule contracts and booking integration, including dependencies such as tutor audit helpers |
 | Authoring implementation or dependency | Both locked skills distributions and authoring contracts |
 | Plugin distribution | Python distribution checks; mirroring still requires the explicit manual plugin operation |
 | Another worker project | Its own TypeScript configuration and local Bun tests; Python runtime gets Node syntax checks; no background-worker or web deployment by directory alone |
-| Documentation | Web release for operations knowledge; no compiler checks from prose alone |
+| Documentation | Web release for operations knowledge on main push; no compiler checks from prose alone |
 | Plans or Android files | Planner and gate only, unless a code graph actually references the changed file |
 | Root dependency locks or planner implementation | All checks, conservatively |
 
