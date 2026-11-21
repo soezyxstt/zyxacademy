@@ -12,7 +12,7 @@ import { and, eq, gte, inArray, or } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { bookings, courses, groupMembers, tutorSlots, user } from "@/db/schema";
-import { getJakartaNow } from "@/lib/date-utils";
+import { getJakartaCalendarDate } from "@/lib/date-utils";
 
 export async function GET() {
   const reqHeaders = await headers();
@@ -22,7 +22,7 @@ export async function GET() {
   }
 
   const userId = session.user.id;
-  const todayIso = getJakartaNow().toISOString().slice(0, 10);
+  const todayIso = getJakartaCalendarDate();
 
   try {
     const memberships = await db

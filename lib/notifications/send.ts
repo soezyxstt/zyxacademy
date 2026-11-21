@@ -214,7 +214,7 @@ async function sendToTargets(
 
 /** Sends an already rendered payload without creating an inbox row. */
 export async function sendPushToUser(userId: string, renderedPayload: NotificationPayload): Promise<SendResult> {
- const hasTransportColumn = Boolean((userPushTokens as Record<string, unknown>).transport);
+ const hasTransportColumn = Boolean((userPushTokens as unknown as Record<string, unknown>).transport);
  const rows: PushTokenTarget[] = hasTransportColumn
   ? await db
     .select({ token: userPushTokens.token, transport: userPushTokens.transport })
@@ -236,7 +236,7 @@ export async function sendPushToUsers(items: { userId: string; payload: Notifica
  if (!items.length) return results;
  const ids = items.map(item => item.userId);
  if (items.length > 10 || new Set(ids).size !== ids.length) throw new Error("INVALID_PUSH_RECIPIENT_BATCH");
- const hasTransportColumn = Boolean((userPushTokens as Record<string, unknown>).transport);
+ const hasTransportColumn = Boolean((userPushTokens as unknown as Record<string, unknown>).transport);
  const rows = (await db.execute<{ id: string; userId: string; token: string; transport?: string }>(
   hasTransportColumn
    ? sql`

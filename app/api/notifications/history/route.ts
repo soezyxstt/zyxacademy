@@ -15,7 +15,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
-import { eq, desc, and, gt, sql } from "drizzle-orm";
+import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { notificationVisibility } from "@/lib/notifications/discussion-history";
 import { discussionNotificationLink } from "@/lib/notifications/templates";
 
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
       rowsConditions.push(eq(notifications.read, false));
     }
     if (validSince) {
-      rowsConditions.push(gt(notifications.createdAt, validSince));
+      rowsConditions.push(gte(notifications.createdAt, validSince));
     }
 
     const rowsQuery = db

@@ -15,7 +15,7 @@ test("weeks load on demand and a mutation prevents an older request from restori
     react: { useCallback: (fn: unknown) => fn, useMemo: (fn: () => unknown) => fn(), useEffect: (fn: () => void) => effects.push(fn), useRef: (value: unknown) => { const ref = { current: value }; refs.push(ref); return ref; }, useState: (value: unknown) => { const index = stateIndex++; return [[payload, 0, false][index] ?? value, (next: unknown) => { if (index === 0) committed.push(next); }]; } },
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "next/navigation": { useSearchParams: () => new URLSearchParams() },
-    "@/lib/i18n/client": { useTranslations: () => (key: string) => key },
+    "@/lib/i18n/client": { useTranslations: () => (key: string) => key, useAppLocale: () => ({ locale: "id" }) },
     "@/components/student-experience-provider": { useStudentExperience: () => ({ mode: "full" }) },
     "@/components/demo/use-demo-community": { useDemoCommunity: () => ({ scope: { courseId: "demo", revision: 1 }, state: {} }) },
     "./actions": { getScheduleData: (offset: number, courseId?: string) => new Promise(resolve => requests.push({ offset, courseId, resolve })) },
@@ -29,7 +29,8 @@ test("weeks load on demand and a mutation prevents an older request from restori
   const tree = module.exports.StudentScheduleClient({ selectedCourse: { id: "canonical-a", title: "A", compatibleCourseIds: ["canonical-a", "legacy-a"] } });
   const cache = refs[1].current as Map<number, any>;
   cache.set(4, { stale: true });
-  effects.at(-1)!();
+  // Invoke the week-loader effect (effects[0] syncs tRef, effects[1] calls fetchData(weekOffset)).
+  effects[1]!();
   expect(requests.map(row => [row.offset, row.courseId])).toEqual([[0, "canonical-a"]]);
   const booking = tree.props.children.find((child: any) => child?.type === "booking");
   const saved = booking.props.onSuccess({ bookingId: "new", pendingResources: [] });

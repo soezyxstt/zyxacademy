@@ -189,6 +189,7 @@ export function resetApnsJwtCacheForTests(): void {
 
 export function buildApnsPayload(payload: NotificationPayload): Record<string, unknown> {
   return {
+    ...(payload.metadata ?? {}),
     aps: {
       alert: {
         title: payload.title,
@@ -198,40 +199,76 @@ export function buildApnsPayload(payload: NotificationPayload): Record<string, u
     },
     type: payload.type,
     url: payload.link ?? "/dashboard",
-    ...(payload.metadata ?? {}),
   };
 }
 
-async function sendSingleApnsHttp2(input: ApnsRequestInput): Promise<ApnsResponse> {
+const APNS_MAX_CONCURRENCY = 20;
+const APNS_REQUEST_TIMEOUT_MS = 10_000;
+
+function sendApnsOnSession(
+  client: http2.ClientHttp2Session,
+  input: ApnsRequestInput,
+): Promise<ApnsResponse> {
+  if (client.closed || client.destroyed) {
+    return Promise.reject(new Error("APNs HTTP/2 session is closed"));
+  }
+
   return new Promise<ApnsResponse>((resolve, reject) => {
-    const client = http2.connect(input.host);
     let settled = false;
+    let req: http2.ClientHttp2Stream | null = null;
+
+    const cleanup = () => {
+      client.off("error", onSessionError);
+      client.off("goaway", onSessionGoaway);
+      client.off("close", onSessionClose);
+    };
 
     const finish = (err: unknown, res?: ApnsResponse) => {
       if (settled) return;
       settled = true;
-      client.close();
+      cleanup();
       if (err) reject(err);
       else resolve(res ?? { status: 500, reason: "UnknownError" });
     };
 
-    client.on("error", (err) => finish(err));
+    const onSessionError = (err: unknown) => {
+      client.destroy();
+      finish(err instanceof Error ? err : new Error(String(err)));
+    };
+    const onSessionGoaway = () => {
+      client.destroy();
+      finish(new Error("APNs HTTP/2 session received GOAWAY"));
+    };
+    const onSessionClose = () => {
+      finish(new Error("APNs HTTP/2 session closed unexpectedly"));
+    };
 
-    const req = client.request({
-      ":method": "POST",
-      ":path": `/3/device/${encodeURIComponent(input.deviceToken)}`,
-      authorization: `bearer ${input.jwt}`,
-      "apns-topic": input.bundleId,
-      "apns-push-type": "alert",
-      "apns-priority": "10",
-      "content-type": "application/json",
-    });
+    client.once("error", onSessionError);
+    client.once("goaway", onSessionGoaway);
+    client.once("close", onSessionClose);
+
+    try {
+      req = client.request({
+        ":method": "POST",
+        ":path": `/3/device/${encodeURIComponent(input.deviceToken)}`,
+        authorization: `bearer ${input.jwt}`,
+        "apns-topic": input.bundleId,
+        "apns-push-type": "alert",
+        "apns-priority": "10",
+        "content-type": "application/json",
+      });
+    } catch (err) {
+      client.destroy();
+      finish(err);
+      return;
+    }
 
     let status = 500;
     const chunks: Buffer[] = [];
 
-    req.setTimeout(10_000, () => {
-      req.close(http2.constants.NGHTTP2_CANCEL);
+    req.setTimeout(APNS_REQUEST_TIMEOUT_MS, () => {
+      req?.close(http2.constants.NGHTTP2_CANCEL);
+      client.destroy();
       finish(new Error("APNs request timed out"));
     });
 
@@ -244,7 +281,14 @@ async function sendSingleApnsHttp2(input: ApnsRequestInput): Promise<ApnsRespons
       chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
     });
 
-    req.on("error", (err) => finish(err));
+    req.on("aborted", () => {
+      finish(new Error("APNs request aborted"));
+    });
+
+    req.on("error", (err) => {
+      client.destroy();
+      finish(err);
+    });
 
     req.on("end", () => {
       let reason: string | undefined;
@@ -259,8 +303,56 @@ async function sendSingleApnsHttp2(input: ApnsRequestInput): Promise<ApnsRespons
       finish(null, { status, reason });
     });
 
+    req.on("close", () => {
+      if (!settled) {
+        finish(new Error("APNs stream closed before response completed"));
+      }
+    });
+
     req.end(input.payloadJson);
   });
+}
+
+function createApnsHttp2BatchSession(host: string) {
+  let client: http2.ClientHttp2Session | null = null;
+  let hadSessionError = false;
+
+  const ensureClient = (): http2.ClientHttp2Session => {
+    if (!client || client.closed || client.destroyed) {
+      client = http2.connect(host);
+      client.setMaxListeners(APNS_MAX_CONCURRENCY + 16);
+      client.on("error", () => {
+        hadSessionError = true;
+        client?.destroy();
+      });
+      client.on("goaway", () => {
+        hadSessionError = true;
+        client?.destroy();
+      });
+    }
+    return client;
+  };
+
+  return {
+    send: async (input: ApnsRequestInput): Promise<ApnsResponse> => {
+      const activeClient = ensureClient();
+      try {
+        return await sendApnsOnSession(activeClient, input);
+      } catch (err) {
+        hadSessionError = true;
+        throw err;
+      }
+    },
+    close: () => {
+      if (!client) return;
+      if (hadSessionError) {
+        client.destroy();
+      } else if (!client.closed && !client.destroyed) {
+        client.close();
+      }
+      client = null;
+    },
+  };
 }
 
 export async function sendApnsNotifications(
@@ -270,6 +362,7 @@ export async function sendApnsNotifications(
     config?: ApnsConfig | null;
     sendRequest?: ApnsRequestSender;
     nowSeconds?: number;
+    concurrency?: number;
   },
 ): Promise<ApnsSendResult> {
   if (tokens.length === 0) {
@@ -300,14 +393,19 @@ export async function sendApnsNotifications(
 
   const host = config.useSandbox ? APNS_SANDBOX_HOST : APNS_PRODUCTION_HOST;
   const payloadJson = JSON.stringify(buildApnsPayload(payload));
-  const sendRequest = deps?.sendRequest ?? sendSingleApnsHttp2;
+  const batchSession = deps?.sendRequest ? null : createApnsHttp2BatchSession(host);
+  const sendRequest: ApnsRequestSender = deps?.sendRequest ?? ((input) => batchSession!.send(input));
+  const maxConcurrency = Math.max(1, Math.min(deps?.concurrency ?? APNS_MAX_CONCURRENCY, tokens.length));
 
   let succeeded = 0;
   const failedTokens: string[] = [];
   const errors: string[] = [];
+  let nextIndex = 0;
 
-  await Promise.all(
-    tokens.map(async (deviceToken) => {
+  const runWorker = async () => {
+    while (nextIndex < tokens.length) {
+      const currentIndex = nextIndex++;
+      const deviceToken = tokens[currentIndex];
       try {
         const res = await sendRequest({
           host,
@@ -318,18 +416,24 @@ export async function sendApnsNotifications(
         });
         if (res.status >= 200 && res.status < 300) {
           succeeded += 1;
-          return;
+          continue;
         }
         if (res.status === 410 || (res.status === 400 && res.reason && INVALID_APNS_REASONS.has(res.reason))) {
           failedTokens.push(deviceToken);
-          return;
+          continue;
         }
         errors.push(`APNs token ${deviceToken.slice(0, 12)}: HTTP ${res.status}${res.reason ? ` (${res.reason})` : ""}`);
       } catch (err) {
         errors.push(`APNs token ${deviceToken.slice(0, 12)}: ${err instanceof Error ? err.message : String(err)}`);
       }
-    }),
-  );
+    }
+  };
+
+  try {
+    await Promise.all(Array.from({ length: maxConcurrency }, () => runWorker()));
+  } finally {
+    batchSession?.close();
+  }
 
   return { succeeded, failedTokens, errors };
 }

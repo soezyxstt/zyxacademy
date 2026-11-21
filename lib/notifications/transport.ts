@@ -58,6 +58,9 @@ export function inferPlatformAndTransport(input: {
 
   // Never allow iOS APNs device tokens to be classified as FCM accidentally,
   // nor desktop tokens as FCM/APNs.
+  if (platform === "ios" && transport !== "apns") {
+    transport = "apns";
+  }
   if (platform === "desktop" && transport !== "desktop") {
     transport = "desktop";
   }
@@ -91,7 +94,22 @@ export function evaluateDeliveryReadiness(input: {
   return "ready";
 }
 
+const REGISTERED_TOKEN_STORAGE_KEY = "zyx_registered_push_token_v1";
 let _lastRegisteredIdentity: { userId: string; token: string } | null = null;
+
+export function getRegisteredPushTokenIdentity(): { userId: string; token: string } | null {
+  return _lastRegisteredIdentity;
+}
+
+export function getPersistedRegisteredPushToken(): string | null {
+  if (_lastRegisteredIdentity?.token) return _lastRegisteredIdentity.token;
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage?.getItem(REGISTERED_TOKEN_STORAGE_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export function shouldRegisterPushToken(
   current: { userId: string; token: string },
@@ -103,9 +121,23 @@ export function shouldRegisterPushToken(
 }
 
 export function markPushTokenRegistered(userId: string, token: string): void {
-  if (typeof window !== "undefined") _lastRegisteredIdentity = { userId, token };
+  if (typeof window !== "undefined") {
+    _lastRegisteredIdentity = { userId, token };
+    try {
+      window.localStorage?.setItem(REGISTERED_TOKEN_STORAGE_KEY, token);
+    } catch {
+      // Non-fatal
+    }
+  }
 }
 
 export function clearRegisteredPushTokenIdentity(): void {
   _lastRegisteredIdentity = null;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage?.removeItem(REGISTERED_TOKEN_STORAGE_KEY);
+    } catch {
+      // Non-fatal
+    }
+  }
 }

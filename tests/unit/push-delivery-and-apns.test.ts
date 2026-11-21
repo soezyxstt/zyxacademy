@@ -20,6 +20,7 @@ import {
   getUnifiedNotificationDeliveryStatus,
   registerUnifiedPushToken,
   startDesktopNotificationBridge,
+  unregisterCurrentPushToken,
 } from "@/lib/native/notifications";
 
 function makeMemoryStorage(): Storage {
@@ -67,6 +68,10 @@ describe("push transport classification and readiness", () => {
     expect(inferPlatformAndTransport({ platform: "desktop", transport: "fcm" })).toEqual({
       platform: "desktop",
       transport: "desktop",
+    });
+    expect(inferPlatformAndTransport({ platform: "ios", transport: "fcm" })).toEqual({
+      platform: "ios",
+      transport: "apns",
     });
   });
 
@@ -210,11 +215,18 @@ describe("APNs HTTP/2 JWT transport", () => {
       body: "Math quiz is open",
       type: "quiz_published",
       link: "/courses/math",
+      metadata: {
+        aps: "should-not-clobber",
+        type: "fake",
+        url: "/evil",
+        quizId: "q-1",
+      },
     });
     expect(apnsPayload).toMatchObject({
       aps: { alert: { title: "New quiz", body: "Math quiz is open" }, sound: "default" },
       type: "quiz_published",
       url: "/courses/math",
+      quizId: "q-1",
     });
 
     const requests: Array<{ host: string; deviceToken: string; bundleId: string }> = [];
@@ -301,10 +313,10 @@ describe("iOS registration, desktop notification bridge, and honest client readi
 
   test("registers iOS APNs token with platform=ios and transport=apns", async () => {
     const apnsToken = "abcdef01".repeat(8);
-    let postedBody: Record<string, unknown> | null = null;
+    const postedBodies: Record<string, unknown>[] = [];
 
     globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
-      postedBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      postedBodies.push(JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>);
       return new Response(
         JSON.stringify({
           success: true,
@@ -342,12 +354,24 @@ describe("iOS registration, desktop notification bridge, and honest client readi
 
     const ok = await registerUnifiedPushToken("ios-user-1", () => true);
     expect(ok).toBe(true);
-    expect(postedBody).toEqual({
+    expect(postedBodies).toHaveLength(1);
+    expect(postedBodies[0]).toEqual({
       token: apnsToken,
       device: "capacitor-ios",
       platform: "ios",
       transport: "apns",
     });
+
+    // Unregistering on logout calls DELETE /api/notifications/register-token with the current token
+    const deleteCalls: Array<{ method?: string; body: Record<string, unknown> }> = [];
+    await unregisterCurrentPushToken((async (_url: unknown, init?: RequestInit) => {
+      deleteCalls.push({
+        method: init?.method,
+        body: JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>,
+      });
+      return new Response(JSON.stringify({ success: true }), { status: 200 });
+    }) as unknown as typeof fetch);
+    expect(deleteCalls).toEqual([{ method: "DELETE", body: { token: apnsToken } }]);
 
     // Now verify getUnifiedNotificationDeliveryStatus reports granted permission
     // separately from transport_inactive readiness when server APNs is unconfigured.
@@ -378,10 +402,10 @@ describe("iOS registration, desktop notification bridge, and honest client readi
   });
 
   test("registers Tauri desktop token and delivers new inbox notifications to native OS", async () => {
-    let postedBody: Record<string, unknown> | null = null;
+    const postedBodies: Record<string, unknown>[] = [];
 
     globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
-      postedBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      postedBodies.push(JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>);
       return new Response(
         JSON.stringify({
           success: true,
@@ -408,9 +432,10 @@ describe("iOS registration, desktop notification bridge, and honest client readi
 
     const ok = await registerUnifiedPushToken("desktop-user-1", () => true);
     expect(ok).toBe(true);
-    expect(postedBody?.platform).toBe("desktop");
-    expect(postedBody?.transport).toBe("desktop");
-    expect(String(postedBody?.token ?? "")).toStartWith("desktop:");
+    expect(postedBodies).toHaveLength(1);
+    expect(postedBodies[0].platform).toBe("desktop");
+    expect(postedBodies[0].transport).toBe("desktop");
+    expect(String(postedBodies[0].token ?? "")).toStartWith("desktop:");
 
     // Test desktop inbox bridge polling: first poll seeds existing IDs without firing,
     // second poll fires native notification + foreground handler for new arrival.
@@ -472,5 +497,21 @@ describe("iOS registration, desktop notification bridge, and honest client readi
       { title: "New quiz", body: "Calculus quiz is open", url: "/courses/calc" },
     ]);
     expect(nativeCalls).toEqual([{ title: "New quiz", body: "Calculus quiz is open" }]);
+
+    // Verify 401 stops polling immediately
+    let unauthPolls = 0;
+    const stopUnauth = startDesktopNotificationBridge(
+      { onForeground: () => {} },
+      {
+        pollIntervalMs: 15,
+        fetchImpl: (async () => {
+          unauthPolls += 1;
+          return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+        }) as unknown as typeof fetch,
+      },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    stopUnauth();
+    expect(unauthPolls).toBe(1);
   });
 });

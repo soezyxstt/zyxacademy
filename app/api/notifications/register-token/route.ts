@@ -81,29 +81,29 @@ export async function POST(req: NextRequest) {
   const transportActive = isTransportActiveOnServer(transport);
 
   try {
-    const existing = await db
-      .select({ id: userPushTokens.id, userId: userPushTokens.userId })
-      .from(userPushTokens)
-      .where(eq(userPushTokens.token, token))
-      .limit(1);
-
-    if (existing.length > 0) {
-      await db
-        .update(userPushTokens)
-        .set({ userId, device, platform, transport, updatedAt: new Date() })
-        .where(eq(userPushTokens.id, existing[0].id));
-    } else {
-      await db.insert(userPushTokens).values({
+    const now = new Date();
+    await db
+      .insert(userPushTokens)
+      .values({
         id: randomUUID(),
         userId,
         token,
         device,
         platform,
         transport,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: userPushTokens.token,
+        set: {
+          userId,
+          device,
+          platform,
+          transport,
+          updatedAt: now,
+        },
       });
-    }
 
     return NextResponse.json({
       success: true,

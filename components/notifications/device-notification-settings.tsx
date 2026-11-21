@@ -88,7 +88,8 @@ export function DeviceNotificationSettings() {
   };
 
   const applyReminderConfig = async (nextConfig: StudyReminderConfig) => {
-    const leadChanged = nextConfig.tutorLeadMinutes !== reminderConfig.tutorLeadMinutes;
+    const previousConfig = reminderConfig;
+    const leadChanged = nextConfig.tutorLeadMinutes !== previousConfig.tutorLeadMinutes;
     setReminderConfig(nextConfig);
     if (isDemo || !userId || !localSupported) return;
 
@@ -97,6 +98,7 @@ export function DeviceNotificationSettings() {
       if (nextConfig.enabled) {
         const perm = await requestUnifiedNotificationPermission();
         if (perm !== "granted") {
+          setReminderConfig(previousConfig);
           toast.error(t("notificationPreferences.localRemindersPermissionNeeded"));
           await refreshStatus();
           return;
@@ -111,6 +113,9 @@ export function DeviceNotificationSettings() {
       }
       toast.success(t("notificationPreferences.localRemindersSaved"));
       await refreshStatus();
+    } catch {
+      setReminderConfig(previousConfig);
+      toast.error(t("notificationPreferences.pushEnableFailed"));
     } finally {
       setSavingReminders(false);
     }

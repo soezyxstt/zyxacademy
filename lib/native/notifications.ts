@@ -14,7 +14,9 @@ import {
   type CapacitorPluginListenerHandle,
 } from "./runtime";
 import {
+  clearRegisteredPushTokenIdentity,
   evaluateDeliveryReadiness,
+  getPersistedRegisteredPushToken,
   markPushTokenRegistered,
   normalizeOsPermissionStatus,
   shouldRegisterPushToken,
@@ -46,6 +48,8 @@ export interface UnifiedNotificationDeliveryStatus {
 
 const DESKTOP_TOKEN_STORAGE_KEY = "zyx_desktop_push_token_v1";
 const DESKTOP_POLL_INTERVAL_MS = 30_000;
+const DESKTOP_SEEN_IDS_LIMIT = 500;
+let _memoryDesktopToken: string | null = null;
 
 async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   const tauri = getTauri();
@@ -81,6 +85,18 @@ export function getClientPushRegistrationMeta(): {
   return { platform: "web", transport: "webpush", device };
 }
 
+function generateDesktopTokenRandomPart(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID().replace(/-/g, "");
+  }
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 14)}${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function getOrCreateDesktopPushToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
@@ -88,15 +104,38 @@ function getOrCreateDesktopPushToken(): string | null {
     if (existing && existing.startsWith("desktop:") && existing.length >= 20) {
       return existing;
     }
-    const randomPart =
-      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID().replace(/-/g, "")
-        : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 14)}`;
-    const token = `desktop:${randomPart}`;
+    const token = `desktop:${generateDesktopTokenRandomPart()}`;
     window.localStorage?.setItem(DESKTOP_TOKEN_STORAGE_KEY, token);
     return token;
   } catch {
-    return `desktop:${Date.now().toString(36)}fallback0001`;
+    if (!_memoryDesktopToken) {
+      _memoryDesktopToken = `desktop:${generateDesktopTokenRandomPart()}`;
+    }
+    return _memoryDesktopToken;
+  }
+}
+
+export async function unregisterCurrentPushToken(fetchImpl: typeof fetch = fetch): Promise<void> {
+  if (typeof window === "undefined") return;
+  let token = getPersistedRegisteredPushToken();
+  if (!token && getNativeRuntime() === "tauri") {
+    try {
+      token = window.localStorage?.getItem(DESKTOP_TOKEN_STORAGE_KEY) ?? _memoryDesktopToken;
+    } catch {
+      token = _memoryDesktopToken;
+    }
+  }
+  clearRegisteredPushTokenIdentity();
+  if (!token || token.length < 16) return;
+  try {
+    await fetchImpl("/api/notifications/register-token", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ token }),
+    });
+  } catch {
+    // Non-fatal; logout should proceed even if network is offline.
   }
 }
 
@@ -460,6 +499,33 @@ export function startDesktopNotificationBridge(
   let lastCursorIso: string | null = null;
   const seenIds = new Set<string>();
 
+  const rememberSeenId = (id: string) => {
+    seenIds.add(id);
+    if (seenIds.size > DESKTOP_SEEN_IDS_LIMIT) {
+      for (const oldest of seenIds) {
+        seenIds.delete(oldest);
+        if (seenIds.size <= DESKTOP_SEEN_IDS_LIMIT) break;
+      }
+    }
+  };
+
+  let intervalId: ReturnType<typeof setInterval> | null = null;
+  const onFocus = () => {
+    void pollOnce();
+  };
+
+  const stopBridge = () => {
+    if (disposed) return;
+    disposed = true;
+    if (intervalId !== null) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+    if (typeof window !== "undefined" && typeof window.removeEventListener === "function") {
+      window.removeEventListener("focus", onFocus);
+    }
+  };
+
   const pollOnce = async () => {
     if (disposed || inFlight) return;
     inFlight = true;
@@ -475,6 +541,10 @@ export function startDesktopNotificationBridge(
       const res = await fetchFn(`/api/notifications/history?${query.toString()}`, {
         credentials: "include",
       });
+      if (res.status === 401) {
+        stopBridge();
+        return;
+      }
       if (!res.ok || disposed) return;
       const data = (await res.json()) as { notifications?: DesktopInboxRow[] };
       const rows = Array.isArray(data.notifications) ? data.notifications : [];
@@ -482,7 +552,7 @@ export function startDesktopNotificationBridge(
       if (!initialized) {
         // Seed existing unread IDs on startup so we only dispatch OS notifications for new arrivals.
         for (const row of rows) {
-          seenIds.add(row.id);
+          rememberSeenId(row.id);
           if (row.createdAt && (!lastCursorIso || row.createdAt > lastCursorIso)) {
             lastCursorIso = row.createdAt;
           }
@@ -500,7 +570,8 @@ export function startDesktopNotificationBridge(
         .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
 
       for (const row of freshRows) {
-        seenIds.add(row.id);
+        if (disposed) break;
+        rememberSeenId(row.id);
         if (row.createdAt && (!lastCursorIso || row.createdAt > lastCursorIso)) {
           lastCursorIso = row.createdAt;
         }
@@ -508,6 +579,7 @@ export function startDesktopNotificationBridge(
         handlers.onForeground({ title: row.title, body: row.body, url });
         if (row.title) {
           await sendNative(row.title, row.body);
+          if (disposed) break;
         }
       }
     } catch {
@@ -518,24 +590,15 @@ export function startDesktopNotificationBridge(
   };
 
   void pollOnce();
-  const intervalId = setInterval(() => {
+  intervalId = setInterval(() => {
     void pollOnce();
   }, pollIntervalMs);
 
-  const onFocus = () => {
-    void pollOnce();
-  };
   if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
     window.addEventListener("focus", onFocus);
   }
 
-  return () => {
-    disposed = true;
-    clearInterval(intervalId);
-    if (typeof window !== "undefined" && typeof window.removeEventListener === "function") {
-      window.removeEventListener("focus", onFocus);
-    }
-  };
+  return stopBridge;
 }
 
 function sanitizeNotificationUrl(rawUrl: unknown): string {
