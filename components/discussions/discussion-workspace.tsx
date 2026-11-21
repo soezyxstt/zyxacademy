@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { normalizeDate } from "@/lib/date-utils";
+import { peekRestoredCameraPayload, ZYX_CAMERA_RESTORED_EVENT } from "@/lib/native/camera-recovery";
 import { cn } from "@/lib/utils";
 import { DiscussionComposer, emptyComposerDraft, setComposerReplyTarget, type ComposerDraft } from "./composer";
 import { DiscussionChannelPicker, DiscussionMessage, discussionChannelLabel } from "./discussion-message";
@@ -116,6 +117,29 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
     }
     prevQuestionId.current = props.selectedQuestionId;
   }, [props.selectedQuestionId, setNewOpen]);
+
+  useEffect(() => {
+    const restoreComposerIfNeeded = () => {
+      const pending = peekRestoredCameraPayload(
+        (target) => target.surface === "discussion" && target.viewerId === props.viewer.id,
+      );
+      if (!pending || pending.target.surface !== "discussion") return;
+      if (pending.target.mode === "new") {
+        const matched = props.channels.find((item) => item.id === pending.target.channelId && item.canCreate);
+        if (matched) {
+          setNewChannel(matched);
+          setNewOpen(true);
+        }
+      } else if (pending.target.mode === "reply" && props.selectedQuestionId !== pending.target.questionId) {
+        setNewOpen(false);
+        props.onSelectQuestion(pending.target.questionId);
+      }
+    };
+
+    restoreComposerIfNeeded();
+    window.addEventListener(ZYX_CAMERA_RESTORED_EVENT, restoreComposerIfNeeded);
+    return () => window.removeEventListener(ZYX_CAMERA_RESTORED_EVENT, restoreComposerIfNeeded);
+  }, [props.channels, props.onSelectQuestion, props.selectedQuestionId, props.viewer.id, setNewChannel, setNewOpen]);
 
   function updateDraft(key: string, change: (draft: ComposerDraft) => ComposerDraft) {
     setDrafts((current) => ({ ...current, [key]: change(current[key] ?? emptyComposerDraft()) }));

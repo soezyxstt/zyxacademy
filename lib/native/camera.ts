@@ -5,6 +5,12 @@
  * high-megapixel phone camera photos always pass server dimension and byte limits.
  */
 
+import {
+  clearPendingCameraCapture,
+  decodeBase64ToImageFile,
+  savePendingCameraCapture,
+  type CameraRecoveryTargetInput,
+} from "./camera-recovery";
 import { getCapacitor } from "./runtime";
 
 const DEFAULT_MAX_EDGE = 2048;
@@ -15,34 +21,21 @@ export function hasNativeCameraBridge(): boolean {
   return Boolean(getCapacitor()?.Plugins?.Camera);
 }
 
-function base64ToFile(base64: string, format: string): File {
-  const normalized = format.toLowerCase();
-  const mime =
-    normalized === "png"
-      ? "image/png"
-      : normalized === "webp"
-        ? "image/webp"
-        : "image/jpeg";
-  const ext = normalized === "png" ? "png" : normalized === "webp" ? "webp" : "jpg";
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  return new File([bytes], `foto-soal-${timestamp}.${ext}`, {
-    type: mime,
-    lastModified: Date.now(),
-  });
-}
-
 /**
  * Opens the native camera when running inside Capacitor.
+ * Persists optional recovery context before launching so Android OS process kills
+ * can route `appRestoredResult` back to the originating composer.
  * Returns null if the user cancels or if native camera is unavailable.
  */
-export async function captureNativeQuestionPhoto(): Promise<File | null> {
+export async function captureNativeQuestionPhoto(
+  recoveryTarget?: CameraRecoveryTargetInput,
+): Promise<File | null> {
   const camera = getCapacitor()?.Plugins?.Camera;
   if (!camera) return null;
+
+  if (recoveryTarget) {
+    savePendingCameraCapture(recoveryTarget);
+  }
 
   try {
     const photo = await camera.getPhoto({
@@ -55,11 +48,15 @@ export async function captureNativeQuestionPhoto(): Promise<File | null> {
       saveToGallery: false,
     });
     if (!photo.base64String) return null;
-    const file = base64ToFile(photo.base64String, photo.format ?? "jpeg");
+    const file = decodeBase64ToImageFile(photo.base64String, photo.format ?? "jpeg");
     return downscaleImageFile(file);
   } catch {
     // Cancellation or permission denial should fail quietly without breaking the composer.
     return null;
+  } finally {
+    if (recoveryTarget) {
+      clearPendingCameraCapture();
+    }
   }
 }
 

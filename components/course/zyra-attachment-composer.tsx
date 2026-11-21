@@ -15,12 +15,15 @@ import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { captureNativeQuestionPhoto, hasNativeCameraBridge, prepareQuestionImageFiles } from "@/lib/native/camera";
+import { consumeRestoredCameraPayload, ZYX_CAMERA_RESTORED_EVENT } from "@/lib/native/camera-recovery";
 
 interface ZyraAttachmentComposerProps {
   courseId: string;
   sessionId?: string | null;
   disabled?: boolean;
   hideStandaloneTrigger?: boolean;
+  getDraftBody?: () => string;
+  onRestoreDraftBody?: (body: string) => void;
   onSessionCreated?: (sessionId: string) => void;
   onAttachmentIdsChange: (ids: string[]) => void;
   onAttachmentsChange?: (attachments: ZyraMessageAttachment[]) => void;
@@ -46,6 +49,8 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
   sessionId = null,
   disabled = false,
   hideStandaloneTrigger = false,
+  getDraftBody,
+  onRestoreDraftBody,
   onSessionCreated,
   onAttachmentIdsChange,
   onAttachmentsChange,
@@ -187,16 +192,55 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
     });
   }, [addPreparedFiles]);
 
+  const getDraftBodyRef = React.useRef(getDraftBody);
+  getDraftBodyRef.current = getDraftBody;
+  const onRestoreDraftBodyRef = React.useRef(onRestoreDraftBody);
+  onRestoreDraftBodyRef.current = onRestoreDraftBody;
+
   const openCameraDialog = React.useCallback(() => {
     if (disabled) return;
     if (hasNativeCameraBridge()) {
-      void captureNativeQuestionPhoto().then((file) => {
+      const pathname = typeof window !== "undefined" ? window.location.pathname : `/courses/${courseId}`;
+      const search = typeof window !== "undefined" ? window.location.search : "";
+      void captureNativeQuestionPhoto({
+        surface: "zyra",
+        courseId,
+        sessionId: sessionIdRef.current,
+        draftBody: getDraftBodyRef.current?.() ?? "",
+        pathname,
+        search,
+      }).then((file) => {
         if (file) addPreparedFiles([file]);
       });
       return;
     }
     cameraInputRef.current?.click();
-  }, [disabled, addPreparedFiles]);
+  }, [disabled, addPreparedFiles, courseId]);
+
+  React.useEffect(() => {
+    if (!courseId) return;
+    const tryConsumeRestoredPhoto = () => {
+      const restored = consumeRestoredCameraPayload(
+        (target) => target.surface === "zyra" && target.courseId === courseId,
+      );
+      if (!restored) return;
+      const { payload, file } = restored;
+      if (payload.target.surface === "zyra") {
+        if (payload.target.sessionId && !sessionIdRef.current) {
+          sessionIdRef.current = payload.target.sessionId;
+          onSessionCreated?.(payload.target.sessionId);
+        }
+        if (payload.target.draftBody) {
+          onRestoreDraftBodyRef.current?.(payload.target.draftBody);
+        }
+      }
+      addFiles([file]);
+    };
+
+    tryConsumeRestoredPhoto();
+    window.addEventListener(ZYX_CAMERA_RESTORED_EVENT, tryConsumeRestoredPhoto);
+    return () => window.removeEventListener(ZYX_CAMERA_RESTORED_EVENT, tryConsumeRestoredPhoto);
+  }, [courseId, addFiles, onSessionCreated]);
 
   React.useImperativeHandle(ref, () => ({
     addFiles,

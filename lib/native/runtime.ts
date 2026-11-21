@@ -9,7 +9,27 @@ export type NativeRuntime = "capacitor" | "tauri" | "web";
 
 export interface CapacitorCameraPhoto {
   base64String?: string;
+  dataUrl?: string;
   format?: string;
+  webPath?: string;
+  path?: string;
+}
+
+export interface CapacitorRestoredResultEvent {
+  pluginId?: string;
+  methodName?: string;
+  data?: Record<string, unknown>;
+  success?: boolean;
+  error?: { message?: string };
+}
+
+export interface CapacitorAppStateEvent {
+  isActive: boolean;
+}
+
+export interface CapacitorNetworkStatus {
+  connected: boolean;
+  connectionType?: string;
 }
 
 export interface CapacitorPluginListenerHandle {
@@ -39,9 +59,32 @@ export interface CapacitorCameraPlugin {
 }
 
 export interface CapacitorAppPlugin {
+  getLaunchUrl?: () => Promise<{ url?: string } | null | undefined>;
+  addListener: {
+    (
+      eventName: "appUrlOpen",
+      listenerFunc: (event: { url?: string }) => void,
+    ): Promise<CapacitorPluginListenerHandle>;
+    (
+      eventName: "appRestoredResult",
+      listenerFunc: (event: CapacitorRestoredResultEvent) => void,
+    ): Promise<CapacitorPluginListenerHandle>;
+    (
+      eventName: "appStateChange",
+      listenerFunc: (event: CapacitorAppStateEvent) => void,
+    ): Promise<CapacitorPluginListenerHandle>;
+    (
+      eventName: string,
+      listenerFunc: (event: Record<string, unknown>) => void,
+    ): Promise<CapacitorPluginListenerHandle>;
+  };
+}
+
+export interface CapacitorNetworkPlugin {
+  getStatus: () => Promise<CapacitorNetworkStatus>;
   addListener: (
-    eventName: string,
-    listenerFunc: (event: { url?: string }) => void,
+    eventName: "networkStatusChange",
+    listenerFunc: (status: CapacitorNetworkStatus) => void,
   ) => Promise<CapacitorPluginListenerHandle>;
 }
 
@@ -92,6 +135,7 @@ export interface CapacitorGlobal {
     App?: CapacitorAppPlugin;
     Browser?: CapacitorBrowserPlugin;
     LocalNotifications?: CapacitorLocalNotificationsPlugin;
+    Network?: CapacitorNetworkPlugin;
     PushNotifications?: CapacitorPushNotificationsPlugin;
     Camera?: CapacitorCameraPlugin;
     ZyxAppUpdater?: CapacitorUpdaterPlugin;
