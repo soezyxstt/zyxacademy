@@ -45,6 +45,8 @@ export const FILES: ReadonlyArray<readonly [number, string, string]> = [
  [1794823859346, '0034_aromatic_silhouette', '2b9ea082707c26feec117d895ac622614746d16377fe46a8c805ef5f5809f677'],
  [1795109679359, '0035_queue_task_checkpoints', '7436deb3c2fba323939de959c4021fa6acd52f226d6d94363113bffab1f18b04'],
  [1795116616448, '0036_student_pet_studio', '8bbff58789fab43c4ab6b17d217bac2d87690a1e9b07101e79c0bc2e06216b5a'],
+ [1795157189870, '0037_member_profile_visibility', '5d39e45cce56a0baa6c7f824099caa0875c621a0639319ac3977e29251c4d0eb'],
+ [1795160115877, '0038_discussion_mention_handles', '969b249e8a666b72ce6cff55a6f3d06fecc08959664645eb9cd1c529b609d097'],
 ];
 
 export const BASELINE: ReadonlyArray<readonly [number, string]> = [
@@ -60,7 +62,7 @@ export const BASELINE: ReadonlyArray<readonly [number, string]> = [
 ];
 
 export function classifyJournal(rows: ReadonlyArray<{ created_at: unknown; hash: unknown }>) {
- const expected = rows.length === 9 ? BASELINE : rows.length === 37 ? [...BASELINE, ...FILES.slice(9).map(([time, , hash]) => [time, hash] as const)] : null;
+ const expected = rows.length === 9 ? BASELINE : rows.length === FILES.length ? [...BASELINE, ...FILES.slice(9).map(([time, , hash]) => [time, hash] as const)] : null;
  if (!expected || rows.some((row, i) => String(row.created_at) !== String(expected[i][0]) || row.hash !== expected[i][1])) throw new Error('UNEXPECTED_MIGRATION_HISTORY');
  return rows.length === 9 ? 'pending' : 'complete';
 }
