@@ -5,11 +5,30 @@ import subprocess
 import tempfile
 import unittest
 from test_ci_scope import ci
+from test_deploy_env_filter import job
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 class BackgroundDeployTriggersTest(unittest.TestCase):
+    def test_ci_checks_remain_automatic_but_deployment_is_main_only(self):
+        text = (ROOT / '.github/workflows/ci.yml').read_text()
+        self.assertIn('  pull_request:\n', text)
+        self.assertIn('  push:\n    branches: [main, staging]', text)
+        for name in ('deploy-web', 'deploy-worker'):
+            condition = re.search(r'^    if: (.+)$', job(text, name), re.MULTILINE).group(1)
+            for event in ('push', 'pull_request', 'workflow_dispatch'):
+                for branch in ('main', 'staging'):
+                    values = {'github.event_name': event, 'github.ref': f'refs/heads/{branch}',
+                              'vars.HOLD_WEB_DEPLOYMENT': 'false', 'needs.impact.result': 'success',
+                              'needs.gate.result': 'success', 'needs.deploy-worker.result': 'success',
+                              **{f'needs.impact.outputs.{scope}': 'true' for scope in ('web', 'worker', 'v4')}}
+                    expression = re.sub(r'(?:github|vars|needs)\.[\w.-]+',
+                                        lambda match: repr(values[match.group()]), condition[3:-3])
+                    expression = expression.replace('!cancelled()', 'True').replace('&&', 'and').replace('||', 'or')
+                    with self.subTest(job=name, event=event, branch=branch):
+                        self.assertEqual(eval(expression, {'__builtins__': {}}), event == 'push' and branch == 'main')
+
     def test_worker_checks_use_the_neon_runtime_toolchain(self):
         text = (ROOT / '.github/workflows/ci.yml').read_text()
         block = text.split('  worker-check:\n', 1)[1].split('  gate:\n', 1)[0]
@@ -38,7 +57,7 @@ class BackgroundDeployTriggersTest(unittest.TestCase):
             for environment in ('production', 'staging'):
                 with self.subTest(branch=branch, environment=environment):
                     self.assertEqual(allowed('push', branch, environment),
-                                     (branch, environment) in (('main', 'production'), ('staging', 'staging')))
+                                     (branch, environment) == ('main', 'production'))
                     self.assertTrue(allowed('workflow_dispatch', branch, environment))
         inputs = text.split('  workflow_call:', 1)[1].split('permissions:', 1)[0]
         self.assertIn('environment:', inputs)

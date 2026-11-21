@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAppReducedMotion } from "@/components/appearance-preferences";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { changeReward } from "@/app/(student)/achievements/actions";
@@ -17,6 +18,14 @@ import { ZyraMascotPreview } from "./zyra-mascot-preview";
 import { CatPractice } from "./cat-practice";
 
 const slots = ["zyra_avatar", "pet_suit", "pet_action"] as const;
+const freeZyra: GamificationReward = {
+  id: DEFAULT_PET_ID,
+  name: "Zyra",
+  slot: "zyra_avatar",
+  priceLp: 0,
+  owned: true,
+  equipped: false,
+};
 
 export function StudentPetStudio({ rewards, balance, onChangeReward }: { rewards: GamificationReward[]; balance: number; onChangeReward?: typeof changeReward }) {
   const t = useTranslations("student");
@@ -43,17 +52,21 @@ export function StudentPetStudio({ rewards, balance, onChangeReward }: { rewards
       } catch { setError(true); }
     });
   }
-  return <div className="grid min-w-0 gap-(--section-gap) md:grid-cols-[minmax(15rem,1fr)_minmax(0,2fr)]">
-    <section aria-label={t("petStudio.active")} className="flex flex-col items-center gap-2">
+  const collection = rewards.some(item => item.id === DEFAULT_PET_ID) ? rewards : [freeZyra, ...rewards];
+  return <div className="flex min-w-0 flex-wrap gap-(--section-gap)">
+    <section aria-label={t("petStudio.active")} className="flex min-w-0 flex-[1_1_15rem] flex-col items-center gap-2">
       {playing || previewing ? <ZyraCosmeticAvatar cosmeticId={pet} size={240} /> : <ZyraMascot3D animated={!reducedMotion} cosmeticId={pet} size={240} practiceSuit={suit?.replace("pet-suit-", "")} practiceFlowers={action === "pet-action-giveFlowers"} practiceCycle={action === "pet-action-cycle"} animationName={action?.replace("pet-action-", "")} />}
       <h2 className="font-heading text-body-base font-bold">{name(pet)}</h2>
       <CatPractice rewards={rewards} onOpenChange={setPlaying} />
     </section>
-    <section className="min-w-0">
-      <div className="mb-3 flex items-center justify-between"><h2 className="font-heading text-body-base font-bold">{t("petStudio.collection")}</h2><span className="text-body-sm tabular-nums">{t("achievementPage.balance")} {format.format(balance)} LP</span></div>
+    <section className="min-w-0 flex-[2_1_28rem]">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-2"><h2 className="font-heading text-body-base font-bold">{t("petStudio.collection")}</h2><span className="text-body-sm tabular-nums">{t("achievementPage.balance")} {format.format(balance)} LP</span></div>
       {error && <p role="alert" className="text-body-xs text-status-error">{t("achievementPage.error")}</p>}
-      <Tabs defaultValue="zyra_avatar"><TabsList flush={false}>{slots.map(slot => <TabsTrigger key={slot} value={slot}>{t(`petStudio.${slot}`)}</TabsTrigger>)}</TabsList>
-        {slots.map(slot => <TabsContent key={slot} value={slot}><ul className="divide-y divide-border">{rewards.filter(item => item.slot === slot).map(item => {
+      <Tabs defaultValue="zyra_avatar"><TabsList variant="inline">{slots.map(slot => <TabsTrigger key={slot} value={slot}>{t(`petStudio.${slot}`)}</TabsTrigger>)}</TabsList>
+        {slots.map(slot => {
+          const items = collection.filter(item => item.slot === slot);
+          return <TabsContent key={slot} value={slot}>
+            {items.length === 0 ? <AdminEmptyState compact title={t("petStudio.unavailable")} /> : <ul className="divide-y divide-border">{items.map(item => {
           const free = item.id === DEFAULT_PET_ID;
           const owned = free || item.owned;
           const equipped = slot === "zyra_avatar" ? pet === item.id : item.equipped;
@@ -86,7 +99,9 @@ export function StudentPetStudio({ rewards, balance, onChangeReward }: { rewards
             </Dialog>
             {(!equipped || removable) && <Button size="sm" variant={owned ? "outline" : "default"} disabled={pending || insufficient || (owned && incompatible && !removable)} onClick={() => change(item, removable ? "remove" : owned ? "equip" : "buy")}>{t(removable ? "petStudio.remove" : owned ? "achievementPage.equip" : "achievementPage.buy")}</Button>}
           </li>;
-        })}</ul></TabsContent>)}
+        })}</ul>}
+          </TabsContent>;
+        })}
       </Tabs>
     </section>
   </div>;

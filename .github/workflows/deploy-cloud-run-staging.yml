@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   release:
-    if: github.repository == 'soezyxstt/zyxacademy' && github.ref == 'refs/heads/staging' && inputs.operation != 'import-secrets'
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'soezyxstt/zyxacademy' && github.ref == 'refs/heads/staging' && inputs.operation != 'import-secrets'
     environment: staging
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -92,7 +92,7 @@ jobs:
         run: python3 .github/scripts/deploy_cloud_run_staging.py release
 
   import-secrets:
-    if: github.repository == 'soezyxstt/zyxacademy' && github.ref == 'refs/heads/staging' && inputs.operation == 'import-secrets'
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'soezyxstt/zyxacademy' && github.ref == 'refs/heads/staging' && inputs.operation == 'import-secrets'
     environment: staging
     runs-on: ubuntu-24.04
     timeout-minutes: 10

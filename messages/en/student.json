@@ -663,6 +663,7 @@
     "tryItem": "Try {item}",
     "active": "Active pet",
     "collection": "Pet collection",
+    "unavailable": "No items available yet.",
     "zyra_avatar": "Mascots",
     "pet_suit": "Suits",
     "pet_action": "Actions",

@@ -22,6 +22,13 @@ def allowed(job, maintenance, branch="main", event="workflow_dispatch", **flags)
 
 
 class WorkerMaintenanceTest(unittest.TestCase):
+    def test_staging_deploy_requires_manual_dispatch(self):
+        for event in ('push', 'pull_request', 'workflow_call', 'workflow_dispatch'):
+            with self.subTest(event=event):
+                self.assertEqual(allowed('deploy-neon-staging', 'none', branch='staging', event=event),
+                                 event == 'workflow_dispatch')
+        self.assertTrue(allowed('deploy-neon-production', 'none', event='push'))
+
     def test_maintenance_blocks_every_other_job_even_with_mixed_flags(self):
         for mode, branch, bits in product(MODES, ("main", "staging", "agent/recovery"), product((False, True), repeat=len(FLAGS))):
             flags = dict(zip(FLAGS, bits))

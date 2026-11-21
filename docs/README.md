@@ -1,3 +1,5 @@
+`ACTIVE` local source: the [deployment guide](DEPLOYMENT.md) and [development guide](DEVELOPMENT.md#ci-scope-and-incremental-checks) require manual dispatch for staging web and Neon worker releases. CI checks remain automatic on pushes and pull requests, and production deployment behavior is unchanged. Release acceptance and reviewer approval remain separate from CI.
+
 `ACTIVE` local source: the [gamification contract](gamification.md) records removal of the admin Gamification navigation, page and browser actions. Student rewards and existing checklist data remain intact. Hosted rollout is unverified.
 
 The `ACTIVE` [feature catalog](features.md) records transactional group redemption, tryout submission recovery, private file delivery and durable live quiz answers. The staging archive recovery contract is documented for [Idea](bundle/idea-bundle-v2.md) (`TRANSITIONAL / LEGACY`) and [Product](bundle/product-bundle-v4.md) (`ACTIVE`). Hosted rollout is unverified.
