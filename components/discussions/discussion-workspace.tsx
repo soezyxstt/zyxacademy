@@ -169,7 +169,7 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
       const bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
       const appPage = frame.closest<HTMLElement>("[data-discussion-page]");
       const padBottom = appPage ? parseFloat(window.getComputedStyle(appPage).paddingBottom) || 0 : 12;
-      const height = `${Math.max(320, Math.floor(bottom - Math.max(0, frame.getBoundingClientRect().top) - padBottom))}px`;
+      const height = `${Math.max(0, Math.floor(bottom - Math.max(0, frame.getBoundingClientRect().top) - padBottom))}px`;
       if (frame.style.height !== height) frame.style.height = height;
       if (frame.style.maxHeight !== height) frame.style.maxHeight = height;
     };
@@ -243,7 +243,7 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
     <Tabs value={activeTab} onValueChange={(tab) => changeTab(tab as "questions" | "reports")}>
       {canReport && <TabsList className="mb-2"><TabsTrigger value="questions">{t("questions")}</TabsTrigger><TabsTrigger value="reports">{t("reports")}{props.reports!.some((report) => report.status === "pending") && <span className="ml-1 rounded-md bg-primary/10 px-1.5 text-body-xs text-primary">{props.reports!.filter((report) => report.status === "pending").length}</span>}</TabsTrigger></TabsList>}
       <TabsContent value="questions" className="mt-0">
-        <div ref={setFrameElement} className="flex h-[calc(100dvh-9rem)] min-h-[20rem] min-w-0 overflow-hidden">
+        <div ref={setFrameElement} className="flex h-[calc(100dvh-9rem)] min-h-0 min-w-0 overflow-hidden">
           <aside aria-label={t("questionList")} className={cn("min-h-0 min-w-0 flex-1 flex-col @min-[52rem]/discussions:flex @min-[52rem]/discussions:w-[21rem] @min-[52rem]/discussions:flex-none @min-[52rem]/discussions:border-r @min-[52rem]/discussions:border-border", props.selectedQuestionId || composeActive ? "hidden" : "flex")}>
             <header data-discussion-list-toolbar="" className="shrink-0 border-b border-border py-1.5 @min-[52rem]/discussions:pr-3">
               <div className="flex min-w-0 items-center gap-1.5">

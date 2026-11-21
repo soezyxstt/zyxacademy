@@ -1,5 +1,6 @@
 "use client";
 
+import { usePanelViewport } from "@/hooks/use-panel-viewport";
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -573,6 +574,7 @@ function TutorDrawerContent({
   // Smooth open/close presence state for both mobile overlay and desktop docked sheet
   const [shouldRender, setShouldRender] = React.useState(isOpen);
   const [isVisible, setIsVisible] = React.useState(typeof window === "undefined" ? isOpen : false);
+  usePanelViewport(panelRef, isVisible);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -1315,11 +1317,10 @@ function TutorDrawerContent({
         aria-label={t("tutorDrawer.accessibleName")}
         data-state={isVisible ? "open" : "closed"}
         style={{
-          top: 0,
           "--zyra-panel-width": `${targetPanelWidth}px`,
         } as React.CSSProperties}
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-background shadow-2xl md:sticky md:top-0 md:bottom-auto md:right-auto md:self-start md:z-20 md:h-screen md:h-[100svh] md:shrink-0 md:shadow-none select-text",
+          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-background shadow-2xl md:sticky md:top-0 md:bottom-auto md:right-auto md:self-start md:z-20 md:h-screen md:h-[100svh] md:shrink-0 md:shadow-none select-text max-md:top-[var(--panel-visible-top,0px)] max-md:h-[var(--panel-visible-height,100dvh)]",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           isDragging
             ? "transition-none select-none"
