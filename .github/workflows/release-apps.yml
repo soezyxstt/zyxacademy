@@ -291,7 +291,7 @@ jobs:
 
           ### Downloads
           - **Android:** \`*.apk\` (installable side-by-side between Nightly and Stable)
-          - **Windows:** \`*.exe\` (NSIS) or \`*.msi\`
+          - **Windows:** \`*.exe\` (NSIS installer)
           - **macOS (Apple Silicon):** \`*.dmg\`
           - **Linux:** \`*.AppImage\` or \`*.deb\`
 
