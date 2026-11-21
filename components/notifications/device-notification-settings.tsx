@@ -20,6 +20,7 @@ import {
   DEFAULT_STUDY_REMINDER_CONFIG,
   isLocalReminderSchedulingSupported,
   loadStudyReminderConfig,
+  refreshUpcomingTutorSessionReminders,
   syncStudyReminderNotifications,
   type StudyReminderConfig,
 } from "@/lib/native/local-reminders";
@@ -87,6 +88,7 @@ export function DeviceNotificationSettings() {
   };
 
   const applyReminderConfig = async (nextConfig: StudyReminderConfig) => {
+    const leadChanged = nextConfig.tutorLeadMinutes !== reminderConfig.tutorLeadMinutes;
     setReminderConfig(nextConfig);
     if (isDemo || !userId || !localSupported) return;
 
@@ -101,6 +103,12 @@ export function DeviceNotificationSettings() {
         }
       }
       await syncStudyReminderNotifications(userId, nextConfig, { locale });
+      if (leadChanged) {
+        await refreshUpcomingTutorSessionReminders(userId, {
+          locale,
+          leadMinutes: nextConfig.tutorLeadMinutes,
+        });
+      }
       toast.success(t("notificationPreferences.localRemindersSaved"));
       await refreshStatus();
     } finally {

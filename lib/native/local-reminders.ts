@@ -435,6 +435,38 @@ export async function syncTutorSessionReminders(
   };
 }
 
+/**
+ * Fetches the student's complete, unscoped upcoming confirmed tutor sessions
+ * from `/api/student/upcoming-sessions` and reconciles local notifications.
+ */
+export async function refreshUpcomingTutorSessionReminders(
+  userId: string,
+  options?: {
+    locale?: "id" | "en";
+    leadMinutes?: number;
+    nowMs?: number;
+    fetchImpl?: typeof fetch;
+  },
+): Promise<{ scheduledIds: number[]; cancelledIds: number[] } | null> {
+  if (!isLocalReminderSchedulingSupported() || !userId) return null;
+  const fetchFn = options?.fetchImpl ?? fetch;
+  try {
+    const res = await fetchFn("/api/student/upcoming-sessions", {
+      credentials: "include",
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { sessions?: TutorSessionReminderInput[] };
+    if (!Array.isArray(data.sessions)) return null;
+    return await syncTutorSessionReminders(userId, data.sessions, {
+      locale: options?.locale,
+      leadMinutes: options?.leadMinutes,
+      nowMs: options?.nowMs,
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function cancelTutorSessionReminder(
   userId: string,
   bookingId: string,

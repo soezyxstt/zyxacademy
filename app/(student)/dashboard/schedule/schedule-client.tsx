@@ -184,28 +184,22 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
   const courseIds = useMemo(() => selectedCourse?.compatibleCourseIds ?? (courseParam ? [courseParam] : []), [selectedCourse, courseParam]);
   const activeData = useMemo(() => dataWeekOffset === weekOffset && data ? scopeStudentSchedule(data, courseIds) : null, [data, dataWeekOffset, weekOffset, courseIds]);
 
-  // Keep local tutor session reminders in sync whenever confirmed/rescheduled/cancelled bookings load.
+  // Keep local tutor session reminders in sync with the complete unscoped upcoming sessions list
+  // whenever schedule data refreshes (initial load, booking, reschedule, or cancellation).
+  const studentUserId = experience.mode !== "demo" && activeData?.user?.id ? String(activeData.user.id) : null;
   useEffect(() => {
-    if (experience.mode === "demo" || !activeData?.user?.id || !Array.isArray(activeData.groupBookings)) {
-      return;
-    }
-    const studentUserId = String(activeData.user.id);
-    const sessions = activeData.groupBookings.map((booking: any) => ({
-      bookingId: String(booking.id),
-      status: String(booking.status ?? ""),
-      sessionDate: booking.sessionDate ?? booking.slot?.sessionDate ?? null,
-      startTime: booking.startTime ?? booking.slot?.startTime ?? null,
-      courseTitle: booking.course?.title ?? null,
-      tutorName: booking.slot?.tutor?.name ?? null,
-      topic: booking.topic ?? null,
-    }));
+    if (!studentUserId || !activeData) return;
+    let cancelled = false;
     void import("@/lib/native/local-reminders")
-      .then(({ isLocalReminderSchedulingSupported, syncTutorSessionReminders }) => {
-        if (!isLocalReminderSchedulingSupported()) return;
-        return syncTutorSessionReminders(studentUserId, sessions);
+      .then(({ refreshUpcomingTutorSessionReminders }) => {
+        if (cancelled) return;
+        return refreshUpcomingTutorSessionReminders(studentUserId);
       })
       .catch(() => {});
-  }, [experience.mode, activeData]);
+    return () => {
+      cancelled = true;
+    };
+  }, [studentUserId, activeData]);
   if (!activeData) {
     if (loadError) {
       return (

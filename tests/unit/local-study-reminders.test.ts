@@ -5,6 +5,7 @@ import {
   getBookingReminderNotificationId,
   loadStudyReminderConfig,
   parseJakartaSessionStart,
+  refreshUpcomingTutorSessionReminders,
   syncStudyReminderNotifications,
   syncTutorSessionReminders,
   type StudyReminderConfig,
@@ -239,5 +240,55 @@ describe("local study reminders and tutor session reminders", () => {
     expect(cancelledOnLogout).toContain(100_001);
     expect(cancelledOnLogout).toContain(getBookingReminderNotificationId("booking-logout-1"));
     expect(mock.pending.size).toBe(0);
+  });
+
+  test("refreshes unscoped upcoming sessions and reschedules existing bookings when tutorLeadMinutes changes", async () => {
+    const mock = setupMockCapacitorLocalNotifications("granted");
+    const userId = "student-4";
+    const nowMs = new Date("2026-11-22T08:00:00+07:00").getTime();
+    const bookingId = "booking-lead-change";
+    const expectedId = getBookingReminderNotificationId(bookingId);
+
+    const requestedUrls: string[] = [];
+    const fakeFetch = (async (url: unknown) => {
+      requestedUrls.push(String(url));
+      return new Response(
+        JSON.stringify({
+          sessions: [
+            {
+              bookingId,
+              status: "scheduled",
+              sessionDate: "2026-11-22",
+              startTime: "12:00",
+              courseTitle: "Aljabar Linear",
+              tutorName: "Sari",
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    // Initial sync with 30-minute lead time -> fires at 11:30 WIB (04:30 UTC)
+    const first = await refreshUpcomingTutorSessionReminders(userId, {
+      locale: "id",
+      leadMinutes: 30,
+      nowMs,
+      fetchImpl: fakeFetch,
+    });
+    expect(requestedUrls).toEqual(["/api/student/upcoming-sessions"]);
+    expect(first?.scheduledIds).toEqual([expectedId]);
+    expect(mock.pending.get(expectedId)?.schedule?.at?.toISOString()).toBe("2026-11-22T04:30:00.000Z");
+
+    // Change lead time to 60 minutes -> cancels old ID and reschedules for 11:00 WIB (04:00 UTC)
+    const second = await refreshUpcomingTutorSessionReminders(userId, {
+      locale: "id",
+      leadMinutes: 60,
+      nowMs,
+      fetchImpl: fakeFetch,
+    });
+    expect(second?.cancelledIds).toEqual([expectedId]);
+    expect(second?.scheduledIds).toEqual([expectedId]);
+    expect(mock.pending.get(expectedId)?.schedule?.at?.toISOString()).toBe("2026-11-22T04:00:00.000Z");
   });
 });
