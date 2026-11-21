@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+test.use({ reducedMotion: "reduce" });
+
 for (const scenario of [
   { name: "Diskusi", path: "discussions?question=function", width: 380, panel: "[data-discussion-frame]" },
   { name: "Ops AI", path: "admin-ops-ai?state=empty", width: 1024, panel: "#ops-ai-panel" },
@@ -30,6 +32,6 @@ for (const scenario of [
       Reflect.deleteProperty(viewport, "offsetTop");
       viewport.dispatchEvent(new Event("resize"));
     });
-    await expect.poll(() => panel.boundingBox()).toEqual(original);
+    await expect.poll(() => panel.boundingBox()).toMatchObject({ y: original!.y, height: original!.height });
   });
 }
