@@ -29,6 +29,27 @@
                 <data android:scheme="@string/custom_url_scheme" />
             </intent-filter>
 
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="www.zyxacademy.com" />
+                <data android:host="zyxacademy.com" />
+                <data android:host="zyx.academy" />
+                <data android:host="staging.zyxacademy.com" />
+                <data android:pathPrefix="/courses" />
+                <data android:pathPrefix="/discussions" />
+                <data android:pathPrefix="/dashboard/discussions" />
+                <data android:pathPrefix="/calendar" />
+                <data android:pathPrefix="/tutor/discussions" />
+                <data android:pathPattern="/tutor/.*/discussions.*" />
+                <data android:pathPrefix="/tutor/schedule" />
+                <data android:pathPrefix="/admin/discussions" />
+                <data android:pathPrefix="/admin/schedules" />
+                <data android:pathPrefix="/meet" />
+            </intent-filter>
+
         </activity>
 
         <provider

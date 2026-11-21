@@ -1753,6 +1753,10 @@ function TutorDrawerContent({
                 sessionId={sessionId}
                 disabled={chatLoading}
                 hideStandaloneTrigger
+                getDraftBody={() => inputVal}
+                onRestoreDraftBody={(restoredBody) => {
+                  setInputVal((current) => (current.length > 0 ? current : restoredBody));
+                }}
                 onSessionCreated={handleComposerSessionCreated}
                 onAttachmentIdsChange={setAttachmentIds}
                 onAttachmentsChange={setReadyAttachments}

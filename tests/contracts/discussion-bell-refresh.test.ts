@@ -16,6 +16,7 @@ test("successful discussion reads refresh the mounted bell and stale responses c
  const code = ts.transpileModule(`exports.boot = () => { ${source.slice(start, end)} return { fetchUnreadCount, currentIdentity }; };`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
  runInNewContext(code, { exports, session: { user: { id: "same-user" } }, demo: false, window,
   DISCUSSION_COUNTS_CHANGED: "zyx:discussion-counts-changed",
+  ZYX_LIFECYCLE_REFRESH_EVENT: "zyx:lifecycle-refresh",
   fetch: (url: string) => new Promise(resolve => requests.push({ url, resolve })),
   useState: (initial: unknown) => [initial, (value: number) => { if (typeof initial === "number") unread.push(value); }],
   useRef: (current: unknown) => ({ current }), useCallback: (fn: unknown) => fn,
@@ -35,7 +36,14 @@ test("successful discussion reads refresh the mounted bell and stale responses c
  instance.currentIdentity.current = "different-user";
  await respond(3, 99); await previousIdentity;
  expect(unread).toEqual([0, 1]);
+ instance.currentIdentity.current = "same-user";
+ window.dispatchEvent(new Event("zyx:lifecycle-refresh"));
+ expect(requests).toHaveLength(5);
+ expect(requests[4].url).toContain("countOnly=true");
+ await respond(4, 3);
+ expect(unread).toEqual([0, 1, 3]);
  effects.forEach(cleanup => cleanup?.());
  window.dispatchEvent(new Event("zyx:discussion-counts-changed"));
- expect(requests).toHaveLength(4);
+ window.dispatchEvent(new Event("zyx:lifecycle-refresh"));
+ expect(requests).toHaveLength(5);
 });

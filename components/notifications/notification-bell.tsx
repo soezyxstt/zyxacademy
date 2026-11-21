@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DISCUSSION_COUNTS_CHANGED } from "@/components/discussions/discussion-count-badge";
+import { ZYX_LIFECYCLE_REFRESH_EVENT } from "@/lib/native/lifecycle-refresh";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -161,7 +162,11 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
     if (demo || !identity) return;
     const refresh = () => { void (open ? fetchHistory() : fetchUnreadCount()); };
     window.addEventListener(DISCUSSION_COUNTS_CHANGED, refresh);
-    return () => window.removeEventListener(DISCUSSION_COUNTS_CHANGED, refresh);
+    window.addEventListener(ZYX_LIFECYCLE_REFRESH_EVENT, refresh);
+    return () => {
+      window.removeEventListener(DISCUSSION_COUNTS_CHANGED, refresh);
+      window.removeEventListener(ZYX_LIFECYCLE_REFRESH_EVENT, refresh);
+    };
   }, [demo, identity, open, fetchHistory, fetchUnreadCount]);
 
   // Fetch only unread count once on initial mount

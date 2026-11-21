@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { MessageSquareText } from "lucide-react";
 import { ZyraFloatingPet } from "@/components/course/zyra-floating-pet";
 import { getTutorCapabilities } from "@/lib/tutor-capabilities";
+import { peekRestoredCameraPayload, ZYX_CAMERA_RESTORED_EVENT } from "@/lib/native/camera-recovery";
 import type { TutorMode } from "./tutor-drawer-view";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
@@ -195,6 +196,20 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setInitialQuestion(null);
     setQuotedContext(null);
   }, []);
+
+  React.useEffect(() => {
+    if (!courseIdFromPath) return;
+    const reopenForRestoredPhoto = () => {
+      const pending = peekRestoredCameraPayload(
+        (target) => target.surface === "zyra" && target.courseId === courseIdFromPath,
+      );
+      if (!pending) return;
+      openChat();
+    };
+    reopenForRestoredPhoto();
+    window.addEventListener(ZYX_CAMERA_RESTORED_EVENT, reopenForRestoredPhoto);
+    return () => window.removeEventListener(ZYX_CAMERA_RESTORED_EVENT, reopenForRestoredPhoto);
+  }, [courseIdFromPath, openChat]);
 
   return (
     <TutorContext.Provider

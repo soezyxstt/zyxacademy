@@ -31,8 +31,11 @@ export function proxy(request: NextRequest) {
   // Paths that require a user session (protected paths)
   const isProtectedRoute =
     pathname === "/discussions" ||
+    pathname.startsWith("/discussions/") ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/courses") ||
+    pathname.startsWith("/calendar") ||
+    pathname.startsWith("/tutor") ||
     pathname.startsWith("/profile") ||
     pathname.startsWith("/settings") ||
     pathname.startsWith("/admin");

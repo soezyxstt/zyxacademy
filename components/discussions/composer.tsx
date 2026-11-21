@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useTranslations } from "@/lib/i18n/client";
 import { AlertCircle, AtSign, Bold, Camera, Check, CircleHelp, Code2, ImageOff, ImagePlus, Italic, Link2, List, Loader2, MoreHorizontal, RotateCcw, Send, Sigma, X } from "lucide-react";
 import { captureNativeQuestionPhoto, hasNativeCameraBridge, prepareQuestionImageFiles } from "@/lib/native/camera";
+import { consumeRestoredCameraPayload, ZYX_CAMERA_RESTORED_EVENT } from "@/lib/native/camera-recovery";
 import { Button } from "@/components/ui/button";
 import { ZyraCosmeticAvatar } from "@/components/gamification/zyra-cosmetic-avatar";
 import { StudentAvatar } from "@/components/gamification/student-avatar";
@@ -312,13 +313,75 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
   function openCamera() {
     if (editingDisabled || draft.images.length >= MAX_IMAGES) return;
     if (hasNativeCameraBridge()) {
-      void captureNativeQuestionPhoto().then((file) => {
+      const pathname = typeof window !== "undefined" ? window.location.pathname : "/discussions";
+      const search = typeof window !== "undefined" ? window.location.search : "";
+      const recoveryTarget = questionId
+        ? {
+            surface: "discussion" as const,
+            mode: "reply" as const,
+            channelId,
+            questionId,
+            viewerId: viewer.id,
+            draftBody: draft.body,
+            replyTo: draft.replyTo,
+            pathname,
+            search,
+          }
+        : {
+            surface: "discussion" as const,
+            mode: "new" as const,
+            channelId,
+            viewerId: viewer.id,
+            draftBody: draft.body,
+            pathname,
+            search,
+          };
+      void captureNativeQuestionPhoto(recoveryTarget).then((file) => {
         if (file) void addFiles([file]);
       });
       return;
     }
     cameraRef.current?.click();
   }
+
+  const addFilesRef = useRef(addFiles);
+  const updateRef = useRef(update);
+  useEffect(() => {
+    addFilesRef.current = addFiles;
+    updateRef.current = update;
+  });
+
+  useEffect(() => {
+    if (!channelId || !onUpload) return;
+    const tryConsumeRestoredPhoto = () => {
+      const restored = consumeRestoredCameraPayload((target) => {
+        if (target.surface !== "discussion") return false;
+        if (target.viewerId !== viewer.id || target.channelId !== channelId) return false;
+        if (questionId) {
+          return target.mode === "reply" && target.questionId === questionId;
+        }
+        return target.mode === "new";
+      });
+      if (!restored) return;
+      const { payload, file } = restored;
+      if (payload.target.surface === "discussion") {
+        const restoredBody = payload.target.draftBody;
+        const restoredReplyTo = payload.target.mode === "reply" ? payload.target.replyTo : undefined;
+        if (restoredBody || restoredReplyTo) {
+          updateRef.current((current) => ({
+            ...current,
+            body: current.body.length > 0 ? current.body : restoredBody,
+            replyTo: current.replyTo ?? restoredReplyTo,
+          }));
+        }
+      }
+      void addFilesRef.current([file]);
+    };
+
+    tryConsumeRestoredPhoto();
+    window.addEventListener(ZYX_CAMERA_RESTORED_EVENT, tryConsumeRestoredPhoto);
+    return () => window.removeEventListener(ZYX_CAMERA_RESTORED_EVENT, tryConsumeRestoredPhoto);
+  }, [channelId, questionId, viewer.id, onUpload]);
 
   function removeImage(image: ComposerImage) {
     URL.revokeObjectURL(image.previewUrl);

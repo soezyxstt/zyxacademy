@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { normalizeDate } from "@/lib/date-utils";
+import { peekRestoredCameraPayload, ZYX_CAMERA_RESTORED_EVENT } from "@/lib/native/camera-recovery";
 import { cn } from "@/lib/utils";
 import { DiscussionComposer, emptyComposerDraft, setComposerReplyTarget, type ComposerDraft } from "./composer";
 import { DiscussionChannelPicker, DiscussionMessage, discussionChannelLabel } from "./discussion-message";
@@ -116,6 +117,33 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
     }
     prevQuestionId.current = props.selectedQuestionId;
   }, [props.selectedQuestionId, setNewOpen]);
+
+  const { viewer, channels, selectedQuestionId, onSelectQuestion } = props;
+
+  useEffect(() => {
+    const restoreComposerIfNeeded = () => {
+      const pending = peekRestoredCameraPayload(
+        (target) => target.surface === "discussion" && target.viewerId === viewer.id,
+      );
+      if (!pending || pending.target.surface !== "discussion") return;
+      const target = pending.target;
+      if (target.mode === "new") {
+        const targetChannelId = target.channelId;
+        const matched = channels.find((item) => item.id === targetChannelId && item.canCreate);
+        if (matched) {
+          setNewChannel(matched);
+          setNewOpen(true);
+        }
+      } else if (target.mode === "reply" && selectedQuestionId !== target.questionId) {
+        setNewOpen(false);
+        onSelectQuestion(target.questionId);
+      }
+    };
+
+    restoreComposerIfNeeded();
+    window.addEventListener(ZYX_CAMERA_RESTORED_EVENT, restoreComposerIfNeeded);
+    return () => window.removeEventListener(ZYX_CAMERA_RESTORED_EVENT, restoreComposerIfNeeded);
+  }, [channels, onSelectQuestion, selectedQuestionId, viewer.id, setNewChannel, setNewOpen]);
 
   function updateDraft(key: string, change: (draft: ComposerDraft) => ComposerDraft) {
     setDrafts((current) => ({ ...current, [key]: change(current[key] ?? emptyComposerDraft()) }));
