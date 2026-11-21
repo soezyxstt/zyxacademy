@@ -8,6 +8,8 @@ import { useTranslations } from "@/lib/i18n/client";
 import { emitActivityUpdated } from "@/lib/activity-signal";
 import { uploadQuizAttachment, removeQuizAttachment } from "@/lib/quiz/client";
 import { ApiError } from "@/lib/query/http";
+import { hapticSuccess } from "@/lib/native/haptics";
+import { usePullToRefreshLock } from "@/hooks/use-pull-to-refresh-lock";
 import {
   asEssayAnswer, createQuizStorage, createQuizSubmissionGate, formatQuizAnswers,
   isQuizAnswerComplete, quizStorageKeys, readQuizAnswers, readQuizFlags,
@@ -48,6 +50,10 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadingFile, setUploadingFile] = useState<Record<string, string>>({});
+
+  usePullToRefreshLock(!isSubmitted, "active-quiz");
+  usePullToRefreshLock(submitting, "quiz-submit");
+  usePullToRefreshLock(Object.keys(uploadingFile).length > 0, "quiz-upload");
 
   useEffect(() => {
     alive.current = true;
@@ -224,6 +230,7 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
           storage.removeItem(keys.flags);
           if (!alive.current) return;
           setIsSubmitted(true);
+          void hapticSuccess();
           if (transport) return;
           emitActivityUpdated({ type: "quiz", attemptId, courseId, queryCacheUpdated: true });
           toast.success(t("quiz.submitted"));

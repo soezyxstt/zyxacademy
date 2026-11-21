@@ -16,6 +16,7 @@ import { Copy, Check, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SiLine } from "react-icons/si";
 import { useTranslations } from "@/lib/i18n/client";
+import { canUseNativeShare, shareLink } from "@/lib/native/share";
 
 // Custom SVG Brand Icons
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -59,7 +60,7 @@ export function ShareBlock({ slug, title, description, inline = false, locale }:
       setShareUrl(window.location.href);
     }
     
-    if (typeof navigator !== "undefined" && (navigator as any).share) {
+    if (canUseNativeShare()) {
       setCanShare(true);
     }
   }, [locale, slug]);
@@ -77,17 +78,20 @@ export function ShareBlock({ slug, title, description, inline = false, locale }:
   };
 
   const handleNativeShare = async () => {
-    if (typeof navigator === "undefined" || !(navigator as any).share) return;
-    try {
-      await navigator.share({
-        title: title,
-        text: description || title,
-        url: shareUrl,
-      });
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        toast.error(t("blog.shareFailed"));
+    if (!shareUrl) return;
+    const result = await shareLink({
+      title,
+      text: description || title,
+      url: shareUrl,
+    });
+    if (result.ok) {
+      if (result.method === "clipboard") {
+        setCopied(true);
+        toast.success(t("blog.shareCopied"));
+        setTimeout(() => setCopied(false), 2000);
       }
+    } else if (!result.cancelled) {
+      toast.error(t("blog.shareFailed"));
     }
   };
 

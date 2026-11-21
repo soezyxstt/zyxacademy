@@ -21,5 +21,23 @@
     "label": "Bahasa",
     "indonesian": "Bahasa Indonesia",
     "english": "English"
+  },
+  "share": {
+    "button": "Bagikan",
+    "linkCopied": "Tautan disalin",
+    "failed": "Tautan gagal dibagikan. Coba lagi."
+  },
+  "files": {
+    "saveFailed": "Berkas gagal disimpan. Coba lagi.",
+    "unauthorized": "Anda tidak memiliki akses ke berkas ini.",
+    "openFailed": "Berkas gagal dibuka. Coba lagi."
+  },
+  "pullToRefresh": {
+    "pull": "Tarik untuk memuat ulang",
+    "release": "Lepas untuk memuat ulang",
+    "refreshing": "Memuat ulang...",
+    "failed": "Gagal memuat ulang. Coba lagi.",
+    "retry": "Coba lagi",
+    "dismiss": "Tutup"
   }
 }

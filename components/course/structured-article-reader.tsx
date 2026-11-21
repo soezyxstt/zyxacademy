@@ -52,6 +52,7 @@ import { useTranslations } from "@/lib/i18n/client";
 import { useArticleReadingProgress } from "@/hooks/use-article-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
 import { saveStructuredArticleOffline } from "@/lib/offline/reading-cache";
+import { ShareLinkButton } from "@/components/share-link-button";
 import { StructuredArticleSectionContent, getBlockTitle } from "./structured-article-section-content";
 
 export interface MaterialNavigationItem {
@@ -710,6 +711,13 @@ function StructuredArticleReaderContent({
                   </div>
 
                   <div className="hidden sm:block h-4 w-px bg-border/70 mx-1" />
+
+                  <ShareLinkButton
+                    title={article.title}
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-muted-foreground hover:text-foreground rounded-lg"
+                  />
 
                   {/* Focus Mode Trigger (icon only with tooltip) */}
                   <Tooltip>

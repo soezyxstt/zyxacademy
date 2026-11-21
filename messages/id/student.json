@@ -87,6 +87,7 @@
     },
     "motionAndMessages": "Gerakan dan pemberitahuan",
     "animations": "Animasi",
+    "haptics": "Umpan balik haptik",
     "toastPosition": "Posisi pemberitahuan di layar",
     "toastPreview": "Pemberitahuan akan muncul di sini",
     "toastOptions": {

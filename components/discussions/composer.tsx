@@ -5,6 +5,8 @@ import Image from "next/image";
 import { useTranslations } from "@/lib/i18n/client";
 import { AlertCircle, AtSign, Bold, Camera, Check, CircleHelp, Code2, ImageOff, ImagePlus, Italic, Link2, List, Loader2, MoreHorizontal, RotateCcw, Send, Sigma, X } from "lucide-react";
 import { captureNativeQuestionPhoto, hasNativeCameraBridge, prepareQuestionImageFiles } from "@/lib/native/camera";
+import { hapticSuccess } from "@/lib/native/haptics";
+import { usePullToRefreshLock } from "@/hooks/use-pull-to-refresh-lock";
 import { Button } from "@/components/ui/button";
 import { ZyraCosmeticAvatar } from "@/components/gamification/zyra-cosmetic-avatar";
 import { StudentAvatar } from "@/components/gamification/student-avatar";
@@ -239,6 +241,8 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
   const canReplay = uncertain && draft.pendingSubmission?.viewerId === viewer.id && draft.pendingSubmission.channelId === channelId && draft.pendingSubmission.questionId === questionId;
   const uploading = draft.images.some((image) => image.status === "uploading");
   const failedImage = draft.images.some((image) => image.status === "error");
+  usePullToRefreshLock(uploading, "discussion-upload");
+  usePullToRefreshLock(draft.sending, "discussion-submit");
   const sendLabel = draft.sending ? t("sending") : uploading ? t("uploadingImages") : draft.error ? t("retrySend") : submitLabel;
   const mentions = discussionMentions(draft.body, draft.mentionedPeople);
   const staleMentions = draft.mentionedPeople.some((person) => person.channelId !== channelId && mentions.mentionIds.includes(person.id));
@@ -335,6 +339,7 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
       if (!canAskZyra) prepared.submission.askZyra = false;
       if (await deliverComposerSubmission(prepared, uncertain, update, onSubmit)) {
         draft.images.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+        void hapticSuccess();
         onSuccess?.();
       }
     } finally {

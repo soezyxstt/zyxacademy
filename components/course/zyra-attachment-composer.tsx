@@ -15,6 +15,7 @@ import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { captureNativeQuestionPhoto, hasNativeCameraBridge, prepareQuestionImageFiles } from "@/lib/native/camera";
+import { usePullToRefreshLock } from "@/hooks/use-pull-to-refresh-lock";
 
 interface ZyraAttachmentComposerProps {
   courseId: string;
@@ -53,6 +54,8 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
 }: ZyraAttachmentComposerProps, ref) {
   const experience = useStudentExperience();
   const [items, setItems] = React.useState<PendingZyraImage[]>([]);
+  const isUploadingAny = items.some((item) => item.status === "uploading");
+  usePullToRefreshLock(isUploadingAny, "zyra-upload");
   const itemsRef = React.useRef<PendingZyraImage[]>([]);
   const updateItems = React.useCallback((update: (current: PendingZyraImage[]) => PendingZyraImage[]) => {
     itemsRef.current = update(itemsRef.current);
