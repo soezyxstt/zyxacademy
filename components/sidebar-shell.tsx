@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { useCommandMenu } from "@/components/command-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { AppUpdateControl } from "@/components/native/app-update-control";
 import { signOut } from "@/lib/auth-client";
 import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
 import { useStudentExperience } from "@/components/student-experience-provider";
@@ -793,6 +794,7 @@ export function SidebarShell({
               {headerActions?.(false)}
 
               {showAccountTools && <NotificationBell variant="sidebar" />}
+              <AppUpdateControl variant="sidebar" />
 
               {showAccountTools && <SidebarTooltip label={t("searchWithShortcut", { shortcut: modKeyHint })} collapsed={false}>
                 <button

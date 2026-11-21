@@ -51,5 +51,17 @@
 	<string>Zyx Academy accesses your photo library to attach images to study discussions and assignments.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Zyx Academy saves downloaded study images to your photo library.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.zyx.academy</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.zyx.academy</string>
+				<string>com.zyx.academy.nightly</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

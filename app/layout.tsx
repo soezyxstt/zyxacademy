@@ -4,6 +4,7 @@ import "katex/dist/katex.min.css";
 import "./globals.css";
 import "./appearance-preferences.css";
 import { AppearancePreferencesRuntime } from "@/components/appearance-preferences";
+import { NativeAuthListener } from "@/components/native/native-auth-listener";
 import { appearanceBootstrapScript } from "@/lib/appearance-preferences";
 import { AppToaster } from "@/components/app-toaster";
 import { pageTitle, siteOgImage } from "@/lib/site";
@@ -106,6 +107,7 @@ export default async function RootLayout({
         </a>
         {children}
         <AppearancePreferencesRuntime />
+        <NativeAuthListener />
         <AppToaster />
         {process.env.NODE_ENV === "production" && process.env.VERCEL === "1" && (
           <TelemetryBoundary>
