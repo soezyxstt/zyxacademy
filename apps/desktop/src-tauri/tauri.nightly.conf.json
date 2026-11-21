@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Zyx Academy Nightly",
+  "identifier": "com.zyx.academy.desktop.nightly",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Zyx Academy Nightly",
+        "url": "https://staging.zyxacademy.com",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "center": true
+      }
+    ]
+  },
+  "bundle": {
+    "icon": [
+      "icons-nightly/32x32.png",
+      "icons-nightly/128x128.png",
+      "icons-nightly/128x128@2x.png",
+      "icons-nightly/icon.icns",
+      "icons-nightly/icon.ico"
+    ]
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["zyxacademy-nightly"]
+      }
+    }
+  }
+}

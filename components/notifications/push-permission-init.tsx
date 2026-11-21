@@ -36,12 +36,15 @@ const CONSENT_KEY = "fcm_consent";
 const LATER_AT_KEY = "fcm_later_at";
 const LATER_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
+import {
+  getUnifiedNotificationPermission,
+  isNotificationBridgeSupported,
+  registerUnifiedPushToken,
+  requestUnifiedNotificationPermission,
+} from "@/lib/native/notifications";
+
 function isPushEnvironmentSupported(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    "Notification" in window &&
-    "serviceWorker" in navigator
-  );
+  return isNotificationBridgeSupported();
 }
 
 export function PushPermissionInit() {
@@ -68,19 +71,12 @@ export function PushPermissionInit() {
 
       inFlightUserRef.current = identity;
       try {
-        // Lazy-import the client FCM helpers to avoid bundling them in the
-        // server-side render path. These modules use browser APIs.
-        const {
-          requestNotificationPermission,
-          getFCMToken,
-          registerTokenToServer,
-          shouldRegisterPushToken,
-        } = await import("@/lib/firebase/messaging");
-
         if (!isCurrent()) return;
-        let permission = Notification.permission;
+        let permission = await getUnifiedNotificationPermission();
+        if (!isCurrent()) return;
+
         if (requestPermission) {
-          permission = await requestNotificationPermission();
+          permission = await requestUnifiedNotificationPermission();
           if (!isCurrent()) return;
           if (permission === "denied") {
             localStorage.setItem(CONSENT_KEY, "denied");
@@ -93,16 +89,9 @@ export function PushPermissionInit() {
 
         if (permission !== "granted") return;
 
-        const token = await getFCMToken();
-        if (!token || !isCurrent()) return;
-
-        if (!shouldRegisterPushToken({ userId: activeUserId, token })) {
-          return;
-        }
-
-        await registerTokenToServer(token, activeUserId, isCurrent);
+        await registerUnifiedPushToken(activeUserId, isCurrent);
       } catch (err) {
-        // Non-fatal ; push notifications are enhancement, not core functionality
+        // Non-fatal; push notifications are enhancement, not core functionality
         console.warn("[FCM] Init error:", err);
       } finally {
         if (inFlightUserRef.current === identity) {
@@ -131,10 +120,17 @@ export function PushPermissionInit() {
       return;
     }
 
-    if (Notification.permission === "granted") {
-      localStorage.setItem(CONSENT_KEY, "granted");
-      void syncGrantedTokenForUser(userId, false);
-    }
+    let cancelled = false;
+    void getUnifiedNotificationPermission().then((permission) => {
+      if (cancelled) return;
+      if (permission === "granted") {
+        localStorage.setItem(CONSENT_KEY, "granted");
+        void syncGrantedTokenForUser(userId, false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [isPending, userId, isAdminSurface, syncGrantedTokenForUser]);
 
   // 2. Permission prompt scheduling effect: route-aware delay for "default" permission only.
@@ -148,36 +144,50 @@ export function PushPermissionInit() {
       return;
     }
 
-    const currentPermission = Notification.permission;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-    if (currentPermission === "denied") {
-      localStorage.setItem(CONSENT_KEY, "denied");
-      setShowPrompt(false);
-      return;
-    }
+    void getUnifiedNotificationPermission().then((currentPermission) => {
+      if (cancelled) return;
 
-    if (currentPermission === "granted") {
-      localStorage.setItem(CONSENT_KEY, "granted");
-      setShowPrompt(false);
-      return;
-    }
+      if (currentPermission === "denied") {
+        localStorage.setItem(CONSENT_KEY, "denied");
+        setShowPrompt(false);
+        return;
+      }
 
-    // Permission is "default": only prompt if not in the "later" cooldown.
-    const storedConsent = localStorage.getItem(CONSENT_KEY);
-    if (storedConsent === "denied") return;
+      if (currentPermission === "granted") {
+        localStorage.setItem(CONSENT_KEY, "granted");
+        setShowPrompt(false);
+        return;
+      }
 
-    if (storedConsent === "later") {
-      const lastLater = Number(localStorage.getItem(LATER_AT_KEY) ?? 0);
-      if (Date.now() - lastLater < LATER_COOLDOWN_MS) return;
-    }
+      if (currentPermission !== "default") {
+        setShowPrompt(false);
+        return;
+      }
 
-    // Delay to avoid interrupting immediate initial task on dashboard (P2-3)
-    const isExplicitPage = pathname.includes("/settings") || pathname.includes("/notifications");
-    const delayMs = isExplicitPage ? 2000 : 15000;
-    const timer = setTimeout(() => {
-      setShowPrompt(true);
-    }, delayMs);
-    return () => clearTimeout(timer);
+      // Permission is "default": only prompt if not in the "later" cooldown.
+      const storedConsent = localStorage.getItem(CONSENT_KEY);
+      if (storedConsent === "denied") return;
+
+      if (storedConsent === "later") {
+        const lastLater = Number(localStorage.getItem(LATER_AT_KEY) ?? 0);
+        if (Date.now() - lastLater < LATER_COOLDOWN_MS) return;
+      }
+
+      // Delay to avoid interrupting immediate initial task on dashboard (P2-3)
+      const isExplicitPage = pathname.includes("/settings") || pathname.includes("/notifications");
+      const delayMs = isExplicitPage ? 2000 : 15000;
+      timer = setTimeout(() => {
+        setShowPrompt(true);
+      }, delayMs);
+    });
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [isPending, userId, isAdminSurface, pathname]);
 
   const handleAccept = async () => {

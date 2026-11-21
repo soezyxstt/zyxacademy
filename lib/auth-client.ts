@@ -14,7 +14,13 @@ export const { signIn, useSession } = authClient;
 
 export async function signOut(...args: Parameters<typeof authClient.signOut>) {
   const result = await authClient.signOut(...args);
-  if (!result.error) syncQueryAccount(getQueryClient(), null);
+  if (!result.error) {
+    syncQueryAccount(getQueryClient(), null);
+    if (typeof window !== "undefined") {
+      const { clearAllOfflineReadings } = await import("@/lib/offline/reading-cache");
+      await clearAllOfflineReadings().catch(() => {});
+    }
+  }
   return result;
 }
 

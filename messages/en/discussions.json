@@ -168,6 +168,7 @@
   "peopleSearchError": "People search is unavailable.",
   "noPeople": "No people found.",
   "addImage": "Add image",
+  "takePhoto": "Take photo",
   "writeMessage": "Write a message",
   "noText": "No text yet.",
   "contentLimit": "Maximum 12,000 characters and 10 mentions.",

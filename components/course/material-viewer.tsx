@@ -69,6 +69,7 @@ import type { StudentCourseAccessTier } from "@/lib/course-utils";
 import { ChapterSummarySheet } from "@/components/course/chapter-summary-sheet";
 import { useMaterialReadingProgress } from "@/hooks/use-material-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
+import { saveTextMaterialOffline } from "@/lib/offline/reading-cache";
 
 type MaterialViewerProps = {
   material: CourseMaterial;
@@ -484,6 +485,12 @@ function MaterialViewerContent({
   const learnerMode = isLearnerReaderMode(mode);
   const experience = useStudentExperience();
   const demo = experience.mode === "demo";
+
+  useEffect(() => {
+    if (demo || !studentId || !learnerMode) return;
+    if (material.kind !== "article" || !material.body?.trim()) return;
+    void saveTextMaterialOffline(studentId, material, course?.title);
+  }, [demo, studentId, learnerMode, material, course?.title]);
   const revision = experience.baseline.find(item => item.courseId === material.courseId)?.revision ?? "fictional";
   const storage = useMemo(() => {
     const fallback = new Map<string,string>();

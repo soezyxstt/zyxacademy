@@ -1,0 +1,312 @@
+name: Release Apps (Desktop & Mobile)
+
+on:
+  push:
+    branches:
+      - staging
+      - main
+    paths:
+      - "apps/**"
+      - "public/brand/zyx-app-512.png"
+      - ".github/workflows/release-apps.yml"
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Release channel (nightly -> staging.zyxacademy.com, stable -> www.zyxacademy.com)"
+        required: true
+        default: "nightly"
+        type: choice
+        options:
+          - nightly
+          - stable
+      version:
+        description: "Optional version override (defaults to apps/desktop/package.json version, e.g. 0.1.0-alpha.1)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-apps-${{ github.ref }}-${{ inputs.channel || 'auto' }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.meta.outputs.channel }}
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      release_title: ${{ steps.meta.outputs.release_title }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      default_url: ${{ steps.meta.outputs.default_url }}
+      file_prefix: ${{ steps.meta.outputs.file_prefix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release metadata
+        id: meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_CHANNEL: ${{ inputs.channel }}
+          INPUT_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG_VERSION=$(node -p "require('./apps/desktop/package.json').version")
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            CHANNEL="${INPUT_CHANNEL:-nightly}"
+            VERSION="${INPUT_VERSION:-$PKG_VERSION}"
+          elif [[ "${{ github.ref_name }}" == "main" ]]; then
+            CHANNEL="stable"
+            VERSION="$PKG_VERSION"
+          else
+            CHANNEL="nightly"
+            VERSION="$PKG_VERSION"
+          fi
+
+          VERSION="${VERSION#v}"
+          DATE_STAMP=$(date -u +%Y%m%d)
+          SHORT_SHA="${GITHUB_SHA::7}"
+          RUN_NUMBER="${GITHUB_RUN_NUMBER}"
+
+          if [[ "$CHANNEL" == "nightly" ]]; then
+            TAG="app-v${VERSION}-nightly.${DATE_STAMP}.${SHORT_SHA}"
+            RELEASE_TITLE="Zyx Academy Nightly v${VERSION} (${DATE_STAMP})"
+            PRERELEASE="true"
+            DEFAULT_URL="https://staging.zyxacademy.com"
+            FILE_PREFIX="zyx-academy-nightly-${VERSION}-${DATE_STAMP}"
+          else
+            BASE_TAG="app-v${VERSION}"
+            if gh release view "$BASE_TAG" >/dev/null 2>&1; then
+              TAG="${BASE_TAG}-b${RUN_NUMBER}"
+              RELEASE_TITLE="Zyx Academy v${VERSION} (build ${RUN_NUMBER})"
+              FILE_PREFIX="zyx-academy-${VERSION}-b${RUN_NUMBER}"
+            else
+              TAG="${BASE_TAG}"
+              RELEASE_TITLE="Zyx Academy v${VERSION}"
+              FILE_PREFIX="zyx-academy-${VERSION}"
+            fi
+
+            if [[ "$VERSION" == *-* ]]; then
+              PRERELEASE="true"
+            else
+              PRERELEASE="false"
+            fi
+            DEFAULT_URL="https://www.zyxacademy.com"
+          fi
+
+          {
+            echo "channel=${CHANNEL}"
+            echo "version=${VERSION}"
+            echo "tag=${TAG}"
+            echo "release_title=${RELEASE_TITLE}"
+            echo "prerelease=${PRERELEASE}"
+            echo "default_url=${DEFAULT_URL}"
+            echo "file_prefix=${FILE_PREFIX}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Resolved release: channel=${CHANNEL}, version=${VERSION}, tag=${TAG}, title=${RELEASE_TITLE}"
+
+  build-desktop:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos
+            os: macos-latest
+            arch: aarch64
+          - platform: windows
+            os: windows-latest
+            arch: x64
+          - platform: linux
+            os: ubuntu-22.04
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./apps/desktop/src-tauri -> target"
+
+      - name: Install Linux Tauri system dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install desktop dependencies
+        working-directory: apps/desktop
+        run: npm ci || npm install
+
+      - name: Build Tauri desktop bundle (${{ needs.prepare.outputs.channel }})
+        working-directory: apps/desktop
+        env:
+          ZYX_APP_CHANNEL: ${{ needs.prepare.outputs.channel }}
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: npm run build:${{ needs.prepare.outputs.channel }}
+
+      - name: Collect desktop installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts
+          BUNDLE_DIR="apps/desktop/src-tauri/target/release/bundle"
+          PREFIX="${{ needs.prepare.outputs.file_prefix }}-${{ matrix.platform }}-${{ matrix.arch }}"
+
+          copy_first() {
+            local pattern="$1"
+            local ext="$2"
+            local found
+            found=$(find "$BUNDLE_DIR" -type f -name "$pattern" | head -n 1 || true)
+            if [[ -n "$found" ]]; then
+              cp "$found" "release-artifacts/${PREFIX}.${ext}"
+              echo "Packaged: release-artifacts/${PREFIX}.${ext}"
+            fi
+          }
+
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            copy_first "*.exe" "exe"
+            copy_first "*.msi" "msi"
+          elif [[ "${{ matrix.platform }}" == "macos" ]]; then
+            copy_first "*.dmg" "dmg"
+          elif [[ "${{ matrix.platform }}" == "linux" ]]; then
+            copy_first "*.AppImage" "AppImage"
+            copy_first "*.deb" "deb"
+          fi
+
+          ls -lh release-artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
+          path: release-artifacts/*
+          if-no-files-found: error
+
+  build-android:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install mobile dependencies
+        working-directory: apps/mobile
+        run: npm ci || npm install
+
+      - name: Sync Capacitor Android (${{ needs.prepare.outputs.channel }})
+        working-directory: apps/mobile
+        env:
+          ZYX_APP_CHANNEL: ${{ needs.prepare.outputs.channel }}
+        run: npm run sync:android:${{ needs.prepare.outputs.channel }}
+
+      - name: Build Android APK (${{ needs.prepare.outputs.channel }})
+        working-directory: apps/mobile/android
+        run: |
+          chmod +x gradlew
+          if [[ "${{ needs.prepare.outputs.channel }}" == "nightly" ]]; then
+            ./gradlew assembleNightlyDebug
+          else
+            ./gradlew assembleStableDebug
+          fi
+
+      - name: Collect Android APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts
+          FLAVOR="${{ needs.prepare.outputs.channel }}"
+          APK=$(find "apps/mobile/android/app/build/outputs/apk/${FLAVOR}" -type f -name "*.apk" | head -n 1 || true)
+          if [[ -z "$APK" ]]; then
+            echo "No APK found for flavor ${FLAVOR}"
+            exit 1
+          fi
+          TARGET="release-artifacts/${{ needs.prepare.outputs.file_prefix }}-android.apk"
+          cp "$APK" "$TARGET"
+          ls -lh "$TARGET"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-android
+          path: release-artifacts/*
+          if-no-files-found: error
+
+  publish-release:
+    needs: [prepare, build-desktop, build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist-artifacts
+          merge-multiple: true
+
+      - name: Generate checksums and publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist-artifacts
+          sha256sum * > SHA256SUMS.txt
+          ls -lh
+
+          TAG="${{ needs.prepare.outputs.tag }}"
+          TITLE="${{ needs.prepare.outputs.release_title }}"
+          CHANNEL="${{ needs.prepare.outputs.channel }}"
+          DEFAULT_URL="${{ needs.prepare.outputs.default_url }}"
+          PRERELEASE="${{ needs.prepare.outputs.prerelease }}"
+
+          NOTES=$(cat <<EOF
+          ## ${TITLE}
+
+          - **Channel:** \`${CHANNEL}\`
+          - **Default server:** ${DEFAULT_URL}
+          - **Commit:** \`${GITHUB_SHA::7}\`
+
+          ### Downloads
+          - **Android:** \`*.apk\` (installable side-by-side between Nightly and Stable)
+          - **Windows:** \`*.exe\` (NSIS) or \`*.msi\`
+          - **macOS (Apple Silicon):** \`*.dmg\`
+          - **Linux:** \`*.AppImage\` or \`*.deb\`
+
+          > Note: iOS builds are distributed via TestFlight/Xcode rather than unsigned GitHub Release artifacts.
+          EOF
+          )
+
+          EXTRA_FLAGS=()
+          if [[ "$PRERELEASE" == "true" ]]; then
+            EXTRA_FLAGS+=(--prerelease)
+          fi
+
+          gh release create "$TAG" * \
+            --title "$TITLE" \
+            --notes "$NOTES" \
+            --target "$GITHUB_SHA" \
+            --generate-notes \
+            "${EXTRA_FLAGS[@]}"
