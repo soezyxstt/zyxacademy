@@ -1,5 +1,5 @@
 import {
-  getProjectAliases,
+  getProjectAliases, isTextProfile, TEXT_PROFILES,
   MODEL_REGISTRY,
   type ModelId,
   type ModelRouteClass
@@ -37,6 +37,11 @@ export function getWorkerModelContract(modelId: string): WorkerModelContract | u
 }
 
 export function projectDailyCeiling(model: WorkerModelContract): number {
+  if (isTextProfile(model.id)) return model.initialUsableRpd;
   if (model.initialUsableRpd <= 0) return 0;
   return Math.min(model.perProjectRpd, Math.floor(model.initialUsableRpd / PROJECT_ALIASES.length));
+}
+
+export function textQuotaGroup(id: ModelId) {
+  return isTextProfile(id) ? TEXT_PROFILES[id].group : undefined;
 }

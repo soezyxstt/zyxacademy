@@ -73,7 +73,7 @@ export const env = createEnv({
  * Cloudflare AI Gateway base URL for Gemini requests.
  * Format: https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/google-ai-studio
  * When set, all Gemini SDK requests are routed through the gateway.
- * Leave unset to use the Gemini API directly.
+ * A missing gateway URL prevents provider dispatch.
  */
  CF_AI_GATEWAY_URL: z.string().url().optional(),
  /** Cloudflare AI Gateway token for Authorization header */

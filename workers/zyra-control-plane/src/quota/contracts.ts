@@ -38,6 +38,7 @@ export type ReserveInput = {
   feature: string;
   routeClass: ModelRouteClass;
   modelId: ModelId;
+  probeProjectAlias?: string;
   cacheStatus: CacheStatus;
 };
 
@@ -77,6 +78,8 @@ export type CommitInput = {
 
 export type QuotaDiagnostics = {
   schemaVersion: "plan-003-v1";
+  projectGroupCount: number;
+  providerDay: string;
   activeLeaseCount: number;
   terminalLeaseCount: number;
   counters: Array<{

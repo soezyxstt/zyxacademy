@@ -47,7 +47,7 @@ export async function getCanonicalContentV2EmbeddingAdapter(): Promise<Canonical
   const clients = geminiKeyPool.getAllKeys().map((key) =>
     createGoogleGenAiEmbeddingClient({
       projectId: key.id,
-      client: key.clientGateway ?? key.client,
+      client: key.client,
     }),
   );
   return createCanonicalContentV2EmbeddingAdapter(clients);

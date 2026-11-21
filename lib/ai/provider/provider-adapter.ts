@@ -37,6 +37,7 @@ export interface ProviderUsage {
 }
 
 export interface ProviderGenerationResult {
+  readonly upstreamModel?: string;
   readonly modelId: string;
   readonly text: string;
   readonly finishReason: string;

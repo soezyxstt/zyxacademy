@@ -1,9 +1,10 @@
-import { GoogleGenAI } from "@google/genai";
+import { prepareCompatibleText } from "./compatible-text";
+import { googleGatewayClient } from "./google-gateway-client";
 import { buildAiGatewayHeaders } from "@/lib/ai/gateway-metadata";
 import { classifyProviderError, ProviderAdapterError } from "@/lib/ai/provider/errors";
 import { createGeminiGenerateAdapter } from "@/lib/ai/provider/gemini-generate-adapter";
 import { createGeminiInteractionsAdapter } from "@/lib/ai/provider/gemini-interactions-adapter";
-import { getModelEntry, getProjectAliases, modelSupportsAiGateway } from "@/lib/ai/provider/model-registry";
+import { getModelEntry, getProjectAliases } from "@/lib/ai/provider/model-registry";
 import type { ProviderGenerationResult, ProviderInputPart } from "@/lib/ai/provider/provider-adapter";
 import type { RequestLifecycleDependencies } from "@/lib/ai/request-lifecycle";
 
@@ -24,24 +25,13 @@ function runtimeConfigurationError(message: string): ProviderAdapterError {
   });
 }
 
-function requiredEnvironmentValue(environment: RuntimeEnvironment, name: string): string {
-  const value = environment[name]?.trim();
-  if (!value) throw runtimeConfigurationError(`provider runtime configuration is missing ${name}`);
-  return value;
-}
-
-function providerSlots(environment: RuntimeEnvironment): ReadonlyMap<string, { apiKey: string }> {
-  const aliases = getProjectAliases({
-    GEMINI_PROJECT_ALIAS_1: environment.GEMINI_PROJECT_ALIAS_1,
-    GEMINI_PROJECT_ALIAS_2: environment.GEMINI_PROJECT_ALIAS_2,
-    GEMINI_PROJECT_ALIAS_3: environment.GEMINI_PROJECT_ALIAS_3,
-    GEMINI_PROJECT_ALIAS_4: environment.GEMINI_PROJECT_ALIAS_4,
+function providerSlots(environment: RuntimeEnvironment) {
+  const slots = new Map<string, string[]>();
+  getProjectAliases(environment).forEach((group, index) => {
+    const key = environment[API_KEY_NAMES[index]]?.trim();
+    if (key) slots.set(group, [...(slots.get(group) ?? []), key]);
   });
-  const slots = aliases.map((projectAlias, index) => ({
-    projectAlias,
-    apiKey: requiredEnvironmentValue(environment, API_KEY_NAMES[index]),
-  }));
-  return new Map(slots.map((slot) => [slot.projectAlias, { apiKey: slot.apiKey }]));
+  return slots;
 }
 
 export type ProcessEnvProviderInvokerOptions = {
@@ -52,15 +42,17 @@ export function createProviderInvokerFromEnvironment(
   options: ProcessEnvProviderInvokerOptions = {},
 ): RequestLifecycleDependencies["invokeProvider"] {
   const environment = options.environment ?? process.env;
-  const slots = providerSlots(environment);
+  let slots: ReturnType<typeof providerSlots> | undefined;
   const gatewayUrl = environment.CF_AI_GATEWAY_URL?.trim();
   const gatewayToken = environment.CF_AI_GATEWAY_TOKEN?.trim();
 
-  if (Boolean(gatewayUrl) !== Boolean(gatewayToken)) {
+  if (!gatewayUrl || !gatewayToken) {
     throw runtimeConfigurationError("AI Gateway URL and token must be configured together");
   }
 
   return async (input): Promise<ProviderGenerationResult> => {
+    if (getModelEntry(input.modelId).family === "chat-completions") return prepareCompatibleText(input, environment)();
+    slots ??= providerSlots(environment);
     const slot = slots.get(input.projectAlias);
     if (!slot) {
       throw new ProviderAdapterError({
@@ -72,33 +64,11 @@ export function createProviderInvokerFromEnvironment(
     }
 
     const entry = getModelEntry(input.modelId);
-    const viaGateway = Boolean(gatewayUrl && gatewayToken && modelSupportsAiGateway(input.modelId));
-    const gatewayHeaders = viaGateway
-      ? {
-          "cf-aig-authorization": `Bearer ${gatewayToken}`,
-          ...buildAiGatewayHeaders({
-            requestId: input.requestId,
-            userCohort: input.userCohort,
-            feature: input.feature,
-            routeClass: input.routeClass,
-            modelId: input.modelId,
-            cachePolicy: input.cachePolicy,
-            cacheKey: input.cacheKey,
-            cacheTtlSeconds: input.cacheTtlSeconds,
-            deadlineMs: entry.deadlineMs,
-          }),
-        }
-      : undefined;
+    const viaGateway = true;
+    const gatewayHeaders = buildAiGatewayHeaders({ ...input, deadlineMs: entry.deadlineMs });
 
     try {
-      const client = new GoogleGenAI({
-        apiKey: slot.apiKey,
-        httpOptions: {
-          ...(viaGateway && gatewayUrl ? { baseUrl: gatewayUrl } : {}),
-          ...(gatewayHeaders ? { headers: gatewayHeaders } : {}),
-          timeout: entry.deadlineMs,
-        },
-      });
+      const client = googleGatewayClient(slot[Math.floor(Math.random() * slot.length)], environment, entry.deadlineMs, gatewayHeaders);
       const adapter = entry.family === "interactions"
         ? createGeminiInteractionsAdapter({ interactions: client.interactions })
         : createGeminiGenerateAdapter({ models: client.models });

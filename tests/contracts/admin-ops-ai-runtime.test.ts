@@ -33,6 +33,7 @@ import {
   type OpsAiWorkStep,
   type OpsAiErrorData,
 } from "@/lib/admin-ops-ai/contracts";
+import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { geminiKeyPool } from "@/lib/gemini-keys";
 import { FakeCanonicalVectorProvider } from "@/lib/vectorize/fake-adapter";
 import { CANONICAL_VECTOR_PROFILE } from "@/lib/vectorize/contracts";
@@ -537,6 +538,17 @@ describe("Admin Ops AI Runtime - CP3 Native Streaming Agent & Contracts", () => 
   // Suite 8: Provider Boundary Integration with geminiKeyPool
   // ==========================================================================
   describe("Suite 8: Provider Boundary Integration with geminiKeyPool", () => {
+    const originalUrl = zyraRuntimeEnv.CF_AI_GATEWAY_URL;
+    const originalToken = zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN;
+    beforeEach(() => {
+      zyraRuntimeEnv.CF_AI_GATEWAY_URL = "https://gateway.ai.cloudflare.com/v1/test/test";
+      zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN = "test";
+    });
+    afterEach(() => {
+      zyraRuntimeEnv.CF_AI_GATEWAY_URL = originalUrl;
+      zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN = originalToken;
+    });
+
     it("resolves model key directly from geminiKeyPool", () => {
       const resolved = getOpsAiModelKey();
       expect(resolved.key).toBeDefined();

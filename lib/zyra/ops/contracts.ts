@@ -77,6 +77,7 @@ export const ZyraOpsMetricsSchema = z.object({
     validationViolations: z.number().int().nonnegative(),
   }).strict(),
   events: z.array(z.object({ eventType: z.string(), resultCode: z.string(), count: z.number().int().nonnegative() }).strict()),
+  stageOutcomes: z.array(z.object({ stage: z.string(), model: z.string(), total: z.number(), failed: z.number(), p95Ms: z.number() })).optional(),
   configuredModels: z.array(z.object({ model: z.string(), initialUsableRpd: z.number().int().nonnegative() }).strict()),
   capacity: ZyraOpsCapacitySchema.default({ modelPools: [] }),
   alerts: z.array(ZyraOpsAlertSchema).default([]),

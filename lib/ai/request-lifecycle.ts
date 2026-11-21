@@ -487,6 +487,7 @@ export class RequestLifecycle {
             if (refund.status === "rejected" || refund.lease.leaseId !== controlPlaneLease.leaseId || !["refunded", "expired_refunded"].includes(refund.lease.state)) refundFailed = true;
           } catch { refundFailed = true; }
         }
+        if (error instanceof ProviderNotDispatchedError && controlPlaneLease && !refundFailed) continue;
         if (refundApplication && !isReplay && (!providerAttempted || (reservationResolved && !refundFailed))) {
           try {
             const refund = await this.allowance.refund(applicationAllowance.lease.id);
@@ -593,7 +594,7 @@ export class RequestLifecycle {
       modelClass: selectedModel,
       projectAlias: selectedProjectAlias,
       routeClass: route.routeClass,
-      resultCode: "PROVIDER_SUCCESS",
+      resultCode: lastProviderError ? "PROVIDER_FALLBACK_SUCCESS" : "PROVIDER_SUCCESS",
       latencyMs,
       sizeBytes: lifecycleRequestBytes(input.parts),
       cacheResult: hasImage ? "bypass" : cacheStatus,

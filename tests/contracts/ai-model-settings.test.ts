@@ -52,6 +52,11 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
 
   it("exposes verified ordinary generation models and restricts quarantined, embedding, and nonexistent models", () => {
     expect(selectableModels).toEqual([
+      "gemini-4-neon",
+      "gemini-4-argon",
+      "gemini-4-carbon",
+      "gemini-4-hydrogen",
+      "gemini-3.8-flash",
       "gemini-3.5-flash-lite",
       "gemini-3.1-flash-lite",
       "gemini-3.5-flash",
@@ -66,6 +71,11 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
     expect(selectableModels).not.toContain("gemini-embedding-001" as ModelId);
 
     expect(generateContentSelectableModels).toEqual([
+      "gemini-4-neon",
+      "gemini-4-argon",
+      "gemini-4-carbon",
+      "gemini-4-hydrogen",
+      "gemini-3.8-flash",
       "gemini-3.5-flash-lite",
       "gemini-3.1-flash-lite",
       "gemini-2.5-flash",
@@ -73,8 +83,8 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
       "gemma-4-31b-it",
     ]);
     expect(selectableModelsForFeature("admin-ops-ai")).toEqual(generateContentSelectableModels);
-    expect(selectableModelsForFeature("zyra")).toEqual(selectableModels);
-    expect(selectableModelsForFeature("playground")).toEqual(selectableModels);
+    expect(selectableModelsForFeature("zyra")).toEqual(selectableModelsForFeature("playground"));
+    expect(selectableModelsForFeature("playground")).toContain(MODEL_IDS.meta2);
 
     for (const item of MODEL_FEATURE_CATALOG) {
       expect(item.editableDefaultModels.length).toBe(3);
@@ -110,7 +120,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
 
     const fabricatedModel = modelSettingSchema.safeParse({
       feature: "zyra",
-      models: ["gemini-3.8-flash", MODEL_IDS.default, MODEL_IDS.stableFlash],
+      models: ["unregistered-model", MODEL_IDS.default, MODEL_IDS.stableFlash],
     });
     expect(fabricatedModel.success).toBe(false);
 
