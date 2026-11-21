@@ -49,7 +49,7 @@ export function ProfileSettings({ initial, badges, rewards, name, image, academi
    <div className="min-w-0 space-y-1"><p className="break-words font-heading text-body-base font-bold">{settings.displayName || name}</p><p className="text-body-xs text-muted-foreground">{t("profileCustomization.photoSource")}</p></div>
   </div>
   <Tabs defaultValue={academicForm ? "academic" : "privacy"} paramKey="section">
-   <TabsList aria-label={t("profile.editTitle")}>
+   <TabsList flush={false} aria-label={t("profile.editTitle")}>
     {academicForm && <TabsTrigger value="academic">{t("profileCustomization.academicTab")}</TabsTrigger>}
     <TabsTrigger value="privacy">{t("profileCustomization.privacyTab")}</TabsTrigger>
     <TabsTrigger value="appearance">{t("profileCustomization.appearanceTab")}</TabsTrigger>

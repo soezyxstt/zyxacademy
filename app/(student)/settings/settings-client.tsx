@@ -235,32 +235,29 @@ export function SettingsClient({
     <ApplicationPage>
       <PageHeader title={common("preferences")} />
       <Tabs value={activeTab} onValueChange={setTab}>
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border/50">
-          <TabsList aria-label={common("preferences")} className="border-b-0">
-            <TabsTrigger value="appearance">{t("preferences.appearance")}</TabsTrigger>
-            <TabsTrigger value="profile">{t("settings.profile")}</TabsTrigger>
-            <TabsTrigger value="email">{t("preferences.email")}</TabsTrigger>
-          </TabsList>
-          <div className="flex flex-wrap items-center gap-2 pb-1.5">
-            {activeTab === "profile" && (
-              <Button asChild variant="outline" size="sm">
-                <Link href={href("/profile")}>{t("settings.viewProfile")}</Link>
-              </Button>
-            )}
-            <Button asChild variant="outline" size="sm">
-              <Link href={href("/feedback")}>{t("settings.sendFeedback")}</Link>
-            </Button>
-          </div>
-        </div>
-        <TabsContent value="appearance" className="mt-0"><DisplayPreferences /></TabsContent>
-        <TabsContent value="profile" forceMount className="mt-0 data-[state=inactive]:hidden">
-          {profile ?? (
+        <TabsList aria-label={common("preferences")}>
+          <TabsTrigger value="appearance">{t("preferences.appearance")}</TabsTrigger>
+          <TabsTrigger value="profile">{t("settings.profile")}</TabsTrigger>
+          <TabsTrigger value="email">{t("preferences.email")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="appearance" className="mt-6"><DisplayPreferences /></TabsContent>
+        <TabsContent value="profile" forceMount className="mt-6 space-y-4 data-[state=inactive]:hidden">
+          {profile ? (
+            <>
+              <div className="flex justify-end">
+                <Button asChild variant="outline" size="sm">
+                  <Link href={href("/profile")}>{t("settings.viewProfile")}</Link>
+                </Button>
+              </div>
+              {profile}
+            </>
+          ) : (
             <Button asChild variant="outline" size="sm">
               <Link href={href("/profile/edit")}>{t("profile.editTitle")}</Link>
             </Button>
           )}
         </TabsContent>
-        <TabsContent value="email" forceMount className="mt-0 data-[state=inactive]:hidden">
+        <TabsContent value="email" forceMount className="mt-6 data-[state=inactive]:hidden">
           {email ?? (
             <Button asChild variant="outline" size="sm">
               <Link href={href("/settings/notifications")}>{t("settings.manageNotifications")}</Link>

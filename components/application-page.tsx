@@ -15,6 +15,7 @@ export function ApplicationPage({
 }: ApplicationPageProps) {
   return (
     <div
+      data-application-page=""
       className={cn(
         "w-full min-w-0 max-w-full px-(--page-gutter) pb-(--page-bottom) pt-(--page-top)",
         maxWidth === "7xl" && "mx-auto max-w-7xl",

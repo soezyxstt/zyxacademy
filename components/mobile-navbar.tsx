@@ -228,6 +228,7 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
 
   return (
     <header
+      data-mobile-navbar=""
       className={cn(
         "sticky top-0 z-30 flex h-13 w-full max-w-full shrink-0 items-center justify-between gap-2 overflow-hidden border-b border-border/80 bg-background/95 px-3 backdrop-blur-md md:!hidden sm:px-4",
         className

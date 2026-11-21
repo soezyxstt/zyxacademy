@@ -301,7 +301,7 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
     <div className="space-y-(--related-gap)">
       {queueHeader}
       <Tabs defaultValue="pending" className="w-full">
-        <TabsList>
+        <TabsList flush={false}>
           <TabsTrigger value="pending">
             <AlertCircle className="size-4 mr-2 text-status-warning" />
             {tr("needsGrading")}

@@ -330,18 +330,20 @@ export function ModelsClient({
       )}
 
       <Tabs value={task} onValueChange={setTask}>
-        <div className="flex min-w-0 items-center justify-between gap-2">
-        <TabsList className="min-w-0 flex-nowrap overflow-x-auto" aria-label={t("modelsUI.assignments")}>
+        <TabsList
+          aria-label={t("modelsUI.assignments")}
+          trailing={
+            <AdminIconAction variant="outline" className="size-8 shrink-0" label={t("modelsUI.refresh")}
+              onClick={handleRefresh} disabled={isRefreshing || pendingFeature !== null}>
+              <RefreshCw aria-hidden className={isRefreshing ? "animate-spin" : ""} />
+            </AdminIconAction>
+          }
+        >
           <TabsTrigger value="all">{t("modelsUI.features")}</TabsTrigger>
           <TabsTrigger value="zyra">Zyra</TabsTrigger>
           <TabsTrigger value="admin-ops-ai">Ops AI</TabsTrigger>
           <TabsTrigger value="embedding">Embedding</TabsTrigger>
         </TabsList>
-        <AdminIconAction variant="outline" className="size-9 shrink-0" label={t("modelsUI.refresh")}
-          onClick={handleRefresh} disabled={isRefreshing || pendingFeature !== null}>
-          <RefreshCw aria-hidden className={isRefreshing ? "animate-spin" : ""} />
-        </AdminIconAction>
-        </div>
         <TabsContent value="embedding">
           <dl className="divide-y divide-border">
             {Object.values(EMBEDDING_PROFILES).map(profile => (
