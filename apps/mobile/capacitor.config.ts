@@ -49,13 +49,9 @@ const config: CapacitorConfig = {
   server: {
     url: serverUrl,
     cleartext: serverUrl.startsWith("http://"),
-    allowNavigation: [
-      "zyxacademy.com",
-      "*.zyxacademy.com",
-      "zyx.academy",
-      "*.zyx.academy",
-      "accounts.google.com",
-    ],
+    allowNavigation: isNightly
+      ? ["staging.zyxacademy.com", "accounts.google.com"]
+      : ["www.zyxacademy.com", "zyxacademy.com", "zyx.academy", "accounts.google.com"],
     errorPath: "index.html",
   },
   plugins: {
@@ -67,6 +63,7 @@ const config: CapacitorConfig = {
       backgroundColor: "#ffffff",
     },
     StatusBar: {
+      overlaysWebView: false,
       style: "DEFAULT",
     },
   },
