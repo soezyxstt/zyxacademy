@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { DeviceNotificationSettings } from "@/components/notifications/device-notification-settings";
 import { cn } from "@/lib/utils";
 
 const INITIAL_ACTION_STATE: NotificationPreferencesActionState = {
@@ -71,7 +72,8 @@ export function NotificationPreferencesForm({
   const masterId = `${baseId}-email-enabled`;
 
   return (
-    <form action={formAction} className="w-full space-y-6">
+    <div className="w-full space-y-6">
+      <form action={formAction} className="w-full space-y-6">
       {Object.entries(preferences).map(([key, value]) => (
         <input key={key} type="hidden" name={key} value={String(value)} />
       ))}
@@ -168,6 +170,10 @@ export function NotificationPreferencesForm({
           {pending ? t("notificationPreferences.saving") : t("notificationPreferences.save")}
         </Button>
       </div>
-    </form>
+      </form>
+      <div className="border-t border-border/40 pt-6">
+        <DeviceNotificationSettings />
+      </div>
+    </div>
   );
 }

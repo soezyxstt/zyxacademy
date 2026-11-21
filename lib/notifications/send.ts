@@ -26,6 +26,8 @@ import { randomUUID } from "crypto";
 import { getUserLocalePreference } from "@/lib/i18n/preferences";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import type { NotificationPayload, SendResult } from "./types";
+import { sendApnsNotifications } from "./apns";
+import { dispatchTokensByTransport, type PushTokenTarget } from "./dispatch";
 import {
  quizPublishedPayload,
  adminBroadcastPayload,
@@ -195,22 +197,35 @@ export async function sendToUser(
  return result;
 }
 
+async function sendToTargets(
+ targets: PushTokenTarget[],
+ payload: NotificationPayload,
+ prune = true,
+): Promise<SendResult> {
+ const result = await dispatchTokensByTransport(targets, payload, {
+  sendFcm: (tokens, p) => sendMulticast(tokens, p, false),
+  sendApns: (tokens, p) => sendApnsNotifications(tokens, p),
+ });
+ if (prune && result.failedTokens.length > 0) {
+  await pruneInvalidTokens(result.failedTokens);
+ }
+ return result;
+}
+
 /** Sends an already rendered payload without creating an inbox row. */
 export async function sendPushToUser(userId: string, renderedPayload: NotificationPayload): Promise<SendResult> {
- const rows = await db
- .select({ token: userPushTokens.token })
- .from(userPushTokens)
- .where(eq(userPushTokens.userId, userId));
+ const hasTransportColumn = Boolean((userPushTokens as unknown as Record<string, unknown>).transport);
+ const rows: PushTokenTarget[] = hasTransportColumn
+  ? await db
+    .select({ token: userPushTokens.token, transport: userPushTokens.transport })
+    .from(userPushTokens)
+    .where(eq(userPushTokens.userId, userId))
+  : await db
+    .select({ token: userPushTokens.token })
+    .from(userPushTokens)
+    .where(eq(userPushTokens.userId, userId));
 
- const tokens = rows.map((r) => r.token);
- const result = await sendMulticast(tokens, renderedPayload);
-
- return {
- attempted: tokens.length,
- succeeded: result.succeeded,
- failedTokens: result.failedTokens,
- errors: result.errors,
- };
+ return sendToTargets(rows, renderedPayload, true);
 }
 
 export type PushPageResult = SendResult & { nextCursor?: string };
@@ -221,15 +236,28 @@ export async function sendPushToUsers(items: { userId: string; payload: Notifica
  if (!items.length) return results;
  const ids = items.map(item => item.userId);
  if (items.length > 10 || new Set(ids).size !== ids.length) throw new Error("INVALID_PUSH_RECIPIENT_BATCH");
- const rows = (await db.execute<{ id: string; userId: string; token: string }>(sql`
-  select registry.id, recipient.user_id as "userId", registry.token
-  from jsonb_to_recordset(${JSON.stringify(items.map(item => ({ user_id: item.userId, after_id: item.after ?? null })))}::jsonb) as recipient(user_id text, after_id text)
-  cross join lateral (
-   select id, token from ${userPushTokens} where user_id = recipient.user_id
-    and (user_id, id) >= (recipient.user_id, coalesce(recipient.after_id, ''))
-    and (recipient.after_id is null or id > recipient.after_id) order by user_id, id limit 101
-  ) registry
- `)).rows;
+ const hasTransportColumn = Boolean((userPushTokens as unknown as Record<string, unknown>).transport);
+ const rows = (await db.execute<{ id: string; userId: string; token: string; transport?: string }>(
+  hasTransportColumn
+   ? sql`
+    select registry.id, recipient.user_id as "userId", registry.token, registry.transport
+    from jsonb_to_recordset(${JSON.stringify(items.map(item => ({ user_id: item.userId, after_id: item.after ?? null })))}::jsonb) as recipient(user_id text, after_id text)
+    cross join lateral (
+     select id, token, transport from ${userPushTokens} where user_id = recipient.user_id
+      and (user_id, id) >= (recipient.user_id, coalesce(recipient.after_id, ''))
+      and (recipient.after_id is null or id > recipient.after_id) order by user_id, id limit 101
+    ) registry
+   `
+   : sql`
+    select registry.id, recipient.user_id as "userId", registry.token
+    from jsonb_to_recordset(${JSON.stringify(items.map(item => ({ user_id: item.userId, after_id: item.after ?? null })))}::jsonb) as recipient(user_id text, after_id text)
+    cross join lateral (
+     select id, token from ${userPushTokens} where user_id = recipient.user_id
+      and (user_id, id) >= (recipient.user_id, coalesce(recipient.after_id, ''))
+      and (recipient.after_id is null or id > recipient.after_id) order by user_id, id limit 101
+    ) registry
+   `
+ )).rows;
  const tokens = new Map<string, typeof rows>();
  for (const row of rows) {
   const userTokens = tokens.get(row.userId) ?? [];
@@ -240,13 +268,13 @@ export async function sendPushToUsers(items: { userId: string; payload: Notifica
  for (let i = 0; i < items.length; i += 10) {
   await Promise.all(items.slice(i, i + 10).map(async ({ userId, payload }) => {
    const page = tokens.get(userId) ?? [];
-   const userTokens = page.slice(0, 100).map(row => row.token);
+   const userTargets = page.slice(0, 100).map(row => ({ token: row.token, transport: row.transport }));
    try {
-    const result = await sendMulticast(userTokens, payload, false);
+    const result = await sendToTargets(userTargets, payload, false);
     invalid.push(...result.failedTokens);
-    results.set(userId, { attempted: userTokens.length, ...result, ...(result.errors.length === 0 && page.length > 100 ? { nextCursor: page[99].id } : {}) });
+    results.set(userId, { ...result, ...(result.errors.length === 0 && page.length > 100 ? { nextCursor: page[99].id } : {}) });
    } catch (error) {
-    results.set(userId, { attempted: userTokens.length, succeeded: 0, failedTokens: [],
+    results.set(userId, { attempted: userTargets.length, succeeded: 0, failedTokens: [],
      errors: [error instanceof Error ? error.message : String(error)] });
    }
   }));
