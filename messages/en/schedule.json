@@ -220,5 +220,20 @@
     "offline": "In person",
     "createScheduleAt": "Create a schedule on {date} at {hour}",
     "zeroSessions": "0 sessions"
+  },
+  "googleCalendar": {
+    "title": "Google Calendar",
+    "central": "Zyx Google Calendar",
+    "help": "Your schedules sync one way daily at 03:00 WIB. Changes in Google Calendar do not change Zyx schedules.",
+    "centralHelp": "All Zyx schedules sync one way daily at 03:00 WIB to the central calendar.",
+    "loading": "Loading status…",
+    "setup": "The central calendar is not configured. Contact the Google integration administrator.",
+    "failed": "Sync failed. Try again.",
+    "reconnect": "Google Calendar permission needs renewal. Reconnect your account.",
+    "pending": "Sync queued.",
+    "lastSynced": "Last synced: {date}",
+    "neverSynced": "Not synced yet.",
+    "connect": "Connect Google Calendar",
+    "sync": "Sync now"
   }
 }

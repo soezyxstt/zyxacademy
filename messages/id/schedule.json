@@ -220,5 +220,20 @@
     "offline": "Luring",
     "createScheduleAt": "Buat jadwal pada {date} pukul {hour}",
     "zeroSessions": "0 sesi"
+  },
+  "googleCalendar": {
+    "title": "Google Calendar",
+    "central": "Google Calendar Zyx",
+    "help": "Jadwal Anda disinkronkan satu arah setiap hari pukul 03.00 WIB. Perubahan di Google Calendar tidak mengubah jadwal Zyx.",
+    "centralHelp": "Seluruh jadwal Zyx disinkronkan satu arah setiap hari pukul 03.00 WIB ke kalender pusat.",
+    "loading": "Memuat status…",
+    "setup": "Kalender pusat belum dikonfigurasi. Hubungi pengelola integrasi Google.",
+    "failed": "Sinkronisasi gagal. Coba lagi.",
+    "reconnect": "Izin Google Calendar perlu diperbarui. Hubungkan ulang akun.",
+    "pending": "Sinkronisasi dalam antrean.",
+    "lastSynced": "Terakhir disinkronkan: {date}",
+    "neverSynced": "Belum disinkronkan.",
+    "connect": "Hubungkan Google Calendar",
+    "sync": "Sinkronkan sekarang"
   }
 }

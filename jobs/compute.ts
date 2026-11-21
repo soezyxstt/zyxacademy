@@ -1,3 +1,5 @@
+import { googleCalendarSyncCron, googleCalendarSyncWorker } from "./google-calendar";
+export { googleCalendarSyncCron, googleCalendarSyncWorker } from "./google-calendar";
 import { gamificationMissionsCron, gamificationMissionsPage } from './gamification-missions';
 export { gamificationMissionsCron, gamificationMissionsPage } from './gamification-missions';
 import { gamificationOutboxCron } from "./gamification";
@@ -76,6 +78,8 @@ export { discussionThreadTitleWorker } from "./discussion-title";
  * All background functions for Deno/compute Inngest execution.
  */
 export const computeFunctions = [
+  googleCalendarSyncCron,
+  googleCalendarSyncWorker,
   discussionAiCron,
   discussionThreadTitleWorker,
   discussionNotificationsWorker,

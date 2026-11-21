@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { CalendarDays } from "lucide-react";
+import { getPeranCodes } from "@/lib/auth/authorization";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import {
@@ -229,7 +230,7 @@ export default async function CalendarPage() {
       />
 
       <Reveal className="mt-6">
-        <CalendarAgendaClient events={events} />
+        <CalendarAgendaClient events={events} canSync={(await getPeranCodes(userId)).some(role => role === "murid" || role === "tutor")} />
       </Reveal>
     </ApplicationPage>
   );

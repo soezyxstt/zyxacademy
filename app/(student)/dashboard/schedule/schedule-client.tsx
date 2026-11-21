@@ -1,5 +1,7 @@
 "use client";
 
+import { GoogleCalendarControl } from "@/components/schedule/google-calendar-control";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, CalendarDays } from "lucide-react";
@@ -263,6 +265,7 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
           slots={activeData.availableSlots || []}
           bookings={activeData.groupBookings || []}
           academicSchedules={activeData.academicSchedules || []}
+          toolbarControls={experience.mode !== "demo" && ["student", "teacher"].includes(userObj.role) ? <GoogleCalendarControl /> : undefined}
           onSelectSlotToBook={(slot, dateIso) => setBookingSlotData({ slot, dateIso })}
           onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
           onEditSchedule={(schedule) => setSelectedAcademicSchedule(schedule)}

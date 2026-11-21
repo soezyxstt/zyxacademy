@@ -1,5 +1,7 @@
 # Deployment Guide
 
+Google Calendar sync is a local implementation awaiting deployment. Apply guarded migration `0040_google_calendar_sync` to the exact environment before deploying the matching web and worker registrations. The central token must retain existing Google API scopes and include Calendar events; its account owns the destination primary calendar. No new environment variable is required. Follow the token replacement procedure in [Development](DEVELOPMENT.md#replace-the-shared-google-host-token-through-oauth-playground), then verify manual and daily sync against a non-production account. No migration, token rotation or deployment is authorized by this implementation record.
+
 PR #339 discussion migrations 0024 through 0034 passed rehearsal and staging application on 2026-11-17. The [discussion migration record](discussions.md#staging-migration-2026-11-17) identifies the exact target, backup and 37-entry ledger verification. No existing discussion data required backfill; targets with existing rows still need the documented fence and backfill before new writers start. This does not authorize production rollout or establish hosted application acceptance.
 
 The 2026-11-15 [staging recovery record](operations/vercel-staging.md#database-cutover-evidence-2026-11-15) supersedes the historical pending database status below: the 26-entry journal, compact history backfill, 28-item seed and rollback fixtures passed. Old staging database credentials are fenced. Matching web/worker release remains in progress; no production rollout is authorized.

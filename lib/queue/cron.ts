@@ -6,6 +6,7 @@ const recoveryJobs = [
 ];
 
 const scheduledJobs = [
+  { job: "google-calendar-sync-cron", hour: 20, minute: 0 },
   { job: "course-analytics-snapshot-cron", hour: 2, minute: 0 },
   { job: "content-quality-audit-cron", hour: 3, minute: 0 },
   { job: "weekly-reflection-cron", hour: 6, minute: 0, weekday: 1 },
