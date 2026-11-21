@@ -673,8 +673,8 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           "flex flex-col overflow-hidden border-l border-border bg-background select-text relative min-w-0",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           "transition-[transform,width,opacity,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-          "fixed inset-0 z-50 w-full sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[480px] h-full shadow-2xl max-lg:top-[var(--panel-visible-top,0px)] max-lg:h-[var(--panel-visible-height,100dvh)]",
-          "lg:sticky lg:top-0 lg:self-start lg:h-screen lg:shrink-0 lg:z-40 lg:shadow-none",
+          "fixed inset-0 z-50 w-full sm:left-auto sm:right-0 sm:w-[480px] shadow-2xl top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
+          "lg:sticky lg:self-start lg:shrink-0 lg:z-40 lg:shadow-none",
           isVisible
             ? "translate-x-0 opacity-100"
             : "translate-x-full opacity-0 pointer-events-none lg:translate-x-0 lg:border-l-transparent"

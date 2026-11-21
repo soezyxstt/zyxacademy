@@ -1320,7 +1320,7 @@ function TutorDrawerContent({
           "--zyra-panel-width": `${targetPanelWidth}px`,
         } as React.CSSProperties}
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-background shadow-2xl md:sticky md:top-0 md:bottom-auto md:right-auto md:self-start md:z-20 md:h-screen md:h-[100svh] md:shrink-0 md:shadow-none select-text max-md:top-[var(--panel-visible-top,0px)] max-md:h-[var(--panel-visible-height,100dvh)]",
+          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-background shadow-2xl md:sticky md:bottom-auto md:right-auto md:self-start md:z-20 md:shrink-0 md:shadow-none select-text top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           isDragging
             ? "transition-none select-none"
