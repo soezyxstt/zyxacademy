@@ -16,6 +16,10 @@ type SignInFormProps = {
 export function SignInForm({ callbackURL, urlErrorCode, requestedLocale }: SignInFormProps) {
   const t = useTranslations("auth");
   const { locale } = useAppLocale();
+  const signUpParams = new URLSearchParams();
+  if (requestedLocale) signUpParams.set("locale", requestedLocale);
+  if (callbackURL && callbackURL !== "/dashboard") signUpParams.set("next", callbackURL);
+  const signUpHref = signUpParams.size > 0 ? `/sign-up?${signUpParams.toString()}` : "/sign-up";
   return (
     <AuthMarketingCard
       title={t("signIn")}
@@ -25,7 +29,7 @@ export function SignInForm({ callbackURL, urlErrorCode, requestedLocale }: SignI
         <p className="mt-6 text-center text-body-sm text-muted-foreground">
           {t("noAccount")}{" "}
           <Link
-            href={requestedLocale ? `/sign-up?locale=${requestedLocale}` : "/sign-up"}
+            href={signUpHref}
             className="font-medium text-primary underline-offset-4 hover:underline"
           >
             {t("signUp")}

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>Zyx Academy</title>
+    <link rel="stylesheet" href="vendor/katex/katex.min.css" />
     <style>
       :root {
         --background: #ffffff;
@@ -18,6 +19,10 @@
         --primary-fg: #ffffff;
         --zx-z-fill: #2a3c6a;
         --zx-x-fill: #cc542b;
+        --status-warning-bg: rgba(217, 119, 6, 0.12);
+        --status-warning-fg: #b45309;
+        --status-success-bg: rgba(22, 163, 74, 0.12);
+        --status-success-fg: #15803d;
         --radius: 10px;
       }
 
@@ -34,6 +39,10 @@
           --primary-fg: #0f162a;
           --zx-z-fill: #f3f4f5;
           --zx-x-fill: #cc542b;
+          --status-warning-bg: rgba(245, 158, 11, 0.16);
+          --status-warning-fg: #fbbf24;
+          --status-success-bg: rgba(34, 197, 94, 0.16);
+          --status-success-fg: #4ade80;
         }
       }
 
@@ -41,39 +50,53 @@
         box-sizing: border-box;
       }
 
+      html,
       body {
         margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        padding: 24px;
+        padding: 0;
+        min-height: 100%;
         background: var(--background);
         color: var(--foreground);
         font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
           Helvetica, Arial, sans-serif;
         -webkit-font-smoothing: antialiased;
+        line-height: 1.5;
       }
 
-      main {
-        width: 100%;
-        max-width: 400px;
-        padding: 28px;
-        border-radius: 12px;
-        border: 1px solid var(--border);
-        background: var(--card);
-        text-align: left;
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      .navbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: var(--background);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .navbar-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        height: 52px;
+        max-width: 840px;
+        margin: 0 auto;
+        padding: 0 20px;
       }
 
       .brand {
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: 10px;
-        margin-bottom: 20px;
       }
 
       .brand-mark {
-        width: 30px;
-        height: 18px;
+        width: 28px;
+        height: 17px;
       }
 
       .brand-name {
@@ -82,16 +105,101 @@
         letter-spacing: -0.01em;
       }
 
+      .lang-switch {
+        display: inline-flex;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--card);
+      }
+
+      .lang-btn {
+        appearance: none;
+        border: 0;
+        background: transparent;
+        color: var(--muted-foreground);
+        font-size: 12px;
+        font-weight: 600;
+        padding: 5px 9px;
+        cursor: pointer;
+      }
+
+      .lang-btn[aria-pressed="true"] {
+        background: var(--surface);
+        color: var(--foreground);
+      }
+
+      .reconnect-banner {
+        position: sticky;
+        top: 52px;
+        z-index: 19;
+        background: var(--status-success-bg);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .reconnect-banner-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        max-width: 840px;
+        margin: 0 auto;
+        padding: 8px 20px;
+      }
+
+      .reconnect-banner-text {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--status-success-fg);
+      }
+
+      .reconnect-banner-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .page {
+        flex: 1;
+        width: 100%;
+        max-width: 840px;
+        margin: 0 auto;
+        padding: 28px 20px 48px;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        background: var(--status-warning-bg);
+        color: var(--status-warning-fg);
+        margin-bottom: 12px;
+      }
+
+      .status-pill.online {
+        background: var(--status-success-bg);
+        color: var(--status-success-fg);
+      }
+
+      .hero {
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border);
+      }
+
       h1 {
         margin: 0 0 8px;
-        font-size: 20px;
+        font-size: 22px;
         line-height: 1.3;
         font-weight: 700;
         letter-spacing: -0.02em;
       }
 
-      p {
-        margin: 0 0 20px;
+      .lead {
+        margin: 0 0 18px;
         font-size: 14px;
         line-height: 1.55;
         color: var(--muted-foreground);
@@ -99,144 +207,1154 @@
 
       .actions {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 10px;
       }
 
-      button {
+      .btn {
         appearance: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
         min-height: 40px;
-        border: 1px solid transparent;
         border-radius: var(--radius);
-        padding: 0 18px;
+        padding: 0 16px;
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
+      }
+
+      .btn-sm {
+        min-height: 32px;
+        padding: 0 12px;
+        font-size: 12px;
+      }
+
+      .btn-primary {
+        border: 1px solid transparent;
         background: var(--primary);
         color: var(--primary-fg);
       }
 
-      button:hover:not(:disabled) {
+      .btn-primary:hover:not(:disabled) {
         background: var(--primary-hover);
       }
 
-      button:disabled {
+      .btn-outline {
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--foreground);
+      }
+
+      .btn-ghost {
+        border: 0;
+        background: transparent;
+        color: var(--muted-foreground);
+        padding: 0 8px;
+        min-height: 36px;
+      }
+
+      .btn:disabled {
         opacity: 0.6;
         cursor: default;
       }
 
       .status {
-        margin: 14px 0 0;
+        margin: 12px 0 0;
         min-height: 18px;
         font-size: 12px;
         color: var(--muted-foreground);
       }
+
+      .library-section {
+        margin-top: 22px;
+      }
+
+      .section-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+
+      .section-title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .section-meta {
+        font-size: 12px;
+        color: var(--muted-foreground);
+      }
+
+      .reading-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border-top: 1px solid var(--border);
+      }
+
+      .reading-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--border);
+        padding: 12px 0;
+      }
+
+      .reading-open {
+        appearance: none;
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+        padding: 0;
+        cursor: pointer;
+      }
+
+      .reading-title {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--foreground);
+        margin-bottom: 2px;
+      }
+
+      .reading-sub {
+        display: block;
+        font-size: 12px;
+        color: var(--muted-foreground);
+      }
+
+      .icon-btn {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--muted-foreground);
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      .icon-btn:hover {
+        background: var(--surface);
+        color: var(--foreground);
+      }
+
+      .empty-state {
+        padding: 18px 0;
+        font-size: 14px;
+        color: var(--muted-foreground);
+      }
+
+      .reader-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding-bottom: 12px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .reader-meta {
+        font-size: 12px;
+        color: var(--muted-foreground);
+        margin: 0 0 6px;
+      }
+
+      .reader-title {
+        margin: 0 0 20px;
+        font-size: 22px;
+        line-height: 1.3;
+        font-weight: 700;
+      }
+
+      .reader-section {
+        padding-top: 18px;
+        margin-top: 18px;
+        border-top: 1px solid var(--border);
+      }
+
+      .reader-section:first-of-type {
+        padding-top: 0;
+        margin-top: 0;
+        border-top: 0;
+      }
+
+      .reader-section h2 {
+        margin: 0 0 10px;
+        font-size: 17px;
+        line-height: 1.4;
+        font-weight: 700;
+      }
+
+      .reader-section h3 {
+        margin: 14px 0 6px;
+        font-size: 15px;
+        line-height: 1.4;
+        font-weight: 600;
+      }
+
+      .reader-section p {
+        margin: 0 0 12px;
+        font-size: 16px;
+        line-height: 1.68;
+      }
+
+      .reader-section ul,
+      .reader-section ol {
+        margin: 0 0 12px;
+        padding-left: 22px;
+      }
+
+      .reader-section li {
+        margin-bottom: 6px;
+        font-size: 16px;
+        line-height: 1.62;
+      }
+
+      .reader-section blockquote {
+        margin: 0 0 12px;
+        padding: 8px 14px;
+        border-left: 3px solid var(--primary);
+        background: var(--surface);
+        border-radius: 0 8px 8px 0;
+      }
+
+      .reader-section code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.9em;
+        padding: 1px 5px;
+        border-radius: 4px;
+        background: var(--surface);
+      }
+
+      .reader-section pre {
+        margin: 0 0 12px;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        overflow-x: auto;
+        font-size: 13px;
+      }
+
+      .reader-section pre code {
+        padding: 0;
+        background: transparent;
+      }
+
+      .offline-objective {
+        border-left: 3px solid var(--primary);
+        padding-left: 12px;
+        margin-bottom: 14px;
+      }
+
+      .offline-objective p {
+        color: var(--muted-foreground);
+        font-size: 15px;
+      }
+
+      .offline-math-block {
+        display: block;
+        margin: 12px 0;
+        padding: 8px 4px;
+        overflow-x: auto;
+        text-align: center;
+      }
+
+      .offline-visual {
+        margin: 16px 0;
+        padding: 14px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--card);
+      }
+
+      .offline-visual figcaption {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+
+      .offline-visual-svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        background: #ffffff;
+        color: #1e293b;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        padding: 4px;
+      }
+
+      .offline-visual-desc,
+      .offline-visual-note {
+        font-size: 13px !important;
+        line-height: 1.5 !important;
+        color: var(--muted-foreground) !important;
+        margin: 8px 0 0 !important;
+      }
+
+      .offline-img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        margin: 10px 0;
+      }
+
+      .offline-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        margin: 12px 0;
+      }
+
+      .offline-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      .offline-table th,
+      .offline-table td {
+        border: 1px solid var(--border);
+        padding: 8px 10px;
+        text-align: left;
+      }
+
+      .offline-table th {
+        background: var(--surface);
+        font-weight: 600;
+      }
+
+      .offline-worked-example {
+        margin: 12px 0;
+        padding: 12px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--status-success-fg);
+        background: var(--card);
+      }
+
+      .offline-step-reason {
+        font-size: 13px;
+        color: var(--muted-foreground);
+        margin-top: 2px;
+      }
+
+      .hidden {
+        display: none !important;
+      }
     </style>
   </head>
   <body>
-    <main role="status" aria-live="polite">
-      <div class="brand">
-        <svg
-          class="brand-mark"
-          viewBox="0 0 370 216"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <path
-            d="M262.25 66.0576L309.5 0H369.5L292.25 108L369.5 216H309.5L268.486 158.661C275.133 144.348 279 126.43 279 104C279 56 293.001 32 302.001 26C274.001 37 270.21 75.5 263.5 92.5C259.39 102.914 253.201 114.236 244.281 124.821L155 0H215L262.25 66.0576Z"
-            fill="var(--zx-x-fill)"
-          />
-          <path
-            d="M139 0L176.75 52.7764L95.0488 167H133C206.5 167 239.65 125.559 252.5 93C259.21 76 273.5 37 301.5 26C292.5 32 278.786 43 270.5 105C256.067 213 172.5 216 114.5 216H0L119.451 49H0V0H139Z"
-            fill="var(--zx-z-fill)"
-          />
-        </svg>
-        <span class="brand-name">Zyx Academy</span>
+    <header class="navbar">
+      <div class="navbar-inner">
+        <div class="brand">
+          <svg
+            class="brand-mark"
+            viewBox="0 0 370 216"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path
+              d="M262.25 66.0576L309.5 0H369.5L292.25 108L369.5 216H309.5L268.486 158.661C275.133 144.348 279 126.43 279 104C279 56 293.001 32 302.001 26C274.001 37 270.21 75.5 263.5 92.5C259.39 102.914 253.201 114.236 244.281 124.821L155 0H215L262.25 66.0576Z"
+              fill="var(--zx-x-fill)"
+            />
+            <path
+              d="M139 0L176.75 52.7764L95.0488 167H133C206.5 167 239.65 125.559 252.5 93C259.21 76 273.5 37 301.5 26C292.5 32 278.786 43 270.5 105C256.067 213 172.5 216 114.5 216H0L119.451 49H0V0H139Z"
+              fill="var(--zx-z-fill)"
+            />
+          </svg>
+          <span class="brand-name">Zyx Academy</span>
+        </div>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <button type="button" class="lang-btn" id="lang-id" aria-pressed="true">ID</button>
+          <button type="button" class="lang-btn" id="lang-en" aria-pressed="false">EN</button>
+        </div>
       </div>
-      <h1 id="title">Menghubungkan ke Zyx Academy</h1>
-      <p id="message">Menunggu koneksi jaringan untuk membuka ruang belajar Anda.</p>
-      <div class="actions">
-        <button id="retry-button" type="button">Coba lagi</button>
+    </header>
+
+    <div id="reconnect-banner" class="reconnect-banner hidden" role="status" aria-live="polite">
+      <div class="reconnect-banner-inner">
+        <span class="reconnect-banner-text" id="reconnect-banner-text">Koneksi kembali tersedia</span>
+        <div class="reconnect-banner-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="banner-online-btn">
+            Kembali online
+          </button>
+          <button type="button" class="icon-btn" id="banner-dismiss-btn" aria-label="Tutup">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
-      <p class="status" id="status-text"></p>
+    </div>
+
+    <main class="page">
+      <div id="home-view">
+        <section class="hero">
+          <div class="status-pill" id="conn-pill">
+            <span id="conn-label">Offline</span>
+          </div>
+          <h1 id="title">Menghubungkan ke Zyx Academy</h1>
+          <p class="lead" id="message">Menunggu koneksi jaringan untuk membuka ruang belajar Anda.</p>
+          <div class="actions">
+            <button id="retry-button" class="btn btn-primary" type="button">Coba lagi</button>
+            <button id="refresh-library-btn" class="btn btn-outline" type="button">Bacaan offline</button>
+          </div>
+          <p class="status" id="status-text" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="library-section" id="library-section" aria-labelledby="library-heading">
+          <div class="section-header">
+            <h2 class="section-title" id="library-heading">Bacaan tersimpan</h2>
+            <span class="section-meta" id="library-meta"></span>
+          </div>
+          <ul class="reading-list" id="reading-list"></ul>
+          <p class="empty-state hidden" id="library-empty"></p>
+        </section>
+      </div>
+
+      <article id="reader-view" class="hidden" aria-live="polite">
+        <div class="reader-bar">
+          <button type="button" class="btn btn-ghost" id="reader-back-btn">
+            <span id="reader-back-label">Kembali</span>
+          </button>
+          <button type="button" class="btn btn-outline btn-sm" id="reader-reconnect-btn">
+            Kembali online
+          </button>
+        </div>
+        <p class="reader-meta" id="reader-meta"></p>
+        <h1 class="reader-title" id="reader-title"></h1>
+        <div id="reader-body"></div>
+      </article>
     </main>
 
     <script>
       (function () {
+        var POSITION_PREFIX = "zyx:offline-reading-pos:";
         var isNightly = /nightly/i.test(navigator.userAgent || "");
-        var defaultOrigin = isNightly
+        var targetOrigin = isNightly
           ? "https://staging.zyxacademy.com"
           : "https://www.zyxacademy.com";
-        var isEn = (navigator.language || "id").toLowerCase().startsWith("en");
-        var t = isEn
-          ? {
-              connectingTitle: "Connecting to Zyx Academy",
-              connectingMsg: "Waiting for network access to load your workspace.",
-              offlineTitle: "You are offline",
-              offlineMsg: "Check your internet connection, then try again.",
-              retry: "Try again",
-              retrying: "Reconnecting to Zyx Academy...",
-              stillOffline: "Still offline. Check your connection.",
-            }
-          : {
-              connectingTitle: "Menghubungkan ke Zyx Academy",
-              connectingMsg: "Menunggu koneksi jaringan untuk membuka ruang belajar Anda.",
-              offlineTitle: "Sedang offline",
-              offlineMsg: "Periksa koneksi internet Anda lalu coba lagi.",
-              retry: "Coba lagi",
-              retrying: "Menghubungkan ke Zyx Academy...",
-              stillOffline: "Koneksi masih belum tersedia.",
-            };
 
+        var COPY = {
+          id: {
+            offlinePill: "Offline",
+            onlinePill: "Koneksi kembali",
+            connectingTitle: "Menghubungkan ke Zyx Academy",
+            connectingMsg: "Menunggu koneksi jaringan untuk membuka ruang belajar Anda.",
+            offlineTitle: "Sedang offline",
+            offlineMsg: "Periksa koneksi internet Anda lalu coba lagi, atau buka materi yang sudah tersimpan di perangkat ini.",
+            retry: "Coba lagi",
+            retrying: "Menghubungkan ke Zyx Academy...",
+            stillOffline: "Koneksi masih belum tersedia.",
+            offlineBtn: "Bacaan offline",
+            libraryHeading: "Bacaan tersimpan",
+            emptyLibrary: "Belum ada bacaan tersimpan di perangkat ini. Buka artikel atau materi teks saat online agar tersimpan otomatis.",
+            back: "Kembali",
+            reconnect: "Kembali online",
+            bannerText: "Koneksi kembali tersedia",
+            bannerDismiss: "Tutup",
+            deleteLabel: "Hapus bacaan",
+            minUnit: "mnt",
+            noContent: "Konten bacaan tidak tersedia di penyimpanan lokal.",
+            savedCount: function (count, sizeText) {
+              return count + " materi, " + sizeText;
+            },
+          },
+          en: {
+            offlinePill: "Offline",
+            onlinePill: "Back online",
+            connectingTitle: "Connecting to Zyx Academy",
+            connectingMsg: "Waiting for network access to load your workspace.",
+            offlineTitle: "You are offline",
+            offlineMsg: "Check your internet connection and try again, or open materials saved on this device.",
+            retry: "Try again",
+            retrying: "Reconnecting to Zyx Academy...",
+            stillOffline: "Still offline. Check your connection.",
+            offlineBtn: "Offline readings",
+            libraryHeading: "Saved readings",
+            emptyLibrary: "No saved readings on this device yet. Open text materials while online to cache them automatically.",
+            back: "Back",
+            reconnect: "Return online",
+            bannerText: "Connection restored",
+            bannerDismiss: "Dismiss",
+            deleteLabel: "Remove reading",
+            minUnit: "min",
+            noContent: "Reading content is not available in local storage.",
+            savedCount: function (count, sizeText) {
+              return count + (count === 1 ? " reading, " : " readings, ") + sizeText;
+            },
+          },
+        };
+
+        var currentLang = (navigator.language || "id").toLowerCase().startsWith("en")
+          ? "en"
+          : "id";
+
+        var connPill = document.getElementById("conn-pill");
+        var connLabel = document.getElementById("conn-label");
         var titleEl = document.getElementById("title");
         var messageEl = document.getElementById("message");
         var statusEl = document.getElementById("status-text");
         var retryButton = document.getElementById("retry-button");
-        retryButton.textContent = t.retry;
+        var refreshLibraryBtn = document.getElementById("refresh-library-btn");
+        var langIdBtn = document.getElementById("lang-id");
+        var langEnBtn = document.getElementById("lang-en");
+        var librarySection = document.getElementById("library-section");
+        var libraryHeading = document.getElementById("library-heading");
+        var libraryMeta = document.getElementById("library-meta");
+        var readingListEl = document.getElementById("reading-list");
+        var libraryEmptyEl = document.getElementById("library-empty");
+        var homeView = document.getElementById("home-view");
+        var readerView = document.getElementById("reader-view");
+        var readerBackBtn = document.getElementById("reader-back-btn");
+        var readerBackLabel = document.getElementById("reader-back-label");
+        var readerReconnectBtn = document.getElementById("reader-reconnect-btn");
+        var readerMetaEl = document.getElementById("reader-meta");
+        var readerTitleEl = document.getElementById("reader-title");
+        var readerBodyEl = document.getElementById("reader-body");
+        var reconnectBanner = document.getElementById("reconnect-banner");
+        var reconnectBannerText = document.getElementById("reconnect-banner-text");
+        var bannerOnlineBtn = document.getElementById("banner-online-btn");
+        var bannerDismissBtn = document.getElementById("banner-dismiss-btn");
 
-        function updateState() {
-          if (navigator.onLine) {
-            titleEl.textContent = t.connectingTitle;
-            messageEl.textContent = t.connectingMsg;
-            statusEl.textContent = "";
-          } else {
-            titleEl.textContent = t.offlineTitle;
-            messageEl.textContent = t.offlineMsg;
-            statusEl.textContent = "";
+        var cachedItems = [];
+        var cachedTotalBytes = 0;
+        var activeReading = null;
+        var scrollSaveTimer = null;
+        var bannerDismissed = false;
+        var enteredOfflineMode = false;
+
+        function getTauriInvoke() {
+          if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+            return window.__TAURI__.core.invoke;
+          }
+          if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
+            return window.__TAURI_INTERNALS__.invoke;
+          }
+          return null;
+        }
+
+        function formatBytes(bytes) {
+          var n = Number(bytes) || 0;
+          if (n < 1024) return n + " B";
+          if (n < 1024 * 1024) return Math.max(1, Math.round(n / 1024)) + " KB";
+          return (n / (1024 * 1024)).toFixed(1) + " MB";
+        }
+
+        function isSafeAttributeUrl(rawValue, isImgSrc) {
+          var cleaned = String(rawValue || "").replace(/[\u0000-\u001f\u007f]+/g, "").trim();
+          if (!cleaned) return false;
+          if (/^https?:\/\//i.test(cleaned)) return true;
+          if (cleaned.charAt(0) === "#" || (cleaned.charAt(0) === "/" && cleaned.charAt(1) !== "/")) {
+            return true;
+          }
+          if (isImgSrc && /^data:image\/(?:png|jpeg|jpg|webp|gif|svg\+xml);base64,[a-z0-9+/=\s]+$/i.test(cleaned)) {
+            return true;
+          }
+          return false;
+        }
+
+        function sanitizeHtmlFragment(html) {
+          var template = document.createElement("template");
+          template.innerHTML = String(html || "");
+          var blockedTags = [
+            "SCRIPT",
+            "IFRAME",
+            "OBJECT",
+            "EMBED",
+            "STYLE",
+            "LINK",
+            "META",
+            "BASE",
+            "FORM",
+            "USE",
+            "ANIMATE",
+            "SET",
+            "NOSCRIPT",
+          ];
+          for (var t = 0; t < blockedTags.length; t++) {
+            var bad = template.content.querySelectorAll(blockedTags[t].toLowerCase());
+            for (var j = bad.length - 1; j >= 0; j--) {
+              bad[j].remove();
+            }
+          }
+          var all = template.content.querySelectorAll("*");
+          for (var i = 0; i < all.length; i++) {
+            var el = all[i];
+            var attrs = Array.prototype.slice.call(el.attributes);
+            for (var a = 0; a < attrs.length; a++) {
+              var name = attrs[a].name.toLowerCase();
+              var value = attrs[a].value || "";
+              if (name.indexOf("on") === 0 || name === "formaction" || name === "srcdoc") {
+                el.removeAttribute(attrs[a].name);
+                continue;
+              }
+              if (name === "href" || name === "src" || name === "xlink:href") {
+                var isImgSrc = el.tagName === "IMG" && name === "src";
+                if (!isSafeAttributeUrl(value, isImgSrc)) {
+                  el.removeAttribute(attrs[a].name);
+                }
+              }
+            }
+          }
+          return template.content;
+        }
+
+        function readLocalPosition(key) {
+          if (!key) return null;
+          try {
+            var raw = window.localStorage.getItem(POSITION_PREFIX + key);
+            return raw ? JSON.parse(raw) : null;
+          } catch {
+            return null;
           }
         }
 
-        async function retryConnection() {
-          retryButton.disabled = true;
-          statusEl.textContent = t.retrying;
-          if (!navigator.onLine) {
-            statusEl.textContent = t.stillOffline;
-            retryButton.disabled = false;
+        function pickLatestPosition(a, b) {
+          if (!a && !b) return null;
+          if (!a) return b;
+          if (!b) return a;
+          return (Number(b.updatedAt) || 0) > (Number(a.updatedAt) || 0) ? b : a;
+        }
+
+        function captureCurrentReadingPosition() {
+          if (!activeReading || !activeReading.key || readerView.classList.contains("hidden")) {
+            return null;
+          }
+          var scrollY = Math.max(0, Math.round(window.scrollY || document.documentElement.scrollTop || 0));
+          var docHeight = Math.max(
+            document.documentElement.scrollHeight || 0,
+            document.body.scrollHeight || 0
+          );
+          var maxScroll = Math.max(0, docHeight - window.innerHeight);
+          var scrollRatio = maxScroll > 0 ? Math.max(0, Math.min(1, scrollY / maxScroll)) : 0;
+
+          var sectionSlug = null;
+          var sectionIndex = 0;
+          var sectionEls = readerBodyEl.querySelectorAll(".reader-section");
+          for (var i = 0; i < sectionEls.length; i++) {
+            var rect = sectionEls[i].getBoundingClientRect();
+            if (rect.top <= 120) {
+              sectionIndex = i;
+              sectionSlug = sectionEls[i].getAttribute("data-section-slug") || null;
+            } else {
+              break;
+            }
+          }
+
+          return {
+            key: activeReading.key,
+            sectionSlug: sectionSlug,
+            sectionIndex: sectionIndex,
+            scrollY: scrollY,
+            scrollRatio: scrollRatio,
+            scope: "document",
+            updatedAt: Date.now(),
+          };
+        }
+
+        function findSectionElementBySlug(slug) {
+          if (!slug) return null;
+          var sections = readerBodyEl.querySelectorAll("[data-section-slug]");
+          for (var i = 0; i < sections.length; i++) {
+            if (sections[i].getAttribute("data-section-slug") === slug) {
+              return sections[i];
+            }
+          }
+          return null;
+        }
+
+        function persistActiveReadingPosition() {
+          var pos = captureCurrentReadingPosition();
+          if (!pos) return;
+          var serialized = JSON.stringify(pos);
+          try {
+            window.localStorage.setItem(POSITION_PREFIX + pos.key, serialized);
+          } catch {
+            // Non-fatal
+          }
+          var invoke = getTauriInvoke();
+          if (invoke) {
+            invoke("save_offline_reading_position", {
+              key: pos.key,
+              positionJson: serialized,
+            }).catch(function () {});
+          }
+        }
+
+        function schedulePositionSave() {
+          if (!activeReading || readerView.classList.contains("hidden")) return;
+          if (scrollSaveTimer !== null) window.clearTimeout(scrollSaveTimer);
+          scrollSaveTimer = window.setTimeout(function () {
+            scrollSaveTimer = null;
+            persistActiveReadingPosition();
+          }, 250);
+        }
+
+        function restoreReadingPosition(reading) {
+          var pos = pickLatestPosition(
+            reading && reading.readingPosition ? reading.readingPosition : null,
+            readLocalPosition(reading && reading.key)
+          );
+          if (!pos) {
+            window.scrollTo(0, 0);
             return;
           }
+          window.requestAnimationFrame(function () {
+            window.requestAnimationFrame(function () {
+              if (pos.sectionSlug && pos.scope !== "document") {
+                var scopedSec = findSectionElementBySlug(pos.sectionSlug);
+                if (scopedSec) {
+                  scopedSec.scrollIntoView({ behavior: "auto", block: "start" });
+                  return;
+                }
+              }
+              var docHeight = Math.max(
+                document.documentElement.scrollHeight || 0,
+                document.body.scrollHeight || 0
+              );
+              var maxScroll = Math.max(0, docHeight - window.innerHeight);
+              var targetY = 0;
+              if (Number(pos.scrollRatio) > 0 && maxScroll > 0) {
+                targetY = Math.round(Math.max(0, Math.min(1, Number(pos.scrollRatio))) * maxScroll);
+              } else if (Number(pos.scrollY) > 0) {
+                targetY = Math.min(maxScroll, Math.round(Number(pos.scrollY)));
+              }
+              if (targetY > 0) {
+                window.scrollTo(0, targetY);
+                return;
+              }
+              if (pos.sectionSlug) {
+                var targetSec = findSectionElementBySlug(pos.sectionSlug);
+                if (targetSec) {
+                  targetSec.scrollIntoView({ behavior: "auto", block: "start" });
+                  return;
+                }
+              }
+              window.scrollTo(0, 0);
+            });
+          });
+        }
+
+        async function resolveOrigin() {
+          var invoke = getTauriInvoke();
+          if (!invoke) return targetOrigin;
           try {
-            await fetch(defaultOrigin + "/api/auth/get-session", {
+            var resolved = await invoke("get_desktop_server_origin");
+            if (typeof resolved === "string" && /^https?:\/\//i.test(resolved)) {
+              targetOrigin = resolved.replace(/\/+$/, "");
+            }
+          } catch {
+            // Keep default origin
+          }
+          return targetOrigin;
+        }
+
+        async function probeServerReachable() {
+          if (navigator.onLine === false) return false;
+          var origin = await resolveOrigin();
+          var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+          var timer = controller
+            ? window.setTimeout(function () {
+                controller.abort();
+              }, 3500)
+            : null;
+          try {
+            await fetch(origin + "/api/auth/get-session", {
               method: "GET",
               mode: "no-cors",
               cache: "no-store",
+              signal: controller ? controller.signal : undefined,
             });
-            window.location.replace(defaultOrigin + "/");
+            return true;
           } catch {
-            statusEl.textContent = t.stillOffline;
-            retryButton.disabled = false;
+            return false;
+          } finally {
+            if (timer !== null) window.clearTimeout(timer);
           }
         }
 
+        async function handleReturnOnline() {
+          persistActiveReadingPosition();
+          var t = COPY[currentLang];
+          retryButton.disabled = true;
+          readerReconnectBtn.disabled = true;
+          bannerOnlineBtn.disabled = true;
+          statusEl.textContent = t.retrying;
+          var reachable = await probeServerReachable();
+          if (!reachable) {
+            enteredOfflineMode = true;
+            statusEl.textContent = t.stillOffline;
+            retryButton.disabled = false;
+            readerReconnectBtn.disabled = false;
+            bannerOnlineBtn.disabled = false;
+            updateConnectionUI(false);
+            return;
+          }
+          window.location.replace(targetOrigin + "/");
+        }
+
+        function renderMarkdownInto(container, markdown) {
+          var lines = String(markdown || "").split(/\r?\n/);
+          var listEl = null;
+          var codeLines = null;
+          var paragraphLines = [];
+
+          function flushParagraph() {
+            if (paragraphLines.length === 0) return;
+            var p = document.createElement("p");
+            p.textContent = paragraphLines.join("\n").trim();
+            if (p.textContent) container.appendChild(p);
+            paragraphLines = [];
+          }
+
+          function flushList() {
+            if (!listEl) return;
+            container.appendChild(listEl);
+            listEl = null;
+          }
+
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            if (line.trim().startsWith("```")) {
+              flushParagraph();
+              flushList();
+              if (codeLines === null) {
+                codeLines = [];
+              } else {
+                var pre = document.createElement("pre");
+                pre.textContent = codeLines.join("\n");
+                container.appendChild(pre);
+                codeLines = null;
+              }
+              continue;
+            }
+            if (codeLines !== null) {
+              codeLines.push(line);
+              continue;
+            }
+            var trimmed = line.trim();
+            if (!trimmed) {
+              flushParagraph();
+              flushList();
+              continue;
+            }
+            if (/^###\s+/.test(trimmed)) {
+              flushParagraph();
+              flushList();
+              var h3 = document.createElement("h3");
+              h3.textContent = trimmed.replace(/^###\s+/, "");
+              container.appendChild(h3);
+              continue;
+            }
+            if (/^##?\s+/.test(trimmed)) {
+              flushParagraph();
+              flushList();
+              var h2 = document.createElement("h2");
+              h2.textContent = trimmed.replace(/^##?\s+/, "");
+              container.appendChild(h2);
+              continue;
+            }
+            if (/^[-*+]\s+/.test(trimmed)) {
+              flushParagraph();
+              if (!listEl) listEl = document.createElement("ul");
+              var li = document.createElement("li");
+              li.textContent = trimmed.replace(/^[-*+]\s+/, "");
+              listEl.appendChild(li);
+              continue;
+            }
+            flushList();
+            paragraphLines.push(line);
+          }
+
+          if (codeLines !== null) {
+            var leftoverPre = document.createElement("pre");
+            leftoverPre.textContent = codeLines.join("\n");
+            container.appendChild(leftoverPre);
+          }
+          flushParagraph();
+          flushList();
+        }
+
+        function openReadingView(reading) {
+          enteredOfflineMode = true;
+          activeReading = reading;
+          var t = COPY[currentLang];
+          var metaParts = [];
+          if (reading.courseTitle) metaParts.push(reading.courseTitle);
+          if (reading.chapterTitle) metaParts.push(reading.chapterTitle);
+          if (reading.estimatedMinutes > 0) {
+            metaParts.push(reading.estimatedMinutes + " " + t.minUnit);
+          }
+          readerMetaEl.textContent = metaParts.join(", ");
+          readerMetaEl.classList.toggle("hidden", metaParts.length === 0);
+          readerTitleEl.textContent = reading.title || "";
+          readerBodyEl.textContent = "";
+
+          var sections = Array.isArray(reading.sections) ? reading.sections : [];
+          if (sections.length === 0) {
+            var empty = document.createElement("p");
+            empty.textContent = t.noContent;
+            readerBodyEl.appendChild(empty);
+          } else {
+            for (var i = 0; i < sections.length; i++) {
+              var sec = sections[i];
+              var secEl = document.createElement("section");
+              secEl.className = "reader-section";
+              if (sec.slug) secEl.setAttribute("data-section-slug", String(sec.slug));
+              if (sec.headingHtml) {
+                var h2Html = document.createElement("h2");
+                h2Html.appendChild(sanitizeHtmlFragment(sec.headingHtml));
+                secEl.appendChild(h2Html);
+              } else if (sec.heading) {
+                var h2 = document.createElement("h2");
+                h2.textContent = sec.heading;
+                secEl.appendChild(h2);
+              }
+              if (sec.bodyHtml) {
+                secEl.appendChild(sanitizeHtmlFragment(sec.bodyHtml));
+              } else {
+                renderMarkdownInto(secEl, sec.body || "");
+              }
+              readerBodyEl.appendChild(secEl);
+            }
+          }
+
+          homeView.classList.add("hidden");
+          readerView.classList.remove("hidden");
+          restoreReadingPosition(reading);
+        }
+
+        function closeReadingView() {
+          persistActiveReadingPosition();
+          activeReading = null;
+          readerView.classList.add("hidden");
+          homeView.classList.remove("hidden");
+        }
+
+        function renderLibrary() {
+          var t = COPY[currentLang];
+          readingListEl.textContent = "";
+
+          if (cachedItems.length === 0) {
+            libraryMeta.textContent = "";
+            libraryEmptyEl.textContent = t.emptyLibrary;
+            libraryEmptyEl.classList.remove("hidden");
+            readingListEl.classList.add("hidden");
+            return;
+          }
+
+          libraryMeta.textContent = t.savedCount(
+            cachedItems.length,
+            formatBytes(cachedTotalBytes)
+          );
+          libraryEmptyEl.classList.add("hidden");
+          readingListEl.classList.remove("hidden");
+
+          for (var i = 0; i < cachedItems.length; i++) {
+            (function (item) {
+              var li = document.createElement("li");
+              li.className = "reading-row";
+
+              var openBtn = document.createElement("button");
+              openBtn.type = "button";
+              openBtn.className = "reading-open";
+
+              var titleSpan = document.createElement("span");
+              titleSpan.className = "reading-title";
+              titleSpan.textContent = item.title || "Materi";
+
+              var metaParts = [];
+              if (item.courseTitle) metaParts.push(item.courseTitle);
+              if (item.chapterTitle) metaParts.push(item.chapterTitle);
+              if (item.estimatedMinutes > 0) {
+                metaParts.push(item.estimatedMinutes + " " + t.minUnit);
+              }
+              if (item.sizeBytes > 0) metaParts.push(formatBytes(item.sizeBytes));
+
+              var subSpan = document.createElement("span");
+              subSpan.className = "reading-sub";
+              subSpan.textContent = metaParts.join(", ");
+
+              openBtn.appendChild(titleSpan);
+              if (metaParts.length > 0) openBtn.appendChild(subSpan);
+              openBtn.addEventListener("click", function () {
+                var invoke = getTauriInvoke();
+                if (!invoke) return;
+                invoke("get_offline_reading", { key: item.key })
+                  .then(function (res) {
+                    if (res && res.reading) {
+                      openReadingView(res.reading);
+                    }
+                  })
+                  .catch(function () {});
+              });
+
+              var delBtn = document.createElement("button");
+              delBtn.type = "button";
+              delBtn.className = "icon-btn";
+              delBtn.setAttribute("aria-label", t.deleteLabel);
+              delBtn.innerHTML =
+                '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
+              delBtn.addEventListener("click", function () {
+                var invoke = getTauriInvoke();
+                if (!invoke) return;
+                try {
+                  window.localStorage.removeItem(POSITION_PREFIX + item.key);
+                } catch {}
+                invoke("remove_offline_reading", { key: item.key })
+                  .then(loadLibrary)
+                  .catch(function () {});
+              });
+
+              li.appendChild(openBtn);
+              li.appendChild(delBtn);
+              readingListEl.appendChild(li);
+            })(cachedItems[i]);
+          }
+        }
+
+        async function loadLibrary() {
+          var invoke = getTauriInvoke();
+          if (!invoke) {
+            cachedItems = [];
+            cachedTotalBytes = 0;
+            renderLibrary();
+            return;
+          }
+          try {
+            var res = await invoke("list_offline_readings");
+            cachedItems = Array.isArray(res && res.items) ? res.items : [];
+            cachedTotalBytes = Number(res && res.totalBytes) || 0;
+          } catch {
+            cachedItems = [];
+            cachedTotalBytes = 0;
+          }
+          renderLibrary();
+        }
+
+        function updateConnectionUI(showBannerIfOnline) {
+          var t = COPY[currentLang];
+          var isOnline = navigator.onLine !== false;
+          connPill.classList.toggle("online", isOnline);
+          connLabel.textContent = isOnline ? t.onlinePill : t.offlinePill;
+          if (!isOnline || enteredOfflineMode) {
+            titleEl.textContent = t.offlineTitle;
+            messageEl.textContent = t.offlineMsg;
+          } else {
+            titleEl.textContent = t.connectingTitle;
+            messageEl.textContent = t.connectingMsg;
+          }
+          if (!isOnline) {
+            bannerDismissed = false;
+            reconnectBanner.classList.add("hidden");
+          } else if (showBannerIfOnline && enteredOfflineMode && !bannerDismissed) {
+            reconnectBanner.classList.remove("hidden");
+          }
+        }
+
+        function renderLang(lang) {
+          currentLang = lang;
+          document.documentElement.lang = lang;
+          var t = COPY[lang];
+          retryButton.textContent = t.retry;
+          refreshLibraryBtn.textContent = t.offlineBtn;
+          libraryHeading.textContent = t.libraryHeading;
+          readerBackLabel.textContent = t.back;
+          readerReconnectBtn.textContent = t.reconnect;
+          reconnectBannerText.textContent = t.bannerText;
+          bannerOnlineBtn.textContent = t.reconnect;
+          bannerDismissBtn.setAttribute("aria-label", t.bannerDismiss);
+          langIdBtn.setAttribute("aria-pressed", String(lang === "id"));
+          langEnBtn.setAttribute("aria-pressed", String(lang === "en"));
+          updateConnectionUI(false);
+          renderLibrary();
+        }
+
+        langIdBtn.addEventListener("click", function () {
+          renderLang("id");
+        });
+        langEnBtn.addEventListener("click", function () {
+          renderLang("en");
+        });
         retryButton.addEventListener("click", function () {
-          void retryConnection();
+          void handleReturnOnline();
         });
+        readerReconnectBtn.addEventListener("click", function () {
+          void handleReturnOnline();
+        });
+        bannerOnlineBtn.addEventListener("click", function () {
+          void handleReturnOnline();
+        });
+        bannerDismissBtn.addEventListener("click", function () {
+          bannerDismissed = true;
+          reconnectBanner.classList.add("hidden");
+        });
+        refreshLibraryBtn.addEventListener("click", function () {
+          enteredOfflineMode = true;
+          void loadLibrary().then(function () {
+            librarySection.scrollIntoView({ behavior: "smooth", block: "start" });
+          });
+        });
+        readerBackBtn.addEventListener("click", closeReadingView);
+
+        window.addEventListener("scroll", schedulePositionSave, { passive: true });
+        document.addEventListener("visibilitychange", function () {
+          if (document.visibilityState === "hidden") {
+            persistActiveReadingPosition();
+          }
+        });
+        window.addEventListener("pagehide", persistActiveReadingPosition);
+
+        // Never auto-redirect mid-read when connectivity returns.
         window.addEventListener("online", function () {
-          updateState();
-          void retryConnection();
+          bannerDismissed = false;
+          updateConnectionUI(true);
         });
-        window.addEventListener("offline", updateState);
-        updateState();
+        window.addEventListener("offline", function () {
+          enteredOfflineMode = true;
+          updateConnectionUI(false);
+        });
+
+        renderLang(currentLang);
+        void loadLibrary();
+
+        // Single startup reachability check on desktop launch:
+        // opens Zyx Academy automatically when online; stays in offline shell when unreachable.
+        void (async function initialConnect() {
+          if (navigator.onLine === false) {
+            enteredOfflineMode = true;
+            updateConnectionUI(false);
+            return;
+          }
+          var reachable = await probeServerReachable();
+          if (reachable && !activeReading && !enteredOfflineMode) {
+            window.location.replace(targetOrigin + "/");
+          } else {
+            enteredOfflineMode = true;
+            updateConnectionUI(false);
+          }
+        })();
       })();
     </script>
   </body>

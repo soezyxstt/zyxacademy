@@ -21,7 +21,14 @@ export function getSafeRedirectPath(
   }
 
   const trimmed = next.trim();
-  if (trimmed.length === 0 || trimmed.length > MAX_NEXT_LENGTH) {
+  if (
+    trimmed.length === 0 ||
+    trimmed.length > MAX_NEXT_LENGTH ||
+    !trimmed.startsWith("/") ||
+    trimmed.startsWith("//") ||
+    trimmed.startsWith("/\\") ||
+    /[\u0000-\u001f\u007f]/.test(trimmed)
+  ) {
     return DEFAULT_AUTH_CALLBACK_PATH;
   }
 

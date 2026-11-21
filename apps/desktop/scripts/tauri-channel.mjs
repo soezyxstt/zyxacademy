@@ -40,12 +40,45 @@ if (channel === "nightly") {
   tauriArgs.push("--config", "src-tauri/tauri.nightly.conf.json");
 }
 
-let tempVersionConfigPath = null;
+let tempOverrideConfigPath = null;
+const overrideConfig = {};
+
 const explicitVersion = process.env.ZYX_APP_VERSION?.trim().replace(/^v/i, "");
 if (explicitVersion && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(explicitVersion)) {
-  tempVersionConfigPath = join(tmpdir(), `zyx-tauri-version-${process.pid}.json`);
-  writeFileSync(tempVersionConfigPath, JSON.stringify({ version: explicitVersion }), "utf8");
-  tauriArgs.push("--config", tempVersionConfigPath);
+  overrideConfig.version = explicitVersion;
+}
+
+const updaterPubkey = process.env.TAURI_UPDATER_PUBKEY?.trim();
+const defaultUpdaterEndpoints =
+  channel === "nightly"
+    ? ["https://staging.zyxacademy.com/api/app/updater?channel=nightly"]
+    : [
+        "https://www.zyxacademy.com/api/app/updater?channel=stable",
+        "https://github.com/soezyxstt/zyxacademy/releases/latest/download/latest.json",
+      ];
+const explicitUpdaterEndpoint = process.env.TAURI_UPDATER_ENDPOINT?.trim();
+const updaterEndpoints = explicitUpdaterEndpoint
+  ? [explicitUpdaterEndpoint]
+  : defaultUpdaterEndpoints;
+
+if (updaterPubkey) {
+  overrideConfig.plugins = {
+    updater: {
+      pubkey: updaterPubkey,
+      endpoints: updaterEndpoints,
+    },
+  };
+  if (command === "build" && process.env.TAURI_SIGNING_PRIVATE_KEY?.trim()) {
+    overrideConfig.bundle = {
+      createUpdaterArtifacts: true,
+    };
+  }
+}
+
+if (Object.keys(overrideConfig).length > 0) {
+  tempOverrideConfigPath = join(tmpdir(), `zyx-tauri-override-${process.pid}.json`);
+  writeFileSync(tempOverrideConfigPath, JSON.stringify(overrideConfig), "utf8");
+  tauriArgs.push("--config", tempOverrideConfigPath);
 }
 tauriArgs.push(...rest);
 
@@ -54,7 +87,9 @@ console.log(
     channel === "nightly"
       ? "https://staging.zyxacademy.com"
       : "https://www.zyxacademy.com"
-  })${explicitVersion ? ` v${explicitVersion}` : ""}`,
+  })${explicitVersion ? ` v${explicitVersion}` : ""}${
+    updaterPubkey ? " [signed updater enabled]" : " [installer fallback updater]"
+  }`,
 );
 
 const bin = process.platform === "win32" ? "npx.cmd" : "npx";
@@ -69,9 +104,9 @@ try {
   });
   process.exitCode = result.status ?? 1;
 } finally {
-  if (tempVersionConfigPath) {
+  if (tempOverrideConfigPath) {
     try {
-      rmSync(tempVersionConfigPath, { force: true });
+      rmSync(tempOverrideConfigPath, { force: true });
     } catch {
       // Ignore cleanup errors
     }

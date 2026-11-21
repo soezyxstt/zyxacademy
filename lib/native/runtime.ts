@@ -9,7 +9,27 @@ export type NativeRuntime = "capacitor" | "tauri" | "web";
 
 export interface CapacitorCameraPhoto {
   base64String?: string;
+  dataUrl?: string;
   format?: string;
+  webPath?: string;
+  path?: string;
+}
+
+export interface CapacitorRestoredResultEvent {
+  pluginId?: string;
+  methodName?: string;
+  data?: Record<string, unknown>;
+  success?: boolean;
+  error?: { message?: string };
+}
+
+export interface CapacitorAppStateEvent {
+  isActive: boolean;
+}
+
+export interface CapacitorNetworkStatus {
+  connected: boolean;
+  connectionType?: string;
 }
 
 export interface CapacitorPluginListenerHandle {
@@ -39,9 +59,32 @@ export interface CapacitorCameraPlugin {
 }
 
 export interface CapacitorAppPlugin {
+  getLaunchUrl?: () => Promise<{ url?: string } | null | undefined>;
+  addListener: {
+    (
+      eventName: "appUrlOpen",
+      listenerFunc: (event: { url?: string }) => void,
+    ): Promise<CapacitorPluginListenerHandle>;
+    (
+      eventName: "appRestoredResult",
+      listenerFunc: (event: CapacitorRestoredResultEvent) => void,
+    ): Promise<CapacitorPluginListenerHandle>;
+    (
+      eventName: "appStateChange",
+      listenerFunc: (event: CapacitorAppStateEvent) => void,
+    ): Promise<CapacitorPluginListenerHandle>;
+    (
+      eventName: string,
+      listenerFunc: (event: Record<string, unknown>) => void,
+    ): Promise<CapacitorPluginListenerHandle>;
+  };
+}
+
+export interface CapacitorNetworkPlugin {
+  getStatus: () => Promise<CapacitorNetworkStatus>;
   addListener: (
-    eventName: string,
-    listenerFunc: (event: { url?: string }) => void,
+    eventName: "networkStatusChange",
+    listenerFunc: (status: CapacitorNetworkStatus) => void,
   ) => Promise<CapacitorPluginListenerHandle>;
 }
 
@@ -59,9 +102,46 @@ export interface CapacitorBrowserPlugin {
   ) => Promise<CapacitorPluginListenerHandle>;
 }
 
+export interface CapacitorLocalNotificationSchedule {
+  at?: Date;
+  repeats?: boolean;
+  every?: "year" | "month" | "two-weeks" | "week" | "day" | "hour" | "minute" | "second";
+  on?: {
+    year?: number;
+    month?: number;
+    day?: number;
+    weekday?: number;
+    hour?: number;
+    minute?: number;
+    second?: number;
+  };
+  allowWhileIdle?: boolean;
+}
+
+export interface CapacitorLocalNotificationSchema {
+  id: number;
+  title: string;
+  body: string;
+  schedule?: CapacitorLocalNotificationSchedule;
+  extra?: Record<string, unknown>;
+}
+
 export interface CapacitorLocalNotificationsPlugin {
   checkPermissions: () => Promise<{ display: "prompt" | "prompt-with-rationale" | "granted" | "denied" }>;
   requestPermissions: () => Promise<{ display: "prompt" | "prompt-with-rationale" | "granted" | "denied" }>;
+  schedule?: (options: {
+    notifications: CapacitorLocalNotificationSchema[];
+  }) => Promise<{ notifications: Array<{ id: number }> }>;
+  cancel?: (options: {
+    notifications: Array<{ id: number }>;
+  }) => Promise<void>;
+  getPending?: () => Promise<{
+    notifications: Array<{ id: number; extra?: Record<string, unknown> }>;
+  }>;
+  addListener?: (
+    eventName: "localNotificationReceived" | "localNotificationActionPerformed",
+    listenerFunc: (event: Record<string, unknown>) => void,
+  ) => Promise<CapacitorPluginListenerHandle>;
 }
 
 export interface CapacitorUpdaterPlugin {
@@ -75,6 +155,7 @@ export interface CapacitorUpdaterPlugin {
 
 export interface CapacitorOfflineStorePlugin {
   saveReading: (options: { key: string; payloadJson: string }) => Promise<{ saved?: boolean }>;
+  saveReadingPosition?: (options: { key: string; positionJson: string }) => Promise<{ saved?: boolean }>;
   listReadings: () => Promise<{
     items?: Array<Record<string, unknown>>;
     count?: number;
@@ -127,6 +208,7 @@ export interface CapacitorGlobal {
     Filesystem?: CapacitorFilesystemPlugin;
     Haptics?: CapacitorHapticsPlugin;
     LocalNotifications?: CapacitorLocalNotificationsPlugin;
+    Network?: CapacitorNetworkPlugin;
     PushNotifications?: CapacitorPushNotificationsPlugin;
     Camera?: CapacitorCameraPlugin;
     Share?: CapacitorSharePlugin;

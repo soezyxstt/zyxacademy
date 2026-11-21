@@ -163,6 +163,9 @@ jobs:
           ZYX_APP_CHANNEL: ${{ needs.prepare.outputs.channel }}
           ZYX_APP_BUILD_ID: ${{ needs.prepare.outputs.build_id }}
           ZYX_APP_VERSION: ${{ needs.prepare.outputs.version }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
           APPIMAGE_EXTRACT_AND_RUN: "1"
         run: npm run build:${{ needs.prepare.outputs.channel }}
 
@@ -187,11 +190,19 @@ jobs:
 
           if [[ "${{ matrix.platform }}" == "windows" ]]; then
             copy_first "*.exe" "exe"
+            copy_first "*.exe.sig" "exe.sig"
             copy_first "*.msi" "msi"
+            copy_first "*.nsis.zip" "nsis.zip"
+            copy_first "*.nsis.zip.sig" "nsis.zip.sig"
           elif [[ "${{ matrix.platform }}" == "macos" ]]; then
             copy_first "*.dmg" "dmg"
+            copy_first "*.app.tar.gz" "app.tar.gz"
+            copy_first "*.app.tar.gz.sig" "app.tar.gz.sig"
           elif [[ "${{ matrix.platform }}" == "linux" ]]; then
             copy_first "*.AppImage" "AppImage"
+            copy_first "*.AppImage.sig" "AppImage.sig"
+            copy_first "*.AppImage.tar.gz" "AppImage.tar.gz"
+            copy_first "*.AppImage.tar.gz.sig" "AppImage.tar.gz.sig"
             copy_first "*.deb" "deb"
           fi
 
@@ -315,21 +326,29 @@ jobs:
           path: dist-artifacts
           merge-multiple: true
 
-      - name: Generate checksums and publish GitHub Release
+      - name: Generate updater manifest, checksums, and publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          cd dist-artifacts
-          sha256sum * > SHA256SUMS.txt
-          ls -lh
-
           TAG="${{ needs.prepare.outputs.tag }}"
           TITLE="${{ needs.prepare.outputs.release_title }}"
           CHANNEL="${{ needs.prepare.outputs.channel }}"
+          VERSION="${{ needs.prepare.outputs.version }}"
           DEFAULT_URL="${{ needs.prepare.outputs.default_url }}"
           PRERELEASE="${{ needs.prepare.outputs.prerelease }}"
+
+          node apps/desktop/scripts/generate-updater-manifest.mjs \
+            --dir dist-artifacts \
+            --channel "$CHANNEL" \
+            --version "$VERSION" \
+            --tag "$TAG" \
+            --notes "$TITLE"
+
+          cd dist-artifacts
+          sha256sum * > SHA256SUMS.txt
+          ls -lh
 
           NOTES=$(cat <<EOF
           ## ${TITLE}

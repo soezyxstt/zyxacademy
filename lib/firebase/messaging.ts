@@ -15,12 +15,22 @@
 
 import { getMessaging, getToken, onMessage, type Messaging } from "firebase/messaging";
 import { getFirebaseApp } from "@/lib/firebase/client";
+import {
+ clearRegisteredPushTokenIdentity,
+ markPushTokenRegistered,
+ shouldRegisterPushToken,
+} from "@/lib/notifications/transport";
 
-// ─── Internal helpers ─────────────────────────────────────────────────────────
+export {
+ clearRegisteredPushTokenIdentity,
+ markPushTokenRegistered,
+ shouldRegisterPushToken,
+};
+
+// Internal helpers
 
 /** Lazy singleton ; only initialise Messaging once per page load. */
 let _messaging: Messaging | null = null;
-let _lastRegisteredIdentity: { userId: string; token: string } | null = null;
 
 function hasRequiredFirebaseMessagingConfig(env: Record<string, string | undefined>): boolean {
  return Boolean(
@@ -38,23 +48,6 @@ export function isFirebaseMessagingConfigured(): boolean {
   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
  });
-}
-
-export function shouldRegisterPushToken(
- current: { userId: string; token: string },
- previous: { userId: string; token: string } | null = _lastRegisteredIdentity
-): boolean {
- if (typeof window === "undefined" || !current.userId || !current.token) return false;
- if (!previous) return true;
- return previous.userId !== current.userId || previous.token !== current.token;
-}
-
-export function markPushTokenRegistered(userId: string, token: string): void {
- if (typeof window !== "undefined") _lastRegisteredIdentity = { userId, token };
-}
-
-export function clearRegisteredPushTokenIdentity(): void {
- _lastRegisteredIdentity = null;
 }
 
 function getMessagingInstance(): Messaging | null {
@@ -119,10 +112,11 @@ export async function getFCMToken(): Promise<string | null> {
  }
 
  try {
- // Register (or reuse) the Firebase service worker
+ // Register (or reuse) the Firebase service worker under its dedicated push scope
+ // so it never replaces the standalone offline shell service worker at "/".
  const registration = await navigator.serviceWorker.register(
  "/firebase-messaging-sw.js",
- { scope: "/" }
+ { scope: "/firebase-cloud-messaging-push-scope" }
  );
 
  const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
@@ -161,7 +155,12 @@ export async function registerTokenToServer(
  method: "POST",
  headers: { "Content-Type": "application/json" },
  credentials: "include", // send auth session cookie
- body: JSON.stringify({ token, device }),
+ body: JSON.stringify({
+  token,
+  device,
+  platform: "web",
+  transport: "webpush",
+ }),
  });
 
  if (!res.ok) {

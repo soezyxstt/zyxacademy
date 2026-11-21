@@ -8,8 +8,19 @@
  * 25 readings / 8 MB per user so student devices are never bloated.
  */
 
-import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
-import { getCapacitor } from "@/lib/native/runtime";
+import type { PublicArticleReadModel, PublicVisualSpec } from "@/lib/articles/structured-read-model";
+import { getCapacitor, getTauri } from "@/lib/native/runtime";
+import {
+  renderOfflineMarkdownHtml,
+  renderOfflineVisualHtml,
+  renderOfflineWorkedExampleHtml,
+} from "@/lib/offline/offline-snapshot-renderer";
+import {
+  clearOfflineReadingPositionsForOtherUsers,
+  loadOfflineReadingPosition,
+  removeOfflineReadingPosition,
+  type OfflineReadingPosition,
+} from "@/lib/offline/reading-position";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
 
 const DB_NAME = "zyx-offline-readings-v1";
@@ -155,13 +166,19 @@ async function getAllRecordsForUser(db: IDBDatabase, userId: string): Promise<Of
 }
 
 export interface NativeOfflineSection {
+  id?: string;
+  slug?: string;
   heading: string;
+  headingHtml?: string;
   body: string;
+  bodyHtml?: string;
 }
 
 export interface NativeOfflineSnapshot {
   key: string;
   userId: string;
+  courseId?: string;
+  materialId?: string;
   title: string;
   courseTitle?: string;
   chapterTitle?: string;
@@ -169,6 +186,7 @@ export interface NativeOfflineSnapshot {
   sizeBytes: number;
   savedAt: number;
   lastAccessedAt: number;
+  readingPosition?: OfflineReadingPosition | null;
   sections: NativeOfflineSection[];
 }
 
@@ -179,23 +197,81 @@ function cleanOfflineMarkdown(raw: string): string {
     .trim();
 }
 
+function collectVisualMap(
+  articleVisuals?: PublicVisualSpec[],
+  sectionVisuals?: PublicVisualSpec[],
+  blockVisuals?: PublicVisualSpec[],
+): Map<string, PublicVisualSpec> {
+  const map = new Map<string, PublicVisualSpec>();
+  for (const list of [articleVisuals, sectionVisuals, blockVisuals]) {
+    if (!list) continue;
+    for (const v of list) {
+      if (v?.id) map.set(v.id, v);
+    }
+  }
+  return map;
+}
+
 export function buildNativeOfflineSnapshot(record: OfflineReadingRecord): NativeOfflineSnapshot {
   const sections: NativeOfflineSection[] = [];
 
   if (record.kind === "structured_article" && record.article) {
     for (const sec of record.article.sections) {
       const parts: string[] = [];
+      const htmlParts: string[] = [];
+
       if (sec.learningObjective?.trim()) {
-        parts.push(sec.learningObjective.trim());
+        const obj = sec.learningObjective.trim();
+        parts.push(obj);
+        htmlParts.push(`<div class="offline-objective">${renderOfflineMarkdownHtml(obj)}</div>`);
       }
+
+      const hasBlockParts = (sec.blocks ?? []).some((b) => Boolean(b.parts?.length));
+      if (!hasBlockParts && sec.visuals?.length) {
+        for (const visual of sec.visuals) {
+          htmlParts.push(renderOfflineVisualHtml(visual));
+        }
+      }
+
       for (const block of sec.blocks ?? []) {
+        const visualMap = collectVisualMap(record.article.visuals, sec.visuals, block.visuals);
+        const renderedVisualIds = new Set<string>();
+
         if (block.title?.trim()) {
           parts.push(`### ${block.title.trim()}`);
+          htmlParts.push(renderOfflineMarkdownHtml(`### ${block.title.trim()}`));
         }
-        const cleaned = cleanOfflineMarkdown(block.content ?? "");
-        if (cleaned) {
-          parts.push(cleaned);
+
+        if (block.parts?.length) {
+          for (const part of block.parts) {
+            if (part.kind === "visual_ref") {
+              const vis = visualMap.get(part.visualId);
+              if (vis) {
+                renderedVisualIds.add(vis.id);
+                htmlParts.push(renderOfflineVisualHtml(vis));
+              }
+            } else if ("content" in part && typeof part.content === "string") {
+              const cleanedPart = cleanOfflineMarkdown(part.content);
+              if (cleanedPart) {
+                parts.push(cleanedPart);
+                htmlParts.push(renderOfflineMarkdownHtml(cleanedPart));
+              }
+            } else if ("markdown" in part && typeof part.markdown === "string") {
+              const cleanedPart = cleanOfflineMarkdown(part.markdown);
+              if (cleanedPart) {
+                parts.push(cleanedPart);
+                htmlParts.push(renderOfflineMarkdownHtml(cleanedPart));
+              }
+            }
+          }
+        } else {
+          const cleaned = cleanOfflineMarkdown(block.content ?? "");
+          if (cleaned) {
+            parts.push(cleaned);
+            htmlParts.push(renderOfflineMarkdownHtml(cleaned));
+          }
         }
+
         if (block.workedExample?.steps?.length) {
           const stepLines = block.workedExample.steps.map(
             (step) => `${step.stepIndex + 1}. ${step.label}: ${step.explanation}`,
@@ -204,13 +280,29 @@ export function buildNativeOfflineSnapshot(record: OfflineReadingRecord): Native
             stepLines.push(block.workedExample.verification.trim());
           }
           parts.push(stepLines.join("\n"));
+          htmlParts.push(renderOfflineWorkedExampleHtml(block.workedExample));
+        }
+
+        for (const visual of block.visuals ?? []) {
+          if (!renderedVisualIds.has(visual.id)) {
+            htmlParts.push(renderOfflineVisualHtml(visual));
+          }
         }
       }
+
       const body = parts.join("\n\n").trim();
-      if (body) {
+      const bodyHtml = htmlParts.filter(Boolean).join("\n").trim();
+      if (body || bodyHtml) {
+        const headingHtml = sec.title
+          ? renderOfflineMarkdownHtml(sec.title).replace(/^<p>|<\/p>$/g, "")
+          : "";
         sections.push({
+          id: sec.id,
+          slug: sec.slug,
           heading: sec.title,
+          headingHtml,
           body,
+          bodyHtml,
         });
       }
     }
@@ -220,13 +312,18 @@ export function buildNativeOfflineSnapshot(record: OfflineReadingRecord): Native
       sections.push({
         heading: "",
         body: cleaned,
+        bodyHtml: renderOfflineMarkdownHtml(cleaned),
       });
     }
   }
 
+  const savedPosition = loadOfflineReadingPosition(record.key);
+
   return {
     key: record.key,
     userId: record.userId,
+    courseId: record.courseId,
+    materialId: record.materialId,
     title: record.title,
     courseTitle: record.courseTitle,
     chapterTitle: record.chapterTitle,
@@ -234,21 +331,32 @@ export function buildNativeOfflineSnapshot(record: OfflineReadingRecord): Native
     sizeBytes: record.sizeBytes,
     savedAt: record.savedAt,
     lastAccessedAt: record.lastAccessedAt,
+    readingPosition: savedPosition,
     sections,
   };
 }
 
-function mirrorSaveToNativeStore(record: OfflineReadingRecord): void {
-  const store = getCapacitor()?.Plugins?.ZyxOfflineStore;
-  if (!store?.saveReading) return;
+export function mirrorSaveToNativeStore(record: OfflineReadingRecord): void {
+  const capStore = getCapacitor()?.Plugins?.ZyxOfflineStore;
+  const tauriInvoke = getTauri()?.core?.invoke;
+  if (!capStore?.saveReading && !tauriInvoke) return;
   try {
     const snapshot = buildNativeOfflineSnapshot(record);
-    void store
-      .saveReading({
+    const payloadJson = JSON.stringify(snapshot);
+    if (capStore?.saveReading) {
+      void capStore
+        .saveReading({
+          key: record.key,
+          payloadJson,
+        })
+        .catch(() => {});
+    }
+    if (tauriInvoke) {
+      void tauriInvoke("save_offline_reading", {
         key: record.key,
-        payloadJson: JSON.stringify(snapshot),
-      })
-      .catch(() => {});
+        payloadJson,
+      }).catch(() => {});
+    }
   } catch {
     // Non-fatal
   }
@@ -401,7 +509,9 @@ export async function getOfflineReadingByKey(key: string): Promise<OfflineReadin
 
 export async function removeOfflineReadingByKey(key: string): Promise<void> {
   if (!key) return;
+  removeOfflineReadingPosition(key);
   void getCapacitor()?.Plugins?.ZyxOfflineStore?.removeReading({ key }).catch(() => {});
+  void getTauri()?.core?.invoke?.("remove_offline_reading", { key }).catch(() => {});
   if (!isOfflineReadingCacheSupported()) return;
   const db = await openDb();
   try {
@@ -419,8 +529,12 @@ export async function removeOfflineReadingByKey(key: string): Promise<void> {
 }
 
 export async function clearOfflineReadingsForOtherUsers(currentUserId: string | null): Promise<void> {
+  clearOfflineReadingPositionsForOtherUsers(currentUserId);
   void getCapacitor()
     ?.Plugins?.ZyxOfflineStore?.clearOtherUsers({ userId: currentUserId ?? "" })
+    .catch(() => {});
+  void getTauri()
+    ?.core?.invoke?.("clear_other_offline_users", { userId: currentUserId ?? "" })
     .catch(() => {});
   if (!isOfflineReadingCacheSupported()) return;
   const db = await openDb();
