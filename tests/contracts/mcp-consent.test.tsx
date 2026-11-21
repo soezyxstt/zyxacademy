@@ -33,12 +33,14 @@ describe("MCP consent scope choices", () => {
         <McpAuthorizeView
           client={{ clientId: "client", clientName: "Client", redirectUri: "https://example.test/callback" }}
           user={{ id: "admin", name: "Admin", email: "admin@example.test", image: null }}
-          isAdmin scopes={["forms:read"]} defaultScopes={["forms:read"]}
-          searchParams={{ clientId: "client", redirectUri: "https://example.test/callback", scope: "forms:read", codeChallenge: "test", codeChallengeMethod: "S256" }}
+          isAdmin scopes={["forms:read", "forms:responses:export", "users:roles:admin", "access:secrets:read"]} defaultScopes={["forms:read", "forms:responses:export", "users:roles:admin", "access:secrets:read"]}
+          searchParams={{ clientId: "client", redirectUri: "https://example.test/callback", scope: "forms:read forms:responses:export users:roles:admin access:secrets:read", codeChallenge: "test", codeChallengeMethod: "S256" }}
           currentPathWithSearch="/mcp/authorize"
         />
       </NextIntlClientProvider>,
     );
+    expect(html).toContain("Berikan peran admin");
+    expect(html).toContain("Lihat string token aktivasi");
     expect(html).toContain("Lihat formulir");
     expect(html).not.toContain('>forms:read<');
   });

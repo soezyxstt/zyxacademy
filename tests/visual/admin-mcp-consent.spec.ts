@@ -7,8 +7,7 @@ test("requested admin scopes stay readable and can be deselected", async ({ page
   page.on("response", response => { if (response.status() >= 400) failures.push(`HTTP ${response.status()} ${new URL(response.url()).pathname}`); });
   await page.goto("/visual-fixtures/mcp-consent", { waitUntil: "domcontentloaded", timeout: 180000 });
   await expect(page.locator("body")).toHaveAttribute("data-mcp-fixture-ready", "true");
-  await expect(page.getByRole("checkbox")).toHaveCount(2);
-  await page.getByRole("button", { name: /Konten dan formulir/ }).click();
+  await expect(page.getByRole("button", { name: /Konten dan formulir/ })).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("Kelola formulir", { exact: true })).toBeVisible();
   await expect(page.getByRole("checkbox")).toHaveCount(6);
   await page.screenshot({ path: testInfo.outputPath("consent-selected.png"), fullPage: true });

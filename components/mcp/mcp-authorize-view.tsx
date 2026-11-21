@@ -20,6 +20,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Checkbox } from "@/components/ui/checkbox";
 import { submitMcpAuthorization } from "@/app/mcp/authorize/actions";
 
+const sensitiveScopes = new Set([
+  "users:roles:admin", "users:roles:write", "users:status:write", "users:pii:read",
+  "access:secrets:read", "access:write", "forms:responses:read", "forms:responses:export",
+  "notifications:send", "jobs:write", "meet:write", "authoring:publish", "authoring:withdraw",
+]);
+
 interface ScopeInfo {
   titleKey: string;
   descriptionKey: string;
@@ -129,7 +135,7 @@ export function McpAuthorizeView({
   return (
     <div className="w-full max-w-xl">
       <div>
-        <h1 className="font-heading text-h5 font-bold text-foreground">
+        <h1 className="break-all font-heading text-h5 font-bold text-foreground">
           {t("title", { client: client.clientName })}
         </h1>
       </div>
@@ -212,7 +218,7 @@ export function McpAuthorizeView({
               {Array.from(groups, ([group, members]) => {
                 const count = members.filter(scope => selectedScopes.includes(scope)).length;
                 const name = t(`groups.${group}`);
-                return <Collapsible key={group} defaultOpen={groups.size === 1}>
+                return <Collapsible key={group} defaultOpen={groups.size === 1 || members.some(scope => sensitiveScopes.has(scope) && defaultScopes.includes(scope))}>
                   <div className="flex items-center gap-3 py-1">
                     <Checkbox
                       aria-label={t("selectGroup", { group: name })}
@@ -329,7 +335,7 @@ export function McpAuthorizeView({
               name="decision"
               value="approve"
               disabled={isPending || selectedScopes.length === 0}
-              className="h-10 w-full gap-2 text-body-sm"
+              className="h-auto min-h-10 min-w-0 w-full gap-2 whitespace-normal py-2 text-body-sm"
             >
               {isPending ? (
                 <>
@@ -339,7 +345,7 @@ export function McpAuthorizeView({
               ) : (
                 <>
                   <Lock className="size-4" />
-                  {t("allow", { client: client.clientName })}
+                  <span className="min-w-0 [overflow-wrap:anywhere]">{t("allow", { client: client.clientName })}</span>
                 </>
               )}
             </Button>
