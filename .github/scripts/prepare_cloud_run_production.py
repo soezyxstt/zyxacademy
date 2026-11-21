@@ -1,6 +1,7 @@
 """Prepare production settings without printing credential values."""
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -79,5 +80,8 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (ValueError, KeyError, OSError):
+    except (ValueError, KeyError, OSError) as error:
+        code = str(error)
+        if isinstance(error, ValueError) and re.fullmatch(r"WORKER_[A-Z_]+(?::[A-Z_]+)?", code):
+            sys.exit(code)
         sys.exit("Production runtime preparation failed. Check the production environment and provisioned secret permissions.")

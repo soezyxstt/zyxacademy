@@ -6,6 +6,19 @@ import unittest
 
 
 class ProductionRuntimeTest(unittest.TestCase):
+    def test_preparation_reports_setting_codes_without_values(self):
+        scripts = Path(__file__).resolve().parent
+        env = {**os.environ, "CLOUD_RUN_ENVIRONMENT": "production",
+               "GITHUB_REPOSITORY": "soezyxstt/zyxacademy", "GITHUB_REF": "refs/heads/main",
+               "GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_RUNTIME_VARS": "{}"}
+        for source, expected in [("{}", "WORKER_DATABASE_TARGET_MISMATCH"),
+                                 ('{"NEXT_PUBLIC_APP_URL":"https://private-value.invalid"}', "WORKER_APP_ORIGIN_MISMATCH")]:
+            result = subprocess.run([sys.executable, "prepare_cloud_run_production.py"], cwd=scripts,
+                                    env={**env, "GITHUB_RUNTIME_SECRETS": source}, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stderr.strip(), expected)
+            self.assertNotIn("private-value", result.stdout + result.stderr)
+
     def test_production_runtime_keeps_web_retrieval_and_rejects_cross_environment(self):
         code = '''
 from prepare_cloud_run_production import settings
