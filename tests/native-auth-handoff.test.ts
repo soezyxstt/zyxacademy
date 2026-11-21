@@ -197,4 +197,33 @@ describe("Better Auth oneTimeToken native browser handoff", () => {
     );
     expect((await completeNativeAuth(missingStateReq)).status).toBe(400);
   });
+
+  test("preserves canonical HTTPS origin and Secure cookie behind Cloud Run HTTP reverse proxy", async () => {
+    const prevAuthUrl = process.env.BETTER_AUTH_URL;
+    process.env.BETTER_AUTH_URL = "https://staging.zyxacademy.com";
+    try {
+      const state = "cloudrun_proxy_state_1234567890";
+      const res = await startNativeAuth(
+        new NextRequest(
+          `http://127.0.0.1:3001/api/auth/native/start?scheme=com.zyx.academy.nightly&state=${state}&next=/dashboard`,
+          {
+            headers: {
+              host: "staging.zyxacademy.com",
+              "x-forwarded-host": "staging.zyxacademy.com",
+              "x-forwarded-proto": "https",
+            },
+          },
+        ),
+      );
+      expect(res.status).toBe(302);
+      const location = res.headers.get("location") ?? "";
+      expect(location.startsWith("https://staging.zyxacademy.com/auth/native-start?")).toBe(true);
+      const setCookie = res.headers.get("set-cookie") ?? "";
+      expect(setCookie).toContain(`${NATIVE_AUTH_HANDOFF_COOKIE}=`);
+      expect(setCookie).toContain("Secure");
+    } finally {
+      if (prevAuthUrl === undefined) delete process.env.BETTER_AUTH_URL;
+      else process.env.BETTER_AUTH_URL = prevAuthUrl;
+    }
+  });
 });

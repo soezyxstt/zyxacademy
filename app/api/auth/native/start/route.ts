@@ -4,7 +4,10 @@ import {
   NATIVE_AUTH_HANDOFF_COOKIE,
   normalizeNativeAuthScheme,
   normalizeNativeAuthState,
+  resolveNativeRequestOrigin,
 } from "@/lib/native/auth-handoff";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const scheme = normalizeNativeAuthScheme(request.nextUrl.searchParams.get("scheme"));
@@ -15,7 +18,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid native auth parameters" }, { status: 400 });
   }
 
-  const startPage = new URL("/auth/native-start", request.url);
+  const { origin, isHttps } = resolveNativeRequestOrigin(request);
+  const startPage = new URL("/auth/native-start", origin);
   startPage.searchParams.set("scheme", scheme);
   startPage.searchParams.set("state", state);
   startPage.searchParams.set("next", safeNext);
@@ -31,7 +35,7 @@ export async function GET(request: NextRequest) {
     {
       httpOnly: true,
       sameSite: "lax",
-      secure: request.nextUrl.protocol === "https:",
+      secure: isHttps,
       path: "/api/auth/native",
       maxAge: 300,
     },
