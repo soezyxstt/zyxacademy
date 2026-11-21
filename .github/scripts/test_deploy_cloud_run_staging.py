@@ -1,4 +1,6 @@
 import copy
+from pathlib import Path
+import re
 import unittest
 from unittest.mock import patch
 
@@ -43,6 +45,25 @@ def spec():
 
 
 class CloudRunStagingTest(unittest.TestCase):
+    def test_cloud_run_jobs_require_manual_staging_dispatch(self):
+        text = (Path(__file__).resolve().parents[1] / 'workflows/deploy-cloud-run-staging.yml').read_text()
+        triggers = text.split('\non:\n', 1)[1].split('\npermissions:', 1)[0]
+        self.assertEqual(re.findall(r'^  ([\w_]+):', triggers, re.MULTILINE), ['workflow_dispatch'])
+        conditions = re.findall(r'^    if: (.+)$', text, re.MULTILINE)
+        self.assertEqual(len(conditions), 2)
+        for condition in conditions:
+            for event in ('push', 'pull_request', 'workflow_call', 'workflow_dispatch'):
+                for branch in ('staging', 'main'):
+                    for operation in ('candidate', 'promote', 'rollback', 'import-secrets'):
+                        values = {'github.event_name': event, 'github.repository': 'soezyxstt/zyxacademy',
+                                  'github.ref': f'refs/heads/{branch}', 'inputs.operation': operation}
+                        expression = re.sub(r'(?:github|inputs)\.[\w.]+',
+                                            lambda match: repr(values[match.group()]), condition)
+                        with self.subTest(condition=condition, event=event, branch=branch, operation=operation):
+                            expected_operation = operation == 'import-secrets' if "operation ==" in condition else operation != 'import-secrets'
+                            self.assertEqual(eval(expression.replace('&&', 'and'), {'__builtins__': {}}),
+                                             event == 'workflow_dispatch' and branch == 'staging' and expected_operation)
+
     def test_rejects_non_staging_or_unlisted_build_settings(self):
         self.assertEqual(public_config('{"NEXT_PUBLIC_APP_URL":"https://staging.zyxacademy.com"}'), CONFIG)
         for origin in ("https://www.zyxacademy.com", "https://staging.zyxacademy.com@untrusted.com",

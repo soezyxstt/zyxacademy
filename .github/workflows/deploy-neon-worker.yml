@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || (github.ref_name == 'main' && inputs.environment == 'production') || (github.ref_name == 'staging' && inputs.environment == 'staging')
+    if: github.event_name == 'workflow_dispatch' || (github.ref_name == 'main' && inputs.environment == 'production')
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     timeout-minutes: 25
