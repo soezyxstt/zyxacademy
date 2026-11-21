@@ -119,10 +119,11 @@ export async function getFCMToken(): Promise<string | null> {
  }
 
  try {
- // Register (or reuse) the Firebase service worker
+ // Register (or reuse) the Firebase service worker under its dedicated push scope
+ // so it never replaces the standalone offline shell service worker at "/".
  const registration = await navigator.serviceWorker.register(
  "/firebase-messaging-sw.js",
- { scope: "/" }
+ { scope: "/firebase-cloud-messaging-push-scope" }
  );
 
  const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });

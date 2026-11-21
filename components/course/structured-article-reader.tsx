@@ -52,6 +52,12 @@ import { useTranslations } from "@/lib/i18n/client";
 import { useArticleReadingProgress } from "@/hooks/use-article-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
 import { saveStructuredArticleOffline } from "@/lib/offline/reading-cache";
+import {
+  buildOfflineReadingKey,
+  computeScrollRatio,
+  loadOfflineReadingPosition,
+  saveOfflineReadingPosition,
+} from "@/lib/offline/reading-position";
 import { StructuredArticleSectionContent, getBlockTitle } from "./structured-article-section-content";
 
 export interface MaterialNavigationItem {
@@ -112,13 +118,74 @@ function StructuredArticleReaderContent({
 
   // Active section resolution
   const requestedSlug = searchParams.get("section");
-  const [activeSectionSlug, setActiveSectionSlug] = useState<string>(
-    () => requestedSlug || article.progress?.lastSectionSlug || article.sections[0]?.slug || "",
-  );
+  const offlineReadingKey =
+    studentId && learnerMode ? buildOfflineReadingKey(studentId, article.courseId, article.id) : null;
+
+  const [activeSectionSlug, setActiveSectionSlug] = useState<string>(() => {
+    if (requestedSlug) return requestedSlug;
+    if (offlineReadingKey) {
+      const saved = loadOfflineReadingPosition(offlineReadingKey);
+      if (saved?.sectionSlug && article.sections.some((s) => s.slug === saved.sectionSlug)) {
+        return saved.sectionSlug;
+      }
+    }
+    return article.progress?.lastSectionSlug || article.sections[0]?.slug || "";
+  });
   const activeSectionSlugRef = useRef(activeSectionSlug);
   useEffect(() => {
     activeSectionSlugRef.current = activeSectionSlug;
   }, [activeSectionSlug]);
+
+  // Persist reading position across online/offline transitions.
+  useEffect(() => {
+    if (!offlineReadingKey) return;
+    const persist = () => {
+      if (typeof window === "undefined") return;
+      const slug = activeSectionSlugRef.current || null;
+      const sectionIndex = Math.max(
+        0,
+        article.sections.findIndex((s) => s.slug === slug),
+      );
+      const scrollY = Math.max(0, Math.round(window.scrollY || document.documentElement.scrollTop || 0));
+      const scrollHeight = Math.max(
+        document.documentElement.scrollHeight || 0,
+        document.body.scrollHeight || 0,
+      );
+      saveOfflineReadingPosition({
+        key: offlineReadingKey,
+        sectionSlug: slug,
+        sectionIndex,
+        scrollY,
+        scrollRatio: computeScrollRatio(scrollY, scrollHeight, window.innerHeight),
+        updatedAt: Date.now(),
+      });
+    };
+
+    persist();
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onScroll = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        persist();
+      }, 300);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") persist();
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", persist);
+    return () => {
+      if (timer) clearTimeout(timer);
+      persist();
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", persist);
+    };
+  }, [offlineReadingKey, activeSectionSlug, article.sections]);
 
   const activeSection = useMemo(() => {
     return (

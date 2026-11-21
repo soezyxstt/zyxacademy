@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, Trash2, Wifi, WifiOff } from "lucide-react";
+import { ArrowLeft, BookOpen, Trash2, Wifi, WifiOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { StructuredArticleSectionContent } from "@/components/course/structured-article-section-content";
@@ -19,27 +19,74 @@ import {
   type OfflineReadingRecord,
   type OfflineReadingSummary,
 } from "@/lib/offline/reading-cache";
+import {
+  computeScrollRatio,
+  loadOfflineReadingPosition,
+  resolveRestoredScrollY,
+  saveOfflineReadingPosition,
+} from "@/lib/offline/reading-position";
 
 export function OfflineReadingLibrary() {
   const { data: session, isPending } = useSession();
   const activeUserId = session?.user?.id ?? null;
   const [online, setOnline] = useState(true);
+  const [reconnectedBannerVisible, setReconnectedBannerVisible] = useState(false);
   const [items, setItems] = useState<OfflineReadingSummary[]>([]);
   const [stats, setStats] = useState<OfflineCacheStats | null>(null);
   const [activeRecord, setActiveRecord] = useState<OfflineReadingRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const activeRecordRef = useRef<OfflineReadingRecord | null>(null);
+  const articleBodyRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    activeRecordRef.current = activeRecord;
+  }, [activeRecord]);
+
+  const persistCurrentPosition = useCallback(() => {
+    const record = activeRecordRef.current;
+    if (!record || typeof window === "undefined") return;
+    const scrollY = Math.max(0, Math.round(window.scrollY || document.documentElement.scrollTop || 0));
+    const scrollHeight = Math.max(
+      document.documentElement.scrollHeight || 0,
+      document.body.scrollHeight || 0,
+    );
+    const scrollRatio = computeScrollRatio(scrollY, scrollHeight, window.innerHeight);
+
+    let sectionSlug: string | null = null;
+    let sectionIndex = 0;
+    const sectionEls = articleBodyRef.current?.querySelectorAll<HTMLElement>("[data-section-slug]");
+    if (sectionEls?.length) {
+      sectionEls.forEach((el, idx) => {
+        if (el.getBoundingClientRect().top <= 120) {
+          sectionIndex = idx;
+          sectionSlug = el.dataset.sectionSlug ?? null;
+        }
+      });
+    }
+
+    saveOfflineReadingPosition({
+      key: record.key,
+      sectionSlug,
+      sectionIndex,
+      scrollY,
+      scrollRatio,
+      updatedAt: Date.now(),
+    });
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       // When online, wait for confirmed session and enforce strict account isolation.
+      // Never interrupt an active offline reading session mid-read when connectivity returns.
       if (online) {
         if (isPending) return;
         if (!activeUserId) {
-          await clearAllOfflineReadings();
-          setItems([]);
-          setStats({ count: 0, totalBytes: 0, maxEntries: 25, maxBytes: 8 * 1024 * 1024 });
-          setActiveRecord(null);
+          if (!activeRecordRef.current) {
+            await clearAllOfflineReadings();
+            setItems([]);
+            setStats({ count: 0, totalBytes: 0, maxEntries: 25, maxBytes: 8 * 1024 * 1024 });
+          }
           return;
         }
         await clearOfflineReadingsForOtherUsers(activeUserId);
@@ -61,8 +108,14 @@ export function OfflineReadingLibrary() {
     if (typeof navigator !== "undefined") {
       setOnline(navigator.onLine);
     }
-    const handleOnline = () => setOnline(true);
-    const handleOffline = () => setOnline(false);
+    const handleOnline = () => {
+      setOnline(true);
+      setReconnectedBannerVisible(true);
+    };
+    const handleOffline = () => {
+      setOnline(false);
+      setReconnectedBannerVisible(false);
+    };
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     return () => {
@@ -75,11 +128,74 @@ export function OfflineReadingLibrary() {
     void refresh();
   }, [refresh]);
 
+  // Restore reading position when opening an offline record and persist on scroll/hide.
+  useEffect(() => {
+    if (!activeRecord) return;
+    const saved = loadOfflineReadingPosition(activeRecord.key);
+    let raf1 = 0;
+    let raf2 = 0;
+
+    raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => {
+        if (!saved) {
+          window.scrollTo(0, 0);
+          return;
+        }
+        const scrollHeight = Math.max(
+          document.documentElement.scrollHeight || 0,
+          document.body.scrollHeight || 0,
+        );
+        const targetY = resolveRestoredScrollY(saved, scrollHeight, window.innerHeight);
+        if (targetY > 0) {
+          window.scrollTo(0, targetY);
+        } else if (saved.sectionSlug) {
+          const targetSection = articleBodyRef.current?.querySelector<HTMLElement>(
+            `[data-section-slug="${CSS.escape(saved.sectionSlug)}"]`,
+          );
+          targetSection?.scrollIntoView({ behavior: "auto", block: "start" });
+        }
+      });
+    });
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onScroll = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        persistCurrentPosition();
+      }, 250);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        persistCurrentPosition();
+      }
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", persistCurrentPosition);
+
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+      if (timer) clearTimeout(timer);
+      persistCurrentPosition();
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", persistCurrentPosition);
+    };
+  }, [activeRecord, persistCurrentPosition]);
+
   const handleOpen = async (key: string) => {
     const record = await getOfflineReadingByKey(key);
     if (record && (!activeUserId || record.userId === activeUserId)) {
       setActiveRecord(record);
     }
+  };
+
+  const handleCloseReader = () => {
+    persistCurrentPosition();
+    setActiveRecord(null);
   };
 
   const handleRemove = async (key: string) => {
@@ -97,14 +213,50 @@ export function OfflineReadingLibrary() {
   };
 
   if (activeRecord) {
+    const onlineReturnHref = activeRecord.courseId
+      ? `/courses/${activeRecord.courseId}`
+      : "/dashboard";
+
     return (
       <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+        {online && reconnectedBannerVisible && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-status-success/10 px-3 py-2 text-body-xs text-status-success"
+          >
+            <span className="inline-flex items-center gap-1.5 font-semibold">
+              <Wifi className="size-3.5" />
+              Koneksi kembali tersedia
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button
+                asChild
+                size="sm"
+                variant="default"
+                onClick={() => persistCurrentPosition()}
+              >
+                <Link href={onlineReturnHref}>Kembali online</Link>
+              </Button>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label="Tutup pemberitahuan koneksi"
+                onClick={() => setReconnectedBannerVisible(false)}
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-4">
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setActiveRecord(null)}
+            onClick={handleCloseReader}
           >
             <ArrowLeft className="size-4" />
             Daftar bacaan offline
@@ -115,7 +267,7 @@ export function OfflineReadingLibrary() {
           </span>
         </div>
 
-        <article className="space-y-6">
+        <article ref={articleBodyRef} className="space-y-6">
           <header className="space-y-1">
             {activeRecord.courseTitle && (
               <p className="text-body-xs text-muted-foreground">
@@ -131,7 +283,11 @@ export function OfflineReadingLibrary() {
           {activeRecord.kind === "structured_article" && activeRecord.article ? (
             <div className="space-y-8">
               {activeRecord.article.sections.map((section) => (
-                <section key={section.id} className="space-y-3 border-t border-border pt-6 first:border-t-0 first:pt-0">
+                <section
+                  key={section.id}
+                  data-section-slug={section.slug}
+                  className="space-y-3 border-t border-border pt-6 first:border-t-0 first:pt-0"
+                >
                   <h2 className="font-heading text-body-base font-bold text-foreground">
                     {section.title}
                   </h2>

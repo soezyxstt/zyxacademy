@@ -70,6 +70,13 @@ import { ChapterSummarySheet } from "@/components/course/chapter-summary-sheet";
 import { useMaterialReadingProgress } from "@/hooks/use-material-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
 import { saveTextMaterialOffline } from "@/lib/offline/reading-cache";
+import {
+  buildOfflineReadingKey,
+  computeScrollRatio,
+  loadOfflineReadingPosition,
+  resolveRestoredScrollY,
+  saveOfflineReadingPosition,
+} from "@/lib/offline/reading-position";
 
 type MaterialViewerProps = {
   material: CourseMaterial;
@@ -491,6 +498,63 @@ function MaterialViewerContent({
     if (material.kind !== "article" || !material.body?.trim()) return;
     void saveTextMaterialOffline(studentId, material, course?.title);
   }, [demo, studentId, learnerMode, material, course?.title]);
+
+  useEffect(() => {
+    if (demo || !studentId || !learnerMode || material.kind !== "article") return;
+    const readingKey = buildOfflineReadingKey(studentId, material.courseId, material.id);
+    const saved = loadOfflineReadingPosition(readingKey);
+    let raf = 0;
+    if (saved) {
+      raf = window.requestAnimationFrame(() => {
+        const scrollHeight = Math.max(
+          document.documentElement.scrollHeight || 0,
+          document.body.scrollHeight || 0,
+        );
+        const targetY = resolveRestoredScrollY(saved, scrollHeight, window.innerHeight);
+        if (targetY > 0) window.scrollTo(0, targetY);
+      });
+    }
+
+    const persist = () => {
+      const scrollY = Math.max(0, Math.round(window.scrollY || document.documentElement.scrollTop || 0));
+      const scrollHeight = Math.max(
+        document.documentElement.scrollHeight || 0,
+        document.body.scrollHeight || 0,
+      );
+      saveOfflineReadingPosition({
+        key: readingKey,
+        sectionSlug: null,
+        sectionIndex: 0,
+        scrollY,
+        scrollRatio: computeScrollRatio(scrollY, scrollHeight, window.innerHeight),
+        updatedAt: Date.now(),
+      });
+    };
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onScroll = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        persist();
+      }, 300);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") persist();
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", persist);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      if (timer) clearTimeout(timer);
+      persist();
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", persist);
+    };
+  }, [demo, studentId, learnerMode, material.kind, material.courseId, material.id]);
   const revision = experience.baseline.find(item => item.courseId === material.courseId)?.revision ?? "fictional";
   const storage = useMemo(() => {
     const fallback = new Map<string,string>();

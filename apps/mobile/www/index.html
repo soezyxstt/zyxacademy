@@ -8,6 +8,7 @@
     />
     <meta name="color-scheme" content="light dark" />
     <title>Zyx Academy</title>
+    <link rel="stylesheet" href="vendor/katex/katex.min.css" />
     <style>
       :root {
         --background: #ffffff;
@@ -90,7 +91,7 @@
         justify-content: space-between;
         gap: 12px;
         height: 52px;
-        max-width: 720px;
+        max-width: 760px;
         margin: 0 auto;
         padding: 0 16px;
       }
@@ -164,12 +165,54 @@
         color: var(--foreground);
       }
 
+      /* Non-disruptive reconnect banner */
+      .reconnect-banner {
+        position: sticky;
+        top: 52px;
+        z-index: 19;
+        background: var(--status-success-bg);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .reconnect-banner-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 8px 16px;
+      }
+
+      .reconnect-banner-text {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--status-success-fg);
+        min-width: 0;
+      }
+
+      .reconnect-banner-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+
+      .btn-sm {
+        min-height: 32px;
+        padding: 0 12px;
+        font-size: 12px;
+      }
+
       .page {
         flex: 1;
         width: 100%;
-        max-width: 720px;
+        max-width: 760px;
         margin: 0 auto;
-        padding: 24px 16px 32px;
+        padding: 24px 16px 40px;
       }
 
       .status-pill {
@@ -405,7 +448,7 @@
 
       .reader-section h2 {
         margin: 0 0 10px;
-        font-size: 16px;
+        font-size: 17px;
         line-height: 1.4;
         font-weight: 700;
       }
@@ -417,23 +460,47 @@
         font-weight: 600;
       }
 
+      .reader-section h4 {
+        margin: 12px 0 6px;
+        font-size: 14px;
+        line-height: 1.4;
+        font-weight: 600;
+      }
+
       .reader-section p {
         margin: 0 0 12px;
         font-size: 16px;
-        line-height: 1.65;
+        line-height: 1.68;
         color: var(--foreground);
-        white-space: pre-wrap;
       }
 
-      .reader-section ul {
+      .reader-section ul,
+      .reader-section ol {
         margin: 0 0 12px;
-        padding-left: 20px;
+        padding-left: 22px;
       }
 
       .reader-section li {
         margin-bottom: 6px;
         font-size: 16px;
-        line-height: 1.6;
+        line-height: 1.62;
+      }
+
+      .reader-section blockquote {
+        margin: 0 0 12px;
+        padding: 8px 14px;
+        border-left: 3px solid var(--primary);
+        background: var(--surface);
+        border-radius: 0 8px 8px 0;
+        font-size: 15px;
+      }
+
+      .reader-section code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.9em;
+        padding: 1px 5px;
+        border-radius: 4px;
+        background: var(--surface);
       }
 
       .reader-section pre {
@@ -445,6 +512,139 @@
         overflow-x: auto;
         font-size: 13px;
         line-height: 1.5;
+      }
+
+      .reader-section pre code {
+        padding: 0;
+        background: transparent;
+      }
+
+      .reader-section a {
+        color: var(--primary);
+        text-decoration: underline;
+      }
+
+      .reader-section hr {
+        border: 0;
+        border-top: 1px solid var(--border);
+        margin: 18px 0;
+      }
+
+      /* Rich math, visual, table, and worked example styles */
+      .offline-objective {
+        border-left: 3px solid var(--primary);
+        padding-left: 12px;
+        margin-bottom: 14px;
+        color: var(--muted-foreground);
+      }
+
+      .offline-objective p {
+        color: var(--muted-foreground);
+        font-size: 15px;
+      }
+
+      .offline-math-block {
+        display: block;
+        margin: 12px 0;
+        padding: 8px 4px;
+        overflow-x: auto;
+        text-align: center;
+      }
+
+      .katex-display {
+        margin: 0.5em 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+      }
+
+      .offline-visual {
+        margin: 16px 0;
+        padding: 14px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--card);
+      }
+
+      .offline-visual figcaption {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: var(--foreground);
+      }
+
+      .offline-visual-svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        background: #ffffff;
+        color: #1e293b;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        padding: 4px;
+      }
+
+      .offline-visual-desc,
+      .offline-visual-note {
+        font-size: 13px !important;
+        line-height: 1.5 !important;
+        color: var(--muted-foreground) !important;
+        margin: 8px 0 0 !important;
+      }
+
+      .offline-visual-legend {
+        margin-top: 8px;
+      }
+
+      .offline-img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        margin: 10px 0;
+      }
+
+      .offline-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        margin: 12px 0;
+      }
+
+      .offline-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      .offline-table th,
+      .offline-table td {
+        border: 1px solid var(--border);
+        padding: 8px 10px;
+        text-align: left;
+      }
+
+      .offline-table th {
+        background: var(--surface);
+        font-weight: 600;
+      }
+
+      .offline-worked-example {
+        margin: 12px 0;
+        padding: 12px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--status-success-fg);
+        background: var(--card);
+      }
+
+      .offline-step-reason {
+        font-size: 13px;
+        color: var(--muted-foreground);
+        margin-top: 2px;
+      }
+
+      .offline-worked-verify {
+        margin-top: 10px !important;
+        font-size: 14px !important;
       }
 
       .hidden {
@@ -497,6 +697,23 @@
       </div>
     </header>
 
+    <div id="reconnect-banner" class="reconnect-banner hidden" role="status" aria-live="polite">
+      <div class="reconnect-banner-inner">
+        <span class="reconnect-banner-text" id="reconnect-banner-text">Koneksi kembali tersedia</span>
+        <div class="reconnect-banner-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="banner-online-btn">
+            Kembali online
+          </button>
+          <button type="button" class="icon-btn" id="banner-dismiss-btn" aria-label="Tutup">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <main class="page">
       <div id="home-view">
         <section class="hero">
@@ -544,8 +761,8 @@
             </svg>
             <span id="reader-back-label">Kembali</span>
           </button>
-          <button type="button" class="btn btn-outline" id="reader-reconnect-btn">
-            Coba online
+          <button type="button" class="btn btn-outline btn-sm" id="reader-reconnect-btn">
+            Kembali online
           </button>
         </div>
         <p class="reader-meta" id="reader-meta"></p>
@@ -556,6 +773,7 @@
 
     <script>
       (function () {
+        var POSITION_PREFIX = "zyx:offline-reading-pos:";
         var isNightly = /nightly/i.test(navigator.userAgent || "");
         var DEFAULT_ORIGIN = isNightly
           ? "https://staging.zyxacademy.com"
@@ -581,7 +799,9 @@
             emptyLibrary:
               "Belum ada bacaan tersimpan di perangkat ini. Buka artikel atau materi teks saat online agar tersimpan otomatis.",
             back: "Kembali",
-            reconnect: "Coba online",
+            reconnect: "Kembali online",
+            bannerText: "Koneksi kembali tersedia",
+            bannerDismiss: "Tutup",
             deleteLabel: "Hapus bacaan",
             minUnit: "mnt",
             noContent: "Konten bacaan tidak tersedia di penyimpanan lokal.",
@@ -603,7 +823,9 @@
             emptyLibrary:
               "No saved readings on this device yet. Open text materials while online to cache them automatically.",
             back: "Back",
-            reconnect: "Try online",
+            reconnect: "Return online",
+            bannerText: "Connection restored",
+            bannerDismiss: "Dismiss",
             deleteLabel: "Remove reading",
             minUnit: "min",
             noContent: "Reading content is not available in local storage.",
@@ -639,9 +861,16 @@
         var readerMetaEl = document.getElementById("reader-meta");
         var readerTitleEl = document.getElementById("reader-title");
         var readerBodyEl = document.getElementById("reader-body");
+        var reconnectBanner = document.getElementById("reconnect-banner");
+        var reconnectBannerText = document.getElementById("reconnect-banner-text");
+        var bannerOnlineBtn = document.getElementById("banner-online-btn");
+        var bannerDismissBtn = document.getElementById("banner-dismiss-btn");
 
         var cachedItems = [];
         var cachedTotalBytes = 0;
+        var activeReading = null;
+        var scrollSaveTimer = null;
+        var bannerDismissed = false;
 
         function getTargetOrigin() {
           var host = (window.location.hostname || "").toLowerCase();
@@ -675,6 +904,151 @@
           ) || null;
         }
 
+        function sanitizeHtmlFragment(html) {
+          var template = document.createElement("template");
+          template.innerHTML = String(html || "");
+          var blockedTags = ["SCRIPT", "IFRAME", "OBJECT", "EMBED", "STYLE", "LINK", "META", "BASE", "FORM"];
+          for (var t = 0; t < blockedTags.length; t++) {
+            var bad = template.content.querySelectorAll(blockedTags[t].toLowerCase());
+            for (var j = bad.length - 1; j >= 0; j--) {
+              bad[j].remove();
+            }
+          }
+          var all = template.content.querySelectorAll("*");
+          for (var i = 0; i < all.length; i++) {
+            var el = all[i];
+            var attrs = Array.prototype.slice.call(el.attributes);
+            for (var a = 0; a < attrs.length; a++) {
+              var name = attrs[a].name.toLowerCase();
+              var value = attrs[a].value || "";
+              if (name.indexOf("on") === 0) {
+                el.removeAttribute(attrs[a].name);
+                continue;
+              }
+              if (
+                (name === "href" || name === "src" || name === "xlink:href") &&
+                /^\s*javascript:/i.test(value)
+              ) {
+                el.removeAttribute(attrs[a].name);
+              }
+            }
+          }
+          return template.content;
+        }
+
+        function readLocalPosition(key) {
+          if (!key) return null;
+          try {
+            var raw = window.localStorage.getItem(POSITION_PREFIX + key);
+            return raw ? JSON.parse(raw) : null;
+          } catch {
+            return null;
+          }
+        }
+
+        function pickLatestPosition(a, b) {
+          if (!a && !b) return null;
+          if (!a) return b;
+          if (!b) return a;
+          return (Number(b.updatedAt) || 0) > (Number(a.updatedAt) || 0) ? b : a;
+        }
+
+        function captureCurrentReadingPosition() {
+          if (!activeReading || !activeReading.key || readerView.classList.contains("hidden")) {
+            return null;
+          }
+          var scrollY = Math.max(0, Math.round(window.scrollY || document.documentElement.scrollTop || 0));
+          var docHeight = Math.max(
+            document.documentElement.scrollHeight || 0,
+            document.body.scrollHeight || 0
+          );
+          var maxScroll = Math.max(0, docHeight - window.innerHeight);
+          var scrollRatio = maxScroll > 0 ? Math.max(0, Math.min(1, scrollY / maxScroll)) : 0;
+
+          var sectionSlug = null;
+          var sectionIndex = 0;
+          var sectionEls = readerBodyEl.querySelectorAll(".reader-section");
+          for (var i = 0; i < sectionEls.length; i++) {
+            var rect = sectionEls[i].getBoundingClientRect();
+            if (rect.top <= 120) {
+              sectionIndex = i;
+              sectionSlug = sectionEls[i].getAttribute("data-section-slug") || null;
+            } else {
+              break;
+            }
+          }
+
+          return {
+            key: activeReading.key,
+            sectionSlug: sectionSlug,
+            sectionIndex: sectionIndex,
+            scrollY: scrollY,
+            scrollRatio: scrollRatio,
+            updatedAt: Date.now(),
+          };
+        }
+
+        function persistActiveReadingPosition() {
+          var pos = captureCurrentReadingPosition();
+          if (!pos) return;
+          var serialized = JSON.stringify(pos);
+          try {
+            window.localStorage.setItem(POSITION_PREFIX + pos.key, serialized);
+          } catch {
+            // Non-fatal
+          }
+          var store = getOfflineStorePlugin();
+          if (store && store.saveReadingPosition) {
+            store
+              .saveReadingPosition({ key: pos.key, positionJson: serialized })
+              .catch(function () {});
+          }
+        }
+
+        function schedulePositionSave() {
+          if (!activeReading || readerView.classList.contains("hidden")) return;
+          if (scrollSaveTimer !== null) window.clearTimeout(scrollSaveTimer);
+          scrollSaveTimer = window.setTimeout(function () {
+            scrollSaveTimer = null;
+            persistActiveReadingPosition();
+          }, 250);
+        }
+
+        function restoreReadingPosition(reading) {
+          var pos = pickLatestPosition(
+            reading && reading.readingPosition ? reading.readingPosition : null,
+            readLocalPosition(reading && reading.key)
+          );
+          if (!pos) {
+            window.scrollTo(0, 0);
+            return;
+          }
+          window.requestAnimationFrame(function () {
+            window.requestAnimationFrame(function () {
+              var docHeight = Math.max(
+                document.documentElement.scrollHeight || 0,
+                document.body.scrollHeight || 0
+              );
+              var maxScroll = Math.max(0, docHeight - window.innerHeight);
+              var targetY = 0;
+              if (Number(pos.scrollRatio) > 0 && maxScroll > 0) {
+                targetY = Math.round(Math.max(0, Math.min(1, Number(pos.scrollRatio))) * maxScroll);
+              } else if (Number(pos.scrollY) > 0) {
+                targetY = Math.min(maxScroll, Math.round(Number(pos.scrollY)));
+              } else if (pos.sectionSlug) {
+                var targetSec = readerBodyEl.querySelector(
+                  '[data-section-slug="' + pos.sectionSlug.replace(/"/g, "") + '"]'
+                );
+                if (targetSec) {
+                  targetSec.scrollIntoView({ behavior: "auto", block: "start" });
+                  return;
+                }
+              }
+              window.scrollTo(0, targetY);
+            });
+          });
+        }
+
         async function probeServerReachable() {
           if (navigator.onLine === false) return false;
           var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
@@ -698,16 +1072,19 @@
           }
         }
 
-        async function handleRetry() {
+        async function handleReturnOnline() {
+          persistActiveReadingPosition();
           var t = COPY[currentLang];
           retryBtn.disabled = true;
           readerReconnectBtn.disabled = true;
+          bannerOnlineBtn.disabled = true;
           statusEl.textContent = t.retrying;
           var reachable = await probeServerReachable();
           if (!reachable) {
             statusEl.textContent = t.stillOffline;
             retryBtn.disabled = false;
             readerReconnectBtn.disabled = false;
+            bannerOnlineBtn.disabled = false;
             return;
           }
           window.location.replace(getTargetOrigin() + "/");
@@ -796,6 +1173,7 @@
         }
 
         function openReadingView(reading) {
+          activeReading = reading;
           var t = COPY[currentLang];
           var metaParts = [];
           if (reading.courseTitle) metaParts.push(reading.courseTitle);
@@ -818,22 +1196,33 @@
               var sec = sections[i];
               var secEl = document.createElement("section");
               secEl.className = "reader-section";
-              if (sec.heading) {
+              if (sec.slug) secEl.setAttribute("data-section-slug", String(sec.slug));
+              if (sec.headingHtml) {
+                var h2Html = document.createElement("h2");
+                h2Html.appendChild(sanitizeHtmlFragment(sec.headingHtml));
+                secEl.appendChild(h2Html);
+              } else if (sec.heading) {
                 var h2 = document.createElement("h2");
                 h2.textContent = sec.heading;
                 secEl.appendChild(h2);
               }
-              renderMarkdownInto(secEl, sec.body || "");
+              if (sec.bodyHtml) {
+                secEl.appendChild(sanitizeHtmlFragment(sec.bodyHtml));
+              } else {
+                renderMarkdownInto(secEl, sec.body || "");
+              }
               readerBodyEl.appendChild(secEl);
             }
           }
 
           homeView.classList.add("hidden");
           readerView.classList.remove("hidden");
-          window.scrollTo(0, 0);
+          restoreReadingPosition(reading);
         }
 
         function closeReadingView() {
+          persistActiveReadingPosition();
+          activeReading = null;
           readerView.classList.add("hidden");
           homeView.classList.remove("hidden");
         }
@@ -852,7 +1241,7 @@
 
           libraryMeta.textContent = t.savedCount(
             cachedItems.length,
-            formatBytes(cachedTotalBytes),
+            formatBytes(cachedTotalBytes)
           );
           libraryEmptyEl.classList.add("hidden");
           readingListEl.classList.remove("hidden");
@@ -906,6 +1295,9 @@
               delBtn.addEventListener("click", function () {
                 var store = getOfflineStorePlugin();
                 if (!store || !store.removeReading) return;
+                try {
+                  window.localStorage.removeItem(POSITION_PREFIX + item.key);
+                } catch {}
                 store
                   .removeReading({ key: item.key })
                   .then(loadLibrary)
@@ -938,11 +1330,17 @@
           renderLibrary();
         }
 
-        function updateConnectionBadge() {
+        function updateConnectionUI(showBannerIfOnline) {
           var t = COPY[currentLang];
           var isOnline = navigator.onLine !== false;
           connPill.classList.toggle("online", isOnline);
           connLabel.textContent = isOnline ? t.onlinePill : t.offlinePill;
+          if (!isOnline) {
+            bannerDismissed = false;
+            reconnectBanner.classList.add("hidden");
+          } else if (showBannerIfOnline && !bannerDismissed) {
+            reconnectBanner.classList.remove("hidden");
+          }
         }
 
         function renderLang(lang) {
@@ -956,9 +1354,12 @@
           libraryHeading.textContent = t.libraryHeading;
           readerBackLabel.textContent = t.back;
           readerReconnectBtn.textContent = t.reconnect;
+          reconnectBannerText.textContent = t.bannerText;
+          bannerOnlineBtn.textContent = t.reconnect;
+          bannerDismissBtn.setAttribute("aria-label", t.bannerDismiss);
           langIdBtn.setAttribute("aria-pressed", String(lang === "id"));
           langEnBtn.setAttribute("aria-pressed", String(lang === "en"));
-          updateConnectionBadge();
+          updateConnectionUI(false);
           renderLibrary();
         }
 
@@ -971,11 +1372,20 @@
         });
 
         retryBtn.addEventListener("click", function () {
-          void handleRetry();
+          void handleReturnOnline();
         });
 
         readerReconnectBtn.addEventListener("click", function () {
-          void handleRetry();
+          void handleReturnOnline();
+        });
+
+        bannerOnlineBtn.addEventListener("click", function () {
+          void handleReturnOnline();
+        });
+
+        bannerDismissBtn.addEventListener("click", function () {
+          bannerDismissed = true;
+          reconnectBanner.classList.add("hidden");
         });
 
         refreshLibraryBtn.addEventListener("click", function () {
@@ -986,12 +1396,24 @@
 
         readerBackBtn.addEventListener("click", closeReadingView);
 
+        window.addEventListener("scroll", schedulePositionSave, { passive: true });
+        document.addEventListener("visibilitychange", function () {
+          if (document.visibilityState === "hidden") {
+            persistActiveReadingPosition();
+          }
+        });
+        window.addEventListener("pagehide", persistActiveReadingPosition);
+
+        // When connectivity returns, never auto-redirect mid-read.
+        // Surface the non-disruptive reconnect banner so the learner chooses when to return online.
         window.addEventListener("online", function () {
-          updateConnectionBadge();
-          void handleRetry();
+          bannerDismissed = false;
+          updateConnectionUI(true);
         });
 
-        window.addEventListener("offline", updateConnectionBadge);
+        window.addEventListener("offline", function () {
+          updateConnectionUI(false);
+        });
 
         renderLang(currentLang);
         void loadLibrary();
