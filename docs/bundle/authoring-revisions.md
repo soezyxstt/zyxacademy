@@ -22,6 +22,8 @@ Publication validates the release manifest and repeats its snapshot and dependen
 
 ## Editing and impact
 
+For a single-product correction, call `authoring.create_revision` with `entityIds: [productId]` from the observed edit context. Direct patches must target that ID. Check the reported derived-product and print evidence changes before approving the successor bundle.
+
 Operations address entities, sections, blocks and collection items by stable ID. Array offsets are not stable identities. Scope, stored identity, lineage and computed hashes are server-controlled. Structural edits and explicit provenance changes must pass the complete original validators, including graph and source references. A source change cannot be justified by copying the previous provenance.
 
 The source documents and excerpt archives themselves remain immutable in this editing workflow. Provenance changes must reference admitted active sources. Ingesting a new source follows the source-grounded authoring workflow. Existing V3 rules for unique section and block IDs within an artifact remain enforced; the review persistence also records the owning Product ID.

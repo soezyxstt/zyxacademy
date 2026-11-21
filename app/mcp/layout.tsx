@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getTranslations } from "@/lib/i18n/server";
@@ -15,18 +14,12 @@ export default async function McpLayout({ children }: { children: ReactNode }) {
           <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
             <Logo variant="horizontal" className="[--logo-height:1.25rem]" />
           </Link>
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-1.5 rounded-md border border-border/80 bg-muted/50 px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
-              <ShieldCheck className="size-3.5 text-status-success" />
-              <span>{t("shell.secureMcpAuthorization")}</span>
-            </div>
-            <ThemeToggle mode="navbar" />
-          </div>
+          <ThemeToggle mode="navbar" />
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6">
+      <main className="flex-1 flex items-start justify-center py-5 sm:py-8 px-4 sm:px-6">
         {children}
       </main>
 

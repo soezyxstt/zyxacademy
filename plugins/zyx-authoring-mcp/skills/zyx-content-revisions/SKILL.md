@@ -6,16 +6,18 @@ description: Mengubah Idea V3 dan Product belajar V3/V4/V5 yang sudah tersimpan 
 # Revisi konten akademik Zyx
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.0"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain.
+Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.1"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain.
 <!-- END:environment-connection -->
 
-Metadata paket: `{ "pluginVersion": "0.5.0", "bootstrapProtocol": 1 }`.
+Metadata paket: `{ "pluginVersion": "0.5.1", "bootstrapProtocol": 1 }`.
 
 Panggil `admin.environment` pada koneksi tujuan dan cocokkan `environment` serta `origin` dengan target pengguna. Jika target belum jelas, pastikan target sebelum membaca data. Jangan mengganti staging dengan production atau sebaliknya. Kirim `expectedEnvironment` dan `expectedOrigin` pada setiap tool admin data. Baca `admin.capabilities` untuk domain yang relevan dan gunakan schema tool yang benar-benar tersedia. Izin yang kurang memerlukan consent OAuth yang sesuai; metadata discovery tidak memberikan izin baru.
 
 Untuk konten yang sudah ada, gunakan revisi sebelum mempertimbangkan upload ZIP ulang. Pilih `kind: "idea"` atau `"product"`, lalu ambil bootstrap tahap yang sesuai melalui `workflow.get_playbook` dengan skill literal `zyx-idea-bundle-mcp` atau `zyx-product-bundle-mcp`, protocol `1`, versi paket di atas, dan capability host yang benar. Jangan memakai `zyx-content-revisions` sebagai bootstrap skill ID. Discovery admin tidak menggantikan bootstrap authoring.
 
 Baca `authoring.get_edit_context` dengan import ID dan checksum yang terakhir diamati. `authoring.create_revision` membuat draft dari versi live atau draft yang bisa diedit; versi live tetap tersedia. Ubah bagian, blok, langkah Pembahasan, Idea, relasi atau provenance melalui `authoring.patch_revision` dengan ID stabil. Jangan memakai posisi array atau mengubah identitas, hash dan scope yang dikelola server. Setiap patch bermakna mengembalikan import ID dan revision penerus; gunakan identitas yang dikembalikan untuk langkah berikutnya.
+
+Untuk memperbarui satu produk dalam bundle, baca ID stabil produk dari konteks lalu kirim `entityIds: [productId]` ke `authoring.create_revision`. Targetkan hanya ID itu pada `authoring.patch_revision`. Periksa dampak dependensi, versi dan bukti PDF sebelum review dan rilis. Publikasi menggunakan checksum bundle penerus.
 
 `authoring.plan_release` membaca entry Idea/Product yang tepat, unit berubah, review yang masih berlaku, dependensi dan blocker. Gunakan review ulang untuk isi, alasan, provenance atau struktur yang berubah. `authoring.review_revision` dapat memakai `reuseUnchanged: true` hanya dengan `reuseToken` server yang masih berlaku dan keputusan eksplisit reviewer. Reuse bukan izin menyetujui konten yang belum diperiksa.
 

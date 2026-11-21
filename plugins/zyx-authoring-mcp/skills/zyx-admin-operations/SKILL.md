@@ -6,12 +6,12 @@ description: Coordinate supported Zyx admin workflows through MCP, discover curr
 # Zyx admin operations
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.0"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain.
+Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.1"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain.
 <!-- END:environment-connection -->
 
 Metadata paket:
 ```json
-{ "pluginVersion": "0.5.0", "bootstrapProtocol": 1 }
+{ "pluginVersion": "0.5.1", "bootstrapProtocol": 1 }
 ```
 
 First call `admin.environment` on the intended connection and compare both `environment` and `origin` with the user-requested target and this skill connection block. If the tool is unavailable or the identity differs, stop; never fall back to another Zyx connection. If the user has not named a target, resolve that before any operation. Pass `expectedEnvironment` and `expectedOrigin` on every admin data read or write, using the intended target, not a guessed value. Never infer the target from similar record IDs, credentials, the working branch, or Vercel deployment tier.

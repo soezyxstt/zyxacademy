@@ -22,8 +22,8 @@ describe("MCP consent scope choices", () => {
         />
       </NextIntlClientProvider>,
     );
-    expect(html.match(/role="checkbox"/g)).toHaveLength(3);
-    expect(html.match(/aria-checked="true"/g)).toHaveLength(3);
+    expect(html.match(/id="scope-authoring:/g)).toHaveLength(3);
+    expect(html.match(/name="selected_scope"/g)).toHaveLength(3);
     expect(html).toContain("3 dari 3 izin");
   });
 

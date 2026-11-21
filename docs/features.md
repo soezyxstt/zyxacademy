@@ -796,7 +796,7 @@ Pembahasan soal displays the authored hint beside the optional Admin review deci
 Pembahasan review supports Indonesian and English, detects tab-draft conflicts against the saved server baseline, and requires explicit recovery before reusing conflicting choices. Bounded question pages support normal Tab navigation. Static typed and Markdown code retain their language and localized copy controls, with visible fallback when the clipboard is unavailable.
 
 
-Agent-first content tools expose paginated registered capabilities, permission recovery and actor-scoped database receipts. Blog creation, validation, editing and explicit publication use MCP with observed revisions; public edits report their live impact. Media resolution returns served paths without private storage credentials. Repository plugin 0.5.0 adds five focused skills. See [agent-first content operations](operations/agent-first-content.md) for limits and release boundaries.
+Agent-first content tools expose paginated registered capabilities, permission recovery and actor-scoped database receipts. Blog creation, validation, editing and explicit publication use MCP with observed revisions; public edits report their live impact. Media resolution returns served paths without private storage credentials. Repository plugin 0.5.1 covers admin operations and product-specific revision workflows. See [agent-first content operations](operations/agent-first-content.md) for limits and release boundaries.
 
 
 ## Student leaderboard and social identity

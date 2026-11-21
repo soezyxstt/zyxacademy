@@ -34,7 +34,7 @@ Writes and receipt replay recheck active canonical membership, the bound live se
 
 ## Repository plugin distribution
 
-The source is `plugins/zyx-authoring-mcp`, release 0.5.0. Five focused skills cover blog, content revisions, forms, media and operation recovery alongside the seven existing skills. Environment packaging exports all 12 and preserves distinct staging and production connections.
+The source is `plugins/zyx-authoring-mcp`, release 0.5.1. Five focused skills cover blog, content revisions, forms, media and operation recovery alongside the seven existing skills. Environment packaging exports all 12 and preserves distinct staging and production connections.
 
 Ordinary CI validates the package. Mirroring to the external plugin repository uses the existing manually dispatched sync workflow. The server skill artifact uses a separately pinned external snapshot. A local source edit, push or successful package check does not establish either remote synchronization or installed-host acceptance.
 

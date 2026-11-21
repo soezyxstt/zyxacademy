@@ -23,6 +23,10 @@ This file contains durable rules for work in this repository. Read the relevant 
 - Distinguish verified local structure or tests from unverified runtime, visual, OAuth, staging, production, or external-service behavior.
 - Do not expose secrets in source, logs, reports, or documentation. Keep environment-specific credentials in the appropriate `.env` file.
 
+## Mandatory MCP compatibility review
+
+Every feature change must check the affected workflow against MCP tools, scopes, consent, capability discovery, playbooks, packaged skills and host prompts. Update every affected contract and its focused checks in the same change. Verify existing clients and exact environment bindings. Record the affected workflow and verification in the handoff, or explain why the change has no MCP impact. For intentionally UI-only actions, keep the operations coverage catalog accurate. Distinguish repository changes from published packages and deployed servers.
+
 ## Before changing code
 
 1. Read `db/schema.ts` and `lib/env.ts` before changing database, environment, or server behavior.

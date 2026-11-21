@@ -19,7 +19,7 @@ ENVIRONMENTS: dict[str, dict[str, str]] = {
     "production": {
         "environment": "production",
         "plugin_id": "zyx-authoring-mcp",
-        "display_name": "Zyx Authoring MCP",
+        "display_name": "Zyx Academy",
         "server_id": "zyx-authoring-production",
         "endpoint": "https://www.zyxacademy.com/api/mcp/authoring",
         "homepage": "https://www.zyxacademy.com/",
@@ -29,12 +29,12 @@ ENVIRONMENTS: dict[str, dict[str, str]] = {
     "staging": {
         "environment": "staging",
         "plugin_id": "zyx-authoring-mcp-staging",
-        "display_name": "Zyx Authoring MCP (Staging)",
+        "display_name": "Zyx Academy (Staging)",
         "server_id": "zyx-authoring-staging",
         "endpoint": "https://staging.zyxacademy.com/api/mcp/authoring",
         "homepage": "https://staging.zyxacademy.com/",
         "brand_color": "#F59E0B",
-        "short_description": "Zyx staging MCP workflows",
+        "short_description": "Zyx staging content and ops",
     },
 }
 

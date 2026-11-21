@@ -712,7 +712,7 @@ Use the profile-specific review context and explicit decisions. When the server 
 
 ## Agent-first content checks
 
-The repository plugin source is `plugins/zyx-authoring-mcp`, version 0.5.0. Run its Python distribution tests and focused blog, media and operation-discovery contracts in separate processes. Local candidate packaging does not publish the plugin or advance the server external-source pin. See [agent-first content operations](operations/agent-first-content.md).
+The repository plugin source is `plugins/zyx-authoring-mcp`, version 0.5.1. Run its Python distribution tests and focused blog, media and operation-discovery contracts in separate processes. Local candidate packaging does not publish the plugin or advance the server external-source pin. See [agent-first content operations](operations/agent-first-content.md).
 
 ### Google Calendar schedule sync
 
