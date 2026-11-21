@@ -66,12 +66,24 @@ fn detect_build_sha() -> String {
     "dev".to_string()
 }
 
+fn detect_version() -> String {
+    if let Ok(value) = std::env::var("ZYX_APP_VERSION") {
+        let trimmed = value.trim().trim_start_matches(['v', 'V']);
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 fn main() {
     println!("cargo:rerun-if-env-changed=ZYX_APP_CHANNEL");
     println!("cargo:rerun-if-env-changed=ZYX_APP_BUILD_ID");
+    println!("cargo:rerun-if-env-changed=ZYX_APP_VERSION");
     println!("cargo:rerun-if-env-changed=GITHUB_REF_NAME");
     println!("cargo:rerun-if-env-changed=GITHUB_SHA");
     println!("cargo:rustc-env=ZYX_BUILD_CHANNEL={}", detect_channel());
     println!("cargo:rustc-env=ZYX_BUILD_SHA={}", detect_build_sha());
+    println!("cargo:rustc-env=ZYX_BUILD_VERSION={}", detect_version());
     tauri_build::build()
 }

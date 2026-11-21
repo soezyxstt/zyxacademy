@@ -59,8 +59,14 @@ export interface CapacitorBrowserPlugin {
   ) => Promise<CapacitorPluginListenerHandle>;
 }
 
+export interface CapacitorLocalNotificationsPlugin {
+  checkPermissions: () => Promise<{ display: "prompt" | "prompt-with-rationale" | "granted" | "denied" }>;
+  requestPermissions: () => Promise<{ display: "prompt" | "prompt-with-rationale" | "granted" | "denied" }>;
+}
+
 export interface CapacitorUpdaterPlugin {
   downloadAndInstall: (options: { url: string }) => Promise<{ started?: boolean }>;
+  getAppCapabilities?: () => Promise<{ fcmConfigured?: boolean }>;
   addListener?: (
     eventName: "downloadProgress",
     listenerFunc: (event: { percent?: number }) => void,
@@ -73,6 +79,7 @@ export interface CapacitorGlobal {
   Plugins?: {
     App?: CapacitorAppPlugin;
     Browser?: CapacitorBrowserPlugin;
+    LocalNotifications?: CapacitorLocalNotificationsPlugin;
     PushNotifications?: CapacitorPushNotificationsPlugin;
     Camera?: CapacitorCameraPlugin;
     ZyxAppUpdater?: CapacitorUpdaterPlugin;

@@ -2,6 +2,7 @@ apply plugin: 'com.android.application'
 
 def zyxVersionCodeRaw = (project.findProperty('zyxVersionCode') ?: System.getenv('ZYX_ANDROID_VERSION_CODE') ?: '1').toString().trim()
 def zyxVersionCode = zyxVersionCodeRaw.isInteger() ? Math.max(1, zyxVersionCodeRaw.toInteger()) : 1
+def zyxVersionName = (project.findProperty('zyxVersionName') ?: System.getenv('ZYX_APP_VERSION') ?: '0.1.0-alpha.2').toString().trim()
 def zyxKeystorePath = System.getenv('ZYX_ANDROID_KEYSTORE_PATH')
 def zyxKeystorePassword = System.getenv('ZYX_ANDROID_KEYSTORE_PASSWORD')
 def zyxKeyAlias = System.getenv('ZYX_ANDROID_KEY_ALIAS')
@@ -22,7 +23,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode zyxVersionCode
-        versionName "0.1.0-alpha.1"
+        versionName zyxVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

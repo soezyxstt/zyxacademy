@@ -24,6 +24,11 @@ import {
   parseReleaseTag,
   selectLatestReleaseForChannel,
 } from "@/lib/native/updates";
+import {
+  getUnifiedNotificationPermission,
+  registerUnifiedPushToken,
+  requestUnifiedNotificationPermission,
+} from "@/lib/native/notifications";
 
 describe("offline reading cache LRU eviction", () => {
   test("does not evict when within entry and byte limits", () => {
@@ -269,16 +274,69 @@ describe("in-app update checker helpers", () => {
   test("parses installed build metadata from Capacitor User-Agent", () => {
     const meta = parseInstalledAppMetaFromUa({
       runtime: "capacitor",
-      userAgent: "Mozilla/5.0 ZyxMobileApp/0.1.0-alpha.1 (Capacitor; nightly; build=d36d955)",
+      userAgent: "Mozilla/5.0 ZyxMobileApp/0.1.0-alpha.8 (Capacitor; nightly; build=24b2ae0)",
       hostname: "staging.zyxacademy.com",
       capacitorPlatform: "android",
     });
     expect(meta).toEqual({
       runtime: "capacitor",
       channel: "nightly",
-      version: "0.1.0-alpha.1",
-      buildId: "d36d955",
+      version: "0.1.0-alpha.8",
+      buildId: "24b2ae0",
       platform: "android",
     });
+    expect(compareSemver("0.1.0-alpha.10", "0.1.0-alpha.8")).toBeGreaterThan(0);
+  });
+});
+
+describe("native Android notification crash guard", () => {
+  const originalWindow = globalThis.window;
+
+  afterEach(() => {
+    if (originalWindow === undefined) {
+      delete (globalThis as { window?: unknown }).window;
+    } else {
+      globalThis.window = originalWindow;
+    }
+  });
+
+  test("uses LocalNotifications for permission and skips PushNotifications.register when FCM is not bundled", async () => {
+    let pushRegisterCalls = 0;
+    let localRequestCalls = 0;
+
+    (globalThis as unknown as { window: Record<string, unknown> }).window = {
+      Capacitor: {
+        isNativePlatform: () => true,
+        getPlatform: () => "android",
+        Plugins: {
+          LocalNotifications: {
+            checkPermissions: async () => ({ display: "prompt" }),
+            requestPermissions: async () => {
+              localRequestCalls += 1;
+              return { display: "granted" };
+            },
+          },
+          PushNotifications: {
+            checkPermissions: async () => ({ receive: "prompt" }),
+            requestPermissions: async () => ({ receive: "granted" }),
+            register: async () => {
+              pushRegisterCalls += 1;
+              throw new Error("Default FirebaseApp is not initialized");
+            },
+            addListener: async () => ({ remove: async () => {} }),
+          },
+          ZyxAppUpdater: {
+            downloadAndInstall: async () => ({ started: true }),
+            getAppCapabilities: async () => ({ fcmConfigured: false }),
+          },
+        },
+      },
+    };
+
+    expect(await getUnifiedNotificationPermission()).toBe("default");
+    expect(await requestUnifiedNotificationPermission()).toBe("granted");
+    expect(localRequestCalls).toBe(1);
+    expect(await registerUnifiedPushToken("user-1", () => true)).toBe(false);
+    expect(pushRegisterCalls).toBe(0);
   });
 });

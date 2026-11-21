@@ -1,4 +1,7 @@
 import { execSync, spawnSync } from "node:child_process";
+import { rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 
 function detectGitBranch() {
@@ -36,6 +39,14 @@ const tauriArgs = [command];
 if (channel === "nightly") {
   tauriArgs.push("--config", "src-tauri/tauri.nightly.conf.json");
 }
+
+let tempVersionConfigPath = null;
+const explicitVersion = process.env.ZYX_APP_VERSION?.trim().replace(/^v/i, "");
+if (explicitVersion && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(explicitVersion)) {
+  tempVersionConfigPath = join(tmpdir(), `zyx-tauri-version-${process.pid}.json`);
+  writeFileSync(tempVersionConfigPath, JSON.stringify({ version: explicitVersion }), "utf8");
+  tauriArgs.push("--config", tempVersionConfigPath);
+}
 tauriArgs.push(...rest);
 
 console.log(
@@ -43,17 +54,26 @@ console.log(
     channel === "nightly"
       ? "https://staging.zyxacademy.com"
       : "https://www.zyxacademy.com"
-  })`,
+  })${explicitVersion ? ` v${explicitVersion}` : ""}`,
 );
 
 const bin = process.platform === "win32" ? "npx.cmd" : "npx";
-const result = spawnSync(bin, ["tauri", ...tauriArgs], {
-  stdio: "inherit",
-  shell: process.platform === "win32",
-  env: {
-    ...process.env,
-    ZYX_APP_CHANNEL: channel,
-  },
-});
-
-process.exit(result.status ?? 1);
+try {
+  const result = spawnSync(bin, ["tauri", ...tauriArgs], {
+    stdio: "inherit",
+    shell: process.platform === "win32",
+    env: {
+      ...process.env,
+      ZYX_APP_CHANNEL: channel,
+    },
+  });
+  process.exitCode = result.status ?? 1;
+} finally {
+  if (tempVersionConfigPath) {
+    try {
+      rmSync(tempVersionConfigPath, { force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
+}

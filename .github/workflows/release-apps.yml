@@ -56,22 +56,29 @@ jobs:
         run: |
           set -euo pipefail
           PKG_VERSION=$(node -p "require('./apps/desktop/package.json').version")
+          CORE_VERSION="${PKG_VERSION%%-*}"
+          DATE_STAMP=$(date -u +%Y%m%d)
+          SHORT_SHA="${GITHUB_SHA::7}"
+          RUN_NUMBER="${GITHUB_RUN_NUMBER}"
 
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             CHANNEL="${INPUT_CHANNEL:-nightly}"
-            VERSION="${INPUT_VERSION:-$PKG_VERSION}"
+            if [[ -n "$INPUT_VERSION" ]]; then
+              VERSION="$INPUT_VERSION"
+            elif [[ "$CHANNEL" == "nightly" ]]; then
+              VERSION="${CORE_VERSION}-alpha.${RUN_NUMBER}"
+            else
+              VERSION="$PKG_VERSION"
+            fi
           elif [[ "${{ github.ref_name }}" == "main" ]]; then
             CHANNEL="stable"
             VERSION="$PKG_VERSION"
           else
             CHANNEL="nightly"
-            VERSION="$PKG_VERSION"
+            VERSION="${CORE_VERSION}-alpha.${RUN_NUMBER}"
           fi
 
           VERSION="${VERSION#v}"
-          DATE_STAMP=$(date -u +%Y%m%d)
-          SHORT_SHA="${GITHUB_SHA::7}"
-          RUN_NUMBER="${GITHUB_RUN_NUMBER}"
 
           if [[ "$CHANNEL" == "nightly" ]]; then
             TAG="app-v${VERSION}-nightly.${DATE_STAMP}.${SHORT_SHA}"
@@ -163,6 +170,7 @@ jobs:
         env:
           ZYX_APP_CHANNEL: ${{ needs.prepare.outputs.channel }}
           ZYX_APP_BUILD_ID: ${{ needs.prepare.outputs.build_id }}
+          ZYX_APP_VERSION: ${{ needs.prepare.outputs.version }}
           APPIMAGE_EXTRACT_AND_RUN: "1"
         run: npm run build:${{ needs.prepare.outputs.channel }}
 
@@ -229,6 +237,7 @@ jobs:
         env:
           ZYX_APP_CHANNEL: ${{ needs.prepare.outputs.channel }}
           ZYX_APP_BUILD_ID: ${{ needs.prepare.outputs.build_id }}
+          ZYX_APP_VERSION: ${{ needs.prepare.outputs.version }}
         run: npm run sync:android:${{ needs.prepare.outputs.channel }}
 
       - name: Decode Android signing keystore (if configured)
@@ -255,6 +264,7 @@ jobs:
         working-directory: apps/mobile/android
         env:
           ZYX_ANDROID_VERSION_CODE: ${{ github.run_number }}
+          ZYX_APP_VERSION: ${{ needs.prepare.outputs.version }}
           ZYX_ANDROID_KEYSTORE_PATH: ${{ steps.signing.outputs.signed == 'true' && format('{0}/zyx-release.jks', runner.temp) || '' }}
           ZYX_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ZYX_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -263,15 +273,15 @@ jobs:
           chmod +x gradlew
           if [[ "${{ steps.signing.outputs.signed }}" == "true" ]]; then
             if [[ "${{ needs.prepare.outputs.channel }}" == "nightly" ]]; then
-              ./gradlew assembleNightlyRelease -PzyxVersionCode="${{ github.run_number }}"
+              ./gradlew assembleNightlyRelease -PzyxVersionCode="${{ github.run_number }}" -PzyxVersionName="${{ needs.prepare.outputs.version }}"
             else
-              ./gradlew assembleStableRelease -PzyxVersionCode="${{ github.run_number }}"
+              ./gradlew assembleStableRelease -PzyxVersionCode="${{ github.run_number }}" -PzyxVersionName="${{ needs.prepare.outputs.version }}"
             fi
           else
             if [[ "${{ needs.prepare.outputs.channel }}" == "nightly" ]]; then
-              ./gradlew assembleNightlyDebug -PzyxVersionCode="${{ github.run_number }}"
+              ./gradlew assembleNightlyDebug -PzyxVersionCode="${{ github.run_number }}" -PzyxVersionName="${{ needs.prepare.outputs.version }}"
             else
-              ./gradlew assembleStableDebug -PzyxVersionCode="${{ github.run_number }}"
+              ./gradlew assembleStableDebug -PzyxVersionCode="${{ github.run_number }}" -PzyxVersionName="${{ needs.prepare.outputs.version }}"
             fi
           fi
 
