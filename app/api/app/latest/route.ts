@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     });
     if (!res.ok) {
       return NextResponse.json(
-        { release: null },
+        { release: null, error: `github_http_${res.status}` },
         {
           status: 503,
           headers: { "Cache-Control": "no-store" },
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     );
   } catch {
     return NextResponse.json(
-      { release: null },
+      { release: null, error: "github_network_error" },
       {
         status: 503,
         headers: { "Cache-Control": "no-store" },

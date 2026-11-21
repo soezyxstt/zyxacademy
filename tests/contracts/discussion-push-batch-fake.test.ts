@@ -8,6 +8,7 @@ import ts from "typescript";
 import * as schema from "@/db/schema";
 import { validDiscussionId } from "@/lib/discussions/policy";
 import { DEFAULT_LOCALE, normalizeLocale } from "@/lib/i18n/locale";
+import { dispatchTokensByTransport } from "@/lib/notifications/dispatch";
 import { discussionPayload, renderNotificationPayload } from "@/lib/notifications/templates";
 
 type Row = Record<string, any>;
@@ -82,6 +83,8 @@ function harness(count: number, tokenFor: (index: number) => boolean = () => tru
   "@/lib/i18n/preferences": { getUserLocalePreference: async () => "en" },
   "@/lib/i18n/locale": { DEFAULT_LOCALE, normalizeLocale },
   "@/lib/notifications/templates": { discussionPayload, renderNotificationPayload },
+  "./apns": { sendApnsNotifications: async () => ({ succeeded: 0, failedTokens: [], errors: [] }) },
+  "./dispatch": { dispatchTokensByTransport },
   "./templates": { renderNotificationPayload },
   "@/lib/discussions/access": {}, "@/lib/discussions/policy": { validDiscussionId },
   "@/lib/discussions/recipient-access": { getDiscussionRecipientAccess: async (_channel: string, recipients: string[]) => {
