@@ -180,7 +180,11 @@ export function isUpdateAvailable(
     return installed.buildId.toLowerCase() !== latest.buildId.toLowerCase();
   }
 
-  return Boolean(latest.buildId && installed.buildId && latest.buildId !== installed.buildId);
+  const latestBuildNum = /^b(\d+)$/i.exec(latest.buildId ?? "");
+  if (!latestBuildNum) return false;
+  const installedBuildNum = /^b(\d+)$/i.exec(installed.buildId ?? "");
+  const installedNum = installedBuildNum ? Number(installedBuildNum[1]) : 0;
+  return Number(latestBuildNum[1]) > installedNum;
 }
 
 export function parseInstalledAppMetaFromUa(input: {

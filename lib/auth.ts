@@ -38,6 +38,7 @@ export const auth = betterAuth({
    oneTimeToken({
      expiresIn: 2,
      storeToken: "hashed",
+     disableClientRequest: true,
    }),
  ],
  database: drizzleAdapter(db, {

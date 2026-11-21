@@ -4,7 +4,9 @@ import { getSafeRedirectPath } from "@/lib/auth-redirect";
 import {
   buildNativeAuthDeepLink,
   isMobileAuthScheme,
+  NATIVE_AUTH_HANDOFF_COOKIE,
   normalizeNativeAuthScheme,
+  normalizeNativeAuthState,
 } from "@/lib/native/auth-handoff";
 
 function escapeHtml(value: string): string {
@@ -77,12 +79,44 @@ function buildDesktopHandoffHtml(deepLink: string): string {
 </html>`;
 }
 
+function readHandoffCookie(
+  request: NextRequest,
+): { scheme: string; state: string; next: string } | null {
+  const raw = request.cookies.get(NATIVE_AUTH_HANDOFF_COOKIE)?.value;
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (
+      typeof parsed?.scheme === "string" &&
+      typeof parsed?.state === "string" &&
+      typeof parsed?.next === "string"
+    ) {
+      return {
+        scheme: parsed.scheme,
+        state: parsed.state,
+        next: parsed.next,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: NextRequest) {
   const scheme = normalizeNativeAuthScheme(request.nextUrl.searchParams.get("scheme"));
+  const state = normalizeNativeAuthState(request.nextUrl.searchParams.get("state"));
   const safeNext = getSafeRedirectPath(request.nextUrl.searchParams.get("next") ?? undefined);
 
-  if (!scheme) {
-    return NextResponse.json({ error: "Invalid native auth scheme" }, { status: 400 });
+  if (!scheme || !state) {
+    return NextResponse.json({ error: "Invalid native auth parameters" }, { status: 400 });
+  }
+
+  // Require a matching HttpOnly handoff cookie created by /api/auth/native/start
+  // so cross-site top-level GETs cannot silently mint bearer tokens.
+  const handoff = readHandoffCookie(request);
+  if (!handoff || handoff.scheme !== scheme || handoff.state !== state) {
+    return NextResponse.json({ error: "Missing or invalid auth handoff session" }, { status: 403 });
   }
 
   let token: string | null = null;
@@ -96,8 +130,9 @@ export async function GET(request: NextRequest) {
   }
 
   if (!token) {
-    const retryUrl = new URL("/auth/native-start", request.url);
+    const retryUrl = new URL("/api/auth/native/start", request.url);
     retryUrl.searchParams.set("scheme", scheme);
+    retryUrl.searchParams.set("state", state);
     retryUrl.searchParams.set("next", safeNext);
     return NextResponse.redirect(retryUrl, {
       status: 302,
@@ -105,23 +140,31 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const deepLink = buildNativeAuthDeepLink(scheme, token, safeNext);
+  const deepLink = buildNativeAuthDeepLink(scheme, token, state, safeNext);
 
-  if (isMobileAuthScheme(scheme)) {
-    return new NextResponse(null, {
-      status: 302,
-      headers: {
-        Location: deepLink,
-        "Cache-Control": "no-store",
-      },
-    });
-  }
+  const response = isMobileAuthScheme(scheme)
+    ? new NextResponse(null, {
+        status: 302,
+        headers: {
+          Location: deepLink,
+          "Cache-Control": "no-store",
+        },
+      })
+    : new NextResponse(buildDesktopHandoffHtml(deepLink), {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store",
+        },
+      });
 
-  return new NextResponse(buildDesktopHandoffHtml(deepLink), {
-    status: 200,
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
+  response.cookies.set(NATIVE_AUTH_HANDOFF_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: request.nextUrl.protocol === "https:",
+    path: "/api/auth/native",
+    maxAge: 0,
   });
+
+  return response;
 }

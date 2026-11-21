@@ -6,8 +6,6 @@ use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_opener::OpenerExt;
 
 const SERVER_URL_ENV: &str = "ZYX_DESKTOP_SERVER_URL";
-const ALLOWED_UPDATE_PREFIX: &str =
-    "https://github.com/soezyxstt/zyxacademy/releases/download/";
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -60,22 +58,68 @@ fn deep_link_scheme() -> &'static str {
     }
 }
 
-fn is_allowed_update_url(raw_url: &str) -> bool {
-    if !raw_url.starts_with(ALLOWED_UPDATE_PREFIX) {
-        return false;
+fn validate_update_download_url(raw_url: &str) -> Result<(Url, String), String> {
+    let lower_raw = raw_url.to_ascii_lowercase();
+    if lower_raw.contains("..")
+        || lower_raw.contains("%2e")
+        || lower_raw.contains("%2f")
+        || lower_raw.contains("%5c")
+        || lower_raw.contains('\\')
+        || lower_raw.contains('?')
+        || lower_raw.contains('#')
+    {
+        return Err("Invalid update URL".to_string());
     }
-    let lower = raw_url.to_ascii_lowercase();
-    lower.ends_with(".exe")
-        || lower.ends_with(".dmg")
-        || lower.ends_with(".deb")
-        || lower.ends_with(".appimage")
+
+    let parsed = Url::parse(raw_url).map_err(|_| "Malformed update URL".to_string())?;
+    if parsed.scheme() != "https"
+        || parsed.host_str() != Some("github.com")
+        || parsed.port().is_some()
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+    {
+        return Err("Invalid update URL".to_string());
+    }
+
+    let segments: Vec<&str> = parsed
+        .path_segments()
+        .ok_or_else(|| "Invalid update URL path".to_string())?
+        .collect();
+    // Exact 6 segments: soezyxstt / zyxacademy / releases / download / <tag> / <asset>
+    if segments.len() != 6
+        || segments[0] != "soezyxstt"
+        || segments[1] != "zyxacademy"
+        || segments[2] != "releases"
+        || segments[3] != "download"
+    {
+        return Err("Invalid update URL path".to_string());
+    }
+
+    let tag = segments[4];
+    let asset = segments[5];
+    if tag.is_empty() || asset.is_empty() || tag == "." || asset == "." {
+        return Err("Invalid update file name".to_string());
+    }
+
+    let lower_asset = asset.to_ascii_lowercase();
+    let allowed_ext = lower_asset.ends_with(".exe")
+        || lower_asset.ends_with(".dmg")
+        || lower_asset.ends_with(".deb")
+        || lower_asset.ends_with(".appimage");
+    if !allowed_ext {
+        return Err("Unsupported update file type".to_string());
+    }
+
+    Ok((parsed, asset.to_string()))
 }
 
 fn is_allowed_redirect_host(host: &str) -> bool {
     let lower = host.to_ascii_lowercase();
     lower == "github.com"
         || lower == "objects.githubusercontent.com"
-        || lower.ends_with(".githubusercontent.com")
+        || lower == "release-assets.githubusercontent.com"
 }
 
 #[tauri::command]
@@ -90,17 +134,7 @@ fn get_app_update_info() -> AppUpdateInfo {
 
 #[tauri::command]
 async fn download_and_launch_update(app: AppHandle, url: String) -> Result<String, String> {
-    if !is_allowed_update_url(&url) {
-        return Err("Invalid update URL".to_string());
-    }
-
-    let parsed = Url::parse(&url).map_err(|_| "Malformed update URL".to_string())?;
-    let file_name = parsed
-        .path_segments()
-        .and_then(|mut segments| segments.next_back())
-        .filter(|name| !name.is_empty() && !name.contains(".."))
-        .ok_or_else(|| "Invalid update file name".to_string())?
-        .to_string();
+    let (parsed, file_name) = validate_update_download_url(&url)?;
 
     let redirect_policy = reqwest::redirect::Policy::custom(|attempt| {
         if attempt.previous().len() >= 5 {
@@ -125,7 +159,7 @@ async fn download_and_launch_update(app: AppHandle, url: String) -> Result<Strin
         .map_err(|e| format!("Failed to initialize updater client: {e}"))?;
 
     let response = client
-        .get(&url)
+        .get(parsed)
         .send()
         .await
         .map_err(|e| format!("Failed to download update: {e}"))?;
@@ -134,9 +168,13 @@ async fn download_and_launch_update(app: AppHandle, url: String) -> Result<Strin
         return Err(format!("Download failed with HTTP {}", response.status()));
     }
 
-    let update_dir = std::env::temp_dir().join("zyx-academy-updates");
+    let cache_root = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("Failed to resolve private app cache directory: {e}"))?;
+    let update_dir = cache_root.join("updates");
     std::fs::create_dir_all(&update_dir)
-        .map_err(|e| format!("Failed to create temp directory: {e}"))?;
+        .map_err(|e| format!("Failed to create updates directory: {e}"))?;
     let target_path = update_dir.join(&file_name);
 
     let mut file = std::fs::File::create(&target_path)
@@ -357,13 +395,25 @@ mod tests {
 
     #[test]
     fn validates_update_download_urls_strictly() {
-        assert!(is_allowed_update_url(
+        assert!(validate_update_download_url(
             "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.1.0/zyx.exe"
-        ));
-        assert!(!is_allowed_update_url("https://evil.com/zyx.exe"));
-        assert!(!is_allowed_update_url(
+        )
+        .is_ok());
+        assert!(validate_update_download_url("https://evil.com/zyx.exe").is_err());
+        assert!(validate_update_download_url(
             "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.1.0/script.sh"
-        ));
+        )
+        .is_err());
+        assert!(validate_update_download_url(
+            "https://github.com/soezyxstt/zyxacademy/releases/download/../../../../attacker/repo/releases/download/v1/malware.exe"
+        )
+        .is_err());
+        assert!(validate_update_download_url(
+            "https://github.com/soezyxstt/zyxacademy/releases/download/v1/script.bat?x=.exe"
+        )
+        .is_err());
+        assert!(!is_allowed_redirect_host("raw.githubusercontent.com"));
+        assert!(is_allowed_redirect_host("objects.githubusercontent.com"));
     }
 
     #[test]

@@ -17,30 +17,69 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @CapacitorPlugin(name = "ZyxAppUpdater")
 public class ZyxAppUpdaterPlugin extends Plugin {
-    private static final String ALLOWED_DOWNLOAD_PREFIX =
-        "https://github.com/soezyxstt/zyxacademy/releases/download/";
     private static final int MAX_REDIRECTS = 5;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     static boolean isAllowedDownloadUrl(String rawUrl) {
-        if (rawUrl == null || !rawUrl.startsWith(ALLOWED_DOWNLOAD_PREFIX)) {
+        if (rawUrl == null || rawUrl.isEmpty()) return false;
+        String lowerRaw = rawUrl.toLowerCase(Locale.ROOT);
+        if (
+            lowerRaw.contains("..")
+                || lowerRaw.contains("%2e")
+                || lowerRaw.contains("%2f")
+                || lowerRaw.contains("%5c")
+                || lowerRaw.contains("\\")
+                || lowerRaw.contains("?")
+                || lowerRaw.contains("#")
+        ) {
             return false;
         }
-        return rawUrl.endsWith(".apk");
+        try {
+            URI uri = new URI(rawUrl);
+            if (!"https".equalsIgnoreCase(uri.getScheme())) return false;
+            if (!"github.com".equalsIgnoreCase(uri.getHost())) return false;
+            if (uri.getPort() != -1) return false;
+            if (uri.getUserInfo() != null) return false;
+            if (uri.getRawQuery() != null || uri.getRawFragment() != null) return false;
+
+            String rawPath = uri.getRawPath();
+            if (rawPath == null || !rawPath.startsWith("/")) return false;
+            String[] segments = rawPath.substring(1).split("/", -1);
+            // Exact 6 segments: soezyxstt / zyxacademy / releases / download / <tag> / <asset.apk>
+            if (segments.length != 6) return false;
+            if (
+                !"soezyxstt".equals(segments[0])
+                    || !"zyxacademy".equals(segments[1])
+                    || !"releases".equals(segments[2])
+                    || !"download".equals(segments[3])
+            ) {
+                return false;
+            }
+            String tag = segments[4];
+            String asset = segments[5];
+            if (tag.isEmpty() || asset.isEmpty() || tag.equals(".") || asset.equals(".")) {
+                return false;
+            }
+            return asset.toLowerCase(Locale.ROOT).endsWith(".apk");
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     static boolean isAllowedRedirectHost(String host) {
         if (host == null) return false;
-        String lower = host.toLowerCase();
+        String lower = host.toLowerCase(Locale.ROOT);
         return lower.equals("github.com")
             || lower.equals("objects.githubusercontent.com")
-            || lower.endsWith(".githubusercontent.com");
+            || lower.equals("release-assets.githubusercontent.com");
     }
 
     @PluginMethod

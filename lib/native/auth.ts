@@ -2,18 +2,31 @@
  * lib/native/auth.ts
  *
  * Initiates Google sign-in via Chrome Custom Tabs (Android), SFSafariViewController (iOS),
- * or the system browser (Desktop Tauri) so users sign in with their already-authenticated
- * browser Google account instead of typing credentials inside an isolated WebView.
+ * or the system browser (Desktop Tauri) with a per-login state nonce stored in sessionStorage.
  */
 
 import { getSafeRedirectPath } from "@/lib/auth-redirect";
-import { parseNativeAuthDeepLink, resolveNativeAuthScheme } from "./auth-handoff";
+import {
+  NATIVE_AUTH_STATE_STORAGE_KEY,
+  parseNativeAuthDeepLink,
+  resolveNativeAuthScheme,
+} from "./auth-handoff";
 import {
   getCapacitor,
   getNativeRuntime,
   getTauri,
   type CapacitorPluginListenerHandle,
 } from "./runtime";
+
+function generateRandomState(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
 
 export function isNativeBrowserSignInSupported(): boolean {
   const runtime = getNativeRuntime();
@@ -39,9 +52,20 @@ export async function startNativeGoogleSignIn(
   });
   if (!scheme) return false;
 
+  const state = generateRandomState();
+  try {
+    window.sessionStorage.setItem(
+      NATIVE_AUTH_STATE_STORAGE_KEY,
+      JSON.stringify({ state, createdAt: Date.now() }),
+    );
+  } catch {
+    return false;
+  }
+
   const safeNext = getSafeRedirectPath(callbackURL);
-  const startUrl = new URL("/auth/native-start", window.location.origin);
+  const startUrl = new URL("/api/auth/native/start", window.location.origin);
   startUrl.searchParams.set("scheme", scheme);
+  startUrl.searchParams.set("state", state);
   startUrl.searchParams.set("next", safeNext);
 
   if (runtime === "capacitor") {

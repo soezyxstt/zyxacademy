@@ -4,6 +4,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { oneTimeToken } from "better-auth/plugins/one-time-token";
 import * as schema from "@/db/schema";
+import { NATIVE_AUTH_HANDOFF_COOKIE } from "@/lib/native/auth-handoff";
 import { createPostgresTestDb } from "./helpers/postgres";
 
 const { client, testDb } = await createPostgresTestDb();
@@ -18,6 +19,7 @@ const testAuth = betterAuth({
     oneTimeToken({
       expiresIn: 2,
       storeToken: "hashed",
+      disableClientRequest: true,
     }),
   ],
   database: drizzleAdapter(testDb, {
@@ -28,10 +30,17 @@ const testAuth = betterAuth({
 
 mock.module("@/lib/auth", () => ({ auth: testAuth }));
 
+const { GET: startNativeAuth } = await import("@/app/api/auth/native/start/route");
 const { GET: completeNativeAuth } = await import("@/app/api/auth/native/complete/route");
 
+function extractCookiePair(setCookie: string | null, name: string): string | null {
+  if (!setCookie) return null;
+  const match = new RegExp(`${name}=([^;]+)`).exec(setCookie);
+  return match ? `${name}=${match[1]}` : null;
+}
+
 describe("Better Auth oneTimeToken native browser handoff", () => {
-  test("full mobile Chrome Custom Tab flow: complete -> 302 deep link -> verify cookie -> reject replay", async () => {
+  test("full mobile Chrome Custom Tab flow: start cookie -> complete 302 fragment -> verify cookie -> reject replay & direct client OTT mint", async () => {
     const signUpRes = await testAuth.handler(
       new Request("https://staging.zyxacademy.com/api/auth/sign-up/email", {
         method: "POST",
@@ -50,11 +59,43 @@ describe("Better Auth oneTimeToken native browser handoff", () => {
     const chromeCookie = signUpRes.headers.get("set-cookie");
     expect(chromeCookie).toBeTruthy();
 
-    // 1. Mobile Chrome Custom Tab hits /api/auth/native/complete with Chrome's session cookie
-    const completeReq = new NextRequest(
-      "https://staging.zyxacademy.com/api/auth/native/complete?scheme=com.zyx.academy.nightly&next=/courses/math",
-      {
+    // Direct client request to /api/auth/one-time-token/generate MUST be disabled
+    const directMintRes = await testAuth.handler(
+      new Request("https://staging.zyxacademy.com/api/auth/one-time-token/generate", {
+        method: "GET",
         headers: { cookie: chromeCookie! },
+      }),
+    );
+    expect(directMintRes.status).toBeGreaterThanOrEqual(400);
+
+    // 1. Mobile Chrome Custom Tab hits /api/auth/native/start to establish HttpOnly handoff cookie
+    const state = "mobile_state_nonce_abcdef123456";
+    const startRes = await startNativeAuth(
+      new NextRequest(
+        `https://staging.zyxacademy.com/api/auth/native/start?scheme=com.zyx.academy.nightly&state=${state}&next=/courses/math`,
+      ),
+    );
+    expect(startRes.status).toBe(302);
+    const handoffCookiePair = extractCookiePair(
+      startRes.headers.get("set-cookie"),
+      NATIVE_AUTH_HANDOFF_COOKIE,
+    );
+    expect(handoffCookiePair).toBeTruthy();
+
+    // 2. Cross-site GET to /complete WITHOUT handoff cookie MUST be rejected with 403
+    const csrfCompleteRes = await completeNativeAuth(
+      new NextRequest(
+        `https://staging.zyxacademy.com/api/auth/native/complete?scheme=com.zyx.academy.nightly&state=${state}&next=/courses/math`,
+        { headers: { cookie: chromeCookie! } },
+      ),
+    );
+    expect(csrfCompleteRes.status).toBe(403);
+
+    // 3. Legitimate callback with matching handoff cookie mints OTT and returns fragment 302
+    const completeReq = new NextRequest(
+      `https://staging.zyxacademy.com/api/auth/native/complete?scheme=com.zyx.academy.nightly&state=${state}&next=/courses/math`,
+      {
+        headers: { cookie: `${chromeCookie!}; ${handoffCookiePair!}` },
       },
     );
     const completeRes = await completeNativeAuth(completeReq);
@@ -63,14 +104,17 @@ describe("Better Auth oneTimeToken native browser handoff", () => {
 
     const location = completeRes.headers.get("location");
     expect(location).toBeTruthy();
-    expect(location!.startsWith("com.zyx.academy.nightly://auth/native-finish?")).toBe(true);
+    expect(location!.startsWith("com.zyx.academy.nightly://auth/native-finish#")).toBe(true);
+    expect(location!).not.toContain("?token=");
 
     const parsedLocation = new URL(location!);
-    const oneTimeTokenValue = parsedLocation.searchParams.get("token");
+    const hashParams = new URLSearchParams(parsedLocation.hash.replace(/^#/, ""));
+    const oneTimeTokenValue = hashParams.get("token");
     expect(oneTimeTokenValue).toBeTruthy();
-    expect(parsedLocation.searchParams.get("next")).toBe("/courses/math");
+    expect(hashParams.get("state")).toBe(state);
+    expect(hashParams.get("next")).toBe("/courses/math");
 
-    // 2. WebView exchanges the one-time token (with zero pre-existing cookies)
+    // 4. WebView exchanges the one-time token (with zero pre-existing cookies)
     const verifyRes = await testAuth.handler(
       new Request("https://staging.zyxacademy.com/api/auth/one-time-token/verify", {
         method: "POST",
@@ -85,7 +129,7 @@ describe("Better Auth oneTimeToken native browser handoff", () => {
     const webviewCookie = verifyRes.headers.get("set-cookie");
     expect(webviewCookie).toContain("session_token=");
 
-    // 3. Replaying the same single-use token must fail
+    // 5. Replaying the same single-use token must fail
     const replayRes = await testAuth.handler(
       new Request("https://staging.zyxacademy.com/api/auth/one-time-token/verify", {
         method: "POST",
@@ -99,7 +143,7 @@ describe("Better Auth oneTimeToken native browser handoff", () => {
     expect(replayRes.status).toBeGreaterThanOrEqual(400);
   });
 
-  test("desktop browser flow returns no-store HTML handoff page with zyxacademy-nightly deep link", async () => {
+  test("desktop browser flow returns no-store HTML handoff page with fragment deep link", async () => {
     const signInRes = await testAuth.handler(
       new Request("https://staging.zyxacademy.com/api/auth/sign-in/email", {
         method: "POST",
@@ -116,33 +160,41 @@ describe("Better Auth oneTimeToken native browser handoff", () => {
     const desktopCookie = signInRes.headers.get("set-cookie");
     expect(desktopCookie).toBeTruthy();
 
+    const state = "desktop_state_nonce_xyz987654";
+    const startRes = await startNativeAuth(
+      new NextRequest(
+        `https://staging.zyxacademy.com/api/auth/native/start?scheme=zyxacademy-nightly&state=${state}&next=/dashboard`,
+      ),
+    );
+    const handoffCookiePair = extractCookiePair(
+      startRes.headers.get("set-cookie"),
+      NATIVE_AUTH_HANDOFF_COOKIE,
+    );
+
     const completeReq = new NextRequest(
-      "https://staging.zyxacademy.com/api/auth/native/complete?scheme=zyxacademy-nightly&next=/dashboard",
+      `https://staging.zyxacademy.com/api/auth/native/complete?scheme=zyxacademy-nightly&state=${state}&next=/dashboard`,
       {
-        headers: { cookie: desktopCookie! },
+        headers: { cookie: `${desktopCookie!}; ${handoffCookiePair!}` },
       },
     );
     const completeRes = await completeNativeAuth(completeReq);
     expect(completeRes.status).toBe(200);
     expect(completeRes.headers.get("cache-control")).toBe("no-store");
     const html = await completeRes.text();
-    expect(html).toContain("zyxacademy-nightly://auth/native-finish?token=");
+    expect(html).toContain("zyxacademy-nightly://auth/native-finish#token=");
+    expect(html).toContain(`state=${state}`);
     expect(html).toContain("Buka Zyx Academy");
   });
 
-  test("rejects disallowed schemes with HTTP 400 and redirects unauthenticated requests to native-start", async () => {
+  test("rejects disallowed schemes or mismatched state", async () => {
     const badSchemeReq = new NextRequest(
-      "https://staging.zyxacademy.com/api/auth/native/complete?scheme=javascript&next=/dashboard",
+      "https://staging.zyxacademy.com/api/auth/native/complete?scheme=javascript&state=valid_state_nonce_123456&next=/dashboard",
     );
     expect((await completeNativeAuth(badSchemeReq)).status).toBe(400);
 
-    const unauthReq = new NextRequest(
+    const missingStateReq = new NextRequest(
       "https://staging.zyxacademy.com/api/auth/native/complete?scheme=com.zyx.academy.nightly&next=/courses",
     );
-    const unauthRes = await completeNativeAuth(unauthReq);
-    expect(unauthRes.status).toBe(302);
-    expect(unauthRes.headers.get("location")).toBe(
-      "https://staging.zyxacademy.com/auth/native-start?scheme=com.zyx.academy.nightly&next=%2Fcourses",
-    );
+    expect((await completeNativeAuth(missingStateReq)).status).toBe(400);
   });
 });

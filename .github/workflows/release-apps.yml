@@ -42,6 +42,7 @@ jobs:
       prerelease: ${{ steps.meta.outputs.prerelease }}
       default_url: ${{ steps.meta.outputs.default_url }}
       file_prefix: ${{ steps.meta.outputs.file_prefix }}
+      build_id: ${{ steps.meta.outputs.build_id }}
     steps:
       - uses: actions/checkout@v4
 
@@ -78,16 +79,19 @@ jobs:
             PRERELEASE="true"
             DEFAULT_URL="https://staging.zyxacademy.com"
             FILE_PREFIX="zyx-academy-nightly-${VERSION}-${DATE_STAMP}"
+            BUILD_ID="${SHORT_SHA}"
           else
             BASE_TAG="app-v${VERSION}"
             if gh release view "$BASE_TAG" >/dev/null 2>&1; then
               TAG="${BASE_TAG}-b${RUN_NUMBER}"
               RELEASE_TITLE="Zyx Academy v${VERSION} (build ${RUN_NUMBER})"
               FILE_PREFIX="zyx-academy-${VERSION}-b${RUN_NUMBER}"
+              BUILD_ID="b${RUN_NUMBER}"
             else
               TAG="${BASE_TAG}"
               RELEASE_TITLE="Zyx Academy v${VERSION}"
               FILE_PREFIX="zyx-academy-${VERSION}"
+              BUILD_ID="b0"
             fi
 
             if [[ "$VERSION" == *-* ]]; then
@@ -106,9 +110,10 @@ jobs:
             echo "prerelease=${PRERELEASE}"
             echo "default_url=${DEFAULT_URL}"
             echo "file_prefix=${FILE_PREFIX}"
+            echo "build_id=${BUILD_ID}"
           } >> "$GITHUB_OUTPUT"
 
-          echo "Resolved release: channel=${CHANNEL}, version=${VERSION}, tag=${TAG}, title=${RELEASE_TITLE}"
+          echo "Resolved release: channel=${CHANNEL}, version=${VERSION}, tag=${TAG}, build_id=${BUILD_ID}, title=${RELEASE_TITLE}"
 
   build-desktop:
     needs: prepare
@@ -157,6 +162,7 @@ jobs:
         working-directory: apps/desktop
         env:
           ZYX_APP_CHANNEL: ${{ needs.prepare.outputs.channel }}
+          ZYX_APP_BUILD_ID: ${{ needs.prepare.outputs.build_id }}
           APPIMAGE_EXTRACT_AND_RUN: "1"
         run: npm run build:${{ needs.prepare.outputs.channel }}
 
@@ -222,6 +228,7 @@ jobs:
         working-directory: apps/mobile
         env:
           ZYX_APP_CHANNEL: ${{ needs.prepare.outputs.channel }}
+          ZYX_APP_BUILD_ID: ${{ needs.prepare.outputs.build_id }}
         run: npm run sync:android:${{ needs.prepare.outputs.channel }}
 
       - name: Build Android APK (${{ needs.prepare.outputs.channel }})

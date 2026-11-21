@@ -37,12 +37,17 @@ fn detect_channel() -> &'static str {
 }
 
 fn detect_build_sha() -> String {
-    for env_key in ["ZYX_APP_BUILD_ID", "GITHUB_SHA"] {
-        if let Ok(value) = std::env::var(env_key) {
-            let trimmed = value.trim();
-            if !trimmed.is_empty() {
-                return trimmed.chars().take(7).collect();
-            }
+    if let Ok(value) = std::env::var("ZYX_APP_BUILD_ID") {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+
+    if let Ok(value) = std::env::var("GITHUB_SHA") {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return trimmed.chars().take(7).collect();
         }
     }
 

@@ -6,23 +6,28 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signIn } from "@/lib/auth-client";
 import { getSafeRedirectPath } from "@/lib/auth-redirect";
-import { normalizeNativeAuthScheme } from "@/lib/native/auth-handoff";
+import {
+  normalizeNativeAuthScheme,
+  normalizeNativeAuthState,
+} from "@/lib/native/auth-handoff";
 
 function NativeAuthStartContent() {
   const searchParams = useSearchParams();
   const scheme = normalizeNativeAuthScheme(searchParams.get("scheme"));
+  const state = normalizeNativeAuthState(searchParams.get("state"));
   const safeNext = getSafeRedirectPath(searchParams.get("next") ?? undefined);
   const startedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   const triggerGoogleSignIn = useCallback(async () => {
-    if (!scheme) {
+    if (!scheme || !state) {
       setError("Tautan masuk aplikasi tidak valid.");
       return;
     }
     setError(null);
     const completeParams = new URLSearchParams({
       scheme,
+      state,
       next: safeNext,
     });
     const callbackURL = `/api/auth/native/complete?${completeParams.toString()}`;
@@ -34,7 +39,7 @@ function NativeAuthStartContent() {
     } catch {
       setError("Gagal memulai masuk dengan Google. Coba lagi.");
     }
-  }, [scheme, safeNext]);
+  }, [scheme, state, safeNext]);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -61,7 +66,7 @@ function NativeAuthStartContent() {
               Tidak dapat melanjutkan masuk
             </h1>
             <p className="text-body-xs text-muted-foreground">{error}</p>
-            {scheme && (
+            {scheme && state && (
               <Button type="button" size="sm" onClick={() => void triggerGoogleSignIn()}>
                 Coba lagi
               </Button>

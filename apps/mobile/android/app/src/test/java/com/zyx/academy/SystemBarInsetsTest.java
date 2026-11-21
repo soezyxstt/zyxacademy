@@ -54,10 +54,20 @@ public class SystemBarInsetsTest {
         assertFalse(ZyxAppUpdaterPlugin.isAllowedDownloadUrl(
             "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.1.0/not-an-apk.zip"
         ));
+        assertFalse(ZyxAppUpdaterPlugin.isAllowedDownloadUrl(
+            "https://github.com/soezyxstt/zyxacademy/releases/download/../../../../attacker/repo/releases/download/v1/malware.apk"
+        ));
+        assertFalse(ZyxAppUpdaterPlugin.isAllowedDownloadUrl(
+            "https://github.com/soezyxstt/zyxacademy/releases/download/v1/script.sh?x=.apk"
+        ));
+        assertFalse(ZyxAppUpdaterPlugin.isAllowedDownloadUrl(
+            "https://github.com/soezyxstt/zyxacademy/releases/download/v1/script.sh#.apk"
+        ));
 
         assertTrue(ZyxAppUpdaterPlugin.isAllowedRedirectHost("github.com"));
         assertTrue(ZyxAppUpdaterPlugin.isAllowedRedirectHost("objects.githubusercontent.com"));
         assertTrue(ZyxAppUpdaterPlugin.isAllowedRedirectHost("release-assets.githubusercontent.com"));
+        assertFalse(ZyxAppUpdaterPlugin.isAllowedRedirectHost("raw.githubusercontent.com"));
         assertFalse(ZyxAppUpdaterPlugin.isAllowedRedirectHost("evil.com"));
         assertFalse(ZyxAppUpdaterPlugin.isAllowedRedirectHost("github.com.evil.com"));
     }

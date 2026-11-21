@@ -140,23 +140,32 @@ describe("native OAuth handoff helpers", () => {
     expect(resolveNativeAuthScheme({ runtime: "web", hostname: "www.zyxacademy.com" })).toBeNull();
   });
 
-  test("enforces strict scheme allowlist and sanitizes deep-link redirects", () => {
+  test("enforces strict scheme allowlist, state nonce, and fragment-only token transport", () => {
     expect(isAllowedNativeAuthScheme("com.zyx.academy.nightly")).toBe(true);
     expect(isAllowedNativeAuthScheme("javascript")).toBe(false);
     expect(isMobileAuthScheme("com.zyx.academy.nightly")).toBe(true);
     expect(isMobileAuthScheme("zyxacademy-nightly")).toBe(false);
 
-    const deepLink = buildNativeAuthDeepLink("com.zyx.academy.nightly", "tok_123", "/courses/math");
-    expect(deepLink).toBe("com.zyx.academy.nightly://auth/native-finish?token=tok_123&next=%2Fcourses%2Fmath");
-    expect(parseNativeAuthDeepLink(deepLink)).toBe("/auth/native-finish?token=tok_123&next=%2Fcourses%2Fmath");
+    const state = "valid_state_nonce_123456";
+    const deepLink = buildNativeAuthDeepLink("com.zyx.academy.nightly", "tok_123", state, "/courses/math");
+    expect(deepLink).toBe(
+      `com.zyx.academy.nightly://auth/native-finish#token=tok_123&state=${state}&next=%2Fcourses%2Fmath`,
+    );
+    expect(parseNativeAuthDeepLink(deepLink)).toBe(
+      `/auth/native-finish#token=tok_123&state=${state}&next=%2Fcourses%2Fmath`,
+    );
 
     // External open redirect attempts must fall back to /dashboard
-    const evilNext = parseNativeAuthDeepLink("com.zyx.academy.nightly://auth/native-finish?token=tok_123&next=//evil.com");
-    expect(evilNext).toBe("/auth/native-finish?token=tok_123&next=%2Fdashboard");
+    const evilNext = parseNativeAuthDeepLink(
+      `com.zyx.academy.nightly://auth/native-finish#token=tok_123&state=${state}&next=//evil.com`,
+    );
+    expect(evilNext).toBe(`/auth/native-finish#token=tok_123&state=${state}&next=%2Fdashboard`);
 
-    // Unknown schemes and wrong paths must be rejected
-    expect(parseNativeAuthDeepLink("evil://auth/native-finish?token=tok_123")).toBeNull();
-    expect(parseNativeAuthDeepLink("com.zyx.academy.nightly://other/path?token=tok_123")).toBeNull();
+    // Missing state, query-string token, unknown schemes, and wrong paths must be rejected
+    expect(parseNativeAuthDeepLink("com.zyx.academy.nightly://auth/native-finish#token=tok_123")).toBeNull();
+    expect(parseNativeAuthDeepLink(`com.zyx.academy.nightly://auth/native-finish?token=tok_123&state=${state}`)).toBeNull();
+    expect(parseNativeAuthDeepLink(`evil://auth/native-finish#token=tok_123&state=${state}`)).toBeNull();
+    expect(parseNativeAuthDeepLink(`com.zyx.academy.nightly://other/path#token=tok_123&state=${state}`)).toBeNull();
   });
 });
 
@@ -171,6 +180,11 @@ describe("in-app update checker helpers", () => {
       channel: "stable",
       version: "0.2.0",
       buildId: null,
+    });
+    expect(parseReleaseTag("app-v0.2.0-b42")).toEqual({
+      channel: "stable",
+      version: "0.2.0",
+      buildId: "b42",
     });
 
     const latestNightly = selectLatestReleaseForChannel(
@@ -202,7 +216,7 @@ describe("in-app update checker helpers", () => {
     expect(latestNightly?.downloads.windows).toContain(".exe");
   });
 
-  test("compares semver and nightly build IDs accurately", () => {
+  test("compares semver, nightly SHA, and stable build numbers without looping", () => {
     expect(compareSemver("0.1.0-alpha.2", "0.1.0-alpha.1")).toBeGreaterThan(0);
     expect(compareSemver("0.1.0", "0.1.0-alpha.1")).toBeGreaterThan(0);
     expect(compareSemver("0.1.0-alpha.1", "0.1.0-alpha.1")).toBe(0);
@@ -221,8 +235,20 @@ describe("in-app update checker helpers", () => {
     ).toBe(false);
     expect(
       isUpdateAvailable(
-        { channel: "stable", version: "0.1.0-alpha.1", buildId: null },
+        { channel: "stable", version: "0.1.0-alpha.1", buildId: "b0" },
         { channel: "stable", version: "0.1.0", buildId: null },
+      ),
+    ).toBe(true);
+    expect(
+      isUpdateAvailable(
+        { channel: "stable", version: "0.1.0-alpha.1", buildId: "b42" },
+        { channel: "stable", version: "0.1.0-alpha.1", buildId: "b42" },
+      ),
+    ).toBe(false);
+    expect(
+      isUpdateAvailable(
+        { channel: "stable", version: "0.1.0-alpha.1", buildId: "b41" },
+        { channel: "stable", version: "0.1.0-alpha.1", buildId: "b42" },
       ),
     ).toBe(true);
   });

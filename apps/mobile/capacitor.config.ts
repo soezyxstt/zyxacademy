@@ -34,8 +34,10 @@ function resolveChannel(): AppChannel {
 }
 
 function detectBuildId(): string {
-  const envId = process.env.ZYX_APP_BUILD_ID || process.env.GITHUB_SHA;
-  if (envId && envId.trim()) return envId.trim().slice(0, 7);
+  const explicit = process.env.ZYX_APP_BUILD_ID?.trim();
+  if (explicit) return explicit;
+  const sha = process.env.GITHUB_SHA?.trim();
+  if (sha) return sha.slice(0, 7);
   try {
     return execSync("git rev-parse --short=7 HEAD", {
       stdio: ["ignore", "pipe", "ignore"],

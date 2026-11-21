@@ -1,14 +1,37 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSafeRedirectPath } from "@/lib/auth-redirect";
+import {
+  NATIVE_AUTH_STATE_STORAGE_KEY,
+  normalizeNativeAuthState,
+} from "@/lib/native/auth-handoff";
 
-function NativeAuthFinishContent() {
-  const searchParams = useSearchParams();
+const MAX_STATE_AGE_MS = 10 * 60 * 1000;
+
+function consumeAndVerifyPendingState(incomingState: string | null): boolean {
+  if (!incomingState || typeof window === "undefined") return false;
+  try {
+    const raw = window.sessionStorage.getItem(NATIVE_AUTH_STATE_STORAGE_KEY);
+    window.sessionStorage.removeItem(NATIVE_AUTH_STATE_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as { state?: string; createdAt?: number };
+    if (typeof parsed.state !== "string" || parsed.state !== incomingState) {
+      return false;
+    }
+    if (typeof parsed.createdAt === "number" && Date.now() - parsed.createdAt > MAX_STATE_AGE_MS) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export default function NativeAuthFinishPage() {
   const startedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,16 +39,19 @@ function NativeAuthFinishContent() {
     if (startedRef.current) return;
     startedRef.current = true;
 
-    const token = searchParams.get("token")?.trim();
-    const safeNext = getSafeRedirectPath(searchParams.get("next") ?? undefined);
+    const rawHash = typeof window !== "undefined" ? window.location.hash.replace(/^#/, "") : "";
+    const params = new URLSearchParams(rawHash);
+    const token = params.get("token")?.trim();
+    const state = normalizeNativeAuthState(params.get("state"));
+    const safeNext = getSafeRedirectPath(params.get("next") ?? undefined);
 
-    // Scrub the one-time token from the URL bar immediately.
+    // Scrub fragment immediately so the bearer token does not remain in history.
     if (typeof window !== "undefined") {
       window.history.replaceState(null, "", "/auth/native-finish");
     }
 
-    if (!token) {
-      setError("Sesi masuk tidak ditemukan atau sudah kedaluwarsa.");
+    if (!token || !consumeAndVerifyPendingState(state)) {
+      setError("Sesi masuk tidak valid atau sudah kedaluwarsa. Silakan masuk lagi.");
       return;
     }
 
@@ -44,7 +70,7 @@ function NativeAuthFinishContent() {
       .catch(() => {
         setError("Tautan masuk sudah digunakan atau kedaluwarsa. Silakan masuk lagi.");
       });
-  }, [searchParams]);
+  }, []);
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-6 text-foreground">
@@ -72,19 +98,5 @@ function NativeAuthFinishContent() {
         )}
       </div>
     </main>
-  );
-}
-
-export default function NativeAuthFinishPage() {
-  return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-dvh items-center justify-center bg-background text-foreground">
-          <Loader2 className="size-6 animate-spin text-primary" />
-        </main>
-      }
-    >
-      <NativeAuthFinishContent />
-    </Suspense>
   );
 }
