@@ -7,7 +7,10 @@ import {
   NATIVE_AUTH_HANDOFF_COOKIE,
   normalizeNativeAuthScheme,
   normalizeNativeAuthState,
+  resolveNativeRequestOrigin,
 } from "@/lib/native/auth-handoff";
+
+export const dynamic = "force-dynamic";
 
 function escapeHtml(value: string): string {
   return value
@@ -129,8 +132,10 @@ export async function GET(request: NextRequest) {
     token = null;
   }
 
+  const { origin, isHttps } = resolveNativeRequestOrigin(request);
+
   if (!token) {
-    const retryUrl = new URL("/api/auth/native/start", request.url);
+    const retryUrl = new URL("/api/auth/native/start", origin);
     retryUrl.searchParams.set("scheme", scheme);
     retryUrl.searchParams.set("state", state);
     retryUrl.searchParams.set("next", safeNext);
@@ -161,7 +166,7 @@ export async function GET(request: NextRequest) {
   response.cookies.set(NATIVE_AUTH_HANDOFF_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: request.nextUrl.protocol === "https:",
+    secure: isHttps,
     path: "/api/auth/native",
     maxAge: 0,
   });

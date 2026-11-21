@@ -107,3 +107,37 @@ export function parseNativeAuthDeepLink(rawUrl: string): string | null {
   });
   return `/auth/native-finish#${outFragment.toString()}`;
 }
+
+export function resolveNativeRequestOrigin(request: {
+  url: string;
+  headers: Headers;
+}): { origin: string; isHttps: boolean } {
+  const parsed = new URL(request.url);
+  const forwardedProto = request.headers
+    .get("x-forwarded-proto")
+    ?.split(",")[0]
+    ?.trim()
+    .toLowerCase();
+  const isHttps = parsed.protocol === "https:" || forwardedProto === "https";
+
+  const configuredBase =
+    process.env.BETTER_AUTH_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (configuredBase) {
+    try {
+      const canonical = new URL(configuredBase);
+      return {
+        origin: canonical.origin,
+        isHttps: isHttps || canonical.protocol === "https:",
+      };
+    } catch {
+      // Fall through to request URL if env URL is malformed.
+    }
+  }
+
+  const protocol = isHttps ? "https:" : parsed.protocol;
+  return {
+    origin: `${protocol}//${parsed.host}`,
+    isHttps,
+  };
+}
+
