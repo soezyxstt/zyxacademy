@@ -15,15 +15,17 @@ const suffix: ReadonlyArray<readonly [number, string]> = [
   [1794823859346, '2b9ea082707c26feec117d895ac622614746d16377fe46a8c805ef5f5809f677'],
   [1795109679359, '7436deb3c2fba323939de959c4021fa6acd52f226d6d94363113bffab1f18b04'],
   [1795116616448, '8bbff58789fab43c4ab6b17d217bac2d87690a1e9b07101e79c0bc2e06216b5a'],
+  [1795157189870, '5d39e45cce56a0baa6c7f824099caa0875c621a0639319ac3977e29251c4d0eb'],
+  [1795160115877, '969b249e8a666b72ce6cff55a6f3d06fecc08959664645eb9cd1c529b609d097'],
 ];
 
 export function assertCatalogSeedJournal(rows: JournalRow[]) {
   const prefixLength = EXPECTED_JOURNAL.length + PENDING.length;
-  // Catalog reconciliation is safe before and after the additive pet profile migration.
-  const expected = rows.length === prefixLength + suffix.length - 1 ? suffix.slice(0, -1) : suffix;
-  if (rows.length !== prefixLength + expected.length ||
+  // Preserve support for the journal through 0035 and subsequent pinned migrations.
+  const suffixLength = rows.length - prefixLength;
+  if (suffixLength < 12 || suffixLength > suffix.length ||
       classifyJournal(rows.slice(0, prefixLength)) !== 'complete' ||
-      expected.some(([time, hash], index) => {
+      suffix.slice(0, suffixLength).some(([time, hash], index) => {
         const row = rows[prefixLength + index];
         return Number(row.created_at) !== time || row.hash !== hash;
       })) throw new Error('UNEXPECTED_MIGRATION_HISTORY');

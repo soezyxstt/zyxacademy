@@ -33,6 +33,7 @@ test.beforeAll(async () => {
       const beforeDraw = Mesh.prototype.onBeforeRender;
       Mesh.prototype.onBeforeRender = function(renderer, scene, ...args) {
         const canvas = renderer.domElement;
+        if (this.name.startsWith('Outfit_Graduation_Mesh')) canvas.dataset.drewGraduationGown = 'true';
         if (canvas.dataset.mascotAnimation === 'cycle') {
           const frame = renderer.info.render.frame;
           let draws = frames.get(renderer);
@@ -50,16 +51,19 @@ test.beforeAll(async () => {
       import {NextIntlClientProvider} from 'next-intl';
       import student from './messages/id/student.json';
       import common from './messages/id/common.json';
+      import ui from './messages/id/ui.json';
       import {CosmeticsStudio} from './components/gamification/cosmetics-studio';
       import {RewardList} from './components/gamification/reward-list';
+      import {StudentPetStudio} from './components/gamification/student-pet-studio';
       import {ProfileMascot} from './components/gamification/profile-mascot';
       import {COSMETIC_CATALOG} from './lib/gamification/catalog';
       const view = new URLSearchParams(location.search).get('view');
       const rewards = COSMETIC_CATALOG.map(item=>({...item,owned:["pet-action-cycle","pet-suit-itb-sport-outfit"].includes(item.id),equipped:false}));
       createRoot(document.getElementById('root')).render(
-        <NextIntlClientProvider locale="id" messages={{student,common}}>
+        <NextIntlClientProvider locale="id" messages={{student,common,ui}}>
           <main className="mx-auto max-w-6xl p-4">
             {view==='rewards' ? <RewardList rewards={rewards} balance={5000} appearance={{name:'Alya'}} />
+             : view==='pet' ? <StudentPetStudio rewards={rewards} balance={800} />
              : view==='default-profile' ? <ProfileMascot /> : view==='profile' ? <ProfileMascot cosmeticId="zyra-avatar-studio-crocodile" />
              : <CosmeticsStudio appearance={{name:'Alya'}} />}
           </main>
@@ -69,7 +73,7 @@ test.beforeAll(async () => {
     define: { "process.env.NODE_ENV": '"production"' },
     plugins: [{ name: "mascot-fixture-boundaries", setup(builder) {
       const modules: Record<string, string> = {
-        "next/navigation": "export const useRouter=()=>({refresh(){}})",
+        "next/navigation": "export const useRouter=()=>({refresh(){}}); export const usePathname=()=>location.pathname",
         "next/link": "import React from 'react';export default function Link({href,children,...props}){return React.createElement('a',{href,...props},children)}",
         "@/components/providers/locale-provider": "export const useAppLocale=()=>({locale:'id'})",
         "@/app/(student)/achievements/actions": "export const changeReward=async()=>({ok:true})",
@@ -164,6 +168,37 @@ test("shop thumbnails stay images until the selected preview opens", async ({ pa
   await capture(page, info, "shop-selected-preview");
   await page.keyboard.press("Escape");
   await expect(page.locator("canvas")).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
+
+test("the shop lists all 15 suits and their LP prices", async ({ page }, info) => {
+  await page.goto(`${origin}/?view=rewards`);
+  const trigger = page.getByRole("button", { name: "Pakaian maskot studio", exact: true });
+  await trigger.click();
+  const suits = page.locator(`[id="${await trigger.getAttribute("aria-controls")}"]`).getByRole("listitem");
+  await expect(suits).toHaveCount(15);
+  const gown = suits.filter({ hasText: "Toga wisuda" });
+  await expect(gown).toContainText("900 LP");
+  await expect(gown.getByRole("button", { name: "Beli" })).toBeEnabled();
+  expect(modelRequests.get(page)).toEqual([]);
+  await capture(page, info, "shop-suits");
+});
+
+test("pet studio previews a new suit even when the balance is too low to buy it", async ({ page }, info) => {
+  await page.goto(`${origin}/?view=pet`);
+  await page.getByRole("tab", { name: "Pakaian" }).click();
+  const suits = page.getByRole("tabpanel").getByRole("listitem");
+  await expect(suits).toHaveCount(15);
+  const gown = suits.filter({ hasText: "Toga wisuda" });
+  await expect(gown.getByRole("button", { name: "Beli" })).toBeDisabled();
+  await gown.scrollIntoViewIfNeeded();
+  await capture(page, info, "pet-suits");
+  const trigger = gown.getByRole("button", { name: "Coba Toga wisuda" });
+  await trigger.click();
+  const preview = page.getByRole("dialog");
+  await expect(preview.locator("canvas")).toHaveAttribute("data-drew-graduation-gown", "true", { timeout: 30_000 });
+  await capture(page, info, "pet-graduation-preview");
+  await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();
 });
 

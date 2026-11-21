@@ -801,4 +801,6 @@ Status: ACTIVE local source; full application acceptance OPEN / IN PROGRESS.
 
 The leaderboard combines Rank and Academic tabs with contextual filters. Achievements keeps Overview, Badges, Missions and Rewards, with collected badges, tier progress, activity groups and expandable reward collections. Detailed rewards reuse animated frames, rotatable 3D mascots and before/after Zyra chat skins. The LP plus button opens Missions.
 
+Rewards and the Pet studio share 15 purchasable mascot suits, priced from 400 to 900 LP. Students can try each suit on their active pet in the studio before buying it.
+
 Student names on supported social, group and leaderboard rows share framed avatars and subtle ranks. Owner profiles and authorized profile dialogs display the equipped Zyra mascot; repeated identity rows remain lightweight. Member-visible, unblocked profiles open a profile dialog with badges, follow controls and counts. Zyx AI search also returns eligible public student identities through deterministic name lookup. Base XP in the public dialog requires participation leaderboard consent. See the [gamification contract](gamification.md#student-achievements-and-social-presentation) for visibility, filtering and verification limits.
