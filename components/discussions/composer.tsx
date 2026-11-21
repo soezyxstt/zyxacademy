@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ComponentType, type ReactNode } from "react";
 import Image from "next/image";
 import { useTranslations } from "@/lib/i18n/client";
-import { AlertCircle, AtSign, Bold, Check, CircleHelp, Code2, ImageOff, ImagePlus, Italic, Link2, List, Loader2, MoreHorizontal, RotateCcw, Send, Sigma, X } from "lucide-react";
+import { AlertCircle, AtSign, Bold, Camera, Check, CircleHelp, Code2, ImageOff, ImagePlus, Italic, Link2, List, Loader2, MoreHorizontal, RotateCcw, Send, Sigma, X } from "lucide-react";
+import { captureNativeQuestionPhoto, hasNativeCameraBridge, prepareQuestionImageFiles } from "@/lib/native/camera";
 import { Button } from "@/components/ui/button";
 import { ZyraCosmeticAvatar } from "@/components/gamification/zyra-cosmetic-avatar";
 import { StudentAvatar } from "@/components/gamification/student-avatar";
@@ -181,6 +182,7 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
   const t = useTranslations("discussions");
   const textRef = useRef<ZyraComposerInputHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const inFlight = useRef(new Set<string>());
   const uploadsInFlight = useRef(new Set<string>());
   const [fileError, setFileError] = useState<"" | "maxImages" | "fileRequirements">("");
@@ -265,13 +267,13 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
     }
   }
 
-  function pickImages(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = "";
-    if (files.length + draft.images.length > MAX_IMAGES) {
+  async function addFiles(rawFiles: readonly File[]) {
+    if (rawFiles.length === 0) return;
+    if (rawFiles.length + draft.images.length > MAX_IMAGES) {
       setFileError("maxImages");
       return;
     }
+    const files = await prepareQuestionImageFiles(rawFiles);
     if (files.some((file) => !IMAGE_TYPES.includes(file.type) || file.size > MAX_IMAGE_BYTES || file.size === 0)) {
       setFileError("fileRequirements");
       return;
@@ -280,6 +282,23 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
     const images: ComposerImage[] = files.map((file) => ({ id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file), status: "uploading" }));
     update((current) => ({ ...current, images: [...current.images, ...images], requestId: undefined }));
     images.forEach((image) => { void upload(image); });
+  }
+
+  function pickImages(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    void addFiles(files);
+  }
+
+  function openCamera() {
+    if (editingDisabled || draft.images.length >= MAX_IMAGES) return;
+    if (hasNativeCameraBridge()) {
+      void captureNativeQuestionPhoto().then((file) => {
+        if (file) void addFiles([file]);
+      });
+      return;
+    }
+    cameraRef.current?.click();
   }
 
   function removeImage(image: ComposerImage) {
@@ -365,7 +384,9 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
             {canAskZyra && zyraUnscoped !== undefined && <p>{t(viewer.role === "student" ? zyraUnscoped ? "zyraUnscopedFreeText" : "zyraFreeText" : "zyraImages")}</p>}
             {canAskZyra && viewer.role === "student" && <p>{t("zyraQuota")}</p>}
           </PopoverContent></Popover>
-          {onUpload && <><ToolButton label={t("addImage")} icon={ImagePlus} disabled={editingDisabled || draft.images.length >= MAX_IMAGES} onClick={() => fileRef.current?.click()} />
+          {onUpload && <><ToolButton label={t("takePhoto")} icon={Camera} disabled={editingDisabled || draft.images.length >= MAX_IMAGES} onClick={openCamera} />
+          <input ref={cameraRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={editingDisabled} className="sr-only" tabIndex={-1} onChange={pickImages} />
+          <ToolButton label={t("addImage")} icon={ImagePlus} disabled={editingDisabled || draft.images.length >= MAX_IMAGES} onClick={() => fileRef.current?.click()} />
           <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" disabled={editingDisabled} multiple className="sr-only" tabIndex={-1} onChange={pickImages} /></>}
         </div>
       </div>

@@ -21,6 +21,7 @@ import {
   Copy,
   Trash2,
   HelpCircle,
+  Camera,
   Paperclip,
   Plus,
   ArrowUp,
@@ -1807,18 +1808,32 @@ function TutorDrawerContent({
             <div className="flex items-center justify-between gap-1 pt-1">
               <div className="flex items-center gap-1">
                 {imageInputEnabled && courseIdFromPath && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    disabled={chatLoading}
-                    onClick={() => attachmentComposerRef.current?.openFileDialog()}
-                    aria-label="Lampirkan gambar (atau tempel dengan Ctrl+V)"
-                    title="Lampirkan gambar (Ctrl+V)"
-                    className="size-7 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
-                  >
-                    <Paperclip className="size-3.5" />
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      disabled={chatLoading}
+                      onClick={() => attachmentComposerRef.current?.openCameraDialog()}
+                      aria-label="Foto soal dengan kamera"
+                      title="Foto soal"
+                      className="size-7 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                    >
+                      <Camera className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      disabled={chatLoading}
+                      onClick={() => attachmentComposerRef.current?.openFileDialog()}
+                      aria-label="Lampirkan gambar (atau tempel dengan Ctrl+V)"
+                      title="Lampirkan gambar (Ctrl+V)"
+                      className="size-7 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                    >
+                      <Paperclip className="size-3.5" />
+                    </Button>
+                  </>
                 )}
                 <ZyraMathPalette onInsert={handleInsertSnippet} disabled={chatLoading} />
                 <Tabs value={assistantMode} onValueChange={(mode) => { setAssistantMode(mode as "python" | "tutor"); setActiveMode("chat"); }} syncUrl={false}>

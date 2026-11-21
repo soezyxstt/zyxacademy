@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zyx Academy</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f8fafc;
+        --fg: #0f172a;
+        --muted: #475569;
+        --card: #ffffff;
+        --border: #e2e8f0;
+        --accent: #0f172a;
+        --accent-fg: #ffffff;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b1120;
+          --fg: #f8fafc;
+          --muted: #94a3b8;
+          --card: #111827;
+          --border: #1f2937;
+          --accent: #f8fafc;
+          --accent-fg: #0f172a;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      main {
+        width: 100%;
+        max-width: 400px;
+        padding: 28px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        text-align: center;
+      }
+
+      .mark {
+        display: inline-grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        margin-bottom: 16px;
+        border-radius: 12px;
+        background: var(--accent);
+        color: var(--accent-fg);
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 20px;
+        line-height: 1.3;
+        font-weight: 600;
+      }
+
+      p {
+        margin: 0 0 20px;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+
+      .actions {
+        display: flex;
+        justify-content: center;
+      }
+
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 18px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        background: var(--accent);
+        color: var(--accent-fg);
+      }
+
+      button:hover {
+        opacity: 0.9;
+      }
+
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .status {
+        margin-top: 14px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main role="status" aria-live="polite">
+      <div class="mark" aria-hidden="true">Z</div>
+      <h1 id="title">Connecting to Zyx Academy</h1>
+      <p id="message">Waiting for network access to load your workspace.</p>
+      <div class="actions">
+        <button id="retry-button" type="button">Try again</button>
+      </div>
+      <p class="status" id="status-text"></p>
+    </main>
+
+    <script>
+      (function () {
+        var defaultUrl = "https://www.zyxacademy.com";
+        var titleEl = document.getElementById("title");
+        var messageEl = document.getElementById("message");
+        var statusEl = document.getElementById("status-text");
+        var retryButton = document.getElementById("retry-button");
+
+        function updateState() {
+          if (navigator.onLine) {
+            titleEl.textContent = "Connecting to Zyx Academy";
+            messageEl.textContent = "Waiting for Zyx Academy to respond.";
+            statusEl.textContent = "Online";
+          } else {
+            titleEl.textContent = "You are offline";
+            messageEl.textContent = "Check your internet connection, then try again.";
+            statusEl.textContent = "Offline";
+          }
+        }
+
+        function retryConnection() {
+          statusEl.textContent = "Reconnecting...";
+          if (window.location.protocol === "http:" || window.location.protocol === "https:") {
+            window.location.reload();
+          } else {
+            window.location.replace(defaultUrl);
+          }
+        }
+
+        retryButton.addEventListener("click", retryConnection);
+        window.addEventListener("online", updateState);
+        window.addEventListener("offline", updateState);
+        updateState();
+      })();
+    </script>
+  </body>
+</html>

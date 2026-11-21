@@ -170,31 +170,35 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
     void fetchUnreadCount();
   }, [session?.user, fetchUnreadCount, demo]);
 
-  // Foreground FCM messages refresh the inbox if open, or refresh unread count and show a toast.
+  // Foreground push messages (Web FCM, Capacitor Push, Tauri OS) refresh the inbox and show a toast.
   useEffect(() => {
     if (demo || !session?.user) return;
     let unsubscribe: (() => void) | undefined;
     let disposed = false;
     (async () => {
-      const { onForegroundMessage } = await import("@/lib/firebase/messaging");
+      const { subscribeNativeNotifications } = await import("@/lib/native/notifications");
       if (disposed) return;
-      unsubscribe = onForegroundMessage((payload) => {
-        const { notification = {} } = payload;
-        if (notification?.title) {
-          toast(notification.title, { description: notification.body ?? undefined });
-        }
-        if (open) {
-          void fetchHistory();
-        } else {
-          void fetchUnreadCount();
-        }
+      unsubscribe = await subscribeNativeNotifications({
+        onForeground: ({ title, body }) => {
+          if (title) {
+            toast(title, { description: body ?? undefined });
+          }
+          if (open) {
+            void fetchHistory();
+          } else {
+            void fetchUnreadCount();
+          }
+        },
+        onNavigate: (url) => {
+          router.push(url);
+        },
       });
     })();
     return () => {
       disposed = true;
       unsubscribe?.();
     };
-  }, [session?.user, open, fetchHistory, fetchUnreadCount, demo]);
+  }, [session?.user, open, fetchHistory, fetchUnreadCount, demo, router]);
 
   if (isPending || !session?.user) return null;
 
