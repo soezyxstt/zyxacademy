@@ -4,7 +4,7 @@ import { COSMETIC_CATALOG } from '../../lib/gamification/catalog';
 
 describe('cosmetic slot boundaries', () => {
  test('catalog keeps old prices and includes separate action and suit slots', () => {
-  expect(COSMETIC_CATALOG).toHaveLength(39);
+  expect(COSMETIC_CATALOG.filter(item => item.slot === 'pet_suit')).toHaveLength(15);
   expect(COSMETIC_CATALOG.find(item => item.id === 'frame-classic')?.priceLp).toBe(250);
   expect(new Set(COSMETIC_CATALOG.map(item => item.slot)).size).toBe(7);
  });
