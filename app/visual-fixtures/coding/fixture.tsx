@@ -21,7 +21,7 @@ export function CodingFixture() {
     <div className="mx-auto w-full max-w-4xl space-y-5 p-4 text-foreground">
     <div className="flex items-center justify-between gap-2"><h1 className="font-heading text-h5">Berpikir komputasi</h1><Button onClick={() => setZyraOpen(true)}>Buka Zyra</Button></div>
     <Tabs defaultValue="playground">
-      <TabsList><TabsTrigger value="article">Artikel</TabsTrigger><TabsTrigger value="playground">Playground</TabsTrigger><TabsTrigger value="live">Live Quiz</TabsTrigger><TabsTrigger value="host">Tutor</TabsTrigger></TabsList>
+      <TabsList variant="inline"><TabsTrigger value="article">Artikel</TabsTrigger><TabsTrigger value="playground">Playground</TabsTrigger><TabsTrigger value="live">Live Quiz</TabsTrigger><TabsTrigger value="host">Tutor</TabsTrigger></TabsList>
       <TabsContent value="playground"><CodingWorkspace courseId="coding-course" learnerId="coding-student" draftKey="playground" interactive={interactive} initialCode={'nama = input("Nama: ")\nprint("Halo,", nama)'} /></TabsContent>
       <TabsContent value="article"><ArticleCodingProvider value={{ courseId: "coding-course", articleId: "coding-article", articleVersion: 1, enabled: true }}><ArticleParts parts={[
         { id: "intro", kind: "markdown", markdown: "## Batas perulangan\nPerhatikan apakah batas akhir ikut diproses oleh `range`. Prediksi hasilnya sebelum menjalankan." },

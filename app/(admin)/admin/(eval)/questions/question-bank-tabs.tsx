@@ -12,19 +12,40 @@ export function QuestionBankToolbar({ children }: { children: ReactNode }) {
   return target ? createPortal(children, target) : null;
 }
 
-export function QuestionBankTabs({ value, tabs, children }: { value: string; tabs: ReactNode; children: ReactNode }) {
+export function QuestionBankTabs({
+  value,
+  tabs,
+  toolbarTrailing,
+  children,
+}: {
+  value: string;
+  tabs: ReactNode;
+  toolbarTrailing?: ReactNode;
+  children: ReactNode;
+}) {
   const router = useRouter();
   const [target, setTarget] = useState<HTMLDivElement | null>(null);
-  return <Tabs value={value} syncUrl={false} className="w-full space-y-4" onValueChange={(tab) => {
-    const url = new URL(window.location.href);
-    if (tab === "ai-generated") url.searchParams.delete("tab");
-    else url.searchParams.set("tab", tab);
-    router.push(`${url.pathname}${url.search}${url.hash}`, { scroll: false });
-  }}>
-    <div className="flex min-w-0 flex-wrap items-center gap-2">
+  return (
+    <Tabs
+      value={value}
+      syncUrl={false}
+      className="w-full space-y-4"
+      onValueChange={(tab) => {
+        const url = new URL(window.location.href);
+        if (tab === "ai-generated") url.searchParams.delete("tab");
+        else url.searchParams.set("tab", tab);
+        router.push(`${url.pathname}${url.search}${url.hash}`, { scroll: false });
+      }}
+    >
       {tabs}
-      <div ref={setTarget} className="flex min-w-fit flex-1 flex-wrap items-center gap-2 has-[[data-search-expanded=true]]:min-w-36 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true])]:hidden" />
-    </div>
-    <ToolbarTarget.Provider value={target}>{children}</ToolbarTarget.Provider>
-  </Tabs>;
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div
+          ref={setTarget}
+          className="flex min-w-fit flex-1 flex-wrap items-center gap-2 has-[[data-search-expanded=true]]:min-w-36 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true])]:hidden"
+        />
+        {toolbarTrailing}
+      </div>
+      <ToolbarTarget.Provider value={target}>{children}</ToolbarTarget.Provider>
+    </Tabs>
+  );
 }

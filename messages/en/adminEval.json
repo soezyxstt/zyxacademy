@@ -4,7 +4,8 @@
     "generationJobs": "Question generation",
     "distractors": "Distractor analytics",
     "activeQuestions": "Active question bank",
-    "historicalQuestions": "Historical references"
+    "historicalQuestions": "Historical references",
+    "questionTools": "Question tools"
   },
   "distractors": {
     "emptyTitle": "No distractor analytics yet",

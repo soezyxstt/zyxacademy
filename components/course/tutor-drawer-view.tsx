@@ -1837,7 +1837,7 @@ function TutorDrawerContent({
                 )}
                 <ZyraMathPalette onInsert={handleInsertSnippet} disabled={chatLoading} />
                 <Tabs value={assistantMode} onValueChange={(mode) => { setAssistantMode(mode as "python" | "tutor"); setActiveMode("chat"); }} syncUrl={false}>
-                  <TabsList aria-label="Mode Zyra" className="gap-0 p-0.5">
+                  <TabsList variant="inline" disableOverflow aria-label="Mode Zyra" className="w-auto gap-0 p-0.5">
                     <TabsTrigger value="python" disabled={!codingBridge || chatLoading} className="px-2 py-1" title={!codingBridge ? "Buka Playground untuk menggunakan Python" : undefined}>Python</TabsTrigger>
                     <TabsTrigger value="tutor" disabled={chatLoading} className="px-2 py-1">Tutor</TabsTrigger>
                   </TabsList>

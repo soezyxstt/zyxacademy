@@ -176,7 +176,7 @@ export function QuestionsTab({
       {/* Origin Filter Tabs + Toolbar Controls */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Tabs value={originTab} onValueChange={handleTabChange} syncUrl={false}>
-          <TabsList>
+          <TabsList variant="inline">
             <TabsTrigger value="all">
               {t("courseDetail.questions.all", { count: questions.length })}
             </TabsTrigger>

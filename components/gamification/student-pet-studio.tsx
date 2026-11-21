@@ -52,7 +52,7 @@ export function StudentPetStudio({ rewards, balance, onChangeReward }: { rewards
     <section className="min-w-0">
       <div className="mb-3 flex items-center justify-between"><h2 className="font-heading text-body-base font-bold">{t("petStudio.collection")}</h2><span className="text-body-sm tabular-nums">{t("achievementPage.balance")} {format.format(balance)} LP</span></div>
       {error && <p role="alert" className="text-body-xs text-status-error">{t("achievementPage.error")}</p>}
-      <Tabs defaultValue="zyra_avatar"><TabsList>{slots.map(slot => <TabsTrigger key={slot} value={slot}>{t(`petStudio.${slot}`)}</TabsTrigger>)}</TabsList>
+      <Tabs defaultValue="zyra_avatar"><TabsList flush={false}>{slots.map(slot => <TabsTrigger key={slot} value={slot}>{t(`petStudio.${slot}`)}</TabsTrigger>)}</TabsList>
         {slots.map(slot => <TabsContent key={slot} value={slot}><ul className="divide-y divide-border">{rewards.filter(item => item.slot === slot).map(item => {
           const free = item.id === DEFAULT_PET_ID;
           const owned = free || item.owned;

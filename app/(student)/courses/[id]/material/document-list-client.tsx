@@ -579,23 +579,24 @@ export function DocumentListClient({
           </Button>
         </div>
       ) : null}
-      {/* Unified Toolbar: Tab Strip, SearchBar, Filter Popover, Grid/List Toggle */}
-      <div className="group/document-toolbar flex flex-wrap items-center justify-between gap-2">
-        {tabsSlot ?? (
-          <Tabs value={activeTab} onValueChange={(value) => handleTabChange(normalizeTabKey(value))}>
-            <TabsList aria-label={t("documents.categoryLabel")}>
-              {tabConfig.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <TabsTrigger key={tab.key} value={tab.key}>
-                    <Icon className="size-3.5 shrink-0" />
-                    <span>{t(`documents.categories.${tab.label}`)}</span>
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-          </Tabs>
-        )}
+      {tabsSlot ?? (
+        <Tabs value={activeTab} onValueChange={(value) => handleTabChange(normalizeTabKey(value))}>
+          <TabsList aria-label={t("documents.categoryLabel")}>
+            {tabConfig.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger key={tab.key} value={tab.key}>
+                  <Icon className="size-3.5 shrink-0" />
+                  <span>{t(`documents.categories.${tab.label}`)}</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
+      )}
+
+      {/* Unified Toolbar: SearchBar, Filter Popover, Grid/List Toggle */}
+      <div className="group/document-toolbar flex flex-wrap items-center justify-end gap-2">
 
         <div className="flex min-w-fit flex-1 items-center justify-end gap-1 group-has-[[data-search-expanded=true]]/document-toolbar:min-w-44">
           {isSearchOpen ? (

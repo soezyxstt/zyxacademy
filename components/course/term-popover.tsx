@@ -93,7 +93,7 @@ export function TermPopover({
       {/* Action tabs */}
       {tabs.length > 0 && (
         <Tabs value={activeTab} onValueChange={(value) => setTab(value as Tab)} syncUrl={false}>
-          <TabsList>
+          <TabsList variant="inline">
           {tabs.map((t) => {
             const Icon = t.icon;
             return (
