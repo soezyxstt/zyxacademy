@@ -15,3 +15,8 @@ export function formAttachmentUrl(value: unknown): string | null {
     return null;
   }
 }
+
+export function formAttachmentExportUrl(value: unknown, appUrl: string): string | null {
+  const href = formAttachmentUrl(value);
+  return href?.startsWith("/") ? new URL(href, appUrl).href : href;
+}

@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { formatDatetimeLocal } from "@/lib/date-utils";
 import { slugifySegment } from "@/lib/storage/keys";
-import { formAttachmentUrl } from "@/lib/forms/attachment";
+import { formAttachmentExportUrl, formAttachmentUrl } from "@/lib/forms/attachment";
 import {
   Select,
   SelectContent,
@@ -414,11 +414,13 @@ export default function DetailedFormAnalyticsPage({
   const handleExportGoogleSheets = () => {
     if (!form || responses.length === 0) return;
 
+    const appUrl = window.location.origin;
     const headersRow = ["Response ID", "Submitted At", "Responder Email", ...exportQuestions.map((x) => x.header)];
 
     const rowsMatrix = responses.map((r) => {
       const answerCols = exportQuestions.map(({ qIdx, q }) => {
         const val = r.answers[qIdx] ?? r.answers[q.title] ?? "";
+        if (q.type === "FILE_UPLOAD") return formAttachmentExportUrl(val, appUrl) ?? "-";
         return formatAnswerForText(val);
       });
       return [r.id, r.submittedAt, r.responderEmail || "Anonim", ...answerCols];
