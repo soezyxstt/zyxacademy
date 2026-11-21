@@ -7,7 +7,7 @@
       {
         "label": "main",
         "title": "Zyx Academy Nightly",
-        "url": "https://staging.zyxacademy.com",
+        "url": "index.html",
         "width": 1280,
         "height": 820,
         "minWidth": 480,

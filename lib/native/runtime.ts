@@ -112,6 +112,7 @@ export interface CapacitorUpdaterPlugin {
 
 export interface CapacitorOfflineStorePlugin {
   saveReading: (options: { key: string; payloadJson: string }) => Promise<{ saved?: boolean }>;
+  saveReadingPosition?: (options: { key: string; positionJson: string }) => Promise<{ saved?: boolean }>;
   listReadings: () => Promise<{
     items?: Array<Record<string, unknown>>;
     count?: number;

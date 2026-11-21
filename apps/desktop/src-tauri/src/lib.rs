@@ -9,6 +9,329 @@ use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_updater::UpdaterExt;
 
 const SERVER_URL_ENV: &str = "ZYX_DESKTOP_SERVER_URL";
+const OFFLINE_MAX_ENTRIES: usize = 25;
+const OFFLINE_MAX_TOTAL_BYTES: u64 = 8 * 1024 * 1024;
+const OFFLINE_MAX_SINGLE_BYTES: usize = 2 * 1024 * 1024;
+const OFFLINE_MAX_POSITION_BYTES: usize = 8192;
+
+fn offline_key_to_filename(key: &str) -> Option<String> {
+    if key.is_empty() {
+        return None;
+    }
+    // Dual 64-bit FNV-1a hash (128-bit hex) to guarantee safe, deterministic filenames without path traversal.
+    let mut h1: u64 = 0xcbf29ce484222325;
+    let mut h2: u64 = 0x84222325cbf29ce4;
+    for byte in key.as_bytes() {
+        h1 ^= u64::from(*byte);
+        h1 = h1.wrapping_mul(0x100000001b3);
+        h2 = h2.wrapping_mul(0x100000001b3);
+        h2 ^= u64::from(*byte);
+    }
+    Some(format!("{h1:016x}{h2:016x}.json"))
+}
+
+fn offline_store_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    let base = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|e| format!("Failed to resolve local data directory: {e}"))?;
+    let dir = base.join("offline-readings");
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("Failed to create offline readings directory: {e}"))?;
+    Ok(dir)
+}
+
+fn write_file_atomic(path: &std::path::Path, content: &str) -> Result<(), String> {
+    let tmp = path.with_extension("json.tmp");
+    {
+        let mut file = std::fs::File::create(&tmp)
+            .map_err(|e| format!("Failed to create temp offline file: {e}"))?;
+        file.write_all(content.as_bytes())
+            .map_err(|e| format!("Failed to write offline file: {e}"))?;
+        file.flush()
+            .map_err(|e| format!("Failed to flush offline file: {e}"))?;
+    }
+    std::fs::rename(&tmp, path).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        format!("Failed to finalize offline file: {e}")
+    })
+}
+
+fn merge_newer_reading_position(
+    existing: &serde_json::Value,
+    incoming: &mut serde_json::Value,
+) {
+    let Some(existing_pos) = existing.get("readingPosition").filter(|v| v.is_object()) else {
+        return;
+    };
+    let existing_at = existing_pos
+        .get("updatedAt")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
+    let incoming_at = incoming
+        .get("readingPosition")
+        .and_then(|v| v.get("updatedAt"))
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
+    if existing_at > incoming_at {
+        if let Some(obj) = incoming.as_object_mut() {
+            obj.insert("readingPosition".to_string(), existing_pos.clone());
+        }
+    }
+}
+
+struct OfflineEntryMeta {
+    path: std::path::PathBuf,
+    last_accessed_at: i64,
+    size_bytes: u64,
+    json: serde_json::Value,
+}
+
+fn load_all_offline_entries(dir: &std::path::Path) -> Vec<OfflineEntryMeta> {
+    let mut entries = Vec::new();
+    let Ok(read_dir) = std::fs::read_dir(dir) else {
+        return entries;
+    };
+    for item in read_dir.flatten() {
+        let path = item.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("json") {
+            continue;
+        }
+        let Ok(meta) = item.metadata() else {
+            continue;
+        };
+        if !meta.is_file() || meta.len() > OFFLINE_MAX_SINGLE_BYTES as u64 {
+            continue;
+        }
+        let Ok(raw) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(json) = serde_json::from_str::<serde_json::Value>(&raw) else {
+            continue;
+        };
+        let last_accessed_at = json
+            .get("lastAccessedAt")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        let declared_size = json.get("sizeBytes").and_then(|v| v.as_u64()).unwrap_or(0);
+        entries.push(OfflineEntryMeta {
+            path,
+            last_accessed_at,
+            size_bytes: declared_size.max(meta.len()),
+            json,
+        });
+    }
+    entries
+}
+
+fn enforce_offline_quota(dir: &std::path::Path) {
+    let mut entries = load_all_offline_entries(dir);
+    entries.sort_by_key(|e| e.last_accessed_at);
+    let mut total_bytes: u64 = entries.iter().map(|e| e.size_bytes).sum();
+    let mut remaining = entries.len();
+    for entry in entries {
+        if remaining <= OFFLINE_MAX_ENTRIES && total_bytes <= OFFLINE_MAX_TOTAL_BYTES {
+            break;
+        }
+        if std::fs::remove_file(&entry.path).is_ok() {
+            remaining = remaining.saturating_sub(1);
+            total_bytes = total_bytes.saturating_sub(entry.size_bytes);
+        }
+    }
+}
+
+#[tauri::command]
+fn get_desktop_server_origin() -> String {
+    configured_origin().as_str().trim_end_matches('/').to_string()
+}
+
+#[tauri::command]
+async fn save_offline_reading(
+    app: AppHandle,
+    key: String,
+    payload_json: String,
+) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let file_name =
+            offline_key_to_filename(&key).ok_or_else(|| "Invalid offline key".to_string())?;
+        if payload_json.is_empty() || payload_json.len() > OFFLINE_MAX_SINGLE_BYTES {
+            return Err("Offline reading payload invalid or exceeds size limit".to_string());
+        }
+        let mut incoming: serde_json::Value =
+            serde_json::from_str(&payload_json).map_err(|_| "Invalid JSON payload".to_string())?;
+        if !incoming.is_object() {
+            return Err("Offline reading payload must be a JSON object".to_string());
+        }
+        let dir = offline_store_dir(&app)?;
+        let target = dir.join(file_name);
+        if target.is_file() {
+            if let Ok(raw) = std::fs::read_to_string(&target) {
+                if let Ok(existing) = serde_json::from_str::<serde_json::Value>(&raw) {
+                    merge_newer_reading_position(&existing, &mut incoming);
+                }
+            }
+        }
+        let serialized = serde_json::to_string(&incoming)
+            .map_err(|e| format!("Failed to serialize offline reading: {e}"))?;
+        write_file_atomic(&target, &serialized)?;
+        enforce_offline_quota(&dir);
+        Ok(true)
+    })
+    .await
+    .map_err(|e| format!("Offline save task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn save_offline_reading_position(
+    app: AppHandle,
+    key: String,
+    position_json: String,
+) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(file_name) = offline_key_to_filename(&key) else {
+            return Ok(false);
+        };
+        if position_json.is_empty() || position_json.len() > OFFLINE_MAX_POSITION_BYTES {
+            return Err("Invalid reading position payload".to_string());
+        }
+        let dir = offline_store_dir(&app)?;
+        let target = dir.join(file_name);
+        if !target.is_file() {
+            return Ok(false);
+        }
+        let position: serde_json::Value = serde_json::from_str(&position_json)
+            .map_err(|_| "Invalid position JSON".to_string())?;
+        if !position.is_object() {
+            return Err("Position payload must be a JSON object".to_string());
+        }
+        let raw = std::fs::read_to_string(&target)
+            .map_err(|e| format!("Failed to read offline item: {e}"))?;
+        let mut parsed: serde_json::Value =
+            serde_json::from_str(&raw).map_err(|_| "Corrupt offline reading".to_string())?;
+        let existing_at = parsed
+            .get("readingPosition")
+            .and_then(|v| v.get("updatedAt"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        let incoming_at = position
+            .get("updatedAt")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        if incoming_at >= existing_at {
+            if let Some(obj) = parsed.as_object_mut() {
+                obj.insert("readingPosition".to_string(), position);
+            }
+            let serialized = serde_json::to_string(&parsed)
+                .map_err(|e| format!("Failed to serialize reading position: {e}"))?;
+            write_file_atomic(&target, &serialized)?;
+        }
+        Ok(true)
+    })
+    .await
+    .map_err(|e| format!("Offline position save task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn list_offline_readings(app: AppHandle) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = offline_store_dir(&app)?;
+        let mut entries = load_all_offline_entries(&dir);
+        entries.sort_by(|a, b| b.last_accessed_at.cmp(&a.last_accessed_at));
+
+        let mut total_bytes: u64 = 0;
+        let mut items = Vec::with_capacity(entries.len());
+        for entry in &entries {
+            total_bytes += entry.size_bytes;
+            items.push(serde_json::json!({
+                "key": entry.json.get("key").and_then(|v| v.as_str()).unwrap_or(""),
+                "title": entry.json.get("title").and_then(|v| v.as_str()).unwrap_or(""),
+                "courseTitle": entry.json.get("courseTitle").and_then(|v| v.as_str()).unwrap_or(""),
+                "chapterTitle": entry.json.get("chapterTitle").and_then(|v| v.as_str()).unwrap_or(""),
+                "estimatedMinutes": entry.json.get("estimatedMinutes").and_then(|v| v.as_i64()).unwrap_or(0),
+                "sizeBytes": entry.size_bytes,
+                "savedAt": entry.json.get("savedAt").and_then(|v| v.as_i64()).unwrap_or(0),
+                "lastAccessedAt": entry.last_accessed_at,
+            }));
+        }
+
+        Ok(serde_json::json!({
+            "items": items,
+            "count": entries.len(),
+            "totalBytes": total_bytes,
+            "maxEntries": OFFLINE_MAX_ENTRIES,
+            "maxBytes": OFFLINE_MAX_TOTAL_BYTES,
+        }))
+    })
+    .await
+    .map_err(|e| format!("Offline list task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_offline_reading(app: AppHandle, key: String) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let file_name = offline_key_to_filename(&key).ok_or_else(|| "Invalid key".to_string())?;
+        let dir = offline_store_dir(&app)?;
+        let target = dir.join(file_name);
+        if !target.is_file() {
+            return Ok(serde_json::json!({ "reading": serde_json::Value::Null }));
+        }
+        let raw = std::fs::read_to_string(&target)
+            .map_err(|e| format!("Failed to read offline item: {e}"))?;
+        let mut parsed: serde_json::Value =
+            serde_json::from_str(&raw).map_err(|_| "Corrupt offline reading".to_string())?;
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        if let Some(obj) = parsed.as_object_mut() {
+            obj.insert("lastAccessedAt".to_string(), serde_json::json!(now_ms));
+        }
+        if let Ok(serialized) = serde_json::to_string(&parsed) {
+            let _ = write_file_atomic(&target, &serialized);
+        }
+        Ok(serde_json::json!({ "reading": parsed }))
+    })
+    .await
+    .map_err(|e| format!("Offline get task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn remove_offline_reading(app: AppHandle, key: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(file_name) = offline_key_to_filename(&key) else {
+            return Ok(());
+        };
+        let dir = offline_store_dir(&app)?;
+        let target = dir.join(file_name);
+        if target.exists() {
+            let _ = std::fs::remove_file(target);
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("Offline remove task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn clear_other_offline_users(app: AppHandle, user_id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = offline_store_dir(&app)?;
+        let entries = load_all_offline_entries(&dir);
+        for entry in entries {
+            let owner = entry
+                .json
+                .get("userId")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if user_id.is_empty() || owner != user_id {
+                let _ = std::fs::remove_file(entry.path);
+            }
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("Offline clear task failed: {e}"))?
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -488,7 +811,14 @@ pub fn run() {
             get_app_update_info,
             check_native_updater,
             install_native_update,
-            download_and_launch_update
+            download_and_launch_update,
+            get_desktop_server_origin,
+            save_offline_reading,
+            save_offline_reading_position,
+            list_offline_readings,
+            get_offline_reading,
+            remove_offline_reading,
+            clear_other_offline_users
         ])
         .setup(move |app| {
             if has_updater_config(app.handle()) {
@@ -499,14 +829,7 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 window_state::restore_window_geometry(app.handle(), &window);
                 window_state::attach_window_state_listeners(app.handle().clone(), &window);
-
-                let default_origin =
-                    Url::parse(default_server_url()).expect("default server URL must be valid");
-                if initial_origin != default_origin {
-                    let _ = window.navigate(initial_origin.clone());
-                }
             }
-
             if let Ok(Some(urls)) = app.deep_link().get_current() {
                 for url in urls {
                     route_deep_link(app.handle(), &initial_origin, &url);
@@ -590,6 +913,33 @@ mod tests {
         let origin = Url::parse("https://www.zyxacademy.com").unwrap();
         let link = Url::parse("https://example.com/courses").unwrap();
         assert!(resolve_deep_link_target(&origin, &link, "zyxacademy").is_none());
+    }
+
+    #[test]
+    fn hashes_offline_keys_deterministically_without_traversal() {
+        assert!(offline_key_to_filename("").is_none());
+        let name = offline_key_to_filename("u1::c1::../etc/passwd").unwrap();
+        assert!(name.ends_with(".json"));
+        assert!(!name.contains('/'));
+        assert!(!name.contains('\\'));
+        assert!(!name.contains(".."));
+        assert_eq!(name, offline_key_to_filename("u1::c1::../etc/passwd").unwrap());
+        assert_ne!(name, offline_key_to_filename("u1::c1::other").unwrap());
+    }
+
+    #[test]
+    fn preserves_newer_reading_position_on_resave() {
+        let existing = serde_json::json!({
+            "key": "u1::c1::m1",
+            "readingPosition": { "scrollY": 420, "scrollRatio": 0.4, "updatedAt": 2000 }
+        });
+        let mut incoming = serde_json::json!({
+            "key": "u1::c1::m1",
+            "readingPosition": { "scrollY": 100, "scrollRatio": 0.1, "updatedAt": 1000 }
+        });
+        merge_newer_reading_position(&existing, &mut incoming);
+        assert_eq!(incoming["readingPosition"]["scrollY"], 420);
+        assert_eq!(incoming["readingPosition"]["updatedAt"], 2000);
     }
 
     #[test]
