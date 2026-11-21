@@ -183,7 +183,7 @@ def plan(changed, head, base=None, force=False):
         if path.startswith(('messages/', 'i18n/', 'lib/i18n/')) or path == 'scripts/check-i18n-catalogs.ts':
             result['i18n'] = True
         suffix = PurePosixPath(path).suffix
-        if (suffix in CODE and not path.startswith(('tests/', 'scripts/', 'workers/', 'plugins/', 'apps/'))) or path in LOCKS | {'tsconfig.json', 'next.config.ts'}:
+        if (suffix in CODE and not path.startswith(('tests/', 'scripts/', 'workers/', 'plugins/', 'android/'))) or path in LOCKS | {'tsconfig.json', 'next.config.ts'}:
             result['typecheck'] = True
         if path.startswith('tests/') and suffix in CODE or path == 'tsconfig.test.json':
             result['test_typecheck'] = True
@@ -237,7 +237,7 @@ def plan(changed, head, base=None, force=False):
     result['compiler_tests'] = sorted(compiler_tests & head.files)
     result['lint_all'] = broad or 'eslint.config.mjs' in changed
     result['lint_files'] = sorted(p for p in changed & head.files if PurePosixPath(p).suffix in CODE
-                                  and not p.startswith(('tests/', 'workers/', 'plugins/', 'apps/')))
+                                  and not p.startswith(('tests/', 'workers/', 'plugins/', 'android/')))
     worker_tests = []
     for config in result['worker_projects']:
         directory = config.rsplit('/', 1)[0] + '/'
