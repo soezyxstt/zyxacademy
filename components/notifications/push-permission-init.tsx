@@ -31,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { BellIcon } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
+import { useAppLocale } from "@/lib/i18n/client";
 
 const CONSENT_KEY = "fcm_consent";
 const LATER_AT_KEY = "fcm_later_at";
@@ -49,6 +50,11 @@ function isPushEnvironmentSupported(): boolean {
 
 export function PushPermissionInit() {
   const pathname = usePathname();
+  const { locale } = useAppLocale();
+  const localeRef = useRef(locale);
+  useEffect(() => {
+    localeRef.current = locale;
+  }, [locale]);
   const { data: session, isPending } = useSession();
   const [showPrompt, setShowPrompt] = useState(false);
 
@@ -90,6 +96,22 @@ export function PushPermissionInit() {
         if (permission !== "granted") return;
 
         await registerUnifiedPushToken(activeUserId, isCurrent);
+
+        if (!isCurrent()) return;
+        const {
+          isLocalReminderSchedulingSupported,
+          loadStudyReminderConfig,
+          refreshUpcomingTutorSessionReminders,
+          syncStudyReminderNotifications,
+        } = await import("@/lib/native/local-reminders");
+        if (isLocalReminderSchedulingSupported() && isCurrent()) {
+          const config = loadStudyReminderConfig(activeUserId);
+          const currentLocale = localeRef.current;
+          await syncStudyReminderNotifications(activeUserId, config, { locale: currentLocale }).catch(() => {});
+          if (isCurrent()) {
+            await refreshUpcomingTutorSessionReminders(activeUserId, { locale: currentLocale }).catch(() => {});
+          }
+        }
       } catch (err) {
         // Non-fatal; push notifications are enhancement, not core functionality
         console.warn("[FCM] Init error:", err);
@@ -112,6 +134,9 @@ export function PushPermissionInit() {
         .then(({ clearRegisteredPushTokenIdentity }) => {
           clearRegisteredPushTokenIdentity();
         })
+        .catch(() => {});
+      void import("@/lib/native/local-reminders")
+        .then(({ clearAllLocalRemindersOnLogout }) => clearAllLocalRemindersOnLogout())
         .catch(() => {});
       return;
     }

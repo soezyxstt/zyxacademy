@@ -157,6 +157,16 @@ async function failDelivery(event: Event, row: Delivery) {
 }
 
 /** A failed batch is split until the failing recipient is durably isolated. */
+function isPushTransportConfigured(): boolean {
+ return Boolean(
+  process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim() ||
+  (process.env.APNS_KEY_ID?.trim() &&
+   process.env.APNS_TEAM_ID?.trim() &&
+   process.env.APNS_PRIVATE_KEY?.trim() &&
+   process.env.APNS_BUNDLE_ID?.trim()),
+ );
+}
+
 async function deliverBatch(event: Event, rows: Delivery[], seq: number, excludedId: string | null): Promise<void> {
  if (!rows.length) return;
  try {
@@ -181,7 +191,7 @@ async function deliverBatch(event: Event, rows: Delivery[], seq: number, exclude
       id: discussionNotificationId(event.id, row.userId), userId: row.userId, type: "discussion",
       title: payload.title, body: payload.body, read: false, createdAt: event.createdAt,
       metadata: { ...payload.metadata, eventAt: event.createdAt.toISOString(), eventId: event.id, eventKind: event.kind,
-       staffOnly: row.staffOnly, pushState: process.env.FIREBASE_SERVICE_ACCOUNT_JSON ? "pending" : "done" },
+       staffOnly: row.staffOnly, pushState: isPushTransportConfigured() ? "pending" : "done" },
      });
     }
     if (values.length) await tx.insert(notifications).values(values).onConflictDoNothing();
@@ -241,7 +251,7 @@ async function pushBatch(event: Event, rows: InboxRow[], seq: number, excludedId
  if (!rows.length) return;
  await heartbeat(event);
  try {
-  if (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+  if (!isPushTransportConfigured()) {
    await db.update(notifications).set({ metadata: sql`${notifications.metadata} || '{"pushState":"done"}'::jsonb` })
     .where(inArray(notifications.id, rows.map(row => row.id)));
    return;
@@ -339,7 +349,7 @@ async function processEvent(event: Event): Promise<{ cursor?: Cursor; failed?: b
   const rows = await db.select().from(notifications).where(and(pending, cursor.after ? gt(notifications.userId, cursor.after) : undefined))
    .orderBy(asc(notifications.userId)).limit(PAGE_SIZE + 1);
   const page = rows.slice(0, PAGE_SIZE);
-  const chunk = process.env.FIREBASE_SERVICE_ACCOUNT_JSON ? 10 : PAGE_SIZE;
+  const chunk = isPushTransportConfigured() ? 10 : PAGE_SIZE;
   for (let i = 0; i < page.length; i += chunk) await pushBatch(event, page.slice(i, i + chunk), seq, excludedId);
   if (rows.length > PAGE_SIZE) return { cursor: { ...cursor, phase: "push", after: rows[PAGE_SIZE - 1].userId } };
   return { cursor: { ...cursor, phase: "work", after: null } };

@@ -70,6 +70,13 @@ import { ChapterSummarySheet } from "@/components/course/chapter-summary-sheet";
 import { useMaterialReadingProgress } from "@/hooks/use-material-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
 import { saveTextMaterialOffline } from "@/lib/offline/reading-cache";
+import {
+  buildOfflineReadingKey,
+  computeScrollRatio,
+  loadLatestOfflineReadingPosition,
+  resolveRestoredScrollY,
+  saveOfflineReadingPosition,
+} from "@/lib/offline/reading-position";
 
 type MaterialViewerProps = {
   material: CourseMaterial;
@@ -491,6 +498,80 @@ function MaterialViewerContent({
     if (material.kind !== "article" || !material.body?.trim()) return;
     void saveTextMaterialOffline(studentId, material, course?.title);
   }, [demo, studentId, learnerMode, material, course?.title]);
+
+  useEffect(() => {
+    if (demo || !studentId || !learnerMode || material.kind !== "article") return;
+    const readingKey = buildOfflineReadingKey(studentId, material.courseId, material.id);
+    let cancelled = false;
+    let restorationReady = false;
+    let raf1 = 0;
+    let raf2 = 0;
+
+    void loadLatestOfflineReadingPosition(readingKey).then((saved) => {
+      if (cancelled) return;
+      if (saved) {
+        raf1 = window.requestAnimationFrame(() => {
+          raf2 = window.requestAnimationFrame(() => {
+            if (cancelled) return;
+            const scrollHeight = Math.max(
+              document.documentElement.scrollHeight || 0,
+              document.body.scrollHeight || 0,
+            );
+            const targetY = resolveRestoredScrollY(saved, scrollHeight, window.innerHeight);
+            if (targetY > 0) window.scrollTo(0, targetY);
+            restorationReady = true;
+          });
+        });
+        return;
+      }
+      restorationReady = true;
+    });
+
+    const persist = () => {
+      if (!restorationReady) return;
+      const scrollY = Math.max(0, Math.round(window.scrollY || document.documentElement.scrollTop || 0));
+      const scrollHeight = Math.max(
+        document.documentElement.scrollHeight || 0,
+        document.body.scrollHeight || 0,
+      );
+      saveOfflineReadingPosition({
+        key: readingKey,
+        sectionSlug: null,
+        sectionIndex: 0,
+        scrollY,
+        scrollRatio: computeScrollRatio(scrollY, scrollHeight, window.innerHeight),
+        scope: "document",
+        updatedAt: Date.now(),
+      });
+    };
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onScroll = () => {
+      if (!restorationReady) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        persist();
+      }, 300);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") persist();
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", persist);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+      if (timer) clearTimeout(timer);
+      if (restorationReady) persist();
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", persist);
+    };
+  }, [demo, studentId, learnerMode, material.kind, material.courseId, material.id]);
   const revision = experience.baseline.find(item => item.courseId === material.courseId)?.revision ?? "fictional";
   const storage = useMemo(() => {
     const fallback = new Map<string,string>();

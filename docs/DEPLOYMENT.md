@@ -10,7 +10,7 @@ PR 333 completed its temporary read-only control-plane inventory on commit `6099
 
 The inventory does not establish a complete writer fence or drain. Cloud Run scaling and Inngest pause controls do not independently prove that old Neon or Deno executions have ended. The bridge, backfill and matching-code release remain blocked until a verified maintenance mechanism covers every writer and stays in place through deployment. Do not enable unused Google APIs or infer an empty resource list from a disabled API to clear this gate.
 
-A staging merge can trigger its background worker deployment after affected checks pass. Staging web deployment requires an explicit manual dispatch; the automated web path is restricted to main and honors its production hold. Neither workflow applies migrations or seeds cosmetics. Verify the target, apply the prerequisites below, and verify the result before merging. No production rollout is authorized by these instructions.
+Staging pushes and merges run CI checks without starting web or Neon worker deployments. Release staging explicitly through Actions > Run workflow, selecting branch `staging`: use `deploy-cloud-run-staging.yml` for web candidates and promotion, and `deploy-neon-worker.yml` with `environment=staging` for workers. The existing `deploy.yml` manual worker entry point remains available. Retain environment reviewer approval and verify matching web and worker revisions before promotion. Production deployment behavior is unchanged. These workflows do not apply migrations or seed cosmetics. No production rollout is authorized by these instructions.
 
 The 2026-11-14 staging preflight found 18 journal rows: the two upstream migrations `0009_polite_wendigo` and `0010_silky_misty_knight` and gamification migrations 0009 through 0015 are already applied. The new review constraint and six-column dependency index exist, migration 0016 is absent, and the catalog has seven rows. Evidence: `artifacts/gamification/pr333-staging-preflight-round2.json`. The stock migrator must not be used for this observed state: generated 0017 unconditionally drops the earlier indexes. Historical 0000 and 0002 hashes differ from the current files; neither old row is rewritten.
 
@@ -94,9 +94,10 @@ The following records the previous Deno deployment path. Current production rele
 ### Automated Pipeline Capabilities
 
 The central `.github/workflows/ci.yml` planner calls the reusable deployment
-workflow only for worker dependencies or V4 fingerprint inputs on push, after
-selected checks pass. Direct manual `workflow_dispatch` remains available on
-`main` and `staging`. For a V4-only release, worker import/typecheck/asset checks
+workflow only for worker dependencies or V4 fingerprint inputs on `main` pushes,
+after selected checks pass. Staging worker deployment requires manual
+`workflow_dispatch`; direct manual operations remain available on `main` and
+`staging`. For a V4-only release, worker import/typecheck/asset checks
 are skipped because the worker import graph is unchanged; its build identity is
 still regenerated and deployed. A worker-code release retains those checks.
 Push impact is measured from the last successful CI release, so replacing a

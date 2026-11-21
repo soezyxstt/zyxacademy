@@ -4354,8 +4354,8 @@ export const aiAllowanceLeases = pgTable(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * user_push_tokens ; FCM device registration tokens per user.
- * One user can have multiple tokens (phone, tablet, laptop).
+ * user_push_tokens ; Push notification device registrations per user.
+ * One user can have multiple tokens (web, Android FCM, iOS APNs, desktop inbox bridge).
  * The `token` column is unique to prevent duplicates across users.
  */
 export const userPushTokens = pgTable(
@@ -4365,10 +4365,20 @@ export const userPushTokens = pgTable(
  userId: text("user_id")
  .notNull()
  .references(() => user.id, { onDelete: "cascade" }),
- /** Raw FCM registration token returned by getToken(). Unique across all devices. */
+ /** Raw push registration token (FCM, APNs hex device token, or desktop client ID). */
  token: text("token").notNull().unique(),
- /** Human-readable device label (e.g. userAgent substring or "Chrome on Windows"). */
+ /** Human-readable device label (e.g. userAgent substring or "capacitor-ios"). */
  device: text("device").notNull().default("unknown"),
+ /** Client platform that owns this registration. */
+ platform: text("platform")
+ .$type<"web" | "android" | "ios" | "desktop">()
+ .notNull()
+ .default("web"),
+ /** Server delivery transport for this token. */
+ transport: text("transport")
+ .$type<"fcm" | "apns" | "webpush" | "desktop">()
+ .notNull()
+ .default("fcm"),
  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
  updatedAt: timestamp("updated_at", { withTimezone: true })
  .defaultNow()
@@ -4379,6 +4389,7 @@ export const userPushTokens = pgTable(
  index("idx_push_tokens_user").on(table.userId),
  index("idx_push_tokens_user_id").on(table.userId, table.id),
  index("idx_push_tokens_token").on(table.token),
+ index("idx_push_tokens_user_transport").on(table.userId, table.transport),
  ]
 );
 

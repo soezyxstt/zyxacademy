@@ -21,7 +21,7 @@ import {
   SessionDetailDrawer,
   type PendingSessionResource,
 } from "@/components/schedule/session-detail-drawer";
-import { useTranslations } from "@/lib/i18n/client";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 
 import { useDemoCommunity } from "@/components/demo/use-demo-community";
 import { demoCommunitySchedule } from "@/lib/demo/community-schedule";
@@ -113,6 +113,7 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
     };
   }, [experience, selectedCourse?.id]);
   const t = useTranslations("student");
+  const { locale } = useAppLocale();
   const tRef = useRef(t);
   useEffect(() => {
     tRef.current = t;
@@ -126,6 +127,7 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
   const [activeSessionBookingId, setActiveSessionBookingId] = useState<string | null>(null);
   const [selectedAcademicSchedule, setSelectedAcademicSchedule] = useState<AcademicScheduleDetail | null>(null);
   const [pendingSessionResources, setPendingSessionResources] = useState<PendingSessionResource[]>([]);
+  const [reminderSyncVersion, setReminderSyncVersion] = useState(0);
   const searchParams = useSearchParams();
   const weekCache = useRef(new Map<number, any>());
   const activeRequest = useRef(0);
@@ -133,6 +135,7 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
   const invalidateScheduleCache = () => {
     cacheVersion.current++;
     weekCache.current.clear();
+    setReminderSyncVersion((version) => version + 1);
   };
 
   const fetchData = useCallback(async (offset: number, force = false) => {
@@ -183,6 +186,23 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
   const courseParam = searchParams.get("course");
   const courseIds = useMemo(() => selectedCourse?.compatibleCourseIds ?? (courseParam ? [courseParam] : []), [selectedCourse, courseParam]);
   const activeData = useMemo(() => dataWeekOffset === weekOffset && data ? scopeStudentSchedule(data, courseIds) : null, [data, dataWeekOffset, weekOffset, courseIds]);
+
+  // Keep local tutor session reminders in sync with the complete unscoped upcoming sessions list
+  // on initial load and after booking/reschedule/cancellation mutations (not on weekOffset browsing).
+  const studentUserId = experience.mode !== "demo" && data?.user?.id ? String(data.user.id) : null;
+  useEffect(() => {
+    if (!studentUserId) return;
+    let cancelled = false;
+    void import("@/lib/native/local-reminders")
+      .then(({ refreshUpcomingTutorSessionReminders }) => {
+        if (cancelled) return;
+        return refreshUpcomingTutorSessionReminders(studentUserId, { locale });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [studentUserId, locale, reminderSyncVersion]);
   if (!activeData) {
     if (loadError) {
       return (

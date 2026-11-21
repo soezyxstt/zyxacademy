@@ -151,16 +151,74 @@ public class ZyxOfflineStorePlugin extends Plugin {
         executor.execute(() -> {
             try {
                 // Validate JSON structure before saving
-                new JSONObject(payloadJson);
+                JSONObject incoming = new JSONObject(payloadJson);
                 File dir = getStoreDir();
                 File target = new File(dir, fileName);
-                writeFileUtf8(target, payloadJson);
+                // Preserve newer locally saved readingPosition when re-saving a snapshot
+                if (target.isFile() && target.length() <= MAX_SINGLE_BYTES) {
+                    try {
+                        JSONObject existing = new JSONObject(readFileUtf8(target));
+                        JSONObject existingPos = existing.optJSONObject("readingPosition");
+                        JSONObject incomingPos = incoming.optJSONObject("readingPosition");
+                        if (existingPos != null) {
+                            long existingAt = existingPos.optLong("updatedAt", 0L);
+                            long incomingAt = incomingPos != null ? incomingPos.optLong("updatedAt", 0L) : 0L;
+                            if (existingAt > incomingAt) {
+                                incoming.put("readingPosition", existingPos);
+                            }
+                        }
+                    } catch (IOException | JSONException ignored) {
+                        // Best-effort position preservation
+                    }
+                }
+                writeFileUtf8(target, incoming.toString());
                 enforceQuota(dir);
                 JSObject res = new JSObject();
                 res.put("saved", true);
                 call.resolve(res);
             } catch (IOException | JSONException e) {
                 call.reject("Failed to save offline reading");
+            }
+        });
+    }
+
+    @PluginMethod
+    public void saveReadingPosition(PluginCall call) {
+        String key = call.getString("key", "");
+        String positionJson = call.getString("positionJson", "");
+        String fileName = keyToFileName(key);
+        if (fileName == null || positionJson == null || positionJson.isEmpty()) {
+            call.resolve();
+            return;
+        }
+        if (positionJson.getBytes(StandardCharsets.UTF_8).length > 8192) {
+            call.reject("Reading position payload too large");
+            return;
+        }
+
+        executor.execute(() -> {
+            File target = new File(getStoreDir(), fileName);
+            if (!target.isFile() || target.length() > MAX_SINGLE_BYTES) {
+                JSObject res = new JSObject();
+                res.put("saved", false);
+                call.resolve(res);
+                return;
+            }
+            try {
+                JSONObject position = new JSONObject(positionJson);
+                JSONObject parsed = new JSONObject(readFileUtf8(target));
+                JSONObject existingPos = parsed.optJSONObject("readingPosition");
+                long existingAt = existingPos != null ? existingPos.optLong("updatedAt", 0L) : 0L;
+                long incomingAt = position.optLong("updatedAt", 0L);
+                if (existingPos == null || incomingAt >= existingAt) {
+                    parsed.put("readingPosition", position);
+                    writeFileUtf8(target, parsed.toString());
+                }
+                JSObject res = new JSObject();
+                res.put("saved", true);
+                call.resolve(res);
+            } catch (IOException | JSONException e) {
+                call.reject("Failed to save reading position");
             }
         });
     }

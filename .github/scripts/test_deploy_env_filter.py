@@ -62,7 +62,8 @@ class DeployEnvFilterTest(unittest.TestCase):
             with self.subTest(environment=environment):
                 self.assertIn("uses: ./.github/workflows/deploy-neon-worker.yml", block)
                 self.assertIn("environment: " + environment, block)
-                self.assertIn("github.event_name != 'pull_request'", block)
+                self.assertIn("github.event_name == 'workflow_dispatch'" if environment == 'staging'
+                              else "github.event_name != 'pull_request'", block)
                 for flag in ("business_acceptance", "browser_diagnostics"):
                     self.assertIn("!inputs." + flag, block)
         block = job(workflow, "browser-diagnostics")

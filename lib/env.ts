@@ -149,6 +149,17 @@ export const env = createEnv({
   APPLE_APP_SITE_ASSOCIATION_APP_IDS: z.string().optional(),
   /** 10-character Apple Developer Team ID for Universal Links */
   APPLE_APP_SITE_ASSOCIATION_TEAM_ID: z.string().optional(),
+  // Apple Push Notification service (APNs) HTTP/2 JWT provider
+  /** 10-character Key ID from Apple Developer Certificates, Identifiers & Profiles. */
+  APNS_KEY_ID: z.string().optional(),
+  /** 10-character Apple Developer Team ID. */
+  APNS_TEAM_ID: z.string().optional(),
+  /** PEM or base64-encoded PKCS#8 .p8 private key for APNs token authentication. */
+  APNS_PRIVATE_KEY: z.string().optional(),
+  /** iOS App Bundle ID used as the apns-topic header (e.g. com.zyx.academy). */
+  APNS_BUNDLE_ID: z.string().optional(),
+  /** Set to "1" to send APNs requests to api.sandbox.push.apple.com. */
+  APNS_USE_SANDBOX: z.enum(["0", "1"]).optional(),
   },
  client: {
  /** Absolute origin for better-auth client (e.g. https://app.example.com). Falls back for local dev. */
@@ -263,5 +274,11 @@ export const env = createEnv({
   ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS: process.env.ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS,
   APPLE_APP_SITE_ASSOCIATION_APP_IDS: process.env.APPLE_APP_SITE_ASSOCIATION_APP_IDS,
   APPLE_APP_SITE_ASSOCIATION_TEAM_ID: process.env.APPLE_APP_SITE_ASSOCIATION_TEAM_ID,
+  // Apple Push Notification service (APNs)
+  APNS_KEY_ID: process.env.APNS_KEY_ID,
+  APNS_TEAM_ID: process.env.APNS_TEAM_ID,
+  APNS_PRIVATE_KEY: process.env.APNS_PRIVATE_KEY,
+  APNS_BUNDLE_ID: process.env.APNS_BUNDLE_ID,
+  APNS_USE_SANDBOX: process.env.APNS_USE_SANDBOX,
   },
 });
