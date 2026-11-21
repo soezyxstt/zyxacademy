@@ -1,12 +1,44 @@
-use tauri::{AppHandle, Manager, Url};
+use futures_util::StreamExt;
+use serde::Serialize;
+use std::io::Write;
+use tauri::{AppHandle, Emitter, Manager, Url};
 use tauri_plugin_deep_link::DeepLinkExt;
+use tauri_plugin_opener::OpenerExt;
 
 const SERVER_URL_ENV: &str = "ZYX_DESKTOP_SERVER_URL";
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppUpdateInfo {
+    version: &'static str,
+    channel: &'static str,
+    build_id: &'static str,
+    platform: &'static str,
+}
+
+#[derive(Serialize, Clone)]
+struct UpdateProgressPayload {
+    percent: u8,
+}
 
 fn build_channel() -> &'static str {
     match option_env!("ZYX_BUILD_CHANNEL") {
         Some("nightly") => "nightly",
         _ => "stable",
+    }
+}
+
+fn build_sha() -> &'static str {
+    option_env!("ZYX_BUILD_SHA").unwrap_or("dev")
+}
+
+fn desktop_platform() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "macos"
+    } else {
+        "linux"
     }
 }
 
@@ -24,6 +56,167 @@ fn deep_link_scheme() -> &'static str {
     } else {
         "zyxacademy"
     }
+}
+
+fn validate_update_download_url(raw_url: &str) -> Result<(Url, String), String> {
+    let lower_raw = raw_url.to_ascii_lowercase();
+    if lower_raw.contains("..")
+        || lower_raw.contains("%2e")
+        || lower_raw.contains("%2f")
+        || lower_raw.contains("%5c")
+        || lower_raw.contains('\\')
+        || lower_raw.contains('?')
+        || lower_raw.contains('#')
+    {
+        return Err("Invalid update URL".to_string());
+    }
+
+    let parsed = Url::parse(raw_url).map_err(|_| "Malformed update URL".to_string())?;
+    if parsed.scheme() != "https"
+        || parsed.host_str() != Some("github.com")
+        || parsed.port().is_some()
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+    {
+        return Err("Invalid update URL".to_string());
+    }
+
+    let segments: Vec<&str> = parsed
+        .path_segments()
+        .ok_or_else(|| "Invalid update URL path".to_string())?
+        .collect();
+    // Exact 6 segments: soezyxstt / zyxacademy / releases / download / <tag> / <asset>
+    if segments.len() != 6
+        || segments[0] != "soezyxstt"
+        || segments[1] != "zyxacademy"
+        || segments[2] != "releases"
+        || segments[3] != "download"
+    {
+        return Err("Invalid update URL path".to_string());
+    }
+
+    let tag = segments[4];
+    let asset = segments[5];
+    if tag.is_empty() || asset.is_empty() || tag == "." || asset == "." {
+        return Err("Invalid update file name".to_string());
+    }
+
+    let lower_asset = asset.to_ascii_lowercase();
+    let allowed_ext = lower_asset.ends_with(".exe")
+        || lower_asset.ends_with(".dmg")
+        || lower_asset.ends_with(".deb")
+        || lower_asset.ends_with(".appimage");
+    if !allowed_ext {
+        return Err("Unsupported update file type".to_string());
+    }
+
+    Ok((parsed, asset.to_string()))
+}
+
+fn is_allowed_redirect_host(host: &str) -> bool {
+    let lower = host.to_ascii_lowercase();
+    lower == "github.com"
+        || lower == "objects.githubusercontent.com"
+        || lower == "release-assets.githubusercontent.com"
+}
+
+#[tauri::command]
+fn get_app_update_info() -> AppUpdateInfo {
+    AppUpdateInfo {
+        version: env!("CARGO_PKG_VERSION"),
+        channel: build_channel(),
+        build_id: build_sha(),
+        platform: desktop_platform(),
+    }
+}
+
+#[tauri::command]
+async fn download_and_launch_update(app: AppHandle, url: String) -> Result<String, String> {
+    let (parsed, file_name) = validate_update_download_url(&url)?;
+
+    let redirect_policy = reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 5 {
+            return attempt.error("Too many redirects");
+        }
+        let target = attempt.url();
+        let valid_host = target
+            .host_str()
+            .map(is_allowed_redirect_host)
+            .unwrap_or(false);
+        if target.scheme() == "https" && valid_host {
+            attempt.follow()
+        } else {
+            attempt.error("Disallowed redirect host")
+        }
+    });
+
+    let client = reqwest::Client::builder()
+        .redirect(redirect_policy)
+        .user_agent("ZyxAcademyUpdater/1.0")
+        .build()
+        .map_err(|e| format!("Failed to initialize updater client: {e}"))?;
+
+    let response = client
+        .get(parsed)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to download update: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Download failed with HTTP {}", response.status()));
+    }
+
+    let cache_root = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("Failed to resolve private app cache directory: {e}"))?;
+    let update_dir = cache_root.join("updates");
+    std::fs::create_dir_all(&update_dir)
+        .map_err(|e| format!("Failed to create updates directory: {e}"))?;
+    let target_path = update_dir.join(&file_name);
+
+    let mut file = std::fs::File::create(&target_path)
+        .map_err(|e| format!("Failed to create installer file: {e}"))?;
+
+    let total_size = response.content_length().unwrap_or(0);
+    let mut downloaded: u64 = 0;
+    let mut last_percent: u8 = 0;
+    let mut stream = response.bytes_stream();
+
+    while let Some(chunk) = stream.next().await {
+        let bytes = chunk.map_err(|e| format!("Download interrupted: {e}"))?;
+        file.write_all(&bytes)
+            .map_err(|e| format!("Failed to write update file: {e}"))?;
+        downloaded += bytes.len() as u64;
+        if total_size > 0 {
+            let percent = ((downloaded.saturating_mul(100)) / total_size).min(100) as u8;
+            if percent != last_percent {
+                last_percent = percent;
+                let _ = app.emit("zyx-update-progress", UpdateProgressPayload { percent });
+            }
+        }
+    }
+
+    file.flush()
+        .map_err(|e| format!("Failed to finalize update file: {e}"))?;
+    drop(file);
+
+    #[cfg(unix)]
+    {
+        if file_name.to_ascii_lowercase().ends_with(".appimage") {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&target_path, std::fs::Permissions::from_mode(0o755));
+        }
+    }
+
+    let path_str = target_path.to_string_lossy().to_string();
+    app.opener()
+        .open_path(&path_str, None::<&str>)
+        .map_err(|e| format!("Failed to launch installer: {e}"))?;
+
+    Ok(path_str)
 }
 
 fn is_allowed_override_origin(parsed: &Url) -> bool {
@@ -132,6 +325,10 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
+        .invoke_handler(tauri::generate_handler![
+            get_app_update_info,
+            download_and_launch_update
+        ])
         .setup(move |app| {
             if let Some(window) = app.get_webview_window("main") {
                 let default_origin =
@@ -194,6 +391,29 @@ mod tests {
 
         let backslash_link = Url::parse("zyxacademy:///\\evil.com").unwrap();
         assert!(resolve_deep_link_target(&origin, &backslash_link, "zyxacademy").is_none());
+    }
+
+    #[test]
+    fn validates_update_download_urls_strictly() {
+        assert!(validate_update_download_url(
+            "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.1.0/zyx.exe"
+        )
+        .is_ok());
+        assert!(validate_update_download_url("https://evil.com/zyx.exe").is_err());
+        assert!(validate_update_download_url(
+            "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.1.0/script.sh"
+        )
+        .is_err());
+        assert!(validate_update_download_url(
+            "https://github.com/soezyxstt/zyxacademy/releases/download/../../../../attacker/repo/releases/download/v1/malware.exe"
+        )
+        .is_err());
+        assert!(validate_update_download_url(
+            "https://github.com/soezyxstt/zyxacademy/releases/download/v1/script.bat?x=.exe"
+        )
+        .is_err());
+        assert!(!is_allowed_redirect_host("raw.githubusercontent.com"));
+        assert!(is_allowed_redirect_host("objects.githubusercontent.com"));
     }
 
     #[test]

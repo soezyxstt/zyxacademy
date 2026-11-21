@@ -9,6 +9,7 @@ import { openMobileSidebar } from "@/components/sidebar-shell";
 import { useCommandMenu } from "@/components/command-menu";
 import { useTranslations } from "@/lib/i18n/client";
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { AppUpdateControl } from "@/components/native/app-update-control";
 
 export function getRouteTitle(
   pathname: string,
@@ -262,6 +263,7 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
+        <AppUpdateControl variant="mobile" />
         <button
           type="button"
           onClick={() => setSearchOpen(true)}

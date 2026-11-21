@@ -33,8 +33,25 @@ function resolveChannel(): AppChannel {
   return "stable";
 }
 
+function detectBuildId(): string {
+  const explicit = process.env.ZYX_APP_BUILD_ID?.trim();
+  if (explicit) return explicit;
+  const sha = process.env.GITHUB_SHA?.trim();
+  if (sha) return sha.slice(0, 7);
+  try {
+    return execSync("git rev-parse --short=7 HEAD", {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+  } catch {
+    return "dev";
+  }
+}
+
 const channel = resolveChannel();
 const isNightly = channel === "nightly";
+const buildId = detectBuildId();
 
 const defaultServerUrl = isNightly
   ? "https://staging.zyxacademy.com"
@@ -63,17 +80,18 @@ const config: CapacitorConfig = {
       backgroundColor: "#ffffff",
     },
     StatusBar: {
-      overlaysWebView: false,
+      overlaysWebView: true,
       style: "DEFAULT",
     },
   },
   android: {
     allowMixedContent: false,
+    adjustMarginsForEdgeToEdge: "disable",
     flavor: channel,
-    appendUserAgent: `ZyxMobileApp/0.1.0-alpha.1 (Capacitor; ${channel})`,
+    appendUserAgent: `ZyxMobileApp/0.1.0-alpha.1 (Capacitor; ${channel}; build=${buildId})`,
   },
   ios: {
-    appendUserAgent: `ZyxMobileApp/0.1.0-alpha.1 (Capacitor; ${channel})`,
+    appendUserAgent: `ZyxMobileApp/0.1.0-alpha.1 (Capacitor; ${channel}; build=${buildId})`,
     contentInset: "automatic",
   },
 };

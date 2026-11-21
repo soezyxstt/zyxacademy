@@ -10,6 +10,20 @@ import {
   isNativeApp,
   isTauriApp,
 } from "@/lib/native/runtime";
+import {
+  buildNativeAuthDeepLink,
+  isAllowedNativeAuthScheme,
+  isMobileAuthScheme,
+  parseNativeAuthDeepLink,
+  resolveNativeAuthScheme,
+} from "@/lib/native/auth-handoff";
+import {
+  compareSemver,
+  isUpdateAvailable,
+  parseInstalledAppMetaFromUa,
+  parseReleaseTag,
+  selectLatestReleaseForChannel,
+} from "@/lib/native/updates";
 
 describe("offline reading cache LRU eviction", () => {
   test("does not evict when within entry and byte limits", () => {
@@ -88,5 +102,170 @@ describe("native runtime detection", () => {
     expect(isTauriApp()).toBe(true);
     expect(isCapacitorApp()).toBe(false);
     expect(isNativeApp()).toBe(true);
+  });
+});
+
+describe("native OAuth handoff helpers", () => {
+  test("resolves nightly vs stable schemes per runtime and host", () => {
+    expect(
+      resolveNativeAuthScheme({
+        runtime: "capacitor",
+        userAgent: "ZyxMobileApp/0.1.0-alpha.1 (Capacitor; nightly)",
+        hostname: "staging.zyxacademy.com",
+      }),
+    ).toBe("com.zyx.academy.nightly");
+
+    expect(
+      resolveNativeAuthScheme({
+        runtime: "capacitor",
+        userAgent: "ZyxMobileApp/0.1.0-alpha.1 (Capacitor; stable)",
+        hostname: "www.zyxacademy.com",
+      }),
+    ).toBe("com.zyx.academy");
+
+    expect(
+      resolveNativeAuthScheme({
+        runtime: "tauri",
+        hostname: "staging.zyxacademy.com",
+      }),
+    ).toBe("zyxacademy-nightly");
+
+    expect(
+      resolveNativeAuthScheme({
+        runtime: "tauri",
+        hostname: "www.zyxacademy.com",
+      }),
+    ).toBe("zyxacademy");
+
+    expect(resolveNativeAuthScheme({ runtime: "web", hostname: "www.zyxacademy.com" })).toBeNull();
+  });
+
+  test("enforces strict scheme allowlist, state nonce, and fragment-only token transport", () => {
+    expect(isAllowedNativeAuthScheme("com.zyx.academy.nightly")).toBe(true);
+    expect(isAllowedNativeAuthScheme("javascript")).toBe(false);
+    expect(isMobileAuthScheme("com.zyx.academy.nightly")).toBe(true);
+    expect(isMobileAuthScheme("zyxacademy-nightly")).toBe(false);
+
+    const state = "valid_state_nonce_123456";
+    const deepLink = buildNativeAuthDeepLink("com.zyx.academy.nightly", "tok_123", state, "/courses/math");
+    expect(deepLink).toBe(
+      `com.zyx.academy.nightly://auth/native-finish#token=tok_123&state=${state}&next=%2Fcourses%2Fmath`,
+    );
+    expect(parseNativeAuthDeepLink(deepLink)).toBe(
+      `/auth/native-finish#token=tok_123&state=${state}&next=%2Fcourses%2Fmath`,
+    );
+
+    // External open redirect attempts must fall back to /dashboard
+    const evilNext = parseNativeAuthDeepLink(
+      `com.zyx.academy.nightly://auth/native-finish#token=tok_123&state=${state}&next=//evil.com`,
+    );
+    expect(evilNext).toBe(`/auth/native-finish#token=tok_123&state=${state}&next=%2Fdashboard`);
+
+    // Missing state, query-string token, unknown schemes, and wrong paths must be rejected
+    expect(parseNativeAuthDeepLink("com.zyx.academy.nightly://auth/native-finish#token=tok_123")).toBeNull();
+    expect(parseNativeAuthDeepLink(`com.zyx.academy.nightly://auth/native-finish?token=tok_123&state=${state}`)).toBeNull();
+    expect(parseNativeAuthDeepLink(`evil://auth/native-finish#token=tok_123&state=${state}`)).toBeNull();
+    expect(parseNativeAuthDeepLink(`com.zyx.academy.nightly://other/path#token=tok_123&state=${state}`)).toBeNull();
+  });
+});
+
+describe("in-app update checker helpers", () => {
+  test("parses nightly and stable GitHub release tags and selects matching channel assets", () => {
+    expect(parseReleaseTag("app-v0.1.0-alpha.1-nightly.20261121.d36d955")).toEqual({
+      channel: "nightly",
+      version: "0.1.0-alpha.1",
+      buildId: "d36d955",
+    });
+    expect(parseReleaseTag("app-v0.2.0")).toEqual({
+      channel: "stable",
+      version: "0.2.0",
+      buildId: null,
+    });
+    expect(parseReleaseTag("app-v0.2.0-b42")).toEqual({
+      channel: "stable",
+      version: "0.2.0",
+      buildId: "b42",
+    });
+
+    const latestNightly = selectLatestReleaseForChannel(
+      [
+        {
+          tag_name: "app-v0.1.0-alpha.1",
+          html_url: "https://github.com/soezyxstt/zyxacademy/releases/tag/app-v0.1.0-alpha.1",
+          assets: [],
+        },
+        {
+          tag_name: "app-v0.1.0-alpha.1-nightly.20261121.d36d955",
+          html_url: "https://github.com/soezyxstt/zyxacademy/releases/tag/app-v0.1.0-alpha.1-nightly.20261121.d36d955",
+          assets: [
+            {
+              name: "zyx-academy-nightly-0.1.0-alpha.1-20261121-android.apk",
+              browser_download_url: "https://github.com/soezyxstt/zyxacademy/releases/download/tag/app.apk",
+            },
+            {
+              name: "zyx-academy-nightly-0.1.0-alpha.1-20261121-windows-x64.exe",
+              browser_download_url: "https://github.com/soezyxstt/zyxacademy/releases/download/tag/app.exe",
+            },
+          ],
+        },
+      ],
+      "nightly",
+    );
+    expect(latestNightly?.buildId).toBe("d36d955");
+    expect(latestNightly?.downloads.android).toContain(".apk");
+    expect(latestNightly?.downloads.windows).toContain(".exe");
+  });
+
+  test("compares semver, nightly SHA, and stable build numbers without looping", () => {
+    expect(compareSemver("0.1.0-alpha.2", "0.1.0-alpha.1")).toBeGreaterThan(0);
+    expect(compareSemver("0.1.0", "0.1.0-alpha.1")).toBeGreaterThan(0);
+    expect(compareSemver("0.1.0-alpha.1", "0.1.0-alpha.1")).toBe(0);
+
+    expect(
+      isUpdateAvailable(
+        { channel: "nightly", version: "0.1.0-alpha.1", buildId: "32de3fd" },
+        { channel: "nightly", version: "0.1.0-alpha.1", buildId: "d36d955" },
+      ),
+    ).toBe(true);
+    expect(
+      isUpdateAvailable(
+        { channel: "nightly", version: "0.1.0-alpha.1", buildId: "d36d955" },
+        { channel: "nightly", version: "0.1.0-alpha.1", buildId: "d36d955" },
+      ),
+    ).toBe(false);
+    expect(
+      isUpdateAvailable(
+        { channel: "stable", version: "0.1.0-alpha.1", buildId: "b0" },
+        { channel: "stable", version: "0.1.0", buildId: null },
+      ),
+    ).toBe(true);
+    expect(
+      isUpdateAvailable(
+        { channel: "stable", version: "0.1.0-alpha.1", buildId: "b42" },
+        { channel: "stable", version: "0.1.0-alpha.1", buildId: "b42" },
+      ),
+    ).toBe(false);
+    expect(
+      isUpdateAvailable(
+        { channel: "stable", version: "0.1.0-alpha.1", buildId: "b41" },
+        { channel: "stable", version: "0.1.0-alpha.1", buildId: "b42" },
+      ),
+    ).toBe(true);
+  });
+
+  test("parses installed build metadata from Capacitor User-Agent", () => {
+    const meta = parseInstalledAppMetaFromUa({
+      runtime: "capacitor",
+      userAgent: "Mozilla/5.0 ZyxMobileApp/0.1.0-alpha.1 (Capacitor; nightly; build=d36d955)",
+      hostname: "staging.zyxacademy.com",
+      capacitorPlatform: "android",
+    });
+    expect(meta).toEqual({
+      runtime: "capacitor",
+      channel: "nightly",
+      version: "0.1.0-alpha.1",
+      buildId: "d36d955",
+      platform: "android",
+    });
   });
 });

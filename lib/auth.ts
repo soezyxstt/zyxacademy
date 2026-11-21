@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { oneTimeToken } from "better-auth/plugins/one-time-token";
 import { db } from "@/db"; // Assuming you export your Drizzle db instance from here
 import * as schema from "@/db/schema";
 import { resolveAuthSecret } from "@/lib/auth-secret";
@@ -32,6 +33,13 @@ export const auth = betterAuth({
    "https://zyx.academy",
    "https://zyxacademy.com",
    "https://www.zyxacademy.com",
+ ],
+ plugins: [
+   oneTimeToken({
+     expiresIn: 2,
+     storeToken: "hashed",
+     disableClientRequest: true,
+   }),
  ],
  database: drizzleAdapter(db, {
  provider: "pg",

@@ -38,12 +38,44 @@ export interface CapacitorCameraPlugin {
   }) => Promise<CapacitorCameraPhoto>;
 }
 
+export interface CapacitorAppPlugin {
+  addListener: (
+    eventName: string,
+    listenerFunc: (event: { url?: string }) => void,
+  ) => Promise<CapacitorPluginListenerHandle>;
+}
+
+export interface CapacitorBrowserPlugin {
+  open: (options: {
+    url: string;
+    windowName?: string;
+    toolbarColor?: string;
+    presentationStyle?: "fullscreen" | "popover";
+  }) => Promise<void>;
+  close?: () => Promise<void>;
+  addListener?: (
+    eventName: string,
+    listenerFunc: () => void,
+  ) => Promise<CapacitorPluginListenerHandle>;
+}
+
+export interface CapacitorUpdaterPlugin {
+  downloadAndInstall: (options: { url: string }) => Promise<{ started?: boolean }>;
+  addListener?: (
+    eventName: "downloadProgress",
+    listenerFunc: (event: { percent?: number }) => void,
+  ) => Promise<CapacitorPluginListenerHandle>;
+}
+
 export interface CapacitorGlobal {
   isNativePlatform?: () => boolean;
   getPlatform?: () => string;
   Plugins?: {
+    App?: CapacitorAppPlugin;
+    Browser?: CapacitorBrowserPlugin;
     PushNotifications?: CapacitorPushNotificationsPlugin;
     Camera?: CapacitorCameraPlugin;
+    ZyxAppUpdater?: CapacitorUpdaterPlugin;
   };
 }
 
@@ -53,11 +85,24 @@ export interface TauriNotificationGlobal {
   sendNotification?: (options: { title: string; body?: string }) => void | Promise<void>;
 }
 
+export interface TauriOpenerGlobal {
+  openUrl?: (url: string, openWith?: string) => Promise<void>;
+}
+
+export interface TauriEventGlobal {
+  listen?: <T = unknown>(
+    event: string,
+    handler: (event: { payload: T }) => void,
+  ) => Promise<() => void>;
+}
+
 export interface TauriGlobal {
   core?: {
     invoke?: <T = unknown>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
   };
+  event?: TauriEventGlobal;
   notification?: TauriNotificationGlobal;
+  opener?: TauriOpenerGlobal;
 }
 
 declare global {
