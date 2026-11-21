@@ -170,31 +170,47 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
     void fetchUnreadCount();
   }, [session?.user, fetchUnreadCount, demo]);
 
-  // Foreground FCM messages refresh the inbox if open, or refresh unread count and show a toast.
+  const openRef = useRef(open);
+  openRef.current = open;
+
+  // Foreground push messages (Web FCM, Capacitor Push, Tauri OS) refresh the inbox and show a toast.
   useEffect(() => {
     if (demo || !session?.user) return;
     let unsubscribe: (() => void) | undefined;
     let disposed = false;
     (async () => {
-      const { onForegroundMessage } = await import("@/lib/firebase/messaging");
+      const { subscribeNativeNotifications } = await import("@/lib/native/notifications");
       if (disposed) return;
-      unsubscribe = onForegroundMessage((payload) => {
-        const { notification = {} } = payload;
-        if (notification?.title) {
-          toast(notification.title, { description: notification.body ?? undefined });
-        }
-        if (open) {
-          void fetchHistory();
-        } else {
-          void fetchUnreadCount();
-        }
+      const unsub = await subscribeNativeNotifications({
+        onForeground: ({ title, body }) => {
+          if (title) {
+            toast(title, { description: body ?? undefined });
+          }
+          if (openRef.current) {
+            void fetchHistory();
+          } else {
+            void fetchUnreadCount();
+          }
+        },
+        onNavigate: (url) => {
+          const safeUrl =
+            url.startsWith("/") && !url.startsWith("//") && !url.startsWith("/\\")
+              ? url
+              : "/dashboard";
+          router.push(safeUrl);
+        },
       });
+      if (disposed) {
+        unsub();
+        return;
+      }
+      unsubscribe = unsub;
     })();
     return () => {
       disposed = true;
       unsubscribe?.();
     };
-  }, [session?.user, open, fetchHistory, fetchUnreadCount, demo]);
+  }, [session?.user, fetchHistory, fetchUnreadCount, demo, router]);
 
   if (isPending || !session?.user) return null;
 

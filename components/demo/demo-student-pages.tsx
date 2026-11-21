@@ -4,9 +4,7 @@ import { useEffect, useState } from "react";
 import { validateAcademicProfile, type AcademicProfile } from "@/lib/student/academic-profile";
 import { Bell, MessageSquareHeart, UserCheck, Code2, Compass, Target, Trophy, Video } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
-import { cn } from "@/lib/utils";
+import { TabNav } from "@/components/ui/tabs";
 import type { DemoSummary } from "./demo-shell";
 import { ApplicationPage } from "@/components/application-page";
 import { PageHeader } from "@/components/page-header";
@@ -89,10 +87,14 @@ export function DemoStudentPage({ view, experience: { content, snapshot }, maste
    const activeType = searchParams.get("type") === "simulation" ? "simulation" : "quiz";
    const rankedRows = activeType === "quiz" ? rankings[courseId] ?? [] : demoLeaderboard(snapshot, emptyOverlay(), () => null, account.name, activeType);
    return <CoursePageShell title={t("leaderboard.title", { course: content.course.title })} icon={Trophy}>
-     <nav aria-labelledby="leaderboard-type-label" className="mb-4"><span id="leaderboard-type-label" className="sr-only">{t("leaderboard.typeLabel")}</span><div className={tabListClassName}>
-       <Link href={href(`/courses/${courseId}/leaderboard?type=quiz`)} aria-current={activeType === "quiz" ? "page" : undefined} className={cn(tabTriggerClassName, activeType === "quiz" && tabTriggerActiveClassName)}>{t("leaderboard.quiz")}</Link>
-       <Link href={href(`/courses/${courseId}/leaderboard?type=simulation`)} aria-current={activeType === "simulation" ? "page" : undefined} className={cn(tabTriggerClassName, activeType === "simulation" && tabTriggerActiveClassName)}>{t("leaderboard.tryout")}</Link>
-     </div></nav><StudentCourseLeaderboardContent rankedRows={rankedRows} userId="fictional-demo-student" activeType={activeType} identities={Object.fromEntries(rankedRows.flatMap(row => { const identity = row.studentId === "fictional-demo-student" ? demoOwnIdentity(row.studentName, gamification.equipped) : demoIdentity(row.studentName); return identity ? [[row.studentId, identity]] : []; }))} />
+     <TabNav
+       label={t("leaderboard.typeLabel")}
+       tabs={[
+         { href: href(`/courses/${courseId}/leaderboard?type=quiz`), label: t("leaderboard.quiz"), active: activeType === "quiz" },
+         { href: href(`/courses/${courseId}/leaderboard?type=simulation`), label: t("leaderboard.tryout"), active: activeType === "simulation" },
+       ]}
+     />
+     <StudentCourseLeaderboardContent rankedRows={rankedRows} userId="fictional-demo-student" activeType={activeType} identities={Object.fromEntries(rankedRows.flatMap(row => { const identity = row.studentId === "fictional-demo-student" ? demoOwnIdentity(row.studentName, gamification.equipped) : demoIdentity(row.studentName); return identity ? [[row.studentId, identity]] : []; }))} />
    </CoursePageShell>;
  }
  if (view === "live") return <LiveStudentPage />;

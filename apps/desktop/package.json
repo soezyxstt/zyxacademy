@@ -1,0 +1,24 @@
+{
+  "name": "zyx-academy-desktop",
+  "version": "0.1.0-alpha.1",
+  "private": true,
+  "description": "Desktop wrapper for Zyx Academy built with Tauri v2",
+  "scripts": {
+    "dev": "node scripts/tauri-channel.mjs dev auto",
+    "dev:nightly": "node scripts/tauri-channel.mjs dev nightly",
+    "dev:stable": "node scripts/tauri-channel.mjs dev stable",
+    "build": "node scripts/tauri-channel.mjs build auto",
+    "build:nightly": "node scripts/tauri-channel.mjs build nightly",
+    "build:stable": "node scripts/tauri-channel.mjs build stable",
+    "info": "tauri info"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-deep-link": "^2",
+    "@tauri-apps/plugin-notification": "^2",
+    "@tauri-apps/plugin-opener": "^2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

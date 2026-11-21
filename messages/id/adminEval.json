@@ -4,7 +4,8 @@
     "generationJobs": "Generasi Soal",
     "distractors": "Analitik Distraktor",
     "activeQuestions": "Bank soal aktif",
-    "historicalQuestions": "Referensi historis"
+    "historicalQuestions": "Referensi historis",
+    "questionTools": "Alat soal"
   },
   "distractors": {
     "emptyTitle": "Belum ada analitik distraktor",

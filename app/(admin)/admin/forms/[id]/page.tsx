@@ -452,24 +452,6 @@ export default function DetailedFormAnalyticsPage({
             </span>
           }
           description={form.description}
-          actions={
-            <div className="flex flex-wrap items-center gap-3">
-              <Link
-                href={`/admin/forms?edit=${form.id}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors"
-              >
-                <Edit3 className="size-3.5 text-primary" />
-                {t("formDetailsUI.editForm")}
-              </Link>
-              <Link
-                href={`/f/${form.slug}`}
-                target="_blank"
-                className="inline-flex items-center gap-1 text-body-xs font-semibold text-primary hover:underline"
-              >
-                {t("formDetailsUI.shortLinkLabel")}: /f/{form.slug} <ExternalLink className="size-3.5" />
-              </Link>
-            </div>
-          }
         />
       )}
 
@@ -490,35 +472,49 @@ export default function DetailedFormAnalyticsPage({
           onValueChange={(val) => setResponseTab(val as any)}
           className="w-full"
         >
-          <div className="@container flex flex-wrap items-center justify-between gap-2">
-            <TabsList className="max-w-full">
-              <TabsTrigger value="summary">
-                <PieIcon className="size-4 text-primary" />
-                {t("formDetailsUI.summaryTab")}
-              </TabsTrigger>
-              <TabsTrigger value="question">
-                <QuestionIcon className="size-4 text-brand-secondary" />
-                {t("formDetailsUI.questionTab")}
-              </TabsTrigger>
-              <TabsTrigger value="individual">
-                <User className="size-4 text-tertiary-1" />
-                {t("formDetailsUI.respondentTab")}
-              </TabsTrigger>
-              <TabsTrigger value="settings">
-                <SettingsIcon className="size-4 text-status-warning" />
-                {t("formDetailsUI.settingsTab")}
-              </TabsTrigger>
-            </TabsList>
-            <div className="flex w-full flex-wrap items-center justify-between gap-2 @min-[52rem]:w-auto @min-[52rem]:justify-start">
+          <TabsList>
+            <TabsTrigger value="summary">
+              <PieIcon className="size-4 text-primary" />
+              {t("formDetailsUI.summaryTab")}
+            </TabsTrigger>
+            <TabsTrigger value="question">
+              <QuestionIcon className="size-4 text-brand-secondary" />
+              {t("formDetailsUI.questionTab")}
+            </TabsTrigger>
+            <TabsTrigger value="individual">
+              <User className="size-4 text-tertiary-1" />
+              {t("formDetailsUI.respondentTab")}
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              <SettingsIcon className="size-4 text-status-warning" />
+              {t("formDetailsUI.settingsTab")}
+            </TabsTrigger>
+          </TabsList>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <p className="shrink-0 text-body-sm font-semibold">
                 {t("formDetailsUI.responsesCount", { count: responses.length })}
               </p>
-              <div className="inline-flex shrink-0 items-center gap-1">
-                {sheetControls(handleExportGoogleSheets, !responses.length)}
-                <AdminIconAction variant="ghost" label={t("formDetailsUI.refresh")} onClick={fetchAnalytics}>
-                  <RefreshCw />
-                </AdminIconAction>
-              </div>
+              <Link
+                href={`/f/${form.slug}`}
+                target="_blank"
+                className="inline-flex items-center gap-1 text-body-xs font-semibold text-primary hover:underline"
+              >
+                /f/{form.slug} <ExternalLink className="size-3.5" />
+              </Link>
+            </div>
+            <div className="inline-flex shrink-0 items-center gap-1.5">
+              <Link
+                href={`/admin/forms?edit=${form.id}`}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors"
+              >
+                <Edit3 className="size-3.5 text-primary" />
+                {t("formDetailsUI.editForm")}
+              </Link>
+              {sheetControls(handleExportGoogleSheets, !responses.length)}
+              <AdminIconAction variant="ghost" label={t("formDetailsUI.refresh")} onClick={fetchAnalytics}>
+                <RefreshCw />
+              </AdminIconAction>
             </div>
           </div>
           {resultPanel}

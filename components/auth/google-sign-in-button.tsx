@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { signIn } from "@/lib/auth-client";
 import { saveLocaleSelection } from "@/lib/i18n/actions";
 import type { Locale } from "@/lib/i18n/locale";
+import { isNativeBrowserSignInSupported, startNativeGoogleSignIn } from "@/lib/native/auth";
 import { cn } from "@/lib/utils";
 
 type GoogleSignInButtonProps = {
@@ -50,8 +51,18 @@ export function GoogleSignInButton({
   const handleClick = useCallback(async () => {
     onBeforeOAuth?.();
     setLoading(true);
+    let keepLoadingForBrowser = false;
     try {
       if (locale) await saveLocaleSelection(locale);
+      if (isNativeBrowserSignInSupported()) {
+        const opened = await startNativeGoogleSignIn(callbackURL, {
+          onBrowserClosed: () => setLoading(false),
+        });
+        if (opened) {
+          keepLoadingForBrowser = true;
+          return;
+        }
+      }
       // better-auth redirects the browser on success; failures surface here.
       await signIn.social({
         provider: "google",
@@ -60,7 +71,9 @@ export function GoogleSignInButton({
     } catch (err) {
       toast.error(mapSignInError(err, t));
     } finally {
-      setLoading(false);
+      if (!keepLoadingForBrowser) {
+        setLoading(false);
+      }
     }
   }, [callbackURL, locale, onBeforeOAuth, t]);
 

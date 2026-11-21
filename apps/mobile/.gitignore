@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Environment overrides
+.env
+.env.*
+
+# Firebase credentials (add locally or via CI secrets)
+google-services.json
+GoogleService-Info.plist
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist
+
+# Android build artifacts
+android/.gradle/
+android/.idea/
+android/build/
+android/app/build/
+android/captures/
+android/local.properties
+android/**/*.iml
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/res/xml/config.xml
+
+# iOS build artifacts and CocoaPods
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/App/config.xml
+ios/**/*.xcuserdatad/
+ios/**/*.xcworkspace/xcuserdata/
+ios/**/*.xcodeproj/xcuserdata/
+
+# OS files
+.DS_Store
+Thumbs.db

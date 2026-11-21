@@ -1,0 +1,90 @@
+# Zyx Academy Mobile (Alpha)
+
+Capacitor 7 mobile wrapper for Zyx Academy (`com.zyx.academy`). This app loads the Zyx Academy web application inside a native WebView shell and bridges native capabilities such as push notifications, local notifications, camera, haptics, share, network status, status bar, and splash screen.
+
+## Prerequisites
+
+- Node.js 22+ and npm
+- Android Studio with Android SDK and JDK 17+ (for Android builds)
+- macOS with Xcode 16+ and CocoaPods (for iOS builds)
+
+## Setup
+
+Install dependencies inside `apps/mobile`:
+
+```bash
+npm install
+```
+
+Sync web assets and native Capacitor plugins:
+
+```bash
+npm run sync
+```
+
+Platform-specific sync commands:
+
+```bash
+npm run sync:android
+npm run sync:ios
+```
+
+Run the Capacitor environment check:
+
+```bash
+npm run doctor
+```
+
+## Server URL Override (Local and Staging)
+
+By default, `capacitor.config.ts` points to `https://www.zyxacademy.com`. Set `ZYX_MOBILE_SERVER_URL` before running `cap sync` to target a local dev server or staging deployment:
+
+```bash
+# Staging
+ZYX_MOBILE_SERVER_URL="https://staging.zyxacademy.com" npm run sync
+
+# Local Android emulator (maps to host localhost:3000)
+ZYX_MOBILE_SERVER_URL="http://10.0.2.2:3000" npm run sync:android
+
+# Local iOS simulator
+ZYX_MOBILE_SERVER_URL="http://localhost:3000" npm run sync:ios
+```
+
+Cleartext HTTP is automatically enabled only when `ZYX_MOBILE_SERVER_URL` starts with `http://`.
+
+## Required Firebase Configuration Files
+
+Push notifications via `@capacitor/push-notifications` require Firebase configuration files that are intentionally gitignored. Obtain these from the Zyx Academy Firebase project and place them locally (or inject them in CI):
+
+- **Android**: place `google-services.json` at `apps/mobile/android/app/google-services.json`
+- **iOS**: place `GoogleService-Info.plist` at `apps/mobile/ios/App/App/GoogleService-Info.plist` (and ensure it is included in the `App` Xcode target)
+
+## Opening and Building Native Projects
+
+### Android
+
+Open in Android Studio:
+
+```bash
+npm run open:android
+```
+
+Or build from the command line inside `apps/mobile/android`:
+
+```bash
+./gradlew assembleDebug
+./gradlew bundleRelease
+```
+
+### iOS (macOS only)
+
+Install CocoaPods dependencies if not already installed during `cap sync`, then open in Xcode:
+
+```bash
+cd ios/App && pod install
+npm run open:ios
+```
+
+## Offline Fallback
+
+When the remote Zyx Academy URL cannot be reached, Capacitor loads `www/index.html` (`server.errorPath`). It provides an Indonesian and English retry screen and a direct link to `/offline` for saved readings.

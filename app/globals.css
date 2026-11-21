@@ -1079,3 +1079,23 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
 [data-sr-only-header] + * {
   margin-top: 0;
 }
+
+/* Seamless join between MobileNavbar and sticky page tab bar. */
+:root {
+  --mobile-navbar-height: 0px;
+}
+
+@media (max-width: 767.98px) {
+  body:has([data-mobile-navbar]) {
+    --mobile-navbar-height: 3.25rem;
+  }
+}
+
+[data-mobile-navbar]:has(~ main [data-sticky-tabs-bar="flush"]) {
+  border-bottom-color: transparent;
+}
+
+/* Flush sticky page tab bar attaches directly under the navbar without top page padding. */
+[data-application-page]:has([data-sticky-tabs-bar="flush"]) {
+  padding-top: 0;
+}

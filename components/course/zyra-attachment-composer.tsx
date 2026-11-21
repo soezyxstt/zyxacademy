@@ -14,6 +14,7 @@ import {
 import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { captureNativeQuestionPhoto, hasNativeCameraBridge, prepareQuestionImageFiles } from "@/lib/native/camera";
 
 interface ZyraAttachmentComposerProps {
   courseId: string;
@@ -29,6 +30,7 @@ interface ZyraAttachmentComposerProps {
 export interface ZyraAttachmentComposerHandle {
   addFiles: (files: readonly File[]) => void;
   openFileDialog: () => void;
+  openCameraDialog: () => void;
 }
 
 function setItemStatus(
@@ -62,6 +64,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
     source: "selection" | "upload";
   } | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const sessionIdRef = React.useRef<string | null>(sessionId);
   const uploadQueueRef = React.useRef<Promise<void>>(Promise.resolve());
 
@@ -154,7 +157,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
     return performUpload(item);
   }, [performUpload]);
 
-  const addFiles = React.useCallback((files: readonly File[]) => {
+  const addPreparedFiles = React.useCallback((files: readonly File[]) => {
     const current = itemsRef.current;
     const result = selectZyraImageFiles(current, files);
     if (result.rejected.length > 0) {
@@ -178,10 +181,28 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
     newItems.forEach((item) => { void uploadItem(item); });
   }, [updateItems, uploadItem]);
 
+  const addFiles = React.useCallback((files: readonly File[]) => {
+    void prepareQuestionImageFiles(files).then((prepared) => {
+      addPreparedFiles(prepared);
+    });
+  }, [addPreparedFiles]);
+
+  const openCameraDialog = React.useCallback(() => {
+    if (disabled) return;
+    if (hasNativeCameraBridge()) {
+      void captureNativeQuestionPhoto().then((file) => {
+        if (file) addPreparedFiles([file]);
+      });
+      return;
+    }
+    cameraInputRef.current?.click();
+  }, [disabled, addPreparedFiles]);
+
   React.useImperativeHandle(ref, () => ({
     addFiles,
     openFileDialog: () => inputRef.current?.click(),
-  }), [addFiles]);
+    openCameraDialog,
+  }), [addFiles, openCameraDialog]);
 
   const removeItem = async (item: PendingZyraImage) => {
     const activeSessionId = sessionIdRef.current;
@@ -221,8 +242,19 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        capture="environment"
         multiple
+        className="sr-only"
+        onChange={(event) => {
+          addFiles(Array.from(event.target.files ?? []));
+          event.currentTarget.value = "";
+        }}
+        disabled={disabled}
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        capture="environment"
         className="sr-only"
         onChange={(event) => {
           addFiles(Array.from(event.target.files ?? []));

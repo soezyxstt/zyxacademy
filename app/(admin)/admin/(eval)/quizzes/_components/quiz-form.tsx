@@ -601,57 +601,59 @@ export function QuizForm({
 
   return (
     <div className="space-y-5">
-      {/* Universal Page Header with Integrated Actions */}
+      {/* Universal Page Header */}
       <PageHeader
         icon={NotebookPen}
         title={computedHeaderTitle}
         backHref={computedBackHref}
         backLabel={computedBackLabel}
-        actions={
-          <div className="flex items-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-lg"
-                    aria-label={saveLabel}
-                    disabled={submitting}
-                    isLoading={submissionAction === "save"}
-                    onClick={() => handleSubmit(false)}
-                  >
-                    <Save aria-hidden="true" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{saveLabel}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <Button
-              type="button"
-              size="sm"
-              disabled={submitting}
-              onClick={() => handleSubmit(true)}
-              className="h-9 font-semibold"
-            >
-              {submissionAction === "publish" ? (
-                <>
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" /> {tr("saving")}
-                </>
-              ) : (
-                <>
-                  <Send className="mr-1.5 size-3.5" />
-                  {isEdit ? tr("saveAndPublish") : tr("publishQuiz")}
-                </>
-              )}
-            </Button>
-          </div>
-        }
       />
 
       {/* 2-Tab Navigation */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full space-y-4">
-        <TabsList>
+        <TabsList
+          trailing={
+            <div className="flex items-center gap-1.5">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-8"
+                      aria-label={saveLabel}
+                      disabled={submitting}
+                      isLoading={submissionAction === "save"}
+                      onClick={() => handleSubmit(false)}
+                    >
+                      <Save className="size-4" aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{saveLabel}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <Button
+                type="button"
+                size="sm"
+                disabled={submitting}
+                onClick={() => handleSubmit(true)}
+                className="h-8 font-semibold"
+              >
+                {submissionAction === "publish" ? (
+                  <>
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" /> {tr("saving")}
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-1.5 size-3.5" />
+                    {isEdit ? tr("saveAndPublish") : tr("publishQuiz")}
+                  </>
+                )}
+              </Button>
+            </div>
+          }
+        >
           <TabsTrigger value="pengaturan">
             <Settings2 className="size-4" />
             {tr("quizSettings")}

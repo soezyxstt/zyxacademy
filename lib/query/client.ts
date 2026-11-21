@@ -50,6 +50,11 @@ export function syncQueryAccount(client: QueryClient, userId: string | null): vo
     const owner = queryAccountId(mutation.options.mutationKey ?? []);
     if (owner !== undefined && owner !== userId) client.getMutationCache().remove(mutation);
   }
+  if (typeof window !== "undefined" && (userId !== null || navigator.onLine !== false)) {
+    void import("@/lib/offline/reading-cache")
+      .then(({ clearOfflineReadingsForOtherUsers }) => clearOfflineReadingsForOtherUsers(userId))
+      .catch(() => {});
+  }
   for (const listener of accountListeners.get(client) ?? []) listener();
 }
 

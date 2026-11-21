@@ -51,6 +51,7 @@ import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/re
 import { useTranslations } from "@/lib/i18n/client";
 import { useArticleReadingProgress } from "@/hooks/use-article-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
+import { saveStructuredArticleOffline } from "@/lib/offline/reading-cache";
 import { StructuredArticleSectionContent, getBlockTitle } from "./structured-article-section-content";
 
 export interface MaterialNavigationItem {
@@ -102,6 +103,12 @@ function StructuredArticleReaderContent({
   const learnerMode = isLearnerReaderMode(mode);
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  // Save lightweight text reading payload for offline reuse (bounded LRU cache).
+  useEffect(() => {
+    if (!studentId || !learnerMode) return;
+    void saveStructuredArticleOffline(studentId, article);
+  }, [studentId, learnerMode, article]);
 
   // Active section resolution
   const requestedSlug = searchParams.get("section");

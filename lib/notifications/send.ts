@@ -129,6 +129,20 @@ async function sendMulticast(
           badge: "/brand/zyx-logo-symbol-black@2x.png",
  },
  },
+ android: {
+ priority: "high",
+ notification: {
+ channelId: "zyx_default",
+ sound: "default",
+ },
+ },
+ apns: {
+ payload: {
+ aps: {
+ sound: "default",
+ },
+ },
+ },
  });
 
  response.responses.forEach((res, idx) => {

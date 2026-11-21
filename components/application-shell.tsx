@@ -42,7 +42,7 @@ export function ApplicationShell({
         </div>
       )}
       {sidebar}
-      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-x-clip">
         {mobileNavigation}
         <main
           id="main-content"
