@@ -485,6 +485,7 @@ function MaterialViewerContent({
   canDownload = true,
 }: MaterialViewerProps) {
   const t = useTranslations("learning");
+  const common = useTranslations("common");
   const learnerMode = isLearnerReaderMode(mode);
   const experience = useStudentExperience();
   const demo = experience.mode === "demo";
@@ -1270,7 +1271,7 @@ function MaterialViewerContent({
                                     title: chapterTitle || material.title,
                                   }).then((result) => {
                                     if (!result.ok && !result.cancelled) {
-                                      toast.error(t("reader.downloadPdf"));
+                                      toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.saveFailed"));
                                     }
                                   });
                                 }}
@@ -1470,7 +1471,7 @@ function MaterialViewerContent({
                       title: material.title,
                     }).then((result) => {
                       if (!result.ok && !result.cancelled) {
-                        toast.error(t("reader.downloadPdf"));
+                        toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.saveFailed"));
                       }
                     });
                   }}
@@ -1495,6 +1496,10 @@ function MaterialViewerContent({
                       url: openUrl,
                       fileName: `${material.title}.pdf`,
                       title: material.title,
+                    }).then((result) => {
+                      if (!result.ok && !result.cancelled) {
+                        toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.openFailed"));
+                      }
                     });
                   }}
                 >

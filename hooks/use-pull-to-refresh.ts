@@ -9,7 +9,6 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { isCapacitorApp } from "@/lib/native/runtime";
 import { isPullToRefreshLocked } from "@/lib/pull-to-refresh-lock";
 import { useIsPullToRefreshLocked } from "@/hooks/use-pull-to-refresh-lock";
 import {
@@ -36,7 +35,6 @@ const SMARTPHONE_MEDIA_QUERY = "(max-width: 767px)";
 
 function isSmartphoneViewport(): boolean {
   if (typeof window === "undefined") return false;
-  if (isCapacitorApp()) return true;
   if (typeof window.matchMedia === "function") {
     return window.matchMedia(SMARTPHONE_MEDIA_QUERY).matches;
   }

@@ -110,7 +110,7 @@ export function PullToRefresh({
             <span className="truncate">{t("pullToRefresh.failed")}</span>
           </span>
           <div className="flex shrink-0 items-center gap-1">
-            <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-body-xs" onClick={retry}>
+            <Button type="button" variant="outline" size="sm" className="h-7 px-2" onClick={retry}>
               {t("pullToRefresh.retry")}
             </Button>
             <Button
