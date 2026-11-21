@@ -145,6 +145,52 @@ export function selectLatestReleaseForChannel(
   return candidates[0].release;
 }
 
+export function selectLatestUpdaterManifestUrl(
+  releases: readonly GitHubReleaseItem[],
+  channel: AppUpdateChannel,
+): string | null {
+  const targetAssetName = channel === "nightly" ? "latest-nightly.json" : "latest.json";
+  const candidates: Array<{
+    url: string;
+    publishedAtMs: number;
+    version: string;
+    buildId: string | null;
+  }> = [];
+
+  for (const item of releases) {
+    if (item.draft || !item.tag_name) continue;
+    const parsed = parseReleaseTag(item.tag_name);
+    if (!parsed || parsed.channel !== channel) continue;
+
+    const manifestAsset = (item.assets ?? []).find(
+      (asset) => asset.name?.toLowerCase() === targetAssetName,
+    );
+    if (!manifestAsset?.browser_download_url) continue;
+
+    candidates.push({
+      url: manifestAsset.browser_download_url,
+      publishedAtMs: parsePublishedAtMs(item.published_at),
+      version: parsed.version,
+      buildId: parsed.buildId,
+    });
+  }
+
+  if (candidates.length === 0) return null;
+
+  candidates.sort((a, b) => {
+    if (b.publishedAtMs !== a.publishedAtMs) {
+      return b.publishedAtMs - a.publishedAtMs;
+    }
+    const semverDiff = compareSemver(b.version, a.version);
+    if (semverDiff !== 0) return semverDiff;
+    const buildA = parseStableBuildNumber(a.buildId) ?? -1;
+    const buildB = parseStableBuildNumber(b.buildId) ?? -1;
+    return buildB - buildA;
+  });
+
+  return candidates[0].url;
+}
+
 function parseSemverParts(version: string): {
   core: [number, number, number];
   prerelease: string[];
@@ -402,7 +448,13 @@ export function resolveUpdateCheckOutcome(
   if (nativeUpdater.status === "update_available") {
     const latest: LatestAppRelease =
       releaseResult.status === "ok"
-        ? releaseResult.release
+        ? compareSemver(nativeUpdater.version, releaseResult.release.version) > 0
+          ? {
+              ...releaseResult.release,
+              version: nativeUpdater.version,
+              buildId: null,
+            }
+          : releaseResult.release
         : {
             channel: meta.channel,
             tag: `app-v${nativeUpdater.version}`,

@@ -144,30 +144,25 @@ fn save_window_state(app: &AppHandle, state: &PersistedWindowState) {
     }
 }
 
+fn monitor_to_rect(monitor: &tauri::Monitor) -> MonitorRect {
+    let work_area = monitor.work_area();
+    MonitorRect {
+        x: work_area.position.x,
+        y: work_area.position.y,
+        width: work_area.size.width,
+        height: work_area.size.height,
+        scale_factor: monitor.scale_factor(),
+    }
+}
+
 fn collect_monitors(window: &WebviewWindow) -> Vec<MonitorRect> {
     let mut rects = Vec::new();
     if let Ok(Some(primary)) = window.primary_monitor() {
-        let pos = primary.position();
-        let size = primary.size();
-        rects.push(MonitorRect {
-            x: pos.x,
-            y: pos.y,
-            width: size.width,
-            height: size.height,
-            scale_factor: primary.scale_factor(),
-        });
+        rects.push(monitor_to_rect(&primary));
     }
     if let Ok(available) = window.available_monitors() {
         for monitor in available {
-            let pos = monitor.position();
-            let size = monitor.size();
-            let rect = MonitorRect {
-                x: pos.x,
-                y: pos.y,
-                width: size.width,
-                height: size.height,
-                scale_factor: monitor.scale_factor(),
-            };
+            let rect = monitor_to_rect(&monitor);
             if !rects.contains(&rect) {
                 rects.push(rect);
             }
@@ -185,16 +180,22 @@ pub fn restore_window_geometry(app: &AppHandle, window: &WebviewWindow) {
         return;
     };
 
-    let _ = window.set_size(PhysicalSize::new(sanitized.width, sanitized.height));
+    // Position first so the window enters the target monitor's DPI context
+    // before applying the physical size (avoids Windows WM_DPICHANGED rescaling).
     let _ = window.set_position(PhysicalPosition::new(sanitized.x, sanitized.y));
+    let _ = window.set_size(PhysicalSize::new(sanitized.width, sanitized.height));
     if sanitized.maximized {
         let _ = window.maximize();
     }
 }
 
+struct WindowStateTracker(Arc<Mutex<TrackedState>>);
+
 struct TrackedState {
     latest: Option<PersistedWindowState>,
-    last_saved: Option<Instant>,
+    pending: bool,
+    last_event: Option<Instant>,
+    debounce_scheduled: bool,
 }
 
 fn capture_window_state(
@@ -230,43 +231,106 @@ fn capture_window_state(
     })
 }
 
+pub fn flush_window_state(app: &AppHandle) {
+    let window = app.get_webview_window("main");
+    if let Some(tracker) = app.try_state::<WindowStateTracker>() {
+        if let Ok(mut guard) = tracker.0.lock() {
+            let captured = window
+                .as_ref()
+                .and_then(|win| capture_window_state(win, guard.latest.as_ref()))
+                .or_else(|| guard.latest.clone());
+            if let Some(state) = captured {
+                guard.latest = Some(state.clone());
+                guard.pending = false;
+                drop(guard);
+                save_window_state(app, &state);
+            }
+        }
+        return;
+    }
+
+    if let Some(win) = window {
+        if let Some(state) = capture_window_state(&win, None) {
+            save_window_state(app, &state);
+        }
+    }
+}
+
 pub fn attach_window_state_listeners(app: AppHandle, window: &WebviewWindow) {
     let initial = load_window_state(&app);
     let tracker = Arc::new(Mutex::new(TrackedState {
         latest: initial,
-        last_saved: None,
+        pending: false,
+        last_event: None,
+        debounce_scheduled: false,
     }));
+    app.manage(WindowStateTracker(Arc::clone(&tracker)));
 
     let win_for_events = window.clone();
     window.on_window_event(move |event| match event {
         WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
-            if let Ok(mut guard) = tracker.lock() {
+            let should_spawn = if let Ok(mut guard) = tracker.lock() {
                 if let Some(captured) =
                     capture_window_state(&win_for_events, guard.latest.as_ref())
                 {
-                    guard.latest = Some(captured.clone());
-                    let should_flush = guard
-                        .last_saved
-                        .map(|t| t.elapsed() >= SAVE_THROTTLE)
-                        .unwrap_or(true);
-                    if should_flush {
-                        save_window_state(&app, &captured);
-                        guard.last_saved = Some(Instant::now());
+                    guard.latest = Some(captured);
+                    guard.pending = true;
+                    guard.last_event = Some(Instant::now());
+                    if !guard.debounce_scheduled {
+                        guard.debounce_scheduled = true;
+                        true
+                    } else {
+                        false
                     }
+                } else {
+                    false
                 }
+            } else {
+                false
+            };
+
+            if should_spawn {
+                let app_for_timer = app.clone();
+                let tracker_for_timer = Arc::clone(&tracker);
+                std::thread::spawn(move || loop {
+                    let sleep_duration = match tracker_for_timer.lock() {
+                        Ok(mut guard) => {
+                            if !guard.pending {
+                                guard.debounce_scheduled = false;
+                                return;
+                            }
+                            let elapsed = guard
+                                .last_event
+                                .map(|t| t.elapsed())
+                                .unwrap_or(SAVE_THROTTLE);
+                            if elapsed < SAVE_THROTTLE {
+                                SAVE_THROTTLE - elapsed
+                            } else {
+                                let state_to_save = guard.latest.clone();
+                                guard.pending = false;
+                                guard.debounce_scheduled = false;
+                                drop(guard);
+                                if let Some(state) = state_to_save {
+                                    save_window_state(&app_for_timer, &state);
+                                }
+                                return;
+                            }
+                        }
+                        Err(_) => return,
+                    };
+                    std::thread::sleep(sleep_duration);
+                });
             }
         }
         WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed => {
             if let Ok(mut guard) = tracker.lock() {
-                if let Some(captured) =
-                    capture_window_state(&win_for_events, guard.latest.as_ref())
-                {
-                    guard.latest = Some(captured.clone());
-                    save_window_state(&app, &captured);
-                    guard.last_saved = Some(Instant::now());
-                } else if let Some(existing) = guard.latest.as_ref() {
-                    save_window_state(&app, existing);
-                    guard.last_saved = Some(Instant::now());
+                let state_to_save = capture_window_state(&win_for_events, guard.latest.as_ref())
+                    .or_else(|| guard.latest.clone());
+                if let Some(state) = state_to_save {
+                    guard.latest = Some(state.clone());
+                    guard.pending = false;
+                    drop(guard);
+                    save_window_state(&app, &state);
                 }
             }
         }

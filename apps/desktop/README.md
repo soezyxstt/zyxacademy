@@ -39,7 +39,7 @@ The desktop window allows resizing down to `480x540` so Zyx can sit side by side
 
 ## Signed in-app updates (Tauri Updater)
 
-The app integrates `tauri-plugin-updater` and `tauri-plugin-process` for signature-verified in-app updates with automatic restart. When updater signing keys are not configured, it gracefully falls back to downloading and launching the GitHub Release installer.
+The app integrates `tauri-plugin-updater` for signature-verified in-app updates with automatic restart. When updater signing keys are not configured, it gracefully falls back to downloading and launching the GitHub Release installer.
 
 To enable signed in-app updater artifacts in CI:
 
@@ -66,7 +66,7 @@ npm run info
 
 ## Capabilities
 
-`src-tauri/capabilities/default.json` grants `core:default`, `notification:default`, `opener:default`, `deep-link:default`, `process:default`, and `updater:default` to the `main` window and allows remote access from:
+`src-tauri/capabilities/default.json` grants `core:default`, `notification:default`, `opener:default`, and `deep-link:default` to the `main` window and allows remote access from:
 
 - `https://www.zyxacademy.com/*`
 - `https://staging.zyxacademy.com/*`

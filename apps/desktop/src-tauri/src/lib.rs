@@ -256,6 +256,7 @@ async fn install_native_update(app: AppHandle) -> Result<String, String> {
     let restart_handle = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(250));
+        window_state::flush_window_state(&restart_handle);
         restart_handle.restart();
     });
 
@@ -480,7 +481,6 @@ pub fn run() {
                 focus_main_window(app);
             }
         }))
-        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())

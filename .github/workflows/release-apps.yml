@@ -326,21 +326,29 @@ jobs:
           path: dist-artifacts
           merge-multiple: true
 
-      - name: Generate checksums and publish GitHub Release
+      - name: Generate updater manifest, checksums, and publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          cd dist-artifacts
-          sha256sum * > SHA256SUMS.txt
-          ls -lh
-
           TAG="${{ needs.prepare.outputs.tag }}"
           TITLE="${{ needs.prepare.outputs.release_title }}"
           CHANNEL="${{ needs.prepare.outputs.channel }}"
+          VERSION="${{ needs.prepare.outputs.version }}"
           DEFAULT_URL="${{ needs.prepare.outputs.default_url }}"
           PRERELEASE="${{ needs.prepare.outputs.prerelease }}"
+
+          node apps/desktop/scripts/generate-updater-manifest.mjs \
+            --dir dist-artifacts \
+            --channel "$CHANNEL" \
+            --version "$VERSION" \
+            --tag "$TAG" \
+            --notes "$TITLE"
+
+          cd dist-artifacts
+          sha256sum * > SHA256SUMS.txt
+          ls -lh
 
           NOTES=$(cat <<EOF
           ## ${TITLE}

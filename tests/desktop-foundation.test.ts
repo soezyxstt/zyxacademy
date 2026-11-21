@@ -1,14 +1,20 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   checkLatestAppRelease,
   checkTauriNativeUpdater,
   installAppUpdate,
   resolveUpdateCheckOutcome,
+  selectLatestUpdaterManifestUrl,
   type InstalledAppMeta,
   type LatestAppRelease,
 } from "@/lib/native/updates";
+import {
+  buildUpdaterManifest,
+  manifestFileNameForChannel,
+} from "../apps/desktop/scripts/generate-updater-manifest.mjs";
 
 const DESKTOP_TAURI_DIR = join(process.cwd(), "apps", "desktop", "src-tauri");
 
@@ -129,6 +135,115 @@ describe("desktop update check status distinction", () => {
       { status: "up_to_date" },
     );
     expect(upToDateViaNative.status).toBe("up_to_date");
+  });
+
+  test("overrides cached release version when signed native updater reports a newer version", () => {
+    const outcome = resolveUpdateCheckOutcome(
+      INSTALLED_META,
+      { status: "ok", release: { ...SAMPLE_RELEASE, version: "0.2.0", buildId: "b1" } },
+      { status: "update_available", version: "0.2.1", notes: "Hotfix" },
+    );
+    expect(outcome.status).toBe("update_available");
+    if (outcome.status === "update_available") {
+      expect(outcome.nativeUpdaterReady).toBe(true);
+      expect(outcome.latest.version).toBe("0.2.1");
+      expect(outcome.latest.buildId).toBeNull();
+    }
+  });
+});
+
+describe("Tauri v2 updater manifest generation and channel selection", () => {
+  test("selects latest channel manifest asset including GitHub prereleases", () => {
+    const releases = [
+      {
+        tag_name: "app-v0.2.0",
+        draft: false,
+        published_at: "2026-11-21T10:00:00Z",
+        html_url: "https://github.com/soezyxstt/zyxacademy/releases/tag/app-v0.2.0",
+        assets: [
+          {
+            name: "latest.json",
+            browser_download_url:
+              "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.2.0/latest.json",
+          },
+        ],
+      },
+      {
+        tag_name: "app-v0.2.0-alpha.5-nightly.20261121.abc1234",
+        draft: false,
+        published_at: "2026-11-21T12:00:00Z",
+        html_url:
+          "https://github.com/soezyxstt/zyxacademy/releases/tag/app-v0.2.0-alpha.5-nightly.20261121.abc1234",
+        assets: [
+          {
+            name: "latest-nightly.json",
+            browser_download_url:
+              "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.2.0-alpha.5-nightly.20261121.abc1234/latest-nightly.json",
+          },
+        ],
+      },
+    ];
+
+    expect(selectLatestUpdaterManifestUrl(releases, "nightly")).toBe(
+      "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.2.0-alpha.5-nightly.20261121.abc1234/latest-nightly.json",
+    );
+    expect(selectLatestUpdaterManifestUrl(releases, "stable")).toBe(
+      "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.2.0/latest.json",
+    );
+  });
+
+  test("builds Tauri v2 manifest for signed desktop artifacts and skips unsigned builds", () => {
+    expect(manifestFileNameForChannel("nightly")).toBe("latest-nightly.json");
+    expect(manifestFileNameForChannel("stable")).toBe("latest.json");
+
+    const dir = mkdtempSync(join(tmpdir(), "zyx-updater-manifest-"));
+    try {
+      writeFileSync(join(dir, "zyx-windows-x64.exe"), "binary");
+      expect(
+        buildUpdaterManifest({
+          version: "0.2.0",
+          notes: "Release",
+          tag: "app-v0.2.0",
+          artifactsDir: dir,
+        }),
+      ).toBeNull();
+
+      writeFileSync(join(dir, "zyx-windows-x64.exe.sig"), "WIN_SIG_DATA\n");
+      writeFileSync(join(dir, "zyx-macos-aarch64.app.tar.gz"), "binary");
+      writeFileSync(join(dir, "zyx-macos-aarch64.app.tar.gz.sig"), "MAC_SIG_DATA\n");
+      writeFileSync(join(dir, "zyx-linux-x64.AppImage"), "binary");
+      writeFileSync(join(dir, "zyx-linux-x64.AppImage.sig"), "LINUX_SIG_DATA\n");
+
+      const manifest = buildUpdaterManifest({
+        version: "v0.2.0-alpha.5",
+        notes: "Nightly build",
+        pubDate: "2026-11-21T12:00:00Z",
+        tag: "app-v0.2.0-alpha.5-nightly.20261121.abc1234",
+        artifactsDir: dir,
+      });
+
+      expect(manifest).toEqual({
+        version: "0.2.0-alpha.5",
+        notes: "Nightly build",
+        pub_date: "2026-11-21T12:00:00Z",
+        platforms: {
+          "windows-x86_64": {
+            signature: "WIN_SIG_DATA",
+            url: "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.2.0-alpha.5-nightly.20261121.abc1234/zyx-windows-x64.exe",
+          },
+          "darwin-aarch64": {
+            signature: "MAC_SIG_DATA",
+            url: "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.2.0-alpha.5-nightly.20261121.abc1234/zyx-macos-aarch64.app.tar.gz",
+          },
+          "linux-x86_64": {
+            signature: "LINUX_SIG_DATA",
+            url: "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.2.0-alpha.5-nightly.20261121.abc1234/zyx-linux-x64.AppImage",
+          },
+        },
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -256,22 +371,31 @@ describe("desktop Tauri configuration invariants", () => {
     }
   });
 
-  test("registers single-instance, updater, and process plugins in Cargo.toml and capabilities", () => {
+  test("registers single-instance and updater plugins without unused remote capabilities", () => {
     const cargoToml = readFileSync(join(DESKTOP_TAURI_DIR, "Cargo.toml"), "utf8");
     expect(cargoToml).toContain("tauri-plugin-single-instance");
     expect(cargoToml).toContain("tauri-plugin-updater");
-    expect(cargoToml).toContain("tauri-plugin-process");
+    expect(cargoToml).not.toContain("tauri-plugin-process");
 
     const capabilities = JSON.parse(
       readFileSync(join(DESKTOP_TAURI_DIR, "capabilities", "default.json"), "utf8"),
     ) as { permissions: string[] };
-    expect(capabilities.permissions).toContain("updater:default");
-    expect(capabilities.permissions).toContain("process:default");
+    expect(capabilities.permissions).not.toContain("updater:default");
+    expect(capabilities.permissions).not.toContain("process:default");
 
     const libRs = readFileSync(join(DESKTOP_TAURI_DIR, "src", "lib.rs"), "utf8");
     expect(libRs).toContain("if has_updater_config(app.handle())");
-    expect(libRs).not.toContain(
-      ".plugin(tauri_plugin_process::init())\n        .plugin(tauri_plugin_updater::Builder::new().build())",
+    expect(libRs).not.toContain("tauri_plugin_process");
+    expect(libRs).toContain("window_state::flush_window_state(&restart_handle);");
+
+    const windowStateRs = readFileSync(
+      join(DESKTOP_TAURI_DIR, "src", "window_state.rs"),
+      "utf8",
     );
+    const setPosIdx = windowStateRs.indexOf("window.set_position(");
+    const setSizeIdx = windowStateRs.indexOf("window.set_size(");
+    expect(setPosIdx).toBeGreaterThan(-1);
+    expect(setSizeIdx).toBeGreaterThan(setPosIdx);
+    expect(windowStateRs).toContain("monitor.work_area()");
   });
 });

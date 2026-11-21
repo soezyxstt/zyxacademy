@@ -49,18 +49,23 @@ if (explicitVersion && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(explicitVersio
 }
 
 const updaterPubkey = process.env.TAURI_UPDATER_PUBKEY?.trim();
-const defaultUpdaterEndpoint =
+const defaultUpdaterEndpoints =
   channel === "nightly"
-    ? "https://github.com/soezyxstt/zyxacademy/releases/latest/download/latest-nightly.json"
-    : "https://github.com/soezyxstt/zyxacademy/releases/latest/download/latest.json";
-const updaterEndpoint =
-  process.env.TAURI_UPDATER_ENDPOINT?.trim() || defaultUpdaterEndpoint;
+    ? ["https://staging.zyxacademy.com/api/app/updater?channel=nightly"]
+    : [
+        "https://www.zyxacademy.com/api/app/updater?channel=stable",
+        "https://github.com/soezyxstt/zyxacademy/releases/latest/download/latest.json",
+      ];
+const explicitUpdaterEndpoint = process.env.TAURI_UPDATER_ENDPOINT?.trim();
+const updaterEndpoints = explicitUpdaterEndpoint
+  ? [explicitUpdaterEndpoint]
+  : defaultUpdaterEndpoints;
 
 if (updaterPubkey) {
   overrideConfig.plugins = {
     updater: {
       pubkey: updaterPubkey,
-      endpoints: [updaterEndpoint],
+      endpoints: updaterEndpoints,
     },
   };
   if (command === "build" && process.env.TAURI_SIGNING_PRIVATE_KEY?.trim()) {
