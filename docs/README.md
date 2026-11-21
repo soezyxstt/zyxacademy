@@ -2,6 +2,8 @@
 
 `ACTIVE` local source: the [gamification contract](gamification.md) records removal of the admin Gamification navigation, page and browser actions. Student rewards and existing checklist data remain intact. Hosted rollout is unverified.
 
+`OPEN / IN PROGRESS`: Google Calendar schedule sync uses migration 0040 after the upstream push-transport migration and is implemented locally with personal offline consent, a shared-host primary calendar, daily queue dispatch and manual toolbar controls. [Features](features.md), [architecture](ARCHITECTURE.md), [schema](DB_SCHEMA.md), [setup and token rotation](DEVELOPMENT.md#google-calendar-schedule-sync), and [deployment](DEPLOYMENT.md) describe the contract. Local focused checks do not establish live Google OAuth, staging or production acceptance.
+
 The `ACTIVE` [feature catalog](features.md) records transactional group redemption, tryout submission recovery, private file delivery and durable live quiz answers. The staging archive recovery contract is documented for [Idea](bundle/idea-bundle-v2.md) (`TRANSITIONAL / LEGACY`) and [Product](bundle/product-bundle-v4.md) (`ACTIVE`). Hosted rollout is unverified.
 
 `OPEN / IN PROGRESS`, [recovered mascot draft](handoffs/mascot-glb-shop-draft.md), 2026-11-18: four GLB companions extend the existing LP shop/profile slot, bringing the local catalog to 32 entries. The branch includes 153 compressed GLBs and eight posters. Focused SQL/asset checks pass; browser acceptance, complete build, current-journal seed validation and hosted rollout remain open. The next agent continues from the draft PR.

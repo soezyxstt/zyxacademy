@@ -580,6 +580,10 @@ The canonical scheduling workflow uses concrete, date-specific 90-minute tutor s
 - Fixed 90-Minute Slots:
   - Tutors open concrete availability slots of exactly 90 minutes. The server rejects other durations and the tutor form auto-computes the end time.
   - Copying the previous week creates new concrete rows for the target week. It never creates an unbounded recurring browser event.
+- Google Calendar sync (local implementation, live OAuth and deployment unverified):
+  - Students and tutors can grant Calendar permission from the calendar toolbar. Their relevant schedules mirror to their primary Google Calendar daily at 03:00 WIB, with a manual sync action and last-sync/error feedback. Ordinary sign-in does not grant Calendar permission.
+  - Admins can manually sync the primary calendar of the Zyx host account behind the shared Google refresh token. The same daily worker mirrors all concrete bookings and dated published academic/assessment/PKA events. Unbooked availability is excluded. See the Google Calendar setup in `docs/DEVELOPMENT.md`.
+  - Sync is one way and uses stable event IDs. Future events that are cancelled, unpublished or no longer in scope are removed only from the Zyx-managed set; past history and unrelated Google events remain.
 - Google Meet Automation:
   - Online sessions provision a dedicated Google Meet space lazily as soon as the slot is booked, moved, or a reschedule ticket is approved; links render immediately for tutors and students. Admins can batch-generate missing links from the admin dashboard.
   - Offline sessions require tutors to specify explicit physical room or branch locations.

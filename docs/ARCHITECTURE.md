@@ -1,5 +1,9 @@
 # Zyx Academy Architecture (vNext)
 
+### Google Calendar schedule mirror
+
+A registered daily cron and authenticated manual requests dispatch `google-calendar/sync.requested` through the active queue adapter. The worker loads the same full scoped snapshot before reconciling managed future events. Personal scope follows active account roles, study-group membership and enrolled/assigned courses; the central host receives all concrete booked and published dated schedules. Personal OAuth grants use Better Auth, while the central mirror reuses the existing host refresh token and its primary calendar. Source schedules remain authoritative. Target serialization uses Inngest concurrency or the existing Cloud Tasks transaction lock; stable Google event IDs cover ambiguous insert retries. The status table contains no credentials. Live OAuth, external API acceptance and deployment remain unverified.
+
 ### Discussion post35 integration boundaries
 
 Unconfirmed router responses terminate the model chain before another provider attempt. Repair errors retain the executor's uncertain classification; conversational tutoring returns an explicit provider-unavailable failure and uncertainty telemetry instead of a successful greeting. Staff layouts and discussion pages share creation-winner-only legacy identity provisioning before canonical role checks. Authoritative authentication-page session verification replaces cookie-presence redirects.

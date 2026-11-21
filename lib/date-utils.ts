@@ -15,7 +15,7 @@
  * - For UTC date strings in DB columns (streaks, recommendations), use `todayUtc()`.
  */
 
-import { addDays, addMilliseconds, format, getUnixTime, getISODay, subMinutes, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
+import { addMinutes, addDays, addMilliseconds, format, getUnixTime, getISODay, subMinutes, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
 
 /** Monday is index 0, using the local calendar day. */
 export function localWeekdayIndex(date: Date): number { return getISODay(date) - 1; }
@@ -516,4 +516,8 @@ export function gamificationMissionWindows(date: Date) {
     day: { key: dayKey, startsAt: startOfJakartaDayUtc(date), endsAt: nextJakartaReset(date) },
     week: { key: `week:${week.startIso}`, startsAt: new Date(`${week.startIso}T00:00:00.000+07:00`), endsAt: new Date(`${addCalendarDays(week.endIso, 1)}T00:00:00.000+07:00`) },
   };
+}
+
+export function minutesFrom(minutes: number, date = new Date()): Date {
+  return addMinutes(date, minutes);
 }

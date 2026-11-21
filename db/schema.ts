@@ -6647,3 +6647,12 @@ export const queueTaskCheckpoints = pgTable("queue_task_checkpoints", {
  primaryKey({ columns: [table.task, table.step] }),
  index("queue_task_checkpoints_recorded_at_idx").on(table.recordedAt),
 ]);
+
+/** Sync metadata only. OAuth credentials remain in Better Auth accounts. */
+export const googleCalendarSync = pgTable("google_calendar_sync", {
+  target: text("target").primaryKey(),
+  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+  requestedAt: timestamp("requested_at", { withTimezone: true }),
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  error: text("error").$type<"reconnect" | "failed">(),
+});

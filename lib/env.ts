@@ -23,7 +23,7 @@ export const env = createEnv({
  BETTER_AUTH_SECRET: z.string().min(1),
  GOOGLE_CLIENT_ID: z.string(),
  GOOGLE_CLIENT_SECRET: z.string(),
- /** Primary Google OAuth Refresh Token for Google Workspace REST APIs (Meet, Forms, Sheets, Drive) */
+ /** Primary Google OAuth Refresh Token for Google Workspace REST APIs (Meet, Forms, Sheets, Drive, Calendar) */
  GOOGLE_REFRESH_TOKEN: z.string().optional(),
  /** Resend API Key for sending transactional emails. */
  RESEND_API_KEY: z.string().min(1),
