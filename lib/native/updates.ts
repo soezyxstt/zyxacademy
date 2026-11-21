@@ -81,10 +81,24 @@ export function parseReleaseTag(tag: string): {
   return null;
 }
 
+function parsePublishedAtMs(value: string | null | undefined): number {
+  if (!value) return -1;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : -1;
+}
+
+function parseStableBuildNumber(buildId: string | null | undefined): number | null {
+  if (!buildId) return null;
+  const match = /^b(\d+)$/i.exec(buildId);
+  return match ? Number(match[1]) : null;
+}
+
 export function selectLatestReleaseForChannel(
   releases: readonly GitHubReleaseItem[],
   channel: AppUpdateChannel,
 ): LatestAppRelease | null {
+  const candidates: Array<{ release: LatestAppRelease; publishedAtMs: number }> = [];
+
   for (const item of releases) {
     if (item.draft || !item.tag_name || !item.html_url) continue;
     const parsed = parseReleaseTag(item.tag_name);
@@ -95,23 +109,40 @@ export function selectLatestReleaseForChannel(
       assets.find((asset) => asset.name?.toLowerCase().endsWith(suffix))
         ?.browser_download_url ?? null;
 
-    return {
-      channel,
-      tag: item.tag_name,
-      version: parsed.version,
-      buildId: parsed.buildId,
-      publishedAt: item.published_at ?? null,
-      releaseUrl: item.html_url,
-      downloads: {
-        android: findAsset(".apk"),
-        windows: findAsset(".exe"),
-        macos: findAsset(".dmg"),
-        linuxDeb: findAsset(".deb"),
-        linuxAppImage: findAsset(".appimage"),
+    candidates.push({
+      publishedAtMs: parsePublishedAtMs(item.published_at),
+      release: {
+        channel,
+        tag: item.tag_name,
+        version: parsed.version,
+        buildId: parsed.buildId,
+        publishedAt: item.published_at ?? null,
+        releaseUrl: item.html_url,
+        downloads: {
+          android: findAsset(".apk"),
+          windows: findAsset(".exe"),
+          macos: findAsset(".dmg"),
+          linuxDeb: findAsset(".deb"),
+          linuxAppImage: findAsset(".appimage"),
+        },
       },
-    };
+    });
   }
-  return null;
+
+  if (candidates.length === 0) return null;
+
+  candidates.sort((a, b) => {
+    if (b.publishedAtMs !== a.publishedAtMs) {
+      return b.publishedAtMs - a.publishedAtMs;
+    }
+    const semverDiff = compareSemver(b.release.version, a.release.version);
+    if (semverDiff !== 0) return semverDiff;
+    const buildA = parseStableBuildNumber(a.release.buildId) ?? -1;
+    const buildB = parseStableBuildNumber(b.release.buildId) ?? -1;
+    return buildB - buildA;
+  });
+
+  return candidates[0].release;
 }
 
 function parseSemverParts(version: string): {
@@ -180,11 +211,10 @@ export function isUpdateAvailable(
     return installed.buildId.toLowerCase() !== latest.buildId.toLowerCase();
   }
 
-  const latestBuildNum = /^b(\d+)$/i.exec(latest.buildId ?? "");
-  if (!latestBuildNum) return false;
-  const installedBuildNum = /^b(\d+)$/i.exec(installed.buildId ?? "");
-  const installedNum = installedBuildNum ? Number(installedBuildNum[1]) : 0;
-  return Number(latestBuildNum[1]) > installedNum;
+  const latestBuildNum = parseStableBuildNumber(latest.buildId);
+  if (latestBuildNum === null) return false;
+  const installedNum = parseStableBuildNumber(installed.buildId) ?? 0;
+  return latestBuildNum > installedNum;
 }
 
 export function parseInstalledAppMetaFromUa(input: {
