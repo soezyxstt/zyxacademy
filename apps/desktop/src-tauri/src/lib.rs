@@ -112,7 +112,8 @@ fn validate_update_download_url(raw_url: &str) -> Result<(Url, String), String> 
         return Err("Unsupported update file type".to_string());
     }
 
-    Ok((parsed, asset.to_string()))
+    let asset_name = asset.to_string();
+    Ok((parsed, asset_name))
 }
 
 fn is_allowed_redirect_host(host: &str) -> bool {
