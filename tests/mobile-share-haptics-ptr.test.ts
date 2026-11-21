@@ -301,7 +301,7 @@ describe("Item #10: OS Share, Save, and Open Files", () => {
     };
     globalThis.fetch = (async () => {
       throw new TypeError("Failed to fetch");
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     const crossOrigin = await saveAuthorizedFile({
       url: "https://signed.storage.example/diktat.pdf",
@@ -334,7 +334,7 @@ describe("Item #10: OS Share, Save, and Open Files", () => {
         },
       },
     };
-    globalThis.fetch = (async () => new Response("ok", { status: 200 })) as typeof fetch;
+    globalThis.fetch = (async () => new Response("ok", { status: 200 })) as unknown as typeof fetch;
 
     const result = await saveAuthorizedFile({
       url: "/api/discussions/attachments/att_123?download=1",
