@@ -145,8 +145,44 @@ fn get_app_update_info() -> AppUpdateInfo {
     }
 }
 
+fn is_updater_config_valid(updater_value: Option<&serde_json::Value>) -> bool {
+    let Some(obj) = updater_value.and_then(|v| v.as_object()) else {
+        return false;
+    };
+
+    let has_pubkey = obj
+        .get("pubkey")
+        .and_then(|v| v.as_str())
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false);
+
+    let has_endpoints = obj
+        .get("endpoints")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .any(|item| item.as_str().map(|s| !s.trim().is_empty()).unwrap_or(false))
+        })
+        .unwrap_or(false);
+
+    has_pubkey && has_endpoints
+}
+
+fn has_updater_config(app: &AppHandle) -> bool {
+    is_updater_config_valid(app.config().plugins.0.get("updater"))
+}
+
 #[tauri::command]
 async fn check_native_updater(app: AppHandle) -> Result<NativeUpdaterCheckResult, String> {
+    if !has_updater_config(&app) {
+        return Ok(NativeUpdaterCheckResult {
+            configured: false,
+            update_available: false,
+            version: None,
+            notes: None,
+        });
+    }
+
     let updater = match app.updater() {
         Ok(updater) => updater,
         Err(_) => {
@@ -178,6 +214,10 @@ async fn check_native_updater(app: AppHandle) -> Result<NativeUpdaterCheckResult
 
 #[tauri::command]
 async fn install_native_update(app: AppHandle) -> Result<String, String> {
+    if !has_updater_config(&app) {
+        return Err("NATIVE_UPDATER_UNCONFIGURED".to_string());
+    }
+
     let updater = app
         .updater()
         .map_err(|_| "NATIVE_UPDATER_UNCONFIGURED".to_string())?;
@@ -441,7 +481,6 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
@@ -452,6 +491,11 @@ pub fn run() {
             download_and_launch_update
         ])
         .setup(move |app| {
+            if has_updater_config(app.handle()) {
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
+            }
+
             if let Some(window) = app.get_webview_window("main") {
                 window_state::restore_window_geometry(app.handle(), &window);
                 window_state::attach_window_state_listeners(app.handle().clone(), &window);
@@ -570,5 +614,36 @@ mod tests {
         // Plain launch without deep link returns None (will just focus window)
         let plain = vec!["/usr/bin/zyx-academy-desktop".to_string()];
         assert!(extract_deep_link_from_args(&plain, "zyxacademy").is_none());
+    }
+
+    #[test]
+    fn validates_updater_plugin_config_before_registration() {
+        assert!(!is_updater_config_valid(None));
+
+        let empty_obj = serde_json::json!({});
+        assert!(!is_updater_config_valid(Some(&empty_obj)));
+
+        let missing_endpoints = serde_json::json!({
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6..."
+        });
+        assert!(!is_updater_config_valid(Some(&missing_endpoints)));
+
+        let blank_pubkey = serde_json::json!({
+            "pubkey": "   ",
+            "endpoints": ["https://github.com/soezyxstt/zyxacademy/releases/latest/download/latest.json"]
+        });
+        assert!(!is_updater_config_valid(Some(&blank_pubkey)));
+
+        let blank_endpoints = serde_json::json!({
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6...",
+            "endpoints": ["  "]
+        });
+        assert!(!is_updater_config_valid(Some(&blank_endpoints)));
+
+        let valid = serde_json::json!({
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6...",
+            "endpoints": ["https://github.com/soezyxstt/zyxacademy/releases/latest/download/latest.json"]
+        });
+        assert!(is_updater_config_valid(Some(&valid)));
     }
 }

@@ -267,5 +267,11 @@ describe("desktop Tauri configuration invariants", () => {
     ) as { permissions: string[] };
     expect(capabilities.permissions).toContain("updater:default");
     expect(capabilities.permissions).toContain("process:default");
+
+    const libRs = readFileSync(join(DESKTOP_TAURI_DIR, "src", "lib.rs"), "utf8");
+    expect(libRs).toContain("if has_updater_config(app.handle())");
+    expect(libRs).not.toContain(
+      ".plugin(tauri_plugin_process::init())\n        .plugin(tauri_plugin_updater::Builder::new().build())",
+    );
   });
 });
