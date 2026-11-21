@@ -2,7 +2,7 @@ import { expect, spyOn, test } from "bun:test";
 import { googleGatewayClient } from "../../lib/ai/provider/google-gateway-client";
 const env = {CF_AI_GATEWAY_URL:"https://gateway.ai.cloudflare.com/v1/account/gateway", CF_AI_GATEWAY_TOKEN:"test"};
 for (const status of [400, 422, 429, 503]) test(`preserves HTTP ${status} without SDK retries`, async () => {
-  const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(async () => Response.json({
+  const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(Response.json({
     error: { code: status, message: "fixture failure" },
   }, { status }));
   try {
