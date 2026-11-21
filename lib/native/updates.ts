@@ -87,6 +87,12 @@ function parsePublishedAtMs(value: string | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : -1;
 }
 
+function parseStableBuildNumber(buildId: string | null | undefined): number | null {
+  if (!buildId) return null;
+  const match = /^b(\d+)$/i.exec(buildId);
+  return match ? Number(match[1]) : null;
+}
+
 export function selectLatestReleaseForChannel(
   releases: readonly GitHubReleaseItem[],
   channel: AppUpdateChannel,
@@ -205,11 +211,10 @@ export function isUpdateAvailable(
     return installed.buildId.toLowerCase() !== latest.buildId.toLowerCase();
   }
 
-  const latestBuildNum = /^b(\d+)$/i.exec(latest.buildId ?? "");
-  if (!latestBuildNum) return false;
-  const installedBuildNum = /^b(\d+)$/i.exec(installed.buildId ?? "");
-  const installedNum = installedBuildNum ? Number(installedBuildNum[1]) : 0;
-  return Number(latestBuildNum[1]) > installedNum;
+  const latestBuildNum = parseStableBuildNumber(latest.buildId);
+  if (latestBuildNum === null) return false;
+  const installedNum = parseStableBuildNumber(installed.buildId) ?? 0;
+  return latestBuildNum > installedNum;
 }
 
 export function parseInstalledAppMetaFromUa(input: {
