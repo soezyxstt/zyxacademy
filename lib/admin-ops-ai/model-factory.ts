@@ -2,9 +2,7 @@ import { geminiKeyPool, type GeminiKey } from "@/lib/gemini-keys";
 import {
   MODEL_IDS,
   assertOrdinaryRoutingAllowed,
-  modelSupportsAiGateway,
 } from "@/lib/ai/provider/model-registry";
-import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { logAiRequest } from "@/lib/ai/analytics";
 import { ProviderAdapterError } from "@/lib/ai/provider/errors";
 import { type GoogleGenAI } from "@google/genai";
@@ -101,12 +99,8 @@ export function getOpsAiModelKey(
     });
   }
 
-  const viaGateway = Boolean(
-    zyraRuntimeEnv.CF_AI_GATEWAY_URL && modelSupportsAiGateway(modelId)
-  );
-  const client = viaGateway && bestKey.clientGateway
-    ? bestKey.clientGateway
-    : bestKey.client;
+  const viaGateway = true;
+  const client = bestKey.client;
 
   return {
     key: bestKey,

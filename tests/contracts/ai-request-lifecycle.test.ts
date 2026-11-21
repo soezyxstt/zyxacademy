@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { ControlPlaneClient } from "@/lib/ai/control-plane-client";
 import { ProviderAdapterError } from "@/lib/ai/provider/errors";
 import type { ProviderGenerationResult } from "@/lib/ai/provider/provider-adapter";
-import { RequestLifecycle, type RequestLifecycleDependencies } from "@/lib/ai/request-lifecycle";
+import { ProviderNotDispatchedError, RequestLifecycle, type RequestLifecycleDependencies } from "@/lib/ai/request-lifecycle";
 
 function appLease() {
   return {
@@ -98,6 +98,22 @@ function dependencies(overrides: Partial<RequestLifecycleDependencies> = {}) {
 }
 
 describe("Plan 005 request lifecycle", () => {
+  it("releases an unavailable provider slot and dispatches the next model under the same allowance", async () => {
+    const fixture = dependencies({
+      resolveModelChain: async () => ["openai-gpt", "deepseek-text"],
+      prepareProvider: input => {
+        if (input.modelId === "openai-gpt") throw new ProviderNotDispatchedError("all keys cooling down");
+        return async () => result(input.modelId);
+      },
+    });
+    const output = await new RequestLifecycle(fixture.dependencies).execute({
+      userId: "user-1", feature: "playground", parts: [{type:"text",text:"test"}],
+    });
+    expect(output.modelId).toBe("deepseek-text");
+    expect(fixture.events.filter(x => x === "cp.refund")).toHaveLength(1);
+    expect(fixture.events.filter(x => x === "allowance.dispatch")).toHaveLength(1);
+    expect(fixture.events).not.toContain("allowance.refund");
+  });
   it("waits for an in-flight duplicate instead of dispatching a second provider call", async () => {
     let providerCalls = 0;
     let releaseProvider!: () => void;

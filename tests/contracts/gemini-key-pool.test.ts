@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import { ProviderAdapterError } from "@/lib/ai/provider/errors";
 import { GeminiKeyPool } from "@/lib/gemini-keys";
 
@@ -25,4 +25,21 @@ describe("Gemini key health classification", () => {
     expect(diagnostic?.cooldownRemainingMs).toBe(0);
     expect(diagnostic?.circuitState).toBe("CLOSED");
   });
+});
+
+it("recovers a project-scoped key when its circuit cooldown expires", () => {
+  const pool = new GeminiKeyPool();
+  const alias = pool.getAllKeys()[0].projectAlias;
+  const now = Date.now();
+  const clock = spyOn(Date, "now").mockReturnValue(now);
+  try {
+    for (const key of pool.getAllKeys().filter(key => key.projectAlias === alias)) {
+      for (let attempt = 0; attempt < 3; attempt++) pool.markFailure(key.id, "gemini-2.5-flash", new Error("unavailable"));
+    }
+    expect(pool.getKeyByProjectAlias(alias)).toBeNull();
+    clock.mockReturnValue(now + 300_001);
+    expect(pool.getKeyByProjectAlias(alias)?.projectAlias).toBe(alias);
+  } finally {
+    clock.mockRestore();
+  }
 });

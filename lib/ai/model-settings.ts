@@ -1,7 +1,8 @@
+import { officialRelease } from "./provider/recent-models";
 import { z } from "zod";
 import {
   MODEL_IDS,
-  MODEL_REGISTRY,
+  supportsTextProvider, MODEL_REGISTRY, TEXT_PROFILES, isTextProfile, textProfileIds,
   ROUTE_POLICY,
   getModelEntry,
   type ModelFamily,
@@ -270,10 +271,7 @@ const FEATURE_DEFINITION_MAP = new Map<ModelFeature, (typeof MODEL_FEATURE_CATAL
 );
 
 const MODEL_DISPLAY_NAMES: Readonly<Partial<Record<ModelId, string>>> = {
-  [MODEL_IDS.default]: "Gemini 3.5 Flash Lite",
   [MODEL_IDS.fallbackFlashLite]: "Gemini 3.1 Flash Lite",
-  [MODEL_IDS.premiumPedagogy]: "Gemini 3.5 Flash",
-  [MODEL_IDS.premiumVisual]: "Gemini 3.6 Flash",
   [MODEL_IDS.stableFlash]: "Gemini 2.5 Flash",
   [MODEL_IDS.stableFlashLite]: "Gemini 2.5 Flash Lite",
   [MODEL_IDS.emergencyText]: "Gemma 4 31B IT",
@@ -289,7 +287,7 @@ export interface SelectableModelOption {
 }
 
 export const selectableModels: readonly ModelId[] = Object.values(MODEL_REGISTRY)
-  .filter((entry) => entry.ordinaryRoutingAllowed && entry.operations.includes("generate"))
+  .filter((entry) => entry.family !== "chat-completions" && entry.ordinaryRoutingAllowed && entry.operations.includes("generate"))
   .map((entry) => entry.id);
 
 export const generateContentSelectableModels: readonly ModelId[] = selectableModels.filter(
@@ -309,14 +307,14 @@ export function selectableModelsForFeature(feature: ModelFeature): readonly Mode
   if (def.requiresStreamingTools) {
     return generateContentSelectableModels;
   }
-  return selectableModels;
+  return supportsTextProvider(feature) ? [...selectableModels, ...textProfileIds] : selectableModels;
 }
 
 export function getSelectableModelOption(id: ModelId): SelectableModelOption {
   const entry = getModelEntry(id);
   return {
     id,
-    label: MODEL_DISPLAY_NAMES[id] ?? id,
+    label: isTextProfile(id) ? TEXT_PROFILES[id].label : officialRelease(id)?.label ?? MODEL_DISPLAY_NAMES[id] ?? id,
     family: entry.family,
     stability: entry.stability,
     supportsImage: entry.input.image,
@@ -336,7 +334,7 @@ const featureEnumValues = MODEL_FEATURE_CATALOG.map((entry) => entry.id) as [
   ModelFeature,
   ...ModelFeature[],
 ];
-const modelEnumValues = selectableModels as [ModelId, ...ModelId[]];
+const modelEnumValues = [...selectableModels, ...textProfileIds] as [ModelId, ...ModelId[]];
 
 export const modelSettingSchema = z
   .object({
@@ -445,6 +443,7 @@ export interface FeatureModelSettingView {
   readonly runtimeDefaultModels: readonly ModelId[];
   readonly editableDefaultModels: readonly [ModelId, ModelId, ModelId];
   readonly selectableModels: readonly ModelId[];
+  readonly modelLabels?: Partial<Record<ModelId, string>>;
   readonly requiresStreamingTools: boolean;
   readonly supportsImages: boolean;
   readonly updatedBy: string | null;

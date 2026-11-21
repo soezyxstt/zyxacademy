@@ -1,5 +1,7 @@
+import { prepareCompatibleText } from "./ai/provider/compatible-text";
 import { configuredModelChain } from "@/lib/ai/model-settings-store";
-import { GoogleGenAI } from "@google/genai";
+import { googleGatewayClient } from "./ai/provider/google-gateway-client";
+import type { GoogleGenAI } from "@google/genai";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { logAiRequest } from "@/lib/ai/analytics";
 import {
@@ -11,7 +13,6 @@ import {
 import {
   EMBEDDING_PROFILES,
   getModelEntry,
-  modelSupportsAiGateway,
 } from "@/lib/ai/provider/model-registry";
 import {
   assertGenerationModel,
@@ -34,17 +35,8 @@ interface ClientPriority {
 
 function getClientsPriority(
   key: typeof geminiKeyPool["keys"][0],
-  allowGateway = true,
 ): ClientPriority[] {
-  const gatewayUrl = zyraRuntimeEnv.CF_AI_GATEWAY_URL;
-  const list: ClientPriority[] = [];
-
-  if (allowGateway && gatewayUrl && key.clientGateway) {
-    list.push({ client: key.clientGateway, viaGateway: true });
-  }
-
-  list.push({ client: key.client, viaGateway: false });
-  return list;
+  return [{ client: key.client, viaGateway: true }];
 }
 
 const EMBEDDING_PROFILE = EMBEDDING_PROFILES["canonical-content-v2"].id;
@@ -135,22 +127,6 @@ function withoutInteractionRetries(client: GeminiInteractionsClient): GeminiInte
   } };
 }
 
-function singleDispatchSdkClient(key: typeof geminiKeyPool["keys"][0], viaGateway: boolean, timeout?: number, headers?: Record<string, string>): GoogleGenAI {
-  return new GoogleGenAI({
-    apiKey: key.key,
-    httpOptions: {
-      ...(viaGateway && zyraRuntimeEnv.CF_AI_GATEWAY_URL ? { baseUrl: zyraRuntimeEnv.CF_AI_GATEWAY_URL } : {}),
-      headers: {
-        ...headers,
-        ...(viaGateway && zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN ? { "cf-aig-authorization": `Bearer ${zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN}` } : {}),
-        ...(viaGateway ? { "cf-aig-max-attempts": "1", "cf-aig-skip-cache": "true" } : {}),
-      },
-      ...(timeout ? { timeout } : {}),
-      retryOptions: { attempts: 1 },
-    },
-  });
-}
-
 function toProviderParts(contents: GenerateContentParams["contents"]): ProviderInputPart[] {
   if (typeof contents === "string") return [{ type: "text", text: contents }];
 
@@ -205,6 +181,9 @@ function prepareProviderThroughControlPlane(input: {
   cacheTtlSeconds?: number;
   singleDispatch?: boolean;
 }): () => Promise<ProviderGenerationResult> {
+  if (getModelEntry(input.modelId).family === "chat-completions") {
+    try { return prepareCompatibleText(input); } catch (error) { throw new ProviderNotDispatchedError("compatible provider unavailable", error); }
+  }
   const key = geminiKeyPool.getKeyByProjectAlias(input.projectAlias);
   if (!key) {
     throw new ProviderNotDispatchedError("selected provider project is not configured");
@@ -212,27 +191,9 @@ function prepareProviderThroughControlPlane(input: {
 
   const entry = assertGenerationModel(input.modelId);
   normalizeInputParts(input.parts, entry);
-  const viaGateway = Boolean(
-    zyraRuntimeEnv.CF_AI_GATEWAY_URL && modelSupportsAiGateway(input.modelId),
-  );
-  const headers = viaGateway
-    ? buildAiGatewayHeaders({
-        requestId: input.requestId,
-        userCohort: input.userCohort,
-        feature: input.feature,
-        routeClass: input.routeClass,
-        modelId: input.modelId,
-        cachePolicy: input.cachePolicy,
-        cacheKey: input.cacheKey,
-        cacheTtlSeconds: input.cacheTtlSeconds,
-        deadlineMs: entry.deadlineMs,
-      })
-    : undefined;
-  const client = input.singleDispatch ? singleDispatchSdkClient(key, viaGateway, entry.deadlineMs, headers) : geminiKeyPool.createRequestClient(input.projectAlias, {
-    viaGateway,
-    timeoutMs: entry.deadlineMs,
-    headers,
-  });
+  const viaGateway = true;
+  const headers = buildAiGatewayHeaders({ ...input, deadlineMs: entry.deadlineMs });
+  const client = googleGatewayClient(key.key, zyraRuntimeEnv, entry.deadlineMs, headers);
   if (!client) {
     throw new ProviderNotDispatchedError("selected provider client is unavailable");
   }
@@ -363,7 +324,7 @@ export async function generateContentWithFallback(
     const response = makeCompatibilityResponse(result.result);
     return {
       response,
-      modelUsed: result.modelId,
+      modelUsed: result.result.upstreamModel ?? result.modelId,
       viaGateway: result.result.viaGateway ?? false,
       promptTokenCount: result.result.usage?.promptTokens,
       candidatesTokenCount: result.result.usage?.outputTokens,
@@ -409,12 +370,12 @@ export async function generateContentWithFallback(
       const key = geminiKeyPool.getBestKey(model);
       if (!key) break;
 
-      const clients = getClientsPriority(key, modelSupportsAiGateway(model));
+      const clients = getClientsPriority(key);
       for (const { client, viaGateway } of clients) {
         const clientLabel = viaGateway ? "gateway" : "direct";
         const startedAt = Date.now();
         try {
-          const providerClient = params.singleDispatch ? singleDispatchClient(singleDispatchSdkClient(key, viaGateway, entry.deadlineMs), viaGateway) : client;
+          const providerClient = params.singleDispatch ? singleDispatchClient(googleGatewayClient(key.key, zyraRuntimeEnv, entry.deadlineMs), viaGateway) : client;
           const adapter = entry.family === "interactions"
             ? createGeminiInteractionsAdapter(withoutInteractionRetries(providerClient))
             : createGeminiGenerateAdapter(providerClient);

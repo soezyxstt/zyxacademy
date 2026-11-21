@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { compatibleDiagnostics } from "@/lib/ai/provider/compatible-text";
 import { geminiKeyPool } from "@/lib/gemini-keys";
 import { MODEL_REGISTRY } from "@/lib/ai/provider/model-registry";
 import { db } from "@/db";
@@ -41,8 +42,9 @@ export async function GET() {
 
     return NextResponse.json({
       checkedAt: new Date().toISOString(),
-      rpdLimits: Object.fromEntries(Object.values(MODEL_REGISTRY).map((entry) => [entry.id, entry.limits.perProjectRpd])),
+      rpdLimits: Object.fromEntries(Object.values(MODEL_REGISTRY).filter(entry => entry.family !== "chat-completions").map((entry) => [entry.id, entry.limits.perProjectRpd])),
       geminiKeys: diagnostics,
+      compatible: compatibleDiagnostics(),
       usageByModel,
       totalRequestsToday: totalTodayDb[0]?.count ?? 0,
     });

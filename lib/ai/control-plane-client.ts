@@ -32,6 +32,8 @@ const transitionSchema = z.union([
 
 const diagnosticsSchema = z.object({
   schemaVersion: z.string(),
+  projectGroupCount: z.number().optional(),
+  providerDay: z.string().optional(),
   activeLeaseCount: z.number(),
   terminalLeaseCount: z.number(),
   counters: z.array(z.object({
@@ -87,6 +89,7 @@ export type ControlPlaneReserveInput = {
   readonly feature: string;
   readonly routeClass: ModelRouteClass;
   readonly modelId: ModelId;
+  probeProjectAlias?: string;
   readonly cacheStatus: "hit" | "miss" | "bypass";
 };
 
@@ -268,7 +271,9 @@ export class ControlPlaneClient {
       if (!parsed || typeof parsed !== "object") {
         throw new ControlPlaneClientError("CONTROL_PLANE_NON_JSON", "control-plane returned a non-JSON response", response.status);
       }
-      if (!response.ok) {
+      const capacityDenial = path === "/quota/reserve" && response.status === 429 &&
+        "status" in parsed && (parsed.status === "quota_exhausted" || parsed.status === "fallback_allowed");
+      if (!response.ok && !capacityDenial) {
         throw new ControlPlaneClientError("CONTROL_PLANE_HTTP_ERROR", "control-plane returned an HTTP error", response.status);
       }
       const result = schema.safeParse(parsed);

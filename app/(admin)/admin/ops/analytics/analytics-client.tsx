@@ -1,5 +1,9 @@
 "use client";
 
+import { modelDisplayName } from "@/lib/ai/provider/recent-models";
+
+import { AdminIconAction } from "@/components/admin/icon-action";
+
 import { AiAnalyticsSkeleton } from "@/components/admin/content-loading-skeletons";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -11,8 +15,6 @@ import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panel
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { Button } from "@/components/ui/button";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
-
-type GatewayMode = "gateway" | "direct" | "unknown";
 
 const LOGS_PER_PAGE = 15;
 
@@ -57,12 +59,6 @@ export function AiAnalyticsClient() {
     refetch,
   } = useQuery(adminAnalyticsQuery(userId ?? ""));
 
-  const gatewayMode: GatewayMode = !stats
-    ? "unknown"
-    : stats.gatewayRequests > 0
-      ? "gateway"
-      : "direct";
-
   if (isPending || !userId) return <AiAnalyticsSkeleton label={t("analyticsUI.loading")} />;
 
   if (error) {
@@ -103,37 +99,16 @@ export function AiAnalyticsClient() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-body-sm text-muted-foreground">
-            {t("analyticsUI.routingMode")}
-          </span>
-          <span
-            className={`rounded-md px-3 py-1 text-body-sm font-semibold ${
-              gatewayMode === "gateway"
-                ? "bg-brand-primary/10 text-brand-primary"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {gatewayMode === "gateway" ? "Cloudflare AI Gateway" : "Direct API"}
-          </span>
-        </div>
+        <p className="text-body-xs text-muted-foreground">{t("analyticsUI.sampleScope")}</p>
         <div className="flex flex-wrap items-center gap-3">
           {refreshedLabel && (
             <span className="text-body-sm text-muted-foreground">
               {t("analyticsUI.refreshed", { time: refreshedLabel })}
             </span>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            id="ai-analytics-refresh"
-            disabled={isFetching}
-            onClick={() => refetch()}
-          >
-            <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin text-brand-primary" : ""}`} />
-            <span>{t("analyticsUI.refresh")}</span>
-          </Button>
+          <AdminIconAction id="ai-analytics-refresh" variant="outline" label={t("analyticsUI.refresh")} onClick={() => void refetch()} disabled={isFetching}>
+            <RefreshCw aria-hidden className={isFetching ? "size-4 animate-spin" : "size-4"} />
+          </AdminIconAction>
         </div>
       </div>
 
@@ -159,12 +134,12 @@ export function AiAnalyticsClient() {
         <AdminStatStripItem
           label="Cloudflare AI Gateway"
           value={stats.gatewayRequests}
-          caption={`${t("analyticsUI.successRate")}: ${stats.gatewaySuccessRate}%`}
+          caption={stats.gatewayRequests > 0 ? `${t("analyticsUI.successRate")}: ${stats.gatewaySuccessRate}%` : undefined}
         />
         <AdminStatStripItem
           label="Direct API"
           value={stats.directRequests}
-          caption={`${t("analyticsUI.successRate")}: ${stats.directSuccessRate}%`}
+          caption={stats.directRequests > 0 ? `${t("analyticsUI.successRate")}: ${stats.directSuccessRate}%` : undefined}
         />
       </AdminStatStrip>
 
@@ -211,7 +186,7 @@ export function AiAnalyticsClient() {
                     {log.operation}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                    {log.model}
+                    {modelDisplayName(log.model)}
                   </td>
                   <td className="px-4 py-3">
                     <Badge

@@ -24,7 +24,7 @@ export const opsMetricsSchema = z.object({
 
 const aiRequestLogSchema = z.object({
   timestamp,
-  operation: z.enum(["generateContent", "interactions", "embed"]),
+  operation: z.enum(["generateContent", "interactions", "embed", "chatCompletions"]),
   model: z.string(),
   viaGateway: z.boolean(),
   latencyMs: z.number().nonnegative(),
@@ -71,6 +71,7 @@ const databaseCount = z.union([count, z.string().regex(/^\d+$/).transform(Number
 
 export const keyDiagnosticsSchema = z.object({
   checkedAt: timestamp,
+  compatible: z.array(z.object({ model: z.string(), keys: z.array(z.object({ label: z.string(), cooldownUntil: z.number() })) })).optional(),
   rpdLimits: z.record(z.string(), count),
   geminiKeys: z.array(z.object({
     keyId: z.string(),
