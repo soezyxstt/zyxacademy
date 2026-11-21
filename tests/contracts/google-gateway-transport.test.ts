@@ -1,6 +1,16 @@
 import { expect, spyOn, test } from "bun:test";
 import { googleGatewayClient } from "../../lib/ai/provider/google-gateway-client";
 const env = {CF_AI_GATEWAY_URL:"https://gateway.ai.cloudflare.com/v1/account/gateway", CF_AI_GATEWAY_TOKEN:"test"};
+for (const status of [400, 422, 429, 503]) test(`preserves HTTP ${status} without SDK retries`, async () => {
+  const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(async () => Response.json({
+    error: { code: status, message: "fixture failure" },
+  }, { status }));
+  try {
+    const client = googleGatewayClient("fixture", env);
+    await expect(client.models.generateContent({ model: "gemini-test", contents: "test" })).rejects.toMatchObject({ status });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  } finally { fetchSpy.mockRestore(); }
+});
 test("rejects missing, foreign and credential-bearing endpoints before networking", () => {
   for (const url of ["", "https://generativelanguage.googleapis.com", "https://evil@gateway.ai.cloudflare.com/v1/a/b"]) {
     expect(() => googleGatewayClient("fixture", {...env, CF_AI_GATEWAY_URL:url})).toThrow();
