@@ -620,6 +620,7 @@
     "tryItem": "Coba {item}",
     "active": "Pet aktif",
     "collection": "Koleksi pet",
+    "unavailable": "Belum ada item yang tersedia.",
     "zyra_avatar": "Maskot",
     "pet_suit": "Pakaian",
     "pet_action": "Aksi",
