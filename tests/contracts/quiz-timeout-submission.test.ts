@@ -27,11 +27,9 @@ describe("Quiz Timeout and Submission Invariant Contracts", () => {
     expect(submitRouteCode).toContain("durationSeconds: finalDurationSeconds");
   });
 
-  it("ensures QuizPlayer supports timeLimitSeconds in settings and prioritizes it over minutes", () => {
-    expect(quizPlayerCode).toContain("timeLimitSeconds?: number;");
-    expect(quizPlayerCode).toContain(
-      "const durationSeconds =\n    exam.settings?.timeLimitSeconds ?? (exam.settings?.timeLimitMinutes ?? 15) * 60;",
-    );
+  it("skips the total timer and its expiry effect when there is no deadline", () => {
+    expect(quizPlayerCode).toContain("if (!ready || isSubmitted || deadlineRef.current === null) return;");
+    expect(quizPlayerCode.match(/timeLeft !== null &&/g)).toHaveLength(2);
   });
 
   it("preserves a draft after failed submission and clears it only after acknowledgement", async () => {
@@ -50,8 +48,8 @@ describe("Quiz Timeout and Submission Invariant Contracts", () => {
     expect(gate.phase).toBe("submitted");
   });
 
-  it("ensures student quiz page passes timeLimitSeconds to QuizPlayer", () => {
-    expect(studentQuizPageCode).toContain("timeLimitSeconds: template.timeLimitSeconds ?? undefined,");
+  it("passes the configured duration, including null, through to the player", () => {
+    expect(studentQuizPageCode).toContain("timeLimitSeconds: template.timeLimitSeconds,");
   });
 
   it("ensures features documentation reflects that deadline submissions are accepted and capped", () => {

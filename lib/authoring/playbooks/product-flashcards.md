@@ -2,11 +2,9 @@
 
 ## 1. Purpose and Structure
 
-Flashcards in Zyx use spaced repetition (SM-2) to reinforce long-term retention of atomic concepts, definitions, conditions, and misconception traps after a student reads the Article.
+Flashcards in Zyx use spaced repetition (SM-2) to reinforce long-term retention of atomic concepts, definitions, conditions, and misconception traps.
 
-In `product-bundle.v4` (the same flashcard rules apply to legacy V3 revisions):
-- Create one `flashcard_set` entity for the chapter (`productType: "flashcard_set"`).
-- Create individual `flashcard` entities (`productType: "flashcard"`, `setId` referencing the `flashcard_set.id`).
+In `product-bundle.v4`, a standalone card omits `setId` and uses the default course/chapter collection when published. A standalone set uses `cards: []`. When authoring an explicit grouping, list the included cards in the set and reference that set from each card. Existing V3 revisions use their legacy membership contract.
 
 ## 2. Hard Invariants for Flashcards
 
@@ -23,7 +21,7 @@ In `product-bundle.v4` (the same flashcard rules apply to legacy V3 revisions):
        }
      ]
      ```
-   - Never link multiple Ideas to a single `flashcard`. The parent `flashcard_set` aggregates all covered Ideas with positive weights summing to `1`.
+   - Never link multiple Ideas to a single `flashcard`. An explicitly authored `flashcard_set` aggregates all covered Ideas with positive weights summing to `1`.
 2. **Minimum Information Principle (Atomicity):**
    - Each card tests exactly one cognitive target: a definition condition, a theorem hypothesis, a formula component, a geometric interpretation, or a single misconception contrast.
    - Never write multi-part essay questions or long multi-step calculations on a flashcard.

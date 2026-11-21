@@ -23,7 +23,7 @@ import {
 import { claimProductReviewSnapshot } from "./product-review-snapshot";
 import { getProductV4VerificationReadiness } from "./product-v4-verification-service";
 import { getProductV4VerificationReceiptSignature } from "./product-v4-verification";
-import { assertProductV4ReviewCardinality, validateProductV4ReviewContext, type ProductV4SectionDecision } from "./product-v4-review";
+import { validateProductV4ReviewContext, type ProductV4SectionDecision } from "./product-v4-review";
 import { deterministicProductSerialization } from "./product-validator";
 import { productPedagogyFingerprint } from "./product-review-gate";
 import { normalizeProductSectionDecisions, productSectionReviewKey, type ScopedProductSectionDecision } from "./product-v4-review";
@@ -99,10 +99,9 @@ export async function executePedagogicReview(
 
   const stagedBundle = await parseStagedProductBundle(input.importId);
   if (stagedBundle.checksum !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
-  if (stagedBundle.manifest.schemaVersion === "product-bundle.v4") assertProductV4ReviewCardinality(stagedBundle.products);
+  const isV4 = stagedBundle.manifest.schemaVersion === "product-bundle.v4";
   const articles = stagedBundle.products.filter((p): p is Extract<ProductEntity, { productType: "article" }> => p.productType === "article");
-  const article = articles[0];
-  if (!article) throw new Error("PRODUCT_BUNDLE_ARTICLE_MISSING");
+  if (!isV4 && !articles.length) throw new Error("PRODUCT_BUNDLE_ARTICLE_MISSING");
   const freshFingerprint = productPedagogyFingerprint(stagedBundle.products);
 
   if (input.contentFingerprint && input.contentFingerprint !== freshFingerprint) {
@@ -116,7 +115,7 @@ export async function executePedagogicReview(
     throw new Error("PRODUCT_BUNDLE_REVIEW_REASON_REQUIRED");
   }
   const criteria = input.criteria ?? [];
-  if (input.policyVersion !== QUALITY_POLICY_VERSION || input.contentFingerprint !== freshFingerprint || !Array.isArray(input.criteria) || !Array.isArray(input.sectionDecisions)) throw new Error("PRODUCT_BUNDLE_REVIEW_CONTEXT_REQUIRED");
+  if (input.policyVersion !== QUALITY_POLICY_VERSION || input.contentFingerprint !== freshFingerprint || !Array.isArray(input.criteria) || (articles.length > 0 && !Array.isArray(input.sectionDecisions))) throw new Error("PRODUCT_BUNDLE_REVIEW_CONTEXT_REQUIRED");
   {
     const rubricDecision: PedagogicReviewDecision = pedagogicReviewDecisionSchema.parse({
       imporBundleId: input.importId,
@@ -140,7 +139,7 @@ export async function executePedagogicReview(
   const validDocIds = new Set(stagedBundle.products.map((p) => p.id));
   const validSectionIds = new Set(articles.flatMap(art => art.sections.map(s => s.id)));
   const validBlockIds = new Set(articles.flatMap(art => [...art.sections.flatMap(s => s.blocks.map(b => b.id)), ...art.blocks.map(b => b.id)]));
-  const validVisualIds = new Set(articles.flatMap(art => (art.visuals ?? []).map(v => v.id)));
+  const validVisualIds = new Set(stagedBundle.products.flatMap(product => product.productType === "article" || product.productType === "diktat" ? (product.visuals ?? []).map(v => v.id) : []));
 
   for (const crit of criteria) {
     for (const anchor of crit.contentAnchors) {
@@ -157,20 +156,19 @@ export async function executePedagogicReview(
     }
   }
 
-  const isV4 = stagedBundle.manifest.schemaVersion === "product-bundle.v4";
   let sectionDecisions: ScopedProductSectionDecision[] = [];
   if (isV4) {
     const registered = row.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
     const evidence = input.decision === "approved" && typeof registered?.runId === "string"
       ? await getProductV4VerificationReadiness(input.importId, registered.runId) : null;
-    sectionDecisions = validateProductV4ReviewContext({ article, importId: input.importId, checksum: row.checksum, fingerprint: freshFingerprint, review: input,
+    sectionDecisions = validateProductV4ReviewContext({ articles, importId: input.importId, checksum: row.checksum, fingerprint: freshFingerprint, review: input,
       verification: evidence ? { ready: evidence.evaluation.ready && registered?.planHash === evidence.plan.planHash, planHash: evidence.plan.planHash, importId: evidence.plan.binding.importId, receiptSignature: getProductV4VerificationReceiptSignature(evidence.receipt) } : undefined });
   } else {
     sectionDecisions = normalizeProductSectionDecisions(articles, input.sectionDecisions!);
     const seen = new Set(sectionDecisions.map(decision => productSectionReviewKey(decision.productId, decision.sectionId)));
     if (seen.size !== articles.reduce((n, art) => n + art.sections.length, 0) || (input.decision === "approved" && sectionDecisions.some(decision => decision.decision !== "approved"))) throw new Error("PRODUCT_REVIEW_ALL_SECTIONS_REQUIRED");
   }
-  if (isV4 && sectionDecisions.length !== article.sections.length) throw new Error("PRODUCT_REVIEW_ALL_SECTIONS_REQUIRED");
+  if (isV4 && sectionDecisions.length !== articles.reduce((total, article) => total + article.sections.length, 0)) throw new Error("PRODUCT_REVIEW_ALL_SECTIONS_REQUIRED");
   const rubric = { criteria, ...(isV4 ? { verificationPlanHash: input.verificationPlanHash ?? null, verificationReceiptSignature: input.verificationReceiptSignature ?? null } : {}), sectionDecisions };
   const reviewPedId = stableId(
     "rev-ped",

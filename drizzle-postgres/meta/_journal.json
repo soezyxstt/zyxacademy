@@ -260,6 +260,20 @@
       "when": 1795116616448,
       "tag": "0036_student_pet_studio",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1795157189870,
+      "tag": "0037_member_profile_visibility",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1795160115877,
+      "tag": "0038_discussion_mention_handles",
+      "breakpoints": true
     }
   ]
 }

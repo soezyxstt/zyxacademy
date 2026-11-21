@@ -12,7 +12,7 @@ test("people searches are bounded and wildcard characters are literal", () => {
 });
 
 type Fragment = { text: string; values: unknown[] };
-function fixture(allowed = true, baseXpMicro: number | null = null) {
+function fixture(allowed = true, baseXpMicro: number | null = null, savedVisibility?: "private" | "members") {
   const queries: Fragment[] = [];
   const tag = (parts: TemplateStringsArray, ...values: unknown[]): Fragment => {
     const result: Fragment = { text: parts[0], values: [] };
@@ -32,7 +32,14 @@ function fixture(allowed = true, baseXpMicro: number | null = null) {
   tag.raw = (text: string): Fragment => ({ text, values: [] });
   tag.join = (items: Fragment[], separator: Fragment): Fragment => items.reduce((out, item, index) => ({ text: out.text + (index ? separator.text : "") + item.text, values: [...out.values, ...item.values] }), { text: "", values: [] });
   const row = { user_id: "internal", public_id: "public", display_name: "Rani", image: null, rank_key: "bupati", equipped_frame_id: null, equipped_theme_id: null, equipped_zyra_avatar_id: "zyra-avatar-jalak", email: "private@example.test", base_xp_micro: baseXpMicro, earned_badges: [], featured_badge_ids: [], follower_count: 0, following_count: 0, allow_follows: false };
-  const db = { execute: async (query: Fragment) => { queries.push(query); return { rows: query.text.startsWith('select 1 from "user"') ? [{ ok: 1 }] : [row] }; } };
+  const db = { execute: async (query: Fragment) => {
+    queries.push(query);
+    if (query.text.startsWith('select 1 from "user"')) return { rows: [{ ok: 1 }] };
+    if (query.text.startsWith("select public_id, display_name, visibility")) {
+      return { rows: savedVisibility ? [{ ...row, visibility: savedVisibility }] : [] };
+    }
+    return { rows: [row] };
+  } };
   const deps: Record<string, unknown> = {
     "server-only": {}, "drizzle-orm": { sql: tag }, "@/db": { db },
     "./access": { requireStudentGamificationAccess: async () => { if (!allowed) throw new Error("Forbidden"); return { user: { id: "viewer" } }; } },
@@ -53,6 +60,13 @@ function expectVisibility(query: Fragment) {
   expect(query.text).toContain("b.blocked_id");
   expect(query.values.filter(value => value === "viewer").length).toBe(2);
 }
+
+test("preferences start at member visibility and preserve a saved private choice", async () => {
+  const defaults = await fixture().social.getStudentSocialSettings("viewer");
+  expect(defaults).toMatchObject({ visibility: "members", allowFollows: false, leaderboardOptIn: false, showMajor: false, showFaculty: false });
+  const saved = await fixture(true, null, "private").social.getStudentSocialSettings("viewer");
+  expect(saved.visibility).toBe("private");
+});
 
 test("directory and roster lookups use student, visibility and mutual block predicates", async () => {
   const { social, queries } = fixture();

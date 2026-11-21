@@ -55,7 +55,7 @@ export function DemoSession({ courseId, revision, scopes, reviewScope, children 
       void resetDemoCommunity(scope).catch(() => toast.error("Data jadwal belum dapat dihapus. Periksa penyimpanan browser, lalu coba lagi."));
     }
     try {
-      const owned = ["zyx-demo-quiz-result:v2:", "zyx-demo-profile:", "zyx-demo-gamification:", "zyx-demo-flashcards:", "zyx-quiz-answers-demo:", "zyx-quiz-flags-demo:", "zyx-quiz-timer-deadline-demo:"];
+      const owned = ["zyx-demo-quiz-result:v2:", "zyx-demo-profile:", "zyx-demo-gamification:", "zyx-demo-discussions:", "zyx-demo-flashcards:", "zyx-quiz-answers-demo:", "zyx-quiz-flags-demo:", "zyx-quiz-timer-deadline-demo:"];
       const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter((item): item is string => Boolean(item && owned.some(prefix => item.startsWith(prefix))));
       keys.forEach(item => localStorage.removeItem(item));
     } catch { /* Reset also works when browser storage is unavailable. */ }

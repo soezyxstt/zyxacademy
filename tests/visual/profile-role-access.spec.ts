@@ -22,7 +22,7 @@ const serverFixture = `
  export const db = { select:()=>({from:()=>({where:()=>({limit:async()=>[user]})})}) };
  export const createMetadata=()=>({}); export const pageTitle=x=>x;
  const guard = value => async()=>{if(!student)throw Error('Forbidden');return value;};
- export const getStudentSocialSettings=guard({publicId:null,displayName:null,visibility:'private',showMajor:false,showFaculty:false,allowFollows:false,leaderboardOptIn:false,avatarBadgeId:null,avatarMode:'photo',badgeTier:null,featuredBadgeIds:[]});
+ export const getStudentSocialSettings=guard({publicId:null,displayName:null,visibility:'members',showMajor:false,showFaculty:false,allowFollows:false,leaderboardOptIn:false,avatarBadgeId:null,avatarMode:'photo',badgeTier:null,featuredBadgeIds:[]});
  export const getAchievementBadges=guard(populated?badges:[]), getGamificationRewards=guard(populated?rewards:[]);
  export const getGamificationSummary=guard({rankKey:'rakyat',baseXpMicro:0,bonusXpMicro:0,lpBalance:0});
  export const listStudentEnrollments=guard(populated?[{id:'math',title:'Matematika I'},{id:'logic',title:'Berpikir Komputasional dan Pemecahan Masalah'}]:[]);

@@ -1,4 +1,19 @@
 {
+  "googleSetup": {
+    "title": "Panduan Google",
+    "library": "Buka pustaka API Google Cloud",
+    "meet": "Aktifkan Google Meet REST API pada proyek OAuth Zyx.",
+    "sheets": "Aktifkan Google Sheets API dan Google Drive API pada proyek OAuth Zyx.",
+    "client": "Pada klien OAuth aplikasi web, tambahkan https://developers.google.com/oauthplayground sebagai URI pengalihan.",
+    "authorize": "Di pengaturan Playground, pilih kredensial OAuth sendiri dan akses offline. Izinkan semua layanan yang dipakai Zyx dengan akun penyelenggara, lalu tukarkan kode untuk mendapatkan refresh token.",
+    "deploy": "Simpan GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, dan GOOGLE_REFRESH_TOKEN sebagai secret deployment, lalu deploy ulang.",
+    "credentials": "Periksa kredensial OAuth dan perbarui refresh token melalui Panduan Google.",
+    "apiDisabled": "Aktifkan API untuk layanan ini di proyek Google Cloud melalui Panduan Google.",
+    "permission": "Periksa izin akun Google dan cakupan akses token untuk layanan ini.",
+    "failed": "Permintaan gagal. Periksa hasil di Google sebelum mencoba lagi.",
+    "adminAccess": "Masuk kembali dengan akun admin.",
+    "network": "Koneksi terputus. Periksa spreadsheet di Google Drive sebelum mencoba lagi."
+  },
   "docs": {
     "title": "Dokumentasi admin",
     "navigation": "Navigasi dokumentasi",
@@ -130,6 +145,16 @@
     "unknownDifficulty": "Lainnya"
   },
   "export": {
+    "created": "Spreadsheet dibuat",
+    "updated": "Spreadsheet diperbarui",
+    "open": "Buka spreadsheet",
+    "sheet": "Google Sheets",
+    "createSheet": "Buat sheet",
+    "updateSheet": "Perbarui sheet",
+    "filteredTitle": "Ekspor hasil filter?",
+    "filteredDescription": "Spreadsheet “{title}” akan berisi {count} baris. Jika file sudah ada, baris data lama diganti dengan hasil filter ini.",
+    "filteredConfirm": "Ekspor hasil filter",
+    "sharingIncomplete": "File tersimpan. Sebagian akses editor mungkin belum diberikan. Minta pemilik memeriksa menu Bagikan di Google Drive.",
     "overwriteTitle": "Timpa edit manual?",
     "overwriteConfirm": "Ya, timpa",
     "overwriteDescription": "Ekspor akan menimpa area data Zyx. Area di luar blok data, kolom di kanan dan baris di bawah, tetap aman:",
@@ -195,8 +220,8 @@
     "incorrect": "SALAH",
     "studentChoice": "Pilihan siswa:",
     "none": "Tidak ada",
-    "exportTitle": "Ekspor ke CSV / Google Sheets",
-    "exportDescription": "Pilih format file CSV untuk kuis {quizTitle}. File kompatibel dengan Google Sheets dan Microsoft Excel.",
+    "exportTitle": "Google Sheets",
+    "exportDescription": "Pilih data untuk spreadsheet {quizTitle}.",
     "matrixTitle": "1. Matriks jawaban detail (matriks respons butir)",
     "matrixDescription": "Menampilkan satu kolom per soal (Q1, Q2, ..., QN) berisi teks soal, jawaban siswa, dan status kebenaran (BENAR / SALAH / TIDAK DIJAWAB). Berguna untuk analisis butir mendalam.",
     "summaryTitle": "2. Ringkasan pengerjaan siswa",

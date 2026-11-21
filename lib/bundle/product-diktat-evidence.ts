@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { buktiPdfBundle, diktatMateri, imporBundle, itemImporBundle, mataKuliah, publikasiBundle } from "@/db/schema";
 import type { PdfArtifactEvidence } from "@/lib/materials/pdf-artifact-contract";
 import { getProductBundleImport, parseStagedProductBundle } from "./product-staging";
-import { resolveProductV4PdfBinding, selectProductPdfEvidence, type ProductV4PdfBinding } from "./product-pdf-selection";
+import { diktatPdfLineage, resolveProductV4PdfBinding, selectProductPdfEvidence, type ProductV4PdfBinding } from "./product-pdf-selection";
 import { productVersionId } from "./product-identity";
 import { productEntityHash } from "./product-bundle-v2";
 import { authenticProductV4VerificationReceipt, productV4VerificationRequirementId, type ProductV4VerificationReceipt } from "./product-v4-verification";
@@ -43,7 +43,8 @@ export async function publishedDiktatPreviewBindings(connection: Pick<typeof db,
     if (!canonical || canonical.status !== "published" || canonical.version !== product.version || canonical.generationHash !== product.generationHash || canonical.sourceHash !== product.sourceHash || !canonical.fileKey) continue;
     const [course] = await connection.select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId }).from(mataKuliah).where(eq(mataKuliah.id, canonical.mataKuliahId)).limit(1).for("share");
     if (!course || ![course.id, course.legacyCourseId].includes(row.courseId) || ![course.id, course.legacyCourseId].includes(bundle.manifest.courseId)) continue;
-    const evidence = rows.find(evidence => evidence.imporBundleId === row.id && evidence.productId === product.id && evidence.status === "ready" && evidence.storageKey === canonical.fileKey && evidence.articleVersion === product.sourceArticleVersion && evidence.articleHash === product.sourceArticleHash && evidence.diktatHash === product.generationHash && !evidence.failureCode && evidence.pageCount && evidence.pageCount >= 1 && evidence.pageCount <= 4);
+    const { articleVersion, articleHash } = diktatPdfLineage(product);
+    const evidence = rows.find(evidence => evidence.imporBundleId === row.id && evidence.productId === product.id && evidence.status === "ready" && evidence.storageKey === canonical.fileKey && evidence.articleVersion === articleVersion && evidence.articleHash === articleHash && evidence.diktatHash === product.generationHash && !evidence.failureCode && evidence.pageCount && evidence.pageCount >= 1 && evidence.pageCount <= 4);
     const checkId = productV4VerificationRequirementId({ target: product.id, layer: "print", state: "pdf-fonts-assets-lineage-and-pages", viewport: null, artifactType: "application/pdf" });
     const results = receipt.results.filter(result => result.checkId === checkId);
     const result = results[0];
@@ -58,13 +59,12 @@ export async function publishedDiktatPreviewBindings(connection: Pick<typeof db,
 export function selectDiktatPdfStatus(input: { importId: string; revision: string; bundle: Bundle; productId: string; rows: EvidenceRow[]; validationReport: Record<string, unknown>; verification: Verification; requestProcessing?: boolean; publishedPreviewBinding?: ProductV4PdfBinding }) {
   const diktat = input.bundle.products.find(product => product.productType === "diktat" && product.id === input.productId);
   if (!diktat || diktat.productType !== "diktat") throw new Error("PRODUCT_DIKTAT_NOT_FOUND");
-  const article = input.bundle.products.find(product => product.productType === "article" && product.id === diktat.sourceArticleId);
-  if (!article || article.productType !== "article") throw new Error("PRODUCT_DIKTAT_SOURCE_MISSING");
+  const lineage = diktatPdfLineage(diktat);
   if (input.requestProcessing && input.bundle.manifest.schemaVersion !== "product-bundle.v4") return { productId: diktat.id, revision: input.revision, status: "pending" as const, evidence: undefined };
   const v4Binding = input.bundle.manifest.schemaVersion === "product-bundle.v4"
     ? input.publishedPreviewBinding ?? resolveProductV4PdfBinding({ importId: input.importId, diktatId: diktat.id, validationReport: input.validationReport, verification: input.verification }) : undefined;
   const rows = input.rows.map(row => ({ ...row, storageKey: row.storageKey ?? undefined, pageCount: row.pageCount ?? undefined, failureCode: row.failureCode ?? undefined })) as PdfArtifactEvidence[];
-  const selected = selectProductPdfEvidence({ rows, imporBundleId: input.importId, articleId: article.id, diktatId: diktat.id, articleVersion: article.version, articleHash: article.generationHash, diktatHash: diktat.generationHash, v4Binding });
+  const selected = selectProductPdfEvidence({ rows, imporBundleId: input.importId, ...lineage, diktatId: diktat.id, diktatHash: diktat.generationHash, v4Binding });
   // Keep the database row pending so publication stays blocked, while exposing a
   // recoverable timeout even if no worker ever starts or writes a result.
   const evidence = selected && v4Binding === undefined && isSupersededLegacyPdfAttempt(selected, input.revision)
@@ -72,7 +72,7 @@ export function selectDiktatPdfStatus(input: { importId: string; revision: strin
     : selected && v4Binding === undefined && isExpiredLegacyPdfAttempt(selected)
       ? { ...selected, status: "failed" as const, failureCode: "RENDER_TIMEOUT" as const }
       : selected;
-  const lineageMatches = Boolean(evidence && evidence.articleVersion === article.version && evidence.articleHash === article.generationHash && evidence.diktatHash === diktat.generationHash);
+  const lineageMatches = Boolean(evidence && evidence.articleVersion === lineage.articleVersion && evidence.articleHash === lineage.articleHash && evidence.diktatHash === diktat.generationHash);
   const bindingMatches = v4Binding === undefined || Boolean(v4Binding && evidence && evidence.storageKey === v4Binding.storageKey && evidence.printProfile === v4Binding.printProfile && evidence.pageCount === v4Binding.pageCount);
   const readyValid = evidence?.status !== "ready" || Boolean(evidence.storageKey && evidence.pageCount && evidence.pageCount >= 1 && evidence.pageCount <= 4 && !evidence.failureCode);
   const status = !evidence ? "missing" : !lineageMatches || !bindingMatches || !readyValid ? "stale" : evidence.status;

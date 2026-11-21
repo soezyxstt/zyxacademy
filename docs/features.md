@@ -102,6 +102,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Authored fictional fallback products are authorized only where eligible real products are unavailable. They do not change real publication, chapter or Free permissions.
 - Progress and monthly history are fictional. Active chapter titles and published product metadata, including student-visible upload titles, are shown by chapter; later content and uploaded files remain locked. The demo uses the same student page renderers and components with a fictional identity and local transactions. Zyra replies are scripted. Schedule bookings, rescheduling, cancellation, completion, notes, links and pre/post-session files use browser-local storage. Every selected week has course-specific slots, tutors, topics and a study group. The global schedule combines all courses; an explicit course query scopes the calendar and sidebar to that course. Leaderboard participants, scores and activity differ by course and assessment type and remain stable across reloads. The Groups page reuses the student package, quota, roster and rename view; demo renames persist locally without account actions. Demo package usage counts active sessions from the viewed week and saved sessions across weeks, deduplicated by booking ID; weekly usage follows the viewed week. Cancelled sessions do not count. Group edits, quiz drafts and completed results, flashcard resume and progress persist across browser sessions; per-course rankings include validated completed quiz attempts. File bytes stay in IndexedDB, metadata in localStorage. Reset clears this local state; browser data deletion removes it. Inline formative grading requires an account. Product access stays behind the Free first-chapter resolver. The student-page correction is deployed; the catalogue and fictional baseline update is under verification. See [the seeding guide](operations/public-demo-seeding.md).
 - Demo achievements, profile, leaderboard and group identities use the shared student presentation with fictional rank, badges, cosmetics and people. Follow relationships and reward purchases or equipment are stored only in the browser and reset with demo progress. The academic leaderboard filter uses `academicCourse` independently of the demo context `course`; legacy `academic=1` links remain supported.
+- The demo sidebar includes Pet, global discussion and course discussion. Pet and profile use the same browser-local inventory and equipment. Discussion starts with authored fictional conversations tied to course and peer profiles. Text posts, reactions and thread status changes stay in the browser and reset with the demo. Reflections aggregate the existing fictional activity history across courses.
 - The legacy admin `isDemo` singleton remains separate from the snapshot allowlist.
 - The Free chapter resolver selects the first active chapter, including eligible Article, Diktat, Kuis, and Flashcard content. Diktat is readable without download. Zyra allows 5 questions per day, and authenticated learning progress is stored.
 - Admins select the legacy singleton demo course from course settings. Selection is allowed only when the course is active, its canonical and legacy mapping is unambiguous, and it has a complete published Article, two-section Diktat, at least five published Flashcards, and at least three published Kuis questions. The selection is transactional and singleton-scoped.
@@ -388,14 +389,16 @@ The Profile tab reuses the authenticated profile editor, including student-only 
 
 ### Assessment Integrity & Assistance Policy
 - Active attempt answer protection: GET `/api/quiz/attempts` and `/api/quiz/attempts/[id]` strip `correct_indices`, stored explanations, and grading feedback during in-progress attempts.
+- A quiz with an attempt limit reserves a slot for each in-progress attempt. The quiz page links back to the saved attempt. Completed attempts keep their slot. Attempts explicitly marked abandoned free their slot and cannot be resumed.
 - Deterministic assistance policy engine (`lib/assessment-assistance-policy.ts`): gates AI tutor and mistake feedback based on activity kind (study, practice, quiz, simulation, exam), attempt state, answer release state, and match state.
 - Answer release state matrix: active attempts enforce `socratic_only` or `refuse_answer_reveal`; completed attempts follow release settings (`hidden`, `rationale_only`, `released`).
 
 ### Quiz Timing Rules
-- The total time limit (`quizTemplates.timeLimitSeconds`) is the authoritative session cap. When it reaches zero the player auto-submits the attempt.
+- The player auto-submits when the configured total time limit or scheduled close is reached, whichever comes first. A quiz without either deadline has no total countdown.
 - Per-question timers (`selectionRules.perQuestionTimerEnabled`, `perQuestionTimers`, `defaultQuestionTimerSeconds`) are pacing aids only. Expiry advances to the next question and never force-submits the quiz while total time remains; revisiting a question restarts its allowance.
 - Coherence validation (`lib/asesmen/quiz-timing.ts`): when both timers are active, the sum of per-question allowances must equal the total limit. The admin quiz form blocks save with an error toast, and POST/PATCH `/api/quiz/templates` reject mismatched payloads with 400.
 - Submissions on or after session deadline: POST `/api/quiz/attempts/[id]` accepts timeout and late submissions, auto-grades eligible objective answers, marks the attempt as completed, and caps the recorded duration at `timeLimitSeconds`. Attempts containing essay questions remain completed with `gradingStatus` set to `pending` and `score` set to null until essay grading occurs. Attempts without a total limit are unaffected.
+- Tryout uses the same recovery behavior for manual and automatic submission. Failed submissions retain answers and uploaded file references on the form so the student can retry. The results page opens after confirmed success.
 
 ### Assessment Integrity V2
 - `lib/asesmen/blueprint.ts` compiles quiz and tryout blueprints with exact largest-remainder dimension allocation, explicit chapter scope, reproducible seeds, and publication eligibility checks.
@@ -476,7 +479,8 @@ Zyra uses bounded, session-scoped conversation context to interpret follow-up qu
 ### Structured Form Upload Storage System
 
 - Form response uploads and builder question images use the active object storage provider with keys under `forms/[slugified-judul-forms]/question-[number]/[timestamp]-[hash]-[filename]`.
-- Path key resolution is handled deterministically via `lib/forms/storage-utils.ts` (`buildFormStorageKey`) and `/api/forms/upload`.
+- The response upload API resolves an open, non-deleted form and its file question before writing to storage. It applies the form's sign-in and email-verification rules. The builder uses `/api/admin/custom-forms/image` for question images, including unsaved drafts.
+- `buildFormStorageKey` derives response upload paths from the stored form and question number.
 - The storage proxy serves a question image publicly only while a non-deleted form references its proxy URL. Other form files require an active canonical admin role; response answers cannot prove upload ownership. A respondent can download a local copy of a new upload. External legacy URLs retain their own access policy and query strings.
 
 ### Course Material Batch Upload (Admin)
@@ -509,11 +513,11 @@ Zyra uses bounded, session-scoped conversation context to interpret follow-up qu
 - The compact admin editor uses divided question rows. `settings.displayMode` persists `question` (the default for existing forms) or `section` for publication and preview; presets retain this setting.
 - Section mode shows an implicit first section and starts a new page at each SECTION marker. A leading SECTION shares the first page with form details and email collection. Statements stay inline; consecutive and closing sections retain their own pages. With no sections, all questions share one page. Next validates the current section; Back preserves answers.
 - Both layouts replace the pre-submit summary with a confirmation dialog. Only its submit action sends a response; keyboard shortcuts open the same dialog. In-flight uploads and duplicate submits block sending. Success appears only after a successful response (or an explicit preview simulation).
-- Upload fields show the per-question size limit (10 MB by default, capped at the existing 50 MB endpoint limit) and reject larger files before upload. These client checks do not replace server enforcement of the endpoint's 50 MB cap.
+- Response uploads accept PDF, JPEG, PNG, GIF, and WebP by default. A file question's optional `allowedFileTypes` list narrows the formats by MIME type. The API checks the file signature, filename extension, and per-question size limit (10 MB by default, capped at 50 MB). Builder question images accept the same image types.
 - Spreadsheet export is scoped to a structured Drive folder (`forms/{slug}`, title `form-{slug}-responses`) and excludes SECTION rows from the data export.
 - "Lainnya" (other) options use a stable sentinel (`\uE000__other__`) so open answers survive round trips; SECTION counts are excluded everywhere via a continuous `questionNumberMap`.
 - The builder auto-scrolls, resets after a successful publish, and uses shadcn Switch toggles for settings (collect email, show progress, etc.).
-- `collectEmail` works end to end; schedule inputs are converted from browser-local values to absolute ISO instants before save, then use `formatDatetimeLocal` for editing.
+- Verified email collection uses the signed-in account's verified address. Manual collection requires the respondent's submitted address. Disabled collection stores no respondent email. Schedule inputs are converted from browser-local values to absolute ISO instants before save, then use `formatDatetimeLocal` for editing.
 - Reusable presets (question blueprints + settings) can be saved and re-applied from `/admin/forms` via `/api/admin/form-presets` and `components/forms/form-presets.tsx`, standard for admin users.
 - Settings panels fill the container width; the matrix question table was removed; terminology and section header images with zoom were fixed.
 
@@ -560,6 +564,7 @@ Zyra uses bounded, session-scoped conversation context to interpret follow-up qu
   - Group session booking and schedule history integrated with the tutor scheduling calendar.
   - 1-click token sharing for inviting group mates when capacity remains.
   - Empty state with instant token redemption for new students.
+- Dashboard and Groups redeem tokens in one transaction per group. Membership and access commit together. A retry can repair missing access without consuming another seat. The grant uses the group's configured end date or the semester end and preserves any longer valid term.
 
 ### Scheduling & Calendar System (Model Kelompok Belajar)
 
@@ -617,6 +622,7 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
   - `/tutor/[courseId]/quizzes/[templateId]/attempts`: Per-quiz attempt spreadsheet and answer inspection with CSV export.
   - `/tutor/[courseId]/live`: Real-time interactive quiz console for hosting live sessions.
   - `/tutor/[courseId]/grading`: Tryout essay grading queue for assigned courses. Essay attachments uploaded by students are stored under `exams/{examId}/attachments` in object storage and downloadable from the grading workspace; snapshots recorded before real uploads show the attachment as unavailable.
+  - Private file delivery checks the current essay submission and upload owner, the tutorial booking and its attached resources, or the Product draft's current archive reference. The proxy checks access before streaming and marks the response private for direct, download and range reads.
 
 - Capability Boundaries & Access Control:
   - Canonical Access Resolution (`lib/auth/tutor-access.ts`): Requires active `pengguna`, canonical `tutor` role in `pengguna_peran`, active `mata_kuliah` course, and active `penugasan_tutor` row (`status = 'active'`, `assignment_scope = 'course'`).
@@ -641,6 +647,7 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
   - Backed by `app/(admin)/admin/ops/tutor-activity/dal.ts` with cursor-based pagination, KPI stats cards, and recursive secret redaction on state snapshots.
 
 - Real-time Live Quiz Callback Semantics (`/api/live/callback`):
+  - The Cloudflare room saves the first accepted choice before sending updated counts to the host. Restoring the room preserves the choice for reveal scoring and duplicate detection.
   - The Cloudflare Realtime Worker calls `POST /api/live/callback` upon session conclusion with authorization token verification.
   - Token-Fenced Processing Lease: Inside a transaction, writes `live_quiz_results` rows, sets session state to `ended`, participant count, and acquires an exclusive processing lease via conditional Compare-And-Set (CAS) setting `delivery_status = 'processing'`, `delivery_claimed_at = now`, and a fresh unique `delivery_claim_token`. Concurrently enqueues pending tasks into `mastery_recompute_queue`.
   - Lease Concurrency & Stale Claim Recovery: Concurrent callback invocations arriving while an active lease is held (within `CLAIM_LEASE_TTL_MS = 30_000`, 30 seconds) short-circuit without dispatching duplicate side effects. If an earlier processing attempt crashed or stalled beyond 30 seconds, subsequent callback retries use CAS to take over the lease with a new claim token and resume delivery.

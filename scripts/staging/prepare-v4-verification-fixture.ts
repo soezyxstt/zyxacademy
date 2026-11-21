@@ -40,7 +40,7 @@ async function main() {
       const parsed = parseProductBundleZip(bytes);
       if (!parsed.success || parsed.data.manifest.bundleChecksum !== revision || parsed.data.manifest.bundleId !== row.bundle_id) throw Error("FIXTURE_SOURCE_BYTES_MISMATCH");
       const bundle = parsed.data;
-      if (bundle.products.some(p => p.productType === "article" && p.visuals?.some(v => v.kind === "source_figure"))) throw Error("FIXTURE_SOURCE_FIGURE_TRANSFER_NOT_SUPPORTED");
+      if (bundle.products.some(p => (p.productType === "article" || p.productType === "diktat") && p.visuals?.some(v => v.kind === "source_figure"))) throw Error("FIXTURE_SOURCE_FIGURE_TRANSFER_NOT_SUPPORTED");
       if (bundle.dependencies.some(d => d.upstreamEntityType === "product" && !bundle.products.some(p => p.id === d.upstreamEntityId))) throw Error("FIXTURE_EXTERNAL_PRODUCT_NOT_SUPPORTED");
       const entries: Entry[] = [], external: Array<{ table: string; column: string; value: string | number }> = [];
       const visited = new Set<string>();
@@ -127,8 +127,10 @@ async function main() {
         const row = await getProductBundleImport(result.importId);
         const pdf = row?.validationReport.productV4PdfEvidence as { planHash?: string; attemptId?: string; receiptSignature?: string } | undefined;
         if (row?.checksum !== revision) throw Error("FIXTURE_STAGING_REVISION_CHANGED");
-        if (pdf?.planHash === current.plan.planHash && pdf?.attemptId === current.attemptId && pdf?.receiptSignature === current.receipt?.signature) {
-          console.log(JSON.stringify({ allChecksPass: true, receiptReady: true, pdfEvidencePersisted: true, revision })); return;
+        const requiresPdf = current.plan.requirements.some(check => check.layer === "print");
+        const pdfEvidencePersisted = pdf?.planHash === current.plan.planHash && pdf?.attemptId === current.attemptId && pdf?.receiptSignature === current.receipt?.signature;
+        if (!requiresPdf || pdfEvidencePersisted) {
+          console.log(JSON.stringify({ allChecksPass: true, receiptReady: true, pdfEvidencePersisted, revision })); return;
         }
       }
     }

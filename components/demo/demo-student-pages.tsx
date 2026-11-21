@@ -19,6 +19,7 @@ import type { StudyPathStep } from "@/components/course/study-path-timeline";
 import { useTranslations } from "@/lib/i18n/client";
 import type { DemoMastery } from "@/lib/demo/mastery";
 import { demoLeaderboard } from "@/lib/demo/leaderboard";
+import { demoReflections } from "@/lib/demo/reflections";
 import { emptyOverlay } from "@/lib/demo/session-overlay";
 import { useDemoSession } from "./demo-session";
 import { useDemoGamification } from "./demo-gamification-provider";
@@ -31,6 +32,8 @@ const DemoGroups = dynamic(() => import("./demo-groups").then(module => module.D
 const DemoAchievements = dynamic(() => import("./demo-achievements").then(module => module.DemoAchievements), { loading: DemoFeatureLoading });
 const DemoLeaderboard = dynamic(() => import("./demo-leaderboard").then(module => module.DemoLeaderboard), { loading: DemoFeatureLoading });
 const DemoProfile = dynamic(() => import("./demo-profile").then(module => module.DemoProfile), { loading: DemoFeatureLoading });
+const DemoPet = dynamic(() => import("./demo-pet").then(module => module.DemoPet), { loading: DemoFeatureLoading });
+const DemoDiscussions = dynamic(() => import("./demo-discussions").then(module => module.DemoDiscussions), { loading: DemoFeatureLoading });
 const FeedbackForm = dynamic(() => import("@/app/(student)/feedback/feedback-form").then(module => module.FeedbackForm), { loading: DemoFeatureLoading });
 const CourseVideosClient = dynamic(() => import("@/components/course/video/course-videos-client").then(module => module.CourseVideosClient), { loading: DemoFeatureLoading });
 const ProfileEditForm = dynamic(() => import("@/app/(student)/profile/edit/profile-edit-form").then(module => module.ProfileEditForm), { loading: DemoFeatureLoading });
@@ -75,9 +78,11 @@ export function DemoStudentPage({ view, experience: { content, snapshot }, maste
  const account = experience.account ?? { name: "Pelajar Demo", email: "pelajar@example.test" };
  const href = (path: string) => experience.href?.(path) ?? path;
  const courseId = snapshot.courseId;
- if (view === "profile") return <DemoProfile profile={profile} courseId={courseId} />;
+ if (view === "profile") return <DemoProfile profile={profile} />;
  if (view === "profile-edit") return <ApplicationPage><PageHeader title={<TranslatedText namespace="student" messageKey="profile.editTitle" />} icon={UserCheck} backHref={href("/profile")} backLabel={<TranslatedText namespace="student" messageKey="profile.pageTitle" />} /><div className="mt-6"><ProfileEditForm key={JSON.stringify(profile)} user={{ id: "fictional-demo-student", ...account, ...(profile ?? { faculty: "STEI", major: "Teknik Informatika", entryYear: 2026 }) }} /></div></ApplicationPage>;
- if (view === "reflections") return <StudentReflectionsView href={href} reflections={[]} />;
+ if (view === "pet") return <DemoPet />;
+ if (view === "discussions" || view === "course-discussions") return <DemoDiscussions courseId={view === "course-discussions" ? courseId : undefined} />;
+ if (view === "reflections") return <StudentReflectionsView href={href} reflections={demoReflections(experience.baseline)} />;
  if (view === "achievements") return <DemoAchievements />;
  if (view === "leaderboard") return <DemoLeaderboard rankings={rankings} />;
  if (view === "course-leaderboard") {

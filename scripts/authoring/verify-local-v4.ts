@@ -90,7 +90,7 @@ const article = bundle.products.find((product) => product.productType === "artic
 const diktat = bundle.products.find((product) => product.productType === "diktat");
 if (article.productType !== "article") throw new Error("ARTICLE_REQUIRED");
 const fingerprint = computePedagogyContentFingerprint({ article, diktat });
-assert.throws(() => validateProductV4ReviewContext({ article, importId: row.id, checksum: row.checksum, fingerprint,
+assert.throws(() => validateProductV4ReviewContext({ articles: [article], importId: row.id, checksum: row.checksum, fingerprint,
   review: { decision: "approved", expectedRevision: row.checksum, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: fingerprint, verificationPlanHash: result.plan.planHash, verificationReceiptSignature: getProductV4VerificationReceiptSignature(result.receipt) ?? undefined },
   verification: { ready: true, importId: row.id, planHash: result.plan.planHash, receiptSignature: getProductV4VerificationReceiptSignature(result.receipt) } }), /ALL_SECTIONS_REQUIRED/);
 const summary = { status: "PASS", requirementCount: result.plan.requirements.length, planHash: result.plan.planHash, attemptId: result.attemptId, pdfEvidence,

@@ -11,7 +11,13 @@ import { Toaster } from "@/components/ui/toast";
 
 declare global {
   interface Window {
-    quizFixture: { mode: "player" | "review" | "demo"; seconds?: number; perQuestionSeconds?: number; expectedUserId?: string };
+    quizFixture: {
+      mode: "player" | "review" | "demo";
+      seconds?: number | null;
+      closeAtMs?: number;
+      perQuestionSeconds?: number;
+      expectedUserId?: string;
+    };
   }
 }
 
@@ -22,11 +28,13 @@ function App() {
     {config.mode === "review" ? <AttemptReview attemptId="fixture-attempt" /> : <QuizPlayer
       courseId="fixture-course" attemptId="fixture-attempt"
       expectedUserId={config.expectedUserId}
+      closeAtMs={config.closeAtMs}
       transport={config.mode === "demo" ? { submit: async () => { setDemoSubmitted(true); } } : undefined}
       exam={{
         id: "fixture-quiz", title: "Kuis matematika",
         settings: {
-          timeLimitSeconds: config.seconds ?? 600, requireAllAnswered: false,
+          timeLimitSeconds: config.seconds === undefined ? 600 : config.seconds,
+          requireAllAnswered: false,
           perQuestionTimerEnabled: Boolean(config.perQuestionSeconds),
           defaultQuestionTimerSeconds: config.perQuestionSeconds,
         },

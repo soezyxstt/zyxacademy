@@ -59,5 +59,5 @@ Keep review records outside the bundle ZIP with `PASS`, `FAIL`, `NOT_APPLICABLE`
 
 When recording a review decision with `authoring.review_product_bundle`:
 - Pass the exact `policyVersion` and `contentFingerprint` from the staged bundle.
-- V4 requires expectedRevision, current verificationPlanHash and verificationReceiptSignature, plus an explicit semanticHash decision for every section from the fresh review context. Provide all 8 items in `criteria`, each with `criterionId`, `status: "met" | "needs_revision" | "not_met"`, `reason`, and at least one `contentAnchors` entry (`{ targetType, targetId }`). Anchor objects have no `note` field.
+- V4 requires expectedRevision, current verificationPlanHash and verificationReceiptSignature, plus an explicit semanticHash decision for every section from the fresh review context. For a bundle without Article sections, use document anchors and omit section decisions. Provide all 8 items in `criteria`, each with `criterionId`, `status: "met" | "needs_revision" | "not_met"`, `reason`, and at least one `contentAnchors` entry (`{ targetType, targetId }`). Anchor objects have no `note` field.
 - Each criterion not marked `"met"` requires an explicit `exceptions` entry `{ criterionId, approved: true, reason }` with a substantive reason.

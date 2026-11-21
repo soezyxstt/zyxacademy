@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { MICRO } from "@/lib/gamification/catalog";
 import type { BadgeFamily, RankKey } from "@/lib/gamification/contracts";
 import type { DiscussionAuthorProfile } from "@/lib/discussions/contracts";
-import { followStudentAction, unfollowStudentAction } from "@/lib/gamification/social-actions";
+import { useStudentSocial } from "@/components/gamification/social-provider";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import type { DiscussionPerson } from "./view-model";
 
@@ -34,6 +34,7 @@ export function DiscussionProfileDialog({
   loadProfile?: (authorId: string) => Promise<DiscussionAuthorProfile>;
 }) {
   const t = useTranslations("discussions");
+  const social = useStudentSocial();
   const studentT = useTranslations("student");
   const { locale } = useAppLocale();
   const [data, setData] = useState<DiscussionAuthorProfile | null>(null);
@@ -43,13 +44,13 @@ export function DiscussionProfileDialog({
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    if (!open || !author?.id) return;
+    if (!open || !author?.id || author.role === "zyra") return;
     if (!loadProfile) {
       setData({
         kind: "limited",
         id: author.id,
         name: author.name,
-        role: author.role === "zyra" ? null : author.role,
+        role: author.role,
         avatarUrl: author.avatarUrl ?? null,
         visibilityReason: author.role === "student" ? "private" : "staff",
       });
@@ -77,12 +78,13 @@ export function DiscussionProfileDialog({
   const toggleFollow = () => {
     if (!data || data.kind !== "student") return;
     const publicId = data.profile.publicId;
+    if (!publicId) return;
     const following = data.profile.isFollowing;
     setFollowMessage("");
     startTransition(async () => {
       try {
-        if (following) await unfollowStudentAction(publicId);
-        else await followStudentAction(publicId);
+        if (following) await social.unfollow(publicId);
+        else await social.follow(publicId);
         setData((current) =>
           current?.kind === "student" && current.profile.publicId === publicId
             ? {
@@ -115,6 +117,12 @@ export function DiscussionProfileDialog({
         : data?.role === "admin"
           ? "role_admin"
           : "role_unknown";
+
+  if (author?.role === "zyra") return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="max-w-xs" aria-describedby={undefined}><DialogHeader><DialogTitle>Zyra</DialogTitle></DialogHeader>
+      <ProfileMascot /><p className="text-body-sm">{t("zyraContext")}</p>
+    </DialogContent>
+  </Dialog>;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

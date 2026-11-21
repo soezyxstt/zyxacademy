@@ -1,7 +1,7 @@
 import { revisionPublicationConnection, revisionPublicationTransaction, dispatchRevisionPublication, revisionPublicationVerification, inRevisionPublication, reusesRevisionProduct } from "@/lib/authoring/revision-publication-context";
 import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
 import { assertSolutionImportScope, lockSolutionImportScope, type SolutionImportScope } from "@/lib/solutions/import-scope";
-import { productVersionId } from "./product-identity";
+import { productVersionId, STANDALONE_FLASHCARD_SET_PREFIX } from "./product-identity";
 import { productEntityHash } from "./product-bundle-v2";
 import { legacyArticlePublicMarkdown } from "@/lib/materials/legacy-article-public";
 import { articleIndexableMarkdown } from "@/lib/articles/structured-read-model";
@@ -61,8 +61,8 @@ import { productV4ReviewContextShape, validateProductV4ReviewContext } from "./p
 import { QUALITY_POLICY_VERSION, pedagogicRubricItemSchema } from "@/lib/materials/quality-policy";
 import type { getProductV4VerificationReadiness } from "./product-v4-verification-service";
 import { compileArticleProduct } from "@/lib/materials/compiler";
-import { assertProductSectionReviews, evaluateProductBundleQualityPolicy, evaluateProductBundleReviewAndPdfGate } from "./product-review-gate";
-import { resolveProductV4PdfBinding } from "./product-pdf-selection";
+import { assertProductSectionReviews, evaluateProductBundleQualityPolicy } from "./product-review-gate";
+import { diktatPdfLineage, resolveProductV4PdfBinding, selectProductPdfEvidence } from "./product-pdf-selection";
 import type { PdfArtifactEvidence } from "@/lib/materials/pdf-artifact-contract";
 import { claimProductReviewSnapshot } from "./product-review-snapshot";
 import { listProcessingLegacyPdfRequests } from "./product-diktat-queue";
@@ -593,15 +593,32 @@ async function insertFlashcardSet(tx: Tx, product: Extract<ProductEntity, { prod
   } else await tx.insert(setFlashcard).values(values);
 }
 
-async function insertFlashcards(tx: Tx, products: readonly Extract<ProductEntity, { productType: "flashcard" }>[], originalProducts: readonly ProductEntity[], setProducts: readonly Extract<ProductEntity, { productType: "flashcard_set" }>[], now: Date): Promise<void> {
-  const cards = products.map((product) => {
-    const setProduct = product.setId ? setProducts.find((candidate) => candidate.id === product.setId) : setProducts.find((candidate) => candidate.cards.includes(product.id));
-    if (!setProduct) throw new Error(`PRODUCT_BUNDLE_FLASHCARD_SET_MISSING:${product.id}`);
-    return {
+async function insertFlashcards(tx: Tx, products: readonly Extract<ProductEntity, { productType: "flashcard" }>[], originalProducts: readonly ProductEntity[], setProducts: readonly Extract<ProductEntity, { productType: "flashcard_set" }>[], course: { targetId: string }, now: Date): Promise<void> {
+  const cards: { product: (typeof products)[number]; values: typeof flashcard.$inferInsert }[] = [];
+  const defaultSets = new Map<string | null, string>();
+  for (const product of products) {
+    const explicitSet = product.setId ? setProducts.find(candidate => candidate.id === product.setId) : setProducts.find(candidate => candidate.cards.includes(product.id));
+    let setId: string;
+    if (explicitSet) {
+      setId = targetId(explicitSet);
+    } else {
+      // The canonical flashcard table requires a container even for standalone cards.
+      const chapterId = await resolveChapter(tx, product.chapterId, course.targetId);
+      const cached = defaultSets.get(chapterId);
+      setId = cached ?? id(STANDALONE_FLASHCARD_SET_PREFIX, JSON.stringify([course.targetId, chapterId]));
+      if (!cached) {
+        const generationHash = createHash("sha256").update(setId).digest("hex");
+        await tx.insert(setFlashcard).values({ id: setId, mataKuliahId: course.targetId, babId: chapterId, title: "Flashcard", generationHash, creatorId: product.creatorId, status: "published", publishedAt: now }).onConflictDoNothing({ target: setFlashcard.id });
+        const [owner] = await tx.select({ courseId: setFlashcard.mataKuliahId, chapterId: setFlashcard.babId, status: setFlashcard.status, generationHash: setFlashcard.generationHash }).from(setFlashcard).where(eq(setFlashcard.id, setId)).limit(1).for("share");
+        if (!owner || owner.courseId !== course.targetId || owner.chapterId !== chapterId || owner.status !== "published" || owner.generationHash !== generationHash) throw new Error(`PRODUCT_BUNDLE_FLASHCARD_SET_MISSING:${product.id}`);
+        defaultSets.set(chapterId, setId);
+      }
+    }
+    cards.push({
       product,
-      values: { id: targetId(product), setFlashcardId: targetId(setProduct), front: product.front, back: product.back, explanation: product.explanation ?? null, version: product.version, status: "published" as const, generationHash: product.generationHash, createdAt: now, updatedAt: now },
-    };
-  });
+      values: { id: targetId(product), setFlashcardId: setId, front: product.front, back: product.back, explanation: product.explanation ?? null, version: product.version, status: "published", generationHash: product.generationHash, createdAt: now, updatedAt: now },
+    });
+  }
   const existingRows = [];
   for (const batch of chunksOf(cards.map(({ values }) => values.id))) {
     existingRows.push(...await tx.select({ id: flashcard.id, setFlashcardId: flashcard.setFlashcardId, front: flashcard.front, back: flashcard.back, explanation: flashcard.explanation, version: flashcard.version, status: flashcard.status, generationHash: flashcard.generationHash }).from(flashcard).where(inArray(flashcard.id, batch)));
@@ -669,14 +686,14 @@ export async function assertCurrentProductV4Review(input: {
   connection?: Tx;
 }): Promise<void> {
   const connection = input.connection ?? db;
-  const article = input.products.find(product => product.productType === "article");
+  const articles = input.products.filter((product): product is Extract<ProductEntity, { productType: "article" }> => product.productType === "article");
   const [approval] = await connection.select({ rubric: reviewPedagogiBundle.rubric }).from(reviewPedagogiBundle).where(and(
     eq(reviewPedagogiBundle.imporBundleId, input.importId), eq(reviewPedagogiBundle.reviewerId, input.publisherId),
     eq(reviewPedagogiBundle.contentFingerprint, input.fingerprint), eq(reviewPedagogiBundle.policyVersion, QUALITY_POLICY_VERSION), eq(reviewPedagogiBundle.status, "approved"),
   )).limit(1);
-  if (!article || article.productType !== "article" || !approval || !input.verification) throw new Error("PRODUCT_V4_REVIEW_REQUIRED");
+  if (!approval || !input.verification) throw new Error("PRODUCT_V4_REVIEW_REQUIRED");
   const recorded = z.object({ ...productV4ReviewContextShape, criteria: z.array(pedagogicRubricItemSchema) }).parse(approval.rubric);
-  validateProductV4ReviewContext({ article, importId: input.importId, checksum: input.checksum, fingerprint: input.fingerprint,
+  validateProductV4ReviewContext({ articles, importId: input.importId, checksum: input.checksum, fingerprint: input.fingerprint,
     review: { ...recorded, decision: "approved", expectedRevision: input.checksum, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: input.fingerprint },
     verification: { ready: input.verification.evaluation.ready, planHash: input.verification.plan.planHash, importId: input.importId, receiptSignature: (input.verification.receipt as { signature?: string } | null)?.signature ?? "" },
   });
@@ -747,7 +764,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
     await lockCanonicalProducts(tx, bundle.products, bundle.dependencies);
     await requireIdentity(tx, input.publishedBy, "PRODUCT_BUNDLE_PUBLISHER_NOT_FOUND");
     const [review] = await tx.select({ id: reviewBundle.id, reviewerId: reviewBundle.reviewerId, status: reviewBundle.status, notes: reviewBundle.notes }).from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, input.importId), eq(reviewBundle.reviewerId, input.publishedBy), eq(reviewBundle.status, "approved"))).limit(1);
-    const usesPedagogicApproval = bundle.products.some((p) => p.productType === "article");
+    const usesPedagogicApproval = isV4 || bundle.products.some((p) => p.productType === "article");
     if (!review) throw new Error("PRODUCT_BUNDLE_ADMIN_APPROVAL_REQUIRED");
     if (isV5) {
       const product = bundle.products[0];
@@ -862,16 +879,13 @@ export async function publishProductBundle(input: { importId: string; publishedB
           break;
         }
         case "diktat": {
-          const sourceArticle = bundle.products.find(candidate => candidate.productType === "article" && candidate.id === product.sourceArticleId);
-          if (!sourceArticle || sourceArticle.productType !== "article") throw new Error(`PRODUCT_DIKTAT_PDF_NOT_READY:${product.id}`);
-          const pdfGate = evaluateProductBundleReviewAndPdfGate({
-            imporBundleId: input.importId, hasArticle: true, articleId: sourceArticle.id, diktatId: product.id,
-            contentFingerprint: "", articleVersion: sourceArticle.version, articleGenerationHash: sourceArticle.generationHash,
-            diktatGenerationHash: product.generationHash, pdfEvidenceRows,
-            v4PdfBinding: isV4 ? resolveProductV4PdfBinding({ importId: input.importId, diktatId: product.id, validationReport: row.validationReport, verification: v4Verification }) : undefined,
+          const lineage = diktatPdfLineage(product);
+          const pdfEvidence = selectProductPdfEvidence({
+            rows: pdfEvidenceRows, imporBundleId: input.importId, ...lineage, diktatId: product.id,
+            diktatHash: product.generationHash,
+            v4Binding: isV4 ? resolveProductV4PdfBinding({ importId: input.importId, diktatId: product.id, validationReport: row.validationReport, verification: v4Verification }) : undefined,
           });
-          const pdfEvidence = pdfGate.selectedPdfEvidence;
-          if (!pdfEvidence?.storageKey) throw new Error(`PRODUCT_DIKTAT_PDF_NOT_READY:${product.id}`);
+          if (pdfEvidence?.status !== "ready" || !pdfEvidence.storageKey || pdfEvidence.articleVersion !== lineage.articleVersion || pdfEvidence.articleHash !== lineage.articleHash || pdfEvidence.diktatHash !== product.generationHash) throw new Error(`PRODUCT_DIKTAT_PDF_NOT_READY:${product.id}`);
           const original = bundle.products.find((candidate) => candidate.productType === "diktat" && candidate.id === product.id && candidate.version === product.version);
           if (!original || original.productType !== "diktat") throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
           await insertDiktat(tx, product, original, course, now, pdfEvidence.storageKey);
@@ -879,7 +893,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
         }
         case "flashcard":
           if (!flashcardsInserted) {
-            await insertFlashcards(tx, flashcardProducts, bundle.products, setProducts, now);
+            await insertFlashcards(tx, flashcardProducts, bundle.products, setProducts, course, now);
             flashcardsInserted = true;
           }
           break;

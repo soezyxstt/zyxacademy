@@ -603,6 +603,8 @@
     "zyraAvatarStudioCrocodile": "Crocodile"
   },
   "petStudio": {
+    "try": "Try",
+    "tryItem": "Try {item}",
     "active": "Active pet",
     "collection": "Pet collection",
     "zyra_avatar": "Mascots",

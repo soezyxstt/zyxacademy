@@ -11,7 +11,6 @@ import {
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { resolveAuthSecret } from "@/lib/auth-secret";
 import { eligibleStudent, noBlock } from "@/lib/gamification/social-sql";
-import type { PublicStudentProfile } from "@/lib/gamification/social-contracts";
 import { attachDiscussionImages, listDiscussionAttachmentsForMessages } from "./images";
 import { enqueueDiscussionReward } from "./rewards";
 import { clearDiscussionNotificationsThroughSeq } from "./notifications";
@@ -21,8 +20,8 @@ import { signDiscussionReadReceipt, verifyDiscussionReadReceipt } from "./read-r
 import { getAccessibleDiscussionChannels, getDiscussionActor, getDiscussionChannelVisibility, requireDiscussionChannelAccess, requireDiscussionCourse, requireDiscussionMessageAccess, requireDiscussionThreadAccess, resolveDiscussionCourses, type DiscussionTransaction } from "./access";
 import { getDiscussionRecipientAccess } from "./recipient-access";
 import * as discussionAccess from "./access";
-import { canDeleteDiscussionMessage, canEditDiscussionMessage, canForwardDiscussion, deriveInitialDiscussionTitle, DISCUSSION_REACTIONS, validDiscussionId, validDiscussionReplyType, validDiscussionText } from "./policy";
-import type { CreateDiscussionThread, DiscussionActor, DiscussionAuthorProfile, DiscussionChannel, DiscussionChannelKind, DiscussionMessage, DiscussionPage, DiscussionReport, DiscussionRole, DiscussionSubmit, DiscussionThread, ReplyToDiscussion } from "./contracts";
+import { discussionMentionTokens, canDeleteDiscussionMessage, canEditDiscussionMessage, canForwardDiscussion, deriveInitialDiscussionTitle, DISCUSSION_REACTIONS, validDiscussionId, validDiscussionReplyType, validDiscussionText } from "./policy";
+import type { CreateDiscussionThread, DiscussionActor, DiscussionAuthorProfile, DiscussionStudentProfile, DiscussionChannel, DiscussionChannelKind, DiscussionMessage, DiscussionPage, DiscussionReport, DiscussionRole, DiscussionSubmit, DiscussionThread, ReplyToDiscussion } from "./contracts";
 
 const PAGE_SIZE = 30;
 const unavailable = () => new Error("DISCUSSION_UNAVAILABLE");
@@ -40,11 +39,20 @@ function parseSubmit(input: DiscussionSubmit) {
   || !input.mentionIds.every(validDiscussionId) || new Set(input.mentionIds).size !== input.mentionIds.length
   || (!input.body.trim() && !input.attachmentIds.length) || typeof input.askZyra !== "boolean"
   || (input.skinId != null && !validDiscussionId(input.skinId))) throw invalid();
+ if (input.mentionHandles !== undefined) {
+  const handles = input.mentionHandles;
+  if (!Array.isArray(handles) || handles.length !== input.mentionIds.length ||
+   !handles.every(handle => typeof handle === "string" && /^[\p{L}\p{N}_]{1,64}$/u.test(handle))) throw invalid();
+  const tokens = discussionMentionTokens(input.body);
+  const normalized = handles.map(handle => handle.toLowerCase());
+  if (new Set(normalized).size !== normalized.length || normalized.some(handle => handle === "zyra" || !tokens.has(handle))) throw invalid();
+ }
  return { ...input, body: input.body.trim(), skinId: input.skinId ?? null };
 }
 function submissionFingerprint(actorId: string, requestId: string, scope: unknown[], input?: ReturnType<typeof parseSubmit>) {
  return createHash("sha256").update(JSON.stringify(["discussion-submission-v1", actorId, requestId, scope,
-  input ? [input.body, [...input.attachmentIds].sort(), [...input.mentionIds].sort(), input.askZyra, input.skinId] : null])).digest("hex");
+  input ? [input.body, [...input.attachmentIds].sort(), [...input.mentionIds].sort(), input.askZyra, input.skinId,
+   ...(input.mentionHandles?.length ? [input.mentionIds.map((id, index) => [id, input.mentionHandles![index]])] : [])] : null])).digest("hex");
 }
 function encodeCursor(value: unknown) { return Buffer.from(JSON.stringify(value)).toString("base64url"); }
 function decodeCursor(cursor: string | undefined): unknown {
@@ -417,7 +425,7 @@ export async function getThread(actorId: string, threadId: string, cursor?: stri
  const rows = await db.select().from(discussionMessages).where(and(eq(discussionMessages.threadId, threadId), gt(discussionMessages.seq, after)))
   .orderBy(asc(discussionMessages.seq)).limit(PAGE_SIZE + 1);
  const visible = rows.slice(0, PAGE_SIZE);
- const authors = [...new Set(visible.flatMap(row => row.authorId ? [row.authorId] : []))];
+ const authors = [...new Set(visible.flatMap(row => [...(row.authorId ? [row.authorId] : []), ...(row.deletedAt ? [] : row.mentionIds)]))];
  const refs = [...new Set(visible.flatMap(row => row.replyToId ? [row.replyToId] : []))];
  const ids = visible.map(row => row.id);
  const [names, replies, reactions] = await Promise.all([
@@ -478,6 +486,10 @@ export async function getThread(actorId: string, threadId: string, cursor?: stri
   const actionable = !message.deletedAt && (message.messageType === "forward" ? !!forwardedFrom : !message.forwardedFromId);
   return {
    id: message.id, threadId: message.threadId, seq: message.seq, author: name ?? null,
+   mentionedPeople: message.deletedAt ? [] : message.mentionIds.flatMap((id, index) => {
+    const person = authorMap.get(id);
+    return person?.role ? [{ id, name: person.name, role: person.role, mention: message.mentionHandles?.[index] }] : [];
+   }),
    kind: message.kind, messageType: message.messageType, body,
    bodyKind: message.deletedAt ? "deleted" : message.forwardedFromId && !forwardedFrom ? "source_unavailable" : "body",
    createdAt: message.createdAt.toISOString(),
@@ -589,7 +601,7 @@ export async function createThread(actorId: string, raw: CreateDiscussionThread)
   const threadId = id(), messageId = id(), now = new Date();
   await tx.insert(discussionThreads).values({ id: threadId, channelId, authorId: current.id, title, helpKind: null, nextSeq: 2, createdAt: now, lastActivityAt: now });
   await tx.insert(discussionMessages).values({ id: messageId, threadId, authorId: current.id, kind: "human", messageType: "question", body: input.body,
-   seq: 1, requestId: input.requestId, submissionFingerprint: fingerprint, mentionIds: input.mentionIds, askZyra: input.askZyra, skinId: input.skinId, createdAt: now });
+   seq: 1, requestId: input.requestId, submissionFingerprint: fingerprint, mentionIds: input.mentionIds, mentionHandles: input.mentionHandles, askZyra: input.askZyra, skinId: input.skinId, createdAt: now });
   await recordDiscussionParticipant(tx, messageId);
   await attachDiscussionImages(tx, { actorId: current.id, channelId, messageId, attachmentIds: input.attachmentIds });
   if (current.role === "student") await enqueueDiscussionReward(tx, { userId: current.id, threadId, messageId, kind: "question", occurredAt: now });
@@ -625,7 +637,7 @@ export async function reply(actorId: string, raw: ReplyToDiscussion) {
   await validateSubmit(tx, current, channel.id, input);
   const messageId = id(), now = new Date();
   await tx.insert(discussionMessages).values({ id: messageId, threadId: thread.id, authorId: current.id, kind: "human", messageType: type, body: input.body,
-   seq, requestId: input.requestId, submissionFingerprint: fingerprint, replyToId: raw.replyTo ?? null, mentionIds: input.mentionIds, askZyra: input.askZyra, skinId: input.skinId, createdAt: now });
+   seq, requestId: input.requestId, submissionFingerprint: fingerprint, replyToId: raw.replyTo ?? null, mentionIds: input.mentionIds, mentionHandles: input.mentionHandles, askZyra: input.askZyra, skinId: input.skinId, createdAt: now });
   await recordDiscussionParticipant(tx, messageId);
   await attachDiscussionImages(tx, { actorId: current.id, channelId: channel.id, messageId, attachmentIds: input.attachmentIds });
   if (type === "answer" && current.role === "student" && thread.authorId !== current.id)
@@ -653,7 +665,7 @@ export async function edit(actorId: string, messageId: string, body: string, rev
    const [attachment] = await tx.select({ id: discussionAttachments.id }).from(discussionAttachments).where(eq(discussionAttachments.messageId, messageId)).limit(1);
    if (!attachment) throw invalid();
   }
-  const [updated] = await tx.update(discussionMessages).set({ body: body.trim(), revision: sql`${discussionMessages.revision} + 1`, editedAt: new Date(), mentionIds: [] })
+  const [updated] = await tx.update(discussionMessages).set({ body: body.trim(), revision: sql`${discussionMessages.revision} + 1`, editedAt: new Date(), mentionIds: [], mentionHandles: null })
    .where(and(eq(discussionMessages.id, messageId), eq(discussionMessages.revision, revision), isNull(discussionMessages.deletedAt), current.role === "admin" ? undefined
     : sql`${discussionMessages.createdAt} <= now() and ${discussionMessages.createdAt} > now() - interval '5 minutes'`)).returning({ revision: discussionMessages.revision });
   if (!updated) throw new Error("DISCUSSION_CONFLICT");
@@ -811,7 +823,7 @@ export async function setResolved(actorId: string, threadId: string, resolved: b
 export async function searchChannelMentions(actorId: string, channelId: string, query: string) {
  const actor = await getDiscussionActor(actorId);
  checkId(channelId);
- if (typeof query !== "string" || [...query.trim()].length < 2 || query.length > 80 || /[\u0000-\u001f]/.test(query)) return [];
+ if (typeof query !== "string" || query.length > 80 || /[\u0000-\u001f]/.test(query)) return [];
  const channel = await requireDiscussionChannelAccess(actor, channelId);
  const pattern = `%${query.trim().replace(/[\\%_]/g, "\\$&")}%`;
  const role = (code: string) => sql`exists (select 1 from ${penggunaPeran} membership join ${peran} role on role.id = membership.peran_id where membership.pengguna_id = ${user.id} and role.code = ${code})`;
@@ -828,7 +840,7 @@ export async function searchChannelMentions(actorId: string, channelId: string, 
   ? sql`(${admin} or (${tutor} and ${assignment}) or (not ${tutor} and ${student} and (${enrollment} or ${free})))` : sql`(${admin} or ${tutor} or ${student})`;
  const pkaAudience = channel.courseId === PKA_COURSE_ID || channel.legacyCourseId === PKA_COURSE_ID
   ? sql`(${admin} or ${tutor} or exists (select 1 from ${enrollments} registration where registration.user_id = ${user.id} and registration.course_id = ${PKA_COURSE_ID}))` : undefined;
- const rows = await db.select({ id: user.id, name: user.name }).from(user).innerJoin(pengguna, eq(pengguna.id, user.id))
+ const rows = await db.select({ id: user.id, name: user.name, image: user.image }).from(user).innerJoin(pengguna, eq(pengguna.id, user.id))
   .where(and(eq(pengguna.status, "active"), courseAudience, pkaAudience,
    sql`${nameSearchBigrams(user.name)} @> array(select distinct pair from unnest(${nameSearchBigrams(sql`${query.trim()}`)}) as terms(pair) where char_length(pair) = 2)`,
    sql`${user.name} ilike ${pattern} escape '\\'`)).orderBy(asc(user.name), asc(user.id)).limit(101);
@@ -836,7 +848,7 @@ export async function searchChannelMentions(actorId: string, channelId: string, 
  const access = await getDiscussionRecipientAccess(channel.id, candidates.map(row => row.id));
  const eligible = candidates.flatMap(row => {
   const candidate = access.get(row.id);
-  return candidate ? [{ ...row, role: candidate.role }] : [];
+  return candidate ? [{ id: row.id, name: row.name, ...(row.image ? { avatarUrl: row.image } : {}), role: candidate.role }] : [];
  });
  const page = eligible;
  const sameNameAndRole = (a: typeof eligible[number], b: typeof eligible[number]) =>
@@ -983,7 +995,7 @@ export async function getDiscussionAuthorProfile(actorId: string, threadId: stri
   .from(discussionMessages)
   .where(and(
    eq(discussionMessages.threadId, threadId),
-   eq(discussionMessages.authorId, authorId),
+   or(eq(discussionMessages.authorId, authorId), sql`${discussionMessages.mentionIds} @> ${JSON.stringify([authorId])}::jsonb`),
    eq(discussionMessages.kind, "human"),
    isNull(discussionMessages.deletedAt),
   ))
@@ -1037,7 +1049,7 @@ export async function getDiscussionAuthorProfile(actorId: string, threadId: stri
    u.id = ${actor.id} as is_self,
    p.public_id,
    coalesce(p.display_name, u.name) as display_name,
-   p.visibility,
+   coalesce(p.visibility, 'members') as visibility,
    coalesce(a.rank_key, 'rakyat') as rank_key,
    case when p.leaderboard_opt_in then coalesce(a.base_xp_micro, 0) end as base_xp_micro,
    coalesce((
@@ -1082,8 +1094,8 @@ export async function getDiscussionAuthorProfile(actorId: string, threadId: stri
  if (!row.is_self && row.visibility !== "members") {
   return { kind: "limited", id: row.id, name: row.display_name ?? row.name, role: "student", avatarUrl: row.image ?? null, visibilityReason: "private" };
  }
- const profile: PublicStudentProfile = {
-  publicId: row.public_id ?? row.id,
+ const profile: DiscussionStudentProfile = {
+  publicId: row.public_id,
   displayName: row.display_name ?? row.name,
   avatarUrl: row.image ?? null,
   avatarBadgeId: null,

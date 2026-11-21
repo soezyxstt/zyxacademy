@@ -33,6 +33,7 @@ import {
 import { canonicalObjectiveProvenance } from "@/lib/gamification/question-snapshot-provenance";
 import { writeQuestionRewards } from "@/lib/gamification/question-writer";
 import { checkAnswerCorrectness } from "@/lib/gamification/question-grading";
+import { hasQuizAttemptCapacity } from "@/lib/quiz/attempt-capacity";
 import { lockCanonicalQuestions, lockQuestionExposures, recordAttemptDisclosures } from "@/lib/gamification/question-exposure";
 import { lockQuestionBankRows } from "@/lib/question-row-locks";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
@@ -528,8 +529,9 @@ export async function POST(req: NextRequest) {
     };
   });
 
-  await db.transaction(async (tx) => {
+  const submitted = await db.transaction(async (tx) => {
     await lockQuestionExposures(tx, session.user.id, serverSnapshot.map(question => question.id));
+    if (!await hasQuizAttemptCapacity(tx, session.user.id, template.id, true)) return false;
     const canonicalIds = serverSnapshot.map(question => question.id);
     const heldCanonical = { ids: canonicalIds, rows: await lockCanonicalQuestions(tx, canonicalIds) };
     const submittedAt = new Date();
@@ -563,7 +565,9 @@ export async function POST(req: NextRequest) {
       .update(aiQuestionBank)
       .set({ useCount: sql`${aiQuestionBank.useCount} + 1` })
       .where(inArray(aiQuestionBank.id, serverQuestions.map((question) => question.id)));
+    return true;
   });
+  if (!submitted) return NextResponse.json({ error: "Batas percobaan kuis tercapai." }, { status: 409 });
 
   return NextResponse.json({ attemptId, score, correct, total });
 }

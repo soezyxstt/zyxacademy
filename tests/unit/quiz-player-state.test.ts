@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   createQuizSubmissionGate, formatQuizAnswers, readQuizAnswers, readQuizFlags,
-  remainingQuizSeconds, resolveQuizDeadline, waitForQuizUploads,
+  remainingQuizSeconds, resolveQuizDeadline, resolveQuizDuration, waitForQuizUploads,
   type QuizAnswers, type QuizQuestion,
 } from "@/lib/quiz/player-state";
 
@@ -36,6 +36,20 @@ describe("quiz recovery", () => {
 
 describe("quiz deadline", () => {
   const now = 100_000;
+  test("explicitly untimed quizzes stay untimed after the old fallback deadline", () => {
+    const durationSeconds = resolveQuizDuration({ timeLimitSeconds: null, timeLimitMinutes: 15 });
+    expect(durationSeconds).toBeNull();
+    expect(resolveQuizDeadline({ stored: "1000000", startedAtMs: now, durationSeconds, now: now + 901_000 })).toBeNull();
+  });
+  test("an untimed quiz with a scheduled close restores only that deadline", () => {
+    expect(resolveQuizDeadline({ stored: "120000", startedAtMs: now, closeAtMs: 1_500_000, durationSeconds: null, now: 1_200_000 })).toBe(1_500_000);
+    expect(resolveQuizDeadline({ stored: null, closeAtMs: 1_500_000, durationSeconds: null, now: 1_600_000 })).toBe(1_500_000);
+    expect(remainingQuizSeconds(1_500_000, 1_600_000)).toBe(0);
+  });
+  test("configured seconds take precedence over legacy minutes", () => {
+    expect(resolveQuizDuration({ timeLimitSeconds: 35, timeLimitMinutes: 2 })).toBe(35);
+    expect(resolveQuizDuration({ timeLimitMinutes: 2 })).toBe(120);
+  });
   test("restores the clock without granting new time on reload", () => {
     expect(resolveQuizDeadline({ stored: "110000", durationSeconds: 60, now })).toBe(110_000);
     expect(resolveQuizDeadline({ stored: null, startedAtMs: 90_000, durationSeconds: 60, now })).toBe(150_000);

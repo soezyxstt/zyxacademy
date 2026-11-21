@@ -41,3 +41,18 @@ test("global schedule links do not inherit a selected course", () => {
   expect(demoStudentHref("en", "/dashboard/schedule", "fi1101")).toBe("/en/demo/schedule");
   expect(demoStudentPath("schedule", "fi1101")).toBe("/dashboard/schedule");
 });
+
+test("pet and discussion links retain demo context and discussion deep links", () => {
+  expect(demoStudentHref("en", "/pet?tab=pet_suit", "fi1101")).toBe("/en/demo/pet?course=fi1101&tab=pet_suit");
+  expect(demoStudentHref("id", "/discussions?channel=demo-general&thread=topic&message=post", "fi1101"))
+    .toBe("/id/demo/discussions?course=fi1101&channel=demo-general&thread=topic&message=post");
+  expect(demoStudentHref("en", "/courses/ma1101/discussions?thread=topic", "fi1101"))
+    .toBe("/en/demo/course-discussions?course=ma1101&thread=topic");
+  expect(demoStudentPath("course-discussions", "fi1101")).toBe("/courses/fi1101/discussions");
+  expect(demoStudentPath("discussions", "fi1101")).toBe("/dashboard/discussions");
+  expect(demoStudentPath("pet", "fi1101")).toBe("/pet");
+  for (const view of ["pet", "discussions", "course-discussions"]) {
+    const localized = new NextRequest(`http://localhost/en/demo/${view}?course=fi1101`);
+    expect(proxy(localized).headers.get("x-middleware-rewrite")).toBe(`http://localhost/demo/${view}?course=fi1101`);
+  }
+});

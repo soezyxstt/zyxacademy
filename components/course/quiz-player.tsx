@@ -198,10 +198,12 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
                 <span>{formatTime(questionTimeLeft)}</span>
               </div>
             )}
-            <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-secondary/35 bg-brand-secondary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-secondary sm:px-3 sm:py-1.5" role="timer" aria-label={t("quiz.totalTimeRemaining")} title={t("quiz.totalTimeRemaining")}>
-              <Clock aria-hidden className="size-3.5 sm:size-4" />
-              <span>{formatTime(timeLeft)}</span>
-            </div>
+            {timeLeft !== null && (
+              <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-secondary/35 bg-brand-secondary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-secondary sm:px-3 sm:py-1.5" role="timer" aria-label={t("quiz.totalTimeRemaining")} title={t("quiz.totalTimeRemaining")}>
+                <Clock aria-hidden className="size-3.5 sm:size-4" />
+                <span>{formatTime(timeLeft)}</span>
+              </div>
+            )}
             {mobileQuestionMap}
           </div>
         </div>
@@ -582,10 +584,12 @@ function QuizPlayerContent(props: QuizPlayerProps & { submit: (payload: QuizSubm
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-2 border-t border-border pt-2 text-body-xs text-muted-foreground">
-              <span>{t("quiz.remainingTime")}</span>
-              <span className="font-mono font-bold text-foreground">{formatTime(timeLeft)}</span>
-            </div>
+            {timeLeft !== null && (
+              <div className="flex items-center justify-between gap-2 border-t border-border pt-2 text-body-xs text-muted-foreground">
+                <span>{t("quiz.remainingTime")}</span>
+                <span className="font-mono font-bold text-foreground">{formatTime(timeLeft)}</span>
+              </div>
+            )}
 
             <p className="text-body-xs text-muted-foreground">
               {t("quiz.cannotEditAfterSubmit")}

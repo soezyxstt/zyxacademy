@@ -148,7 +148,7 @@ export function buildDiscussionImageKey(input: {
   return joinKey("discussions", input.channelId, input.variant === "preview" ? "previews" : "images", `${input.attachmentId}.${input.extension}`);
 }
 
-export function isPrivateAttachmentKey(value: string): boolean {
+function decodedStorageSegments(value: string): [string[], string[]] {
   let decoded = value;
   for (;;) {
     try {
@@ -160,13 +160,25 @@ export function isPrivateAttachmentKey(value: string): boolean {
     }
   }
   const parts = decoded.replace(/\\/g, "/").split("/").filter(Boolean);
-  if (parts[0] === "discussions" || parts[0] === "zyx-attachments") return true;
   const segments: string[] = [];
   for (const part of parts) {
     if (part === "..") segments.pop();
     else if (part && part !== ".") segments.push(part);
   }
-  return segments[0] === "discussions" || segments[0] === "zyx-attachments";
+  return [parts, segments];
+}
+
+export function isPrivateAttachmentKey(value: string): boolean {
+  return decodedStorageSegments(value).some(([root]) => root === "discussions" || root === "zyx-attachments");
+}
+
+export function scopedStorageFileKind(value: string): "tryout" | "tutorial" | "product-bundle" | null {
+  for (const [root, section, folder] of decodedStorageSegments(value)) {
+    if (root === "exams" && folder === "attachments") return "tryout";
+    if (root === "schedules" && (folder === "pre_session" || folder === "post_session")) return "tutorial";
+    if (root === "overhaul" && section === "product-bundles") return "product-bundle";
+  }
+  return null;
 }
 
 export function leafFilename(key: string): string {

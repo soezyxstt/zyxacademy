@@ -45,13 +45,12 @@ export const executeProductV4VerificationCheck = async (input: Parameters<Produc
         }
         if (product.productType === "diktat") {
           const article = input.bundle.products.find(source => source.productType === "article" && source.id === product.sourceArticleId);
-          if (!article || article.productType !== "article") findings.push("DIKTAT_SOURCE_MISSING");
-          else findings.push(...validateAuthoredDiktat(article, product));
+          findings.push(...validateAuthoredDiktat(article?.productType === "article" ? article : undefined, product));
         }
       }
       observations.push({ contract: "validated staged artifact", referenceErrors: findings });
     } else {
-      const visual = input.bundle.products.flatMap(product => product.productType === "article" ? (product.visuals ?? []).map(spec => ({ target: `${product.id}/${spec.id}`, spec })) : []).find(candidate => candidate.target === input.requirement.target)?.spec;
+      const visual = input.bundle.products.flatMap(product => product.productType === "article" || product.productType === "diktat" ? (product.visuals ?? []).map(spec => ({ target: `${product.id}/${spec.id}`, spec })) : []).find(candidate => candidate.target === input.requirement.target)?.spec;
       if (!visual) throw new Error("PRODUCT_V4_VERIFICATION_VISUAL_MISSING");
       visualSpecSchema.parse(visual);
       findings.push(...findUnmarkedScientificProse(visual).map((finding) => `UNMARKED_SCIENTIFIC_NOTATION:${finding.path}:${finding.notation}`));

@@ -433,8 +433,8 @@
   },
   "tryout": {
     "submitted": "Tryout berhasil dikumpulkan. Menunggu penilaian pengajar.",
-    "submitFailed": "Gagal mengumpulkan lembar jawaban.",
-    "timeExpired": "Waktu ujian berakhir. Lembar jawaban dikumpulkan otomatis.",
+    "submitFailed": "Gagal mengumpulkan jawaban. Coba kirim lagi.",
+    "timeExpired": "Waktu ujian berakhir.",
     "fileUploaded": "Berkas {fileName} berhasil diunggah.",
     "uploadFailed": "Gagal mengunggah berkas.",
     "attachmentRemoved": "Lampiran berkas dihapus.",

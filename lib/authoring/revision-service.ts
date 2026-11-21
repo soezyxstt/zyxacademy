@@ -324,7 +324,7 @@ export async function reviewRevisionDraft(input: RevisionReviewInput) {
     const supplied = explicitItems as Parameters<typeof reviewSolutionCollection>[0]["items"];
     const items = reuseRequested ? [...supplied, ...reuse.solutionItems.filter(item => !supplied.some(candidate => candidate.itemId === item.itemId))] : supplied;
     result = await reviewSolutionCollection({ importId: row.id, reviewerId: input.actorId, expectedRevision: row.checksum, expectedReviewVersion: String(evidence.expectedReviewVersion ?? ""), decision: evidence.decision as "approved" | "rejected", items });
-  } else if (productBundle(bundle).products.some(product => product.productType === "article")) {
+  } else if (row.version === 4 || productBundle(bundle).products.some(product => product.productType === "article")) {
     const articles = productBundle(bundle).products.filter(product => product.productType === "article");
     const supplied = normalizeProductSectionDecisions(articles, Array.isArray(evidence.sectionDecisions) ? evidence.sectionDecisions as ProductV4SectionDecision[] : []);
     const sectionDecisions = reuseRequested ? [...supplied, ...reuse.sectionDecisions.filter(item => !supplied.some(candidate => productSectionReviewKey(candidate.productId, candidate.sectionId) === productSectionReviewKey(item.productId, item.sectionId)))] : supplied;

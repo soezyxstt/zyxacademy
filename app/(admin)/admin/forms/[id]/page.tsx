@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminIconAction } from "@/components/admin/icon-action";
 import { FormDetailSkeleton } from "@/components/admin/content-loading-skeletons";
 
 
@@ -9,7 +10,6 @@ import {
   RefreshCw,
   AlertCircle,
   ExternalLink,
-  Download,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -55,6 +55,7 @@ interface NativeFormDetails {
   category: string;
   questions: any[];
   googleResponderUri?: string;
+  spreadsheetUrl?: string | null;
   createdAt: string;
 }
 
@@ -310,12 +311,9 @@ export default function DetailedFormAnalyticsPage({
 
   const [formSettings, setFormSettings] = useState<any>({});
   const [savingSettings, setSavingSettings] = useState(false);
-  const { exporting: exportingSheets, confirmDialog, runExport } = useSpreadsheetExport({
-    onSuccess: ({ spreadsheetUrl }) => {
-      window.open(spreadsheetUrl, "_blank");
-      toast.success(t("formDetailsUI.spreadsheetCreated"));
-    },
-    onError: () => toast.error(t("formDetailsUI.spreadsheetError")),
+  const { sheetControls, confirmDialog, resultPanel, runExport } = useSpreadsheetExport({
+    scope: formId, entityType: "form", enabled: form?.id === formId, initialUrl: form?.id === formId ? form.spreadsheetUrl : null,
+    onError: (message) => toast.error(message),
   });
 
   const fetchAnalytics = useCallback(async () => {
@@ -413,36 +411,6 @@ export default function DetailedFormAnalyticsPage({
     }
   };
 
-  const handleExportCSV = () => {
-    if (!form || responses.length === 0) return;
-
-    const headersRow = ["Response ID", "Submitted At", "Responder Email", ...exportQuestions.map((x) => x.header)];
-
-    const rows = responses.map((r) => {
-      const answerCols = exportQuestions.map(({ qIdx, q }) => {
-        const val = r.answers[qIdx] ?? r.answers[q.title] ?? "";
-        const formatted = formatAnswerForText(val);
-        return `"${formatted.replace(/"/g, '""')}"`;
-      });
-      return [
-        `"${r.id}"`,
-        `"${r.submittedAt}"`,
-        `"${r.responderEmail || "Anonim"}"`,
-        ...answerCols,
-      ].join(",");
-    });
-
-    const csvContent = "data:text/csv;charset=utf-8," + [headersRow.join(","), ...rows].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `zyx_form_${safeFormSlug}_responses.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(t("formDetailsUI.csvDownloaded"));
-  };
-
   const handleExportGoogleSheets = () => {
     if (!form || responses.length === 0) return;
 
@@ -520,63 +488,38 @@ export default function DetailedFormAnalyticsPage({
           onValueChange={(val) => setResponseTab(val as any)}
           className="w-full"
         >
-          <TabsList>
-            <TabsTrigger value="summary">
-              <PieIcon className="size-4 text-primary" />
-              {t("formDetailsUI.summaryTab")}
-            </TabsTrigger>
-            <TabsTrigger value="question">
-              <QuestionIcon className="size-4 text-brand-secondary" />
-              {t("formDetailsUI.questionTab")}
-            </TabsTrigger>
-            <TabsTrigger value="individual">
-              <User className="size-4 text-tertiary-1" />
-              {t("formDetailsUI.respondentTab")}
-            </TabsTrigger>
-            <TabsTrigger value="settings">
-              <SettingsIcon className="size-4 text-status-warning" />
-              {t("formDetailsUI.settingsTab")}
-            </TabsTrigger>
-          </TabsList>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-body-sm font-semibold">
-              {t("formDetailsUI.responsesCount", { count: responses.length })}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportGoogleSheets}
-                disabled={responses.length === 0 || exportingSheets}
-                isLoading={exportingSheets}
-                className="text-primary hover:text-primary"
-              >
-                <FileText className="size-4" />
-                <span>{exportingSheets ? t("formDetailsUI.exporting") : t("formDetailsUI.exportSheets")}</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportCSV}
-                disabled={responses.length === 0}
-                className="text-status-success hover:text-status-success"
-              >
-                <Download className="size-4" />
-                <span>{t("formDetailsUI.exportCsv")}</span>
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={fetchAnalytics}
-                aria-label={t("formDetailsUI.refresh")}
-                title={t("formDetailsUI.refresh")}
-              >
-                <RefreshCw className="size-4" />
-              </Button>
+          <div className="@container flex flex-wrap items-center justify-between gap-2">
+            <TabsList className="max-w-full">
+              <TabsTrigger value="summary">
+                <PieIcon className="size-4 text-primary" />
+                {t("formDetailsUI.summaryTab")}
+              </TabsTrigger>
+              <TabsTrigger value="question">
+                <QuestionIcon className="size-4 text-brand-secondary" />
+                {t("formDetailsUI.questionTab")}
+              </TabsTrigger>
+              <TabsTrigger value="individual">
+                <User className="size-4 text-tertiary-1" />
+                {t("formDetailsUI.respondentTab")}
+              </TabsTrigger>
+              <TabsTrigger value="settings">
+                <SettingsIcon className="size-4 text-status-warning" />
+                {t("formDetailsUI.settingsTab")}
+              </TabsTrigger>
+            </TabsList>
+            <div className="flex w-full flex-wrap items-center justify-between gap-2 @min-[52rem]:w-auto @min-[52rem]:justify-start">
+              <p className="shrink-0 text-body-sm font-semibold">
+                {t("formDetailsUI.responsesCount", { count: responses.length })}
+              </p>
+              <div className="inline-flex shrink-0 items-center gap-1">
+                {sheetControls(handleExportGoogleSheets, !responses.length)}
+                <AdminIconAction variant="ghost" label={t("formDetailsUI.refresh")} onClick={fetchAnalytics}>
+                  <RefreshCw />
+                </AdminIconAction>
+              </div>
             </div>
           </div>
+          {resultPanel}
 
           {/* TAB 1: SUMMARY */}
           <TabsContent value="summary" className="divide-y divide-border border-y border-border">
@@ -795,9 +738,9 @@ export default function DetailedFormAnalyticsPage({
           </TabsContent>
 
           {/* TAB 2: QUESTION */}
-          <TabsContent value="question" className="space-y-4">
+          <TabsContent value="question" className="space-y-2">
             <div className="flex flex-wrap items-end justify-between gap-2">
-              <div className="min-w-36 flex-1 space-y-1">
+              <div className="min-w-0 flex-1">
                 <Label htmlFor="response-question" className="text-body-xs font-semibold">
                   {t("formDetailsUI.questionPosition", { current: selectedQIndex + 1, total: visibleQuestions.length })}
                 </Label>
@@ -805,7 +748,7 @@ export default function DetailedFormAnalyticsPage({
                   value={selectedQIndex.toString()}
                   onValueChange={(val) => setSelectedQIndex(parseInt(val, 10))}
                 >
-                  <SelectTrigger id="response-question" variant="inline" className="w-full">
+                  <SelectTrigger id="response-question" variant="inline" className="h-auto min-h-9 w-full min-w-0 [&>span]:whitespace-normal [&>span]:text-start">
                     <SelectValue placeholder={t("formDetailsUI.chooseQuestion")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -818,23 +761,15 @@ export default function DetailedFormAnalyticsPage({
                 </Select>
               </div>
 
-              <div className="flex items-center gap-2 self-end sm:self-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={selectedQIndex === 0}
-                  onClick={() => setSelectedQIndex((prev) => Math.max(0, prev - 1))}
-                >
-                  <ChevronLeft className="size-4" /> {t("formDetailsUI.previousQuestion")}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={selectedQIndex === visibleQuestions.length - 1}
-                  onClick={() => setSelectedQIndex((prev) => Math.min(visibleQuestions.length - 1, prev + 1))}
-                >
-                  {t("formDetailsUI.nextQuestion")} <ChevronRight className="size-4" />
-                </Button>
+              <div className="flex items-center">
+                <AdminIconAction variant="ghost" label={t("formDetailsUI.previousQuestion")}
+                  disabled={selectedQIndex <= 0} onClick={() => setSelectedQIndex(i => i - 1)}>
+                  <ChevronLeft />
+                </AdminIconAction>
+                <AdminIconAction variant="ghost" label={t("formDetailsUI.nextQuestion")}
+                  disabled={selectedQIndex >= visibleQuestions.length - 1} onClick={() => setSelectedQIndex(i => i + 1)}>
+                  <ChevronRight />
+                </AdminIconAction>
               </div>
             </div>
 
@@ -853,29 +788,22 @@ export default function DetailedFormAnalyticsPage({
               })).filter((x) => x.answer !== undefined && x.answer !== null && x.answer !== "");
 
               return (
-                <Card className="shadow-sm">
-                  <CardHeader className="border-b border-border pb-3">
-                    <CardTitle className="text-body-sm font-heading">
-                      {questionNumber}. {qTitle}
-                    </CardTitle>
-                    <CardDescription className="text-body-xs font-semibold">
-                      {t("formDetailsUI.recordedAnswers", { count: responsesForQ.length })}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="px-4 pb-4 space-y-3">
+                <section aria-label={qTitle} className="border-y border-border">
+                  {(responsesForQ.length !== responses.length || !responsesForQ.length) && <p className="py-2 text-body-xs text-muted-foreground">{t("formDetailsUI.recordedAnswers", { count: responsesForQ.length })}</p>}
+                  <div className="divide-y divide-border">
                     {responsesForQ.map((item, idx) => (
-                      <div key={idx} className="border-b border-border/60 py-3 space-y-1.5">
+                      <div key={idx} className="py-2 space-y-1">
                         <div className="flex items-center justify-between text-body-xs font-medium text-muted-foreground">
                           <span>{t("formDetailsUI.respondentLabel")}: {item.responderEmail}</span>
                           <span className="font-mono">{new Date(item.submittedAt).toLocaleDateString(locale === "id" ? "id-ID" : "en-US")}</span>
                         </div>
-                        <div className="pt-1">
+                        <div>
                           <RenderFormattedAnswer val={item.answer} isFile={targetQ.type === "FILE_UPLOAD"} />
                         </div>
                       </div>
                     ))}
-                  </CardContent>
-                </Card>
+                  </div>
+                </section>
               );
             })()}
           </TabsContent>

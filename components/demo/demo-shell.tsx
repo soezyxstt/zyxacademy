@@ -34,11 +34,12 @@ function Shell({ experiences, selected, activeView, children, selection = {}, sh
   const localeHref = (nextLocale: typeof locale) => {
     const base = activeView === "schedule" ? demoStudentHref(nextLocale, `/dashboard/schedule${scheduleCourse ? `?course=${encodeURIComponent(scheduleCourse)}` : ""}`, selected.snapshot.courseId) : demoRoute(nextLocale, activeView, selected.snapshot.courseId);
     const url = new URL(demoSelectionHref(base, selection), window.location.origin);
-    if (activeView === "leaderboard" || activeView === "achievements") {
-      for (const key of activeView === "achievements" ? ["tab"] : ["tab", "academic", "academicCourse", "period", "scope"]) {
-        const value = searchParams.get(key);
-        if (value) url.searchParams.set(key, value);
-      }
+    const keys = activeView === "leaderboard" ? ["tab", "academic", "academicCourse", "period", "scope"]
+      : activeView === "achievements" || activeView === "pet" ? ["tab"]
+      : activeView === "discussions" || activeView === "course-discussions" ? ["channel", "thread", "message"] : [];
+    for (const key of keys) {
+      const value = searchParams.get(key);
+      if (value) url.searchParams.set(key, value);
     }
     return `${url.pathname}${url.search}`;
   };
@@ -50,5 +51,5 @@ function Shell({ experiences, selected, activeView, children, selection = {}, sh
     streak: { current: selected.snapshot.streakDays, weeklyActivity: demoWeeklyActivity(selected.snapshot, overlay, today) },
     courseHref: id => route("overview", id), baseline: experiences.map(item => item.snapshot),
     selectedCourseId: selected.snapshot.courseId, overlay, ready, record, reset,
-  }}><DemoGamificationProvider name={selected.snapshot.displayName}><StudentApplicationShell personalizeTypographyAndSpacing showLive={showLive}><div key={generation}>{!["dashboard", "courses", "groups", "leaderboard", "achievements", "profile", "profile-edit", "reflections", "settings", "notifications", "feedback", "schedule"].includes(activeView) && <MobileNavTitle title={selected.content.course.title} />}{children}</div></StudentApplicationShell></DemoGamificationProvider></StudentExperienceProvider>;
+  }}><DemoGamificationProvider name={selected.snapshot.displayName}><StudentApplicationShell personalizeTypographyAndSpacing showLive={showLive}><div key={generation}>{!["dashboard", "courses", "groups", "pet", "discussions", "leaderboard", "achievements", "profile", "profile-edit", "reflections", "settings", "notifications", "feedback", "schedule"].includes(activeView) && <MobileNavTitle title={selected.content.course.title} />}{children}</div></StudentApplicationShell></DemoGamificationProvider></StudentExperienceProvider>;
 }

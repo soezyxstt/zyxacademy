@@ -188,6 +188,9 @@
     "askSelection": "Quoted from {title}: \"{selection}\"\n\nExplain this part step by step."
   },
   "flashcards": {
+    "recallWithPet": "Practice recall with Zyra",
+    "writeRecall": "Before flipping the card, write your answer in your own words.",
+    "compareRecall": "Compare your note with the answer on the card. What did you miss?",
     "reviewTitle": "Flashcard review",
     "dueCount": "{count, plural, one {# flashcard due for review.} other {# flashcards due for review.}}",
     "allReviewsDone": "All reviews complete.",
@@ -526,6 +529,7 @@
     "activationDescription": "Enter a course token to unlock all videos and materials."
   },
   "quizTake": {
+    "attemptLimitReached": "Quiz attempt limit reached",
     "locked": "Quiz locked",
     "premiumDescription": "{course}, premium quiz",
     "backToList": "Back to quiz list",

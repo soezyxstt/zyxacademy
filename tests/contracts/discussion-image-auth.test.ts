@@ -170,6 +170,8 @@ describe("discussion image authorization", () => {
     const route = readFileSync("app/api/storage/file/[...key]/route.ts", "utf8");
     expect(route.indexOf("if (isPrivateAttachmentKey(requestedKey) || isPrivateAttachmentKey(key))")).toBeGreaterThan(-1);
     expect(route.indexOf("if (isPrivateAttachmentKey(requestedKey) || isPrivateAttachmentKey(key))")).toBeLessThan(route.indexOf("const command = new GetObjectCommand"));
-    expect(route.indexOf("if (isPrivateAttachmentKey(requestedKey) || isPrivateAttachmentKey(key))")).toBeLessThan(route.indexOf("const diktatAuthorization = await resolveDiktatAuthorization(key)"));
+    const diktatAuthorization = route.indexOf("await resolveDiktatAuthorization(key)");
+    expect(diktatAuthorization).toBeGreaterThan(-1);
+    expect(route.indexOf("if (isPrivateAttachmentKey(requestedKey) || isPrivateAttachmentKey(key))")).toBeLessThan(diktatAuthorization);
   });
 });

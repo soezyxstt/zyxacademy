@@ -5,7 +5,7 @@ const origin = "http://quiz-query.invalid";
 let fixture: Awaited<ReturnType<typeof buildFixture>>;
 test.beforeAll(async () => { fixture = await buildFixture("tests/visual/fixtures/quiz-query.tsx"); });
 
-async function boot(page: Page, config: { mode: "player" | "review" | "demo"; seconds?: number; perQuestionSeconds?: number; expectedUserId?: string }, respond?: (route: Route) => Promise<void>) {
+async function boot(page: Page, config: Window["quizFixture"], respond?: (route: Route) => Promise<void>) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
@@ -169,6 +169,37 @@ test("demo submission stays local", async ({ page }, info) => {
   await page.getByRole("button", { name: "Ya, kumpulkan", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Jawaban demo tersimpan");
   await capture(page, info, "quiz-demo-submitted", errors);
+});
+
+test("untimed quiz stays open past 15 minutes and still advances per question", async ({ page }, info) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("zyx-quiz-timer-deadline-fixture-attempt", String(Date.now() + 900_000));
+  });
+  const errors = await boot(page, { mode: "demo", seconds: null, perQuestionSeconds: 30 });
+  const totalTimer = page.getByRole("timer", { name: "Total sisa waktu kuis" });
+  await expect(page.getByRole("timer")).toHaveCount(1);
+  await expect(totalTimer).toHaveCount(0);
+  await page.clock.fastForward(901_000);
+  await expect(page.locator("textarea")).toBeEditable();
+  await expect(page.getByText("Jawaban demo tersimpan", { exact: true })).toHaveCount(0);
+  await expect(totalTimer).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("zyx-quiz-timer-deadline-fixture-attempt"))).toBeNull();
+  await capture(page, info, "quiz-untimed-per-question", errors);
+
+  await page.getByRole("button", { name: "Kumpulkan kuis", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Sisa waktu pengerjaan:", { exact: true })).toHaveCount(0);
+  await capture(page, info, "quiz-untimed-confirm", errors);
+});
+
+test("a scheduled close ends an otherwise untimed quiz", async ({ page }, info) => {
+  const errors = await boot(page, { mode: "demo", seconds: null, closeAtMs: Date.parse("2026-11-18T00:01:00.000Z") });
+  await expect(page.getByRole("timer", { name: "Total sisa waktu kuis" })).toBeVisible();
+  await capture(page, info, "quiz-untimed-with-close", errors);
+  await page.clock.fastForward(60_000);
+  await expect(page.getByRole("status").filter({ hasText: "Jawaban demo tersimpan" })).toBeVisible();
+  await capture(page, info, "quiz-scheduled-close-submitted", errors);
 });
 
 test("a different signed-in account cannot restore the server owner's quiz draft", async ({ page }, info) => {

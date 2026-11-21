@@ -39,6 +39,11 @@ export function deriveInitialDiscussionTitle(body: string, hasAttachments = fals
  const compact = lastSpace > 80 ? sliced.slice(0, lastSpace).trimEnd() : sliced;
  return `${compact}...`;
 }
+export function discussionMentionTokens(body: string): Set<string> {
+ const pattern = /(?<![\p{L}\p{N}_@])@([\p{L}\p{N}_](?:[\p{L}\p{N}_.-]*[\p{L}\p{N}_])?)/gu;
+ return new Set(Array.from(body.matchAll(pattern), match => match[1].toLowerCase()));
+}
+
 export function validDiscussionId(value: unknown): value is string {
  return typeof value === "string" && value.length > 0 && value.length <= 160 && value.trim() === value && !value.includes("\0");
 }

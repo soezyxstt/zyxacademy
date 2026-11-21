@@ -120,9 +120,11 @@ test("executor cannot swap check identity or pass NA to remove an obligation", a
   expect(evaluateProductV4Verification(value, [{ ...receipt, results: [{ ...receipt.results[0], status: "NOT_APPLICABLE" }] }], authority).ready).toBe(false);
 });
 
-function serviceFixture() {
+function serviceFixture(withPrint = false) {
+  const diktat = withPrint ? productEntitySchema.parse({ id: "diktat", productType: "diktat", courseId: article.courseId, version: 1, status: "draft", ideaLinks: article.ideaLinks, sourceRefs: article.sourceRefs, schemaVersion: "diktat.v4", sourceHash: hash, generationHash: hash, creatorId: "creator", title: "Summary", contentMarkdown: "Summary" }) : null;
+  const fixtureBundle = diktat ? { ...bundle, products: [diktat] } : bundle;
   const objects = new Map<string, Uint8Array>();
-  const mutable: { snapshot: ProductV4VerificationSnapshot; allowAttach: boolean; executeCount: number; enqueueCount: number; mutateDuringExecution: boolean; reportedStatus: ProductV4ObservedCheck["status"]; enqueueFails: boolean; changeAttemptDuringExecution: boolean } = { snapshot: { importId: "import", checksum: hash, sourceUriOrKey: "bundle.zip", stagingAuditId: "stage-a", stagingRunId: "run", importState: { bundleType: "product", bundleId: "bundle", courseId: "course", version: 4, status: "draft", validationReport: {} }, binding, bundle }, allowAttach: true, executeCount: 0, enqueueCount: 0, mutateDuringExecution: false, reportedStatus: "PASS", enqueueFails: false, changeAttemptDuringExecution: false };
+  const mutable: { snapshot: ProductV4VerificationSnapshot; allowAttach: boolean; executeCount: number; enqueueCount: number; mutateDuringExecution: boolean; reportedStatus: ProductV4ObservedCheck["status"]; enqueueFails: boolean; changeAttemptDuringExecution: boolean } = { snapshot: { importId: "import", checksum: hash, sourceUriOrKey: "bundle.zip", stagingAuditId: "stage-a", stagingRunId: "run", importState: { bundleType: "product", bundleId: "bundle", courseId: "course", version: 4, status: "draft", validationReport: {} }, binding, bundle: fixtureBundle }, allowAttach: true, executeCount: 0, enqueueCount: 0, mutateDuringExecution: false, reportedStatus: "PASS", enqueueFails: false, changeAttemptDuringExecution: false };
   const ports: ProductV4VerificationPorts = {
     async load() { return mutable.snapshot; },
     async read(key) { return objects.get(key) ?? null; },
@@ -141,7 +143,12 @@ function serviceFixture() {
       mutable.executeCount++;
       if (mutable.mutateDuringExecution) mutable.snapshot = { ...mutable.snapshot, binding: { ...binding, revision: 2 } };
       if (mutable.changeAttemptDuringExecution) mutable.snapshot = { ...mutable.snapshot, verificationAttemptId: "00000000-0000-4000-8000-000000000000" };
-      return { ...observe(requirement), status: mutable.reportedStatus };
+      const result = observe(requirement);
+      if (requirement.layer === "print") {
+        result.pageCount = 1;
+        if (requirement.artifactType === "image/png") result.artifacts[0].pageNumber = 1;
+      }
+      return { ...result, status: mutable.reportedStatus };
     },
     authority: () => authority,
   };
@@ -539,8 +546,17 @@ test("Steel capacity backoff preserves provider category and never produces a re
 });
 
 
+test("Article-only verification completes without PDF persistence", async () => {
+  const { service, ports } = serviceFixture();
+  ports.persistPdfEvidence = async () => { throw new Error("Unexpected PDF persistence"); };
+  ports.hasPdfEvidence = async () => { throw new Error("Unexpected PDF lookup"); };
+  const requested = await service.request({ importId: "import", runId: "run" });
+  const result = await service.process({ importId: "import", runId: "run", planHash: requested.plan.planHash, attemptId: requested.attemptId });
+  expect(result.evaluation.ready).toBe(true);
+});
+
 test("verification cannot complete while PDF attachment is pending or fails", async () => {
-  const { service, ports, mutable } = serviceFixture();
+  const { service, ports, mutable } = serviceFixture(true);
   const requested = await service.request({ importId: "import", runId: "run" });
   const input = { importId: "import", runId: "run", planHash: requested.plan.planHash, attemptId: requested.attemptId };
   const attach = ports.persistPdfEvidence;
@@ -559,7 +575,7 @@ test("verification cannot complete while PDF attachment is pending or fails", as
   expect((await service.get({ importId: input.importId, runId: input.runId, planHash: input.planHash })).evaluation.ready).toBe(false);
   expect((await service.get({ importId: input.importId, runId: input.runId, planHash: input.planHash })).state.failureCode).toBe("PRODUCT_V4_PDF_EVIDENCE_REQUIRED");
 
-  const failed = serviceFixture();
+  const failed = serviceFixture(true);
   const next = await failed.service.request({ importId: "import", runId: "run" });
   failed.ports.persistPdfEvidence = async () => { throw new Error("PDF_ATTACHMENT_FAILED"); };
   const nextInput = { importId: "import", runId: "run", planHash: next.plan.planHash, attemptId: next.attemptId };

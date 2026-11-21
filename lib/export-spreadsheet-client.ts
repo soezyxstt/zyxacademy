@@ -1,3 +1,5 @@
+import { googleErrorKey } from "./google-operation-error";
+
 export type SpreadsheetConflict = {
   code: "block_modified" | "manual_rows" | "manual_columns";
   message: string;
@@ -13,12 +15,12 @@ export type SpreadsheetExportPayload = {
 };
 
 export type SpreadsheetExportOutcome =
-  | { status: "ok"; spreadsheetUrl: string; spreadsheetId: string; isNew: boolean }
-  | { status: "needs_confirmation"; conflicts: SpreadsheetConflict[]; spreadsheetUrl: string }
-  | { status: "error"; message: string };
+  | { status: "ok"; spreadsheetUrl: string; spreadsheetId: string; isNew: boolean; sharingIncomplete: boolean }
+  | { status: "needs_confirmation"; revision: string; conflicts: SpreadsheetConflict[]; spreadsheetUrl: string }
+  | { status: "error"; message: ReturnType<typeof googleErrorKey> | "adminAccess" | "network" };
 
 async function postSpreadsheet(
-  payload: SpreadsheetExportPayload & { confirmOverwrite?: boolean }
+  payload: SpreadsheetExportPayload & { confirmedRevision?: string }
 ): Promise<SpreadsheetExportOutcome> {
   try {
     const res = await fetch("/api/admin/export-spreadsheet", {
@@ -32,19 +34,21 @@ async function postSpreadsheet(
         status: "ok",
         spreadsheetUrl: data.spreadsheetUrl,
         spreadsheetId: data.spreadsheetId,
+        sharingIncomplete: data.sharingIncomplete === true,
         isNew: data.isNew,
       };
     }
     if (data?.needsConfirmation) {
       return {
         status: "needs_confirmation",
+        revision: data.revision,
         conflicts: data.conflicts ?? [],
         spreadsheetUrl: data.spreadsheetUrl,
       };
     }
-    return { status: "error", message: data?.error || "Gagal membuat Google Spreadsheet." };
-  } catch (err: any) {
-    return { status: "error", message: err?.message || "Terjadi kesalahan koneksi Google Sheets API." };
+    return { status: "error", message: res.status === 403 || res.status === 401 ? "adminAccess" : googleErrorKey(data?.code) };
+  } catch {
+    return { status: "error", message: "network" };
   }
 }
 
@@ -52,6 +56,6 @@ export function postSpreadsheetExport(payload: SpreadsheetExportPayload): Promis
   return postSpreadsheet(payload);
 }
 
-export function postSpreadsheetExportConfirmed(payload: SpreadsheetExportPayload): Promise<SpreadsheetExportOutcome> {
-  return postSpreadsheet({ ...payload, confirmOverwrite: true });
+export function postSpreadsheetExportConfirmed(payload: SpreadsheetExportPayload, confirmedRevision: string): Promise<SpreadsheetExportOutcome> {
+  return postSpreadsheet({ ...payload, confirmedRevision });
 }

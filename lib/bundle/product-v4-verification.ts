@@ -100,6 +100,7 @@ export function deriveProductV4VerificationPlan(input: {
       for (const field of formativeDocumentFields([product])) for (const viewport of PRODUCT_V4_VIEWPORTS) add(field.target, "web", "formative-document-field", viewport, "image/png");
     }
     if (product.productType === "diktat") {
+      for (const visual of product.visuals ?? []) add(`${product.id}/${visual.id}`, "model", visual.kind === "interactive_document" ? "document-metadata-only-scientific-review-required" : "domain-units-and-model", null, "application/json");
       add(product.id, "print", "pdf-fonts-assets-lineage-and-pages", null, "application/pdf");
       add(product.id, "print", "every-page-rendering-and-overflow", null, "image/png");
     }

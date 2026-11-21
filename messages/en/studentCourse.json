@@ -433,8 +433,8 @@
   },
   "tryout": {
     "submitted": "Tryout submitted. Waiting for instructor review.",
-    "submitFailed": "Could not submit the answer sheet.",
-    "timeExpired": "Time is up. Your answer sheet was submitted automatically.",
+    "submitFailed": "Could not submit your answers. Try submitting again.",
+    "timeExpired": "Time is up.",
     "fileUploaded": "File {fileName} uploaded successfully.",
     "uploadFailed": "Could not upload the file.",
     "attachmentRemoved": "File attachment removed.",

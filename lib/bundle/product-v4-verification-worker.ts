@@ -1,6 +1,6 @@
 import { attachProductV4VerificationSnapshot, latestProductV4StagingAudit, currentProductV4VerificationRef, matchesProductV4StagingSnapshot } from "./product-v4-staging-identity";
 import { buktiPdfBundle } from "@/db/schema";
-import { resolveProductV4PdfBinding, selectProductPdfEvidence } from "./product-pdf-selection";
+import { diktatPdfLineage, resolveProductV4PdfBinding, selectProductPdfEvidence } from "./product-pdf-selection";
 import { db } from "@/db";
 import { imporBundle } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -54,13 +54,12 @@ function applicationService(execute?: ProductV4VerificationPorts["execute"]) {
         if (ref?.attemptId !== attemptId || ref.planHash !== plan.planHash) return false;
         const rows = await tx.select().from(buktiPdfBundle).where(eq(buktiPdfBundle.imporBundleId, snapshot.importId));
         const targets = snapshot.bundle.products.filter(product => product.productType === "diktat");
-        return targets.length > 0 && targets.every(diktat => {
+        return targets.every(diktat => {
           if (diktat.productType !== "diktat") return false;
-          const article = snapshot.bundle.products.find(product => product.productType === "article" && product.id === diktat.sourceArticleId);
-          if (!article || article.productType !== "article") return false;
           const v4Binding = resolveProductV4PdfBinding({ importId: snapshot.importId, diktatId: diktat.id, validationReport: row.validationReport, verification: { plan, attemptId, receipt, stagingAuditId: snapshot.stagingAuditId, evaluation: { ready: true } } });
-          const selected = selectProductPdfEvidence({ rows: rows.map(({ failureCode: _failureCode, ...row }) => ({ ...row, storageKey: row.storageKey ?? undefined, pageCount: row.pageCount ?? undefined })), imporBundleId: snapshot.importId, articleId: article.id, diktatId: diktat.id, articleVersion: article.version, articleHash: article.generationHash, diktatHash: diktat.generationHash, v4Binding });
-          return !!selected && selected.status === "ready" && !!v4Binding && selected.storageKey === v4Binding.storageKey && selected.pageCount === v4Binding.pageCount;
+          const lineage = diktatPdfLineage(diktat);
+          const selected = selectProductPdfEvidence({ rows: rows.map(({ failureCode: _failureCode, ...row }) => ({ ...row, storageKey: row.storageKey ?? undefined, pageCount: row.pageCount ?? undefined })), imporBundleId: snapshot.importId, ...lineage, diktatId: diktat.id, diktatHash: diktat.generationHash, v4Binding });
+          return !!selected && selected.status === "ready" && !!v4Binding && selected.storageKey === v4Binding.storageKey && selected.pageCount === v4Binding.pageCount && selected.articleVersion === lineage.articleVersion && selected.articleHash === lineage.articleHash && selected.diktatHash === diktat.generationHash;
         });
       });
     },

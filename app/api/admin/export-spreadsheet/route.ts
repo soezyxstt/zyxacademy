@@ -1,8 +1,33 @@
+import { googleOperationError } from "@/lib/google-operation-error";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { hasPeran } from "@/lib/auth/authorization";
 import { syncGoogleSpreadsheet } from "@/lib/google-sheets";
+
+import { db } from "@/db";
+import { exportSpreadsheets } from "@/db/schema";
+import { eq } from "drizzle-orm";
+
+export async function GET(req: Request) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user || !(await hasPeran(session.user.id, "admin"))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+  const params = new URL(req.url).searchParams;
+  const type = params.get("entityType");
+  const id = params.get("entityId");
+  if (!id || !type || !["form", "quiz", "pka"].includes(type)) {
+    return NextResponse.json({ error: "Invalid entity" }, { status: 400 });
+  }
+  const sheet = await db.query.exportSpreadsheets.findFirst({
+    columns: { spreadsheetUrl: true },
+    where: eq(exportSpreadsheets.id, `${type}_${id}`),
+  });
+  return NextResponse.json({ spreadsheetUrl: sheet?.spreadsheetUrl ?? null }, {
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}
 
 export async function POST(req: Request) {
   try {
@@ -12,7 +37,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { entityType, entityId, folderSubpath, confirmOverwrite } = body;
+    const { entityType, entityId, folderSubpath, confirmedRevision } = body;
     const title = (body.title || "Data").trim();
     const headersList = Array.isArray(body.headers) ? body.headers : [];
     const rowsMatrix = Array.isArray(body.rows) ? body.rows : [];
@@ -32,13 +57,14 @@ export async function POST(req: Request) {
       headers: headersList,
       rows: rowsMatrix,
       folderSubpath,
-      confirmOverwrite: confirmOverwrite === true,
+      confirmedRevision: typeof confirmedRevision === "string" ? confirmedRevision : undefined,
     });
 
     if (result.needsConfirmation) {
       return NextResponse.json({
         success: false,
         needsConfirmation: true,
+        revision: result.revision,
         conflicts: result.conflicts ?? [],
         spreadsheetId: result.spreadsheetId,
         spreadsheetUrl: result.spreadsheetUrl,
@@ -50,9 +76,11 @@ export async function POST(req: Request) {
       spreadsheetId: result.spreadsheetId,
       spreadsheetUrl: result.spreadsheetUrl,
       isNew: result.isNew,
+      sharingIncomplete: result.sharingIncomplete,
     });
-  } catch (error: any) {
-    console.error("Failed to export to Google Spreadsheet:", error);
-    return NextResponse.json({ error: error.message || "Failed to create Google Spreadsheet." }, { status: 500 });
+  } catch (error) {
+    const code = googleOperationError(error);
+    console.error("Spreadsheet export failed", { code });
+    return NextResponse.json({ code }, { status: 500 });
   }
 }

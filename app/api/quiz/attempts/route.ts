@@ -18,7 +18,9 @@ import { canViewAttemptDiscussion } from '@/lib/quiz/review-release';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 import { buildStableOptionIds } from '@/lib/asesmen/attempt';
-import { recordAttemptDisclosures } from '@/lib/gamification/question-exposure';
+import { lockQuestionExposureUser, recordAttemptDisclosures } from '@/lib/gamification/question-exposure';
+import { lockQuestionBankRows } from '@/lib/question-row-locks';
+import { hasQuizAttemptCapacity } from '@/lib/quiz/attempt-capacity';
 import { canonicalObjectiveProvenance } from '@/lib/gamification/question-snapshot-provenance';
 import { questionProvenanceSnapshot } from '@/lib/asesmen/question-provenance';
 import { matchesCourseIdentity, resolveCourseIdentity } from '@/lib/admin/course-identity';
@@ -336,23 +338,6 @@ export async function POST(req: NextRequest) {
    }
  }
 
- // Enforce max attempts
- if (template.maxAttempts !== null) {
- const [{ total }] = await db
- .select({ total: sql<number>`count(*)` })
- .from(studentQuizAttempts)
- .where(
- and(
- eq(studentQuizAttempts.studentId, studentId),
- eq(studentQuizAttempts.templateId, templateId),
- eq(studentQuizAttempts.status, 'completed'),
- ),
- );
- if (total >= template.maxAttempts) {
- return NextResponse.json({ error: 'Max attempts reached' }, { status: 409 });
- }
- }
-
   const rules = parseSelectionRules(template.selectionRules);
   const rawFixedQuestionIds = rules?.fixedQuestionIds
     ?? rules?.fixed_question_ids
@@ -473,14 +458,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
- // Bump useCount so the next attempt's "prefer least-used" ordering (above) is meaningful.
- if (selected.length > 0) {
- await db
- .update(aiQuestionBank)
- .set({ useCount: sql`${aiQuestionBank.useCount} + 1` })
- .where(inArray(aiQuestionBank.id, selected.map((q) => q.id)));
- }
-
  if (selected.length === 0) {
  return NextResponse.json(
  { error: 'No published questions available for this template' },
@@ -544,8 +521,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
- const attemptId = randomUUID();
-  await db.transaction(async (tx) => {
+  const attemptId = randomUUID();
+  const created = await db.transaction(async (tx) => {
+    // Enforce max attempts under the same user lock as quiz submission.
+    await lockQuestionExposureUser(tx, studentId);
+    if (!await hasQuizAttemptCapacity(tx, studentId, templateId, true)) return false;
+    const startedAt = new Date();
     await tx.insert(studentQuizAttempts).values({
       id: attemptId,
       studentId,
@@ -554,7 +535,7 @@ export async function POST(req: NextRequest) {
       questionsSnapshot: snapshot as unknown as Record<string, unknown>,
       answersSnapshot: null,
       masteryBefore,
-      startedAt: now,
+      startedAt,
     });
     await dualWriteQuizAttempt(tx, {
       id: attemptId,
@@ -563,10 +544,19 @@ export async function POST(req: NextRequest) {
       status: 'in_progress',
       questionsSnapshot: snapshot,
       answersSnapshot: null,
-      startedAt: now,
+      startedAt,
       submittedAt: null,
     }, studentId);
+    const selectedIds = selected.map((q) => q.id);
+    await lockQuestionBankRows(tx, selectedIds);
+    await tx.update(aiQuestionBank)
+      .set({ useCount: sql`${aiQuestionBank.useCount} + 1` })
+      .where(inArray(aiQuestionBank.id, selectedIds));
+    return true;
   });
+  if (!created) {
+    return NextResponse.json({ error: 'Max attempts reached' }, { status: 409 });
+  }
 
   // Return questions WITHOUT correct_indices, correctIndex, correctIndices,
   // acceptableAnswers, or option-level answer markers to the client.

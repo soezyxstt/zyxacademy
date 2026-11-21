@@ -114,7 +114,8 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
         state.failureCode = "PRODUCT_V4_VERIFICATION_ARTIFACT_MISSING_OR_CHANGED";
       }
     }
-    if (state.status === "complete" && (!evaluation.ready || !receipt || !isCurrentProductV4PdfAttachment(snapshot.pdfEvidenceAttachment, plan.planHash, attemptId, (receipt as ProductV4VerificationReceipt).signature) || !await ports.hasPdfEvidence({ snapshot, plan, attemptId, receipt: receipt as ProductV4VerificationReceipt }))) {
+    const requiresPdf = plan.requirements.some(check => check.layer === "print");
+    if (state.status === "complete" && (!evaluation.ready || !receipt || (requiresPdf && (!isCurrentProductV4PdfAttachment(snapshot.pdfEvidenceAttachment, plan.planHash, attemptId, (receipt as ProductV4VerificationReceipt).signature) || !await ports.hasPdfEvidence({ snapshot, plan, attemptId, receipt: receipt as ProductV4VerificationReceipt }))))) {
       state.status = "failed";
       state.failureCode = "PRODUCT_V4_PDF_EVIDENCE_REQUIRED";
     }
@@ -235,9 +236,11 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
           const fresh = await current(input.importId, input.runId);
           assertProductV4VerificationCurrent(plan, fresh.plan);
           if (fresh.snapshot.stagingAuditId !== snapshot.stagingAuditId || fresh.snapshot.stagingRunId !== snapshot.stagingRunId || fresh.snapshot.verificationAttemptId !== attemptId) throw new Error("PRODUCT_V4_VERIFICATION_ATTEMPT_STALE");
-          attachingPdf = true;
-          await ports.persistPdfEvidence({ snapshot: fresh.snapshot, plan, attemptId, receipt });
-          attachingPdf = false;
+          if (plan.requirements.some(check => check.layer === "print")) {
+            attachingPdf = true;
+            await ports.persistPdfEvidence({ snapshot: fresh.snapshot, plan, attemptId, receipt });
+            attachingPdf = false;
+          }
           await assertAttempt();
           await ports.write(stateKey, encode({ attemptId, status: "complete", receiptKey, updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length }), "application/json");
           return get(getInput);

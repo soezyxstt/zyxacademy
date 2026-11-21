@@ -1,4 +1,4 @@
-import { resolveProductV4PdfBinding, selectProductPdfEvidence, type ProductV4PdfBinding } from "./product-pdf-selection";
+import { diktatPdfLineage, resolveProductV4PdfBinding, selectProductPdfEvidence, type ProductV4PdfBinding } from "./product-pdf-selection";
 import { listProcessingLegacyPdfRequests } from "./product-diktat-queue";
 import type { ProductV4VerificationPlan } from "./product-v4-verification";
 import { findUnmarkedScientificProse } from "@/lib/math/unmarked-scientific";
@@ -44,10 +44,11 @@ import {
 export function productPedagogyFingerprint(products: readonly ProductEntity[]): string {
   const articles = products.filter((p): p is Extract<ProductEntity, { productType: "article" }> => p.productType === "article").sort((a, b) => a.id.localeCompare(b.id));
   const diktats = products.filter((p): p is Extract<ProductEntity, { productType: "diktat" }> => p.productType === "diktat");
-  if (!articles.length) return "";
+  const standaloneDiktats = diktats.filter(diktat => !diktat.sourceArticleId).sort((a, b) => a.id.localeCompare(b.id));
+  if (!articles.length) return createHash("sha256").update(deterministicProductSerialization([...products].sort((a, b) => a.id.localeCompare(b.id)))).digest("hex");
   const pairs = articles.map(article => ({ article, diktats: diktats.filter(d => d.sourceArticleId === article.id).sort((a, b) => a.id.localeCompare(b.id)) }));
-  if (pairs.length === 1 && pairs[0].diktats.length <= 1) return computePedagogyContentFingerprint({ article: pairs[0].article as unknown as Record<string, unknown>, diktat: pairs[0].diktats[0] as unknown as Record<string, unknown> | undefined });
-  return createHash("sha256").update(deterministicProductSerialization(pairs)).digest("hex");
+  if (!standaloneDiktats.length && pairs.length === 1 && pairs[0].diktats.length <= 1) return computePedagogyContentFingerprint({ article: pairs[0].article as unknown as Record<string, unknown>, diktat: pairs[0].diktats[0] as unknown as Record<string, unknown> | undefined });
+  return createHash("sha256").update(deterministicProductSerialization(standaloneDiktats.length ? { pairs, standaloneDiktats } : pairs)).digest("hex");
 }
 
 export type ProductSectionTarget = { productId: string; sectionId: string };
@@ -103,7 +104,7 @@ export interface ProductBundleEvaluationInput {
 export async function evaluateProductBundleQualityPolicy(
   input: ProductBundleEvaluationInput | readonly ProductEntity[],
   context: ProductBundleEvaluationContext = {},
-): Promise<QualityEvaluation> {
+): Promise<QualityEvaluation & Pick<ProductReviewAndPdfGateResult, "reviewStatus" | "pdfEvidenceStatus">> {
   const isInputArray = Array.isArray(input);
   const bundleInput = isInputArray ? undefined : (input as ProductBundleEvaluationInput);
   const products: readonly ProductEntity[] = isInputArray
@@ -137,7 +138,7 @@ export async function evaluateProductBundleQualityPolicy(
       }
     }
     if (!approved) issues.push({ code: "PRODUCT_V5_REVIEW_REQUIRED", severity: "blocking", target: { targetType: "document", targetId: product?.id ?? manifest.bundleId }, reason: "The publisher must review every item for this revision.", remediation: "Review correctness, reasoning, problem provenance, solution provenance and release for every item, including any spoiler-free hint." });
-    return { valid, publicationReady: valid && issues.length === 0, policyVersion: "solution-collection-review.v1", contentFingerprint, issues, metrics: { collectionCount: valid ? 1 : 0, itemCount: product?.productType === "solution_collection" ? product.collection.items.length : 0, blockingIssueCount: issues.length, warningIssueCount: 0 } };
+    return { valid, publicationReady: valid && issues.length === 0, reviewStatus: approved ? "approved" : "missing", pdfEvidenceStatus: "not_required", policyVersion: "solution-collection-review.v1", contentFingerprint, issues, metrics: { collectionCount: valid ? 1 : 0, itemCount: product?.productType === "solution_collection" ? product.collection.items.length : 0, blockingIssueCount: issues.length, warningIssueCount: 0 } };
   }
 
   const issues: DiagnosticIssue[] = [];
@@ -146,7 +147,7 @@ export async function evaluateProductBundleQualityPolicy(
   const articles = products.filter((p): p is Extract<ProductEntity, { productType: "article" }> => p.productType === "article");
   const diktats = products.filter((p): p is Extract<ProductEntity, { productType: "diktat" }> => p.productType === "diktat");
   const article = articles[0];
-  const diktat = diktats.find(d => d.sourceArticleId === article?.id);
+  const isV4 = manifest?.schemaVersion === "product-bundle.v4" || products.some(product => product.schemaVersion === "article.v4" || product.schemaVersion === "diktat.v4");
   const contentFingerprint = productPedagogyFingerprint(products);
 
   for (const article of articles) {
@@ -350,6 +351,7 @@ export async function evaluateProductBundleQualityPolicy(
   }
 
   for (const diktat of diktats) {
+    if (isV4 && !diktat.sourceArticleId) continue;
     if (diktat.sourceArticleId === diktat.id) {
       issues.push({
         code: "PRODUCT_DIKTAT_LINEAGE_INVALID",
@@ -415,7 +417,7 @@ export async function evaluateProductBundleQualityPolicy(
   let pdfEvidenceList: readonly PdfArtifactEvidence[] | undefined;
   if (context.pdfEvidence !== undefined) {
     pdfEvidenceList = context.pdfEvidence ?? [];
-  } else if (context.imporBundleId && article) {
+  } else if (context.imporBundleId && (article || (isV4 && diktats.length))) {
     const txOrDb = context.tx ?? db;
     const evidenceRows = await txOrDb
       .select()
@@ -425,7 +427,6 @@ export async function evaluateProductBundleQualityPolicy(
     pdfEvidenceList = evidenceRows as unknown as PdfArtifactEvidence[];
   }
 
-  const isV4 = manifest?.schemaVersion === "product-bundle.v4" || products.some((product) => product.productType === "article" && product.schemaVersion === "article.v4");
   if (!isV4 && context.imporBundleId) {
     const connection = context.tx ?? db;
     let revision = manifest?.bundleChecksum;
@@ -455,27 +456,35 @@ export async function evaluateProductBundleQualityPolicy(
     }
   }
 
-  const pairs: { article: (typeof articles)[number]; diktat: (typeof diktats)[number] | undefined }[] = articles.flatMap(article => {
+  const pairs: { article: (typeof articles)[number] | undefined; diktat: (typeof diktats)[number] | undefined }[] = articles.flatMap(article => {
     const linked = diktats.filter(d => d.sourceArticleId === article.id);
     const targets: Array<(typeof diktats)[number] | undefined> = linked.length ? linked : [undefined];
     return targets.map(diktat => ({ article, diktat }));
   });
-  const gateResults = (pairs.length ? pairs : [{ article: undefined, diktat: undefined }]).map(({ article, diktat }) => evaluateProductBundleReviewAndPdfGate({
-    imporBundleId: context.imporBundleId ?? "",
-    hasArticle: Boolean(article),
-    articleId: article?.id ?? "",
-    diktatId: diktat?.id ?? null,
-    contentFingerprint,
-    articleGenerationHash: article?.generationHash ?? null,
-    articleVersion: article?.version ?? null,
-    v4PdfBinding: isV4 ? (diktat ? resolveProductV4PdfBinding({ importId: context.imporBundleId ?? "", diktatId: diktat.id, validationReport, verification }) : null) : undefined,
-    diktatGenerationHash: diktat?.generationHash ?? null,
-    publisherId: context.publisherId,
-    reviewDecision: context.pedagogicReview,
-    reviewRows,
-    pdfEvidenceRows: pdfEvidenceList,
-  }));
-  const gateResult = gateResults[0];
+  if (isV4) pairs.push(...diktats.filter(diktat => !diktat.sourceArticleId).map(diktat => ({ article: undefined, diktat })));
+  const gateResults = (pairs.length ? pairs : [{ article: undefined, diktat: undefined }]).map(({ article, diktat }) => {
+    const lineage = diktat ? diktatPdfLineage(diktat) : undefined;
+    return evaluateProductBundleReviewAndPdfGate({
+      imporBundleId: context.imporBundleId ?? "",
+      hasArticle: Boolean(article),
+      requiresPedagogicReview: isV4 || Boolean(article),
+      requiresPdf: isV4 ? Boolean(diktat) : Boolean(article),
+      articleId: lineage?.articleId ?? article?.id ?? manifest?.bundleId ?? "",
+      diktatId: diktat?.id ?? null,
+      contentFingerprint,
+      articleGenerationHash: lineage?.articleHash ?? article?.generationHash ?? null,
+      articleVersion: lineage?.articleVersion ?? article?.version ?? null,
+      v4PdfBinding: isV4 ? (diktat ? resolveProductV4PdfBinding({ importId: context.imporBundleId ?? "", diktatId: diktat.id, validationReport, verification }) : null) : undefined,
+      diktatGenerationHash: diktat?.generationHash ?? null,
+      publisherId: context.publisherId,
+      reviewDecision: context.pedagogicReview,
+      reviewRows,
+      pdfEvidenceRows: pdfEvidenceList,
+    });
+  });
+  const gateResult = gateResults.find(result => result.pdfEvidenceStatus !== "not_required" && result.pdfEvidenceStatus !== "ready")
+    ?? gateResults.find(result => result.pdfEvidenceStatus === "ready")
+    ?? gateResults[0];
 
   if (isV4) {
     for (const product of products) for (const finding of findUnmarkedScientificProse(product)) issues.push({
@@ -483,7 +492,6 @@ export async function evaluateProductBundleQualityPolicy(
       reason: `Unmarked mathematical notation in ${finding.path}: ${finding.notation}`,
       remediation: "Use explicit inline or display math. Write scientific numbers with \\times 10^{...}, never a numeric e notation literal, and verify the rendered meaning.",
     });
-    if (!diktat) issues.push({ code: "PRODUCT_V4_DIKTAT_REQUIRED", severity: "blocking", target: { targetType: "document", targetId: article?.id ?? "manifest.json" }, reason: "V4 publication requires the authored Diktat for the same Article revision.", remediation: "Add a traced Diktat with complete essential formula and Idea coverage." });
     const expectedContentHash = manifest ? createHash("sha256").update(deterministicProductSerialization({ manifest, products, dependencies })).digest("hex") : null;
     if (!verification?.evaluation.ready || verification.plan.contentHash !== expectedContentHash) issues.push({
       code: "PRODUCT_V4_VERIFICATION_REQUIRED",
@@ -524,6 +532,8 @@ export async function evaluateProductBundleQualityPolicy(
   return {
     valid,
     publicationReady,
+    reviewStatus: gateResult.reviewStatus,
+    pdfEvidenceStatus: gateResult.pdfEvidenceStatus,
     policyVersion: QUALITY_POLICY_VERSION,
     contentFingerprint,
     issues: uniqueIssues,
@@ -535,6 +545,8 @@ export interface ProductReviewAndPdfGateInput {
   imporBundleId: string;
   bundleStatus?: string;
   hasArticle: boolean;
+  requiresPedagogicReview?: boolean;
+  requiresPdf?: boolean;
   articleId: string;
   diktatId?: string | null;
   contentFingerprint: string;
@@ -574,7 +586,7 @@ export function evaluateProductBundleReviewAndPdfGate(
   input: ProductReviewAndPdfGateInput,
 ): ProductReviewAndPdfGateResult {
   const issues: DiagnosticIssue[] = [];
-  if (!input.hasArticle) {
+  if (!(input.requiresPedagogicReview ?? input.hasArticle)) {
     return {
       reviewDecision: null,
       reviewStatus: "not_required",
@@ -654,7 +666,7 @@ export function evaluateProductBundleReviewAndPdfGate(
       code: "PEDAGOGIC_REVIEW_MISSING",
       severity: "blocking",
       target: { targetType: "rubric", targetId: input.articleId },
-      reason: "Persisted pedagogic review is missing for this article",
+      reason: "Persisted pedagogic review is missing for this product revision",
       remediation: "Record an approved bundle decision after reviewing its sections",
     });
   } else {
@@ -735,6 +747,7 @@ export function evaluateProductBundleReviewAndPdfGate(
     }
   }
 
+  if (!(input.requiresPdf ?? input.hasArticle)) return { reviewDecision, reviewStatus, pdfEvidenceStatus: "not_required", selectedPdfEvidence: null, issues };
   const targetPdfProductId = input.diktatId || input.articleId;
   const expectedArticleHash = input.articleGenerationHash ?? undefined;
   const expectedDiktatHash = input.diktatId ? input.diktatGenerationHash ?? undefined : expectedArticleHash;

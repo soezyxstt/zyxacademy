@@ -213,6 +213,9 @@ describe("Google Sheets owned-block write", () => {
       if (url.startsWith("https://oauth2.googleapis.com/token")) {
         return new Response(JSON.stringify({ access_token: "test-token" }), { status: 200 });
       }
+      if (url.includes("?fields=sheets(")) {
+        return Response.json({ sheets: [{ properties: { sheetId: 0, gridProperties: { rowCount: 5, columnCount: 3 } } }] });
+      }
       if (url.endsWith(":batchUpdate")) {
         const body = JSON.parse(String(init?.body ?? "{}"));
         batchRequests = body.requests ?? [];
@@ -247,21 +250,29 @@ describe("Google Sheets owned-block write", () => {
     const writeReq = batchRequests.find((r: any) => r.updateCells?.rows?.length > 0);
     expect(writeReq.updateCells.range).toEqual({
       sheetId: 0,
-      startRow: 0,
-      startColumn: 0,
-      endRow: 3,
-      endColumn: 2,
+      startRowIndex: 0,
+      startColumnIndex: 0,
+      endRowIndex: 3,
+      endColumnIndex: 2,
     });
     expect(writeReq.updateCells.rows).toHaveLength(3);
 
     const clears = batchRequests.filter((r: any) => r.updateCells && r.updateCells.rows && r.updateCells.rows.length === 0);
     expect(clears).toHaveLength(2);
-    const rowClear = clears.find((r: any) => r.updateCells.range.startRow === 3);
-    const colClear = clears.find((r: any) => r.updateCells.range.startColumn === 2);
-    expect(rowClear.updateCells.range.endRow).toBe(5);
-    expect(rowClear.updateCells.range.endColumn).toBe(3);
-    expect(colClear.updateCells.range.endRow).toBe(5);
-    expect(colClear.updateCells.range.endColumn).toBe(3);
+    const rowClear = clears.find((r: any) => r.updateCells.range.startRowIndex === 3);
+    const colClear = clears.find((r: any) => r.updateCells.range.startColumnIndex === 2);
+    expect(rowClear.updateCells.range.endRowIndex).toBe(5);
+    expect(rowClear.updateCells.range.endColumnIndex).toBe(3);
+    expect(colClear.updateCells.range.endRowIndex).toBe(5);
+    expect(colClear.updateCells.range.endColumnIndex).toBe(3);
+  });
+
+  test("extends the managed tab before writing beyond its grid", async () => {
+    await writeOwnedBlock("s1", "Daftar", ["A", "B", "C", "D"], Array(6).fill(["answer"]), 5, 3);
+    expect(batchRequests.slice(0, 2).map(r => r.appendDimension)).toEqual([
+      { sheetId: 0, dimension: "COLUMNS", length: 1 },
+      { sheetId: 0, dimension: "ROWS", length: 2 },
+    ]);
   });
 
   test("WRITE-002: does not clear anything when the new block is not smaller", async () => {
@@ -281,7 +292,7 @@ describe("Google Sheets owned-block write", () => {
     const clears = batchRequests.filter((r: any) => r.updateCells && r.updateCells.rows && r.updateCells.rows.length === 0);
     expect(clears).toEqual([]);
     const writeReq = batchRequests.find((r: any) => r.updateCells?.rows?.length > 0);
-    expect(writeReq.updateCells.range.endRow).toBe(3);
-    expect(writeReq.updateCells.range.endColumn).toBe(3);
+    expect(writeReq.updateCells.range.endRowIndex).toBe(3);
+    expect(writeReq.updateCells.range.endColumnIndex).toBe(3);
   });
 });

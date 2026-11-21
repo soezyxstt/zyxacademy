@@ -26,6 +26,7 @@ export type DiscussionAttachment = {
  size: number; width: number; height: number; url: string; downloadUrl: string; previewAvailable?: boolean;
 };
 export type DiscussionMessage = {
+ mentionedPeople?: { id: string; name: string; role: DiscussionRole; mention?: string }[];
  id: string; threadId: string; seq: number; author: { id: string; name: string; role: DiscussionRole | null; avatarUrl?: string | null } | null;
  kind: "human" | "zyra"; messageType: "question" | "answer" | "reply" | "forward";
  body: string; bodyKind?: "body" | "deleted" | "source_unavailable"; createdAt: string; editedAt: string | null; revision: number;
@@ -36,7 +37,7 @@ export type DiscussionMessage = {
  canEdit: boolean; canDelete: boolean; canReport: boolean; canReply: boolean; canForward: boolean; canReact: boolean;
 };
 export type DiscussionSubmit = {
- body: string; attachmentIds: string[]; mentionIds: string[]; askZyra: boolean;
+ body: string; attachmentIds: string[]; mentionIds: string[]; mentionHandles?: string[]; askZyra: boolean;
  skinId?: string | null; requestId: string;
 };
 export type CreateDiscussionThread = DiscussionSubmit & {
@@ -54,8 +55,10 @@ export type DiscussionReport = {
  status: "pending" | "resolved" | "dismissed"; createdAt: string;
  reporter: { id: string; name: string };
 };
+export type DiscussionStudentProfile = Omit<PublicStudentProfile, "publicId"> & { publicId: string | null };
+
 export type DiscussionAuthorProfile =
- | { kind: "student"; name: string; role: DiscussionRole | null; profile: PublicStudentProfile }
+ | { kind: "student"; name: string; role: DiscussionRole | null; profile: DiscussionStudentProfile }
  | {
    kind: "limited";
    id: string;

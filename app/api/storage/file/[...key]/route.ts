@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { headers as nextHeaders } from "next/headers";
 import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -8,12 +8,16 @@ import { hasPeran } from "@/lib/auth/authorization";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { canAccessCourseContent, resolveCourseAccess } from "@/lib/student/course-access";
-import { isPrivateAttachmentKey, isProtectedCourseDiktatPdfKey, isProtectedProductDiktatPdfKey, isSafeKey, leafFilename, quizAttachmentPrefix } from "@/lib/storage/keys";
+import { isPrivateAttachmentKey, isProtectedCourseDiktatPdfKey, isProtectedProductDiktatPdfKey, isSafeKey, leafFilename, quizAttachmentPrefix, scopedStorageFileKind } from "@/lib/storage/keys";
 import { getS3StorageConfig } from "@/lib/storage/r2";
 
 const config = getS3StorageConfig(process.env.STORAGE_PROVIDER_MODE === "neon" ? "neon" : "r2");
 const bucket = config.bucket;
 const s3 = new S3Client(config.client);
+
+function privateFileNotFound() {
+  return new Response("File not found", { status: 404, headers: { "Cache-Control": "private, no-store" } });
+}
 
 function normalizeStorageKey(value: unknown): string | null {
   if (typeof value !== "string" || !value.trim()) return null;
@@ -264,6 +268,7 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ key: string[] }> }
 ) {
+  let isScopedFile = false;
   try {
     const { key: keyParts } = await params;
     const requestedKey = Array.isArray(keyParts) ? keyParts.join("/") : keyParts;
@@ -274,7 +279,7 @@ export async function GET(
     }
 
     if (isPrivateAttachmentKey(requestedKey) || isPrivateAttachmentKey(key)) {
-      return new Response("File not found", { status: 404, headers: { "Cache-Control": "private, no-store" } });
+      return privateFileNotFound();
     }
 
     // Private interactive assets are available only through scoped routes.
@@ -291,13 +296,36 @@ export async function GET(
 
     const urlObj = new URL(req.url);
     const isDownload = urlObj.searchParams.get("download") === "1" || urlObj.searchParams.get("download") === "true";
+    const scopedKind = scopedStorageFileKind(key) ?? scopedStorageFileKind(requestedKey);
+    isScopedFile = scopedKind !== null;
+    let objectVersion: string | undefined;
+    if (scopedKind) {
+      if (!isSafeKey(key) || key.split("/").length !== 4 || key.split("/").some((part) => !part || part === ".")
+        || scopedStorageFileKind(key) !== scopedKind) return privateFileNotFound();
+      const session = await auth.api.getSession({ headers: await nextHeaders() });
+      if (!session?.user?.id) return privateFileNotFound();
+      const { authorizeScopedStorageFile } = await import("@/lib/storage/scoped-file-authorization");
+      const authorization = await authorizeScopedStorageFile(
+        scopedKind, key, session.user.id, storageKeyCandidates(key), urlObj.searchParams.get("submissionId"),
+      );
+      if (!authorization.allowed) return privateFileNotFound();
+      if (authorization.owners) {
+        // Submission snapshots come from the client. Confirm the uploader at the object boundary.
+        const object = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+        if (!object.Metadata?.uploadedby || !authorization.owners.has(object.Metadata.uploadedby) || !object.ETag) {
+          return privateFileNotFound();
+        }
+        objectVersion = object.ETag;
+      }
+    }
+
     const isFormFile = key === "forms" || key.startsWith("forms/") || normalizedPath === "forms" || normalizedPath.startsWith("forms/");
     if (isFormFile && !(await canAccessFormFile(key, urlObj.search))) {
       return new Response("File not found", { status: 404, headers: { "Cache-Control": "private, no-store" } });
     }
     // Authorize Diktat delivery before fetching the object. The disposition
     // query only changes a browser hint and must never decide authorization.
-    const diktatAuthorization = await resolveDiktatAuthorization(key);
+    const diktatAuthorization = isScopedFile ? { matched: false, allowed: true } : await resolveDiktatAuthorization(key);
     if (diktatAuthorization.matched && !diktatAuthorization.allowed) {
       return new Response("File not found", { status: 404 });
     }
@@ -320,12 +348,13 @@ export async function GET(
       Bucket: bucket,
       Key: key,
       Range: rangeHeader || undefined,
+      ...(objectVersion ? { IfMatch: objectVersion } : {}),
     });
 
     const s3Res = await s3.send(command);
 
     if (!s3Res.Body) {
-      return new Response("File not found", { status: 404 });
+      return isScopedFile ? privateFileNotFound() : new Response("File not found", { status: 404 });
     }
 
     // Convert S3 body stream to Response (with Edge/Serverless compatibility conversion)
@@ -354,10 +383,13 @@ export async function GET(
     
     // Only protected delivery depends on the current session. Keep unrelated
     // public storage objects on the cacheable response path.
-    if (isFormFile || diktatAuthorization.matched || quizAuthorization.matched || videoAuthorization.matched) {
+    if (isScopedFile || isFormFile || diktatAuthorization.matched || quizAuthorization.matched || videoAuthorization.matched) {
       headers.set("Cache-Control", "private, no-store");
     }
-    if (isFormFile) headers.set("Content-Security-Policy", "sandbox");
+    if (isScopedFile || isFormFile) {
+      headers.set("Content-Security-Policy", "sandbox");
+      headers.set("X-Content-Type-Options", "nosniff");
+    }
 
     // Extract clean filename (last path segment minus the {timestamp}-{hash}- prefix)
     const filename = leafFilename(key);
@@ -377,6 +409,7 @@ export async function GET(
       headers,
     });
   } catch (err: any) {
+    if (isScopedFile) return privateFileNotFound();
     if (err.name === "NoSuchKey") {
       return new Response("File not found", {
         status: 404,
