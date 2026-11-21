@@ -9,12 +9,15 @@ import { getCapacitor, getTauri } from "@/lib/native/runtime";
 
 export const READING_POSITION_STORAGE_PREFIX = "zyx:offline-reading-pos:";
 
+export type OfflineReadingScope = "section" | "document";
+
 export interface OfflineReadingPosition {
   key: string;
   sectionSlug?: string | null;
   sectionIndex?: number;
   scrollY: number;
   scrollRatio: number;
+  scope?: OfflineReadingScope;
   updatedAt: number;
 }
 
@@ -81,6 +84,8 @@ export function normalizeReadingPosition(
   const sectionIndex = typeof obj.sectionIndex === "number" && Number.isInteger(obj.sectionIndex) && obj.sectionIndex >= 0
     ? obj.sectionIndex
     : undefined;
+  const scope: OfflineReadingScope | undefined =
+    obj.scope === "section" || obj.scope === "document" ? obj.scope : undefined;
 
   return {
     key,
@@ -88,8 +93,62 @@ export function normalizeReadingPosition(
     sectionIndex,
     scrollY,
     scrollRatio,
+    scope,
     updatedAt,
   };
+}
+
+export function findSectionElementBySlug(
+  root: ParentNode | null | undefined,
+  slug: string | null | undefined,
+): HTMLElement | null {
+  if (!root || !slug) return null;
+  const elements = root.querySelectorAll<HTMLElement>("[data-section-slug]");
+  for (let i = 0; i < elements.length; i++) {
+    if (elements[i].getAttribute("data-section-slug") === slug) {
+      return elements[i];
+    }
+  }
+  return null;
+}
+
+export function restoreOfflineReadingScroll(
+  position: OfflineReadingPosition,
+  container?: ParentNode | null,
+): void {
+  if (typeof window === "undefined") return;
+  const root = container ?? document;
+
+  // For section-scoped positions (or legacy positions with a sectionSlug and no explicit document scope),
+  // locate the exact section element first so single-section scroll ratios are not misapplied across a
+  // concatenated multi-section document.
+  if (position.sectionSlug && position.scope !== "document") {
+    const targetSection = findSectionElementBySlug(root, position.sectionSlug);
+    if (targetSection) {
+      targetSection.scrollIntoView({ behavior: "auto", block: "start" });
+      return;
+    }
+  }
+
+  const scrollHeight = Math.max(
+    document.documentElement.scrollHeight || 0,
+    document.body.scrollHeight || 0,
+  );
+  const targetY = resolveRestoredScrollY(position, scrollHeight, window.innerHeight);
+  if (targetY > 0) {
+    window.scrollTo(0, targetY);
+    return;
+  }
+
+  if (position.sectionSlug) {
+    const targetSection = findSectionElementBySlug(root, position.sectionSlug);
+    if (targetSection) {
+      targetSection.scrollIntoView({ behavior: "auto", block: "start" });
+      return;
+    }
+  }
+
+  window.scrollTo(0, 0);
 }
 
 export function pickLatestReadingPosition(
@@ -111,6 +170,40 @@ export function loadOfflineReadingPosition(key: string): OfflineReadingPosition 
   } catch {
     return null;
   }
+}
+
+export async function loadLatestOfflineReadingPosition(
+  key: string,
+): Promise<OfflineReadingPosition | null> {
+  if (!key || typeof window === "undefined") return null;
+  let latest = loadOfflineReadingPosition(key);
+
+  try {
+    const capStore = getCapacitor()?.Plugins?.ZyxOfflineStore;
+    if (capStore?.getReading) {
+      const result = await capStore.getReading({ key });
+      const nativePos = normalizeReadingPosition(result?.reading?.readingPosition, key);
+      latest = pickLatestReadingPosition(latest, nativePos);
+    }
+  } catch {
+    // Non-fatal
+  }
+
+  try {
+    const tauriInvoke = getTauri()?.core?.invoke;
+    if (tauriInvoke) {
+      const result = await tauriInvoke<{ reading?: Record<string, unknown> | null }>(
+        "get_offline_reading",
+        { key },
+      );
+      const nativePos = normalizeReadingPosition(result?.reading?.readingPosition, key);
+      latest = pickLatestReadingPosition(latest, nativePos);
+    }
+  } catch {
+    // Non-fatal
+  }
+
+  return latest;
 }
 
 export function saveOfflineReadingPosition(position: OfflineReadingPosition): void {
@@ -161,6 +254,30 @@ export function removeOfflineReadingPosition(key: string): void {
   if (!key || typeof window === "undefined") return;
   try {
     window.localStorage?.removeItem(`${READING_POSITION_STORAGE_PREFIX}${key}`);
+  } catch {
+    // Non-fatal
+  }
+}
+
+export function clearOfflineReadingPositionsForOtherUsers(currentUserId: string | null): void {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    const storage = window.localStorage;
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < storage.length; i++) {
+      const storageKey = storage.key(i);
+      if (!storageKey || !storageKey.startsWith(READING_POSITION_STORAGE_PREFIX)) {
+        continue;
+      }
+      const readingKey = storageKey.slice(READING_POSITION_STORAGE_PREFIX.length);
+      const ownerUserId = readingKey.split("::")[0] ?? "";
+      if (!currentUserId || ownerUserId !== currentUserId) {
+        keysToRemove.push(storageKey);
+      }
+    }
+    for (const storageKey of keysToRemove) {
+      storage.removeItem(storageKey);
+    }
   } catch {
     // Non-fatal
   }

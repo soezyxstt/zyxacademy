@@ -21,8 +21,8 @@ import {
 } from "@/lib/offline/reading-cache";
 import {
   computeScrollRatio,
-  loadOfflineReadingPosition,
-  resolveRestoredScrollY,
+  loadLatestOfflineReadingPosition,
+  restoreOfflineReadingScroll,
   saveOfflineReadingPosition,
 } from "@/lib/offline/reading-position";
 
@@ -37,6 +37,7 @@ export function OfflineReadingLibrary() {
   const [loading, setLoading] = useState(true);
   const activeRecordRef = useRef<OfflineReadingRecord | null>(null);
   const articleBodyRef = useRef<HTMLElement | null>(null);
+  const restorationReadyRef = useRef(false);
 
   useEffect(() => {
     activeRecordRef.current = activeRecord;
@@ -44,7 +45,7 @@ export function OfflineReadingLibrary() {
 
   const persistCurrentPosition = useCallback(() => {
     const record = activeRecordRef.current;
-    if (!record || typeof window === "undefined") return;
+    if (!record || !restorationReadyRef.current || typeof window === "undefined") return;
     const scrollY = Math.max(0, Math.round(window.scrollY || document.documentElement.scrollTop || 0));
     const scrollHeight = Math.max(
       document.documentElement.scrollHeight || 0,
@@ -70,6 +71,7 @@ export function OfflineReadingLibrary() {
       sectionIndex,
       scrollY,
       scrollRatio,
+      scope: "document",
       updatedAt: Date.now(),
     });
   }, []);
@@ -78,7 +80,8 @@ export function OfflineReadingLibrary() {
     setLoading(true);
     try {
       // When online, wait for confirmed session and enforce strict account isolation.
-      // Never interrupt an active offline reading session mid-read when connectivity returns.
+      // Never interrupt an active offline reading session mid-read when connectivity returns,
+      // unless a different user is now authenticated.
       if (online) {
         if (isPending) return;
         if (!activeUserId) {
@@ -88,6 +91,10 @@ export function OfflineReadingLibrary() {
             setStats({ count: 0, totalBytes: 0, maxEntries: 25, maxBytes: 8 * 1024 * 1024 });
           }
           return;
+        }
+        if (activeRecordRef.current && activeRecordRef.current.userId !== activeUserId) {
+          restorationReadyRef.current = false;
+          setActiveRecord(null);
         }
         await clearOfflineReadingsForOtherUsers(activeUserId);
       }
@@ -131,34 +138,29 @@ export function OfflineReadingLibrary() {
   // Restore reading position when opening an offline record and persist on scroll/hide.
   useEffect(() => {
     if (!activeRecord) return;
-    const saved = loadOfflineReadingPosition(activeRecord.key);
+    let cancelled = false;
+    restorationReadyRef.current = false;
     let raf1 = 0;
     let raf2 = 0;
 
-    raf1 = window.requestAnimationFrame(() => {
-      raf2 = window.requestAnimationFrame(() => {
-        if (!saved) {
-          window.scrollTo(0, 0);
-          return;
-        }
-        const scrollHeight = Math.max(
-          document.documentElement.scrollHeight || 0,
-          document.body.scrollHeight || 0,
-        );
-        const targetY = resolveRestoredScrollY(saved, scrollHeight, window.innerHeight);
-        if (targetY > 0) {
-          window.scrollTo(0, targetY);
-        } else if (saved.sectionSlug) {
-          const targetSection = articleBodyRef.current?.querySelector<HTMLElement>(
-            `[data-section-slug="${CSS.escape(saved.sectionSlug)}"]`,
-          );
-          targetSection?.scrollIntoView({ behavior: "auto", block: "start" });
-        }
+    void loadLatestOfflineReadingPosition(activeRecord.key).then((saved) => {
+      if (cancelled) return;
+      raf1 = window.requestAnimationFrame(() => {
+        raf2 = window.requestAnimationFrame(() => {
+          if (cancelled) return;
+          if (!saved) {
+            window.scrollTo(0, 0);
+          } else {
+            restoreOfflineReadingScroll(saved, articleBodyRef.current);
+          }
+          restorationReadyRef.current = true;
+        });
       });
     });
 
     let timer: ReturnType<typeof setTimeout> | null = null;
     const onScroll = () => {
+      if (!restorationReadyRef.current) return;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         timer = null;
@@ -176,10 +178,12 @@ export function OfflineReadingLibrary() {
     window.addEventListener("pagehide", persistCurrentPosition);
 
     return () => {
+      cancelled = true;
       window.cancelAnimationFrame(raf1);
       window.cancelAnimationFrame(raf2);
       if (timer) clearTimeout(timer);
-      persistCurrentPosition();
+      if (restorationReadyRef.current) persistCurrentPosition();
+      restorationReadyRef.current = false;
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", persistCurrentPosition);

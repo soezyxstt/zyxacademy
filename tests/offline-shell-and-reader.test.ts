@@ -20,12 +20,17 @@ import {
   renderOfflineWorkedExampleHtml,
 } from "@/lib/offline/offline-snapshot-renderer";
 import {
+  READING_POSITION_STORAGE_PREFIX,
   buildOfflineReadingKey,
+  clearOfflineReadingPositionsForOtherUsers,
   computeScrollRatio,
+  findSectionElementBySlug,
+  loadLatestOfflineReadingPosition,
   loadOfflineReadingPosition,
   pickLatestReadingPosition,
   removeOfflineReadingPosition,
   resolveRestoredScrollY,
+  restoreOfflineReadingScroll,
   saveOfflineReadingPosition,
 } from "@/lib/offline/reading-position";
 import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
@@ -409,5 +414,238 @@ describe("Item #4: offline KaTeX, visuals, reading position, and non-disruptive 
       // AGENTS.md style compliance: no em/en dashes
       expect(html).not.toMatch(/[\u2013\u2014]/);
     }
+  });
+
+  test("loadLatestOfflineReadingPosition merges localStorage with Capacitor and Tauri native stores", async () => {
+    const key = buildOfflineReadingKey("u1", "c1", "m1");
+    const storeMap = new Map<string, string>();
+    storeMap.set(
+      `${READING_POSITION_STORAGE_PREFIX}${key}`,
+      JSON.stringify({
+        key,
+        sectionSlug: "sec-1",
+        scrollY: 120,
+        scrollRatio: 0.1,
+        scope: "document",
+        updatedAt: 1000,
+      }),
+    );
+
+    // Capacitor native store has a newer offline reading position
+    (globalThis as unknown as { window: Record<string, unknown> }).window = {
+      localStorage: {
+        getItem: (k: string) => storeMap.get(k) ?? null,
+        setItem: (k: string, v: string) => storeMap.set(k, v),
+        removeItem: (k: string) => storeMap.delete(k),
+      },
+      Capacitor: {
+        isNativePlatform: () => true,
+        getPlatform: () => "android",
+        Plugins: {
+          ZyxOfflineStore: {
+            getReading: async () => ({
+              reading: {
+                key,
+                readingPosition: {
+                  key,
+                  sectionSlug: "sec-4",
+                  scrollY: 1400,
+                  scrollRatio: 0.72,
+                  scope: "document",
+                  updatedAt: 3000,
+                },
+              },
+            }),
+          },
+        },
+      },
+    };
+
+    const capLatest = await loadLatestOfflineReadingPosition(key);
+    expect(capLatest?.sectionSlug).toBe("sec-4");
+    expect(capLatest?.scrollY).toBe(1400);
+    expect(capLatest?.updatedAt).toBe(3000);
+
+    // Tauri native store has a newer position even when localStorage is empty (origin switch)
+    storeMap.clear();
+    (globalThis as unknown as { window: Record<string, unknown> }).window = {
+      localStorage: {
+        getItem: (k: string) => storeMap.get(k) ?? null,
+        setItem: (k: string, v: string) => storeMap.set(k, v),
+        removeItem: (k: string) => storeMap.delete(k),
+      },
+      __TAURI__: {
+        core: {
+          invoke: async (cmd: string) => {
+            if (cmd === "get_offline_reading") {
+              return {
+                reading: {
+                  key,
+                  readingPosition: {
+                    key,
+                    sectionSlug: "sec-3",
+                    scrollY: 980,
+                    scrollRatio: 0.55,
+                    scope: "document",
+                    updatedAt: 4500,
+                  },
+                },
+              };
+            }
+            return null;
+          },
+        },
+      },
+    };
+
+    const tauriLatest = await loadLatestOfflineReadingPosition(key);
+    expect(tauriLatest?.sectionSlug).toBe("sec-3");
+    expect(tauriLatest?.scrollRatio).toBe(0.55);
+    expect(tauriLatest?.updatedAt).toBe(4500);
+  });
+
+  test("findSectionElementBySlug matches special characters safely and restoreOfflineReadingScroll respects scope", () => {
+    const specialSlug = 'sec\\1]"test';
+    const scrolledSections: string[] = [];
+    const scrollToCalls: Array<[number, number]> = [];
+
+    const makeEl = (slug: string) =>
+      ({
+        getAttribute: (name: string) => (name === "data-section-slug" ? slug : null),
+        scrollIntoView: () => {
+          scrolledSections.push(slug);
+        },
+      }) as unknown as HTMLElement;
+
+    const fakeRoot = {
+      querySelectorAll: () => [makeEl("intro"), makeEl(specialSlug)],
+    } as unknown as ParentNode;
+
+    const found = findSectionElementBySlug(fakeRoot, specialSlug);
+    expect(found).not.toBeNull();
+    expect(findSectionElementBySlug(fakeRoot, "missing")).toBeNull();
+
+    const originalDocument = globalThis.document;
+    try {
+      (globalThis as unknown as { window: Record<string, unknown> }).window = {
+        innerHeight: 500,
+        scrollTo: (x: number, y: number) => scrollToCalls.push([x, y]),
+      };
+      (globalThis as unknown as { document: Record<string, unknown> }).document = {
+        documentElement: { scrollHeight: 2500 },
+        body: { scrollHeight: 2500 },
+      };
+
+      // Section-scoped position should jump to the exact section rather than applying section ratio to full document
+      restoreOfflineReadingScroll(
+        {
+          key: "u1::c1::m1",
+          sectionSlug: specialSlug,
+          scrollY: 400,
+          scrollRatio: 0.5,
+          scope: "section",
+          updatedAt: 1000,
+        },
+        fakeRoot,
+      );
+      expect(scrolledSections).toEqual([specialSlug]);
+      expect(scrollToCalls).toHaveLength(0);
+
+      // Document-scoped position should apply scrollRatio across the full document
+      restoreOfflineReadingScroll(
+        {
+          key: "u1::c1::m1",
+          sectionSlug: specialSlug,
+          scrollY: 400,
+          scrollRatio: 0.5,
+          scope: "document",
+          updatedAt: 2000,
+        },
+        fakeRoot,
+      );
+      expect(scrollToCalls).toEqual([[0, 1000]]);
+    } finally {
+      if (originalDocument === undefined) {
+        delete (globalThis as { document?: unknown }).document;
+      } else {
+        globalThis.document = originalDocument;
+      }
+    }
+  });
+
+  test("clearOfflineReadingPositionsForOtherUsers purges other accounts while keeping active user and unrelated keys", async () => {
+    const storeMap = new Map<string, string>([
+      [`${READING_POSITION_STORAGE_PREFIX}u1::c1::m1`, JSON.stringify({ key: "u1::c1::m1", scrollY: 10, scrollRatio: 0.1, updatedAt: 1 })],
+      [`${READING_POSITION_STORAGE_PREFIX}u2::c1::m2`, JSON.stringify({ key: "u2::c1::m2", scrollY: 20, scrollRatio: 0.2, updatedAt: 2 })],
+      ["unrelated-key", "keep-me"],
+    ]);
+
+    const fakeLocalStorage = {
+      get length() {
+        return storeMap.size;
+      },
+      key: (i: number) => Array.from(storeMap.keys())[i] ?? null,
+      getItem: (k: string) => storeMap.get(k) ?? null,
+      setItem: (k: string, v: string) => storeMap.set(k, v),
+      removeItem: (k: string) => storeMap.delete(k),
+    };
+
+    (globalThis as unknown as { window: Record<string, unknown> }).window = {
+      localStorage: fakeLocalStorage,
+    };
+
+    clearOfflineReadingPositionsForOtherUsers("u1");
+    expect(storeMap.has(`${READING_POSITION_STORAGE_PREFIX}u1::c1::m1`)).toBe(true);
+    expect(storeMap.has(`${READING_POSITION_STORAGE_PREFIX}u2::c1::m2`)).toBe(false);
+    expect(storeMap.get("unrelated-key")).toBe("keep-me");
+
+    // Passing null clears all offline reading position keys (used on logout via clearAllOfflineReadings)
+    await clearOfflineReadingsForOtherUsers(null);
+    expect(storeMap.has(`${READING_POSITION_STORAGE_PREFIX}u1::c1::m1`)).toBe(false);
+    expect(storeMap.get("unrelated-key")).toBe("keep-me");
+  });
+
+  test("readers, offline shells, sw.js, and Tauri store enforce review #38 hardening", () => {
+    // 1. StructuredArticleReader restores asynchronously before enabling persistence (no mount clobber)
+    const readerSrc = readFileSync(join(ROOT, "components/course/structured-article-reader.tsx"), "utf8");
+    expect(readerSrc).toContain("loadLatestOfflineReadingPosition");
+    expect(readerSrc).toContain("restoreOfflineReadingScroll");
+    expect(readerSrc).toContain("restorationReady = true");
+    expect(readerSrc).not.toMatch(/saveOfflineReadingPosition\([\s\S]*?\);\s*\n\s*\};\s*\n\s*persist\(\);/);
+
+    // 2. MaterialViewer and OfflineReadingLibrary use async native+local loader & user switch guard
+    const viewerSrc = readFileSync(join(ROOT, "components/course/material-viewer.tsx"), "utf8");
+    expect(viewerSrc).toContain("loadLatestOfflineReadingPosition");
+
+    const librarySrc = readFileSync(join(ROOT, "components/offline/offline-reading-library.tsx"), "utf8");
+    expect(librarySrc).toContain("loadLatestOfflineReadingPosition");
+    expect(librarySrc).toContain("restoreOfflineReadingScroll");
+    expect(librarySrc).toContain("activeRecordRef.current.userId !== activeUserId");
+
+    // 3. Desktop & mobile shells harden sanitizeHtmlFragment and avoid unescaped querySelector
+    for (const appRoot of ["apps/mobile/www", "apps/desktop/dist"]) {
+      const html = readFileSync(join(ROOT, appRoot, "index.html"), "utf8");
+      expect(html).toContain("isSafeAttributeUrl");
+      expect(html).toContain('"NOSCRIPT"');
+      expect(html).toContain('"ANIMATE"');
+      expect(html).toContain('name === "formaction" || name === "srcdoc"');
+      expect(html).toContain("findSectionElementBySlug");
+      expect(html).not.toContain('pos.sectionSlug.replace(/"/g, "")');
+    }
+
+    // 4. public/sw.js handles ?dpl=... CSS URLs and resolves relative CSS url() assets
+    const swSrc = readFileSync(join(ROOT, "public/sw.js"), "utf8");
+    expect(swSrc).toContain("isCssAssetUrl");
+    expect(swSrc).toContain("extractCssStaticAssetUrls");
+    expect(swSrc).toContain('pathname.endsWith(".css")');
+
+    // 5. Tauri write_file_atomic uses direct rename without remove_file gap, and async spawn_blocking commands
+    const rustSrc = readFileSync(join(ROOT, "apps/desktop/src-tauri/src/lib.rs"), "utf8");
+    const writeAtomicBlock = rustSrc.match(/fn write_file_atomic[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(writeAtomicBlock).toContain("std::fs::rename(&tmp, path)");
+    expect(writeAtomicBlock).not.toContain("remove_file(path)");
+    expect(rustSrc).toContain("async fn save_offline_reading(");
+    expect(rustSrc).toContain("async fn get_offline_reading(");
+    expect(rustSrc).toContain("tauri::async_runtime::spawn_blocking");
   });
 });

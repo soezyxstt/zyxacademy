@@ -73,7 +73,7 @@ import { saveTextMaterialOffline } from "@/lib/offline/reading-cache";
 import {
   buildOfflineReadingKey,
   computeScrollRatio,
-  loadOfflineReadingPosition,
+  loadLatestOfflineReadingPosition,
   resolveRestoredScrollY,
   saveOfflineReadingPosition,
 } from "@/lib/offline/reading-position";
@@ -502,20 +502,33 @@ function MaterialViewerContent({
   useEffect(() => {
     if (demo || !studentId || !learnerMode || material.kind !== "article") return;
     const readingKey = buildOfflineReadingKey(studentId, material.courseId, material.id);
-    const saved = loadOfflineReadingPosition(readingKey);
-    let raf = 0;
-    if (saved) {
-      raf = window.requestAnimationFrame(() => {
-        const scrollHeight = Math.max(
-          document.documentElement.scrollHeight || 0,
-          document.body.scrollHeight || 0,
-        );
-        const targetY = resolveRestoredScrollY(saved, scrollHeight, window.innerHeight);
-        if (targetY > 0) window.scrollTo(0, targetY);
-      });
-    }
+    let cancelled = false;
+    let restorationReady = false;
+    let raf1 = 0;
+    let raf2 = 0;
+
+    void loadLatestOfflineReadingPosition(readingKey).then((saved) => {
+      if (cancelled) return;
+      if (saved) {
+        raf1 = window.requestAnimationFrame(() => {
+          raf2 = window.requestAnimationFrame(() => {
+            if (cancelled) return;
+            const scrollHeight = Math.max(
+              document.documentElement.scrollHeight || 0,
+              document.body.scrollHeight || 0,
+            );
+            const targetY = resolveRestoredScrollY(saved, scrollHeight, window.innerHeight);
+            if (targetY > 0) window.scrollTo(0, targetY);
+            restorationReady = true;
+          });
+        });
+        return;
+      }
+      restorationReady = true;
+    });
 
     const persist = () => {
+      if (!restorationReady) return;
       const scrollY = Math.max(0, Math.round(window.scrollY || document.documentElement.scrollTop || 0));
       const scrollHeight = Math.max(
         document.documentElement.scrollHeight || 0,
@@ -527,12 +540,14 @@ function MaterialViewerContent({
         sectionIndex: 0,
         scrollY,
         scrollRatio: computeScrollRatio(scrollY, scrollHeight, window.innerHeight),
+        scope: "document",
         updatedAt: Date.now(),
       });
     };
 
     let timer: ReturnType<typeof setTimeout> | null = null;
     const onScroll = () => {
+      if (!restorationReady) return;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         timer = null;
@@ -547,9 +562,11 @@ function MaterialViewerContent({
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pagehide", persist);
     return () => {
-      window.cancelAnimationFrame(raf);
+      cancelled = true;
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
       if (timer) clearTimeout(timer);
-      persist();
+      if (restorationReady) persist();
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", persist);

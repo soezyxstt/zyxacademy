@@ -761,10 +761,37 @@
           return (n / (1024 * 1024)).toFixed(1) + " MB";
         }
 
+        function isSafeAttributeUrl(rawValue, isImgSrc) {
+          var cleaned = String(rawValue || "").replace(/[\u0000-\u001f\u007f]+/g, "").trim();
+          if (!cleaned) return false;
+          if (/^https?:\/\//i.test(cleaned)) return true;
+          if (cleaned.charAt(0) === "#" || (cleaned.charAt(0) === "/" && cleaned.charAt(1) !== "/")) {
+            return true;
+          }
+          if (isImgSrc && /^data:image\/(?:png|jpeg|jpg|webp|gif|svg\+xml);base64,[a-z0-9+/=\s]+$/i.test(cleaned)) {
+            return true;
+          }
+          return false;
+        }
+
         function sanitizeHtmlFragment(html) {
           var template = document.createElement("template");
           template.innerHTML = String(html || "");
-          var blockedTags = ["SCRIPT", "IFRAME", "OBJECT", "EMBED", "STYLE", "LINK", "META", "BASE", "FORM"];
+          var blockedTags = [
+            "SCRIPT",
+            "IFRAME",
+            "OBJECT",
+            "EMBED",
+            "STYLE",
+            "LINK",
+            "META",
+            "BASE",
+            "FORM",
+            "USE",
+            "ANIMATE",
+            "SET",
+            "NOSCRIPT",
+          ];
           for (var t = 0; t < blockedTags.length; t++) {
             var bad = template.content.querySelectorAll(blockedTags[t].toLowerCase());
             for (var j = bad.length - 1; j >= 0; j--) {
@@ -778,15 +805,15 @@
             for (var a = 0; a < attrs.length; a++) {
               var name = attrs[a].name.toLowerCase();
               var value = attrs[a].value || "";
-              if (name.indexOf("on") === 0) {
+              if (name.indexOf("on") === 0 || name === "formaction" || name === "srcdoc") {
                 el.removeAttribute(attrs[a].name);
                 continue;
               }
-              if (
-                (name === "href" || name === "src" || name === "xlink:href") &&
-                /^\s*javascript:/i.test(value)
-              ) {
-                el.removeAttribute(attrs[a].name);
+              if (name === "href" || name === "src" || name === "xlink:href") {
+                var isImgSrc = el.tagName === "IMG" && name === "src";
+                if (!isSafeAttributeUrl(value, isImgSrc)) {
+                  el.removeAttribute(attrs[a].name);
+                }
               }
             }
           }
@@ -841,8 +868,20 @@
             sectionIndex: sectionIndex,
             scrollY: scrollY,
             scrollRatio: scrollRatio,
+            scope: "document",
             updatedAt: Date.now(),
           };
+        }
+
+        function findSectionElementBySlug(slug) {
+          if (!slug) return null;
+          var sections = readerBodyEl.querySelectorAll("[data-section-slug]");
+          for (var i = 0; i < sections.length; i++) {
+            if (sections[i].getAttribute("data-section-slug") === slug) {
+              return sections[i];
+            }
+          }
+          return null;
         }
 
         function persistActiveReadingPosition() {
@@ -883,6 +922,13 @@
           }
           window.requestAnimationFrame(function () {
             window.requestAnimationFrame(function () {
+              if (pos.sectionSlug && pos.scope !== "document") {
+                var scopedSec = findSectionElementBySlug(pos.sectionSlug);
+                if (scopedSec) {
+                  scopedSec.scrollIntoView({ behavior: "auto", block: "start" });
+                  return;
+                }
+              }
               var docHeight = Math.max(
                 document.documentElement.scrollHeight || 0,
                 document.body.scrollHeight || 0
@@ -893,16 +939,19 @@
                 targetY = Math.round(Math.max(0, Math.min(1, Number(pos.scrollRatio))) * maxScroll);
               } else if (Number(pos.scrollY) > 0) {
                 targetY = Math.min(maxScroll, Math.round(Number(pos.scrollY)));
-              } else if (pos.sectionSlug) {
-                var targetSec = readerBodyEl.querySelector(
-                  '[data-section-slug="' + pos.sectionSlug.replace(/"/g, "") + '"]'
-                );
+              }
+              if (targetY > 0) {
+                window.scrollTo(0, targetY);
+                return;
+              }
+              if (pos.sectionSlug) {
+                var targetSec = findSectionElementBySlug(pos.sectionSlug);
                 if (targetSec) {
                   targetSec.scrollIntoView({ behavior: "auto", block: "start" });
                   return;
                 }
               }
-              window.scrollTo(0, targetY);
+              window.scrollTo(0, 0);
             });
           });
         }

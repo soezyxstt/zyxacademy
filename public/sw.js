@@ -14,6 +14,42 @@ function extractStaticAssetUrls(text) {
   return Array.from(new Set(matches));
 }
 
+function extractCssStaticAssetUrls(cssText, cssAssetUrl) {
+  const urls = new Set(extractStaticAssetUrls(cssText));
+  let baseUrl;
+  try {
+    baseUrl = new URL(cssAssetUrl, self.location.origin);
+  } catch {
+    return Array.from(urls);
+  }
+  const urlPattern = /url\(\s*(?:(["'])([^"']+)\1|([^)\s"']+))\s*\)/gi;
+  let match;
+  while ((match = urlPattern.exec(cssText)) !== null) {
+    const rawRef = (match[2] || match[3] || "").trim();
+    if (!rawRef || rawRef.startsWith("data:")) continue;
+    try {
+      const resolved = new URL(rawRef, baseUrl);
+      if (
+        resolved.origin === self.location.origin &&
+        resolved.pathname.startsWith("/_next/static/")
+      ) {
+        urls.add(resolved.pathname + resolved.search);
+      }
+    } catch {
+      // Ignore malformed CSS url() references
+    }
+  }
+  return Array.from(urls);
+}
+
+function isCssAssetUrl(assetUrl) {
+  try {
+    return new URL(assetUrl, self.location.origin).pathname.endsWith(".css");
+  } catch {
+    return false;
+  }
+}
+
 async function precacheOfflineShell() {
   const cache = await caches.open(OFFLINE_SHELL_CACHE);
   const response = await fetch(new Request(OFFLINE_PAGE_URL, { cache: "reload" }));
@@ -31,9 +67,9 @@ async function precacheOfflineShell() {
         if (!assetResponse || !assetResponse.ok) return;
         await cache.put(assetUrl, assetResponse.clone());
         // Pre-cache KaTeX and webfont assets referenced inside cached CSS bundles.
-        if (assetUrl.endsWith(".css")) {
+        if (isCssAssetUrl(assetUrl)) {
           const cssText = await assetResponse.text();
-          for (const url of extractStaticAssetUrls(cssText)) {
+          for (const url of extractCssStaticAssetUrls(cssText, assetUrl)) {
             nestedAssets.add(url);
           }
         }

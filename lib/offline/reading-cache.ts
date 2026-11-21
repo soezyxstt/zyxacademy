@@ -16,6 +16,7 @@ import {
   renderOfflineWorkedExampleHtml,
 } from "@/lib/offline/offline-snapshot-renderer";
 import {
+  clearOfflineReadingPositionsForOtherUsers,
   loadOfflineReadingPosition,
   removeOfflineReadingPosition,
   type OfflineReadingPosition,
@@ -528,6 +529,7 @@ export async function removeOfflineReadingByKey(key: string): Promise<void> {
 }
 
 export async function clearOfflineReadingsForOtherUsers(currentUserId: string | null): Promise<void> {
+  clearOfflineReadingPositionsForOtherUsers(currentUserId);
   void getCapacitor()
     ?.Plugins?.ZyxOfflineStore?.clearOtherUsers({ userId: currentUserId ?? "" })
     .catch(() => {});
