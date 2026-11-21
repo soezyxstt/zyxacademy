@@ -90,6 +90,39 @@ export function PushPermissionInit() {
         if (permission !== "granted") return;
 
         await registerUnifiedPushToken(activeUserId, isCurrent);
+
+        if (!isCurrent()) return;
+        const {
+          isLocalReminderSchedulingSupported,
+          loadStudyReminderConfig,
+          syncStudyReminderNotifications,
+          syncTutorSessionReminders,
+        } = await import("@/lib/native/local-reminders");
+        if (isLocalReminderSchedulingSupported() && isCurrent()) {
+          const config = loadStudyReminderConfig(activeUserId);
+          await syncStudyReminderNotifications(activeUserId, config).catch(() => {});
+          try {
+            const res = await fetch("/api/student/upcoming-sessions", { credentials: "include" });
+            if (res.ok && isCurrent()) {
+              const data = (await res.json()) as {
+                sessions?: Array<{
+                  bookingId: string;
+                  status: string;
+                  sessionDate: string | null;
+                  startTime: string | null;
+                  courseTitle?: string | null;
+                  tutorName?: string | null;
+                  topic?: string | null;
+                }>;
+              };
+              if (Array.isArray(data.sessions)) {
+                await syncTutorSessionReminders(activeUserId, data.sessions).catch(() => {});
+              }
+            }
+          } catch {
+            // Non-fatal; schedule page will also sync when visited.
+          }
+        }
       } catch (err) {
         // Non-fatal; push notifications are enhancement, not core functionality
         console.warn("[FCM] Init error:", err);
@@ -112,6 +145,9 @@ export function PushPermissionInit() {
         .then(({ clearRegisteredPushTokenIdentity }) => {
           clearRegisteredPushTokenIdentity();
         })
+        .catch(() => {});
+      void import("@/lib/native/local-reminders")
+        .then(({ clearAllLocalRemindersOnLogout }) => clearAllLocalRemindersOnLogout())
         .catch(() => {});
       return;
     }

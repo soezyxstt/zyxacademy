@@ -59,9 +59,46 @@ export interface CapacitorBrowserPlugin {
   ) => Promise<CapacitorPluginListenerHandle>;
 }
 
+export interface CapacitorLocalNotificationSchedule {
+  at?: Date;
+  repeats?: boolean;
+  every?: "year" | "month" | "two-weeks" | "week" | "day" | "hour" | "minute" | "second";
+  on?: {
+    year?: number;
+    month?: number;
+    day?: number;
+    weekday?: number;
+    hour?: number;
+    minute?: number;
+    second?: number;
+  };
+  allowWhileIdle?: boolean;
+}
+
+export interface CapacitorLocalNotificationSchema {
+  id: number;
+  title: string;
+  body: string;
+  schedule?: CapacitorLocalNotificationSchedule;
+  extra?: Record<string, unknown>;
+}
+
 export interface CapacitorLocalNotificationsPlugin {
   checkPermissions: () => Promise<{ display: "prompt" | "prompt-with-rationale" | "granted" | "denied" }>;
   requestPermissions: () => Promise<{ display: "prompt" | "prompt-with-rationale" | "granted" | "denied" }>;
+  schedule?: (options: {
+    notifications: CapacitorLocalNotificationSchema[];
+  }) => Promise<{ notifications: Array<{ id: number }> }>;
+  cancel?: (options: {
+    notifications: Array<{ id: number }>;
+  }) => Promise<void>;
+  getPending?: () => Promise<{
+    notifications: Array<{ id: number; extra?: Record<string, unknown> }>;
+  }>;
+  addListener?: (
+    eventName: "localNotificationReceived" | "localNotificationActionPerformed",
+    listenerFunc: (event: Record<string, unknown>) => void,
+  ) => Promise<CapacitorPluginListenerHandle>;
 }
 
 export interface CapacitorUpdaterPlugin {

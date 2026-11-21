@@ -183,6 +183,29 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
   const courseParam = searchParams.get("course");
   const courseIds = useMemo(() => selectedCourse?.compatibleCourseIds ?? (courseParam ? [courseParam] : []), [selectedCourse, courseParam]);
   const activeData = useMemo(() => dataWeekOffset === weekOffset && data ? scopeStudentSchedule(data, courseIds) : null, [data, dataWeekOffset, weekOffset, courseIds]);
+
+  // Keep local tutor session reminders in sync whenever confirmed/rescheduled/cancelled bookings load.
+  useEffect(() => {
+    if (experience.mode === "demo" || !activeData?.user?.id || !Array.isArray(activeData.groupBookings)) {
+      return;
+    }
+    const studentUserId = String(activeData.user.id);
+    const sessions = activeData.groupBookings.map((booking: any) => ({
+      bookingId: String(booking.id),
+      status: String(booking.status ?? ""),
+      sessionDate: booking.sessionDate ?? booking.slot?.sessionDate ?? null,
+      startTime: booking.startTime ?? booking.slot?.startTime ?? null,
+      courseTitle: booking.course?.title ?? null,
+      tutorName: booking.slot?.tutor?.name ?? null,
+      topic: booking.topic ?? null,
+    }));
+    void import("@/lib/native/local-reminders")
+      .then(({ isLocalReminderSchedulingSupported, syncTutorSessionReminders }) => {
+        if (!isLocalReminderSchedulingSupported()) return;
+        return syncTutorSessionReminders(studentUserId, sessions);
+      })
+      .catch(() => {});
+  }, [experience.mode, activeData]);
   if (!activeData) {
     if (loadError) {
       return (

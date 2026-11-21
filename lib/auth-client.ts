@@ -17,8 +17,14 @@ export async function signOut(...args: Parameters<typeof authClient.signOut>) {
   if (!result.error) {
     syncQueryAccount(getQueryClient(), null);
     if (typeof window !== "undefined") {
-      const { clearAllOfflineReadings } = await import("@/lib/offline/reading-cache");
-      await clearAllOfflineReadings().catch(() => {});
+      const [{ clearAllOfflineReadings }, { clearAllLocalRemindersOnLogout }] = await Promise.all([
+        import("@/lib/offline/reading-cache"),
+        import("@/lib/native/local-reminders"),
+      ]);
+      await Promise.all([
+        clearAllOfflineReadings().catch(() => {}),
+        clearAllLocalRemindersOnLogout().catch(() => {}),
+      ]);
     }
   }
   return result;
