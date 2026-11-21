@@ -289,6 +289,60 @@ describe("Item #10: OS Share, Save, and Open Files", () => {
     expect(capRes).toEqual({ ok: true, method: "capacitor-browser" });
     expect(capOpened).toEqual(["https://signed.storage.example/diktat.pdf"]);
   });
+
+  test("saveAuthorizedFile falls back to direct browser open/download for cross-origin CORS fetch errors", async () => {
+    const opened: Array<{ url: string; target?: string }> = [];
+    (globalThis as Record<string, unknown>).window = {
+      location: { origin: "https://www.zyxacademy.com" },
+      open: (url: string, target?: string) => {
+        opened.push({ url, target });
+        return null;
+      },
+    };
+    globalThis.fetch = (async () => {
+      throw new TypeError("Failed to fetch");
+    }) as typeof fetch;
+
+    const crossOrigin = await saveAuthorizedFile({
+      url: "https://signed.storage.example/diktat.pdf",
+      fileName: "diktat.pdf",
+    });
+    expect(crossOrigin).toEqual({ ok: true, method: "web-download" });
+    expect(opened).toEqual([{ url: "https://signed.storage.example/diktat.pdf", target: "_blank" }]);
+
+    // Same-origin fetch errors must still fail without bypassing auth.
+    const sameOrigin = await saveAuthorizedFile({
+      url: "/api/discussions/attachments/att_1?download=1",
+      fileName: "soal.png",
+    });
+    expect(sameOrigin).toEqual({ ok: false, error: "fetch_failed" });
+  });
+
+  test("saveAuthorizedFile skips Capacitor Filesystem CACHE write when Share plugin is unavailable", async () => {
+    let filesystemWritten = false;
+    (globalThis as Record<string, unknown>).window = {
+      location: { origin: "https://www.zyxacademy.com" },
+      Capacitor: {
+        isNativePlatform: () => true,
+        Plugins: {
+          Filesystem: {
+            writeFile: async () => {
+              filesystemWritten = true;
+              return { uri: "file:///cache/test.png" };
+            },
+          },
+        },
+      },
+    };
+    globalThis.fetch = (async () => new Response("ok", { status: 200 })) as typeof fetch;
+
+    const result = await saveAuthorizedFile({
+      url: "/api/discussions/attachments/att_123?download=1",
+      fileName: "soal.png",
+    });
+    expect(filesystemWritten).toBe(false);
+    expect(result).toEqual({ ok: false, error: "unsupported" });
+  });
 });
 
 describe("Item #12: Meaningful Haptics", () => {

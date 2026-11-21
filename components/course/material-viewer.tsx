@@ -1033,6 +1033,42 @@ function MaterialViewerContent({
   };
 
   const openUrl = getViewablePdfUrl(material.url);
+  const [downloadingFile, setDownloadingFile] = useState(false);
+  const [openingFile, setOpeningFile] = useState(false);
+
+  const handleDownloadMaterial = async (targetTitle: string) => {
+    if (!material.url || downloadingFile) return;
+    setDownloadingFile(true);
+    try {
+      const result = await saveAuthorizedFile({
+        url: material.url,
+        fileName: `${targetTitle}.pdf`,
+        title: targetTitle,
+      });
+      if (!result.ok && !result.cancelled) {
+        toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.saveFailed"));
+      }
+    } finally {
+      setDownloadingFile(false);
+    }
+  };
+
+  const handleOpenMaterial = async () => {
+    if (!openUrl || openingFile) return;
+    setOpeningFile(true);
+    try {
+      const result = await openAuthorizedFile({
+        url: openUrl,
+        fileName: `${material.title}.pdf`,
+        title: material.title,
+      });
+      if (!result.ok && !result.cancelled) {
+        toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.openFailed"));
+      }
+    } finally {
+      setOpeningFile(false);
+    }
+  };
 
   const tutorPopover = learnerMode && selectionCoords && selectedText ? (
     <div
@@ -1263,18 +1299,8 @@ function MaterialViewerContent({
                                 variant="outline"
                                 size="icon-lg"
                                 aria-label={t("reader.downloadPdf")}
-                                onClick={() => {
-                                  if (!material.url) return;
-                                  void saveAuthorizedFile({
-                                    url: material.url,
-                                    fileName: `${chapterTitle || material.title}.pdf`,
-                                    title: chapterTitle || material.title,
-                                  }).then((result) => {
-                                    if (!result.ok && !result.cancelled) {
-                                      toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.saveFailed"));
-                                    }
-                                  });
-                                }}
+                                disabled={downloadingFile}
+                                onClick={() => void handleDownloadMaterial(chapterTitle || material.title)}
                               >
                                 <Download aria-hidden />
                               </Button>
@@ -1463,18 +1489,8 @@ function MaterialViewerContent({
                   size="icon-sm"
                   className="size-7"
                   aria-label={t("reader.downloadPdf")}
-                  onClick={() => {
-                    if (!material.url) return;
-                    void saveAuthorizedFile({
-                      url: material.url,
-                      fileName: `${material.title}.pdf`,
-                      title: material.title,
-                    }).then((result) => {
-                      if (!result.ok && !result.cancelled) {
-                        toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.saveFailed"));
-                      }
-                    });
-                  }}
+                  disabled={downloadingFile}
+                  onClick={() => void handleDownloadMaterial(material.title)}
                 >
                   <Download className="size-3.5" aria-hidden />
                 </Button>
@@ -1491,17 +1507,8 @@ function MaterialViewerContent({
                   size="icon-sm"
                   className={cn("size-7", viewerType === "chrome" && "hidden md:inline-flex")}
                   aria-label={t("reader.openOriginal")}
-                  onClick={() => {
-                    void openAuthorizedFile({
-                      url: openUrl,
-                      fileName: `${material.title}.pdf`,
-                      title: material.title,
-                    }).then((result) => {
-                      if (!result.ok && !result.cancelled) {
-                        toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.openFailed"));
-                      }
-                    });
-                  }}
+                  disabled={openingFile}
+                  onClick={() => void handleOpenMaterial()}
                 >
                   <ExternalLink className="size-3.5" aria-hidden />
                 </Button>

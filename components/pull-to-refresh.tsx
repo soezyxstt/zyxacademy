@@ -41,7 +41,7 @@ export function PullToRefresh({
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       throw new Error("offline");
     }
-    await queryClient.invalidateQueries({ refetchType: "active" });
+    await queryClient.refetchQueries({ type: "active" }, { throwOnError: true });
     router.refresh();
   }, [queryClient, router]);
 
@@ -76,7 +76,7 @@ export function PullToRefresh({
           aria-live="polite"
           className="flex items-center justify-center overflow-hidden border-b border-border/50 bg-muted/40 text-body-xs text-muted-foreground md:hidden"
           style={{
-            height: `${Math.max(36, Math.min(pullDistance, 56))}px`,
+            height: `${status === "refreshing" ? 40 : Math.min(pullDistance, 56)}px`,
             transition: reducedMotion ? "none" : "height 120ms ease-out",
           }}
         >

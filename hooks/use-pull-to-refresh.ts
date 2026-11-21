@@ -50,16 +50,21 @@ function isIgnoredPullTarget(target: EventTarget | null): boolean {
   );
 }
 
-function hasScrollableAncestorScrolled(target: EventTarget | null, boundary: HTMLElement | null): boolean {
+function hasScrollableAncestorScrolled(target: EventTarget | null): boolean {
   if (typeof Element === "undefined" || !(target instanceof Element)) return false;
   let node: Element | null = target;
-  while (node && node !== boundary && node !== document.body && node !== document.documentElement) {
+  while (node && node !== document.documentElement) {
     if (node instanceof HTMLElement && node.scrollTop > 0) {
       return true;
     }
     node = node.parentElement;
   }
   return false;
+}
+
+function getClampedWindowScrollY(): number {
+  if (typeof window === "undefined") return 0;
+  return Math.max(0, window.scrollY ?? 0, document.documentElement?.scrollTop ?? 0);
 }
 
 function hasOpenModalDialog(): boolean {
@@ -96,11 +101,25 @@ export function usePullToRefresh({
   const [pullDistance, setPullDistance] = useState(0);
 
   const onRefreshRef = useRef(onRefresh);
-  onRefreshRef.current = onRefresh;
   const statusRef = useRef(status);
-  statusRef.current = status;
   const disabledRef = useRef(disabled);
-  disabledRef.current = disabled;
+
+  useEffect(() => {
+    onRefreshRef.current = onRefresh;
+  }, [onRefresh]);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  useEffect(() => {
+    disabledRef.current = disabled;
+  }, [disabled]);
+
+  const updateStatus = useCallback((next: PullToRefreshStatus) => {
+    statusRef.current = next;
+    setStatus(next);
+  }, []);
 
   const gestureRef = useRef<{
     active: boolean;
@@ -119,29 +138,29 @@ export function usePullToRefresh({
   const executeRefresh = useCallback(async () => {
     if (statusRef.current === "refreshing") return;
     if (disabledRef.current || isPullToRefreshLocked()) {
-      setStatus("idle");
+      updateStatus("idle");
       setPullDistance(0);
       return;
     }
 
-    setStatus("refreshing");
+    updateStatus("refreshing");
     setPullDistance(threshold);
     try {
       await onRefreshRef.current();
-      setStatus("idle");
+      updateStatus("idle");
       setPullDistance(0);
     } catch {
-      setStatus("error");
+      updateStatus("error");
       setPullDistance(0);
     }
-  }, [threshold]);
+  }, [threshold, updateStatus]);
 
   const dismissError = useCallback(() => {
     if (statusRef.current === "error") {
-      setStatus("idle");
+      updateStatus("idle");
       setPullDistance(0);
     }
-  }, []);
+  }, [updateStatus]);
 
   const retry = useCallback(() => {
     void executeRefresh();
@@ -154,11 +173,11 @@ export function usePullToRefresh({
       gestureRef.current.committed = false;
       gestureRef.current.distance = 0;
       if (statusRef.current === "pulling" || statusRef.current === "ready") {
-        setStatus("idle");
+        updateStatus("idle");
         setPullDistance(0);
       }
     }
-  }, [disabled, locked]);
+  }, [disabled, locked, updateStatus]);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -169,21 +188,18 @@ export function usePullToRefresh({
       if (!isSmartphoneViewport()) return;
 
       const touch = event.touches[0];
-      const windowScrollY =
-        typeof window !== "undefined"
-          ? Math.max(window.scrollY ?? 0, document.documentElement?.scrollTop ?? 0)
-          : 0;
+      const windowScrollY = getClampedWindowScrollY();
 
       const canStart =
         canStartPullToRefresh({
           enabled: !disabledRef.current,
           locked: isPullToRefreshLocked(),
           isRefreshing: statusRef.current === "refreshing",
-          scrollTop: element.scrollTop,
+          scrollTop: Math.max(0, element.scrollTop),
           windowScrollY,
           hasOpenDialog: hasOpenModalDialog(),
           isIgnoredTarget: isIgnoredPullTarget(event.target),
-        }) && !hasScrollableAncestorScrolled(event.target, element);
+        }) && !hasScrollableAncestorScrolled(event.target);
 
       if (!canStart) {
         gestureRef.current.active = false;
@@ -204,7 +220,7 @@ export function usePullToRefresh({
       if (!gesture.active || event.touches.length !== 1) return;
       if (disabledRef.current || isPullToRefreshLocked()) {
         gesture.active = false;
-        setStatus("idle");
+        updateStatus("idle");
         setPullDistance(0);
         return;
       }
@@ -221,8 +237,8 @@ export function usePullToRefresh({
           return;
         }
         // Re-verify scroll position at the moment vertical pull commits.
-        const windowScrollY = Math.max(window.scrollY ?? 0, document.documentElement?.scrollTop ?? 0);
-        if (element.scrollTop !== 0 || windowScrollY !== 0) {
+        const windowScrollY = getClampedWindowScrollY();
+        if (Math.max(0, element.scrollTop) !== 0 || windowScrollY !== 0) {
           gesture.active = false;
           return;
         }
@@ -232,7 +248,7 @@ export function usePullToRefresh({
       if (deltaY <= 0) {
         gesture.distance = 0;
         setPullDistance(0);
-        setStatus("idle");
+        updateStatus("idle");
         return;
       }
 
@@ -243,7 +259,7 @@ export function usePullToRefresh({
       const distance = calculatePullDistance(deltaY);
       gesture.distance = distance;
       setPullDistance(distance);
-      setStatus(distance >= threshold ? "ready" : "pulling");
+      updateStatus(distance >= threshold ? "ready" : "pulling");
     };
 
     const handleTouchEnd = () => {
@@ -257,7 +273,7 @@ export function usePullToRefresh({
       if (shouldRefresh) {
         void executeRefresh();
       } else if (statusRef.current === "pulling" || statusRef.current === "ready") {
-        setStatus("idle");
+        updateStatus("idle");
         setPullDistance(0);
       }
     };
@@ -273,7 +289,7 @@ export function usePullToRefresh({
       element.removeEventListener("touchend", handleTouchEnd);
       element.removeEventListener("touchcancel", handleTouchEnd);
     };
-  }, [containerRef, threshold, executeRefresh]);
+  }, [containerRef, threshold, executeRefresh, updateStatus]);
 
   const progress = Math.min(1, pullDistance / threshold);
 

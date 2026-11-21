@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -31,6 +31,16 @@ export function ShareLinkButton({
   const common = useTranslations("common");
   const [copied, setCopied] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current !== null) {
+        clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const label = common("share.button");
 
@@ -50,7 +60,13 @@ export function ShareLinkButton({
         if (result.method === "clipboard") {
           setCopied(true);
           toast.success(common("share.linkCopied"));
-          setTimeout(() => setCopied(false), 2000);
+          if (copiedTimerRef.current !== null) {
+            clearTimeout(copiedTimerRef.current);
+          }
+          copiedTimerRef.current = setTimeout(() => {
+            setCopied(false);
+            copiedTimerRef.current = null;
+          }, 2000);
         }
       } else if (!result.cancelled) {
         toast.error(common("share.failed"));

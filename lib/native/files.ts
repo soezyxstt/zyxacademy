@@ -118,6 +118,26 @@ function triggerBrowserBlobDownload(blob: Blob, fileName: string): boolean {
   }
 }
 
+function triggerBrowserDirectDownload(url: string, fileName: string): boolean {
+  if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    return true;
+  }
+  if (typeof window !== "undefined" && typeof window.open === "function") {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return true;
+  }
+  return false;
+}
+
 function mapHttpStatusToError(status: number): "unauthorized" | "not_found" | "fetch_failed" {
   if (status === 401 || status === 403) return "unauthorized";
   if (status === 404) return "not_found";
@@ -178,6 +198,13 @@ export async function saveAuthorizedFile(
       credentials: resolved.sameOrigin ? "same-origin" : "omit",
     });
   } catch {
+    if (!resolved.sameOrigin) {
+      const fallbackName = sanitizeFileName(options.fileName, "zyx-attachment");
+      if (triggerBrowserDirectDownload(resolved.url, fallbackName)) {
+        void hapticSuccess();
+        return { ok: true, method: "web-download" };
+      }
+    }
     return { ok: false, error: "fetch_failed" };
   }
 
@@ -198,7 +225,7 @@ export async function saveAuthorizedFile(
   // Capacitor Filesystem + Share sheet (saves to app cache and opens native save/open sheet)
   const filesystem = cap?.Plugins?.Filesystem;
   const share = cap?.Plugins?.Share;
-  if (filesystem?.writeFile) {
+  if (filesystem?.writeFile && share?.share) {
     try {
       const base64Data = await blobToBase64(blob);
       const written = await filesystem.writeFile({
@@ -207,15 +234,15 @@ export async function saveAuthorizedFile(
         directory: "CACHE",
         recursive: true,
       });
-      if (share?.share && written?.uri) {
+      if (written?.uri) {
         await share.share({
           title: options.title ?? safeName,
           url: written.uri,
           dialogTitle: options.title ?? safeName,
         });
+        void hapticSuccess();
+        return { ok: true, method: "capacitor-filesystem" };
       }
-      void hapticSuccess();
-      return { ok: true, method: "capacitor-filesystem" };
     } catch (error) {
       if (isCancelError(error)) {
         return { ok: false, cancelled: true, error: "fetch_failed" };
@@ -266,8 +293,8 @@ export async function openAuthorizedFile(
     }
   }
 
-  // For same-origin authorized endpoints in Capacitor with Filesystem, save and open via native sheet
-  if (cap?.Plugins?.Filesystem?.writeFile && resolved.sameOrigin) {
+  // For same-origin authorized endpoints in Capacitor with Filesystem + Share, save and open via native sheet
+  if (cap?.Plugins?.Filesystem?.writeFile && cap?.Plugins?.Share?.share && resolved.sameOrigin) {
     return saveAuthorizedFile(options);
   }
 

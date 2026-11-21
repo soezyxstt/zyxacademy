@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { useTranslations } from "@/lib/i18n/client";
-import { Download, ImageOff } from "lucide-react";
+import { Download, ImageOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
@@ -62,8 +62,20 @@ export function DiscussionAttachment({ attachment }: { attachment: DiscussionAtt
         {fullFailed ? <div role="status" className="flex flex-wrap items-center gap-2 p-3 text-body-xs text-muted-foreground"><ImageOff className="size-4 shrink-0" aria-hidden="true" />{t("imageUnavailable")}<Button type="button" variant="outline" size="sm" onClick={() => setFullFailed(false)}>{t("retry")}</Button></div> : <Image src={expectedUrl} alt={alt} width={attachment.width || 1200} height={attachment.height || 800} sizes="90vw" unoptimized className="max-h-[70dvh] w-auto max-w-full object-contain" onError={() => setFullFailed(true)} />}
       </div>
       <div className="shrink-0">
-        <Button type="button" variant="outline" size="sm" isLoading={saving} onClick={() => void handleSave()}>
-          <Download aria-hidden="true" />{t("download")}
+        <Button asChild variant="outline" size="sm" className={saving ? "pointer-events-none opacity-50" : undefined}>
+          <a
+            href={`${expectedUrl}?download=1`}
+            download
+            aria-disabled={saving}
+            aria-busy={saving || undefined}
+            onClick={(e) => {
+              e.preventDefault();
+              void handleSave();
+            }}
+          >
+            {saving ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}
+            {t("download")}
+          </a>
         </Button>
       </div>
     </DialogContent>

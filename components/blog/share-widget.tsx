@@ -52,6 +52,28 @@ export function ShareBlock({ slug, title, description, inline = false, locale }:
   const [shareUrl, setShareUrl] = React.useState("");
   const [copied, setCopied] = React.useState(false);
   const [canShare, setCanShare] = React.useState(false);
+  const copiedTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current !== null) {
+        clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const markCopied = React.useCallback(() => {
+    setCopied(true);
+    toast.success(t("blog.shareCopied"));
+    if (copiedTimerRef.current !== null) {
+      clearTimeout(copiedTimerRef.current);
+    }
+    copiedTimerRef.current = setTimeout(() => {
+      setCopied(false);
+      copiedTimerRef.current = null;
+    }, 2000);
+  }, [t]);
 
   React.useEffect(() => {
     if (slug) {
@@ -69,9 +91,7 @@ export function ShareBlock({ slug, title, description, inline = false, locale }:
     if (!shareUrl) return;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      toast.success(t("blog.shareCopied"));
-      setTimeout(() => setCopied(false), 2000);
+      markCopied();
     } catch {
       toast.error(t("blog.shareCopyFailed"));
     }
@@ -86,9 +106,7 @@ export function ShareBlock({ slug, title, description, inline = false, locale }:
     });
     if (result.ok) {
       if (result.method === "clipboard") {
-        setCopied(true);
-        toast.success(t("blog.shareCopied"));
-        setTimeout(() => setCopied(false), 2000);
+        markCopied();
       }
     } else if (!result.cancelled) {
       toast.error(t("blog.shareFailed"));
