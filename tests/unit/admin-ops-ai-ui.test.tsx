@@ -264,9 +264,9 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
       // Desktop layout participant classes
       expect(html).toContain("lg:sticky");
-      expect(html).toContain("lg:top-0");
+      expect(html).toContain("top-[var(--panel-visible-top,0px)]");
       expect(html).toContain("lg:self-start");
-      expect(html).toContain("lg:h-screen");
+      expect(html).toContain("h-[var(--panel-visible-height,100dvh)]");
       expect(html).toContain("lg:shrink-0");
 
       // Mobile overlay fallback classes
@@ -777,10 +777,10 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
         </OpsAiProvider>
       );
 
-      // Must strictly pin inset-0 z-50 w-full on mobile (< sm:) and sm:inset-y-0 sm:right-0
+      // Must strictly pin inset-0 z-50 w-full on mobile (< sm:) and align right above sm
       expect(html).toContain("fixed inset-0 z-50 w-full");
-      expect(html).toContain("sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[480px]");
-      expect(html).toContain("lg:sticky lg:top-0 lg:self-start lg:h-screen lg:shrink-0");
+      expect(html).toContain("sm:left-auto sm:right-0 sm:w-[480px]");
+      expect(html).toContain("lg:sticky lg:self-start lg:shrink-0");
 
       // Verify backdrop has z-40 and panel has z-50
       expect(html).toContain("fixed inset-0 z-40 bg-black/50");

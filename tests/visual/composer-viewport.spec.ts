@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 for (const scenario of [
   { name: "Diskusi", path: "discussions?question=function", width: 380, panel: "[data-discussion-frame]" },
@@ -9,6 +9,9 @@ for (const scenario of [
 ]) {
   test(`${scenario.name} fits a shortened and panned visual viewport`, async ({ page }) => {
     await page.setViewportSize({ width: scenario.width, height: 800 });
+    if (scenario.name === "Ops AI") {
+      await page.addInitScript(() => localStorage.setItem("zyx_ops_ai_panel_open_v2", "true"));
+    }
     await page.goto(`/visual-fixtures/${scenario.path}`);
     if (scenario.name === "Zyra") await page.getByRole("button", { name: "Buka Zyra" }).click();
     const panel = page.locator(scenario.panel);
