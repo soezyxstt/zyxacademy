@@ -126,6 +126,10 @@ async function inspectCompletedSchema(client: SqlClient, newTables: string[]) {
   and not exists (select 1 from pg_constraint c where c.contype='f' and c.confrelid='public.soal'::regclass
    and c.conrelid=any(array['public.gamification_question_exposures'::regclass,
     'public.gamification_question_exposure_initializations'::regclass,'public.gamification_question_exposure_observations'::regclass]))
+  and exists (select 1 from information_schema.columns where table_schema='public' and table_name='gamification_profiles'
+   and column_name='visibility' and column_default='''members''::text' and is_nullable='NO')
+  and exists (select 1 from information_schema.columns where table_schema='public' and table_name='discussion_messages'
+   and column_name='mention_handles' and data_type='jsonb' and is_nullable='YES' and column_default is null)
   as valid`, [newTables.map(table => `public.${table}`)]);
  if (schema.rows[0]?.valid !== true) throw new Error('COMPLETED_SCHEMA_INVALID');
 }
@@ -176,7 +180,7 @@ export async function runMigration(client: SqlClient, mode: Mode, migrations: Mi
   if (partial.rows.length) throw new Error('UNEXPECTED_PARTIAL_SCHEMA');
   if (mode === 'check') {
    await client.query('rollback');
-   return { state: 'pending', mode, migrations: 28 };
+   return { state: 'pending', mode, migrations: migrations.length - 9 };
   }
   for (const [index, migration] of migrations.entries()) {
    if (index < 9) continue;
@@ -221,7 +225,7 @@ export async function runMigration(client: SqlClient, mode: Mode, migrations: Mi
    (select count(*)::text from public.gamification_cosmetics) cosmetics`);
   commitAttempted = mode === 'apply';
   await client.query(mode === 'rehearse' ? 'rollback' : 'commit');
-  return { state: mode === 'rehearse' ? 'rehearsed and rolled back' : 'applied', mode, migrations: 28, counts: summary.rows[0] };
+  return { state: mode === 'rehearse' ? 'rehearsed and rolled back' : 'applied', mode, migrations: migrations.length - 9, counts: summary.rows[0] };
  } catch (error) {
   let rollbackFailed = false;
   try { await client.query('rollback'); } catch { rollbackFailed = true; }

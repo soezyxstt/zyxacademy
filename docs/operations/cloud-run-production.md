@@ -1,6 +1,6 @@
 # Cloud Run production migration
 
-Status: infrastructure prepared and database rehearsal passed. Production application traffic and database schema have not been switched.
+Status: production schema through 0038 verified on 2026-11-21. Cloud Run currently serves the previous release; the promoted main release is pending deployment.
 
 ## Verified inventory, 2026-11-20
 
@@ -59,3 +59,9 @@ The runner uses transaction locks and bounded timeouts, preserves existing ledge
 6. Switch public traffic only after the candidate and schema gates pass. Preserve the previous host, immutable image and worker rollback identities. Disable old scheduling only after proving the replacement, without running both schedules concurrently.
 
 The public DNS and worker routes, production schema, legacy writer state and production application deployment remain unchanged at this preparation stage.
+
+## Schema update, 2026-11-21
+
+Production already contained 37 ledger entries through 0036. Migrations 0037 and 0038 were rehearsed on `br-hidden-rice-azq54qqa`, cloned from backup `br-spring-recipe-aznzg7ii`, then committed together to production `br-wandering-butterfly-azi11h8r`. The transaction checked the exact existing ledger and schema under an advisory lock and exclusive locks on the ledger and two affected tables, with a 10-second lock timeout and 60-second statement timeout. Historical ledger rows and existing profile visibility values were preserved.
+
+Independent readback confirmed 39 ledger entries, the `members` default and nullable JSONB `mention_handles`. The updated Cloud Run read-only gate returned `already complete` using the production runtime credential. Its 16 focused offline tests passed. The gate pins all 39 committed migration blobs and rejects a 37- or 38-entry ledger; incremental application from those states remains an operator-controlled transaction, not the historical baseline runner. Preserve the backup through release acceptance.
