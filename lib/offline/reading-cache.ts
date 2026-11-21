@@ -9,6 +9,7 @@
  */
 
 import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
+import { getCapacitor } from "@/lib/native/runtime";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
 
 const DB_NAME = "zyx-offline-readings-v1";
@@ -153,6 +154,106 @@ async function getAllRecordsForUser(db: IDBDatabase, userId: string): Promise<Of
   });
 }
 
+export interface NativeOfflineSection {
+  heading: string;
+  body: string;
+}
+
+export interface NativeOfflineSnapshot {
+  key: string;
+  userId: string;
+  title: string;
+  courseTitle?: string;
+  chapterTitle?: string;
+  estimatedMinutes?: number;
+  sizeBytes: number;
+  savedAt: number;
+  lastAccessedAt: number;
+  sections: NativeOfflineSection[];
+}
+
+function cleanOfflineMarkdown(raw: string): string {
+  return raw
+    .replace(/\n*<!--__ZYX_V3_ARTICLE_VISUALS__:[A-Za-z0-9_-]+-->/g, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .trim();
+}
+
+export function buildNativeOfflineSnapshot(record: OfflineReadingRecord): NativeOfflineSnapshot {
+  const sections: NativeOfflineSection[] = [];
+
+  if (record.kind === "structured_article" && record.article) {
+    for (const sec of record.article.sections) {
+      const parts: string[] = [];
+      if (sec.learningObjective?.trim()) {
+        parts.push(sec.learningObjective.trim());
+      }
+      for (const block of sec.blocks ?? []) {
+        if (block.title?.trim()) {
+          parts.push(`### ${block.title.trim()}`);
+        }
+        const cleaned = cleanOfflineMarkdown(block.content ?? "");
+        if (cleaned) {
+          parts.push(cleaned);
+        }
+        if (block.workedExample?.steps?.length) {
+          const stepLines = block.workedExample.steps.map(
+            (step) => `${step.stepIndex + 1}. ${step.label}: ${step.explanation}`,
+          );
+          if (block.workedExample.verification?.trim()) {
+            stepLines.push(block.workedExample.verification.trim());
+          }
+          parts.push(stepLines.join("\n"));
+        }
+      }
+      const body = parts.join("\n\n").trim();
+      if (body) {
+        sections.push({
+          heading: sec.title,
+          body,
+        });
+      }
+    }
+  } else if (record.material?.body) {
+    const cleaned = cleanOfflineMarkdown(record.material.body);
+    if (cleaned) {
+      sections.push({
+        heading: "",
+        body: cleaned,
+      });
+    }
+  }
+
+  return {
+    key: record.key,
+    userId: record.userId,
+    title: record.title,
+    courseTitle: record.courseTitle,
+    chapterTitle: record.chapterTitle,
+    estimatedMinutes: record.estimatedMinutes,
+    sizeBytes: record.sizeBytes,
+    savedAt: record.savedAt,
+    lastAccessedAt: record.lastAccessedAt,
+    sections,
+  };
+}
+
+function mirrorSaveToNativeStore(record: OfflineReadingRecord): void {
+  const store = getCapacitor()?.Plugins?.ZyxOfflineStore;
+  if (!store?.saveReading) return;
+  try {
+    const snapshot = buildNativeOfflineSnapshot(record);
+    void store
+      .saveReading({
+        key: record.key,
+        payloadJson: JSON.stringify(snapshot),
+      })
+      .catch(() => {});
+  } catch {
+    // Non-fatal
+  }
+}
+
 async function putRecordAndEnforceQuota(record: OfflineReadingRecord): Promise<boolean> {
   if (!isOfflineReadingCacheSupported()) return false;
   if (record.sizeBytes <= 0 || record.sizeBytes > OFFLINE_CACHE_MAX_BYTES) {
@@ -179,6 +280,7 @@ async function putRecordAndEnforceQuota(record: OfflineReadingRecord): Promise<b
       tx.onerror = () => reject(tx.error ?? new Error("indexeddb_write_failed"));
     });
 
+    mirrorSaveToNativeStore(record);
     return true;
   } catch {
     return false;
@@ -298,7 +400,9 @@ export async function getOfflineReadingByKey(key: string): Promise<OfflineReadin
 }
 
 export async function removeOfflineReadingByKey(key: string): Promise<void> {
-  if (!isOfflineReadingCacheSupported() || !key) return;
+  if (!key) return;
+  void getCapacitor()?.Plugins?.ZyxOfflineStore?.removeReading({ key }).catch(() => {});
+  if (!isOfflineReadingCacheSupported()) return;
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
@@ -315,6 +419,9 @@ export async function removeOfflineReadingByKey(key: string): Promise<void> {
 }
 
 export async function clearOfflineReadingsForOtherUsers(currentUserId: string | null): Promise<void> {
+  void getCapacitor()
+    ?.Plugins?.ZyxOfflineStore?.clearOtherUsers({ userId: currentUserId ?? "" })
+    .catch(() => {});
   if (!isOfflineReadingCacheSupported()) return;
   const db = await openDb();
   try {

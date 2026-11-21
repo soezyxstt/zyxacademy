@@ -73,6 +73,18 @@ export interface CapacitorUpdaterPlugin {
   ) => Promise<CapacitorPluginListenerHandle>;
 }
 
+export interface CapacitorOfflineStorePlugin {
+  saveReading: (options: { key: string; payloadJson: string }) => Promise<{ saved?: boolean }>;
+  listReadings: () => Promise<{
+    items?: Array<Record<string, unknown>>;
+    count?: number;
+    totalBytes?: number;
+  }>;
+  getReading: (options: { key: string }) => Promise<{ reading?: Record<string, unknown> | null }>;
+  removeReading: (options: { key: string }) => Promise<void>;
+  clearOtherUsers: (options: { userId: string }) => Promise<void>;
+}
+
 export interface CapacitorGlobal {
   isNativePlatform?: () => boolean;
   getPlatform?: () => string;
@@ -83,6 +95,7 @@ export interface CapacitorGlobal {
     PushNotifications?: CapacitorPushNotificationsPlugin;
     Camera?: CapacitorCameraPlugin;
     ZyxAppUpdater?: CapacitorUpdaterPlugin;
+    ZyxOfflineStore?: CapacitorOfflineStorePlugin;
   };
 }
 

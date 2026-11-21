@@ -1,30 +1,39 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>Zyx Academy</title>
     <style>
       :root {
-        color-scheme: light dark;
-        --bg: #f8fafc;
-        --fg: #0f172a;
-        --muted: #475569;
+        --background: #ffffff;
+        --foreground: #333333;
         --card: #ffffff;
-        --border: #e2e8f0;
-        --accent: #0f172a;
-        --accent-fg: #ffffff;
+        --surface: #f4f4f5;
+        --muted-foreground: #717171;
+        --border: #e6e6e6;
+        --primary: #2a3c6a;
+        --primary-hover: #354b84;
+        --primary-fg: #ffffff;
+        --zx-z-fill: #2a3c6a;
+        --zx-x-fill: #cc542b;
+        --radius: 10px;
       }
 
       @media (prefers-color-scheme: dark) {
         :root {
-          --bg: #0b1120;
-          --fg: #f8fafc;
-          --muted: #94a3b8;
-          --card: #111827;
-          --border: #1f2937;
-          --accent: #f8fafc;
-          --accent-fg: #0f172a;
+          --background: #1d1d1d;
+          --foreground: #ffffff;
+          --card: #282828;
+          --surface: #303033;
+          --muted-foreground: #bebebe;
+          --border: #3d3d40;
+          --primary: #5e7ce2;
+          --primary-hover: #708ce8;
+          --primary-fg: #0f162a;
+          --zx-z-fill: #f3f4f5;
+          --zx-x-fill: #cc542b;
         }
       }
 
@@ -38,9 +47,10 @@
         display: grid;
         place-items: center;
         padding: 24px;
-        background: var(--bg);
-        color: var(--fg);
-        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--background);
+        color: var(--foreground);
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
         -webkit-font-smoothing: antialiased;
       }
 
@@ -48,80 +58,106 @@
         width: 100%;
         max-width: 400px;
         padding: 28px;
-        border-radius: 14px;
+        border-radius: 12px;
         border: 1px solid var(--border);
         background: var(--card);
-        text-align: center;
+        text-align: left;
       }
 
-      .mark {
-        display: inline-grid;
-        place-items: center;
-        width: 48px;
-        height: 48px;
-        margin-bottom: 16px;
-        border-radius: 12px;
-        background: var(--accent);
-        color: var(--accent-fg);
-        font-size: 20px;
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .brand-mark {
+        width: 30px;
+        height: 18px;
+      }
+
+      .brand-name {
+        font-size: 14px;
         font-weight: 700;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.01em;
       }
 
       h1 {
         margin: 0 0 8px;
         font-size: 20px;
         line-height: 1.3;
-        font-weight: 600;
+        font-weight: 700;
+        letter-spacing: -0.02em;
       }
 
       p {
         margin: 0 0 20px;
         font-size: 14px;
-        line-height: 1.5;
-        color: var(--muted);
+        line-height: 1.55;
+        color: var(--muted-foreground);
       }
 
       .actions {
         display: flex;
-        justify-content: center;
+        align-items: center;
+        gap: 10px;
       }
 
       button {
         appearance: none;
-        border: 0;
-        border-radius: 10px;
-        padding: 10px 18px;
+        min-height: 40px;
+        border: 1px solid transparent;
+        border-radius: var(--radius);
+        padding: 0 18px;
         font-size: 14px;
-        font-weight: 500;
+        font-weight: 600;
         cursor: pointer;
-        background: var(--accent);
-        color: var(--accent-fg);
+        background: var(--primary);
+        color: var(--primary-fg);
       }
 
-      button:hover {
-        opacity: 0.9;
+      button:hover:not(:disabled) {
+        background: var(--primary-hover);
       }
 
-      button:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 2px;
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
       }
 
       .status {
-        margin-top: 14px;
+        margin: 14px 0 0;
+        min-height: 18px;
         font-size: 12px;
-        color: var(--muted);
+        color: var(--muted-foreground);
       }
     </style>
   </head>
   <body>
     <main role="status" aria-live="polite">
-      <div class="mark" aria-hidden="true">Z</div>
-      <h1 id="title">Connecting to Zyx Academy</h1>
-      <p id="message">Waiting for network access to load your workspace.</p>
+      <div class="brand">
+        <svg
+          class="brand-mark"
+          viewBox="0 0 370 216"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M262.25 66.0576L309.5 0H369.5L292.25 108L369.5 216H309.5L268.486 158.661C275.133 144.348 279 126.43 279 104C279 56 293.001 32 302.001 26C274.001 37 270.21 75.5 263.5 92.5C259.39 102.914 253.201 114.236 244.281 124.821L155 0H215L262.25 66.0576Z"
+            fill="var(--zx-x-fill)"
+          />
+          <path
+            d="M139 0L176.75 52.7764L95.0488 167H133C206.5 167 239.65 125.559 252.5 93C259.21 76 273.5 37 301.5 26C292.5 32 278.786 43 270.5 105C256.067 213 172.5 216 114.5 216H0L119.451 49H0V0H139Z"
+            fill="var(--zx-z-fill)"
+          />
+        </svg>
+        <span class="brand-name">Zyx Academy</span>
+      </div>
+      <h1 id="title">Menghubungkan ke Zyx Academy</h1>
+      <p id="message">Menunggu koneksi jaringan untuk membuka ruang belajar Anda.</p>
       <div class="actions">
-        <button id="retry-button" type="button">Try again</button>
+        <button id="retry-button" type="button">Coba lagi</button>
       </div>
       <p class="status" id="status-text"></p>
     </main>
@@ -129,35 +165,76 @@
     <script>
       (function () {
         var isNightly = /nightly/i.test(navigator.userAgent || "");
-        var defaultUrl = isNightly ? "https://staging.zyxacademy.com" : "https://www.zyxacademy.com";
+        var defaultOrigin = isNightly
+          ? "https://staging.zyxacademy.com"
+          : "https://www.zyxacademy.com";
+        var isEn = (navigator.language || "id").toLowerCase().startsWith("en");
+        var t = isEn
+          ? {
+              connectingTitle: "Connecting to Zyx Academy",
+              connectingMsg: "Waiting for network access to load your workspace.",
+              offlineTitle: "You are offline",
+              offlineMsg: "Check your internet connection, then try again.",
+              retry: "Try again",
+              retrying: "Reconnecting to Zyx Academy...",
+              stillOffline: "Still offline. Check your connection.",
+            }
+          : {
+              connectingTitle: "Menghubungkan ke Zyx Academy",
+              connectingMsg: "Menunggu koneksi jaringan untuk membuka ruang belajar Anda.",
+              offlineTitle: "Sedang offline",
+              offlineMsg: "Periksa koneksi internet Anda lalu coba lagi.",
+              retry: "Coba lagi",
+              retrying: "Menghubungkan ke Zyx Academy...",
+              stillOffline: "Koneksi masih belum tersedia.",
+            };
+
         var titleEl = document.getElementById("title");
         var messageEl = document.getElementById("message");
         var statusEl = document.getElementById("status-text");
         var retryButton = document.getElementById("retry-button");
+        retryButton.textContent = t.retry;
 
         function updateState() {
           if (navigator.onLine) {
-            titleEl.textContent = "Connecting to Zyx Academy";
-            messageEl.textContent = "Waiting for Zyx Academy to respond.";
-            statusEl.textContent = "Online";
+            titleEl.textContent = t.connectingTitle;
+            messageEl.textContent = t.connectingMsg;
+            statusEl.textContent = "";
           } else {
-            titleEl.textContent = "You are offline";
-            messageEl.textContent = "Check your internet connection, then try again.";
-            statusEl.textContent = "Offline";
+            titleEl.textContent = t.offlineTitle;
+            messageEl.textContent = t.offlineMsg;
+            statusEl.textContent = "";
           }
         }
 
-        function retryConnection() {
-          statusEl.textContent = "Reconnecting...";
-          if (window.location.protocol === "http:" || window.location.protocol === "https:") {
-            window.location.reload();
-          } else {
-            window.location.replace(defaultUrl);
+        async function retryConnection() {
+          retryButton.disabled = true;
+          statusEl.textContent = t.retrying;
+          if (!navigator.onLine) {
+            statusEl.textContent = t.stillOffline;
+            retryButton.disabled = false;
+            return;
+          }
+          try {
+            await fetch(defaultOrigin + "/api/auth/get-session", {
+              method: "GET",
+              mode: "no-cors",
+              cache: "no-store",
+            });
+            window.location.replace(defaultOrigin + "/");
+          } catch {
+            statusEl.textContent = t.stillOffline;
+            retryButton.disabled = false;
           }
         }
 
-        retryButton.addEventListener("click", retryConnection);
-        window.addEventListener("online", updateState);
+        retryButton.addEventListener("click", function () {
+          void retryConnection();
+        });
+        window.addEventListener("online", function () {
+          updateState();
+          void retryConnection();
+        });
         window.addEventListener("offline", updateState);
         updateState();
       })();

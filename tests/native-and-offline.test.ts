@@ -1,5 +1,6 @@
 import { describe, expect, test, afterEach } from "bun:test";
 import {
+  buildNativeOfflineSnapshot,
   formatOfflineBytes,
   selectEvictionKeys,
 } from "@/lib/offline/reading-cache";
@@ -61,6 +62,33 @@ describe("offline reading cache LRU eviction", () => {
     expect(formatOfflineBytes(512)).toBe("512 B");
     expect(formatOfflineBytes(2048)).toBe("2 KB");
     expect(formatOfflineBytes(2 * 1024 * 1024)).toBe("2.0 MB");
+  });
+
+  test("builds portable native offline snapshots without visual HTML comment tokens", () => {
+    const snapshot = buildNativeOfflineSnapshot({
+      key: "u1::c1::m1",
+      userId: "u1",
+      courseId: "c1",
+      materialId: "m1",
+      kind: "course_material",
+      title: "Bilangan Real",
+      courseTitle: "Matematika I",
+      sizeBytes: 240,
+      savedAt: 1000,
+      lastAccessedAt: 1000,
+      material: {
+        id: "m1",
+        courseId: "c1",
+        title: "Bilangan Real",
+        kind: "article",
+        body: "## Pengantar\n\nHimpunan bilangan real.\n<!--__ZYX_V3_ARTICLE_VISUALS__:abc123-->",
+      },
+    });
+    expect(snapshot.title).toBe("Bilangan Real");
+    expect(snapshot.courseTitle).toBe("Matematika I");
+    expect(snapshot.sections).toHaveLength(1);
+    expect(snapshot.sections[0].body).toContain("Himpunan bilangan real.");
+    expect(snapshot.sections[0].body).not.toContain("__ZYX_V3_ARTICLE_VISUALS__");
   });
 });
 

@@ -19,7 +19,7 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     private static final String DEFAULT_CHANNEL_ID = "zyx_default";
     private static final int LIGHT_SYSTEM_BAR_BG = 0xFFFFFFFF;
-    private static final int DARK_SYSTEM_BAR_BG = 0xFF111111;
+    private static final int DARK_SYSTEM_BAR_BG = 0xFF1D1D1D;
 
     static final class WebViewMargins {
         final int left;
@@ -47,6 +47,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(ZyxAppUpdaterPlugin.class);
+        registerPlugin(ZyxOfflineStorePlugin.class);
         super.onCreate(savedInstanceState);
         applySystemBarInsets();
         createDefaultNotificationChannel();

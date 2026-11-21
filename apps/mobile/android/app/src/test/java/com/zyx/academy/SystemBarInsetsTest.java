@@ -71,4 +71,13 @@ public class SystemBarInsetsTest {
         assertFalse(ZyxAppUpdaterPlugin.isAllowedRedirectHost("evil.com"));
         assertFalse(ZyxAppUpdaterPlugin.isAllowedRedirectHost("github.com.evil.com"));
     }
+
+    @Test
+    public void hashesOfflineReadingKeysSafelyWithoutPathTraversal() {
+        String safeName = ZyxOfflineStorePlugin.keyToFileName("u1::course-1::../etc/passwd");
+        assertTrue(safeName != null && safeName.matches("^[0-9a-f]{64}\\.json$"));
+        assertEquals(safeName, ZyxOfflineStorePlugin.keyToFileName("u1::course-1::../etc/passwd"));
+        assertEquals(null, ZyxOfflineStorePlugin.keyToFileName(""));
+        assertEquals(null, ZyxOfflineStorePlugin.keyToFileName(null));
+    }
 }

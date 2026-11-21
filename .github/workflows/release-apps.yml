@@ -1,14 +1,6 @@
 name: Release Apps (Desktop & Mobile)
 
 on:
-  push:
-    branches:
-      - staging
-      - main
-    paths:
-      - "apps/**"
-      - "public/brand/zyx-app-512.png"
-      - ".github/workflows/release-apps.yml"
   workflow_dispatch:
     inputs:
       channel:
@@ -20,7 +12,7 @@ on:
           - nightly
           - stable
       version:
-        description: "Optional version override (defaults to apps/desktop/package.json version, e.g. 0.1.0-alpha.1)"
+        description: "Optional version override (nightly auto-increments as 0.1.0-alpha.<run_number>; stable defaults to apps/desktop/package.json)"
         required: false
         type: string
 
