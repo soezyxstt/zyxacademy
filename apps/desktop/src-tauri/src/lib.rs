@@ -26,8 +26,28 @@ fn deep_link_scheme() -> &'static str {
     }
 }
 
-fn user_agent_token() -> String {
-    format!("ZyxDesktopApp/0.1.0-alpha.1 (Tauri; {})", build_channel())
+fn is_allowed_override_origin(parsed: &Url) -> bool {
+    if !parsed.has_host() {
+        return false;
+    }
+
+    #[cfg(debug_assertions)]
+    {
+        if matches!(parsed.scheme(), "http" | "https") {
+            return true;
+        }
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        if parsed.scheme() == "https" {
+            if let Some(host) = parsed.host_str() {
+                return host == "zyxacademy.com" || host.ends_with(".zyxacademy.com");
+            }
+        }
+    }
+
+    false
 }
 
 fn configured_origin() -> Url {
@@ -35,7 +55,7 @@ fn configured_origin() -> Url {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             if let Ok(parsed) = Url::parse(trimmed) {
-                if matches!(parsed.scheme(), "http" | "https") && parsed.has_host() {
+                if is_allowed_override_origin(&parsed) {
                     return parsed;
                 }
             }
@@ -60,19 +80,33 @@ fn resolve_deep_link_target(origin: &Url, incoming: &Url, scheme: &str) -> Optio
 
     let raw_path = incoming.path();
     if !raw_path.is_empty() && raw_path != "/" {
-        if !raw_path.starts_with('/') {
-            path_segments.push('/');
+        let cleaned = raw_path.trim_start_matches('/');
+        if cleaned.contains('\\') {
+            return None;
         }
-        path_segments.push_str(raw_path);
+        if !cleaned.is_empty() {
+            path_segments.push('/');
+            path_segments.push_str(cleaned);
+        }
     }
 
     if path_segments.is_empty() {
         path_segments.push('/');
     }
 
-    let mut target = origin.join(&path_segments).ok()?;
+    if path_segments.starts_with("//") || path_segments.contains('\\') {
+        return None;
+    }
+
+    let mut target = origin.clone();
+    target.set_path(&path_segments);
     target.set_query(incoming.query());
     target.set_fragment(incoming.fragment());
+
+    if target.origin() != origin.origin() {
+        return None;
+    }
+
     Some(target)
 }
 
@@ -87,24 +121,6 @@ fn route_deep_link(app: &AppHandle, origin: &Url, incoming: &Url) {
         let _ = window.show();
         let _ = window.set_focus();
     }
-}
-
-fn user_agent_override_script() -> String {
-    let token = user_agent_token();
-    format!(
-        r#"(() => {{
-  try {{
-    const token = "{token}";
-    if (typeof navigator !== "undefined" && !navigator.userAgent.includes(token)) {{
-      const nextUa = `${{navigator.userAgent}} ${{token}}`;
-      Object.defineProperty(navigator, "userAgent", {{
-        get: () => nextUa,
-        configurable: true,
-      }});
-    }}
-  }} catch (_) {{}}
-}})();"#
-    )
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -123,11 +139,6 @@ pub fn run() {
                 if initial_origin != default_origin {
                     let _ = window.navigate(initial_origin.clone());
                 }
-
-                // Tauri v2 does not expose a cross-platform append-only user-agent setter on an
-                // already-created WebviewWindow, so expose the desktop token via navigator.userAgent
-                // for client-side detection without replacing the platform WebView UA string.
-                let _ = window.eval(user_agent_override_script());
             }
 
             if let Ok(Some(urls)) = app.deep_link().get_current() {
@@ -171,6 +182,18 @@ mod tests {
         let link = Url::parse("zyxacademy-nightly:///dashboard").unwrap();
         let target = resolve_deep_link_target(&origin, &link, "zyxacademy-nightly").unwrap();
         assert_eq!(target.as_str(), "https://staging.zyxacademy.com/dashboard");
+    }
+
+    #[test]
+    fn prevents_scheme_relative_and_backslash_open_redirects() {
+        let origin = Url::parse("https://www.zyxacademy.com").unwrap();
+        let slash_link = Url::parse("zyxacademy:////evil.com/phish").unwrap();
+        let resolved = resolve_deep_link_target(&origin, &slash_link, "zyxacademy").unwrap();
+        assert_eq!(resolved.origin(), origin.origin());
+        assert_eq!(resolved.as_str(), "https://www.zyxacademy.com/evil.com/phish");
+
+        let backslash_link = Url::parse("zyxacademy:///\\evil.com").unwrap();
+        assert!(resolve_deep_link_target(&origin, &backslash_link, "zyxacademy").is_none());
     }
 
     #[test]

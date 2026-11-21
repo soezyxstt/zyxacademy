@@ -170,6 +170,9 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
     void fetchUnreadCount();
   }, [session?.user, fetchUnreadCount, demo]);
 
+  const openRef = useRef(open);
+  openRef.current = open;
+
   // Foreground push messages (Web FCM, Capacitor Push, Tauri OS) refresh the inbox and show a toast.
   useEffect(() => {
     if (demo || !session?.user) return;
@@ -178,27 +181,36 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
     (async () => {
       const { subscribeNativeNotifications } = await import("@/lib/native/notifications");
       if (disposed) return;
-      unsubscribe = await subscribeNativeNotifications({
+      const unsub = await subscribeNativeNotifications({
         onForeground: ({ title, body }) => {
           if (title) {
             toast(title, { description: body ?? undefined });
           }
-          if (open) {
+          if (openRef.current) {
             void fetchHistory();
           } else {
             void fetchUnreadCount();
           }
         },
         onNavigate: (url) => {
-          router.push(url);
+          const safeUrl =
+            url.startsWith("/") && !url.startsWith("//") && !url.startsWith("/\\")
+              ? url
+              : "/dashboard";
+          router.push(safeUrl);
         },
       });
+      if (disposed) {
+        unsub();
+        return;
+      }
+      unsubscribe = unsub;
     })();
     return () => {
       disposed = true;
       unsubscribe?.();
     };
-  }, [session?.user, open, fetchHistory, fetchUnreadCount, demo, router]);
+  }, [session?.user, fetchHistory, fetchUnreadCount, demo, router]);
 
   if (isPending || !session?.user) return null;
 

@@ -274,18 +274,20 @@ export async function getOfflineReadingByKey(key: string): Promise<OfflineReadin
   const db = await openDb();
   try {
     const record = await new Promise<OfflineReadingRecord | null>((resolve, reject) => {
+      let found: OfflineReadingRecord | null = null;
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
       const req = store.get(key);
       req.onsuccess = () => {
-        const found = (req.result as OfflineReadingRecord | undefined) ?? null;
+        found = (req.result as OfflineReadingRecord | undefined) ?? null;
         if (found) {
           found.lastAccessedAt = Date.now();
           store.put(found);
         }
-        resolve(found);
       };
       req.onerror = () => reject(req.error ?? new Error("indexeddb_get_failed"));
+      tx.oncomplete = () => resolve(found);
+      tx.onerror = () => reject(tx.error ?? new Error("indexeddb_get_failed"));
     });
     return record;
   } catch {

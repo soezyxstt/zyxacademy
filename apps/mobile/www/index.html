@@ -259,7 +259,8 @@
 
     <script>
       (function () {
-        var DEFAULT_ORIGIN = "https://www.zyxacademy.com";
+        var isNightly = /nightly/i.test(navigator.userAgent || "");
+        var DEFAULT_ORIGIN = isNightly ? "https://staging.zyxacademy.com" : "https://www.zyxacademy.com";
 
         var COPY = {
           id: {

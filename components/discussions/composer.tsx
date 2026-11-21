@@ -279,9 +279,21 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
       return;
     }
     setFileError("");
-    const images: ComposerImage[] = files.map((file) => ({ id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file), status: "uploading" }));
-    update((current) => ({ ...current, images: [...current.images, ...images], requestId: undefined }));
-    images.forEach((image) => { void upload(image); });
+    const candidateImages: ComposerImage[] = files.map((file) => ({ id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file), status: "uploading" }));
+    let accepted: ComposerImage[] = [];
+    let rejected: ComposerImage[] = [];
+    update((current) => {
+      const remaining = Math.max(0, MAX_IMAGES - current.images.length);
+      accepted = candidateImages.slice(0, remaining);
+      rejected = candidateImages.slice(remaining);
+      if (accepted.length === 0) return current;
+      return { ...current, images: [...current.images, ...accepted], requestId: undefined };
+    });
+    if (rejected.length > 0) {
+      rejected.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+      setFileError("maxImages");
+    }
+    accepted.forEach((image) => { void upload(image); });
   }
 
   function pickImages(event: ChangeEvent<HTMLInputElement>) {

@@ -103,7 +103,17 @@ self.addEventListener("install", (event) => {
  event.waitUntil(
  caches
  .open(OFFLINE_SHELL_CACHE)
- .then((cache) => cache.add(new Request(OFFLINE_PAGE_URL, { cache: "reload" })))
+ .then(async (cache) => {
+ const response = await fetch(new Request(OFFLINE_PAGE_URL, { cache: "reload" }));
+ if (!response || !response.ok) return;
+ await cache.put(OFFLINE_PAGE_URL, response.clone());
+ const html = await response.text();
+ const matches = html.match(/\/_next\/static\/[^"'\\s<>]+/g) || [];
+ const uniqueAssets = Array.from(new Set(matches)).slice(0, 60);
+ await Promise.all(
+ uniqueAssets.map((assetUrl) => cache.add(assetUrl).catch(() => undefined))
+ );
+ })
  .catch(() => undefined)
  );
 });

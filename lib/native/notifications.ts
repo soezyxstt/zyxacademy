@@ -244,8 +244,9 @@ export async function subscribeNativeNotifications(handlers: {
     const handles: CapacitorPluginListenerHandle[] = [];
     let disposed = false;
 
+    let receivedHandle: CapacitorPluginListenerHandle | null = null;
     try {
-      const receivedHandle = await plugin.addListener("pushNotificationReceived", (event) => {
+      receivedHandle = await plugin.addListener("pushNotificationReceived", (event) => {
         const data = (event?.data as Record<string, unknown> | undefined) ?? {};
         handlers.onForeground({
           title: typeof event?.title === "string" ? event.title : undefined,
@@ -257,8 +258,12 @@ export async function subscribeNativeNotifications(handlers: {
       const actionHandle = await plugin.addListener("pushNotificationActionPerformed", (event) => {
         const notification = (event?.notification as Record<string, unknown> | undefined) ?? {};
         const data = (notification.data as Record<string, unknown> | undefined) ?? {};
-        const url = typeof data.url === "string" && data.url.startsWith("/") ? data.url : "/dashboard";
-        handlers.onNavigate?.(url);
+        const rawUrl = typeof data.url === "string" ? data.url : "";
+        const safeUrl =
+          rawUrl.startsWith("/") && !rawUrl.startsWith("//") && !rawUrl.startsWith("/\\")
+            ? rawUrl
+            : "/dashboard";
+        handlers.onNavigate?.(safeUrl);
       });
 
       if (disposed) {
@@ -268,6 +273,9 @@ export async function subscribeNativeNotifications(handlers: {
       }
       handles.push(receivedHandle, actionHandle);
     } catch {
+      if (receivedHandle) {
+        void receivedHandle.remove().catch(() => {});
+      }
       return () => {};
     }
 

@@ -128,7 +128,8 @@
 
     <script>
       (function () {
-        var defaultUrl = "https://www.zyxacademy.com";
+        var isNightly = /nightly/i.test(navigator.userAgent || "");
+        var defaultUrl = isNightly ? "https://staging.zyxacademy.com" : "https://www.zyxacademy.com";
         var titleEl = document.getElementById("title");
         var messageEl = document.getElementById("message");
         var statusEl = document.getElementById("status-text");

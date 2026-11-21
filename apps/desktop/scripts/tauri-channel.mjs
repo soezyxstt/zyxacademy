@@ -49,6 +49,7 @@ console.log(
 const bin = process.platform === "win32" ? "npx.cmd" : "npx";
 const result = spawnSync(bin, ["tauri", ...tauriArgs], {
   stdio: "inherit",
+  shell: process.platform === "win32",
   env: {
     ...process.env,
     ZYX_APP_CHANNEL: channel,

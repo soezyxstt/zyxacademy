@@ -7,7 +7,6 @@ on:
       - main
     paths:
       - "apps/**"
-      - "public/brand/zyx-app-*.svg"
       - "public/brand/zyx-app-512.png"
       - ".github/workflows/release-apps.yml"
   workflow_dispatch:
@@ -50,14 +49,15 @@ jobs:
         id: meta
         env:
           GH_TOKEN: ${{ github.token }}
+          INPUT_CHANNEL: ${{ inputs.channel }}
+          INPUT_VERSION: ${{ inputs.version }}
         shell: bash
         run: |
           set -euo pipefail
           PKG_VERSION=$(node -p "require('./apps/desktop/package.json').version")
 
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            CHANNEL="${{ inputs.channel }}"
-            INPUT_VERSION="${{ inputs.version }}"
+            CHANNEL="${INPUT_CHANNEL:-nightly}"
             VERSION="${INPUT_VERSION:-$PKG_VERSION}"
           elif [[ "${{ github.ref_name }}" == "main" ]]; then
             CHANNEL="stable"
@@ -157,6 +157,7 @@ jobs:
         working-directory: apps/desktop
         env:
           ZYX_APP_CHANNEL: ${{ needs.prepare.outputs.channel }}
+          APPIMAGE_EXTRACT_AND_RUN: "1"
         run: npm run build:${{ needs.prepare.outputs.channel }}
 
       - name: Collect desktop installers
@@ -209,7 +210,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
 
       - uses: gradle/actions/setup-gradle@v4
 

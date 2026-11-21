@@ -6,8 +6,10 @@ import { ArrowLeft, BookOpen, Trash2, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { StructuredArticleSectionContent } from "@/components/course/structured-article-section-content";
+import { useSession } from "@/lib/auth-client";
 import {
   clearAllOfflineReadings,
+  clearOfflineReadingsForOtherUsers,
   formatOfflineBytes,
   getOfflineCacheStats,
   getOfflineReadingByKey,
@@ -19,6 +21,8 @@ import {
 } from "@/lib/offline/reading-cache";
 
 export function OfflineReadingLibrary() {
+  const { data: session, isPending } = useSession();
+  const activeUserId = session?.user?.id ?? null;
   const [online, setOnline] = useState(true);
   const [items, setItems] = useState<OfflineReadingSummary[]>([]);
   const [stats, setStats] = useState<OfflineCacheStats | null>(null);
@@ -28,16 +32,30 @@ export function OfflineReadingLibrary() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
+      // When online, wait for confirmed session and enforce strict account isolation.
+      if (online) {
+        if (isPending) return;
+        if (!activeUserId) {
+          await clearAllOfflineReadings();
+          setItems([]);
+          setStats({ count: 0, totalBytes: 0, maxEntries: 25, maxBytes: 8 * 1024 * 1024 });
+          setActiveRecord(null);
+          return;
+        }
+        await clearOfflineReadingsForOtherUsers(activeUserId);
+      }
+
+      const scopeUserId = activeUserId ?? undefined;
       const [list, cacheStats] = await Promise.all([
-        listOfflineReadings(),
-        getOfflineCacheStats(),
+        listOfflineReadings(scopeUserId),
+        getOfflineCacheStats(scopeUserId),
       ]);
       setItems(list);
       setStats(cacheStats);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [online, isPending, activeUserId]);
 
   useEffect(() => {
     if (typeof navigator !== "undefined") {
@@ -47,16 +65,19 @@ export function OfflineReadingLibrary() {
     const handleOffline = () => setOnline(false);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    void refresh();
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
+  }, []);
+
+  useEffect(() => {
+    void refresh();
   }, [refresh]);
 
   const handleOpen = async (key: string) => {
     const record = await getOfflineReadingByKey(key);
-    if (record) {
+    if (record && (!activeUserId || record.userId === activeUserId)) {
       setActiveRecord(record);
     }
   };
