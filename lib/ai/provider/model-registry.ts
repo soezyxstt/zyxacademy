@@ -30,7 +30,7 @@ export const MODEL_IDS = {
   emergencyText: "gemma-4-31b-it",
   embedding: "gemini-embedding-2",
   legacyEmbedding: "gemini-embedding-001",
-  quarantinedPreview: "gemini-3-flash-preview",
+  flash3Preview: "gemini-3-flash-preview",
   quarantinedGemma: "gemma-4-26b-a4b-it",
 } as const;
 
@@ -216,7 +216,7 @@ const REGISTRY = {
     thinking: { kind: "none" },
     outputFloor: 512,
     routeClasses: ["default"],
-    input: TEXT_INPUT,
+    input: VISUAL_INPUT,
     healthGate: STANDARD_HEALTH_GATE,
   },
   [MODEL_IDS.fallbackFlashLite]: {
@@ -230,7 +230,7 @@ const REGISTRY = {
     thinking: { kind: "level", level: "minimal" },
     outputFloor: 512,
     routeClasses: ["default"],
-    input: TEXT_INPUT,
+    input: VISUAL_INPUT,
     healthGate: STANDARD_HEALTH_GATE,
   },
   [MODEL_IDS.premiumPedagogy]: {
@@ -333,20 +333,7 @@ const REGISTRY = {
     healthGate: STANDARD_HEALTH_GATE,
     dimensions: 768,
   },
-  [MODEL_IDS.quarantinedPreview]: {
-    id: MODEL_IDS.quarantinedPreview,
-    family: "generate-content",
-    stability: "quarantined",
-    operations: ["generate"],
-    ordinaryRoutingAllowed: false,
-    limits: { ...GENERATION_LIMITS, perProjectRpd: 20, initialUsableRpd: 0 },
-    deadlineMs: 15_000,
-    thinking: { kind: "none" },
-    outputFloor: 1_024,
-    routeClasses: [],
-    input: TEXT_INPUT,
-    healthGate: { required: true, minimumSuccessRate: 0.95, maximumP95LatencyMs: 4_000, minimumSampleSize: 20 },
-  },
+  [MODEL_IDS.flash3Preview]: { ...assignedGoogleModel, id: MODEL_IDS.flash3Preview },
   [MODEL_IDS.quarantinedGemma]: {
     id: MODEL_IDS.quarantinedGemma,
     family: "generate-content",
@@ -415,8 +402,15 @@ export function normalizeModelId(modelId: string): ModelId {
   return normalized as ModelId;
 }
 
+const visualChatModels = new Set<ModelId>([
+  "gateway:openai:gpt-6.1-terra",
+  "gateway:openai:gpt-6-luna",
+  "gateway:muse:muse-spark-1.3-contributor",
+]);
+
 export function getModelEntry(modelId: string): ModelRegistryEntry {
   const id = normalizeModelId(modelId);
+  if (visualChatModels.has(id)) return { ...textDefaults, id, input: { ...VISUAL_INPUT, structuredVisualOutput: false } };
   return MODEL_REGISTRY[id] ?? { ...(discoveredModel(id)?.provider === "gemini" ? assignedGoogleModel : textDefaults), id };
 }
 

@@ -1,6 +1,9 @@
 import { expect, mock, test } from "bun:test";
 
+import { zyraLiveProgress } from "@/lib/zyra/live-progress";
+
 const saves: unknown[][] = [];
+let pendingGeneration: Promise<void> | undefined;
 let answer = "Penjelasan.\n```python\nprint(2)\n```";
 let failSave = false;
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
@@ -8,7 +11,13 @@ mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => ({ use
 mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: async () => ({ hasCourseAccess: true, tier: "paid" }) }));
 mock.module("@/lib/usage-budget-service", () => ({ FREE_ALLOWANCE_IDEMPOTENCY_PREFIX: "zyra-free:" }));
 mock.module("@/app/actions/tutor", () => ({
-  askTutorRagAction: async () => ({ sessionId: "session", answer, sources: [], responseLanguage: "id" }),
+  askTutorRagAction: async () => {
+    if (pendingGeneration) {
+      zyraLiveProgress.getStore()?.("receiving");
+      await pendingGeneration;
+    }
+    return { sessionId: "session", answer, sources: [], responseLanguage: "id" };
+  },
   saveTutorMessagesAction: async (...args: unknown[]) => { if (failSave) throw new Error("ZYRA_ATTACHMENT_LINK_FAILED"); saves.push(args); },
 }));
 const { POST } = await import("@/app/api/zyra/chat/route");
@@ -58,20 +67,31 @@ test("Tutor snippets remain in history, while aborted generation is not saved", 
   expect(saves).toHaveLength(0);
 });
 
-test("stopping after partial streamed text does not save a turn", async () => {
+test("stopping while the provider is streaming does not emit an answer or save a turn", async () => {
   saves.length = 0;
-  const previous = answer;
-  answer = "Partial explanation ".repeat(30);
+  let finishGeneration!: () => void;
+  pendingGeneration = new Promise<void>(resolve => { finishGeneration = resolve; });
   const controller = new AbortController();
   try {
     const response = await POST(new Request("http://localhost/api/zyra/chat", { method: "POST", signal: controller.signal,
       body: JSON.stringify({ courseId: "course", question: "Help", codingContext: { kind: "playground", code: "", stdin: "", execution: null, intent: "generate" } }) }));
     const reader = response.body!.getReader();
-    await reader.read();
+    const decoder = new TextDecoder();
+    let frames = "";
+    while (!frames.includes('"stepId":"provider"')) {
+      const { done, value } = await reader.read();
+      if (done) throw new Error("Provider progress missing from stream");
+      frames += decoder.decode(value, { stream: true });
+    }
     controller.abort();
-    while (!(await reader.read()).done) { /* Drain the interrupted stream. */ }
+    finishGeneration();
+    expect((await reader.read()).done).toBe(true);
+    expect(frames).not.toContain('"type":"text-delta"');
     expect(saves).toHaveLength(0);
-  } finally { answer = previous; }
+  } finally {
+    finishGeneration();
+    pendingGeneration = undefined;
+  }
 });
 
 test("unframed Python is replaced by recovery guidance in saved history", async () => {

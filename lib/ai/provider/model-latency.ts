@@ -34,7 +34,7 @@ export async function measureModelLatency(
   for (let sample = 0; sample < 3; sample++) {
     const requestId = `model-latency:${cycle}:${identity}:${sample}`;
     const reserved = await control.reserve({ idempotencyKey: requestId, userId: "system:model-latency", role: "admin", feature: "playground", routeClass, modelId, cacheStatus: "bypass" });
-    if (reserved.status !== "reserved") return { checkedAt, samples, status: "quota" };
+    if (reserved.status !== "reserved") return { checkedAt, samples, status: reserved.status === "idempotent" ? "incomplete" : "quota" };
     const lease = reserved.lease;
     const input = { requestId, userCohort: "system", feature: "playground", routeClass, modelId, projectAlias: lease.projectAlias,
       parts: [{ type: "text" as const, text: "Reply with only the word OK." }], config: { maxOutputTokens: 512 }, singleDispatch: true, cachePolicy: "bypass" as const };
@@ -56,7 +56,8 @@ export async function measureModelLatency(
     } catch { /* Failed attempts are accounted for, never counted as fast responses. */ }
     const committed = await control.commit({ leaseId: lease.leaseId, providerAttemptId: requestId, outcomeCode: success ? "PROBE_OK" : "PROBE_FAILED", outcomeClass: success ? "success" : "unknown", latencyMs });
     if (committed.status === "rejected") throw new Error("Latency probe quota reconciliation failed");
-    if (latencyMs !== undefined) samples.push(latencyMs);
+    if (latencyMs === undefined) return { checkedAt, samples, status: "incomplete" };
+    samples.push(latencyMs);
   }
   return { checkedAt, samples, status: samples.length === 3 ? "complete" : "incomplete" };
 }

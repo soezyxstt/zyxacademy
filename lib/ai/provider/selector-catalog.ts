@@ -1,3 +1,4 @@
+import { selectedUpstream } from "./selected-models";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { kvGet, kvPut } from "@/lib/kv-cache";
@@ -7,7 +8,7 @@ import { conventionByokAliases, enabledGatewayProviders, isGatewayCredentialsReq
 import { discoveredModelId, getModelEntry, getTextProfile, MODEL_IDS, normalizeModelId, type GatewayModelProvider, type ModelId } from "./model-registry";
 import { modelDate, modelDateSchema, sortModelsByDate, type ModelDate } from "./model-observations";
 
-const FRESH_MS = 7 * 24 * 60 * 60_000;
+const FRESH_MS = 12 * 60 * 60_000;
 const RETAIN_MS = 14 * 24 * 60 * 60_000;
 const RETRY_MS = 5 * 60_000;
 const snapshotSchema = z.object({
@@ -24,28 +25,25 @@ export function selectorModelDates(): Partial<Record<ModelId, ModelDate>> {
   return Object.assign({}, ...[...enabledGatewayProviders(process.env)].map(provider => snapshots.get(selectorCacheKey(provider))?.dates ?? {}));
 }
 
-function textModel(provider: GatewayModelProvider, model: string) {
-  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(model)) return false;
-  if (/(?:image|audio|tts|transcrib|realtime|embedding|moderation|search|codex|robotics|computer-use|research|antigravity|lyria|nano-banana)/i.test(model)) return false;
-  if (provider === "openai") return /^(gpt-|chat-|o[1-9])/.test(model) && !/(?:^|-)(?:pro|live)(?:-|$)/.test(model);
-  if (provider === "gemini") return /^(gemini-|gemma-)/.test(model) && !model.startsWith("gemini-omni-");
-  return provider === "muse" ? model.startsWith("muse-") : model.startsWith("deepseek-");
-}
+
 
 async function googleModels(): Promise<Pick<Snapshot, "ids" | "aliases" | "dates">> {
   const ids = new Set<ModelId>();
   const dates: Record<string, ModelDate> = {};
   let listed = false, failure: unknown;
-  for (const [index, alias] of conventionByokAliases("gemini").entries()) {
+  for (const [index, alias] of [...conventionByokAliases("gemini"), "default"].entries()) {
     const key = process.env[index ? "GEMINI_API_KEY_" + (index + 1) : "GEMINI_API_KEY"] ?? "";
     try {
-      const client = googleGatewayClient(key, process.env, 8000, {}, { preferByokAlias: alias });
+      const client = alias === "default"
+        ? googleGatewayClient("", process.env, 8000, {}, { byokAlias: alias })
+        : googleGatewayClient(key, process.env, 8000, {}, { preferByokAlias: alias });
       const pager = await client.models.list({ config: { pageSize: 1000 } });
       let count = 0;
       for await (const model of pager) {
         if (++count > 1000) throw new Error("Model catalog too large");
         const name = model.name?.replace(/^models\//, "") ?? "";
-        if (!model.supportedActions?.includes("generateContent") || !textModel("gemini", name)) continue;
+        if ((name === MODEL_IDS.flash38) !== (alias === "default")) continue;
+        if (!model.supportedActions?.includes("generateContent") || !selectedUpstream("gemini", name)) continue;
         const id = discoveredModelId("gemini", name);
         if (getModelEntry(id).ordinaryRoutingAllowed) { ids.add(id); const date = modelDate(id); if (date) dates[id] = date; }
       }
@@ -80,7 +78,7 @@ async function textModels(provider: Exclude<GatewayModelProvider, "gemini">): Pr
       if (!response.ok) throw new Error("Gateway model discovery failed");
       const models = z.object({ data: z.array(z.object({ id: z.string().max(160), created: z.number().optional() })).max(1000) }).parse(body);
       aliases.push(alias);
-      for (const entry of models.data) if (textModel(provider, entry.id)) {
+      for (const entry of models.data) if (selectedUpstream(provider, entry.id)) {
         const id = discoveredModelId(provider, entry.id); ids.add(id);
         const date = modelDate(id, entry.created); if (date) dates[id] = date;
       }
@@ -95,7 +93,7 @@ export function selectorCacheKey(provider: GatewayModelProvider) {
     ["ZYX_ENVIRONMENT", "BETTER_AUTH_URL", "CF_AI_GATEWAY_URL", "CF_AI_GATEWAY_TOKEN", "AI_PROVIDERS"].includes(key) ||
     /^GEMINI_API_KEY(?:_[2-4])?$/.test(key) || /^AI_(?:OPENAI|META|DEEPSEEK)_(?:MODEL(?:_[2-5])?|BYOK_ALIASES|GATEWAY_ROUTE)$/.test(key),
   ).sort(([a], [b]) => a.localeCompare(b));
-  return "ai:selector:v5:" + createHash("sha256").update(JSON.stringify([provider, configuration])).digest("hex");
+  return "ai:selector:v7:" + createHash("sha256").update(JSON.stringify([provider, configuration])).digest("hex");
 }
 
 async function cachedModels(provider: GatewayModelProvider, refresh: boolean): Promise<Snapshot> {
@@ -129,7 +127,7 @@ async function cachedModels(provider: GatewayModelProvider, refresh: boolean): P
 }
 
 export async function selectorCatalog(refresh = false): Promise<Set<ModelId>> {
-  const providers = [...enabledGatewayProviders(process.env)];
+  const providers = [...enabledGatewayProviders(process.env)].filter(provider => provider !== "deepseek");
   const results = await Promise.all(providers.map(async provider => {
     try {
       const snapshot = await cachedModels(provider, refresh);

@@ -1,3 +1,4 @@
+import { modelFeature } from "./model-settings";
 import { configuredModelChain } from "@/lib/ai/model-settings-store";
 import { createHash, randomUUID } from "node:crypto";
 import { UsageBudgetService, type AllowanceReserveResult } from "@/lib/usage-budget-service";
@@ -120,7 +121,7 @@ export function providerFailureAllowsFallback(error: unknown): boolean {
   if (!(error instanceof ProviderAdapterError)) return false;
   if (error.retryClassification === "malformed_response") return true;
   const status = error.httpStatus;
-  return status !== undefined && (status === 401 || status === 403 || status === 429 || status >= 500);
+  return status !== undefined && (status === 401 || status === 402 || status === 403 || status === 429 || status >= 500);
 }
 
 export function isConfirmedHttpFailure(error: unknown): boolean {
@@ -411,11 +412,13 @@ export class RequestLifecycle {
       let reservationResolved = false;
       let invokePreparedProvider: (() => Promise<ProviderGenerationResult>) | undefined;
       try {
+        const providerFeature = getModelEntry(model).family === "chat-completions"
+          ? modelFeature(input.feature, input.useCase) ?? input.feature : input.feature;
         const reservation = await this.controlPlane.reserve({
           idempotencyKey: `${requestId}:${model}`,
           userId: input.userId,
           role: applicationAllowance.lease.peran,
-          feature: input.feature,
+          feature: providerFeature,
           routeClass: controlPlaneRouteClass(model, route.routeClass),
           modelId: model,
           cacheStatus,
@@ -431,7 +434,7 @@ export class RequestLifecycle {
         const providerInput = {
           requestId: `${requestId}:${model}`,
           userCohort: hashUserCohort(input.userId),
-          feature: input.feature,
+          feature: providerFeature,
           routeClass: route.routeClass,
           modelId: model,
           projectAlias: controlPlaneLease.projectAlias,

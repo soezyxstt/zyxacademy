@@ -55,12 +55,14 @@ test("text providers preserve feature permissions without the old five-request l
       idempotencyKey: `pilot-${index}`, userHash: "a".repeat(64), role: "murid", feature,
       routeClass: "default", modelId: "compatible-text-pilot", cacheStatus: "miss",
     });
-    expect(reserve(0, "chapter-summary").status).toBe("quota_exhausted");
+    expect(reserve(0, "chapter-summary").status).toBe("reserved");
     for (let index = 1; index <= 5; index++) {
       const result = reserve(index, index === 1 ? "zyra-pedagogy" : "playground");
       expect(result.status).toBe("reserved");
       if (result.status === "reserved") expect(result.lease.projectAlias).toBe("compatible-text");
     }
+    expect(reserve(7, "weak-concept-guidance").status).toBe("reserved");
+    expect(reserve(8, "unknown-feature").status).toBe("quota_exhausted");
     expect(reserve(6).status).toBe("reserved");
   } finally {
     harness.close();

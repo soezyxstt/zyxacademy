@@ -31,7 +31,7 @@ test("cannot bypass quota, replay an idempotent attempt or label failed response
   await measureModelLatency(id, 123, s.control, s.invoke); expect(s.invoke).not.toHaveBeenCalled();
   s.invoke.mockRejectedValue(new Error("provider unavailable"));
   const failed = await measureModelLatency(id, 124, s.control, s.invoke);
-  expect(failed.status).toBe("incomplete"); expect(medianModelLatency(failed)).toBeUndefined(); expect(s.commit).toHaveBeenCalledTimes(3);
+  expect(failed.status).toBe("incomplete"); expect(medianModelLatency(failed)).toBeUndefined(); expect(s.commit).toHaveBeenCalledTimes(1);
 });
 test("requires configured accounting and persists only validated observations in scoped KV", async () => {
   const s = setup(); delete process.env.ZYRA_CONTROL_PLANE_TOKEN;

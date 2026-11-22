@@ -12,7 +12,7 @@ const env = {BETTER_AUTH_URL:"https://staging.zyxacademy.com", ZYRA_CONTROL_PLAN
 const input = { requestId:"request-1", userCohort:"masked", routeClass:"default", modelId:MODEL_IDS.compatibleText, feature:"playground", projectAlias:"compatible-text", parts:[{type:"text",text:"Test"}] } as const;
 test("gates the pilot while leaving provider request limits to the provider", async () => {
   expect(compatibleSettings({...env,BETTER_AUTH_URL:"https://zyxacademy.com"})).toBeNull();
-  await expect(prepareCompatibleText({...input,feature:"chapter-summary"},env)).rejects.toThrow();
+  await expect(prepareCompatibleText({...input,feature:"embedding"},env)).rejects.toThrow();
   await expect(prepareCompatibleText({...input,projectAlias:"gemini-project-1"},env)).rejects.toThrow();
   expect(projectDailyCeiling(getWorkerModelContract(input.modelId)!)).toBeNull();
 });
@@ -134,8 +134,7 @@ test("uses default AI_PROVIDERS convention aliases and custom-muse route without
   const muse = compatibleSettings(minimalStaging, MODEL_IDS.meta);
   expect(openai?.credentials).toEqual(["openai_1"]);
   expect(openai?.url).toBe("https://gateway.ai.cloudflare.com/v1/account/gateway/openai/chat/completions");
-  expect(deepseek?.credentials).toEqual(["deepseek_1"]);
-  expect(deepseek?.url).toBe("https://gateway.ai.cloudflare.com/v1/account/gateway/deepseek/chat/completions");
+  expect(deepseek).toBeNull();
   expect(muse?.credentials).toEqual(["muse_1"]);
   expect(muse?.url).toBe("https://gateway.ai.cloudflare.com/v1/account/gateway/custom-muse/chat/completions");
 
@@ -159,5 +158,42 @@ test("classifies Cloudflare AI Gateway 400 (2044) as authentication failure", as
         AI_OPENAI_BYOK_ALIASES: "openai_missing",
       }))(),
     ).rejects.toMatchObject({ code: "PROVIDER_AUTHENTICATION", retryClassification: "authentication", httpStatus: 400 });
+  } finally { fetchMock.mockRestore(); }
+});
+
+test("the saved visual trio preserves admin priority and sends image input to the selected upstream", async () => {
+  const { compatibleModelChain } = await import("@/lib/ai/model-settings");
+  const models = ["gateway:openai:gpt-6.1-terra", "gateway:openai:gpt-6-luna", "gateway:muse:muse-spark-1.3-contributor"] as const;
+  expect(compatibleModelChain(models, { visual: true, fallbackModels: [MODEL_IDS.stableFlash] })).toEqual([...models, MODEL_IDS.stableFlash]);
+  const fetchMock = spyOn(globalThis, "fetch").mockImplementation(Object.assign(async () => Response.json({ choices: [{ message: { content: "blue" } }] }), { preconnect: () => {} }));
+  try {
+    for (const modelId of models) {
+      await (await prepareCompatibleText({ ...input, modelId, projectAlias: modelId.includes(":muse:") ? "meta" : "openai",
+        parts: [{ type: "text", text: "Color?" }, { type: "image", mimeType: "image/png", data: "YQ==" }] }, env))();
+      const body = JSON.parse(String(fetchMock.mock.lastCall?.[1]?.body));
+      expect(body.model).toBe(modelId.split(":")[2]);
+      expect(body.messages.at(-1).content).toEqual([{ type: "text", text: "Color?" }, { type: "image_url", image_url: { url: "data:image/png;base64,YQ==" } }]);
+    }
+  } finally { fetchMock.mockRestore(); }
+});
+
+test("all catalog features accept a mixed gateway trio, including analytics and Ops AI", async () => {
+  const { MODEL_FEATURE_CATALOG, modelSettingSchema } = await import("@/lib/ai/model-settings");
+  const models = ["gateway:openai:gpt-6.1-terra", "gateway:muse:muse-spark-1.3-contributor", "gemini-3.5-flash-lite"];
+  for (const { id: feature } of MODEL_FEATURE_CATALOG) expect(modelSettingSchema.safeParse({ feature, models }).success).toBe(true);
+});
+
+test("analytics honors model-specific sampling and preserves array responses", async () => {
+  const fetchMock = spyOn(globalThis, "fetch").mockImplementation(Object.assign(async () => Response.json({ choices: [{ message: { content: '{"items":[{"score":6}]}' } }] }), { preconnect: () => {} }));
+  try {
+    for (const [modelId, projectAlias] of [["gateway:openai:gpt-6.1-terra", "openai"], ["gateway:muse:muse-spark-1.3-contributor", "meta"]]) {
+      const call = await prepareCompatibleText({ ...input, feature: "admin-quiz-insights", modelId, projectAlias, config: {
+        temperature: 0.2, responseMimeType: "application/json", responseSchema: { type: "ARRAY" },
+      } }, env);
+      expect(JSON.parse((await call()).text)).toEqual([{ score: 6 }]);
+      const body = JSON.parse(String(fetchMock.mock.lastCall?.[1]?.body));
+      expect(body.model).toBe(modelId.split(":")[2]);
+      expect(body.temperature).toBe(projectAlias === "meta" ? 0.2 : undefined);
+    }
   } finally { fetchMock.mockRestore(); }
 });

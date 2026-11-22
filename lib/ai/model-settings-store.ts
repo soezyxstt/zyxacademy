@@ -1,3 +1,4 @@
+import { defaultGenerationModels, selectedGenerationModel } from "./provider/selected-models";
 import { selectorCatalog, selectorModelDates } from "./provider/selector-catalog";
 import { readModelLatencies } from "./provider/model-latency";
 import { compatibleSettings, textGatewaySettings } from "./provider/compatible-text";
@@ -5,7 +6,6 @@ import { discoveredModel, discoveredModelId, getTextProfile, isTextProfile, supp
 import { and, eq } from "drizzle-orm";
 import {
   buildFeatureModelSettingViews,
-  defaultEditableModels,
   compatibleModelChain,
   modelFeature,
   modelSettingSchema,
@@ -96,11 +96,12 @@ export async function configuredModelChain(
   },
   defaults: readonly ModelId[],
 ): Promise<readonly ModelId[]> {
+  const selectedDefaults = compatibleModelChain([...new Set([...defaults.filter(id => defaultGenerationModels.some(model => model === id)), ...defaultGenerationModels])], input);
   const feature = modelFeature(input.feature, input.useCase);
-  if (!feature) return defaults;
+  if (!feature) return selectedDefaults;
 
   const row = await readStoredModelSetting(feature);
-  if (!row) return defaults;
+  if (!row) return selectedDefaults;
 
   const parsed = modelSettingSchema.safeParse({
     feature: row.feature,
@@ -113,11 +114,11 @@ export async function configuredModelChain(
   // Several auxiliary tasks historically share the Zyra settings row.
   // Keep their native defaults when the row now specifies an answer provider.
   if (feature === "zyra" && parsed.data.models.some(isTextProfile) &&
-      (!supportsTextProvider(input.feature) || input.useCase === "chapter-summary")) return defaults;
-  const available = parsed.data.models.filter(profileAvailable);
-  return compatibleModelChain(available.length ? available : defaults, {
+      (!supportsTextProvider(input.feature) || input.useCase === "chapter-summary")) return selectedDefaults;
+  const available = effectiveTrio(parsed.data.models).filter(profileAvailable);
+  return compatibleModelChain(available.length ? available : selectedDefaults, {
     visual: Boolean(input.visual),
-    fallbackModels: defaults,
+    fallbackModels: selectedDefaults,
     requireGenerateContent: Boolean(input.requireGenerateContent),
   });
 }
@@ -133,6 +134,12 @@ function canonicalSettingModel(id: ModelId): ModelId {
   return discoveredModelId(profile.group === "meta" ? "muse" : profile.group as "openai" | "deepseek", settings.model);
 }
 
+function effectiveTrio(models: readonly ModelId[]): [ModelId, ModelId, ModelId] {
+  const selected = models.map(canonicalSettingModel).filter(selectedGenerationModel);
+  const trio = [...new Set([...selected, ...defaultGenerationModels])];
+  return [trio[0], trio[1], trio[2]];
+}
+
 export async function listModelSettingViews(): Promise<FeatureModelSettingView[]> {
   const handle = await resolveDatabaseHandle();
   const rows = handle ? await handle.db.select().from(handle.aiModelSettings) : [];
@@ -141,7 +148,9 @@ export async function listModelSettingViews(): Promise<FeatureModelSettingView[]
   return buildFeatureModelSettingViews(rows).map(view => ({
     ...view,
     modelDates, modelLatencies,
-    models: view.models.map(canonicalSettingModel) as [ModelId, ModelId, ModelId],
+    models: view.isCustom ? effectiveTrio(view.models) : [...defaultGenerationModels] as [ModelId, ModelId, ModelId],
+    runtimeDefaultModels: [...new Set([...view.runtimeDefaultModels.filter(id => defaultGenerationModels.some(model => model === id)), ...defaultGenerationModels])],
+    editableDefaultModels: defaultGenerationModels,
     modelLabels: Object.fromEntries([...new Set([...catalog, ...view.models.map(canonicalSettingModel)])].flatMap(id => {
       const settings = isTextProfile(id) && textGatewaySettings(process.env, id);
       return settings ? [[id, settings.model]] : [];
@@ -194,7 +203,8 @@ export async function saveModelSetting(input: {
       }
     }
 
-    const previous = (existing?.models ?? defaultEditableModels(parsed.data.feature)).map(id => canonicalSettingModel(id as ModelId));
+    const previous = existing ? effectiveTrio(existing.models as ModelId[]) : defaultGenerationModels;
+    if (nextModels.some(id => !selectedGenerationModel(canonicalSettingModel(id)))) throw new Error("Model belum tersedia dalam katalog aktif.");
     if (nextModels.some((id, index) => previous[index] !== id && !available.has(id))) {
       throw new Error("Model belum tersedia. Muat ulang daftar model.");
     }

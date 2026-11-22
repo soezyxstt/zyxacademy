@@ -57,7 +57,7 @@ export class TutorActionService {
    * Queries existing questions matching the KO. If count is low, triggers the Prompt Executor.
    * Outcome: Launches a 3-question practice quiz modal.
    */
-  static async generatePracticeQuiz(koId: string, _difficulty: string): Promise<{ quizId: string }> {
+  static async generatePracticeQuiz(koId: string, _difficulty: string, userId: string): Promise<{ quizId: string }> {
     const existing = await db
       .select()
       .from(aiQuestionBank)
@@ -70,7 +70,7 @@ export class TutorActionService {
 
     if (existing.length < 3) {
       console.log(`[Practice Quiz] Existing questions count (${existing.length}) is low. Triggering generation...`);
-      const genResult = await generateQuestionsForKO(koId);
+      const genResult = await generateQuestionsForKO(koId, undefined, userId);
       if (!genResult.success) {
         console.warn(`[Practice Quiz] AI Question Generation failed: ${genResult.errors.join("; ")}`);
       }

@@ -1,3 +1,4 @@
+import type { LanguageModelV3CallOptions } from "@ai-sdk/provider";
 import { upstreamModelName } from "@/lib/ai/provider/model-registry";
 import { geminiKeyPool, type GeminiKey } from "@/lib/gemini-keys";
 import {
@@ -43,6 +44,7 @@ export interface OpsAiModelMessage {
 }
 
 export interface OpsAiModelGenerateStreamOptions {
+  sdkOptions?: LanguageModelV3CallOptions;
   systemPrompt?: string;
   messages: OpsAiModelMessage[];
   tools?: OpsAiModelToolDeclaration[];
@@ -140,6 +142,11 @@ export async function* streamOpsAiModel(
   if (options.signal?.aborted) throw new Error("Aborted before starting model request");
   const modelId = options.modelId || MODEL_IDS.stableFlash;
   const entry = assertOrdinaryRoutingAllowed(modelId);
+  if (entry.family === "chat-completions" && options.sdkOptions) {
+    const { streamCompatibleOpsModel } = await import("./compatible-stream");
+    yield* streamCompatibleOpsModel(modelId, options.sdkOptions, options.timeoutMs ?? 60000);
+    return;
+  }
   if (entry.family !== "generate-content") {
     throw new ProviderAdapterError({
       code: "CAPABILITY_REJECTED",

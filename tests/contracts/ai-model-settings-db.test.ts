@@ -9,6 +9,7 @@ import {
   resetModelSetting,
   saveModelSetting,
 } from "@/lib/ai/model-settings-store";
+import { defaultGenerationModels } from "@/lib/ai/provider/selected-models";
 import { MODEL_IDS, ROUTE_POLICY } from "@/lib/ai/provider/model-registry";
 
 describe("AI Model Settings Database Persistence and Optimistic Concurrency", () => {
@@ -18,7 +19,7 @@ describe("AI Model Settings Database Persistence and Optimistic Concurrency", ()
   afterAll(() => available.mockRestore());
 
   beforeAll(async () => {
-    available.mockResolvedValue(new Set([MODEL_IDS.flash38, MODEL_IDS.default, MODEL_IDS.neon, MODEL_IDS.emergencyText]));
+    available.mockResolvedValue(new Set([MODEL_IDS.flash38, MODEL_IDS.default, MODEL_IDS.stableFlash, MODEL_IDS.emergencyText]));
     await db
       .insert(user)
       .values({
@@ -47,14 +48,14 @@ describe("AI Model Settings Database Persistence and Optimistic Concurrency", ()
       { feature: "zyra" },
       ROUTE_POLICY.default,
     );
-    expect(initialChain).toEqual(ROUTE_POLICY.default);
+    expect(initialChain).toEqual(defaultGenerationModels);
 
     const saved = await saveModelSetting({
       feature: "zyra",
       models: [
         MODEL_IDS.flash38,
         MODEL_IDS.default,
-        MODEL_IDS.neon,
+        MODEL_IDS.stableFlash,
       ],
       updatedBy: adminActorId,
       expectedUpdatedAt: null,
@@ -65,7 +66,7 @@ describe("AI Model Settings Database Persistence and Optimistic Concurrency", ()
     expect(saved.models).toEqual([
       MODEL_IDS.flash38,
       MODEL_IDS.default,
-      MODEL_IDS.neon,
+      MODEL_IDS.stableFlash,
     ]);
 
     const resolvedChain = await configuredModelChain(
@@ -75,7 +76,7 @@ describe("AI Model Settings Database Persistence and Optimistic Concurrency", ()
     expect(resolvedChain).toEqual([
       MODEL_IDS.flash38,
       MODEL_IDS.default,
-      MODEL_IDS.neon,
+      MODEL_IDS.stableFlash,
     ]);
 
     const viewsAfterSave = await listModelSettingViews();
@@ -98,14 +99,14 @@ describe("AI Model Settings Database Persistence and Optimistic Concurrency", ()
       { feature: "zyra" },
       ROUTE_POLICY.default,
     );
-    expect(chainAfterReset).toEqual(ROUTE_POLICY.default);
+    expect(chainAfterReset).toEqual(defaultGenerationModels);
   });
 
   it("rejects stale concurrent updates and resets with ModelSettingConflictError instead of silently overwriting", async () => {
     const first = await saveModelSetting({
       feature: "admin-ops-ai",
       models: [
-        MODEL_IDS.neon,
+        MODEL_IDS.stableFlash,
         MODEL_IDS.default,
         MODEL_IDS.flash38,
       ],
@@ -119,7 +120,7 @@ describe("AI Model Settings Database Persistence and Optimistic Concurrency", ()
         feature: "admin-ops-ai",
         models: [
           MODEL_IDS.default,
-          MODEL_IDS.neon,
+          MODEL_IDS.stableFlash,
           MODEL_IDS.emergencyText,
         ],
         updatedBy: adminActorId,
@@ -131,7 +132,7 @@ describe("AI Model Settings Database Persistence and Optimistic Concurrency", ()
     const second = await saveModelSetting({
       feature: "admin-ops-ai",
       models: [
-        MODEL_IDS.neon,
+        MODEL_IDS.stableFlash,
         MODEL_IDS.default,
         MODEL_IDS.emergencyText,
       ],
@@ -139,7 +140,7 @@ describe("AI Model Settings Database Persistence and Optimistic Concurrency", ()
       expectedUpdatedAt: first.updatedAt.toISOString(),
     });
     expect(second.models).toEqual([
-      MODEL_IDS.neon,
+      MODEL_IDS.stableFlash,
       MODEL_IDS.default,
       MODEL_IDS.emergencyText,
     ]);
@@ -150,7 +151,7 @@ describe("AI Model Settings Database Persistence and Optimistic Concurrency", ()
         feature: "admin-ops-ai",
         models: [
           MODEL_IDS.emergencyText,
-          MODEL_IDS.neon,
+          MODEL_IDS.stableFlash,
           MODEL_IDS.default,
         ],
         updatedBy: adminActorId,
@@ -168,10 +169,10 @@ describe("AI Model Settings Database Persistence and Optimistic Concurrency", ()
 
     const activeChain = await configuredModelChain(
       { feature: "admin-ops-ai", requireGenerateContent: true },
-      [MODEL_IDS.neon],
+      [MODEL_IDS.stableFlash],
     );
     expect(activeChain).toEqual([
-      MODEL_IDS.neon,
+      MODEL_IDS.stableFlash,
       MODEL_IDS.default,
       MODEL_IDS.emergencyText,
     ]);

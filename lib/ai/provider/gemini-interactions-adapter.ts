@@ -1,3 +1,4 @@
+import { zyraLiveProgress } from "@/lib/zyra/live-progress";
 import type { Interactions } from "@google/genai";
 import {
   assertGenerationModel,
@@ -117,6 +118,7 @@ export function createGeminiInteractionsAdapter(client: GeminiInteractionsClient
       };
 
       const startedAt = Date.now();
+      zyraLiveProgress.getStore()?.("dispatch");
       try {
         const response = await withProviderDeadline(
           (signal) => client.interactions.create(input, {

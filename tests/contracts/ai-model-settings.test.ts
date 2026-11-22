@@ -64,8 +64,8 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
       "gemini-2.5-flash",
       "gemini-2.5-flash-lite",
       "gemma-4-31b-it",
+      "gemini-3-flash-preview",
     ]);
-    expect(selectableModels).not.toContain("gemini-3-flash-preview" as ModelId);
     expect(selectableModels).not.toContain("gemma-4-26b-a4b-it" as ModelId);
     expect(selectableModels).not.toContain("gemini-embedding-2" as ModelId);
     expect(selectableModels).not.toContain("gemini-embedding-001" as ModelId);
@@ -81,8 +81,9 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
       "gemini-2.5-flash",
       "gemini-2.5-flash-lite",
       "gemma-4-31b-it",
+      "gemini-3-flash-preview",
     ]);
-    expect(selectableModelsForFeature("admin-ops-ai")).toEqual(generateContentSelectableModels);
+    expect(selectableModelsForFeature("admin-ops-ai")).toEqual(expect.arrayContaining([...generateContentSelectableModels, MODEL_IDS.meta]));
     expect(selectableModelsForFeature("zyra")).toEqual(selectableModelsForFeature("playground"));
     expect(selectableModelsForFeature("playground")).toContain(MODEL_IDS.meta2);
 
@@ -126,7 +127,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
 
     const quarantinedModel = modelSettingSchema.safeParse({
       feature: "zyra",
-      models: ["gemini-3-flash-preview", MODEL_IDS.default, MODEL_IDS.stableFlash],
+      models: [MODEL_IDS.quarantinedGemma, MODEL_IDS.default, MODEL_IDS.stableFlash],
     });
     expect(quarantinedModel.success).toBe(false);
 
@@ -175,14 +176,13 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
     };
     const previous = Object.fromEntries(Object.keys(settings).map(key => [key, process.env[key]]));
     Object.assign(process.env, settings);
-    const models = [MODEL_IDS.openai, MODEL_IDS.meta, MODEL_IDS.default];
-    setModelSettingsReaderForTests(async feature => feature === "zyra" ? ({ feature: "zyra", models, updatedBy: "fixture", updatedAt: new Date(0) }) : null);
+    const models = ["gateway:openai:gpt-6.1-terra", "gateway:muse:muse-spark-1.3-contributor", MODEL_IDS.default] as const;
+    setModelSettingsReaderForTests(async feature => feature === "zyra" ? ({ feature: "zyra", models: [...models], updatedBy: "fixture", updatedAt: new Date(0) }) : null);
     try {
       expect(await configuredModelChain({ feature: "discussion-tutor", useCase: "ungrounded-tutor" }, ROUTE_POLICY.default)).toEqual(models);
-      expect(await configuredModelChain({ feature: "zyra", useCase: "chapter-summary" }, ROUTE_POLICY.default)).toEqual(ROUTE_POLICY.default);
+      expect(await configuredModelChain({ feature: "zyra", useCase: "chapter-summary" }, ROUTE_POLICY.default)).toEqual([MODEL_IDS.default, MODEL_IDS.fallbackFlashLite, MODEL_IDS.emergencyText]);
       const visual = await configuredModelChain({ feature: "discussion-tutor", useCase: "ungrounded-tutor", visual: true }, ROUTE_POLICY.premiumVisual);
-      expect(visual).not.toContain(MODEL_IDS.openai);
-      expect(visual).not.toContain(MODEL_IDS.meta);
+      expect(visual.slice(0, 3)).toEqual([...models]);
     } finally {
       for (const [key, value] of Object.entries(previous)) {
         if (value === undefined) delete process.env[key]; else process.env[key] = value;
@@ -190,20 +190,19 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
     }
   });
 
-  it("preserves exact caller default chains when unconfigured and applies visual compatibility safely when configured", async () => {
+  it("uses the selected catalog for defaults and older saved assignments", async () => {
     const store = new Map<string, StoredModelSettingRow>();
     setModelSettingsReaderForTests(async (feature) => store.get(feature) ?? null);
 
-    // Unconfigured: preserves exact 4-model, 3-model, and 1-model defaults
     expect(
       await configuredModelChain({ feature: "zyra" }, ROUTE_POLICY.default),
-    ).toEqual(ROUTE_POLICY.default);
+    ).toEqual([MODEL_IDS.default, MODEL_IDS.fallbackFlashLite, MODEL_IDS.emergencyText]);
     expect(
       await configuredModelChain({ feature: "mistake-feedback" }, ROUTE_POLICY.premiumPedagogy),
-    ).toEqual(ROUTE_POLICY.premiumPedagogy);
+    ).toEqual([MODEL_IDS.default, MODEL_IDS.fallbackFlashLite, MODEL_IDS.emergencyText]);
     expect(
       await configuredModelChain({ feature: "admin-ops-ai" }, [MODEL_IDS.stableFlash]),
-    ).toEqual([MODEL_IDS.stableFlash]);
+    ).toEqual([MODEL_IDS.default, MODEL_IDS.fallbackFlashLite, MODEL_IDS.emergencyText]);
     expect(runtimeDefaultModels("zyra")).toEqual(ROUTE_POLICY.default);
     expect(defaultEditableModels("admin-ops-ai")).toEqual([
       MODEL_IDS.stableFlash,
@@ -225,16 +224,10 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
 
     expect(
       await configuredModelChain({ feature: "zyra", visual: false }, ROUTE_POLICY.default),
-    ).toEqual([
-      MODEL_IDS.premiumPedagogy,
-      MODEL_IDS.stableFlash,
-      MODEL_IDS.fallbackFlashLite,
-    ]);
+    ).toEqual([MODEL_IDS.stableFlash, MODEL_IDS.fallbackFlashLite, MODEL_IDS.default]);
 
-    // Visual request keeps admin-prioritized stableFlash first and appends remaining visual fallback (gemini-3.6-flash)
-    expect(
-      await configuredModelChain({ feature: "zyra", visual: true }, ROUTE_POLICY.premiumVisual),
-    ).toEqual([MODEL_IDS.stableFlash, MODEL_IDS.premiumVisual]);
+    expect(await configuredModelChain({ feature: "zyra", visual: true }, ROUTE_POLICY.premiumVisual))
+      .toEqual([MODEL_IDS.stableFlash, MODEL_IDS.fallbackFlashLite, MODEL_IDS.default]);
 
     // Configured Playground with three text-only models still falls back to ROUTE_POLICY.premiumVisual on image turns
     store.set("playground", {
@@ -250,7 +243,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
 
     expect(
       await configuredModelChain({ feature: "playground", visual: true }, ROUTE_POLICY.premiumVisual),
-    ).toEqual([MODEL_IDS.premiumVisual, MODEL_IDS.stableFlash]);
+    ).toEqual([MODEL_IDS.default, MODEL_IDS.fallbackFlashLite]);
 
     expect(
       compatibleModelChain(
@@ -272,7 +265,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
         return {
           feature: "playground",
           models: [
-            MODEL_IDS.stableFlash,
+            MODEL_IDS.default,
             MODEL_IDS.fallbackFlashLite,
             MODEL_IDS.emergencyText,
           ],
@@ -345,7 +338,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
       controlPlane,
       invokeProvider: async ({ modelId }): Promise<ProviderGenerationResult> => {
         attemptedModels.push(modelId);
-        if (modelId === MODEL_IDS.stableFlash) {
+        if (modelId === MODEL_IDS.default) {
           throw new ProviderAdapterError({
             code: "PROVIDER_ERROR",
             message: "503 service unavailable",
@@ -374,7 +367,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
     expect(outcome.outcome).toBe("provider_success");
     expect(outcome.modelId).toBe(MODEL_IDS.fallbackFlashLite);
     expect(attemptedModels).toEqual([
-      MODEL_IDS.stableFlash,
+      MODEL_IDS.default,
       MODEL_IDS.fallbackFlashLite,
     ]);
   });
@@ -385,7 +378,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
         return {
           feature: "admin-ops-ai",
           models: [
-            MODEL_IDS.stableFlash,
+            MODEL_IDS.fallbackFlashLite,
             MODEL_IDS.default,
             MODEL_IDS.emergencyText,
           ],
@@ -426,7 +419,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
     const calledModels: string[] = [];
     setOpsAiModelStreamMock(async function* (opts) {
       calledModels.push(opts.modelId || "");
-      if (opts.modelId === MODEL_IDS.stableFlash) {
+      if (opts.modelId === MODEL_IDS.fallbackFlashLite) {
         throw new Error("503 Service Unavailable on primary model");
       }
       if (opts.modelId === MODEL_IDS.default) {
@@ -466,7 +459,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
 
     expect(output).toBe("Respons dari model cadangan kedua.");
     expect(calledModels).toEqual([
-      MODEL_IDS.stableFlash,
+      MODEL_IDS.fallbackFlashLite,
       MODEL_IDS.default,
       MODEL_IDS.emergencyText,
     ]);
@@ -477,7 +470,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
       (call) => (call[0] as { modelClass?: string }).modelClass,
     );
     expect(recordedModels).toEqual([
-      MODEL_IDS.stableFlash,
+      MODEL_IDS.fallbackFlashLite,
       MODEL_IDS.default,
       MODEL_IDS.emergencyText,
     ]);
@@ -491,7 +484,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
     setModelSettingsReaderForTests(async () => ({
       feature: "admin-ops-ai",
       models: [
-        MODEL_IDS.stableFlash,
+        MODEL_IDS.fallbackFlashLite,
         MODEL_IDS.default,
         MODEL_IDS.emergencyText,
       ],
@@ -547,7 +540,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
     await textReader.read(); // text-start
     await textReader.read(); // text-delta
     await expect(textReader.read()).rejects.toThrow("503 mid-stream failure");
-    expect(textAttemptedModels).toEqual([MODEL_IDS.stableFlash]);
+    expect(textAttemptedModels).toEqual([MODEL_IDS.fallbackFlashLite]);
 
     // Case B: error after tool-call must NOT invoke fallback model
     const toolAttemptedModels: string[] = [];
@@ -575,7 +568,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
     await toolReader.read(); // stream-start
     await toolReader.read(); // tool-call
     await expect(toolReader.read()).rejects.toThrow("503 failure after tool call");
-    expect(toolAttemptedModels).toEqual([MODEL_IDS.stableFlash]);
+    expect(toolAttemptedModels).toEqual([MODEL_IDS.fallbackFlashLite]);
 
     // Case C: caller abort before any output must NOT walk fallback models
     const abortAttemptedModels: string[] = [];
@@ -597,7 +590,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
     const abortedReader = abortedStream.stream.getReader();
     await abortedReader.read(); // stream-start
     await expect(abortedReader.read()).rejects.toThrow();
-    expect(abortAttemptedModels).toEqual([MODEL_IDS.stableFlash]);
+    expect(abortAttemptedModels).toEqual([MODEL_IDS.fallbackFlashLite]);
 
     reserveSpy.mockRestore();
     refundSpy.mockRestore();

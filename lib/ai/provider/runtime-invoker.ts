@@ -70,6 +70,7 @@ export function createProviderPreparerFromEnvironment(
 
     const selected = slot[Math.floor(Math.random() * slot.length)];
     const client = await prepareGoogleGatewayClient(selected.key, environment, entry.deadlineMs, gatewayHeaders, {
+      modelId: input.modelId,
       preferByokAlias: selected.byokAlias,
     });
     const adapter = entry.family === "interactions"

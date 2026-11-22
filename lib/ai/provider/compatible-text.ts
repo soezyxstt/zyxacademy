@@ -1,5 +1,8 @@
+import { zyraLiveProgress } from "@/lib/zyra/live-progress";
+import { readChatCompletion } from "./chat-stream";
+import { textProviderFeatureAllowed } from "../model-settings";
 import { modelDisplayName } from "./recent-models";
-import { withGatewayAlias, assertGatewayAliasAvailable, aliasCooldownUntil, GatewayAliasCooldownError } from "./alias-health";
+import { generationAliasOutcome, withGatewayAlias, assertGatewayAliasAvailable, aliasCooldownUntil, GatewayAliasCooldownError } from "./alias-health";
 import {
   conventionByokAliases,
   enabledGatewayProviders,
@@ -11,7 +14,8 @@ import { buildAiGatewayHeaders, type GatewayMetadataInput } from "../gateway-met
 import { logAiRequest } from "../analytics";
 import { randomInt } from "node:crypto";
 import { classifyProviderError, ProviderAdapterError } from "./errors";
-import { MODEL_IDS, supportsTextProvider, getTextProfile, isTextProfile, textProfileIds } from "./model-registry";
+import { discoveredModelId, getModelEntry, MODEL_IDS, getTextProfile, isTextProfile, textProfileIds } from "./model-registry";
+import { normalizeInputParts } from "./provider-adapter";
 import type { ProviderGenerateRequest, ProviderGenerationResult } from "./provider-adapter";
 
 type Environment = Readonly<Record<string, string | undefined>>;
@@ -122,36 +126,49 @@ export function compatibleDiagnostics(env: Environment = process.env) {
 
 export async function prepareCompatibleText(input: ProviderGenerateRequest & Omit<GatewayMetadataInput, "deadlineMs"> & { projectAlias: string }, env: Environment = process.env) {
   const settings = compatibleSettings(env, input.modelId);
-  if (!settings || !isTextProfile(input.modelId) || !supportsTextProvider(input.feature) || input.projectAlias !== getTextProfile(input.modelId)!.group
-    || !input.parts.length || input.parts.some(part => part.type !== "text")) throw new Error("Compatible text route unavailable");
+  if (!settings || !isTextProfile(input.modelId) || !textProviderFeatureAllowed(input.feature) || input.projectAlias !== getTextProfile(input.modelId)!.group
+    || !input.parts.length) throw new Error("Compatible text route unavailable");
   const config = input.config ?? {};
-  if (Object.keys(config).some(key => !["systemInstruction", "responseMimeType", "responseSchema", "maxOutputTokens"].includes(key))
+  if (Object.keys(config).some(key => !["systemInstruction", "responseMimeType", "responseSchema", "maxOutputTokens", "temperature"].includes(key))
     || (config.maxOutputTokens !== undefined && (!Number.isInteger(config.maxOutputTokens) || Number(config.maxOutputTokens) < 1 || Number(config.maxOutputTokens) > 4096))
+    || (config.temperature !== undefined && (typeof config.temperature !== "number" || !Number.isFinite(config.temperature) || config.temperature < 0 || config.temperature > 2))
     || (config.systemInstruction !== undefined && typeof config.systemInstruction !== "string")
     || (config.responseMimeType !== undefined && config.responseMimeType !== "application/json")) throw new Error("Unsupported text configuration");
   const messages = [];
   if (config.systemInstruction) messages.push({ role: "system", content: config.systemInstruction });
   // The caller validates structured output and retains its bounded repair policy.
-  if (config.responseSchema) messages.push({ role: "system", content: "Return JSON matching this schema: " + JSON.stringify(config.responseSchema) });
-  messages.push({ role: "user", content: input.parts.map(part => part.type === "text" ? part.text : "").join("\n") });
+  const arrayOutput = typeof config.responseSchema === "object" && config.responseSchema !== null && "type" in config.responseSchema && String(config.responseSchema.type).toLowerCase() === "array";
+  if (arrayOutput) messages.push({ role: "system", content: "Return one JSON object with an items property containing the array matching this schema: " + JSON.stringify(config.responseSchema) });
+  else if (config.responseSchema) messages.push({ role: "system", content: "Return JSON matching this schema: " + JSON.stringify(config.responseSchema) });
+  const hasImages = input.parts.some(part => part.type === "image");
+  let content: string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
+  if (hasImages) {
+    const provider = conventionProviderForGroup(getTextProfile(input.modelId)!.group);
+    if (!provider) throw new Error("Unsupported image provider");
+    const entry = getModelEntry(discoveredModelId(provider, settings.model));
+    content = normalizeInputParts(input.parts, entry).map(part => part.type === "text"
+      ? { type: "text", text: part.text }
+      : { type: "image_url", image_url: { url: `data:${part.mimeType};base64,${part.data}` } });
+  } else {
+    content = input.parts.map(part => part.type === "text" ? part.text : "").join("\n");
+  }
+  messages.push({ role: "user", content });
   const outputLimit = config.maxOutputTokens === undefined ? {} : { [getTextProfile(input.modelId)!.group === "openai" ? "max_completion_tokens" : "max_tokens"]: config.maxOutputTokens };
-  const body = JSON.stringify({ model: settings.model, messages, ...outputLimit, ...(config.responseMimeType ? {response_format: {type: "json_object"}} : {}) });
-  const available = (await Promise.all(settings.credentials.map(async alias => {
-    try { await assertGatewayAliasAvailable(env, settings.url, alias); return [alias]; }
-    catch (error) { if (error instanceof GatewayAliasCooldownError) return []; throw error; }
-  }))).flat();
-  if (!available.length) throw new GatewayAliasCooldownError();
-  const startIndex = randomInt(available.length);
+  const fixedSampling = getTextProfile(input.modelId)!.group === "openai" && /^(?:gpt-[56]|o[1-9])/.test(settings.model);
+  const progress = zyraLiveProgress.getStore();
+  const deadlineMs = progress ? 30_000 : 15_000;
+  const body = JSON.stringify({ model: settings.model, messages, ...(progress ? { stream: true, stream_options: { include_usage: true } } : {}), ...outputLimit, temperature: fixedSampling ? undefined : config.temperature, ...(config.responseMimeType ? {response_format: {type: "json_object"}} : {}) });
+  const credential = await selectGatewayCredential(settings, env);
   const headers: Record<string, string> = {"Content-Type": "application/json"};
-  Object.assign(headers, buildAiGatewayHeaders({ ...input, deadlineMs: 15000 }));
+  Object.assign(headers, buildAiGatewayHeaders({ ...input, deadlineMs }));
   headers["cf-aig-authorization"] = "Bearer " + settings.token;
   headers["cf-aig-no-wholesale"] = "true";
   return async (): Promise<ProviderGenerationResult> => {
     const started = Date.now();
     try {
-      const credential = available[startIndex];
+      progress?.("dispatch");
       const response = await withGatewayAlias(env, settings.url, credential,
-        () => fetch(settings.url, { method: "POST", redirect: "error", headers: { ...headers, "cf-aig-byok-alias": credential }, body, signal: AbortSignal.timeout(15000) }), result => result.ok, true);
+        () => fetch(settings.url, { method: "POST", redirect: "error", headers: { ...headers, "cf-aig-byok-alias": credential }, body, signal: AbortSignal.timeout(deadlineMs) }), generationAliasOutcome, true);
       if (response.status === 400) {
         const errorBody = await response.clone().json().catch(() => null);
         if (isGatewayCredentialsRequiredBody(errorBody)) {
@@ -165,15 +182,32 @@ export async function prepareCompatibleText(input: ProviderGenerateRequest & Omi
         }
       }
       if (!response.ok) throw classifyProviderError({status: response.status}, input.modelId);
-      const data = await response.json();
+      const data = await readChatCompletion(response, () => progress?.("receiving"));
+      progress?.("checking");
       const choice = data?.choices?.[0];
       if (typeof choice?.message?.content !== "string" || !choice.message.content.trim()) throw new ProviderAdapterError({code:"MALFORMED_RESPONSE", message:"Missing provider text", retryClassification:"malformed_response"});
+      let text = choice.message.content;
+      if (arrayOutput) {
+        const envelope = JSON.parse(text);
+        const items = Array.isArray(envelope) ? envelope : envelope?.items;
+        if (!Array.isArray(items)) throw new ProviderAdapterError({code:"MALFORMED_RESPONSE", message:"Missing result array", retryClassification:"malformed_response"});
+        text = JSON.stringify(items);
+      }
       logAiRequest({ operation: "chatCompletions", model: settings.model, viaGateway: true, latencyMs: Date.now() - started, success: true });
-      return {modelId: input.modelId, upstreamModel: settings.model, text: choice.message.content, finishReason: String(choice.finish_reason ?? "unknown"), latencyMs: Date.now() - started, viaGateway: true, retryClassification: "none",
+      return {modelId: input.modelId, upstreamModel: settings.model, text, finishReason: String(choice.finish_reason ?? "unknown"), latencyMs: Date.now() - started, viaGateway: true, retryClassification: "none",
         usage: {promptTokens: data.usage?.prompt_tokens, outputTokens: data.usage?.completion_tokens, totalTokens: data.usage?.total_tokens}};
     } catch (error) {
       logAiRequest({ operation: "chatCompletions", model: settings.model, viaGateway: true, latencyMs: Date.now() - started, success: false });
       throw error;
     }
   };
+}
+
+export async function selectGatewayCredential(settings: NonNullable<ReturnType<typeof compatibleSettings>>, env: Environment) {
+  const available = (await Promise.all(settings.credentials.map(async alias => {
+    try { await assertGatewayAliasAvailable(env, settings.url, alias); return [alias]; }
+    catch (error) { if (error instanceof GatewayAliasCooldownError) return []; throw error; }
+  }))).flat();
+  if (!available.length) throw new GatewayAliasCooldownError();
+  return available[randomInt(available.length)];
 }

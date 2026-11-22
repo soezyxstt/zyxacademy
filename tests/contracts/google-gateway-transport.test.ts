@@ -147,3 +147,20 @@ for (const code of [2040, 2044]) test(`falls back from preferByokAlias to ?key= 
     resetGeminiByokCacheForTests();
   }
 });
+
+for (const method of ["generateContent", "generateContentStream"] as const) {
+  test(`Gemini 3.8 Flash pins the default gateway credential for ${method}`, async () => {
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(Response.json({
+      error: { code: 400, message: "Missing credentials" },
+    }, { status: 400 }));
+    try {
+      const client = googleGatewayClient("fixture", env, undefined, {}, { preferByokAlias: "gemini_2" });
+      await expect(client.models[method]({ model: "gemini-3.8-flash", contents: "test" })).rejects.toThrow();
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const request = new Request(...fetchSpy.mock.calls[0]);
+      expect(request.headers.get("cf-aig-byok-alias")).toBe("default");
+      expect(request.headers.has("x-goog-api-key")).toBe(false);
+      expect(new URL(request.url).searchParams.has("key")).toBe(false);
+    } finally { fetchSpy.mockRestore(); }
+  });
+}

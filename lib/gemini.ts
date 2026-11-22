@@ -1,3 +1,4 @@
+import { zyraLiveProgress } from "./zyra/live-progress";
 import { prepareCompatibleText } from "./ai/provider/compatible-text";
 import { configuredModelChain } from "@/lib/ai/model-settings-store";
 import { googleGatewayClient, prepareGoogleGatewayClient } from "./ai/provider/google-gateway-client";
@@ -114,6 +115,10 @@ function singleDispatchClient(client: GoogleGenAI, viaGateway: boolean): GeminiG
         ...input,
         config: { ...input.config, httpOptions: { ...input.config?.httpOptions, headers: { ...input.config?.httpOptions?.headers, ...headers }, retryOptions: { attempts: 1 } } },
       })) as GoogleGenAI["models"]["generateContent"],
+      generateContentStream: ((input: any) => client.models.generateContentStream({
+        ...input,
+        config: { ...input.config, httpOptions: { ...input.config?.httpOptions, headers: { ...input.config?.httpOptions?.headers, ...headers }, retryOptions: { attempts: 1 } } },
+      })) as GoogleGenAI["models"]["generateContentStream"],
     },
     interactions: {
       create: ((input: any, options: any) => client.interactions.create(input, { ...options, headers: { ...options?.headers, ...headers }, maxRetries: 0 })) as GoogleGenAI["interactions"]["create"],
@@ -192,10 +197,11 @@ async function prepareProviderThroughControlPlane(input: {
   const entry = assertGenerationModel(input.modelId);
   normalizeInputParts(input.parts, entry);
   const viaGateway = true;
-  const headers = buildAiGatewayHeaders({ ...input, deadlineMs: entry.deadlineMs });
+  const deadlineMs = zyraLiveProgress.getStore() ? Math.max(30_000, entry.deadlineMs) : entry.deadlineMs;
+  const headers = buildAiGatewayHeaders({ ...input, deadlineMs });
   let client;
   try {
-    client = await prepareGoogleGatewayClient(key.key, zyraRuntimeEnv, entry.deadlineMs, headers, { preferByokAlias: key.byokAlias });
+    client = await prepareGoogleGatewayClient(key.key, zyraRuntimeEnv, deadlineMs, headers, { modelId: input.modelId, preferByokAlias: key.byokAlias });
   } catch (error) { throw new ProviderNotDispatchedError("selected provider alias is unavailable", error); }
   if (!client) {
     throw new ProviderNotDispatchedError("selected provider client is unavailable");
