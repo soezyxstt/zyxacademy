@@ -9,11 +9,12 @@ def configure(raw, destination, channel):
     if config.get("project_info", {}).get("project_id") != "zyx-academy-staging":
         raise ValueError("Android requires the configured Zyx Firebase project.")
     clients = config.get("client", [])
-    packages = [client.get("client_info", {}).get("android_client_info", {}).get("package_name")
-                for client in clients]
     expected = {"nightly": "com.zyx.academy.nightly", "stable": "com.zyx.academy"}.get(channel)
-    if expected is None or packages != [expected]:
+    matching = [client for client in clients
+                if client.get("client_info", {}).get("android_client_info", {}).get("package_name") == expected]
+    if expected is None or len(matching) != 1:
         raise ValueError("Firebase Android app does not match the release channel.")
+    config["client"] = matching
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(config), encoding="utf-8")
 
