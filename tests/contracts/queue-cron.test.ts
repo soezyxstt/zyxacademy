@@ -1,5 +1,19 @@
 import { expect, test } from "bun:test";
-import { cronWindow } from "../../lib/queue/cron";
+import { cronWindow, isCronJobName } from "../../lib/queue/cron";
+
+test("authenticated Scheduler accepts its job ID and both pinned resource names", () => {
+  for (const environment of ["staging", "production"] as const) {
+    const job = `zyx-${environment}-dispatcher`;
+    for (const name of [job, `projects/zyx-academy/locations/asia-southeast1/jobs/${job}`, `projects/307641710075/locations/asia-southeast1/jobs/${job}`]) {
+      expect(isCronJobName(name, environment)).toBe(true);
+    }
+    for (const name of [undefined, "", `${job}-other`, "zyx-other-dispatcher", `projects/other/locations/asia-southeast1/jobs/${job}`, `projects/zyx-academy/locations/asia-southeast3/jobs/${job}`]) {
+      expect(isCronJobName(name, environment)).toBe(false);
+    }
+  }
+  expect(isCronJobName("zyx-production-dispatcher", "staging")).toBe(false);
+  expect(isCronJobName("zyx-staging-dispatcher", "production")).toBe(false);
+});
 
 test("staging schedules one UTC day and includes Monday reflection exactly once", () => {
   const monday = new Date("2026-11-23T00:00:00Z");
