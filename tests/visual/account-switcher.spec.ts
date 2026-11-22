@@ -104,13 +104,17 @@ async function capture(page: Page, info: TestInfo, name: string) {
   const panels = page.getByRole("dialog");
   for (const panel of await panels.all()) {
     if (!(await panel.isVisible())) continue;
-    const box = await panel.boundingBox();
-    const viewport = page.viewportSize()!;
-    expect(box).not.toBeNull();
-    expect(box!.x).toBeGreaterThanOrEqual(-1);
-    expect(box!.y).toBeGreaterThanOrEqual(-1);
-    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width + 1);
-    expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height + 1);
+    // Radix mounts the popover before Floating UI resolves its viewport position.
+    // Keep the bounds checks, but wait for that layout before taking the capture.
+    await expect(async () => {
+      const box = await panel.boundingBox();
+      const viewport = page.viewportSize()!;
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(-1);
+      expect(box!.y).toBeGreaterThanOrEqual(-1);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width + 1);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height + 1);
+    }).toPass({ timeout: 5_000 });
   }
   await page.screenshot({ path: info.outputPath(`${name}.png`), fullPage: true, animations: "disabled" });
 }
@@ -206,6 +210,7 @@ test("remove inactive account requires confirmation", async ({ page }, info) => 
   await panel.getByRole("button", { name: "Kelola akun nadia.kampus@example.test" }).click();
   await page.getByRole("menuitem", { name: "Hapus akun", exact: true }).click();
   await confirm.getByRole("button", { name: "Hapus akun", exact: true }).click();
+  await expect(confirm).toBeHidden();
   await expect(panel).toBeVisible();
   await expect(panel.getByRole("button", { name: "Beralih ke nadia.kampus@example.test" })).toHaveCount(0);
   await capture(page, info, "account-removed");
