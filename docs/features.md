@@ -362,6 +362,8 @@ The standalone Admin material editor is retired. Existing website material remai
 
 The account menu opens `/settings` for students, tutors, and admins. The Appearance tab groups color mode, background, interface language, spacing, font size, animation, and on-screen alert position. Language follows the signed-in account. Display choices are saved in the current browser. Spacing and font size apply on the Student and Tutor surfaces, including the public student demo. Reduced-motion system preferences still apply.
 
+On-screen alerts default to the top right. Existing saved positions are respected.
+
 The Profile tab reuses the authenticated profile editor, including student-only privacy and cosmetics where eligible. `/profile` opens the profile view. Existing links to `/profile/edit` also open the editor.
 
 ### Email Notification Preferences

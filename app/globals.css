@@ -440,6 +440,77 @@
   }
 }
 
+/* Sonner injects unlayered styles. Scope the overrides to its styled toasts. */
+.zyx-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+  @apply flex flex-wrap items-center justify-end gap-x-1.5 gap-y-2 rounded-lg border-border bg-card p-3 font-sans text-body-sm text-card-foreground shadow-lg;
+  --toast-status: var(--muted-foreground);
+
+  &[data-type="success"] { --toast-status: var(--color-status-success); }
+  &[data-type="info"] { --toast-status: var(--color-status-info); }
+  &[data-type="warning"] { --toast-status: var(--color-status-warning); }
+  &[data-type="error"] { --toast-status: var(--color-status-error); }
+
+  > [data-icon] {
+    @apply absolute start-3 top-3.5 m-0 size-7 justify-center rounded-md;
+    color: var(--toast-status);
+    background: color-mix(in oklab, var(--toast-status) 12%, transparent);
+
+    &:empty { display: none; }
+  }
+
+  > [data-icon] svg,
+  > [data-close-button] svg {
+    @apply m-0 size-4;
+  }
+
+  > [data-content] {
+    @apply min-h-8 flex-none basis-full gap-1 py-1.5;
+  }
+
+  &:has(> [data-icon]:not(:empty)) > [data-content] {
+    @apply ps-9;
+  }
+
+  &:has(> [data-close-button]) > [data-content] {
+    @apply pe-9;
+  }
+
+  [data-title] { @apply text-body-sm font-semibold; }
+  [data-description] { @apply text-body-xs text-muted-foreground; }
+
+  > [data-close-button] {
+    inset: auto;
+    @apply end-3 top-3 size-8 rounded-md border-transparent bg-transparent text-muted-foreground;
+    transform: none;
+  }
+
+  > [data-close-button]:hover {
+    @apply border-transparent bg-muted text-foreground;
+  }
+
+  > [data-button] {
+    @apply m-0 h-auto min-h-7 max-w-full justify-center rounded-md border border-transparent px-2.5 py-1 text-center text-body-sm font-medium;
+  }
+
+  > [data-action] {
+    @apply bg-primary text-primary-foreground hover:bg-primary-hover;
+  }
+
+  > [data-button][data-cancel] {
+    @apply border-border bg-transparent text-foreground hover:bg-muted;
+  }
+
+  > :is([data-close-button], [data-button]):focus-visible {
+    box-shadow: none;
+  }
+
+  &:focus-visible,
+  > :is([data-close-button], [data-button]):focus-visible {
+    outline: 2px solid var(--zx-accent);
+    outline-offset: 2px;
+  }
+}
+
 @utility transform-style-3d {
   transform-style: preserve-3d;
 }
