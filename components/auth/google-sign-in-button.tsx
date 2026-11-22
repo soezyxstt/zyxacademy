@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { ExternalLink } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -50,18 +51,19 @@ export function GoogleSignInButton({
   const t = useTranslations("auth");
   const accounts = useTranslations("common.accounts");
   const [loading, setLoading] = useState(false);
-  const [browserRecovery, setBrowserRecovery] = useState(false);
+  const [browserRecovery, setBrowserRecovery] = useState<"error" | "cancelled" | null>(null);
 
   const handleClick = useCallback(async (preferBrowser = false) => {
     onBeforeOAuth?.();
     setLoading(true);
-    setBrowserRecovery(false);
+    setBrowserRecovery(null);
     let keepLoadingForBrowser = false;
     try {
       if (locale) await saveLocaleSelection(locale);
       if (isNativeBrowserSignInSupported()) {
         const opened = await startNativeGoogleSignIn(callbackURL, {
           onBrowserClosed: () => setLoading(false),
+          onPickerCancelled: () => setBrowserRecovery("cancelled"),
           preferBrowser,
         });
         if (opened) {
@@ -78,7 +80,7 @@ export function GoogleSignInButton({
     } catch (err) {
       if (isLocalAccountTransitionPending()) return;
       if (err instanceof NativeGoogleSignInError) {
-        setBrowserRecovery(true);
+        setBrowserRecovery("error");
       } else {
         toast.error(mapSignInError(err, t));
       }
@@ -101,10 +103,13 @@ export function GoogleSignInButton({
         <GoogleMark className="size-[18px] shrink-0" />
         <span>{label ?? t("continueWithGoogle")}</span>
       </Button>
-      {browserRecovery && <div className="mt-3 space-y-2 text-center">
-        <p role="alert" className="text-body-xs text-muted-foreground">{accounts("nativeUnavailable")}</p>
-        <Button type="button" variant="outline" onClick={() => void handleClick(true)} disabled={disabled || loading}>
-          {accounts("browserFallback")}
+      {browserRecovery && <div className="mt-2.5 space-y-2 text-center">
+        {browserRecovery === "error" && (
+          <p role="alert" className="text-body-xs text-muted-foreground">{accounts("nativeUnavailable")}</p>
+        )}
+        <Button type="button" variant="outline" className="h-11 w-full gap-2 rounded-lg" onClick={() => void handleClick(true)} disabled={disabled || loading}>
+          <ExternalLink className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span>{accounts("browserFallback")}</span>
         </Button>
       </div>}
     </div>

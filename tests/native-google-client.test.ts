@@ -105,21 +105,30 @@ describe("native Google picker orchestration", () => {
     expect(capacitor.isLoggingEnabled).toBe(true);
   });
 
-  test("cancellation preserves the active session and does not open a browser", async () => {
+  test("cancellation preserves the active session, notifies the caller, and does not open a browser", async () => {
+    let cancelled = 0;
     picker = async () => { throw { code: "CANCELLED" }; };
-    expect(await startNativeGoogleSignIn("/dashboard", { onBrowserClosed: () => { closed++; } })).toBe(true);
+    expect(await startNativeGoogleSignIn("/dashboard", {
+      onBrowserClosed: () => { closed++; },
+      onPickerCancelled: () => { cancelled++; },
+    })).toBe(true);
     expect(calls).toEqual(["check-limit", "challenge", "cancel"]);
     expect(withAccountTransition).not.toHaveBeenCalled();
     expect(closed).toBe(1);
+    expect(cancelled).toBe(1);
     expect(capacitor.isLoggingEnabled).toBe(true);
     expect(browserUrls).toEqual([]);
     expect(navigations).toEqual([]);
   });
 
   test("provider failure stays visible instead of silently opening browser login", async () => {
+    let cancelled = 0;
     picker = async () => { throw { code: "NATIVE_GOOGLE_FAILED" }; };
-    await expect(startNativeGoogleSignIn("/dashboard")).rejects.toBeInstanceOf(NativeGoogleSignInError);
+    await expect(startNativeGoogleSignIn("/dashboard", {
+      onPickerCancelled: () => { cancelled++; },
+    })).rejects.toBeInstanceOf(NativeGoogleSignInError);
     expect(withAccountTransition).not.toHaveBeenCalled();
+    expect(cancelled).toBe(0);
     expect(browserUrls).toEqual([]);
     expect(navigations).toEqual([]);
   });
