@@ -578,7 +578,7 @@ The always-on PDF page reader requires `source-read-page` in the Deno compute ap
 
 Interactive Playground and runnable Article examples use the shared Render
 Python worker on the public staging and production origins. Set
-`PYTHON_RUNTIME_TOKEN_SECRET` in GitHub Environment `staging`, Vercel staging,
+`PYTHON_RUNTIME_TOKEN_SECRET` in GitHub Environment `staging`, Cloud Run staging,
 and Vercel Production to the key configured on the Render worker. Configure the
 worker's `PYTHON_RUNTIME_ORIGIN` as the comma-separated exact origins
 `https://staging.zyxacademy.com,https://www.zyxacademy.com,https://zyxacademy.com`.
@@ -588,6 +588,7 @@ Production tickets use audience `zyx-python-production`; staging keeps
 The key never reaches the browser. The worker and Daytona sandbox must already
 be available; both environments share the existing two-session capacity.
 Deploy the worker's multi-origin support before releasing the web changes.
+For Cloud Run staging, run `import-secrets` and bind the imported numeric Secret Manager version to the candidate. GitHub secrets are not inherited by Cloud Run automatically; its deployment validation requires the ticket key.
 For key rotation, update the worker and both ticket issuers together and verify
 fresh staging and production tickets. Local and unrecognized browser origins
 retain Pyodide. Submit grading is separate.

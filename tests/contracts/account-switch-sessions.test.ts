@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import { accountSwitchPlugin } from "@/lib/auth/account-switch-plugin";
 import { MAX_SAVED_ACCOUNTS } from "@/lib/auth/account-switch-contract";
+import { createAccountSessionFetch } from "@/lib/auth/account-session-fetch";
 import { createPostgresTestDb } from "../helpers/postgres";
 
 const { client, testDb } = await createPostgresTestDb();
@@ -33,8 +34,8 @@ const auth = betterAuth({
 class Browser {
   cookies = new Map<string, string>();
 
-  async request(path: string, body?: unknown, legacy = false) {
-    const response = await (legacy ? legacyAuth : auth).handler(new Request(`${origin}/api/auth${path}`, {
+  async send(path: string, body?: unknown, legacy = false) {
+    return (legacy ? legacyAuth : auth).handler(new Request(`${origin}/api/auth${path}`, {
       method: body === undefined ? "GET" : "POST",
       headers: {
         origin,
@@ -43,6 +44,9 @@ class Browser {
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     }));
+  }
+
+  applyCookies(response: Response) {
     for (const value of response.headers.getSetCookie()) {
       const pair = value.split(";", 1)[0];
       const split = pair.indexOf("=");
@@ -51,6 +55,11 @@ class Browser {
       if (!content || /max-age=0/i.test(value)) this.cookies.delete(name);
       else this.cookies.set(name, content);
     }
+  }
+
+  async request(path: string, body?: unknown, legacy = false) {
+    const response = await this.send(path, body, legacy);
+    this.applyCookies(response);
     return { response, data: await response.json() };
   }
 
@@ -172,6 +181,74 @@ describe("saved device account sessions", () => {
     expect(listed.data.map((item: { user: { id: string } }) => item.user.id)).toEqual([available.data.user.id]);
     expect((await browser.request("/multi-session/set-active", { sessionToken: listed.data[0].session.token })).response.status).toBe(200);
     expect((await browser.request("/get-session")).data.user.id).toBe(available.data.user.id);
+  });
+
+  test("an interrupted passive refresh cannot deliver the old account cookie after a switch", async () => {
+    const browser = new Browser();
+    const first = await browser.signup("refresh-race-a");
+    const second = await browser.signup("refresh-race-b");
+    const listed = await browser.request("/multi-session/list-device-sessions");
+    const tokenFor = (userId: string) => listed.data.find((item: { user: { id: string } }) => item.user.id === userId).session.token as string;
+    const tokenA = tokenFor(first.data.user.id);
+    const tokenB = tokenFor(second.data.user.id);
+    await browser.request("/multi-session/set-active", { sessionToken: tokenA });
+    await testDb.update(schema.session).set({ expiresAt: new Date(Date.now() + 1_000_000) }).where(eq(schema.session.token, tokenA));
+    const primaryName = [...browser.cookies.keys()].find((name) => name.endsWith(".session_token"))!;
+
+    let pending = false;
+    const listeners = new Set<(pending: boolean) => void>();
+    const setPending = (next: boolean) => { pending = next; [...listeners].forEach((listener) => listener(next)); };
+    let holdFirst = true;
+    let delayedResponse!: Response;
+    let releaseOld!: () => void;
+    let oldWasAborted = false;
+    let ready!: () => void;
+    const responseReady = new Promise<void>((resolve) => { ready = resolve; });
+    const sessionFetch = createAccountSessionFetch({
+      isPending: () => pending,
+      subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+      fetch: async (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        const response = await browser.send(`/get-session${url.search}`);
+        if (holdFirst) {
+          holdFirst = false;
+          delayedResponse = response;
+          await new Promise<void>((resolve, reject) => {
+            releaseOld = resolve;
+            init?.signal?.addEventListener("abort", () => {
+              oldWasAborted = true;
+              reject(init.signal?.reason);
+            }, { once: true });
+            ready();
+          });
+        }
+        if (init?.signal?.aborted) throw init.signal.reason;
+        browser.applyCookies(response);
+        return response;
+      },
+    });
+    const passive = sessionFetch(`${origin}/api/auth/get-session`);
+    await responseReady;
+    // This is a real refresh response containing Set-Cookie for account A.
+    // Delivery is held so the test can model the network ordering from another tab.
+    expect(delayedResponse.headers.getSetCookie().some((cookie) => cookie.startsWith(`${primaryName}=`))).toBe(true);
+    setPending(true);
+    expect(oldWasAborted).toBe(true);
+    expect((await browser.request("/multi-session/set-active", { sessionToken: tokenB })).response.status).toBe(200);
+    releaseOld();
+    const verified = await sessionFetch(`${origin}/api/auth/get-session?disableCookieCache=true&disableRefresh=true`);
+    expect((await verified.json()).user.id).toBe(second.data.user.id);
+    expect(verified.headers.getSetCookie().some((cookie) => cookie.startsWith(`${primaryName}=`))).toBe(false);
+
+    // Releasing the pause retries with the current cookie. Ordinary refresh is
+    // still enabled, including extending the current account's session lifetime.
+    await testDb.update(schema.session).set({ expiresAt: new Date(Date.now() + 1_000_000) }).where(eq(schema.session.token, tokenB));
+    setPending(false);
+    const resumed = await passive;
+    expect((await resumed.json()).user.id).toBe(second.data.user.id);
+    expect(resumed.headers.getSetCookie().some((cookie) => cookie.startsWith(`${primaryName}=`))).toBe(true);
+    expect((await browser.request("/get-session?disableCookieCache=true&disableRefresh=true")).data.user.id).toBe(second.data.user.id);
+    expect(listeners.size).toBe(0);
   });
 
   test("native browser handoff rechecks suspension, live account limit and session expiry before replacing cookies", async () => {

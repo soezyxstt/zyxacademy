@@ -488,7 +488,7 @@ export function SidebarShell({
     if (!mobileOpen) return;
     const handleOutsideClick = (e: MouseEvent) => {
       const isPortal = (e.target as HTMLElement)?.closest?.(
-        '[data-radix-portal], [role="listbox"], [role="dialog"], [role="combobox"]'
+        '[data-radix-portal], [role="menu"], [role="listbox"], [role="dialog"], [role="combobox"]'
       );
       if (!isPortal && sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
         setMobileOpen(false);

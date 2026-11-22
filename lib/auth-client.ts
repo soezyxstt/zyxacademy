@@ -4,10 +4,18 @@ import { createAuthClient } from "better-auth/react";
 import { multiSessionClient } from "better-auth/client/plugins";
 import { useEffect } from "react";
 import { getQueryClient, syncQueryAccount } from "@/lib/query/client";
-import { finishBrowserAccountRedirect } from "@/lib/auth/account-transition-state";
+import { finishBrowserAccountRedirect, isAccountTransitionPending, subscribeAccountTransition } from "@/lib/auth/account-transition-state";
+import { createAccountSessionFetch } from "@/lib/auth/account-session-fetch";
 
 export const authClient = createAuthClient({
   plugins: [multiSessionClient()],
+  fetchOptions: {
+    customFetchImpl: createAccountSessionFetch({
+      fetch: (input, init) => fetch(input, init),
+      isPending: isAccountTransitionPending,
+      subscribe: subscribeAccountTransition,
+    }),
+  },
   // Dynamically use the current browser origin in the client to ensure requests to /api/auth/*
   // are always same-origin (avoiding CORS issues on localhost, preview URLs, or staging).
   // Fall back to NEXT_PUBLIC_APP_URL only on SSR.

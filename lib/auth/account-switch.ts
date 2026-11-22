@@ -17,7 +17,7 @@ export { AccountSwitchError, MAX_SAVED_ACCOUNTS } from "./account-switch-contrac
 export type { AccountSwitchErrorCode, SavedAccount } from "./account-switch-contract";
 
 async function currentUserId(): Promise<string | null> {
-  const result = await authClient.getSession({ query: { disableCookieCache: true } });
+  const result = await authClient.getSession({ query: { disableCookieCache: true, disableRefresh: true } });
   if (result.error) throw accountSwitchError(result.error);
   return result.data?.user.id ?? null;
 }

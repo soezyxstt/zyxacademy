@@ -24,6 +24,12 @@ Bangkok's native Cloud Run domain mapping is unavailable. An origin rule alone s
 
 ## Google and GitHub setup
 
+### Runtime secret coverage
+
+The `import-secrets` operation reads GitHub Environment `staging`. It imports the required application credentials, including `PYTHON_RUNTIME_TOKEN_SECRET`, and configured optional Google, Gemini fallback, AI Gateway, Vectorize, Zyra control-plane, Live Quiz, Steel and analytics credentials. Companion server settings are versioned with those credentials. Empty optional settings are skipped. CI credentials, unused R2 rollback credentials, public build settings and feature flags are excluded. Existing staging Firebase credentials remain separately managed to preserve project isolation.
+
+Provision each destination under `zyx-staging-web-`, grant the staging runtime access, then run the approved import. Imports print only secret names and numeric versions. Attach those numeric versions to a candidate before promotion; importing alone does not configure Cloud Run. Preserve existing bindings when repairing missing settings, use the currently serving image, verify the candidate and keep the prior revision available for rollback. Deployment validation now requires the Python ticket key. This repairs existing API and MCP environment configuration without changing tools, scopes, consent, capability discovery, playbooks or packaged skills.
+
 ### Staging push isolation
 
 Staging Web and Android Nightly use Firebase project `zyx-academy-staging`; production and Stable retain `zyx-academy`. Keep `NEXT_PUBLIC_FIREBASE_*` aligned in `CLOUD_RUN_STAGING_PUBLIC_CONFIG` in both GitHub environments, `staging` and `staging-cloud-run`, and in the staging Cloud Run runtime. The browser worker imports `/firebase-config.js`, which exposes only public runtime Firebase settings with `Cache-Control: no-store`.
