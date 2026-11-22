@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -25,10 +25,13 @@ import { StudentAccountBoundary } from "@/components/student-account-boundary";
 import { SidebarAccountMenu } from "@/components/auth/sidebar-account-menu";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { useTranslations } from "@/lib/i18n/client";
+import { closeDialogsThen, useDialogHistory } from "@/hooks/use-dialog-history";
 import { useSwipe } from "@/hooks/use-swipe";
 import { isMaterialReaderPathname } from "@/lib/materials/reader-layout";
 import {
+  closeMobileSidebar,
   hasOpenSidebarOverlay,
+  MOBILE_SIDEBAR_QUERY,
   isSidebarOverlayGestureActive,
   isSidebarOverlayTarget,
   syncSidebarOverlayGesture,
@@ -93,6 +96,7 @@ export function NavItem({
   onArchive?: (e: React.MouseEvent) => void;
   isPinned?: boolean;
 }) {
+  const { navigate } = useSidebar();
   const baseClass = cn(
     "group/item relative flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-body-sm font-medium transition-colors w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
     active
@@ -172,7 +176,7 @@ export function NavItem({
     collapsed && badge && typeof badge === "string" ? `${label} (${badge})` : label;
 
   const inner = href ? (
-    <Link href={href} prefetch={prefetch} onClick={onClick as undefined} className={baseClass} aria-label={collapsed ? tooltipLabel : undefined} aria-current={active ? "page" : undefined}>
+    <Link href={href} prefetch={prefetch} onClick={onClick as undefined} onNavigate={event => navigate?.(event, href)} className={baseClass} aria-label={collapsed ? tooltipLabel : undefined} aria-current={active ? "page" : undefined}>
       {content}
     </Link>
   ) : (
@@ -193,6 +197,7 @@ interface SidebarContextValue {
   collapsed: boolean;
   activePopoverId: string | null;
   setActivePopoverId: (id: string | null) => void;
+  navigate?: (event: { preventDefault: () => void }, href: string) => void;
 }
 
 const SidebarContext = React.createContext<SidebarContextValue>({
@@ -439,6 +444,7 @@ export function SidebarShell({
 }: SidebarShellProps) {
   const t = useTranslations("common");
   const actualPathname = usePathname();
+  const router = useRouter();
   const experience = useStudentExperience();
   const pathname = experience.pathname ?? actualPathname;
   const { setOpen: setSearchOpen } = useCommandMenu();
@@ -446,6 +452,7 @@ export function SidebarShell({
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  useDialogHistory(isMobile && mobileOpen, closeMobileSidebar);
   const [mounted, setMounted] = useState(false);
   const [modKeyHint, setModKeyHint] = useState("Ctrl + K");
   const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
@@ -476,12 +483,11 @@ export function SidebarShell({
       setCollapsed(window.innerWidth < 768);
     }
 
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
+    const media = window.matchMedia(MOBILE_SIDEBAR_QUERY);
+    const handleResize = () => setIsMobile(media.matches);
     handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    media.addEventListener("change", handleResize);
+    return () => media.removeEventListener("change", handleResize);
   }, [collapsedKey]);
 
   useEffect(() => {
@@ -523,6 +529,11 @@ export function SidebarShell({
   }, [mobileOpen, mounted]);
 
   const isCollapsed = isMobile ? false : readerCollapsed || collapsed;
+  const navigate = (event: { preventDefault: () => void }, href: string) => {
+    if (!isMobile || !mobileOpen) return;
+    event.preventDefault();
+    closeDialogsThen(closeMobileSidebar, () => router.push(href));
+  };
 
   useEffect(() => {
     setActivePopoverId(null);
@@ -563,10 +574,12 @@ export function SidebarShell({
         collapsed: isCollapsed,
         activePopoverId,
         setActivePopoverId,
+        navigate,
       }}
     >
       {mounted && mobileOpen && (
         <div
+          data-slot="mobile-sidebar-overlay"
           className="fixed inset-0 z-40 bg-black/50 md:hidden cursor-pointer"
           onClick={() => {
             if (!hasOpenSidebarOverlay() && !isSidebarOverlayGestureActive()) {
@@ -607,7 +620,7 @@ export function SidebarShell({
         >
           {!isCollapsed ? (
             <>
-              <Link href={logoHref} aria-label={logoLabel} className="flex flex-1 min-w-0 items-center pl-1">
+              <Link href={logoHref} onNavigate={event => navigate(event, logoHref)} aria-label={logoLabel} className="flex flex-1 min-w-0 items-center pl-1">
                 <Logo variant="symbol" className="[--logo-height:1.25rem]" />
               </Link>
 
@@ -744,11 +757,7 @@ export function openMobileSidebar() {
   }
 }
 
-export function closeMobileSidebar() {
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
-  }
-}
+export { closeMobileSidebar };
 
 export function toggleMobileSidebar() {
   if (typeof window !== "undefined") {

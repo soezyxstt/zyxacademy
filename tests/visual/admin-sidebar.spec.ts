@@ -25,11 +25,17 @@ test("admin navigation opens, closes and keeps accessible names", async ({ page 
     await expect(sidebar).not.toHaveAttribute("aria-hidden", "true");
     await expect(sidebar).not.toHaveAttribute("inert", "");
     await expect(sidebar.getByRole("link", { name: "Panel admin", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/[?&]dialog=/);
     await capture(page, info, "mobile-open");
-    await page.keyboard.press("Escape");
+    await page.evaluate(() => history.back());
     await expect(sidebar).toHaveAttribute("aria-hidden", "true");
     await expect(sidebar).toHaveAttribute("inert", "");
+    await expect(page).not.toHaveURL(/[?&]dialog=/);
     await capture(page, info, "mobile-closed");
+    await page.getByRole("button", { name: "Buka navigasi" }).click();
+    await page.locator('[data-slot="mobile-sidebar-overlay"]').click({ position: { x: 370, y: 100 } });
+    await expect(sidebar).toHaveAttribute("inert", "");
+    await expect(page).not.toHaveURL(/[?&]dialog=/);
   } else {
     await expect(sidebar.getByRole("link", { name: "Panel admin", exact: true })).toBeVisible();
     await capture(page, info, "desktop-expanded");

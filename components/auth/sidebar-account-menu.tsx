@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ExternalLink, Eye, EyeOff, GraduationCap, LayoutDashboard, Loader2, LogOut, MoreHorizontal, Settings, ShieldCheck, SlidersHorizontal, UserRoundMinus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,6 +14,8 @@ import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import type { StudentAccountState } from "@/components/student-account-boundary";
 import { useZyraPetVisibility } from "@/hooks/use-zyra-pet-visibility";
+import { closeDialogsThen } from "@/hooks/use-dialog-history";
+import { closeMobileSidebar } from "@/lib/sidebar-overlay";
 import { useTranslations } from "@/lib/i18n/client";
 import { signOut } from "@/lib/auth-client";
 import { isLocalAccountTransitionPending } from "@/lib/auth/account-transition-state";
@@ -37,6 +40,7 @@ export function SidebarAccountMenu({ collapsed, session }: { collapsed: boolean;
   const t = useTranslations("common");
   const a = useTranslations("common.accounts");
   const experience = useStudentExperience();
+  const router = useRouter();
   const { visible: petVisible, toggleVisible: togglePetVisibility } = useZyraPetVisibility();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -47,6 +51,13 @@ export function SidebarAccountMenu({ collapsed, session }: { collapsed: boolean;
   const busyRef = useRef(false);
   const demo = experience.mode === "demo";
   const href = experience.href ?? ((path: string) => path);
+  const navigate = (event: { preventDefault: () => void }, path: string) => {
+    event.preventDefault();
+    closeDialogsThen(() => {
+      setOpen(false);
+      closeMobileSidebar();
+    }, () => router.push(href(path)));
+  };
   const user = { ...session.user, name: session.user.name.trim() || t("userFallback") };
   const roles = session.user.roles ?? [];
   const isAdmin = session.user.role === "admin" || roles.includes("admin");
@@ -252,10 +263,10 @@ export function SidebarAccountMenu({ collapsed, session }: { collapsed: boolean;
           {busy && busy !== "add" && busy !== "remove" && <p role="status" className="sr-only">{busy === "logout" ? a("signingOut") : a("switching")}</p>}
           <div className="my-1.5 h-px bg-border/70" />
           <div inert={busy !== null}>
-            <Link href={href("/settings")} onClick={() => setOpen(false)} className={actionClass}><SlidersHorizontal className="size-4 text-muted-foreground" aria-hidden="true" />{t("preferences")}</Link>
-            <Link href={href("/dashboard")} onClick={() => setOpen(false)} className={actionClass}><LayoutDashboard className="size-4 text-muted-foreground" aria-hidden="true" />{t("studentDashboard")}</Link>
-            {(isTutor || isAdmin) && <Link href={href("/tutor")} onClick={() => setOpen(false)} className={actionClass}><GraduationCap className="size-4 text-muted-foreground" aria-hidden="true" />{t("tutorPanel")}</Link>}
-            {isAdmin && <Link href={href("/admin")} onClick={() => setOpen(false)} className={actionClass}><ShieldCheck className="size-4 text-muted-foreground" aria-hidden="true" />{t("adminPanel")}</Link>}
+            <Link href={href("/settings")} onNavigate={event => navigate(event, "/settings")} className={actionClass}><SlidersHorizontal className="size-4 text-muted-foreground" aria-hidden="true" />{t("preferences")}</Link>
+            <Link href={href("/dashboard")} onNavigate={event => navigate(event, "/dashboard")} className={actionClass}><LayoutDashboard className="size-4 text-muted-foreground" aria-hidden="true" />{t("studentDashboard")}</Link>
+            {(isTutor || isAdmin) && <Link href={href("/tutor")} onNavigate={event => navigate(event, "/tutor")} className={actionClass}><GraduationCap className="size-4 text-muted-foreground" aria-hidden="true" />{t("tutorPanel")}</Link>}
+            {isAdmin && <Link href={href("/admin")} onNavigate={event => navigate(event, "/admin")} className={actionClass}><ShieldCheck className="size-4 text-muted-foreground" aria-hidden="true" />{t("adminPanel")}</Link>}
             <button type="button" onClick={togglePetVisibility} className={actionClass}>
               {petVisible ? <EyeOff className="size-4 text-muted-foreground" aria-hidden="true" /> : <Eye className="size-4 text-muted-foreground" aria-hidden="true" />}
               {t(petVisible ? "hideZyra" : "showZyra")}

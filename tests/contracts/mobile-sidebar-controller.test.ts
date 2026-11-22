@@ -5,6 +5,7 @@ import {
   hasOpenSidebarOverlay,
   isSidebarOverlayGestureActive,
   isSidebarOverlayTarget,
+  MOBILE_SIDEBAR_QUERY,
   OPEN_SIDEBAR_OVERLAY_SELECTOR,
   resetSidebarOverlayGesture,
   SIDEBAR_OVERLAY_TARGET_SELECTOR,
@@ -37,7 +38,9 @@ describe("mobile sidebar controller contract", () => {
     expect(controller).toContain("zyx:close-mobile-sidebar");
     expect(controller).toContain("onSwipeRight");
     expect(controller).toContain("onSwipeLeft");
-    expect(controller).toContain("(max-width: 767px)");
+    expect(MOBILE_SIDEBAR_QUERY).toBe("(width < 48rem)");
+    expect(controller).toContain("matchMedia(MOBILE_SIDEBAR_QUERY)");
+    expect(source("components/sidebar-shell.tsx")).toContain("matchMedia(MOBILE_SIDEBAR_QUERY)");
   });
 
   test("mobile drawer overrides Tailwind v4 translate instead of transform", () => {

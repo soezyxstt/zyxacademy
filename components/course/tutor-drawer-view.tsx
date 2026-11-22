@@ -1,5 +1,6 @@
 "use client";
 
+import { useDialogHistory } from "@/hooks/use-dialog-history";
 import { usePanelViewport } from "@/hooks/use-panel-viewport";
 import * as React from "react";
 import Link from "next/link";
@@ -459,6 +460,9 @@ function TutorDrawerContent({
   // Micro-apps inside drawer
   const [activeAction, setActiveAction] = React.useState<ActiveAction>("none");
   const [actionData] = React.useState<any[]>([]);
+  const activityOpen = activeAction !== "none" && actionData.length > 0;
+  useDialogHistory(isOpen, onClose);
+  useDialogHistory(isOpen && activityOpen, () => setActiveAction("none"));
   const [actionIndex, setActionIndex] = React.useState(0);
   const [actionFlipped, setActionFlipped] = React.useState(false);
   const [actionSelectedAnswer, setActionSelectedAnswer] = React.useState<number | null>(null);
@@ -1319,7 +1323,7 @@ function TutorDrawerContent({
       {/* Backdrop for Mobile Only */}
       <div
         role="presentation"
-        onClick={onClose}
+        onClick={activityOpen ? () => setActiveAction("none") : onClose}
         data-state={isVisible ? "open" : "closed"}
         className={cn(
           "fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-300 ease-out motion-reduce:transition-none md:hidden",
@@ -1336,7 +1340,7 @@ function TutorDrawerContent({
           "--zyra-panel-width": `${targetPanelWidth}px`,
         } as React.CSSProperties}
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-background shadow-2xl md:sticky md:bottom-auto md:right-auto md:self-start md:z-20 md:shrink-0 md:shadow-none select-text top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
+          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),calc(100vw-1rem))] flex-col overflow-hidden border-l border-border bg-background shadow-2xl md:sticky md:bottom-auto md:right-auto md:self-start md:z-20 md:shrink-0 md:shadow-none select-text top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           isDragging
             ? "transition-none select-none"
@@ -1897,7 +1901,7 @@ function TutorDrawerContent({
         </footer>
 
         {/* Micro-apps Modal View (Flashcards / Practice Quiz) */}
-        {activeAction !== "none" && actionData.length > 0 && (
+        {activityOpen && (
           <div className="absolute inset-0 z-50 flex flex-col bg-background p-4 animate-in fade-in duration-200">
             <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
               <span className="font-heading text-body-base font-bold">

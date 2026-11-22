@@ -5,6 +5,7 @@ import { useTranslations } from "@/lib/i18n/client";
 import { useState } from "react";
 import { Download, ExternalLink, FileText, X } from "lucide-react";
 import { Dialog as DialogNs } from "radix-ui";
+import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
 import { getViewablePdfUrl } from "@/lib/pdf-utils";
@@ -27,13 +28,12 @@ export function PdfViewerModal({
   const downloadUrl = material.url;
 
   return (
-    <DialogNs.Root open={Boolean(material)} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={Boolean(material)} onOpenChange={(open) => !open && onClose()}>
       <DialogNs.Portal>
         {/* Backdrop overlay */}
         <DialogNs.Overlay className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
 
-        {/* Ultra-thin bezel modal container: 0 padding on mobile, 4-6px on desktop */}
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-1 md:p-1.5 pointer-events-none">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-1 md:p-1.5 pointer-events-none">
           <DialogNs.Content
             className="pointer-events-auto relative flex size-full flex-col overflow-hidden rounded-none sm:rounded-lg border-0 sm:border border-border/80 bg-background shadow-2xl outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-150"
             aria-label={tr("document", { title: material.title })}
@@ -151,6 +151,6 @@ export function PdfViewerModal({
           </DialogNs.Content>
         </div>
       </DialogNs.Portal>
-    </DialogNs.Root>
+    </Dialog>
   );
 }

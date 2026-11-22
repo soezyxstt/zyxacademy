@@ -10,6 +10,7 @@ import { uploadQuizAttachment, removeQuizAttachment } from "@/lib/quiz/client";
 import { ApiError } from "@/lib/query/http";
 import { hapticSuccess } from "@/lib/native/haptics";
 import { usePullToRefreshLock } from "@/hooks/use-pull-to-refresh-lock";
+import { closeDialogsThen } from "@/hooks/use-dialog-history";
 import {
   asEssayAnswer, createQuizStorage, createQuizSubmissionGate, formatQuizAnswers,
   isQuizAnswerComplete, quizStorageKeys, readQuizAnswers, readQuizFlags,
@@ -229,16 +230,23 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
           storage.removeItem(keys.answers);
           storage.removeItem(keys.flags);
           if (!alive.current) return;
-          setIsSubmitted(true);
           void hapticSuccess();
-          if (transport) return;
+          if (transport) {
+            setIsSubmitted(true);
+            return;
+          }
           emitActivityUpdated({ type: "quiz", attemptId, courseId, queryCacheUpdated: true });
           toast.success(t("quiz.submitted"));
           const path = getRedirectPath ? getRedirectPath(attemptId)
             : redirectBasePath ? `${redirectBasePath}?attemptId=${encodeURIComponent(attemptId)}`
             : `/courses/${encodeURIComponent(courseId)}/quiz/${encodeURIComponent(exam.id)}?attemptId=${encodeURIComponent(attemptId)}`;
-          router.replace(path);
-          router.refresh();
+          closeDialogsThen(() => {
+            setIsSubmitted(true);
+            setShowConfirmModal(false);
+          }, () => {
+            router.replace(path);
+            router.refresh();
+          });
         },
       });
     } catch (error) {

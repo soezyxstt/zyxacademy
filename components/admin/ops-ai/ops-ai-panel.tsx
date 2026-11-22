@@ -1,6 +1,7 @@
 "use client";
 
 import { usePanelViewport } from "@/hooks/use-panel-viewport";
+import { DIALOG_PARAM, useDialogHistory } from "@/hooks/use-dialog-history";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -91,6 +92,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
 
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  useDialogHistory(isOpen, closePanel);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLElement>(null);
@@ -494,7 +496,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
     try {
       const qParams: Record<string, string> = {};
       searchParams?.forEach((val, key) => {
-        qParams[key] = val;
+        if (key !== DIALOG_PARAM) qParams[key] = val;
       });
 
       const res = await fetch("/api/admin/ops-ai", {
@@ -673,7 +675,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           "flex flex-col overflow-hidden border-l border-border bg-background select-text relative min-w-0",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           "transition-[transform,width,opacity,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-          "fixed inset-0 z-50 w-full sm:left-auto sm:right-0 sm:w-[480px] shadow-2xl top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
+          "fixed inset-y-0 right-0 left-4 z-50 sm:left-auto sm:w-[480px] shadow-2xl top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
           "lg:sticky lg:self-start lg:shrink-0 lg:z-40 lg:shadow-none",
           isVisible
             ? "translate-x-0 opacity-100"

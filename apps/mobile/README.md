@@ -99,6 +99,10 @@ The plugin uses the server environment's existing **Web application** `GOOGLE_CL
 
 Deploying the web app enables saved-session switching. Installing a new APK enables the native chooser. Google account selection and signed-device acceptance still require the checks in that guide; web UI screenshots cover a different boundary.
 
+## Back navigation
+
+The web app gives each open dialog, sheet, modal popover and mobile sidebar a temporary history entry. Android Back uses WebView history and dismisses the top overlay before leaving the current page. Backdrop dismissal returns to the same underlying URL.
+
 ## Offline Fallback
 
 When the remote Zyx Academy URL cannot be reached, Capacitor loads `www/index.html` (`server.errorPath`). It provides an Indonesian and English retry screen and a direct link to `/offline` for saved readings.

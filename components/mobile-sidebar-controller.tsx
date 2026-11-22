@@ -6,12 +6,12 @@ import { useStudentExperience } from "@/components/student-experience-provider";
 import { useSwipe } from "@/hooks/use-swipe";
 import {
   hasOpenSidebarOverlay,
+  MOBILE_SIDEBAR_QUERY,
   isSidebarOverlayGestureActive,
   isSidebarOverlayTarget,
   syncSidebarOverlayGesture,
 } from "@/lib/sidebar-overlay";
 
-const MOBILE_QUERY = "(max-width: 767px)";
 // The sidebar can hydrate after this controller. Do not mutate server-rendered
 // attributes until the sidebar has mounted and owns its initial state.
 const SIDEBAR_SELECTOR = "aside.fixed.inset-y-0.left-0[data-sidebar-ready='true']";
@@ -21,7 +21,7 @@ function getSidebar(): HTMLElement | null {
 }
 
 function isMobileViewport(): boolean {
-  return typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches;
+  return typeof window !== "undefined" && window.matchMedia(MOBILE_SIDEBAR_QUERY).matches;
 }
 
 function setSidebarOpen(open: boolean) {
@@ -123,7 +123,7 @@ export function MobileSidebarController() {
         window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
       }
     };
-    const media = window.matchMedia(MOBILE_QUERY);
+    const media = window.matchMedia(MOBILE_SIDEBAR_QUERY);
     const handleViewportChange = () => {
       const sidebar = getSidebar();
       if (!media.matches && sidebar) {
