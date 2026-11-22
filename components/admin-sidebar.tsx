@@ -124,51 +124,65 @@ const DEFAULT_ARCHIVED = [
   "pka-materials",
 ];
 
+export type AdminTabGroup =
+  | "utama"
+  | "akademik"
+  | "pengguna"
+  | "publikasi"
+  | "analitik"
+  | "sistem"
+  | "utilitas"
+  | "tutorial-pka";
+
 export type AdminTabDef = {
   id: string;
   label: string;
   href: string;
   icon: React.ElementType;
-  group: "utama" | "akademik" | "alat" | "pengguna" | "ops" | "tutorial-pka";
+  group: AdminTabGroup;
   exact?: boolean;
   badge?: React.ReactNode | string;
 };
 
-const ALL_ADMIN_TABS: AdminTabDef[] = [
+export const ALL_ADMIN_TABS: AdminTabDef[] = [
   // Utama
   { id: "dashboard", label: "Panel Admin", href: "/admin", icon: LayoutDashboard, group: "utama", exact: true },
-  { id: "blog", label: "Blog", href: "/admin/blog", icon: Newspaper, group: "utama" },
 
-  // Akademik & Konten
+  // Akademik
   { id: "courses", label: "Mata Kuliah", href: "/admin/courses", icon: GraduationCap, group: "akademik" },
   { id: "schedules", label: "Jadwal Umum", href: "/admin/schedules", icon: CalendarDays, group: "akademik" },
+  { id: "meet", label: "Meet", href: "/admin/meet", icon: Video, group: "akademik" },
   { id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "akademik" },
   { id: "discussions", label: "Diskusi dan laporan", href: "/admin/discussions", icon: MessageSquareText, group: "akademik" },
-
-  // Alat & Komunikasi
-  { id: "pricing", label: "Kalkulator Harga", href: "/admin/pricing", icon: Calculator, group: "alat" },
-  { id: "docs", label: "Dokumentasi", href: "/admin/docs", icon: BookOpen, group: "alat" },
-  { id: "forms", label: "Form Studio", href: "/admin/forms", icon: FilePen, group: "alat" },
-  { id: "meet", label: "Meet", href: "/admin/meet", icon: Video, group: "alat" },
-  { id: "media", label: "Pustaka Media", href: "/admin/media", icon: ImageIcon, group: "alat" },
-  { id: "tautan", label: "Tautan Publik", href: "/admin/tautan", icon: LinkIcon, group: "alat" },
 
   // Pengguna & Akses
   { id: "users", label: "Pengguna", href: "/admin/users", icon: UserCog, group: "pengguna" },
   { id: "groups", label: "Kelompok Belajar", href: "/admin/groups", icon: Users, group: "pengguna" },
   { id: "tokens", label: "Token Aktivasi", href: "/admin/tokens", icon: KeyRound, group: "pengguna" },
+  { id: "pricing", label: "Kalkulator Harga", href: "/admin/pricing", icon: Calculator, group: "pengguna" },
   { id: "notifications", label: "Notifikasi", href: "/admin/notifications", icon: Bell, group: "pengguna" },
 
-  // Sistem & Ops
-  { id: "ops-monitor", label: "Monitor Ops", href: "/admin/ops", icon: Gauge, group: "ops", exact: true },
-  { id: "ai-models", label: "Model AI", href: "/admin/ops/models", icon: Cpu, group: "ops" },
-  { id: "tutor-activity", label: "Aktivitas Tutor", href: "/admin/ops/tutor-activity", icon: Activity, group: "ops" },
-  { id: "feature-flags", label: "Feature Flags", href: "/admin/ops/flags", icon: Flag, group: "ops" },
-  { id: "ai-analytics", label: "Analitik Zyra", href: "/admin/ops/analytics", icon: LineChart, group: "ops" },
-  { id: "feature-usage", label: "Fitur", href: "/admin/ops/feature-usage", icon: MousePointerClick, group: "ops" },
-  { id: "api-keys", label: "API Keys", href: "/admin/ops/keys", icon: Lock, group: "ops" },
-  { id: "short-links", label: "Short Links", href: "/admin/ops/short-links", icon: LinkIcon, group: "ops" },
-  { id: "web-analytics", label: "Web Analytics", href: "/admin/ops/web-analytics", icon: Globe, group: "ops" },
+  // Publikasi & Konten
+  { id: "blog", label: "Blog", href: "/admin/blog", icon: Newspaper, group: "publikasi" },
+  { id: "forms", label: "Form Studio", href: "/admin/forms", icon: FilePen, group: "publikasi" },
+  { id: "media", label: "Pustaka Media", href: "/admin/media", icon: ImageIcon, group: "publikasi" },
+  { id: "tautan", label: "Tautan Publik", href: "/admin/tautan", icon: LinkIcon, group: "publikasi" },
+  { id: "short-links", label: "Short Links", href: "/admin/ops/short-links", icon: LinkIcon, group: "publikasi" },
+
+  // Analitik & Monitor
+  { id: "ops-monitor", label: "Monitor Ops", href: "/admin/ops", icon: Gauge, group: "analitik", exact: true },
+  { id: "tutor-activity", label: "Aktivitas Tutor", href: "/admin/ops/tutor-activity", icon: Activity, group: "analitik" },
+  { id: "ai-analytics", label: "Analitik Zyra", href: "/admin/ops/analytics", icon: LineChart, group: "analitik" },
+  { id: "feature-usage", label: "Penggunaan Fitur", href: "/admin/ops/feature-usage", icon: MousePointerClick, group: "analitik" },
+  { id: "web-analytics", label: "Web Analytics", href: "/admin/ops/web-analytics", icon: Globe, group: "analitik" },
+
+  // Sistem
+  { id: "ai-models", label: "Model AI", href: "/admin/ops/models", icon: Cpu, group: "sistem" },
+  { id: "feature-flags", label: "Feature Flags", href: "/admin/ops/flags", icon: Flag, group: "sistem" },
+  { id: "api-keys", label: "API Keys", href: "/admin/ops/keys", icon: Lock, group: "sistem" },
+
+  // Utilitas
+  { id: "docs", label: "Dokumentasi", href: "/admin/docs", icon: BookOpen, group: "utilitas" },
 
   // Tutorial PKA (Default Archived)
   { id: "pka-registrations", label: "Pendaftar PKA", href: "/admin/tutorial-pka/registrations", icon: UserCheck, group: "tutorial-pka" },
@@ -630,23 +644,33 @@ function AdminSidebarInner() {
     }
 
     // 1. Pinned tabs at the top
-    const pinnedTabItems = ALL_ADMIN_TABS.filter((t) => isPinned(t.id));
+    const pinnedTabItems = ALL_ADMIN_TABS.filter((tab) => isPinned(tab.id));
 
     // 2. Active non-pinned, non-archived tabs grouped
-    const getVisibleGroupTabs = (group: AdminTabDef["group"]) => {
+    const getVisibleGroupTabs = (group: AdminTabGroup) => {
       return ALL_ADMIN_TABS.filter(
-        (t) => t.group === group && !isArchived(t.id) && !isPinned(t.id)
+        (tab) => tab.group === group && !isArchived(tab.id) && !isPinned(tab.id)
       );
     };
 
+    const utamaTabs = getVisibleGroupTabs("utama");
     const akademikTabs = getVisibleGroupTabs("akademik");
-    const alatTabs = getVisibleGroupTabs("alat");
     const penggunaTabs = getVisibleGroupTabs("pengguna");
-    const opsTabs = getVisibleGroupTabs("ops");
+    const publikasiTabs = getVisibleGroupTabs("publikasi");
+    const analitikTabs = getVisibleGroupTabs("analitik");
+    const sistemTabs = getVisibleGroupTabs("sistem");
+    const utilitasTabs = getVisibleGroupTabs("utilitas");
     const pkaTabs = getVisibleGroupTabs("tutorial-pka");
 
     // 3. Archived tabs list
-    const archivedTabItems = ALL_ADMIN_TABS.filter((t) => isArchived(t.id));
+    const archivedTabItems = ALL_ADMIN_TABS.filter((tab) => isArchived(tab.id));
+
+    const hasSecondaryGroups =
+      publikasiTabs.length > 0 ||
+      analitikTabs.length > 0 ||
+      sistemTabs.length > 0 ||
+      pkaTabs.length > 0;
+    const hasBottomSection = utilitasTabs.length > 0 || archivedTabItems.length > 0;
 
     return (
       <nav
@@ -661,7 +685,7 @@ function AdminSidebarInner() {
         {pinnedTabItems.length > 0 && (
           <>
             <NavGroup label={t("pinned")} collapsed={c} />
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-0.5 w-full">
               {pinnedTabItems.map((tab) => renderTabItem(tab, c, false))}
             </div>
             <div className="h-px bg-border/60 my-2 shrink-0 w-full" />
@@ -669,156 +693,154 @@ function AdminSidebarInner() {
         )}
 
         {/* Utama */}
-        <NavGroup label={t("main")} collapsed={c} />
-        {!isPinned("dashboard") && !isArchived("dashboard") && (
-          <NavItem
-            href="/admin"
-            icon={LayoutDashboard}
-            label={t("dashboard")}
-            active={pathname === "/admin"}
-            collapsed={c}
-            onPin={(e) => togglePinTab("dashboard", t("dashboard"), e)}
-            onArchive={(e) => archiveTab("dashboard", t("dashboard"), e)}
-          />
-        )}
-        {!isPinned("blog") && !isArchived("blog") && (
-          <NavItem
-            href="/admin/blog"
-            icon={Newspaper}
-            label={t("manageBlog")}
-            active={pathname === "/admin/blog" || pathname.startsWith("/admin/blog/")}
-            collapsed={c}
-            onPin={(e) => togglePinTab("blog", t("manageBlog"), e)}
-            onArchive={(e) => archiveTab("blog", t("manageBlog"), e)}
-          />
+        {utamaTabs.length > 0 && (
+          <div className="flex flex-col gap-0.5 w-full">
+            {utamaTabs.map((tab) => renderTabItem(tab, c, false))}
+          </div>
         )}
 
-        {/* Modul & Fitur Grouped Sections */}
-        <NavGroup label={t("modules")} collapsed={c} />
-
-        {/* Akademik & Konten */}
+        {/* Akademik (direct access) */}
         {akademikTabs.length > 0 && (
-          <NavCollapsible
-            id="akademik"
-            key="akademik"
-            icon={BookOpen}
-            label={t("academicContent")}
-            collapsed={c}
-            active={akademikTabs.some((t) => isTabActive(t))}
-            previewItems={akademikTabs.map(tabLabel)}
-          >
-            {akademikTabs.map((tab) => renderTabItem(tab, c, true))}
-          </NavCollapsible>
+          <>
+            <NavGroup label={t("academicContent")} collapsed={c} />
+            <div className="flex flex-col gap-0.5 w-full">
+              {akademikTabs.map((tab) => renderTabItem(tab, c, false))}
+            </div>
+          </>
         )}
 
-        {/* Alat & Komunikasi */}
-        {alatTabs.length > 0 && (
-          <NavCollapsible
-            id="alat"
-            key="alat"
-            icon={FilePen}
-            label={t("toolsCommunication")}
-            collapsed={c}
-            active={alatTabs.some((t) => isTabActive(t))}
-            previewItems={alatTabs.map(tabLabel)}
-          >
-            {alatTabs.map((tab) => renderTabItem(tab, c, true))}
-          </NavCollapsible>
-        )}
-
-        {/* Pengguna & Akses */}
+        {/* Pengguna & Akses (direct access) */}
         {penggunaTabs.length > 0 && (
-          <NavCollapsible
-            id="pengguna"
-            key="pengguna"
-            icon={UserCog}
-            label={t("usersAccess")}
-            collapsed={c}
-            active={penggunaTabs.some((t) => isTabActive(t))}
-            previewItems={penggunaTabs.map(tabLabel)}
-          >
-            {penggunaTabs.map((tab) => renderTabItem(tab, c, true))}
-          </NavCollapsible>
+          <>
+            <NavGroup label={t("usersAccess")} collapsed={c} />
+            <div className="flex flex-col gap-0.5 w-full">
+              {penggunaTabs.map((tab) => renderTabItem(tab, c, false))}
+            </div>
+          </>
         )}
 
-        {/* Sistem & Ops */}
-        {opsTabs.length > 0 && (
-          <NavCollapsible
-            id="ops"
-            key="ops"
-            icon={Settings}
-            label={t("systemOps")}
-            collapsed={c}
-            active={opsTabs.some((t) => isTabActive(t))}
-            previewItems={opsTabs.map(tabLabel)}
-          >
-            {opsTabs.map((tab) => renderTabItem(tab, c, true))}
-          </NavCollapsible>
-        )}
-
-        {/* Tutorial PKA (if unarchived) */}
-        {pkaTabs.length > 0 && (
-          <NavCollapsible
-            id="tutorial-pka"
-            key="tutorial-pka"
-            icon={GraduationCap}
-            label={t("pka")}
-            collapsed={c}
-            active={pkaTabs.some((t) => isTabActive(t))}
-            previewItems={pkaTabs.map(tabLabel)}
-          >
-            {pkaTabs.map((tab) => renderTabItem(tab, c, true))}
-          </NavCollapsible>
-        )}
-
-        {/* Archived Section */}
-        {archivedTabItems.length > 0 && (
+        {/* Secondary Collapsible Groups */}
+        {hasSecondaryGroups && (
           <>
             <div className="h-px bg-border/60 my-2 shrink-0 w-full" />
-            <NavCollapsible
-              id="archived"
-              key="archived"
-              icon={Archive}
-              label={`${t("archivedTabs")} (${archivedTabItems.length})`}
-              collapsed={c}
-              active={archivedTabItems.some((t) => isTabActive(t))}
-              previewItems={archivedTabItems.map(tabLabel)}
-            >
-              <div className="flex flex-col gap-0.5">
-                {archivedTabItems.map((tab) => {
-                  const active = isTabActive(tab);
-                  return (
-                    <div
-                      key={tab.id}
-                      className="group/item flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-body-xs font-medium hover:bg-muted text-muted-foreground hover:text-foreground transition-colors w-full"
-                    >
-                      <Link
-                        href={tab.href}
-                        className="flex items-center gap-2 flex-1 min-w-0 text-left"
-                      >
-                        <tab.icon className="size-3.5 shrink-0" />
-                        <span className={cn("truncate", active && "text-brand-primary font-semibold")}>
-                          {tabLabel(tab)}
-                        </span>
-                        {tab.badge && (
-                          <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider leading-none select-none shrink-0 border border-border/60 bg-muted/60 text-muted-foreground">
-                            {tab.badge}
-                          </span>
-                        )}
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={(e) => restoreTab(tab.id, tabLabel(tab), e)}
-                        title={`${t("restoreTab")} ${tabLabel(tab)}`}
-                        className="opacity-0 group-hover/item:opacity-100 p-1 hover:bg-brand-primary/10 rounded-md text-brand-primary transition-all cursor-pointer shrink-0"
-                      >
-                        <ArchiveRestore className="size-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
+
+            {/* Publikasi & Konten */}
+            {publikasiTabs.length > 0 && (
+              <NavCollapsible
+                id="publikasi"
+                key="publikasi"
+                icon={Megaphone}
+                label={t("publishingContent")}
+                collapsed={c}
+                active={publikasiTabs.some((tab) => isTabActive(tab))}
+                previewItems={publikasiTabs.map(tabLabel)}
+              >
+                {publikasiTabs.map((tab) => renderTabItem(tab, c, true))}
+              </NavCollapsible>
+            )}
+
+            {/* Analitik & Monitor */}
+            {analitikTabs.length > 0 && (
+              <NavCollapsible
+                id="analitik"
+                key="analitik"
+                icon={BarChart3}
+                label={t("analyticsMonitor")}
+                collapsed={c}
+                active={analitikTabs.some((tab) => isTabActive(tab))}
+                previewItems={analitikTabs.map(tabLabel)}
+              >
+                {analitikTabs.map((tab) => renderTabItem(tab, c, true))}
+              </NavCollapsible>
+            )}
+
+            {/* Sistem */}
+            {sistemTabs.length > 0 && (
+              <NavCollapsible
+                id="sistem"
+                key="sistem"
+                icon={Settings}
+                label={t("system")}
+                collapsed={c}
+                active={sistemTabs.some((tab) => isTabActive(tab))}
+                previewItems={sistemTabs.map(tabLabel)}
+              >
+                {sistemTabs.map((tab) => renderTabItem(tab, c, true))}
+              </NavCollapsible>
+            )}
+
+            {/* Tutorial PKA (if unarchived) */}
+            {pkaTabs.length > 0 && (
+              <NavCollapsible
+                id="tutorial-pka"
+                key="tutorial-pka"
+                icon={GraduationCap}
+                label={t("pka")}
+                collapsed={c}
+                active={pkaTabs.some((tab) => isTabActive(tab))}
+                previewItems={pkaTabs.map(tabLabel)}
+              >
+                {pkaTabs.map((tab) => renderTabItem(tab, c, true))}
+              </NavCollapsible>
+            )}
+          </>
+        )}
+
+        {/* Bottom Utility & Archived Section */}
+        {hasBottomSection && (
+          <>
+            <div className="h-px bg-border/60 my-2 shrink-0 w-full" />
+            {utilitasTabs.length > 0 && (
+              <div className="flex flex-col gap-0.5 w-full">
+                {utilitasTabs.map((tab) => renderTabItem(tab, c, false))}
               </div>
-            </NavCollapsible>
+            )}
+            {archivedTabItems.length > 0 && (
+              <NavCollapsible
+                id="archived"
+                key="archived"
+                icon={Archive}
+                label={`${t("archivedTabs")} (${archivedTabItems.length})`}
+                collapsed={c}
+                active={archivedTabItems.some((tab) => isTabActive(tab))}
+                previewItems={archivedTabItems.map(tabLabel)}
+              >
+                <div className="flex flex-col gap-0.5">
+                  {archivedTabItems.map((tab) => {
+                    const active = isTabActive(tab);
+                    return (
+                      <div
+                        key={tab.id}
+                        className="group/item flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-body-xs font-medium hover:bg-muted text-muted-foreground hover:text-foreground transition-colors w-full"
+                      >
+                        <Link
+                          href={tab.href}
+                          className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                        >
+                          <tab.icon className="size-3.5 shrink-0" />
+                          <span className={cn("truncate", active && "text-brand-primary font-semibold")}>
+                            {tabLabel(tab)}
+                          </span>
+                          {tab.badge && (
+                            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider leading-none select-none shrink-0 border border-border/60 bg-muted/60 text-muted-foreground">
+                              {tab.badge}
+                            </span>
+                          )}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={(e) => restoreTab(tab.id, tabLabel(tab), e)}
+                          title={`${t("restoreTab")} ${tabLabel(tab)}`}
+                          className="opacity-0 group-hover/item:opacity-100 p-1 hover:bg-brand-primary/10 rounded-md text-brand-primary transition-all cursor-pointer shrink-0"
+                        >
+                          <ArchiveRestore className="size-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </NavCollapsible>
+            )}
           </>
         )}
 

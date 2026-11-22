@@ -303,11 +303,11 @@ describe("staging feedback UI contracts", () => {
       </QueryClientProvider>,
     );
     const academicIndex = adminHtml.indexOf("Akademik");
-    const toolsIndex = adminHtml.indexOf("Alat");
+    const usersIndex = adminHtml.indexOf("Pengguna dan akses");
     const discussionIndex = adminHtml.indexOf('href="/admin/discussions"');
     expect(academicIndex).toBeGreaterThan(-1);
-    expect(toolsIndex).toBeGreaterThan(academicIndex);
+    expect(usersIndex).toBeGreaterThan(academicIndex);
     expect(discussionIndex).toBeGreaterThan(academicIndex);
-    expect(discussionIndex).toBeLessThan(toolsIndex);
+    expect(discussionIndex).toBeLessThan(usersIndex);
   });
 });

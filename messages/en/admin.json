@@ -85,6 +85,9 @@
     "academicContent": "Academics",
     "toolsCommunication": "Tools & comms",
     "usersAccess": "Users and access",
+    "publishingContent": "Publishing and content",
+    "analyticsMonitor": "Analytics and monitor",
+    "system": "System",
     "systemOps": "System and ops",
     "pka": "PKA tutorials"
   },
