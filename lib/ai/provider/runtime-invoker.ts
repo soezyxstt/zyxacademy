@@ -26,10 +26,11 @@ function runtimeConfigurationError(message: string): ProviderAdapterError {
 }
 
 function providerSlots(environment: RuntimeEnvironment) {
-  const slots = new Map<string, string[]>();
+  const slots = new Map<string, Array<{ key: string; byokAlias: string }>>();
   getProjectAliases(environment).forEach((group, index) => {
-    const key = environment[API_KEY_NAMES[index]]?.trim();
-    if (key) slots.set(group, [...(slots.get(group) ?? []), key]);
+    const key = environment[API_KEY_NAMES[index]]?.trim() ?? "";
+    const byokAlias = `gemini_${index + 1}`;
+    if (key) slots.set(group, [...(slots.get(group) ?? []), { key, byokAlias }]);
   });
   return slots;
 }
@@ -68,7 +69,10 @@ export function createProviderInvokerFromEnvironment(
     const gatewayHeaders = buildAiGatewayHeaders({ ...input, deadlineMs: entry.deadlineMs });
 
     try {
-      const client = googleGatewayClient(slot[Math.floor(Math.random() * slot.length)], environment, entry.deadlineMs, gatewayHeaders);
+      const selected = slot[Math.floor(Math.random() * slot.length)];
+      const client = googleGatewayClient(selected.key, environment, entry.deadlineMs, gatewayHeaders, {
+        preferByokAlias: selected.byokAlias,
+      });
       const adapter = entry.family === "interactions"
         ? createGeminiInteractionsAdapter({ interactions: client.interactions })
         : createGeminiGenerateAdapter({ models: client.models });

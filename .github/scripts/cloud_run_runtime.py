@@ -7,7 +7,7 @@ from urllib.parse import parse_qsl, urlparse
 
 # CI credentials, deployment tokens, build-only switches and mutation opt-ins
 # deliberately do not belong to the application runtime.
-AI_PROVIDER_SETTINGS = {"AI_META_GATEWAY_ROUTE", "AI_COMPATIBLE_GATEWAY_ROUTE"}
+AI_PROVIDER_SETTINGS = {"AI_PROVIDERS", "AI_META_GATEWAY_ROUTE", "AI_COMPATIBLE_GATEWAY_ROUTE"}
 for provider, slots in (("OPENAI", 4), ("META", 5), ("DEEPSEEK", 3), ("COMPATIBLE", 3)):
     AI_PROVIDER_SETTINGS.add(f"AI_{provider}_BYOK_ALIASES")
     for slot in range(1, slots + 1):

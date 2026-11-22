@@ -193,7 +193,9 @@ function prepareProviderThroughControlPlane(input: {
   normalizeInputParts(input.parts, entry);
   const viaGateway = true;
   const headers = buildAiGatewayHeaders({ ...input, deadlineMs: entry.deadlineMs });
-  const client = googleGatewayClient(key.key, zyraRuntimeEnv, entry.deadlineMs, headers);
+  const client = googleGatewayClient(key.key, zyraRuntimeEnv, entry.deadlineMs, headers, {
+    preferByokAlias: key.byokAlias,
+  });
   if (!client) {
     throw new ProviderNotDispatchedError("selected provider client is unavailable");
   }
@@ -375,7 +377,12 @@ export async function generateContentWithFallback(
         const clientLabel = viaGateway ? "gateway" : "direct";
         const startedAt = Date.now();
         try {
-          const providerClient = params.singleDispatch ? singleDispatchClient(googleGatewayClient(key.key, zyraRuntimeEnv, entry.deadlineMs), viaGateway) : client;
+          const providerClient = params.singleDispatch
+            ? singleDispatchClient(
+                googleGatewayClient(key.key, zyraRuntimeEnv, entry.deadlineMs, {}, { preferByokAlias: key.byokAlias }),
+                viaGateway,
+              )
+            : client;
           const adapter = entry.family === "interactions"
             ? createGeminiInteractionsAdapter(withoutInteractionRetries(providerClient))
             : createGeminiGenerateAdapter(providerClient);

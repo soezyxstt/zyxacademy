@@ -27,13 +27,21 @@ class ImportSecretsTest(unittest.TestCase):
         imports = workflow.split("- name: Import allowlisted staging credentials", 1)[1]
         keys = set(re.findall(r"^          ([A-Z][A-Z0-9_]*):", imports, re.MULTILINE))
         self.assertEqual(keys, IMPORT_KEYS | OPTIONAL_IMPORT_KEYS)
-        self.assertIn("PYTHON_RUNTIME_TOKEN_SECRET", IMPORT_KEYS)
+        self.assertTrue(IMPORT_KEYS.isdisjoint(OPTIONAL_IMPORT_KEYS))
+        for required_key in (
+            "PYTHON_RUNTIME_TOKEN_SECRET",
+            "CF_AI_GATEWAY_URL",
+            "CF_AI_GATEWAY_TOKEN",
+            "ZYRA_CONTROL_PLANE_URL",
+            "ZYRA_CONTROL_PLANE_TOKEN",
+        ):
+            self.assertIn(required_key, IMPORT_KEYS)
         self.assertNotIn("FIREBASE_SERVICE_ACCOUNT_JSON", keys)
 
     def test_imports_available_optional_values_without_leaking_them_to_children(self):
         with (
             patch.dict(os.environ, {**staging_environment(), "GOOGLE_REFRESH_TOKEN": "optional-value",
-                                   "CF_AI_GATEWAY_TOKEN": "", "GITHUB_TOKEN": "excluded"}, clear=True),
+                                   "STEEL_API_KEY": "", "GITHUB_TOKEN": "excluded"}, clear=True),
             patch("import_cloud_run_staging_secrets.subprocess.run",
                   return_value=SimpleNamespace(stdout="projects/1/secrets/example/versions/2", returncode=0)) as run,
             patch("builtins.print") as log,
@@ -64,6 +72,8 @@ class ImportSecretsTest(unittest.TestCase):
     def test_rejects_missing_values_or_wrong_target_before_import(self):
         for changes in ({"GITHUB_REF": "refs/heads/main"}, {"GOOGLE_CLIENT_SECRET": ""},
                         {"PYTHON_RUNTIME_TOKEN_SECRET": ""},
+                        {"CF_AI_GATEWAY_URL": ""}, {"CF_AI_GATEWAY_TOKEN": ""},
+                        {"ZYRA_CONTROL_PLANE_URL": ""}, {"ZYRA_CONTROL_PLANE_TOKEN": ""},
                         {"DATABASE_URL": "postgresql://another-user:secret@example.com/neondb?sslmode=verify-full"}):
             with (
                 self.subTest(keys=list(changes)),

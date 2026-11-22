@@ -88,3 +88,44 @@ test("accepts the dedicated Cloud Run staging edge only in staging", () => {
   expect(compatibleSettings({ ...edge, ZYX_ENVIRONMENT: "staging" })).toBeTruthy();
   expect(compatibleSettings({ ...edge, ZYX_ENVIRONMENT: "production" })).toBeNull();
 });
+
+test("uses default AI_PROVIDERS convention aliases and custom-muse route without extra env vars", async () => {
+  const minimalStaging = {
+    BETTER_AUTH_URL: "https://staging.zyxacademy.com",
+    ZYRA_CONTROL_PLANE_URL: "https://example.invalid",
+    ZYRA_CONTROL_PLANE_TOKEN: "test",
+    CF_AI_GATEWAY_URL: "https://gateway.ai.cloudflare.com/v1/account/gateway",
+    CF_AI_GATEWAY_TOKEN: "gateway-token",
+  };
+  const openai = compatibleSettings(minimalStaging, MODEL_IDS.openai);
+  const deepseek = compatibleSettings(minimalStaging, MODEL_IDS.deepseek);
+  const muse = compatibleSettings(minimalStaging, MODEL_IDS.meta);
+  expect(openai?.credentials).toEqual(["openai_1"]);
+  expect(openai?.url).toBe("https://gateway.ai.cloudflare.com/v1/account/gateway/openai/chat/completions");
+  expect(deepseek?.credentials).toEqual(["deepseek_1"]);
+  expect(deepseek?.url).toBe("https://gateway.ai.cloudflare.com/v1/account/gateway/deepseek/chat/completions");
+  expect(muse?.credentials).toEqual(["muse_1"]);
+  expect(muse?.url).toBe("https://gateway.ai.cloudflare.com/v1/account/gateway/custom-muse/chat/completions");
+
+  // AI_PROVIDERS filters out disabled providers cleanly.
+  const onlyOpenAi = { ...minimalStaging, AI_PROVIDERS: "gemini, openai" };
+  expect(compatibleSettings(onlyOpenAi, MODEL_IDS.openai)?.credentials).toEqual(["openai_1"]);
+  expect(compatibleSettings(onlyOpenAi, MODEL_IDS.deepseek)).toBeNull();
+  expect(compatibleSettings(onlyOpenAi, MODEL_IDS.meta)).toBeNull();
+});
+
+test("classifies Cloudflare AI Gateway 400 (2044) as authentication failure", async () => {
+  const fetchMock = spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({
+    success: false,
+    internalCode: 2044,
+    error: [{ code: 2044, message: "Customer-provided provider credentials are required for this request" }],
+  }, { status: 400 }));
+  try {
+    await expect(
+      prepareCompatibleText({ ...input, modelId: MODEL_IDS.openai, projectAlias: "openai" }, {
+        ...env,
+        AI_OPENAI_BYOK_ALIASES: "openai_missing",
+      })(),
+    ).rejects.toMatchObject({ code: "PROVIDER_AUTHENTICATION", retryClassification: "authentication", httpStatus: 400 });
+  } finally { fetchMock.mockRestore(); }
+});

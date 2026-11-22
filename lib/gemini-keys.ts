@@ -8,6 +8,7 @@ import { todayUtc } from '@/lib/date-utils';
 export interface GeminiKey {
   id: string;
   projectAlias: string;
+  byokAlias: string;
   key: string;
   client: GoogleGenAI;
   clientGateway: GoogleGenAI | null;
@@ -86,11 +87,15 @@ export class GeminiKeyPool {
 
     this.keys = keyConfigs.map(({ id, alias, key }) => {
       const slotIndex = Number(id.replace("key", "")) - 1;
+      const byokAlias = `gemini_${slotIndex + 1}`;
       let gateway: GoogleGenAI | undefined;
-      const getClient = () => gateway ??= googleGatewayClient(key, zyraRuntimeEnv);
+      const getClient = () => gateway ??= googleGatewayClient(key, zyraRuntimeEnv, undefined, {}, {
+        preferByokAlias: byokAlias,
+      });
       return {
         id,
         projectAlias: alias ?? aliases[slotIndex],
+        byokAlias,
         key,
         get client() { return getClient(); },
         get clientGateway() { return getClient(); },

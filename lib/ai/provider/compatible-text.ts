@@ -1,5 +1,11 @@
 import { modelDisplayName } from "./recent-models";
-import { gatewayEndpoint } from "./gateway";
+import {
+  conventionByokAliases,
+  enabledGatewayProviders,
+  gatewayEndpoint,
+  isGatewayCredentialsRequiredBody,
+  type GatewayProviderName,
+} from "./gateway";
 import { buildAiGatewayHeaders, type GatewayMetadataInput } from "../gateway-metadata";
 import { logAiRequest } from "../analytics";
 import { createHash, randomInt } from "node:crypto";
@@ -22,11 +28,63 @@ export const standardModels: Readonly<Record<string, string>> = {
   [MODEL_IDS.deepseek]: "deepseek-flash",
 };
 
+const GROUP_TO_GATEWAY_PROVIDER: Readonly<Record<string, GatewayProviderName>> = {
+  openai: "openai",
+  deepseek: "deepseek",
+  meta: "muse",
+};
+
+const DEFAULT_CUSTOM_ROUTES: Readonly<Record<string, string>> = {
+  meta: "custom-muse",
+};
+
+const discoveredByokAliases = new Map<string, readonly string[]>();
+
+export function setDiscoveredByokAliases(group: string, aliases: readonly string[]): void {
+  discoveredByokAliases.set(group, [...aliases]);
+}
+
+export function getDiscoveredByokAliases(group: string): readonly string[] | undefined {
+  return discoveredByokAliases.get(group);
+}
+
+export function clearDiscoveredByokAliasesForTests(): void {
+  discoveredByokAliases.clear();
+}
+
+export function conventionProviderForGroup(group: string): GatewayProviderName | undefined {
+  return GROUP_TO_GATEWAY_PROVIDER[group];
+}
+
 export function compatibleSettings(env: Environment = process.env, id: string = MODEL_IDS.compatibleText) {
   if (!isTextProfile(id)) return null;
   const profile = TEXT_PROFILES[id];
   const model = env[profile.prefix + "_MODEL" + profile.modelSuffix]?.trim() ?? standardModels[id];
-  const aliases = (env[profile.prefix + "_BYOK_ALIASES"] ?? "").split(",").map(alias => alias.trim()).filter(Boolean);
+  const explicitAliases = (env[profile.prefix + "_BYOK_ALIASES"] ?? "")
+    .split(",")
+    .map(alias => alias.trim())
+    .filter(Boolean);
+  const gatewayProvider = GROUP_TO_GATEWAY_PROVIDER[profile.group];
+  const enabledProviders = enabledGatewayProviders(env);
+
+  let aliases: readonly string[];
+  let conventionManaged = false;
+  if (explicitAliases.length > 0) {
+    aliases = explicitAliases;
+  } else if (gatewayProvider && enabledProviders.has(gatewayProvider)) {
+    conventionManaged = true;
+    const discovered = discoveredByokAliases.get(profile.group);
+    if (discovered !== undefined) {
+      aliases = discovered;
+    } else {
+      // On cold start before selector discovery runs, dispatch slot 1 so we
+      // never pick an unconfigured higher slot at random.
+      aliases = [conventionByokAliases(gatewayProvider, 1)[0]];
+    }
+  } else {
+    aliases = [];
+  }
+
   const origin = env.BETTER_AUTH_URL?.replace(/\/$/, "") ?? "";
   const staging = origin === "https://staging.zyxacademy.com" ||
     (env.ZYX_ENVIRONMENT === "staging" && /^https:\/\/zyx-academy-staging-edge\.[a-z0-9-]+\.workers\.dev$/.test(origin));
@@ -34,10 +92,10 @@ export function compatibleSettings(env: Environment = process.env, id: string = 
       !staging ||
       !env.ZYRA_CONTROL_PLANE_URL || !env.ZYRA_CONTROL_PLANE_TOKEN) return null;
   try {
-    const route = profile.route || env[profile.prefix + "_GATEWAY_ROUTE"];
+    const route = profile.route || env[profile.prefix + "_GATEWAY_ROUTE"]?.trim() || DEFAULT_CUSTOM_ROUTES[profile.group];
     if (!route || (!profile.route && !route.startsWith("custom-"))) return null;
     const url = gatewayEndpoint(env.CF_AI_GATEWAY_URL, route) + "/chat/completions";
-    return { url, model, credentials: aliases, token: env.CF_AI_GATEWAY_TOKEN };
+    return { url, model, credentials: [...aliases], token: env.CF_AI_GATEWAY_TOKEN, conventionManaged };
   } catch {
     return null;
   }
@@ -92,6 +150,19 @@ export function prepareCompatibleText(input: ProviderGenerateRequest & Omit<Gate
     try {
       const response = await fetch(settings.url, {method: "POST", redirect: "error", headers, body, signal: AbortSignal.timeout(15000)});
       if (response.status === 401 || response.status === 403) unavailableUntil.set(credentialId(settings.url, credential), Date.now() + 60_000);
+      if (response.status === 400) {
+        const errorBody = await response.clone().json().catch(() => null);
+        if (isGatewayCredentialsRequiredBody(errorBody)) {
+          unavailableUntil.set(credentialId(settings.url, credential), Date.now() + 5 * 60_000);
+          throw new ProviderAdapterError({
+            code: "PROVIDER_AUTHENTICATION",
+            message: "AI Gateway BYOK alias is not configured (2044)",
+            retryClassification: "authentication",
+            modelId: input.modelId,
+            httpStatus: 400,
+          });
+        }
+      }
       if (!response.ok) throw classifyProviderError({status: response.status}, input.modelId);
       const data = await response.json();
       const choice = data?.choices?.[0];

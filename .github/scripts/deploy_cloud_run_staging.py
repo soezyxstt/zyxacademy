@@ -34,7 +34,8 @@ PLAIN_RUNTIME_KEYS = BUILD_KEYS | AI_PROVIDER_SETTINGS | {
 }
 REQUIRED_SECRET_KEYS = set(REQUIRED) - PLAIN_RUNTIME_KEYS | {
     ORIGIN_TOKEN, "INNGEST_SIGNING_KEY", "COMPUTE_SERVICE_SECRET", "DIKTAT_RENDERER_SECRET",
-    "PYTHON_RUNTIME_TOKEN_SECRET",
+    "PYTHON_RUNTIME_TOKEN_SECRET", "CF_AI_GATEWAY_URL", "CF_AI_GATEWAY_TOKEN",
+    "ZYRA_CONTROL_PLANE_TOKEN",
 }
 REVISION = re.compile(r"zyx-academy-staging-web-r([1-9][0-9]*)a([1-9][0-9]*)")
 COMMIT_SHA = re.compile(r"[a-f0-9]{40}")
@@ -123,6 +124,8 @@ def validate_template(spec, config):
     require(provider in ("inngest", "cloud-tasks"), "Invalid staging queue provider.")
     required_secrets = REQUIRED_SECRET_KEYS - ({"INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY"} if provider == "cloud-tasks" else set())
     require(required_secrets <= refs.keys(), "Cloud Run staging runtime is missing required Secret Manager references.")
+    require("ZYRA_CONTROL_PLANE_URL" in plain or "ZYRA_CONTROL_PLANE_URL" in refs,
+            "Cloud Run staging runtime is missing ZYRA_CONTROL_PLANE_URL.")
     require("CF_ACCOUNT_ID" in plain and bool({"CF_API_TOKEN", "CF_BROWSER_API_TOKEN"} & refs.keys()),
             "Cloud Run staging Cloudflare Browser Run settings are incomplete.")
     expected = {
