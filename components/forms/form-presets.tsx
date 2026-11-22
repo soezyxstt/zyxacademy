@@ -49,23 +49,29 @@ async function fetchPresets(): Promise<FormPresetRecord[]> {
   }
 }
 
-export function FormPresetsPanel({
+export function FormPresetsDialogs({
   category,
   questions,
   settings,
+  saveOpen,
+  onSaveOpenChange,
+  loadOpen,
+  onLoadOpenChange,
   onApplyQuestions,
   onApplySettings,
 }: {
   category: FormCategory;
   questions: any[];
   settings: Record<string, any>;
+  saveOpen: boolean;
+  onSaveOpenChange: (open: boolean) => void;
+  loadOpen: boolean;
+  onLoadOpenChange: (open: boolean) => void;
   onApplyQuestions: (questions: any[]) => void;
   onApplySettings: (settings: Record<string, any>) => void;
 }) {
   const t = useTranslations("adminForms");
   const [presets, setPresets] = useState<FormPresetRecord[]>([]);
-  const [saveOpen, setSaveOpen] = useState(false);
-  const [loadOpen, setLoadOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -79,8 +85,16 @@ export function FormPresetsPanel({
   }, []);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    if (loadOpen) {
+      refresh();
+    }
+  }, [loadOpen, refresh]);
+
+  useEffect(() => {
+    if (saveOpen) {
+      setPresetCategory(category);
+    }
+  }, [saveOpen, category]);
 
   const handleSave = async () => {
     if (!presetName.trim()) {
@@ -103,7 +117,7 @@ export function FormPresetsPanel({
       const data = await res.json();
       if (data.success && data.preset) {
         toast.success(t("presets.savedToast"));
-        setSaveOpen(false);
+        onSaveOpenChange(false);
         setPresetName("");
         setPresetDescription("");
         setPresetCategory(category);
@@ -124,7 +138,7 @@ export function FormPresetsPanel({
     if (preset.settings && Object.keys(preset.settings).length > 0) {
       onApplySettings(preset.settings);
     }
-    setLoadOpen(false);
+    onLoadOpenChange(false);
     toast.success(t("presets.appliedToast", { name: preset.name }));
   };
 
@@ -147,36 +161,9 @@ export function FormPresetsPanel({
   };
 
   return (
-    <div className="space-y-2">
-      <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
-        {t("presets.title")}
-      </p>
-
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full justify-start text-body-xs font-semibold"
-        onClick={() => setSaveOpen(true)}
-      >
-        <Bookmark className="size-3.5 text-brand-primary" />
-        {t("presets.save")}
-      </Button>
-
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full justify-start text-body-xs font-semibold"
-        onClick={() => {
-          refresh();
-          setLoadOpen(true);
-        }}
-      >
-        <FolderOpen className="size-3.5 text-brand-primary" />
-        {t("presets.load")}
-      </Button>
-
+    <>
       {/* Save Preset Dialog */}
-      <Dialog open={saveOpen} onOpenChange={(open) => !open && setSaveOpen(false)}>
+      <Dialog open={saveOpen} onOpenChange={onSaveOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("presets.saveTitle")}</DialogTitle>
@@ -244,7 +231,7 @@ export function FormPresetsPanel({
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setSaveOpen(false)} disabled={saving}>
+            <Button variant="outline" onClick={() => onSaveOpenChange(false)} disabled={saving}>
               {t("presets.cancel")}
             </Button>
             <Button onClick={handleSave} disabled={saving} isLoading={saving}>
@@ -255,7 +242,7 @@ export function FormPresetsPanel({
       </Dialog>
 
       {/* Load Preset Dialog */}
-      <Dialog open={loadOpen} onOpenChange={(open) => !open && setLoadOpen(false)}>
+      <Dialog open={loadOpen} onOpenChange={onLoadOpenChange}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>{t("presets.loadTitle")}</DialogTitle>
@@ -278,7 +265,7 @@ export function FormPresetsPanel({
                   <div className="min-w-0 flex-1 basis-36 space-y-1">
                     <p className="wrap-anywhere text-body-sm font-semibold text-foreground">{preset.name}</p>
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge variant="secondary" className="bg-brand-primary/10 text-brand-primary text-[10px] font-semibold uppercase tracking-wider">
+                      <Badge variant="secondary" className="bg-brand-primary/10 text-brand-primary text-body-2xs font-semibold">
                         {["survey", "feedback", "quiz", "registration"].includes(preset.category) ? t(`presets.${preset.category}`) : preset.category}
                       </Badge>
                       <span className="text-body-xs text-muted-foreground">
@@ -318,6 +305,64 @@ export function FormPresetsPanel({
           </div>
         </DialogContent>
       </Dialog>
+    </>
+  );
+}
+
+export function FormPresetsPanel({
+  category,
+  questions,
+  settings,
+  onApplyQuestions,
+  onApplySettings,
+}: {
+  category: FormCategory;
+  questions: any[];
+  settings: Record<string, any>;
+  onApplyQuestions: (questions: any[]) => void;
+  onApplySettings: (settings: Record<string, any>) => void;
+}) {
+  const t = useTranslations("adminForms");
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [loadOpen, setLoadOpen] = useState(false);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-body-xs font-semibold text-muted-foreground">
+        {t("presets.title")}
+      </p>
+
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full justify-start text-body-sm"
+        onClick={() => setSaveOpen(true)}
+      >
+        <Bookmark className="size-3.5 text-brand-primary" />
+        {t("presets.save")}
+      </Button>
+
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full justify-start text-body-sm"
+        onClick={() => setLoadOpen(true)}
+      >
+        <FolderOpen className="size-3.5 text-brand-primary" />
+        {t("presets.load")}
+      </Button>
+
+      <FormPresetsDialogs
+        category={category}
+        questions={questions}
+        settings={settings}
+        saveOpen={saveOpen}
+        onSaveOpenChange={setSaveOpen}
+        loadOpen={loadOpen}
+        onLoadOpenChange={setLoadOpen}
+        onApplyQuestions={onApplyQuestions}
+        onApplySettings={onApplySettings}
+      />
     </div>
   );
 }
