@@ -213,6 +213,8 @@ describe("Tauri v2 updater manifest generation and channel selection", () => {
       writeFileSync(join(dir, "zyx-macos-aarch64.app.tar.gz.sig"), "MAC_SIG_DATA\n");
       writeFileSync(join(dir, "zyx-linux-x64.AppImage"), "binary");
       writeFileSync(join(dir, "zyx-linux-x64.AppImage.sig"), "LINUX_SIG_DATA\n");
+      writeFileSync(join(dir, "zyx-linux-x64.deb"), "binary");
+      writeFileSync(join(dir, "zyx-linux-x64.deb.sig"), "DEB_SIG_DATA\n");
 
       const manifest = buildUpdaterManifest({
         version: "v0.2.0-alpha.5",
@@ -238,6 +240,10 @@ describe("Tauri v2 updater manifest generation and channel selection", () => {
           "linux-x86_64": {
             signature: "LINUX_SIG_DATA",
             url: "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.2.0-alpha.5-nightly.20261121.abc1234/zyx-linux-x64.AppImage",
+          },
+          "linux-x86_64-deb": {
+            signature: "DEB_SIG_DATA",
+            url: "https://github.com/soezyxstt/zyxacademy/releases/download/app-v0.2.0-alpha.5-nightly.20261121.abc1234/zyx-linux-x64.deb",
           },
         },
       });
@@ -328,6 +334,54 @@ describe("Tauri native updater bridge and graceful fallback", () => {
     });
     expect(outcome).toEqual({ status: "started" });
     expect(invoked).toEqual(["install_native_update", "download_and_launch_update"]);
+  });
+
+  test("uses the AppImage asset and reports restart for a Nightly AppImage", async () => {
+    const invoked: unknown[] = [];
+    globalThis.window = {
+      __TAURI_INTERNALS__: {},
+      __TAURI__: {
+        core: {
+          invoke: async (command: string, args: unknown) => {
+            invoked.push({ command, args });
+            return "restarting";
+          },
+        },
+      },
+    } as unknown as Window & typeof globalThis;
+
+    const release = { ...SAMPLE_RELEASE, channel: "nightly" as const };
+    const meta: InstalledAppMeta = {
+      runtime: "tauri",
+      channel: "nightly",
+      version: "0.1.0",
+      buildId: null,
+      platform: "linux",
+      appImage: true,
+    };
+    expect(await installAppUpdate(meta, release)).toEqual({ status: "restarting" });
+    expect(invoked).toEqual([{
+      command: "download_and_launch_update",
+      args: { url: release.downloads.linuxAppImage },
+    }]);
+  });
+
+  test("returns the verified download path for manual AppImage replacement", async () => {
+    const path = "/tmp/Zyx Academy.AppImage";
+    globalThis.window = {
+      __TAURI_INTERNALS__: {},
+      __TAURI__: {
+        core: {
+          invoke: async () => {
+            throw `APPIMAGE_MANUAL_REPLACE:${path}`;
+          },
+        },
+      },
+    } as unknown as Window & typeof globalThis;
+
+    const release = { ...SAMPLE_RELEASE, channel: "nightly" as const };
+    const meta = { ...INSTALLED_META, channel: "nightly", platform: "linux", appImage: true } as const;
+    expect(await installAppUpdate(meta, release)).toEqual({ status: "manual_appimage_replace", path });
   });
 
   test("surfaces signature or download errors from signed native updater without silent bypass", async () => {

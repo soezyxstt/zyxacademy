@@ -22,6 +22,7 @@ export interface InstalledAppMeta {
   version: string;
   buildId: string | null;
   platform: AppUpdatePlatform;
+  appImage?: boolean;
 }
 
 export interface LatestAppRelease {
@@ -308,6 +309,7 @@ export async function getInstalledAppMeta(): Promise<InstalledAppMeta | null> {
           channel: AppUpdateChannel;
           buildId: string;
           platform: AppUpdatePlatform;
+          appImage?: boolean;
         }>("get_app_update_info");
         if (info?.version) {
           return {
@@ -316,6 +318,7 @@ export async function getInstalledAppMeta(): Promise<InstalledAppMeta | null> {
             version: info.version,
             buildId: info.buildId && info.buildId !== "dev" ? info.buildId : null,
             platform: info.platform,
+            ...(info.appImage ? { appImage: true } : {}),
           };
         }
       } catch {
@@ -523,6 +526,7 @@ export type InstallUpdateOutcome =
   | { status: "started" }
   | { status: "restarting" }
   | { status: "permission_required" }
+  | { status: "manual_appimage_replace"; path: string }
   | { status: "opened_external" }
   | { status: "error"; message: string };
 
@@ -532,7 +536,10 @@ export async function installAppUpdate(
   onProgress?: (percent: number) => void,
   options?: { preferNativeUpdater?: boolean },
 ): Promise<InstallUpdateOutcome> {
-  const downloadUrl = selectDownloadUrlForPlatform(release, meta.platform);
+  const downloadUrl =
+    meta.channel === "nightly" && meta.platform === "linux" && meta.appImage
+      ? release.downloads.linuxAppImage
+      : selectDownloadUrlForPlatform(release, meta.platform);
 
   if (meta.runtime === "capacitor" && meta.platform === "android") {
     const updater = getCapacitor()?.Plugins?.ZyxAppUpdater;
@@ -604,11 +611,17 @@ export async function installAppUpdate(
         }
 
         if (downloadUrl) {
-          await tauri.core.invoke("download_and_launch_update", { url: downloadUrl });
-          return { status: "started" };
+          const outcome = await tauri.core.invoke<string>("download_and_launch_update", {
+            url: downloadUrl,
+          });
+          return { status: outcome === "restarting" ? "restarting" : "started" };
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
+        const manualPrefix = "APPIMAGE_MANUAL_REPLACE:";
+        if (msg.startsWith(manualPrefix)) {
+          return { status: "manual_appimage_replace", path: msg.slice(manualPrefix.length) };
+        }
         return { status: "error", message: msg };
       } finally {
         unlisten?.();

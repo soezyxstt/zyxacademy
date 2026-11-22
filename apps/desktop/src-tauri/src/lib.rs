@@ -1,3 +1,4 @@
+mod update_delta;
 mod window_state;
 
 use futures_util::StreamExt;
@@ -340,6 +341,7 @@ struct AppUpdateInfo {
     channel: &'static str,
     build_id: &'static str,
     platform: &'static str,
+    app_image: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -393,7 +395,7 @@ fn deep_link_scheme() -> &'static str {
     }
 }
 
-fn validate_update_download_url(raw_url: &str) -> Result<(Url, String), String> {
+fn validate_release_asset(raw_url: &str) -> Result<(Url, String), String> {
     let lower_raw = raw_url.to_ascii_lowercase();
     if lower_raw.contains("..")
         || lower_raw.contains("%2e")
@@ -438,6 +440,12 @@ fn validate_update_download_url(raw_url: &str) -> Result<(Url, String), String> 
         return Err("Invalid update file name".to_string());
     }
 
+    let asset_name = asset.to_string();
+    Ok((parsed, asset_name))
+}
+
+fn validate_update_download_url(raw_url: &str) -> Result<(Url, String), String> {
+    let (parsed, asset) = validate_release_asset(raw_url)?;
     let lower_asset = asset.to_ascii_lowercase();
     let allowed_ext = lower_asset.ends_with(".exe")
         || lower_asset.ends_with(".dmg")
@@ -447,8 +455,16 @@ fn validate_update_download_url(raw_url: &str) -> Result<(Url, String), String> 
         return Err("Unsupported update file type".to_string());
     }
 
-    let asset_name = asset.to_string();
-    Ok((parsed, asset_name))
+    Ok((parsed, asset))
+}
+
+fn is_staging_nightly_asset(url: &Url, asset: &str) -> bool {
+    build_channel() == "nightly"
+        && asset.starts_with("zyx-academy-nightly-")
+        && url
+            .path_segments()
+            .and_then(|mut segments| segments.nth(4))
+            .is_some_and(|tag| tag.starts_with("app-v") && tag.contains("-nightly."))
 }
 
 fn is_allowed_redirect_host(host: &str) -> bool {
@@ -465,6 +481,7 @@ fn get_app_update_info() -> AppUpdateInfo {
         channel: build_channel(),
         build_id: build_sha(),
         platform: desktop_platform(),
+        app_image: cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_some(),
     }
 }
 
@@ -519,13 +536,13 @@ async fn check_native_updater(app: AppHandle) -> Result<NativeUpdaterCheckResult
     };
 
     match updater.check().await {
-        Ok(Some(update)) => Ok(NativeUpdaterCheckResult {
+        Ok(Some(update)) if matches_installed_bundle(&update) => Ok(NativeUpdaterCheckResult {
             configured: true,
             update_available: true,
             version: Some(update.version),
             notes: update.body,
         }),
-        Ok(None) => Ok(NativeUpdaterCheckResult {
+        Ok(_) => Ok(NativeUpdaterCheckResult {
             configured: true,
             update_available: false,
             version: None,
@@ -533,6 +550,18 @@ async fn check_native_updater(app: AppHandle) -> Result<NativeUpdaterCheckResult
         }),
         Err(err) => Err(format!("Updater check failed: {err}")),
     }
+}
+
+fn matches_installed_bundle(update: &tauri_plugin_updater::Update) -> bool {
+    #[cfg(target_os = "linux")]
+    if build_channel() == "nightly" {
+        use tauri::utils::config::BundleType;
+        if matches!(tauri::utils::platform::bundle_type(), Some(BundleType::Deb)) {
+            return update.download_url.path().ends_with(".deb");
+        }
+    }
+    let _ = update;
+    true
 }
 
 #[tauri::command]
@@ -552,44 +581,114 @@ async fn install_native_update(app: AppHandle) -> Result<String, String> {
         return Err("NO_UPDATE_AVAILABLE".to_string());
     };
 
+    if !matches_installed_bundle(&update) {
+        return Err("NO_UPDATE_AVAILABLE".to_string());
+    }
+    let guard = lock_update()?;
     let progress_app = app.clone();
     let mut downloaded: u64 = 0;
     let mut last_percent: u8 = 0;
 
-    update
-        .download_and_install(
-            move |chunk_length, content_length| {
-                downloaded = downloaded.saturating_add(chunk_length as u64);
-                if let Some(total) = content_length.filter(|&v| v > 0) {
-                    let percent = ((downloaded.saturating_mul(100)) / total).min(100) as u8;
-                    if percent != last_percent {
-                        last_percent = percent;
-                        let _ = progress_app
-                            .emit("zyx-update-progress", UpdateProgressPayload { percent });
-                    }
-                }
-            },
-            || {},
-        )
-        .await
-        .map_err(|e| format!("Failed to install update: {e}"))?;
+    let report_progress = move |chunk_length: usize, content_length: Option<u64>| {
+        downloaded = downloaded.saturating_add(chunk_length as u64);
+        if let Some(total) = content_length.filter(|&v| v > 0) {
+            let percent = ((downloaded.saturating_mul(100)) / total).min(100) as u8;
+            if percent != last_percent {
+                last_percent = percent;
+                let _ = progress_app.emit("zyx-update-progress", UpdateProgressPayload { percent });
+            }
+        }
+    };
 
-    let _ = app.emit("zyx-update-progress", UpdateProgressPayload { percent: 100 });
+    let nightly_asset = validate_release_asset(update.download_url.as_str())
+        .ok()
+        .filter(|(url, asset)| is_staging_nightly_asset(url, asset));
+    if let Some((url, asset)) = nightly_asset {
+        let cache = app
+            .path()
+            .app_cache_dir()
+            .ok()
+            .map(|dir| dir.join("updates").join("signed-package"));
+        let mut bytes = None;
+        if let Some(base) = cache.as_deref().and_then(update_delta::read_base) {
+            if update.verify(&base).is_ok() {
+                bytes = Some(base);
+            } else if let Ok(client) = installer_client() {
+                bytes = update_delta::download(&client, &url, &asset, &base)
+                    .await
+                    .filter(|target| update.verify(target).is_ok());
+            }
+        }
+        #[cfg(target_os = "linux")]
+        if bytes.is_none() && asset.ends_with(".AppImage") {
+            if let (Some(base), Ok(client)) = (
+                std::env::var_os("APPIMAGE")
+                    .as_deref()
+                    .and_then(|path| update_delta::read_base(std::path::Path::new(path))),
+                installer_client(),
+            ) {
+                bytes = update_delta::download(&client, &url, &asset, &base)
+                    .await
+                    .filter(|target| update.verify(target).is_ok());
+            }
+        }
+        let bytes = match bytes {
+            Some(bytes) => bytes,
+            None => update
+                .download(report_progress, || {})
+                .await
+                .map_err(|e| format!("Failed to download update: {e}"))?,
+        };
+        if let Some(path) = cache.as_deref() {
+            let _ = update_delta::cache(path, &bytes);
+        }
+        update.install(&bytes)
+    } else {
+        update.download_and_install(report_progress, || {}).await
+    }
+    .map_err(|e| format!("Failed to install update: {e}"))?;
 
-    let restart_handle = app.clone();
+    let _ = app.emit(
+        "zyx-update-progress",
+        UpdateProgressPayload { percent: 100 },
+    );
+
+    restart_after_update(app, guard);
+    Ok("restarting".to_string())
+}
+
+fn restart_after_update(restart_handle: AppHandle, guard: UpdateGuard) {
     std::thread::spawn(move || {
+        let _guard = guard;
         std::thread::sleep(std::time::Duration::from_millis(250));
         window_state::flush_window_state(&restart_handle);
         restart_handle.restart();
     });
-
-    Ok("restarting".to_string())
 }
 
-#[tauri::command]
-async fn download_and_launch_update(app: AppHandle, url: String) -> Result<String, String> {
-    let (parsed, file_name) = validate_update_download_url(&url)?;
+static INSTALLING_UPDATE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+struct UpdateGuard;
+
+impl Drop for UpdateGuard {
+    fn drop(&mut self) {
+        INSTALLING_UPDATE.store(false, std::sync::atomic::Ordering::Release);
+    }
+}
+
+fn lock_update() -> Result<UpdateGuard, String> {
+    INSTALLING_UPDATE
+        .compare_exchange(
+            false,
+            true,
+            std::sync::atomic::Ordering::Acquire,
+            std::sync::atomic::Ordering::Relaxed,
+        )
+        .map(|_| UpdateGuard)
+        .map_err(|_| "An update is already being installed".to_string())
+}
+
+fn installer_client() -> Result<reqwest::Client, String> {
     let redirect_policy = reqwest::redirect::Policy::custom(|attempt| {
         if attempt.previous().len() >= 5 {
             return attempt.error("Too many redirects");
@@ -606,21 +705,18 @@ async fn download_and_launch_update(app: AppHandle, url: String) -> Result<Strin
         }
     });
 
-    let client = reqwest::Client::builder()
+    reqwest::Client::builder()
         .redirect(redirect_policy)
         .user_agent("ZyxAcademyUpdater/1.0")
         .build()
-        .map_err(|e| format!("Failed to initialize updater client: {e}"))?;
+        .map_err(|e| format!("Failed to initialize updater client: {e}"))
+}
 
-    let response = client
-        .get(parsed)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to download update: {e}"))?;
-
-    if !response.status().is_success() {
-        return Err(format!("Download failed with HTTP {}", response.status()));
-    }
+#[tauri::command]
+async fn download_and_launch_update(app: AppHandle, url: String) -> Result<String, String> {
+    let (parsed, file_name) = validate_update_download_url(&url)?;
+    let guard = lock_update()?;
+    let client = installer_client()?;
 
     let cache_root = app
         .path()
@@ -630,8 +726,154 @@ async fn download_and_launch_update(app: AppHandle, url: String) -> Result<Strin
     std::fs::create_dir_all(&update_dir)
         .map_err(|e| format!("Failed to create updates directory: {e}"))?;
     let target_path = update_dir.join(&file_name);
+    let nightly = is_staging_nightly_asset(&parsed, &file_name);
 
-    let mut file = std::fs::File::create(&target_path)
+    if nightly && !has_updater_config(&app) && supports_installed_executable_patch(&file_name) {
+        if let Ok(executable) = std::env::current_exe() {
+            if let Some(bytes) =
+                update_delta::download_installer(&client, &parsed, &file_name, &executable).await
+            {
+                // Keep the reconstructed installer out of the full installer cache.
+                let reconstructed = update_dir.join(format!("delta-{file_name}"));
+                if update_delta::cache(&reconstructed, &bytes).is_ok() {
+                    if let Ok(result) = launch_installer(&app, &reconstructed, &file_name) {
+                        let _ = app.emit(
+                            "zyx-update-progress",
+                            UpdateProgressPayload { percent: 100 },
+                        );
+                        return Ok(result);
+                    }
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    let installed_app_image = if nightly && file_name.ends_with(".AppImage") {
+        let target = parsed
+            .path_segments()
+            .and_then(|mut segments| segments.nth(4))
+            .and_then(|tag| tag.strip_prefix("app-v"))
+            .and_then(|tag| tag.rsplit_once("-nightly."))
+            .and_then(|(version, suffix)| {
+                let (_, build_id) = suffix.split_once('.')?;
+                let version = semver::Version::parse(version).ok()?;
+                Some((version, build_id))
+            });
+        let installed_version = &app.package_info().version;
+        if target.as_ref().is_none_or(|(version, build_id)| {
+            version < installed_version
+                || (version == installed_version && build_id.eq_ignore_ascii_case(build_sha()))
+        }) {
+            return Err("AppImage update is older or already installed".to_string());
+        }
+        app.env()
+            .appimage
+            .and_then(|path| std::fs::canonicalize(path).ok())
+    } else {
+        None
+    };
+    #[cfg(not(target_os = "linux"))]
+    let installed_app_image: Option<std::path::PathBuf> = None;
+
+    let mut reconstructed = false;
+    if nightly {
+        let base_path = installed_app_image
+            .clone()
+            .or_else(|| cached_installer(&update_dir, &file_name));
+        if let Some(base) = base_path.as_deref().and_then(update_delta::read_base) {
+            if let Some(bytes) = update_delta::download(&client, &parsed, &file_name, &base).await {
+                if update_delta::matches_release_checksum(&client, &parsed, &file_name, &bytes)
+                    .await
+                    .is_some()
+                    && update_delta::cache(&target_path, &bytes).is_ok()
+                {
+                    reconstructed = true;
+                }
+            }
+        }
+    }
+
+    if !reconstructed {
+        download_installer(&app, &client, &parsed, &target_path).await?;
+    }
+    let _ = app.emit(
+        "zyx-update-progress",
+        UpdateProgressPayload { percent: 100 },
+    );
+
+    #[cfg(target_os = "linux")]
+    if let Some(path) = installed_app_image {
+        let bytes = update_delta::read_base(&target_path)
+            .filter(|bytes| bytes.starts_with(b"\x7fELF") && bytes.get(8..11) == Some(b"AI\x02"))
+            .ok_or_else(|| "Invalid AppImage update".to_string())?;
+        if !reconstructed
+            && update_delta::matches_release_checksum(&client, &parsed, &file_name, &bytes)
+                .await
+                .is_none()
+        {
+            return Err("Could not verify the AppImage release checksum".to_string());
+        }
+        if replace_app_image(&path, &bytes).is_ok() {
+            restart_after_update(app, guard);
+            return Ok("restarting".to_string());
+        }
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&target_path, std::fs::Permissions::from_mode(0o755))
+            .map_err(|e| format!("Could not prepare the downloaded AppImage: {e}"))?;
+        return Err(format!("APPIMAGE_MANUAL_REPLACE:{}", target_path.display()));
+    }
+
+    let result = launch_installer(&app, &target_path, &file_name);
+    drop(guard);
+    result
+}
+
+fn supports_installed_executable_patch(file_name: &str) -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        use tauri::utils::config::BundleType;
+        file_name.ends_with(".deb")
+            && matches!(tauri::utils::platform::bundle_type(), Some(BundleType::Deb))
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        cfg!(target_os = "windows") && file_name.ends_with(".exe")
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn replace_app_image(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    let directory = path.parent().ok_or(std::io::ErrorKind::InvalidInput)?;
+    let mut temp = tempfile::NamedTempFile::new_in(directory)?;
+    temp.write_all(bytes)?;
+    temp.as_file()
+        .set_permissions(std::fs::metadata(path)?.permissions())?;
+    temp.as_file().sync_all()?;
+    temp.persist(path)?;
+    Ok(())
+}
+
+async fn download_installer(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    url: &Url,
+    target: &std::path::Path,
+) -> Result<(), String> {
+    let response = client
+        .get(url.clone())
+        .send()
+        .await
+        .map_err(|e| format!("Failed to download update: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Download failed with HTTP {}", response.status()));
+    }
+
+    let directory = target
+        .parent()
+        .ok_or_else(|| "Missing installer directory".to_string())?;
+    let mut file = tempfile::NamedTempFile::new_in(directory)
         .map_err(|e| format!("Failed to create installer file: {e}"))?;
 
     let total_size = response.content_length().unwrap_or(0);
@@ -655,13 +897,41 @@ async fn download_and_launch_update(app: AppHandle, url: String) -> Result<Strin
 
     file.flush()
         .map_err(|e| format!("Failed to finalize update file: {e}"))?;
-    drop(file);
+    file.persist(target)
+        .map_err(|e| format!("Failed to finalize installer file: {e}"))?;
+    Ok(())
+}
 
+fn cached_installer(directory: &std::path::Path, target: &str) -> Option<std::path::PathBuf> {
+    let (_, extension) = target.rsplit_once('.')?;
+    std::fs::read_dir(directory)
+        .ok()?
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let path = entry.path();
+            let name = path.file_name()?.to_str()?;
+            if !name.starts_with("zyx-academy-nightly-")
+                || name == target
+                || path.extension().and_then(|ext| ext.to_str()) != Some(extension)
+            {
+                return None;
+            }
+            Some((entry.metadata().ok()?.modified().ok()?, path))
+        })
+        .max_by_key(|(modified, _)| *modified)
+        .map(|(_, path)| path)
+}
+
+fn launch_installer(
+    app: &AppHandle,
+    target_path: &std::path::Path,
+    file_name: &str,
+) -> Result<String, String> {
     #[cfg(unix)]
     {
         if file_name.to_ascii_lowercase().ends_with(".appimage") {
             use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(&target_path, std::fs::Permissions::from_mode(0o755));
+            let _ = std::fs::set_permissions(target_path, std::fs::Permissions::from_mode(0o755));
         }
     }
 

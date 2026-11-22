@@ -128,6 +128,15 @@ async function triggerInstall() {
     return;
   }
 
+  if (outcome.status === "manual_appimage_replace") {
+    setState({
+      downloading: false,
+      progress: null,
+      error: `Tutup Zyx Academy, lalu ganti AppImage lama dengan berkas di ${outcome.path}.`,
+    });
+    return;
+  }
+
   if (outcome.status === "error") {
     setState({
       downloading: false,
@@ -441,7 +450,7 @@ export function AppUpdateControl({ variant }: AppUpdateControlProps) {
         )}
 
         {snapshot.error && (
-          <p role="alert" className="text-body-xs text-destructive">
+          <p role="alert" className="break-words text-body-xs text-destructive">
             {snapshot.error}
           </p>
         )}

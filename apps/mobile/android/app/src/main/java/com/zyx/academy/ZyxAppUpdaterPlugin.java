@@ -2,6 +2,7 @@ package com.zyx.academy;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
@@ -124,7 +125,17 @@ public class ZyxAppUpdaterPlugin extends Plugin {
                     return;
                 }
                 File apkFile = new File(updatesDir, "zyx-update.apk");
-                downloadWithValidatedRedirects(downloadUrl, apkFile);
+                if (!tryNightlyDelta(context, downloadUrl, updatesDir, apkFile)) {
+                    File pending = File.createTempFile("pending-", ".apk", updatesDir);
+                    try {
+                        downloadWithValidatedRedirects(downloadUrl, pending, Long.MAX_VALUE, true);
+                        if (!pending.renameTo(apkFile)) {
+                            throw new IOException("Could not prepare the APK for installation");
+                        }
+                    } finally {
+                        pending.delete();
+                    }
+                }
 
                 Uri apkUri = FileProvider.getUriForFile(
                     context,
@@ -146,7 +157,59 @@ public class ZyxAppUpdaterPlugin extends Plugin {
         });
     }
 
-    private void downloadWithValidatedRedirects(String initialUrl, File targetFile) throws IOException {
+    private boolean tryNightlyDelta(Context context, String url, File directory, File apk) {
+        if (!"com.zyx.academy.nightly".equals(context.getPackageName())
+            || !url.matches("https://github\\.com/soezyxstt/zyxacademy/releases/download/"
+                + "app-v[0-9A-Za-z.-]+-nightly\\.[0-9]{8}\\.[a-f0-9]{7}/zyx-academy-nightly-[0-9A-Za-z.-]+\\.apk")) {
+            return false;
+        }
+        File patch = null;
+        File reconstructed = null;
+        File checksums = null;
+        try {
+            File base = new File(context.getApplicationInfo().sourceDir);
+            byte[] baseDigest = NightlyUpdateDelta.digest(base);
+            int separator = url.lastIndexOf('/');
+            checksums = File.createTempFile("checksums-", ".txt", directory);
+            downloadWithValidatedRedirects(url.substring(0, separator + 1) + "SHA256SUMS.txt", checksums, 65536, false);
+            String expectedHash;
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(checksums))) {
+                expectedHash = NightlyUpdateDelta.releaseChecksum(reader, url.substring(separator + 1));
+            }
+            if (expectedHash == null) return false;
+            String patchUrl = url + ".from-" + NightlyUpdateDelta.hex(baseDigest) + ".zyxdelta";
+            patch = File.createTempFile("delta-", ".tmp", directory);
+            reconstructed = File.createTempFile("pending-", ".apk", directory);
+            try {
+                downloadWithValidatedRedirects(patchUrl + "-apk.gz", patch, NightlyUpdateDelta.MAX_BYTES, false);
+                NightlyUpdateDelta.applyApk(base, baseDigest, patch, reconstructed);
+                NightlyUpdateDelta.verifyChecksum(reconstructed, expectedHash);
+            } catch (IOException optimizedPatchUnavailable) {
+                downloadWithValidatedRedirects(patchUrl, patch, NightlyUpdateDelta.MAX_BYTES, false);
+                NightlyUpdateDelta.apply(base, baseDigest, patch, reconstructed);
+                NightlyUpdateDelta.verifyChecksum(reconstructed, expectedHash);
+            }
+            PackageInfo packageInfo = context.getPackageManager().getPackageArchiveInfo(reconstructed.getPath(), 0);
+            if (packageInfo == null || !context.getPackageName().equals(packageInfo.packageName)
+                || !reconstructed.renameTo(apk)) {
+                return false;
+            }
+            JSObject progress = new JSObject();
+            progress.put("percent", 100);
+            notifyListeners("downloadProgress", progress);
+            return true;
+        } catch (IOException ex) {
+            return false;
+        } finally {
+            if (checksums != null) checksums.delete();
+            if (patch != null) patch.delete();
+            if (reconstructed != null) reconstructed.delete();
+        }
+    }
+
+    private void downloadWithValidatedRedirects(
+        String initialUrl, File targetFile, long maxBytes, boolean reportProgress
+    ) throws IOException {
         String currentUrl = initialUrl;
         HttpURLConnection conn = null;
 
@@ -182,6 +245,10 @@ public class ZyxAppUpdaterPlugin extends Plugin {
             }
 
             long totalLength = conn.getContentLengthLong();
+            if (totalLength > maxBytes) {
+                conn.disconnect();
+                throw new IOException("Update download exceeds size limit");
+            }
             long downloaded = 0;
             int lastPercent = -1;
 
@@ -192,9 +259,12 @@ public class ZyxAppUpdaterPlugin extends Plugin {
                 byte[] buffer = new byte[16384];
                 int read;
                 while ((read = in.read(buffer)) != -1) {
+                    if (read > maxBytes - downloaded) {
+                        throw new IOException("Update download exceeds size limit");
+                    }
                     out.write(buffer, 0, read);
                     downloaded += read;
-                    if (totalLength > 0) {
+                    if (reportProgress && totalLength > 0) {
                         int percent = (int) Math.min(100, (downloaded * 100) / totalLength);
                         if (percent != lastPercent) {
                             lastPercent = percent;

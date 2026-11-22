@@ -85,6 +85,10 @@ cd ios/App && pod install
 npm run open:ios
 ```
 
+## Nightly updates
+
+Android Nightly can download a patch against the installed APK and apply the reconstructed package through Android. iOS uses TestFlight. See the [Nightly release procedure](../../docs/DEPLOYMENT.md#nightly-native-app-releases).
+
 ## Offline Fallback
 
 When the remote Zyx Academy URL cannot be reached, Capacitor loads `www/index.html` (`server.errorPath`). It provides an Indonesian and English retry screen and a direct link to `/offline` for saved readings.

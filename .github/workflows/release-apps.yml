@@ -72,6 +72,15 @@ jobs:
 
           VERSION="${VERSION#v}"
 
+          if [[ "$CHANNEL" == "nightly" && "$GITHUB_REF" != "refs/heads/staging" ]]; then
+            echo "::error::Nightly releases must be built from staging."
+            exit 1
+          fi
+          if [[ "$CHANNEL" == "nightly" && ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Enter a valid release version."
+            exit 1
+          fi
+
           if [[ "$CHANNEL" == "nightly" ]]; then
             TAG="app-v${VERSION}-nightly.${DATE_STAMP}.${SHORT_SHA}"
             RELEASE_TITLE="Zyx Academy Nightly v${VERSION} (${DATE_STAMP})"
@@ -204,9 +213,39 @@ jobs:
             copy_first "*.AppImage.tar.gz" "AppImage.tar.gz"
             copy_first "*.AppImage.tar.gz.sig" "AppImage.tar.gz.sig"
             copy_first "*.deb" "deb"
+            if [[ "${{ needs.prepare.outputs.channel }}" == "nightly" ]]; then
+              copy_first "*.deb.sig" "deb.sig"
+            fi
           fi
 
           ls -lh release-artifacts
+
+      - name: Bundle Windows patch target
+        if: matrix.platform == 'windows' && needs.prepare.outputs.channel == 'nightly'
+        continue-on-error: true
+        working-directory: apps/desktop
+        shell: bash
+        env:
+          ZYX_APP_VERSION: ${{ needs.prepare.outputs.version }}
+          FILE_PREFIX: ${{ needs.prepare.outputs.file_prefix }}
+        run: |
+          set -euo pipefail
+          node scripts/tauri-channel.mjs bundle nightly --bundles nsis --config src-tauri/tauri.delta-windows.conf.json
+          original="src-tauri/target/release/bundle/nsis"
+          package=$(find "$original" -maxdepth 1 -type f -name '*.exe' -print -quit)
+          test -n "$package"
+          mkdir -p "$RUNNER_TEMP/native-patch-inputs"
+          temp_file="$RUNNER_TEMP/native-patch-inputs/${FILE_PREFIX}-windows-x64.exe.delta-target"
+          cp "$package" "$temp_file.tmp"
+          mv "$temp_file.tmp" "$temp_file"
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.platform == 'windows' && needs.prepare.outputs.channel == 'nightly'
+        continue-on-error: true
+        with:
+          name: native-patch-inputs
+          path: ${{ runner.temp }}/native-patch-inputs/*.delta-target
+          if-no-files-found: ignore
 
       - uses: actions/upload-artifact@v4
         with:
@@ -247,6 +286,7 @@ jobs:
         id: signing
         shell: bash
         env:
+          APP_CHANNEL: ${{ needs.prepare.outputs.channel }}
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -257,6 +297,9 @@ jobs:
             printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '\r\n ' | base64 --decode > "$RUNNER_TEMP/zyx-release.jks"
             echo "signed=true" >> "$GITHUB_OUTPUT"
             echo "build_type=release" >> "$GITHUB_OUTPUT"
+          elif [[ "$APP_CHANNEL" == "nightly" ]]; then
+            echo "::error::Nightly Android updates require the existing release signing key."
+            exit 1
           else
             echo "::notice::Android release signing secrets are not configured; building with ephemeral debug keystore. Configure ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD to enable seamless in-place APK updates."
             echo "signed=false" >> "$GITHUB_OUTPUT"
@@ -324,7 +367,41 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist-artifacts
+          pattern: "{desktop-*,mobile-android}"
           merge-multiple: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v4
+        if: needs.prepare.outputs.channel == 'nightly'
+        continue-on-error: true
+        with:
+          name: native-patch-inputs
+          path: native-patch-inputs
+
+      - name: Generate Nightly delta assets
+        continue-on-error: true
+        if: needs.prepare.outputs.channel == 'nightly' && github.ref == 'refs/heads/staging'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          sudo apt-get install -y bsdiff 7zip
+          node --test tests/native-delta.test.mjs
+          patch_dir=$(mktemp -d)
+          trap 'rm -rf "$patch_dir"' EXIT
+          cp dist-artifacts/* "$patch_dir/"
+          if [[ -d native-patch-inputs ]]; then
+            cp native-patch-inputs/*.delta-target "$patch_dir/"
+          fi
+          node apps/scripts/generate-nightly-deltas.mjs "$patch_dir" "$RELEASE_TAG"
+          shopt -s nullglob
+          patches=("$patch_dir"/*.zyxdelta "$patch_dir"/*.zyxdelta-apk.gz "$patch_dir"/*.zyxdesktop.gz)
+          if (( ${#patches[@]} )); then
+            cp "${patches[@]}" dist-artifacts/
+          fi
 
       - name: Generate updater manifest, checksums, and publish GitHub Release
         env:

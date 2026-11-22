@@ -53,6 +53,8 @@ To enable signed in-app updater artifacts in CI:
    - `TAURI_UPDATER_PUBKEY`: contents of the generated `.pub` public key.
 3. Optionally override `TAURI_UPDATER_ENDPOINT` if serving updater manifests from a custom URL instead of GitHub Releases (`latest.json` / `latest-nightly.json`).
 
+Staging Nightly builds can reuse an installed AppImage or a cached installer when a smaller patch is available. See the [Nightly release procedure](../../docs/DEPLOYMENT.md#nightly-native-app-releases) for packaging and verification.
+
 ## Commands
 
 Run from `apps/desktop`:
