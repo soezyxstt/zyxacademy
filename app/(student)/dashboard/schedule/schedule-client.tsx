@@ -308,9 +308,9 @@ export function StudentScheduleClient({ selectedCourse, initialData = null, fetc
           await fetchData(weekOffset, true);
           setActiveSessionBookingId(bookingId);
         }}
-        onSlotTaken={() => {
+        onSlotTaken={async () => {
           invalidateScheduleCache();
-          return fetchData(weekOffset, true);
+          await fetchData(weekOffset, true);
         }}
       />
       <SessionDetailDrawer
@@ -328,9 +328,9 @@ export function StudentScheduleClient({ selectedCourse, initialData = null, fetc
         availableSlots={activeData.availableSlots || []}
         pendingResources={pendingSessionResources}
         onPendingResourcesChange={setPendingSessionResources}
-        onSuccess={() => {
+        onSuccess={async () => {
           invalidateScheduleCache();
-          return fetchData(weekOffset, true);
+          await fetchData(weekOffset, true);
         }}
       />
       <AcademicScheduleDetailDialog

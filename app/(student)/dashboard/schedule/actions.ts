@@ -84,6 +84,7 @@ async function requireUser() {
 // ── GET SCHEDULE DATA ─────────────────────────────────────────────────────────
 
 export async function getScheduleData(weekOffset = 0, courseId?: string) {
+  const fetchedAt = Date.now();
   const currentUser = await requireUser();
 
   const selectedCourse = courseId ? await resolveCourseIdentity(courseId) : null;
@@ -362,6 +363,7 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
   });
 
   return {
+    fetchedAt,
     role: "student" as const,
     user: {
       id: dbUser.id,
