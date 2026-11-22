@@ -88,6 +88,6 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
-if (file('google-services.json').exists() || file('src/nightly/google-services.json').exists()) {
+if (file('google-services.json').exists() || file('src/nightly/google-services.json').exists() || file('src/stable/google-services.json').exists()) {
     apply plugin: 'com.google.gms.google-services'
 }
