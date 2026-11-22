@@ -51,7 +51,7 @@ The runner uses transaction locks and bounded timeouts, preserves existing ledge
 
 ## Remaining implementation and release gates
 
-1. Merge the guarded production build, runtime, origin, edge and queue changes after checks pass. The manual `deploy-cloud-run-production.yml` workflow has inventory, candidate, promote and rollback operations, and accepts only the main branch.
+1. Merge the guarded production build, runtime, origin, edge and queue changes after checks pass. Dispatch `deploy-cloud-run-production.yml` from `main` for inventory, candidate, promotion, or rollback. Promotion and rollback require an exact revision.
 2. Populate numeric production secret versions from the verified GitHub production environment. Local `.env.prod` still points to legacy Turso, so it must not be used as the production database source. Do not copy staging credentials, browser public configuration, identities, or storage targets.
 3. Inspect the production Vercel control plane using the manual `inventory` operation. Inngest is no longer used and is not queried during production deployment inventory. Verify the external fences before applying the rehearsed schema. Offline tests and a disposable rehearsal alone do not establish production acceptance.
 4. Fence every old web, API, MCP, worker and cron writer before the production migration.

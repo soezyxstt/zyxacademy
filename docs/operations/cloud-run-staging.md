@@ -45,9 +45,9 @@ assertion.workflow_ref == 'soezyxstt/zyxacademy/.github/workflows/deploy-cloud-r
 
 Bind Workload Identity User on the CI identity to `principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/attribute.repository_id/1192540511`. Use explicit Secret Manager versions and dedicated staging-only resources. [GitHub federation setup](https://cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines)
 
-Prepare a GitHub Environment restricted to `staging` and retain required reviewer approval. The repo defaults to `main`. GitHub requires the workflow definition on the default branch to accept a manual dispatch. After this staging PR is reviewed, coordinate a separate approved change that registers only the staging-gated workflow definition on `main`. Dispatch with `--ref staging`. [GitHub manual workflows](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
+Configure the `staging-cloud-run` GitHub environment with a deployment branch rule for `staging` and no required reviewers. Candidate, promote, and rollback run on manual dispatch. The `import-secrets` job uses the shared `staging` environment and still requires reviewer approval. GitHub registers manual dispatch from the workflow definition on `main`. Dispatch with `--ref staging`. [GitHub manual workflows](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
 
-The workflow uses these GitHub `staging` Environment variables:
+Copy these variables from `staging` to `staging-cloud-run` before adopting the workflow change. Keep the workload identity provider variable in both environments for secret import.
 
 | Variable | Value |
 |---|---|
@@ -55,13 +55,15 @@ The workflow uses these GitHub `staging` Environment variables:
 | `CLOUD_RUN_STAGING_PUBLIC_CONFIG` | Flat JSON of allowed public build settings with exact `NEXT_PUBLIC_APP_URL` |
 | `CLOUD_RUN_STAGING_PREFLIGHT_DATABASE_VERSION` | Numeric Secret Manager version of `zyx-staging-web-preflight-database-url` |
 
+Re-enter the existing `SENTRY_AUTH_TOKEN` as an environment secret in `staging-cloud-run` to preserve source map uploads. If staging sets `QUEUE_PROVIDER` as an environment variable, configure the same value there. Verify the Workload Identity provider and deploy identity accept the OIDC subject for `staging-cloud-run` with the repository, ref, and workflow restrictions above intact.
+
 Use deploy identity `zyx-staging-web-ci@zyx-academy.iam.gserviceaccount.com`, runtime identity `zyx-staging-web-runtime@zyx-academy.iam.gserviceaccount.com`, and a Standard Docker repository named `zyx-staging-web` in Bangkok. CI publishes unique commit-and-run tags and deploys immutable digests. Bootstrap only the new service with an approved harmless placeholder image. Configure its single container with the runtime identity, ingress `all`, a default URL, and the invoker IAM check disabled so the Worker can reach the application-layer gate. Validate that the placeholder exposes no staging application or data. Set the runtime environment and Secret Manager bindings on that service before dispatch. Reserve a controlled window for changing the service template.
 
 Set `ZYX_ENVIRONMENT=staging`, `ZYX_MCP_ENVIRONMENT=staging`, `BETTER_AUTH_URL` to the exact build origin, `STORAGE_PROVIDER_MODE=neon`, `NEON_STORAGE_BUCKET=zyx-staging`, `AWS_REGION=ap-southeast-1`, `AWS_ENDPOINT_URL_S3` to the documented branch endpoint, and `INNGEST_ENV=staging-40f1da25`. Use the existing staging endpoints for `COMPUTE_SERVICE_URL` and `DIKTAT_RENDERER_URL`. Mirror the public JSON as plaintext runtime settings. Bind `DATABASE_URL`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `GEMINI_API_KEY`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `COMPUTE_SERVICE_SECRET`, `DIKTAT_RENDERER_SECRET`, `CF_API_TOKEN` or `CF_BROWSER_API_TOKEN`, and `CLOUD_RUN_ORIGIN_TOKEN` to numeric versions of dedicated `zyx-staging-web-*` secrets. Set `CF_ACCOUNT_ID` for Browser Run. Use the staging application database role and a distinct read-only `zyx_staging_web_preflight` login with access to the migration journal and cutover marker. Scope the CI Secret Accessor grants to these two database URLs and the origin token. Consult the workflow's validator for the complete runtime allowlist.
 
 ### Import existing GitHub staging secrets
 
-The `import-secrets` operation copies only the required staging credentials to dedicated Secret Manager destinations. It uses the same branch restriction, GitHub environment review, and federated deploy identity as the release job. It sends values through standard input and records only setting names and numeric versions. It performs no deployment. The staging database URL must use the pinned pooler and application role.
+The `import-secrets` operation copies only the required staging credentials to dedicated Secret Manager destinations. It uses the same branch restriction and federated deploy identity as the release job, with required reviewer approval in the shared `staging` environment. It sends values through standard input and records only setting names and numeric versions. It performs no deployment. The staging database URL must use the pinned pooler and application role.
 
 In Cloud Shell, prepare empty destinations and give CI temporary permission to add versions. This example expects new names. If any destination already exists, inspect its metadata and IAM before continuing.
 
@@ -90,11 +92,11 @@ After registering the workflow and provisioning the target, dispatch the candida
 
 ```bash
 gh workflow run deploy-cloud-run-staging.yml --ref staging -f operation=candidate
-gh workflow run deploy-cloud-run-staging.yml --ref staging -f operation=promote -f revision=REVISION -f reviewed=true
-gh workflow run deploy-cloud-run-staging.yml --ref staging -f operation=rollback -f revision=PREVIOUS_REVISION -f reviewed=true
+gh workflow run deploy-cloud-run-staging.yml --ref staging -f operation=promote -f revision=REVISION
+gh workflow run deploy-cloud-run-staging.yml --ref staging -f operation=rollback -f revision=PREVIOUS_REVISION
 ```
 
-Use the tagged candidate URL as the temporary Worker origin for acceptance. After promotion, move the Worker to the stable service origin and verify it. The first release has a placeholder behind the stable service URL and uses Vercel as its fallback. Validate the rollback on a later compatible two-revision pair before depending on it.
+Use the tagged candidate URL as the temporary Worker origin for acceptance. Choose the exact revision for any traffic change. After promotion, move the Worker to the stable service origin and verify it. The first release has a placeholder behind the stable service URL and uses Vercel as its fallback. Validate the rollback on a later compatible two-revision pair before depending on it.
 
 Mirror the public build values used by Vercel staging for Firebase, realtime, analytics and flags. Align the candidate HTTPS origin in the build URL, Better Auth URL and Worker config. Use the staging OAuth client and register its exact `/api/auth/callback/google` URI for the temporary and final origins as needed. Review compute, renderer, Vectorize, Zyra, Inngest, email, Sentry, PostHog and signed-download CORS settings against the eligible staging environment. Preserve existing application feature states. Never export an existing runtime secret through CI output.
 
