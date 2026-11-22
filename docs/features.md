@@ -123,6 +123,10 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Typing `?` opens the search guide. It documents and applies the `group:`, `meet:`, `user:`, `form:`, `token:`, and `schedule:` prefixes, and shows every accepted alias for each prefix.
 - Changing the query resets the result list to the top. Selecting a result triggers the global route progress bar before navigation.
 
+### Dialog, sheet and sidebar navigation
+
+Opening a dialog, sheet, modal popover, or overlay panel adds a temporary `dialog` query parameter. Browser and native WebView Back dismiss the top overlay first. Clicking its backdrop or using its close action also consumes that overlay's history entry. Nested overlays close in reverse order, and dismissal respects existing guards while an operation is pending. The query value is temporary, so a reload or a forward visit to a closed overlay URL does not restore a draft or reopen a confirmation. The desktop sidebar keeps its layout preference.
+
 ### Bilingual interface and published content
 
 The application uses paired `id` and `en` JSON message catalogs. Locale resolution prefers a supported explicit public URL, then the signed-in account preference, the `zyx_locale` cookie, a supported browser language, and Indonesian. Public `/id/...` and `/en/...` prefixes are limited to the allowlist in `lib/public-locale-routes.ts`; this does not prefix protected routes or APIs. The account choice is stored in `account_locale_preferences` independently of learning preferences and role membership.

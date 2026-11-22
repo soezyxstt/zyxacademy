@@ -24,12 +24,20 @@ export function TermPopover({
   courseId,
   conceptName,
   onAskTutor,
+  onNavigate,
 }: {
   courseId: string;
   conceptName: string;
   onAskTutor: () => void;
+  onNavigate?: (href: string) => void;
 }) {
   const t = useTranslations("studentCourse");
+  const quizHref = `/courses/${courseId}/quiz`;
+  const navigate = (event: { preventDefault: () => void }, href: string) => {
+    if (!onNavigate) return;
+    event.preventDefault();
+    onNavigate(href);
+  };
   const experience = useStudentExperience();
   const [data, setData] = useState<ConceptPopoverData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,12 +130,12 @@ export function TermPopover({
       {/* Footer actions */}
       <div className="flex items-center gap-2 border-t border-border pt-2">
         <Button size="sm" variant="outline" asChild className="gap-1.5">
-          <Link href={`/courses/${courseId}/quiz`}>
+          <Link href={quizHref} onNavigate={event => navigate(event, quizHref)}>
             <ListChecks className="size-3.5" /> {t("termPopover.quizMe")}
           </Link>
         </Button>
         <Button size="sm" variant="ghost" asChild className="gap-1.5">
-          <Link href={data.reviewHref}>
+          <Link href={data.reviewHref} onNavigate={event => navigate(event, data.reviewHref)}>
             <BookOpen className="size-3.5" /> {t("termPopover.review")}
           </Link>
         </Button>

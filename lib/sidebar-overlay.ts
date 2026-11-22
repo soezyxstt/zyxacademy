@@ -1,3 +1,5 @@
+export const MOBILE_SIDEBAR_QUERY = "(width < 48rem)";
+
 /**
  * Selectors for portaled overlays (popovers, dropdown menus, dialogs, selects,
  * tooltips, sheets, and toasts) that can be opened from inside the sidebar.
@@ -34,6 +36,12 @@ export const OPEN_SIDEBAR_OVERLAY_SELECTOR = [
   '[role="dialog"][data-state="open"]',
   '[role="alertdialog"][data-state="open"]',
 ].join(", ");
+
+export function closeMobileSidebar() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
+  }
+}
 
 function toElement(target: EventTarget | null): Element | null {
   if (!target || typeof target !== "object") return null;

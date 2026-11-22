@@ -268,7 +268,21 @@ test.describe("Structured Article V3 visual acceptance", () => {
     await search.press("Escape");
     await expect(search).toBeHidden();
     await expect(searchButton).toBeFocused();
-    if (mobile) await expect(page.getByRole("dialog", { name: "Bab ini" })).toBeVisible();
+    if (mobile) {
+      const toc = page.getByRole("dialog", { name: "Bab ini" });
+      await expect(toc).toBeVisible();
+      await expect(page).toHaveURL(/[?&]dialog=/);
+      await page.evaluate(() => history.back());
+      await expect(toc).toBeHidden();
+      await expect(page).not.toHaveURL(/[?&]dialog=/);
+      await expect(page).toHaveURL(/[?&]section=bilangan-real-dan-representasi/);
+      await mobileToc.click();
+      await expect(toc).toBeVisible();
+      await page.mouse.click(8, 100);
+      await expect(toc).toBeHidden();
+      await expect(page).not.toHaveURL(/[?&]dialog=/);
+      await capture(page, testInfo, "student-reader-mobile-navigation-closed");
+    }
     expect(errors).toEqual([]);
   });
 

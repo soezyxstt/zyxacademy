@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScientificInput } from "@/components/ui/scientific-input";
 import { useTranslations } from "@/lib/i18n/client";
+import { closeDialogsThen } from "@/hooks/use-dialog-history";
 
 import { submitTryoutAction } from "@/app/actions/tutor-management";
 
@@ -135,7 +136,10 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
       const href = transport ? transport.afterSubmitHref : `/courses/${courseId}/my-results`;
       if (href) {
         toast.success(t("tryout.submitted"));
-        router.push(href);
+        closeDialogsThen(() => {
+          setShowConfirmModal(false);
+          setQuestionMapOpen(false);
+        }, () => router.push(href));
       }
     } catch (err) {
       console.error("Error submitting tryout:", err);
