@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getAuthSession } from "@/lib/auth-session";
+import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import {
   DASHBOARD_ENTRY_COOKIE_NAME,
   DASHBOARD_ENTRY_COOLDOWN_SECONDS,
@@ -15,13 +16,15 @@ export async function GET(request: NextRequest) {
   const returnTo = getSafeEntryReturnPath(
     request.nextUrl.searchParams.get("returnTo"),
   );
-  const isSecure = request.nextUrl.protocol === "https:";
+  // Cloud Run route requests use the internal standalone server origin.
+  const publicOrigin = new URL(resolveAuthBaseUrl());
+  const isSecure = publicOrigin.protocol === "https:";
 
   try {
     const session = await getAuthSession();
     if (session?.user?.id) {
       const destination = await resolveUserDashboardPath(session.user.id);
-      const response = NextResponse.redirect(new URL(destination, request.url));
+      const response = NextResponse.redirect(new URL(destination, publicOrigin));
       response.headers.set("Cache-Control", "no-store");
       response.cookies.set(DASHBOARD_ENTRY_COOKIE_NAME, "1", {
         httpOnly: true,
@@ -36,7 +39,7 @@ export async function GET(request: NextRequest) {
     console.error("[entry-redirect] Failed to resolve role dashboard:", error);
   }
 
-  const fallback = NextResponse.redirect(new URL(returnTo, request.url));
+  const fallback = NextResponse.redirect(new URL(returnTo, publicOrigin));
   fallback.headers.set("Cache-Control", "no-store");
   fallback.cookies.set(DASHBOARD_ENTRY_COOKIE_NAME, "1", {
     httpOnly: true,
