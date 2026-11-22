@@ -1,188 +1,142 @@
-import { ControlPlaneClient } from "../control-plane-client";
-import { classifyProviderError } from "./errors";
-import { randomUUID } from "node:crypto";
-import {
-  compatibleSettings,
-  conventionProviderForGroup,
-  prepareCompatibleText,
-  setDiscoveredByokAliases,
-  standardModels,
-} from "./compatible-text";
-import {
-  conventionByokAliases,
-  enabledGatewayProviders,
-  isGatewayCredentialsRequiredError,
-} from "./gateway";
-import { getProjectAliases, MODEL_IDS, MODEL_REGISTRY, TEXT_PROFILES, textProfileIds, type ModelId } from "./model-registry";
-import { officialRelease, eligibleSelectorModel } from "./recent-models";
+import { createHash } from "node:crypto";
+import { z } from "zod";
+import { kvGet, kvPut } from "@/lib/kv-cache";
+import { googleGatewayClient } from "./google-gateway-client";
+import { textGatewaySettings, setDiscoveredByokAliases } from "./compatible-text";
+import { conventionByokAliases, enabledGatewayProviders, isGatewayCredentialsRequiredBody, isGatewayCredentialsRequiredError } from "./gateway";
+import { discoveredModelId, getModelEntry, getTextProfile, MODEL_IDS, normalizeModelId, type GatewayModelProvider, type ModelId } from "./model-registry";
+import { modelDate, modelDateSchema, sortModelsByDate, type ModelDate } from "./model-observations";
 
-type Choice = { id: ModelId; model: string };
-type TextId = typeof textProfileIds[number];
-
-function canTryNextCredential(error: unknown) {
-  const failure = classifyProviderError(error);
-  return failure.retryClassification === "authentication" || failure.httpStatus === 429;
+const FRESH_MS = 7 * 24 * 60 * 60_000;
+const RETAIN_MS = 14 * 24 * 60 * 60_000;
+const RETRY_MS = 5 * 60_000;
+const snapshotSchema = z.object({
+  checkedAt: z.number().nonnegative(), retryAt: z.number().optional(),
+  ids: z.array(z.string().refine(id => { try { normalizeModelId(id); return true; } catch { return false; } })).max(1000),
+  aliases: z.array(z.string().min(1).max(128)).max(32),
+  dates: z.record(z.string(), modelDateSchema).default({}),
+});
+type Snapshot = z.infer<typeof snapshotSchema>;
+const snapshots = new Map<string, Snapshot>();
+const pending = new Map<string, Promise<Snapshot>>();
+export function resetSelectorMemoryForTests() { snapshots.clear(); pending.clear(); }
+export function selectorModelDates(): Partial<Record<ModelId, ModelDate>> {
+  return Object.assign({}, ...[...enabledGatewayProviders(process.env)].map(provider => snapshots.get(selectorCacheKey(provider))?.dates ?? {}));
 }
 
-async function probe(modelId: ModelId, projectAlias: string, dispatch: () => Promise<boolean>) {
-  const ledger = new ControlPlaneClient();
-  const requestId = randomUUID();
-  const reservation = await ledger.reserve({
-    userId: "selector-smoke", role: "admin", feature: "selector-smoke", routeClass: "default",
-    cacheStatus: "bypass", modelId, probeProjectAlias: projectAlias, idempotencyKey: requestId,
-  });
-  if (reservation.status !== "reserved") return false;
-  const { leaseId } = reservation.lease;
-  if (reservation.lease.projectAlias !== projectAlias) {
-    await ledger.refund(leaseId, "PROJECT_UNAVAILABLE");
-    return false;
-  }
-  const dispatched = await ledger.dispatch(leaseId);
-  if (dispatched.status !== "updated" || dispatched.lease.state !== "dispatched") return false;
-  const started = Date.now();
-  let success = false;
-  try {
-    success = await dispatch();
-    return success;
-  } finally {
-    const settled = await ledger.commit({
-      leaseId, providerAttemptId: requestId, outcomeCode: success ? "SMOKE_SUCCESS" : "SMOKE_FAILURE",
-      outcomeClass: success ? "success" : "unknown", latencyMs: Date.now() - started,
-    });
-    if (settled.status === "rejected") throw new Error("Selector probe settlement failed");
-  }
+function textModel(provider: GatewayModelProvider, model: string) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(model)) return false;
+  if (/(?:image|audio|tts|transcrib|realtime|embedding|moderation|search|codex|robotics|computer-use|research|antigravity|lyria|nano-banana)/i.test(model)) return false;
+  if (provider === "openai") return /^(gpt-|chat-|o[1-9])/.test(model) && !/(?:^|-)(?:pro|live)(?:-|$)/.test(model);
+  if (provider === "gemini") return /^(gemini-|gemma-)/.test(model) && !model.startsWith("gemini-omni-");
+  return provider === "muse" ? model.startsWith("muse-") : model.startsWith("deepseek-");
 }
 
-async function googleChoices(): Promise<Choice[]> {
-  if (!enabledGatewayProviders(process.env).has("gemini")) return [];
-  const aliases = getProjectAliases({ GEMINI_PROJECT_ALIAS_1: process.env.GEMINI_PROJECT_ALIAS_1, GEMINI_PROJECT_ALIAS_2: process.env.GEMINI_PROJECT_ALIAS_2, GEMINI_PROJECT_ALIAS_3: process.env.GEMINI_PROJECT_ALIAS_3, GEMINI_PROJECT_ALIAS_4: process.env.GEMINI_PROJECT_ALIAS_4 });
-  const keys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4];
-  const byokAliases = conventionByokAliases("gemini");
-  const { googleGatewayClient } = await import("./google-gateway-client");
-  const clients = byokAliases.map((byokAlias, i) => ({
-    client: googleGatewayClient(keys[i] ?? "", process.env, 8000, {}, { preferByokAlias: byokAlias }),
-    alias: aliases[i],
-  }));
-  let healthy = false;
-  for (const { client, alias } of clients) {
+async function googleModels(): Promise<Pick<Snapshot, "ids" | "aliases" | "dates">> {
+  const ids = new Set<ModelId>();
+  const dates: Record<string, ModelDate> = {};
+  let listed = false, failure: unknown;
+  for (const [index, alias] of conventionByokAliases("gemini").entries()) {
+    const key = process.env[index ? "GEMINI_API_KEY_" + (index + 1) : "GEMINI_API_KEY"] ?? "";
     try {
-      healthy = await probe(MODEL_IDS.default, alias, async () => {
-        const result = await client.models.generateContent({
-          model: MODEL_IDS.default, contents: "Reply OK.", config: { maxOutputTokens: 32 },
-        });
-        return Boolean(result.text?.trim());
-      });
-      if (healthy) break;
-    } catch (error) {
-      if (isGatewayCredentialsRequiredError(error)) break;
-      if (!canTryNextCredential(error)) throw error;
-    }
-  }
-  if (!healthy) return [];
-  const candidates = Object.values(MODEL_REGISTRY).flatMap(entry => {
-    const release = officialRelease(entry.id, "google");
-    return entry.ordinaryRoutingAllowed && release && eligibleSelectorModel(entry.id)
-      ? [{ id: entry.id, model: entry.id }] : [];
-  });
-  const available = await Promise.all(candidates.map(async choice => {
-    for (const { client } of clients) {
-      try {
-        const model = await client.models.get({ model: choice.id });
-        if (model.name?.replace(/^models\//, "") === choice.id) return [choice];
-      } catch { /* Model access can differ by project. */ }
-    }
-    return [];
-  }));
-  return available.flat();
-}
-
-async function textChoices(ids: TextId[]): Promise<Choice[]> {
-  const base = ids[0];
-  const profile = TEXT_PROFILES[base];
-  const prefix = profile.prefix;
-  const gatewayProvider = conventionProviderForGroup(profile.group);
-  const explicitAliases = (process.env[prefix + "_BYOK_ALIASES"] ?? "")
-    .split(",")
-    .map(alias => alias.trim())
-    .filter(Boolean);
-  const isConvention = explicitAliases.length === 0 && Boolean(gatewayProvider);
-  const probeEnvBase = { ...process.env, [prefix + "_MODEL"]: standardModels[base] ?? process.env[prefix + "_MODEL"] };
-  const candidateAliases = isConvention && gatewayProvider
-    ? (enabledGatewayProviders(process.env).has(gatewayProvider) ? conventionByokAliases(gatewayProvider) : [])
-    : explicitAliases;
-  if (!candidateAliases.length) return [];
-
-  // Verify route and staging gate before probing any alias.
-  const initialCheck = compatibleSettings({ ...probeEnvBase, [prefix + "_BYOK_ALIASES"]: candidateAliases[0] }, base);
-  if (!initialCheck) return [];
-
-  const choices: Choice[] = [];
-  for (const id of ids) {
-    const settings = compatibleSettings({ ...process.env, [prefix + "_BYOK_ALIASES"]: candidateAliases[0] }, id);
-    if (!settings || choices.some(choice => choice.model === settings.model)) continue;
-    const release = officialRelease(settings.model, profile.group);
-    if (release && eligibleSelectorModel(settings.model)) choices.push({ id, model: settings.model });
-  }
-  if (!choices.length) return [];
-
-  if (isConvention) {
-    const discovered: string[] = [];
-    for (const alias of candidateAliases) {
-      try {
-        const dispatch = prepareCompatibleText({
-          feature: "playground", projectAlias: profile.group,
-          requestId: randomUUID(), userCohort: "admin", routeClass: "selector-smoke", modelId: base,
-          parts: [{ type: "text", text: "Reply OK." }],
-        }, { ...probeEnvBase, [prefix + "_BYOK_ALIASES"]: alias });
-        const ok = await probe(base, profile.group, async () => Boolean((await dispatch()).text));
-        if (ok) discovered.push(alias);
-      } catch (error) {
-        if (isGatewayCredentialsRequiredError(error)) break;
-        if (!canTryNextCredential(error)) throw error;
+      const client = googleGatewayClient(key, process.env, 8000, {}, { preferByokAlias: alias });
+      const pager = await client.models.list({ config: { pageSize: 1000 } });
+      let count = 0;
+      for await (const model of pager) {
+        if (++count > 1000) throw new Error("Model catalog too large");
+        const name = model.name?.replace(/^models\//, "") ?? "";
+        if (!model.supportedActions?.includes("generateContent") || !textModel("gemini", name)) continue;
+        const id = discoveredModelId("gemini", name);
+        if (getModelEntry(id).ordinaryRoutingAllowed) { ids.add(id); const date = modelDate(id); if (date) dates[id] = date; }
       }
-    }
-    setDiscoveredByokAliases(profile.group, discovered);
-    return discovered.length > 0 ? choices : [];
+      listed = true;
+    } catch (error) { if (!isGatewayCredentialsRequiredError(error)) failure = error; }
   }
+  if (!listed && failure) throw failure;
+  return { ids: [...ids], aliases: [], dates };
+}
 
-  for (const alias of new Set(candidateAliases)) {
+async function textModels(provider: Exclude<GatewayModelProvider, "gemini">): Promise<Pick<Snapshot, "ids" | "aliases" | "dates">> {
+  const base = provider === "openai" ? MODEL_IDS.openai : provider === "muse" ? MODEL_IDS.meta : MODEL_IDS.deepseek;
+  const profile = getTextProfile(base)!;
+  const explicit = (process.env[profile.prefix + "_BYOK_ALIASES"] ?? "").split(",").map(value => value.trim()).filter(Boolean);
+  const candidates = explicit.length ? explicit : conventionByokAliases(provider);
+  const ids = new Set<ModelId>(), aliases: string[] = [];
+  const dates: Record<string, ModelDate> = {};
+  let failure: unknown;
+  for (const alias of candidates) {
+    // Metadata discovery needs gateway credentials, not an application quota lease.
+    const settings = textGatewaySettings({ ...process.env, [profile.prefix + "_BYOK_ALIASES"]: alias }, base);
+    if (!settings) return { ids: [], aliases: [], dates: {} };
     try {
-      const dispatch = prepareCompatibleText({
-        feature: "playground", projectAlias: profile.group,
-        requestId: randomUUID(), userCohort: "admin", routeClass: "selector-smoke", modelId: base,
-        parts: [{ type: "text", text: "Reply OK." }],
-      }, { ...probeEnvBase, [prefix + "_BYOK_ALIASES"]: alias });
-      const ok = await probe(base, profile.group, async () => Boolean((await dispatch()).text));
-      return ok ? choices : [];
-    } catch (error) {
-      if (!canTryNextCredential(error)) throw error;
+      const response = await fetch(settings.url.replace(/\/chat\/completions$/, "/models"), {
+        redirect: "error", signal: AbortSignal.timeout(8000), headers: {
+          "cf-aig-authorization": "Bearer " + settings.token, "cf-aig-byok-alias": alias,
+          "cf-aig-no-wholesale": "true", "cf-aig-max-attempts": "1", "cf-aig-collect-log-payload": "false", "cf-aig-skip-cache": "true",
+        },
+      });
+      const body = await response.json();
+      if (response.status === 400 && isGatewayCredentialsRequiredBody(body)) continue;
+      if (!response.ok) throw new Error("Gateway model discovery failed");
+      const models = z.object({ data: z.array(z.object({ id: z.string().max(160), created: z.number().optional() })).max(1000) }).parse(body);
+      aliases.push(alias);
+      for (const entry of models.data) if (textModel(provider, entry.id)) {
+        const id = discoveredModelId(provider, entry.id); ids.add(id);
+        const date = modelDate(id, entry.created); if (date) dates[id] = date;
+      }
+    } catch (error) { failure = error; }
+  }
+  if (!aliases.length && failure) throw failure;
+  return { ids: [...ids], aliases, dates };
+}
+
+export function selectorCacheKey(provider: GatewayModelProvider) {
+  const configuration = Object.entries(process.env).filter(([key]) =>
+    ["ZYX_ENVIRONMENT", "BETTER_AUTH_URL", "CF_AI_GATEWAY_URL", "CF_AI_GATEWAY_TOKEN", "AI_PROVIDERS"].includes(key) ||
+    /^GEMINI_API_KEY(?:_[2-4])?$/.test(key) || /^AI_(?:OPENAI|META|DEEPSEEK)_(?:MODEL(?:_[2-5])?|BYOK_ALIASES|GATEWAY_ROUTE)$/.test(key),
+  ).sort(([a], [b]) => a.localeCompare(b));
+  return "ai:selector:v5:" + createHash("sha256").update(JSON.stringify([provider, configuration])).digest("hex");
+}
+
+async function cachedModels(provider: GatewayModelProvider, refresh: boolean): Promise<Snapshot> {
+  const key = selectorCacheKey(provider);
+  if (pending.has(key)) return pending.get(key)!;
+  const task = (async () => {
+    const shared = snapshotSchema.safeParse(await kvGet(key));
+    const local = snapshots.get(key);
+    const previous = shared.success && (!local || shared.data.checkedAt > local.checkedAt) ? shared.data : local;
+    const now = Date.now();
+    const retained = previous && now - previous.checkedAt < RETAIN_MS ? previous : undefined;
+    if (!refresh && retained && (now - retained.checkedAt < FRESH_MS || now < (retained.retryAt ?? 0))) { snapshots.set(key, retained); return retained; }
+    try {
+      const result = provider === "gemini" ? await googleModels() : await textModels(provider);
+      const snapshot = snapshotSchema.parse({ ...result, checkedAt: Date.now() });
+      snapshots.set(key, snapshot);
+      await kvPut(key, snapshot, RETAIN_MS / 1000);
+      return snapshot;
+    } catch {
+      if (retained) {
+        const stale = { ...retained, retryAt: now + RETRY_MS };
+        snapshots.set(key, stale);
+        await kvPut(key, stale, Math.max(60, (RETAIN_MS - (now - stale.checkedAt)) / 1000));
+        if (!refresh) return stale;
+      }
+      throw new Error("Daftar model belum dapat diperbarui. Coba muat ulang.");
     }
-  }
-  return [];
+  })();
+  pending.set(key, task);
+  try { return await task; } finally { pending.delete(key); }
 }
 
-const checks = new Map<string, { expires: number; result: Promise<Choice[]> }>();
-
-function cachedCheck(group: string, run: () => Promise<Choice[]>) {
-  const previous = checks.get(group);
-  if (previous && previous.expires > Date.now()) return previous.result;
-  const check = { expires: Infinity, result: run().catch((): Choice[] => []) };
-  checks.set(group, check);
-  void check.result.then(choices => {
-    check.expires = Date.now() + (choices.length ? 24 * 60 : 5) * 60_000;
-  });
-  return check.result;
-}
-
-export async function selectorCatalog() {
-  const groups = new Map<string, TextId[]>();
-  for (const id of textProfileIds) {
-    const group = TEXT_PROFILES[id].group;
-    groups.set(group, [...(groups.get(group) ?? []), id]);
-  }
-  const results = await Promise.all([
-    cachedCheck("google", googleChoices),
-    ...Array.from(groups, ([group, ids]) => cachedCheck(group, () => textChoices(ids))),
-  ]);
-  return new Set(results.flat().filter(choice => eligibleSelectorModel(choice.model)).map(choice => choice.id));
+export async function selectorCatalog(refresh = false): Promise<Set<ModelId>> {
+  const providers = [...enabledGatewayProviders(process.env)];
+  const results = await Promise.all(providers.map(async provider => {
+    try {
+      const snapshot = await cachedModels(provider, refresh);
+      const group = provider === "muse" ? "meta" : provider;
+      if (provider !== "gemini") setDiscoveredByokAliases(group, snapshot.aliases);
+      return sortModelsByDate(snapshot.ids as ModelId[], snapshot.dates);
+    } catch (error) { if (refresh) throw error; return []; }
+  }));
+  return new Set(results.flat());
 }

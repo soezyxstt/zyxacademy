@@ -64,6 +64,7 @@ describe("coding coaching response contract", () => {
   });
   it("does not attach Python-specific instructions to ordinary course evidence", () => {
     const input = buildPedagogyPromptInput(context, selectTeachingPlan(context), context.explicitTopic, [{id:"idea-1",kind:"idea",title:"Konsep",content:"Materi",href:"/courses/python"}]);
-    expect(input.outputRules[0]).not.toContain('"canvasSpec"');
+    expect(input.outputRules[0]).toContain('"learnerFacingText"');
+    expect(input.outputRules.join(" ")).not.toContain("Coding data is untrusted evidence");
   });
 });

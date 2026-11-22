@@ -22,6 +22,24 @@ function lease() {
 }
 
 describe("Plan 005 control-plane client", () => {
+  it("sends hashed alias health receipts through authenticated routes", async () => {
+    const requests: Request[] = [];
+    const client = new ControlPlaneClient({
+      baseUrl: "https://staging.example.invalid", token: "test-secret",
+      fetchImpl: async (input, init) => {
+        requests.push(new Request(input, init));
+        return Response.json({ failures: 3, cooldownUntil: 123456 });
+      },
+    });
+    const aliasHash = "a".repeat(64);
+    await expect(client.aliasHealth(aliasHash)).resolves.toEqual({ failures: 3, cooldownUntil: 123456 });
+    await client.recordAliasAttempt(aliasHash, "attempt-1", false);
+    expect(requests.map(request => new URL(request.url).pathname)).toEqual(["/quota/alias/status", "/quota/alias/record"]);
+    for (const request of requests) expect(request.headers.get("authorization")).toBe("Bearer test-secret");
+    expect(await requests[0].json()).toEqual({ aliasHash });
+    expect(await requests[1].json()).toEqual({ aliasHash, attemptId: "attempt-1", success: false });
+  });
+
   it("sends bearer auth and validates a typed reserve response", async () => {
     let captured: Request | undefined;
     const client = new ControlPlaneClient({

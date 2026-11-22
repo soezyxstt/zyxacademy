@@ -1,6 +1,7 @@
-import { selectorCatalog } from "./provider/selector-catalog";
-import { compatibleSettings } from "./provider/compatible-text";
-import { isTextProfile, supportsTextProvider } from "./provider/model-registry";
+import { selectorCatalog, selectorModelDates } from "./provider/selector-catalog";
+import { readModelLatencies } from "./provider/model-latency";
+import { compatibleSettings, textGatewaySettings } from "./provider/compatible-text";
+import { discoveredModel, discoveredModelId, getTextProfile, isTextProfile, supportsTextProvider, upstreamModelName } from "./provider/model-registry";
 import { and, eq } from "drizzle-orm";
 import {
   buildFeatureModelSettingViews,
@@ -8,6 +9,7 @@ import {
   compatibleModelChain,
   modelFeature,
   modelSettingSchema,
+  modelAllowedForFeature,
   type FeatureModelSettingView,
   type ModelFeature,
   type StoredModelSettingRow,
@@ -124,17 +126,27 @@ function profileAvailable(id: string) {
   return !isTextProfile(id) || Boolean(compatibleSettings(process.env, id));
 }
 
+function canonicalSettingModel(id: ModelId): ModelId {
+  if (!isTextProfile(id) || discoveredModel(id)) return id;
+  const profile = getTextProfile(id)!, settings = textGatewaySettings(process.env, id);
+  if (!settings || !["openai", "meta", "deepseek"].includes(profile.group)) return id;
+  return discoveredModelId(profile.group === "meta" ? "muse" : profile.group as "openai" | "deepseek", settings.model);
+}
+
 export async function listModelSettingViews(): Promise<FeatureModelSettingView[]> {
   const handle = await resolveDatabaseHandle();
   const rows = handle ? await handle.db.select().from(handle.aiModelSettings) : [];
   const catalog = await selectorCatalog();
+  const modelDates = selectorModelDates(), modelLatencies = await readModelLatencies();
   return buildFeatureModelSettingViews(rows).map(view => ({
     ...view,
-    modelLabels: Object.fromEntries(view.selectableModels.flatMap(id => {
-      const settings = isTextProfile(id) && compatibleSettings(process.env, id);
+    modelDates, modelLatencies,
+    models: view.models.map(canonicalSettingModel) as [ModelId, ModelId, ModelId],
+    modelLabels: Object.fromEntries([...new Set([...catalog, ...view.models.map(canonicalSettingModel)])].flatMap(id => {
+      const settings = isTextProfile(id) && textGatewaySettings(process.env, id);
       return settings ? [[id, settings.model]] : [];
     })),
-    selectableModels: view.selectableModels.filter(id => catalog.has(id)),
+    selectableModels: [...catalog].filter(id => modelAllowedForFeature(view.feature, id)),
   }));
 }
 
@@ -161,6 +173,11 @@ export async function saveModelSetting(input: {
   const { db, aiModelSettings } = handle;
   const now = new Date();
   const nextModels = [...parsed.data.models];
+  const identities = nextModels.map(id => {
+    const canonical = canonicalSettingModel(id);
+    return `${getTextProfile(canonical)?.group ?? "gemini"}:${upstreamModelName(canonical)}`;
+  });
+  if (new Set(identities).size !== 3) throw new Error("Pilih tiga model berbeda.");
   const available = await selectorCatalog();
 
   return db.transaction(async (tx) => {
@@ -177,7 +194,7 @@ export async function saveModelSetting(input: {
       }
     }
 
-    const previous = existing?.models ?? defaultEditableModels(parsed.data.feature);
+    const previous = (existing?.models ?? defaultEditableModels(parsed.data.feature)).map(id => canonicalSettingModel(id as ModelId));
     if (nextModels.some((id, index) => previous[index] !== id && !available.has(id))) {
       throw new Error("Model belum tersedia. Muat ulang daftar model.");
     }

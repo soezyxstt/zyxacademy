@@ -1,8 +1,12 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { setModelSettingsReaderForTests } from "@/lib/ai/model-settings-store";
 import { ControlPlaneClient } from "@/lib/ai/control-plane-client";
 import { ProviderAdapterError } from "@/lib/ai/provider/errors";
 import type { ProviderGenerationResult } from "@/lib/ai/provider/provider-adapter";
 import { ProviderNotDispatchedError, RequestLifecycle, type RequestLifecycleDependencies } from "@/lib/ai/request-lifecycle";
+
+beforeAll(() => setModelSettingsReaderForTests(async () => null));
+afterAll(() => setModelSettingsReaderForTests(null));
 
 function appLease() {
   return {

@@ -20,9 +20,14 @@ describe("Plan 002 model registry", () => {
 
     for (const id of ids) {
       const entry = getModelEntry(id);
-      expect(entry.limits.perProjectRpm).toBeGreaterThan(0);
-      expect(entry.limits.perProjectTpm).toBeGreaterThan(0);
-      expect(entry.limits.perProjectRpd).toBeGreaterThan(0);
+      if (entry.limits.providerManaged) {
+        expect(entry.family).toBe("chat-completions");
+        expect(entry.limits).toMatchObject({ perProjectRpm: 0, perProjectTpm: 0, perProjectRpd: 0, initialUsableRpd: 0 });
+      } else {
+        expect(entry.limits.perProjectRpm).toBeGreaterThan(0);
+        expect(entry.limits.perProjectTpm).toBeGreaterThan(0);
+        expect(entry.limits.perProjectRpd).toBeGreaterThan(0);
+      }
       if (entry.operations.includes("generate")) expect(entry.input.text).toBe(true);
       if (entry.family === "embedding") expect(entry.dimensions).toBe(768);
     }

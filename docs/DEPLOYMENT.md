@@ -429,6 +429,12 @@ The Worker configuration is `workers/zyra-control-plane/wrangler.jsonc` and must
 
 ## Zyra model registry staging probe
 
+The local AI recovery adds `ai-model-catalog-cron` to the compute registry, bringing its function count to 32. The existing queue cron allowlist schedules it at 00:00 and 12:00 UTC. The background environment projection includes Gateway provider settings and `CF_KV_NAMESPACE_ID`; verify its environment-specific KV account, namespace and API token before enabling the deployed job. The web and background processes must receive the same Gateway and cache configuration to share snapshots.
+
+Coordinated web, background and Zyra control-plane releases are needed for the complete catalog and alias-health behavior. The control-plane release creates additive SQLite alias-health and idempotency tables inside the existing Durable Object, not PostgreSQL. Verify the web control-plane URL/token binding for shared cooldowns. Source registration and local tests do not prove scheduler delivery or a hosted rollout; this change has not deployed these components.
+
+The scheduled catalog job also measures three short uncached requests per discovered text model. These are provider-billed calls, split into durable steps with idempotent lease accounting. Verify background control-plane bindings before enabling the job. Text-provider contracts remove the synthetic 20-request daily and five-request minute ceilings and report unknown provider capacity as null. Release the matching control-plane and web contracts together; the provider still enforces its own rate, billing and account limits. Catalog metadata stays fresh for seven days, with another seven days of stale fallback on discovery failure. Manual refresh queues latency probes through the same job without bypassing catalog freshness.
+
 Plan 002 uses the model registry as the default route. Run the deterministic mock probe before any provider call:
 
 ```bash

@@ -178,7 +178,7 @@ export class QuotaLedger {
     const model = getWorkerModelContract(input.modelId);
 
     if (!model) return { status: "quota_exhausted", code: "UNKNOWN_MODEL", modelId: input.modelId };
-    if (!model.ordinaryRoutingAllowed || model.initialUsableRpd <= 0) {
+    if (!model.ordinaryRoutingAllowed || (!model.providerManaged && model.initialUsableRpd <= 0)) {
       return { status: "fallback_allowed", code: "MODEL_QUARANTINED", modelId: input.modelId };
     }
     const group = textQuotaGroup(model.id);
@@ -510,7 +510,7 @@ export class QuotaLedger {
       projectAlias
     ).toArray()[0]?.count ?? 0;
 
-    if (health.open_reason === "rpd" && health.rpd_day !== providerDay) {
+    if (health.open_reason === "rpd" && (model.providerManaged || health.rpd_day !== providerDay)) {
       this.sql.exec(
         `UPDATE zyra_quota_health SET circuit_state = 'closed', open_reason = NULL, rpd_day = NULL, half_open_at_ms = NULL, updated_at_ms = ? WHERE model_id = ? AND project_alias = ?`,
         nowMs,
@@ -522,7 +522,7 @@ export class QuotaLedger {
 
     const ceiling = projectDailyCeiling(model);
     const dailyCount = asNumber(daily.reserved_count) + asNumber(daily.committed_count);
-    if (ceiling <= dailyCount) {
+    if (ceiling !== null && ceiling <= dailyCount) {
       this.sql.exec(
         `INSERT INTO zyra_quota_health (model_id, project_alias, circuit_state, open_reason, rpd_day, half_open_at_ms, consecutive_failures, sample_count, failure_count, updated_at_ms)
          VALUES (?, ?, 'open', 'rpd', ?, NULL, ?, ?, ?, ?)
@@ -548,7 +548,7 @@ export class QuotaLedger {
       health = { ...health, circuit_state: "half_open" };
     }
 
-    if (asNumber(minute.request_count) >= model.perProjectRpm) return null;
+    if (!model.providerManaged && asNumber(minute.request_count) >= model.perProjectRpm) return null;
     if (health.circuit_state === "open") return null;
     if (health.circuit_state === "half_open" && activeCount > 0) return null;
 
@@ -558,8 +558,8 @@ export class QuotaLedger {
       minute,
       health,
       activeCount: asNumber(activeCount),
-      dailyUtilization: dailyCount / ceiling,
-      minuteUtilization: asNumber(minute.request_count) / model.perProjectRpm,
+      dailyUtilization: ceiling === null ? 0 : dailyCount / ceiling,
+      minuteUtilization: model.providerManaged ? 0 : asNumber(minute.request_count) / model.perProjectRpm,
       lastSelectedAtMs: asNumber(daily.last_selected_at_ms)
     };
   }

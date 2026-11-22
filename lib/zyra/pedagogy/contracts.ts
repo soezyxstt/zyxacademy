@@ -4,7 +4,7 @@ import { CanvasSpecSchema } from "@/lib/zyra/canvas";
 import { ZyraImageResponseFieldsSchema } from "@/lib/zyra/images/contracts";
 
 export const PEDAGOGY_VERSION = "zyra-pedagogy-v3";
-export const PEDAGOGY_PROMPT_VERSION = "3.2.0";
+export const PEDAGOGY_PROMPT_VERSION = "3.2.1";
 export const PEDAGOGY_POLICY_VERSION = "3.1.0";
 export const PEDAGOGY_RESPONSE_SCHEMA_VERSION = "3.0.0";
 

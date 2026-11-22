@@ -1,8 +1,9 @@
 import { officialRelease } from "./provider/recent-models";
+import type { ModelDate, ModelLatency } from "./provider/model-observations";
 import { z } from "zod";
 import {
   MODEL_IDS,
-  supportsTextProvider, MODEL_REGISTRY, TEXT_PROFILES, isTextProfile, textProfileIds,
+  supportsTextProvider, MODEL_REGISTRY, getTextProfile, isTextProfile, textProfileIds, discoveredModel,
   ROUTE_POLICY,
   getModelEntry,
   type ModelFamily,
@@ -314,7 +315,7 @@ export function getSelectableModelOption(id: ModelId): SelectableModelOption {
   const entry = getModelEntry(id);
   return {
     id,
-    label: isTextProfile(id) ? TEXT_PROFILES[id].label : officialRelease(id)?.label ?? MODEL_DISPLAY_NAMES[id] ?? id,
+    label: discoveredModel(id)?.model ?? (isTextProfile(id) ? getTextProfile(id)!.label : officialRelease(id)?.label ?? MODEL_DISPLAY_NAMES[id] ?? id),
     family: entry.family,
     stability: entry.stability,
     supportsImage: entry.input.image,
@@ -336,18 +337,26 @@ const featureEnumValues = MODEL_FEATURE_CATALOG.map((entry) => entry.id) as [
 ];
 const modelEnumValues = [...selectableModels, ...textProfileIds] as [ModelId, ...ModelId[]];
 
+export function modelAllowedForFeature(feature: ModelFeature, id: string): id is ModelId {
+  try {
+    const entry = getModelEntry(id);
+    return entry.ordinaryRoutingAllowed && entry.operations.includes("generate") &&
+      (!isTextProfile(id) || supportsTextProvider(feature)) &&
+      (!getFeatureDefinition(feature).requiresStreamingTools || entry.family === "generate-content");
+  } catch { return false; }
+}
+
 export const modelSettingSchema = z
   .object({
     feature: z.enum(featureEnumValues),
     models: z
-      .array(z.enum(modelEnumValues))
+      .array(z.string().refine(id => modelEnumValues.includes(id as ModelId) || Boolean(discoveredModel(id)), "Model tidak dikenal.").transform(id => id as ModelId))
       .length(3, "Pilih tepat tiga prioritas model.")
       .refine((models) => new Set(models).size === models.length, "Pilih tiga model berbeda."),
   })
   .superRefine((value, ctx) => {
-    const allowed = new Set(selectableModelsForFeature(value.feature));
     value.models.forEach((modelId, index) => {
-      if (!allowed.has(modelId)) {
+      if (!modelAllowedForFeature(value.feature, modelId)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["models", index],
@@ -444,6 +453,8 @@ export interface FeatureModelSettingView {
   readonly editableDefaultModels: readonly [ModelId, ModelId, ModelId];
   readonly selectableModels: readonly ModelId[];
   readonly modelLabels?: Partial<Record<ModelId, string>>;
+  readonly modelDates?: Partial<Record<ModelId, ModelDate>>;
+  readonly modelLatencies?: Partial<Record<ModelId, ModelLatency>>;
   readonly requiresStreamingTools: boolean;
   readonly supportsImages: boolean;
   readonly updatedBy: string | null;

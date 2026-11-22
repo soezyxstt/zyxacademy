@@ -1,3 +1,4 @@
+import { upstreamModelName } from "@/lib/ai/provider/model-registry";
 import { geminiKeyPool, type GeminiKey } from "@/lib/gemini-keys";
 import {
   MODEL_IDS,
@@ -192,7 +193,7 @@ export async function* streamOpsAiModel(
     }
 
     const responseStream = await client.models.generateContentStream({
-      model: entry.id,
+      model: upstreamModelName(entry.id),
       contents,
       config: config as any,
     });

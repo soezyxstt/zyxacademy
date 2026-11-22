@@ -16,6 +16,7 @@ import {
 import { hashUserId, QuotaLedger } from "./quota/ledger";
 import { ensureQuotaSchema, type SqlExecutor } from "./quota/schema";
 import { CacheFlightLedger } from "./cache/ledger";
+import { GatewayAliasLedger } from "./quota/alias-health";
 import { ensureCacheSchema } from "./cache/schema";
 import {
   validateCacheKey,
@@ -102,6 +103,18 @@ export class ZyraQuotaCoordinator extends DurableObject<WorkerEnv> {
     }
     const ledger = new QuotaLedger(sql, Date.now, this.env.GEMINI_QUOTA_GROUPS?.split(",").map(s => s.trim()).filter(Boolean));
     const cacheLedger = new CacheFlightLedger(sql);
+
+    if (url.pathname === "/quota/alias/status" || url.pathname === "/quota/alias/record") {
+      if (request.method !== "POST") return methodNotAllowed("POST");
+      const body = await readJson(request);
+      if (!body || typeof body.aliasHash !== "string") return invalidRequest("invalid_alias_health_request");
+      try {
+        const aliases = new GatewayAliasLedger(sql);
+        if (url.pathname.endsWith("/status")) return jsonResponse(aliases.status(body.aliasHash));
+        if (typeof body.attemptId !== "string" || typeof body.success !== "boolean") return invalidRequest("invalid_alias_health_request");
+        return jsonResponse(aliases.record(body.aliasHash, body.attemptId, body.success));
+      } catch { return invalidRequest("invalid_alias_health_request"); }
+    }
 
     if (url.pathname === "/cache/diagnostics") {
       if (request.method !== "GET") return methodNotAllowed("GET");

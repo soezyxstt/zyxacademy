@@ -200,6 +200,14 @@ export class ControlPlaneClient {
     return this.request("/quota/diagnostics", { method: "GET" }, diagnosticsSchema);
   }
 
+  async aliasHealth(aliasHash: string) {
+    return this.post("/quota/alias/status", { aliasHash }, z.object({ failures: z.number().int().nonnegative(), cooldownUntil: z.number().nonnegative() }));
+  }
+
+  async recordAliasAttempt(aliasHash: string, attemptId: string, success: boolean) {
+    return this.post("/quota/alias/record", { aliasHash, attemptId, success }, z.object({ failures: z.number().int().nonnegative(), cooldownUntil: z.number().nonnegative() }));
+  }
+
   async cacheGet(cacheKey: string): Promise<ControlPlaneCacheGetResult> {
     return this.request(`/cache/get?key=${encodeURIComponent(cacheKey)}`, { method: "GET" }, cacheGetSchema);
   }
