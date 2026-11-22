@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { useSwipe } from "@/hooks/use-swipe";
+import { hasOpenSidebarOverlay, isSidebarOverlayTarget } from "@/lib/sidebar-overlay";
 
 const MOBILE_QUERY = "(max-width: 767px)";
 // The sidebar can hydrate after this controller. Do not mutate server-rendered
@@ -79,7 +80,12 @@ export function MobileSidebarController() {
     const handleClose = () => close();
     const handleToggle = () => (openRef.current ? close() : open());
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && openRef.current) {
+      if (
+        event.key === "Escape" &&
+        openRef.current &&
+        !event.defaultPrevented &&
+        !hasOpenSidebarOverlay()
+      ) {
         close();
         window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
       }
@@ -88,7 +94,13 @@ export function MobileSidebarController() {
       if (!openRef.current || !isMobileViewport()) return;
       const sidebar = getSidebar();
       const target = event.target as Node | null;
-      if (sidebar && target && !sidebar.contains(target)) {
+      if (
+        sidebar &&
+        target &&
+        !sidebar.contains(target) &&
+        !isSidebarOverlayTarget(target) &&
+        !hasOpenSidebarOverlay()
+      ) {
         close();
         window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
       }

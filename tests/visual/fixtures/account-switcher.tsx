@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NextIntlClientProvider } from "next-intl";
 import { BookOpen, CalendarDays, CircleHelp, LayoutDashboard, MessageCircle, PanelLeftOpen } from "lucide-react";
 import { SidebarShell, NavItem, openMobileSidebar } from "@/components/sidebar-shell";
+import { MobileSidebarController } from "@/components/mobile-sidebar-controller";
 import { StudentExperienceProvider, type StudentExperienceAdapter } from "@/components/student-experience-provider";
 import commonId from "@/messages/id/common.json";
 import commonEn from "@/messages/en/common.json";
@@ -30,6 +31,7 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
       <StudentExperienceProvider value={adapter}>
         <div className="flex min-h-svh bg-background text-foreground">
+          <MobileSidebarController />
           <SidebarShell collapsedKey="fixture-sidebar-collapsed" logoHref="/dashboard" logoLabel="Zyx Academy" nav={collapsed => <nav aria-label="Navigasi" className="flex-1 space-y-1 p-2">
             {nav.map(item => <NavItem key={item.href} {...item} collapsed={collapsed} active={item.href === "/dashboard"} />)}
           </nav>} />
