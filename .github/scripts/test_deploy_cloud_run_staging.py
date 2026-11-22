@@ -37,6 +37,7 @@ def spec():
         "DIKTAT_RENDERER_URL": STAGING["renderer"],
         "COMPUTE_SERVICE_URL": f"https://{STAGING['branch']}-zyxcompute.compute.c-3.ap-southeast-1.aws.neon.tech",
         "CF_ACCOUNT_ID": "fake-staging-account",
+        "ZYRA_CONTROL_PLANE_URL": "https://zyra-control-plane.example.workers.dev",
     }
     secrets = REQUIRED_SECRET_KEYS | {"CF_BROWSER_API_TOKEN"}
     env = ([{"name": name, "value": value} for name, value in settings.items()] +
@@ -52,6 +53,27 @@ class CloudRunStagingTest(unittest.TestCase):
         entries[:] = [item for item in entries if item["name"] != "PYTHON_RUNTIME_TOKEN_SECRET"]
         with self.assertRaisesRegex(ValueError, "missing required Secret Manager references"):
             validate_template(candidate, CONFIG)
+
+    def test_missing_ai_gateway_or_control_plane_settings_block_deployment(self):
+        for key in ("CF_AI_GATEWAY_URL", "CF_AI_GATEWAY_TOKEN", "ZYRA_CONTROL_PLANE_TOKEN"):
+            candidate = spec()
+            entries = candidate["containers"][0]["env"]
+            entries[:] = [item for item in entries if item["name"] != key]
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "missing required Secret Manager references"):
+                validate_template(candidate, CONFIG)
+
+        candidate = spec()
+        entries = candidate["containers"][0]["env"]
+        entries[:] = [item for item in entries if item["name"] != "ZYRA_CONTROL_PLANE_URL"]
+        with self.assertRaisesRegex(ValueError, "missing ZYRA_CONTROL_PLANE_URL"):
+            validate_template(candidate, CONFIG)
+
+        # ZYRA_CONTROL_PLANE_URL is accepted as a pinned Secret Manager reference as well as plaintext.
+        entries.append({
+            "name": "ZYRA_CONTROL_PLANE_URL",
+            "valueFrom": {"secretKeyRef": {"name": "zyx-staging-web-zyra-control-plane-url", "key": "1"}},
+        })
+        validate_template(candidate, CONFIG)
 
     def test_cloud_run_jobs_require_manual_staging_dispatch(self):
         text = (Path(__file__).resolve().parents[1] / 'workflows/deploy-cloud-run-staging.yml').read_text()

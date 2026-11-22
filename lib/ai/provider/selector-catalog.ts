@@ -1,7 +1,18 @@
 import { ControlPlaneClient } from "../control-plane-client";
 import { classifyProviderError } from "./errors";
 import { randomUUID } from "node:crypto";
-import { compatibleSettings, prepareCompatibleText, standardModels } from "./compatible-text";
+import {
+  compatibleSettings,
+  conventionProviderForGroup,
+  prepareCompatibleText,
+  setDiscoveredByokAliases,
+  standardModels,
+} from "./compatible-text";
+import {
+  conventionByokAliases,
+  enabledGatewayProviders,
+  isGatewayCredentialsRequiredError,
+} from "./gateway";
 import { getProjectAliases, MODEL_IDS, MODEL_REGISTRY, TEXT_PROFILES, textProfileIds, type ModelId } from "./model-registry";
 import { officialRelease, eligibleSelectorModel } from "./recent-models";
 
@@ -43,13 +54,17 @@ async function probe(modelId: ModelId, projectAlias: string, dispatch: () => Pro
 }
 
 async function googleChoices(): Promise<Choice[]> {
+  if (!enabledGatewayProviders(process.env).has("gemini")) return [];
   const aliases = getProjectAliases({ GEMINI_PROJECT_ALIAS_1: process.env.GEMINI_PROJECT_ALIAS_1, GEMINI_PROJECT_ALIAS_2: process.env.GEMINI_PROJECT_ALIAS_2, GEMINI_PROJECT_ALIAS_3: process.env.GEMINI_PROJECT_ALIAS_3, GEMINI_PROJECT_ALIAS_4: process.env.GEMINI_PROJECT_ALIAS_4 });
   const keys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4];
-  if (!keys.some(Boolean)) return [];
+  const byokAliases = conventionByokAliases("gemini");
   const { googleGatewayClient } = await import("./google-gateway-client");
-  const clients = keys.flatMap((key, i) => key ? [{ client: googleGatewayClient(key, process.env, 8000), alias: aliases[i] }] : []);
+  const clients = byokAliases.map((byokAlias, i) => ({
+    client: googleGatewayClient(keys[i] ?? "", process.env, 8000, {}, { preferByokAlias: byokAlias }),
+    alias: aliases[i],
+  }));
   let healthy = false;
-  for (const {client, alias} of clients) {
+  for (const { client, alias } of clients) {
     try {
       healthy = await probe(MODEL_IDS.default, alias, async () => {
         const result = await client.models.generateContent({
@@ -59,6 +74,7 @@ async function googleChoices(): Promise<Choice[]> {
       });
       if (healthy) break;
     } catch (error) {
+      if (isGatewayCredentialsRequiredError(error)) break;
       if (!canTryNextCredential(error)) throw error;
     }
   }
@@ -81,29 +97,62 @@ async function googleChoices(): Promise<Choice[]> {
 }
 
 async function textChoices(ids: TextId[]): Promise<Choice[]> {
+  const base = ids[0];
+  const profile = TEXT_PROFILES[base];
+  const prefix = profile.prefix;
+  const gatewayProvider = conventionProviderForGroup(profile.group);
+  const explicitAliases = (process.env[prefix + "_BYOK_ALIASES"] ?? "")
+    .split(",")
+    .map(alias => alias.trim())
+    .filter(Boolean);
+  const isConvention = explicitAliases.length === 0 && Boolean(gatewayProvider);
+  const probeEnvBase = { ...process.env, [prefix + "_MODEL"]: standardModels[base] ?? process.env[prefix + "_MODEL"] };
+  const candidateAliases = isConvention && gatewayProvider
+    ? (enabledGatewayProviders(process.env).has(gatewayProvider) ? conventionByokAliases(gatewayProvider) : [])
+    : explicitAliases;
+  if (!candidateAliases.length) return [];
+
+  // Verify route and staging gate before probing any alias.
+  const initialCheck = compatibleSettings({ ...probeEnvBase, [prefix + "_BYOK_ALIASES"]: candidateAliases[0] }, base);
+  if (!initialCheck) return [];
+
   const choices: Choice[] = [];
   for (const id of ids) {
-    const settings = compatibleSettings(process.env, id);
+    const settings = compatibleSettings({ ...process.env, [prefix + "_BYOK_ALIASES"]: candidateAliases[0] }, id);
     if (!settings || choices.some(choice => choice.model === settings.model)) continue;
-    const profile = TEXT_PROFILES[id];
     const release = officialRelease(settings.model, profile.group);
     if (release && eligibleSelectorModel(settings.model)) choices.push({ id, model: settings.model });
   }
   if (!choices.length) return [];
-  // Probe the provider's base slot once. Alternate and premium slots do not generate.
-  const base = ids[0];
-  const prefix = TEXT_PROFILES[base].prefix;
-  const probeEnv = { ...process.env, [prefix + "_MODEL"]: standardModels[base] ?? process.env[prefix + "_MODEL"] };
-  const settings = compatibleSettings(probeEnv, base);
-  if (!settings) return [];
-  for (const alias of new Set(settings.credentials)) {
+
+  if (isConvention) {
+    const discovered: string[] = [];
+    for (const alias of candidateAliases) {
+      try {
+        const dispatch = prepareCompatibleText({
+          feature: "playground", projectAlias: profile.group,
+          requestId: randomUUID(), userCohort: "admin", routeClass: "selector-smoke", modelId: base,
+          parts: [{ type: "text", text: "Reply OK." }],
+        }, { ...probeEnvBase, [prefix + "_BYOK_ALIASES"]: alias });
+        const ok = await probe(base, profile.group, async () => Boolean((await dispatch()).text));
+        if (ok) discovered.push(alias);
+      } catch (error) {
+        if (isGatewayCredentialsRequiredError(error)) break;
+        if (!canTryNextCredential(error)) throw error;
+      }
+    }
+    setDiscoveredByokAliases(profile.group, discovered);
+    return discovered.length > 0 ? choices : [];
+  }
+
+  for (const alias of new Set(candidateAliases)) {
     try {
       const dispatch = prepareCompatibleText({
-        feature: "playground", projectAlias: TEXT_PROFILES[base].group,
+        feature: "playground", projectAlias: profile.group,
         requestId: randomUUID(), userCohort: "admin", routeClass: "selector-smoke", modelId: base,
         parts: [{ type: "text", text: "Reply OK." }],
-      }, { ...probeEnv, [prefix + "_BYOK_ALIASES"]: alias });
-      const ok = await probe(base, TEXT_PROFILES[base].group, async () => Boolean((await dispatch()).text));
+      }, { ...probeEnvBase, [prefix + "_BYOK_ALIASES"]: alias });
+      const ok = await probe(base, profile.group, async () => Boolean((await dispatch()).text));
       return ok ? choices : [];
     } catch (error) {
       if (!canTryNextCredential(error)) throw error;
