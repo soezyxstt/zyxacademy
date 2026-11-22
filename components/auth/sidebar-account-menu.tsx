@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Eye, EyeOff, GraduationCap, LayoutDashboard, Loader2, LogOut, MoreHorizontal, Settings, ShieldCheck, SlidersHorizontal, UserRoundMinus } from "lucide-react";
+import { Check, ExternalLink, Eye, EyeOff, GraduationCap, LayoutDashboard, Loader2, LogOut, MoreHorizontal, Settings, ShieldCheck, SlidersHorizontal, UserRoundMinus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -105,7 +105,11 @@ export function SidebarAccountMenu({ collapsed, session }: { collapsed: boolean;
   const addAccount = async (preferBrowser = false) => {
     if (!begin("add")) return;
     try {
-      const handled = await startNativeGoogleSignIn("/dashboard", { onBrowserClosed: finish, preferBrowser });
+      const handled = await startNativeGoogleSignIn("/dashboard", {
+        onBrowserClosed: finish,
+        onPickerCancelled: () => setBrowserRecovery(true),
+        preferBrowser,
+      });
       if (!handled) await startWebAccountSignIn("/dashboard");
     } catch (failure) {
       if (isLocalAccountTransitionPending()) return;
@@ -239,7 +243,12 @@ export function SidebarAccountMenu({ collapsed, session }: { collapsed: boolean;
             {atLimit && <p className="px-2.5 pb-2 text-body-xs text-muted-foreground">{a("limit", { count: MAX_SAVED_ACCOUNTS })}</p>}
           </>}
           {error && <p role="alert" className="px-2.5 py-2 text-body-xs text-destructive">{error}</p>}
-          {browserRecovery && <Button variant="outline" className="mx-2.5 mb-2" disabled={busy !== null} onClick={() => void addAccount(true)}>{a("browserFallback")}</Button>}
+          {browserRecovery && (
+            <button type="button" className={actionClass} disabled={busy !== null} onClick={() => void addAccount(true)}>
+              <ExternalLink className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span>{a("browserFallback")}</span>
+            </button>
+          )}
           {busy && busy !== "add" && busy !== "remove" && <p role="status" className="sr-only">{busy === "logout" ? a("signingOut") : a("switching")}</p>}
           <div className="my-1.5 h-px bg-border/70" />
           <div inert={busy !== null}>

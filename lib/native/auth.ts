@@ -29,6 +29,8 @@ export class NativeGoogleSignInError extends Error {
 
 export type NativeGoogleSignInOptions = {
   onBrowserClosed?: () => void;
+  /** Runs when the native account picker closes with CANCELLED (user dismiss or GMS DEVELOPER_ERROR bug). */
+  onPickerCancelled?: () => void;
   /** An explicit recovery action, never an automatic response to cancellation. */
   preferBrowser?: boolean;
 };
@@ -78,6 +80,7 @@ async function tryAndroidGoogleSignIn(callbackURL: string, options?: NativeGoogl
     await nativeGoogleRequest({ action: "cancel" }).catch(() => {});
     const code = nativeErrorCode(error);
     if (code === "CANCELLED") {
+      options?.onPickerCancelled?.();
       options?.onBrowserClosed?.();
       return true;
     }

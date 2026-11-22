@@ -22,6 +22,7 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Google chooses the device account; the Zyx server validates the returned ID token. */
@@ -85,7 +86,13 @@ public class ZyxGoogleAuthPlugin extends Plugin {
                         public void onError(GetCredentialException error) {
                             clearPending();
                             if (error instanceof GetCredentialCancellationException) {
-                                call.reject("Account selection cancelled", "CANCELLED");
+                                if (isUserCancellationMessage(error.getErrorMessage())) {
+                                    call.reject("Account selection cancelled", "CANCELLED");
+                                } else {
+                                    // Play Services can wrap non-cancellation failures such as "[16] Account reauth failed"
+                                    // or "[28444] Developer console is not set up correctly" in GetCredentialCancellationException.
+                                    call.reject("Google sign-in could not finish", "NATIVE_GOOGLE_FAILED");
+                                }
                             } else if (error instanceof GetCredentialUnsupportedException
                                 || error instanceof GetCredentialProviderConfigurationException) {
                                 call.reject("Native Google sign-in is unavailable", "UNAVAILABLE");
@@ -101,6 +108,23 @@ public class ZyxGoogleAuthPlugin extends Plugin {
                 call.reject("Google sign-in could not start", "NATIVE_GOOGLE_FAILED");
             }
         });
+    }
+
+    static boolean isUserCancellationMessage(CharSequence rawMessage) {
+        if (rawMessage == null) return true;
+        String normalized = rawMessage.toString().trim().toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty()) return true;
+        if (normalized.contains("reauth")
+            || normalized.contains("developer")
+            || normalized.contains("28444")
+            || normalized.contains("[16]")
+            || normalized.contains("[10]")
+            || normalized.contains("console")
+            || normalized.contains("failed")
+            || normalized.contains("error")) {
+            return false;
+        }
+        return normalized.contains("cancel");
     }
 
     @PluginMethod
