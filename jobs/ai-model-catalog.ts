@@ -44,7 +44,7 @@ export const aiModelCatalogCron = defineJob({
       catch { return false; }
     });
     if (saved) for (const [id, result] of Object.entries(results)) {
-      if (result.status === "complete") verified[id as ModelId] = result;
+      if (result?.status === "complete") verified[id as ModelId] = result;
     }
   }
   if (models.length && models.every(id => verified[id])) {

@@ -21,7 +21,8 @@ const leaseSchema = z.object({
 }).passthrough();
 
 const reserveSchema = z.union([
-  z.object({ status: z.enum(["reserved", "idempotent"]), lease: leaseSchema }),
+  z.object({ status: z.literal("reserved"), lease: leaseSchema }),
+  z.object({ status: z.literal("idempotent"), lease: leaseSchema }),
   z.object({ status: z.enum(["fallback_allowed", "quota_exhausted"]), code: z.string(), modelId: z.string() }),
 ]);
 

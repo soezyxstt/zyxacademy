@@ -46,13 +46,17 @@ export function prepareTask(event: QueueEvent, environment: keyof typeof workerB
 
 let auth: import("google-auth-library").GoogleAuth | undefined;
 
+function isQueueEnvironment(value: unknown): value is keyof typeof workerBranches {
+  return value === "production" || value === "staging";
+}
+
 export async function enqueueTask(event: QueueEvent) {
   if (process.env.NODE_ENV === "test" || process.env.GITHUB_EVENT_NAME === "pull_request" || ["noop", "memory"].includes(process.env.QUEUE_PROVIDER ?? "")) {
     return event.id ?? randomUUID();
   }
   if (process.env.QUEUE_PROVIDER !== "cloud-tasks") throw new Error("CLOUD_TASKS_PROVIDER_REQUIRED");
   const environment = process.env.ZYX_ENVIRONMENT;
-  if (environment !== "production" && environment !== "staging") throw new Error("QUEUE_ENVIRONMENT_REQUIRED");
+  if (!isQueueEnvironment(environment)) throw new Error("QUEUE_ENVIRONMENT_REQUIRED");
   if (process.env.ZYX_COMPUTE_RUNTIME === "neon") {
     const secret = process.env.COMPUTE_SERVICE_SECRET;
     if (!secret) throw new Error("QUEUE_RELAY_AUTH_REQUIRED");
@@ -64,8 +68,8 @@ export async function enqueueTask(event: QueueEvent) {
     });
     if (!response.ok) throw new Error(`QUEUE_RELAY_FAILED:${response.status}`);
     const result = await response.json();
-    if (typeof result.id !== "string") throw new Error("QUEUE_RELAY_RESULT_INVALID");
-    return result.id as string;
+    if (!result || typeof result !== "object" || !("id" in result) || typeof result.id !== "string") throw new Error("QUEUE_RELAY_RESULT_INVALID");
+    return result.id;
   }
   const { parent, task } = prepareTask(event, environment);
   const { GoogleAuth } = await import("google-auth-library");
@@ -78,7 +82,9 @@ export async function enqueueTask(event: QueueEvent) {
     body: JSON.stringify({ task }),
   });
   if (!response.ok) {
-    const duplicate = response.status === 409 && (await response.json().catch(() => null))?.error?.status === "ALREADY_EXISTS";
+    const body: unknown = response.status === 409 ? await response.json().catch(() => null) : null;
+    const error = body && typeof body === "object" && "error" in body ? body.error : null;
+    const duplicate = error && typeof error === "object" && "status" in error && error.status === "ALREADY_EXISTS";
     if (!duplicate) throw new Error(`CLOUD_TASKS_CREATE_FAILED:${response.status}`);
   }
   return task.name;
