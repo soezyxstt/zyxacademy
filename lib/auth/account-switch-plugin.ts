@@ -120,7 +120,17 @@ export function accountSwitchPlugin(options: Options) {
           if (!next) return;
           const config = ctx.context.authCookies.sessionToken;
           const active = await availableDeviceSessions(ctx);
-          const validTokens = new Set(active.map((item) => item.session.token));
+          // The stock plugin skips consolidation when the target already has a
+          // saved cookie, including a repeated native handoff. Retire only this
+          // device's verified duplicate tokens; other devices keep their sessions.
+          const duplicates = active.filter((item) => item.user.id === next.user.id
+            && item.session.token !== next.session.token);
+          if (duplicates.length > 0) {
+            await ctx.context.internalAdapter.deleteSessions(duplicates.map((item) => item.session.token));
+          }
+          const validTokens = new Set(active.filter((item) => item.user.id !== next.user.id)
+            .map((item) => item.session.token));
+          validTokens.add(next.session.token);
           await pruneSavedCookies(ctx, validTokens);
           // The stock plugin counts stale cookie names toward its limit. These
           // sessions already passed the live-session cap; retain the new account.

@@ -146,6 +146,91 @@ describe("saved device account sessions", () => {
     expect((await browser.request("/multi-session/list-device-sessions")).data).toEqual([]);
   });
 
+  test("reauthenticating a saved account keeps one device session and removal leaves other devices signed in", async () => {
+    const browser = new Browser();
+    const first = await browser.signup("repeat-account-a");
+    const userA = first.data.user.id as string;
+    const oldDeviceCookies = new Map(browser.cookies);
+    const otherDevice = new Browser();
+    const elsewhere = await otherDevice.request("/sign-in/email", {
+      email: "repeat-account-a@example.test", password: "account-switch-password-123",
+    });
+    expect(elsewhere.response.status).toBe(200);
+    const otherToken = elsewhere.data.token as string;
+    const second = await browser.signup("repeat-account-b");
+    const userB = second.data.user.id as string;
+    let latestToken = "";
+    for (let index = 0; index <= MAX_SAVED_ACCOUNTS; index += 1) {
+      const repeated = await browser.request("/sign-in/email", {
+        email: "repeat-account-a@example.test", password: "account-switch-password-123",
+      });
+      expect(repeated.response.status).toBe(200);
+      latestToken = repeated.data.token;
+      expect([...browser.cookies.keys()].filter((name) => name.includes("_multi-"))).toHaveLength(2);
+      const saved = await browser.request("/multi-session/list-device-sessions");
+      expect(saved.data).toHaveLength(2);
+      expect(saved.data.find((item: { user: { id: string } }) => item.user.id === userA).session.token).toBe(latestToken);
+    }
+    const sessionsA = await testDb.select({ token: schema.session.token }).from(schema.session).where(eq(schema.session.userId, userA));
+    expect(sessionsA.map((item) => item.token).sort()).toEqual([latestToken, otherToken].sort());
+    const capturedDevice = new Browser();
+    capturedDevice.cookies = oldDeviceCookies;
+    expect((await capturedDevice.request("/get-session?disableCookieCache=true&disableRefresh=true")).data).toBeNull();
+    const saved = await browser.request("/multi-session/list-device-sessions");
+    const tokenB = saved.data.find((item: { user: { id: string } }) => item.user.id === userB).session.token;
+    expect((await browser.request("/multi-session/set-active", { sessionToken: tokenB })).response.status).toBe(200);
+    expect((await browser.request("/multi-session/revoke", { sessionToken: latestToken })).response.status).toBe(200);
+    const remaining = await browser.request("/multi-session/list-device-sessions");
+    expect(remaining.data.map((item: { user: { id: string } }) => item.user.id)).toEqual([userB]);
+    expect([...browser.cookies.keys()].filter((name) => name.includes("_multi-"))).toHaveLength(1);
+    expect((await browser.request("/multi-session/list-device-sessions")).data).toHaveLength(1);
+    expect((await otherDevice.request("/get-session?disableCookieCache=true&disableRefresh=true")).data.user.id).toBe(userA);
+    const afterRemoval = await testDb.select({ token: schema.session.token }).from(schema.session).where(eq(schema.session.userId, userA));
+    expect(afterRemoval.map((item) => item.token)).toEqual([otherToken]);
+  });
+
+  test("an existing-session native handoff consolidates device cookies from overlapping sign-in responses", async () => {
+    const browser = new Browser();
+    const first = await browser.signup("repeat-handoff-a");
+    const userA = first.data.user.id as string;
+    const second = await browser.signup("repeat-handoff-b");
+    const userB = second.data.user.id as string;
+    const tokenB = second.data.token as string;
+    const credentials = { email: "repeat-handoff-a@example.test", password: "account-switch-password-123" };
+    const otherDevice = new Browser();
+    const otherToken = (await otherDevice.request("/sign-in/email", credentials)).data.token as string;
+
+    // Both requests use the same cookie snapshot. Their responses may arrive
+    // later from separate tabs, leaving two valid cookies for the same account.
+    const earlier = await browser.send("/sign-in/email", credentials);
+    const later = await browser.send("/sign-in/email", credentials);
+    expect(earlier.status).toBe(200);
+    expect(later.status).toBe(200);
+    browser.applyCookies(earlier);
+    const earlierCookies = new Map(browser.cookies);
+    browser.applyCookies(later);
+    const latestToken = (await later.json()).token as string;
+    expect([...browser.cookies.keys()].filter((name) => name.includes("_multi-"))).toHaveLength(3);
+    const handoff = await auth.api.generateOneTimeToken({
+      headers: new Headers({ cookie: [...browser.cookies].map(([key, value]) => `${key}=${value}`).join("; ") }),
+    });
+    const imported = await browser.request("/one-time-token/verify", handoff);
+    expect(imported.response.status).toBe(200);
+    expect(imported.data.user.id).toBe(userA);
+    expect([...browser.cookies.keys()].filter((name) => name.includes("_multi-"))).toHaveLength(2);
+    const sessionsA = await testDb.select({ token: schema.session.token }).from(schema.session).where(eq(schema.session.userId, userA));
+    expect(sessionsA.map((item) => item.token).sort()).toEqual([latestToken, otherToken].sort());
+    const capturedDevice = new Browser();
+    capturedDevice.cookies = earlierCookies;
+    expect((await capturedDevice.request("/get-session?disableCookieCache=true&disableRefresh=true")).data).toBeNull();
+    expect((await browser.request("/multi-session/set-active", { sessionToken: tokenB })).response.status).toBe(200);
+    expect((await browser.request("/multi-session/revoke", { sessionToken: latestToken })).response.status).toBe(200);
+    expect((await browser.request("/multi-session/list-device-sessions")).data.map((item: { user: { id: string } }) => item.user.id)).toEqual([userB]);
+    expect((await browser.request("/multi-session/list-device-sessions")).data).toHaveLength(1);
+    expect([...browser.cookies.keys()].filter((name) => name.includes("_multi-"))).toHaveLength(1);
+    expect((await otherDevice.request("/get-session?disableCookieCache=true&disableRefresh=true")).data.user.id).toBe(userA);
+  });
+
   test("unavailable accounts are removed from the saved list and cannot trap the device at its account limit", async () => {
     const browser = new Browser();
     const ids: string[] = [];
