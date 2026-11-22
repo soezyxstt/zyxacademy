@@ -1,3 +1,4 @@
+import type { RequestLatency } from "./provider/request-latency";
 import { officialRelease } from "./provider/recent-models";
 import type { ModelDate, ModelLatency } from "./provider/model-observations";
 import { z } from "zod";
@@ -50,6 +51,16 @@ const OPS_AI_EDITABLE_TRIO: readonly [ModelId, ModelId, ModelId] = [
 ];
 
 export const MODEL_FEATURE_CATALOG = [
+  {
+    id: "global-default",
+    label: "Model global",
+    group: "interactive",
+    description: "Urutan model untuk semua fitur tanpa pengaturan khusus.",
+    requiresStreamingTools: false,
+    supportsImages: false,
+    runtimeDefaultModels: ROUTE_POLICY.default,
+    editableDefaultModels: DEFAULT_EDITABLE_TRIO,
+  },
   {
     id: "zyra",
     label: "Zyra",
@@ -393,7 +404,7 @@ export function modelFeature(feature?: string, useCase?: string): ModelFeature |
 }
 
 export function textProviderFeatureAllowed(feature: string) {
-  return supportsTextProvider(feature) || FEATURE_DEFINITION_MAP.has(feature as ModelFeature);
+  return supportsTextProvider(feature) || (feature !== "global-default" && FEATURE_DEFINITION_MAP.has(feature as ModelFeature));
 }
 
 export function compatibleModelChain(
@@ -456,6 +467,7 @@ export interface FeatureModelSettingView {
   readonly selectableModels: readonly ModelId[];
   readonly modelLabels?: Partial<Record<ModelId, string>>;
   readonly modelDates?: Partial<Record<ModelId, ModelDate>>;
+  readonly requestLatencies?: Record<string, RequestLatency>;
   readonly modelLatencies?: Partial<Record<ModelId, ModelLatency>>;
   readonly requiresStreamingTools: boolean;
   readonly supportsImages: boolean;

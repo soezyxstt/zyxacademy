@@ -119,7 +119,7 @@ export function ModelsClient({
         setViews(result.views);
         const models = [...new Set(result.views.flatMap(view => view.selectableModels ?? []))];
         const observations: NonNullable<FeatureModelSettingView["modelLatencies"]> = Object.assign({}, ...result.views.map(view => view.modelLatencies ?? {}));
-        if (models.length && models.every(id => (observations[id]?.checkedAt ?? 0) >= latencyRefreshRequestedAt)) {
+        if (models.length && models.every(id => observations[id]?.status === "complete" && (observations[id]?.checkedAt ?? 0) >= latencyRefreshRequestedAt)) {
           setLatencyRefreshRequestedAt(null);
           toast.success(t("modelsUI.latencyUpdated"));
           return;
@@ -481,13 +481,13 @@ export function ModelsClient({
                       <div className="min-w-0 space-y-1.5">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-heading text-body-base font-semibold text-foreground">
-                            {view.label}
+                            {view.feature === "global-default" ? t("modelsUI.globalTitle") : view.label}
                           </span>
                           {view.isCustom && <span className="inline-flex items-center rounded-md border border-brand-primary/30 bg-brand-primary/10 px-2 py-0.5 text-body-xs font-medium text-brand-primary">{t("modelsUI.statusCustom")}</span>}
                         <Popover><PopoverTrigger asChild>
                           <Button variant="ghost" size="icon-sm" aria-label={view.label + ": " + t("modelsUI.capabilityHeading")}><Info aria-hidden /></Button>
                         </PopoverTrigger><PopoverContent className="space-y-2 text-body-xs">
-                          <p className="text-body-xs">{view.description}</p>
+                          <p className="text-body-xs">{view.feature === "global-default" ? t("modelsUI.globalHelp") : view.description}</p>
                           <p className="text-body-xs">{t("modelsUI.runtimeDefaultPrefix")} {view.runtimeDefaultModels.map(formatModelLabel).join(", ")}</p>
                           <p className="text-body-xs">{t("modelsUI.capabilityDistinct")}</p>
                           {view.requiresStreamingTools && <p className="text-body-xs">{t("modelsUI.capabilityOpsAi")}</p>}
@@ -522,7 +522,7 @@ export function ModelsClient({
                                   {priorityLabels[slotIndex]}
                                 </span>
                                 <ModelPicker view={view} value={selectedId} disabled={isRowBusy}
-                                  label={`${view.label} ${priorityLabels[slotIndex]}`}
+                                  label={`${view.feature === "global-default" ? t("modelsUI.globalTitle") : view.label} ${priorityLabels[slotIndex]}`}
                                   priorities={Object.fromEntries(draftModels.map((id, index) => [id, priorityLabels[index]]))}
                                   onChange={id => handleModelChange(view, slotIndex, id)} />
                               </div>
@@ -535,7 +535,7 @@ export function ModelsClient({
                             <AdminIconAction variant="ghost" disabled={isRowBusy} label={view.label + ": " + t("modelsUI.actions")}><MoreHorizontal aria-hidden /></AdminIconAction>
                           </DropdownMenuTrigger><DropdownMenuContent align="end">
                             {isDirty && <DropdownMenuItem onSelect={() => handleDiscardDraft(view.feature)}>{t("modelsUI.discard")}</DropdownMenuItem>}
-                            {view.isCustom && <DropdownMenuItem disabled={pendingFeature !== null} onSelect={() => void handleReset(view)}><RotateCcw aria-hidden className={isResetting ? "animate-spin" : ""} />{t("modelsUI.resetDefault")}</DropdownMenuItem>}
+                            {view.isCustom && <DropdownMenuItem disabled={pendingFeature !== null} onSelect={() => void handleReset(view)}><RotateCcw aria-hidden className={isResetting ? "animate-spin" : ""} />{t(view.feature === "global-default" ? "modelsUI.resetDefault" : "modelsUI.useGlobal")}</DropdownMenuItem>}
                           </DropdownMenuContent></DropdownMenu>}
 
                           <Button

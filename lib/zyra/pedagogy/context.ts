@@ -16,6 +16,7 @@ export type PedagogyContextAction = PedagogyContext["action"];
 export interface BuildPedagogyContextInput {
   responseLanguage?: "id" | "en";
   courseId: string;
+  courseTitle?: string;
   chapterId?: string | null;
   question: string;
   action: PedagogyContextAction;
@@ -48,6 +49,7 @@ export function buildPedagogyContext(input: BuildPedagogyContextInput): Pedagogy
   const context = {
     responseLanguage: input.responseLanguage ?? "id",
     courseId: cleanTopic(input.courseId),
+    ...(input.courseTitle ? { courseTitle: cleanTopic(input.courseTitle) } : {}),
     chapterId: input.chapterId ? cleanTopic(input.chapterId) : null,
     action: input.action,
     evidenceSufficiency: input.evidenceSufficiency,

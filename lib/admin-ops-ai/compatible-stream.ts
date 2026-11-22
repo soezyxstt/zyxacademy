@@ -1,3 +1,4 @@
+import { logAiRequest } from "@/lib/ai/analytics";
 import { randomUUID } from "node:crypto";
 import type { LanguageModelV3CallOptions } from "@ai-sdk/provider";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
@@ -22,6 +23,7 @@ export async function* streamCompatibleOpsModel(id: string, options: LanguageMod
     }, { preconnect: fetch.preconnect }),
   });
   const deadline = AbortSignal.timeout(timeoutMs);
+  const startedAt = Date.now();
   const result = await provider.chatModel(settings.model).doStream({
     ...options,
     abortSignal: options.abortSignal ? AbortSignal.any([options.abortSignal, deadline]) : deadline,
@@ -40,6 +42,7 @@ export async function* streamCompatibleOpsModel(id: string, options: LanguageMod
         id: value.toolCallId, name: value.toolName, args: JSON.parse(value.input),
       } };
       if (value.type === "finish") {
+        await logAiRequest({ model: settings.model, operation: "chatCompletions", viaGateway: true, latencyMs: Date.now() - startedAt, success: true });
         const promptTokens = value.usage.inputTokens.total ?? 0;
         const completionTokens = value.usage.outputTokens.total ?? 0;
         yield { type: "finish", finishReason: value.finishReason.unified, usage: { promptTokens, completionTokens, totalTokens: promptTokens + completionTokens } };

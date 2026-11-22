@@ -102,6 +102,36 @@ describe("AI Model Settings Database Persistence and Optimistic Concurrency", ()
     expect(chainAfterReset).toEqual(defaultGenerationModels);
   });
 
+  it("retains the ten most recent successful request durations per model", async () => {
+    const { recordRequestLatency, readRequestLatencies } = await import("@/lib/ai/provider/request-latency");
+    for (let n = 0; n < 12; n++) await recordRequestLatency("fixture-model", n);
+    expect((await readRequestLatencies())["fixture-model"].samples).toEqual([2,3,4,5,6,7,8,9,10,11]);
+  });
+
+  it("activates the three-hour cooldown from completion and isolates concurrent cycles", async () => {
+    const { claimLatencyCycle, completeLatencyCycle } = await import("@/lib/ai/model-latency-cooldown");
+    expect(await claimLatencyCycle("initial")).toBe(true);
+    expect(await claimLatencyCycle("other")).toBe(false);
+    expect(await claimLatencyCycle("initial", undefined, true)).toBe(true);
+    await completeLatencyCycle("initial");
+    expect(await claimLatencyCycle("initial", undefined, true)).toBe(false);
+    expect(await claimLatencyCycle("other")).toBe(false);
+  });
+
+  it("inherits global changes while preserving overrides until reset", async () => {
+    const first = [MODEL_IDS.flash38, MODEL_IDS.default, MODEL_IDS.stableFlash];
+    const next = [MODEL_IDS.stableFlash, MODEL_IDS.flash38, MODEL_IDS.default];
+    await saveModelSetting({ feature: "global-default", models: first, updatedBy: adminActorId });
+    expect(await configuredModelChain({ feature: "zyra" }, [])).toEqual(first);
+    await saveModelSetting({ feature: "zyra", models: first, updatedBy: adminActorId });
+    await saveModelSetting({ feature: "global-default", models: next, updatedBy: adminActorId });
+    expect(await configuredModelChain({ feature: "zyra" }, [])).toEqual(first);
+    expect(await configuredModelChain({ feature: "admin-quiz-insights" }, [])).toEqual(next);
+    await resetModelSetting({ feature: "zyra" });
+    expect(await configuredModelChain({ feature: "zyra" }, [])).toEqual(next);
+    expect((await listModelSettingViews()).find(view => view.feature === "zyra")).toMatchObject({ models: next, isCustom: false });
+  });
+
   it("rejects stale concurrent updates and resets with ModelSettingConflictError instead of silently overwriting", async () => {
     const first = await saveModelSetting({
       feature: "admin-ops-ai",
