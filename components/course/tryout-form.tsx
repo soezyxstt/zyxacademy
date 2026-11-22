@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -44,12 +44,52 @@ function emptyAnswer(q: PublicQuestion): AnswerState {
   return { type: "essay", text: "", fileName: null, fileSize: "" };
 }
 
+function isAnswered(ans: AnswerState | undefined) {
+  if (!ans) return false;
+  if (ans.type === "multiple_choice") return ans.index !== null;
+  if (ans.type === "multiple_choices") return ans.indices.length > 0;
+  if (ans.type === "short_answer" || ans.type === "essay") {
+    const textDone = ans.text.trim() !== "";
+    const fileDone = ans.fileName !== null;
+    return textDone || fileDone;
+  }
+  return false;
+}
+
 type TryoutFormProps = {
   courseId: string;
   visualCourseId?: string;
   exam: TryoutPresentationExam;
   transport?: { submit: (answers: Record<string, AnswerState>) => Promise<void>; afterSubmitHref?: string };
 };
+
+function Countdown({ deadline, duration }: { deadline: number | null; duration: number }) {
+  const [seconds, setSeconds] = useState(duration);
+  useEffect(() => {
+    if (deadline === null) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      clearTimeout(timer);
+      const remaining = Math.max(0, deadline - Date.now());
+      setSeconds(Math.ceil(remaining / 1000));
+      if (remaining && !document.hidden) timer = setTimeout(tick, remaining % 1000 || 1000);
+    };
+    tick();
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [deadline]);
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h > 0 ? `${h}:` : ""}${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
+  return formatTime(seconds);
+}
 
 export function TryoutForm({ courseId, visualCourseId = courseId, exam, transport }: TryoutFormProps) {
   const t = useTranslations("studentCourse");
@@ -63,9 +103,9 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
 
   // Flag and Time tracking
   const [flags, setFlags] = useState<Record<string, boolean>>({});
-  const [timeLeft, setTimeLeft] = useState<number>(() => {
-    return (exam.settings?.timeLimitMinutes ?? 90) * 60;
-  });
+  const duration = (exam.settings?.timeLimitMinutes ?? 90) * 60;
+  const [deadline, setDeadline] = useState<number | null>(null);
+  useEffect(() => { setDeadline(Date.now() + duration * 1000); }, [duration]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const submissionInFlight = useRef(false);
@@ -106,28 +146,24 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
     }
   }, [courseId, exam.id, answers, router, submitted, t, transport]);
 
-  const timeExpired = timeLeft === 0;
-  useEffect(() => {
-    if (submitted || timeExpired) return;
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [submitted, timeExpired]);
-
-  useEffect(() => {
-    if (!timeExpired || submitted || expirationHandled.current) return;
+  const submitExpired = useEffectEvent(() => {
+    if (expirationHandled.current || submitted) return;
     expirationHandled.current = true;
     toast.warning(t("tryout.timeExpired"));
     void handleSubmit();
-  }, [timeExpired, submitted, handleSubmit, t]);
-
-  const formatTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return `${h > 0 ? `${h}:` : ""}${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  };
+  });
+  useEffect(() => {
+    if (deadline === null || submitted) return;
+    const expire = () => {
+      if (Date.now() >= deadline) submitExpired();
+    };
+    const timer = setTimeout(expire, Math.max(0, deadline - Date.now()));
+    document.addEventListener("visibilitychange", expire);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", expire);
+    };
+  }, [deadline, submitted]);
 
   const sorted = useMemo(
     () => [...exam.questions].sort((a, b) => a.order - b.order),
@@ -135,9 +171,9 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
   );
 
   const q = sorted[index];
-  const answeredCount = sorted.filter((question) => isQuestionAnswered(question)).length;
+  const answeredCount = useMemo(() => sorted.filter(question => isAnswered(answers[question.id])).length, [sorted, answers]);
   const unansweredCount = sorted.length - answeredCount;
-  const flaggedCount = sorted.filter((question) => flags[question.id]).length;
+  const flaggedCount = useMemo(() => sorted.filter(question => flags[question.id]).length, [sorted, flags]);
   const progress = ((index + 1) / sorted.length) * 100;
 
   function setAnswerFor(id: string, next: AnswerState) {
@@ -239,18 +275,6 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
     if (index < sorted.length - 1) setIndex((i) => i + 1);
   }
 
-  function isQuestionAnswered(question: PublicQuestion) {
-    const ans = answers[question.id];
-    if (!ans) return false;
-    if (ans.type === "multiple_choice") return ans.index !== null;
-    if (ans.type === "multiple_choices") return ans.indices.length > 0;
-    if (ans.type === "short_answer" || ans.type === "essay") {
-      const textDone = ans.text.trim() !== "";
-      const fileDone = ans.fileName !== null;
-      return textDone || fileDone;
-    }
-    return false;
-  }
 
   const ans = answers[q.id];
   const currentFlagged = !!flags[q.id];
@@ -263,7 +287,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
       <div className="grid grid-cols-[repeat(auto-fill,minmax(2.5rem,1fr))] gap-2 lg:grid-cols-5">
         {sorted.map((question, idx) => {
           const active = index === idx;
-          const isDone = isQuestionAnswered(question);
+          const isDone = isAnswered(answers[question.id]);
           const isFlagged = !!flags[question.id];
 
           return (
@@ -368,7 +392,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
           <div className="shrink-0 flex items-center gap-1.5 bg-brand-secondary/10 border border-brand-secondary/35 text-brand-secondary px-3.5 py-1.5 rounded-xl font-mono text-body-sm font-bold">
             <Timer aria-hidden className="size-4" />
             <span className="sr-only">{t("tryout.timeRemaining")} </span>
-            <span>{formatTime(timeLeft)}</span>
+            <span><Countdown deadline={deadline} duration={duration} /></span>
           </div>
           {mobileQuestionMap}
         </div>
@@ -718,7 +742,7 @@ export function TryoutForm({ courseId, visualCourseId = courseId, exam, transpor
 
             <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-3.5 py-2 text-body-xs text-muted-foreground">
               <span>{t("tryout.timeRemaining")}</span>
-              <span className="font-mono font-bold text-foreground">{formatTime(timeLeft)}</span>
+              <span className="font-mono font-bold text-foreground"><Countdown deadline={deadline} duration={duration} /></span>
             </div>
 
           </div>

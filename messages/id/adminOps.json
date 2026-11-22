@@ -1,4 +1,30 @@
 {
+  "zyraOps": {
+    "unavailable": "Operasi Zyra belum tersedia.",
+    "title": "Operasi Zyra",
+    "alerts": "Peringatan",
+    "none": "Tidak ada peringatan aktif.",
+    "external": "Pemakaian eksternal tidak terukur",
+    "capacity": "Kapasitas internal per model",
+    "description": "Sisa kapasitas mengikuti batas internal Zyx.",
+    "table": "Kapasitas internal Zyra per model",
+    "perProject": "Per proyek",
+    "ceiling": "Batas pakai Zyx",
+    "committed": "Terpakai",
+    "active": "Aktif",
+    "reserve": "Cadangan",
+    "remaining": "Sisa tersedia",
+    "provider": "Giliran penyedia",
+    "reservations": "Reservasi aktif",
+    "saved": "Giliran dihemat oleh cache",
+    "failures": "Kegagalan gambar",
+    "slots": "{count} slot proyek",
+    "violations": "{count} pelanggaran validasi"
+  },
+  "analyticsSync": {
+    "success": "Berhasil menyinkronkan {count} halaman populer.",
+    "failed": "Gagal menyinkronkan data dari GA4."
+  },
   "discountSettings": {
     "title": "Diskon",
     "scheduleHelp": "Tanggal berlaku dalam WIB, termasuk tanggal akhir. Isi 0% untuk menonaktifkan diskon.",

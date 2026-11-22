@@ -46,6 +46,8 @@ import {
 import { buildFormSteps, formFileSizeLimitMb, isEmptyFormAnswer, type FormStep, type FormDisplayMode } from "@/lib/forms/presentation";
 import { formFileAccept, type FormFileMime } from "@/lib/forms/file-types";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
+import { customFormMessage, type FormClosure } from "@/lib/forms/response-policy";
+import { useFormatter } from "next-intl";
 import { useTranslations } from "@/lib/i18n/client";
 
 interface QuestionItem {
@@ -97,6 +99,7 @@ export function PublicFormViewer({
   initialStepIndex?: number;
 }) {
   const t = useTranslations("publicForms");
+  const format = useFormatter();
   const tRef = useRef(t);
   tRef.current = t;
   const reducedMotion = useAppReducedMotion();
@@ -140,6 +143,7 @@ export function PublicFormViewer({
   const [zoomImageUri, setZoomImageUri] = useState<{ url: string; title: string } | null>(null);
 
   const [isClosed, setIsClosed] = useState(false);
+  const [closure, setClosure] = useState<FormClosure | null>(null);
   const [closedReason, setClosedReason] = useState<string | null>(null);
   const [loginRequired, setLoginRequired] = useState(false);
 
@@ -194,6 +198,7 @@ export function PublicFormViewer({
         setForm(data.form);
         if (data.isClosed) {
           setIsClosed(true);
+          setClosure(data.closure ?? null);
           setClosedReason(data.closedReason || tRef.current("publicForm.closedDescription"));
         }
       } else {
@@ -384,7 +389,7 @@ export function PublicFormViewer({
 
   const validateEmail = () => {
     const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(responderEmail.trim());
-    setEmailError(valid ? null : "Alamat email wajib diisi dengan format yang benar.");
+    setEmailError(valid ? null : t("publicForm.emailInvalid"));
     return valid;
   };
 
@@ -395,7 +400,7 @@ export function PublicFormViewer({
     const isOtherEmpty = (value === OTHER_OPTION_MARKER ||
       (Array.isArray(value) && value.includes(OTHER_OPTION_MARKER))) && !otherTextsRef.current[qIdx]?.trim();
     if (isOtherEmpty || (q.required && isEmptyFormAnswer(q, value))) {
-      toast.error(isOtherEmpty ? "Jelaskan pilihan lainnya." : `Harap isi: ${q.title}`);
+      toast.error(isOtherEmpty ? t("publicForm.otherRequired") : t("publicForm.requiredNamed", { title: q.title }));
       requestAnimationFrame(() => {
         const field = mainScrollRef.current?.querySelector<HTMLElement>(`[data-question-index="${qIdx}"]`);
         field?.scrollIntoView({ block: "center", behavior: getAppScrollBehavior() });
@@ -523,7 +528,7 @@ export function PublicFormViewer({
       setEmailError(null);
       setCurrentStepIndex(0);
       setSubmittedMessage(
-        form?.settings?.customSuccessMessage || t("publicForm.previewSuccess")
+        customFormMessage("customSuccessMessage", form?.settings?.customSuccessMessage) || t("publicForm.previewSuccess")
       );
       toast.success(t("publicForm.previewSubmitted"));
       return;
@@ -568,7 +573,7 @@ export function PublicFormViewer({
         setResponderEmail("");
         setEmailError(null);
         setCurrentStepIndex(0);
-        setSubmittedMessage(form?.settings?.customSuccessMessage || t("publicForm.submitSuccess"));
+        setSubmittedMessage(customFormMessage("customSuccessMessage", form?.settings?.customSuccessMessage) || t("publicForm.submitSuccess"));
       } else {
         toast.error(t("publicForm.submitFailed"));
         setErrorMsg(t("publicForm.submitFailed"));
@@ -734,6 +739,14 @@ export function PublicFormViewer({
   }
 
   if (isClosed && form) {
+    const dateLabel = (value: string) => format.dateTime(new Date(value), {
+      dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta",
+    });
+    const description = closure?.kind === "scheduled"
+      ? t("publicForm.opensAt", { date: dateLabel(closure.opensAt) })
+      : closure?.message || (closure?.kind === "ended"
+        ? t("publicForm.endedAt", { date: dateLabel(closure.endedAt) })
+        : (!closure && closedReason) || t("publicForm.closedDescription"));
     return (
       <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
         <PageOrnaments variant="plans" />
@@ -743,7 +756,7 @@ export function PublicFormViewer({
           </span>
           <h1 className="font-heading text-h5 font-bold text-foreground">{form.title}</h1>
           <p className="text-body-sm text-muted-foreground whitespace-pre-line border-t border-border/40 pt-4">
-            {closedReason || t("publicForm.closedDescription")}
+            {description}
           </p>
           <Button asChild variant="outline">
             <Link href="/">{t("publicForm.home")}</Link>
@@ -875,9 +888,9 @@ export function PublicFormViewer({
                 )}
 
                 <div className={cn("flex flex-wrap items-center gap-4 text-body-xs text-muted-foreground font-medium pt-2", isFlowing && "hidden")}>
-                  <span>~{Math.max(1, Math.round(totalQuestions * 0.5))} menit pengisian</span>
+                  <span>{t("publicForm.estimatedMinutes", { count: Math.max(1, Math.round(totalQuestions * 0.5)) })}</span>
                   <span>•</span>
-                  <span>{totalQuestions} pertanyaan</span>
+                  <span>{t("publicForm.questionCount", { count: totalQuestions })}</span>
                 </div>
 
                 <div className={cn("pt-2 flex items-center gap-3", isFlowing && "hidden")}>
@@ -918,7 +931,7 @@ export function PublicFormViewer({
                     {t("publicForm.emailTitle")}
                   </h2>
                   <p className={cn("text-body-sm text-muted-foreground", isFlowing && "hidden")}>
-                    Email digunakan untuk konfirmasi identitas dan verifikasi tanggapan.
+                    {t("publicForm.emailExplanation")}
                   </p>
                 </div>
 
@@ -926,7 +939,7 @@ export function PublicFormViewer({
                   <input
                     ref={setFocusableRef as any}
                     type="email"
-                    aria-label="Alamat email"
+                    aria-label={t("publicForm.email")}
                     required
                     value={responderEmail}
                     onChange={(e) => {
@@ -950,7 +963,7 @@ export function PublicFormViewer({
                     onClick={goToNextStep}
                     className="h-11 px-6 text-body-sm font-bold shadow-sm cursor-pointer"
                   >
-                    <span>{isLastStep ? "Kirim tanggapan" : "Lanjut"}</span>
+                    <span>{isLastStep ? t("publicForm.submit") : t("publicForm.next")}</span>
                     <Check className="size-4 ml-1.5" />
                   </Button>
                   <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
@@ -1022,7 +1035,7 @@ export function PublicFormViewer({
                       onClick={goToNextStep}
                       className="h-12 px-7 text-body-sm font-bold shadow-sm inline-flex items-center gap-2 bg-brand-primary text-white cursor-pointer"
                     >
-                      <span>{isLastStep ? "Kirim tanggapan" : "Lanjut"}</span>
+                      <span>{isLastStep ? t("publicForm.submit") : t("publicForm.next")}</span>
                       <ArrowRight className="size-4" />
                     </Button>
                     <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
@@ -1093,7 +1106,7 @@ export function PublicFormViewer({
                       onClick={goToNextStep}
                       className="h-12 px-7 text-body-sm font-bold shadow-sm inline-flex items-center gap-2 bg-brand-primary text-white cursor-pointer"
                     >
-                      <span>{isLastStep ? "Kirim tanggapan" : "Lanjut"}</span>
+                      <span>{isLastStep ? t("publicForm.submit") : t("publicForm.next")}</span>
                       <ArrowRight className="size-4" />
                     </Button>
                     <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
@@ -1142,7 +1155,7 @@ export function PublicFormViewer({
                         {q.required && <span className="ml-1 text-destructive">*</span>}
                       </h2>
                       {hasAnswer && (
-                        <Button variant="ghost" size="icon-sm" onClick={() => handleClearAnswer(qIdx)} aria-label={`Kosongkan jawaban: ${q.title}`} title="Kosongkan jawaban">
+                        <Button variant="ghost" size="icon-sm" onClick={() => handleClearAnswer(qIdx)} aria-label={t("publicForm.clearNamed", { title: q.title })} title={t("publicForm.clearQuestionTitle")}>
                           <Eraser className="size-3.5" />
                         </Button>
                       )}
@@ -1499,7 +1512,7 @@ export function PublicFormViewer({
                                   <UploadCloud className="size-6" />
                                 </div>
                                 <p className="text-body-sm font-semibold text-foreground">
-                                  Pilih berkas
+                                  {t("publicForm.chooseFile")}
                                 </p>
 
                               </div>
@@ -1569,7 +1582,7 @@ export function PublicFormViewer({
                           })}
                         </div>
                         <p className={cn("text-body-xs text-muted-foreground", isFlowing && "hidden")}>
-                          Tip: Anda juga dapat menekan angka <strong className="font-semibold text-foreground">1-5</strong> di keyboard.
+                          {t("publicForm.scaleTip")}
                         </p>
                       </div>
                     )}
@@ -1701,7 +1714,7 @@ export function PublicFormViewer({
                       onClick={goToNextStep}
                       className="h-11 px-6 text-body-sm font-bold shadow-sm cursor-pointer inline-flex items-center gap-2"
                     >
-                      <span>{isLastStep ? "Kirim tanggapan" : "Lanjut"}</span>
+                      <span>{isLastStep ? t("publicForm.submit") : t("publicForm.next")}</span>
                       <Check className="size-4" />
                     </Button>
                     <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
@@ -1718,9 +1731,9 @@ export function PublicFormViewer({
           </AnimatePresence>
           {isFlowing && (
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 mt-4">
-              <Button variant="outline" onClick={goToPrevStep} disabled={stepIndex === 0 || uploadingQIdx !== null}>Kembali</Button>
+              <Button variant="outline" onClick={goToPrevStep} disabled={stepIndex === 0 || uploadingQIdx !== null}>{t("publicForm.back")}</Button>
               <Button onClick={goToNextStep} disabled={uploadingQIdx !== null || submitting}>
-                {isLastStep ? "Kirim tanggapan" : "Lanjut"}
+                {isLastStep ? t("publicForm.submit") : t("publicForm.next")}
                 {isLastStep ? <Send className="size-4" /> : <ArrowRight className="size-4" />}
               </Button>
             </div>
@@ -1770,15 +1783,15 @@ export function PublicFormViewer({
       <Dialog open={confirmSubmitOpen} onOpenChange={(open) => { if (!submitting) setConfirmSubmitOpen(open); }}>
         <DialogContent showCloseButton={!submitting}>
           <DialogHeader>
-            <DialogTitle>Kirim tanggapan?</DialogTitle>
-            <DialogDescription>Tanggapan belum terkirim. Pilih kirim untuk menyelesaikan formulir.</DialogDescription>
+            <DialogTitle>{t("publicForm.confirmTitle")}</DialogTitle>
+            <DialogDescription>{t("publicForm.confirmBody")}</DialogDescription>
           </DialogHeader>
           {errorMsg && <p role="alert" className="text-body-xs text-destructive">{errorMsg}</p>}
           <DialogFooter>
-            <Button variant="outline" disabled={submitting} onClick={() => setConfirmSubmitOpen(false)}>Kembali mengisi</Button>
+            <Button variant="outline" disabled={submitting} onClick={() => setConfirmSubmitOpen(false)}>{t("publicForm.keepEditing")}</Button>
             <Button disabled={submitting} onClick={() => void handleSubmit(true)}>
               {submitting ? <RefreshCw className="size-4 animate-spin" /> : <Send className="size-4" />}
-              {submitting ? "Mengirim..." : "Kirim tanggapan"}
+              {submitting ? t("publicForm.submitting") : t("publicForm.submit")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -19,7 +19,7 @@ export function ZyraOpsPanel() {
   const { data: metrics, error, isFetching: loading, refetch } = useQuery(zyraOpsQuery(userId ?? ""));
 
   if (error) {
-    return <p className="flex items-center gap-2 text-body-sm text-status-warning"><TriangleAlert className="size-4" /> Zyra ops belum tersedia.</p>;
+    return <p className="flex items-center gap-2 text-body-sm text-status-warning"><TriangleAlert className="size-4" /> {t("zyraOps.unavailable")}</p>;
   }
   if (!metrics) return <ZyraOpsSkeleton />;
 
@@ -28,7 +28,7 @@ export function ZyraOpsPanel() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 id="zyra-ops-title" className="flex items-center gap-2 font-heading text-body-base font-semibold">
-            <Activity className="size-5 text-brand-primary" aria-hidden="true" /> Zyra operations
+            <Activity className="size-5 text-brand-primary" aria-hidden="true" /> {t("zyraOps.title")}
           </h2>
         </div>
         <AdminIconAction variant="outline" label={t("analyticsUI.refresh")} onClick={() => void refetch()} disabled={loading}>
@@ -36,9 +36,9 @@ export function ZyraOpsPanel() {
           </AdminIconAction>
       </div>
       <div className="space-y-2" aria-live="polite">
-        <h3 className="font-semibold text-body-sm text-foreground">Alerts</h3>
+        <h3 className="font-semibold text-body-sm text-foreground">{t("zyraOps.alerts")}</h3>
         {metrics.alerts.length === 0 ? (
-          <p className="text-body-sm text-muted-foreground">Tidak ada alert aktif.</p>
+          <p className="text-body-sm text-muted-foreground">{t("zyraOps.none")}</p>
         ) : (
           <ul className="space-y-2">
             {metrics.alerts.map((alert) => (
@@ -66,31 +66,31 @@ export function ZyraOpsPanel() {
       )}
       <AdminStatStrip className="sm:grid-cols-2 lg:grid-cols-4">
         <AdminStatStripItem label={t("analyticsUI.fallbackRecovered")} value={metrics.events.find(event => event.eventType === "provider_attempt" && event.resultCode === "PROVIDER_FALLBACK_SUCCESS")?.count ?? 0} />
-        <AdminStatStripItem label="Provider turns" value={metrics.ledger.committedProviderTurns} />
-        <AdminStatStripItem label="Active reservations" value={metrics.ledger.activeReservations} />
-        <AdminStatStripItem label="Cache saved" value={metrics.ledger.cacheSavedTurns} />
-        <AdminStatStripItem label="Image failures" value={metrics.image.failed} tone={metrics.image.failed > 0 ? "error" : "default"} />
+        <AdminStatStripItem label={t("zyraOps.provider")} value={metrics.ledger.committedProviderTurns} />
+        <AdminStatStripItem label={t("zyraOps.reservations")} value={metrics.ledger.activeReservations} />
+        <AdminStatStripItem label={t("zyraOps.saved")} value={metrics.ledger.cacheSavedTurns} />
+        <AdminStatStripItem label={t("zyraOps.failures")} value={metrics.image.failed} tone={metrics.image.failed > 0 ? "error" : "default"} />
       </AdminStatStrip>
       <div className="flex flex-wrap gap-4 text-body-sm text-muted-foreground">
-        <span className="inline-flex items-center gap-1 text-status-success"><ShieldCheck className="size-4" /> Pemakaian eksternal tidak terukur</span>
-        <span>{metrics.projectSlotCount} slot proyek</span>
-        <span>{metrics.traces.validationViolations} pelanggaran validasi</span>
+        <span className="inline-flex items-center gap-1 text-status-success"><ShieldCheck className="size-4" /> {t("zyraOps.external")}</span>
+        <span>{t("zyraOps.slots", { count: metrics.projectSlotCount })}</span>
+        <span>{t("zyraOps.violations", { count: metrics.traces.validationViolations })}</span>
       </div>
       <div className="space-y-2">
-        <h3 className="font-semibold text-body-sm text-foreground">Internal capacity by model</h3>
-        <p className="text-body-xs text-muted-foreground">Sisa kapasitas mengikuti batas internal Zyx.</p>
+        <h3 className="font-semibold text-body-sm text-foreground">{t("zyraOps.capacity")}</h3>
+        <p className="text-body-xs text-muted-foreground">{t("zyraOps.description")}</p>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-body-sm">
-            <caption className="sr-only">Internal Zyra capacity by model</caption>
+            <caption className="sr-only">{t("zyraOps.table")}</caption>
             <thead>
               <tr className="border-b border-border text-left">
                 <th className="px-3 py-1.5 font-semibold">Model</th>
-                <th className="px-3 py-1.5 font-semibold">Per project</th>
-                <th className="px-3 py-1.5 font-semibold">Zyx usable ceiling</th>
-                <th className="px-3 py-1.5 font-semibold">Committed</th>
-                <th className="px-3 py-1.5 font-semibold">Active</th>
-                <th className="px-3 py-1.5 font-semibold">Reserve</th>
-                <th className="px-3 py-1.5 font-semibold">Usable remaining</th>
+                <th className="px-3 py-1.5 font-semibold">{t("zyraOps.perProject")}</th>
+                <th className="px-3 py-1.5 font-semibold">{t("zyraOps.ceiling")}</th>
+                <th className="px-3 py-1.5 font-semibold">{t("zyraOps.committed")}</th>
+                <th className="px-3 py-1.5 font-semibold">{t("zyraOps.active")}</th>
+                <th className="px-3 py-1.5 font-semibold">{t("zyraOps.reserve")}</th>
+                <th className="px-3 py-1.5 font-semibold">{t("zyraOps.remaining")}</th>
               </tr>
             </thead>
             <tbody>

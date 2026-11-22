@@ -1,4 +1,30 @@
 {
+  "zyraOps": {
+    "unavailable": "Zyra operations are unavailable.",
+    "title": "Zyra operations",
+    "alerts": "Alerts",
+    "none": "No active alerts.",
+    "external": "External usage is not measured",
+    "capacity": "Internal capacity by model",
+    "description": "Remaining capacity is based on Zyx’s internal limits.",
+    "table": "Internal Zyra capacity by model",
+    "perProject": "Per project",
+    "ceiling": "Zyx usable ceiling",
+    "committed": "Committed",
+    "active": "Active",
+    "reserve": "Reserve",
+    "remaining": "Usable remaining",
+    "provider": "Provider turns",
+    "reservations": "Active reservations",
+    "saved": "Turns saved by cache",
+    "failures": "Image failures",
+    "slots": "{count} project slots",
+    "violations": "{count} validation violations"
+  },
+  "analyticsSync": {
+    "success": "{count, plural, one {Synced # popular page.} other {Synced # popular pages.}}",
+    "failed": "Could not sync data from GA4."
+  },
   "discountSettings": {
     "title": "Discounts",
     "scheduleHelp": "Dates use WIB and include the end date. Set 0% to disable a discount.",

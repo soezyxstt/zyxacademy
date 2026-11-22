@@ -174,7 +174,7 @@ describe("Better Auth oneTimeToken native browser handoff", () => {
     const completeReq = new NextRequest(
       `https://staging.zyxacademy.com/api/auth/native/complete?scheme=zyxacademy-nightly&state=${state}&next=/dashboard`,
       {
-        headers: { cookie: `${desktopCookie!}; ${handoffCookiePair!}` },
+        headers: { cookie: `${desktopCookie!}; ${handoffCookiePair!}; zyx_locale=en` },
       },
     );
     const completeRes = await completeNativeAuth(completeReq);
@@ -183,7 +183,8 @@ describe("Better Auth oneTimeToken native browser handoff", () => {
     const html = await completeRes.text();
     expect(html).toContain("zyxacademy-nightly://auth/native-finish#token=");
     expect(html).toContain(`state=${state}`);
-    expect(html).toContain("Buka Zyx Academy");
+    expect(html).toContain('<html lang="en">');
+    expect(html).toContain("Open Zyx Academy");
   });
 
   test("rejects disallowed schemes or mismatched state", async () => {

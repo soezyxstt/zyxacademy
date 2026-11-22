@@ -403,7 +403,7 @@ export function SessionDetailDrawer({
   const handleLocalChange = async (patch: Parameters<LocalScheduleOperations["update"]>[1]) => {
     setBusyAction("schedule");
     try { await localOperations?.update(booking, patch); await refreshParent(); }
-    catch (error) { toast.error(error instanceof Error && error.message === "SLOT_TAKEN" ? "Waktu tersebut sudah terisi. Pilih jadwal lain." : "Jadwal belum tersimpan. Periksa tanggal dan waktu, lalu coba lagi."); }
+    catch (error) { toast.error(error instanceof Error && error.message === "SLOT_TAKEN" ? t("localSession.slotTaken") : t("localSession.saveFailed")); }
     finally { setBusyAction(null); }
   };
 
@@ -419,7 +419,7 @@ export function SessionDetailDrawer({
             <li key={resource.id} className="flex min-w-0 items-center gap-2">
               <a
                 href={resource.url || "#"}
-                onClick={localOperations && resource.kind === "file" ? event => { event.preventDefault(); void localOperations.download(resource, booking.courseId).catch(() => toast.error("Berkas tidak tersedia di browser ini.")); } : undefined}
+                onClick={localOperations && resource.kind === "file" ? event => { event.preventDefault(); void localOperations.download(resource, booking.courseId).catch(() => toast.error(t("localSession.missingFile"))); } : undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex min-w-0 flex-1 items-center gap-1.5 text-body-xs font-semibold text-brand-primary hover:underline"
@@ -621,8 +621,8 @@ export function SessionDetailDrawer({
                 </ul>
               ) : <p className="text-body-xs text-muted-foreground">{t("session.noTickets")}</p>}
               {localOperations && canOpenTicket ? <div className="space-y-2">
-                <div className="flex flex-wrap gap-2"><div><Label htmlFor="demo-move-date">Tanggal sesi</Label><Input id="demo-move-date" type="date" value={moveDate} onChange={event => setMoveDate(event.target.value)} /></div><div><Label htmlFor="demo-move-start">Mulai</Label><Input id="demo-move-start" type="time" value={moveStart} onChange={event => setMoveStart(event.target.value)} /></div><div><Label htmlFor="demo-move-end">Selesai</Label><Input id="demo-move-end" type="time" value={moveEnd} onChange={event => setMoveEnd(event.target.value)} /></div></div>
-                <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={Boolean(busyAction)} onClick={() => void handleLocalChange({ sessionDate: moveDate, startTime: moveStart, endTime: moveEnd })}>Ubah jadwal</Button><Button size="sm" variant="outline" disabled={Boolean(busyAction)} onClick={() => void handleLocalChange({ status: "cancelled" })}>Batalkan sesi</Button></div>
+                <div className="flex flex-wrap gap-2"><div><Label htmlFor="demo-move-date">{t("session.sessionDate")}</Label><Input id="demo-move-date" type="date" value={moveDate} onChange={event => setMoveDate(event.target.value)} /></div><div><Label htmlFor="demo-move-start">{t("session.startTime")}</Label><Input id="demo-move-start" type="time" value={moveStart} onChange={event => setMoveStart(event.target.value)} /></div><div><Label htmlFor="demo-move-end">{t("session.endTime")}</Label><Input id="demo-move-end" type="time" value={moveEnd} onChange={event => setMoveEnd(event.target.value)} /></div></div>
+                <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={Boolean(busyAction)} onClick={() => void handleLocalChange({ sessionDate: moveDate, startTime: moveStart, endTime: moveEnd })}>{t("session.moveSession")}</Button><Button size="sm" variant="outline" disabled={Boolean(busyAction)} onClick={() => void handleLocalChange({ status: "cancelled" })}>{t("session.cancelSession")}</Button></div>
               </div> : canOpenTicket ? (
                 <Button type="button" variant="outline" size="sm" onClick={() => setTicketOpen(true)} className="text-body-xs"><MessageSquare className="size-3.5" /> {isTutor ? t("session.reviewRequest") : t("session.requestChange")}</Button>
               ) : null}
