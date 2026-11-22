@@ -165,7 +165,7 @@ test("the saved visual trio preserves admin priority and sends image input to th
   const { compatibleModelChain } = await import("@/lib/ai/model-settings");
   const models = ["gateway:openai:gpt-6.1-terra", "gateway:openai:gpt-6-luna", "gateway:muse:muse-spark-1.3-contributor"] as const;
   expect(compatibleModelChain(models, { visual: true, fallbackModels: [MODEL_IDS.stableFlash] })).toEqual([...models, MODEL_IDS.stableFlash]);
-  const fetchMock = spyOn(globalThis, "fetch").mockImplementation(async () => Response.json({ choices: [{ message: { content: "blue" } }] }));
+  const fetchMock = spyOn(globalThis, "fetch").mockImplementation(Object.assign(async () => Response.json({ choices: [{ message: { content: "blue" } }] }), { preconnect: () => {} }));
   try {
     for (const modelId of models) {
       await (await prepareCompatibleText({ ...input, modelId, projectAlias: modelId.includes(":muse:") ? "meta" : "openai",
@@ -184,7 +184,7 @@ test("all catalog features accept a mixed gateway trio, including analytics and 
 });
 
 test("analytics honors model-specific sampling and preserves array responses", async () => {
-  const fetchMock = spyOn(globalThis, "fetch").mockImplementation(async () => Response.json({ choices: [{ message: { content: '{"items":[{"score":6}]}' } }] }));
+  const fetchMock = spyOn(globalThis, "fetch").mockImplementation(Object.assign(async () => Response.json({ choices: [{ message: { content: '{"items":[{"score":6}]}' } }] }), { preconnect: () => {} }));
   try {
     for (const [modelId, projectAlias] of [["gateway:openai:gpt-6.1-terra", "openai"], ["gateway:muse:muse-spark-1.3-contributor", "meta"]]) {
       const call = await prepareCompatibleText({ ...input, feature: "admin-quiz-insights", modelId, projectAlias, config: {

@@ -279,7 +279,9 @@ describe("Plan 005 request lifecycle", () => {
   });
 
   it("falls back before dispatch while keeping one application allowance", async () => {
-    const fixture = dependencies();
+    const fixture = dependencies({
+      resolveModelChain: async () => ["gemini-3.5-flash", "gemini-3.5-flash-lite"],
+    });
     const lifecycle = new RequestLifecycle(fixture.dependencies);
     const output = await lifecycle.execute({
       userId: "user-1",
@@ -340,6 +342,7 @@ describe("Plan 005 request lifecycle", () => {
 
   it("falls back from Interactions to generateContent with one allowance", async () => {
     const fixture = dependencies({
+      resolveModelChain: async () => ["gemini-3.6-flash", "gemini-2.5-flash"],
       invokeProvider: async ({ modelId }) => {
         fixture.events.push(`provider:${modelId}`);
         if (modelId === "gemini-3.6-flash") {

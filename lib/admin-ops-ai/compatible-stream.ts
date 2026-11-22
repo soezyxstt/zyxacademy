@@ -15,8 +15,11 @@ export async function* streamCompatibleOpsModel(id: string, options: LanguageMod
     name: "zyxgateway",
     baseURL: settings.url.replace(/\/chat\/completions$/, ""),
     headers: { ...headers, "cf-aig-authorization": "Bearer " + settings.token, "cf-aig-byok-alias": alias, "cf-aig-no-wholesale": "true" },
-    fetch: (url, init) => withGatewayAlias(process.env, settings.url, alias,
-      () => fetch(url, { ...init, redirect: "error" }), generationAliasOutcome, true),
+    fetch: Object.assign((...args: Parameters<typeof fetch>) => {
+      const [url, init] = args;
+      return withGatewayAlias(process.env, settings.url, alias,
+        () => fetch(url, { ...init, redirect: "error" }), generationAliasOutcome, true);
+    }, { preconnect: fetch.preconnect }),
   });
   const deadline = AbortSignal.timeout(timeoutMs);
   const result = await provider.chatModel(settings.model).doStream({

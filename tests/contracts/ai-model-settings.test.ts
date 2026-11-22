@@ -182,7 +182,7 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
       expect(await configuredModelChain({ feature: "discussion-tutor", useCase: "ungrounded-tutor" }, ROUTE_POLICY.default)).toEqual(models);
       expect(await configuredModelChain({ feature: "zyra", useCase: "chapter-summary" }, ROUTE_POLICY.default)).toEqual([MODEL_IDS.default, MODEL_IDS.fallbackFlashLite, MODEL_IDS.emergencyText]);
       const visual = await configuredModelChain({ feature: "discussion-tutor", useCase: "ungrounded-tutor", visual: true }, ROUTE_POLICY.premiumVisual);
-      expect(visual.slice(0, 3)).toEqual(models);
+      expect(visual.slice(0, 3)).toEqual([...models]);
     } finally {
       for (const [key, value] of Object.entries(previous)) {
         if (value === undefined) delete process.env[key]; else process.env[key] = value;
