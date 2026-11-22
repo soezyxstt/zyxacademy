@@ -48,7 +48,9 @@ Staging CI validates changes automatically but never starts web or Neon worker
 deployments. Use Actions > Run workflow with branch `staging`: select
 `deploy-cloud-run-staging.yml` for web releases, or `deploy-neon-worker.yml` with
 `environment=staging` for workers. The existing manual `deploy.yml` worker entry
-point also remains available. Keep environment reviewer approval and coordinate
+point also remains available. Cloud Run deployments use the dedicated
+`staging-cloud-run` environment without a separate approval step once configured.
+The shared `staging` environment still requires reviewer approval. Coordinate
 matching web and worker revisions before promotion. The automatic production
 paths below still apply only to `main` pushes.
 
