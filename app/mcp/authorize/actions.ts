@@ -30,6 +30,8 @@ export async function submitMcpAuthorization(formData: FormData) {
   const codeChallenge = formData.get("code_challenge")?.toString() ?? "";
   const codeChallengeMethod = formData.get("code_challenge_method")?.toString() ?? "";
   const requestedResource = formData.get("resource")?.toString() || undefined;
+  const expectedUserId = formData.get("expected_user_id")?.toString();
+  const expectedSessionId = formData.get("expected_session_id")?.toString();
 
   const client = readClientRegistration(clientId);
   if (!client.redirectUris.includes(redirectUri)) throw new Error("Invalid redirect URI");
@@ -69,7 +71,9 @@ export async function submitMcpAuthorization(formData: FormData) {
   }
 
   const session = await auth.api.getSession({ headers: reqHeaders });
-  if (!session?.user) {
+  // A consent page can stay open while another tab switches accounts or sessions.
+  // Approve only for the identity that the user saw on this particular form.
+  if (!session?.user || session.user.id !== expectedUserId || session.session.id !== expectedSessionId) {
     const target = new URL(redirectUri);
     target.searchParams.set("error", "login_required");
     if (state) target.searchParams.set("state", state);

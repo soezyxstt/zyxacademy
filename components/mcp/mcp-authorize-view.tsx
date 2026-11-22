@@ -66,6 +66,7 @@ export interface McpAuthorizeViewProps {
     email: string;
     image: string | null;
   };
+  sessionId: string;
   isAdmin: boolean;
   scopes: string[];
   defaultScopes: string[];
@@ -84,6 +85,7 @@ export interface McpAuthorizeViewProps {
 export function McpAuthorizeView({
   client,
   user,
+  sessionId,
   isAdmin,
   scopes,
   defaultScopes,
@@ -320,6 +322,8 @@ export function McpAuthorizeView({
             className="grid gap-2 sm:grid-cols-2"
           >
             <input type="hidden" name="client_id" value={searchParams.clientId} />
+            <input type="hidden" name="expected_user_id" value={user.id} />
+            <input type="hidden" name="expected_session_id" value={sessionId} />
             <input type="hidden" name="redirect_uri" value={searchParams.redirectUri} />
             <input type="hidden" name="scope" value={searchParams.scope} />
             {selectedScopes.map((scope) => (

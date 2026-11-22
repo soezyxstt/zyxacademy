@@ -49,6 +49,23 @@ Users on builds without patch support need a regular update first. If a patch is
 
 After publishing, upgrade from the previous Nightly on each supported package format. Compare GitHub asset sizes, verify the app reports the new version and can still open saved readings, and test a missing-patch path. Test the iOS update through TestFlight. Check the staging origin and Nightly channel before collecting evidence.
 
+### Google account switching in native apps
+
+Status: `OPEN / IN PROGRESS`. The sidebar account switcher and multi-session support require the matching web deployment. The Android Credential Manager picker also requires an APK containing the new `ZyxGoogleAuth` plugin. Existing APKs, iOS and Tauri keep the browser sign-in fallback. No database migration, new secret or feature flag is required for this feature.
+
+The native challenge endpoint uses `GOOGLE_CLIENT_ID` from the exact web environment as its **Web application** OAuth client ID. Do not replace it with an Android client ID. In the same Google Cloud project, configure **Android** OAuth clients for each installed package and its actual signing certificate:
+
+| Build | Package | Signing identity to register |
+|---|---|---|
+| Stable Android | `com.zyx.academy` | SHA-1 of the release signing certificate |
+| Nightly Android | `com.zyx.academy.nightly` | SHA-1 of the persistent Nightly signing certificate used by release CI |
+| Local Android testing | The package installed by that build | SHA-1 of its debug or local signing certificate |
+| Future Play distribution | The package published in Play | SHA-1 of the Play App Signing certificate used for installed APKs |
+
+Register each required package/certificate pair. A package name alone is insufficient. App-link SHA-256 fingerprints serve a separate purpose and do not replace the OAuth SHA-1 configuration. Keep existing browser OAuth redirect URIs and Firebase push configuration. Do not copy a production client or signing identity into staging without checking the intended environment.
+
+After a native build, verify two Google accounts on an Android device: add the second account, switch to the first saved Zyx session, cancel the chooser, remove the inactive session, and sign out of the saved sessions. Confirm each account gets its own role navigation, language, drafts, notes and notifications. Test an older APK's browser flow and a native error's explicit browser recovery. Local contract tests and web screenshots do not certify the Google configuration, signed APK or installed-device behavior.
+
 ## Cloud Tasks pilot and production rollback
 
 Status: OPEN / IN PROGRESS. The staging pilot targets Cloud Tasks and Scheduler in Singapore. Each environment uses a default queue, a PDF queue with at most two concurrent deliveries, and one dispatcher. The dispatcher must enqueue only jobs due in its scheduling window. Use persistent outbox rows as the recovery source when a producer commits before it can enqueue.

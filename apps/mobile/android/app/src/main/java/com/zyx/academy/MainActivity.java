@@ -48,6 +48,7 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(ZyxAppUpdaterPlugin.class);
         registerPlugin(ZyxOfflineStorePlugin.class);
+        registerPlugin(ZyxGoogleAuthPlugin.class);
         super.onCreate(savedInstanceState);
         applySystemBarInsets();
         createDefaultNotificationChannel();

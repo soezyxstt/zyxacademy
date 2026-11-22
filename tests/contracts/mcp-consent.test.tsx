@@ -14,6 +14,7 @@ describe("MCP consent scope choices", () => {
         <McpAuthorizeView
           client={{ clientId: "test-client", clientName: "ChatGPT", redirectUri: "https://example.test/callback" }}
           user={{ id: "test-admin", name: "Admin", email: "admin@example.test", image: null }}
+          sessionId="test-session"
           isAdmin
           scopes={requested}
           defaultScopes={requested}
@@ -25,6 +26,8 @@ describe("MCP consent scope choices", () => {
     expect(html.match(/id="scope-authoring:/g)).toHaveLength(3);
     expect(html.match(/name="selected_scope"/g)).toHaveLength(3);
     expect(html).toContain("3 dari 3 izin");
+    expect(html).toContain('name="expected_user_id" value="test-admin"');
+    expect(html).toContain('name="expected_session_id" value="test-session"');
   });
 
   it("describes requested admin permissions without showing machine identifiers", () => {
@@ -33,6 +36,7 @@ describe("MCP consent scope choices", () => {
         <McpAuthorizeView
           client={{ clientId: "client", clientName: "Client", redirectUri: "https://example.test/callback" }}
           user={{ id: "admin", name: "Admin", email: "admin@example.test", image: null }}
+          sessionId="admin-session"
           isAdmin scopes={["forms:read", "forms:responses:export", "users:roles:admin", "access:secrets:read"]} defaultScopes={["forms:read", "forms:responses:export", "users:roles:admin", "access:secrets:read"]}
           searchParams={{ clientId: "client", redirectUri: "https://example.test/callback", scope: "forms:read forms:responses:export users:roles:admin access:secrets:read", codeChallenge: "test", codeChallengeMethod: "S256" }}
           currentPathWithSearch="/mcp/authorize"

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { useTranslations } from "@/lib/i18n/client";
 import { ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ export type AdminConfirmDialogProps = {
   destructive?: boolean;
   loading?: boolean;
   onConfirm: () => void;
+  onCloseAutoFocus?: ComponentProps<typeof DialogContent>["onCloseAutoFocus"];
 };
 
 export function AdminConfirmDialog({
@@ -38,6 +39,7 @@ export function AdminConfirmDialog({
   destructive = true,
   loading = false,
   onConfirm,
+  onCloseAutoFocus,
 }: AdminConfirmDialogProps) {
   const t = useTranslations("admin.states");
   return (
@@ -49,7 +51,7 @@ export function AdminConfirmDialog({
         }
       }}
     >
-      <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg text-left">
+      <DialogContent onCloseAutoFocus={onCloseAutoFocus} className="max-w-md rounded-xl border border-border p-6 shadow-lg text-left">
         <DialogHeader>
           <DialogTitle
             className={cn(

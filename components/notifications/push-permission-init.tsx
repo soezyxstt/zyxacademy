@@ -32,6 +32,8 @@ import { Button } from "@/components/ui/button";
 import { BellIcon } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { useAppLocale } from "@/lib/i18n/client";
+import { isAccountTransitionPending } from "@/lib/auth/account-transition-state";
+import { acquirePullToRefreshLock } from "@/lib/pull-to-refresh-lock";
 
 const CONSENT_KEY = "fcm_consent";
 const LATER_AT_KEY = "fcm_later_at";
@@ -71,11 +73,13 @@ export function PushPermissionInit() {
   const syncGrantedTokenForUser = useCallback(
     async (activeUserId: string, requestPermission: boolean) => {
       const identity = activeIdentityRef.current;
-      const isCurrent = () => activeIdentityRef.current === identity && identity.userId === activeUserId;
+      const isCurrent = () => !isAccountTransitionPending()
+        && activeIdentityRef.current === identity && identity.userId === activeUserId;
       if (!activeUserId || !isCurrent()) return;
       if (!requestPermission && inFlightUserRef.current === identity) return;
 
       inFlightUserRef.current = identity;
+      const releaseSyncLock = acquirePullToRefreshLock("notification-sync");
       try {
         if (!isCurrent()) return;
         let permission = await getUnifiedNotificationPermission();
@@ -116,6 +120,7 @@ export function PushPermissionInit() {
         // Non-fatal; push notifications are enhancement, not core functionality
         console.warn("[FCM] Init error:", err);
       } finally {
+        releaseSyncLock();
         if (inFlightUserRef.current === identity) {
           inFlightUserRef.current = null;
         }

@@ -7,20 +7,12 @@ import { usePathname } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
-  LogOut,
   Search,
   PanelLeftOpen,
   PanelLeftClose,
   ChevronDown,
-  LayoutDashboard,
-  SlidersHorizontal,
-  ShieldCheck,
-  GraduationCap,
-  Settings,
   Pin,
   Archive,
-  Eye,
-  EyeOff,
 } from "lucide-react";
 import { DropdownMenu, HoverCard } from "radix-ui";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
@@ -29,12 +21,11 @@ import { Logo } from "@/components/logo";
 import { useCommandMenu } from "@/components/command-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { AppUpdateControl } from "@/components/native/app-update-control";
-import { signOut } from "@/lib/auth-client";
-import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
+import { StudentAccountBoundary } from "@/components/student-account-boundary";
+import { SidebarAccountMenu } from "@/components/auth/sidebar-account-menu";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { useTranslations } from "@/lib/i18n/client";
 import { useSwipe } from "@/hooks/use-swipe";
-import { useZyraPetVisibility } from "@/hooks/use-zyra-pet-visibility";
 import { isMaterialReaderPathname } from "@/lib/materials/reader-layout";
 import {
   Tooltip,
@@ -416,176 +407,7 @@ export function NavGroup({ label, collapsed }: { label: string; collapsed: boole
 }
 
 function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
-  return <StudentAccountBoundary>{({data}) => <SidebarUserMenuContent collapsed={collapsed} session={data} />}</StudentAccountBoundary>;
-}
-
-function SidebarUserMenuContent({ collapsed, session }: { collapsed: boolean; session: StudentAccountState["data"] }) {
-  const t = useTranslations("common");
-  const experience = useStudentExperience();
-  const href = experience.href ?? ((path: string) => path);
-  const { visible: petVisible, toggleVisible: togglePetVisibility } = useZyraPetVisibility();
-
-  if (!session?.user) return null;
-
-  const name = session.user.name?.trim() || t("userFallback");
-  const email = session.user.email || "";
-  const userWithRoles = session.user as { role?: string | null; roles?: string[] | null };
-  const role = userWithRoles.role;
-  const roles = Array.isArray(userWithRoles.roles) ? userWithRoles.roles : [];
-  const isTutor = role === "tutor" || role === "teacher" || roles.includes("tutor") || roles.includes("teacher");
-  const isAdmin = role === "admin" || roles.includes("admin");
-
-  const handleLogout = async () => {
-    if (experience.mode === "demo") { experience.reset?.(); window.location.assign(href("/dashboard")); return; }
-    await signOut();
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.href = "/";
-  };
-
-  const trigger = collapsed ? (
-    <button
-      type="button"
-      className="flex size-10 items-center justify-center rounded-xl hover:bg-muted/80 text-foreground transition-colors cursor-pointer mx-auto shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      aria-label={t("accountNamed", { name })}
-    >
-      {session.user.image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={session.user.image}
-          alt={name}
-          className="size-8 rounded-full object-cover ring-1 ring-border"
-          referrerPolicy="no-referrer"
-        />
-      ) : (
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-primary text-body-xs font-bold text-white">
-          {name.charAt(0).toUpperCase()}
-        </span>
-      )}
-    </button>
-  ) : (
-    <button
-      type="button"
-      className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-muted/80 transition-colors cursor-pointer group shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      {session.user.image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={session.user.image}
-          alt={name}
-          className="size-8 rounded-full object-cover ring-1 ring-border shrink-0"
-          referrerPolicy="no-referrer"
-        />
-      ) : (
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-primary text-body-xs font-bold text-white">
-          {name.charAt(0).toUpperCase()}
-        </span>
-      )}
-      <div className="min-w-0 flex-1 text-left">
-        <p className="truncate text-body-xs font-semibold text-foreground group-hover:text-foreground">
-          {name}
-        </p>
-        <p className="truncate text-body-xs text-muted-foreground">
-          {email}
-        </p>
-      </div>
-      <Settings className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" aria-hidden />
-    </button>
-  );
-
-  return (
-    <DropdownMenu.Root>
-      <SidebarTooltip label={name} collapsed={collapsed}>
-        <DropdownMenu.Trigger asChild>{trigger}</DropdownMenu.Trigger>
-      </SidebarTooltip>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          side="top"
-          align={collapsed ? "center" : "start"}
-          sideOffset={8}
-          className={cn(
-            "z-50 min-w-56 overflow-hidden rounded-xl border border-border bg-popover p-1.5 shadow-xl",
-            "data-[state=open]:animate-in data-[state=closed]:animate-out",
-            "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-            "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-            "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2"
-          )}
-        >
-          <DropdownMenu.Item asChild>
-            <Link
-              href={href("/settings")}
-              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
-            >
-              <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              <span>{t("preferences")}</span>
-            </Link>
-          </DropdownMenu.Item>
-
-          <DropdownMenu.Item asChild>
-            <Link
-              href={href("/dashboard")}
-              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
-            >
-              <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" />
-              <span>{t("studentDashboard")}</span>
-            </Link>
-          </DropdownMenu.Item>
-
-          {(isTutor || isAdmin) && (
-            <DropdownMenu.Item asChild>
-              <Link
-                href={href("/tutor")}
-                className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
-              >
-                <GraduationCap className="size-4 shrink-0 text-muted-foreground" />
-                <span>{t("tutorPanel")}</span>
-              </Link>
-            </DropdownMenu.Item>
-          )}
-
-          {isAdmin && (
-            <DropdownMenu.Item asChild>
-              <Link
-                href={href("/admin")}
-                className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
-              >
-                <ShieldCheck className="size-4 shrink-0 text-muted-foreground" />
-                <span>{t("adminPanel")}</span>
-              </Link>
-            </DropdownMenu.Item>
-          )}
-
-          <DropdownMenu.Item
-            onSelect={() => {
-              togglePetVisibility();
-            }}
-            className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
-          >
-            {petVisible ? (
-              <>
-                <EyeOff className="size-4 shrink-0 text-muted-foreground" />
-                <span>{t("hideZyra")}</span>
-              </>
-            ) : (
-              <>
-                <Eye className="size-4 shrink-0 text-muted-foreground" />
-                <span>{t("showZyra")}</span>
-              </>
-            )}
-          </DropdownMenu.Item>
-
-          <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
-
-          <DropdownMenu.Item
-            onSelect={handleLogout}
-            className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-status-error outline-none transition-colors hover:bg-status-error/10 data-[highlighted]:bg-status-error/10"
-          >
-            <LogOut className="size-4 shrink-0" />
-            <span className="font-semibold">{t("logOut")}</span>
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
-  );
+  return <StudentAccountBoundary>{({ data }) => data?.user ? <SidebarAccountMenu collapsed={collapsed} session={data} /> : null}</StudentAccountBoundary>;
 }
 
 interface SidebarShellProps {
@@ -666,7 +488,7 @@ export function SidebarShell({
     if (!mobileOpen) return;
     const handleOutsideClick = (e: MouseEvent) => {
       const isPortal = (e.target as HTMLElement)?.closest?.(
-        '[data-radix-portal], [role="listbox"], [role="dialog"], [role="combobox"]'
+        '[data-radix-portal], [role="menu"], [role="listbox"], [role="dialog"], [role="combobox"]'
       );
       if (!isPortal && sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
         setMobileOpen(false);

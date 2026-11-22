@@ -172,6 +172,7 @@ export default async function McpAuthorizePage({
         email: session.user.email,
         image: session.user.image ?? null,
       }}
+      sessionId={session.session.id}
       isAdmin={isAdmin}
       scopes={validScopes}
       defaultScopes={validScopes}

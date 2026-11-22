@@ -91,6 +91,14 @@ npm run open:ios
 
 Android Nightly can download a patch against the installed APK and apply the reconstructed package through Android. iOS uses TestFlight. See the [Nightly release procedure](../../docs/DEPLOYMENT.md#nightly-native-app-releases).
 
+## Google account switching
+
+The sidebar avatar and gear menu can keep up to five Zyx accounts signed in. A saved Zyx session can become active without another Google login. Adding an account on Android uses the `ZyxGoogleAuth` Credential Manager plugin when available; older APKs and iOS keep system-browser sign-in. Cancelling account selection leaves the current session active.
+
+The plugin uses the server environment's existing **Web application** `GOOGLE_CLIENT_ID`. Configure Android OAuth clients in the same Google Cloud project for `com.zyx.academy` and `com.zyx.academy.nightly`, with the SHA-1 of the certificate that signs each installed build. Include debug/local certificates for testing and Play App Signing when applicable. This adds no mobile secret. See the [deployment requirements and device checks](../../docs/DEPLOYMENT.md#google-account-switching-in-native-apps).
+
+Deploying the web app enables saved-session switching. Installing a new APK enables the native chooser. Google account selection and signed-device acceptance still require the checks in that guide; web UI screenshots cover a different boundary.
+
 ## Offline Fallback
 
 When the remote Zyx Academy URL cannot be reached, Capacitor loads `www/index.html` (`server.errorPath`). It provides an Indonesian and English retry screen and a direct link to `/offline` for saved readings.
