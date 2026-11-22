@@ -66,15 +66,23 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   const { id, quizId } = await params;
   const { attemptId, viewDiscussion } = await searchParams;
 
-  const [session, course] = await Promise.all([
-    getAuthSession(),
-    getCourse(id),
-  ]);
+  const sessionPromise = getAuthSession();
+  const coursePromise = getCourse(id).then(
+    (data) => ({ ok: true as const, data }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
+
+  const session = await sessionPromise;
   const studentId = session?.user?.id;
   if (!studentId) {
     return redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/quiz/${quizId}`)}`);
   }
 
+  const courseResult = await coursePromise;
+  if (!courseResult.ok) {
+    throw courseResult.error;
+  }
+  const course = courseResult.data;
   if (!course) notFound();
 
   const courseIds = [...new Set([course.id, course.canonicalId, course.legacyId, id].filter((value): value is string => Boolean(value)))];

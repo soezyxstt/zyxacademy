@@ -580,17 +580,17 @@ export function assembleCourseMaterialRows({
 }
 
 export async function getCourseMaterials(courseId: string, studentId?: string, preloadedCompletedSet?: Set<string>) {
-  const [course, studentAccess, canonicalArticles] = await Promise.all([
+  const [course, studentAccess] = await Promise.all([
     resolveStudentCourse(courseId),
     studentId ? getStudentCourseAccess(studentId, courseId) : Promise.resolve(null),
-    getCachedCanonicalPublishedArticlesForCourse(courseId, studentId),
   ]);
   if (studentId && !studentAccess) return [];
 
   const legacyCourseId = course?.legacyId ?? courseId;
   const canonicalCourseId = course?.canonicalId;
 
-  const [dbMaterials, webMaterials, courseDiktats, canonicalDiktats] = await Promise.all([
+  const [canonicalArticles, dbMaterials, webMaterials, courseDiktats, canonicalDiktats] = await Promise.all([
+    getCachedCanonicalPublishedArticlesForCourse(courseId, studentId),
     // AI material instances (active only ; drafts and archived stay hidden)
     db
       .select({
@@ -702,15 +702,14 @@ const getCourseChapterOutlineCached = cache(
     courseId: string,
     studentId?: string,
   ): Promise<ChapterOutlineItem[]> => {
-  const [course, studentAccess, canonicalArticles] = await Promise.all([
+  const [course, studentAccess] = await Promise.all([
     resolveStudentCourse(courseId),
     studentId ? getStudentCourseAccess(studentId, courseId) : Promise.resolve(null),
-    getCachedCanonicalPublishedArticlesForCourse(courseId, studentId),
   ]);
   if (studentId && !studentAccess) return [];
 
   const legacyCourseId = course?.legacyId ?? courseId;
-  const [canonicalRows, initialLegacyRows, webRows] = await Promise.all([
+  const [canonicalRows, initialLegacyRows, canonicalArticles, webRows] = await Promise.all([
     course?.canonicalId
       ? db
           .select({
@@ -730,6 +729,7 @@ const getCourseChapterOutlineCached = cache(
           .where(and(eq(chaptersTable.courseId, legacyCourseId), eq(chaptersTable.status, "published")))
           .orderBy(chaptersTable.orderIndex)
       : Promise.resolve([]),
+    getCachedCanonicalPublishedArticlesForCourse(courseId, studentId),
     db
       .select({ id: websiteMaterials.id, chapterId: websiteMaterials.chapterId })
       .from(websiteMaterials)

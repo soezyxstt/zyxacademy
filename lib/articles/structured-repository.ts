@@ -419,10 +419,34 @@ export async function getCanonicalPublishedTextProduct(
     }
   }
 
+export type SharedCourseArticleRecord = Pick<
+  typeof artikel.$inferSelect,
+  | "id"
+  | "mataKuliahId"
+  | "babId"
+  | "slug"
+  | "title"
+  | "version"
+  | "status"
+  | "structureStatus"
+  | "publishedAt"
+  | "updatedAt"
+>;
+
+export type SharedCourseBabRecord = Pick<
+  typeof bab.$inferSelect,
+  "id" | "legacyChapterId"
+>;
+
+export type SharedCourseSectionRecord = Pick<
+  typeof bagianArtikel.$inferSelect,
+  "id" | "artikelId" | "version" | "estimatedReadingMinutes"
+>;
+
 export interface SharedCourseArticlesData {
-  articles: Array<typeof artikel.$inferSelect>;
-  babMap: Map<string, typeof bab.$inferSelect>;
-  sectionsByArticle: Map<string, Array<typeof bagianArtikel.$inferSelect>>;
+  articles: Array<SharedCourseArticleRecord>;
+  babMap: Map<string, SharedCourseBabRecord>;
+  sectionsByArticle: Map<string, Array<SharedCourseSectionRecord>>;
 }
 
 /**
@@ -438,7 +462,7 @@ export async function fetchSharedCourseArticlesData(
         ? [matchedCourse.id, ...(matchedCourse.legacyCourseId ? [matchedCourse.legacyCourseId] : [])]
         : [courseId];
 
-      const articles = (await db
+      const articles: Array<SharedCourseArticleRecord> = await db
         .select({
           id: artikel.id,
           mataKuliahId: artikel.mataKuliahId,
@@ -457,7 +481,7 @@ export async function fetchSharedCourseArticlesData(
             inArray(artikel.mataKuliahId, validCourseIds),
             eq(artikel.status, "published"),
           ),
-        )) as unknown as Array<typeof artikel.$inferSelect>;
+        );
 
       if (articles.length === 0) {
         return null;
@@ -467,16 +491,16 @@ export async function fetchSharedCourseArticlesData(
       const babIds = [...new Set(articles.map((a) => a.babId).filter(Boolean) as string[])];
 
       // Fetch associated babs and published sections concurrently
-      const [babRecords, sections] = await Promise.all([
+      const [babRecords, sections]: [Array<SharedCourseBabRecord>, Array<SharedCourseSectionRecord>] = await Promise.all([
         babIds.length > 0
-          ? (db
+          ? db
               .select({
                 id: bab.id,
                 legacyChapterId: bab.legacyChapterId,
               })
               .from(bab)
-              .where(inArray(bab.id, babIds)) as unknown as Promise<Array<typeof bab.$inferSelect>>)
-          : Promise.resolve([] as Array<typeof bab.$inferSelect>),
+              .where(inArray(bab.id, babIds))
+          : Promise.resolve([] as Array<SharedCourseBabRecord>),
         db
           .select({
             id: bagianArtikel.id,
@@ -490,7 +514,7 @@ export async function fetchSharedCourseArticlesData(
               inArray(bagianArtikel.artikelId, articleIds),
               eq(bagianArtikel.status, "published"),
             ),
-          ) as unknown as Promise<Array<typeof bagianArtikel.$inferSelect>>,
+          ),
       ]);
       const babMap = new Map(babRecords.map((b) => [b.id, b]));
 
@@ -521,11 +545,17 @@ export async function getCanonicalPublishedArticlesForCourse(
     const normalizedCourseId = courseId?.trim() ?? "";
     if (!normalizedCourseId) return [];
 
+    const shared = await fetchShared(normalizedCourseId);
+    if (!shared) return [];
+
+    const { articles, babMap, sectionsByArticle } = shared;
+    const articleIds = articles.map((a) => a.id);
+
+    // Fetch user progress bounded to this course's articleIds
     const normalizedUserId = userId?.trim();
-    const [shared, progressRecords] = await Promise.all([
-      fetchShared(normalizedCourseId),
-      normalizedUserId
-        ? db
+    const progressRecords =
+      normalizedUserId && articleIds.length > 0
+        ? await db
             .select({
               artikelId: kemajuanBacaArtikel.artikelId,
               artikelVersion: kemajuanBacaArtikel.artikelVersion,
@@ -533,12 +563,13 @@ export async function getCanonicalPublishedArticlesForCourse(
               completedAt: kemajuanBacaArtikel.completedAt,
             })
             .from(kemajuanBacaArtikel)
-            .where(eq(kemajuanBacaArtikel.penggunaId, normalizedUserId))
-        : Promise.resolve([]),
-    ]);
-    if (!shared) return [];
-
-    const { articles, babMap, sectionsByArticle } = shared;
+            .where(
+              and(
+                eq(kemajuanBacaArtikel.penggunaId, normalizedUserId),
+                inArray(kemajuanBacaArtikel.artikelId, articleIds),
+              ),
+            )
+        : [];
 
     const progressByArticle = new Map<string, typeof progressRecords>();
     for (const p of progressRecords) {

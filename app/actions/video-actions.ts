@@ -69,13 +69,20 @@ async function assertVideoManagerPermission(courseId: string): Promise<{
   isAdmin: boolean;
   validCourseIds: string[];
 }> {
-  const [session, identity] = await Promise.all([
-    auth.api.getSession({ headers: await headers() }),
-    resolveCourseIdentity(courseId),
-  ]);
+  const sessionPromise = auth.api.getSession({ headers: await headers() });
+  const identityPromise = resolveCourseIdentity(courseId).then(
+    (data) => ({ ok: true as const, data }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
+  const session = await sessionPromise;
   if (!session?.user) {
     throw new Error("Unauthorized");
   }
+  const identityResult = await identityPromise;
+  if (!identityResult.ok) {
+    throw identityResult.error;
+  }
+  const identity = identityResult.data;
 
   const primaryId = identity?.primaryId || courseId;
   const courseSlug = identity?.slug || courseId;
@@ -128,11 +135,21 @@ function revalidateVideoPaths(courseId: string, courseSlug?: string) {
  * Requires a valid session and caller entitlement (enrolled student or course manager/staff).
  */
 export async function getCourseVideosData(courseSlugOrId: string) {
-  const [session, identity] = await Promise.all([
-    auth.api.getSession({ headers: await headers() }),
-    resolveCourseIdentity(courseSlugOrId),
-  ]);
-  if (!session?.user || !identity) {
+  const sessionPromise = auth.api.getSession({ headers: await headers() });
+  const identityPromise = resolveCourseIdentity(courseSlugOrId).then(
+    (data) => ({ ok: true as const, data }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
+  const session = await sessionPromise;
+  if (!session?.user) {
+    return null;
+  }
+  const identityResult = await identityPromise;
+  if (!identityResult.ok) {
+    throw identityResult.error;
+  }
+  const identity = identityResult.data;
+  if (!identity) {
     return null;
   }
 
