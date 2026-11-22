@@ -32,7 +32,7 @@ Provision each destination under `zyx-staging-web-`, grant the staging runtime a
 
 ### Staging push isolation
 
-Staging Web and Android Nightly use Firebase project `zyx-academy-staging`; production and Stable retain `zyx-academy`. Keep `NEXT_PUBLIC_FIREBASE_*` aligned in `CLOUD_RUN_STAGING_PUBLIC_CONFIG` in both GitHub environments, `staging` and `staging-cloud-run`, and in the staging Cloud Run runtime. The browser worker imports `/firebase-config.js`, which exposes only public runtime Firebase settings with `Cache-Control: no-store`.
+Staging Web and Android Nightly use Firebase project `zyx-academy-staging`. Production Web and Android Stable are configured as separate apps in the same project, with separate sender accounts. App registration separates client configuration, but Firebase messaging permissions and the sender ID remain shared at project scope. Keep `NEXT_PUBLIC_FIREBASE_*` aligned in `CLOUD_RUN_STAGING_PUBLIC_CONFIG` in both GitHub environments, `staging` and `staging-cloud-run`, and in the staging Cloud Run runtime. The browser worker imports `/firebase-config.js`, which exposes only public runtime Firebase settings with `Cache-Control: no-store`.
 
 The staging sender is `zyx-staging-fcm-sender@zyx-academy-staging.iam.gserviceaccount.com`, with only `cloudmessaging.messages.create` on the staging Firebase project. Bind `FIREBASE_SERVICE_ACCOUNT_JSON` to a numeric version of Secret Manager secret `zyx-staging-web-firebase-service-account-json` in Google project `zyx-academy`. Its value is base64-encoded sender JSON. The Cloud Run staging runtime identity has access to this secret. Private keys belong in Secret Manager and restricted operator backups, never in Git or public configuration.
 

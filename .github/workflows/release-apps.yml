@@ -287,11 +287,11 @@ jobs:
           ZYX_APP_VERSION: ${{ needs.prepare.outputs.version }}
         run: npm run sync:android:${{ needs.prepare.outputs.channel }}
 
-      - name: Configure Nightly Firebase
-        if: needs.prepare.outputs.channel == 'nightly'
+      - name: Configure Android Firebase
         env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_NIGHTLY_GOOGLE_SERVICES_JSON }}
-        run: python3 apps/scripts/configure-nightly-firebase.py
+          APP_CHANNEL: ${{ needs.prepare.outputs.channel }}
+          GOOGLE_SERVICES_JSON: ${{ needs.prepare.outputs.channel == 'nightly' && secrets.FIREBASE_NIGHTLY_GOOGLE_SERVICES_JSON || secrets.FIREBASE_STABLE_GOOGLE_SERVICES_JSON }}
+        run: python3 apps/scripts/configure-android-firebase.py
 
       - name: Decode Android signing keystore (if configured)
         id: signing
