@@ -59,6 +59,8 @@ Push notifications via `@capacitor/push-notifications` require Firebase configur
 - **Android**: place `google-services.json` at `apps/mobile/android/app/google-services.json`
 - **iOS**: place `GoogleService-Info.plist` at `apps/mobile/ios/App/App/GoogleService-Info.plist` (and ensure it is included in the `App` Xcode target)
 
+Nightly uses Firebase project `zyx-academy-staging` and Android package `com.zyx.academy.nightly`. The release workflow reads repository secret `FIREBASE_NIGHTLY_GOOGLE_SERVICES_JSON`, validates both identities, and writes `apps/mobile/android/app/src/nightly/google-services.json`. Stable retains its existing project and configuration. Never put a Firebase sender service-account key in the mobile config or APK.
+
 ## Opening and Building Native Projects
 
 ### Android

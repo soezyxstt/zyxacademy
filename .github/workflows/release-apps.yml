@@ -15,6 +15,10 @@ on:
         description: "Optional version override (nightly auto-increments as 0.1.0-alpha.<run_number>; stable defaults to apps/desktop/package.json)"
         required: false
         type: string
+      android_candidate:
+        description: "Build only an Android APK artifact without publishing a release"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -124,6 +128,7 @@ jobs:
           echo "Resolved release: channel=${CHANNEL}, version=${VERSION}, tag=${TAG}, build_id=${BUILD_ID}, title=${RELEASE_TITLE}"
 
   build-desktop:
+    if: inputs.android_candidate != true
     needs: prepare
     strategy:
       fail-fast: false
@@ -282,6 +287,12 @@ jobs:
           ZYX_APP_VERSION: ${{ needs.prepare.outputs.version }}
         run: npm run sync:android:${{ needs.prepare.outputs.channel }}
 
+      - name: Configure Nightly Firebase
+        if: needs.prepare.outputs.channel == 'nightly'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_NIGHTLY_GOOGLE_SERVICES_JSON }}
+        run: python3 apps/scripts/configure-nightly-firebase.py
+
       - name: Decode Android signing keystore (if configured)
         id: signing
         shell: bash
@@ -359,6 +370,7 @@ jobs:
           if-no-files-found: error
 
   publish-release:
+    if: inputs.android_candidate != true
     needs: [prepare, build-desktop, build-android]
     runs-on: ubuntu-latest
     steps:

@@ -24,6 +24,14 @@ Bangkok's native Cloud Run domain mapping is unavailable. An origin rule alone s
 
 ## Google and GitHub setup
 
+### Staging push isolation
+
+Staging Web and Android Nightly use Firebase project `zyx-academy-staging`; production and Stable retain `zyx-academy`. Keep `NEXT_PUBLIC_FIREBASE_*` aligned in `CLOUD_RUN_STAGING_PUBLIC_CONFIG` in both GitHub environments, `staging` and `staging-cloud-run`, and in the staging Cloud Run runtime. The browser worker imports `/firebase-config.js`, which exposes only public runtime Firebase settings with `Cache-Control: no-store`.
+
+The staging sender is `zyx-staging-fcm-sender@zyx-academy-staging.iam.gserviceaccount.com`, with only `cloudmessaging.messages.create` on the staging Firebase project. Bind `FIREBASE_SERVICE_ACCOUNT_JSON` to a numeric version of Secret Manager secret `zyx-staging-web-firebase-service-account-json` in Google project `zyx-academy`. Its value is base64-encoded sender JSON. The Cloud Run staging runtime identity has access to this secret. Private keys belong in Secret Manager and restricted operator backups, never in Git or public configuration.
+
+Build with `operation=candidate`; retain existing traffic until browser background delivery and Android Nightly registration and delivery have been checked. Firebase API acceptance alone does not prove device delivery.
+
 Record the results of these read-only commands with an authenticated operator account. Share only sanitized metadata.
 
 ```bash
