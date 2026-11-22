@@ -268,7 +268,7 @@ export function QuestionCard({
   const isStatement = q.type === "STATEMENT";
   const isChoice = q.type === "RADIO" || q.type === "CHECKBOX" || q.type === "DROP_DOWN";
   const isGrid = q.type === "GRID_RADIO" || q.type === "GRID_CHECKBOX";
-  const hasDescriptionVisible = Boolean(q.showDescription || q.description?.trim() || isStatement || isSection);
+  const hasDescriptionVisible = isStatement || isSection ? true : (q.showDescription ?? Boolean(q.description?.trim()));
 
   const handleTypeChange = (nextType: QuestionType) => {
     const patch: Partial<ExtendedQuestionInput> = { type: nextType };
@@ -535,31 +535,29 @@ export function QuestionCard({
               className="hidden"
             />
 
-            {!isSection && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={isUploading}
-                    isLoading={isUploading}
-                    onClick={() => fileInputRef.current?.click()}
-                    aria-label={isStatement ? t("ui.uploadStatement") : t("ui.uploadQuestion")}
-                    className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
-                  >
-                    <ImageIcon className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isUploading
-                    ? t("ui.uploading")
-                    : isStatement
-                    ? t("ui.uploadStatement")
-                    : t("ui.uploadQuestion")}
-                </TooltipContent>
-              </Tooltip>
-            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={isUploading}
+                  isLoading={isUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label={isStatement ? t("ui.uploadStatement") : t("ui.uploadQuestion")}
+                  className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <ImageIcon className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isUploading
+                  ? t("ui.uploading")
+                  : isStatement
+                  ? t("ui.uploadStatement")
+                  : t("ui.uploadQuestion")}
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           <div className="w-full sm:w-52 shrink-0">
@@ -930,24 +928,6 @@ export function QuestionCard({
             <TooltipContent>{t("ui.copyQuestion")}</TooltipContent>
           </Tooltip>
 
-          {totalItems > 1 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={onRemove}
-                  aria-label={t("ui.deleteQuestion")}
-                  className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t("ui.deleteQuestion")}</TooltipContent>
-            </Tooltip>
-          )}
-
           {!isStatement && !isSection && (
             <>
               <div className="mx-1.5 hidden h-5 w-px bg-border sm:block" />
@@ -994,20 +974,18 @@ export function QuestionCard({
                 </DropdownMenuItem>
               )}
 
-              {!isSection && (
-                <DropdownMenuItem
-                  onSelect={() => {
-                    if (q.imageUrl) {
-                      onChange({ imageUrl: undefined });
-                    } else {
-                      fileInputRef.current?.click();
-                    }
-                  }}
-                >
-                  <ImageIcon className="size-4" />
-                  {q.imageUrl ? t("ui.removeImage") : t("ui.attachImage")}
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem
+                onSelect={() => {
+                  if (q.imageUrl) {
+                    onChange({ imageUrl: undefined });
+                  } else {
+                    fileInputRef.current?.click();
+                  }
+                }}
+              >
+                <ImageIcon className="size-4" />
+                {q.imageUrl ? t("ui.removeImage") : t("ui.attachImage")}
+              </DropdownMenuItem>
 
               {isChoice && (
                 <DropdownMenuItem
