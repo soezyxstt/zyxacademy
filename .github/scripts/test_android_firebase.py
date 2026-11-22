@@ -11,6 +11,18 @@ spec.loader.exec_module(module)
 
 
 class AndroidFirebaseTests(unittest.TestCase):
+    def test_selects_one_app_from_firebase_multi_app_config(self):
+        clients = [{"client_info": {"android_client_info": {"package_name": package}}}
+                   for package in ["com.zyx.academy", "com.zyx.academy.nightly"]]
+        config = {"project_info": {"project_id": "zyx-academy-staging"}, "client": clients}
+        for channel, expected in [("stable", clients[0]), ("nightly", clients[1])]:
+            with self.subTest(channel=channel), tempfile.TemporaryDirectory() as directory:
+                target = Path(directory) / "google-services.json"
+                module.configure(json.dumps(config), target, channel)
+                self.assertEqual(json.loads(target.read_text()), {**config, "client": [expected]})
+                with self.assertRaises(ValueError):
+                    module.configure(json.dumps({**config, "client": [expected, expected]}), target, channel)
+
     def test_accepts_matching_channel_and_preserves_config(self):
         for channel, project, package, valid in [
             ("nightly", "zyx-academy-staging", "com.zyx.academy.nightly", True),
