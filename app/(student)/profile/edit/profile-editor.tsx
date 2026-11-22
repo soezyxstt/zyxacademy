@@ -7,6 +7,7 @@ import { getStudentGamificationAccess } from "@/lib/gamification/access";
 import { getAchievementBadges, getGamificationRewards } from "@/lib/gamification/queries";
 import { ProfileSettings } from "@/components/gamification/profile-settings";
 import { ProfileEditForm } from "./profile-edit-form";
+import { ProfileCompleteness } from "./profile-completeness";
 
 export async function getProfileEditorData(account: AuthUser) {
   const userPromise = db
@@ -38,7 +39,15 @@ export function ProfileEditor({
   stayOnPage = false,
 }: Awaited<ReturnType<typeof getProfileEditorData>> & { stayOnPage?: boolean }) {
   const academicForm = <ProfileEditForm user={currentUser} stayOnPage={stayOnPage} />;
-  if (!customization) return academicForm;
+  const completeness = <ProfileCompleteness profile={currentUser} />;
+  if (!customization) {
+    return (
+      <div className="space-y-(--group-gap)">
+        {completeness}
+        {academicForm}
+      </div>
+    );
+  }
 
   const [socialSettings, badges, rewards] = customization;
   return (
@@ -49,6 +58,7 @@ export function ProfileEditor({
       name={currentUser.name}
       image={image}
       academicForm={academicForm}
+      completeness={completeness}
     />
   );
 }

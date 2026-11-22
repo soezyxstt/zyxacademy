@@ -89,6 +89,7 @@ function pageFixture(student: boolean) {
   "@/components/gamification/profile-follow-list": { ProfileFollowList: () => null },
   "@/components/gamification/profile-settings": { ProfileSettings: ({ academicForm }: { academicForm?: React.ReactNode }) => <div>Student customization{academicForm}</div> },
   "./profile-edit-form": { ProfileEditForm: () => <form>Academic profile</form> },
+  "./profile-completeness": { ProfileCompleteness: () => null },
   "@/lib/gamification/access": { getStudentGamificationAccess: async () => student ? { user } : null },
   "@/lib/gamification/social": { getStudentSocialSettings: guarded("social", { featuredBadgeIds: [] }) },
   "@/lib/gamification/queries": {

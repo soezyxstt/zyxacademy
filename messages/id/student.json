@@ -178,7 +178,15 @@
       "saveFailed": "Gagal menyimpan profil akademik. Coba lagi sebentar lagi."
     },
     "googleVerified": "Akun Google terverifikasi",
-    "cancel": "Batal"
+    "cancel": "Batal",
+    "completeness": {
+      "title": "Kelengkapan profil",
+      "value": "{done} dari {total} terisi",
+      "missing": "Belum diisi: {fields}",
+      "faculty": "Fakultas",
+      "major": "Jurusan",
+      "entryYear": "Tahun masuk"
+    }
   },
   "groups": {
     "join": "Gabung kelompok belajar",
