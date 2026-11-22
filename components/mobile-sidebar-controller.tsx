@@ -4,7 +4,12 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { useSwipe } from "@/hooks/use-swipe";
-import { hasOpenSidebarOverlay, isSidebarOverlayTarget } from "@/lib/sidebar-overlay";
+import {
+  hasOpenSidebarOverlay,
+  isSidebarOverlayGestureActive,
+  isSidebarOverlayTarget,
+  syncSidebarOverlayGesture,
+} from "@/lib/sidebar-overlay";
 
 const MOBILE_QUERY = "(max-width: 767px)";
 // The sidebar can hydrate after this controller. Do not mutate server-rendered
@@ -69,7 +74,7 @@ export function MobileSidebarController() {
       }
     },
     onSwipeLeft: () => {
-      if (!isMobileViewport() || !openRef.current) return;
+      if (!isMobileViewport() || !openRef.current || hasOpenSidebarOverlay()) return;
       close();
       window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
     },
@@ -90,6 +95,10 @@ export function MobileSidebarController() {
         window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
       }
     };
+    const handlePointerDownCapture = (event: PointerEvent) => {
+      if (!openRef.current || !isMobileViewport()) return;
+      syncSidebarOverlayGesture(event.target);
+    };
     const handlePointerDown = (event: PointerEvent) => {
       if (!openRef.current || !isMobileViewport()) return;
       const sidebar = getSidebar();
@@ -99,7 +108,8 @@ export function MobileSidebarController() {
         target &&
         !sidebar.contains(target) &&
         !isSidebarOverlayTarget(target) &&
-        !hasOpenSidebarOverlay()
+        !hasOpenSidebarOverlay() &&
+        !isSidebarOverlayGestureActive()
       ) {
         close();
         window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
@@ -130,6 +140,7 @@ export function MobileSidebarController() {
     window.addEventListener("zyx:close-mobile-sidebar", handleClose);
     window.addEventListener("zyx:toggle-mobile-sidebar", handleToggle);
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDownCapture, { capture: true });
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("click", handleClick);
     media.addEventListener("change", handleViewportChange);
@@ -140,6 +151,7 @@ export function MobileSidebarController() {
       window.removeEventListener("zyx:close-mobile-sidebar", handleClose);
       window.removeEventListener("zyx:toggle-mobile-sidebar", handleToggle);
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDownCapture, { capture: true });
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("click", handleClick);
       media.removeEventListener("change", handleViewportChange);

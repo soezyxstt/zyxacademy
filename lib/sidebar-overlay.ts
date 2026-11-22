@@ -55,3 +55,30 @@ export function hasOpenSidebarOverlay(
 ): boolean {
   return Boolean(doc?.querySelector(OPEN_SIDEBAR_OVERLAY_SELECTOR));
 }
+
+let suppressOutsideDismissUntil = 0;
+
+export function markSidebarOverlayGesture(now = Date.now(), ttlMs = 400): void {
+  suppressOutsideDismissUntil = Math.max(suppressOutsideDismissUntil, now + ttlMs);
+}
+
+export function resetSidebarOverlayGesture(): void {
+  suppressOutsideDismissUntil = 0;
+}
+
+export function isSidebarOverlayGestureActive(now = Date.now()): boolean {
+  return now < suppressOutsideDismissUntil;
+}
+
+export function syncSidebarOverlayGesture(
+  target: EventTarget | null,
+  doc: Pick<Document, "querySelector"> | null = typeof document !== "undefined" ? document : null,
+  now = Date.now(),
+): boolean {
+  if (isSidebarOverlayTarget(target) || hasOpenSidebarOverlay(doc)) {
+    markSidebarOverlayGesture(now);
+    return true;
+  }
+  resetSidebarOverlayGesture();
+  return false;
+}

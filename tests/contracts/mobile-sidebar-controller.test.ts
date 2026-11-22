@@ -3,9 +3,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   hasOpenSidebarOverlay,
+  isSidebarOverlayGestureActive,
   isSidebarOverlayTarget,
   OPEN_SIDEBAR_OVERLAY_SELECTOR,
+  resetSidebarOverlayGesture,
   SIDEBAR_OVERLAY_TARGET_SELECTOR,
+  syncSidebarOverlayGesture,
 } from "@/lib/sidebar-overlay";
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
@@ -54,8 +57,16 @@ describe("mobile sidebar controller contract", () => {
 
     expect(controller).toContain("isSidebarOverlayTarget");
     expect(controller).toContain("hasOpenSidebarOverlay");
+    expect(controller).toContain("syncSidebarOverlayGesture");
+    expect(controller).toContain("isSidebarOverlayGestureActive");
+    expect(controller).toContain("{ capture: true }");
+    expect(controller).toContain("!isMobileViewport() || !openRef.current || hasOpenSidebarOverlay()");
     expect(sidebar).toContain("isSidebarOverlayTarget");
     expect(sidebar).toContain("hasOpenSidebarOverlay");
+    expect(sidebar).toContain("syncSidebarOverlayGesture");
+    expect(sidebar).toContain("isSidebarOverlayGestureActive");
+    expect(sidebar).toContain("{ capture: true }");
+    expect(sidebar).toContain("isMobile && mobileOpen && !hasOpenSidebarOverlay()");
   });
 
   test("isSidebarOverlayTarget recognizes popovers, menus, dialogs, toasts, and text nodes", () => {
@@ -98,6 +109,23 @@ describe("mobile sidebar controller contract", () => {
     expect(hasOpenSidebarOverlay(openDoc)).toBe(true);
     expect(hasOpenSidebarOverlay(closedDoc)).toBe(false);
     expect(hasOpenSidebarOverlay(null)).toBe(false);
+  });
+
+  test("syncSidebarOverlayGesture latches active overlay gestures and clears on fresh outside taps", () => {
+    resetSidebarOverlayGesture();
+    const openDoc = { querySelector: () => ({}) as Element };
+    const closedDoc = { querySelector: () => null };
+
+    // First pointerdown while an overlay is open latches suppression through mousedown/click.
+    expect(syncSidebarOverlayGesture(makeElement(null), openDoc, 1000)).toBe(true);
+    expect(isSidebarOverlayGestureActive(1050)).toBe(true);
+    expect(isSidebarOverlayGestureActive(1500)).toBe(false);
+
+    // A fresh pointerdown outside when no overlay is open immediately clears the latch.
+    expect(syncSidebarOverlayGesture(makeElement(null), openDoc, 2000)).toBe(true);
+    expect(isSidebarOverlayGestureActive(2010)).toBe(true);
+    expect(syncSidebarOverlayGesture(makeElement(null), closedDoc, 2020)).toBe(false);
+    expect(isSidebarOverlayGestureActive(2020)).toBe(false);
   });
 });
 
