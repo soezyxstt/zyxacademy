@@ -128,6 +128,19 @@ test("uses Gemini list metadata for new models and preserves native capability r
   })() } } as unknown as ReturnType<typeof google.googleGatewayClient>);
   const result = await selectorCatalog();
   expect(result).toEqual(new Set(["gateway:gemini:gemma-new-fixture", "gemini-3-flash-preview", "gemini-3.8-flash", "gemini-2.5-flash"]));
-  expect(list).toHaveBeenCalledTimes(4);
+  expect(list).toHaveBeenCalledTimes(5);
   expect(fetchMock).not.toHaveBeenCalled();
+});
+
+test("discovers 3.8 Flash through its default credential alone", async () => {
+  process.env.AI_PROVIDERS = "gemini";
+  spyOn(google, "googleGatewayClient").mockImplementation((_key, _env, _timeout, _meta, options) => {
+    if (options?.byokAlias !== "default") throw new Error("Missing fixture credential");
+    return { models: { list: async () => (async function* () {
+      for (const id of ["gemini-3.8-flash", "gemini-2.5-flash"]) {
+        yield { name: "models/" + id, supportedActions: ["generateContent"] };
+      }
+    })() } } as unknown as ReturnType<typeof google.googleGatewayClient>;
+  });
+  expect([...await selectorCatalog()]).toEqual(["gemini-3.8-flash"]);
 });

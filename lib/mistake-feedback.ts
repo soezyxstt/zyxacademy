@@ -251,7 +251,20 @@ ${promptItems}`;
   useCase: USE_CASES.MISTAKE_FEEDBACK,
   contents: userPrompt,
   config: {
-  responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "OBJECT" } },
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          questionId: { type: "STRING" },
+          whyWrong: { type: "STRING" },
+          misconceptionName: { type: "STRING", nullable: true },
+          correctApproach: { type: "ARRAY", items: { type: "STRING" } },
+        },
+        required: ["questionId", "whyWrong", "correctApproach"],
+      },
+    },
   },
   });
 

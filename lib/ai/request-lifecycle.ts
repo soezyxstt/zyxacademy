@@ -412,11 +412,13 @@ export class RequestLifecycle {
       let reservationResolved = false;
       let invokePreparedProvider: (() => Promise<ProviderGenerationResult>) | undefined;
       try {
+        const providerFeature = getModelEntry(model).family === "chat-completions"
+          ? modelFeature(input.feature, input.useCase) ?? input.feature : input.feature;
         const reservation = await this.controlPlane.reserve({
           idempotencyKey: `${requestId}:${model}`,
           userId: input.userId,
           role: applicationAllowance.lease.peran,
-          feature: input.feature,
+          feature: providerFeature,
           routeClass: controlPlaneRouteClass(model, route.routeClass),
           modelId: model,
           cacheStatus,
@@ -432,8 +434,7 @@ export class RequestLifecycle {
         const providerInput = {
           requestId: `${requestId}:${model}`,
           userCohort: hashUserCohort(input.userId),
-          feature: getModelEntry(model).family === "chat-completions"
-            ? modelFeature(input.feature, input.useCase) ?? input.feature : input.feature,
+          feature: providerFeature,
           routeClass: route.routeClass,
           modelId: model,
           projectAlias: controlPlaneLease.projectAlias,

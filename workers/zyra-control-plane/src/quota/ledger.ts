@@ -28,7 +28,7 @@ import {
   projectDailyCeiling, textQuotaGroup,
   type WorkerModelContract
 } from "./model-contract";
-import { supportsTextProvider } from "../../../../lib/ai/provider/model-registry";
+import { textProviderFeatureAllowed } from "../../../../lib/ai/model-settings";
 import type { SqlExecutor } from "./schema";
 
 type LeaseRow = {
@@ -184,7 +184,7 @@ export class QuotaLedger {
     const group = textQuotaGroup(model.id);
     const probe = input.role === "admin" && input.feature === "selector-smoke";
     if (input.probeProjectAlias && !probe) failures.push("invalid_probe_project");
-    if (group && !probe && !supportsTextProvider(input.feature)) failures.push("unsupported_feature");
+    if (group && !probe && !textProviderFeatureAllowed(input.feature)) failures.push("unsupported_feature");
     if (!model.routeClasses.includes(input.routeClass)) failures.push("route_class_model_mismatch");
     if (failures.length > 0) return { status: "quota_exhausted", code: "INVALID_RESERVE_INPUT", modelId: input.modelId };
 

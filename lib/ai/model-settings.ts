@@ -3,7 +3,7 @@ import type { ModelDate, ModelLatency } from "./provider/model-observations";
 import { z } from "zod";
 import {
   MODEL_IDS,
-  MODEL_REGISTRY, getTextProfile, isTextProfile, textProfileIds, discoveredModel,
+  MODEL_REGISTRY, supportsTextProvider, getTextProfile, isTextProfile, textProfileIds, discoveredModel,
   ROUTE_POLICY,
   getModelEntry,
   type ModelFamily,
@@ -390,6 +390,10 @@ export function modelFeature(feature?: string, useCase?: string): ModelFeature |
     return "zyra";
   }
   return undefined;
+}
+
+export function textProviderFeatureAllowed(feature: string) {
+  return supportsTextProvider(feature) || FEATURE_DEFINITION_MAP.has(feature as ModelFeature);
 }
 
 export function compatibleModelChain(

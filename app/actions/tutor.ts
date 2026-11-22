@@ -333,8 +333,8 @@ export async function buildStudyPlanAction() {
 }
 
 export async function generatePracticeQuizAction(koId: string, difficulty: string) {
-  await requireEnrolledTutorAccess(await courseIdForKO(koId));
-  return TutorActionService.generatePracticeQuiz(koId, difficulty);
+  const { user } = await requireEnrolledTutorAccess(await courseIdForKO(koId));
+  return TutorActionService.generatePracticeQuiz(koId, difficulty, user.id);
 }
 
 export async function reviewWeakConceptsAction() {

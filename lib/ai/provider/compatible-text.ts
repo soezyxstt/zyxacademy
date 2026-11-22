@@ -1,6 +1,6 @@
 import { zyraLiveProgress } from "@/lib/zyra/live-progress";
 import { readChatCompletion } from "./chat-stream";
-import { modelFeature } from "../model-settings";
+import { textProviderFeatureAllowed } from "../model-settings";
 import { modelDisplayName } from "./recent-models";
 import { generationAliasOutcome, withGatewayAlias, assertGatewayAliasAvailable, aliasCooldownUntil, GatewayAliasCooldownError } from "./alias-health";
 import {
@@ -14,7 +14,7 @@ import { buildAiGatewayHeaders, type GatewayMetadataInput } from "../gateway-met
 import { logAiRequest } from "../analytics";
 import { randomInt } from "node:crypto";
 import { classifyProviderError, ProviderAdapterError } from "./errors";
-import { discoveredModelId, getModelEntry, MODEL_IDS, supportsTextProvider, getTextProfile, isTextProfile, textProfileIds } from "./model-registry";
+import { discoveredModelId, getModelEntry, MODEL_IDS, getTextProfile, isTextProfile, textProfileIds } from "./model-registry";
 import { normalizeInputParts } from "./provider-adapter";
 import type { ProviderGenerateRequest, ProviderGenerationResult } from "./provider-adapter";
 
@@ -126,7 +126,7 @@ export function compatibleDiagnostics(env: Environment = process.env) {
 
 export async function prepareCompatibleText(input: ProviderGenerateRequest & Omit<GatewayMetadataInput, "deadlineMs"> & { projectAlias: string }, env: Environment = process.env) {
   const settings = compatibleSettings(env, input.modelId);
-  if (!settings || !isTextProfile(input.modelId) || (!supportsTextProvider(input.feature) && modelFeature(input.feature) !== input.feature) || input.projectAlias !== getTextProfile(input.modelId)!.group
+  if (!settings || !isTextProfile(input.modelId) || !textProviderFeatureAllowed(input.feature) || input.projectAlias !== getTextProfile(input.modelId)!.group
     || !input.parts.length) throw new Error("Compatible text route unavailable");
   const config = input.config ?? {};
   if (Object.keys(config).some(key => !["systemInstruction", "responseMimeType", "responseSchema", "maxOutputTokens", "temperature"].includes(key))

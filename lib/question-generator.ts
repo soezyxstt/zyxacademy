@@ -606,9 +606,10 @@ export async function generateQuestionsForKOBatch(
 
 export async function generateQuestionsForKO(
   koId: string,
-  isMockOverride?: boolean
+  isMockOverride?: boolean,
+  userId?: string,
 ): Promise<{ success: boolean; insertedCount: number; errors: string[] }> {
-  const batchResult = await generateQuestionsForKOBatch([koId], isMockOverride);
+  const batchResult = await generateQuestionsForKOBatch([koId], isMockOverride, userId);
   const result = batchResult.results.find((r) => r.koId === koId);
   if (!result) {
     return { success: false, insertedCount: 0, errors: ["KO was not processed"] };

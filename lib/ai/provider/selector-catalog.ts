@@ -31,15 +31,18 @@ async function googleModels(): Promise<Pick<Snapshot, "ids" | "aliases" | "dates
   const ids = new Set<ModelId>();
   const dates: Record<string, ModelDate> = {};
   let listed = false, failure: unknown;
-  for (const [index, alias] of conventionByokAliases("gemini").entries()) {
+  for (const [index, alias] of [...conventionByokAliases("gemini"), "default"].entries()) {
     const key = process.env[index ? "GEMINI_API_KEY_" + (index + 1) : "GEMINI_API_KEY"] ?? "";
     try {
-      const client = googleGatewayClient(key, process.env, 8000, {}, { preferByokAlias: alias });
+      const client = alias === "default"
+        ? googleGatewayClient("", process.env, 8000, {}, { byokAlias: alias })
+        : googleGatewayClient(key, process.env, 8000, {}, { preferByokAlias: alias });
       const pager = await client.models.list({ config: { pageSize: 1000 } });
       let count = 0;
       for await (const model of pager) {
         if (++count > 1000) throw new Error("Model catalog too large");
         const name = model.name?.replace(/^models\//, "") ?? "";
+        if ((name === MODEL_IDS.flash38) !== (alias === "default")) continue;
         if (!model.supportedActions?.includes("generateContent") || !selectedUpstream("gemini", name)) continue;
         const id = discoveredModelId("gemini", name);
         if (getModelEntry(id).ordinaryRoutingAllowed) { ids.add(id); const date = modelDate(id); if (date) dates[id] = date; }
