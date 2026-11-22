@@ -1,5 +1,11 @@
 export type QueueEnvironment = "staging" | "production";
 
+export function isCronJobName(name: string | undefined, environment: QueueEnvironment) {
+  const job = `zyx-${environment}-dispatcher`;
+  return name === job || name === `projects/zyx-academy/locations/asia-southeast1/jobs/${job}`
+    || name === `projects/307641710075/locations/asia-southeast1/jobs/${job}`;
+}
+
 const recoveryJobs = [
   "admin-operations-outbox", "discussion-notifications", "discussion-ai-cron",
   "gamification-outbox-cron", "discussion-image-sweep", "vector-sync-cron-worker",
