@@ -270,7 +270,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain("lg:shrink-0");
 
       // Mobile overlay fallback classes
-      expect(html).toContain("fixed inset-0 z-50 w-full");
+      expect(html).toContain("fixed inset-y-0 right-0 left-4 z-50");
     });
 
     it("renders the resize separator handle with ARIA attributes on desktop", () => {
@@ -770,16 +770,15 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
   // Suite 10: Correction Pass (Visual Defect & Hydration Verifications)
   // ==========================================================================
   describe("Suite 10: Correction Pass (Visual Defect & Hydration Verifications)", () => {
-    it("locks mobile sheet firmly with inset-0 z-50 w-full to stay above z-40 backdrop and prevent horizontal shift (Round 2 Defect 1)", () => {
+    it("pins the mobile sheet above the backdrop and leaves an outside tap area", () => {
       const html = renderToStaticMarkup(
         <OpsAiProvider initialOpen={true} initialWidth={480}>
           <OpsAiPanel />
         </OpsAiProvider>
       );
 
-      // Must strictly pin inset-0 z-50 w-full on mobile (< sm:) and align right above sm
-      expect(html).toContain("fixed inset-0 z-50 w-full");
-      expect(html).toContain("sm:left-auto sm:right-0 sm:w-[480px]");
+      expect(html).toContain("fixed inset-y-0 right-0 left-4 z-50");
+      expect(html).toContain("sm:left-auto sm:w-[480px]");
       expect(html).toContain("lg:sticky lg:self-start lg:shrink-0");
 
       // Verify backdrop has z-40 and panel has z-50
