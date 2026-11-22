@@ -298,10 +298,10 @@ jobs:
         shell: bash
         env:
           APP_CHANNEL: ${{ needs.prepare.outputs.channel }}
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets[format('ANDROID_{0}_KEYSTORE_BASE64', needs.prepare.outputs.channel == 'nightly' && 'NIGHTLY' || 'STABLE')] }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets[format('ANDROID_{0}_KEYSTORE_PASSWORD', needs.prepare.outputs.channel == 'nightly' && 'NIGHTLY' || 'STABLE')] }}
+          ANDROID_KEY_ALIAS: ${{ secrets[format('ANDROID_{0}_KEY_ALIAS', needs.prepare.outputs.channel == 'nightly' && 'NIGHTLY' || 'STABLE')] }}
+          ANDROID_KEY_PASSWORD: ${{ secrets[format('ANDROID_{0}_KEY_PASSWORD', needs.prepare.outputs.channel == 'nightly' && 'NIGHTLY' || 'STABLE')] }}
         run: |
           set -euo pipefail
           if [[ -n "$ANDROID_KEYSTORE_BASE64" && -n "$ANDROID_KEYSTORE_PASSWORD" && -n "$ANDROID_KEY_ALIAS" && -n "$ANDROID_KEY_PASSWORD" ]]; then
@@ -312,7 +312,7 @@ jobs:
             echo "::error::Nightly Android updates require the existing release signing key."
             exit 1
           else
-            echo "::notice::Android release signing secrets are not configured; building with ephemeral debug keystore. Configure ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD to enable seamless in-place APK updates."
+            echo "::notice::Android release signing secrets are not configured; building with ephemeral debug keystore. Configure the selected channel ANDROID_NIGHTLY_* or ANDROID_STABLE_* signing secrets to enable seamless in-place APK updates."
             echo "signed=false" >> "$GITHUB_OUTPUT"
             echo "build_type=debug" >> "$GITHUB_OUTPUT"
           fi
@@ -323,9 +323,9 @@ jobs:
           ZYX_ANDROID_VERSION_CODE: ${{ github.run_number }}
           ZYX_APP_VERSION: ${{ needs.prepare.outputs.version }}
           ZYX_ANDROID_KEYSTORE_PATH: ${{ steps.signing.outputs.signed == 'true' && format('{0}/zyx-release.jks', runner.temp) || '' }}
-          ZYX_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ZYX_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ZYX_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ZYX_ANDROID_KEYSTORE_PASSWORD: ${{ secrets[format('ANDROID_{0}_KEYSTORE_PASSWORD', needs.prepare.outputs.channel == 'nightly' && 'NIGHTLY' || 'STABLE')] }}
+          ZYX_ANDROID_KEY_ALIAS: ${{ secrets[format('ANDROID_{0}_KEY_ALIAS', needs.prepare.outputs.channel == 'nightly' && 'NIGHTLY' || 'STABLE')] }}
+          ZYX_ANDROID_KEY_PASSWORD: ${{ secrets[format('ANDROID_{0}_KEY_PASSWORD', needs.prepare.outputs.channel == 'nightly' && 'NIGHTLY' || 'STABLE')] }}
         run: |
           chmod +x gradlew
           if [[ "${{ steps.signing.outputs.signed }}" == "true" ]]; then
