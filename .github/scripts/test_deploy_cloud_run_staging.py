@@ -1,12 +1,13 @@
 import copy
 from pathlib import Path
 import re
+import tempfile
 import unittest
 from unittest.mock import patch
 
 from deploy_cloud_run_staging import (
     REQUIRED_SECRET_KEYS, REVISION, RUNTIME_ACCOUNT, STAGING, change_traffic,
-    public_config, traffic, validate_template,
+    prepare, public_config, traffic, validate_template,
 )
 
 
@@ -49,9 +50,10 @@ class CloudRunStagingTest(unittest.TestCase):
         text = (Path(__file__).resolve().parents[1] / 'workflows/deploy-cloud-run-staging.yml').read_text()
         triggers = text.split('\non:\n', 1)[1].split('\npermissions:', 1)[0]
         self.assertEqual(re.findall(r'^  ([\w_]+):', triggers, re.MULTILINE), ['workflow_dispatch'])
-        conditions = re.findall(r'^    if: (.+)$', text, re.MULTILINE)
-        self.assertEqual(len(conditions), 2)
-        for condition in conditions:
+        jobs = re.findall(r'^  ([\w-]+):\n    if: (.+)\n    environment: (.+)$', text, re.MULTILINE)
+        self.assertEqual({name: environment for name, _, environment in jobs},
+                         {'release': 'staging-cloud-run', 'import-secrets': 'staging'})
+        for name, condition, _ in jobs:
             for event in ('push', 'pull_request', 'workflow_call', 'workflow_dispatch'):
                 for branch in ('staging', 'main'):
                     for operation in ('candidate', 'promote', 'rollback', 'import-secrets'):
@@ -60,9 +62,32 @@ class CloudRunStagingTest(unittest.TestCase):
                         expression = re.sub(r'(?:github|inputs)\.[\w.]+',
                                             lambda match: repr(values[match.group()]), condition)
                         with self.subTest(condition=condition, event=event, branch=branch, operation=operation):
-                            expected_operation = operation == 'import-secrets' if "operation ==" in condition else operation != 'import-secrets'
+                            expected_operation = (operation == 'import-secrets') == (name == 'import-secrets')
                             self.assertEqual(eval(expression.replace('&&', 'and'), {'__builtins__': {}}),
                                              event == 'workflow_dispatch' and branch == 'staging' and expected_operation)
+
+    def test_traffic_dispatch_requires_an_exact_revision(self):
+        sha = "f" * 40
+        with tempfile.TemporaryDirectory() as temp:
+            env = {
+                "GITHUB_REPOSITORY": "soezyxstt/zyxacademy",
+                "GITHUB_REF": "refs/heads/staging",
+                "GITHUB_EVENT_NAME": "workflow_dispatch",
+                "GITHUB_SHA": sha,
+                "CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER": "projects/1/locations/global/workloadIdentityPools/staging/providers/github",
+                "CLOUD_RUN_PREFLIGHT_DATABASE_VERSION": "1",
+                "CLOUD_RUN_PUBLIC_CONFIG": '{"NEXT_PUBLIC_APP_URL":"https://staging.zyxacademy.com"}',
+                "RUNNER_TEMP": temp,
+            }
+            with patch.dict("os.environ", env, clear=True), patch("deploy_cloud_run_staging.command", return_value=sha):
+                for operation, revision in (("promote", CANDIDATE), ("rollback", PREVIOUS)):
+                    with self.subTest(operation=operation):
+                        with patch.dict("os.environ", {"CLOUD_RUN_OPERATION": operation, "CLOUD_RUN_REVISION": revision}):
+                            self.assertEqual(prepare(), CONFIG)
+                        for invalid in ("", "latest", "zyx-academy-production-web-r123a1"):
+                            with patch.dict("os.environ", {"CLOUD_RUN_OPERATION": operation, "CLOUD_RUN_REVISION": invalid}):
+                                with self.assertRaisesRegex(ValueError, "An exact revision is required"):
+                                    prepare()
 
     def test_rejects_non_staging_or_unlisted_build_settings(self):
         self.assertEqual(public_config('{"NEXT_PUBLIC_APP_URL":"https://staging.zyxacademy.com"}'), CONFIG)

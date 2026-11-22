@@ -12,10 +12,6 @@ on:
       revision:
         description: Exact revision from the workflow summary (promote or rollback)
         type: string
-      reviewed:
-        description: Confirm the migration, matching workers and revision acceptance gates in the Cloud Run runbook
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -27,7 +23,7 @@ concurrency:
 jobs:
   release:
     if: github.event_name == 'workflow_dispatch' && github.repository == 'soezyxstt/zyxacademy' && github.ref == 'refs/heads/staging' && inputs.operation != 'import-secrets'
-    environment: staging
+    environment: staging-cloud-run
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -37,7 +33,6 @@ jobs:
       QUEUE_PROVIDER: ${{ vars.QUEUE_PROVIDER || 'inngest' }}
       CLOUD_RUN_OPERATION: ${{ inputs.operation }}
       CLOUD_RUN_REVISION: ${{ inputs.revision }}
-      CLOUD_RUN_REVIEWED: ${{ inputs.reviewed }}
       CLOUD_RUN_PUBLIC_CONFIG: ${{ vars.CLOUD_RUN_STAGING_PUBLIC_CONFIG }}
       CLOUD_RUN_PREFLIGHT_DATABASE_VERSION: ${{ vars.CLOUD_RUN_STAGING_PREFLIGHT_DATABASE_VERSION }}
       CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.CLOUD_RUN_STAGING_WORKLOAD_IDENTITY_PROVIDER }}

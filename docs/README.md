@@ -1,4 +1,4 @@
-`ACTIVE` local source: the [deployment guide](DEPLOYMENT.md) and [development guide](DEVELOPMENT.md#ci-scope-and-incremental-checks) require manual dispatch for staging web and Neon worker releases. CI checks remain automatic on pushes and pull requests, and production deployment behavior is unchanged. Release acceptance and reviewer approval remain separate from CI.
+`ACTIVE` local source: the [deployment guide](DEPLOYMENT.md) and [development guide](DEVELOPMENT.md#ci-scope-and-incremental-checks) require manual dispatch for staging web and Neon worker releases. The [Cloud Run runbook](operations/cloud-run-staging.md) describes the dedicated release environment and manual dispatch with an exact revision for traffic changes. The shared staging environment still requires approval for worker releases and secret imports. CI checks remain automatic on pushes and pull requests.
 
 `ACTIVE` local source: the [gamification contract](gamification.md) records removal of the admin Gamification navigation, page and browser actions. Student rewards and existing checklist data remain intact. Hosted rollout is unverified.
 
