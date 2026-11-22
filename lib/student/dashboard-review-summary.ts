@@ -14,7 +14,15 @@ function chunks<T>(items: T[]): T[][] {
 }
 
 export async function getDashboardReviewSummary(studentId: string, courseIds: readonly string[]) {
-  const courses = await Promise.all(courseIds.map(async (id) => ({ id, course: await resolveStudentCourse(id), access: await getStudentCourseAccess(studentId, id) })));
+  const courses = await Promise.all(
+    courseIds.map(async (id) => {
+      const [course, access] = await Promise.all([
+        resolveStudentCourse(id),
+        getStudentCourseAccess(studentId, id),
+      ]);
+      return { id, course, access };
+    }),
+  );
   const canonicalIds = [...new Set(courses.flatMap(({ course, access }) => access && course?.canonicalId ? [course.canonicalId] : []))];
   const canonicalRows = (await Promise.all(chunks(canonicalIds).map((ids) => db.select({ courseId: setFlashcard.mataKuliahId, id: flashcard.id, chapterId: setFlashcard.babId, legacyChapterId: bab.legacyChapterId, due: kemajuanFlashcardMurid.dueAt, status: kemajuanFlashcardMurid.status, lastReviewedAt: kemajuanFlashcardMurid.lastReviewedAt }).from(flashcard)
     .innerJoin(setFlashcard, eq(flashcard.setFlashcardId, setFlashcard.id))
@@ -22,17 +30,19 @@ export async function getDashboardReviewSummary(studentId: string, courseIds: re
     .leftJoin(kemajuanFlashcardMurid, and(eq(kemajuanFlashcardMurid.flashcardId, flashcard.id), eq(kemajuanFlashcardMurid.penggunaId, studentId)))
     .where(and(inArray(setFlashcard.mataKuliahId, ids), eq(setFlashcard.status, "published"), eq(flashcard.status, "published")))))).flat();
   const cardIds = [...new Set(canonicalRows.map((row) => row.id))];
-  const ideas = (await Promise.all(chunks(cardIds).map((ids) => db.select({ flashcardId: flashcardIde.flashcardId, ideaId: flashcardIde.ideId, masteryScore: pemahamanIde.skor, confidence: pemahamanIde.keyakinan }).from(flashcardIde)
-    .leftJoin(pemahamanIde, and(eq(pemahamanIde.ideId, flashcardIde.ideId), eq(pemahamanIde.penggunaId, studentId)))
-    .where(inArray(flashcardIde.flashcardId, ids))))).flat();
-  const ideaMap = new Map<string, typeof ideas>();
-  for (const idea of ideas) ideaMap.set(idea.flashcardId, [...(ideaMap.get(idea.flashcardId) ?? []), idea]);
   const canonicalCourses = new Set(canonicalRows.map((row) => row.courseId));
   const legacyIds = [...new Set(courses.flatMap(({ id, course, access }) => access && (!course?.canonicalId || !canonicalCourses.has(course.canonicalId)) ? [course?.legacyId ?? id] : []))];
-  const legacyRows = (await Promise.all(chunks(legacyIds).map((ids) => db.select({ courseId: flashcardSets.courseId, chapterId: flashcardSets.chapterId, id: flashcards.id, due: studentFlashcardProgress.dueDate, lastReviewedAt: studentFlashcardProgress.lastReviewedAt }).from(flashcards)
-    .innerJoin(flashcardSets, eq(flashcards.setId, flashcardSets.id))
-    .leftJoin(studentFlashcardProgress, and(eq(studentFlashcardProgress.flashcardId, flashcards.id), eq(studentFlashcardProgress.studentId, studentId)))
-    .where(and(inArray(flashcardSets.courseId, ids), eq(flashcardSets.status, "published"), eq(flashcardSets.isStale, false), eq(flashcards.status, "active")))))).flat();
+  const [ideas, legacyRows] = await Promise.all([
+    Promise.all(chunks(cardIds).map((ids) => db.select({ flashcardId: flashcardIde.flashcardId, ideaId: flashcardIde.ideId, masteryScore: pemahamanIde.skor, confidence: pemahamanIde.keyakinan }).from(flashcardIde)
+      .leftJoin(pemahamanIde, and(eq(pemahamanIde.ideId, flashcardIde.ideId), eq(pemahamanIde.penggunaId, studentId)))
+      .where(inArray(flashcardIde.flashcardId, ids)))).then((rows) => rows.flat()),
+    Promise.all(chunks(legacyIds).map((ids) => db.select({ courseId: flashcardSets.courseId, chapterId: flashcardSets.chapterId, id: flashcards.id, due: studentFlashcardProgress.dueDate, lastReviewedAt: studentFlashcardProgress.lastReviewedAt }).from(flashcards)
+      .innerJoin(flashcardSets, eq(flashcards.setId, flashcardSets.id))
+      .leftJoin(studentFlashcardProgress, and(eq(studentFlashcardProgress.flashcardId, flashcards.id), eq(studentFlashcardProgress.studentId, studentId)))
+      .where(and(inArray(flashcardSets.courseId, ids), eq(flashcardSets.status, "published"), eq(flashcardSets.isStale, false), eq(flashcards.status, "active"))))).then((rows) => rows.flat()),
+  ]);
+  const ideaMap = new Map<string, typeof ideas>();
+  for (const idea of ideas) ideaMap.set(idea.flashcardId, [...(ideaMap.get(idea.flashcardId) ?? []), idea]);
   const now = Date.now();
   return courses.map(({ id, course, access }) => {
     if (!access) return { courseId: id, count: 0 };

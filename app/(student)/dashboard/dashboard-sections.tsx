@@ -54,6 +54,7 @@ import {
   getCourseMaterials,
   getCourseQuizzes,
   getCourseTryouts,
+  getStudentCourses,
 } from "@/lib/course-utils";
 import { env } from "@/lib/env";
 import { getReviewQueue } from "@/lib/flashcard-actions";
@@ -62,9 +63,9 @@ import { getMastery } from "@/lib/mastery-store";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { getOrUpdateStreak } from "@/lib/streak-service";
 import {
-  listStudentCourses,
   type StudentEnrollmentRecord,
 } from "@/lib/student/course-catalog";
+import { getCourseCatalogStatsMap } from "@/lib/student/course-catalog-stats";
 import { getDashboardCourseMaterialsBatch } from "@/lib/student/dashboard-materials";
 import { resolveCourseAccessBatch } from "@/lib/student/course-access";
 import type { StudentCourseAccess } from "@/lib/course-utils";
@@ -184,7 +185,7 @@ const defaultDeps = {
   getCourseTryouts,
   getDashboardCourseExamsBatch,
   getCatalogCourseSummaries,
-  listStudentCourses,
+  listStudentCourses: getStudentCourses,
   getOrUpdateStreak,
   getMastery,
   getOrComputeStudyPath,
@@ -481,15 +482,44 @@ export async function loadRecommendedCoursesData(
       isCourseMatchingMajor(c.category, profile.major, profile.entryYear),
   );
 
-  const recommendedCourses =
-    unenrolledMatching.length > 0
-      ? await Promise.all(
-          unenrolledMatching.slice(0, 4).map(async (c) => {
-            const materials = await d.getCourseMaterials(c.id);
-            return { id: c.id, title: c.title, category: c.category, pricing: c.pricing, materialsCount: materials.length };
-          }),
-        )
-      : [];
+  const topCandidates = unenrolledMatching.slice(0, 4);
+  let recommendedCourses: Array<{
+    id: string;
+    title: string;
+    category: string;
+    pricing: (typeof topCandidates)[number]["pricing"];
+    materialsCount: number;
+  }> = [];
+
+  if (topCandidates.length > 0) {
+    if (deps?.getCourseMaterials && !deps.getDashboardCourseMaterialsBatch) {
+      recommendedCourses = await Promise.all(
+        topCandidates.map(async (c) => {
+          const materials = await d.getCourseMaterials(c.id);
+          return { id: c.id, title: c.title, category: c.category, pricing: c.pricing, materialsCount: materials.length };
+        }),
+      );
+    } else if (deps?.getDashboardCourseMaterialsBatch) {
+      const batch = await d.getDashboardCourseMaterialsBatch(topCandidates.map((c) => c.id));
+      const countById = new Map(batch.map((entry) => [entry.courseId, entry.materials.length]));
+      recommendedCourses = topCandidates.map((c) => ({
+        id: c.id,
+        title: c.title,
+        category: c.category,
+        pricing: c.pricing,
+        materialsCount: countById.get(c.id) ?? 0,
+      }));
+    } else {
+      const statsMap = await getCourseCatalogStatsMap(topCandidates);
+      recommendedCourses = topCandidates.map((c) => ({
+        id: c.id,
+        title: c.title,
+        category: c.category,
+        pricing: c.pricing,
+        materialsCount: statsMap.get(c.id)?.materialsCount ?? 0,
+      }));
+    }
+  }
 
   return { recommendedCourses, studentTargetCategory: profile.targetCategory };
 }

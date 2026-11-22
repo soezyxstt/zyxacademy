@@ -32,8 +32,10 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, quizId } = await params;
-  const course = await getCourse(id);
-  const t = await getTranslations("learning");
+  const [course, t] = await Promise.all([
+    getCourse(id),
+    getTranslations("learning"),
+  ]);
 
   const courseIds = course
     ? [...new Set([course.id, course.canonicalId, course.legacyId, id].filter((value): value is string => Boolean(value)))]
@@ -64,36 +66,40 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   const { id, quizId } = await params;
   const { attemptId, viewDiscussion } = await searchParams;
 
-  const session = await getAuthSession();
+  const [session, course] = await Promise.all([
+    getAuthSession(),
+    getCourse(id),
+  ]);
   const studentId = session?.user?.id;
   if (!studentId) {
     return redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/quiz/${quizId}`)}`);
   }
 
-  const course = await getCourse(id);
+  if (!course) notFound();
 
-  const courseIds = course
-    ? [...new Set([course.id, course.canonicalId, course.legacyId, id].filter((value): value is string => Boolean(value)))]
-    : [];
-  const [template] = courseIds.length > 0
-    ? await db
-        .select()
-        .from(quizTemplates)
-        .where(and(eq(quizTemplates.id, quizId), inArray(quizTemplates.courseId, courseIds)))
-        .limit(1)
-    : [];
-
-  if (!course || !template) notFound();
-
+  const courseIds = [...new Set([course.id, course.canonicalId, course.legacyId, id].filter((value): value is string => Boolean(value)))];
   const role = (session.user as { role?: string | null }).role;
+
   // The central resolver binds staff access to this active course. A tutor
   // without an assignment must not see draft quizzes or use the attempt flow
   // merely because the session contains a teacher-like role string.
-  const access = await resolveCourseAccess({
-    courseId: course.canonicalId ?? course.id,
-    userId: studentId,
-    roleHint: role,
-  });
+  const [[template], access] = await Promise.all([
+    courseIds.length > 0
+      ? db
+          .select()
+          .from(quizTemplates)
+          .where(and(eq(quizTemplates.id, quizId), inArray(quizTemplates.courseId, courseIds)))
+          .limit(1)
+      : Promise.resolve([]),
+    resolveCourseAccess({
+      courseId: course.canonicalId ?? course.id,
+      userId: studentId,
+      roleHint: role,
+    }),
+  ]);
+
+  if (!template) notFound();
+
   const isStaff = access.tier === "staff";
   if (template.status === "draft" && !isStaff) {
     notFound();
