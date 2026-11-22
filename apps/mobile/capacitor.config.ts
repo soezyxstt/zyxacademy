@@ -89,6 +89,9 @@ const config: CapacitorConfig = {
     errorPath: "index.html",
   },
   plugins: {
+    LocalNotifications: {
+      smallIcon: "ic_stat_zyx",
+    },
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"],
     },
