@@ -8,6 +8,11 @@ import {
 let mockSession: { user?: { id: string } } | null = null;
 let mockSessionError: Error | null = null;
 let mockDestination: RoleDashboardPath = "/dashboard";
+let mockBaseUrl = "https://www.zyxacademy.com";
+
+mock.module("@/lib/auth-site-url", () => ({
+  resolveAuthBaseUrl: () => mockBaseUrl,
+}));
 
 mock.module("@/lib/auth-session", () => ({
   getAuthSession: async () => {
@@ -27,6 +32,7 @@ describe("GET /api/entry-redirect", () => {
     mockSession = null;
     mockSessionError = null;
     mockDestination = "/dashboard";
+    mockBaseUrl = "https://www.zyxacademy.com";
   });
 
   test("redirects active users to their resolved role dashboard and sets the cooldown cookie", async () => {
@@ -63,6 +69,7 @@ describe("GET /api/entry-redirect", () => {
 
   test("falls back safely to returnTo if session resolution throws", async () => {
     mockSessionError = new Error("DB_UNAVAILABLE");
+    mockBaseUrl = "http://localhost";
 
     const response = await GET(
       new NextRequest("http://localhost/api/entry-redirect?returnTo=%2Fid"),
@@ -70,5 +77,24 @@ describe("GET /api/entry-redirect", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("http://localhost/id");
     expect(response.cookies.get(DASHBOARD_ENTRY_COOKIE_NAME)?.value).toBe("1");
+  });
+
+  test("uses the configured public origin behind Cloud Run for dashboards and fallbacks", async () => {
+    mockBaseUrl = "https://staging.zyxacademy.com";
+    const request = () => new NextRequest(
+      "http://127.0.0.1:3001/api/entry-redirect?returnTo=%2Fen",
+      { headers: { "x-forwarded-host": "evil.example" } },
+    );
+    for (const target of ["/admin", "/tutor", "/dashboard"] as const) {
+      mockSession = { user: { id: "active-user" } };
+      mockDestination = target;
+      const response = await GET(request());
+      expect(response.headers.get("location")).toBe(`${mockBaseUrl}${target}`);
+      expect(response.cookies.get(DASHBOARD_ENTRY_COOKIE_NAME)?.secure).toBe(true);
+    }
+    mockSession = null;
+    expect((await GET(request())).headers.get("location")).toBe(`${mockBaseUrl}/en`);
+    mockSessionError = new Error("DB_UNAVAILABLE");
+    expect((await GET(request())).headers.get("location")).toBe(`${mockBaseUrl}/en`);
   });
 });
