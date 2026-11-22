@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CalendarSync, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -8,14 +8,24 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { connectGoogleCalendar, getGoogleCalendarStatus, requestGoogleCalendarSync } from "@/app/actions/google-calendar";
 import type { CalendarSyncStatus } from "@/lib/google-calendar/shared";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import {
+  getNativeAuthScheme,
+  isNativeSystemBrowserSupported,
+  openNativeSystemBrowser,
+} from "@/lib/native/auth";
 
 export function GoogleCalendarControl({ central = false }: { central?: boolean }) {
   const t = useTranslations("schedule");
   const { locale } = useAppLocale();
+  const mountedRef = useRef(true);
   const [status, setStatus] = useState<CalendarSyncStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [callbackFailed, setCallbackFailed] = useState(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   useEffect(() => {
     let active = true;
     async function refresh() {
@@ -43,20 +53,37 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
   }, [central]);
   async function submit() {
     setBusy(true); setFailed(false); setCallbackFailed(false);
+    let keepBusyForBrowser = false;
     try {
       if (!status) {
         setStatus(await getGoogleCalendarStatus(central));
       } else if (!central && (!status.connected || status.error === "reconnect")) {
-        const result = await connectGoogleCalendar(window.location.pathname);
+        const nativeScheme = isNativeSystemBrowserSupported() ? getNativeAuthScheme() : null;
+        const result = await connectGoogleCalendar(window.location.pathname, { nativeScheme });
         if (!result.url) throw new Error("Connection failed");
+        if (result.nativeBrowser) {
+          const handoffUrl = new URL(result.url, window.location.origin).toString();
+          const opened = await openNativeSystemBrowser(handoffUrl, {
+            onBrowserClosed: () => {
+              if (!mountedRef.current) return;
+              setBusy(false);
+              void getGoogleCalendarStatus(central)
+                .then((next) => { if (mountedRef.current) setStatus(next); })
+                .catch(() => {});
+            },
+          });
+          if (!opened) throw new Error("Native browser unavailable");
+          keepBusyForBrowser = true;
+          return;
+        }
         window.location.assign(result.url);
       } else {
         const result = await requestGoogleCalendarSync(central);
         if (!result.ok) throw new Error("Sync failed");
         setStatus(await getGoogleCalendarStatus(central));
       }
-    } catch { setFailed(true); }
-    finally { setBusy(false); }
+    } catch { if (mountedRef.current) setFailed(true); }
+    finally { if (!keepBusyForBrowser && mountedRef.current) setBusy(false); }
   }
   const loading = busy || status?.pending;
   const title = t(central ? "googleCalendar.central" : "googleCalendar.title");

@@ -124,6 +124,95 @@ function generateRandomState(): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+export function getNativeAuthScheme(): ReturnType<typeof resolveNativeAuthScheme> {
+  if (typeof window === "undefined") return null;
+  return resolveNativeAuthScheme({
+    runtime: getNativeRuntime(),
+    userAgent: navigator.userAgent,
+    hostname: window.location.hostname,
+  });
+}
+
+export function isNativeSystemBrowserSupported(): boolean {
+  const runtime = getNativeRuntime();
+  if (runtime === "capacitor") {
+    return Boolean(getCapacitor()?.Plugins?.Browser?.open);
+  }
+  if (runtime === "tauri") {
+    return Boolean(getTauri()?.opener?.openUrl || getTauri()?.core?.invoke);
+  }
+  return false;
+}
+
+export async function openNativeSystemBrowser(
+  url: string,
+  options?: { onBrowserClosed?: () => void },
+): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  const runtime = getNativeRuntime();
+
+  if (runtime === "capacitor") {
+    const browser = getCapacitor()?.Plugins?.Browser;
+    if (!browser?.open) return false;
+
+    let finishedHandle: CapacitorPluginListenerHandle | null = null;
+    if (browser.addListener && options?.onBrowserClosed) {
+      try {
+        finishedHandle = await browser.addListener("browserFinished", () => {
+          options.onBrowserClosed?.();
+          if (finishedHandle) {
+            void finishedHandle.remove().catch(() => {});
+            finishedHandle = null;
+          }
+        });
+      } catch {
+        finishedHandle = null;
+      }
+    }
+
+    try {
+      await browser.open({
+        url,
+        presentationStyle: "popover",
+      });
+      return true;
+    } catch {
+      if (finishedHandle) {
+        void finishedHandle.remove().catch(() => {});
+      }
+      return false;
+    }
+  }
+
+  if (runtime === "tauri") {
+    const tauri = getTauri();
+    const attachFocusReset = () => {
+      if (!options?.onBrowserClosed) return;
+      const onFocus = () => {
+        window.removeEventListener("focus", onFocus);
+        options.onBrowserClosed?.();
+      };
+      window.addEventListener("focus", onFocus);
+    };
+    try {
+      if (tauri?.opener?.openUrl) {
+        await tauri.opener.openUrl(url);
+        attachFocusReset();
+        return true;
+      }
+      if (tauri?.core?.invoke) {
+        await tauri.core.invoke("plugin:opener|open_url", { url });
+        attachFocusReset();
+        return true;
+      }
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
+}
+
 export function isNativeBrowserSignInSupported(): boolean {
   const runtime = getNativeRuntime();
   if (runtime === "capacitor") {

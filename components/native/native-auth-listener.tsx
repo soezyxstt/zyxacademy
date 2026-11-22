@@ -34,6 +34,10 @@ export function NativeAuthListener() {
           window.location.replace(finishPath);
         },
         onAppRoute: (appPath) => {
+          if (appPath.includes("calendarSync=")) {
+            window.location.replace(appPath);
+            return;
+          }
           router.push(appPath);
         },
       }),
