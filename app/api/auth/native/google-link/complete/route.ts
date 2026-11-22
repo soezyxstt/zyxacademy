@@ -4,11 +4,15 @@ import {
   isMobileAuthScheme,
   normalizeNativeAuthScheme,
 } from "@/lib/native/auth-handoff";
-import { isSupportedAppDeepLinkPath } from "@/lib/native/deep-links";
 
 export const dynamic = "force-dynamic";
 
-const PARAM_KEY_RE = /^[A-Za-z0-9_-]{1,32}$/;
+const ALLOWED_CALLBACK_PARAMS = new Set(["calendarSync"]);
+const ALLOWED_RETURN_PATHS = new Set([
+  "/calendar",
+  "/dashboard/schedule",
+  "/tutor/schedule",
+]);
 
 function escapeHtml(value: string): string {
   return value
@@ -21,7 +25,7 @@ function escapeHtml(value: string): string {
 
 function buildDesktopHandoffHtml(deepLink: string, succeeded: boolean): string {
   const escapedHref = escapeHtml(deepLink);
-  const serializedUrl = JSON.stringify(deepLink);
+  const serializedUrl = JSON.stringify(deepLink).replace(/</g, "\\u003c");
   const heading = succeeded ? "Akun Google terhubung" : "Gagal menghubungkan Google";
   const subtitle = succeeded
     ? "Membuka kembali aplikasi Zyx Academy. Jika tidak terbuka otomatis, klik tombol di bawah."
@@ -90,15 +94,14 @@ export async function GET(request: NextRequest) {
   const rawNext = request.nextUrl.searchParams.get("next") ?? "/calendar";
   const safeNext = getSafeRedirectPath(rawNext);
   const rawParam = request.nextUrl.searchParams.get("param") ?? "calendarSync";
-  const paramKey = PARAM_KEY_RE.test(rawParam) ? rawParam : "calendarSync";
+  const paramKey = ALLOWED_CALLBACK_PARAMS.has(rawParam) ? rawParam : "calendarSync";
 
   if (!scheme) {
     return NextResponse.json({ error: "Invalid native scheme" }, { status: 400 });
   }
 
-  // Only allow returning to supported app deep-link paths.
-  const nextPathOnly = safeNext.split(/[?#]/)[0] ?? "/calendar";
-  const targetPath = isSupportedAppDeepLinkPath(nextPathOnly) ? nextPathOnly : "/calendar";
+  const nextPathOnly = (safeNext.split(/[?#]/)[0] ?? "/calendar").replace(/\/+$/, "") || "/";
+  const targetPath = ALLOWED_RETURN_PATHS.has(nextPathOnly) ? nextPathOnly : "/calendar";
 
   const hasProviderError = Boolean(request.nextUrl.searchParams.get("error"));
   const succeeded = !hasProviderError && request.nextUrl.searchParams.get("status") !== "error";

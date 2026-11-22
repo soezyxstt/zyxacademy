@@ -13,11 +13,15 @@ const { GET: startGoogleLink } = await import("@/app/api/auth/native/google-link
 const { GET: completeGoogleLink } = await import("@/app/api/auth/native/google-link/complete/route");
 
 describe("Native system-browser Google scope-link handoff", () => {
-  test("start route forwards OAuth state cookie, redirects to Google consent, and rejects replay", async () => {
+  test("start route forwards only OAuth state cookies, strips session cookies, redirects to Google consent, and rejects replay", async () => {
     const googleUrl = "https://accounts.google.com/o/oauth2/v2/auth?state=s1&prompt=consent&login_hint=user%40example.com";
     const token = await issueNativeGoogleLinkHandoff({
       googleUrl,
-      setCookieHeader: "better-auth.oauth_state=signed-state-value; Path=/; Max-Age=600; HttpOnly; SameSite=Lax; Secure",
+      setCookies: [
+        "better-auth.oauth_state=signed-state-value; Path=/; Max-Age=600; HttpOnly; SameSite=Lax; Secure",
+        "better-auth.session_token=do-not-leak-1; Path=/; HttpOnly; Secure",
+        "__Secure-better-auth.session_token=do-not-leak-2; Path=/; HttpOnly; Secure",
+      ],
     });
 
     const firstRes = await startGoogleLink(
@@ -30,6 +34,8 @@ describe("Native system-browser Google scope-link handoff", () => {
     expect(setCookie).toContain("better-auth.oauth_state=signed-state-value");
     expect(setCookie).toContain("HttpOnly");
     expect(setCookie).toContain("Secure");
+    expect(setCookie).not.toContain("session_token");
+    expect(setCookie).not.toContain("do-not-leak");
 
     const replayRes = await startGoogleLink(
       new NextRequest(`https://staging.zyxacademy.com/api/auth/native/google-link/start?token=${token}`),
@@ -42,7 +48,7 @@ describe("Native system-browser Google scope-link handoff", () => {
     await expect(
       issueNativeGoogleLinkHandoff({
         googleUrl: "https://evil.example/o/oauth2/v2/auth",
-        setCookieHeader: "",
+        setCookies: [],
       }),
     ).rejects.toThrow("Invalid Google OAuth URL");
   });
@@ -74,7 +80,7 @@ describe("Native system-browser Google scope-link handoff", () => {
     expect(html).toContain("Akun Google terhubung");
   });
 
-  test("complete route handles provider errors, rejects disallowed schemes, and constrains next paths", async () => {
+  test("complete route handles provider errors, rejects disallowed schemes, and constrains next paths and params", async () => {
     const errorRes = await completeGoogleLink(
       new NextRequest(
         "https://www.zyxacademy.com/api/auth/native/google-link/complete?scheme=com.zyx.academy&next=/calendar&param=calendarSync&error=access_denied",
@@ -92,7 +98,7 @@ describe("Native system-browser Google scope-link handoff", () => {
 
     const unsupportedNextRes = await completeGoogleLink(
       new NextRequest(
-        "https://www.zyxacademy.com/api/auth/native/google-link/complete?scheme=com.zyx.academy&next=/admin/users",
+        "https://www.zyxacademy.com/api/auth/native/google-link/complete?scheme=com.zyx.academy&next=/courses/123&param=arbitrary",
       ),
     );
     expect(unsupportedNextRes.status).toBe(302);

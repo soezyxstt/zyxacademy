@@ -196,13 +196,13 @@ export async function openNativeSystemBrowser(
     };
     try {
       if (tauri?.opener?.openUrl) {
-        attachFocusReset();
         await tauri.opener.openUrl(url);
+        attachFocusReset();
         return true;
       }
       if (tauri?.core?.invoke) {
-        attachFocusReset();
         await tauri.core.invoke("plugin:opener|open_url", { url });
+        attachFocusReset();
         return true;
       }
     } catch {

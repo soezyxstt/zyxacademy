@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseSetCookieHeader, toCookieOptions } from "better-auth/cookies";
 import { resolveNativeRequestOrigin } from "@/lib/native/auth-handoff";
-import { consumeNativeGoogleLinkHandoff } from "@/lib/native/google-link-handoff";
+import {
+  consumeNativeGoogleLinkHandoff,
+  isAllowedOAuthStateCookieName,
+} from "@/lib/native/google-link-handoff";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -71,8 +74,9 @@ export async function GET(request: NextRequest) {
     headers: { "Cache-Control": "no-store" },
   });
 
-  if (handoff.setCookieHeader) {
-    for (const [name, cookie] of parseSetCookieHeader(handoff.setCookieHeader)) {
+  for (const rawCookie of handoff.setCookies) {
+    for (const [name, cookie] of parseSetCookieHeader(rawCookie)) {
+      if (!isAllowedOAuthStateCookieName(name)) continue;
       const options = toCookieOptions(cookie);
       response.cookies.set(name, cookie.value, {
         ...options,

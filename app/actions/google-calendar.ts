@@ -12,7 +12,10 @@ import { minutesFrom } from "@/lib/date-utils";
 import { centralCalendarConfigured, personalCalendarAccount } from "@/lib/google-calendar/sync";
 import { CALENDAR_SCOPE, type CalendarSyncStatus } from "@/lib/google-calendar/shared";
 import { normalizeNativeAuthScheme } from "@/lib/native/auth-handoff";
-import { issueNativeGoogleLinkHandoff } from "@/lib/native/google-link-handoff";
+import {
+  extractOAuthStateSetCookies,
+  issueNativeGoogleLinkHandoff,
+} from "@/lib/native/google-link-handoff";
 
 async function authorizedTarget(central: boolean) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -81,7 +84,6 @@ export async function connectGoogleCalendar(
     provider: "google", scopes: [CALENDAR_SCOPE], callbackURL: successCallbackURL,
     errorCallbackURL, disableRedirect: true,
   } });
-  const setCookieHeader = result.headers.get("set-cookie") ?? "";
   if (!result.response.url) return { url: null, nativeBrowser: false };
 
   // Better Auth owns state and PKCE. Request durable consent for the signed-in account.
@@ -96,7 +98,7 @@ export async function connectGoogleCalendar(
   if (nativeScheme) {
     const token = await issueNativeGoogleLinkHandoff({
       googleUrl: url.toString(),
-      setCookieHeader,
+      setCookies: extractOAuthStateSetCookies(result.headers),
     });
     return {
       url: `/api/auth/native/google-link/start?token=${encodeURIComponent(token)}`,
@@ -104,9 +106,17 @@ export async function connectGoogleCalendar(
     };
   }
 
+  const rawSetCookies = typeof result.headers.getSetCookie === "function"
+    ? result.headers.getSetCookie()
+    : [];
+  const webSetCookies = rawSetCookies.length > 0
+    ? rawSetCookies
+    : [result.headers.get("set-cookie") ?? ""].filter(Boolean);
   const cookieStore = await cookies();
-  for (const [name, cookie] of parseSetCookieHeader(setCookieHeader)) {
-    cookieStore.set(name, cookie.value, toCookieOptions(cookie));
+  for (const rawCookie of webSetCookies) {
+    for (const [name, cookie] of parseSetCookieHeader(rawCookie)) {
+      cookieStore.set(name, cookie.value, toCookieOptions(cookie));
+    }
   }
   return { url: url.toString(), nativeBrowser: false };
 }
