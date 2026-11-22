@@ -14,11 +14,21 @@ export type FormClosure =
   | { kind: "scheduled"; opensAt: string }
   | { kind: "ended"; endedAt: string; message?: string };
 
+// Older builders persisted the placeholder in the author's locale.
+const legacyDefaults = {
+  closedMessage: ["Formulir ini telah ditutup dan tidak lagi menerima tanggapan.", "This form is closed and no longer accepts responses."],
+  customSuccessMessage: ["Jawaban Anda telah berhasil disimpan.", "Your response was saved successfully."],
+};
+
+export function customFormMessage(field: keyof typeof legacyDefaults, value?: string) {
+  return value && !legacyDefaults[field].includes(value) ? value : "";
+}
+
 export function getFormClosure(settings: FormResponseSettings): FormClosure | null {
   const now = Date.now();
-  if (settings.acceptingResponses === false) return { kind: "closed", message: settings.closedMessage };
+  if (settings.acceptingResponses === false) return { kind: "closed", message: customFormMessage("closedMessage", settings.closedMessage) };
   if (settings.openAt && now < Date.parse(settings.openAt)) return { kind: "scheduled", opensAt: settings.openAt };
-  if (settings.closeAt && now > Date.parse(settings.closeAt)) return { kind: "ended", endedAt: settings.closeAt, message: settings.closedMessage };
+  if (settings.closeAt && now > Date.parse(settings.closeAt)) return { kind: "ended", endedAt: settings.closeAt, message: customFormMessage("closedMessage", settings.closedMessage) };
   return null;
 }
 

@@ -46,7 +46,7 @@ import {
 import { buildFormSteps, formFileSizeLimitMb, isEmptyFormAnswer, type FormStep, type FormDisplayMode } from "@/lib/forms/presentation";
 import { formFileAccept, type FormFileMime } from "@/lib/forms/file-types";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
-import type { FormClosure } from "@/lib/forms/response-policy";
+import { customFormMessage, type FormClosure } from "@/lib/forms/response-policy";
 import { useFormatter } from "next-intl";
 import { useTranslations } from "@/lib/i18n/client";
 
@@ -528,7 +528,7 @@ export function PublicFormViewer({
       setEmailError(null);
       setCurrentStepIndex(0);
       setSubmittedMessage(
-        form?.settings?.customSuccessMessage || t("publicForm.previewSuccess")
+        customFormMessage("customSuccessMessage", form?.settings?.customSuccessMessage) || t("publicForm.previewSuccess")
       );
       toast.success(t("publicForm.previewSubmitted"));
       return;
@@ -573,7 +573,7 @@ export function PublicFormViewer({
         setResponderEmail("");
         setEmailError(null);
         setCurrentStepIndex(0);
-        setSubmittedMessage(form?.settings?.customSuccessMessage || t("publicForm.submitSuccess"));
+        setSubmittedMessage(customFormMessage("customSuccessMessage", form?.settings?.customSuccessMessage) || t("publicForm.submitSuccess"));
       } else {
         toast.error(t("publicForm.submitFailed"));
         setErrorMsg(t("publicForm.submitFailed"));

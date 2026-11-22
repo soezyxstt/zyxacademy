@@ -142,7 +142,10 @@ export function StudentScheduleClient({ selectedCourse, initialData = null, fetc
   ));
   const activeRequest = useRef(0);
   const cacheVersion = useRef(0);
+  const snapshotTime = useRef(fetchedAt);
+  const lastMutation = useRef(0);
   const invalidateScheduleCache = () => {
+    lastMutation.current = Date.now();
     cacheVersion.current++;
     weekCache.clear();
     setReminderSyncVersion((version) => version + 1);
@@ -190,8 +193,17 @@ export function StudentScheduleClient({ selectedCourse, initialData = null, fetc
   }, [loadSchedule, experience.mode, weekCache]);
 
   useEffect(() => {
+    if (snapshotTime.current !== fetchedAt) {
+      snapshotTime.current = fetchedAt;
+      if (fetchedAt >= lastMutation.current) {
+        const currentWeek = weekCache.get(0);
+        weekCache.clear();
+        if (currentWeek && currentWeek.fetchedAt > fetchedAt) weekCache.set(0, currentWeek);
+        else if (initialData) weekCache.set(0, { data: initialData, fetchedAt });
+      }
+    }
     void fetchData(weekOffset);
-  }, [fetchData, weekOffset, community.state]);
+  }, [fetchData, weekOffset, community.state, initialData, fetchedAt, weekCache]);
 
   const courseParam = searchParams.get("course");
   const courseIds = useMemo(() => selectedCourse?.compatibleCourseIds ?? (courseParam ? [courseParam] : []), [selectedCourse, courseParam]);

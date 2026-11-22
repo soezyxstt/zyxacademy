@@ -12,8 +12,9 @@ import { getScheduleData } from "./actions";
 
 async function InitialSchedule({ selectedCourse }: { selectedCourse: Awaited<ReturnType<typeof resolveCourseIdentity>> }) {
   const scope = selectedCourse ? { id: selectedCourse.primaryId, title: selectedCourse.title, compatibleCourseIds: selectedCourse.allIds } : undefined;
+  const fetchedAt = Date.now();
   const initialData = await getScheduleData(0, scope?.id).catch(() => null);
-  return <StudentScheduleClient key={scope?.id ?? "all"} selectedCourse={scope} initialData={initialData} fetchedAt={Date.now()} />;
+  return <StudentScheduleClient key={scope?.id ?? "all"} selectedCourse={scope} initialData={initialData} fetchedAt={fetchedAt} />;
 }
 
 export default async function StudentSchedulePage({ searchParams }: { searchParams: Promise<{ course?: string | string[] }> }) {
