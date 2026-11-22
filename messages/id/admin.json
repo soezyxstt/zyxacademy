@@ -49,7 +49,7 @@
     "tutorActivity": "Aktivitas tutor",
     "featureFlags": "Feature Flags",
     "zyraAnalytics": "Analitik Zyra",
-    "featureUsage": "Fitur",
+    "featureUsage": "Penggunaan fitur",
     "apiKeys": "API Keys",
     "shortLinks": "Short Links",
     "webAnalytics": "Web Analytics",
@@ -85,6 +85,9 @@
     "academicContent": "Akademik",
     "toolsCommunication": "Alat & pesan",
     "usersAccess": "Pengguna dan akses",
+    "publishingContent": "Publikasi dan konten",
+    "analyticsMonitor": "Analitik dan monitor",
+    "system": "Sistem",
     "systemOps": "Sistem dan ops",
     "pka": "Tutorial PKA"
   },
