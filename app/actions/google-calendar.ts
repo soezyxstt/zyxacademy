@@ -11,13 +11,19 @@ import { inngest } from "@/jobs/client";
 import { minutesFrom } from "@/lib/date-utils";
 import { centralCalendarConfigured, personalCalendarAccount } from "@/lib/google-calendar/sync";
 import { CALENDAR_SCOPE, type CalendarSyncStatus } from "@/lib/google-calendar/shared";
+import { normalizeNativeAuthScheme } from "@/lib/native/auth-handoff";
+import { issueNativeGoogleLinkHandoff } from "@/lib/native/google-link-handoff";
 
 async function authorizedTarget(central: boolean) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("Unauthorized");
   const roles = await getPeranCodes(session.user.id);
   if (central ? !roles.includes("admin") : !roles.some(role => role === "murid" || role === "tutor")) throw new Error("Forbidden");
-  return { target: central ? "central" : `user:${session.user.id}`, userId: session.user.id };
+  return {
+    target: central ? "central" : `user:${session.user.id}`,
+    userId: session.user.id,
+    email: typeof session.user.email === "string" ? session.user.email.trim() : "",
+  };
 }
 export async function getGoogleCalendarStatus(central = false): Promise<CalendarSyncStatus> {
   const { target, userId } = await authorizedTarget(central);
@@ -44,24 +50,63 @@ export async function requestGoogleCalendarSync(central = false) {
     return { ok: false };
   }
 }
-export async function connectGoogleCalendar(callbackPath: string) {
-  await authorizedTarget(false);
+export async function connectGoogleCalendar(
+  callbackPath: string,
+  options?: { nativeScheme?: string | null },
+) {
+  const { email } = await authorizedTarget(false);
   // Keep OAuth callbacks on the existing schedule surfaces.
   const allowed = ["/dashboard/schedule", "/tutor/schedule", "/calendar"];
   const callbackURL = allowed.includes(callbackPath) ? callbackPath : "/dashboard/schedule";
+  const nativeScheme = normalizeNativeAuthScheme(options?.nativeScheme);
+
+  const successCallbackURL = nativeScheme
+    ? `/api/auth/native/google-link/complete?${new URLSearchParams({
+        scheme: nativeScheme,
+        next: callbackURL,
+        param: "calendarSync",
+        status: "ok",
+      }).toString()}`
+    : `${callbackURL}?calendarSync=1`;
+  const errorCallbackURL = nativeScheme
+    ? `/api/auth/native/google-link/complete?${new URLSearchParams({
+        scheme: nativeScheme,
+        next: callbackURL,
+        param: "calendarSync",
+        status: "error",
+      }).toString()}`
+    : `${callbackURL}?calendarSync=error`;
+
   const result = await auth.api.linkSocialAccount({ returnHeaders: true, headers: await headers(), body: {
-    provider: "google", scopes: [CALENDAR_SCOPE], callbackURL: `${callbackURL}?calendarSync=1`,
-    errorCallbackURL: `${callbackURL}?calendarSync=error`, disableRedirect: true,
+    provider: "google", scopes: [CALENDAR_SCOPE], callbackURL: successCallbackURL,
+    errorCallbackURL, disableRedirect: true,
   } });
-  const cookieStore = await cookies();
-  for (const [name, cookie] of parseSetCookieHeader(result.headers.get("set-cookie") ?? "")) {
-    cookieStore.set(name, cookie.value, toCookieOptions(cookie));
-  }
-  if (!result.response.url) return { url: null };
-  // Better Auth owns state and PKCE. Request durable consent only for this flow.
+  const setCookieHeader = result.headers.get("set-cookie") ?? "";
+  if (!result.response.url) return { url: null, nativeBrowser: false };
+
+  // Better Auth owns state and PKCE. Request durable consent for the signed-in account.
   const url = new URL(result.response.url);
   url.searchParams.set("access_type", "offline");
   url.searchParams.set("include_granted_scopes", "true");
   url.searchParams.set("prompt", "consent");
-  return { url: url.toString() };
+  if (email) {
+    url.searchParams.set("login_hint", email);
+  }
+
+  if (nativeScheme) {
+    const token = await issueNativeGoogleLinkHandoff({
+      googleUrl: url.toString(),
+      setCookieHeader,
+    });
+    return {
+      url: `/api/auth/native/google-link/start?token=${encodeURIComponent(token)}`,
+      nativeBrowser: true,
+    };
+  }
+
+  const cookieStore = await cookies();
+  for (const [name, cookie] of parseSetCookieHeader(setCookieHeader)) {
+    cookieStore.set(name, cookie.value, toCookieOptions(cookie));
+  }
+  return { url: url.toString(), nativeBrowser: false };
 }

@@ -56,10 +56,12 @@ export function isSupportedAppDeepLinkPath(pathname: string): boolean {
     return true;
   }
 
-  // Schedules (student calendar, tutor schedule, admin schedules, live meeting links)
+  // Schedules (student calendar, dashboard schedule, tutor schedule, admin schedules, live meeting links)
   if (
     normalized === "/calendar" ||
     normalized.startsWith("/calendar/") ||
+    normalized === "/dashboard/schedule" ||
+    normalized.startsWith("/dashboard/schedule/") ||
     normalized === "/tutor/schedule" ||
     normalized.startsWith("/tutor/schedule/") ||
     normalized === "/admin/schedules" ||
@@ -248,6 +250,10 @@ export async function subscribeNativeDeepLinks(handlers: {
       void cap?.Plugins?.Browser?.close?.().catch(() => {});
       handlers.onAuthFinish(parsed.path);
       return;
+    }
+
+    if (/^com\.zyx\.academy(?:\.nightly)?:/i.test(rawUrl.trim())) {
+      void cap?.Plugins?.Browser?.close?.().catch(() => {});
     }
 
     const currentPathname = typeof window !== "undefined" ? window.location.pathname : "";

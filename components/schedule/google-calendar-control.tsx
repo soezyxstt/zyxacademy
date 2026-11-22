@@ -8,6 +8,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { connectGoogleCalendar, getGoogleCalendarStatus, requestGoogleCalendarSync } from "@/app/actions/google-calendar";
 import type { CalendarSyncStatus } from "@/lib/google-calendar/shared";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import {
+  getNativeAuthScheme,
+  isNativeSystemBrowserSupported,
+  openNativeSystemBrowser,
+} from "@/lib/native/auth";
 
 export function GoogleCalendarControl({ central = false }: { central?: boolean }) {
   const t = useTranslations("schedule");
@@ -43,12 +48,27 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
   }, [central]);
   async function submit() {
     setBusy(true); setFailed(false); setCallbackFailed(false);
+    let keepBusyForBrowser = false;
     try {
       if (!status) {
         setStatus(await getGoogleCalendarStatus(central));
       } else if (!central && (!status.connected || status.error === "reconnect")) {
-        const result = await connectGoogleCalendar(window.location.pathname);
+        const nativeScheme = isNativeSystemBrowserSupported() ? getNativeAuthScheme() : null;
+        const result = await connectGoogleCalendar(window.location.pathname, { nativeScheme });
         if (!result.url) throw new Error("Connection failed");
+        if (result.nativeBrowser) {
+          const handoffUrl = new URL(result.url, window.location.origin).toString();
+          const opened = await openNativeSystemBrowser(handoffUrl, {
+            onBrowserClosed: () => {
+              setBusy(false);
+              void getGoogleCalendarStatus(central).then(setStatus).catch(() => {});
+            },
+          });
+          if (opened) {
+            keepBusyForBrowser = true;
+            return;
+          }
+        }
         window.location.assign(result.url);
       } else {
         const result = await requestGoogleCalendarSync(central);
@@ -56,7 +76,7 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
         setStatus(await getGoogleCalendarStatus(central));
       }
     } catch { setFailed(true); }
-    finally { setBusy(false); }
+    finally { if (!keepBusyForBrowser) setBusy(false); }
   }
   const loading = busy || status?.pending;
   const title = t(central ? "googleCalendar.central" : "googleCalendar.title");
