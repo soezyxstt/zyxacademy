@@ -178,7 +178,15 @@
       "saveFailed": "Could not save your academic profile. Try again shortly."
     },
     "googleVerified": "Google account verified",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "completeness": {
+      "title": "Profile completeness",
+      "value": "{done} of {total} complete",
+      "missing": "Missing: {fields}",
+      "faculty": "Faculty",
+      "major": "Major",
+      "entryYear": "Entry year"
+    }
   },
   "groups": {
     "join": "Join a study group",

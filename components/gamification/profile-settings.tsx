@@ -19,7 +19,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const profileFields = COSMETIC_FIELDS.filter(field => field.slot !== "pet_action" && field.slot !== "pet_suit");
 
-export function ProfileSettings({ initial, badges, rewards, name, image, academicForm }: { initial: StudentSocialSettings; badges: AchievementBadge[]; rewards: GamificationReward[]; name: string; image: string | null; academicForm?: ReactNode }) {
+export function ProfileSettings({ initial, badges, rewards, name, image, academicForm, completeness }: { initial: StudentSocialSettings; badges: AchievementBadge[]; rewards: GamificationReward[]; name: string; image: string | null; academicForm?: ReactNode; completeness?: ReactNode }) {
  const t = useTranslations("student"); const router = useRouter();
  const [settings, setSettings] = useState(initial);
  const [pending, start] = useTransition();
@@ -44,9 +44,12 @@ export function ProfileSettings({ initial, badges, rewards, name, image, academi
  const rewardOptions = (slot: CosmeticSlot) => [{ value: "none", label: t("profileCustomization.none") }, ...rewards.filter(item => item.owned && item.slot === slot).map(item => ({ value: item.id, label: cosmeticNameKeys[item.id] ? t(`gamificationUi.${cosmeticNameKeys[item.id]}`) : item.name }))];
 
  return <div className="space-y-(--group-gap)">
-  <div className="flex items-center gap-(--related-gap) border-b pb-(--group-gap)">
-   <StudentAvatar name={settings.displayName || name} image={image} size={88} frameId={equipped.frame === "none" ? null : equipped.frame} themeId={equipped.theme} />
-   <div className="min-w-0 space-y-1"><p className="break-words font-heading text-body-base font-bold">{settings.displayName || name}</p><p className="text-body-xs text-muted-foreground">{t("profileCustomization.photoSource")}</p></div>
+  <div className="flex flex-wrap items-center justify-between gap-(--related-gap) border-b pb-(--group-gap)">
+   <div className="flex min-w-0 items-center gap-(--related-gap)">
+    <StudentAvatar name={settings.displayName || name} image={image} size={88} frameId={equipped.frame === "none" ? null : equipped.frame} themeId={equipped.theme} />
+    <div className="min-w-0 space-y-1"><p className="break-words font-heading text-body-base font-bold">{settings.displayName || name}</p><p className="text-body-xs text-muted-foreground">{t("profileCustomization.photoSource")}</p></div>
+   </div>
+   {completeness}
   </div>
   <Tabs defaultValue={academicForm ? "academic" : "privacy"} paramKey="section">
    <TabsList flush={false} aria-label={t("profile.editTitle")}>
