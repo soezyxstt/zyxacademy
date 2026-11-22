@@ -175,7 +175,7 @@ export function QuestionsTab({
     <div className="space-y-4 font-sans">
       {/* Origin Filter Tabs + Toolbar Controls */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Tabs value={originTab} onValueChange={handleTabChange} syncUrl={false}>
+        <Tabs value={originTab} onValueChange={handleTabChange} syncUrl={false} className="basis-64 grow">
           <TabsList variant="inline">
             <TabsTrigger value="all">
               {t("courseDetail.questions.all", { count: questions.length })}

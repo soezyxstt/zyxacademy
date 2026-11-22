@@ -114,7 +114,7 @@ function ProductCatalogContent({ courseLabels = {}, lockedCourse, userId }: Prop
     <div className="space-y-5">
       {/* Inline Type Tabs + Responsive Filter Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Tabs value={activeType} onValueChange={setActiveType}>
+        <Tabs value={activeType} onValueChange={setActiveType} className="basis-64 grow">
           <TabsList variant="inline">
             <TabsTrigger value="all">
               Semua
