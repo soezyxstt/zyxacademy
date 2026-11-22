@@ -1,0 +1,49 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { getAuthSession } from "@/lib/auth-session";
+import {
+  DASHBOARD_ENTRY_COOKIE_NAME,
+  DASHBOARD_ENTRY_COOLDOWN_SECONDS,
+  DASHBOARD_ENTRY_STALE_COOLDOWN_SECONDS,
+  getSafeEntryReturnPath,
+} from "@/lib/auth/dashboard-entry";
+import { resolveUserDashboardPath } from "@/lib/auth/dashboard-entry-server";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(request: NextRequest) {
+  const returnTo = getSafeEntryReturnPath(
+    request.nextUrl.searchParams.get("returnTo"),
+  );
+  const isSecure = request.nextUrl.protocol === "https:";
+
+  try {
+    const session = await getAuthSession();
+    if (session?.user?.id) {
+      const destination = await resolveUserDashboardPath(session.user.id);
+      const response = NextResponse.redirect(new URL(destination, request.url));
+      response.headers.set("Cache-Control", "no-store");
+      response.cookies.set(DASHBOARD_ENTRY_COOKIE_NAME, "1", {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: isSecure,
+        path: "/",
+        maxAge: DASHBOARD_ENTRY_COOLDOWN_SECONDS,
+      });
+      return response;
+    }
+  } catch (error) {
+    console.error("[entry-redirect] Failed to resolve role dashboard:", error);
+  }
+
+  const fallback = NextResponse.redirect(new URL(returnTo, request.url));
+  fallback.headers.set("Cache-Control", "no-store");
+  fallback.cookies.set(DASHBOARD_ENTRY_COOKIE_NAME, "1", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isSecure,
+    path: "/",
+    maxAge: DASHBOARD_ENTRY_STALE_COOLDOWN_SECONDS,
+  });
+  return fallback;
+}
