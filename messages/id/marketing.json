@@ -873,6 +873,9 @@
     }
   },
   "blog": {
+    "pagination": "Halaman artikel",
+    "previous": "Sebelumnya",
+    "next": "Berikutnya",
     "heroTitle": "Blog",
     "heroDescription": "Artikel untuk membantu kamu belajar, memahami kehidupan kampus, dan mengenal kegiatan Zyx.",
     "categories": {
@@ -883,7 +886,7 @@
       "zyxActivities": "Kegiatan Zyx"
     },
     "categoryNav": "Kategori blog",
-    "categoryCount": "Menampilkan {count} artikel pada kategori ini.",
+    "categoryCount": "{count} artikel dalam kategori ini.",
     "latest": "Artikel terbaru",
     "latestDescription": "Baca artikel terbaru sebelum menjelajahi fitur belajar.",
     "available": "{count} artikel tersedia",

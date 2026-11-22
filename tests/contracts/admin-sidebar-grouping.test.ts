@@ -5,7 +5,7 @@ const readText = (path: string) => readFileSync(path, "utf8");
 
 describe("AdminSidebar hybrid grouping contract", () => {
   test("groups ALL_ADMIN_TABS by workflow domain without duplicate ids", () => {
-    const sidebar = readText("components/admin-sidebar.tsx");
+    const sidebar = readText("lib/admin-navigation.ts");
     const tabMatches = Array.from(
       sidebar.matchAll(/\{\s*id:\s*"([^"]+)"[^}]*group:\s*"([^"]+)"[^}]*\}/g),
     );
@@ -63,8 +63,8 @@ describe("AdminSidebar hybrid grouping contract", () => {
 
   test("renders primary sections flat and secondary sections collapsible with aligned i18n keys", () => {
     const sidebar = readText("components/admin-sidebar.tsx");
-    expect(sidebar).toContain('<NavGroup label={t("academicContent")} collapsed={c} />');
-    expect(sidebar).toContain('<NavGroup label={t("usersAccess")} collapsed={c} />');
+    expect(sidebar).toContain('<NavGroup label={t(ADMIN_GROUP_MESSAGE_KEYS["akademik"])} collapsed={c} />');
+    expect(sidebar).toContain('<NavGroup label={t(ADMIN_GROUP_MESSAGE_KEYS["pengguna"])} collapsed={c} />');
     expect(sidebar).toContain('id="publikasi"');
     expect(sidebar).toContain('id="analitik"');
     expect(sidebar).toContain('id="sistem"');

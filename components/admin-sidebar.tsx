@@ -6,46 +6,27 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/client";
 
 import {
-  LayoutDashboard,
   ClipboardCheck,
-  KeyRound,
   ListChecks,
   GraduationCap,
-  Bell,
   BarChart3,
   Megaphone,
-  CalendarDays,
-  Link as LinkIcon,
-  Newspaper,
-  Flag,
   Video,
   FileText,
   BookOpen,
   NotebookPen,
   Library,
-  UserCheck,
-  UserCog,
-  Users,
-  FilePen,
   Settings,
-  Gauge,
-  LineChart,
-  Lock,
-  Globe,
-  Image as ImageIcon,
   Archive,
   ArchiveRestore,
   Trophy,
-  MousePointerClick,
-  Activity,
   Layers,
-  Calculator,
   Check,
   ChevronDown,
-  Cpu,
   Search,
-  MessageSquareText,
 } from "lucide-react";
+import { ADMIN_GROUP_MESSAGE_KEYS, ALL_ADMIN_TABS, ADMIN_TAB_MESSAGE_KEYS, DEFAULT_ARCHIVED, type AdminTabDef, type AdminTabGroup } from "@/lib/admin-navigation";
+export { ALL_ADMIN_TABS, type AdminTabDef, type AdminTabGroup } from "@/lib/admin-navigation";
 import {
   SidebarShell,
   NavItem,
@@ -114,95 +95,6 @@ const getArchivedStorageKey = (userId?: string | null) =>
 
 const getPinnedStorageKey = (userId?: string | null) =>
   userId ? `${PINNED_STORAGE_KEY}_${userId}` : PINNED_STORAGE_KEY;
-
-// PKA tabs default archived per user request
-const DEFAULT_ARCHIVED = [
-  "pka-registrations",
-  "pka-announcements",
-  "pka-schedules",
-  "pka-quizzes",
-  "pka-materials",
-];
-
-export type AdminTabGroup =
-  | "utama"
-  | "akademik"
-  | "pengguna"
-  | "publikasi"
-  | "analitik"
-  | "sistem"
-  | "utilitas"
-  | "tutorial-pka";
-
-export type AdminTabDef = {
-  id: string;
-  label: string;
-  href: string;
-  icon: React.ElementType;
-  group: AdminTabGroup;
-  exact?: boolean;
-  badge?: React.ReactNode | string;
-};
-
-export const ALL_ADMIN_TABS: AdminTabDef[] = [
-  // Utama
-  { id: "dashboard", label: "Panel Admin", href: "/admin", icon: LayoutDashboard, group: "utama", exact: true },
-
-  // Akademik
-  { id: "courses", label: "Mata Kuliah", href: "/admin/courses", icon: GraduationCap, group: "akademik" },
-  { id: "schedules", label: "Jadwal Umum", href: "/admin/schedules", icon: CalendarDays, group: "akademik" },
-  { id: "meet", label: "Meet", href: "/admin/meet", icon: Video, group: "akademik" },
-  { id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "akademik" },
-  { id: "discussions", label: "Diskusi dan laporan", href: "/admin/discussions", icon: MessageSquareText, group: "akademik" },
-
-  // Pengguna & Akses
-  { id: "users", label: "Pengguna", href: "/admin/users", icon: UserCog, group: "pengguna" },
-  { id: "groups", label: "Kelompok Belajar", href: "/admin/groups", icon: Users, group: "pengguna" },
-  { id: "tokens", label: "Token Aktivasi", href: "/admin/tokens", icon: KeyRound, group: "pengguna" },
-  { id: "pricing", label: "Kalkulator Harga", href: "/admin/pricing", icon: Calculator, group: "pengguna" },
-  { id: "notifications", label: "Notifikasi", href: "/admin/notifications", icon: Bell, group: "pengguna" },
-
-  // Publikasi & Konten
-  { id: "blog", label: "Blog", href: "/admin/blog", icon: Newspaper, group: "publikasi" },
-  { id: "forms", label: "Form Studio", href: "/admin/forms", icon: FilePen, group: "publikasi" },
-  { id: "media", label: "Pustaka Media", href: "/admin/media", icon: ImageIcon, group: "publikasi" },
-  { id: "tautan", label: "Tautan Publik", href: "/admin/tautan", icon: LinkIcon, group: "publikasi" },
-  { id: "short-links", label: "Short Links", href: "/admin/ops/short-links", icon: LinkIcon, group: "publikasi" },
-
-  // Analitik & Monitor
-  { id: "ops-monitor", label: "Monitor Ops", href: "/admin/ops", icon: Gauge, group: "analitik", exact: true },
-  { id: "tutor-activity", label: "Aktivitas Tutor", href: "/admin/ops/tutor-activity", icon: Activity, group: "analitik" },
-  { id: "ai-analytics", label: "Analitik Zyra", href: "/admin/ops/analytics", icon: LineChart, group: "analitik" },
-  { id: "feature-usage", label: "Penggunaan Fitur", href: "/admin/ops/feature-usage", icon: MousePointerClick, group: "analitik" },
-  { id: "web-analytics", label: "Web Analytics", href: "/admin/ops/web-analytics", icon: Globe, group: "analitik" },
-
-  // Sistem
-  { id: "ai-models", label: "Model AI", href: "/admin/ops/models", icon: Cpu, group: "sistem" },
-  { id: "feature-flags", label: "Feature Flags", href: "/admin/ops/flags", icon: Flag, group: "sistem" },
-  { id: "api-keys", label: "API Keys", href: "/admin/ops/keys", icon: Lock, group: "sistem" },
-
-  // Utilitas
-  { id: "docs", label: "Dokumentasi", href: "/admin/docs", icon: BookOpen, group: "utilitas" },
-
-  // Tutorial PKA (Default Archived)
-  { id: "pka-registrations", label: "Pendaftar PKA", href: "/admin/tutorial-pka/registrations", icon: UserCheck, group: "tutorial-pka" },
-  { id: "pka-announcements", label: "Pengumuman PKA", href: "/admin/tutorial-pka/announcements", icon: Megaphone, group: "tutorial-pka" },
-  { id: "pka-schedules", label: "Jadwal Live PKA", href: "/admin/tutorial-pka/schedules", icon: CalendarDays, group: "tutorial-pka" },
-  { id: "pka-quizzes", label: "Kuis PKA", href: "/admin/courses/tutorial-pka/quizzes", icon: ListChecks, group: "tutorial-pka" },
-  { id: "pka-materials", label: "Materi PKA", href: "/admin/courses/tutorial-pka/documents", icon: FileText, group: "tutorial-pka" },
-];
-
-const ADMIN_TAB_MESSAGE_KEYS: Record<string, string> = {
-  dashboard: "dashboard", blog: "blog", courses: "courses", schedules: "schedules",
-  "bank-soal": "questionBank", pricing: "pricing", docs: "docs", forms: "forms", meet: "meet",
-  media: "media", tautan: "publicLinks", users: "users", groups: "groups", tokens: "tokens",
-  notifications: "notifications", "ops-monitor": "opsMonitor", "ai-models": "aiModels",
-  "tutor-activity": "tutorActivity", "feature-flags": "featureFlags", "ai-analytics": "zyraAnalytics",
-  "feature-usage": "featureUsage", "api-keys": "apiKeys", "short-links": "shortLinks",
-  "web-analytics": "webAnalytics", "pka-registrations": "pkaRegistrations",
-  "pka-announcements": "pkaAnnouncements", "pka-schedules": "pkaSchedules",
-  "pka-quizzes": "pkaQuizzes", "pka-materials": "pkaMaterials",
-};
 
 function AdminSidebarInner() {
   const t = useTranslations("admin.navigation");
@@ -702,7 +594,7 @@ function AdminSidebarInner() {
         {/* Akademik (direct access) */}
         {akademikTabs.length > 0 && (
           <>
-            <NavGroup label={t("academicContent")} collapsed={c} />
+            <NavGroup label={t(ADMIN_GROUP_MESSAGE_KEYS["akademik"])} collapsed={c} />
             <div className="flex flex-col gap-0.5 w-full">
               {akademikTabs.map((tab) => renderTabItem(tab, c, false))}
             </div>
@@ -712,7 +604,7 @@ function AdminSidebarInner() {
         {/* Pengguna & Akses (direct access) */}
         {penggunaTabs.length > 0 && (
           <>
-            <NavGroup label={t("usersAccess")} collapsed={c} />
+            <NavGroup label={t(ADMIN_GROUP_MESSAGE_KEYS["pengguna"])} collapsed={c} />
             <div className="flex flex-col gap-0.5 w-full">
               {penggunaTabs.map((tab) => renderTabItem(tab, c, false))}
             </div>
@@ -730,7 +622,7 @@ function AdminSidebarInner() {
                 id="publikasi"
                 key="publikasi"
                 icon={Megaphone}
-                label={t("publishingContent")}
+                label={t(ADMIN_GROUP_MESSAGE_KEYS["publikasi"])}
                 collapsed={c}
                 active={publikasiTabs.some((tab) => isTabActive(tab))}
                 previewItems={publikasiTabs.map(tabLabel)}
@@ -745,7 +637,7 @@ function AdminSidebarInner() {
                 id="analitik"
                 key="analitik"
                 icon={BarChart3}
-                label={t("analyticsMonitor")}
+                label={t(ADMIN_GROUP_MESSAGE_KEYS["analitik"])}
                 collapsed={c}
                 active={analitikTabs.some((tab) => isTabActive(tab))}
                 previewItems={analitikTabs.map(tabLabel)}
@@ -760,7 +652,7 @@ function AdminSidebarInner() {
                 id="sistem"
                 key="sistem"
                 icon={Settings}
-                label={t("system")}
+                label={t(ADMIN_GROUP_MESSAGE_KEYS["sistem"])}
                 collapsed={c}
                 active={sistemTabs.some((tab) => isTabActive(tab))}
                 previewItems={sistemTabs.map(tabLabel)}
@@ -775,7 +667,7 @@ function AdminSidebarInner() {
                 id="tutorial-pka"
                 key="tutorial-pka"
                 icon={GraduationCap}
-                label={t("pka")}
+                label={t(ADMIN_GROUP_MESSAGE_KEYS["tutorial-pka"])}
                 collapsed={c}
                 active={pkaTabs.some((tab) => isTabActive(tab))}
                 previewItems={pkaTabs.map(tabLabel)}

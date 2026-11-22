@@ -27,7 +27,7 @@ function getAllFiles(dir: string, extensions: string[]): string[] {
 describe("CP5: Retirement of browser manual authoring and clean global navigation", () => {
   describe("1. Navigation exactness", () => {
     it("sidebar Akademik contains the five approved destinations", () => {
-      const sidebar = source("components/admin-sidebar.tsx");
+      const sidebar = source("components/admin-sidebar.tsx") + source("lib/admin-navigation.ts");
 
       // Check group definition
       expect(sidebar).not.toContain('"evaluasi"');
@@ -50,12 +50,11 @@ describe("CP5: Retirement of browser manual authoring and clean global navigatio
       expect(matches?.length).toBe(5);
     });
 
-    it("admin dashboard category Akademik & Konten retains the three core academic destinations", () => {
+    it("admin dashboard uses the sidebar catalogue and omits the current and default archived destinations", () => {
       const dashboard = source("app/(admin)/admin/page.tsx");
-      expect(dashboard).toContain('name: "Akademik & Konten"');
-      expect(dashboard).toContain('href: "/admin/courses"');
-      expect(dashboard).toContain('href: "/admin/schedules"');
-      expect(dashboard).toContain('href: "/admin/questions"');
+      expect(dashboard).toContain('from "@/lib/admin-navigation"');
+      expect(dashboard).toContain('ALL_ADMIN_TABS.filter(tab => tab.id !== "dashboard" && !DEFAULT_ARCHIVED.includes(tab.id))');
+      expect(dashboard).toContain("item.group === group");
 
       // Stale course-related dashboard shortcuts are removed
       expect(dashboard).not.toContain('href: "/admin/materials/review"');
@@ -75,7 +74,7 @@ describe("CP5: Retirement of browser manual authoring and clean global navigatio
     });
 
     it("does not list Generasi Soal or Distraktor as sidebar items", () => {
-      const sidebar = source("components/admin-sidebar.tsx");
+      const sidebar = source("components/admin-sidebar.tsx") + source("lib/admin-navigation.ts");
       expect(sidebar).not.toContain('href: "/admin/jobs"');
       expect(sidebar).not.toContain('href: "/admin/distractors"');
     });
@@ -83,7 +82,7 @@ describe("CP5: Retirement of browser manual authoring and clean global navigatio
 
   describe("3. Absence of browser Upload Manual surfaces", () => {
     it("removes manual authoring from sidebar, mobile navbar, and search index", () => {
-      const sidebar = source("components/admin-sidebar.tsx");
+      const sidebar = source("components/admin-sidebar.tsx") + source("lib/admin-navigation.ts");
       expect(sidebar).not.toContain("/admin/materials/manual");
       expect(sidebar).not.toContain("/admin/authoring-context");
 
@@ -178,7 +177,7 @@ describe("CP5: Retirement of browser manual authoring and clean global navigatio
 
   describe("6. Stale Tutorial PKA course management links fix", () => {
     it("maps Tutorial PKA shortcuts to course workspace surfaces", () => {
-      const sidebar = source("components/admin-sidebar.tsx");
+      const sidebar = source("components/admin-sidebar.tsx") + source("lib/admin-navigation.ts");
 
       // Quizzes and Materials mapped to course workspace
       expect(sidebar).toContain('{ id: "pka-quizzes", label: "Kuis PKA", href: "/admin/courses/tutorial-pka/quizzes", icon: ListChecks, group: "tutorial-pka" }');

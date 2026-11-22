@@ -54,7 +54,7 @@ describe("schedule PR review fixes", () => {
   test("student week failure is recoverable and current server week owns lock state", () => {
     const source = read("app/(student)/dashboard/schedule/schedule-client.tsx");
     expect(source).toContain("setLoadError");
-    expect(source).toContain("Coba Lagi");
+    expect(source).toContain('t("schedule.retry")');
     expect(source).toContain("weekInfo={activeData.weekInfo}");
     expect(source).toContain("isWeekLocked={activeData.isWeekLocked}");
   });

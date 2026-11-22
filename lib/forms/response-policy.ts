@@ -9,18 +9,29 @@ type FormResponseSettings = {
 
 type Respondent = { email: string; emailVerified: boolean };
 
-export function getFormClosedReason(settings: FormResponseSettings): string | null {
-  const now = new Date();
-  if (settings.acceptingResponses === false) {
-    return settings.closedMessage || "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.";
-  }
-  if (settings.openAt && now < new Date(settings.openAt)) {
-    return `Formulir belum dibuka. Jadwal pembukaan: ${new Date(settings.openAt).toLocaleString("id-ID")}`;
-  }
-  if (settings.closeAt && now > new Date(settings.closeAt)) {
-    return settings.closedMessage || `Formulir telah ditutup pada ${new Date(settings.closeAt).toLocaleString("id-ID")}`;
-  }
+export type FormClosure =
+  | { kind: "closed"; message?: string }
+  | { kind: "scheduled"; opensAt: string }
+  | { kind: "ended"; endedAt: string; message?: string };
+
+export function getFormClosure(settings: FormResponseSettings): FormClosure | null {
+  const now = Date.now();
+  if (settings.acceptingResponses === false) return { kind: "closed", message: settings.closedMessage };
+  if (settings.openAt && now < Date.parse(settings.openAt)) return { kind: "scheduled", opensAt: settings.openAt };
+  if (settings.closeAt && now > Date.parse(settings.closeAt)) return { kind: "ended", endedAt: settings.closeAt, message: settings.closedMessage };
   return null;
+}
+
+export function describeFormClosure(closure: FormClosure): string {
+  if (closure.kind === "scheduled") return `Formulir belum dibuka. Jadwal pembukaan: ${new Date(closure.opensAt).toLocaleString("id-ID")}`;
+  if (closure.message) return closure.message;
+  if (closure.kind === "ended") return `Formulir telah ditutup pada ${new Date(closure.endedAt).toLocaleString("id-ID")}`;
+  return "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.";
+}
+
+export function getFormClosedReason(settings: FormResponseSettings): string | null {
+  const closure = getFormClosure(settings);
+  return closure ? describeFormClosure(closure) : null;
 }
 
 export function getFormRespondentError(settings: FormResponseSettings, user?: Respondent) {

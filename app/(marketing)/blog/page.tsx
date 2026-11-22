@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
-import { eq, desc, inArray } from "drizzle-orm";
+import { and, count, eq, desc, inArray } from "drizzle-orm";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { headers } from "next/headers";
@@ -65,18 +65,14 @@ const APP_FEATURES = [
 ];
 
 interface BlogPageProps {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; page?: string }>;
 }
 
 export default async function BlogPage({ searchParams }: BlogPageProps) {
   const t = await getTranslations("marketing");
   const resolvedParams = await searchParams;
   const requestedCategory = resolvedParams.category || null;
-  const activeCategory = CATEGORIES.some(
-    (category) => category.value !== null && category.value === requestedCategory,
-  )
-    ? requestedCategory
-    : null;
+  const activeCategory = CATEGORIES.find(category => category.value === requestedCategory)?.value ?? null;
 
   const h = await headers();
   const session = await auth.api.getSession({ headers: h });
@@ -91,16 +87,25 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
     ? inArray(blogArticles.status, ["published", "draft"])
     : eq(blogArticles.status, "published");
 
-  const allArticles = await db.query.blogArticles.findMany({
-    where: statusFilter,
-    orderBy: [desc(blogArticles.publishedAt), desc(blogArticles.createdAt)],
-    with: { author: true },
-  });
-
-  const filteredArticles = activeCategory
-    ? allArticles.filter((article) => article.category === activeCategory)
-    : allArticles;
-  const featuredArticles = allArticles.slice(0, 3);
+  const pageSize = 12;
+  const cards = (category: typeof blogArticles.$inferSelect.category | null, limit: number, offset = 0) =>
+    db.query.blogArticles.findMany({
+      columns: { id: true, slug: true, title: true, summary: true, status: true, category: true, thumbnailUrl: true, publishedAt: true, readMinutes: true },
+      where: and(statusFilter, category ? eq(blogArticles.category, category) : undefined),
+      orderBy: [desc(blogArticles.publishedAt), desc(blogArticles.createdAt), desc(blogArticles.id)],
+      limit,
+      offset,
+    });
+  const requestedPage = Number(resolvedParams.page ?? 1);
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 && requestedPage <= 1_000_000 ? requestedPage : 1;
+  const [countRows, articles, previews] = await Promise.all([
+    db.select({ total: count() }).from(blogArticles).where(and(statusFilter, activeCategory ? eq(blogArticles.category, activeCategory) : undefined)),
+    activeCategory ? cards(activeCategory, pageSize, (page - 1) * pageSize) : cards(null, 3),
+    activeCategory ? [] : Promise.all(CATEGORIES.filter(category => category.value !== null).map(category => cards(category.value, 6))),
+  ]);
+  const total = countRows[0]?.total ?? 0;
+  const categoryPreviews = previews.flat();
+  const featuredArticles = articles;
   const featuredIds = new Set(featuredArticles.map((article) => article.id));
   const activeCategoryData = CATEGORIES.find((category) => category.value === activeCategory);
   const activeCategoryName = activeCategoryData ? t(`blog.categories.${activeCategoryData.key}`) : null;
@@ -148,18 +153,24 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                   {activeCategoryName}
                 </SectionHeading>
                 <p className="text-body-base text-muted-foreground">
-                  {t("blog.categoryCount", { count: filteredArticles.length })}
+                  {t("blog.categoryCount", { count: total })}
                 </p>
               </div>
 
-              {filteredArticles.length > 0 ? (
+              {articles.length > 0 ? (
                 <div className="divide-y divide-border border-y border-border">
-                  {filteredArticles.map((article) => (
+                  {articles.map((article) => (
                     <ArticleEntry key={article.id} article={article} t={t} />
                   ))}
                 </div>
               ) : (
                 <BlogEmptyState title={t("blog.emptyTitle")} description={t("blog.emptyCategory")} />
+              )}
+              {(page > 1 || page * pageSize < total) && (
+                <nav className="flex gap-4 text-body-sm text-primary" aria-label={t("blog.pagination")}>
+                  {page > 1 && <LocalizedPublicLink href={`/blog?category=${activeCategory}&page=${Math.min(page - 1, Math.max(1, Math.ceil(total / pageSize)))}`}>{t("blog.previous")}</LocalizedPublicLink>}
+                  {page * pageSize < total && <LocalizedPublicLink href={`/blog?category=${activeCategory}&page=${page + 1}`}>{t("blog.next")}</LocalizedPublicLink>}
+                </nav>
               )}
             </section>
           ) : (
@@ -169,8 +180,8 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                   <SectionHeading as="h2" id="blog-latest-heading" tier="secondary" className="text-foreground">
                     {t("blog.latest")}
                   </SectionHeading>
-                  {allArticles.length > 0 ? (
-                    <span className="text-body-xs text-muted-foreground">{t("blog.available", { count: allArticles.length })}</span>
+                  {total > 0 ? (
+                    <span className="text-body-xs text-muted-foreground">{t("blog.available", { count: total })}</span>
                   ) : null}
                 </div>
 
@@ -186,7 +197,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
               </section>
 
               {CATEGORIES.filter((category) => category.value !== null).map((category) => {
-                const remainingArticles = allArticles
+                const remainingArticles = categoryPreviews
                   .filter((article) => article.category === category.value && !featuredIds.has(article.id))
                   .slice(0, 3);
                 if (remainingArticles.length === 0) return null;

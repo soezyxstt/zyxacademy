@@ -1,4 +1,9 @@
 {
+  "localSession": {
+    "slotTaken": "Waktu tersebut sudah terisi. Pilih jadwal lain.",
+    "saveFailed": "Jadwal belum tersimpan. Periksa tanggal dan waktu, lalu coba lagi.",
+    "missingFile": "Berkas tidak tersedia di browser ini."
+  },
   "enrollment": {
     "enterToken": "Masukkan token pendaftaran.",
     "success": "Berhasil mendaftar ke kelas!",
@@ -18,6 +23,9 @@
     }
   },
   "session": {
+    "sessionDate": "Tanggal sesi",
+    "startTime": "Mulai",
+    "endTime": "Selesai",
     "title": "Detail sesi tutorial",
     "dateUnavailable": "Tanggal belum tersedia",
     "status": {

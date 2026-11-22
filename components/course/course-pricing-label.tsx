@@ -5,6 +5,8 @@ import { badgeVariants } from "@/components/ui/badge";
 import { useAppLocale } from "@/components/providers/locale-provider";
 import { isCourseFreeNow, type CoursePricing } from "@/lib/student/course-pricing";
 
+const formatters = Object.fromEntries(["en-GB", "id-ID"].map(locale => [locale, new Intl.DateTimeFormat(locale, { timeZone: "Asia/Jakarta", dateStyle: "medium", timeStyle: "short" })]));
+
 export function CoursePricingLabel({ pricing }: { pricing?: CoursePricing }) {
   const { locale } = useAppLocale();
   const [now, setNow] = useState<Date | null>(null);
@@ -14,15 +16,27 @@ export function CoursePricingLabel({ pricing }: { pricing?: CoursePricing }) {
   const endTime = end?.getTime();
   useEffect(() => {
     if (pricing?.category !== "limited_time_free") return;
-    const update = () => setNow(new Date());
+    if (startTime == null || endTime == null || !(startTime < endTime)) return;
+    let timer: ReturnType<typeof setTimeout>;
+    function update() {
+      clearTimeout(timer);
+      if (document.hidden) return;
+      const current = Date.now();
+      setNow(new Date(current));
+      const next = current < startTime! ? startTime! : endTime!;
+      if (current < next) timer = setTimeout(update, Math.min(next - current, 2_147_483_647));
+    }
     update();
-    const timer = setInterval(update, 30_000);
-    return () => clearInterval(timer);
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", update);
+    };
   }, [pricing?.category, startTime, endTime]);
   if (!pricing || pricing.category === "premium") return <span className={badgeVariants({ variant: "secondary" })}>Premium</span>;
   if (pricing.category === "free") return <span className={badgeVariants({ variant: "outline", className: "border-status-success/25 bg-status-success/10 text-status-success" })}>Free</span>;
   if (!start || !end || !Number.isFinite(startTime) || !Number.isFinite(endTime) || startTime! >= endTime!) return <span className={badgeVariants({ variant: "secondary" })}>Premium</span>;
-  const format = new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "id-ID", { timeZone: "Asia/Jakarta", dateStyle: "medium", timeStyle: "short" });
+  const format = formatters[locale === "en" ? "en-GB" : "id-ID"];
   const schedule = `${format.format(start)} - ${format.format(end)} WIB`;
   const active = now && isCourseFreeNow({ category: "limited_time_free", startsAt: start, endsAt: end }, now);
   const state = !now ? "Limited Time Free" : active ? "Limited Time Free" : now < start ? (locale === "en" ? "Upcoming Limited Time Free" : "Limited Time Free akan dimulai") : (locale === "en" ? "Limited Time Free expired" : "Limited Time Free telah berakhir");

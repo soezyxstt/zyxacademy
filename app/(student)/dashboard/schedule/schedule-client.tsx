@@ -100,7 +100,13 @@ function getTutorFilterOptions(data: any, fallbackName: string) {
   return Array.from(byId.values()).sort((left, right) => left.name.localeCompare(right.name, "id"));
 }
 
-export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { id: string; title: string; compatibleCourseIds?: string[] } } = {}) {
+type ScheduleProps = {
+  initialData?: Awaited<ReturnType<typeof getScheduleData>> | null;
+  fetchedAt?: number;
+  selectedCourse?: { id: string; title: string; compatibleCourseIds?: string[] };
+};
+
+export function StudentScheduleClient({ selectedCourse, initialData = null, fetchedAt = 0 }: ScheduleProps = {}) {
   const experience = useStudentExperience();
   const community = useDemoCommunity();
   const loadSchedule = useCallback(async (offset: number) => {
@@ -120,9 +126,9 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
   useEffect(() => {
     tRef.current = t;
   }, [t]);
-  const [data, setData] = useState<any>(null);
-  const [dataWeekOffset, setDataWeekOffset] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(initialData);
+  const [dataWeekOffset, setDataWeekOffset] = useState<number | null>(initialData ? 0 : null);
+  const [loading, setLoading] = useState(!initialData);
   const [loadError, setLoadError] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   const [bookingSlotData, setBookingSlotData] = useState<{ slot: any; dateIso: string } | null>(null);
@@ -131,35 +137,37 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
   const [pendingSessionResources, setPendingSessionResources] = useState<PendingSessionResource[]>([]);
   const [reminderSyncVersion, setReminderSyncVersion] = useState(0);
   const searchParams = useSearchParams();
-  const weekCache = useRef(new Map<number, any>());
+  const [weekCache] = useState(() => new Map<number, { data: Awaited<ReturnType<typeof loadSchedule>>; fetchedAt: number }>(
+    initialData ? [[0, { data: initialData, fetchedAt }]] : [],
+  ));
   const activeRequest = useRef(0);
   const cacheVersion = useRef(0);
   const invalidateScheduleCache = () => {
     cacheVersion.current++;
-    weekCache.current.clear();
+    weekCache.clear();
     setReminderSyncVersion((version) => version + 1);
   };
 
   const fetchData = useCallback(async (offset: number, force = false) => {
     const requestId = ++activeRequest.current;
     const version = cacheVersion.current;
-    const cached = !force && experience.mode !== "demo" ? weekCache.current.get(offset) : null;
+    const cached = !force && experience.mode !== "demo" ? weekCache.get(offset) : null;
     if (cached) {
-      setData(cached);
+      setData(cached.data);
       setDataWeekOffset(offset);
       setLoadError(false);
       setLoading(false);
-      return cached;
+      if (Date.now() - cached.fetchedAt < 60_000) return cached.data;
     }
 
     try {
-      setLoading(true);
+      setLoading(!cached);
       setLoadError(false);
       const nextData = await loadSchedule(offset);
-      if (version === cacheVersion.current) {
-        weekCache.current.delete(offset);
-        weekCache.current.set(offset, nextData);
-        if (weekCache.current.size > 5) weekCache.current.delete(weekCache.current.keys().next().value!);
+      if (version === cacheVersion.current && requestId === activeRequest.current) {
+        weekCache.delete(offset);
+        weekCache.set(offset, { data: nextData, fetchedAt: Date.now() });
+        if (weekCache.size > 5) weekCache.delete(weekCache.keys().next().value!);
       }
       if (requestId === activeRequest.current) {
         setData(nextData);
@@ -179,7 +187,7 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
         setLoading(false);
       }
     }
-  }, [loadSchedule, experience.mode]);
+  }, [loadSchedule, experience.mode, weekCache]);
 
   useEffect(() => {
     void fetchData(weekOffset);
@@ -221,7 +229,6 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
                 <Button type="button" size="sm" onClick={() => void fetchData(weekOffset, true)} disabled={loading}>
                   {loading ? t("schedule.loading") : t("schedule.retry")}
                 </Button>
-                <span className="sr-only">Coba Lagi</span>
               </div>
             </div>
           </div>

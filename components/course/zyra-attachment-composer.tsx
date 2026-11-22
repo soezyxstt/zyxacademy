@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "@/lib/i18n/client";
+
 import * as React from "react";
 import { AlertCircle, Image as ImageIcon, Paperclip, RotateCcw, X } from "lucide-react";
 import Image from "next/image";
@@ -57,6 +59,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
   onAttachmentsChange,
   onAttachmentsReadyChange,
 }: ZyraAttachmentComposerProps, ref) {
+  const t = useTranslations("zyra.attachmentComposer");
   const experience = useStudentExperience();
   const [items, setItems] = React.useState<PendingZyraImage[]>([]);
   const isUploadingAny = items.some((item) => item.status === "uploading");
@@ -96,7 +99,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
 
   const performUpload = React.useCallback(async (item: PendingZyraImage) => {
     if (experience.mode === "demo") {
-      setComposerError({ message: "Unggahan gambar memerlukan akun.", source: "upload" });
+      setComposerError({ message: "account", source: "upload" });
       updateItems(current => setItemStatus(current, item.key, { status: "failed", errorCode: "ATTACHMENT_UPLOAD_FAILED" }));
       return;
     }
@@ -120,7 +123,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
       } | null;
       if (!response.ok || !payload?.id || !payload.width || !payload.height) {
         setComposerError({
-          message: "Gambar gagal diunggah. Periksa format dan ukuran file, lalu coba lagi.",
+          message: "failedUpload",
           source: "upload",
         });
         updateItems((current) => setItemStatus(current, item.key, {
@@ -145,7 +148,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
       }
     } catch {
       setComposerError({
-        message: "Koneksi terputus saat mengunggah gambar. Coba lagi.",
+        message: "disconnected",
         source: "upload",
       });
       updateItems((current) => setItemStatus(current, item.key, {
@@ -172,12 +175,12 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
       const first = result.rejected[0];
       setComposerError({
         message: first === "SOURCE_TOO_LARGE"
-          ? "Ukuran setiap gambar maksimal 8 MB."
+          ? "tooLarge"
           : first === "IMAGE_COUNT_LIMIT"
-            ? "Maksimal 4 gambar untuk satu pertanyaan."
+            ? "tooMany"
             : first === "DUPLICATE_IMAGE"
-              ? "Gambar yang sama sudah dipilih."
-              : "Gunakan gambar berformat PNG, JPG, atau WebP.",
+              ? "duplicate"
+              : "format",
         source: "selection",
       });
     } else {
@@ -313,13 +316,13 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
       />
 
       {items.length > 0 && (
-        <div className="flex flex-wrap gap-1.5" aria-label="Lampiran gambar">
+        <div className="flex flex-wrap gap-1.5" aria-label={t("attachments")}>
           {items.map((item) => (
             <div key={item.key} className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/60 px-2 py-1">
               {previews[item.key] ? (
                 <Image
                   src={previews[item.key]}
-                  alt={`Pratinjau ${item.name}`}
+                  alt={t("preview", { name: item.name })}
                   width={32}
                   height={32}
                   unoptimized
@@ -329,14 +332,14 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
                 <ImageIcon className="size-6 p-0.5 text-muted-foreground" aria-hidden="true" />
               )}
               <span className="max-w-28 truncate text-body-xs font-medium text-foreground">{item.name}</span>
-              {item.status === "uploading" && <span className="size-3 animate-pulse rounded bg-muted-foreground/35" aria-label="Mengunggah" />}
+              {item.status === "uploading" && <span className="size-3 animate-pulse rounded bg-muted-foreground/35" aria-label={t("uploading")} />}
               {item.status === "failed" && (
-                <Button type="button" variant="ghost" size="icon-xs" onClick={() => retryItem(item)} aria-label={`Coba lagi ${item.name}`} className="size-5">
+                <Button type="button" variant="ghost" size="icon-xs" onClick={() => retryItem(item)} aria-label={t("retry", { name: item.name })} className="size-5">
                   <RotateCcw className="size-3" />
                 </Button>
               )}
-              {item.status === "failed" && <span className="inline-flex items-center gap-0.5 text-[11px] text-status-error font-medium"><AlertCircle className="size-3" aria-hidden="true" />Gagal</span>}
-              <Button type="button" variant="ghost" size="icon-xs" onClick={() => void removeItem(item)} aria-label={`Hapus ${item.name}`} className="size-5 text-muted-foreground hover:text-foreground">
+              {item.status === "failed" && <span className="inline-flex items-center gap-0.5 text-[11px] text-status-error font-medium"><AlertCircle className="size-3" aria-hidden="true" />{t("failed")}</span>}
+              <Button type="button" variant="ghost" size="icon-xs" onClick={() => void removeItem(item)} aria-label={t("remove", { name: item.name })} className="size-5 text-muted-foreground hover:text-foreground">
                 <X className="size-3" />
               </Button>
             </div>
@@ -353,15 +356,15 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
             onClick={() => inputRef.current?.click()}
             disabled={disabled || items.length >= 4}
             className={cn("text-muted-foreground", items.length >= 4 && "hidden")}
-            aria-label="Tambahkan gambar"
+            aria-label={t("add")}
           >
             <Paperclip className="size-4" />
-            Gambar
+            {t("image")}
           </Button>
-          <span className="text-body-xs text-muted-foreground">Unggah atau tempel gambar dengan Ctrl+V, maksimal 4</span>
+          <span className="text-body-xs text-muted-foreground">{t("hint")}</span>
         </div>
       )}
-      {composerError && <p className="flex items-center gap-1.5 text-body-xs text-status-error" role="alert"><AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />{composerError.message}</p>}
+      {composerError && <p className="flex items-center gap-1.5 text-body-xs text-status-error" role="alert"><AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />{t(composerError.message)}</p>}
     </div>
   );
 });

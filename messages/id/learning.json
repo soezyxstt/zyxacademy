@@ -1,4 +1,15 @@
 {
+  "pdfPreview": {
+    "document": "Pratinjau dokumen {title}",
+    "pdf": "Pratinjau PDF {title}",
+    "download": "Unduh PDF",
+    "openTab": "Buka di tab baru",
+    "closeEsc": "Tutup (Esc)",
+    "closePreview": "Tutup pratinjau",
+    "loading": "Memuat PDF...",
+    "missing": "Tautan berkas PDF belum tersedia.",
+    "close": "Tutup"
+  },
   "solutionCollection": {
     "search": "Cari soal",
     "itemList": "Daftar soal",

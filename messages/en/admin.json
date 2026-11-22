@@ -1,4 +1,14 @@
 {
+  "dashboardStats": {
+    "courses": "{count, plural, one {# active course} other {# active courses}}",
+    "tokens": "{total} created, {today} claimed today",
+    "questions": "{count} awaiting review",
+    "notifications": "{total} broadcasts, {devices} devices",
+    "ops": "{queued} queued for sync, {requests} requests",
+    "blog": "{count, plural, one {# article} other {# articles}}",
+    "failed": "Question generation failed for {count, plural, one {# job} other {# jobs}}",
+    "review": "Review jobs"
+  },
   "googleSetup": {
     "title": "Google setup",
     "library": "Open the Google Cloud API library",

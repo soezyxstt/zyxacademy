@@ -1,5 +1,14 @@
 {
   "publicForm": {
+    "opensAt": "Formulir dibuka pada {date} WIB.",
+    "endedAt": "Formulir ditutup pada {date} WIB.",
+    "chooseFile": "Pilih berkas",
+    "confirmTitle": "Kirim tanggapan?",
+    "confirmBody": "Tanggapan belum terkirim. Pilih kirim untuk menyelesaikan formulir.",
+    "keepEditing": "Kembali mengisi",
+    "estimatedMinutes": "~{count} menit pengisian",
+    "questionCount": "{count} pertanyaan",
+    "clearNamed": "Kosongkan jawaban: {title}",
     "loading": "Memuat formulir...",
     "loginRequired": "Login diperlukan",
     "loginDescription": "Masuk ke akun Zyx terlebih dahulu untuk mengisi formulir ini.",
@@ -69,7 +78,7 @@
     "email": "Alamat email",
     "edit": "Ubah",
     "submitting": "Mengirimkan tanggapan...",
-    "submit": "Kirimkan tanggapan",
+    "submit": "Kirim tanggapan",
     "sendShortcut": "Tekan Ctrl + Enter untuk mengirim",
     "back": "Kembali",
     "previousQuestion": "Pertanyaan sebelumnya",

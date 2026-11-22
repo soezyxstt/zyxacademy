@@ -17,7 +17,7 @@ test.beforeAll(async () => {
       builder.onResolve({ filter: /^@\/components\/providers\/locale-provider$/ }, () => ({ path: "locale", namespace: "fixture" }));
       builder.onResolve({ filter: /^@\/app\/actions\/google-calendar$/ }, () => ({ path: "actions", namespace: "fixture" }));
       builder.onLoad({ filter: /.*/, namespace: "fixture" }, ({ path }) => ({ contents: path === "locale" ? 'export const useAppLocale = () => ({ locale: "id" })' : `
-        export async function getGoogleCalendarStatus() { if (window.statusFailure) throw new Error("fixture unavailable"); return window.syncStatus; }
+        export async function getGoogleCalendarStatus() { window.statusReads = (window.statusReads ?? 0) + 1; if (window.statusFailure) throw new Error("fixture unavailable"); return { ...window.syncStatus }; }
         export async function requestGoogleCalendarSync() { window.syncStatus.pending = true; return { ok: true }; }
         export async function connectGoogleCalendar() { return { url: null }; }
       ` }));
@@ -64,10 +64,21 @@ for (const state of ["disconnected", "ready", "pending", "failed", "reconnect", 
       await page.screenshot({ path: testInfo.outputPath("status-recovered.png") });
     }
     if (state === "ready") {
+      await page.clock.install();
+      const reads = () => page.evaluate(() => (window as any).statusReads as number);
+      const idleReads = await reads();
+      await page.clock.fastForward(30_000);
+      expect(await reads()).toBe(idleReads);
       await action.click();
       await expect(action).toBeDisabled();
       await expect(page.getByRole("status")).toContainText("dalam antrean");
       await page.screenshot({ path: testInfo.outputPath("queued.png") });
+      await page.evaluate(() => { (window as any).syncStatus.pending = false; });
+      await page.clock.fastForward(10_001);
+      await expect(action).toBeEnabled();
+      const settledReads = await reads();
+      await page.clock.fastForward(30_000);
+      expect(await reads()).toBe(settledReads);
     }
     await page.keyboard.press("Escape");
     await expect(trigger).toBeFocused();

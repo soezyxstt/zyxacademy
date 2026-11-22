@@ -1,4 +1,9 @@
 {
+  "localSession": {
+    "slotTaken": "This time slot is taken. Choose another time.",
+    "saveFailed": "The schedule could not be saved. Check the date and time, then try again.",
+    "missingFile": "This file is unavailable in this browser."
+  },
   "enrollment": {
     "enterToken": "Enter an enrollment token.",
     "success": "Course enrollment successful!",
@@ -18,6 +23,9 @@
     }
   },
   "session": {
+    "sessionDate": "Session date",
+    "startTime": "Start",
+    "endTime": "End",
     "title": "Tutorial session details",
     "dateUnavailable": "Date unavailable",
     "status": {
