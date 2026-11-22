@@ -7,12 +7,12 @@ import { getDiscoveredByokAliases, clearDiscoveredByokAliasesForTests } from "@/
 const names = ["AI_PROVIDERS", "CF_AI_GATEWAY_URL", "CF_AI_GATEWAY_TOKEN", "BETTER_AUTH_URL", "ZYRA_CONTROL_PLANE_URL", "ZYRA_CONTROL_PLANE_TOKEN"];
 const previous = Object.fromEntries(names.map(name => [name, process.env[name]]));
 let saved = new Map<string, unknown>();
-let model = "gpt-newly-released-fixture";
+let model = "gpt-5.6-luna";
 let failing = false;
 let clock = 1_800_000_000_000;
 let fetchMock: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
 beforeEach(() => {
-  saved = new Map(); model = "gpt-newly-released-fixture"; failing = false; clock = 1_800_000_000_000;
+  saved = new Map(); model = "gpt-5.6-luna"; failing = false; clock = 1_800_000_000_000;
   resetSelectorMemoryForTests(); clearDiscoveredByokAliasesForTests();
   Object.assign(process.env, { AI_PROVIDERS: "openai", CF_AI_GATEWAY_URL: "https://gateway.ai.cloudflare.com/v1/account/gateway",
     CF_AI_GATEWAY_TOKEN: "private-fixture-token", BETTER_AUTH_URL: "https://staging.zyxacademy.com" });
@@ -34,7 +34,7 @@ afterEach(() => {
 
 test("discovers a new gateway model without registry additions or generation calls", async () => {
   const catalog = await selectorCatalog();
-  expect(catalog.has("gateway:openai:gpt-newly-released-fixture")).toBe(true);
+  expect(catalog.has("gateway:openai:gpt-5.6-luna")).toBe(true);
   expect(catalog.has("gateway:openai:gpt-image-new")).toBe(false);
   expect(getDiscoveredByokAliases("openai")).toEqual(["openai_1"]);
   expect(fetchMock.mock.calls.every(([url, init]) => String(url).endsWith("/models") && !init?.body)).toBe(true);
@@ -42,29 +42,29 @@ test("discovers a new gateway model without registry additions or generation cal
   expect([...saved.keys()].every(key => !key.includes("private-fixture-token"))).toBe(true);
 });
 
-test("uses the shared cache for seven days, including after process memory is cleared", async () => {
+test("uses the shared cache for twelve hours, including after process memory is cleared", async () => {
   await selectorCatalog(); resetSelectorMemoryForTests();
-  clock += 7 * 24 * 60 * 60_000 - 1;
-  expect((await selectorCatalog()).has("gateway:openai:gpt-newly-released-fixture")).toBe(true);
+  clock += 12 * 60 * 60_000 - 1;
+  expect((await selectorCatalog()).has("gateway:openai:gpt-5.6-luna")).toBe(true);
   expect(fetchMock).toHaveBeenCalledTimes(4);
-  clock++; model = "gpt-next-fixture";
-  expect((await selectorCatalog()).has("gateway:openai:gpt-next-fixture")).toBe(true);
+  clock++; model = "gpt-6-luna";
+  expect((await selectorCatalog()).has("gateway:openai:gpt-6-luna")).toBe(true);
   expect(fetchMock).toHaveBeenCalledTimes(8);
 });
 
 test("manual refresh replaces the catalog before its TTL expires", async () => {
-  await selectorCatalog(); model = "gpt-manual-fixture";
-  expect((await selectorCatalog(true)).has("gateway:openai:gpt-manual-fixture")).toBe(true);
+  await selectorCatalog(); model = "gpt-6-luna";
+  expect((await selectorCatalog(true)).has("gateway:openai:gpt-6-luna")).toBe(true);
   expect(fetchMock).toHaveBeenCalledTimes(8);
 });
 
 test("persists provider creation dates and sorts them after a process restart", async () => {
   fetchMock.mockImplementation(Object.assign(async (_url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => new Headers(init?.headers).get("cf-aig-byok-alias") === "openai_1"
-    ? Response.json({ data: [{ id: "gpt-99-old-fixture", created: 1700000000 }, { id: "gpt-2-new-fixture", created: 1750000000 }] })
+    ? Response.json({ data: [{ id: "gpt-5.6-luna", created: 1700000000 }, { id: "gpt-6-luna", created: 1750000000 }] })
     : Response.json({ internalCode: 2040, message: "Provider has no BYOK credential named this alias" }, { status: 400 }), { preconnect: () => {} }));
-  expect([...await selectorCatalog()]).toEqual(["gateway:openai:gpt-2-new-fixture", "gateway:openai:gpt-99-old-fixture"]);
+  expect([...await selectorCatalog()]).toEqual(["gateway:openai:gpt-6-luna", "gateway:openai:gpt-5.6-luna"]);
   resetSelectorMemoryForTests(); await selectorCatalog();
-  expect(selectorModelDates()["gateway:openai:gpt-2-new-fixture"]?.timestamp).toBe(1750000000000);
+  expect(selectorModelDates()["gateway:openai:gpt-5.6-luna"]?.timestamp).toBe(1700000000000);
   expect(fetchMock).toHaveBeenCalledTimes(4);
 });
 
@@ -72,13 +72,13 @@ test("retains the last successful catalog on a failed refresh and retries later"
   await selectorCatalog(); failing = true;
   await expect(selectorCatalog(true)).rejects.toThrow("Daftar model");
   const calls = fetchMock.mock.calls.length;
-  clock += 7 * 24 * 60 * 60_000;
-  expect((await selectorCatalog()).has("gateway:openai:gpt-newly-released-fixture")).toBe(true);
+  clock += 12 * 60 * 60_000;
+  expect((await selectorCatalog()).has("gateway:openai:gpt-5.6-luna")).toBe(true);
   expect(fetchMock.mock.calls.length).toBeGreaterThan(calls);
   const afterFailure = fetchMock.mock.calls.length;
   await selectorCatalog(); expect(fetchMock.mock.calls.length).toBe(afterFailure);
-  failing = false; clock += 5 * 60_000; model = "gpt-recovered-fixture";
-  expect((await selectorCatalog()).has("gateway:openai:gpt-recovered-fixture")).toBe(true);
+  failing = false; clock += 5 * 60_000; model = "gpt-6-luna";
+  expect((await selectorCatalog()).has("gateway:openai:gpt-6-luna")).toBe(true);
 });
 
 test("a valid empty response removes old models and concurrent refreshes coalesce", async () => {
@@ -89,9 +89,9 @@ test("a valid empty response removes old models and concurrent refreshes coalesc
 });
 
 test("all missing text aliases retain stale models and retry after five minutes", async () => {
-  await selectorCatalog(); clock += 7 * 24 * 60 * 60_000;
+  await selectorCatalog(); clock += 12 * 60 * 60_000;
   fetchMock.mockResolvedValue(Response.json({ internalCode: 2040, message: "Provider has no BYOK credential named this alias" }, { status: 400 }));
-  expect((await selectorCatalog()).has("gateway:openai:gpt-newly-released-fixture")).toBe(true);
+  expect((await selectorCatalog()).has("gateway:openai:gpt-5.6-luna")).toBe(true);
   const calls = fetchMock.mock.calls.length;
   await selectorCatalog(); expect(fetchMock.mock.calls.length).toBe(calls);
   clock += 5 * 60_000; await selectorCatalog();
@@ -101,31 +101,33 @@ test("all missing text aliases retain stale models and retry after five minutes"
 test("all missing Gemini aliases retain the last successful list", async () => {
   process.env.AI_PROVIDERS = "gemini";
   const client = spyOn(google, "googleGatewayClient").mockReturnValue({ models: { list: async () => (async function* () {
-    yield { name: "models/gemini-new-fixture", supportedActions: ["generateContent"] };
+    yield { name: "models/gemma-new-fixture", supportedActions: ["generateContent"] };
   })() } } as unknown as ReturnType<typeof google.googleGatewayClient>);
-  await selectorCatalog(); clock += 7 * 24 * 60 * 60_000;
+  await selectorCatalog(); clock += 12 * 60 * 60_000;
   client.mockImplementation(() => { throw new Error("Provider has no BYOK credential named gemini_1"); });
-  expect([...await selectorCatalog()]).toEqual(["gateway:gemini:gemini-new-fixture"]);
+  expect([...await selectorCatalog()]).toEqual(["gateway:gemini:gemma-new-fixture"]);
   const calls = client.mock.calls.length;
   await selectorCatalog(); expect(client.mock.calls.length).toBe(calls);
 });
 
 test("does not reuse a catalog across credential configurations", async () => {
-  await selectorCatalog(); process.env.CF_AI_GATEWAY_TOKEN = "different-fixture-token"; model = "gpt-other-account-fixture";
-  expect((await selectorCatalog()).has("gateway:openai:gpt-other-account-fixture")).toBe(true);
+  await selectorCatalog(); process.env.CF_AI_GATEWAY_TOKEN = "different-fixture-token"; model = "gpt-6-luna";
+  expect((await selectorCatalog()).has("gateway:openai:gpt-6-luna")).toBe(true);
   expect(fetchMock).toHaveBeenCalledTimes(8);
 });
 
 test("uses Gemini list metadata for new models and preserves native capability restrictions", async () => {
   process.env.AI_PROVIDERS = "gemini";
   const list = spyOn(google, "googleGatewayClient").mockReturnValue({ models: { list: async () => (async function* () {
-    yield { name: "models/gemini-new-fixture", supportedActions: ["generateContent"] };
+    yield { name: "models/gemma-new-fixture", supportedActions: ["generateContent"] };
     yield { name: "models/gemini-new-image", supportedActions: ["generateContent"] };
     yield { name: "models/gemini-embedding-fixture", supportedActions: ["embedContent"] };
+    yield { name: "models/gemini-3.8-flash", supportedActions: ["generateContent"] };
+    yield { name: "models/gemini-2.5-flash", supportedActions: ["generateContent"] };
     yield { name: "models/gemini-3-flash-preview", supportedActions: ["generateContent"] };
   })() } } as unknown as ReturnType<typeof google.googleGatewayClient>);
   const result = await selectorCatalog();
-  expect([...result]).toEqual(["gateway:gemini:gemini-new-fixture"]);
+  expect(result).toEqual(new Set(["gateway:gemini:gemma-new-fixture", "gemini-3-flash-preview", "gemini-3.8-flash", "gemini-2.5-flash"]));
   expect(list).toHaveBeenCalledTimes(4);
   expect(fetchMock).not.toHaveBeenCalled();
 });

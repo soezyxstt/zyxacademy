@@ -1,8 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 import { ControlPlaneClient } from "../control-plane-client";
+import { isGatewayCredentialsRequiredBody } from "./gateway";
 import { ProviderAdapterError } from "./errors";
 
-const DAY_MS = 24 * 60 * 60_000;
+const ALIAS_COOLDOWN_MS = 5 * 60_000;
 const local = new Map<string, { failures: number; cooldownUntil: number }>();
 export function resetAliasHealthForTests() { local.clear(); }
 function identity(env: Readonly<Record<string, string | undefined>>, route: string, alias: string) {
@@ -26,9 +27,20 @@ export async function assertGatewayAliasAvailable(env: Readonly<Record<string, s
   if (state.cooldownUntil) { state = { failures: 0, cooldownUntil: 0 }; local.set(id, state); }
 }
 
+// A rejected payload or unavailable model says nothing about other models on this alias.
+export async function generationAliasOutcome(response: Response): Promise<boolean | undefined> {
+  if (response.ok) return true;
+  if ([404, 413, 415, 422].includes(response.status)) return undefined;
+  if (response.status === 400) {
+    const body = await response.clone().json().catch(() => null);
+    return isGatewayCredentialsRequiredBody(body) ? false : undefined;
+  }
+  return false;
+}
+
 export async function withGatewayAlias<T>(
   env: Readonly<Record<string, string | undefined>>, route: string, alias: string,
-  invoke: () => Promise<T>, succeeded: (result: T) => boolean, admitted = false,
+  invoke: () => Promise<T>, succeeded: (result: T) => boolean | undefined | Promise<boolean | undefined>, admitted = false,
 ): Promise<T> {
   // Admitted lifecycle calls checked shared health before dispatch; in-flight calls still record their outcome.
   if (!admitted) await assertGatewayAliasAvailable(env, route, alias);
@@ -46,11 +58,12 @@ export async function withGatewayAlias<T>(
     const previous = local.get(id) ?? state;
     if (previous.cooldownUntil > Date.now()) return;
     const failures = success ? 0 : previous.failures + 1;
-    const next = { failures, cooldownUntil: failures >= 3 ? Date.now() + DAY_MS : 0 };
+    const next = { failures, cooldownUntil: failures >= 3 ? Date.now() + ALIAS_COOLDOWN_MS : 0 };
     local.set(id, next);
   };
   let result: T;
   try { result = await invoke(); } catch (error) { await record(false); throw error; }
-  await record(succeeded(result));
+  const outcome = await succeeded(result);
+  if (outcome !== undefined) await record(outcome);
   return result;
 }

@@ -2,6 +2,8 @@ import { beforeEach, expect, mock, test } from "bun:test";
 let authorized = true;
 const list = mock(async () => []);
 const send = mock(async (_event: { name: string; id: string; data: { requestId: string } }) => ({ ids: ["fixture"] }));
+const claim = mock(async (_cycle: string, enqueue: () => Promise<unknown>) => { await enqueue(); return true; });
+mock.module("@/lib/ai/model-latency-cooldown", () => ({ claimLatencyCycle: claim }));
 mock.module("next/cache", () => ({ revalidatePath() {} }));
 mock.module("@/lib/auth/admin-guards", () => ({ assertAdmin: async () => {
   if (!authorized) throw new Error("Forbidden");
@@ -37,4 +39,10 @@ test("only admins with probe bindings can enqueue latency work", async () => {
   authorized = true; delete process.env.ZYRA_CONTROL_PLANE_TOKEN;
   expect((await refreshAiModelLatenciesAction()).ok).toBe(false);
   expect(send).not.toHaveBeenCalled(); expect(list).not.toHaveBeenCalled();
+});
+
+test("a second admin cannot enqueue another run during the shared cooldown", async () => {
+  claim.mockResolvedValueOnce(false);
+  expect(await refreshAiModelLatenciesAction()).toMatchObject({ ok: false, code: "LATENCY_COOLDOWN" });
+  expect(send).not.toHaveBeenCalled();
 });

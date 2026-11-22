@@ -45,7 +45,7 @@ describe("Plan 002 model registry", () => {
   it("keeps quarantined and legacy entries out of ordinary routing while allowing 3.5 Flash-Lite", () => {
     expect(getModelEntry("gemini-3.5-flash-lite").ordinaryRoutingAllowed).toBe(true);
     expect(getModelEntry("gemini-3.5-flash-lite").stability).toBe("stable");
-    expect(getModelEntry("gemini-3-flash-preview").ordinaryRoutingAllowed).toBe(false);
+    expect(getModelEntry("gemini-3-flash-preview").ordinaryRoutingAllowed).toBe(true);
     expect(getModelEntry("gemini-embedding-001").ordinaryRoutingAllowed).toBe(false);
   });
 

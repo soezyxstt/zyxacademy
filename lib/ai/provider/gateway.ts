@@ -1,5 +1,5 @@
-export const DEFAULT_AI_PROVIDERS = ["gemini", "openai", "deepseek", "muse"] as const;
-export type GatewayProviderName = (typeof DEFAULT_AI_PROVIDERS)[number];
+export const DEFAULT_AI_PROVIDERS = ["gemini", "openai", "muse"] as const;
+export type GatewayProviderName = (typeof DEFAULT_AI_PROVIDERS)[number] | "deepseek";
 export const CONVENTION_BYOK_SLOTS = 4;
 
 const PROVIDER_ALIASES: Readonly<Record<string, GatewayProviderName>> = {

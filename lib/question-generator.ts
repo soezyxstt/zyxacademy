@@ -146,7 +146,8 @@ Constraints:
  */
 export async function generateQuestionsForKOBatch(
   koIds: string[],
-  isMockOverride?: boolean
+  isMockOverride?: boolean,
+  userId?: string,
 ): Promise<{
   success: boolean;
   results: { koId: string; success: boolean; insertedCount: number; errors: string[] }[];
@@ -314,6 +315,7 @@ export async function generateQuestionsForKOBatch(
 
       try {
         const { response } = await generateContentWithFallback({
+          userId,
           useCase: USE_CASES.PRACTICE_QUESTION_GEN,
           contents: promptText,
           config: { responseMimeType: "application/json" },
@@ -438,7 +440,7 @@ export async function generateQuestionsForKOBatch(
     const solveResult = await solveQuestionIndependently({
       promptStem: shuffled.prompt,
       options: shuffled.options,
-    });
+    }, userId);
     criticEval = evaluateQuestionWithCritic({
       promptStem: shuffled.prompt,
       options: shuffled.options,
@@ -452,7 +454,7 @@ export async function generateQuestionsForKOBatch(
       const repairedSolveResult = await solveQuestionIndependently({
         promptStem: repairedShuffled.prompt,
         options: repairedShuffled.options,
-      });
+      }, userId);
       const repairedCriticEval = evaluateQuestionWithCritic({
         promptStem: repairedShuffled.prompt,
         options: repairedShuffled.options,

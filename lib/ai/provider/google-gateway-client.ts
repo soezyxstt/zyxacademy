@@ -1,8 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
-import { assertGatewayAliasAvailable, withGatewayAlias } from "./alias-health";
+import { generationAliasOutcome, assertGatewayAliasAvailable, withGatewayAlias } from "./alias-health";
 import { gatewayEndpoint, isGatewayCredentialsRequiredBody, isGatewayCredentialsRequiredError } from "./gateway";
 
+import { MODEL_IDS, upstreamModelName } from "./model-registry";
+
 export interface GoogleGatewayClientOptions {
+  readonly modelId?: string;
   /** Force a specific Cloudflare AI Gateway BYOK alias (never sends x-goog-api-key or ?key=). */
   readonly byokAlias?: string;
   /** Prefer a Cloudflare AI Gateway BYOK alias, falling back to apiKey on confirmed missing credentials. */
@@ -120,6 +123,18 @@ export function googleGatewayClient(
     }
     const originalApiCall = apiClient.apiCall.bind(apiClient);
     apiClient.apiCall = async (url: string, requestInit: RequestInit) => {
+      const target = new URL(url);
+      const modelPath = target.pathname.split("/").pop();
+      if (modelPath === `${MODEL_IDS.flash38}:generateContent` ||
+          modelPath === `${MODEL_IDS.flash38}:streamGenerateContent`) {
+        target.searchParams.delete("key");
+        const headers = new Headers(requestInit.headers);
+        headers.delete("x-goog-api-key");
+        headers.set("cf-aig-byok-alias", "default");
+        return withGatewayAlias(env, baseUrl, "default",
+          () => originalApiCall(target.toString(), { ...requestInit, headers }),
+          generationAliasOutcome, options.aliasAdmitted && preferredByok === "default");
+      }
       const useByok = Boolean(
         forcedByok || (preferredByok && (!canFallbackToKey || !isGeminiByokMarkedMissing(cacheKey!))),
       );
@@ -129,7 +144,7 @@ export function googleGatewayClient(
         byokHeaders.set("cf-aig-byok-alias", preferredByok);
         const invoke = () => originalApiCall(url, { ...byokInit, headers: byokHeaders });
         const response = NATIVE_QUERY_KEY_PATH.test(new URL(url).pathname)
-          ? await withGatewayAlias(env, baseUrl, preferredByok, invoke, result => result.ok, options.aliasAdmitted)
+          ? await withGatewayAlias(env, baseUrl, preferredByok, invoke, generationAliasOutcome, options.aliasAdmitted)
           : await invoke();
         if (canFallbackToKey && await isCredentialsRequiredResponse(response)) {
           missingGeminiByokUntil.set(cacheKey!, Date.now() + MISSING_BYOK_TTL_MS);
@@ -189,10 +204,12 @@ export async function prepareGoogleGatewayClient(
   ...args: Parameters<typeof googleGatewayClient>
 ) {
   const [key, env = process.env, timeout, metadata, options = {}] = args;
-  const alias = options.byokAlias?.trim() || options.preferByokAlias?.trim();
+  const byokAlias = options.modelId && upstreamModelName(options.modelId) === MODEL_IDS.flash38
+    ? "default" : options.byokAlias;
+  const alias = byokAlias?.trim() || options.preferByokAlias?.trim();
   const baseUrl = gatewayEndpoint(env.CF_AI_GATEWAY_URL, "google-ai-studio");
-  if (alias && (options.byokAlias || !key?.trim() || !isGeminiByokMarkedMissing(`${baseUrl}\0${alias}`))) {
+  if (alias && (byokAlias || !key?.trim() || !isGeminiByokMarkedMissing(`${baseUrl}\0${alias}`))) {
     await assertGatewayAliasAvailable(env, baseUrl, alias);
   }
-  return googleGatewayClient(key, env, timeout, metadata, { ...options, aliasAdmitted: true });
+  return googleGatewayClient(key, env, timeout, metadata, { ...options, byokAlias, aliasAdmitted: true });
 }

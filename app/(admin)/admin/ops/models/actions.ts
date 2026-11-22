@@ -1,5 +1,6 @@
 "use server";
 
+import { claimLatencyCycle } from "@/lib/ai/model-latency-cooldown";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
 import { inngest } from "@/jobs/client";
@@ -71,7 +72,9 @@ export async function refreshAiModelLatenciesAction(): Promise<ModelSettingMutat
     }
     const views = await listModelSettingViews();
     const requestedAt = Date.now(), requestId = randomUUID();
-    await inngest.send({ name: "ai-model-catalog-cron", id: requestId, data: { requestId } });
+    const accepted = await claimLatencyCycle(requestId, () =>
+      inngest.send({ name: "ai-model-catalog-cron", id: requestId, data: { requestId } }));
+    if (!accepted) return { ok: false, code: "LATENCY_COOLDOWN", error: "Pengujian latensi dibatasi sekali setiap 3 jam." };
     return { ok: true, views, latencyRefreshRequestedAt: requestedAt };
   } catch (error) {
     return { ok: false, error: toSafeErrorMessage(error, "Gagal menjadwalkan pengukuran latensi. Coba lagi.") };

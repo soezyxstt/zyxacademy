@@ -1,3 +1,4 @@
+import { zyraLiveProgress } from "@/lib/zyra/live-progress";
 import { followupEvent, parseFollowupAnswer } from "@/lib/zyra/followups";
 import { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
 import { headers } from "next/headers";
@@ -177,7 +178,15 @@ export async function POST(req: Request) {
           }
 
           // 2. Call askTutorRagAction
-          const res = await askTutorRagAction(
+          let lastStage = "";
+          const labels = requestLanguage === "en"
+            ? { dispatch: "Contacting the AI model…", receiving: "Receiving the model’s response…", checking: "Checking the answer…" }
+            : { dispatch: "Menghubungi model AI…", receiving: "Menerima respons model…", checking: "Memeriksa jawaban…" };
+          const res = await zyraLiveProgress.run(stage => {
+            if (req.signal.aborted || stage === lastStage) return;
+            lastStage = stage;
+            sendEvent({ type: "data-work-step", data: { stepId: "provider", status: "running", label: labels[stage] } });
+          }, () => askTutorRagAction(
             normalizedCourseId,
             normalizedConceptId,
             normalizedQuestion || (sanitizedSelectionContext?.snippet ? `Jelaskan kutipan: "${sanitizedSelectionContext.snippet}"` : "Tolong jelaskan materi sesuai konteks."),
@@ -188,7 +197,7 @@ export async function POST(req: Request) {
             sanitizedSelectionContext,
             coding?.success ? coding.data : undefined,
             normalizedResponseLanguage,
-          );
+          ));
 
           if (req.signal.aborted) {
             controller.close();
@@ -236,22 +245,7 @@ export async function POST(req: Request) {
             fullAnswer = sanitizeAnswer(parseFollowupAnswer(res.answer).text, res.sources);
           }
 
-          // 3. Progressive stream of text-delta chunks for smooth typing effect
-          // Chunk by tokens/words with a tiny interval
-          const words = fullAnswer.split(/(\s+)/);
-          const chunkSize = 3;
-          for (let i = 0; i < words.length; i += chunkSize) {
-            if (req.signal.aborted) break;
-            const chunk = words.slice(i, i + chunkSize).join("");
-            sendEvent({
-              type: "text-delta",
-              textDelta: chunk,
-            });
-            // 15ms pace for fluid typing feel
-            if (words.length > 10) {
-              await new Promise((r) => setTimeout(r, 15));
-            }
-          }
+          sendEvent({ type: "text-delta", textDelta: fullAnswer });
 
           const followups = followupEvent(res.followups);
           if (followups && !req.signal.aborted && !res.failureCode && !res.budgetExhausted) sendEvent(followups);

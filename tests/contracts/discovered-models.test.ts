@@ -10,14 +10,14 @@ import { ControlPlaneClient } from "@/lib/ai/control-plane-client";
 afterEach(() => mock.restore());
 const models = ["gateway:openai:gpt-future-fixture", "gateway:muse:muse-future-fixture", "gateway:gemini:gemini-future-fixture"] as const;
 
-test("new gateway IDs validate for chat without relaxing image, tool or quarantine boundaries", () => {
+test("gateway chat models support Ops assignments and preserve image capability checks", () => {
   expect(modelSettingSchema.safeParse({ feature: "zyra", models }).success).toBe(true);
-  expect(modelSettingSchema.safeParse({ feature: "admin-ops-ai", models }).success).toBe(false);
+  expect(modelSettingSchema.safeParse({ feature: "admin-ops-ai", models }).success).toBe(true);
   expect(compatibleModelChain(models, true)).toEqual([]);
   expect(getModelEntry(models[0]).family).toBe("chat-completions");
   expect(getTextProfile(models[1])?.group).toBe("meta");
   expect(getModelEntry(models[2]).family).toBe("generate-content");
-  expect(getModelEntry("gateway:gemini:gemini-3-flash-preview").ordinaryRoutingAllowed).toBe(false);
+  expect(getModelEntry("gateway:gemini:gemini-3-flash-preview").ordinaryRoutingAllowed).toBe(true);
   for (const id of ["gateway:foreign:model", "gateway:openai:../../escape", "gateway:openai:model?key=x"]) expect(() => normalizeModelId(id)).toThrow();
 });
 

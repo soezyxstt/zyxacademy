@@ -123,6 +123,16 @@ const DEFAULT_SIDEBAR_WIDTH = DEFAULT_TUTOR_PANEL_WIDTH;
 const MAX_SIDEBAR_WIDTH = MAX_TUTOR_PANEL_WIDTH;
 const STORAGE_KEY_WIDTH = "zyra_tutor_sidebar_width";
 
+function WaitDuration({ locale }: { locale: string }) {
+  const [seconds, setSeconds] = React.useState(0);
+  React.useEffect(() => {
+    const started = Date.now();
+    const timer = setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return seconds > 1 ? <span aria-hidden className="tabular-nums">{seconds} {locale === "en" ? "s" : "dtk"}</span> : null;
+}
+
 function safeText(value: unknown, fallback: string): string {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
@@ -288,6 +298,7 @@ function TutorDrawerContent({
     }
   }, [quotedContext, codingBridge]);
 
+  const [workStep, setWorkStep] = React.useState("");
   const [chatLoading, setChatLoading] = React.useState(false);
   const [sessionId, setSessionId] = React.useState<string | null>(null);
   const [attachmentIds, setAttachmentIds] = React.useState<string[]>([]);
@@ -940,6 +951,7 @@ function TutorDrawerContent({
       setSessions([...fictionalHistory.current].map(([key, history]) => ({ id: key, title: history.find(message => message.role === "student")?.content ?? "Zyra", lastMessageAt: null, messageCount: history.length })));
       return;
     }
+    setWorkStep("");
     setChatLoading(true);
 
     const abortController = new AbortController();
@@ -1009,7 +1021,9 @@ function TutorDrawerContent({
 
       if (response.body) {
         for await (const part of consumeZyraStream(response.body, abortController.signal)) {
-          if (part.type === "done") { completed = true; }
+          if (part.type === "data-work-step") {
+            if (part.data.status === "running" && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current) setWorkStep(part.data.label);
+          } else if (part.type === "done") { completed = true; }
           else if (part.type === "text-delta" && part.textDelta) {
             accumulatedContent += part.textDelta;
             setMessages((prev) =>
@@ -1183,6 +1197,7 @@ function TutorDrawerContent({
     invalidateConversationRequests();
     resetComposerAttachments();
     const loadEpoch = conversationEpochRef.current;
+    setWorkStep("");
     setChatLoading(true);
     setShowMenu(false);
     try {
@@ -1722,7 +1737,8 @@ function TutorDrawerContent({
               {chatLoading && (
                 <div role="status" className="flex items-center gap-2 text-muted-foreground text-body-xs p-2">
                   <Loader2 className="size-3.5 animate-spin text-brand-primary" />
-                  <span>{t("tutorDrawer.thinking")}</span>
+                  <span>{workStep || t("tutorDrawer.thinking")}</span>
+                  <WaitDuration locale={locale} />
                   <Button
                     variant="ghost"
                     size="sm"

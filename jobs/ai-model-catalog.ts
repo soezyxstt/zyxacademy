@@ -1,3 +1,5 @@
+import { claimLatencyCycle } from "@/lib/ai/model-latency-cooldown";
+import { selectedGenerationModel } from "@/lib/ai/provider/selected-models";
 import { defineJob } from "./define-job";
 import { selectorCatalog } from "@/lib/ai/provider/selector-catalog";
 import { measureModelLatency, storeModelLatencies } from "@/lib/ai/provider/model-latency";
@@ -15,12 +17,14 @@ export const aiModelCatalogCron = defineJob({
   }
   const cycle = await step.run("probe-cycle", async () => typeof event.data.requestId === "string"
     ? event.data.requestId : Math.floor(Date.now() / (12 * 60 * 60_000)));
-  const models = await step.run("read-model-catalog", async () => [...await selectorCatalog()]);
+  if (!await step.run("claim-cycle", () => claimLatencyCycle(String(cycle)))) return { models: 0 };
+  const models = (await step.run("read-model-catalog", async () => [...await selectorCatalog()])).filter(selectedGenerationModel);
   for (const provider of enabledGatewayProviders()) {
     const results: Partial<Record<ModelId, ModelLatency>> = {};
     for (const id of models.filter(id => (discoveredModel(id)?.provider ?? "gemini") === provider)) {
       results[id] = await step.run(`latency-${id}`, () => measureModelLatency(id, cycle));
     }
+    if (Object.keys(results).length === 0) continue;
     await step.run(`store-latency-${provider}`, () => storeModelLatencies(provider, results));
   }
   return { models: models.length };

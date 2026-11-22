@@ -9,7 +9,7 @@ const env = { CF_AI_GATEWAY_URL: "https://gateway.ai.cloudflare.com/v1/account/g
 beforeEach(resetAliasHealthForTests);
 afterEach(() => mock.restore());
 
-test("blocks a fourth dispatch for one day, isolates aliases and resets after a success", async () => {
+test("blocks a fourth dispatch for five minutes, isolates aliases and resets after a success", async () => {
   let now = 1000, calls = 0;
   spyOn(Date, "now").mockImplementation(() => now);
   const invoke = async () => { calls++; return false; };
@@ -17,7 +17,7 @@ test("blocks a fourth dispatch for one day, isolates aliases and resets after a 
   await expect(withGatewayAlias(env, "openai", "openai_1", invoke, value => value)).rejects.toBeInstanceOf(GatewayAliasCooldownError);
   expect(calls).toBe(3);
   await withGatewayAlias(env, "openai", "openai_2", async () => true, value => value);
-  now += 24 * 60 * 60_000;
+  now += 5 * 60_000;
   await withGatewayAlias(env, "openai", "openai_1", invoke, value => value);
   await withGatewayAlias(env, "openai", "openai_1", async () => true, value => value);
   await withGatewayAlias(env, "openai", "openai_1", invoke, value => value);
@@ -49,8 +49,17 @@ test("an unavailable health receipt cannot turn a successful billed response int
 
 test("the projected Gemini web environment checks shared cooldown before preparing a client", async () => {
   const projected = createZyraRuntimeEnv({ ...env, CF_AI_GATEWAY_TOKEN: "fixture", ZYRA_CONTROL_PLANE_URL: "https://control.fixture", ZYRA_CONTROL_PLANE_TOKEN: "fixture" });
-  const health = spyOn(ControlPlaneClient.prototype, "aliasHealth").mockResolvedValue({ failures: 3, cooldownUntil: Date.now() + 86400000 });
+  const health = spyOn(ControlPlaneClient.prototype, "aliasHealth").mockResolvedValue({ failures: 3, cooldownUntil: Date.now() + 5 * 60_000 });
   const request = spyOn(globalThis, "fetch");
   await expect(prepareGoogleGatewayClient("fixture", projected, undefined, {}, { preferByokAlias: "gemini_1" })).rejects.toBeInstanceOf(GatewayAliasCooldownError);
   expect(health).toHaveBeenCalledTimes(1); expect(request).not.toHaveBeenCalled();
+});
+
+test("rejected model requests leave the alias available for another model", async () => {
+  const { generationAliasOutcome } = await import("@/lib/ai/provider/alias-health");
+  for (const status of [400, 404, 413, 415, 422, 200]) {
+    const response = await withGatewayAlias(env, "muse", "muse_1",
+      async () => new Response("{}", { status }), generationAliasOutcome);
+    expect(response.status).toBe(status);
+  }
 });

@@ -247,10 +247,11 @@ ${promptItems}`;
 
  try {
   const { response } = await generateContentWithFallback({
+  userId: attempt.studentId,
   useCase: USE_CASES.MISTAKE_FEEDBACK,
   contents: userPrompt,
   config: {
-  responseMimeType: "application/json",
+  responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "OBJECT" } },
   },
   });
 

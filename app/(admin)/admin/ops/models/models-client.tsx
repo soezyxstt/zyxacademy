@@ -240,8 +240,9 @@ export function ModelsClient({
       const runRefresh = onRefreshOverride ?? refreshAiModelLatenciesAction;
       const result = await runRefresh();
       if (!result.ok) {
-        setBannerError(result.error);
-        toast.error(result.error);
+        const message = result.code === "LATENCY_COOLDOWN" ? t("modelsUI.latencyCooldown") : result.error;
+        setBannerError(message);
+        toast.error(message);
         return;
       }
       setViews(result.views);

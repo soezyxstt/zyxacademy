@@ -3,7 +3,7 @@ import type { ModelDate, ModelLatency } from "./provider/model-observations";
 import { z } from "zod";
 import {
   MODEL_IDS,
-  supportsTextProvider, MODEL_REGISTRY, getTextProfile, isTextProfile, textProfileIds, discoveredModel,
+  MODEL_REGISTRY, getTextProfile, isTextProfile, textProfileIds, discoveredModel,
   ROUTE_POLICY,
   getModelEntry,
   type ModelFamily,
@@ -154,7 +154,7 @@ export const MODEL_FEATURE_CATALOG = [
     id: "practice-question-gen",
     label: "Generasi soal",
     group: "generation",
-    description: "Pembuatan soal latihan dan verifikasi solver independen.",
+    description: "Pembuatan soal latihan dari objek pengetahuan.",
     requiresStreamingTools: false,
     supportsImages: false,
     runtimeDefaultModels: ROUTE_POLICY.default,
@@ -164,7 +164,7 @@ export const MODEL_FEATURE_CATALOG = [
     id: "question-review",
     label: "Review soal",
     group: "generation",
-    description: "Pemeriksaan kualitas dan validitas pedagogis butir soal.",
+    description: "Verifikasi jawaban soal oleh solver independen.",
     requiresStreamingTools: false,
     supportsImages: false,
     runtimeDefaultModels: ROUTE_POLICY.premiumPedagogy,
@@ -306,9 +306,9 @@ export function getFeatureDefinition(feature: ModelFeature): (typeof MODEL_FEATU
 export function selectableModelsForFeature(feature: ModelFeature): readonly ModelId[] {
   const def = getFeatureDefinition(feature);
   if (def.requiresStreamingTools) {
-    return generateContentSelectableModels;
+    return [...generateContentSelectableModels, ...textProfileIds];
   }
-  return supportsTextProvider(feature) ? [...selectableModels, ...textProfileIds] : selectableModels;
+  return [...selectableModels, ...textProfileIds];
 }
 
 export function getSelectableModelOption(id: ModelId): SelectableModelOption {
@@ -341,8 +341,7 @@ export function modelAllowedForFeature(feature: ModelFeature, id: string): id is
   try {
     const entry = getModelEntry(id);
     return entry.ordinaryRoutingAllowed && entry.operations.includes("generate") &&
-      (!isTextProfile(id) || supportsTextProvider(feature)) &&
-      (!getFeatureDefinition(feature).requiresStreamingTools || entry.family === "generate-content");
+      (!getFeatureDefinition(feature).requiresStreamingTools || entry.family === "generate-content" || entry.family === "chat-completions");
   } catch { return false; }
 }
 
@@ -361,7 +360,7 @@ export const modelSettingSchema = z
           code: z.ZodIssueCode.custom,
           path: ["models", index],
           message:
-            "Model ini belum mendukung streaming tool untuk Ops AI. Pilih model keluarga generate-content.",
+            "Model ini belum mendukung streaming tool untuk Ops AI. Pilih model dengan dukungan tool.",
         });
       }
     });
@@ -422,7 +421,6 @@ export function compatibleModelChain(
     return primary;
   }
 
-  // Only 2 models in MODEL_REGISTRY accept image input (gemini-3.6-flash and gemini-2.5-flash).
   // Preserve admin priority for any selected image-capable models, then append remaining
   // visual fallback models so image turns never fail solely from a text-only trio override.
   const seen = new Set<ModelId>(primary);
