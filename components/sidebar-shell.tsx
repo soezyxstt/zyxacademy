@@ -28,6 +28,12 @@ import { useTranslations } from "@/lib/i18n/client";
 import { useSwipe } from "@/hooks/use-swipe";
 import { isMaterialReaderPathname } from "@/lib/materials/reader-layout";
 import {
+  hasOpenSidebarOverlay,
+  isSidebarOverlayGestureActive,
+  isSidebarOverlayTarget,
+  syncSidebarOverlayGesture,
+} from "@/lib/sidebar-overlay";
+import {
   Tooltip,
   TooltipProvider,
   TooltipTrigger,
@@ -454,7 +460,7 @@ export function SidebarShell({
       if (isMobile && !mobileOpen && startX <= edge) setMobileOpen(true);
     },
     onSwipeLeft: () => {
-      if (isMobile && mobileOpen) setMobileOpen(false);
+      if (isMobile && mobileOpen && !hasOpenSidebarOverlay()) closeMobileSidebar();
     },
   });
 
@@ -486,16 +492,26 @@ export function SidebarShell({
 
   useEffect(() => {
     if (!mobileOpen) return;
+    const handlePointerDownCapture = (e: PointerEvent) => {
+      syncSidebarOverlayGesture(e.target);
+    };
     const handleOutsideClick = (e: MouseEvent) => {
-      const isPortal = (e.target as HTMLElement)?.closest?.(
-        '[data-radix-portal], [role="menu"], [role="listbox"], [role="dialog"], [role="combobox"]'
-      );
-      if (!isPortal && sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
-        setMobileOpen(false);
+      if (
+        !isSidebarOverlayTarget(e.target) &&
+        !hasOpenSidebarOverlay() &&
+        !isSidebarOverlayGestureActive() &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(e.target as Node)
+      ) {
+        closeMobileSidebar();
       }
     };
+    document.addEventListener("pointerdown", handlePointerDownCapture, { capture: true });
     document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDownCapture, { capture: true });
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
   }, [mobileOpen]);
 
   useEffect(() => {
@@ -552,7 +568,11 @@ export function SidebarShell({
       {mounted && mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden cursor-pointer"
-          onClick={() => setMobileOpen(false)}
+          onClick={() => {
+            if (!hasOpenSidebarOverlay() && !isSidebarOverlayGestureActive()) {
+              closeMobileSidebar();
+            }
+          }}
           aria-hidden="true"
         />
       )}
@@ -632,7 +652,7 @@ export function SidebarShell({
               <SidebarTooltip label={t("closeSidebar")} collapsed={false}>
                 <button
                   type="button"
-                  onClick={isMobile ? () => setMobileOpen(false) : toggleCollapsed}
+                  onClick={isMobile ? closeMobileSidebar : toggleCollapsed}
                   aria-label={t("closeSidebar")}
                   className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
                 >

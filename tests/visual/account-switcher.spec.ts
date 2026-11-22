@@ -257,3 +257,27 @@ test("public demo never requests saved sessions", async ({ page }, info) => {
   await capture(page, info, "demo");
   expect(issues).toEqual([]);
 });
+
+test("mobile sidebar stays open during popover actions and first outside click", async ({ page }, info) => {
+  test.skip(info.project.name !== "mobile-380", "Mobile drawer behavior only applies on narrow viewports");
+  const issues = await prepare(page, info);
+  const sidebar = page.locator("aside[data-sidebar-ready=true]");
+  await expect(sidebar).not.toHaveAttribute("aria-hidden", "true");
+
+  const { panel } = await openMenu(page);
+  await panel.getByRole("button", { name: "Kelola akun nadia.kampus@example.test" }).click();
+  await expect(page.getByRole("menuitem", { name: "Hapus akun", exact: true })).toBeVisible();
+  await expect(sidebar).not.toHaveAttribute("aria-hidden", "true");
+
+  // Dismiss nested dropdown and popover by clicking outside; sidebar remains open.
+  const viewport = page.viewportSize()!;
+  await page.mouse.click(viewport.width - 10, 20);
+  await expect(panel).toBeHidden();
+  await expect(sidebar).not.toHaveAttribute("aria-hidden", "true");
+
+  // Clicking outside again with no overlay open closes the mobile sidebar.
+  await page.mouse.click(viewport.width - 10, 20);
+  await expect(sidebar).toHaveAttribute("aria-hidden", "true");
+  expect(issues).toEqual([]);
+});
+
