@@ -1454,5 +1454,12 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Model configuration uses the Admin UI. Feature flag reads do not cover model settings."
+  },
+  {
+    "source": "components/auth/sidebar-account-menu.tsx",
+    "actions": ["switchAccount", "addAccount", "removeAccount", "logout"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Saved-account selection, Google sign-in and device session removal require the user's browser or native app. MCP bearer tokens retain their authorized user, session, scopes and environment; account switching cannot retarget them."
   }
 ] as const;

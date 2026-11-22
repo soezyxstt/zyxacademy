@@ -358,6 +358,20 @@ The standalone Admin material editor is retired. Existing website material remai
 - Google Meet review session scheduling
 - Admin broadcast announcements
 
+### Account switching
+
+The avatar and gear control in the sidebar opens one account popover. It shows the active account, other saved Zyx accounts, `Tambah akun Google`, and the existing account actions. Selecting a saved account opens its dashboard without another Google sign-in. Up to five accounts can remain signed in on the same app or browser. The list contains valid Zyx sessions saved there, not a list of every Google account on the device.
+
+On Android builds with the `ZyxGoogleAuth` plugin, adding an account opens Google's native account chooser through Credential Manager. The web server verifies the chosen account before changing the Zyx session. Older APKs, iOS and desktop use the existing system-browser sign-in; web uses Google's account chooser. Cancelling the chooser keeps the current account. An unavailable native provider can use the browser flow. A native configuration or verification error shows a recovery action instead of silently retrying a different flow.
+
+Other saved accounts have a menu to remove that Zyx session from this device, with confirmation. The active account cannot be removed until another account is active. `Keluar dari semua akun` ends the sessions saved in the current app or browser; it does not remove Google accounts from Android or end unrelated sessions on other devices. Expired accounts need a new sign-in. Suspended accounts cannot become active.
+
+Switching requires a connection and cannot start while mutations or existing quiz, upload, chat or editor locks remain active on the current surface. It pauses delayed code saves, detaches the device's push registration from the previous account, clears account data from memory and offline readings, cancels old local reminders, and reloads the new account's dashboard and role gates. Other open tabs cancel queries and block form, pointer and keyboard actions, including dialog portals, while the change remains pending; they reload on commit because cookies share the active identity. The initiating tab retains its account-menu loading state. A failed switch resumes the original account when the server confirms that its session is still active.
+
+Reader notes and bookmarks use the account, course and material as their local storage key. Old material-only keys have no proven owner and are not imported into an account. Demo storage keeps its separate keys. Coding drafts retain their account key, and the server rejects requests whose expected learner differs from the session. MCP tokens keep their original identity and scopes; an open MCP consent form must still match the account and session displayed when it opened.
+
+This is a local implementation. The Android picker requires a new APK and the [Google OAuth client setup](DEPLOYMENT.md#google-account-switching-in-native-apps). Device OAuth and hosted acceptance remain separate from local tests and browser UI checks.
+
 ### Account preferences
 
 The account menu opens `/settings` for students, tutors, and admins. The Appearance tab groups color mode, background, interface language, spacing, font size, animation, and on-screen alert position. Language follows the signed-in account. Display choices are saved in the current browser. Spacing and font size apply on the Student and Tutor surfaces, including the public student demo. Reduced-motion system preferences still apply.

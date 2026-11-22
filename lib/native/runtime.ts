@@ -102,6 +102,11 @@ export interface CapacitorBrowserPlugin {
   ) => Promise<CapacitorPluginListenerHandle>;
 }
 
+export interface CapacitorGoogleAuthPlugin {
+  signIn: (options: { serverClientId: string; nonce: string }) => Promise<{ idToken: string }>;
+  clearCredentialState?: () => Promise<void>;
+}
+
 export interface CapacitorLocalNotificationSchedule {
   at?: Date;
   repeats?: boolean;
@@ -200,6 +205,7 @@ export interface CapacitorFilesystemPlugin {
 }
 
 export interface CapacitorGlobal {
+  isLoggingEnabled?: boolean;
   isNativePlatform?: () => boolean;
   getPlatform?: () => string;
   Plugins?: {
@@ -214,6 +220,7 @@ export interface CapacitorGlobal {
     Share?: CapacitorSharePlugin;
     ZyxAppUpdater?: CapacitorUpdaterPlugin;
     ZyxOfflineStore?: CapacitorOfflineStorePlugin;
+    ZyxGoogleAuth?: CapacitorGoogleAuthPlugin;
   };
 }
 

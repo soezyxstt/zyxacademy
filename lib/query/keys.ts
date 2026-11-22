@@ -15,6 +15,9 @@ type Filters = Readonly<Record<string, string | number | boolean | null | undefi
 export const queryKeys = {
   all: root,
   account,
+  auth: {
+    savedAccounts: (userId: string) => [...account(userId), "auth", "saved-accounts"] as const,
+  },
   public: {
     all: [...root, "public"] as const,
     pricing: () => [...root, "public", "pricing-discounts"] as const,

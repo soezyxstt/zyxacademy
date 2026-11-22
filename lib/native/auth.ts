@@ -1,11 +1,13 @@
 /**
  * lib/native/auth.ts
  *
- * Initiates Google sign-in via Chrome Custom Tabs (Android), SFSafariViewController (iOS),
- * or the system browser (Desktop Tauri) with a per-login state nonce stored in sessionStorage.
+ * Prefers Android Credential Manager, with the existing system-browser flow for
+ * older APKs, iOS and desktop. Google tokens stay in memory until server verification.
  */
 
 import { getSafeRedirectPath } from "@/lib/auth-redirect";
+import { AccountSwitchError } from "@/lib/auth/account-switch-contract";
+import { isAccountTransitionPending } from "@/lib/auth/account-transition-state";
 import {
   NATIVE_AUTH_STATE_STORAGE_KEY,
   parseNativeAuthDeepLink,
@@ -17,6 +19,100 @@ import {
   getTauri,
   type CapacitorPluginListenerHandle,
 } from "./runtime";
+
+export class NativeGoogleSignInError extends Error {
+  constructor(public readonly code: "GOOGLE_NOT_CONFIGURED" | "NATIVE_GOOGLE_FAILED" | "CHALLENGE_EXPIRED") {
+    super(code);
+    this.name = "NativeGoogleSignInError";
+  }
+}
+
+export type NativeGoogleSignInOptions = {
+  onBrowserClosed?: () => void;
+  /** An explicit recovery action, never an automatic response to cancellation. */
+  preferBrowser?: boolean;
+};
+
+function nativeErrorCode(error: unknown): string | undefined {
+  return error && typeof error === "object" && "code" in error && typeof error.code === "string"
+    ? error.code : undefined;
+}
+
+async function nativeGoogleRequest(body: Record<string, unknown>) {
+  const response = await fetch("/api/auth/native/google", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data: unknown = await response.json();
+  if (!response.ok) {
+    const code = nativeErrorCode(data);
+    if (code === "SESSION_LIMIT" || code === "ACCOUNT_UNAVAILABLE") throw new AccountSwitchError(code);
+    throw new NativeGoogleSignInError(code === "GOOGLE_NOT_CONFIGURED" || code === "CHALLENGE_EXPIRED"
+      ? code : "NATIVE_GOOGLE_FAILED");
+  }
+  return data as Record<string, unknown>;
+}
+
+async function tryAndroidGoogleSignIn(callbackURL: string, options?: NativeGoogleSignInOptions): Promise<boolean> {
+  const cap = getCapacitor();
+  const plugin = cap?.Plugins?.ZyxGoogleAuth;
+  if (options?.preferBrowser || cap?.getPlatform?.() !== "android" || !plugin?.signIn) return false;
+
+  const { withAccountTransition } = await import("@/lib/auth/account-switch");
+  const challenge = await nativeGoogleRequest({ action: "challenge" });
+  if (typeof challenge.clientId !== "string" || typeof challenge.nonce !== "string") {
+    throw new NativeGoogleSignInError("NATIVE_GOOGLE_FAILED");
+  }
+  let token: string;
+  const bridgeLogging = cap.isLoggingEnabled;
+  // Capacitor's debug bridge logs plugin payloads before resolving their promises.
+  // Suppress it while the Google token crosses the bridge, including debug APKs.
+  cap.isLoggingEnabled = false;
+  try {
+    const result = await plugin.signIn({ serverClientId: challenge.clientId, nonce: challenge.nonce });
+    if (typeof result.idToken !== "string" || !result.idToken) throw new NativeGoogleSignInError("NATIVE_GOOGLE_FAILED");
+    token = result.idToken;
+  } catch (error) {
+    await nativeGoogleRequest({ action: "cancel" }).catch(() => {});
+    const code = nativeErrorCode(error);
+    if (code === "CANCELLED") {
+      options?.onBrowserClosed?.();
+      return true;
+    }
+    if (code === "UNAVAILABLE" || code === "UNIMPLEMENTED" || code === "NOT_IMPLEMENTED") return false;
+    if (code === "BUSY") throw new AccountSwitchError("BUSY");
+    throw new NativeGoogleSignInError("NATIVE_GOOGLE_FAILED");
+  } finally {
+    cap.isLoggingEnabled = bridgeLogging;
+  }
+  let verificationFailure: NativeGoogleSignInError | undefined;
+  try {
+    await withAccountTransition(async () => {
+      try {
+        const result = await nativeGoogleRequest({ action: "verify", idToken: token });
+        if (typeof result.userId !== "string" || !result.userId) throw new NativeGoogleSignInError("NATIVE_GOOGLE_FAILED");
+        return result.userId;
+      } catch (error) {
+        if (error instanceof NativeGoogleSignInError) verificationFailure = error;
+        throw error;
+      }
+    });
+  } catch (error) {
+    // Offer browser recovery only after the guard confirms the previous account
+    // is still active. An uncertain response keeps writers paused and reloads.
+    if (verificationFailure && error instanceof AccountSwitchError
+      && error.code === "SWITCH_FAILED" && !isAccountTransitionPending()) throw verificationFailure;
+    throw error;
+  }
+  window.location.replace(getSafeRedirectPath(callbackURL));
+  return true;
+}
+
+export async function clearNativeGoogleCredentialState(): Promise<void> {
+  await getCapacitor()?.Plugins?.ZyxGoogleAuth?.clearCredentialState?.();
+}
 
 function generateRandomState(): string {
   const bytes = new Uint8Array(24);
@@ -31,7 +127,9 @@ function generateRandomState(): string {
 export function isNativeBrowserSignInSupported(): boolean {
   const runtime = getNativeRuntime();
   if (runtime === "capacitor") {
-    return Boolean(getCapacitor()?.Plugins?.Browser?.open);
+    const cap = getCapacitor();
+    return Boolean(cap?.Plugins?.Browser?.open
+      || (cap?.getPlatform?.() === "android" && cap.Plugins?.ZyxGoogleAuth?.signIn));
   }
   if (runtime === "tauri") {
     return Boolean(getTauri()?.opener?.openUrl || getTauri()?.core?.invoke);
@@ -41,7 +139,7 @@ export function isNativeBrowserSignInSupported(): boolean {
 
 export async function startNativeGoogleSignIn(
   callbackURL = "/dashboard",
-  options?: { onBrowserClosed?: () => void },
+  options?: NativeGoogleSignInOptions,
 ): Promise<boolean> {
   if (typeof window === "undefined") return false;
   const runtime = getNativeRuntime();
@@ -51,6 +149,9 @@ export async function startNativeGoogleSignIn(
     hostname: window.location.hostname,
   });
   if (!scheme) return false;
+  const { assertCanAddAccount } = await import("@/lib/auth/account-switch");
+  await assertCanAddAccount();
+  if (await tryAndroidGoogleSignIn(callbackURL, options)) return true;
 
   const state = generateRandomState();
   try {

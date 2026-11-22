@@ -62,6 +62,7 @@ import { TermPopover } from "@/components/course/term-popover";
 import { matchTerm, type TermIndexEntry } from "@/lib/term-match";
 import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
 import { formatReaderTocTitle } from "@/lib/materials/reader-toc";
+import { readerPersonalStorageKeys } from "@/lib/materials/reader-personal-storage";
 import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/reader-mode";
 import { useTranslations } from "@/lib/i18n/client";
 import type { CourseAccessTier } from "@/lib/student/course-access";
@@ -585,6 +586,9 @@ function MaterialViewerContent({
       setItem: (key: string, value: string) => { try { (demo ? window.sessionStorage : window.localStorage).setItem(prefix + key,value); } catch { fallback.set(key,value); } },
     };
   }, [demo, material.courseId, revision]);
+  const personalStorageKeys = useMemo(() => readerPersonalStorageKeys({
+    userId: studentId, courseId: material.courseId, materialId: material.id, demo,
+  }), [studentId, material.courseId, material.id, demo]);
   const [viewerType, setViewerType] = useState<"custom" | "chrome">("chrome");
   const [showDemoViewer, setShowDemoViewer] = useState(false);
 
@@ -886,19 +890,20 @@ function MaterialViewerContent({
   useEffect(() => {
     if (!learnerMode) return;
     try {
-      const storedNotes = storage.getItem(`zyx-notes-${material.id}`);
-      const storedBookmarks = storage.getItem(`zyx-bookmarks-${material.id}`);
+      // Legacy material-only keys have no proven owner and must not be adopted.
+      const storedNotes = personalStorageKeys ? storage.getItem(personalStorageKeys.notes) : null;
+      const storedBookmarks = personalStorageKeys ? storage.getItem(personalStorageKeys.bookmarks) : null;
       const storedTheme = storage.getItem(`zyx-reader-theme`);
       const storedSidebar = storage.getItem(`zyx-reader-sidebar`);
 
-      if (storedNotes) setNotes(JSON.parse(storedNotes));
-      if (storedBookmarks) setBookmarks(JSON.parse(storedBookmarks));
+      setNotes(storedNotes ? JSON.parse(storedNotes) : {});
+      setBookmarks(storedBookmarks ? JSON.parse(storedBookmarks) : []);
       if (storedTheme) setTheme(storedTheme as ThemeMode);
       if (storedSidebar) setShowSidebar(storedSidebar === "true");
     } catch (e) {
       console.error("Could not load reader configurations from localStorage", e);
     }
-  }, [learnerMode, material.id, storage]);
+  }, [learnerMode, personalStorageKeys, storage]);
 
   // Handle active note loading when page changes
   useEffect(() => {
@@ -970,7 +975,7 @@ function MaterialViewerContent({
       toast.success(t("reader.bookmarkAdded", { page: pNum }));
     }
     setBookmarks(newBookmarks);
-    storage.setItem(`zyx-bookmarks-${material.id}`, JSON.stringify(newBookmarks));
+    if (personalStorageKeys) storage.setItem(personalStorageKeys.bookmarks, JSON.stringify(newBookmarks));
     void hapticSelection();
   };
 
@@ -985,7 +990,7 @@ function MaterialViewerContent({
       newNotes[page] = noteText;
     }
     setNotes(newNotes);
-    storage.setItem(`zyx-notes-${material.id}`, JSON.stringify(newNotes));
+    if (personalStorageKeys) storage.setItem(personalStorageKeys.notes, JSON.stringify(newNotes));
     
     // Simulate minor network/disk delay for a smooth "saving..." feedback
     if (noteSaveTimerRef.current) clearTimeout(noteSaveTimerRef.current);
@@ -999,7 +1004,7 @@ function MaterialViewerContent({
     const newNotes = { ...notes };
     delete newNotes[pNum];
     setNotes(newNotes);
-    storage.setItem(`zyx-notes-${material.id}`, JSON.stringify(newNotes));
+    if (personalStorageKeys) storage.setItem(personalStorageKeys.notes, JSON.stringify(newNotes));
     if (pNum === page) setActiveNoteText("");
     toast.success(t("reader.noteRemoved", { page: pNum }));
   };

@@ -5,6 +5,9 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSafeRedirectPath } from "@/lib/auth-redirect";
+import { withAccountTransition } from "@/lib/auth/account-switch";
+import { AccountSwitchError, accountSwitchError, MAX_SAVED_ACCOUNTS } from "@/lib/auth/account-switch-contract";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   NATIVE_AUTH_STATE_STORAGE_KEY,
   normalizeNativeAuthState,
@@ -32,6 +35,7 @@ function consumeAndVerifyPendingState(incomingState: string | null): boolean {
 }
 
 export default function NativeAuthFinishPage() {
+  const accounts = useTranslations("common.accounts");
   const startedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,22 +59,37 @@ export default function NativeAuthFinishPage() {
       return;
     }
 
-    void fetch("/api/auth/one-time-token/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ token }),
+    void withAccountTransition(async () => {
+      const res = await fetch("/api/auth/one-time-token/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ token }),
+      });
+      const result: unknown = await res.json();
+      if (!res.ok) {
+        const failure = accountSwitchError(result);
+        if (failure.code !== "SWITCH_FAILED") throw failure;
+        throw new AccountSwitchError(res.status === 400 ? "SESSION_EXPIRED" : "SWITCH_FAILED");
+      }
+      if (!result || typeof result !== "object" || !("user" in result)
+        || !result.user || typeof result.user !== "object" || !("id" in result.user)
+        || typeof result.user.id !== "string") throw new Error("token_verify_failed");
+      return result.user.id;
     })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error("token_verify_failed");
-        }
+      .then(() => {
         window.location.replace(safeNext);
       })
-      .catch(() => {
-        setError("Tautan masuk sudah digunakan atau kedaluwarsa. Silakan masuk lagi.");
+      .catch((failure: unknown) => {
+        const code = failure instanceof AccountSwitchError ? failure.code : "SWITCH_FAILED";
+        const key = {
+          BUSY: "busy", PENDING_CHANGES: "pendingChanges", OFFLINE: "offline",
+          SESSION_EXPIRED: "expired", ACCOUNT_UNAVAILABLE: "unavailable", SESSION_LIMIT: "limit",
+          CANCELLED: "addFailed", ACTIVE_ACCOUNT: "addFailed", SWITCH_FAILED: "addFailed",
+        }[code];
+        setError(accounts(key, { count: MAX_SAVED_ACCOUNTS }));
       });
-  }, []);
+  }, [accounts]);
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-6 text-foreground">
