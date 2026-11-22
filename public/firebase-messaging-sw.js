@@ -9,31 +9,16 @@
  * Service workers run outside the webpack bundle and cannot use ES module imports.
  * The compat scripts are loaded from Google's CDN for reliability and caching.
  *
- * The Firebase config is embedded here directly as it needs to be available
- * before any network request (the SW is registered before the app boots).
- * These are NEXT_PUBLIC values ; safe to ship in the browser.
+ * Public Firebase configuration is loaded from this deployment at worker startup.
  */
 
-// ─── Load Firebase compat scripts from CDN ───────────────────────────────────
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
 
-// ─── Firebase configuration (mirrors NEXT_PUBLIC_FIREBASE_* env vars) ─────────
-const firebaseConfig = {
- apiKey: "AIzaSyD06vZiIGG-C5hyEcNAUbl9-eTMBHE5r4U",
- authDomain: "zyx-academy.firebaseapp.com",
- projectId: "zyx-academy",
- storageBucket: "zyx-academy.firebasestorage.app",
- messagingSenderId: "307641710075",
- appId: "1:307641710075:web:55d0b1c56a78fd1d6d075e",
- measurementId: "G-ENY8EJ44WD",
-};
-
-// ─── Initialise Firebase ──────────────────────────────────────────────────────
-firebase.initializeApp(firebaseConfig);
+importScripts("/firebase-config.js");
+firebase.initializeApp(self.__FIREBASE_CONFIG__);
 const messaging = firebase.messaging();
 
-// ─── Background message handler ───────────────────────────────────────────────
 /**
  * Called when a push notification arrives while the browser tab is in the
  * background or closed entirely.
@@ -45,7 +30,6 @@ const messaging = firebase.messaging();
  * }
  */
 messaging.onBackgroundMessage((payload) => {
- console.log("[firebase-messaging-sw.js] Background message received:", payload);
 
  const { notification = {}, data = {} } = payload;
 
@@ -64,10 +48,9 @@ messaging.onBackgroundMessage((payload) => {
  renotify: false,
  };
 
- self.registration.showNotification(notificationTitle, notificationOptions);
+ return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// ─── Notification click handler ───────────────────────────────────────────────
 /**
  * Opens the target page when a user clicks a notification.
  * Falls back to /dashboard if no URL is specified in the payload.
