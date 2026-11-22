@@ -46,6 +46,13 @@ def spec():
 
 
 class CloudRunStagingTest(unittest.TestCase):
+    def test_missing_python_ticket_key_blocks_deployment(self):
+        candidate = spec()
+        entries = candidate["containers"][0]["env"]
+        entries[:] = [item for item in entries if item["name"] != "PYTHON_RUNTIME_TOKEN_SECRET"]
+        with self.assertRaisesRegex(ValueError, "missing required Secret Manager references"):
+            validate_template(candidate, CONFIG)
+
     def test_cloud_run_jobs_require_manual_staging_dispatch(self):
         text = (Path(__file__).resolve().parents[1] / 'workflows/deploy-cloud-run-staging.yml').read_text()
         triggers = text.split('\non:\n', 1)[1].split('\npermissions:', 1)[0]

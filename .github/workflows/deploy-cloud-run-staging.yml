@@ -122,4 +122,30 @@ jobs:
           INNGEST_EVENT_KEY: ${{ secrets.INNGEST_EVENT_KEY }}
           INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          PYTHON_RUNTIME_TOKEN_SECRET: ${{ secrets.PYTHON_RUNTIME_TOKEN_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
+          GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
+          GEMINI_PROJECT_ALIAS_1: ${{ vars.GEMINI_PROJECT_ALIAS_1 || secrets.GEMINI_PROJECT_ALIAS_1 }}
+          GEMINI_PROJECT_ALIAS_2: ${{ vars.GEMINI_PROJECT_ALIAS_2 || secrets.GEMINI_PROJECT_ALIAS_2 }}
+          GEMINI_PROJECT_ALIAS_3: ${{ vars.GEMINI_PROJECT_ALIAS_3 || secrets.GEMINI_PROJECT_ALIAS_3 }}
+          GEMINI_PROJECT_ALIAS_4: ${{ vars.GEMINI_PROJECT_ALIAS_4 || secrets.GEMINI_PROJECT_ALIAS_4 }}
+          CF_BROWSER_API_TOKEN: ${{ secrets.CF_BROWSER_API_TOKEN }}
+          CF_AI_GATEWAY_URL: ${{ vars.CF_AI_GATEWAY_URL || secrets.CF_AI_GATEWAY_URL }}
+          CF_AI_GATEWAY_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
+          CF_KV_NAMESPACE_ID: ${{ vars.CF_KV_NAMESPACE_ID || secrets.CF_KV_NAMESPACE_ID }}
+          VECTORIZE_WORKER_URL: ${{ vars.VECTORIZE_WORKER_URL || secrets.VECTORIZE_WORKER_URL }}
+          VECTORIZE_SHARED_SECRET: ${{ secrets.VECTORIZE_SHARED_SECRET }}
+          VECTOR_SYNC_BATCH_SIZE: ${{ vars.VECTOR_SYNC_BATCH_SIZE || secrets.VECTOR_SYNC_BATCH_SIZE }}
+          ZYRA_CONTROL_PLANE_URL: ${{ vars.ZYRA_CONTROL_PLANE_URL || secrets.ZYRA_CONTROL_PLANE_URL }}
+          ZYRA_CONTROL_PLANE_TOKEN: ${{ secrets.ZYRA_CONTROL_PLANE_TOKEN }}
+          LIVE_HMAC_SECRET: ${{ secrets.LIVE_HMAC_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          STEEL_API_KEY: ${{ secrets.STEEL_API_KEY }}
+          AUTHORING_VERIFICATION_RENDERER_SECRET: ${{ secrets.AUTHORING_VERIFICATION_RENDERER_SECRET }}
+          GA_PROPERTY_ID: ${{ vars.GA_PROPERTY_ID || secrets.GA_PROPERTY_ID }}
+          GA_CLIENT_EMAIL: ${{ vars.GA_CLIENT_EMAIL || secrets.GA_CLIENT_EMAIL }}
+          GA_PRIVATE_KEY: ${{ secrets.GA_PRIVATE_KEY }}
+          WHATSAPP_ADMIN_NUMBER: ${{ vars.WHATSAPP_ADMIN_NUMBER || secrets.WHATSAPP_ADMIN_NUMBER }}
         run: python3 .github/scripts/import_cloud_run_staging_secrets.py
