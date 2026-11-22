@@ -1,5 +1,5 @@
 import { modelDisplayName } from "./recent-models";
-import { withGatewayAlias, aliasCooldownUntil, GatewayAliasCooldownError } from "./alias-health";
+import { withGatewayAlias, assertGatewayAliasAvailable, aliasCooldownUntil, GatewayAliasCooldownError } from "./alias-health";
 import {
   conventionByokAliases,
   enabledGatewayProviders,
@@ -120,7 +120,7 @@ export function compatibleDiagnostics(env: Environment = process.env) {
   });
 }
 
-export function prepareCompatibleText(input: ProviderGenerateRequest & Omit<GatewayMetadataInput, "deadlineMs"> & { projectAlias: string }, env: Environment = process.env) {
+export async function prepareCompatibleText(input: ProviderGenerateRequest & Omit<GatewayMetadataInput, "deadlineMs"> & { projectAlias: string }, env: Environment = process.env) {
   const settings = compatibleSettings(env, input.modelId);
   if (!settings || !isTextProfile(input.modelId) || !supportsTextProvider(input.feature) || input.projectAlias !== getTextProfile(input.modelId)!.group
     || !input.parts.length || input.parts.some(part => part.type !== "text")) throw new Error("Compatible text route unavailable");
@@ -136,8 +136,11 @@ export function prepareCompatibleText(input: ProviderGenerateRequest & Omit<Gate
   messages.push({ role: "user", content: input.parts.map(part => part.type === "text" ? part.text : "").join("\n") });
   const outputLimit = config.maxOutputTokens === undefined ? {} : { [getTextProfile(input.modelId)!.group === "openai" ? "max_completion_tokens" : "max_tokens"]: config.maxOutputTokens };
   const body = JSON.stringify({ model: settings.model, messages, ...outputLimit, ...(config.responseMimeType ? {response_format: {type: "json_object"}} : {}) });
-  const available = settings.credentials.filter(key => aliasCooldownUntil(env, settings.url, key) <= Date.now());
-  if (!available.length) throw new ProviderAdapterError({ code: "PROVIDER_AUTHENTICATION", message: "No available text provider credential", retryClassification: "authentication" });
+  const available = (await Promise.all(settings.credentials.map(async alias => {
+    try { await assertGatewayAliasAvailable(env, settings.url, alias); return [alias]; }
+    catch (error) { if (error instanceof GatewayAliasCooldownError) return []; throw error; }
+  }))).flat();
+  if (!available.length) throw new GatewayAliasCooldownError();
   const startIndex = randomInt(available.length);
   const headers: Record<string, string> = {"Content-Type": "application/json"};
   Object.assign(headers, buildAiGatewayHeaders({ ...input, deadlineMs: 15000 }));
@@ -146,16 +149,9 @@ export function prepareCompatibleText(input: ProviderGenerateRequest & Omit<Gate
   return async (): Promise<ProviderGenerationResult> => {
     const started = Date.now();
     try {
-      let response: Response | undefined;
-      for (let offset = 0; offset < available.length; offset++) {
-        const credential = available[(startIndex + offset) % available.length];
-        try {
-          response = await withGatewayAlias(env, settings.url, credential,
-            () => fetch(settings.url, { method: "POST", redirect: "error", headers: { ...headers, "cf-aig-byok-alias": credential }, body, signal: AbortSignal.timeout(15000) }), result => result.ok);
-          break;
-        } catch (error) { if (!(error instanceof GatewayAliasCooldownError)) throw error; }
-      }
-      if (!response) throw new GatewayAliasCooldownError();
+      const credential = available[startIndex];
+      const response = await withGatewayAlias(env, settings.url, credential,
+        () => fetch(settings.url, { method: "POST", redirect: "error", headers: { ...headers, "cf-aig-byok-alias": credential }, body, signal: AbortSignal.timeout(15000) }), result => result.ok, true);
       if (response.status === 400) {
         const errorBody = await response.clone().json().catch(() => null);
         if (isGatewayCredentialsRequiredBody(errorBody)) {

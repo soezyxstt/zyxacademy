@@ -1,6 +1,6 @@
 import { prepareCompatibleText } from "./ai/provider/compatible-text";
 import { configuredModelChain } from "@/lib/ai/model-settings-store";
-import { googleGatewayClient } from "./ai/provider/google-gateway-client";
+import { googleGatewayClient, prepareGoogleGatewayClient } from "./ai/provider/google-gateway-client";
 import type { GoogleGenAI } from "@google/genai";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { logAiRequest } from "@/lib/ai/analytics";
@@ -167,7 +167,7 @@ function makeCompatibilityResponse(result: {
   };
 }
 
-function prepareProviderThroughControlPlane(input: {
+async function prepareProviderThroughControlPlane(input: {
   requestId: string;
   userCohort: string;
   feature: string;
@@ -180,9 +180,9 @@ function prepareProviderThroughControlPlane(input: {
   cacheKey?: string;
   cacheTtlSeconds?: number;
   singleDispatch?: boolean;
-}): () => Promise<ProviderGenerationResult> {
+}): Promise<() => Promise<ProviderGenerationResult>> {
   if (getModelEntry(input.modelId).family === "chat-completions") {
-    try { return prepareCompatibleText(input); } catch (error) { throw new ProviderNotDispatchedError("compatible provider unavailable", error); }
+    try { return await prepareCompatibleText(input); } catch (error) { throw new ProviderNotDispatchedError("compatible provider unavailable", error); }
   }
   const key = geminiKeyPool.getKeyByProjectAlias(input.projectAlias);
   if (!key) {
@@ -193,9 +193,10 @@ function prepareProviderThroughControlPlane(input: {
   normalizeInputParts(input.parts, entry);
   const viaGateway = true;
   const headers = buildAiGatewayHeaders({ ...input, deadlineMs: entry.deadlineMs });
-  const client = googleGatewayClient(key.key, zyraRuntimeEnv, entry.deadlineMs, headers, {
-    preferByokAlias: key.byokAlias,
-  });
+  let client;
+  try {
+    client = await prepareGoogleGatewayClient(key.key, zyraRuntimeEnv, entry.deadlineMs, headers, { preferByokAlias: key.byokAlias });
+  } catch (error) { throw new ProviderNotDispatchedError("selected provider alias is unavailable", error); }
   if (!client) {
     throw new ProviderNotDispatchedError("selected provider client is unavailable");
   }
@@ -307,7 +308,7 @@ export async function generateContentWithFallback(
     }
     const lifecycle = new RequestLifecycle({
       prepareProvider: prepareProviderThroughControlPlane,
-      invokeProvider: (input) => prepareProviderThroughControlPlane(input)(),
+      invokeProvider: async (input) => (await prepareProviderThroughControlPlane(input))(),
     });
     const result = await lifecycle.execute({
       userId: params.userId,

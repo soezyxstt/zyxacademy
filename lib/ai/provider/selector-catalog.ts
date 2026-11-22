@@ -52,7 +52,7 @@ async function googleModels(): Promise<Pick<Snapshot, "ids" | "aliases" | "dates
       listed = true;
     } catch (error) { if (!isGatewayCredentialsRequiredError(error)) failure = error; }
   }
-  if (!listed && failure) throw failure;
+  if (!listed) throw failure ?? new Error("No Gemini model listing succeeded");
   return { ids: [...ids], aliases: [], dates };
 }
 
@@ -86,7 +86,7 @@ async function textModels(provider: Exclude<GatewayModelProvider, "gemini">): Pr
       }
     } catch (error) { failure = error; }
   }
-  if (!aliases.length && failure) throw failure;
+  if (!aliases.length) throw failure ?? new Error("No provider model listing succeeded");
   return { ids: [...ids], aliases, dates };
 }
 

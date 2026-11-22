@@ -93,7 +93,7 @@ export type RequestLifecycleDependencies = {
     readonly singleDispatch?: boolean;
   }) => Promise<ProviderGenerationResult>;
   // Preparation must not call the provider; the returned closure runs after dispatch.
-  readonly prepareProvider?: (input: Parameters<RequestLifecycleDependencies["invokeProvider"]>[0]) => () => Promise<ProviderGenerationResult>;
+  readonly prepareProvider?: (input: Parameters<RequestLifecycleDependencies["invokeProvider"]>[0]) => (() => Promise<ProviderGenerationResult>) | Promise<() => Promise<ProviderGenerationResult>>;
   readonly requestIdFactory?: () => string;
   readonly resolveModelChain?: typeof configuredModelChain;
 };
@@ -442,7 +442,7 @@ export class RequestLifecycle {
           cacheTtlSeconds: input.cacheTtlSeconds,
           singleDispatch: input.singleDispatch,
         };
-        invokePreparedProvider = this.dependencies.prepareProvider?.(providerInput)
+        invokePreparedProvider = await this.dependencies.prepareProvider?.(providerInput)
           ?? (() => this.dependencies.invokeProvider(providerInput));
 
         if (!applicationDispatched) {

@@ -18,14 +18,14 @@ beforeEach(() => {
     CF_AI_GATEWAY_TOKEN: "private-fixture-token", BETTER_AUTH_URL: "https://staging.zyxacademy.com" });
   delete process.env.ZYRA_CONTROL_PLANE_URL; delete process.env.ZYRA_CONTROL_PLANE_TOKEN;
   spyOn(Date, "now").mockImplementation(() => clock);
-  spyOn(kv, "kvGet").mockImplementation(async key => saved.get(key) ?? null);
+  spyOn(kv, "kvGet").mockImplementation(async <T = unknown>(key: string) => (saved.get(key) as T | undefined) ?? null);
   spyOn(kv, "kvPut").mockImplementation(async (key, value) => { saved.set(key, structuredClone(value)); });
-  fetchMock = spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+  fetchMock = spyOn(globalThis, "fetch").mockImplementation(Object.assign(async (_url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
     if (failing) throw new Error("network unavailable");
     const alias = new Headers(init?.headers).get("cf-aig-byok-alias")!;
     return alias.endsWith("_1") ? Response.json({ data: model ? [{ id: model }, { id: "gpt-image-new" }] : [] })
       : Response.json({ internalCode: 2040, message: "Provider has no BYOK credential named this alias" }, { status: 400 });
-  });
+  }, { preconnect: () => {} }));
 });
 afterEach(() => {
   mock.restore();
@@ -59,9 +59,9 @@ test("manual refresh replaces the catalog before its TTL expires", async () => {
 });
 
 test("persists provider creation dates and sorts them after a process restart", async () => {
-  fetchMock.mockImplementation(async (_url, init) => new Headers(init?.headers).get("cf-aig-byok-alias") === "openai_1"
+  fetchMock.mockImplementation(Object.assign(async (_url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => new Headers(init?.headers).get("cf-aig-byok-alias") === "openai_1"
     ? Response.json({ data: [{ id: "gpt-99-old-fixture", created: 1700000000 }, { id: "gpt-2-new-fixture", created: 1750000000 }] })
-    : Response.json({ internalCode: 2040, message: "Provider has no BYOK credential named this alias" }, { status: 400 }));
+    : Response.json({ internalCode: 2040, message: "Provider has no BYOK credential named this alias" }, { status: 400 }), { preconnect: () => {} }));
   expect([...await selectorCatalog()]).toEqual(["gateway:openai:gpt-2-new-fixture", "gateway:openai:gpt-99-old-fixture"]);
   resetSelectorMemoryForTests(); await selectorCatalog();
   expect(selectorModelDates()["gateway:openai:gpt-2-new-fixture"]?.timestamp).toBe(1750000000000);
@@ -86,6 +86,28 @@ test("a valid empty response removes old models and concurrent refreshes coalesc
   const [a, b] = await Promise.all([selectorCatalog(true), selectorCatalog(true)]);
   expect(a.size).toBe(0); expect(b.size).toBe(0);
   expect(fetchMock).toHaveBeenCalledTimes(8);
+});
+
+test("all missing text aliases retain stale models and retry after five minutes", async () => {
+  await selectorCatalog(); clock += 7 * 24 * 60 * 60_000;
+  fetchMock.mockResolvedValue(Response.json({ internalCode: 2040, message: "Provider has no BYOK credential named this alias" }, { status: 400 }));
+  expect((await selectorCatalog()).has("gateway:openai:gpt-newly-released-fixture")).toBe(true);
+  const calls = fetchMock.mock.calls.length;
+  await selectorCatalog(); expect(fetchMock.mock.calls.length).toBe(calls);
+  clock += 5 * 60_000; await selectorCatalog();
+  expect(fetchMock.mock.calls.length).toBe(calls + 4);
+});
+
+test("all missing Gemini aliases retain the last successful list", async () => {
+  process.env.AI_PROVIDERS = "gemini";
+  const client = spyOn(google, "googleGatewayClient").mockReturnValue({ models: { list: async () => (async function* () {
+    yield { name: "models/gemini-new-fixture", supportedActions: ["generateContent"] };
+  })() } } as unknown as ReturnType<typeof google.googleGatewayClient>);
+  await selectorCatalog(); clock += 7 * 24 * 60 * 60_000;
+  client.mockImplementation(() => { throw new Error("Provider has no BYOK credential named gemini_1"); });
+  expect([...await selectorCatalog()]).toEqual(["gateway:gemini:gemini-new-fixture"]);
+  const calls = client.mock.calls.length;
+  await selectorCatalog(); expect(client.mock.calls.length).toBe(calls);
 });
 
 test("does not reuse a catalog across credential configurations", async () => {

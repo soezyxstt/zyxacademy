@@ -15,10 +15,7 @@ export class GatewayAliasCooldownError extends ProviderAdapterError {
   constructor() { super({ code: "PROVIDER_AUTHENTICATION", message: "AI Gateway alias is cooling down", retryClassification: "authentication" }); }
 }
 
-export async function withGatewayAlias<T>(
-  env: Readonly<Record<string, string | undefined>>, route: string, alias: string,
-  invoke: () => Promise<T>, succeeded: (result: T) => boolean,
-): Promise<T> {
+export async function assertGatewayAliasAvailable(env: Readonly<Record<string, string | undefined>>, route: string, alias: string) {
   const id = identity(env, route, alias);
   const control = env.ZYRA_CONTROL_PLANE_URL && env.ZYRA_CONTROL_PLANE_TOKEN
     ? new ControlPlaneClient({ baseUrl: env.ZYRA_CONTROL_PLANE_URL, token: env.ZYRA_CONTROL_PLANE_TOKEN }) : undefined;
@@ -27,6 +24,18 @@ export async function withGatewayAlias<T>(
   if (control) { try { state = await control.aliasHealth(id); local.set(id, state); } catch { /* Keep local protection if health storage is unreachable. */ } }
   if (state.cooldownUntil > Date.now()) throw new GatewayAliasCooldownError();
   if (state.cooldownUntil) { state = { failures: 0, cooldownUntil: 0 }; local.set(id, state); }
+}
+
+export async function withGatewayAlias<T>(
+  env: Readonly<Record<string, string | undefined>>, route: string, alias: string,
+  invoke: () => Promise<T>, succeeded: (result: T) => boolean, admitted = false,
+): Promise<T> {
+  // Admitted lifecycle calls checked shared health before dispatch; in-flight calls still record their outcome.
+  if (!admitted) await assertGatewayAliasAvailable(env, route, alias);
+  const id = identity(env, route, alias);
+  const state = local.get(id) ?? { failures: 0, cooldownUntil: 0 };
+  const control = env.ZYRA_CONTROL_PLANE_URL && env.ZYRA_CONTROL_PLANE_TOKEN
+    ? new ControlPlaneClient({ baseUrl: env.ZYRA_CONTROL_PLANE_URL, token: env.ZYRA_CONTROL_PLANE_TOKEN }) : undefined;
   const attemptId = randomUUID();
   const record = async (success: boolean) => {
     if (control) {

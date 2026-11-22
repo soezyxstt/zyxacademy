@@ -1,5 +1,5 @@
 import { prepareCompatibleText } from "./compatible-text";
-import { googleGatewayClient } from "./google-gateway-client";
+import { prepareGoogleGatewayClient } from "./google-gateway-client";
 import { buildAiGatewayHeaders } from "@/lib/ai/gateway-metadata";
 import { classifyProviderError, ProviderAdapterError } from "@/lib/ai/provider/errors";
 import { createGeminiGenerateAdapter } from "@/lib/ai/provider/gemini-generate-adapter";
@@ -39,9 +39,9 @@ export type ProcessEnvProviderInvokerOptions = {
   readonly environment?: RuntimeEnvironment;
 };
 
-export function createProviderInvokerFromEnvironment(
+export function createProviderPreparerFromEnvironment(
   options: ProcessEnvProviderInvokerOptions = {},
-): RequestLifecycleDependencies["invokeProvider"] {
+): NonNullable<RequestLifecycleDependencies["prepareProvider"]> {
   const environment = options.environment ?? process.env;
   let slots: ReturnType<typeof providerSlots> | undefined;
   const gatewayUrl = environment.CF_AI_GATEWAY_URL?.trim();
@@ -51,8 +51,8 @@ export function createProviderInvokerFromEnvironment(
     throw runtimeConfigurationError("AI Gateway URL and token must be configured together");
   }
 
-  return async (input): Promise<ProviderGenerationResult> => {
-    if (getModelEntry(input.modelId).family === "chat-completions") return prepareCompatibleText(input, environment)();
+  return async (input) => {
+    if (getModelEntry(input.modelId).family === "chat-completions") return prepareCompatibleText(input, environment);
     slots ??= providerSlots(environment);
     const slot = slots.get(input.projectAlias);
     if (!slot) {
@@ -68,26 +68,29 @@ export function createProviderInvokerFromEnvironment(
     const viaGateway = true;
     const gatewayHeaders = buildAiGatewayHeaders({ ...input, deadlineMs: entry.deadlineMs });
 
-    try {
-      const selected = slot[Math.floor(Math.random() * slot.length)];
-      const client = googleGatewayClient(selected.key, environment, entry.deadlineMs, gatewayHeaders, {
-        preferByokAlias: selected.byokAlias,
-      });
-      const adapter = entry.family === "interactions"
-        ? createGeminiInteractionsAdapter({ interactions: client.interactions })
-        : createGeminiGenerateAdapter({ models: client.models });
-      const result = await adapter.generate({
-        modelId: input.modelId,
-        parts: input.parts as readonly ProviderInputPart[],
-        config: input.config,
-      });
-      return {
-        ...result,
-        providerRequestId: result.providerRequestId ?? input.requestId,
-        viaGateway,
-      };
-    } catch (error) {
-      throw classifyProviderError(error, input.modelId);
-    }
+    const selected = slot[Math.floor(Math.random() * slot.length)];
+    const client = await prepareGoogleGatewayClient(selected.key, environment, entry.deadlineMs, gatewayHeaders, {
+      preferByokAlias: selected.byokAlias,
+    });
+    const adapter = entry.family === "interactions"
+      ? createGeminiInteractionsAdapter({ interactions: client.interactions })
+      : createGeminiGenerateAdapter({ models: client.models });
+    return async (): Promise<ProviderGenerationResult> => {
+      try {
+        const result = await adapter.generate({
+          modelId: input.modelId,
+          parts: input.parts as readonly ProviderInputPart[],
+          config: input.config,
+        });
+        return { ...result, providerRequestId: result.providerRequestId ?? input.requestId, viaGateway };
+      } catch (error) {
+        throw classifyProviderError(error, input.modelId);
+      }
+    };
   };
+}
+
+export function createProviderInvokerFromEnvironment(options: ProcessEnvProviderInvokerOptions = {}): RequestLifecycleDependencies["invokeProvider"] {
+  const prepare = createProviderPreparerFromEnvironment(options);
+  return async input => (await prepare(input))();
 }
