@@ -1,8 +1,10 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, mock, test } from "bun:test";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { multiSessionClient } from "better-auth/client/plugins";
 import { multiSession } from "better-auth/plugins/multi-session";
 import { oneTimeToken } from "better-auth/plugins/one-time-token";
+import { createAuthClient } from "better-auth/react";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import { accountSwitchPlugin } from "@/lib/auth/account-switch-plugin";
@@ -73,6 +75,53 @@ class Browser {
 }
 
 describe("saved device account sessions", () => {
+  test("the account picker loads through the real client and streamed HTTP requests", async () => {
+    const browser = new Browser();
+    const responses: Array<{ path: string; status: number }> = [];
+    const authClient = createAuthClient({
+      baseURL: origin,
+      plugins: [multiSessionClient()],
+      fetchOptions: {
+        customFetchImpl: async (input, init) => {
+          const headers = new Headers(init?.headers);
+          headers.set("origin", origin);
+          headers.set("cookie", [...browser.cookies].map(([key, value]) => `${key}=${value}`).join("; "));
+          // Next's Node adapter supplies a stream even when a POST has no bytes.
+          // Preserve the real client's headers so missing JSON content types fail.
+          const body = init?.body ?? (init?.method === "POST"
+            ? new ReadableStream({ start(controller) { controller.close(); } })
+            : undefined);
+          const request = new Request(input, { ...init, headers, body, duplex: "half" } as RequestInit);
+          const response = await auth.handler(request);
+          browser.applyCookies(response);
+          responses.push({ path: new URL(request.url).pathname, status: response.status });
+          return response;
+        },
+      },
+    });
+    mock.module("@/lib/auth-client", () => ({ authClient }));
+    const { listSavedAccounts } = await import("@/lib/auth/account-switch");
+
+    const [guest] = await Promise.allSettled([listSavedAccounts()]);
+    expect(responses).toEqual([
+      { path: "/api/auth/account-switch/remember", status: 200 },
+      { path: "/api/auth/multi-session/list-device-sessions", status: 200 },
+    ]);
+    expect(guest).toEqual({ status: "fulfilled", value: [] });
+
+    const signedIn = await browser.signup("streamed-client-account", true);
+    expect(signedIn.response.status).toBe(200);
+    expect([...browser.cookies.keys()].some((key) => key.includes("_multi-"))).toBe(false);
+    responses.length = 0;
+    const accounts = await listSavedAccounts();
+    expect(accounts.map((account) => account.user.id)).toEqual([signedIn.data.user.id]);
+    expect([...browser.cookies.keys()].some((key) => key.includes("_multi-"))).toBe(true);
+    expect(responses).toEqual([
+      { path: "/api/auth/account-switch/remember", status: 200 },
+      { path: "/api/auth/multi-session/list-device-sessions", status: 200 },
+    ]);
+  });
+
   test("guest account picker preparation does not require an existing login", async () => {
     const browser = new Browser();
     const remembered = await browser.request("/account-switch/remember", {});

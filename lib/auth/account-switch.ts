@@ -23,7 +23,7 @@ async function currentUserId(): Promise<string | null> {
 }
 
 async function rememberCurrent(signal?: AbortSignal): Promise<void> {
-  const result = await authClient.$fetch("/account-switch/remember", { method: "POST", signal });
+  const result = await authClient.$fetch("/account-switch/remember", { method: "POST", body: {}, signal });
   if (result.error) throw accountSwitchError(result.error);
 }
 
