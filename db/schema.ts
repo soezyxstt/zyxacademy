@@ -427,44 +427,69 @@ export const courses = pgTable("courses", {
 });
 
 // Enrollments Table
-export const enrollments = pgTable("enrollments", {
- id: text("id").primaryKey(),
- userId: text("user_id").references(() => user.id).notNull(),
- courseId: text("course_id").references(() => courses.id).notNull(),
- enrolledAt: timestamp("enrolled_at", { withTimezone: true }).defaultNow(),
- expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(), // Locks out students once the semester ends
-});
+export const enrollments = pgTable(
+ "enrollments",
+ {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => user.id).notNull(),
+  courseId: text("course_id").references(() => courses.id).notNull(),
+  enrolledAt: timestamp("enrolled_at", { withTimezone: true }).defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(), // Locks out students once the semester ends
+ },
+ (table) => [
+  index("enrollments_user_course_idx").on(table.userId, table.courseId),
+  index("enrollments_course_idx").on(table.courseId),
+ ],
+);
 
 // Progress (Materials) Table
-export const progress = pgTable("progress", {
- id: text("id").primaryKey(),
- userId: text("user_id").references(() => user.id),
- materialId: text("material_id"), // Ideally references a materials table
- status: text("status").default("completed"),
- completedAt: timestamp("completed_at", { withTimezone: true }).defaultNow(),
-});
+export const progress = pgTable(
+ "progress",
+ {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => user.id),
+  materialId: text("material_id"), // Ideally references a materials table
+  status: text("status").default("completed"),
+  completedAt: timestamp("completed_at", { withTimezone: true }).defaultNow(),
+ },
+ (table) => [
+  index("progress_user_material_idx").on(table.userId, table.materialId),
+ ],
+);
 
 // Exams (Quizzes and Tryouts) Table
-export const exams = pgTable("exams", {
-  id: text("id").primaryKey(),
-  courseId: text("course_id").references(() => courses.id).notNull(),
-  title: text("title").notNull(),
-  type: text("type").$type<"quiz" | "tryout">().notNull(), // Specifies if it is a quiz or tryout
-  status: text("status").$type<"draft" | "published" | "ended">().default("draft").notNull(), // Can be draft, published, or ended
-  settings: jsonb("settings"), // Stores specific limits like "only three submissions" or "one time only"
-  openAt: timestamp("open_at", { withTimezone: true }),
-  closeAt: timestamp("close_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
+export const exams = pgTable(
+  "exams",
+  {
+    id: text("id").primaryKey(),
+    courseId: text("course_id").references(() => courses.id).notNull(),
+    title: text("title").notNull(),
+    type: text("type").$type<"quiz" | "tryout">().notNull(), // Specifies if it is a quiz or tryout
+    status: text("status").$type<"draft" | "published" | "ended">().default("draft").notNull(), // Can be draft, published, or ended
+    settings: jsonb("settings"), // Stores specific limits like "only three submissions" or "one time only"
+    openAt: timestamp("open_at", { withTimezone: true }),
+    closeAt: timestamp("close_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    index("exams_course_type_status_idx").on(table.courseId, table.type, table.status),
+  ],
+);
 
 // Questions Table
-export const questions = pgTable("questions", {
- id: text("id").primaryKey(),
- examId: text("exam_id").references(() => exams.id).notNull(),
- type: text("type").notNull(), // 'short_answer', 'multiple_choice', 'essay'
- content: jsonb("content").notNull(), // Hybrid approach using JSON blob for question data, options, and correct answers
- order: bigint("order", { mode: "number" }).notNull(),
-});
+export const questions = pgTable(
+ "questions",
+ {
+  id: text("id").primaryKey(),
+  examId: text("exam_id").references(() => exams.id).notNull(),
+  type: text("type").notNull(), // 'short_answer', 'multiple_choice', 'essay'
+  content: jsonb("content").notNull(), // Hybrid approach using JSON blob for question data, options, and correct answers
+  order: bigint("order", { mode: "number" }).notNull(),
+ },
+ (table) => [
+  index("questions_exam_idx").on(table.examId),
+ ],
+);
 
 // Submissions Table
 export const submissions = pgTable(
@@ -565,16 +590,22 @@ export const groupMembers = pgTable(
 );
 
 // Enrollment Tokens Table
-export const enrollmentTokens = pgTable("enrollment_tokens", {
-	id: text("id").primaryKey(),
-	token: text("token").notNull().unique(),
-	groupId: text("group_id")
-		.notNull()
-		.references(() => groups.id, { onDelete: "cascade" }),
-	capacity: bigint("capacity", { mode: "number" }).default(1).notNull(), // Capacity from 1 to 5 people
-	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-	expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-});
+export const enrollmentTokens = pgTable(
+	"enrollment_tokens",
+	{
+		id: text("id").primaryKey(),
+		token: text("token").notNull().unique(),
+		groupId: text("group_id")
+			.notNull()
+			.references(() => groups.id, { onDelete: "cascade" }),
+		capacity: bigint("capacity", { mode: "number" }).default(1).notNull(), // Capacity from 1 to 5 people
+		createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+		expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+	},
+	(table) => [
+		index("enrollment_tokens_group_idx").on(table.groupId),
+	]
+);
 
 // Enrollment Token Courses Join Table (Many-to-Many between Token and Courses)
 export const enrollmentTokenCourses = pgTable(
@@ -3383,7 +3414,11 @@ export const flashcardSets = pgTable(
  .defaultNow()
  .$onUpdate(() => new Date())
  .notNull(),
- }
+ },
+ (table) => [
+  index("flashcard_sets_course_status_idx").on(table.courseId, table.status),
+  index("flashcard_sets_chapter_idx").on(table.chapterId),
+ ]
 );
 
 // 8. flashcards
@@ -3402,7 +3437,11 @@ export const flashcards = pgTable(
  status: text("status").$type<"active" | "retired">().default("active").notNull(),
  metadata: jsonb("metadata").$defaultFn(() => ({})).notNull(),
  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
- }
+ },
+ (table) => [
+  index("flashcards_set_status_idx").on(table.setId, table.status),
+  index("flashcards_ko_idx").on(table.koId),
+ ]
 );
 
 // 9. student_flashcard_progress

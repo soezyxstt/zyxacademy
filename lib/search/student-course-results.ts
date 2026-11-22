@@ -10,18 +10,23 @@ export type StudentSearchCandidate = { courseId: string; entityId: string; type:
 export async function resolveStudentSearchCandidates(studentId: string, candidates: readonly StudentSearchCandidate[], now = new Date()): Promise<Map<StudentSearchCandidate, string>> {
   const ids = [...new Set(candidates.map((item) => item.entityId).filter(Boolean))];
   if (!ids.length) return new Map();
+  const idsForType = (type: string) => [...new Set(candidates.filter((item) => item.type === type).map((item) => item.entityId).filter(Boolean))];
+  const chapterIds = idsForType("chapter");
+  const materialIds = idsForType("material");
+  const quizIds = idsForType("quiz");
+  const examIds = idsForType("exam");
   const [access, chapterRows, canonicalChapters, ai, manual, legacyDiktat, web, articles, canonicalDiktat, quizzes, examRows] = await Promise.all([
     resolveCourseAccessBatch(studentId, candidates.map((item) => item.courseId), { now }),
-    db.select().from(chapters).where(inArray(chapters.id, ids)),
-    db.select().from(bab).where(inArray(bab.id, ids)),
-    db.select().from(aiMaterialInstances).where(inArray(aiMaterialInstances.id, ids)),
-    db.select().from(courseMaterials).where(inArray(courseMaterials.id, ids)),
-    db.select().from(diktats).where(inArray(diktats.id, ids)),
-    db.select().from(websiteMaterials).where(inArray(websiteMaterials.id, ids)),
-    db.select().from(artikel).where(inArray(artikel.id, ids)),
-    db.select().from(diktatMateri).where(inArray(diktatMateri.id, ids)),
-    db.select().from(quizTemplates).where(inArray(quizTemplates.id, ids)),
-    db.select().from(exams).where(inArray(exams.id, ids)),
+    chapterIds.length ? db.select({ id: chapters.id, title: chapters.title, status: chapters.status, courseId: chapters.courseId }).from(chapters).where(inArray(chapters.id, chapterIds)) : Promise.resolve([]),
+    chapterIds.length ? db.select({ id: bab.id, title: bab.title, status: bab.status, mataKuliahId: bab.mataKuliahId }).from(bab).where(inArray(bab.id, chapterIds)) : Promise.resolve([]),
+    materialIds.length ? db.select({ id: aiMaterialInstances.id, title: aiMaterialInstances.title, courseId: aiMaterialInstances.courseId, chapterIds: aiMaterialInstances.chapterIds }).from(aiMaterialInstances).where(inArray(aiMaterialInstances.id, materialIds)) : Promise.resolve([]),
+    materialIds.length ? db.select({ id: courseMaterials.id, title: courseMaterials.title, courseId: courseMaterials.courseId, chapterIds: courseMaterials.chapterIds }).from(courseMaterials).where(inArray(courseMaterials.id, materialIds)) : Promise.resolve([]),
+    materialIds.length ? db.select({ id: diktats.id, title: diktats.title, status: diktats.status, isStale: diktats.isStale, courseId: diktats.courseId, chapterIds: diktats.chapterIds }).from(diktats).where(inArray(diktats.id, materialIds)) : Promise.resolve([]),
+    materialIds.length ? db.select({ id: websiteMaterials.id, title: websiteMaterials.title, status: websiteMaterials.status, isStale: websiteMaterials.isStale, courseId: websiteMaterials.courseId, chapterId: websiteMaterials.chapterId }).from(websiteMaterials).where(inArray(websiteMaterials.id, materialIds)) : Promise.resolve([]),
+    materialIds.length ? db.select({ id: artikel.id, title: artikel.title, status: artikel.status, mataKuliahId: artikel.mataKuliahId, babId: artikel.babId }).from(artikel).where(inArray(artikel.id, materialIds)) : Promise.resolve([]),
+    materialIds.length ? db.select({ id: diktatMateri.id, title: diktatMateri.title, status: diktatMateri.status, mataKuliahId: diktatMateri.mataKuliahId, babId: diktatMateri.babId }).from(diktatMateri).where(inArray(diktatMateri.id, materialIds)) : Promise.resolve([]),
+    quizIds.length ? db.select({ id: quizTemplates.id, title: quizTemplates.title, status: quizTemplates.status, courseId: quizTemplates.courseId, category: quizTemplates.category, visibility: quizTemplates.visibility, selectionRules: quizTemplates.selectionRules }).from(quizTemplates).where(inArray(quizTemplates.id, quizIds)) : Promise.resolve([]),
+    examIds.length ? db.select({ id: exams.id, title: exams.title, type: exams.type, status: exams.status, courseId: exams.courseId }).from(exams).where(inArray(exams.id, examIds)) : Promise.resolve([]),
   ]);
   const result = new Map<StudentSearchCandidate, string>();
   for (const item of candidates) {

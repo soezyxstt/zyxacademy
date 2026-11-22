@@ -89,8 +89,10 @@ export function evaluateExamAnswer(userAnswer: string, correctAnswer: string): b
 // ==========================================
 
 export async function getReviewQueue(studentId: string, courseId: string) {
-  const course = await resolveStudentCourse(courseId);
-  const access = await getStudentCourseAccess(studentId, courseId);
+  const [course, access] = await Promise.all([
+    resolveStudentCourse(courseId),
+    getStudentCourseAccess(studentId, courseId),
+  ]);
   if (!access) return [];
   if (course?.canonicalId) {
     const canonicalCards = await db
@@ -117,29 +119,32 @@ export async function getReviewQueue(studentId: string, courseId: string) {
       );
 
     if (canonicalCards.length > 0) {
-      const progressRows = await db
-        .select()
-        .from(kemajuanFlashcardMurid)
-        .where(
-          and(
-            eq(kemajuanFlashcardMurid.penggunaId, studentId),
-            inArray(kemajuanFlashcardMurid.flashcardId, canonicalCards.map((card) => card.id)),
+      const canonicalCardIds = canonicalCards.map((card) => card.id);
+      const [progressRows, ideaRows] = await Promise.all([
+        db
+          .select()
+          .from(kemajuanFlashcardMurid)
+          .where(
+            and(
+              eq(kemajuanFlashcardMurid.penggunaId, studentId),
+              inArray(kemajuanFlashcardMurid.flashcardId, canonicalCardIds),
+            ),
           ),
-        );
+        db
+          .select({
+            flashcardId: flashcardIde.flashcardId,
+            ideaId: flashcardIde.ideId,
+            masteryScore: pemahamanIde.skor,
+            confidence: pemahamanIde.keyakinan,
+          })
+          .from(flashcardIde)
+          .leftJoin(
+            pemahamanIde,
+            and(eq(pemahamanIde.ideId, flashcardIde.ideId), eq(pemahamanIde.penggunaId, studentId)),
+          )
+          .where(inArray(flashcardIde.flashcardId, canonicalCardIds)),
+      ]);
       const progressByCard = new Map(progressRows.map((row) => [row.flashcardId, row]));
-      const ideaRows = await db
-        .select({
-          flashcardId: flashcardIde.flashcardId,
-          ideaId: flashcardIde.ideId,
-          masteryScore: pemahamanIde.skor,
-          confidence: pemahamanIde.keyakinan,
-        })
-        .from(flashcardIde)
-        .leftJoin(
-          pemahamanIde,
-          and(eq(pemahamanIde.ideId, flashcardIde.ideId), eq(pemahamanIde.penggunaId, studentId)),
-        )
-        .where(inArray(flashcardIde.flashcardId, canonicalCards.map((card) => card.id)));
       const ideaByCard = new Map<string, (typeof ideaRows)[number]>();
       for (const row of ideaRows) {
         ideaByCard.set(row.flashcardId, weakestFlashcardIdea([...(ideaByCard.has(row.flashcardId) ? [ideaByCard.get(row.flashcardId)!] : []), row])!);

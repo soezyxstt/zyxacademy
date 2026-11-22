@@ -331,46 +331,139 @@ export async function buildPlanForConcepts(
   const now = new Date();
   const items: PlanItem[] = [];
 
-  // 1. Flashcards covering these concepts
   const access = await resolveCourseAccess({ courseId, userId: studentId, now });
-  const dueRows = await db
-    .selectDistinct({ cardId: flashcards.id, courseId: flashcardSets.courseId, chapterId: flashcardSets.chapterId })
-    .from(flashcards)
-    .innerJoin(flashcardSets, eq(flashcards.setId, flashcardSets.id))
-    .innerJoin(knowledgeObjects, eq(flashcards.koId, knowledgeObjects.id))
-    .leftJoin(
-      studentFlashcardProgress,
-      and(
-        eq(studentFlashcardProgress.flashcardId, flashcards.id),
-        eq(studentFlashcardProgress.studentId, studentId)
-      )
-    )
-    .where(
-      and(
-        eq(flashcards.status, "active"),
-        eq(flashcardSets.status, "published"),
-        eq(flashcardSets.isStale, false),
-        eq(flashcardSets.courseId, access.legacyCourseId ?? courseId),
-        inArray(knowledgeObjects.conceptName, conceptNames),
-        or(
-          isNull(studentFlashcardProgress.id),
-          lte(studentFlashcardProgress.dueDate, now)
+
+  const [dueRows, canonicalCards, passedRows, completedChapIds] = await Promise.all([
+    db
+      .selectDistinct({ cardId: flashcards.id, courseId: flashcardSets.courseId, chapterId: flashcardSets.chapterId })
+      .from(flashcards)
+      .innerJoin(flashcardSets, eq(flashcards.setId, flashcardSets.id))
+      .innerJoin(knowledgeObjects, eq(flashcards.koId, knowledgeObjects.id))
+      .leftJoin(
+        studentFlashcardProgress,
+        and(
+          eq(studentFlashcardProgress.flashcardId, flashcards.id),
+          eq(studentFlashcardProgress.studentId, studentId)
         )
       )
-    );
+      .where(
+        and(
+          eq(flashcards.status, "active"),
+          eq(flashcardSets.status, "published"),
+          eq(flashcardSets.isStale, false),
+          eq(flashcardSets.courseId, access.legacyCourseId ?? courseId),
+          inArray(knowledgeObjects.conceptName, conceptNames),
+          or(
+            isNull(studentFlashcardProgress.id),
+            lte(studentFlashcardProgress.dueDate, now)
+          )
+        )
+      ),
+    access.canonicalCourseId
+      ? db
+          .select({ id: canonicalFlashcard.id })
+          .from(canonicalFlashcard)
+          .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
+          .where(
+            and(
+              eq(setFlashcard.mataKuliahId, access.canonicalCourseId),
+              eq(setFlashcard.status, "published"),
+              eq(canonicalFlashcard.status, "published")
+            )
+          )
+          .limit(1)
+      : Promise.resolve([]),
+    db
+      .select({ templateId: studentQuizAttempts.templateId })
+      .from(studentQuizAttempts)
+      .where(
+        and(
+          eq(studentQuizAttempts.studentId, studentId),
+          eq(studentQuizAttempts.status, "completed"),
+          gte(studentQuizAttempts.score, 70)
+        )
+      ),
+    db
+      .select({ chapterId: studentChapterProgress.chapterId })
+      .from(studentChapterProgress)
+      .where(
+        and(
+          eq(studentChapterProgress.studentId, studentId),
+          eq(studentChapterProgress.completed, true)
+        )
+      ),
+  ]);
 
-  const canonicalCards = access.canonicalCourseId ? await db.select({ id: canonicalFlashcard.id }).from(canonicalFlashcard)
-    .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
-    .where(and(eq(setFlashcard.mataKuliahId, access.canonicalCourseId), eq(setFlashcard.status, "published"), eq(canonicalFlashcard.status, "published"))).limit(1) : [];
-  const canonicalDue = canonicalCards.length ? await db.selectDistinct({ cardId: canonicalFlashcard.id, chapterId: setFlashcard.babId })
-    .from(canonicalFlashcard)
-    .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
-    .innerJoin(flashcardIde, eq(flashcardIde.flashcardId, canonicalFlashcard.id))
-    .innerJoin(ide, eq(ide.id, flashcardIde.ideId))
-    .innerJoin(conceptLocalizations, eq(conceptLocalizations.conceptId, ide.conceptId))
-    .leftJoin(kemajuanFlashcardMurid, and(eq(kemajuanFlashcardMurid.flashcardId, canonicalFlashcard.id), eq(kemajuanFlashcardMurid.penggunaId, studentId)))
-    .where(and(eq(setFlashcard.mataKuliahId, access.canonicalCourseId!), eq(setFlashcard.status, "published"), eq(canonicalFlashcard.status, "published"), inArray(conceptLocalizations.displayName, conceptNames), or(isNull(kemajuanFlashcardMurid.id), and(eq(kemajuanFlashcardMurid.status, "active"), lte(kemajuanFlashcardMurid.dueAt, now))))) : [];
-  const eligibleRows = (canonicalCards.length ? canonicalDue : dueRows).filter((row) => canAccessCourseContent(access, "flashcard", [row.chapterId]));
+  const passedIds = passedRows.map((r) => r.templateId);
+  const completedIds = completedChapIds.map((r) => r.chapterId);
+
+  const [canonicalDue, quizTemplatesRows, moduleQuery] = await Promise.all([
+    canonicalCards.length
+      ? db
+          .selectDistinct({ cardId: canonicalFlashcard.id, chapterId: setFlashcard.babId })
+          .from(canonicalFlashcard)
+          .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
+          .innerJoin(flashcardIde, eq(flashcardIde.flashcardId, canonicalFlashcard.id))
+          .innerJoin(ide, eq(ide.id, flashcardIde.ideId))
+          .innerJoin(conceptLocalizations, eq(conceptLocalizations.conceptId, ide.conceptId))
+          .leftJoin(
+            kemajuanFlashcardMurid,
+            and(
+              eq(kemajuanFlashcardMurid.flashcardId, canonicalFlashcard.id),
+              eq(kemajuanFlashcardMurid.penggunaId, studentId)
+            )
+          )
+          .where(
+            and(
+              eq(setFlashcard.mataKuliahId, access.canonicalCourseId!),
+              eq(setFlashcard.status, "published"),
+              eq(canonicalFlashcard.status, "published"),
+              inArray(conceptLocalizations.displayName, conceptNames),
+              or(
+                isNull(kemajuanFlashcardMurid.id),
+                and(eq(kemajuanFlashcardMurid.status, "active"), lte(kemajuanFlashcardMurid.dueAt, now))
+              )
+            )
+          )
+      : Promise.resolve([]),
+    db
+      .select({
+        id: quizTemplates.id,
+        title: quizTemplates.title,
+        selectionRules: quizTemplates.selectionRules,
+      })
+      .from(quizTemplates)
+      .where(
+        and(
+          eq(quizTemplates.courseId, courseId),
+          passedIds.length > 0 ? notInArray(quizTemplates.id, passedIds) : undefined
+        )
+      ),
+    db
+      .select({
+        id: websiteMaterials.id,
+        title: websiteMaterials.title,
+        chapterId: websiteMaterials.chapterId,
+      })
+      .from(websiteMaterials)
+      .innerJoin(chapters, eq(websiteMaterials.chapterId, chapters.id))
+      .innerJoin(knowledgeObjects, eq(knowledgeObjects.chapterId, chapters.id))
+      .where(
+        and(
+          eq(websiteMaterials.courseId, courseId),
+          eq(websiteMaterials.status, "published"),
+          eq(chapters.status, "published"),
+          inArray(knowledgeObjects.conceptName, conceptNames),
+          completedIds.length > 0 ? notInArray(websiteMaterials.chapterId, completedIds) : undefined
+        )
+      )
+      .orderBy(asc(chapters.orderIndex))
+      .limit(1),
+  ]);
+
+  const eligibleRows = (canonicalCards.length ? canonicalDue : dueRows).filter((row) =>
+    canAccessCourseContent(access, "flashcard", [row.chapterId])
+  );
 
   if (eligibleRows.length > 0) {
     items.push({
@@ -381,33 +474,6 @@ export async function buildPlanForConcepts(
       href: `/courses/${courseId}/flashcard`,
     });
   }
-
-  // 2. Quiz: unpassed published template covering these concepts
-  const passedRows = await db
-    .select({ templateId: studentQuizAttempts.templateId })
-    .from(studentQuizAttempts)
-    .where(
-      and(
-        eq(studentQuizAttempts.studentId, studentId),
-        eq(studentQuizAttempts.status, "completed"),
-        gte(studentQuizAttempts.score, 70)
-      )
-    );
-  const passedIds = passedRows.map((r) => r.templateId);
-
-  const quizTemplatesRows = await db
-    .select({
-      id: quizTemplates.id,
-      title: quizTemplates.title,
-      selectionRules: quizTemplates.selectionRules,
-    })
-    .from(quizTemplates)
-    .where(
-      and(
-        eq(quizTemplates.courseId, courseId),
-        passedIds.length > 0 ? notInArray(quizTemplates.id, passedIds) : undefined
-      )
-    );
 
   const matchedQuiz = quizTemplatesRows.find((q) => {
     const rules = q.selectionRules as Record<string, unknown> | null;
@@ -423,39 +489,6 @@ export async function buildPlanForConcepts(
       href: `/courses/${courseId}/quiz/${matchedQuiz.id}`,
     });
   }
-
-  // 3. Module: first uncompleted published chapter material covering these concepts
-  const completedChapIds = await db
-    .select({ chapterId: studentChapterProgress.chapterId })
-    .from(studentChapterProgress)
-    .where(
-      and(
-        eq(studentChapterProgress.studentId, studentId),
-        eq(studentChapterProgress.completed, true)
-      )
-    );
-  const completedIds = completedChapIds.map((r) => r.chapterId);
-
-  const moduleQuery = await db
-    .select({
-      id: websiteMaterials.id,
-      title: websiteMaterials.title,
-      chapterId: websiteMaterials.chapterId,
-    })
-    .from(websiteMaterials)
-    .innerJoin(chapters, eq(websiteMaterials.chapterId, chapters.id))
-    .innerJoin(knowledgeObjects, eq(knowledgeObjects.chapterId, chapters.id))
-    .where(
-      and(
-        eq(websiteMaterials.courseId, courseId),
-        eq(websiteMaterials.status, "published"),
-        eq(chapters.status, "published"),
-        inArray(knowledgeObjects.conceptName, conceptNames),
-        completedIds.length > 0 ? notInArray(websiteMaterials.chapterId, completedIds) : undefined
-      )
-    )
-    .orderBy(asc(chapters.orderIndex))
-    .limit(1);
 
   const matchedModule = moduleQuery[0];
 

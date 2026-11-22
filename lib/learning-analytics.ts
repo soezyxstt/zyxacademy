@@ -71,34 +71,22 @@ export async function getCardsReviewedToday(studentId: string, courseId?: string
  */
 export async function getCardsDueToday(studentId: string, courseId?: string): Promise<number> {
   const now = new Date();
-  
-  // 1. Get all active cards of published sets
-  let setsQuery;
+  const conditions = [
+    eq(flashcardSets.status, "published"),
+    eq(flashcards.status, "active"),
+    or(
+      isNull(studentFlashcardProgress.id),
+      lte(studentFlashcardProgress.dueDate, now)
+    ),
+  ];
   if (courseId) {
-    setsQuery = db
-      .select({ id: flashcardSets.id })
-      .from(flashcardSets)
-      .where(
-        and(
-          eq(flashcardSets.courseId, courseId),
-          eq(flashcardSets.status, "published")
-        )
-      );
-  } else {
-    setsQuery = db
-      .select({ id: flashcardSets.id })
-      .from(flashcardSets)
-      .where(eq(flashcardSets.status, "published"));
+    conditions.push(eq(flashcardSets.courseId, courseId));
   }
 
-  const publishedSets = await setsQuery;
-  if (publishedSets.length === 0) return 0;
-  const setIds = publishedSets.map(s => s.id);
-
-  // 2. Count due cards
   const [result] = await db
     .select({ count: sql<number>`count(*)` })
     .from(flashcards)
+    .innerJoin(flashcardSets, eq(flashcards.setId, flashcardSets.id))
     .leftJoin(
       studentFlashcardProgress,
       and(
@@ -106,18 +94,9 @@ export async function getCardsDueToday(studentId: string, courseId?: string): Pr
         eq(studentFlashcardProgress.studentId, studentId)
       )
     )
-    .where(
-      and(
-        inArray(flashcards.setId, setIds),
-        eq(flashcards.status, "active"),
-        or(
-          isNull(studentFlashcardProgress.id),
-          lte(studentFlashcardProgress.dueDate, now)
-        )
-      )
-    );
+    .where(and(...conditions));
 
-  return result?.count || 0;
+  return Number(result?.count) || 0;
 }
 
 /**
@@ -230,8 +209,62 @@ export async function getCourseLearningSummary(
 ): Promise<CourseLearningSummary> {
   const now = new Date();
 
-  // 1. Get continue reading
-  const lastProgress = await getContinueReading(studentId, courseId);
+  const [
+    lastProgress,
+    dueCount,
+    recentEvents,
+    totalSeconds,
+    completedMatsRows,
+    reviewedCardsRows,
+    streakInfo,
+  ] = await Promise.all([
+    getContinueReading(studentId, courseId),
+    getCardsDueToday(studentId, courseId),
+    db
+      .select({
+        id: learningEvents.id,
+        eventType: learningEvents.eventType,
+        conceptName: learningEvents.conceptName,
+        createdAt: learningEvents.createdAt,
+      })
+      .from(learningEvents)
+      .where(
+        and(
+          eq(learningEvents.studentId, studentId),
+          eq(learningEvents.courseId, courseId)
+        )
+      )
+      .orderBy(desc(learningEvents.createdAt))
+      .limit(5),
+    getTotalStudyTime(studentId, courseId),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(studentMaterialProgress)
+      .innerJoin(websiteMaterials, eq(studentMaterialProgress.materialId, websiteMaterials.id))
+      .where(
+        and(
+          eq(studentMaterialProgress.studentId, studentId),
+          eq(websiteMaterials.courseId, courseId),
+          gte(studentMaterialProgress.completionPercent, 90)
+        )
+      ),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(flashcardReviews)
+      .innerJoin(flashcards, eq(flashcardReviews.flashcardId, flashcards.id))
+      .innerJoin(flashcardSets, eq(flashcards.setId, flashcardSets.id))
+      .where(
+        and(
+          eq(flashcardReviews.studentId, studentId),
+          eq(flashcardSets.courseId, courseId)
+        )
+      ),
+    getOrUpdateStreak(studentId).catch((e) => {
+      console.error("Failed to load streak for summary:", e);
+      return null;
+    }),
+  ]);
+
   const continueReading = lastProgress
     ? {
         materialId: lastProgress.materialId,
@@ -243,27 +276,12 @@ export async function getCourseLearningSummary(
       }
     : null;
 
-  // 2. Get due flashcards
-  const dueCount = await getCardsDueToday(studentId, courseId);
   const dueFlashcards = {
     dueCount,
     nextReviewRecommendation: dueCount > 0
       ? `Kamu memiliki ${dueCount} flashcard untuk diulas hari ini.`
       : "Hebat! Semua kartu telah diulas.",
   };
-
-  // 3. Get recent activities
-  const recentEvents = await db
-    .select()
-    .from(learningEvents)
-    .where(
-      and(
-        eq(learningEvents.studentId, studentId),
-        eq(learningEvents.courseId, courseId)
-      )
-    )
-    .orderBy(desc(learningEvents.createdAt))
-    .limit(5);
 
   const activityTitles = new Map<string, string>();
   const references = [...new Set(recentEvents.flatMap((event) =>
@@ -315,46 +333,10 @@ export async function getCourseLearningSummary(
     };
   });
 
-  // 4. Get stats
-  const totalSeconds = await getTotalStudyTime(studentId, courseId);
   const studyTimeMin = Math.round(totalSeconds / 60);
-
-  // Completed materials count
-  const [completedMats] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(studentMaterialProgress)
-    .innerJoin(websiteMaterials, eq(studentMaterialProgress.materialId, websiteMaterials.id))
-    .where(
-      and(
-        eq(studentMaterialProgress.studentId, studentId),
-        eq(websiteMaterials.courseId, courseId),
-        gte(studentMaterialProgress.completionPercent, 90)
-      )
-    );
-  const completedMaterialsCount = completedMats?.count || 0;
-
-  // Cards reviewed count
-  const [reviewedCards] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(flashcardReviews)
-    .innerJoin(flashcards, eq(flashcardReviews.flashcardId, flashcards.id))
-    .innerJoin(flashcardSets, eq(flashcards.setId, flashcardSets.id))
-    .where(
-      and(
-        eq(flashcardReviews.studentId, studentId),
-        eq(flashcardSets.courseId, courseId)
-      )
-    );
-  const cardsReviewedCount = reviewedCards?.count || 0;
-
-  // Streak
-  let currentStreakDays = 0;
-  try {
-    const streakInfo = await getOrUpdateStreak(studentId);
-    currentStreakDays = streakInfo.current;
-  } catch (e) {
-    console.error("Failed to load streak for summary:", e);
-  }
+  const completedMaterialsCount = completedMatsRows[0]?.count || 0;
+  const cardsReviewedCount = reviewedCardsRows[0]?.count || 0;
+  const currentStreakDays = streakInfo?.current ?? 0;
 
   const studyStatistics = {
     studyTimeMin,
@@ -422,8 +404,26 @@ export async function getCourseDailyPlan(
 ): Promise<CourseDailyPlan> {
   const items: CourseDailyPlanItem[] = [];
 
-  // 1. Flashcards due today
-  const dueCount = await getCardsDueToday(studentId, courseId);
+  const [dueCount, weakest, passedRows, lastProgress, streakInfo] = await Promise.all([
+    getCardsDueToday(studentId, courseId),
+    getWeakestConcepts(studentId, courseId, 1),
+    db
+      .select({ templateId: studentQuizAttempts.templateId })
+      .from(studentQuizAttempts)
+      .where(
+        and(
+          eq(studentQuizAttempts.studentId, studentId),
+          eq(studentQuizAttempts.status, "completed"),
+          gte(studentQuizAttempts.score, 70)
+        )
+      ),
+    getContinueReading(studentId, courseId),
+    getOrUpdateStreak(studentId).catch((e) => {
+      console.error("Failed to load streak for course daily plan:", e);
+      return null;
+    }),
+  ]);
+
   if (dueCount > 0) {
     items.push({
       kind: "flashcards",
@@ -433,36 +433,37 @@ export async function getCourseDailyPlan(
     });
   }
 
-  // 2. Weakest concept -> a quiz still worth taking
-  const weakest = await getWeakestConcepts(studentId, courseId, 1);
   const weakestConcept = weakest[0]?.conceptName ?? null;
-
-  const passedRows = await db
-    .select({ templateId: studentQuizAttempts.templateId })
-    .from(studentQuizAttempts)
-    .where(
-      and(
-        eq(studentQuizAttempts.studentId, studentId),
-        eq(studentQuizAttempts.status, "completed"),
-        gte(studentQuizAttempts.score, 70)
-      )
-    );
   const passedIds = passedRows.map((r) => r.templateId);
+  const needsNextMaterialLookup = !(lastProgress && lastProgress.completionPercent < 90);
 
-  const quizzes = await db
-    .select({
-      id: quizTemplates.id,
-      title: quizTemplates.title,
-      category: quizTemplates.category,
-      selectionRules: quizTemplates.selectionRules,
-    })
-    .from(quizTemplates)
-    .where(
-      and(
-        eq(quizTemplates.courseId, courseId),
-        passedIds.length > 0 ? notInArray(quizTemplates.id, passedIds) : undefined
-      )
-    );
+  const [quizzes, completedChapIds] = await Promise.all([
+    db
+      .select({
+        id: quizTemplates.id,
+        title: quizTemplates.title,
+        category: quizTemplates.category,
+        selectionRules: quizTemplates.selectionRules,
+      })
+      .from(quizTemplates)
+      .where(
+        and(
+          eq(quizTemplates.courseId, courseId),
+          passedIds.length > 0 ? notInArray(quizTemplates.id, passedIds) : undefined
+        )
+      ),
+    needsNextMaterialLookup
+      ? db
+          .select({ chapterId: studentChapterProgress.chapterId })
+          .from(studentChapterProgress)
+          .where(
+            and(
+              eq(studentChapterProgress.studentId, studentId),
+              eq(studentChapterProgress.completed, true)
+            )
+          )
+      : Promise.resolve([] as { chapterId: string }[]),
+  ]);
 
   if (quizzes.length > 0) {
     // Prefer a quiz whose selection rules tag the weakest concept, then weekly, then any.
@@ -484,7 +485,6 @@ export async function getCourseDailyPlan(
   }
 
   // 3. Next material: continue an open one, else the first unread published material
-  const lastProgress = await getContinueReading(studentId, courseId);
   if (lastProgress && lastProgress.completionPercent < 90) {
     const section = lastProgress.lastSectionId
       ? `?section=${encodeURIComponent(lastProgress.lastSectionId)}`
@@ -496,15 +496,6 @@ export async function getCourseDailyPlan(
       href: `/courses/${courseId}/material/${lastProgress.materialId}${section}`,
     });
   } else {
-    const completedChapIds = await db
-      .select({ chapterId: studentChapterProgress.chapterId })
-      .from(studentChapterProgress)
-      .where(
-        and(
-          eq(studentChapterProgress.studentId, studentId),
-          eq(studentChapterProgress.completed, true)
-        )
-      );
     const completedIds = completedChapIds.map((r) => r.chapterId);
 
     const [nextMaterial] = await db
@@ -537,14 +528,7 @@ export async function getCourseDailyPlan(
     }
   }
 
-  // Streak (best-effort; deterministic day-streak service)
-  let streakDays = 0;
-  try {
-    const streakInfo = await getOrUpdateStreak(studentId);
-    streakDays = streakInfo.current;
-  } catch (e) {
-    console.error("Failed to load streak for course daily plan:", e);
-  }
+  const streakDays = streakInfo?.current ?? 0;
 
   return { items, streakDays, weakestConcept };
 }
