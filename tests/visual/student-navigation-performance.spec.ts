@@ -119,6 +119,46 @@ test.describe("Student Navigation Performance & Visual Quality", () => {
     expect(failures).toEqual([]);
   });
 
+  test("course material tabs keep their width after returning from the reader", async ({ page }, testInfo) => {
+    const failures = observeFailures(page);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const response = await page.goto(`${FIXTURE_BASE}?state=material`, { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(200);
+
+    const list = page.getByRole("tablist");
+    const selectedTab = list.locator('[aria-selected="true"]');
+    const bar = page.locator('[data-slot="tabs-list"]');
+    const more = bar.locator('[data-slot="tabs-more-trigger"]');
+    const expectOverflow = () => expect(more).toHaveCount(testInfo.project.name === "mobile-380" ? 1 : 0);
+    const expectFullWidth = () => expect.poll(() => bar.evaluate((element) => {
+      const pageWidth = element.closest("[data-application-page]")!.getBoundingClientRect().width;
+      return Math.abs(element.getBoundingClientRect().width - pageWidth);
+    })).toBeLessThanOrEqual(1);
+
+    await stabilize(page);
+    await expect(selectedTab).toBeVisible();
+    await expectFullWidth();
+    await expectOverflow();
+    const visibleTabs = await list.getByRole("tab").allTextContents();
+    await page.getByRole("button", { name: /Lain-lain|Others/i }).click();
+    await capture(page, testInfo, "material-tabs-before-reader");
+
+    await page.getByRole("link", { name: /Sifat-sifat Aljabar Bilangan Real/ }).click();
+    await expect(page.getByTestId("state-reader-loading")).toBeVisible();
+    await page.goBack();
+
+    await expect(page.getByTestId("state-material")).toBeVisible();
+    await expect(selectedTab).toBeVisible();
+    await expectFullWidth();
+    await expectOverflow();
+    await expect(list.getByRole("tab")).toHaveText(visibleTabs);
+    await expect.poll(() => page.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth
+    )).toBeLessThanOrEqual(0);
+    await capture(page, testInfo, "material-tabs-after-reader");
+    expect(failures).toEqual([]);
+  });
+
   test("course material loading boundary skeleton renders cleanly", async ({ page }, testInfo) => {
     const failures = observeFailures(page);
 

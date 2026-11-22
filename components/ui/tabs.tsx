@@ -30,6 +30,9 @@ type TabsContextValue = {
 
 const TabsContext = React.createContext<TabsContextValue>({});
 
+// Keep the tab strip's width independent of the triggers it moves into More.
+const tabsRootClassName = "w-full min-w-0 max-w-full";
+
 type TabsProps = React.ComponentProps<typeof TabsPrimitive.Root> & {
   paramKey?: string;
   syncUrl?: boolean;
@@ -84,7 +87,7 @@ function TabsInner({
         value={activeValue}
         onValueChange={handleValueChange}
         defaultValue={activeValue !== undefined ? undefined : defaultValue}
-        className={cn("max-w-full min-w-0", className)}
+        className={cn(tabsRootClassName, className)}
         {...props}
       />
     </TabsContext.Provider>
@@ -126,7 +129,7 @@ function TabsStatic({
         value={activeValue}
         onValueChange={handleValueChange}
         defaultValue={activeValue !== undefined ? undefined : defaultValue}
-        className={cn("max-w-full min-w-0", className)}
+        className={cn(tabsRootClassName, className)}
         {...props}
       />
     </TabsContext.Provider>
