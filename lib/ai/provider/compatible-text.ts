@@ -193,11 +193,12 @@ export async function prepareCompatibleText(input: ProviderGenerateRequest & Omi
         if (!Array.isArray(items)) throw new ProviderAdapterError({code:"MALFORMED_RESPONSE", message:"Missing result array", retryClassification:"malformed_response"});
         text = JSON.stringify(items);
       }
-      logAiRequest({ operation: "chatCompletions", model: settings.model, viaGateway: true, latencyMs: Date.now() - started, success: true });
-      return {modelId: input.modelId, upstreamModel: settings.model, text, finishReason: String(choice.finish_reason ?? "unknown"), latencyMs: Date.now() - started, viaGateway: true, retryClassification: "none",
+      const latencyMs = Date.now() - started;
+      await logAiRequest({ operation: "chatCompletions", model: settings.model, viaGateway: true, latencyMs, success: true }, input.userCohort !== "system");
+      return {modelId: input.modelId, upstreamModel: settings.model, text, finishReason: String(choice.finish_reason ?? "unknown"), latencyMs, viaGateway: true, retryClassification: "none",
         usage: {promptTokens: data.usage?.prompt_tokens, outputTokens: data.usage?.completion_tokens, totalTokens: data.usage?.total_tokens}};
     } catch (error) {
-      logAiRequest({ operation: "chatCompletions", model: settings.model, viaGateway: true, latencyMs: Date.now() - started, success: false });
+      await logAiRequest({ operation: "chatCompletions", model: settings.model, viaGateway: true, latencyMs: Date.now() - started, success: false });
       throw error;
     }
   };

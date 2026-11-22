@@ -87,6 +87,7 @@ export type PedagogySource = z.infer<typeof PedagogySourceSchema>;
 export const PedagogyContextSchema = z.object({
   responseLanguage: z.enum(["id", "en"]).default("id"),
   courseId: z.string().min(1),
+  courseTitle: z.string().max(500).optional(),
   chapterId: z.string().nullable(),
   action: z.enum(["new_topic", "follow_up", "hint_request", "teach_back", "check_response"]),
   evidenceSufficiency: PedagogicalEvidenceSufficiencySchema,

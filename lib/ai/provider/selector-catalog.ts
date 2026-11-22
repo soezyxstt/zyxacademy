@@ -126,7 +126,7 @@ async function cachedModels(provider: GatewayModelProvider, refresh: boolean): P
   try { return await task; } finally { pending.delete(key); }
 }
 
-export async function selectorCatalog(refresh = false): Promise<Set<ModelId>> {
+export async function selectorCatalog(refresh = false, requireAllProviders = false): Promise<Set<ModelId>> {
   const providers = [...enabledGatewayProviders(process.env)].filter(provider => provider !== "deepseek");
   const results = await Promise.all(providers.map(async provider => {
     try {
@@ -134,7 +134,7 @@ export async function selectorCatalog(refresh = false): Promise<Set<ModelId>> {
       const group = provider === "muse" ? "meta" : provider;
       if (provider !== "gemini") setDiscoveredByokAliases(group, snapshot.aliases);
       return sortModelsByDate(snapshot.ids as ModelId[], snapshot.dates);
-    } catch (error) { if (refresh) throw error; return []; }
+    } catch (error) { if (refresh || requireAllProviders) throw error; return []; }
   }));
   return new Set(results.flat());
 }

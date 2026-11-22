@@ -18,7 +18,7 @@ export async function readModelLatencies(): Promise<Partial<Record<ModelId, Mode
   return Object.assign({}, ...groups);
 }
 export async function storeModelLatencies(provider: GatewayProviderName, values: Partial<Record<ModelId, ModelLatency>>) {
-  await kvPut(selectorCacheKey(provider) + ":latency", observationsSchema.parse(values), RETAIN_SECONDS);
+  await kvPut(selectorCacheKey(provider) + ":latency", observationsSchema.parse(values), RETAIN_SECONDS, true);
 }
 
 export async function measureModelLatency(
@@ -34,7 +34,11 @@ export async function measureModelLatency(
   for (let sample = 0; sample < 3; sample++) {
     const requestId = `model-latency:${cycle}:${identity}:${sample}`;
     const reserved = await control.reserve({ idempotencyKey: requestId, userId: "system:model-latency", role: "admin", feature: "playground", routeClass, modelId, cacheStatus: "bypass" });
-    if (reserved.status !== "reserved") return { checkedAt, samples, status: reserved.status === "idempotent" ? "incomplete" : "quota" };
+    if (reserved.status !== "reserved") {
+      if (reserved.status === "idempotent") return { checkedAt, samples, status: "incomplete" };
+      console.warn(JSON.stringify({ event: "ai_latency_not_dispatched", model: modelId, stage: "reserve", code: reserved.code }));
+      return { checkedAt, samples, status: ["QUOTA_EXHAUSTED", "PREMIUM_EXHAUSTED_FALLBACK_ALLOWED"].includes(reserved.code) ? "quota" : "unavailable" };
+    }
     const lease = reserved.lease;
     const input = { requestId, userCohort: "system", feature: "playground", routeClass, modelId, projectAlias: lease.projectAlias,
       parts: [{ type: "text" as const, text: "Reply with only the word OK." }], config: { maxOutputTokens: 512 }, singleDispatch: true, cachePolicy: "bypass" as const };

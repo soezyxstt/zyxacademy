@@ -428,7 +428,10 @@ export class RequestLifecycle {
           refundApplication = false;
           throw new RequestLifecycleError("IDEMPOTENCY_IN_PROGRESS", "provider lease is already in use");
         }
-        if (reservation.status !== "reserved") continue;
+        if (reservation.status !== "reserved") {
+          console.warn(JSON.stringify({ event: "ai_model_not_dispatched", model, feature: providerFeature, stage: "reserve", code: reservation.code }));
+          continue;
+        }
         controlPlaneLease = reservation.lease;
 
         const providerInput = {
@@ -490,7 +493,10 @@ export class RequestLifecycle {
             if (refund.status === "rejected" || refund.lease.leaseId !== controlPlaneLease.leaseId || !["refunded", "expired_refunded"].includes(refund.lease.state)) refundFailed = true;
           } catch { refundFailed = true; }
         }
-        if (error instanceof ProviderNotDispatchedError && controlPlaneLease && !refundFailed) continue;
+        if (error instanceof ProviderNotDispatchedError && controlPlaneLease && !refundFailed) {
+          console.warn(JSON.stringify({ event: "ai_model_not_dispatched", model, stage: "prepare", code: safeOutcomeCode(error.cause) }));
+          continue;
+        }
         if (refundApplication && !isReplay && (!providerAttempted || (reservationResolved && !refundFailed))) {
           try {
             const refund = await this.allowance.refund(applicationAllowance.lease.id);

@@ -96,11 +96,14 @@ async function claimWriteSlots(slots = 2, maxRetries = 5): Promise<boolean> {
  * Writes a JSON value with a TTL. Silently does nothing when the daily
  * write counter is at or past the limit, or on any failure.
  */
-export async function kvPut(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+export async function kvPut(key: string, value: unknown, ttlSeconds: number, requireWrite = false): Promise<void> {
   const claimed = await claimWriteSlots(2);
-  if (!claimed) return;
+  if (!claimed) {
+    if (requireWrite) throw new Error("KV write budget or service unavailable");
+    return;
+  }
 
-  await kvFetch(
+  const result = await kvFetch(
     `/values/${encodeURIComponent(key)}?expiration_ttl=${Math.max(60, Math.floor(ttlSeconds))}`,
     {
       method: 'PUT',
@@ -108,6 +111,7 @@ export async function kvPut(key: string, value: unknown, ttlSeconds: number): Pr
       body: JSON.stringify(value),
     },
   );
+  if (requireWrite && !result?.ok) throw new Error("KV write failed");
 }
 
 /** Deletes a key. Failures are ignored. */

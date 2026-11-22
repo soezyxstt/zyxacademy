@@ -32,6 +32,15 @@ describe("Tutor RAG Contract Tests", () => {
     expect(latestConversationSources([...messages, { role: "ai" }])).toEqual([]);
   });
 
+  it("checks course evidence using topic terms in both tutor languages", () => {
+    const sources = [{ id: "course-1", kind: "chapter" as const, versionHash: "v1", title: "Momentum",
+      content: "Momentum measures motion. Momentum mengukur gerak.", trustLabel: "untrusted_retrieved" as const }];
+    for (const query of ["Can you please explain momentum?", "Tolong jelaskan apa itu momentum?"]) {
+      expect(classifyEvidence({ query, sources }).state).toBe("full");
+    }
+    expect(classifyEvidence({ query: "Explain momentum and entropy", sources }).state).toBe("partial");
+  });
+
   it("keeps attached images primary by bypassing text evidence retrieval", () => {
     expect(shouldRetrieveTutorEvidence(true)).toBe(false);
     expect(shouldRetrieveTutorEvidence(false)).toBe(true);

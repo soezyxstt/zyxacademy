@@ -1,9 +1,10 @@
+import { readRequestLatencies } from "./provider/request-latency";
 import { defaultGenerationModels, selectedGenerationModel } from "./provider/selected-models";
 import { selectorCatalog, selectorModelDates } from "./provider/selector-catalog";
 import { readModelLatencies } from "./provider/model-latency";
 import { compatibleSettings, textGatewaySettings } from "./provider/compatible-text";
 import { discoveredModel, discoveredModelId, getTextProfile, isTextProfile, supportsTextProvider, upstreamModelName } from "./provider/model-registry";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   buildFeatureModelSettingViews,
   compatibleModelChain,
@@ -72,18 +73,17 @@ async function readStoredModelSetting(
   feature: ModelFeature,
 ): Promise<StoredModelSettingRow | null> {
   if (testReaderOverride) {
-    return testReaderOverride(feature);
+    return await testReaderOverride(feature) ?? await testReaderOverride("global-default");
   }
   const handle = await resolveDatabaseHandle();
   if (!handle) {
     return null;
   }
-  const [row] = await handle.db
+  const rows = await handle.db
     .select()
     .from(handle.aiModelSettings)
-    .where(eq(handle.aiModelSettings.feature, feature))
-    .limit(1);
-  return row ?? null;
+    .where(inArray(handle.aiModelSettings.feature, [feature, "global-default"]));
+  return rows.find(row => row.feature === feature) ?? rows.find(row => row.feature === "global-default") ?? null;
 }
 
 /** Read on each new request so all instances see committed admin changes. */
@@ -114,7 +114,7 @@ export async function configuredModelChain(
   // Several auxiliary tasks historically share the Zyra settings row.
   // Keep their native defaults when the row now specifies an answer provider.
   if (feature === "zyra" && parsed.data.models.some(isTextProfile) &&
-      (!supportsTextProvider(input.feature) || input.useCase === "chapter-summary")) return selectedDefaults;
+      ((!supportsTextProvider(input.feature) && modelFeature(undefined, input.useCase) !== "zyra") || input.useCase === "chapter-summary")) return selectedDefaults;
   const available = effectiveTrio(parsed.data.models).filter(profileAvailable);
   return compatibleModelChain(available.length ? available : selectedDefaults, {
     visual: Boolean(input.visual),
@@ -145,12 +145,15 @@ export async function listModelSettingViews(): Promise<FeatureModelSettingView[]
   const rows = handle ? await handle.db.select().from(handle.aiModelSettings) : [];
   const catalog = await selectorCatalog();
   const modelDates = selectorModelDates(), modelLatencies = await readModelLatencies();
+  const requestLatencies = handle ? await readRequestLatencies().catch(() => ({})) : {};
+  const globalRow = rows.find(row => row.feature === "global-default");
+  const inherited = globalRow ? effectiveTrio(globalRow.models as ModelId[]) : defaultGenerationModels;
   return buildFeatureModelSettingViews(rows).map(view => ({
     ...view,
-    modelDates, modelLatencies,
-    models: view.isCustom ? effectiveTrio(view.models) : [...defaultGenerationModels] as [ModelId, ModelId, ModelId],
-    runtimeDefaultModels: [...new Set([...view.runtimeDefaultModels.filter(id => defaultGenerationModels.some(model => model === id)), ...defaultGenerationModels])],
-    editableDefaultModels: defaultGenerationModels,
+    modelDates, modelLatencies, requestLatencies,
+    models: view.isCustom ? effectiveTrio(view.models) : [...inherited] as [ModelId, ModelId, ModelId],
+    runtimeDefaultModels: globalRow && view.feature !== "global-default" ? inherited : [...new Set([...view.runtimeDefaultModels.filter(id => defaultGenerationModels.some(model => model === id)), ...defaultGenerationModels])],
+    editableDefaultModels: view.feature === "global-default" ? defaultGenerationModels : inherited,
     modelLabels: Object.fromEntries([...new Set([...catalog, ...view.models.map(canonicalSettingModel)])].flatMap(id => {
       const settings = isTextProfile(id) && textGatewaySettings(process.env, id);
       return settings ? [[id, settings.model]] : [];

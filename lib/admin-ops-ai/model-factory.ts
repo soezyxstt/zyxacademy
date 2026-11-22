@@ -266,7 +266,7 @@ export async function* streamOpsAiModel(
     }
 
     recordModelSuccess(key.id, entry.id);
-    logAiRequest({
+    await logAiRequest({
       operation: "generateContent",
       model: entry.id,
       viaGateway,
@@ -286,7 +286,7 @@ export async function* streamOpsAiModel(
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     recordModelFailure(key.id, entry.id, err);
-    logAiRequest({
+    await logAiRequest({
       operation: "generateContent",
       model: entry.id,
       viaGateway,

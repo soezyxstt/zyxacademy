@@ -76,11 +76,15 @@ export function ModelPicker({ view, value, label, disabled, onChange, priorities
           <div className="max-h-64 overflow-y-auto py-1">
             {options.map(id => {
               const date = view.modelDates?.[id], observation = view.modelLatencies?.[id];
-              const median = medianModelLatency(observation);
-              const stale = observation && openedAt - observation.checkedAt >= 12 * 60 * 60_000;
+              const live = view.requestLatencies?.[id] ?? view.requestLatencies?.[id.split(":").at(-1)!];
+              const ordered = live?.samples.slice().sort((a, b) => a - b) ?? [];
+              const mid = Math.floor(ordered.length / 2);
+              const median = ordered.length ? (ordered[mid] + ordered[Math.floor((ordered.length - 1) / 2)]) / 2 : medianModelLatency(observation);
+              const measuredAt = live?.checkedAt ?? observation?.checkedAt;
+              const stale = measuredAt && openedAt - measuredAt >= 12 * 60 * 60_000;
               const missingStatus = observation?.status ?? "unmeasured";
               const latency = median === undefined ? t(`modelsUI.probeStatus.${missingStatus}`) : `${stale ? t("modelsUI.staleLatency") + " " : ""}${(median / 1000).toLocaleString(locale, { maximumFractionDigits: 2 })} s`;
-              const latencyDescription = median === undefined ? latency : t("modelsUI.latencyMeasured", { value: latency, time: new Date(observation!.checkedAt).toLocaleString(locale) });
+              const latencyDescription = median === undefined ? latency : t(live ? "modelsUI.requestLatencyMeasured" : "modelsUI.latencyMeasured", { value: latency, count: ordered.length, time: new Date(measuredAt!).toLocaleString(locale) });
               return <Button key={id} variant="ghost" className="h-auto w-full px-2 py-2 text-left [&>span]:justify-start" aria-pressed={value === id}
                 aria-label={name(id)} aria-description={[priorities[id], date && `${t(date.kind === "released" ? "modelsUI.releasedAt" : "modelsUI.createdAt")} ${new Date(date.timestamp).toLocaleDateString(locale, { timeZone: "UTC" })}`, latencyDescription].filter(Boolean).join(". ")}
                 onClick={() => { onChange(id); setOpen(false); }}>

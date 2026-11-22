@@ -220,7 +220,7 @@ async function prepareProviderThroughControlPlane(input: {
         config: input.config,
       });
       geminiKeyPool.markSuccess(key.id, input.modelId);
-      logAiRequest({
+      await logAiRequest({
         operation: entry.family === "interactions" ? "interactions" : "generateContent",
         model: input.modelId,
         viaGateway,
@@ -243,7 +243,7 @@ async function prepareProviderThroughControlPlane(input: {
             modelId: input.modelId,
             cause: error,
           });
-      logAiRequest({
+      await logAiRequest({
         operation: entry.family === "interactions" ? "interactions" : "generateContent",
         model: input.modelId,
         viaGateway,
@@ -409,7 +409,7 @@ export async function generateContentWithFallback(
             }
           }, params.singleDispatch ? 1 : undefined);
           const response = makeCompatibilityResponse(result);
-          logAiRequest({
+          await logAiRequest({
             operation: "generateContent",
             model,
             viaGateway,
@@ -428,7 +428,7 @@ export async function generateContentWithFallback(
           lastError = error;
           allFailuresConfirmed &&= isConfirmedHttpFailure(error);
           geminiKeyPool.markFailure(key.id, model, error instanceof Error ? error : new Error("Gemini request failed"));
-          logAiRequest({
+          await logAiRequest({
             operation: "generateContent",
             model,
             viaGateway,

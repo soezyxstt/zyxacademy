@@ -27,6 +27,9 @@ test("cannot bypass quota, replay an idempotent attempt or label failed response
   const s = setup();
   s.reserve.mockResolvedValueOnce({ status: "quota_exhausted", code: "QUOTA_EXHAUSTED", modelId: id });
   expect((await measureModelLatency(id, 123, s.control, s.invoke)).status).toBe("quota"); expect(s.invoke).not.toHaveBeenCalled();
+  s.reserve.mockResolvedValueOnce({ status: "quota_exhausted", code: "INVALID_RESERVE_INPUT", modelId: id });
+  expect((await measureModelLatency(id, 123, s.control, s.invoke)).status).toBe("unavailable");
+  expect(s.invoke).not.toHaveBeenCalled();
   s.reserve.mockResolvedValueOnce({ status: "idempotent", lease: { leaseId: "lease", projectAlias: "openai" } } as Awaited<ReturnType<ControlPlaneClient["reserve"]>>);
   await measureModelLatency(id, 123, s.control, s.invoke); expect(s.invoke).not.toHaveBeenCalled();
   s.invoke.mockRejectedValue(new Error("provider unavailable"));

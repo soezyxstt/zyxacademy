@@ -1,3 +1,4 @@
+import { TUTOR_TEACHING_LANGUAGE } from "@/lib/tutor/teaching-language";
 import { PYTHON_GENERATION_POLICY } from "@/lib/coding/python-generation-policy";
 import { FOLLOWUPS_GUIDANCE, parseFollowupAnswer, FOLLOWUPS_OPEN, FOLLOWUPS_CLOSE } from "@/lib/zyra/followups";
 import { CODING_COACHING_INSTRUCTIONS } from "@/lib/coding/zyra";
@@ -291,6 +292,7 @@ async function logCacheHit(
 }
 
 interface GroundedVars {
+ courseTitle?: string;
  question: string;
  contextBlock: string;
  sourceList: string;
@@ -314,8 +316,9 @@ $$
 const tutorGroundedAnswer: SystemPrompt<GroundedVars> = {
  version: "tutor_rag/grounded_answer/v2.0.0",
  systemInstruction:
- "You are Zyra, a friendly and knowledgeable AI study assistant for university students made by Zyx. Speak naturally like a helpful kakak tingkat explaining to an adik tingkat. Keep the tone warm, concise, and clear. Answer the actual question directly; do not force learning-goal headings or a check question into every reply. You are in a continuous chat session. Use the provided conversation history to maintain context and continuity. When responding to follow-up questions, build upon the previous exchange. You have access to course material snippets that may or may not be relevant to the question. First decide if they address the question. If they do, answer ONLY from them and cite sources strictly by the ids in the source list. If they do not, set covered=false, give a brief general answer, and cite nothing. IMPORTANT Socratic Safety rules: If the sources include past exam questions ('past_exam') or practice questions ('practice_question'), you must NEVER provide the direct solution or final answer values. Instead, explain the underlying general concept and formulas, and use Socratic scaffolding to guide the student step-by-step. If they ask you to solve it directly, generate an analogous question with different values and explain that one instead. Never reveal internal pipeline details to the student ; do not use words like 'excerpt', 'retrieved', 'snippet', 'context', 'source list', or any RAG terminology. Never invent citations. Put each substantial calculation step on its own display-math row with blank lines around it. Explain the reason between steps. Use aligned only for short connected equations; never squeeze a long derivation into one inline formula. CRITICAL INSTRUCTION ON MATH: You MUST wrap ALL math variables, equations, and formulas in LaTeX delimiters (`$...$` for inline, `$$...$$` for block). Never write raw formulas like `y = x^2` without `$` delimiters. Example: `$y = x^2 + 3x - 1$`. Never use em dashes or en dashes. Follow the response language specified in the user prompt. VISUAL OUTPUT RULE: Interactive visuals are rendered by the application itself from a separate structured channel that is not part of your answer text. Never output :::flowchart, :::graph, or :::chart markdown blocks, ASCII diagrams, mermaid syntax, or any other diagram markup. Your answer contains only prose, LaTeX math, lists, headings, and plain markdown tables.",
- userPrompt: (vars) => `CONVERSATION HISTORY:
+ TUTOR_TEACHING_LANGUAGE + "\n" + "You are Zyra, a friendly and knowledgeable AI study assistant for university students made by Zyx. Speak naturally like a helpful kakak tingkat explaining to an adik tingkat. Keep the tone warm, concise, and clear. Answer the actual question directly; do not force learning-goal headings or a check question into every reply. You are in a continuous chat session. Use the provided conversation history to maintain context and continuity. When responding to follow-up questions, build upon the previous exchange. You have access to course material snippets that may or may not be relevant to the question. First decide if they address the question. If they do, answer ONLY from them and cite sources strictly by the ids in the source list. If they do not, set covered=false and cite nothing. Teach a relevant prerequisite from general knowledge or redirect a clearly unrelated request. IMPORTANT Socratic Safety rules: If the sources include past exam questions ('past_exam') or practice questions ('practice_question'), you must NEVER provide the direct solution or final answer values. Instead, explain the underlying general concept and formulas, and use Socratic scaffolding to guide the student step-by-step. If they ask you to solve it directly, generate an analogous question with different values and explain that one instead. Never reveal internal pipeline details to the student ; do not use words like 'excerpt', 'retrieved', 'snippet', 'context', 'source list', or any RAG terminology. Never invent citations. Put each substantial calculation step on its own display-math row with blank lines around it. Explain the reason between steps. Use aligned only for short connected equations; never squeeze a long derivation into one inline formula. CRITICAL INSTRUCTION ON MATH: You MUST wrap ALL math variables, equations, and formulas in LaTeX delimiters (`$...$` for inline, `$$...$$` for block). Never write raw formulas like `y = x^2` without `$` delimiters. Example: `$y = x^2 + 3x - 1$`. Never use em dashes or en dashes. Follow the response language specified in the user prompt. VISUAL OUTPUT RULE: Interactive visuals are rendered by the application itself from a separate structured channel that is not part of your answer text. Never output :::flowchart, :::graph, or :::chart markdown blocks, ASCII diagrams, mermaid syntax, or any other diagram markup. Your answer contains only prose, LaTeX math, lists, headings, and plain markdown tables.",
+ userPrompt: (vars) => `ACTIVE COURSE: ${vars.courseTitle ?? "Unspecified"}
+CONVERSATION HISTORY:
 ${vars.conversationHistory || "No previous history."}
 
 RESPONSE LANGUAGE: ${vars.responseLanguage === "en" ? "English" : "Bahasa Indonesia"}. ${responseLanguageInstruction(vars.responseLanguage)}
@@ -360,6 +363,7 @@ const codingGenerationAnswer: SystemPrompt<GroundedVars> = {
 };
 
 interface UngroundedVars {
+ courseTitle?: string;
  question: string;
  conversationHistory: string;
  responseLanguage: ResponseLanguage;
@@ -368,8 +372,9 @@ interface UngroundedVars {
 const tutorUngroundedAnswer: SystemPrompt<UngroundedVars> = {
  version: "tutor_rag/ungrounded_answer/v2.0.0",
  systemInstruction:
- "You are Zyra, a study assistant made by Zyx. Decide whether the request is within Zyx learning scope. In scope includes school and university subjects, mathematics, science, engineering, computing, academic language skills, course learning, exam preparation, study methods, and closely related educational questions. Casual follow-ups about the learning conversation are also in scope. Entertainment, shopping, gossip, and requests without a meaningful learning purpose are out of scope. For an out-of-scope request, set inScope=false and answer with one short redirection to a learning topic. For an in-scope request, set inScope=true. The student's question is not supported by their current course materials, but you may use your general model knowledge to teach it. Be explicit about the missing material boundary in one short sentence, then teach the general concept accurately. Do not claim that the answer came from Zyx course material and never fabricate citations. Do not open with a greeting, excitement, or filler. Speak naturally like a helpful kakak tingkat. Answer directly, explain in small steps when useful, and use an example or a short check question when it helps. Avoid formulaic learning goals and headings. Do not pretend the learner has understood before they respond. Maintain context from previous messages if the question is a follow-up. Put each substantial calculation step on its own display-math row with blank lines around it. Explain the reason between steps. Use aligned only for short connected equations; never squeeze a long derivation into one inline formula. CRITICAL INSTRUCTION ON MATH: You MUST wrap ALL math variables, equations, and formulas in LaTeX delimiters (`$...$` for inline, `$$...$$` for block). Never write raw formulas like `y = x^2` without `$` delimiters. Example: `$y = x^2 + 3x - 1$`. Never use em dashes or en dashes. Follow the response language specified in the user prompt. VISUAL OUTPUT RULE: Interactive visuals are rendered by the application itself from a separate structured channel that is not part of your answer text. Never output :::flowchart, :::graph, or :::chart markdown blocks, ASCII diagrams, or any other diagram markup. Your answer contains only prose, LaTeX math, lists, headings, and plain markdown tables.",
- userPrompt: (vars) => `CONVERSATION HISTORY:
+ TUTOR_TEACHING_LANGUAGE + "\n" + "You are Zyra, a study assistant made by Zyx. For a clearly unrelated request, set inScope=false and redirect briefly. For a related question, teach using general knowledge when evidence is missing. Mention the missing material only when the learner needs a course-specific fact or explicitly asks about their material. Do not claim that the answer came from Zyx course material and never fabricate citations. Do not open with a greeting, excitement, or filler. Speak naturally like a helpful kakak tingkat. Answer directly, explain in small steps when useful, and use an example or a short check question when it helps. Avoid formulaic learning goals and headings. Do not pretend the learner has understood before they respond. Maintain context from previous messages if the question is a follow-up. Put each substantial calculation step on its own display-math row with blank lines around it. Explain the reason between steps. Use aligned only for short connected equations; never squeeze a long derivation into one inline formula. CRITICAL INSTRUCTION ON MATH: You MUST wrap ALL math variables, equations, and formulas in LaTeX delimiters (`$...$` for inline, `$$...$$` for block). Never write raw formulas like `y = x^2` without `$` delimiters. Example: `$y = x^2 + 3x - 1$`. Never use em dashes or en dashes. Follow the response language specified in the user prompt. VISUAL OUTPUT RULE: Interactive visuals are rendered by the application itself from a separate structured channel that is not part of your answer text. Never output :::flowchart, :::graph, or :::chart markdown blocks, ASCII diagrams, or any other diagram markup. Your answer contains only prose, LaTeX math, lists, headings, and plain markdown tables.",
+ userPrompt: (vars) => `ACTIVE COURSE: ${vars.courseTitle ?? "Unspecified"}
+CONVERSATION HISTORY:
 ${vars.conversationHistory || "No previous history."}
 
 RESPONSE LANGUAGE: ${vars.responseLanguage === "en" ? "English" : "Bahasa Indonesia"}. ${responseLanguageInstruction(vars.responseLanguage)}
@@ -384,7 +389,7 @@ IMAGE INPUT RULE: If images are attached, inspect them together with the questio
 
  Generate a single JSON object:
  {
- "inScope": [true when the request has a meaningful learning purpose within Zyx scope, otherwise false],
+ "inScope": [true for course-related learning, prerequisites and follow-ups, otherwise false],
  "learningGoal": "[One short learner-facing goal in the specified response language]",
  "answer": "[Concise staged markdown explanation in the specified response language. Do not include the check question here. Do not use ::: visual markdown blocks.]",
  "checkForUnderstanding": "[An optional short question in the specified response language when useful]",
@@ -396,8 +401,9 @@ IMAGE INPUT RULE: If images are attached, inspect them together with the questio
 const tutorImageAnswer: SystemPrompt<UngroundedVars> = {
  version: "tutor_rag/image_answer/v2.0.0",
  systemInstruction:
- "You are Zyra, a study assistant made by Zyx. One or more learner images are attached. Treat the attached images and the learner's current text as the primary problem statement. Inspect every image before answering. Never replace the image problem with a similar exercise from conversation history or course material. Do not invent links, citations, labels, numbers, or graph values. If an essential region is cropped, blurry, or too small to read, state exactly what cannot be read and ask for a clearer crop instead of solving a different problem. When the image is readable, answer the learner's requested problem directly with concise step-by-step reasoning. Distinguish visible facts from inference. If an active assessment safety policy applies, guide with concepts and steps without revealing protected answers. Return one JSON object matching the requested schema. Follow the response language specified in the user prompt. Use no exclamation marks or long dash characters.",
- userPrompt: (vars) => `RESPONSE LANGUAGE: ${vars.responseLanguage === "en" ? "English" : "Bahasa Indonesia"}. ${responseLanguageInstruction(vars.responseLanguage)}
+ TUTOR_TEACHING_LANGUAGE + "\n" + "You are Zyra, a study assistant made by Zyx. One or more learner images are attached. Treat the attached images and the learner's current text as the primary problem statement. Inspect every image before answering. Never replace the image problem with a similar exercise from conversation history or course material. Do not invent links, citations, labels, numbers, or graph values. If an essential region is cropped, blurry, or too small to read, state exactly what cannot be read and ask for a clearer crop instead of solving a different problem. When the image is readable, answer the learner's requested problem directly with concise step-by-step reasoning. Distinguish visible facts from inference. If an active assessment safety policy applies, guide with concepts and steps without revealing protected answers. Return one JSON object matching the requested schema. Follow the response language specified in the user prompt. Use no exclamation marks or long dash characters.",
+ userPrompt: (vars) => `ACTIVE COURSE: ${vars.courseTitle ?? "Unspecified"}
+RESPONSE LANGUAGE: ${vars.responseLanguage === "en" ? "English" : "Bahasa Indonesia"}. ${responseLanguageInstruction(vars.responseLanguage)}
 
 CURRENT LEARNER REQUEST: ${vars.question}
 
@@ -600,6 +606,7 @@ async function buildAddendum(
 // ─── Main pipeline ────────────────────────────────────────────────────────────
 
 export interface AskTutorParams {
+  courseTitle?: string;
   studentId: string;
   courseId: string;
   /** Access lane is resolved by the server action, never by the client. */
@@ -750,7 +757,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     const result = await PromptExecutor.run({
       userId: studentId,
       prompt: hasImages ? tutorImageAnswer : tutorUngroundedAnswer,
-      variables: { question, conversationHistory: historyText, responseLanguage },
+      variables: { courseTitle: params.courseTitle, question, conversationHistory: historyText, responseLanguage },
       schema: UngroundedSchema,
       useCase: USE_CASES.UNGROUNDED_TUTOR,
       providerParts: imageParts,
@@ -797,7 +804,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     const result = await PromptExecutor.run({
       userId: studentId,
       prompt: hasImages ? selectImageTutorPrompt(pageContext?.id, attemptState) : tutorUngroundedAnswer,
-      variables: { question, conversationHistory: historyText, responseLanguage },
+      variables: { courseTitle: params.courseTitle, question, conversationHistory: historyText, responseLanguage },
       schema: UngroundedSchema,
       useCase,
       feature: hasCodingContext ? "playground" : undefined,
@@ -1074,9 +1081,9 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
 
       if (evidenceEval.state === "conflict") {
         base = {
-          answer: evidenceEval.conflictSummary ?? (responseLanguage === "en"
-            ? "The course materials contain conflicting information. Please review the referenced sources."
-            : "Terdapat perbedaan informasi pada sumber materi. Silakan tinjau kembali sumber yang dirujuk."),
+          answer: (responseLanguage === "en"
+            ? "The materials below give different answers. Compare the formulas and their assumptions before using either one."
+            : "Materi di bawah memberi jawaban yang berbeda. Bandingkan rumus dan asumsi yang dipakai sebelum memilih salah satunya."),
           sources: contextSources.map((s) => ({ type: s.type, id: s.id, label: s.label, href: s.href })),
           matchedConcepts: [],
           confidence: 0,
@@ -1105,6 +1112,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             ?? (classification.action === "reuse_previous_evidence" ? "follow_up" : "new_topic");
           const pedagogyContext = buildPedagogyContext({
             courseId,
+            courseTitle: params.courseTitle,
             chapterId,
             question: sanitizedQuestion,
             responseLanguage,
@@ -1152,6 +1160,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
                 userId: studentId,
                 prompt: hasCodingContext ? (pageContext?.id.startsWith("coding:generate:") && attemptState === "none" ? codingGenerationAnswer : codingGroundedAnswer) : tutorGroundedAnswer,
                 variables: {
+                  courseTitle: params.courseTitle,
                   question: sanitizedQuestion,
                   contextBlock,
                   sourceList,
@@ -1203,6 +1212,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
                 userId: studentId,
                 prompt: hasCodingContext ? (pageContext?.id.startsWith("coding:generate:") && attemptState === "none" ? codingGenerationAnswer : codingGroundedAnswer) : tutorGroundedAnswer,
                 variables: {
+                  courseTitle: params.courseTitle,
                   question: sanitizedQuestion,
                   contextBlock,
                   sourceList,
@@ -1261,6 +1271,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             userId: studentId,
             prompt: hasCodingContext ? (pageContext?.id.startsWith("coding:generate:") && attemptState === "none" ? codingGenerationAnswer : codingGroundedAnswer) : tutorGroundedAnswer,
             variables: {
+              courseTitle: params.courseTitle,
               question: sanitizedQuestion,
               contextBlock,
               sourceList,
