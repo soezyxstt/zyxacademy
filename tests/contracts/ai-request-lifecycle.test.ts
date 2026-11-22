@@ -1,8 +1,13 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
+import { prepareCompatibleText } from "@/lib/ai/provider/compatible-text";
+import { setModelSettingsReaderForTests } from "@/lib/ai/model-settings-store";
 import { ControlPlaneClient } from "@/lib/ai/control-plane-client";
 import { ProviderAdapterError } from "@/lib/ai/provider/errors";
 import type { ProviderGenerationResult } from "@/lib/ai/provider/provider-adapter";
 import { ProviderNotDispatchedError, RequestLifecycle, type RequestLifecycleDependencies } from "@/lib/ai/request-lifecycle";
+
+beforeAll(() => setModelSettingsReaderForTests(async () => null));
+afterAll(() => setModelSettingsReaderForTests(null));
 
 function appLease() {
   return {
@@ -98,6 +103,30 @@ function dependencies(overrides: Partial<RequestLifecycleDependencies> = {}) {
 }
 
 describe("Plan 005 request lifecycle", () => {
+  it("checks shared cooldown on a cold instance before dispatch and safely uses the next model", async () => {
+    const health = spyOn(ControlPlaneClient.prototype, "aliasHealth").mockResolvedValue({ failures: 3, cooldownUntil: Date.now() + 86400000 });
+    const fixture = dependencies({
+      resolveModelChain: async () => ["openai-gpt", "deepseek-text"],
+      prepareProvider: async input => {
+        if (input.modelId !== "openai-gpt") return async () => result(input.modelId);
+        try {
+          return await prepareCompatibleText({ ...input, projectAlias: "openai" }, {
+            BETTER_AUTH_URL: "https://staging.zyxacademy.com", CF_AI_GATEWAY_URL: "https://gateway.ai.cloudflare.com/v1/account/gateway", CF_AI_GATEWAY_TOKEN: "fixture",
+            ZYRA_CONTROL_PLANE_URL: "https://control.fixture", ZYRA_CONTROL_PLANE_TOKEN: "fixture", AI_OPENAI_BYOK_ALIASES: "openai_1",
+          });
+        } catch (error) { throw new ProviderNotDispatchedError("alias unavailable before provider dispatch", error); }
+      },
+    });
+    try {
+      const output = await new RequestLifecycle(fixture.dependencies).execute({ userId: "user-1", feature: "playground", idempotencyKey: "cold-alias-fixture", singleDispatch: true, parts: [{ type: "text", text: "test" }] });
+      expect(health).toHaveBeenCalledTimes(1);
+      expect(output.modelId).toBe("deepseek-text");
+      expect(fixture.events.filter(event => event === "cp.dispatch")).toHaveLength(1);
+      expect(fixture.events.filter(event => event === "cp.refund")).toHaveLength(1);
+      expect(fixture.events.filter(event => event === "cp.commit")).toHaveLength(1);
+      expect(fixture.events).not.toContain("allowance.refund");
+    } finally { health.mockRestore(); }
+  });
   it("releases an unavailable provider slot and dispatches the next model under the same allowance", async () => {
     const fixture = dependencies({
       resolveModelChain: async () => ["openai-gpt", "deepseek-text"],

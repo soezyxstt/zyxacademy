@@ -12,7 +12,7 @@ import type { PedagogyPromptInput, ZyraTeachingResponse } from "@/lib/zyra/pedag
 
 export const ZYRA_PEDAGOGY_V3_CONTRACT: PromptContract<PedagogyPromptInput, ZyraTeachingResponse> = {
   stageId: "zyra-pedagogy",
-  promptVersion: "3.2.0",
+  promptVersion: "3.2.1",
   policies: [
     POLICY_JSON_STRICT,
     POLICY_ZYX_VOICE,

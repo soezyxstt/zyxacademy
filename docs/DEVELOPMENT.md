@@ -240,9 +240,20 @@ Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (
 - `R2_ENDPOINT`, `R2_BUCKET`, `R2_PUBLIC_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` ; Cloudflare R2
 - `STORAGE_PROVIDER_MODE` ; this branch supports `neon` as well as the existing `r2` and `uploadthing` modes
 
-### Optional ; AI Gateway
-- `CF_AI_GATEWAY_URL`, `CF_AI_GATEWAY_TOKEN` ; Cloudflare AI Gateway
+### AI Gateway
+- `CF_AI_GATEWAY_URL`, `CF_AI_GATEWAY_TOKEN` ; required Cloudflare AI Gateway credentials
 - `CF_ACCOUNT_ID`, `CF_KV_NAMESPACE_ID`, `CF_API_TOKEN` ; KV cache for tutor
+
+The model picker reads model-list metadata through AI Gateway, without generation probes or quota reservations. It stores discovered model identities and working aliases in configuration-scoped KV snapshots for seven days. The background job runs at 00:00 and 12:00 UTC and reuses fresh catalog snapshots; expired metadata is rediscovered automatically. Successful snapshots remain usable for another seven days if discovery fails, with a five-minute retry delay. The manual refresh button only queues latency measurements. Unsupported endpoint families and quarantined models remain excluded. Listing does not prove billing balance or successful generation. OpenAI and Muse retain their existing staging-only gates and text-only routing boundaries.
+
+Model choices sort newest first using verified release dates from the source-linked release registry, then valid provider `created` timestamps. The UI distinguishes release dates from creation times. Gemini's model-list payload has no release timestamp and Muse currently reports `created: 0`; undated models stay selectable at the end without guessing from names or versions. Release enrichment is separate from dynamic model discovery. Video-only Gemini Omni entries are excluded from text choices.
+
+Using the cached catalog, the background job measures each listed model with three bounded, uncached requests using a fixed short prompt. It publishes only the median of three successful complete responses, including network time rather than time to first token. Each model uses a durable step and each sample uses a quota lease with cycle/model/sample idempotency; job retries do not replay a dispatched attempt. The per-provider KV observation snapshot is separate from catalog metadata, and manual latency refresh does not bypass catalog freshness. Manual requests use distinct request identities, while retries reuse their existing leases. The page polls for refreshed observations without discarding unsaved model selections. The picker shows the median on the right, N/A for incomplete samples, and an age label after 12 hours. Probes require reachable control-plane bindings for accounting. Shared alias health is admitted before lease dispatch; cooldown rejection refunds the reserved provider slot without a billed attempt. Accepted in-flight calls record their outcomes without a second admission check. Cloud Tasks serializes manual and scheduled model jobs with a shared advisory lock. No successful metadata response, including all aliases missing, preserves stale snapshots instead of replacing them with an empty list. Provider text request ceilings are provider-managed: the old synthetic 20-per-day and five-per-minute limits are removed; remaining provider capacity is unknown, not zero or unlimited. Alias cooldown and application allowance accounting remain active.
+
+Missing BYOK credentials are recognized from Gateway credential errors, including the specific alias-missing message returned with internal code 2040. Other 2040 errors do not trigger credential fallback. Gemini alone may use its matching environment API key when its alias is missing. An alias enters a 24-hour cooldown after three consecutive generation transport/HTTP failures; success resets its count before cooldown. Model-list reads do not reset generation health. `ZYRA_CONTROL_PLANE_URL` and `ZYRA_CONTROL_PLANE_TOKEN` enable shared atomic health in the quota Durable Object. Without a reachable control plane, protection is process-local and cannot survive instance replacement. Do not describe that fallback as distributed protection.
+
+Discussion text turns can use the configured Zyra chain while preserving single-dispatch accounting. Gemini Interactions forwards JSON response schemas, including normalized legacy Gemini schemas; the full response validators remain authoritative.
+
 
 ### Optional ; Authoring MCP
 
@@ -507,7 +518,7 @@ Configure the five density and reading-size preset values in `app/appearance-pre
 
 - **DB schema**: `db/schema.ts` only. Edit → `bun run db:generate` → `bun run db:migrate`. Never hand-edit `drizzle/`.
 - **Auth**: Better-Auth (credentials + Google OAuth). Canonical access roles: `admin`, `tutor`, `murid`; `user.role` remains a legacy compatibility projection during expand.
-- **AI calls**: All Gemini traffic routes through Cloudflare AI Gateway when `CF_AI_GATEWAY_URL` is set.
+- **AI calls**: Gemini traffic requires the configured Cloudflare AI Gateway.
 - **Cost rule**: AI quota is spent only on tutoring, mistake feedback, and content generation. Streaks, recommendations, study paths, reflections are deterministic SQL + logic.
 
 ## Google Spreadsheet Export Workflow

@@ -1,3 +1,4 @@
+import { upstreamModelName } from "@/lib/ai/provider/model-registry";
 import type { GenerateContentConfig, Part } from "@google/genai";
 import {
   assertGenerationModel,
@@ -78,7 +79,7 @@ export function createGeminiGenerateAdapter(client: GeminiGenerateClient) {
       try {
         const response = await withProviderDeadline(
           (signal) => client.models.generateContent({
-            model: entry.id,
+            model: upstreamModelName(entry.id),
             contents: [{ role: "user", parts: toSdkParts(parts) }],
             config: buildLegacyConfig(request, entry.thinking, entry.outputFloor, signal, entry.deadlineMs),
           }),

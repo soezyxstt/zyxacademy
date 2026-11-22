@@ -1,20 +1,37 @@
-import { expect, test, spyOn } from "bun:test";
+import { afterAll, expect, test, spyOn } from "bun:test";
+import { ControlPlaneClient } from "@/lib/ai/control-plane-client";
+const health = spyOn(ControlPlaneClient.prototype, "aliasHealth").mockResolvedValue({ failures: 0, cooldownUntil: 0 });
+const record = spyOn(ControlPlaneClient.prototype, "recordAliasAttempt").mockResolvedValue({ failures: 0, cooldownUntil: 0 });
+afterAll(() => { health.mockRestore(); record.mockRestore(); });
 import { compatibleSettings, prepareCompatibleText } from "../../lib/ai/provider/compatible-text";
 import { MODEL_IDS } from "../../lib/ai/provider/model-registry";
+import { withGatewayAlias, resetAliasHealthForTests } from "../../lib/ai/provider/alias-health";
 import { getWorkerModelContract, projectDailyCeiling } from "../../workers/zyra-control-plane/src/quota/model-contract";
 
 const env = {BETTER_AUTH_URL:"https://staging.zyxacademy.com", ZYRA_CONTROL_PLANE_URL:"https://example.invalid", ZYRA_CONTROL_PLANE_TOKEN:"test", AI_COMPATIBLE_MODEL:"test-model", CF_AI_GATEWAY_URL:"https://gateway.ai.cloudflare.com/v1/account/gateway/google-ai-studio", CF_AI_GATEWAY_TOKEN:"gateway-token", AI_COMPATIBLE_GATEWAY_ROUTE:"custom-test", AI_COMPATIBLE_BYOK_ALIASES:"test-a,test-b"};
 const input = { requestId:"request-1", userCohort:"masked", routeClass:"default", modelId:MODEL_IDS.compatibleText, feature:"playground", projectAlias:"compatible-text", parts:[{type:"text",text:"Test"}] } as const;
-test("gates the pilot and applies one daily budget across credentials", () => {
+test("gates the pilot while leaving provider request limits to the provider", async () => {
   expect(compatibleSettings({...env,BETTER_AUTH_URL:"https://zyxacademy.com"})).toBeNull();
-  expect(() => prepareCompatibleText({...input,feature:"chapter-summary"},env)).toThrow();
-  expect(() => prepareCompatibleText({...input,projectAlias:"gemini-project-1"},env)).toThrow();
-  expect(projectDailyCeiling(getWorkerModelContract(input.modelId)!)).toBe(20);
+  await expect(prepareCompatibleText({...input,feature:"chapter-summary"},env)).rejects.toThrow();
+  await expect(prepareCompatibleText({...input,projectAlias:"gemini-project-1"},env)).rejects.toThrow();
+  expect(projectDailyCeiling(getWorkerModelContract(input.modelId)!)).toBeNull();
+});
+
+test("discussion answers use the configured text provider with the same response contract", async () => {
+  const fetchMock = spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ choices: [{ message: { content: '{"answer":"2 pangkat 3 adalah 8."}' } }] }));
+  try {
+    const result = await (await prepareCompatibleText({ ...input, feature: "discussion-tutor",
+      config: { responseMimeType: "application/json", responseSchema: { type: "object", properties: { answer: { type: "string" } } } },
+    }, env))();
+    expect(JSON.parse(result.text).answer).toBe("2 pangkat 3 adalah 8.");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).response_format).toEqual({ type: "json_object" });
+  } finally { fetchMock.mockRestore(); }
 });
 test("sends a single authenticated text call and returns usage", async () => {
   const fetchMock = spyOn(globalThis,"fetch").mockResolvedValue(Response.json({choices:[{message:{content:"result"},finish_reason:"stop"}],usage:{prompt_tokens:3}}));
   try {
-    const result = await prepareCompatibleText(input,env)();
+    const result = await (await prepareCompatibleText(input,env))();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://gateway.ai.cloudflare.com/v1/account/gateway/custom-test/chat/completions");
@@ -32,8 +49,8 @@ test("sends a single authenticated text call and returns usage", async () => {
   } finally { fetchMock.mockRestore(); }
 });
 
-test("isolates an unauthorized credential on later calls without replaying the failed request", async () => {
-  const invoke = () => prepareCompatibleText(input,env)();
+test("does not replay a failed request or cool an alias after only one failure", async () => {
+  const invoke = async () => (await prepareCompatibleText(input,{ ...env, AI_COMPATIBLE_BYOK_ALIASES: "single-fixture-alias" }))();
   const fetchMock = spyOn(globalThis,"fetch")
     .mockResolvedValueOnce(new Response(null,{status:401}))
     .mockResolvedValueOnce(Response.json({choices:[{message:{content:"ok"}}]}));
@@ -42,8 +59,23 @@ test("isolates an unauthorized credential on later calls without replaying the f
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await invoke();
     const auth = fetchMock.mock.calls.map(call => new Headers(call[1]?.headers).get("cf-aig-byok-alias"));
-    expect(auth[0]).not.toBe(auth[1]);
+    expect(auth[0]).toBe(auth[1]);
   } finally { fetchMock.mockRestore(); }
+});
+
+test("skips a cooling alias before dispatch and uses another configured alias once", async () => {
+  resetAliasHealthForTests();
+  const settings = compatibleSettings(env)!;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await withGatewayAlias({ CF_AI_GATEWAY_URL: env.CF_AI_GATEWAY_URL }, settings.url, "test-a", async () => false, value => value);
+  }
+  const request = spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ choices: [{ message: { content: "ok" } }] }));
+  try {
+    health.mockResolvedValueOnce({ failures: 3, cooldownUntil: Date.now() + 86400000 });
+    expect((await (await prepareCompatibleText(input, env))()).text).toBe("ok");
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(new Headers(request.mock.calls[0][1]?.headers).get("cf-aig-byok-alias")).toBe("test-b");
+  } finally { request.mockRestore(); resetAliasHealthForTests(); }
 });
 
 test("selects two configured providers without switching environment or sharing keys", async () => {
@@ -53,7 +85,7 @@ test("selects two configured providers without switching environment or sharing 
   const mock = spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(reply)).mockResolvedValueOnce(Response.json(reply));
   try {
     for (const [modelId, projectAlias] of [[MODEL_IDS.openai, "openai"], [MODEL_IDS.deepseek, "deepseek"]] as const) {
-      await prepareCompatibleText({ ...input, modelId, projectAlias }, settings)();
+      await (await prepareCompatibleText({ ...input, modelId, projectAlias }, settings))();
     }
     expect(mock.mock.calls.map(([url, init]) => [
       url, new Headers(init?.headers).get("cf-aig-byok-alias"), JSON.parse(String(init?.body)).model,
@@ -64,19 +96,19 @@ test("selects two configured providers without switching environment or sharing 
   } finally { mock.mockRestore(); }
 });
 
-test("routes Zyra answer text to the configured Muse gateway and excludes embeddings and images", () => {
+test("routes Zyra answer text to the configured Muse gateway and excludes embeddings and images", async () => {
   const meta = { ...env, AI_META_MODEL: "muse-test", AI_META_GATEWAY_ROUTE: "custom-meta", AI_META_BYOK_ALIASES: "meta-1" };
   const answer = { ...input, modelId: MODEL_IDS.meta, feature: "zyra-pedagogy", projectAlias: "meta" };
-  expect(typeof prepareCompatibleText(answer, meta)).toBe("function");
-  expect(() => prepareCompatibleText({...answer, feature:"embedding"},meta)).toThrow();
-  expect(() => prepareCompatibleText({...answer, parts:[{type:"image",mimeType:"image/png",data:"YQ=="}]},meta)).toThrow();
+  expect(typeof await prepareCompatibleText(answer, meta)).toBe("function");
+  await expect(prepareCompatibleText({...answer, feature:"embedding"},meta)).rejects.toThrow();
+  await expect(prepareCompatibleText({...answer, parts:[{type:"image",mimeType:"image/png",data:"YQ=="}]},meta)).rejects.toThrow();
 });
 
 test("dispatches the selected Muse variant using the provider's shared route", async () => {
   const settings = { ...env, AI_META_MODEL: "muse-a", AI_META_MODEL_2: "muse-b", AI_META_GATEWAY_ROUTE:"custom-meta", AI_META_BYOK_ALIASES:"shared" };
   const mock = spyOn(globalThis,"fetch").mockResolvedValue(Response.json({ choices: [{message:{content:"ok"}}] }));
   try {
-    await prepareCompatibleText({...input, modelId:MODEL_IDS.meta2, projectAlias:"meta"},settings)();
+    await (await prepareCompatibleText({...input, modelId:MODEL_IDS.meta2, projectAlias:"meta"},settings))();
     const [url, init] = mock.mock.calls[0];
     expect(String(url)).toEndWith("/custom-meta/chat/completions");
     expect(JSON.parse(String(init?.body)).model).toBe("muse-b");
@@ -122,10 +154,10 @@ test("classifies Cloudflare AI Gateway 400 (2044) as authentication failure", as
   }, { status: 400 }));
   try {
     await expect(
-      prepareCompatibleText({ ...input, modelId: MODEL_IDS.openai, projectAlias: "openai" }, {
+      (await prepareCompatibleText({ ...input, modelId: MODEL_IDS.openai, projectAlias: "openai" }, {
         ...env,
         AI_OPENAI_BYOK_ALIASES: "openai_missing",
-      })(),
+      }))(),
     ).rejects.toMatchObject({ code: "PROVIDER_AUTHENTICATION", retryClassification: "authentication", httpStatus: 400 });
   } finally { fetchMock.mockRestore(); }
 });

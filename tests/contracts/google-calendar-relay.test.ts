@@ -11,10 +11,10 @@ afterAll(() => {
   }
 });
 test("authenticated compute can relay both the daily cron and manual calendar event", async () => {
-  for (const name of ["google-calendar-sync-cron", "google-calendar/sync.requested"]) {
+  for (const name of ["google-calendar-sync-cron", "google-calendar/sync.requested", "ai-model-catalog-cron"]) {
     const response = await POST(new Request("https://fixture.test/api/internal/queue", { method: "POST", headers: { Authorization: "Bearer fixture-relay-secret", "Content-Type": "application/json" }, body: JSON.stringify({ name, id: `fixture-${name}`, data: {} }) }));
     expect(response.status).toBe(200);
   }
-  expect(relayed).toEqual(["google-calendar-sync-cron", "google-calendar/sync.requested"]);
+  expect(relayed).toEqual(["google-calendar-sync-cron", "google-calendar/sync.requested", "ai-model-catalog-cron"]);
   expect((await POST(new Request("https://fixture.test/api/internal/queue", { method: "POST" }))).status).toBe(401);
 });

@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronsUpDown, Grid2X2, Plug, Search } from "lucide-react";
+import { Check, ChevronsUpDown, CircleHelp, Grid2X2, Plug, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useTranslations } from "@/lib/i18n/client";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { getSelectableModelOption, type FeatureModelSettingView } from "@/lib/ai/model-settings";
 import { modelDisplayName } from "@/lib/ai/provider/recent-models";
-import { TEXT_PROFILES, isTextProfile, type ModelId } from "@/lib/ai/provider/model-registry";
+import { getTextProfile, isTextProfile, type ModelId } from "@/lib/ai/provider/model-registry";
+import { medianModelLatency, sortModelsByDate } from "@/lib/ai/provider/model-observations";
 
 const providerLogos: Partial<Record<string, string>> = {
   Google: "gemini",
@@ -36,18 +37,20 @@ export function ModelPicker({ view, value, label, disabled, onChange, priorities
   priorities: Partial<Record<ModelId, string>>;
 }) {
   const t = useTranslations("adminOps");
+  const { locale } = useAppLocale();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("");
-  const provider = (id: ModelId) => isTextProfile(id) ? TEXT_PROFILES[id].label : "Google";
+  const [openedAt, setOpenedAt] = useState(0);
+  const provider = (id: ModelId) => isTextProfile(id) ? getTextProfile(id)!.label : "Google";
   const name = (id: ModelId) => modelDisplayName(view.modelLabels?.[id] ?? getSelectableModelOption(id).label);
   const providers = [...new Set(view.selectableModels.map(provider))];
-  const options = view.selectableModels.filter(id => (!filter || provider(id) === filter) &&
+  const options = sortModelsByDate(view.selectableModels, view.modelDates ?? {}).filter(id => (!filter || provider(id) === filter) &&
     ([provider(id), name(id), view.modelLabels?.[id], id].join(" ")).toLowerCase().includes(query.trim().toLowerCase()));
   return (
-    <Popover open={open && !disabled} onOpenChange={next => { setOpen(next); setQuery(""); setFilter(""); }}>
+    <Popover open={open && !disabled} onOpenChange={next => { setOpen(next); setOpenedAt(Date.now()); setQuery(""); setFilter(""); }}>
       <PopoverTrigger asChild>
-        <Button variant="outline" disabled={disabled} aria-label={label + ": " + name(value)} className="w-full text-left [&>span]:justify-start">
+        <Button variant="outline" disabled={disabled} aria-label={label + ": " + name(value)} className="h-9 w-full min-w-0 text-left [&>span]:justify-start">
           <span className="min-w-0 flex-1 truncate">{name(value)}</span><ChevronsUpDown aria-hidden className="size-4 shrink-0" />
         </Button>
       </PopoverTrigger>
@@ -66,17 +69,29 @@ export function ModelPicker({ view, value, label, disabled, onChange, priorities
           <div className="flex items-center gap-2 border-b border-border px-2 focus-within:border-primary">
             <Search aria-hidden className="size-4 shrink-0 text-muted-foreground" />
             <Input autoFocus className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0" aria-label={t("modelsUI.findModel")} placeholder={t("modelsUI.findModel")} value={query} onChange={event => setQuery(event.target.value)} />
+            <Popover><PopoverTrigger asChild><Button variant="ghost" size="icon" className="size-9" aria-label={t("modelsUI.modelDataHelp")}><CircleHelp aria-hidden className="size-4" /></Button></PopoverTrigger>
+              <PopoverContent className="text-body-xs" align="end">{t("modelsUI.modelDataExplanation")}</PopoverContent>
+            </Popover>
           </div>
           <div className="max-h-64 overflow-y-auto py-1">
-            {options.map(id => (
-              <Button key={id} variant="ghost" className="h-auto w-full px-2 py-2 text-left [&>span]:justify-start" aria-pressed={value === id}
+            {options.map(id => {
+              const date = view.modelDates?.[id], observation = view.modelLatencies?.[id];
+              const median = medianModelLatency(observation);
+              const stale = observation && openedAt - observation.checkedAt >= 12 * 60 * 60_000;
+              const latency = median === undefined ? "N/A" : `${stale ? t("modelsUI.staleLatency") + " " : ""}${(median / 1000).toLocaleString(locale, { maximumFractionDigits: 2 })} s`;
+              const latencyDescription = median === undefined ? t("modelsUI.latencyMissing") : t("modelsUI.latencyMeasured", { value: latency, time: new Date(observation!.checkedAt).toLocaleString(locale) });
+              return <Button key={id} variant="ghost" className="h-auto w-full px-2 py-2 text-left [&>span]:justify-start" aria-pressed={value === id}
+                aria-label={name(id)} aria-description={[priorities[id], date && `${t(date.kind === "released" ? "modelsUI.releasedAt" : "modelsUI.createdAt")} ${new Date(date.timestamp).toLocaleDateString(locale, { timeZone: "UTC" })}`, latencyDescription].filter(Boolean).join(". ")}
                 onClick={() => { onChange(id); setOpen(false); }}>
                 <ProviderIcon provider={provider(id)} />
-                <span className="min-w-0 flex-1 whitespace-normal break-words">{name(id)}</span>
+                <span className="min-w-0 flex-1 whitespace-normal break-words">{name(id)}
+                  {date && <span aria-hidden className="block text-body-xs text-muted-foreground">{t(date.kind === "released" ? "modelsUI.releasedAt" : "modelsUI.createdAt")} {new Date(date.timestamp).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</span>}
+                </span>
                 {priorities[id] && <span className="shrink-0 text-body-xs text-muted-foreground">{priorities[id]}</span>}
                 {value === id && <Check aria-hidden className="size-4 shrink-0" />}
-              </Button>
-            ))}
+                <span aria-hidden title={latencyDescription} className="shrink-0 self-start whitespace-nowrap text-body-xs tabular-nums text-muted-foreground">{latency}</span>
+              </Button>;
+            })}
             {!options.length && <p role="status" className="p-2 text-body-xs text-muted-foreground">{t("modelsUI.noModels")}</p>}
           </div>
         </div>

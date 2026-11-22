@@ -1,3 +1,5 @@
+import { aiModelCatalogCron } from "./ai-model-catalog";
+export { aiModelCatalogCron } from "./ai-model-catalog";
 import { googleCalendarSyncCron, googleCalendarSyncWorker } from "./google-calendar";
 export { googleCalendarSyncCron, googleCalendarSyncWorker } from "./google-calendar";
 import { gamificationMissionsCron, gamificationMissionsPage } from './gamification-missions';
@@ -78,6 +80,7 @@ export { discussionThreadTitleWorker } from "./discussion-title";
  * All background functions for Deno/compute Inngest execution.
  */
 export const computeFunctions = [
+  aiModelCatalogCron,
   googleCalendarSyncCron,
   googleCalendarSyncWorker,
   discussionAiCron,

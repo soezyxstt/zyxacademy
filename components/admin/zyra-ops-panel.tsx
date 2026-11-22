@@ -98,12 +98,12 @@ export function ZyraOpsPanel() {
               {metrics.capacity.modelPools.map((pool) => (
                 <tr key={pool.model} className="border-b border-border/60">
                   <td className="px-3 py-1.5 font-mono text-body-xs">{pool.model}</td>
-                  <td className="px-3 py-1.5 tabular-nums">{pool.configuredPerProjectRpd}</td>
-                  <td className="px-3 py-1.5 tabular-nums">{pool.configuredUsableRpd}</td>
+                  <td className="px-3 py-1.5 tabular-nums">{pool.configuredPerProjectRpd ?? "N/A"}</td>
+                  <td className="px-3 py-1.5 tabular-nums">{pool.configuredUsableRpd ?? "N/A"}</td>
                   <td className="px-3 py-1.5 tabular-nums">{pool.zyxCommittedRequests}</td>
                   <td className="px-3 py-1.5 tabular-nums">{pool.activeReservations}</td>
-                  <td className="px-3 py-1.5 tabular-nums">{pool.safetyReserveRpd}</td>
-                  <td className="px-3 py-1.5 tabular-nums">{pool.usableRemainingRpd}</td>
+                  <td className="px-3 py-1.5 tabular-nums">{pool.safetyReserveRpd ?? "N/A"}</td>
+                  <td className="px-3 py-1.5 tabular-nums">{pool.usableRemainingRpd ?? "N/A"}</td>
                 </tr>
               ))}
             </tbody>

@@ -167,6 +167,29 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
     expect(modelFeature("plan005-test", undefined)).toBeUndefined();
   });
 
+  it("honors the Zyra text-provider chain for discussion while retaining auxiliary defaults", async () => {
+    const settings = {
+      BETTER_AUTH_URL: "https://staging.zyxacademy.com", CF_AI_GATEWAY_URL: "https://gateway.ai.cloudflare.com/v1/account/gateway",
+      CF_AI_GATEWAY_TOKEN: "fixture", ZYRA_CONTROL_PLANE_URL: "https://example.invalid", ZYRA_CONTROL_PLANE_TOKEN: "fixture",
+      AI_PROVIDERS: "gemini,openai,muse",
+    };
+    const previous = Object.fromEntries(Object.keys(settings).map(key => [key, process.env[key]]));
+    Object.assign(process.env, settings);
+    const models = [MODEL_IDS.openai, MODEL_IDS.meta, MODEL_IDS.default];
+    setModelSettingsReaderForTests(async feature => feature === "zyra" ? ({ feature: "zyra", models, updatedBy: "fixture", updatedAt: new Date(0) }) : null);
+    try {
+      expect(await configuredModelChain({ feature: "discussion-tutor", useCase: "ungrounded-tutor" }, ROUTE_POLICY.default)).toEqual(models);
+      expect(await configuredModelChain({ feature: "zyra", useCase: "chapter-summary" }, ROUTE_POLICY.default)).toEqual(ROUTE_POLICY.default);
+      const visual = await configuredModelChain({ feature: "discussion-tutor", useCase: "ungrounded-tutor", visual: true }, ROUTE_POLICY.premiumVisual);
+      expect(visual).not.toContain(MODEL_IDS.openai);
+      expect(visual).not.toContain(MODEL_IDS.meta);
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key]; else process.env[key] = value;
+      }
+    }
+  });
+
   it("preserves exact caller default chains when unconfigured and applies visual compatibility safely when configured", async () => {
     const store = new Map<string, StoredModelSettingRow>();
     setModelSettingsReaderForTests(async (feature) => store.get(feature) ?? null);

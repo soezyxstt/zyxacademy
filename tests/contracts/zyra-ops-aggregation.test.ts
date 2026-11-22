@@ -1,8 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { ZyraOpsMetricsSchema, zyraOpsDayStart } from "@/lib/zyra/ops";
+import { ZyraOpsCapacitySchema } from "@/lib/zyra/ops/contracts";
 import { zyraLatencyBucket, zyraOperationalFingerprint, zyraSizeBucket } from "@/lib/zyra/ops/telemetry";
 
 describe("Zyra ops aggregation", () => {
+  test("does not invent remaining provider capacity when provider limits are unknown", () => {
+    expect(ZyraOpsCapacitySchema.parse({ modelPools: [{ model: "gateway:openai:gpt-fixture", configuredPerProjectRpd: null, configuredUsableRpd: null,
+      safetyReserveRpd: null, usableRemainingRpd: null, zyxCommittedRequests: 120, activeReservations: 1 }] }).modelPools[0].usableRemainingRpd).toBeNull();
+  });
   test("keeps operational buckets bounded and fingerprints opaque", () => {
     expect(zyraOperationalFingerprint("student@example.com")).toMatch(/^[a-f0-9]{16}$/);
     expect(zyraOperationalFingerprint("student@example.com")).toBe(zyraOperationalFingerprint("student@example.com"));

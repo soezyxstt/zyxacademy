@@ -666,6 +666,16 @@
     "description": "Configure primary and fallback model priorities for each AI feature."
   },
   "modelsUI": {
+    "latencyQueued": "Latency measurement queued.",
+    "latencyUpdated": "Latency updated.",
+    "latencyWaiting": "New latency results are not available yet. Reload the page to check.",
+    "modelDataHelp": "Model order and latency",
+    "modelDataExplanation": "Newest first by verified release date or provider creation time. Undated models appear last. Latency is the median of 3 complete responses to the same test prompt, tested every 12 hours within quota. N/A means 3 complete samples are unavailable. Old means the measurement is at least 12 hours old. The model list is cached for 7 days; refresh only measures latency again.",
+    "releasedAt": "Released",
+    "createdAt": "Created",
+    "staleLatency": "Old",
+    "latencyMissing": "3 complete latency samples are unavailable",
+    "latencyMeasured": "Median latency {value}. Measured {time}",
     "noModels": "No models available",
     "findModel": "Search models",
     "allProviders": "All providers",
@@ -686,7 +696,7 @@
     "filterAll": "All",
     "filterCustom": "Custom",
     "filterDefault": "Default",
-    "refresh": "Refresh",
+    "refresh": "Update latency",
     "noMatchTitle": "No matching features",
     "noMatchDescription": "Adjust your search query or reset the group and status filters.",
     "clearFilters": "Reset filters",
@@ -710,7 +720,7 @@
     "savedToast": "Updated model priorities for {feature}.",
     "resetToast": "Reset {feature} to default model priorities.",
     "capabilityHeading": "Registry capability rules",
-    "capabilityDistinct": "Each custom chain requires one primary model and two distinct fallback models approved for ordinary routing.",
+    "capabilityDistinct": "Choose 3 different models, one primary and 2 fallbacks.",
     "capabilityOpsAi": "Ops AI requires streaming tool calls and therefore only allows generate-content models.",
     "capabilityVisual": "Only Gemini 3.6 Flash and Gemini 2.5 Flash accept image input; image turns in Zyra and Playground keep built-in visual fallbacks.",
     "groups": {
@@ -718,7 +728,9 @@
       "learning": "Learning and evaluation",
       "generation": "Material and content generation",
       "documents": "Diktat and document audits"
-    }
+    },
+    "actions": "Actions",
+    "groupFilter": "Groups"
   },
   "groupsUI": {
     "missingName": "Study group name is required.",

@@ -17,6 +17,9 @@ export async function runQueueJob(name: string, data: Record<string, unknown>, t
     const rows = await db.select().from(queueTaskCheckpoints).where(eq(queueTaskCheckpoints.task, task));
     const completed = new Map(rows.map(row => [row.step, row.value as { result?: unknown }]));
     if (completed.has("$done")) return;
+    if (job.definition.id === "ai-model-catalog-cron" && !await lock("queue:ai-model-catalog")) {
+      throw new Error("QUEUE_JOB_BUSY");
+    }
     if (job.definition.id === "google-calendar-sync") {
       if (typeof data.target !== "string") throw new Error("QUEUE_CALENDAR_TARGET_REQUIRED");
       if (!await lock(`queue:google-calendar:${data.target}`)) throw new Error("QUEUE_JOB_BUSY");

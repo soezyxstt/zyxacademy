@@ -666,6 +666,16 @@
     "description": "Atur prioritas model utama dan dua model cadangan untuk setiap fitur AI."
   },
   "modelsUI": {
+    "latencyQueued": "Pengukuran latensi dijadwalkan.",
+    "latencyUpdated": "Latensi diperbarui.",
+    "latencyWaiting": "Hasil latensi terbaru belum tersedia. Muat ulang halaman untuk memeriksa.",
+    "modelDataHelp": "Urutan dan latensi model",
+    "modelDataExplanation": "Terbaru lebih dahulu berdasarkan tanggal rilis terverifikasi atau waktu pembuatan dari provider. Tanpa tanggal ditempatkan terakhir. Latensi adalah median 3 respons lengkap untuk prompt uji yang sama, diuji tiap 12 jam sesuai kuota. N/A berarti belum ada 3 sampel lengkap. Lama berarti pengukuran berusia 12 jam atau lebih. Daftar model di-cache 7 hari; tombol refresh hanya mengukur ulang latensi.",
+    "releasedAt": "Rilis",
+    "createdAt": "Dibuat",
+    "staleLatency": "Lama",
+    "latencyMissing": "Belum ada 3 sampel latensi lengkap",
+    "latencyMeasured": "Median latensi {value}. Diukur {time}",
     "noModels": "Model tidak tersedia",
     "findModel": "Cari model",
     "allProviders": "Semua provider",
@@ -686,7 +696,7 @@
     "filterAll": "Semua",
     "filterCustom": "Kustom",
     "filterDefault": "Bawaan",
-    "refresh": "Muat ulang",
+    "refresh": "Perbarui latensi",
     "noMatchTitle": "Tidak ada fitur yang cocok",
     "noMatchDescription": "Ubah kata kunci pencarian atau atur ulang filter kelompok dan status.",
     "clearFilters": "Atur ulang filter",
@@ -710,7 +720,7 @@
     "savedToast": "Prioritas model {feature} diperbarui.",
     "resetToast": "Prioritas model {feature} dikembalikan ke bawaan.",
     "capabilityHeading": "Ketentuan kapabilitas registri",
-    "capabilityDistinct": "Setiap rantai kustom wajib terdiri dari satu model utama dan dua model cadangan berbeda yang diizinkan untuk rute produksi.",
+    "capabilityDistinct": "Pilih 3 model berbeda, satu utama dan 2 cadangan.",
     "capabilityOpsAi": "Ops AI membutuhkan streaming pemanggilan tool sehingga hanya mengizinkan keluarga generate-content.",
     "capabilityVisual": "Hanya Gemini 3.6 Flash dan Gemini 2.5 Flash yang menerima input gambar; permintaan bergambar pada Zyra dan Playground tetap menyertakan fallback visual bawaan.",
     "groups": {
@@ -718,7 +728,9 @@
       "learning": "Pembelajaran dan evaluasi",
       "generation": "Generasi materi dan konten",
       "documents": "Audit diktat dan dokumen"
-    }
+    },
+    "actions": "Tindakan",
+    "groupFilter": "Kelompok"
   },
   "groupsUI": {
     "missingName": "Nama kelompok belajar wajib diisi.",

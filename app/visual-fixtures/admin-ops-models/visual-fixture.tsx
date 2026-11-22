@@ -7,11 +7,25 @@ import type { ModelSettingMutationResult } from "@/app/(admin)/admin/ops/models/
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import {
-  buildFeatureModelSettingViews,
+  buildFeatureModelSettingViews as buildViews,
+  modelAllowedForFeature,
   type StoredModelSettingRow,
+  type FeatureModelSettingView,
 } from "@/lib/ai/model-settings";
-import { MODEL_IDS } from "@/lib/ai/provider/model-registry";
+import { MODEL_IDS, type ModelId } from "@/lib/ai/provider/model-registry";
 import { useTranslations } from "@/lib/i18n/client";
+
+function buildFeatureModelSettingViews(rows: readonly StoredModelSettingRow[]) {
+  const discovered: ModelId[] = ["gateway:openai:gpt-future-fixture-long-title", "gateway:muse:muse-future-fixture", "gateway:gemini:gemini-future-fixture"];
+  return buildViews(rows).map(view => ({ ...view,
+    selectableModels: [...view.selectableModels, ...discovered.filter(id => modelAllowedForFeature(view.feature, id))],
+    modelDates: { "gateway:openai:gpt-future-fixture-long-title": { timestamp: Date.now() - 86400000, kind: "created" as const, source: "https://example.test/models" } },
+    modelLatencies: { "gateway:openai:gpt-future-fixture-long-title": { checkedAt: Date.now(), samples: [1400, 900, 1100], status: "complete" as const } },
+    modelLabels: {
+    ...Object.fromEntries(discovered.map(id => [id, id.split(":").at(-1)!])),
+    [MODEL_IDS.openai]: "gpt-6.2-sol", [MODEL_IDS.meta]: "muse-spark-1.3",
+  } }));
+}
 
 const FIXED_TIMESTAMP = new Date("2026-11-05T08:30:00.000Z");
 
@@ -38,10 +52,13 @@ const INITIAL_STORED_ROWS: StoredModelSettingRow[] = [
   },
 ];
 
-export function AdminOpsModelsVisualFixture({ state }: { state: string }) {
+export function AdminOpsModelsVisualFixture({ state, gatewayCatalog }: { state: string; gatewayCatalog?: Pick<FeatureModelSettingView, "selectableModels" | "modelDates" | "modelLabels" | "modelLatencies"> }) {
   const t = useTranslations("adminOps");
   const tAdmin = useTranslations("admin");
   const [ready, setReady] = useState(false);
+  const fixtureViews = (rows: readonly StoredModelSettingRow[]) => buildFeatureModelSettingViews(rows).map(view => gatewayCatalog ? {
+    ...view, ...gatewayCatalog, selectableModels: gatewayCatalog.selectableModels.filter(id => modelAllowedForFeature(view.feature, id)),
+  } : view);
   const rowsRef = useRef<StoredModelSettingRow[]>(
     state === "all-default" ? [] : [...INITIAL_STORED_ROWS],
   );
@@ -50,7 +67,7 @@ export function AdminOpsModelsVisualFixture({ state }: { state: string }) {
     setReady(true);
   }, []);
 
-  const initialViews = buildFeatureModelSettingViews(
+  const initialViews = fixtureViews(
     state === "all-default" ? [] : INITIAL_STORED_ROWS,
   );
 
@@ -66,7 +83,7 @@ export function AdminOpsModelsVisualFixture({ state }: { state: string }) {
         code: "MODEL_SETTING_CONFLICT",
         error:
           "Konfigurasi model baru saja diubah oleh admin lain. Muat ulang halaman lalu coba lagi.",
-        views: buildFeatureModelSettingViews(rowsRef.current),
+        views: fixtureViews(rowsRef.current),
       };
     }
 
@@ -82,7 +99,7 @@ export function AdminOpsModelsVisualFixture({ state }: { state: string }) {
     ];
     return {
       ok: true,
-      views: buildFeatureModelSettingViews(rowsRef.current),
+      views: fixtureViews(rowsRef.current),
     };
   };
 
@@ -93,16 +110,26 @@ export function AdminOpsModelsVisualFixture({ state }: { state: string }) {
     rowsRef.current = rowsRef.current.filter((item) => item.feature !== input.feature);
     return {
       ok: true,
-      views: buildFeatureModelSettingViews(rowsRef.current),
+      views: fixtureViews(rowsRef.current),
     };
   };
 
   const handleRefreshOverride = async (): Promise<ModelSettingMutationResult> => {
     return {
       ok: true,
-      views: buildFeatureModelSettingViews(rowsRef.current),
+      views: fixtureViews(rowsRef.current),
+      ...(state === "latency-refresh" ? { latencyRefreshRequestedAt: Date.now() } : {}),
     };
   };
+
+  const handleReadOverride = async (): Promise<ModelSettingMutationResult> => ({
+    ok: true,
+    views: fixtureViews(rowsRef.current).map(view => ({ ...view,
+      modelLatencies: Object.fromEntries(view.selectableModels.map(id => [id, {
+        checkedAt: Date.now(), samples: [1800, 2000, 1600], status: "complete" as const,
+      }])),
+    })),
+  });
 
   return (
     <div
@@ -159,6 +186,7 @@ export function AdminOpsModelsVisualFixture({ state }: { state: string }) {
             onSaveOverride={handleSaveOverride}
             onResetOverride={handleResetOverride}
             onRefreshOverride={handleRefreshOverride}
+            onReadOverride={handleReadOverride}
             initialSearch={state === "empty-search" ? "tidak-ada-fitur-cocok" : ""}
             initialStatusFilter={state === "custom-only" ? "custom" : "all"}
             initialBannerError={

@@ -40,12 +40,12 @@ export type ZyraOpsAlert = z.infer<typeof ZyraOpsAlertSchema>;
 export const ZyraOpsCapacitySchema = z.object({
   modelPools: z.array(z.object({
     model: z.string(),
-    configuredPerProjectRpd: z.number().int().nonnegative(),
-    configuredUsableRpd: z.number().int().nonnegative(),
-    safetyReserveRpd: z.number().int().nonnegative(),
+    configuredPerProjectRpd: z.number().int().nonnegative().nullable(),
+    configuredUsableRpd: z.number().int().nonnegative().nullable(),
+    safetyReserveRpd: z.number().int().nonnegative().nullable(),
     zyxCommittedRequests: z.number().int().nonnegative(),
     activeReservations: z.number().int().nonnegative(),
-    usableRemainingRpd: z.number().int().nonnegative(),
+    usableRemainingRpd: z.number().int().nonnegative().nullable(),
   }).strict()),
 }).strict();
 export type ZyraOpsCapacity = z.infer<typeof ZyraOpsCapacitySchema>;
@@ -78,7 +78,7 @@ export const ZyraOpsMetricsSchema = z.object({
   }).strict(),
   events: z.array(z.object({ eventType: z.string(), resultCode: z.string(), count: z.number().int().nonnegative() }).strict()),
   stageOutcomes: z.array(z.object({ stage: z.string(), model: z.string(), total: z.number(), failed: z.number(), p95Ms: z.number() })).optional(),
-  configuredModels: z.array(z.object({ model: z.string(), initialUsableRpd: z.number().int().nonnegative() }).strict()),
+  configuredModels: z.array(z.object({ model: z.string(), initialUsableRpd: z.number().int().nonnegative().nullable() }).strict()),
   capacity: ZyraOpsCapacitySchema.default({ modelPools: [] }),
   alerts: z.array(ZyraOpsAlertSchema).default([]),
 }).strict();
