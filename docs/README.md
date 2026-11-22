@@ -14,6 +14,8 @@ The `ACTIVE` [feature catalog](features.md) records the shared student/demo Grou
 
 # Zyx Academy Documentation Index
 
+The [production Cloud Run runbook](operations/cloud-run-production.md) and [staging Cloud Run runbook](operations/cloud-run-staging.md) document manual dispatch with an exact revision for promotion and rollback.
+
 The `ACTIVE` [client data-fetching standard](data-fetching.md) defines TanStack Query 5.108.0, account-scoped keys, validated API functions, cache and mutation policies, and the split between server data, feature logic and UI. It records migrated learning/admin surfaces and remaining read opportunities while preserving RSC, stream, upload and revision boundaries. Final CI, browser and authenticated staging acceptance remain pending in the PR verification record.
 
 `OPEN / IN PROGRESS`, discussion staging schema, 2026-11-17: migrations 0024 through 0034 passed rehearsal and one-transaction application to the verified staging branch. All 26 historical ledger rows were preserved; 11 new entries and 13 discussion tables were verified. No existing discussion rows required backfill. The [migration record](discussions.md#staging-migration-2026-11-17) identifies the backup and checks. Production remains unchanged; deployment and authenticated application acceptance are separate.

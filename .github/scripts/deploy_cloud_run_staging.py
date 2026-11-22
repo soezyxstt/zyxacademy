@@ -188,13 +188,12 @@ def prepare():
     if operation == "candidate":
         require(not revision, "Candidate operation derives its own exact revision.")
     else:
-        require(REVISION.fullmatch(revision) and os.environ.get("CLOUD_RUN_REVIEWED") == "true",
-                "A verified revision and explicit acceptance are required for traffic changes.")
+        require(REVISION.fullmatch(revision), "An exact revision is required for traffic changes.")
     require(re.fullmatch(r"projects/[1-9][0-9]*/locations/global/workloadIdentityPools/[a-z0-9-]+/providers/[a-z0-9-]+",
                          os.environ["CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER"]),
-            "Configure CLOUD_RUN_STAGING_WORKLOAD_IDENTITY_PROVIDER in the staging GitHub environment.")
+            "Configure CLOUD_RUN_STAGING_WORKLOAD_IDENTITY_PROVIDER in the staging-cloud-run GitHub environment.")
     require(ENVIRONMENT == "production" or VERSION.fullmatch(os.environ.get("CLOUD_RUN_PREFLIGHT_DATABASE_VERSION", "")),
-            "Configure CLOUD_RUN_STAGING_PREFLIGHT_DATABASE_VERSION in the staging GitHub environment.")
+            "Configure CLOUD_RUN_STAGING_PREFLIGHT_DATABASE_VERSION in the staging-cloud-run GitHub environment.")
     config = public_config(os.environ["CLOUD_RUN_PUBLIC_CONFIG"])
     (Path(os.environ["RUNNER_TEMP"]) / "cloud-run-public.json").write_text(json.dumps(config), encoding="utf-8")
     return config

@@ -1,10 +1,11 @@
+import tempfile
 import copy
 import unittest
 from unittest.mock import patch
 
 from deploy_cloud_run_staging import (
     REQUIRED_SECRET_KEYS, REVISION, RUNTIME_ACCOUNT, STAGING, change_traffic,
-    public_config, traffic, validate_template,
+    prepare, public_config, traffic, validate_template,
 )
 
 
@@ -43,6 +44,29 @@ def spec():
 
 
 class CloudRunStagingTest(unittest.TestCase):
+    def test_traffic_dispatch_requires_an_exact_revision(self):
+        sha = "f" * 40
+        with tempfile.TemporaryDirectory() as temp:
+            env = {
+                "GITHUB_REPOSITORY": "soezyxstt/zyxacademy",
+                "GITHUB_REF": "refs/heads/staging",
+                "GITHUB_EVENT_NAME": "workflow_dispatch",
+                "GITHUB_SHA": sha,
+                "CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER": "projects/1/locations/global/workloadIdentityPools/staging/providers/github",
+                "CLOUD_RUN_PREFLIGHT_DATABASE_VERSION": "1",
+                "CLOUD_RUN_PUBLIC_CONFIG": '{"NEXT_PUBLIC_APP_URL":"https://staging.zyxacademy.com"}',
+                "RUNNER_TEMP": temp,
+            }
+            with patch.dict("os.environ", env, clear=True), patch("deploy_cloud_run_staging.command", return_value=sha):
+                for operation, revision in (("promote", CANDIDATE), ("rollback", PREVIOUS)):
+                    with self.subTest(operation=operation):
+                        with patch.dict("os.environ", {"CLOUD_RUN_OPERATION": operation, "CLOUD_RUN_REVISION": revision}):
+                            self.assertEqual(prepare(), CONFIG)
+                        for invalid in ("", "latest", "zyx-academy-production-web-r123a1"):
+                            with patch.dict("os.environ", {"CLOUD_RUN_OPERATION": operation, "CLOUD_RUN_REVISION": invalid}):
+                                with self.assertRaisesRegex(ValueError, "An exact revision is required"):
+                                    prepare()
+
     def test_rejects_non_staging_or_unlisted_build_settings(self):
         self.assertEqual(public_config('{"NEXT_PUBLIC_APP_URL":"https://staging.zyxacademy.com"}'), CONFIG)
         for origin in ("https://www.zyxacademy.com", "https://staging.zyxacademy.com@untrusted.com",

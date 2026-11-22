@@ -12,10 +12,6 @@ on:
       revision:
         description: Exact verified revision for promote or rollback
         type: string
-      reviewed:
-        description: Confirm the exact production target and selected operation after review
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -58,7 +54,6 @@ jobs:
       CLOUD_RUN_ENVIRONMENT: production
       CLOUD_RUN_OPERATION: ${{ inputs.operation }}
       CLOUD_RUN_REVISION: ${{ inputs.revision }}
-      CLOUD_RUN_REVIEWED: ${{ inputs.reviewed }}
       CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER: projects/307641710075/locations/global/workloadIdentityPools/zyx-web-production/providers/github
       QUEUE_PROVIDER: cloud-tasks
     steps:
