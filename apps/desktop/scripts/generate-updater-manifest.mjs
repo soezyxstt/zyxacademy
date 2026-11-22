@@ -5,6 +5,11 @@ import { fileURLToPath } from "node:url";
 
 const DEFAULT_REPO = "soezyxstt/zyxacademy";
 
+const NIGHTLY_DEB = {
+  target: "linux-x86_64-deb",
+  pairs: [{ assetExt: ".deb", sigExt: ".deb.sig" }],
+};
+
 const PLATFORM_CANDIDATES = [
   {
     target: "windows-x86_64",
@@ -42,7 +47,10 @@ export function buildUpdaterManifest({
   const fileSet = new Set(files);
   const platforms = {};
 
-  for (const { target, pairs } of PLATFORM_CANDIDATES) {
+  const candidates = /-nightly\.\d{8}\.[a-f0-9]{7}$/.test(tag)
+    ? [...PLATFORM_CANDIDATES, NIGHTLY_DEB]
+    : PLATFORM_CANDIDATES;
+  for (const { target, pairs } of candidates) {
     for (const { assetExt, sigExt } of pairs) {
       const sigFile = files.find((name) => name.endsWith(sigExt));
       if (!sigFile) continue;

@@ -35,6 +35,20 @@ For other targets, inspect their complete history and schema independently. The 
 
 
 
+## Nightly native app releases
+
+Run **Release Apps (Desktop & Mobile)** manually from `staging` with the `nightly` channel. Web-only changes take effect through the staging web deployment. Reserve a native release for changes to the wrapper, native plugins, or bundled offline assets.
+
+The workflow builds the existing APK, Windows NSIS installer, macOS Apple Silicon DMG, and Linux AppImage and Debian packages. It also collects signed Tauri updater artifacts when the existing signing keys are configured. For each package, it compares up to the two most recent published Nightlies and uploads a version-specific patch when it saves at least 20% of the full download. The workflow publishes full packages for initial installation and recovery.
+
+- **Android** prefers an optimized patch when the workflow can reproduce the release APK's compressed DEX files exactly. It verifies the reconstructed APK byte for byte, then falls back to the regular patch or full APK if needed. Android validates and applies the in-place update and can request confirmation. The workflow requires the persistent Nightly Android signing key, including when a patch is unavailable.
+- **Desktop** checks Tauri signatures for signed updates and release SHA-256 checksums for patches to the direct GitHub installers. Windows and Debian builds using the direct GitHub updater first try a patch based on the installed executable. The release workflow uses an uncompressed installer as the patch target and publishes the regular compressed installer for full downloads. The client checks the patch against the release checksum and verifies the reconstructed installer before opening it. Signed Tauri updates use their signed package and cached-package path. Other direct desktop updates can use the previous cached installer. AppImage builds can reuse the installed AppImage directly. A writable AppImage is replaced in place before the app restarts. Other packages use their existing OS installation path.
+- **iOS** uses TestFlight for native Nightly updates. Testers can enable automatic updates in TestFlight. The GitHub release workflow publishes no iOS binaries.
+
+Users on builds without patch support need a regular update first. If a patch is missing or fails validation, the updater uses the full package. To stop serving patches for a release, remove its `.zyxdelta`, `.zyxdelta-apk.gz`, and `.zyxdesktop.gz` assets and keep its full packages and checksums.
+
+After publishing, upgrade from the previous Nightly on each supported package format. Compare GitHub asset sizes, verify the app reports the new version and can still open saved readings, and test a missing-patch path. Test the iOS update through TestFlight. Check the staging origin and Nightly channel before collecting evidence.
+
 ## Cloud Tasks pilot and production rollback
 
 Status: OPEN / IN PROGRESS. The staging pilot targets Cloud Tasks and Scheduler in Singapore. Each environment uses a default queue, a PDF queue with at most two concurrent deliveries, and one dispatcher. The dispatcher must enqueue only jobs due in its scheduling window. Use persistent outbox rows as the recovery source when a producer commits before it can enqueue.
