@@ -1,9 +1,11 @@
 import os
+from pathlib import Path
+import re
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from import_cloud_run_staging_secrets import IMPORT_KEYS, STAGING, main
+from import_cloud_run_staging_secrets import IMPORT_KEYS, OPTIONAL_IMPORT_KEYS, STAGING, main
 
 
 def staging_environment():
@@ -20,6 +22,29 @@ def staging_environment():
 
 
 class ImportSecretsTest(unittest.TestCase):
+    def test_workflow_supplies_every_supported_import(self):
+        workflow = (Path(__file__).resolve().parents[1] / "workflows/deploy-cloud-run-staging.yml").read_text()
+        imports = workflow.split("- name: Import allowlisted staging credentials", 1)[1]
+        keys = set(re.findall(r"^          ([A-Z][A-Z0-9_]*):", imports, re.MULTILINE))
+        self.assertEqual(keys, IMPORT_KEYS | OPTIONAL_IMPORT_KEYS)
+        self.assertIn("PYTHON_RUNTIME_TOKEN_SECRET", IMPORT_KEYS)
+        self.assertNotIn("FIREBASE_SERVICE_ACCOUNT_JSON", keys)
+
+    def test_imports_available_optional_values_without_leaking_them_to_children(self):
+        with (
+            patch.dict(os.environ, {**staging_environment(), "GOOGLE_REFRESH_TOKEN": "optional-value",
+                                   "CF_AI_GATEWAY_TOKEN": "", "GITHUB_TOKEN": "excluded"}, clear=True),
+            patch("import_cloud_run_staging_secrets.subprocess.run",
+                  return_value=SimpleNamespace(stdout="projects/1/secrets/example/versions/2", returncode=0)) as run,
+            patch("builtins.print") as log,
+        ):
+            main()
+        self.assertEqual(run.call_count, len(IMPORT_KEYS) + 1)
+        self.assertEqual(sum(kwargs["input"] == "optional-value" for _, kwargs in run.call_args_list), 1)
+        for _, kwargs in run.call_args_list:
+            self.assertTrue((IMPORT_KEYS | OPTIONAL_IMPORT_KEYS).isdisjoint(kwargs["env"]))
+        self.assertNotIn("optional-value", str(log.call_args_list))
+
     def test_sends_values_only_through_stdin(self):
         with (
             patch.dict(os.environ, staging_environment(), clear=True),
@@ -38,6 +63,7 @@ class ImportSecretsTest(unittest.TestCase):
 
     def test_rejects_missing_values_or_wrong_target_before_import(self):
         for changes in ({"GITHUB_REF": "refs/heads/main"}, {"GOOGLE_CLIENT_SECRET": ""},
+                        {"PYTHON_RUNTIME_TOKEN_SECRET": ""},
                         {"DATABASE_URL": "postgresql://another-user:secret@example.com/neondb?sslmode=verify-full"}):
             with (
                 self.subTest(keys=list(changes)),
