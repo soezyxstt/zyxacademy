@@ -56,7 +56,6 @@ import {
   getCourseTryouts,
   getStudentCourses,
 } from "@/lib/course-utils";
-import { env } from "@/lib/env";
 import { getReviewQueue } from "@/lib/flashcard-actions";
 import { getDashboardReviewSummary } from "@/lib/student/dashboard-review-summary";
 import { getMastery } from "@/lib/mastery-store";

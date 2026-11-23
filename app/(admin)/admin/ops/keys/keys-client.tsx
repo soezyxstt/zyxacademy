@@ -31,19 +31,6 @@ function circuitColor(state: string): string {
   }
 }
 
-function ProgressBar({ current, max }: { current: number; max: number }) {
-  const pct = Math.min(100, max > 0 ? (current / max) * 100 : 0);
-  const color =
-    pct >= 90 ? "bg-status-error" :
-    pct >= 70 ? "bg-status-warning" :
-    "bg-status-success";
-  return (
-    <div className="h-1.5 w-full overflow-hidden rounded-md bg-muted">
-      <div className={`h-full rounded-md transition-[width] duration-500 ease-out ${color}`} style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
-
 export function KeysClient() {
   const t = useTranslations("adminOps");
   const userId = useQueryAccountId();

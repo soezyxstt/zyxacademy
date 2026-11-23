@@ -16,7 +16,6 @@ import {
   Cpu,
   FilePen,
   FileText,
-  Flag,
   Gauge,
   Globe,
   GraduationCap,

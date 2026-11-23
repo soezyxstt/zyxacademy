@@ -41,13 +41,14 @@ export function AiAnalyticsClient() {
     refetch,
   } = useQuery(adminAnalyticsQuery(userId ?? ""));
 
+  const recentLogs = stats?.recentLogs;
   const modelBreakdown = useMemo(() => {
-    if (!stats?.recentLogs?.length) return [];
+    if (!recentLogs?.length) return [];
     const map = new Map<
       string,
       { model: string; count: number; successes: number; totalLatencyMs: number }
     >();
-    for (const log of stats.recentLogs) {
+    for (const log of recentLogs) {
       const key = log.model || "unknown";
       const entry = map.get(key) ?? { model: key, count: 0, successes: 0, totalLatencyMs: 0 };
       entry.count += 1;
@@ -55,7 +56,7 @@ export function AiAnalyticsClient() {
       entry.totalLatencyMs += log.latencyMs;
       map.set(key, entry);
     }
-    const total = stats.recentLogs.length;
+    const total = recentLogs.length;
     return [...map.values()]
       .sort((a, b) => b.count - a.count)
       .map((item) => ({
@@ -64,14 +65,14 @@ export function AiAnalyticsClient() {
         successRatePct: Math.round((item.successes / item.count) * 100),
         avgLatencyMs: item.totalLatencyMs / item.count,
       }));
-  }, [stats?.recentLogs]);
+  }, [recentLogs]);
 
   const filteredLogs = useMemo(() => {
-    if (!stats?.recentLogs) return [];
-    if (logFilter === "failed") return stats.recentLogs.filter((l) => !l.success);
-    if (logFilter === "gateway") return stats.recentLogs.filter((l) => l.viaGateway);
-    return stats.recentLogs;
-  }, [stats?.recentLogs, logFilter]);
+    if (!recentLogs) return [];
+    if (logFilter === "failed") return recentLogs.filter((l) => !l.success);
+    if (logFilter === "gateway") return recentLogs.filter((l) => l.viaGateway);
+    return recentLogs;
+  }, [recentLogs, logFilter]);
 
   if (isPending || !userId) return <AiAnalyticsSkeleton label={t("analyticsUI.loading")} />;
 

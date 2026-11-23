@@ -8,7 +8,6 @@ import {
   CalendarDays,
   Link as LinkIcon,
   Newspaper,
-  Flag,
   Video,
   FileText,
   BookOpen,

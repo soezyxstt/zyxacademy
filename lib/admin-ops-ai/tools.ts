@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { searchDocs } from "./rag-store";
 import { introspectDbSchema, getLiveSystemMetrics } from "./schema-introspection";
 import { db } from "@/db";
-import { user, courses } from "@/db/schema";
-import { ilike, or, eq } from "drizzle-orm";
+import { user } from "@/db/schema";
+import { ilike, or } from "drizzle-orm";
 import { generateEnrollmentToken } from "@/app/(admin)/admin/(academic)/tokens/actions";
 import { type OpsAiActionProposal } from "./types";
 
