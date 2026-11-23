@@ -1,0 +1,234 @@
+import { describe, expect, test } from "bun:test";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { Home, BookOpen } from "lucide-react";
+import {
+  MobileChromeProvider,
+  addHideBottomNavToken,
+  createMobileChromeState,
+  removeHideBottomNavToken,
+  removeTopNavEntry,
+  resolveTopNavConfig,
+  upsertTopNavEntry,
+} from "@/components/navigation/mobile-chrome-context";
+import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
+import { MobileTopNavbar } from "@/components/navigation/mobile-top-navbar";
+import { PageHeader } from "@/components/page-header";
+
+describe("MobileChromeContext state management", () => {
+  test("ref-counts nested hideBottomNav tokens so inner unmount does not clobber outer lock", () => {
+    let state = createMobileChromeState();
+    expect(state.hideBottomNavTokens).toHaveLength(0);
+
+    // Outer immersive screen (e.g., quiz player) hides bottom nav.
+    state = addHideBottomNavToken(state, "quiz-player");
+    expect(state.hideBottomNavTokens).toEqual(["quiz-player"]);
+
+    // Duplicate token acquisition is idempotent.
+    state = addHideBottomNavToken(state, "quiz-player");
+    expect(state.hideBottomNavTokens).toEqual(["quiz-player"]);
+
+    // Nested modal or composer also hides bottom nav.
+    state = addHideBottomNavToken(state, "composer-sheet");
+    expect(state.hideBottomNavTokens).toEqual(["quiz-player", "composer-sheet"]);
+
+    // Inner sheet unmounts: bottom nav MUST stay hidden because quiz-player is still active.
+    state = removeHideBottomNavToken(state, "composer-sheet");
+    expect(state.hideBottomNavTokens).toEqual(["quiz-player"]);
+    expect(state.hideBottomNavTokens.length > 0).toBe(true);
+
+    // Outer quiz player unmounts: bottom nav is restored.
+    state = removeHideBottomNavToken(state, "quiz-player");
+    expect(state.hideBottomNavTokens).toHaveLength(0);
+  });
+
+  test("stacks and restores declarative topNav overrides cleanly", () => {
+    let state = createMobileChromeState();
+    state = upsertTopNavEntry(state, "course-layout", {
+      title: "Kalkulus 1",
+      backHref: "/dashboard",
+    });
+    expect(resolveTopNavConfig(state.topNavStack)).toEqual({
+      title: "Kalkulus 1",
+      backHref: "/dashboard",
+    });
+
+    // Nested reader pushes a more specific title while inheriting backHref.
+    state = upsertTopNavEntry(state, "material-reader", {
+      title: "Bab 2: Turunan",
+    });
+    expect(resolveTopNavConfig(state.topNavStack)).toEqual({
+      title: "Bab 2: Turunan",
+      backHref: "/dashboard",
+    });
+
+    // Updating an existing entry updates in place without duplicating.
+    state = upsertTopNavEntry(state, "material-reader", {
+      title: "Bab 2: Aturan Rantai",
+      hideTopNav: true,
+    });
+    expect(state.topNavStack).toHaveLength(2);
+    expect(resolveTopNavConfig(state.topNavStack)).toEqual({
+      title: "Bab 2: Aturan Rantai",
+      backHref: "/dashboard",
+      hideTopNav: true,
+    });
+
+    // Unmounting nested reader restores parent config.
+    state = removeTopNavEntry(state, "material-reader");
+    expect(resolveTopNavConfig(state.topNavStack)).toEqual({
+      title: "Kalkulus 1",
+      backHref: "/dashboard",
+    });
+  });
+
+  test("renders MobileTopNavbar and MobileBottomNav with required data attributes and aria-current", () => {
+    const html = renderToStaticMarkup(
+      <MobileChromeProvider>
+        <MobileTopNavbar title="Dashboard Siswa" backHref="/dashboard" />
+        <MobileBottomNav
+          items={[
+            { id: "home", label: "Beranda", href: "/dashboard", icon: Home, active: true },
+            { id: "courses", label: "Kelas", href: "/courses", icon: BookOpen, badgeCount: 3 },
+          ]}
+        />
+      </MobileChromeProvider>
+    );
+
+    expect(html).toContain("data-mobile-navbar");
+    expect(html).toContain("Dashboard Siswa");
+    expect(html).toContain("data-mobile-bottom-nav");
+    expect(html).toContain('aria-current="page"');
+    expect(html).toContain("Beranda");
+    expect(html).toContain("Kelas");
+    expect(html).toContain(">3<");
+  });
+
+  test("unmounts MobileBottomNav when hidden prop is true", () => {
+    const html = renderToStaticMarkup(
+      <MobileChromeProvider>
+        <MobileBottomNav
+          hidden
+          items={[
+            { id: "home", label: "Beranda", href: "/dashboard", icon: Home, active: true },
+          ]}
+        />
+      </MobileChromeProvider>
+    );
+
+    expect(html).toBe("");
+  });
+
+  test("renders a single authoritative back button on MobileTopNavbar when onBack is provided alongside backHref", () => {
+    const html = renderToStaticMarkup(
+      <MobileChromeProvider>
+        <MobileTopNavbar
+          title="Tryout Tengah Semester"
+          backHref="/tutor/calc-1"
+          onBack={() => {}}
+          backLabel="Kembali ke antrean"
+        />
+      </MobileChromeProvider>
+    );
+
+    const backButtonMatches = html.match(/data-mobile-back-button=""/g) ?? [];
+    expect(backButtonMatches).toHaveLength(1);
+    expect(html).toContain("<button");
+    expect(html).toContain('aria-label="Kembali ke antrean"');
+    expect(html).not.toContain('href="/tutor/calc-1"');
+  });
+
+  test("resolves fallbackBackHref from PageHeader without overriding screen onBack or backHref", () => {
+    let state = createMobileChromeState();
+    state = upsertTopNavEntry(state, "page-header", {
+      fallbackBackHref: "/tutor/calc-1",
+      fallbackBackLabel: "Kembali ke kelas",
+    });
+    expect(resolveTopNavConfig(state.topNavStack)).toEqual({
+      fallbackBackHref: "/tutor/calc-1",
+      fallbackBackLabel: "Kembali ke kelas",
+    });
+
+    const onBack = () => {};
+    state = upsertTopNavEntry(state, "grading-review", {
+      title: "Tryout 1",
+      onBack,
+      backLabel: "Kembali",
+    });
+    const resolved = resolveTopNavConfig(state.topNavStack);
+    expect(resolved.onBack).toBe(onBack);
+    expect(resolved.fallbackBackHref).toBe("/tutor/calc-1");
+
+    const pageHeaderHtml = renderToStaticMarkup(
+      <MobileChromeProvider>
+        <PageHeader title="Penilaian Tryout" backHref="/tutor/calc-1" backLabel="Kembali" />
+      </MobileChromeProvider>
+    );
+    expect(pageHeaderHtml).toContain("Penilaian Tryout");
+    expect(pageHeaderHtml).not.toContain("<a ");
+    expect(pageHeaderHtml).not.toContain("<button");
+  });
+
+  test("mobile grading and discussion workspaces delegate back navigation to MobileTopNavbar without duplicate in-page back buttons", () => {
+    const repoRoot = process.cwd();
+    const tryoutSource = fs.readFileSync(
+      path.join(repoRoot, "features/grading/ui/mobile/tryout-grading-mobile.tsx"),
+      "utf-8"
+    );
+    const quizSource = fs.readFileSync(
+      path.join(repoRoot, "features/grading/ui/mobile/quiz-grading-mobile.tsx"),
+      "utf-8"
+    );
+    const discussionSource = fs.readFileSync(
+      path.join(repoRoot, "features/discussions/ui/mobile/discussion-workspace-mobile.tsx"),
+      "utf-8"
+    );
+
+    expect(tryoutSource).toContain("useMobileTopNav(");
+    expect(tryoutSource).not.toContain("ArrowLeft");
+
+    expect(quizSource).toContain("useMobileTopNav(");
+    expect(quizSource).not.toContain("ArrowLeft");
+
+    expect(discussionSource).toContain("useMobileTopNav(");
+    expect(discussionSource).toContain("showBackButton={false}");
+    expect(discussionSource).toContain("showComposeBackButton={false}");
+    expect(discussionSource).toContain("hideThreadHeader");
+    expect(discussionSource).not.toContain("showBackButton={true}");
+  });
+
+  test("supports left-aligned subtitle and pageActions before shell rightActions on MobileTopNavbar", () => {
+    const shareNode = <button type="button" data-test-share="">Bagikan</button>;
+    let state = createMobileChromeState();
+    state = upsertTopNavEntry(state, "thread-detail", {
+      title: "Cara memilih delta",
+      subtitle: "Matematika I (MA1101)",
+      pageActions: shareNode,
+    });
+    const resolved = resolveTopNavConfig(state.topNavStack);
+    expect(resolved.title).toBe("Cara memilih delta");
+    expect(resolved.subtitle).toBe("Matematika I (MA1101)");
+    expect(resolved.pageActions).toBe(shareNode);
+
+    const html = renderToStaticMarkup(
+      <MobileChromeProvider>
+        <MobileTopNavbar
+          title="Cara memilih delta"
+          subtitle="Matematika I (MA1101)"
+          pageActions={shareNode}
+          rightActions={<button type="button" data-test-search="">Cari</button>}
+        />
+      </MobileChromeProvider>
+    );
+
+    expect(html).toContain("data-mobile-navbar-subtitle");
+    expect(html).toContain("Matematika I (MA1101)");
+    expect(html).toContain("data-mobile-navbar-page-actions");
+    expect(html.indexOf("data-test-share")).toBeGreaterThan(-1);
+    expect(html.indexOf("data-test-search")).toBeGreaterThan(-1);
+    expect(html.indexOf("data-test-share")).toBeLessThan(html.indexOf("data-test-search"));
+    expect(html).not.toContain("border-b border-border/80");
+  });
+});

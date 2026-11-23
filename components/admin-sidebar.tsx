@@ -47,12 +47,14 @@ import {
   MessageSquareText,
 } from "lucide-react";
 import {
-  SidebarShell,
   NavItem,
   NavGroup,
   NavCollapsible,
   SidebarTooltip,
 } from "@/components/sidebar-shell";
+import { DesktopSidebarShell } from "@/components/navigation/desktop-sidebar-shell";
+import { ADMIN_PINNED_SYNC_EVENT } from "@/components/navigation/admin/admin-nav-model";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -391,6 +393,7 @@ function AdminSidebarInner() {
   const savePinned = (tabs: string[]) => {
     setPinnedTabs(tabs);
     localStorage.setItem(getPinnedStorageKey(userId), JSON.stringify(tabs));
+    window.dispatchEvent(new CustomEvent(ADMIN_PINNED_SYNC_EVENT));
   };
 
   const togglePinTab = (id: string, name: string, e?: React.MouseEvent) => {
@@ -850,7 +853,7 @@ function AdminSidebarInner() {
   };
 
   return (
-    <SidebarShell
+    <DesktopSidebarShell
       collapsedKey="admin-sidebar-collapsed"
       logoHref="/admin"
       logoLabel="Panel Admin Zyx Academy"
@@ -863,8 +866,14 @@ function AdminSidebarInner() {
 }
 
 export function AdminSidebar() {
+  const viewportMode = useViewportMode();
+
+  if (viewportMode === "mobile") {
+    return null;
+  }
+
   return (
-    <Suspense fallback={<div className="w-64 bg-card border-r border-border" />}>
+    <Suspense fallback={<div className="hidden md:block w-64 bg-card border-r border-border" />}>
       <AdminSidebarInner />
     </Suspense>
   );

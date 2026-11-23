@@ -1,6 +1,7 @@
 "use client";
 
 import { usePanelViewport } from "@/hooks/use-panel-viewport";
+import { useHideMobileBottomNav } from "@/components/navigation/mobile-chrome-context";
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -576,6 +577,7 @@ function TutorDrawerContent({
   const [shouldRender, setShouldRender] = React.useState(isOpen);
   const [isVisible, setIsVisible] = React.useState(typeof window === "undefined" ? isOpen : false);
   usePanelViewport(panelRef, isVisible);
+  useHideMobileBottomNav(isVisible);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -1321,7 +1323,7 @@ function TutorDrawerContent({
           "--zyra-panel-width": `${targetPanelWidth}px`,
         } as React.CSSProperties}
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-background shadow-2xl md:sticky md:bottom-auto md:right-auto md:self-start md:z-20 md:shrink-0 md:shadow-none select-text top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
+          "fixed inset-0 z-50 flex w-full flex-col overflow-hidden bg-background shadow-2xl md:sticky md:inset-y-0 md:left-auto md:bottom-auto md:right-auto md:self-start md:z-20 md:shrink-0 md:border-l md:border-border md:shadow-none select-text md:top-[var(--panel-visible-top,0px)] h-[100dvh] md:h-[var(--panel-visible-height,100dvh)]",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           isDragging
             ? "transition-none select-none"
@@ -1364,7 +1366,7 @@ function TutorDrawerContent({
         </div>
 
         {/* Header: Ops AI Style (Title Dropdown + Minimal Action Icons) */}
-        <header className="shrink-0 border-b border-border/80 px-3.5 py-2.5 bg-background/80 backdrop-blur-md flex items-center justify-between z-20 gap-2">
+        <header className="shrink-0 border-b border-border/80 px-3.5 pt-[calc(0.625rem+env(safe-area-inset-top,0px))] pb-2.5 md:py-2.5 bg-background/80 backdrop-blur-md flex items-center justify-between z-20 gap-2">
           {/* Left: Mode / Topic Dropdown Selector */}
           <div ref={menuRef} className="relative min-w-0 flex-1">
             <button
@@ -1743,7 +1745,7 @@ function TutorDrawerContent({
         <footer className="shrink-0 border-t border-border/40 bg-background p-2">
           <div
             onPasteCapture={handlePaste}
-            className="relative rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-colors p-1.5"
+            className="relative min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-colors p-1.5"
           >
             {imageInputEnabled && courseIdFromPath && (
               <ZyraAttachmentComposer
@@ -1765,11 +1767,14 @@ function TutorDrawerContent({
             )}
 
             {activeQuotedContext && (
-              <div className="mb-2 flex items-center justify-between gap-2 border-l-2 border-brand-primary bg-muted/40 rounded-r-lg px-2.5 py-1.5 text-body-xs animate-in fade-in duration-150">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Quote className="size-3.5 shrink-0 text-brand-primary" />
-                  <div className="min-w-0 flex items-center gap-1.5">
-                    <span className="font-semibold text-foreground text-body-xs shrink-0">
+              <div
+                data-zyra-quoted-context=""
+                className="mb-2 flex min-w-0 max-w-full items-center justify-between gap-2 overflow-hidden border-l-2 border-brand-primary bg-muted/40 rounded-r-lg px-2.5 py-1.5 text-body-xs animate-in fade-in duration-150 motion-reduce:animate-none"
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+                  <Quote className="size-3.5 shrink-0 text-brand-primary" aria-hidden="true" />
+                  <p className="min-w-0 flex-1 truncate text-body-xs">
+                    <span className="font-semibold text-foreground">
                       <MathText className="normal-case">
                         {activeQuotedContext.title || t("tutorDrawer.materialQuote")}
                       </MathText>
@@ -1779,23 +1784,25 @@ function TutorDrawerContent({
                           <MathText className="normal-case">{activeQuotedContext.sectionTitle}</MathText>
                         </>
                       ) : ""}:
-                    </span>
-                    <span className="text-muted-foreground truncate italic text-body-xs">
+                    </span>{" "}
+                    <span className="italic text-muted-foreground">
                       &ldquo;<MathText className="normal-case">{activeQuotedContext.snippet}</MathText>&rdquo;
                     </span>
-                  </div>
+                  </p>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => {
                     setActiveQuotedContext(null);
                     onClearQuotedContext?.();
                   }}
-                  className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground shrink-0 transition-colors cursor-pointer"
+                  className="size-6 shrink-0 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                   aria-label={t("tutorDrawer.removeQuote")}
                 >
-                  <X className="size-3.5" />
-                </button>
+                  <X className="size-3.5" aria-hidden="true" />
+                </Button>
               </div>
             )}
 

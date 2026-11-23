@@ -36,9 +36,10 @@ import { StudentAccountBoundary } from "@/components/student-account-boundary";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { cn } from "@/lib/utils";
 import { StudentNavigationItems } from "@/components/student-navigation-items";
-import { SidebarShell, NavItem } from "@/components/sidebar-shell";
+import { NavItem, SidebarTooltip } from "@/components/sidebar-shell";
+import { DesktopSidebarShell } from "@/components/navigation/desktop-sidebar-shell";
 import { StreakCalendarStrip } from "@/components/dashboard/streak-calendar-strip";
-import { SidebarTooltip } from "@/components/sidebar-shell";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { useTranslations } from "@/lib/i18n/client";
 import {
   DropdownMenu,
@@ -56,6 +57,10 @@ interface StudentSidebarProps {
 }
 
 export function StudentSidebar(props: StudentSidebarProps) {
+  const viewportMode = useViewportMode();
+  if (viewportMode === "mobile") {
+    return null;
+  }
   return <StudentAccountBoundary>{({data}) => <StudentSidebarContent {...props} session={data} />}</StudentAccountBoundary>;
 }
 
@@ -486,7 +491,7 @@ function StudentSidebarContent({
   };
 
   return (
-    <SidebarShell
+    <DesktopSidebarShell
       collapsedKey={demo ? "demo-sidebar-collapsed" : "sidebar-collapsed"}
       logoHref={href("/dashboard")}
       logoLabel={t("navigation.dashboard") + " Zyx Academy"}

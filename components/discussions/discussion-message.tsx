@@ -59,9 +59,10 @@ function mayEdit(viewer: DiscussionPerson, message: Message) {
   return viewer.role !== "zyra" && viewer.id === message.author.id && age >= 0 && age < 5 * 60 * 1000;
 }
 
-export function DiscussionChannelPicker({ value, label, placeholder, onChange, onSearch, allowAll = false, disabled = false, source }: {
+export function DiscussionChannelPicker({ value, label, placeholder, onChange, onSearch, allowAll = false, disabled = false, source, triggerClassName, singleLine = false }: {
   value: DiscussionChannel | null; label: string; placeholder: string; onChange: (value: DiscussionChannel | null) => void;
   onSearch: DiscussionWorkspaceProps["onSearchChannels"]; allowAll?: boolean; disabled?: boolean; source?: DiscussionChannel;
+  triggerClassName?: string; singleLine?: boolean;
 }) {
   const t = useTranslations("discussions");
   const { locale } = useAppLocale();
@@ -120,10 +121,16 @@ export function DiscussionChannelPicker({ value, label, placeholder, onChange, o
         aria-label={label}
         aria-expanded={open}
         disabled={disabled}
-        className={cn("h-auto min-h-9 w-full min-w-0 whitespace-normal py-1 text-left [&>span]:justify-between", allowAll && "px-2 data-[state=open]:bg-muted")}
+        className={cn(
+          singleLine
+            ? "h-9 w-full min-w-0 py-0 text-left [&>span]:justify-between"
+            : "h-auto min-h-9 w-full min-w-0 whitespace-normal py-1 text-left [&>span]:justify-between",
+          allowAll && "px-2 data-[state=open]:bg-muted",
+          triggerClassName
+        )}
       >
-        <span className="min-w-0 break-words">{value ? discussionChannelLabel(value, t) : placeholder}</span>
-        <ChevronDown className="shrink-0 text-muted-foreground" />
+        <span className={singleLine ? "min-w-0 flex-1 truncate" : "min-w-0 break-words"}>{value ? discussionChannelLabel(value, t) : placeholder}</span>
+        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       </Button>
     </PopoverTrigger>
     <PopoverContent aria-label={label} align="start" collisionPadding={16} className="max-w-[calc(100vw-2rem)] space-y-2 p-2">
@@ -333,20 +340,20 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
 
   const avatarVisual = message.author.avatarUrl && !avatarFailed ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={message.author.avatarUrl} alt={message.author.name} className="size-9 rounded-full object-cover" referrerPolicy="no-referrer" onError={() => setAvatarFailed(true)} />
+    <img src={message.author.avatarUrl} alt={message.author.name} className="size-7 md:size-9 rounded-full object-cover" referrerPolicy="no-referrer" onError={() => setAvatarFailed(true)} />
   ) : (
-    <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-full bg-primary/10 font-heading text-body-xs font-bold text-primary">{message.author.name.trim().slice(0, 2).toUpperCase()}</span>
+    <span aria-hidden="true" className="flex size-7 md:size-9 items-center justify-center rounded-full bg-primary/10 font-heading text-body-2xs md:text-body-xs font-bold text-primary">{message.author.name.trim().slice(0, 2).toUpperCase()}</span>
   );
 
   return <div data-message-id={message.id} data-own-message={isOwn ? "true" : undefined} data-discussion-target={targeted || undefined} tabIndex={targeted ? -1 : undefined} className={cn("min-w-0 touch-pan-y", targeted && "rounded-lg ring-2 ring-primary")} onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={(event) => endGesture(event, true)}>
-    <div className={cn("flex min-w-0 gap-2.5", isOwn && "flex-row-reverse")}>
+    <div className={cn("flex min-w-0 gap-2 md:gap-2.5", isOwn && "flex-row-reverse")}>
       {canViewAuthorProfile ? (
-        <button type="button" onClick={() => onViewProfile!(message.author)} aria-label={t("viewProfile", { name: message.author.name })} className="size-9 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{avatarVisual}</button>
+        <button type="button" onClick={() => onViewProfile!(message.author)} aria-label={t("viewProfile", { name: message.author.name })} className="size-7 md:size-9 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{avatarVisual}</button>
       ) : (
-        <span className="size-9 shrink-0">{avatarVisual}</span>
+        <span className="size-7 md:size-9 shrink-0">{avatarVisual}</span>
       )}
       <div className={cn("flex min-w-0 flex-1 flex-col gap-1.5", isOwn ? "items-end" : "items-start")}>
-        <ZyraBubbleSkin skinId={message.skinId} role={message.author.role === "zyra" ? "assistant" : "user"} className={cn("min-w-0 max-w-[85%]", message.skinId ? undefined : cn("rounded-xl border px-3 py-2.5", isOwn ? "border-primary/25 bg-primary/10 dark:bg-primary/15" : "border-border bg-card"))}>
+        <ZyraBubbleSkin skinId={message.skinId} role={message.author.role === "zyra" ? "assistant" : "user"} className={cn("min-w-0 w-full md:w-auto md:max-w-[85%]", message.skinId ? undefined : cn("rounded-xl border px-3 py-2 md:py-2.5", isOwn ? "border-primary/25 bg-primary/10 dark:bg-primary/15" : "border-border bg-card"))}>
           <div className="mb-1 flex min-w-0 items-center justify-between gap-2">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               {canViewAuthorProfile ? (
@@ -382,7 +389,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
             </div>
           </div>
           {quote && <div className="mb-2 rounded-md border-l-2 border-primary bg-muted/50 px-2 py-1 text-body-xs"><span className="font-semibold">{quoteAuthor}</span><div className="line-clamp-2 break-words text-muted-foreground [&_div]:text-body-xs [&_p]:text-body-xs"><DiscussionMarkdown content={(quoteExcerpt ?? "").slice(0, 600)} /></div></div>}
-          <div data-discussion-content>{visibleBody && <DiscussionMarkdown content={visibleBody} renderMention={handle => {
+          <div data-discussion-content className="text-body-sm md:text-body-base [&_p]:text-body-sm md:[&_p]:text-body-base [&_li]:text-body-sm md:[&_li]:text-body-base">{visibleBody && <DiscussionMarkdown content={visibleBody} renderMention={handle => {
             const token = handle.toLowerCase();
             const matches = message.mentionedPeople?.filter(person =>
               (person.mention ?? mentionHandle(person.id, person.name)).toLowerCase() === token);

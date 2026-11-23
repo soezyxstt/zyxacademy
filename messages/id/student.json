@@ -33,7 +33,23 @@
   "mobile": {
     "openNavigation": "Buka navigasi",
     "showFullTitle": "Tampilkan judul lengkap: {title}",
-    "search": "Cari"
+    "search": "Cari",
+    "back": "Kembali",
+    "bottomNavLabel": "Navigasi siswa",
+    "home": "Beranda",
+    "courses": "Kelas",
+    "schedule": "Jadwal",
+    "discuss": "Diskusi",
+    "me": "Saya",
+    "courseTabsLabel": "Navigasi mata kuliah",
+    "diagnosticShort": "Laporan",
+    "studyPathShort": "Alur",
+    "examResultsShort": "Hasil",
+    "liveShort": "Live",
+    "accountSection": "Akun",
+    "calendar": "Kalender",
+    "feedback": "Umpan balik",
+    "settings": "Pengaturan"
   },
   "routeTitles": {
     "schedule": "Jadwal Belajar",

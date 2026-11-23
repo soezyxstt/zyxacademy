@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/client";
+import { useHideMobileBottomNav } from "@/components/navigation";
 import {
   BookOpenCheck,
   Eye,
@@ -89,6 +90,7 @@ export function AdminDocumentWorkspace({
 }: Props) {
   const t = useTranslations("adminAcademic");
   const router = useRouter();
+  useHideMobileBottomNav(true);
   const [activeMode, setActiveMode] = useState<"preview" | "edit">(initialMode);
   const [status, setStatus] = useState<"draft" | "published">(
     material.status === "draft" ? "draft" : "published"

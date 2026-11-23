@@ -27,6 +27,20 @@
     "liveQuiz": "Live quiz",
     "tryoutGrading": "Tryout grading"
   },
+  "mobile": {
+    "bottomNavLabel": "Tutor navigation",
+    "home": "Home",
+    "schedule": "Schedule",
+    "discuss": "Discuss",
+    "classes": "Classes",
+    "switchCourse": "Switch course",
+    "courseTabsLabel": "Course navigation",
+    "participantsShort": "Participants",
+    "liveShort": "Live",
+    "materialsShort": "Materials",
+    "back": "Back",
+    "search": "Search"
+  },
   "dashboard": {
     "title": "Tutor dashboard",
     "description": "An overview of classes, schedules, and tutor follow-up for Zyx Academy.",

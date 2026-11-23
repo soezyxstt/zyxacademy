@@ -29,8 +29,10 @@ interface JoinResponse {
 type ViewPhase = "join" | "live";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { useHideMobileBottomNav } from "@/components/navigation";
 
 export default function LiveStudentPage() {
+  useHideMobileBottomNav(true);
   const experience = useStudentExperience();
   const t = useTranslations("studentExtras.live");
   const { id } = useParams<{ id: string }>();

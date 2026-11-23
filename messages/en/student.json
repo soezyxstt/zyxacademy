@@ -33,7 +33,23 @@
   "mobile": {
     "openNavigation": "Open navigation",
     "showFullTitle": "Show full title: {title}",
-    "search": "Search"
+    "search": "Search",
+    "back": "Back",
+    "bottomNavLabel": "Student navigation",
+    "home": "Home",
+    "courses": "Courses",
+    "schedule": "Schedule",
+    "discuss": "Discuss",
+    "me": "Me",
+    "courseTabsLabel": "Course navigation",
+    "diagnosticShort": "Report",
+    "studyPathShort": "Path",
+    "examResultsShort": "Results",
+    "liveShort": "Live",
+    "accountSection": "Account",
+    "calendar": "Calendar",
+    "feedback": "Feedback",
+    "settings": "Settings"
   },
   "routeTitles": {
     "schedule": "Study schedule",

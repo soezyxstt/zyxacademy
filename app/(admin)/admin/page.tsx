@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import Link from "next/link";
 import { db } from "@/db";
 import {
   courses,
@@ -20,31 +19,11 @@ import {
 import { sql, eq, gte, ne, and, exists } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
-import {
-  KeyRound,
-  Zap,
-  Bell,
-  Activity,
-  GraduationCap,
-  LineChart,
-  Newspaper,
-  Flag,
-  Video,
-  FileText,
-  Image,
-  Link as LinkIcon,
-  Trophy,
-  MousePointerClick,
-  CalendarDays,
-  Library,
-  Calculator,
-  ChevronRight,
-  LayoutDashboard,
-} from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 
-import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AdminHomeContainer } from "@/features/admin-home/ui/admin-home-container";
+import type { AdminHomeCategory } from "@/features/admin-home/model/types";
 
 export const dynamic = "force-dynamic";
 
@@ -145,32 +124,29 @@ async function AdminHomeContent() {
   const totalArticles = blogCountRes[0]?.count ?? 0;
   const blogStat = `${totalArticles} artikel`;
 
-  const categories = [
+  const categories: AdminHomeCategory[] = [
     {
       name: "Akademik & Konten",
       items: [
         {
           title: "Mata Kuliah",
-          icon: GraduationCap,
+          iconKey: "graduation-cap",
           iconColor: "text-brand-secondary",
           href: "/admin/courses",
-
           stat: courseStat,
         },
         {
           title: "Jadwal Umum",
-          icon: CalendarDays,
+          iconKey: "calendar-days",
           iconColor: "text-brand-primary",
           href: "/admin/schedules",
-
           stat: null,
         },
         {
           title: "Bank Soal",
-          icon: Library,
+          iconKey: "library",
           iconColor: "text-status-success",
           href: "/admin/questions",
-
           stat: questionStat,
         },
       ],
@@ -180,18 +156,16 @@ async function AdminHomeContent() {
       items: [
         {
           title: "Papan Peringkat",
-          icon: Trophy,
+          iconKey: "trophy",
           iconColor: "text-brand-secondary",
           href: "/admin/leaderboard",
-
           stat: leaderboardStat,
         },
         {
           title: "Generasi Soal",
-          icon: Zap,
+          iconKey: "zap",
           iconColor: "text-status-warning",
           href: "/admin/jobs",
-
           stat: jobStat,
         },
       ],
@@ -201,50 +175,44 @@ async function AdminHomeContent() {
       items: [
         {
           title: "Kalkulator Harga",
-          icon: Calculator,
+          iconKey: "calculator",
           iconColor: "text-status-info",
           href: "/admin/pricing",
-
           stat: null,
         },
         {
           title: "Kelola Blog",
-          icon: Newspaper,
+          iconKey: "newspaper",
           iconColor: "text-brand-primary",
           href: "/admin/blog",
-
           stat: blogStat,
         },
         {
           title: "Form Studio & Visualizer",
-          icon: FileText,
+          iconKey: "file-text",
           iconColor: "text-brand-secondary",
           href: "/admin/forms",
-
           stat: null,
         },
         {
           title: "Meet",
-          icon: Video,
+          iconKey: "video",
           iconColor: "text-brand-primary",
           href: "/admin/meet",
-
           stat: null,
         },
         {
           title: "Pustaka Media",
-          icon: Image,
+          iconKey: "image",
           iconColor: "text-tertiary-1",
           href: "/admin/media",
-
           stat: null,
         },
         {
           title: "Tautan Publik",
-          icon: LinkIcon,
+          iconKey: "link",
           iconColor: "text-status-success",
           href: "/admin/tautan",
-
           stat: null,
         },
       ],
@@ -254,18 +222,16 @@ async function AdminHomeContent() {
       items: [
         {
           title: "Token Aktivasi Kelas",
-          icon: KeyRound,
+          iconKey: "key-round",
           iconColor: "text-brand-secondary",
           href: "/admin/tokens",
-
           stat: tokenStat,
         },
         {
           title: "Push Notification",
-          icon: Bell,
+          iconKey: "bell",
           iconColor: "text-tertiary-3",
           href: "/admin/notifications",
-
           stat: notifStat,
         },
       ],
@@ -275,50 +241,44 @@ async function AdminHomeContent() {
       items: [
         {
           title: "Monitor Ops",
-          icon: Activity,
+          iconKey: "activity",
           iconColor: "text-status-success",
           href: "/admin/ops",
-
           stat: opsStat,
         },
         {
           title: "Feature Flags",
-          icon: Flag,
+          iconKey: "flag",
           iconColor: "text-brand-primary",
           href: "/admin/ops/flags",
-
           stat: null,
         },
         {
           title: "API Keys",
-          icon: KeyRound,
+          iconKey: "key-round",
           iconColor: "text-tertiary-1",
           href: "/admin/ops/keys",
-
           stat: null,
         },
         {
           title: "Short Links",
-          icon: LinkIcon,
+          iconKey: "link",
           iconColor: "text-brand-secondary",
           href: "/admin/ops/short-links",
-
           stat: null,
         },
         {
           title: "Web Analytics",
-          icon: LineChart,
+          iconKey: "line-chart",
           iconColor: "text-brand-primary",
           href: "/admin/ops/web-analytics",
-
           stat: null,
         },
         {
           title: "Penggunaan Fitur",
-          icon: MousePointerClick,
+          iconKey: "mouse-pointer-click",
           iconColor: "text-status-info",
           href: "/admin/ops/feature-usage",
-
           stat: null,
         },
       ],
@@ -326,53 +286,16 @@ async function AdminHomeContent() {
   ];
 
   return (
-    <div className="space-y-5">
-      <AdminPageHeader
-        icon={LayoutDashboard}
-        title="Admin"
-        actions={<RefreshAnalyticsButton />}
-      />
-
-      {failedJobs > 0 && (
-        <Alert variant="destructive">
-          <Zap className="size-4" aria-hidden />
-          <AlertTitle>{failedJobs} generasi soal gagal</AlertTitle>
-          <AlertDescription>
-            <Link href="/admin/jobs" className="underline underline-offset-4">Tinjau generasi</Link>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="columns-1 gap-6 lg:columns-2 xl:columns-3">
-        {categories.map((category) => (
-          <section key={category.name} className="mb-5 inline-block w-full align-top">
-            <h2 className="border-b border-border pb-2 font-heading text-body-base font-bold">
-              {category.name}
-            </h2>
-            <div className="divide-y divide-border/60">
-              {category.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="group flex min-w-0 items-center gap-3 py-2.5 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted/70">
-                    <item.icon className={`size-4 ${item.iconColor}`} aria-hidden />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <span className="block text-body-sm font-semibold text-foreground group-hover:text-primary">
-                      {item.title}
-                    </span>
-                    {item.stat && <span className="mt-0.5 block text-body-xs text-muted-foreground">{item.stat}</span>}
-                  </div>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
-                </Link>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-    </div>
+    <AdminHomeContainer
+      failedJobs={failedJobs}
+      kpis={{
+        totalCourses,
+        pendingQuestions,
+        runningJobs,
+        aiRequestsToday,
+      }}
+      categories={categories}
+    />
   );
 }
 

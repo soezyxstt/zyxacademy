@@ -157,72 +157,36 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
           <Button onClick={handleOpenCreate} variant="outline" size="sm"><Plus className="size-4" />{t("pkaScheduleUI.add")}</Button>
         } />
       ) : (
-        <AdminTable>
-          <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-border bg-muted/30 px-5 py-3">
-            <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaScheduleUI.session")}</span>
-            <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaScheduleUI.status")}</span>
-            <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaScheduleUI.meetLink")}</span>
-            <span className="text-body-xs font-semibold text-muted-foreground text-right">{t("pkaScheduleUI.actions")}</span>
-          </div>
-          <ul className="divide-y divide-border/60">
+        <>
+          {/* Mobile stacked rows */}
+          <ul className="divide-y divide-border/60 border-y border-border md:hidden">
             {schedules.map((row) => {
               const sessionDate = new Date(row.sessionAt);
               const isPast = sessionDate.getTime() < now;
               return (
-                <li
-                  key={row.id}
-                  className="grid grid-cols-1 gap-2 px-5 py-3.5 transition-colors hover:bg-muted/20 md:grid-cols-[1fr_auto_auto_auto] md:items-center md:gap-4"
-                >
-                  <div className="min-w-0">
-                    <p className={cn("truncate text-body-sm font-medium", isPast ? "text-muted-foreground" : "text-foreground")}>
-                      {row.title}
-                    </p>
-                    <p className="mt-0.5 flex items-center gap-1.5 text-body-xs text-muted-foreground">
-                      <CalendarDays className="size-3.5 shrink-0" />
-                      {sessionDate.toLocaleString(locale === "id" ? "id-ID" : "en-US", { dateStyle: "full", timeStyle: "short" })}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center">
-                    {isPast ? (
-                      <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
-                        <CheckCircle2 className="size-3.5" />
-                        {t("pkaScheduleUI.finished")}
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-body-xs text-status-success">
-                        <Clock className="size-3.5" />
-                        {t("pkaScheduleUI.upcoming")}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center">
-                    {row.meetLink ? (
-                      <a
-                        href={row.meetLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary/10 px-2 py-1 text-body-xs font-medium text-brand-primary transition-colors duration-150 hover:bg-brand-primary/20"
-                      >
-                        <Video className="size-3.5" />
-                        {t("pkaScheduleUI.openMeet")}
-                      </a>
-                    ) : (
-                      <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-body-xs font-medium text-muted-foreground">
-                        {t("pkaScheduleUI.noLink")}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-end">
+                <li key={row.id} className="space-y-2 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className={cn("break-words text-body-sm font-medium", isPast ? "text-muted-foreground" : "text-foreground")}>
+                        {row.title}
+                      </p>
+                      <p className="mt-0.5 flex items-center gap-1.5 text-body-xs text-muted-foreground">
+                        <CalendarDays className="size-3.5 shrink-0" />
+                        <span>
+                          {sessionDate.toLocaleString(locale === "id" ? "id-ID" : "en-US", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </span>
+                      </p>
+                    </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon-sm"
                           aria-label={t("pkaScheduleUI.actions")}
-                          className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+                          className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
                         >
                           <MoreHorizontal className="size-4" />
                         </Button>
@@ -243,11 +207,134 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    {isPast ? (
+                      <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
+                        <CheckCircle2 className="size-3.5" />
+                        {t("pkaScheduleUI.finished")}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-body-xs text-status-success">
+                        <Clock className="size-3.5" />
+                        {t("pkaScheduleUI.upcoming")}
+                      </span>
+                    )}
+
+                    {row.meetLink ? (
+                      <a
+                        href={row.meetLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary/10 px-2 py-1 text-body-xs font-medium text-brand-primary transition-colors duration-150 hover:bg-brand-primary/20"
+                      >
+                        <Video className="size-3.5" />
+                        {t("pkaScheduleUI.openMeet")}
+                      </a>
+                    ) : (
+                      <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-body-xs font-medium text-muted-foreground">
+                        {t("pkaScheduleUI.noLink")}
+                      </span>
+                    )}
+                  </div>
                 </li>
               );
             })}
           </ul>
-        </AdminTable>
+
+          {/* Desktop table */}
+          <AdminTable className="hidden md:block">
+            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-border bg-muted/30 px-5 py-3">
+              <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaScheduleUI.session")}</span>
+              <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaScheduleUI.status")}</span>
+              <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaScheduleUI.meetLink")}</span>
+              <span className="text-body-xs font-semibold text-muted-foreground text-right">{t("pkaScheduleUI.actions")}</span>
+            </div>
+            <ul className="divide-y divide-border/60">
+              {schedules.map((row) => {
+                const sessionDate = new Date(row.sessionAt);
+                const isPast = sessionDate.getTime() < now;
+                return (
+                  <li
+                    key={row.id}
+                    className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 px-5 py-3.5 transition-colors hover:bg-muted/20"
+                  >
+                    <div className="min-w-0">
+                      <p className={cn("truncate text-body-sm font-medium", isPast ? "text-muted-foreground" : "text-foreground")}>
+                        {row.title}
+                      </p>
+                      <p className="mt-0.5 flex items-center gap-1.5 text-body-xs text-muted-foreground">
+                        <CalendarDays className="size-3.5 shrink-0" />
+                        {sessionDate.toLocaleString(locale === "id" ? "id-ID" : "en-US", { dateStyle: "full", timeStyle: "short" })}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center">
+                      {isPast ? (
+                        <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
+                          <CheckCircle2 className="size-3.5" />
+                          {t("pkaScheduleUI.finished")}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-body-xs text-status-success">
+                          <Clock className="size-3.5" />
+                          {t("pkaScheduleUI.upcoming")}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center">
+                      {row.meetLink ? (
+                        <a
+                          href={row.meetLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary/10 px-2 py-1 text-body-xs font-medium text-brand-primary transition-colors duration-150 hover:bg-brand-primary/20"
+                        >
+                          <Video className="size-3.5" />
+                          {t("pkaScheduleUI.openMeet")}
+                        </a>
+                      ) : (
+                        <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-body-xs font-medium text-muted-foreground">
+                          {t("pkaScheduleUI.noLink")}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={t("pkaScheduleUI.actions")}
+                            className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem onSelect={() => handleOpenEdit(row)}>
+                            <Pencil className="size-4 text-muted-foreground" />
+                            <span>{t("pkaScheduleUI.edit")}</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onSelect={() => setDeleteItem(row)}
+                            className="text-status-error focus:text-status-error"
+                          >
+                            <Trash2 className="size-4" />
+                            <span>{t("pkaScheduleUI.delete")}</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </AdminTable>
+        </>
       )}
 
       {/* Create / edit dialog */}

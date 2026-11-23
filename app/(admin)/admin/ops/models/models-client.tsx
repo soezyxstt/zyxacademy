@@ -35,6 +35,7 @@ import {
 } from "@/lib/ai/model-settings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { EMBEDDING_PROFILES, type ModelId } from "@/lib/ai/provider/model-registry";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { useTranslations } from "@/lib/i18n/client";
@@ -86,6 +87,7 @@ export function ModelsClient({
   initialBannerError = null,
 }: ModelsClientProps) {
   const t = useTranslations("adminOps");
+  const isMobile = useViewportMode() === "mobile";
   const [selectedTask, setTask] = useUrlTab("task", "all");
   const task = ["zyra", "admin-ops-ai", "embedding"].includes(selectedTask) ? selectedTask : "all";
   const [views, setViews] = useState<FeatureModelSettingView[]>(initialViews);
@@ -331,6 +333,7 @@ export function ModelsClient({
 
       <Tabs value={task} onValueChange={setTask}>
         <TabsList
+          variant={isMobile ? "inline" : "page"}
           aria-label={t("modelsUI.assignments")}
           trailing={
             <AdminIconAction variant="outline" className="size-8 shrink-0" label={t("modelsUI.refresh")}

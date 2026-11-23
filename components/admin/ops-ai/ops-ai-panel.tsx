@@ -60,6 +60,31 @@ const DEFAULT_SUGGESTIONS = [
   "Bagaimana prosedur darurat rollback cache?",
 ];
 
+function createOpsAiTurnMessages(query: string): {
+  userMsg: OpsAiMessageV2;
+  assistantMsgId: string;
+  assistantMsg: OpsAiMessageV2;
+} {
+  const now = Date.now();
+  const userMsg: OpsAiMessageV2 = {
+    id: `msg-user-${now}-${Math.random().toString(36).slice(2, 7)}`,
+    role: "user",
+    content: query,
+    createdAt: now,
+  };
+  const assistantMsgId = `msg-asst-${now}-${Math.random().toString(36).slice(2, 7)}`;
+  const assistantMsg: OpsAiMessageV2 = {
+    id: assistantMsgId,
+    role: "assistant",
+    content: "",
+    createdAt: now,
+    workSteps: [],
+    citations: [],
+    proposals: [],
+  };
+  return { userMsg, assistantMsgId, assistantMsg };
+}
+
 export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessageV2[] } = {}) {
   const {
     isOpen,
@@ -465,23 +490,8 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
       setSessions((prev) => [fresh, ...prev]);
     }
 
-    const userMsg: OpsAiMessageV2 = {
-      id: `msg-user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      role: "user",
-      content: query,
-      createdAt: Date.now(),
-    };
-
-    const assistantMsgId = `msg-asst-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const assistantMsg: OpsAiMessageV2 = {
-      id: assistantMsgId,
-      role: "assistant",
-      content: "",
-      createdAt: Date.now(),
-      workSteps: [],
-      citations: [],
-      proposals: [],
-    };
+    const { userMsg, assistantMsgId, assistantMsg } =
+      createOpsAiTurnMessages(query);
 
     const nextMessages = [...messages, userMsg, assistantMsg];
     setMessages(nextMessages);
@@ -670,10 +680,10 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           width: mounted && isDesktop ? (isVisible ? `${width}px` : "0px") : undefined,
         } as React.CSSProperties}
         className={cn(
-          "flex flex-col overflow-hidden border-l border-border bg-background select-text relative min-w-0",
+          "flex flex-col overflow-hidden md:border-l border-border bg-background select-text relative min-w-0",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           "transition-[transform,width,opacity,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-          "fixed inset-0 z-50 w-full sm:left-auto sm:right-0 sm:w-[480px] shadow-2xl top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
+          "fixed inset-0 z-50 w-full md:left-auto md:right-0 md:w-[480px] shadow-2xl top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
           "lg:sticky lg:self-start lg:shrink-0 lg:z-40 lg:shadow-none",
           isVisible
             ? "translate-x-0 opacity-100"
@@ -686,7 +696,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
             isVisible ? "lg:translate-x-0" : "lg:translate-x-4"
           )}
         >
-        {/* Resize Handle: Desktop & Tablet with wide 24px hit area */}
+        {/* Resize Handle: Desktop with wide hit area */}
         <div
           role="separator"
           tabIndex={0}
@@ -699,7 +709,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           onKeyDown={handleKeyDownResize}
           onPointerDown={handlePointerDownResize}
           style={{ touchAction: "none" }}
-          className="flex absolute left-0 inset-y-0 w-3.5 cursor-col-resize items-center justify-center group select-none z-50 hover:bg-primary/5 active:bg-primary/10 transition-colors"
+          className="hidden lg:flex absolute left-0 inset-y-0 w-3.5 cursor-col-resize items-center justify-center group select-none z-50 hover:bg-primary/5 active:bg-primary/10 transition-colors"
         >
           <div
             className="w-1 h-16 rounded-full bg-border/90 transition-all duration-150 flex items-center justify-center group-hover:bg-primary group-hover:w-1.5 group-focus-visible:bg-primary group-focus-visible:w-1.5 active:bg-primary active:w-1.5"
@@ -707,7 +717,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         </div>
 
         {/* 1. Header: Cloudflare Style (Title Dropdown + Minimal Action Icons) */}
-        <header className="shrink-0 border-b border-border/80 px-3.5 py-2.5 bg-background/80 backdrop-blur-md flex items-center justify-between z-20 gap-2">
+        <header className="shrink-0 border-b border-border/80 px-3.5 py-2.5 pt-[calc(0.625rem+env(safe-area-inset-top,0px))] md:pt-2.5 bg-background/80 backdrop-blur-md flex items-center justify-between z-20 gap-2">
           {/* Left: Session Dropdown Selector */}
           <div className="relative min-w-0 flex-1">
             <button
@@ -723,7 +733,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
 
             {/* Session Dropdown Menu */}
             {showSessionsDropdown && (
-              <div className="absolute top-full left-0 mt-1 w-[320px] rounded-xl border border-border bg-background shadow-xl p-2 z-50 space-y-1">
+              <div className="absolute top-full left-0 mt-1 w-[min(320px,calc(100vw-2rem))] rounded-xl border border-border bg-background shadow-xl p-2 z-50 space-y-1">
                 <div className="flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   <span>Daftar Sesi ({sessions.length})</span>
                   <button

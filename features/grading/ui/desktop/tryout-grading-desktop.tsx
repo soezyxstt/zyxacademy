@@ -1,0 +1,357 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Award,
+  Calendar,
+  CheckCircle2,
+  CheckSquare,
+  User,
+} from "lucide-react";
+import { AdminEmptyState } from "@/components/admin/state-panels";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
+  TryoutQuestionCard,
+  parseTryoutSnapshots,
+} from "@/features/grading/ui/shared/tryout-question-card";
+import type { SubmissionItem, TryoutGradingTab } from "@/features/grading/model/types";
+
+export interface TryoutGradingDesktopProps {
+  queueHeader?: ReactNode;
+  initialSubmissions: SubmissionItem[];
+  pendingList: SubmissionItem[];
+  gradedList: SubmissionItem[];
+  activeTab: TryoutGradingTab;
+  onTabChange: (tab: TryoutGradingTab) => void;
+  activeSub: SubmissionItem | null;
+  scoreInput: string;
+  notesInput: string;
+  isPending: boolean;
+  onOpenGrade: (submission: SubmissionItem) => void;
+  onCloseSub: () => void;
+  onScoreChange: (value: string) => void;
+  onNotesChange: (value: string) => void;
+  onSaveGrade: () => void;
+}
+
+export function TryoutGradingDesktop({
+  queueHeader,
+  initialSubmissions,
+  pendingList,
+  gradedList,
+  activeTab,
+  onTabChange,
+  activeSub,
+  scoreInput,
+  notesInput,
+  isPending,
+  onOpenGrade,
+  onCloseSub,
+  onScoreChange,
+  onNotesChange,
+  onSaveGrade,
+}: TryoutGradingDesktopProps) {
+  const tr = useTranslations("tutor.grading");
+  const { locale } = useAppLocale();
+  const dateLocale = locale === "id" ? "id-ID" : "en-US";
+
+  if (activeSub) {
+    const { questions, answers } = parseTryoutSnapshots(
+      activeSub.questionsSnapshot,
+      activeSub.answersSnapshot
+    );
+
+    return (
+      <div className="space-y-(--related-gap)" data-surface="desktop-tryout-grading-review">
+        <div className="flex flex-wrap items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon-lg"
+                  variant="ghost"
+                  className="shrink-0"
+                  aria-label={tr("back")}
+                  disabled={isPending}
+                  onClick={onCloseSub}
+                >
+                  <ArrowLeft aria-hidden />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{tr("back")}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <div className="min-w-0 flex-1 basis-40">
+            <h1 className="break-words font-heading text-body-base font-bold text-foreground">
+              {tr("answerSheet", { exam: activeSub.examTitle })}
+            </h1>
+            <p className="flex items-center gap-1 break-all text-body-xs text-muted-foreground">
+              <User className="size-3" aria-hidden /> {activeSub.studentName} (
+              {activeSub.studentEmail})
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 items-start gap-(--related-gap) lg:grid-cols-12">
+          <div className="divide-y divide-border border-y border-border lg:col-span-8">
+            {questions.map((q, idx) => (
+              <TryoutQuestionCard
+                key={q.id}
+                question={q}
+                answer={answers[q.id]}
+                index={idx}
+                submissionId={activeSub.id}
+              />
+            ))}
+          </div>
+
+          <div className="space-y-(--related-gap) lg:sticky lg:top-6 lg:col-span-4">
+            <section
+              id="tryout-grading-panel"
+              tabIndex={-1}
+              aria-labelledby="tryout-grading-heading"
+              className="scroll-mt-16 border-t border-border pt-3"
+            >
+              <header className="mb-4">
+                <h3
+                  id="tryout-grading-heading"
+                  className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground"
+                >
+                  <Award className="size-5 text-brand-primary" aria-hidden />
+                  {tr("gradingPanel")}
+                </h3>
+              </header>
+
+              <div className="space-y-(--related-gap) font-sans">
+                <div className="grid gap-2">
+                  <Label htmlFor="grade-score" className="text-body-sm font-semibold">
+                    {tr("finalScore")}
+                  </Label>
+                  <Input
+                    id="grade-score"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={scoreInput}
+                    onChange={(e) => onScoreChange(e.target.value)}
+                    placeholder={tr("scorePlaceholder")}
+                    className="rounded-lg border-input bg-background font-sans text-body-sm font-semibold text-brand-primary focus-visible:ring-brand-primary"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="grade-notes" className="text-body-sm font-semibold">
+                    {tr("tutorFeedback")}
+                  </Label>
+                  <Textarea
+                    id="grade-notes"
+                    value={notesInput}
+                    onChange={(e) => onNotesChange(e.target.value)}
+                    rows={6}
+                    placeholder={tr("feedbackPlaceholder")}
+                    className="rounded-lg border-input bg-background text-body-sm leading-relaxed focus-visible:ring-brand-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 space-y-2">
+                <Button
+                  onClick={onSaveGrade}
+                  isLoading={isPending}
+                  className="w-full gap-1.5 rounded-md bg-brand-primary font-semibold text-primary-foreground shadow-sm hover:bg-brand-primary/90"
+                >
+                  {tr("savePublish")}
+                </Button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-(--related-gap)" data-surface="desktop-tryout-grading-queue">
+      {queueHeader}
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => onTabChange(val as TryoutGradingTab)}
+        className="w-full"
+      >
+        <TabsList flush={false}>
+          <TabsTrigger value="pending">
+            <AlertCircle className="mr-2 size-4 text-status-warning" aria-hidden />
+            {tr("needsGrading")}
+            <Badge variant="secondary" className="px-1.5 py-0 text-body-2xs">
+              {pendingList.length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="graded">
+            <CheckCircle2 className="mr-2 size-4 text-status-success" aria-hidden />
+            {tr("graded")}
+          </TabsTrigger>
+          <TabsTrigger value="all">
+            <CheckSquare className="mr-2 size-4 text-muted-foreground" aria-hidden />
+            {tr("all")}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pending">
+          {pendingList.length === 0 ? (
+            <AdminEmptyState icon={CheckCircle2} title={tr("allGraded")} />
+          ) : (
+            <div className="divide-y divide-border border-y border-border">
+              {pendingList.map((s) => (
+                <article
+                  key={s.id}
+                  className="flex flex-col justify-between gap-(--compact-gap) py-3 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center"
+                >
+                  <div className="space-y-1">
+                    <h3 className="font-heading text-body-base font-semibold text-foreground">
+                      {s.examTitle}
+                    </h3>
+                    <p className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
+                      {tr("student")}{" "}
+                      <span className="font-medium text-foreground">{s.studentName}</span>
+                    </p>
+                    <p className="flex items-center gap-1.5 text-body-xs text-muted-foreground">
+                      <Calendar className="size-3.5" aria-hidden />
+                      {s.submittedAt
+                        ? new Date(s.submittedAt).toLocaleString(dateLocale, {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })
+                        : "-"}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => onOpenGrade(s)}
+                    className="rounded-md bg-brand-primary text-body-sm font-semibold text-primary-foreground hover:bg-brand-primary/90"
+                  >
+                    {tr("gradeAnswer")}
+                  </Button>
+                </article>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="graded">
+          {gradedList.length === 0 ? (
+            <AdminEmptyState icon={AlertCircle} title={tr("noGraded")} />
+          ) : (
+            <div className="divide-y divide-border border-y border-border">
+              {gradedList.map((s) => (
+                <article
+                  key={s.id}
+                  className="flex flex-col justify-between gap-(--compact-gap) py-3 sm:flex-row sm:items-center"
+                >
+                  <div className="space-y-1">
+                    <h3 className="font-heading text-body-base font-semibold text-foreground">
+                      {s.examTitle}
+                    </h3>
+                    <p className="text-body-sm text-muted-foreground">
+                      {tr("student")}{" "}
+                      <span className="font-medium text-foreground">{s.studentName}</span>
+                    </p>
+                    <p className="flex items-center gap-1.5 text-body-xs text-muted-foreground">
+                      <Calendar className="size-3.5" aria-hidden />
+                      {s.submittedAt
+                        ? new Date(s.submittedAt).toLocaleString(dateLocale, {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })
+                        : "-"}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-(--related-gap)">
+                    <div className="text-right">
+                      <p className="text-body-xs font-semibold uppercase text-muted-foreground">
+                        {tr("finalScoreLabel")}
+                      </p>
+                      <p className="font-heading text-h6 font-bold tabular-nums text-brand-primary">
+                        {s.score}%
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => onOpenGrade(s)}
+                      className="rounded-md border-border/80 text-muted-foreground hover:text-foreground"
+                    >
+                      {tr("editScore")}
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="all">
+          {initialSubmissions.length === 0 ? (
+            <AdminEmptyState icon={CheckSquare} title={tr("noSubmissions")} />
+          ) : (
+            <div className="divide-y divide-border border-y border-border">
+              {initialSubmissions.map((s) => (
+                <article
+                  key={s.id}
+                  className="flex flex-col justify-between gap-(--compact-gap) py-3 sm:flex-row sm:items-center"
+                >
+                  <div className="space-y-1">
+                    <h3 className="font-heading text-body-base font-semibold text-foreground">
+                      {s.examTitle}
+                    </h3>
+                    <p className="text-body-sm text-muted-foreground">
+                      {tr("student")}{" "}
+                      <span className="font-medium text-foreground">{s.studentName}</span>
+                    </p>
+                    <p className="flex items-center gap-1.5 text-body-xs text-muted-foreground">
+                      <Calendar className="size-3.5" aria-hidden />
+                      {tr("status")}{" "}
+                      <Badge
+                        variant="outline"
+                        className={`rounded-md text-body-2xs ${
+                          s.status === "graded"
+                            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600"
+                            : "border-amber-500/20 bg-amber-500/10 text-amber-600"
+                        }`}
+                      >
+                        {s.status === "graded" ? tr("graded") : tr("waitingReview")}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-(--related-gap)">
+                    <div className="text-right">
+                      <p className="font-sans text-body-xs font-semibold uppercase text-muted-foreground">
+                        {tr("score")}
+                      </p>
+                      <p className="font-heading text-h6 font-bold tabular-nums text-brand-primary">
+                        {s.score != null ? `${s.score}%` : tr("pending")}
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => onOpenGrade(s)}
+                      className="rounded-md bg-brand-primary text-body-sm font-semibold text-primary-foreground hover:bg-brand-primary/90"
+                    >
+                      {s.status === "graded" ? tr("editScore") : tr("gradeAnswer")}
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

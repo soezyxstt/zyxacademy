@@ -13,11 +13,18 @@ import {
   PanelRight,
   X,
   Award,
+  List,
   Menu,
   Maximize2,
   Minimize2,
   MessageSquareText,
 } from "lucide-react";
+import {
+  MobileTopNavActionButton,
+  useHideMobileBottomNav,
+  useMobileTopNav,
+} from "@/components/navigation";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
 import {
@@ -100,6 +107,7 @@ function StructuredArticleReaderContent({
   course,
   mode = "learner",
   pythonBrowserOnly = false,
+  backHref,
   prevMaterial,
   nextMaterial,
   isTocOpen: controlledTocOpen,
@@ -159,6 +167,33 @@ function StructuredArticleReaderContent({
   const isMobileSheetOpen =
     controlledMobileSheetOpen !== undefined ? controlledMobileSheetOpen : internalMobileSheetOpen;
   const setIsMobileSheetOpen = controlledToggleMobileSheet ?? setInternalMobileSheetOpen;
+
+  const viewportMode = useViewportMode();
+  const isMobile = viewportMode === "mobile";
+  useHideMobileBottomNav(learnerMode);
+
+  const mobileTopNavConfig = useMemo(() => {
+    if (!learnerMode || !isMobile) return null;
+    const fallbackCourseId = course?.id ?? article.courseId;
+    const resolvedBackHref =
+      backHref ??
+      (fallbackCourseId
+        ? `/courses/${encodeURIComponent(fallbackCourseId)}/material`
+        : undefined);
+    return {
+      title: article.title,
+      backHref: resolvedBackHref,
+      rightActions: (
+        <MobileTopNavActionButton
+          label={t("articleReader.openContents")}
+          onClick={() => setIsMobileSheetOpen(true)}
+        >
+          <List className="size-4" aria-hidden="true" />
+        </MobileTopNavActionButton>
+      ),
+    };
+  }, [article.courseId, article.title, backHref, course?.id, isMobile, learnerMode, setIsMobileSheetOpen, t]);
+  useMobileTopNav(mobileTopNavConfig);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [temporaryHighlight, setTemporaryHighlight] = useState<string | null>(null);
@@ -854,16 +889,18 @@ function StructuredArticleReaderContent({
                     </TooltipContent>
                   </Tooltip>
 
-                  {/* Mobile Sheet Trigger */}
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setIsMobileSheetOpen(true)}
-                    className="md:hidden text-muted-foreground hover:text-foreground rounded-lg"
-                    aria-label={t("articleReader.openContents")}
-                  >
-                    <Menu className="size-4" />
-                  </Button>
+                  {/* Mobile Sheet Trigger (fallback when not using MobileTopNavbar) */}
+                  {!isMobile && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => setIsMobileSheetOpen(true)}
+                      className="md:hidden text-muted-foreground hover:text-foreground rounded-lg"
+                      aria-label={t("articleReader.openContents")}
+                    >
+                      <Menu className="size-4" />
+                    </Button>
+                  )}
 
                   {/* Desktop TOC Toggle (icon only with tooltip) */}
                   <Tooltip>
@@ -907,7 +944,15 @@ function StructuredArticleReaderContent({
 
       {/* Mobile Sheet for TOC & Search */}
       <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
-        <SheetContent side="right" className="gap-0" aria-describedby={undefined}>
+        <SheetContent
+          side={isMobile ? "bottom" : "right"}
+          className={
+            isMobile
+              ? "max-h-[80dvh] rounded-t-2xl gap-0 pb-[env(safe-area-inset-bottom)]"
+              : "gap-0"
+          }
+          aria-describedby={undefined}
+        >
           <SheetHeader className="group/toc min-h-14 flex-row items-center gap-2 border-b border-border/80 py-2 pl-3 pr-14">
             <SheetTitle className="min-w-0 flex-1 text-body-sm group-has-[[data-search-expanded=true]]/toc:sr-only">{t("articleReader.thisChapter")}</SheetTitle>
             {tocSearch}
@@ -1026,7 +1071,7 @@ function StructuredArticleReaderContent({
         </main>
 
         {/* Desktop Collapsible Table of Contents */}
-        {!isFocusMode && isTocOpen && (
+        {!isFocusMode && isTocOpen && !isMobile && (
           <aside className="hidden md:flex flex-col w-72 lg:w-80 shrink-0 border-l border-border/80 h-[calc(100vh-53px)] sticky top-[53px] overflow-hidden bg-card/40">
             <div className="group/toc flex items-center gap-2 border-b border-border/70 px-3 py-1">
               <h2 className="min-w-0 flex-1 text-body-sm font-semibold group-has-[[data-search-expanded=true]]/toc:sr-only">{t("articleReader.thisChapter")}</h2>
@@ -1036,6 +1081,54 @@ function StructuredArticleReaderContent({
           </aside>
         )}
       </div>
+
+      {/* Mobile docked Prev / Next / Complete action bar */}
+      {learnerMode && isMobile && !isFocusMode && article.sections.length > 0 && (
+        <nav
+          aria-label={t("articleReader.thisChapter")}
+          className="sticky bottom-0 z-20 flex items-center justify-between gap-2 border-t border-border/80 bg-background/95 px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] backdrop-blur-md md:hidden"
+        >
+          {prevMaterial ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handlePrevMaterial}
+              className="min-h-10 gap-1 rounded-lg text-body-sm font-semibold"
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+              <span>{t("articleReader.previousMaterial")}</span>
+            </Button>
+          ) : (
+            <span />
+          )}
+
+          {nextMaterial ? (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={handleNextMaterial}
+              className="min-h-10 gap-1 rounded-lg text-body-sm font-semibold"
+            >
+              <span>{t("articleReader.nextMaterial")}</span>
+              <ChevronRight className="size-4" aria-hidden />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={handleFinishArticle}
+              disabled={adapter ? !adapter.ready || adapter.completed : overallPercent >= 100}
+              className="min-h-10 gap-1.5 rounded-lg text-body-sm font-semibold"
+            >
+              <CheckCircle2 className="size-4" aria-hidden />
+              <span>{t("articleReader.readComplete")}</span>
+            </Button>
+          )}
+        </nav>
+      )}
 
       {/* Floating Selection-to-Zyra toolbar using Shadcn Popover with Progressive Disclosure */}
       {learnerMode && selectionAskEnabled && isMobileSelection && !isTutorOpen && isSelectionToolbarOpen && selectionContext && (

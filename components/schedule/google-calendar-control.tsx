@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { connectGoogleCalendar, getGoogleCalendarStatus, requestGoogleCalendarSync } from "@/app/actions/google-calendar";
 import type { CalendarSyncStatus } from "@/lib/google-calendar/shared";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import { useStudentExperience } from "@/components/student-experience-provider";
 import {
   getNativeAuthScheme,
   isNativeSystemBrowserSupported,
@@ -17,6 +18,7 @@ import {
 export function GoogleCalendarControl({ central = false }: { central?: boolean }) {
   const t = useTranslations("schedule");
   const { locale } = useAppLocale();
+  const isDemo = useStudentExperience().mode === "demo";
   const mountedRef = useRef(true);
   const [status, setStatus] = useState<CalendarSyncStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,6 +29,7 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
     return () => { mountedRef.current = false; };
   }, []);
   useEffect(() => {
+    if (isDemo) return;
     let active = true;
     async function refresh() {
       try {
@@ -37,7 +40,7 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
     void refresh();
     const timer = setInterval(() => void refresh(), 10000);
     return () => { active = false; clearInterval(timer); };
-  }, [central]);
+  }, [central, isDemo]);
   useEffect(() => {
     if (central) return;
     const url = new URL(window.location.href);

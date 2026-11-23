@@ -40,6 +40,10 @@ import { formatDatetimeLocal } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { saveQuizTemplateAction } from "@/app/actions/tutor-management";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import {
+  useHideMobileBottomNav,
+  useMobileTopNav,
+} from "@/components/navigation/mobile-chrome-context";
 
 const QUESTION_PAGE_SIZE = 20;
 
@@ -377,8 +381,19 @@ export function TutorQuizForm({
   const isSaving = isPending && !publishPending;
   const isPublishing = isPending && publishPending;
 
+  useHideMobileBottomNav(true);
+  const mobileTopNavConfig = useMemo(
+    () => ({
+      title: headerTitle,
+      backHref: `/tutor/${courseId}/quizzes`,
+      backLabel: t("backToQuizList"),
+    }),
+    [courseId, headerTitle, t]
+  );
+  useMobileTopNav(mobileTopNavConfig);
+
   return (
-    <div className="space-y-(--section-gap)">
+    <div className="space-y-(--section-gap) pb-24 md:pb-0">
       <PageHeader
         icon={NotebookPen}
         title={headerTitle}
@@ -390,7 +405,7 @@ export function TutorQuizForm({
       <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full space-y-(--related-gap)">
         <TabsList
           trailing={
-            <div className="flex items-center gap-1.5">
+            <div className="hidden items-center gap-1.5 md:flex">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -510,7 +525,7 @@ export function TutorQuizForm({
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 gap-(--compact-gap) sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-(--compact-gap) md:grid-cols-2">
                     <div>
                       <Label htmlFor="category" className="text-body-sm font-semibold text-foreground">
                         {t("category")}
@@ -555,7 +570,7 @@ export function TutorQuizForm({
                   </h3>
                 </div>
                 <div className="space-y-(--related-gap) py-3">
-                  <div className="grid grid-cols-1 gap-(--compact-gap) sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-(--compact-gap) md:grid-cols-2">
                     <button
                       type="button"
                       onClick={() => {
@@ -626,7 +641,7 @@ export function TutorQuizForm({
                   </div>
 
                   {scheduleType === "scheduled" ? (
-                    <div className="grid grid-cols-1 gap-(--compact-gap) sm:grid-cols-2 pt-2 border-t border-border">
+                    <div className="grid grid-cols-1 gap-(--compact-gap) border-t border-border pt-2 md:grid-cols-2">
                       <div>
                         <Label htmlFor="openAt" className="text-body-sm font-semibold text-foreground">
                           {t("openAt")}
@@ -1003,6 +1018,43 @@ export function TutorQuizForm({
           </section>
         </TabsContent>
       </Tabs>
+
+      {/* Mobile sticky bottom Save Draft / Publish bar */}
+      <div
+        data-mobile-quiz-form-footer=""
+        className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-border bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md md:hidden"
+      >
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isPending}
+          isLoading={isSaving}
+          onClick={() => handleSubmit(false)}
+          className="min-h-11 flex-1 rounded-md text-body-sm font-semibold"
+        >
+          <Save className="mr-1.5 size-4" aria-hidden />
+          {saveLabel}
+        </Button>
+        <Button
+          type="button"
+          disabled={isPending}
+          aria-busy={isPublishing}
+          onClick={() => handleSubmit(true)}
+          className="min-h-11 flex-1 rounded-md bg-brand-primary text-body-sm font-semibold text-primary-foreground shadow-xs hover:bg-brand-primary/90"
+        >
+          {isPublishing ? (
+            <>
+              <Loader2 className="mr-1.5 size-4 animate-spin" aria-hidden />
+              {t("saving")}
+            </>
+          ) : (
+            <>
+              <Send className="mr-1.5 size-4" aria-hidden />
+              {isEdit ? t("saveAndPublish") : t("publishQuiz")}
+            </>
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

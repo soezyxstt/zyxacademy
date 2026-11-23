@@ -1,33 +1,15 @@
 "use client";
 
-import { AdminEmptyState } from "@/components/admin/state-panels";
-import { useState, useTransition, type ReactNode } from "react";
+import { useCallback, useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useAppLocale, useTranslations } from "@/lib/i18n/client";
-import { ArrowDown, ArrowLeft, CheckCircle2, AlertCircle, FileText, Download, Award, Calendar, User, CheckSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { MathText } from "@/components/course/math-text";
+import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
+import { ViewportSwitch } from "@/components/navigation/viewport-switch";
 import { gradeSubmissionAction } from "@/app/actions/tutor-management";
-
-interface SubmissionItem {
-  id: string;
-  studentName: string | null;
-  studentEmail: string | null;
-  examTitle: string;
-  status: "completed" | "pending_review" | "graded" | "late";
-  score: number | null;
-  teacherNotes: string | null;
-  answersSnapshot: any;
-  questionsSnapshot: any;
-  submittedAt: Date | null;
-}
+import { useTryoutGradingDraft } from "@/features/grading/model/use-grading-drafts";
+import type { SubmissionItem, TryoutGradingTab } from "@/features/grading/model/types";
+import { TryoutGradingDesktop } from "@/features/grading/ui/desktop/tryout-grading-desktop";
+import { TryoutGradingMobile } from "@/features/grading/ui/mobile/tryout-grading-mobile";
 
 interface Props {
   courseId: string;
@@ -38,24 +20,32 @@ interface Props {
 export function GradingClient({ courseId, initialSubmissions, queueHeader }: Props) {
   const router = useRouter();
   const tr = useTranslations("tutor.grading");
-  const { locale } = useAppLocale();
-  const dateLocale = locale === "id" ? "id-ID" : "en-US";
   const [isPending, startTransition] = useTransition();
 
+  const [activeTab, setActiveTab] = useState<TryoutGradingTab>("pending");
   const [activeSub, setActiveSub] = useState<SubmissionItem | null>(null);
-  const [scoreInput, setScoreInput] = useState("");
-  const [notesInput, setNotesInput] = useState("");
 
-  const pendingList = initialSubmissions.filter((s) => s.status === "pending_review");
-  const gradedList = initialSubmissions.filter((s) => s.status === "graded");
+  const { scoreInput, notesInput, setScoreInput, setNotesInput, clearDraft } =
+    useTryoutGradingDraft(courseId, activeSub);
 
-  function handleOpenGrade(s: SubmissionItem) {
-    setActiveSub(s);
-    setScoreInput(s.score != null ? s.score.toString() : "");
-    setNotesInput(s.teacherNotes || "");
-  }
+  const pendingList = useMemo(
+    () => initialSubmissions.filter((s) => s.status === "pending_review"),
+    [initialSubmissions]
+  );
+  const gradedList = useMemo(
+    () => initialSubmissions.filter((s) => s.status === "graded"),
+    [initialSubmissions]
+  );
 
-  async function handleSaveGrade() {
+  const handleOpenGrade = useCallback((submission: SubmissionItem) => {
+    setActiveSub(submission);
+  }, []);
+
+  const handleCloseSub = useCallback(() => {
+    setActiveSub(null);
+  }, []);
+
+  const handleSaveGrade = useCallback(() => {
     if (!activeSub) return;
     const finalScore = parseInt(scoreInput, 10);
 
@@ -69,6 +59,7 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
         const res = await gradeSubmissionAction(courseId, activeSub.id, finalScore, notesInput);
         if (res.success) {
           toast.success(tr("saved"));
+          clearDraft();
           setActiveSub(null);
           router.refresh();
         }
@@ -76,347 +67,47 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
         toast.error(tr("saveFailed"));
       }
     });
-  }
-
-  if (activeSub) {
-    const qSnapshot = typeof activeSub.questionsSnapshot === "string" 
-      ? JSON.parse(activeSub.questionsSnapshot) 
-      : activeSub.questionsSnapshot || [];
-    
-    const aSnapshot = typeof activeSub.answersSnapshot === "string" 
-      ? JSON.parse(activeSub.answersSnapshot) 
-      : activeSub.answersSnapshot || {};
-
-    return (
-      <div className="space-y-(--related-gap)">
-        {/* Detail Header */}
-        <div className="flex flex-wrap items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button type="button" size="icon-lg" variant="ghost" className="shrink-0" aria-label={tr("back")} disabled={isPending} onClick={() => setActiveSub(null)}>
-                  <ArrowLeft aria-hidden />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{tr("back")}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <div className="min-w-0 flex-1 basis-40">
-            <h1 className="break-words font-heading text-body-base font-bold text-foreground">{tr("answerSheet", { exam: activeSub.examTitle })}</h1>
-            <p className="flex items-center gap-1 break-all text-body-xs text-muted-foreground">
-              <User className="size-3" /> {activeSub.studentName} ({activeSub.studentEmail})
-            </p>
-          </div>
-          <Button asChild variant="outline" size="lg" className="ml-auto lg:hidden">
-            <a href="#tryout-grading-panel">
-              <ArrowDown aria-hidden />
-              {tr("gradingPanel")}
-            </a>
-          </Button>
-        </div>
-
-        {/* Workspace Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-(--related-gap) items-start">
-          {/* Left Column: Student Answers (8 cols) */}
-          <div className="lg:col-span-8 divide-y divide-border border-y border-border">
-            {Array.isArray(qSnapshot) && qSnapshot.map((q: any, idx: number) => {
-              const ans = aSnapshot[q.id];
-              const isEssay = q.type === "essay";
-              const isMc = q.type === "multiple_choice" || q.type === "multiple_choices";
-              const isShort = q.type === "short_answer";
-
-              return (
-                <article key={q.id} className="space-y-(--related-gap) py-(--row-padding)">
-                  <div className="flex items-start gap-2.5">
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-body-sm font-bold text-primary-foreground shadow-xs font-mono">
-                      {idx + 1}
-                    </span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-body-2xs rounded-md text-muted-foreground capitalize">
-                          {tr(q.type)}
-                        </Badge>
-                        {!isEssay && (
-                          <Badge variant="secondary" className="text-body-2xs rounded-md">
-                            {tr("autoKey")}
-                          </Badge>
-                        )}
-                      </div>
-                      <MathText className="text-body-base font-medium text-foreground pt-2" as="p">{q.prompt}</MathText>
-                    </div>
-                  </div>
-
-                  {/* Options display for MC */}
-                  {isMc && q.options && (
-                    <div className="grid gap-2 sm:grid-cols-2 sm:pl-9">
-                      {q.options.map((opt: string, i: number) => {
-                        const isStudentChoice = q.type === "multiple_choice"
-                          ? ans?.index === i
-                          : ans?.indices?.includes(i);
-                        const isCorrect = q.type === "multiple_choice"
-                          ? q.correctIndex === i
-                          : q.correctIndices?.includes(i);
-
-                        return (
-                          <div key={i} className={`flex items-center gap-2 text-body-base px-3 py-1.5 rounded-lg border ${
-                            isStudentChoice && isCorrect ? "bg-emerald-500/5 border-emerald-500/25 text-emerald-700" :
-                            isStudentChoice && !isCorrect ? "bg-rose-500/5 border-rose-500/25 text-rose-700" :
-                            !isStudentChoice && isCorrect ? "bg-emerald-500/5 border-dashed border-emerald-500/20 text-muted-foreground" :
-                            "bg-muted/10 border-border/50 text-muted-foreground"
-                          }`}>
-                            <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-body-2xs font-bold ${
-                              isStudentChoice && isCorrect ? "bg-emerald-500 text-white" :
-                              isStudentChoice && !isCorrect ? "bg-rose-500 text-white" :
-                              isCorrect ? "border border-emerald-500 text-emerald-500" :
-                              "bg-muted text-muted-foreground"
-                            }`}>
-                              {String.fromCharCode(65 + i)}
-                            </span>
-                            <span className="min-w-0 break-words">
-                              <MathText className="leading-normal" as="span">{opt}</MathText>
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Short Answer Preview */}
-                  {isShort && (
-                    <div className="space-y-2 sm:pl-9">
-                      <div className="border-l-2 border-border pl-3 text-body-base">
-                        <span className="text-body-xs font-semibold text-muted-foreground block">{tr("studentAnswer")}</span>
-                        <p className="mt-0.5 text-body-base font-semibold text-foreground">
-                          <MathText as="span">{ans?.text || "-"}</MathText>
-                        </p>
-                      </div>
-                      <p className="text-body-base text-muted-foreground">
-                        {tr("correctAnswer")}{" "}
-                        <span className="font-semibold text-foreground">
-                          <MathText as="span">{(q.acceptableAnswers || []).join(" / ")}</MathText>
-                        </span>
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Essay Answer Preview */}
-                  {isEssay && (
-                    <div className="space-y-(--compact-gap) sm:pl-9">
-                      <div className="border-l-2 border-border pl-3 text-body-base whitespace-pre-wrap">
-                        <span className="text-body-xs font-semibold text-muted-foreground block mb-1">{tr("essayAnswer")}</span>
-                        {ans?.text || <span className="text-muted-foreground italic">{tr("noEssayAnswer")}</span>}
-                      </div>
-
-                      {/* R2 uploaded attachment */}
-                      {ans?.fileName && (
-                        <div className="flex flex-wrap items-center justify-between border-t border-border pt-3 gap-(--related-gap)">
-                          <div className="flex items-center gap-(--compact-gap) min-w-0">
-                            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-status-success/10 text-status-success">
-                              <FileText className="size-5" />
-                            </span>
-                            <div className="min-w-0">
-                              <p className="text-body-xs font-bold text-foreground truncate max-w-[200px] md:max-w-xs">{ans.fileName}</p>
-                              <p className="text-body-xs text-muted-foreground">{ans.fileSize || tr("pdfImage")}</p>
-                            </div>
-                          </div>
-                          {ans.fileKey ? (
-                            <Button
-                              variant="outline"
-                              size="xs"
-                              asChild
-                              className="rounded-lg border-border/80 text-muted-foreground hover:text-foreground gap-1"
-                            >
-                              <a
-                                href={`/api/storage/file/${ans.fileKey.split("/").map(encodeURIComponent).join("/")}?download=1&submissionId=${encodeURIComponent(activeSub.id)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Download className="size-3.5" />
-                                {tr("downloadFile")}
-                              </a>
-                            </Button>
-                          ) : (
-                            <span className="text-body-xs shrink-0 text-muted-foreground italic">
-                              {tr("fileUnavailable")}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-
-          {/* Right Column: Grading Panel (4 cols) */}
-          <div className="lg:col-span-4 lg:sticky lg:top-6 space-y-(--related-gap)">
-            <section id="tryout-grading-panel" tabIndex={-1} aria-labelledby="tryout-grading-heading" className="scroll-mt-16 border-t border-border pt-3">
-              <header className="mb-4">
-                <h3 id="tryout-grading-heading" className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-                  <Award className="size-5 text-brand-primary" />
-                  {tr("gradingPanel")}
-                </h3>
-              </header>
-
-              <div className="space-y-(--related-gap) font-sans">
-                <div className="grid gap-2">
-                  <Label htmlFor="grade-score" className="text-body-sm font-semibold">{tr("finalScore")}</Label>
-                  <Input
-                    id="grade-score"
-                    type="number"
-                    value={scoreInput}
-                    onChange={(e) => setScoreInput(e.target.value)}
-                    placeholder={tr("scorePlaceholder")}
-                    className="rounded-lg border-input bg-background font-sans text-body-sm font-semibold text-brand-primary focus-visible:ring-brand-primary"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="grade-notes" className="text-body-sm font-semibold">{tr("tutorFeedback")}</Label>
-                  <Textarea
-                    id="grade-notes"
-                    value={notesInput}
-                    onChange={(e) => setNotesInput(e.target.value)}
-                    rows={6}
-                    placeholder={tr("feedbackPlaceholder")}
-                    className="rounded-lg border-input bg-background leading-relaxed text-body-sm focus-visible:ring-brand-primary"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-6 space-y-2">
-                <Button onClick={handleSaveGrade} isLoading={isPending} className="w-full bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5 shadow-sm">
-                  {tr("savePublish")}
-                </Button>
-              </div>
-            </section>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  }, [activeSub, clearDraft, courseId, notesInput, router, scoreInput, tr]);
 
   return (
-    <div className="space-y-(--related-gap)">
-      {queueHeader}
-      <Tabs defaultValue="pending" className="w-full">
-        <TabsList flush={false}>
-          <TabsTrigger value="pending">
-            <AlertCircle className="size-4 mr-2 text-status-warning" />
-            {tr("needsGrading")}
-            <Badge variant="secondary" className="px-1.5 py-0 text-body-2xs">
-              {pendingList.length}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="graded">
-            <CheckCircle2 className="size-4 mr-2 text-status-success" />
-            {tr("graded")}
-          </TabsTrigger>
-          <TabsTrigger value="all">
-            <CheckSquare className="size-4 mr-2 text-muted-foreground" />
-            {tr("all")}
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Tab 1: Pending */}
-        <TabsContent value="pending">
-          {pendingList.length === 0 ? (
-            <AdminEmptyState icon={CheckCircle2} title={tr("allGraded")} />
-          ) : (
-            <div className="divide-y divide-border border-y border-border">
-              {pendingList.map((s) => (
-                <article key={s.id} className="flex flex-col py-3 sm:flex-row justify-between sm:items-center gap-(--compact-gap) hover:bg-muted/20 transition-colors">
-                  <div className="space-y-1">
-                    <h3 className="font-heading text-body-base font-semibold text-foreground">{s.examTitle}</h3>
-                    <p className="text-body-sm text-muted-foreground flex items-center gap-1.5">
-                      {tr("student")} <span className="font-medium text-foreground">{s.studentName}</span>
-                    </p>
-                    <p className="text-body-xs text-muted-foreground flex items-center gap-1.5">
-                      <Calendar className="size-3.5" />
-                      {s.submittedAt ? new Date(s.submittedAt).toLocaleString(dateLocale, { dateStyle: "medium", timeStyle: "short" }) : "-"}
-                    </p>
-                  </div>
-                  <Button onClick={() => handleOpenGrade(s)} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold text-body-sm">
-                    {tr("gradeAnswer")}
-                  </Button>
-                </article>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Tab 2: Graded */}
-        <TabsContent value="graded">
-          {gradedList.length === 0 ? (
-            <AdminEmptyState icon={AlertCircle} title={tr("noGraded")} />
-          ) : (
-            <div className="divide-y divide-border border-y border-border">
-              {gradedList.map((s) => (
-                <article key={s.id} className="flex flex-col py-3 sm:flex-row justify-between sm:items-center gap-(--compact-gap)">
-                  <div className="space-y-1">
-                    <h3 className="font-heading text-body-base font-semibold text-foreground">{s.examTitle}</h3>
-                    <p className="text-body-sm text-muted-foreground">
-                      {tr("student")} <span className="font-medium text-foreground">{s.studentName}</span>
-                    </p>
-                    <p className="text-body-xs text-muted-foreground flex items-center gap-1.5">
-                      <Calendar className="size-3.5" />
-                      {s.submittedAt ? new Date(s.submittedAt).toLocaleString(dateLocale, { dateStyle: "medium", timeStyle: "short" }) : "-"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-(--related-gap) shrink-0">
-                    <div className="text-right">
-                      <p className="text-body-xs font-semibold text-muted-foreground uppercase">{tr("finalScoreLabel")}</p>
-                      <p className="font-heading text-h6 font-bold text-brand-primary tabular-nums">{s.score}%</p>
-                    </div>
-                    <Button variant="outline" onClick={() => handleOpenGrade(s)} className="rounded-md border-border/80 text-muted-foreground hover:text-foreground">
-                      {tr("editScore")}
-                    </Button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Tab 3: All */}
-        <TabsContent value="all">
-          {initialSubmissions.length === 0 ? (
-            <AdminEmptyState icon={CheckSquare} title={tr("noSubmissions")} />
-          ) : (
-            <div className="divide-y divide-border border-y border-border">
-              {initialSubmissions.map((s) => (
-                <article key={s.id} className="flex flex-col py-3 sm:flex-row justify-between sm:items-center gap-(--compact-gap)">
-                  <div className="space-y-1">
-                    <h3 className="font-heading text-body-base font-semibold text-foreground">{s.examTitle}</h3>
-                    <p className="text-body-sm text-muted-foreground">
-                      {tr("student")} <span className="font-medium text-foreground">{s.studentName}</span>
-                    </p>
-                    <p className="text-body-xs text-muted-foreground flex items-center gap-1.5">
-                      <Calendar className="size-3.5" />
-                      {tr("status")}{" "}
-                      <Badge variant="outline" className={`text-body-2xs rounded-md ${
-                        s.status === "graded" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                      }`}>
-                        {s.status === "graded" ? tr("graded") : tr("waitingReview")}
-                      </Badge>
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-(--related-gap) shrink-0">
-                    <div className="text-right">
-                      <p className="text-body-xs font-semibold text-muted-foreground uppercase font-sans">{tr("score")}</p>
-                      <p className="font-heading text-h6 font-bold text-brand-primary tabular-nums">{s.score != null ? `${s.score}%` : tr("pending")}</p>
-                    </div>
-                    <Button onClick={() => handleOpenGrade(s)} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold text-body-sm">
-                      {s.status === "graded" ? tr("editScore") : tr("gradeAnswer")}
-                    </Button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
+    <ViewportSwitch
+      desktop={() => (
+        <TryoutGradingDesktop
+          queueHeader={queueHeader}
+          initialSubmissions={initialSubmissions}
+          pendingList={pendingList}
+          gradedList={gradedList}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          activeSub={activeSub}
+          scoreInput={scoreInput}
+          notesInput={notesInput}
+          isPending={isPending}
+          onOpenGrade={handleOpenGrade}
+          onCloseSub={handleCloseSub}
+          onScoreChange={setScoreInput}
+          onNotesChange={setNotesInput}
+          onSaveGrade={handleSaveGrade}
+        />
+      )}
+      mobile={() => (
+        <TryoutGradingMobile
+          initialSubmissions={initialSubmissions}
+          pendingList={pendingList}
+          gradedList={gradedList}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          activeSub={activeSub}
+          scoreInput={scoreInput}
+          notesInput={notesInput}
+          isPending={isPending}
+          onOpenGrade={handleOpenGrade}
+          onCloseSub={handleCloseSub}
+          onScoreChange={setScoreInput}
+          onNotesChange={setNotesInput}
+          onSaveGrade={handleSaveGrade}
+        />
+      )}
+    />
   );
 }

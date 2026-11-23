@@ -4,7 +4,8 @@ import { CustomPriceEstimator } from "@/components/admin/custom-price-estimator"
 import { TutorFeeEstimator } from "@/components/admin/tutor-fee-estimator";
 import { VoucherManagementTab } from "@/components/admin/voucher-management-tab";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ResponsiveTabsList } from "@/components/admin/responsive-tabs-list";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
@@ -34,12 +35,12 @@ export default async function AdminPricingPage() {
       />
 
       <Tabs defaultValue="student-pricing" paramKey="tab" className="space-y-6">
-        <TabsList>
+        <ResponsiveTabsList>
           <TabsTrigger value="student-pricing">{t("pricing.studentTab")}</TabsTrigger>
           <TabsTrigger value="tutor-fee">{t("pricing.tutorTab")}</TabsTrigger>
           <TabsTrigger value="vouchers">{t("pricing.voucherTab")}</TabsTrigger>
           <TabsTrigger value="discounts">{t("discountSettings.title")}</TabsTrigger>
-        </TabsList>
+        </ResponsiveTabsList>
 
         <TabsContent value="student-pricing">
           <CustomPriceEstimator />

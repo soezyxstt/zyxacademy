@@ -108,8 +108,16 @@ export default async function DashboardPage() {
             <DashboardHeaderShell firstName={firstName} />
           )}
 
-          <StudentDashboardContent sections={{
-            primary: <>
+          <StudentDashboardContent
+            sections={{
+              gamification: user?.id ? (
+                <DashboardSectionErrorBoundary variant="silent">
+                  <Suspense fallback={null}>
+                    <GamificationDashboardSummary userId={user.id} />
+                  </Suspense>
+                </DashboardSectionErrorBoundary>
+              ) : null,
+              activeAndReading: (
                 <DashboardSectionErrorBoundary
                   variant="primary"
                   sectionTitle={<TranslatedText namespace="student" messageKey="dashboard.classesActive" />}
@@ -118,27 +126,18 @@ export default async function DashboardPage() {
                     <PrimaryLearningSection userId={user?.id} enrollments={enrollments} />
                   </Suspense>
                 </DashboardSectionErrorBoundary>
-
-                {user?.id && (
-                  <DashboardSectionErrorBoundary
-                    variant="secondary"
-                    sectionTitle={<TranslatedText namespace="student" messageKey="dashboard.recommendedCourses" />}
-                  >
-                    <Suspense fallback={null}>
-                      <RecommendedCoursesSection user={user} enrolledCourseIds={enrolledCourseIds} />
-                    </Suspense>
-                  </DashboardSectionErrorBoundary>
-                )}
-            </>,
-            secondary: <>
-                {user?.id && (
-                  <DashboardSectionErrorBoundary variant="silent">
-                    <Suspense fallback={null}>
-                      <GamificationDashboardSummary userId={user.id} />
-                    </Suspense>
-                  </DashboardSectionErrorBoundary>
-                )}
-
+              ),
+              recommendedCourses: user?.id ? (
+                <DashboardSectionErrorBoundary
+                  variant="secondary"
+                  sectionTitle={<TranslatedText namespace="student" messageKey="dashboard.recommendedCourses" />}
+                >
+                  <Suspense fallback={null}>
+                    <RecommendedCoursesSection user={user} enrolledCourseIds={enrolledCourseIds} />
+                  </Suspense>
+                </DashboardSectionErrorBoundary>
+              ) : null,
+              reviewQueue: (
                 <DashboardSectionErrorBoundary
                   variant="secondary"
                   sectionTitle={<TranslatedText namespace="student" messageKey="dashboard.spacedRepetition" />}
@@ -147,13 +146,15 @@ export default async function DashboardPage() {
                     <ReviewQueueSection userId={user?.id} enrollments={enrollments} />
                   </Suspense>
                 </DashboardSectionErrorBoundary>
-
+              ),
+              weakConcepts: (
                 <DashboardSectionErrorBoundary variant="secondary">
                   <Suspense fallback={<DashboardSectionSkeleton rows={2} />}>
                     <WeakConceptsSection userId={user?.id} firstCourse={enrollments[0]} />
                   </Suspense>
                 </DashboardSectionErrorBoundary>
-
+              ),
+              availableAssessments: (
                 <DashboardSectionErrorBoundary
                   variant="secondary"
                   sectionTitle={<TranslatedText namespace="student" messageKey="dashboard.availableAssessments" />}
@@ -162,8 +163,9 @@ export default async function DashboardPage() {
                     <AvailableAssessmentsSection enrollments={enrollments} />
                   </Suspense>
                 </DashboardSectionErrorBoundary>
-            </>,
-          }} />
+              ),
+            }}
+          />
         </>
       )}
     </ApplicationPage>

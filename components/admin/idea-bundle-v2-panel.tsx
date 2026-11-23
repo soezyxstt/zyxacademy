@@ -16,7 +16,8 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminSectionTitle } from "@/components/admin/section-title";
 import { AdminTable } from "@/components/admin/table";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { ResponsiveTabsList } from "@/components/admin/responsive-tabs-list";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { MathText } from "@/components/course/math-text";
 import { explainBundleError } from "@/lib/bundle/admin-errors";
@@ -249,10 +250,10 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
           </AdminStatStrip>
 
           <Tabs value={analysisTab} onValueChange={(value) => setAnalysisTab(value as "ideas" | "relations")}>
-            <TabsList flush={false}>
+            <ResponsiveTabsList flush={false}>
               <TabsTrigger value="ideas">Idea</TabsTrigger>
               <TabsTrigger value="relations">Peta relasi</TabsTrigger>
-            </TabsList>
+            </ResponsiveTabsList>
 
             <TabsContent value="ideas" className="space-y-4">
               <div className="min-w-[140px] max-w-xs">
