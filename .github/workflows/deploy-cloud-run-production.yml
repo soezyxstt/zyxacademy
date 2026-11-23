@@ -42,6 +42,48 @@ jobs:
           path: artifacts/cloud-run-production/control-plane-*.json
           retention-days: 7
 
+  queue-inventory:
+    if: github.repository == 'soezyxstt/zyxacademy' && github.ref == 'refs/heads/main' && inputs.operation == 'inventory'
+    environment: production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          project_id: zyx-academy
+          workload_identity_provider: projects/307641710075/locations/global/workloadIdentityPools/zyx-web-production/providers/github
+          service_account: zyx-production-web-ci@zyx-academy.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+        with:
+          version: '>= 520.0.0'
+      - name: Inspect production queues and Scheduler without mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud_args=(--quiet --project zyx-academy --location asia-southeast1)
+          failed=0
+          for queue in zyx-production-default zyx-production-pdf; do
+            printf 'Queue %s\n' "$queue"
+            if ! gcloud tasks queues describe "$queue" "${gcloud_args[@]}" --format='json(state,retryConfig.maxAttempts)' 2>/dev/null; then
+              printf 'QUEUE_READ_FAILED\n'
+              failed=1
+              continue
+            fi
+            if ! gcloud tasks list --queue "$queue" "${gcloud_args[@]}" --limit=100 \
+              --format='json(dispatchCount,responseCount,lastAttempt.responseStatus.code)' 2>/dev/null | jq 'group_by([.dispatchCount // 0,.responseCount // 0,.lastAttempt.responseStatus.code // null]) | map({count:length,dispatches:(.[0].dispatchCount // 0),responses:(.[0].responseCount // 0),code:(.[0].lastAttempt.responseStatus.code // null)})'; then
+              printf 'TASK_STATUS_READ_FAILED\n'
+              failed=1
+            fi
+          done
+          if ! gcloud scheduler jobs describe zyx-production-dispatcher "${gcloud_args[@]}" --format='json(state,schedule,status.code)' 2>/dev/null; then
+            printf 'SCHEDULER_READ_FAILED\n'
+            failed=1
+          fi
+          exit "$failed"
+
   release:
     if: github.repository == 'soezyxstt/zyxacademy' && github.ref == 'refs/heads/main' && (inputs.operation == 'inspect-runtime' || inputs.operation == 'candidate' || inputs.operation == 'promote' || inputs.operation == 'rollback')
     environment: production
