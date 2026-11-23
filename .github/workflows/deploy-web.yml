@@ -61,9 +61,15 @@ jobs:
       - name: Build and deploy production on Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          # Public signing-certificate fingerprints served by /.well-known/assetlinks.json.
+          ANDROID_APP_LINKS_SHA256_FINGERPRINTS: ${{ secrets.ANDROID_APP_LINKS_SHA256_FINGERPRINTS }}
         run: |
           set -euo pipefail
-          vercel deploy --prod --yes --archive=tgz \
+          runtime_env=()
+          if [ -n "${ANDROID_APP_LINKS_SHA256_FINGERPRINTS:-}" ]; then
+            runtime_env+=(--env "ANDROID_APP_LINKS_SHA256_FINGERPRINTS=$ANDROID_APP_LINKS_SHA256_FINGERPRINTS")
+          fi
+          vercel deploy --prod --yes --archive=tgz "${runtime_env[@]}" \
             --meta githubDeployment=1 \
             --meta githubCommitOrg=soezyxstt \
             --meta githubCommitRepo=zyxacademy \
