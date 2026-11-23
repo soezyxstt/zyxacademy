@@ -88,7 +88,7 @@ export function AdminMobileCourseSheet({
                 size="icon-sm"
                 onClick={() => setQuery("")}
                 aria-label="Clear search"
-                className="absolute right-1.5 size-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="absolute right-1 size-9 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <X className="size-4" aria-hidden="true" />
               </Button>

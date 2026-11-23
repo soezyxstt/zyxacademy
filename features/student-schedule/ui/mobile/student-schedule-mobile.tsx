@@ -42,13 +42,13 @@ import {
 } from "@/features/student-schedule/model/schedule-events";
 
 function getAgendaAccentClass(event: StudentAgendaEvent): string {
-  if (event.locked) return "bg-zinc-500";
-  if (event.kind === "availability") return "bg-emerald-500";
-  if (event.kind === "booking") return "bg-indigo-500";
+  if (event.locked) return "bg-muted-foreground";
+  if (event.kind === "availability") return "bg-status-success";
+  if (event.kind === "booking") return "bg-status-info";
   const type = event.source?.type;
-  if (type === "official_exam") return "bg-amber-500";
-  if (type === "tryout") return "bg-violet-500";
-  if (type === "quiz") return "bg-sky-500";
+  if (type === "official_exam") return "bg-status-warning";
+  if (type === "tryout") return "bg-brand-secondary";
+  if (type === "quiz") return "bg-tertiary-3";
   return "bg-brand-primary";
 }
 
@@ -57,12 +57,12 @@ function getAgendaCardTone(event: StudentAgendaEvent): string {
     return "border-border/70 bg-muted/40 text-muted-foreground";
   }
   if (event.kind === "availability") {
-    return "border-emerald-500/40 bg-emerald-500/5 text-foreground";
+    return "border-status-success/40 bg-status-success/5 text-foreground";
   }
   if (event.kind === "booking") {
-    return "border-indigo-500/40 bg-indigo-500/5 text-foreground";
+    return "border-status-info/40 bg-status-info/5 text-foreground";
   }
-  return "border-amber-500/40 bg-amber-500/5 text-foreground";
+  return "border-status-warning/40 bg-status-warning/5 text-foreground";
 }
 
 /**
@@ -299,9 +299,9 @@ export function StudentScheduleMobile({
                   {day.dayOfMonth}
                 </span>
                 <span className="flex h-1.5 items-center gap-0.5" aria-hidden>
-                  {hasBooking ? <span className="size-1.5 rounded-xs bg-indigo-500" /> : null}
-                  {hasAvailable ? <span className="size-1.5 rounded-xs bg-emerald-500" /> : null}
-                  {hasAcademic ? <span className="size-1.5 rounded-xs bg-amber-500" /> : null}
+                  {hasBooking ? <span className="size-1.5 rounded-xs bg-status-info" /> : null}
+                  {hasAvailable ? <span className="size-1.5 rounded-xs bg-status-success" /> : null}
+                  {hasAcademic ? <span className="size-1.5 rounded-xs bg-status-warning" /> : null}
                 </span>
               </button>
             );
@@ -491,19 +491,19 @@ export function StudentScheduleMobile({
               <p className="text-body-xs font-semibold text-foreground">{t("calendar.legend")}</p>
               <div className="grid grid-cols-2 gap-1.5 text-body-xs text-muted-foreground">
                 <p className="flex items-center gap-2">
-                  <span className="size-2.5 shrink-0 rounded-xs bg-emerald-500" />
+                  <span className="size-2.5 shrink-0 rounded-xs bg-status-success" />
                   {t("calendar.availableSlots")}
                 </p>
                 <p className="flex items-center gap-2">
-                  <span className="size-2.5 shrink-0 rounded-xs bg-indigo-500" />
+                  <span className="size-2.5 shrink-0 rounded-xs bg-status-info" />
                   {t("calendar.scheduledSessions")}
                 </p>
                 <p className="flex items-center gap-2">
-                  <span className="size-2.5 shrink-0 rounded-xs bg-amber-500" />
+                  <span className="size-2.5 shrink-0 rounded-xs bg-status-warning" />
                   {t("calendar.academicSchedules")}
                 </p>
                 <p className="flex items-center gap-2">
-                  <span className="size-2.5 shrink-0 rounded-xs bg-zinc-500" />
+                  <span className="size-2.5 shrink-0 rounded-xs bg-muted-foreground" />
                   {t("calendar.completedOrPast")}
                 </p>
               </div>

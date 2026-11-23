@@ -22,6 +22,8 @@ export interface UsePersistentDraftOptions<T> {
   version: number;
   initialValue: T;
   storage?: DraftStorageKind;
+  /** When false, defers reading and writing storage until the key is ready (e.g. session resolved). */
+  enabled?: boolean;
   /** Optional validator or migrator for stored data. Return null to discard invalid payloads. */
   validate?: (raw: unknown) => T | null;
   /** Optional check to remove stored draft when value is empty or reset. */
@@ -143,6 +145,7 @@ export function usePersistentDraft<T>({
   version,
   initialValue,
   storage = "local",
+  enabled = true,
   validate,
   isEmpty,
   debounceMs = 150,
@@ -155,6 +158,7 @@ export function usePersistentDraft<T>({
   const validateRef = useRef(validate);
   const isEmptyRef = useRef(isEmpty);
   const latestValueRef = useRef(value);
+  const activeKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     initialValueRef.current = initialValue;
@@ -176,17 +180,34 @@ export function usePersistentDraft<T>({
   const persistNow = useCallback(
     (nextValue: T) => {
       cancelPendingWrite();
+      if (!enabled) return;
       if (isEmptyRef.current?.(nextValue)) {
         removePersistentDraft(key, storage);
         return;
       }
       writePersistentDraft(key, version, nextValue, storage);
     },
-    [cancelPendingWrite, key, storage, version]
+    [cancelPendingWrite, enabled, key, storage, version]
   );
 
   useEffect(() => {
     cancelPendingWrite();
+    if (!enabled) {
+      setHydrated(false);
+      return;
+    }
+
+    const previousKey = activeKeyRef.current;
+    activeKeyRef.current = key;
+
+    // If the user already modified state while storage was deferred (!enabled),
+    // preserve their in-memory edits and persist them to the newly resolved key.
+    if (previousKey === null && dirtyRef.current) {
+      setHydrated(true);
+      persistNow(latestValueRef.current);
+      return;
+    }
+
     dirtyRef.current = false;
     const restored = readPersistentDraft(key, version, storage, validateRef.current);
     if (restored !== null) {
@@ -199,7 +220,7 @@ export function usePersistentDraft<T>({
       setHasRestoredDraft(false);
     }
     setHydrated(true);
-  }, [cancelPendingWrite, key, storage, version]);
+  }, [cancelPendingWrite, enabled, key, persistNow, storage, version]);
 
   const setValue = useCallback<Dispatch<SetStateAction<T>>>((next) => {
     dirtyRef.current = true;
@@ -212,7 +233,7 @@ export function usePersistentDraft<T>({
   }, []);
 
   useEffect(() => {
-    if (!hydrated || !dirtyRef.current) return;
+    if (!enabled || !hydrated || !dirtyRef.current) return;
 
     cancelPendingWrite();
     if (debounceMs <= 0) {
@@ -226,17 +247,17 @@ export function usePersistentDraft<T>({
     }, debounceMs);
 
     return cancelPendingWrite;
-  }, [cancelPendingWrite, debounceMs, hydrated, persistNow, value]);
+  }, [cancelPendingWrite, debounceMs, enabled, hydrated, persistNow, value]);
 
   useEffect(() => {
     return () => {
-      if (dirtyRef.current) {
+      if (enabled && dirtyRef.current) {
         persistNow(latestValueRef.current);
       } else {
         cancelPendingWrite();
       }
     };
-  }, [cancelPendingWrite, persistNow]);
+  }, [cancelPendingWrite, enabled, persistNow]);
 
   const clearDraft = useCallback(() => {
     cancelPendingWrite();

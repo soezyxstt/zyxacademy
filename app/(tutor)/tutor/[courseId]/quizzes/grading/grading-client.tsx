@@ -16,6 +16,7 @@ import { QuizGradingMobile } from "@/features/grading/ui/mobile/quiz-grading-mob
 
 interface Props {
   courseId: string;
+  tutorId?: string | null;
   queueHeader?: ReactNode;
   pendingAttempts: PendingAttemptItem[];
 }
@@ -24,7 +25,12 @@ interface Props {
  * Interactive client container for tutors to review, inspect attachments, and grade pending student quiz attempts.
  * Lifts activeAttempt and persistent gradeInputs above ViewportSwitch so resizing never drops unsaved grades.
  */
-export function TutorQuizGradingClient({ courseId, pendingAttempts, queueHeader }: Props) {
+export function TutorQuizGradingClient({
+  courseId,
+  tutorId,
+  pendingAttempts,
+  queueHeader,
+}: Props) {
   const router = useRouter();
   const tr = useTranslations("tutor.grading");
   const [isPending, startTransition] = useTransition();
@@ -35,7 +41,8 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts, queueHeader 
 
   const { gradeInputs, setScore, setNotes, clearDraft } = useQuizGradingDraft(
     courseId,
-    activeAttempt
+    activeAttempt,
+    tutorId
   );
 
   const filteredAttempts = useMemo(() => {

@@ -666,7 +666,7 @@ export function CourseDocumentsClient({
 
   const categoryTabs = (
     <Tabs value={activeTab} onValueChange={(value) => setUrlTab(normalizeTabKey(value))}>
-      <TabsList aria-label={t("documents.courseCategoryLabel")}>
+      <TabsList mobileInline aria-label={t("documents.courseCategoryLabel")}>
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (

@@ -839,12 +839,12 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
                 )}
 
                 {parsedQuery.isScoped && activePrefixLabel ? (
-                  <div className="inline-flex shrink-0 select-none items-center gap-1 rounded-full border border-brand-secondary/30 bg-brand-secondary/10 px-2.5 py-0.5 text-body-xs font-medium text-brand-secondary animate-in fade-in zoom-in-95 duration-150">
+                  <div className="inline-flex shrink-0 select-none items-center gap-1 rounded-md border border-brand-secondary/30 bg-brand-secondary/10 px-2.5 py-0.5 text-body-xs font-medium text-brand-secondary animate-in fade-in zoom-in-95 duration-150">
                     <span>{activePrefixLabel}</span>
                     <button
                       type="button"
                       onClick={() => setSearch(parsedQuery.cleanQuery)}
-                      className="rounded-full p-0.5 transition-colors hover:bg-brand-secondary/15 cursor-pointer"
+                      className="relative rounded-sm p-0.5 transition-colors hover:bg-brand-secondary/15 cursor-pointer after:absolute after:-inset-1.5 after:content-['']"
                       aria-label={t("clearPrefix")}
                     >
                       <X className="size-3" />
@@ -876,7 +876,7 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
                   <button
                     type="button"
                     onClick={() => setSearch("")}
-                    className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground after:absolute after:-inset-1 after:content-['']"
                     aria-label={t("clear")}
                   >
                     <X className="size-3.5" aria-hidden="true" />
@@ -893,7 +893,7 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
                   <Dialog.Close asChild>
                     <button
                       type="button"
-                      className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:hidden"
+                      className="relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:hidden after:absolute after:-inset-1 after:content-['']"
                       aria-label={t("close")}
                     >
                       <X className="size-4" aria-hidden="true" />
@@ -955,8 +955,8 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
                                     toggleFavorite(item);
                                   }}
                                   className={cn(
-                                    "cursor-pointer rounded-lg p-1.5 transition-colors hover:bg-background/80 text-muted-foreground/70 hover:text-amber-500",
-                                    favorited && "text-amber-500"
+                                    "flex size-8 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-background/80 text-muted-foreground/70 hover:text-status-warning",
+                                    favorited && "text-status-warning"
                                   )}
                                   aria-label={
                                     favorited
@@ -972,7 +972,7 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
                                   <Star
                                     className={cn(
                                       "size-3.5",
-                                      favorited && "fill-amber-500 text-amber-500"
+                                      favorited && "fill-status-warning text-status-warning"
                                     )}
                                   />
                                 </button>
@@ -982,7 +982,7 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
                                     e.stopPropagation();
                                     removeRecent(item.id);
                                   }}
-                                  className="cursor-pointer rounded-lg p-1.5 text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                  className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
                                   aria-label={t("removeRecent")}
                                   title={t("removeRecent")}
                                 >
@@ -1038,11 +1038,11 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
                                     e.stopPropagation();
                                     removeFavorite(item.id);
                                   }}
-                                  className="cursor-pointer rounded-lg p-1.5 text-amber-500 transition-colors hover:bg-background/80 hover:text-amber-600"
+                                  className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-status-warning transition-colors hover:bg-background/80 hover:text-status-warning/80"
                                   aria-label={t("removeFavorite")}
                                   title={t("removeFavorite")}
                                 >
-                                  <Star className="size-3.5 fill-amber-500 text-amber-500" />
+                                  <Star className="size-3.5 fill-status-warning text-status-warning" />
                                 </button>
                               </div>
                             </Command.Item>
@@ -1095,8 +1095,8 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
                                     toggleFavorite(doc);
                                   }}
                                   className={cn(
-                                    "cursor-pointer rounded-lg p-1.5 text-muted-foreground/60 transition-colors hover:bg-background/80 hover:text-amber-500",
-                                    favorited && "text-amber-500"
+                                    "flex size-8 cursor-pointer items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-background/80 hover:text-status-warning",
+                                    favorited && "text-status-warning"
                                   )}
                                   aria-label={t("addFavorite")}
                                   title={t("addFavorite")}
@@ -1104,7 +1104,7 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
                                   <Star
                                     className={cn(
                                       "size-3.5",
-                                      favorited && "fill-amber-500 text-amber-500"
+                                      favorited && "fill-status-warning text-status-warning"
                                     )}
                                   />
                                 </button>

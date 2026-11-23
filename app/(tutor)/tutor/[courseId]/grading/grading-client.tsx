@@ -13,11 +13,17 @@ import { TryoutGradingMobile } from "@/features/grading/ui/mobile/tryout-grading
 
 interface Props {
   courseId: string;
+  tutorId?: string | null;
   queueHeader?: ReactNode;
   initialSubmissions: SubmissionItem[];
 }
 
-export function GradingClient({ courseId, initialSubmissions, queueHeader }: Props) {
+export function GradingClient({
+  courseId,
+  tutorId,
+  initialSubmissions,
+  queueHeader,
+}: Props) {
   const router = useRouter();
   const tr = useTranslations("tutor.grading");
   const [isPending, startTransition] = useTransition();
@@ -26,7 +32,7 @@ export function GradingClient({ courseId, initialSubmissions, queueHeader }: Pro
   const [activeSub, setActiveSub] = useState<SubmissionItem | null>(null);
 
   const { scoreInput, notesInput, setScoreInput, setNotesInput, clearDraft } =
-    useTryoutGradingDraft(courseId, activeSub);
+    useTryoutGradingDraft(courseId, activeSub, tutorId);
 
   const pendingList = useMemo(
     () => initialSubmissions.filter((s) => s.status === "pending_review"),

@@ -103,7 +103,6 @@ function FixtureInner() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="rounded-full"
                 onClick={() => setQuery("")}
               >
                 Hapus pencarian

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
+import { useSession } from "@/lib/auth-client";
 import { usePersistentDraft } from "@/hooks/use-persistent-draft";
 import type {
   AttemptDetails,
@@ -13,12 +14,22 @@ import type {
 export const QUIZ_GRADING_DRAFT_VERSION = 1;
 export const TRYOUT_GRADING_DRAFT_VERSION = 1;
 
-export function getQuizGradingDraftKey(courseId: string, attemptId: string): string {
-  return `zyx:tutor-quiz-grading:v${QUIZ_GRADING_DRAFT_VERSION}:${courseId}:${attemptId}`;
+export function getQuizGradingDraftKey(
+  courseId: string,
+  attemptId: string,
+  userId?: string | null
+): string {
+  const userScope = userId?.trim() || "anonymous";
+  return `zyx:tutor-quiz-grading:v${QUIZ_GRADING_DRAFT_VERSION}:${userScope}:${courseId}:${attemptId}`;
 }
 
-export function getTryoutGradingDraftKey(courseId: string, submissionId: string): string {
-  return `zyx:tutor-tryout-grading:v${TRYOUT_GRADING_DRAFT_VERSION}:${courseId}:${submissionId}`;
+export function getTryoutGradingDraftKey(
+  courseId: string,
+  submissionId: string,
+  userId?: string | null
+): string {
+  const userScope = userId?.trim() || "anonymous";
+  return `zyx:tutor-tryout-grading:v${TRYOUT_GRADING_DRAFT_VERSION}:${userScope}:${courseId}:${submissionId}`;
 }
 
 export function buildServerQuizGradeInputs(attempt: AttemptDetails | null): QuizGradeDraftMap {
@@ -95,8 +106,8 @@ export function validateTryoutGradingDraft(raw: unknown): TryoutGradeDraft | nul
 
 /**
  * Merges a persisted tutor draft on top of server-loaded question inputs so
- * unsaved scores and feedback survive viewport switches and reloads while
- * keeping the latest server expectedRevision per question.
+ * unsaved scores and feedback survive viewport switches and reloads only when
+ * the draft's expectedRevision matches the server's expectedRevision.
  */
 export function mergeQuizGradeInputs(
   serverInitial: QuizGradeDraftMap,
@@ -107,7 +118,10 @@ export function mergeQuizGradeInputs(
   const merged: QuizGradeDraftMap = {};
   for (const [questionId, serverEntry] of Object.entries(serverInitial)) {
     const draftEntry: QuizGradeInput | undefined = draft[questionId];
-    if (draftEntry) {
+    if (
+      draftEntry &&
+      draftEntry.expectedRevision === serverEntry.expectedRevision
+    ) {
       merged[questionId] = {
         score: draftEntry.score,
         notes: draftEntry.notes,
@@ -131,15 +145,20 @@ export interface UseQuizGradingDraftResult {
 
 export function useQuizGradingDraft(
   courseId: string,
-  activeAttempt: AttemptDetails | null
+  activeAttempt: AttemptDetails | null,
+  userId?: string | null
 ): UseQuizGradingDraftResult {
+  const session = useSession();
+  const resolvedUserId = userId ?? session.data?.user?.id ?? null;
+  const storageReady = Boolean(resolvedUserId) || !session.isPending;
+
   const serverInitial = useMemo(
     () => buildServerQuizGradeInputs(activeAttempt),
     [activeAttempt]
   );
 
   const attemptId = activeAttempt?.attemptId ?? "__idle__";
-  const storageKey = getQuizGradingDraftKey(courseId, attemptId);
+  const storageKey = getQuizGradingDraftKey(courseId, attemptId, resolvedUserId);
 
   const isEmpty = useCallback(
     (value: QuizGradeDraftMap) => {
@@ -167,6 +186,7 @@ export function useQuizGradingDraft(
     version: QUIZ_GRADING_DRAFT_VERSION,
     initialValue: serverInitial,
     storage: "local",
+    enabled: storageReady,
     validate: validateQuizGradingDraft,
     isEmpty,
     debounceMs: 120,
@@ -235,15 +255,20 @@ export interface UseTryoutGradingDraftResult {
 
 export function useTryoutGradingDraft(
   courseId: string,
-  activeSubmission: SubmissionItem | null
+  activeSubmission: SubmissionItem | null,
+  userId?: string | null
 ): UseTryoutGradingDraftResult {
+  const session = useSession();
+  const resolvedUserId = userId ?? session.data?.user?.id ?? null;
+  const storageReady = Boolean(resolvedUserId) || !session.isPending;
+
   const serverInitial = useMemo(
     () => buildServerTryoutGradeDraft(activeSubmission),
     [activeSubmission]
   );
 
   const submissionId = activeSubmission?.id ?? "__idle__";
-  const storageKey = getTryoutGradingDraftKey(courseId, submissionId);
+  const storageKey = getTryoutGradingDraftKey(courseId, submissionId, resolvedUserId);
 
   const isEmpty = useCallback(
     (value: TryoutGradeDraft) => {
@@ -264,6 +289,7 @@ export function useTryoutGradingDraft(
     version: TRYOUT_GRADING_DRAFT_VERSION,
     initialValue: serverInitial,
     storage: "local",
+    enabled: storageReady,
     validate: validateTryoutGradingDraft,
     isEmpty,
     debounceMs: 120,

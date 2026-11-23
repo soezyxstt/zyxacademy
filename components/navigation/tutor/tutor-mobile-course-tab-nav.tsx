@@ -87,14 +87,12 @@ export function TutorMobileCourseTabNav({
   }
 
   return (
-    <div className="md:hidden">
-      <TabNav
-        tabs={tabs}
-        label={tMobile("courseTabsLabel")}
-        variant="page"
-        flush={true}
-        className="mx-0 w-full px-1"
-      />
-    </div>
+    <TabNav
+      tabs={tabs}
+      label={tMobile("courseTabsLabel")}
+      variant="page"
+      flush={true}
+      className="mx-0 w-full px-1 md:hidden"
+    />
   );
 }

@@ -211,6 +211,7 @@ function AdminSidebarInner() {
   const tDiscussion = useTranslations("tutor.schedule");
   const pathname = usePathname();
   const router = useRouter();
+  const viewportMode = useViewportMode();
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
@@ -224,9 +225,10 @@ function AdminSidebarInner() {
 
   const [adminCourses, setAdminCourses] = useState<Array<{ id: string; title: string }>>([]);
   const [courseFilter, setCourseFilter] = useState("");
+  const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
 
   useEffect(() => {
-    if (!courseSlug) return;
+    if (viewportMode !== "desktop" || !courseDropdownOpen || !courseSlug) return;
     let cancelled = false;
     getCourses()
       .then((res) => {
@@ -238,7 +240,7 @@ function AdminSidebarInner() {
     return () => {
       cancelled = true;
     };
-  }, [courseSlug]);
+  }, [courseDropdownOpen, courseSlug, viewportMode]);
 
   const filteredAdminCourses = useMemo(() => {
     const list: Array<{ id: string; title: string }> = [];
@@ -296,6 +298,7 @@ function AdminSidebarInner() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    if (viewportMode !== "desktop") return;
     if (!courseSlug) {
       setCourseNav(null);
       return;
@@ -342,7 +345,7 @@ function AdminSidebarInner() {
     return () => {
       cancelled = true;
     };
-  }, [courseSlug]);
+  }, [courseSlug, viewportMode]);
 
   useEffect(() => {
     setMounted(true);
@@ -482,7 +485,7 @@ function AdminSidebarInner() {
         >
           {c ? (
             <div className="mb-2 flex w-full justify-center">
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={setCourseDropdownOpen}>
                 <SidebarTooltip
                   label={`Pilih mata kuliah: ${courseNav?.data?.title || courseSlug}`}
                   collapsed={c}
@@ -559,7 +562,7 @@ function AdminSidebarInner() {
             </div>
           ) : (
             <div className="mb-3">
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={setCourseDropdownOpen}>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"

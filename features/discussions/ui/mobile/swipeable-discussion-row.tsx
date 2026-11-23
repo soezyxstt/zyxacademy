@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode, type TouchEvent, type MouseEvent } from "react";
+import { useRef, type ReactNode, type TouchEvent, type MouseEvent } from "react";
 import { CheckCircle2, RotateCcw, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +24,7 @@ export interface SwipeableDiscussionRowProps {
  * - Swipe right reveals Share on the left and triggers on threshold release.
  * - Swipe left reveals Resolve / Reopen on the right (when permitted) and triggers on threshold release.
  * - Preserves vertical scrolling via touch-pan-y and axis locking.
+ * - Drives transform directly via DOM refs during touchmove to avoid per-frame React re-renders.
  */
 export function SwipeableDiscussionRow({
   children,
@@ -35,16 +36,41 @@ export function SwipeableDiscussionRow({
   reopenLabel = "Buka lagi",
   onToggleResolve,
 }: SwipeableDiscussionRowProps) {
-  const [offsetX, setOffsetX] = useState(0);
-  const [dragging, setDragging] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const leftActionRef = useRef<HTMLDivElement>(null);
+  const rightActionRef = useRef<HTMLDivElement>(null);
 
   const startXRef = useRef(0);
   const startYRef = useRef(0);
+  const offsetXRef = useRef(0);
   const axisRef = useRef<"none" | "horizontal" | "vertical">("none");
   const swipedRef = useRef(false);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const applyOffset = (nextOffset: number, animate: boolean) => {
+    offsetXRef.current = nextOffset;
+    const contentEl = contentRef.current;
+    if (contentEl) {
+      contentEl.style.transition = animate
+        ? "transform 200ms cubic-bezier(0.22, 1, 0.36, 1)"
+        : "none";
+      contentEl.style.transform =
+        nextOffset !== 0 ? `translate3d(${nextOffset}px, 0, 0)` : "";
+    }
+    if (leftActionRef.current) {
+      leftActionRef.current.style.opacity = nextOffset > 8 ? "1" : "0";
+    }
+    if (rightActionRef.current) {
+      rightActionRef.current.style.opacity = nextOffset < -8 ? "1" : "0";
+    }
+  };
 
   const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
     if (event.touches.length !== 1) return;
+    if (resetTimerRef.current !== null) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
     const touch = event.touches[0];
     startXRef.current = touch.clientX;
     startYRef.current = touch.clientY;
@@ -65,7 +91,6 @@ export function SwipeableDiscussionRow({
       }
       if (Math.abs(dx) > LOCK_THRESHOLD_PX && Math.abs(dx) > Math.abs(dy)) {
         axisRef.current = "horizontal";
-        setDragging(true);
       } else {
         return;
       }
@@ -78,24 +103,40 @@ export function SwipeableDiscussionRow({
     if (Math.abs(clamped) > LOCK_THRESHOLD_PX) {
       swipedRef.current = true;
     }
-    setOffsetX(clamped);
+    applyOffset(clamped, false);
   };
 
   const handleTouchEnd = () => {
+    const finalOffset = offsetXRef.current;
     if (axisRef.current === "horizontal") {
-      if (offsetX >= TRIGGER_THRESHOLD_PX) {
+      if (finalOffset >= TRIGGER_THRESHOLD_PX) {
         onShare();
       } else if (
         canToggleResolve &&
         onToggleResolve &&
-        offsetX <= -TRIGGER_THRESHOLD_PX
+        finalOffset <= -TRIGGER_THRESHOLD_PX
       ) {
         onToggleResolve();
       }
     }
     axisRef.current = "none";
-    setDragging(false);
-    setOffsetX(0);
+    applyOffset(0, true);
+    if (swipedRef.current) {
+      resetTimerRef.current = setTimeout(() => {
+        swipedRef.current = false;
+        resetTimerRef.current = null;
+      }, 80);
+    }
+  };
+
+  const handleTouchCancel = () => {
+    if (resetTimerRef.current !== null) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+    axisRef.current = "none";
+    swipedRef.current = false;
+    applyOffset(0, true);
   };
 
   const handleClickCapture = (event: MouseEvent<HTMLDivElement>) => {
@@ -115,7 +156,7 @@ export function SwipeableDiscussionRow({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
       onClickCapture={handleClickCapture}
     >
       <div
@@ -123,10 +164,9 @@ export function SwipeableDiscussionRow({
         className="pointer-events-none absolute inset-0 flex items-stretch justify-between"
       >
         <div
-          className={cn(
-            "flex items-center gap-1.5 bg-primary/15 px-4 text-body-xs font-medium text-primary transition-opacity duration-150 motion-reduce:transition-none",
-            offsetX > 8 ? "opacity-100" : "opacity-0"
-          )}
+          ref={leftActionRef}
+          style={{ opacity: 0 }}
+          className="flex items-center gap-1.5 bg-primary/15 px-4 text-body-xs font-medium text-primary transition-opacity duration-150 motion-reduce:transition-none"
         >
           <Share2 className="size-4 shrink-0" aria-hidden="true" />
           <span>{shareLabel}</span>
@@ -134,12 +174,13 @@ export function SwipeableDiscussionRow({
 
         {canToggleResolve && onToggleResolve ? (
           <div
+            ref={rightActionRef}
+            style={{ opacity: 0 }}
             className={cn(
               "ml-auto flex items-center gap-1.5 px-4 text-body-xs font-medium transition-opacity duration-150 motion-reduce:transition-none",
               isResolved
-                ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-                : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-              offsetX < -8 ? "opacity-100" : "opacity-0"
+                ? "bg-status-warning/15 text-status-warning"
+                : "bg-status-success/15 text-status-success"
             )}
           >
             {isResolved ? (
@@ -153,13 +194,8 @@ export function SwipeableDiscussionRow({
       </div>
 
       <div
-        className={cn(
-          "relative bg-background",
-          !dragging && "transition-transform duration-200 motion-reduce:transition-none"
-        )}
-        style={{
-          transform: offsetX !== 0 ? `translate3d(${offsetX}px, 0, 0)` : undefined,
-        }}
+        ref={contentRef}
+        className="relative bg-background motion-reduce:!transition-none"
       >
         {children}
       </div>

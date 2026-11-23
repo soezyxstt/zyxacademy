@@ -140,7 +140,9 @@ export function validateTryoutDraft(
 export function getTryoutDraftStorageKey(
   courseId: string,
   examId: string,
-  isDemo: boolean
+  isDemo: boolean,
+  userId?: string | null
 ): string {
-  return `zyx:tryout-draft:${isDemo ? "demo" : "live"}:${courseId}:${examId}`;
+  const userScope = isDemo ? "demo" : userId?.trim() || "anonymous";
+  return `zyx:tryout-draft:${isDemo ? "demo" : "live"}:${userScope}:${courseId}:${examId}`;
 }

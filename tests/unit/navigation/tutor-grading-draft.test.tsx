@@ -136,12 +136,15 @@ describe("Tutor grading draft preservation across ViewportSwitch transitions", (
     const serverInitial = buildServerQuizGradeInputs(attempt);
     expect(Object.keys(serverInitial)).toEqual(["q-essay-1", "q-short-1"]);
 
-    const storageKey = getQuizGradingDraftKey("course-math", attempt.attemptId);
+    const storageKey = getQuizGradingDraftKey("course-math", attempt.attemptId, "tutor-1");
+    expect(storageKey).not.toBe(
+      getQuizGradingDraftKey("course-math", attempt.attemptId, "tutor-2")
+    );
     const unsavedDraft: QuizGradeDraftMap = {
       "q-essay-1": {
         score: "88",
         notes: "Langkah pembuktian sudah tepat, tambahkan syarat kontinuitas.",
-        expectedRevision: 1,
+        expectedRevision: 3,
       },
       "q-short-1": {
         score: "95",
@@ -162,7 +165,7 @@ describe("Tutor grading draft preservation across ViewportSwitch transitions", (
     );
     expect(restored).not.toBeNull();
 
-    // Merging preserves unsaved tutor score/notes while refreshing expectedRevision from server.
+    // Merging preserves unsaved tutor score/notes when expectedRevision matches server revision.
     const mergedInputs = mergeQuizGradeInputs(serverInitial, restored!.data);
     expect(mergedInputs["q-essay-1"]).toEqual({
       score: "88",
@@ -170,6 +173,28 @@ describe("Tutor grading draft preservation across ViewportSwitch transitions", (
       expectedRevision: 3,
     });
     expect(mergedInputs["q-short-1"]).toEqual({
+      score: "95",
+      notes: "Notasi rapi.",
+      expectedRevision: 2,
+    });
+
+    // If another tutor saved a newer revision on the server since the local draft was written,
+    // stale local draft entries must not overwrite the newer server state or stamp the newer revision.
+    const staleDraft: QuizGradeDraftMap = {
+      "q-essay-1": {
+        score: "60",
+        notes: "Draft lama dari sesi sebelumnya.",
+        expectedRevision: 1,
+      },
+      "q-short-1": {
+        score: "95",
+        notes: "Notasi rapi.",
+        expectedRevision: 2,
+      },
+    };
+    const mergedWithStale = mergeQuizGradeInputs(serverInitial, staleDraft);
+    expect(mergedWithStale["q-essay-1"]).toEqual(serverInitial["q-essay-1"]);
+    expect(mergedWithStale["q-short-1"]).toEqual({
       score: "95",
       notes: "Notasi rapi.",
       expectedRevision: 2,
@@ -237,7 +262,10 @@ describe("Tutor grading draft preservation across ViewportSwitch transitions", (
     const serverInitial = buildServerTryoutGradeDraft(submission);
     expect(serverInitial).toEqual({ score: "", notes: "" });
 
-    const storageKey = getTryoutGradingDraftKey("course-phys", submission.id);
+    const storageKey = getTryoutGradingDraftKey("course-phys", submission.id, "tutor-1");
+    expect(storageKey).not.toBe(
+      getTryoutGradingDraftKey("course-phys", submission.id, "tutor-2")
+    );
     const unsavedDraft: TryoutGradeDraft = {
       score: "92",
       notes: "Analisis diagram gaya sangat jelas; perhatikan satuan di nomor 4.",

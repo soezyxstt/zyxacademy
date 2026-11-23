@@ -374,6 +374,7 @@ export function MobileTopNavbar({
           {/* Default Top Navbar Row */}
           <div
             aria-hidden={activeSearchExpanded || undefined}
+            inert={activeSearchExpanded || undefined}
             className={cn(
               "flex h-full w-full items-center justify-between gap-2 transition-[opacity,transform] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
               activeSearchExpanded
@@ -423,6 +424,7 @@ export function MobileTopNavbar({
           <div
             data-mobile-search-bar=""
             aria-hidden={!activeSearchExpanded || undefined}
+            inert={!activeSearchExpanded || undefined}
             className={cn(
               "absolute inset-0 flex items-center gap-2 px-3 sm:px-4 transition-[opacity,transform] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
               activeSearchExpanded
@@ -430,7 +432,7 @@ export function MobileTopNavbar({
                 : "pointer-events-none translate-x-4 scale-[0.97] opacity-0"
             )}
           >
-            <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full border border-border/80 bg-card/95 px-3.5 shadow-xs transition-[border-color,box-shadow] duration-200 focus-within:border-brand-secondary/70 focus-within:ring-2 focus-within:ring-brand-secondary/20">
+            <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-border/80 bg-card/95 px-3.5 shadow-xs transition-[border-color,box-shadow] duration-200 focus-within:border-brand-secondary/70 focus-within:ring-2 focus-within:ring-brand-secondary/20">
               {pageSearch?.isLoading ? (
                 <Loader2
                   className="size-4 shrink-0 animate-spin text-brand-secondary"
@@ -470,7 +472,7 @@ export function MobileTopNavbar({
                   }}
                   tabIndex={activeSearchExpanded ? 0 : -1}
                   aria-label={labels.clear}
-                  className="flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="relative flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring after:absolute after:-inset-1.5 after:content-['']"
                 >
                   <X className="size-3.5" aria-hidden="true" />
                 </button>
@@ -482,7 +484,7 @@ export function MobileTopNavbar({
               onClick={() => closeSearch(true)}
               tabIndex={activeSearchExpanded ? 0 : -1}
               aria-label={labels.close}
-              className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
               <X className="size-4" aria-hidden="true" />
             </button>
@@ -493,6 +495,7 @@ export function MobileTopNavbar({
         <div
           data-mobile-global-search-section=""
           aria-hidden={!activeSearchExpanded || undefined}
+          inert={!activeSearchExpanded || undefined}
           className={cn(
             "grid transition-[grid-template-rows,opacity] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
             activeSearchExpanded

@@ -105,8 +105,14 @@ function StudentSidebarContent({
   const activeCourseId = courseIdFromPath ?? (pathname === "/dashboard/schedule" ? courseIdFromSchedule : undefined);
 
   const [coursesOpen, setCoursesOpen] = useState(true);
+  const viewportMode = useViewportMode();
   const userId = session?.user?.id;
-  const liveData = useStudentSidebarData({ userId, activeCourseId, pathname, enabled: !demo });
+  const liveData = useStudentSidebarData({
+    userId,
+    activeCourseId,
+    pathname,
+    enabled: !demo && viewportMode === "desktop",
+  });
   const enrolledCourses = useMemo(() => demo ? experience.courses ?? [] : liveData.courses, [demo, experience.courses, liveData.courses]);
   const activeCourseMetadata = demo ? enrolledCourses.find(course => course.id === activeCourseId) : liveData.activeCourse;
   const streakCurrent = demo ? experience.streak?.current ?? 0 : liveData.streak;

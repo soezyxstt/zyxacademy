@@ -529,7 +529,7 @@ export function TutorScheduleMobile({
 
         {/* 2. SESSIONS TAB */}
         <TabsContent value="sessions" className="mt-3 space-y-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2 empty:hidden">
             <SearchBar
               size="sm"
               aria-label={t("search")}
@@ -636,7 +636,7 @@ export function TutorScheduleMobile({
 
         {/* 3. TICKETS TAB: Stacked cards with inline Approve/Reject & Discussion */}
         <TabsContent value="tickets" className="mt-3 space-y-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2 empty:hidden">
             <SearchBar
               size="sm"
               aria-label={t("search")}

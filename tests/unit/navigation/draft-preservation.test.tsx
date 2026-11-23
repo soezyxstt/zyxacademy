@@ -42,9 +42,9 @@ function createEmptyComposerDraft(): ComposerDraft {
   return {
     body: "",
     images: [],
+    mentionedPeople: [],
     sending: false,
     error: null,
-    replyTo: null,
   };
 }
 
@@ -79,6 +79,7 @@ describe("Draft preservation across mobile and desktop ViewportSwitch transition
       kind: "course",
       name: "Kalkulus 1",
       courseId: "course-1",
+      unreadCount: 0,
       canCreate: true,
       muted: false,
     };
@@ -91,8 +92,12 @@ describe("Draft preservation across mobile and desktop ViewportSwitch transition
           id: "img-1",
           file: new File(["mock"], "turunan.png", { type: "image/png" }),
           previewUrl: "blob:turunan-preview",
-          status: "uploaded",
-          attachmentId: "att-1",
+          status: "ready",
+          attachment: {
+            id: "att-1",
+            name: "turunan.png",
+            url: "blob:turunan-preview",
+          },
         },
       ],
     };
@@ -104,7 +109,10 @@ describe("Draft preservation across mobile and desktop ViewportSwitch transition
 
     const forwardDraft: DiscussionForwardDraft = {
       targetChannel: channel,
-      note: "Perlu ditinjau tutor kelas",
+      targetQuestion: "q-42",
+      targetTitle: "Perlu ditinjau tutor kelas",
+      requestId: "req-forward-9",
+      status: "ready",
     };
 
     const liftedDrafts: Record<string, ComposerDraft> = {
@@ -138,7 +146,7 @@ describe("Draft preservation across mobile and desktop ViewportSwitch transition
               <span data-attachment-count={drafts["question:q-42"]?.images.length ?? 0} />
               <span data-new-open={String(newOpen)}>{newChannel?.name}</span>
               <span data-new-body={drafts.new?.body ?? ""} />
-              <span data-forward-note={forwardDrafts["msg-9"]?.note ?? ""} />
+              <span data-forward-note={forwardDrafts["msg-9"]?.targetTitle ?? ""} />
             </section>
           )}
           desktop={() => (
@@ -147,7 +155,7 @@ describe("Draft preservation across mobile and desktop ViewportSwitch transition
               <span data-attachment-count={drafts["question:q-42"]?.images.length ?? 0} />
               <span data-new-open={String(newOpen)}>{newChannel?.name}</span>
               <span data-new-body={drafts.new?.body ?? ""} />
-              <span data-forward-note={forwardDrafts["msg-9"]?.note ?? ""} />
+              <span data-forward-note={forwardDrafts["msg-9"]?.targetTitle ?? ""} />
             </section>
           )}
         />
@@ -206,7 +214,10 @@ describe("Draft preservation across mobile and desktop ViewportSwitch transition
       },
     ];
 
-    const storageKey = getTryoutDraftStorageKey("course-math", "exam-uts-1", false);
+    const storageKey = getTryoutDraftStorageKey("course-math", "exam-uts-1", false, "student-1");
+    expect(storageKey).not.toBe(
+      getTryoutDraftStorageKey("course-math", "exam-uts-1", false, "student-2")
+    );
     const initial = createInitialTryoutDraft(questions);
     expect(initial.index).toBe(0);
     expect(isTryoutQuestionAnswered(questions[0], initial.answers)).toBe(false);

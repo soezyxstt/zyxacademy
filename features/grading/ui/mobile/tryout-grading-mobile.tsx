@@ -227,8 +227,8 @@ export function TryoutGradingMobile({
                   variant="outline"
                   className={`rounded-md text-body-2xs ${
                     s.status === "graded"
-                      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600"
-                      : "border-amber-500/20 bg-amber-500/10 text-amber-600"
+                      ? "border-status-success/20 bg-status-success/10 text-status-success"
+                      : "border-status-warning/20 bg-status-warning/10 text-status-warning"
                   }`}
                 >
                   {s.status === "graded" ? tr("graded") : tr("waitingReview")}

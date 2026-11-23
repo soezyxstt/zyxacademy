@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
+import { useSession } from "@/lib/auth-client";
 import { useTranslations } from "@/lib/i18n/client";
 import { usePersistentDraft } from "@/hooks/use-persistent-draft";
 import { submitTryoutAction } from "@/app/actions/tutor-management";
@@ -36,6 +37,7 @@ export type TryoutFormProps = {
   courseId: string;
   visualCourseId?: string;
   exam: TryoutPresentationExam;
+  userId?: string | null;
   transport?: {
     submit: (answers: Record<string, AnswerState>) => Promise<void>;
     afterSubmitHref?: string;
@@ -49,17 +51,26 @@ export type TryoutFormController = ReturnType<typeof useTryoutForm>;
  * Uses usePersistentDraft so answers, flags, and active question index
  * survive both 767px <-> 768px viewport transitions and page reloads.
  */
-export function useTryoutForm({ courseId, exam, transport }: TryoutFormProps) {
+export function useTryoutForm({ courseId, exam, transport, userId }: TryoutFormProps) {
   const t = useTranslations("studentCourse");
   const router = useRouter();
+  const session = useSession();
+  const resolvedUserId = userId ?? session.data?.user?.id ?? null;
 
   const sorted = useMemo(
     () => [...exam.questions].sort((a, b) => a.order - b.order),
     [exam.questions]
   );
 
+  const isDemo = Boolean(transport);
   const initialDraft = useMemo(() => createInitialTryoutDraft(sorted), [sorted]);
-  const storageKey = getTryoutDraftStorageKey(courseId, exam.id, Boolean(transport));
+  const storageKey = getTryoutDraftStorageKey(
+    courseId,
+    exam.id,
+    isDemo,
+    resolvedUserId
+  );
+  const storageReady = isDemo || Boolean(resolvedUserId) || !session.isPending;
 
   const validate = useCallback(
     (raw: unknown) => validateTryoutDraft(raw, sorted),
@@ -72,6 +83,7 @@ export function useTryoutForm({ courseId, exam, transport }: TryoutFormProps) {
       version: TRYOUT_DRAFT_VERSION,
       initialValue: initialDraft,
       storage: "local",
+      enabled: storageReady,
       validate,
       debounceMs: 120,
     });

@@ -60,6 +60,7 @@ function AdminMobileTopNavContent({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const viewportMode = useViewportMode();
   const tAdmin = useTranslations("admin");
   const tTutor = useTranslations("tutor");
   const tStudent = useTranslations("student");
@@ -99,6 +100,9 @@ function AdminMobileTopNavContent({
   );
 
   useEffect(() => {
+    if (viewportMode !== "mobile") {
+      return;
+    }
     if (!courseSlug) {
       setActiveAdminCourseContext(null);
       return;
@@ -135,10 +139,10 @@ function AdminMobileTopNavContent({
     return () => {
       cancelled = true;
     };
-  }, [courseSlug]);
+  }, [courseSlug, viewportMode]);
 
   useEffect(() => {
-    if (!courseSlug) return;
+    if (viewportMode !== "mobile" || !courseSheetOpen || !courseSlug) return;
     let cancelled = false;
     getCourses()
       .then((res) => {
@@ -157,7 +161,7 @@ function AdminMobileTopNavContent({
     return () => {
       cancelled = true;
     };
-  }, [courseSlug]);
+  }, [courseSheetOpen, courseSlug, viewportMode]);
 
   const courseTitle =
     (activeCourseContext &&

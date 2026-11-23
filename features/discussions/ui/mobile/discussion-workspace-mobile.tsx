@@ -227,10 +227,10 @@ export function DiscussionWorkspaceMobile({
             onToggleResolve={
               props.onSetQuestionStatus
                 ? () =>
-                    void props.onSetQuestionStatus?.(
-                      item.id,
-                      item.status === "resolved" ? "open" : "resolved"
-                    )
+                    void props.onSetQuestionStatus?.({
+                      questionId: item.id,
+                      status: item.status === "resolved" ? "open" : "resolved",
+                    })
                 : undefined
             }
           >

@@ -54,13 +54,12 @@ describe("useViewportMode helpers", () => {
       },
     };
 
-    // @ts-expect-error minimal window stub for unit testing
     globalThis.window = {
       matchMedia: (query: string) => {
         observedQuery = query;
-        return mockMediaQuery;
+        return mockMediaQuery as unknown as MediaQueryList;
       },
-    };
+    } as unknown as Window & typeof globalThis;
 
     expect(getViewportModeSnapshot()).toBe("mobile");
     expect(observedQuery).toBe("(min-width: 768px)");
@@ -87,14 +86,14 @@ describe("useViewportMode helpers", () => {
   test("falls back to legacy addListener and removeListener when addEventListener is absent", () => {
     const legacyListeners = new Set<() => void>();
 
-    // @ts-expect-error minimal window stub for legacy MediaQueryList
     globalThis.window = {
-      matchMedia: () => ({
-        matches: true,
-        addListener: (cb: () => void) => legacyListeners.add(cb),
-        removeListener: (cb: () => void) => legacyListeners.delete(cb),
-      }),
-    };
+      matchMedia: () =>
+        ({
+          matches: true,
+          addListener: (cb: () => void) => legacyListeners.add(cb),
+          removeListener: (cb: () => void) => legacyListeners.delete(cb),
+        }) as unknown as MediaQueryList,
+    } as unknown as Window & typeof globalThis;
 
     let count = 0;
     const unsubscribe = subscribeViewportMode(() => {

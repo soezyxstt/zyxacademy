@@ -519,7 +519,7 @@ export function TryoutSubmitConfirmDialog({
           )}
 
           {unansweredCount > 0 && (
-            <div className="flex items-start gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-body-xs text-amber-700 dark:text-amber-300">
+            <div className="flex items-start gap-2 rounded-xl border border-status-warning/35 bg-status-warning/10 p-3 text-body-xs text-status-warning">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <span>{t("tryout.unansweredWarning", { count: unansweredCount })}</span>
             </div>

@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/client";
 import { BookOpenCheck, FileArchive } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
-import { ResponsiveTabsList } from "@/components/admin/responsive-tabs-list";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import type { BundleRow as IdeaBundleRow } from "@/components/admin/idea-bundle-v2-panel";
 import type { MaterialBundleRow as ProductBundleRow } from "@/components/admin/material-workflow-ui";
@@ -97,10 +96,10 @@ export function MaterialWorkspace({
       ) : (
         <div className="space-y-6">
           <Tabs value={activeReviewTab} onValueChange={(value) => setActiveReviewTab(value as "idea" | "product")}>
-            <ResponsiveTabsList flush={!lockedCourse}>
+            <TabsList mobileInline flush={!lockedCourse}>
               {ideaEnabled && <TabsTrigger value="idea"><FileArchive className="size-4" />{t("materials.ideaTab")}</TabsTrigger>}
               {productEnabled && <TabsTrigger value="product"><FileArchive className="size-4" />{t("materials.productTab")}</TabsTrigger>}
-            </ResponsiveTabsList>
+            </TabsList>
             {ideaEnabled && <TabsContent value="idea"><MaterialArtifactList rows={initialIdeaImports} kind="idea" courseLabels={courseLabels} chapterLabels={chapterLabels} authorLabels={authorLabels} onInspect={(id) => openDetail("idea", id)} onUpload={() => setUploadKind("idea")} lockedCourse={lockedCourse} /><MaterialBundleUploadDialog kind="idea" open={uploadKind === "idea"} onOpenChange={(open) => setUploadKind(open ? "idea" : null)} onStaged={(id) => openDetail("idea", id)} /></TabsContent>}
             {productEnabled && <TabsContent value="product"><MaterialArtifactList rows={initialProductImports} kind="product" courseLabels={courseLabels} chapterLabels={chapterLabels} authorLabels={authorLabels} onInspect={(id) => openDetail("product", id)} onUpload={() => setUploadKind("product")} lockedCourse={lockedCourse} /><MaterialBundleUploadDialog kind="product" open={uploadKind === "product"} onOpenChange={(open) => setUploadKind(open ? "product" : null)} onStaged={(id) => openDetail("product", id)} /></TabsContent>}
           </Tabs>

@@ -32,6 +32,7 @@ import {
   Info,
   Bookmark,
   FolderOpen,
+  Search,
 } from "lucide-react";
 import { SearchBar } from "@/components/ui/search-bar";
 import type { FormDisplayMode } from "@/lib/forms/presentation";

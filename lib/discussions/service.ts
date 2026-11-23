@@ -400,20 +400,21 @@ export async function listThreadsAcrossChannels(actorId: string, options: { chan
  const after = pageCursor(options.cursor);
  const rawSearch = options.search?.trim() ?? "";
  const search = rawSearch.replace(/[\\%_]/g, "\\$&");
+ const tsTokens = rawSearch.toLowerCase().split(/[^\p{L}\p{N}_]+/u).filter(Boolean);
+ const prefixTsQuery = tsTokens.map(token => `${token}:*`).join(" & ");
  const searchPredicate = rawSearch
-  ? or(
-   sql`${discussionThreads.title} ilike ${`%${search}%`} escape '\\'`,
-   sql`to_tsvector('simple', ${discussionThreads.title}) @@ plainto_tsquery('simple', ${rawSearch})`,
-   sql`exists (
-    select 1 from ${discussionMessages}
-    where ${discussionMessages.threadId} = ${discussionThreads.id}
-     and ${discussionMessages.deletedAt} is null
-     and (
-      ${discussionMessages.body} ilike ${`%${search}%`} escape '\\'
-      or to_tsvector('simple', ${discussionMessages.body}) @@ plainto_tsquery('simple', ${rawSearch})
-     )
-   )`
-  )
+  ? prefixTsQuery
+   ? or(
+    sql`${discussionThreads.title} ilike ${`%${search}%`} escape '\\'`,
+    sql`to_tsvector('simple', ${discussionThreads.title}) @@ to_tsquery('simple', ${prefixTsQuery})`,
+    sql`exists (
+     select 1 from ${discussionMessages}
+     where ${discussionMessages.threadId} = ${discussionThreads.id}
+      and ${discussionMessages.deletedAt} is null
+      and to_tsvector('simple', ${discussionMessages.body}) @@ to_tsquery('simple', ${prefixTsQuery})
+    )`
+   )
+   : sql`${discussionThreads.title} ilike ${`%${search}%`} escape '\\'`
   : undefined;
  const rows = await db.select({ thread: discussionThreads, cursorAt: sql<string>`to_char(${discussionThreads.lastActivityAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')` }).from(discussionThreads)
   .where(and(channelFilter, options.status ? eq(discussionThreads.status, options.status) : undefined, searchPredicate, after

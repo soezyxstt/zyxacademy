@@ -352,10 +352,6 @@ export function useMobileTopNav(config: MobileTopNavConfig | null) {
       rightActions,
       hideTopNav,
     });
-
-    return () => {
-      unregisterTopNav(id);
-    };
   }, [
     backHref,
     backLabel,
@@ -373,6 +369,12 @@ export function useMobileTopNav(config: MobileTopNavConfig | null) {
     title,
     unregisterTopNav,
   ]);
+
+  useEffect(() => {
+    return () => {
+      unregisterTopNav(id);
+    };
+  }, [id, unregisterTopNav]);
 }
 
 /**
@@ -416,10 +418,6 @@ export function useMobileTopNavSearch(config: MobileTopNavSearchConfig | null) {
       ariaLabel,
       isLoading,
     });
-
-    return () => {
-      unregisterPageSearch(id);
-    };
   }, [
     ariaLabel,
     enabled,
@@ -430,6 +428,12 @@ export function useMobileTopNavSearch(config: MobileTopNavSearchConfig | null) {
     unregisterPageSearch,
     value,
   ]);
+
+  useEffect(() => {
+    return () => {
+      unregisterPageSearch(id);
+    };
+  }, [id, unregisterPageSearch]);
 }
 
 /**

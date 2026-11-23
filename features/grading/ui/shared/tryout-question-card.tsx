@@ -121,22 +121,22 @@ export function TryoutQuestionCard({
                 key={i}
                 className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-body-base ${
                   isStudentChoice && isCorrect
-                    ? "border-emerald-500/25 bg-emerald-500/5 text-emerald-700"
+                    ? "border-status-success/25 bg-status-success/5 text-status-success"
                     : isStudentChoice && !isCorrect
-                    ? "border-rose-500/25 bg-rose-500/5 text-rose-700"
+                    ? "border-status-error/25 bg-status-error/5 text-status-error"
                     : !isStudentChoice && isCorrect
-                    ? "border-dashed border-emerald-500/20 bg-emerald-500/5 text-muted-foreground"
+                    ? "border-dashed border-status-success/20 bg-status-success/5 text-muted-foreground"
                     : "border-border/50 bg-muted/10 text-muted-foreground"
                 }`}
               >
                 <span
                   className={`flex size-5 shrink-0 items-center justify-center rounded-md text-body-2xs font-bold ${
                     isStudentChoice && isCorrect
-                      ? "bg-emerald-500 text-white"
+                      ? "bg-status-success text-white"
                       : isStudentChoice && !isCorrect
-                      ? "bg-rose-500 text-white"
+                      ? "bg-status-error text-white"
                       : isCorrect
-                      ? "border border-emerald-500 text-emerald-500"
+                      ? "border border-status-success text-status-success"
                       : "bg-muted text-muted-foreground"
                   }`}
                 >
