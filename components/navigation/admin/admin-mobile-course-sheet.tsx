@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { closeDialogsThen } from "@/hooks/use-dialog-history";
 import type { AdminCourseSummary } from "./admin-nav-model";
 
 export interface AdminMobileCourseSheetProps {
@@ -115,8 +116,10 @@ export function AdminMobileCourseSheet({
                     key={course.id}
                     type="button"
                     onClick={() => {
-                      handleOpenChange(false);
-                      onSelectCourse(targetSlug);
+                      closeDialogsThen(
+                        () => handleOpenChange(false),
+                        () => onSelectCourse(targetSlug)
+                      );
                     }}
                     aria-current={isCurrent ? "page" : undefined}
                     className={cn(

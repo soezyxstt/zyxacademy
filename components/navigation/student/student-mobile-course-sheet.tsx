@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BookOpen, Check, Search } from "lucide-react";
 import {
   Sheet,
@@ -9,6 +10,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { closeDialogsThen } from "@/hooks/use-dialog-history";
 import type { StudentCourseSummary } from "./student-nav-model";
 
 export interface StudentMobileCourseSheetProps {
@@ -32,6 +34,8 @@ export function StudentMobileCourseSheet({
   exploreHref,
   exploreLabel,
 }: StudentMobileCourseSheetProps) {
+  const router = useRouter();
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -53,8 +57,10 @@ export function StudentMobileCourseSheet({
                   key={course.id}
                   type="button"
                   onClick={() => {
-                    onOpenChange(false);
-                    onSelectCourse(course.id);
+                    closeDialogsThen(
+                      () => onOpenChange(false),
+                      () => onSelectCourse(course.id)
+                    );
                   }}
                   aria-current={isCurrent ? "page" : undefined}
                   className={cn(
@@ -91,7 +97,22 @@ export function StudentMobileCourseSheet({
             <div className="mt-2 border-t border-border/70 pt-2">
               <Link
                 href={exploreHref}
-                onClick={() => onOpenChange(false)}
+                onClick={(event) => {
+                  if (
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey ||
+                    event.button !== 0
+                  ) {
+                    return;
+                  }
+                  event.preventDefault();
+                  closeDialogsThen(
+                    () => onOpenChange(false),
+                    () => router.push(exploreHref)
+                  );
+                }}
                 className="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-body-sm text-brand-secondary transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Search className="size-4 shrink-0" aria-hidden="true" />

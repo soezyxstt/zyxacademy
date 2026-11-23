@@ -1,7 +1,32 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ElementType } from "react";
 import { usePathname } from "next/navigation";
+import {
+  Activity,
+  Award,
+  BarChart3,
+  Bell,
+  BookOpen,
+  Bot,
+  Calculator,
+  ClipboardCheck,
+  ClipboardList,
+  Cpu,
+  FileText,
+  Flag,
+  Globe,
+  GraduationCap,
+  KeyRound,
+  Layers,
+  Library,
+  ListChecks,
+  Settings,
+  Trophy,
+  UserCog,
+  Users,
+  Video,
+} from "lucide-react";
 import { TabNav, type TabNavItem } from "@/components/ui/tabs";
 import { useMobileChrome } from "@/components/navigation/mobile-chrome-context";
 import { useViewportMode } from "@/hooks/use-viewport-mode";
@@ -14,6 +39,37 @@ import {
   isAdminSubTabActive,
   parseAdminCourseSlugFromPathname,
 } from "./admin-nav-model";
+
+const ADMIN_SUB_TAB_ICONS: Record<string, ElementType> = {
+  // Course sub-tabs
+  bab: BookOpen,
+  documents: FileText,
+  videos: Video,
+  quizzes: ListChecks,
+  tryouts: ClipboardList,
+  questions: Library,
+  flashcards: Layers,
+  results: Award,
+  leaderboard: Trophy,
+  analytics: BarChart3,
+  review: ClipboardCheck,
+  settings: Settings,
+  // People sub-tabs
+  users: UserCog,
+  groups: Users,
+  tokens: KeyRound,
+  pricing: Calculator,
+  notifications: Bell,
+  // Ops sub-tabs
+  monitor: Activity,
+  tutor: GraduationCap,
+  zyra: Bot,
+  usage: BarChart3,
+  web: Globe,
+  models: Cpu,
+  flags: Flag,
+  keys: KeyRound,
+};
 
 export function AdminMobileSubTabNav() {
   const pathname = usePathname();
@@ -31,6 +87,19 @@ export function AdminMobileSubTabNav() {
     tabs: TabNavItem[];
     label: string;
   }>(() => {
+    const mapWithIcons = <T extends { id: string; href: string; label: string; exact?: boolean }>(
+      descriptors: T[]
+    ): TabNavItem[] =>
+      descriptors.map((tab) => {
+        const Icon = ADMIN_SUB_TAB_ICONS[tab.id];
+        return {
+          href: tab.href,
+          label: tab.label,
+          icon: Icon ? <Icon className="size-3.5 shrink-0" aria-hidden="true" /> : undefined,
+          active: isAdminSubTabActive(tab, pathname),
+        };
+      });
+
     if (context === "course" && courseSlug) {
       const descriptors = buildAdminCourseSubTabs({
         slug: courseSlug,
@@ -51,11 +120,7 @@ export function AdminMobileSubTabNav() {
       });
       return {
         label: tMobile("courseTabsLabel"),
-        tabs: descriptors.map((tab) => ({
-          href: tab.href,
-          label: tab.label,
-          active: isAdminSubTabActive(tab, pathname),
-        })),
+        tabs: mapWithIcons(descriptors),
       };
     }
 
@@ -69,11 +134,7 @@ export function AdminMobileSubTabNav() {
       });
       return {
         label: tMobile("peopleTabsLabel"),
-        tabs: descriptors.map((tab) => ({
-          href: tab.href,
-          label: tab.label,
-          active: isAdminSubTabActive(tab, pathname),
-        })),
+        tabs: mapWithIcons(descriptors),
       };
     }
 
@@ -90,11 +151,7 @@ export function AdminMobileSubTabNav() {
       });
       return {
         label: tMobile("opsTabsLabel"),
-        tabs: descriptors.map((tab) => ({
-          href: tab.href,
-          label: tab.label,
-          active: isAdminSubTabActive(tab, pathname),
-        })),
+        tabs: mapWithIcons(descriptors),
       };
     }
 

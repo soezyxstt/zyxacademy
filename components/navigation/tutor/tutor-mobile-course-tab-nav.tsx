@@ -1,7 +1,18 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type ElementType } from "react";
 import { usePathname } from "next/navigation";
+import {
+  ClipboardCheck,
+  FileCheck2,
+  FileText,
+  LayoutDashboard,
+  ListChecks,
+  MessageSquareText,
+  Radio,
+  Users,
+  Video,
+} from "lucide-react";
 import { TabNav, type TabNavItem } from "@/components/ui/tabs";
 import { useMobileChrome } from "@/components/navigation/mobile-chrome-context";
 import { DiscussionCountBadge } from "@/components/discussions/discussion-count-badge";
@@ -15,7 +26,20 @@ import {
   setActiveTutorCourseContext,
   shouldHideTutorCourseTabs,
   type TutorCourseSummary,
+  type TutorCourseTabId,
 } from "./tutor-nav-model";
+
+const TUTOR_COURSE_TAB_ICONS: Record<TutorCourseTabId, ElementType> = {
+  overview: LayoutDashboard,
+  quizzes: ListChecks,
+  quizGrading: ClipboardCheck,
+  tryoutGrading: FileCheck2,
+  participants: Users,
+  discussions: MessageSquareText,
+  live: Radio,
+  materials: FileText,
+  videos: Video,
+};
 
 export interface TutorMobileCourseTabNavProps {
   assignedCourses?: TutorCourseSummary[];
@@ -64,17 +88,21 @@ export function TutorMobileCourseTabNav({
       },
     });
 
-    return descriptors.map((tab) => ({
-      href: tab.href,
-      label: tab.label,
-      active: isTutorCourseTabActive(tab, pathname, courseId),
-      badge: tab.hasDiscussionBadge ? (
-        <DiscussionCountBadge
-          courseId={courseId}
-          enabled={viewportMode === "mobile"}
-        />
-      ) : undefined,
-    }));
+    return descriptors.map((tab) => {
+      const Icon = TUTOR_COURSE_TAB_ICONS[tab.id];
+      return {
+        href: tab.href,
+        label: tab.label,
+        icon: Icon ? <Icon className="size-3.5 shrink-0" aria-hidden="true" /> : undefined,
+        active: isTutorCourseTabActive(tab, pathname, courseId),
+        badge: tab.hasDiscussionBadge ? (
+          <DiscussionCountBadge
+            courseId={courseId}
+            enabled={viewportMode === "mobile"}
+          />
+        ) : undefined,
+      };
+    });
   }, [courseId, pathname, tDiscussion, tMobile, tNav, viewportMode]);
 
   if (

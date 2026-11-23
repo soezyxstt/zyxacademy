@@ -7,7 +7,13 @@ import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
 import { RefreshCcw } from "lucide-react";
 
-export function RefreshAnalyticsButton() {
+export function RefreshAnalyticsButton({
+  variant = "ghost",
+  className,
+}: {
+  variant?: "ghost" | "outline";
+  className?: string;
+} = {}) {
   const t = useTranslations("adminOps");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -34,9 +40,10 @@ export function RefreshAnalyticsButton() {
   return (
     <AdminIconAction
       label={t("opsUI.refresh")}
-      variant="ghost"
+      variant={variant}
       onClick={handleRefresh}
       isLoading={loading}
+      className={className}
     >
       <RefreshCcw className="size-4" />
     </AdminIconAction>
