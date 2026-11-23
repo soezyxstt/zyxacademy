@@ -103,12 +103,29 @@ def prepare_worker_runtime(environment, secrets, variables):
 
 def main():
     try:
-        settings = prepare_worker_runtime(os.environ.get("GITHUB_ENVIRONMENT_NAME"),
-            json.loads(os.environ["GITHUB_RUNTIME_SECRETS"]), json.loads(os.environ["GITHUB_RUNTIME_VARS"]))
+        environment = os.environ.get("GITHUB_ENVIRONMENT_NAME")
+        secrets = json.loads(os.environ["GITHUB_RUNTIME_SECRETS"])
+        variables = json.loads(os.environ["GITHUB_RUNTIME_VARS"])
+        if environment == "production" and os.environ.get("REUSE_PRODUCTION_WEB_RUNTIME") == "1":
+            from prepare_cloud_run_production import current_runtime
+            from deploy_cloud_run_staging import read_secret
+
+            if os.environ.get("GITHUB_REF") != "refs/heads/main":
+                raise ValueError("WORKER_PRODUCTION_BRANCH_REQUIRED")
+            _, current, refs = current_runtime()
+            variables["QUEUE_PROVIDER"] = current.get("QUEUE_PROVIDER", {}).get("value", "inngest")
+            for name in ("DATABASE_URL", "COMPUTE_SERVICE_SECRET", "BETTER_AUTH_SECRET"):
+                if name not in refs:
+                    raise ValueError("WORKER_PRODUCTION_WEB_SECRET_REQUIRED:" + name)
+                secrets[name] = read_secret(refs[name])
+        settings = prepare_worker_runtime(environment, secrets, variables)
         path = Path(sys.argv[1])
         path.parent.mkdir(parents=True, exist_ok=True)
         with os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as output:
             json.dump({"environment": settings, "sourceRevision": os.environ.get("GITHUB_SHA")}, output)
+        if os.environ.get("GITHUB_OUTPUT"):
+            with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+                output.write(f"queue_provider={settings.get('QUEUE_PROVIDER', 'inngest')}\n")
         print("Verified worker settings prepared; values were not printed.")
     except (KeyError, ValueError, IndexError) as error:
         message = str(error) if isinstance(error, ValueError) and str(error).startswith("WORKER_") else "WORKER_SETTINGS_INVALID"
