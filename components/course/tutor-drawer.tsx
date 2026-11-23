@@ -106,6 +106,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   const experience = useStudentExperience();
   const pathname = experience.pathname ?? realPathname;
   const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+  const isCourseDiscussion = Boolean(courseIdFromPath && pathname?.endsWith("/discussions"));
   const caps = getTutorCapabilities(courseIdFromPath);
 
   const [isOpen, setIsOpen] = React.useState(false);
@@ -115,11 +116,11 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   }, [isOpen]);
   const [appearance, setAppearance] = React.useState<React.ContextType<typeof TutorAppearanceContext>>({skinId: null, avatarId: null});
   React.useEffect(() => {
-    if (experience.mode === "demo" || !realPathname?.startsWith("/courses/")) return;
+    if (experience.mode === "demo" || isCourseDiscussion || !realPathname?.startsWith("/courses/")) return;
     let active = true;
     void getMyZyraAppearance().then(value => { if (active) setAppearance(value); }).catch(() => {});
     return () => { active = false; };
-  }, [experience.mode, realPathname]);
+  }, [experience.mode, isCourseDiscussion, realPathname]);
   const [activeMode, setActiveMode] = React.useState<TutorMode>(null);
   const [suppressPet, setSuppressPet] = React.useState(false);
 
@@ -230,7 +231,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
         <TutorAppearanceContext.Provider value={appearance}>{children}</TutorAppearanceContext.Provider>
 
         {pathname?.startsWith("/courses/") &&
-          !(experience.mode === "demo" && pathname.endsWith("/discussions")) &&
+          !isCourseDiscussion &&
           !pathname.includes("/live/host") &&
           !pathname.endsWith("/daftar") &&
           !suppressPet &&

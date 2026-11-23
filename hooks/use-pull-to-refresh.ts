@@ -79,12 +79,11 @@ export interface UsePullToRefreshOptions {
   disabled?: boolean;
   threshold?: number;
   containerRef: RefObject<HTMLElement | null>;
+  indicatorRef: RefObject<HTMLElement | null>;
 }
 
 export interface UsePullToRefreshResult {
   status: PullToRefreshStatus;
-  pullDistance: number;
-  progress: number;
   locked: boolean;
   retry: () => void;
   dismissError: () => void;
@@ -95,10 +94,10 @@ export function usePullToRefresh({
   disabled = false,
   threshold = PULL_THRESHOLD_PX,
   containerRef,
+  indicatorRef,
 }: UsePullToRefreshOptions): UsePullToRefreshResult {
   const locked = useIsPullToRefreshLocked();
   const [status, setStatus] = useState<PullToRefreshStatus>("idle");
-  const [pullDistance, setPullDistance] = useState(0);
 
   const onRefreshRef = useRef(onRefresh);
   const statusRef = useRef(status);
@@ -109,14 +108,11 @@ export function usePullToRefresh({
   }, [onRefresh]);
 
   useEffect(() => {
-    statusRef.current = status;
-  }, [status]);
-
-  useEffect(() => {
     disabledRef.current = disabled;
   }, [disabled]);
 
   const updateStatus = useCallback((next: PullToRefreshStatus) => {
+    if (statusRef.current === next) return;
     statusRef.current = next;
     setStatus(next);
   }, []);
@@ -139,26 +135,21 @@ export function usePullToRefresh({
     if (statusRef.current === "refreshing") return;
     if (disabledRef.current || isPullToRefreshLocked()) {
       updateStatus("idle");
-      setPullDistance(0);
       return;
     }
 
     updateStatus("refreshing");
-    setPullDistance(threshold);
     try {
       await onRefreshRef.current();
       updateStatus("idle");
-      setPullDistance(0);
     } catch {
       updateStatus("error");
-      setPullDistance(0);
     }
-  }, [threshold, updateStatus]);
+  }, [updateStatus]);
 
   const dismissError = useCallback(() => {
     if (statusRef.current === "error") {
       updateStatus("idle");
-      setPullDistance(0);
     }
   }, [updateStatus]);
 
@@ -174,7 +165,6 @@ export function usePullToRefresh({
       gestureRef.current.distance = 0;
       if (statusRef.current === "pulling" || statusRef.current === "ready") {
         updateStatus("idle");
-        setPullDistance(0);
       }
     }
   }, [disabled, locked, updateStatus]);
@@ -183,8 +173,26 @@ export function usePullToRefresh({
     const element = containerRef.current;
     if (!element) return;
 
+    let frame: number | undefined;
+    const paintPull = () => {
+      frame = undefined;
+      const distance = gestureRef.current.distance;
+      const progress = Math.min(1, distance / threshold);
+      indicatorRef.current?.style.setProperty("--pull-distance", `${Math.min(distance, 72)}px`);
+      indicatorRef.current?.style.setProperty("--pull-turn", `${progress * 180}deg`);
+      indicatorRef.current?.style.setProperty("--pull-opacity", String(Math.min(1, distance / 24)));
+    };
+    const cancelPull = () => {
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      frame = undefined;
+      gestureRef.current.active = false;
+      gestureRef.current.committed = false;
+      gestureRef.current.distance = 0;
+      if (statusRef.current === "pulling" || statusRef.current === "ready") updateStatus("idle");
+    };
+
     const handleTouchStart = (event: TouchEvent) => {
-      if (event.touches.length !== 1) return;
+      if (event.touches.length !== 1) { cancelPull(); return; }
       if (!isSmartphoneViewport()) return;
 
       const touch = event.touches[0];
@@ -206,6 +214,7 @@ export function usePullToRefresh({
         return;
       }
 
+      indicatorRef.current?.style.setProperty("--pull-distance", "0px");
       gestureRef.current = {
         active: true,
         committed: false,
@@ -217,11 +226,9 @@ export function usePullToRefresh({
 
     const handleTouchMove = (event: TouchEvent) => {
       const gesture = gestureRef.current;
-      if (!gesture.active || event.touches.length !== 1) return;
-      if (disabledRef.current || isPullToRefreshLocked()) {
-        gesture.active = false;
-        updateStatus("idle");
-        setPullDistance(0);
+      if (!gesture.active) return;
+      if (event.touches.length !== 1 || disabledRef.current || isPullToRefreshLocked()) {
+        cancelPull();
         return;
       }
 
@@ -238,7 +245,7 @@ export function usePullToRefresh({
         }
         // Re-verify scroll position at the moment vertical pull commits.
         const windowScrollY = getClampedWindowScrollY();
-        if (Math.max(0, element.scrollTop) !== 0 || windowScrollY !== 0) {
+        if (Math.max(0, element.scrollTop) !== 0 || windowScrollY !== 0 || hasScrollableAncestorScrolled(event.target)) {
           gesture.active = false;
           return;
         }
@@ -246,9 +253,7 @@ export function usePullToRefresh({
       }
 
       if (deltaY <= 0) {
-        gesture.distance = 0;
-        setPullDistance(0);
-        updateStatus("idle");
+        cancelPull();
         return;
       }
 
@@ -258,7 +263,7 @@ export function usePullToRefresh({
 
       const distance = calculatePullDistance(deltaY);
       gesture.distance = distance;
-      setPullDistance(distance);
+      if (frame === undefined) frame = requestAnimationFrame(paintPull);
       updateStatus(distance >= threshold ? "ready" : "pulling");
     };
 
@@ -266,37 +271,33 @@ export function usePullToRefresh({
       const gesture = gestureRef.current;
       if (!gesture.active) return;
       const shouldRefresh = gesture.committed && gesture.distance >= threshold;
-      gesture.active = false;
-      gesture.committed = false;
-      gesture.distance = 0;
-
       if (shouldRefresh) {
+        if (frame !== undefined) cancelAnimationFrame(frame);
+        paintPull();
+        gesture.active = false;
+        gesture.committed = false;
         void executeRefresh();
-      } else if (statusRef.current === "pulling" || statusRef.current === "ready") {
-        updateStatus("idle");
-        setPullDistance(0);
+      } else {
+        cancelPull();
       }
     };
 
     element.addEventListener("touchstart", handleTouchStart, { passive: true });
     element.addEventListener("touchmove", handleTouchMove, { passive: false });
     element.addEventListener("touchend", handleTouchEnd, { passive: true });
-    element.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+    element.addEventListener("touchcancel", cancelPull, { passive: true });
 
     return () => {
+      if (frame !== undefined) cancelAnimationFrame(frame);
       element.removeEventListener("touchstart", handleTouchStart);
       element.removeEventListener("touchmove", handleTouchMove);
       element.removeEventListener("touchend", handleTouchEnd);
-      element.removeEventListener("touchcancel", handleTouchEnd);
+      element.removeEventListener("touchcancel", cancelPull);
     };
-  }, [containerRef, threshold, executeRefresh, updateStatus]);
-
-  const progress = Math.min(1, pullDistance / threshold);
+  }, [containerRef, indicatorRef, threshold, executeRefresh, updateStatus]);
 
   return {
     status,
-    pullDistance,
-    progress,
     locked,
     retry,
     dismissError,

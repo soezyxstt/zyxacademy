@@ -277,6 +277,8 @@ export function DiscussionListPane({
   const t = useTranslations("discussions");
   const { searchVisible, selectedChannel, mutePending, muteError, creatableChannels } =
     controller;
+  const questions = props.questions.filter(item => !controller.pendingStatusIds.has(item.id));
+  const resolvedQuestions = (props.resolvedQuestions ?? []).filter(item => !controller.pendingStatusIds.has(item.id));
 
   return (
     <>
@@ -384,7 +386,7 @@ export function DiscussionListPane({
           />
         ) : (
           <>
-            {props.questions.length === 0 ? (
+            {questions.length === 0 ? (
               <AdminEmptyState
                 icon={MessageSquareText}
                 title={t("noQuestions")}
@@ -399,7 +401,7 @@ export function DiscussionListPane({
               />
             ) : (
               <div className="divide-y divide-border">
-                {props.questions.map((item) => {
+                {questions.map((item) => {
                   const row = (
                     <DiscussionQuestionRow
                       item={item}
@@ -461,9 +463,9 @@ export function DiscussionListPane({
               </div>
             ) : (
               <>
-                {(props.resolvedQuestions ?? []).length ? (
+                {resolvedQuestions.length ? (
                   <div className="divide-y divide-border">
-                    {props.resolvedQuestions!.map((item) => {
+                    {resolvedQuestions.map((item) => {
                       const row = (
                         <DiscussionQuestionRow
                           item={item}

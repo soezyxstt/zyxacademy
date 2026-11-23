@@ -18,7 +18,7 @@ export type DiscussionPerson = {
 type DiscussionChannelBase = {
   id: string;
   name: string;
-  unreadCount: number; // Questions with unread messages, independent of mute.
+  unreadCount?: number; // Questions with unread messages, when supplied.
   muted: boolean;
   canCreate: boolean;
   courseId?: string | null;

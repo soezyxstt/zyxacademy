@@ -287,11 +287,11 @@ export function DiscussionWorkspaceMobile({
             reopenLabel={t("reopen")}
             onToggleResolve={
               props.onSetQuestionStatus
-                ? () =>
-                    void props.onSetQuestionStatus?.({
-                      questionId: item.id,
-                      status: item.status === "resolved" ? "open" : "resolved",
-                    })
+                ? () => {
+                    const toastId = `discussion-status-${item.id}`;
+                    toast.dismiss(toastId);
+                    void controller.changeQuestionStatus(item).catch(() => toast.error(t("statusError"), { id: toastId }));
+                  }
                 : undefined
             }
           >
