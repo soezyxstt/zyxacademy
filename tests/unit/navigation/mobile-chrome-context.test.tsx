@@ -332,13 +332,21 @@ describe("MobileChromeContext state management", () => {
       })
     ).toBe(772);
 
-    // Very short viewport respects minHeight floor
+    // A short viewport never extends the frame behind the nav
     expect(
       computeMobileListFrameHeight({
         frameTop: 220,
         viewportBottom: 320,
         bottomNavRect: { top: 260, height: 60 },
       })
-    ).toBe(120);
+    ).toBe(40);
+
+    expect(
+      computeMobileListFrameHeight({
+        frameTop: 280,
+        viewportBottom: 320,
+        bottomNavRect: { top: 260, height: 60 },
+      })
+    ).toBe(0);
   });
 });
