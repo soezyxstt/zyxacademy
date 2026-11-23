@@ -110,7 +110,8 @@ const NATIVE_MARKETING_EXACT_PATHS = new Set([
  * /unsubscribe) remain accessible.
  */
 export function isNativeMarketingRedirectPath(pathname: string): boolean {
-  const normalized = pathname.replace(/^\/(?:id|en)(?=\/|$)/, "") || "/";
+  const trimmed = pathname.length > 1 ? pathname.replace(/\/+$/, "") || "/" : pathname;
+  const normalized = trimmed.replace(/^\/(?:id|en)(?=\/|$)/, "") || "/";
   if (NATIVE_MARKETING_EXACT_PATHS.has(normalized)) return true;
   if (normalized.startsWith("/blog/") || normalized.startsWith("/demo/")) {
     return true;

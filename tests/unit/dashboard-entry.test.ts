@@ -124,12 +124,18 @@ describe("isNativeUserAgent", () => {
 });
 
 describe("isNativeMarketingRedirectPath", () => {
-  test("matches marketing routes including locale-prefixed variants", () => {
+  test("matches marketing routes including locale-prefixed and trailing-slash variants", () => {
     expect(isNativeMarketingRedirectPath("/")).toBe(true);
     expect(isNativeMarketingRedirectPath("/id")).toBe(true);
+    expect(isNativeMarketingRedirectPath("/id/")).toBe(true);
     expect(isNativeMarketingRedirectPath("/en")).toBe(true);
+    expect(isNativeMarketingRedirectPath("/en/")).toBe(true);
     expect(isNativeMarketingRedirectPath("/about")).toBe(true);
+    expect(isNativeMarketingRedirectPath("/about/")).toBe(true);
+    expect(isNativeMarketingRedirectPath("/plans/")).toBe(true);
     expect(isNativeMarketingRedirectPath("/id/plans")).toBe(true);
+    expect(isNativeMarketingRedirectPath("/id/plans/")).toBe(true);
+    expect(isNativeMarketingRedirectPath("/en/about/")).toBe(true);
     expect(isNativeMarketingRedirectPath("/en/blog/post-1")).toBe(true);
     expect(isNativeMarketingRedirectPath("/demo/courses")).toBe(true);
   });

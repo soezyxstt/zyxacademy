@@ -6,7 +6,7 @@ import {
 
 export default function DashboardLoading() {
   return (
-    <ApplicationPage className="pb-16">
+    <ApplicationPage role="status" aria-label="Memuat" className="pb-16">
       <div className="grid w-full min-w-0 gap-5 md:gap-(--section-gap) lg:grid-cols-12" aria-hidden="true">
         <div className="min-w-0 space-y-5 md:space-y-(--section-gap) lg:col-span-7">
           <DashboardPrimaryLearningSkeleton count={2} />

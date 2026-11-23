@@ -2,8 +2,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SchedulesLoading() {
   return (
-    <div role="status" aria-label="Memuat" className="space-y-3" aria-hidden="true">
-      <div className="space-y-3 md:hidden">
+    <div role="status" aria-label="Memuat" className="space-y-3">
+      <div className="space-y-3 md:hidden" aria-hidden="true">
         <div className="flex items-center justify-between gap-2">
           <Skeleton className="h-9 w-40" />
           <Skeleton className="size-9 rounded-lg" />
@@ -17,7 +17,7 @@ export default function SchedulesLoading() {
           ))}
         </div>
       </div>
-      <div className="hidden space-y-3 md:block">
+      <div className="hidden space-y-3 md:block" aria-hidden="true">
         <div className="flex items-center gap-3 border-b border-border pb-4"><Skeleton className="size-9" /><Skeleton className="h-7 w-44" /></div>
         <div className="flex flex-wrap items-center gap-2"><Skeleton className="h-10 w-96 max-w-full" /><Skeleton className="h-9 w-36" /><Skeleton className="h-9 w-28" /></div>
         <Skeleton className="h-10 w-full" />

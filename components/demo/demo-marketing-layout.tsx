@@ -16,7 +16,10 @@ export function DemoAwareMarketingLayout({ children, footer }: { children: React
   const [redirectingNative, setRedirectingNative] = useState(false);
 
   useEffect(() => {
-    if (!isNativeApp() || !isNativeMarketingRedirectPath(pathname)) return;
+    if (!isNativeApp() || !isNativeMarketingRedirectPath(pathname)) {
+      setRedirectingNative(false);
+      return;
+    }
     setRedirectingNative(true);
     window.location.replace(`${ENTRY_REDIRECT_ROUTE}?native=1`);
   }, [pathname]);
