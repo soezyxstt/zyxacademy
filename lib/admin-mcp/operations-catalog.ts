@@ -1456,6 +1456,13 @@ export const operationsCatalog = [
     "reason": "Model assignments, Gateway catalog observations and billed latency refresh use the Admin UI. Feature flag reads do not expose these actions or authorize provider probes."
   },
   {
+    "source": "app/api/admin/ops-ai/execute/route.ts",
+    "actions": ["confirmAdminOperation", "revokeChatOperationGrants"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Ops AI chat approvals require the active browser admin session and specific chat. Shared domain operations retain the MCP signed-plan and consent contracts."
+  },
+  {
     "source": "components/auth/sidebar-account-menu.tsx",
     "actions": ["switchAccount", "addAccount", "removeAccount", "logout"],
     "tools": [],

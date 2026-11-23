@@ -1,5 +1,6 @@
 "use client";
 
+import { ZyraChatComposer, ZyraChatHeader, ZyraChatHistory, ZyraSendButton } from "./zyra-chat-frame";
 import { useDialogHistory } from "@/hooks/use-dialog-history";
 import { usePanelViewport } from "@/hooks/use-panel-viewport";
 import { useHideMobileBottomNav } from "@/components/navigation/mobile-chrome-context";
@@ -27,7 +28,6 @@ import {
   Camera,
   Paperclip,
   Plus,
-  ArrowUp,
   ChevronDown,
   Quote,
 } from "lucide-react";
@@ -1580,7 +1580,7 @@ function TutorDrawerContent({
         </div>
 
         {/* Header: Ops AI Style (Title Dropdown + Minimal Action Icons) */}
-        <header className="shrink-0 border-b border-border/80 px-3.5 pt-[calc(0.625rem+env(safe-area-inset-top,0px))] pb-2.5 md:py-2.5 bg-background/80 backdrop-blur-md flex items-center justify-between z-20 gap-2">
+        <ZyraChatHeader>
           {/* Left: Mode / Topic Dropdown Selector */}
           <div ref={menuRef} className="relative min-w-0 flex-1">
             <button
@@ -1729,16 +1729,10 @@ function TutorDrawerContent({
               <X className="size-4" />
             </button>
           </div>
-        </header>
+        </ZyraChatHeader>
 
         {/* Dynamic Main Workspace / Conversation Area */}
-        <div
-          ref={scrollContainerRef}
-          role="region"
-          aria-label={t("tutorDrawer.conversationHistory")}
-          tabIndex={0}
-          className="flex-1 overflow-y-auto overscroll-contain min-h-0 p-4 space-y-(--paragraph-gap) font-sans text-body-sm focus-visible:outline-none"
-        >
+        <ZyraChatHistory ref={scrollContainerRef} aria-label={t("tutorDrawer.conversationHistory")}>
           {errors.length > 0 && (
             <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-destructive text-body-xs">
               {errors.map((err, i) => (
@@ -1960,16 +1954,12 @@ function TutorDrawerContent({
               })()}
             </>
           )}
-        </div>
+        </ZyraChatHistory>
 
         {assistantMode === "python" && codingBridge ? <div className="shrink-0 px-3 pb-1"><PythonPresets code={codingBridge.capture().context.code} hasError={["syntax_error", "runtime_error", "timeout"].includes(codingBridge.capture().context.execution?.status ?? "")} disabled={chatLoading} onSelect={handlePlaygroundPreset} /></div> : null}
 
         {/* Input Composer & Toolbar */}
-        <footer className="shrink-0 border-t border-border/40 bg-background p-2">
-          <div
-            onPasteCapture={handlePaste}
-            className="relative min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-colors p-1.5"
-          >
+        <ZyraChatComposer onPasteCapture={handlePaste} footer={<div className="mt-1 empty:hidden"><ZyraAllowanceSummary courseId={courseIdFromPath} onAccessTierChange={setZyraAccessTier} /></div>}>
             {imageInputEnabled && courseIdFromPath && (
               <ZyraAttachmentComposer
                 key={attachmentComposerKey}
@@ -2091,24 +2081,14 @@ function TutorDrawerContent({
                 {assistantMode === "python" && codingBridge && !activeQuotedContext && (
                   <Button type="button" variant="outline" size="sm" className="h-8 text-body-sm" disabled={chatLoading || !attachmentsReady || (!inputVal.trim() && attachmentIds.length === 0)} onClick={() => void handleSend(undefined, null, "generate")}>Buat kode</Button>
                 )}
-                <Button
-                  size="icon-xs"
+                <ZyraSendButton
                   onClick={() => void handleSend()}
-                  disabled={
-                    chatLoading ||
-                    !attachmentsReady ||
-                    (!inputVal.trim() && !activeQuotedContext && attachmentIds.length === 0)
-                  }
-                  className="size-8 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 transition-transform active:scale-95 disabled:opacity-40"
-                  aria-label={t("tutorDrawer.sendMessage")}
-                >
-                  <ArrowUp className="size-3.5" />
-                </Button>
+                  disabled={chatLoading || !attachmentsReady || (!inputVal.trim() && !activeQuotedContext && attachmentIds.length === 0)}
+                  label={t("tutorDrawer.sendMessage")}
+                />
               </div>
             </div>
-          </div>
-          <div className="mt-1 empty:hidden"><ZyraAllowanceSummary courseId={courseIdFromPath} onAccessTierChange={setZyraAccessTier} /></div>
-        </footer>
+        </ZyraChatComposer>
 
         {/* Micro-apps Modal View (Flashcards / Practice Quiz) */}
         {activityOpen && (

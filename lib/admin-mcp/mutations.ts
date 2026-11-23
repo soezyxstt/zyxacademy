@@ -80,6 +80,7 @@ export async function auditedMutation<T extends Record<string, unknown>>(princip
       const [receipt] = await tx.select().from(auditMutasi).where(eq(auditMutasi.id, receiptId)).limit(1);
       const prior = receiptResult(receipt);
       if (prior !== undefined) return prior;
+      await principal.beforeMutation?.(tx);
       const result = await execute(tx);
       await tx.insert(auditMutasi).values({ id: receiptId, actorId: principal.actorId, entityType: "admin_mcp", entityId: String(result.id ?? operation), action: operation, correlationId: requestKey, outcome: "success", beforeSnapshot: { expectedRevision: input && typeof input === "object" && "expectedRevision" in input ? input.expectedRevision : null }, reason: input && typeof input === "object" && "reason" in input && typeof input.reason === "string" ? input.reason.slice(0, 1000) : null, afterSnapshot: { inputHash: hash, result } });
       return result;

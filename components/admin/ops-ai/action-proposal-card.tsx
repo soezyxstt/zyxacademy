@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type {
   OpsAiActionProposalV2,
   OpsAiProposalStatus,
 } from "@/lib/admin-ops-ai/contracts";
 import type { OpsAiActionProposal } from "@/lib/admin-ops-ai/types";
 import {
-  Play,
   Loader2,
   CheckCircle2,
   AlertCircle,
@@ -23,7 +23,10 @@ type SupportedProposal = OpsAiActionProposalV2 | OpsAiActionProposal;
 
 interface ActionProposalCardProps {
   proposal: SupportedProposal;
-  onExecuted?: (proposalId: string, result: unknown) => void;
+  chatId?: string;
+  disabled?: boolean;
+  onExecutionChange?: (pending: boolean) => boolean;
+  onExecuted?: (proposalId: string, result: unknown, grantUntil?: number) => void;
 }
 
 function getProposalStatusBadge(status: OpsAiProposalStatus | string) {
@@ -39,6 +42,18 @@ function getProposalStatusBadge(status: OpsAiProposalStatus | string) {
         label: "Mengeksekusi...",
         badgeClass: "bg-primary/10 text-primary border-primary/30",
         icon: <Loader2 className="size-3.5 animate-spin" />,
+      };
+    case "job-pending":
+      return {
+        label: "Job diproses",
+        badgeClass: "bg-muted text-muted-foreground border-border/60",
+        icon: <Clock className="size-3.5" />,
+      };
+    case "job-attention":
+      return {
+        label: "Periksa job",
+        badgeClass: "bg-status-warning/15 text-status-warning border-status-warning/30",
+        icon: <AlertCircle className="size-3.5" />,
       };
     case "executed":
       return {
@@ -75,10 +90,24 @@ function getProposalStatusBadge(status: OpsAiProposalStatus | string) {
 
 export function ActionProposalCard({
   proposal: initialProposal,
+  chatId,
+  disabled,
   onExecuted,
+  onExecutionChange,
 }: ActionProposalCardProps) {
   const [status, setStatus] = useState<string>(initialProposal.status);
   const [loading, setLoading] = useState(false);
+  const inFlight = useRef(false);
+  const [submittedChoice, setSubmittedChoice] = useState<"once" | "chat" | null>(null);
+  const approval = "approval" in initialProposal ? initialProposal.approval : undefined;
+  const expiresAt = "expiresAt" in initialProposal ? initialProposal.expiresAt : undefined;
+  const [expired, setExpired] = useState(() => Boolean(expiresAt && expiresAt <= Date.now()));
+  const [canCheckResult, setCanCheckResult] = useState(false);
+  useEffect(() => {
+    if (!expiresAt || expired) return;
+    const timer = window.setTimeout(() => setExpired(true), Math.max(0, expiresAt - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [expiresAt, expired]);
   const [executionResult, setExecutionResult] = useState<Record<string, unknown> | null>(() => {
     if ("result" in initialProposal && initialProposal.result) {
       return initialProposal.result as Record<string, unknown>;
@@ -106,7 +135,12 @@ export function ActionProposalCard({
     }
   }
 
-  const handleExecute = async () => {
+  const handleExecute = async (choice: "once" | "chat") => {
+    if (inFlight.current || disabled || (approval && !chatId)) return;
+    if (onExecutionChange?.(true) === false) return;
+    inFlight.current = true;
+    setSubmittedChoice(choice);
+    setCanCheckResult(false);
     setLoading(true);
     setStatus("executing");
     setErrorMessage(null);
@@ -116,25 +150,29 @@ export function ActionProposalCard({
       const res = await fetch("/api/admin/ops-ai/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proposalId: initialProposal.id }),
+        body: JSON.stringify({ proposalId: initialProposal.id, ...(approval ? { choice, chatId } : {}) }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Gagal mengeksekusi proposal aksi.");
+        setCanCheckResult(data.retryable === true);
+        setStatus("failed");
+        setErrorMessage(data.error || "Aksi gagal diproses.");
+        return;
       }
 
       setStatus("executed");
       const resObj = (data.result && typeof data.result === "object") ? data.result : { message: "Aksi berhasil dieksekusi." };
       setExecutionResult(resObj);
-      toast.success("Aksi berhasil dieksekusi.");
-      onExecuted?.(initialProposal.id, resObj);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Terjadi kesalahan saat mengeksekusi aksi.";
+      if (!resObj.jobId) toast.success("Aksi berhasil dieksekusi.");
+      onExecuted?.(initialProposal.id, resObj, typeof data.grantUntil === "number" ? data.grantUntil : undefined);
+    } catch {
       setStatus("failed");
-      setErrorMessage(msg);
-      toast.error(msg);
+      setCanCheckResult(true);
+      setErrorMessage("Hasil aksi belum terverifikasi. Coba lagi dengan izin yang sama.");
     } finally {
+      inFlight.current = false;
+      onExecutionChange?.(false);
       setLoading(false);
     }
   };
@@ -148,11 +186,13 @@ export function ActionProposalCard({
     }
   };
 
-  const badge = getProposalStatusBadge(status);
+  const jobState = executionResult?.jobState;
+  const jobBadge = jobState === "pending" ? "job-pending" : jobState === "attention" ? "job-attention" : undefined;
+  const badge = getProposalStatusBadge(status === "executed" && jobBadge ? jobBadge : status === "pending" && expired ? "expired" : status);
   const isPending = status === "pending";
   const isExecuted = status === "executed";
   const isFailed = status === "failed";
-  const isExpired = status === "expired";
+
 
   const tokenString = executionResult?.token ? String(executionResult.token) : null;
   const messageString = executionResult?.message
@@ -164,9 +204,6 @@ export function ActionProposalCard({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1.5 sm:gap-2">
         <div className="min-w-0 flex-1">
-          <span className="text-[10px] font-semibold tracking-wider text-primary uppercase block">
-            Proposal Aksi Admin
-          </span>
           <h4 className="font-heading text-body-sm font-bold text-foreground mt-0.5 leading-snug break-words">
             {initialProposal.title}
           </h4>
@@ -192,30 +229,23 @@ export function ActionProposalCard({
 
       {/* Preview Parameters */}
       {previewFields.length > 0 && (
-        <div className="rounded-md bg-muted/40 p-2 border border-border/50 space-y-1 font-mono text-body-xs">
+        <dl className="space-y-2">
           {previewFields.map((field, idx) => (
-            <div key={idx} className="flex items-start justify-between gap-2">
-              <span className="text-muted-foreground break-words">{field.label}:</span>
-              <span className="min-w-0 font-medium text-foreground text-right break-all">
+            <div key={idx} className="min-w-0">
+              <dt className="text-body-xs text-muted-foreground">{field.label}</dt>
+              <dd className={cn("whitespace-pre-wrap wrap-anywhere text-body-sm", field.value.includes("\n") && "max-h-48 overflow-auto rounded-md bg-muted p-2 font-mono")} tabIndex={field.value.includes("\n") ? 0 : undefined}>
                 {field.value}
-              </span>
+              </dd>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Preconditions note if present */}
-      {"preconditions" in initialProposal && initialProposal.preconditions?.stateFingerprint && (
-        <p className="text-body-xs text-muted-foreground">
-          Snapshot status terverifikasi sebelum eksekusi.
-        </p>
+        </dl>
       )}
 
       {/* Execution Result Banner */}
       {isExecuted && (
-        <div className="rounded-md border border-status-success/30 bg-status-success/10 p-2.5 text-body-xs text-status-success space-y-1.5">
+        <div className={cn("rounded-md border p-2.5 text-body-xs space-y-1.5", jobBadge ? badge.badgeClass : "border-status-success/30 bg-status-success/10 text-status-success")}>
           <div className="flex items-center gap-1.5 font-medium">
-            <CheckCircle2 className="size-4 shrink-0" />
+            {jobBadge ? badge.icon : <CheckCircle2 className="size-4 shrink-0" />}
             <span>{messageString}</span>
           </div>
 
@@ -254,28 +284,31 @@ export function ActionProposalCard({
         </div>
       )}
 
-      {/* Action Trigger Buttons */}
-      {(isPending || isFailed) && !isExpired && (
-        <div className="pt-1 flex items-center justify-end">
-          <button
+      {isPending && !expired && !approval && (
+        <p className="text-body-xs text-muted-foreground">Izinkan aksi ini sekali?</p>
+      )}
+      {isPending && expired && (
+        <p className="text-body-xs text-muted-foreground">Minta Ops AI menyiapkan aksi lagi.</p>
+      )}
+      {approval === "chat" && isPending && !expired && (
+        <p className="text-body-xs text-muted-foreground">Izin chat mencakup aksi ini pada target yang sama selama 10 menit.</p>
+      )}
+      {((isPending && !expired) || loading || (isFailed && canCheckResult && submittedChoice)) && (
+        <div className="flex flex-wrap justify-end gap-2">
+          {approval === "chat" && isPending && (
+            <Button type="button" variant="outline" size="sm" disabled={disabled || !chatId} onClick={() => void handleExecute("chat")}>
+              Allow in chat
+            </Button>
+          )}
+          <Button
             type="button"
-            onClick={handleExecute}
-            disabled={loading}
-            aria-label="Konfirmasi dan eksekusi aksi"
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-body-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            size="sm"
+            disabled={disabled || loading || Boolean(approval && !chatId)}
+            onClick={() => void handleExecute(submittedChoice ?? "once")}
+            aria-label={approval || isFailed ? undefined : "Konfirmasi dan eksekusi aksi"}
           >
-            {loading ? (
-              <>
-                <Loader2 className="size-3.5 animate-spin" />
-                <span>Mengeksekusi...</span>
-              </>
-            ) : (
-              <>
-                <Play className="size-3.5" />
-                <span>Konfirmasi dan Eksekusi</span>
-              </>
-            )}
-          </button>
+            {loading ? <><Loader2 className="animate-spin" aria-hidden="true" />Memproses</> : isFailed ? "Coba lagi" : "Allow"}
+          </Button>
         </div>
       )}
     </div>

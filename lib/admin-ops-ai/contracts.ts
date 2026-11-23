@@ -96,6 +96,7 @@ export const OpsAiActionProposalTypeSchema = z.enum([
   "trigger_job",
   "batch_create_chapters",
   "bulk_update_materials",
+  "admin_operation",
 ]);
 export type OpsAiActionProposalType = z.infer<typeof OpsAiActionProposalTypeSchema>;
 
@@ -164,6 +165,7 @@ export const OpsAiActionProposalV2Schema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
   preview: OpsAiProposalPreviewSchema,
+  approval: z.enum(["once", "chat"]).optional(),
   status: OpsAiProposalStatusSchema,
   preconditions: OpsAiPreconditionSnapshotSchema.optional(),
   expiresAt: z.number().int().positive().optional(),
