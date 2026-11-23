@@ -21,6 +21,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { hapticSelection } from "@/lib/native/haptics";
+import { isNativeApp } from "@/lib/native/runtime";
+import { Download } from "lucide-react";
 import { useHapticsPreference } from "@/hooks/use-haptics-preference";
 
 const THEMES = ["light", "dark", "system"] as const;
@@ -122,6 +124,11 @@ function DisplayPreferences() {
   return (
     <div className="space-y-(--section-gap)">
       <p className="text-body-xs text-muted-foreground">{t("preferences.browserSettings")}</p>
+      {mounted && experience.mode !== "demo" && !isNativeApp() && (
+        <Button asChild variant="outline">
+          <Link href="/download"><Download aria-hidden="true" />{t("preferences.downloadApp")}</Link>
+        </Button>
+      )}
       <PreferenceGroup title={t("preferences.interface")}>
         <PreferenceChoice
           label={t("preferences.theme")}

@@ -6,6 +6,7 @@
     "schedule": "{component}: {percent}% off, {start} through {end} WIB."
   },
   "nav": {
+    "download": "Download",
     "plans": "Plans",
     "about": "About us",
     "testimonials": "Testimonials",
@@ -31,6 +32,15 @@
     "adminPanel": "Admin panel",
     "signInGoogle": "Sign in with Google",
     "signIn": "Sign in"
+  },
+  "download": {
+    "verb": "Download",
+    "platforms": "Choose your platform",
+    "title": "Download Zyx Academy",
+    "description": "Install Zyx Academy on your computer or phone.",
+    "unavailable": "Unavailable",
+    "error": "Could not load the release. Reload the page to try again.",
+    "empty": "No {channel} release is available yet."
   },
   "footer": {
     "description": "Zyx Academy helps first- and second-year ITB undergraduate students master their courses with campus-aligned modules, focused practice, and tutorials with ITB tutors.",
