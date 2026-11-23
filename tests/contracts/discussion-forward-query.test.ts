@@ -37,6 +37,7 @@ test("the open predicate is part of the paginated SQL and ordinary listing remai
   const searched = queries.at(-1)!;
   const searchedWhere = searched.sql.slice(searched.sql.indexOf(" where "), searched.sql.indexOf(" order by "));
   expect(searchedWhere).toContain('"discussion_messages"."deleted_at" is null');
+  expect(searchedWhere).toContain('"discussion_threads"."id" in (select "thread_id" from "discussion_messages"');
   expect(searchedWhere).toContain("to_tsvector('simple', \"discussion_messages\".\"body\") @@ to_tsquery('simple',");
   expect(searchedWhere).not.toContain('"discussion_messages"."body" ilike');
   expect(searchedWhere).toContain("to_tsvector('simple', \"discussion_threads\".\"title\") @@ to_tsquery('simple',");

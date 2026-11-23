@@ -322,9 +322,12 @@ describe("discussion authorization and transactions", () => {
   await db.insert(schema.enrollments).values({ id: "search-growth-enrollment", userId: "alice", courseId: "legacy-search-growth", expiresAt: new Date("2099-01-01") });
   await db.insert(schema.discussionChannels).values({ id: "search-growth-channel", kind: "course", title: "Search growth", legacyCourseId: "legacy-search-growth" });
   await db.insert(schema.mataKuliah).values({ id: "canonical-search-growth", code: "SEARCHGROWTH", title: "Search growth", legacyCourseId: "legacy-search-growth" });
-  const page = await service.listChannelsPage("alice", { search: "Search growth", kinds: ["course"] });
+  const page = await service.listChannelMetadataPage("alice", { search: "Search growth", kinds: ["course"] });
   expect(page.items.map(row => row.id)).toEqual(["search-growth-channel"]);
   expect(page.items[0].courseId).toBe("canonical-search-growth");
+  expect(page.repairedAliases).toBe(true);
+  const unchanged = await service.listChannelMetadataPage("alice", { search: "Search growth", kinds: ["course"] });
+  expect(unchanged.repairedAliases).toBeUndefined();
   expect((await access.requireDiscussionChannelAccess(await access.getDiscussionActor("alice"), "search-growth-channel")).courseId).toBe("canonical-search-growth");
  });
 
