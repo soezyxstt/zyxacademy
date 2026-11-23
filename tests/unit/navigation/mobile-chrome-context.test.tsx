@@ -22,6 +22,7 @@ import {
   MobileTopNavbar,
 } from "@/components/navigation/mobile-top-navbar";
 import { PageHeader } from "@/components/page-header";
+import { computeMobileListFrameHeight } from "@/features/discussions/ui/mobile/mobile-list-layout";
 
 describe("MobileChromeContext state management", () => {
   test("ref-counts nested hideBottomNav tokens so inner unmount does not clobber outer lock", () => {
@@ -294,5 +295,50 @@ describe("MobileChromeContext state management", () => {
     expect(html).toContain("data-mobile-global-search-section");
     expect(html).toContain("data-mobile-global-search-button");
     expect(html).toContain("Cari di seluruh Zyx");
+  });
+
+  test("computeMobileListFrameHeight clamps the mobile discussion list above MobileBottomNav even with tabs or safe-area insets", () => {
+    // Portrait phone with top navbar + Questions/Reports tabs (frameTop=128) and bottom nav + safe area (top=768, height=76)
+    const withTabsAndBottomNav = computeMobileListFrameHeight({
+      frameTop: 128,
+      viewportBottom: 844,
+      bottomNavRect: { top: 768, height: 76 },
+    });
+    expect(withTabsAndBottomNav).toBe(640);
+    expect(128 + withTabsAndBottomNav).toBe(768);
+
+    // Software keyboard shrinks visualViewport below bottomNavRect.top
+    expect(
+      computeMobileListFrameHeight({
+        frameTop: 128,
+        viewportBottom: 460,
+        bottomNavRect: { top: 768, height: 76 },
+      })
+    ).toBe(332);
+
+    // Hidden bottom nav (height: 0) or absent bottom nav falls back to viewportBottom
+    expect(
+      computeMobileListFrameHeight({
+        frameTop: 72,
+        viewportBottom: 844,
+        bottomNavRect: { top: 0, height: 0 },
+      })
+    ).toBe(772);
+    expect(
+      computeMobileListFrameHeight({
+        frameTop: 72,
+        viewportBottom: 844,
+        bottomNavRect: null,
+      })
+    ).toBe(772);
+
+    // Very short viewport respects minHeight floor
+    expect(
+      computeMobileListFrameHeight({
+        frameTop: 220,
+        viewportBottom: 320,
+        bottomNavRect: { top: 260, height: 60 },
+      })
+    ).toBe(120);
   });
 });
