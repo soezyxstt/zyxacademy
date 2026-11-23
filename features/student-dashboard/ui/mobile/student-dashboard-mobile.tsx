@@ -51,10 +51,10 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
             <div className="min-w-0">{sections.activeAndReading}</div>
           ) : null}
           {sections.reviewQueue ? <div className="min-w-0">{sections.reviewQueue}</div> : null}
+          {sections.weakConcepts ? <div className="min-w-0">{sections.weakConcepts}</div> : null}
           {sections.availableAssessments ? (
             <div className="min-w-0">{sections.availableAssessments}</div>
           ) : null}
-          {sections.weakConcepts ? <div className="min-w-0">{sections.weakConcepts}</div> : null}
           {sections.recommendedCourses ? (
             <div className="min-w-0">{sections.recommendedCourses}</div>
           ) : null}

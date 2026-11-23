@@ -61,12 +61,19 @@ export function WeeklyReflection({ reflection }: WeeklyReflectionProps) {
     setDismissed(true);
   };
 
+  const breakdown = [
+    completed.quizzes > 0 ? t("dashboard.quizCount", { count: completed.quizzes }) : null,
+    completed.flashcards > 0 ? t("dashboard.flashcardCount", { count: completed.flashcards }) : null,
+    completed.modules > 0 ? t("dashboard.moduleCount", { count: completed.modules }) : null,
+    streak.currentStreak > 0 ? t("dashboard.streakCount", { count: streak.currentStreak }) : null,
+  ].filter(Boolean) as string[];
+
   return (
-    <section className="relative mb-4 hidden border-y border-border/60 py-3 sm:block">
+    <section className="relative mb-4 hidden border-b border-border/50 pb-3 sm:block">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <div className="flex items-center gap-2">
-            <TrendingUp className="size-4 text-brand-primary shrink-0" />
+            <TrendingUp className="size-4 text-primary shrink-0" aria-hidden />
             <span className="font-heading text-body-sm font-bold text-foreground">
               {t("dashboard.weeklyReflection")}
             </span>
@@ -84,20 +91,19 @@ export function WeeklyReflection({ reflection }: WeeklyReflectionProps) {
                 <span className="font-heading text-body-base font-bold tabular-nums text-foreground">
                   {totalCompleted}
                 </span>
-                <span className="text-body-xs text-muted-foreground">{t("dashboard.completedActivities")}</span>
+                <span className="text-body-xs text-muted-foreground">
+                  {t("dashboard.completedActivities", { count: totalCompleted })}
+                </span>
               </>
             )}
           </div>
-          <div className="hidden lg:flex items-center gap-x-3 text-body-xs text-muted-foreground">
-
-            <span>{t("dashboard.quizCount", { count: completed.quizzes })}</span>
-
-            <span>{t("dashboard.flashcardCount", { count: completed.flashcards })}</span>
-
-            <span>{t("dashboard.moduleCount", { count: completed.modules })}</span>
-
-            <span>{t("dashboard.streakCount", { count: streak.currentStreak })}</span>
-          </div>
+          {breakdown.length > 0 && (
+            <div className="hidden lg:flex items-center gap-x-3 text-body-xs tabular-nums text-muted-foreground">
+              {breakdown.map((item) => (
+                <span key={item}>{item}</span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3 shrink-0">

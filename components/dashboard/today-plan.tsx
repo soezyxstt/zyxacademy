@@ -7,6 +7,10 @@ import Link from "next/link";
 import { Layers, ListChecks, BookOpen, Check, ArrowRight, CalendarCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DashboardSectionCount,
+  DashboardSectionHeading,
+} from "@/components/dashboard/dashboard-section-heading";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
@@ -44,7 +48,7 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
 
 
   return (
-    <div className="mb-6">
+    <div className={total > 0 ? "mb-6" : undefined}>
       <PageHeader
         title={
           <>
@@ -54,37 +58,30 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
       />
 
       {total > 0 && (
-        <section className="mt-4 sm:mt-6">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-            <h2 className="flex items-center gap-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <CalendarCheck className="size-3.5 shrink-0 text-muted-foreground" />
-              {t("dashboard.studyPlan")}
-            </h2>
-            {!loading && (
-              <span
-                className={cn(
-                  "rounded-md px-2 py-0.5 text-body-xs font-semibold tabular-nums shrink-0",
-                  allDone
-                    ? "bg-status-success/15 text-status-success"
-                    : "bg-muted/60 text-muted-foreground",
-                )}
-              >
-                {t("dashboard.completedCount", { done: doneCount, total })}
-              </span>
-            )}
-          </div>
+        <section>
+          <DashboardSectionHeading
+            icon={CalendarCheck}
+            title={t("dashboard.studyPlan")}
+            actions={
+              !loading ? (
+                <DashboardSectionCount tone={allDone ? "success" : "muted"}>
+                  {t("dashboard.completedCount", { done: doneCount, total })}
+                </DashboardSectionCount>
+              ) : null
+            }
+          />
 
           {loading ? (
             <div className="divide-y divide-border/30 zebra-no-rows">
               {[1, 2].map((i) => (
-                <div key={i} className="flex items-center gap-4 py-3.5">
-                  <div className="size-5 shrink-0 animate-pulse rounded-full bg-muted" />
+                <div key={i} className="flex items-center gap-3 py-3">
+                  <div className="size-7 shrink-0 animate-pulse rounded-md bg-muted" />
                   <div className="h-4 flex-1 animate-pulse rounded-md bg-muted" />
                 </div>
               ))}
             </div>
           ) : allDone ? (
-            <div className="py-3 text-body-sm text-status-success">
+            <div className="py-2.5 text-body-sm text-status-success">
               <p className="text-body-sm font-semibold">{t("dashboard.allTargetsDone")}</p>
             </div>
           ) : (
@@ -94,47 +91,41 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
                 return (
                   <li
                     key={item.id}
-                    className="group flex flex-wrap items-center gap-2 sm:gap-3 py-3 px-2 -mx-2 rounded-lg transition-colors hover:bg-muted/40"
+                    className="group -mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/40 sm:gap-3"
                   >
                     <button
                       type="button"
                       aria-label={item.done ? t("dashboard.done") : t("dashboard.markDone")}
                       onClick={() => !item.done && complete(item.id)}
                       className={cn(
-                        "flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         item.done
                           ? "border-status-success bg-status-success text-primary-foreground"
                           : "border-border/70 hover:border-foreground/40 hover:bg-muted/60"
                       )}
                     >
-                      {item.done && <Check className="size-3" />}
+                      {item.done && <Check className="size-3.5" />}
                     </button>
 
-                    <div className={cn(
-                      "flex size-8 shrink-0 items-center justify-center rounded-lg border",
-                      item.done
-                        ? "border-border/30 bg-muted/50 text-muted-foreground"
-                        : "border-border/50 bg-background text-muted-foreground"
-                    )}>
-                      <Icon className="size-4 shrink-0" />
-                    </div>
+                    <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
 
-                    <span
+                    <Link
+                      href={item.href}
                       className={cn(
-                        "min-w-0 flex-1 break-words text-body-sm font-semibold text-foreground",
+                        "min-w-0 flex-1 break-words text-body-sm font-semibold text-foreground transition-colors hover:text-primary",
                         item.done && "text-muted-foreground line-through"
                       )}
                     >
                       {item.title}
-                    </span>
+                    </Link>
 
                     {item.count != null && (
-                      <Badge variant="outline" className="shrink-0 rounded-md border-border/50 px-1.5 py-0.2 text-body-2xs text-muted-foreground">
+                      <Badge variant="outline" className="shrink-0 rounded-md border-border/50 px-1.5 py-0.5 text-body-2xs tabular-nums text-muted-foreground">
                         {t("dashboard.cardsCount", { count: item.count })}
                       </Badge>
                     )}
 
-                    <Button variant="ghost" size="sm" asChild className="shrink-0 rounded-lg hover:bg-muted/60">
+                    <Button variant="ghost" size="icon-sm" asChild className="shrink-0 rounded-md hover:bg-muted/60">
                       <Link href={item.href} aria-label={t("dashboard.openItem", { title: item.title })}>
                         <ArrowRight className="size-4 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
                       </Link>

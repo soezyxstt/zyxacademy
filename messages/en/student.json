@@ -361,7 +361,7 @@
     "dayDone": "Complete",
     "dayNotDone": "Not complete",
     "masteryPoints": "mastery points",
-    "completedActivities": "activities complete",
+    "completedActivities": "{count, plural, one {activity complete} other {activities complete}}",
     "closeReflection": "Close weekly reflection",
     "startLearning": "Start learning, {name}",
     "plans": "View plans",
@@ -494,7 +494,25 @@
       "dismissFailed": "Could not dismiss the suggestion. Try again."
     },
     "student": "Student",
-    "helloFallback": "Welcome to Zyx Academy"
+    "helloFallback": "Welcome to Zyx Academy",
+    "focus": {
+      "label": "Priority summary",
+      "priority": "Priority",
+      "dueCards": "Cards due",
+      "dueCardsAction": "Review now",
+      "dueCardsClear": "Clear today",
+      "materials": "Material progress",
+      "materialsCaption": "{done} of {total} materials",
+      "weakConcepts": "Weak concepts",
+      "weakLowest": "Lowest {score}%",
+      "weakNone": "All above 40%",
+      "weakUnmeasured": "Take a quiz to measure",
+      "exams": "Quizzes available",
+      "examsCaption": "{quizzes} {quizzes, plural, one {quiz} other {quizzes}}, {tryouts} {tryouts, plural, one {tryout} other {tryouts}}",
+      "examsNone": "All done"
+    },
+    "materialProgressShort": "{done}/{total} materials",
+    "nextUp": "Next"
   },
   "schedule": {
     "title": "Calendar and tutorial schedule",

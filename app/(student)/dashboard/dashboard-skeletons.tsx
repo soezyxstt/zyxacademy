@@ -4,16 +4,31 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function DashboardHeaderShell({ firstName }: { firstName: string }) {
   return (
-    <div className="mb-4 sm:mb-6">
-      <PageHeader
-        title={
-          <>
-            <TranslatedText namespace="student" messageKey="dashboard.helloPrefix" />
-            {", "}
-            <span className="text-primary">{firstName}</span>
-          </>
-        }
-      />
+    <PageHeader
+      title={
+        <>
+          <TranslatedText namespace="student" messageKey="dashboard.helloPrefix" />
+          {", "}
+          <span className="text-primary">{firstName}</span>
+        </>
+      }
+    />
+  );
+}
+
+export function DashboardFocusSkeleton() {
+  return (
+    <div
+      className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border/50 bg-border/50 lg:grid-cols-4"
+      aria-hidden="true"
+    >
+      {[1, 2, 3, 4].map((index) => (
+        <div key={index} className="space-y-2 bg-background px-3 py-2.5 sm:px-4 sm:py-3">
+          <Skeleton className="h-3.5 w-24" />
+          <Skeleton className="h-6 w-12" />
+          <Skeleton className="h-3.5 w-28" />
+        </div>
+      ))}
     </div>
   );
 }

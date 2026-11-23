@@ -12,6 +12,7 @@ import { createMetadata } from "@/lib/site";
 import { DashboardSectionErrorBoundary } from "./dashboard-section-error-boundary";
 import {
   AvailableAssessmentsSection,
+  DashboardFocusSection,
   DashboardOnboardingSection,
   PrimaryLearningSection,
   ProfilePromptSection,
@@ -23,6 +24,7 @@ import {
   type DashboardUserSeed,
 } from "./dashboard-sections";
 import {
+  DashboardFocusSkeleton,
   DashboardHeaderShell,
   DashboardOnboardingSkeleton,
   DashboardPrimaryLearningSkeleton,
@@ -90,6 +92,14 @@ export default async function DashboardPage() {
             <DashboardSectionErrorBoundary variant="silent">
               <Suspense fallback={null}>
                 <WeeklyReflectionSection userId={user.id} />
+              </Suspense>
+            </DashboardSectionErrorBoundary>
+          )}
+
+          {user?.id && (
+            <DashboardSectionErrorBoundary variant="silent">
+              <Suspense fallback={<DashboardFocusSkeleton />}>
+                <DashboardFocusSection userId={user.id} enrollments={enrollments} />
               </Suspense>
             </DashboardSectionErrorBoundary>
           )}

@@ -14,7 +14,7 @@ export function DashboardSummaryContent({ summary, locale, title, href }: { summ
     >
       <RankArtwork rank={summary.rankKey} size={56} />
       <div className="min-w-0 flex-1 space-y-1">
-        <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h2>
+        <h2 className="font-heading text-body-sm font-bold text-foreground">{title}</h2>
         <div className="flex flex-wrap items-center divide-x divide-border/40 text-body-sm text-muted-foreground">
           <span className="pr-2.5 font-semibold text-foreground">{rankLabels[summary.rankKey]}</span>
           <span className="px-2.5 tabular-nums">{formatter.format((summary.baseXpMicro + summary.bonusXpMicro) / MICRO)} XP</span>

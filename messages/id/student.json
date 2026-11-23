@@ -361,7 +361,7 @@
     "dayDone": "Selesai",
     "dayNotDone": "Belum selesai",
     "masteryPoints": "poin penguasaan",
-    "completedActivities": "aktivitas selesai",
+    "completedActivities": "{count, plural, one {aktivitas selesai} other {aktivitas selesai}}",
     "closeReflection": "Tutup refleksi mingguan",
     "startLearning": "Mulai belajar, {name}",
     "plans": "Lihat paket",
@@ -494,7 +494,25 @@
       "dismissFailed": "Belum dapat menutup saran. Coba lagi."
     },
     "student": "Siswa",
-    "helloFallback": "Selamat datang di Zyx Academy"
+    "helloFallback": "Selamat datang di Zyx Academy",
+    "focus": {
+      "label": "Ringkasan prioritas",
+      "priority": "Prioritas",
+      "dueCards": "Kartu jatuh tempo",
+      "dueCardsAction": "Ulas sekarang",
+      "dueCardsClear": "Tuntas hari ini",
+      "materials": "Progres materi",
+      "materialsCaption": "{done} dari {total} materi",
+      "weakConcepts": "Konsep lemah",
+      "weakLowest": "Terendah {score}%",
+      "weakNone": "Semua di atas 40%",
+      "weakUnmeasured": "Kerjakan kuis untuk mengukur",
+      "exams": "Kuis tersedia",
+      "examsCaption": "{quizzes} kuis, {tryouts} tryout",
+      "examsNone": "Semua selesai"
+    },
+    "materialProgressShort": "{done}/{total} materi",
+    "nextUp": "Berikutnya"
   },
   "schedule": {
     "title": "Kalender dan jadwal tutorial",
