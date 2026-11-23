@@ -26,6 +26,8 @@ export class JsonFieldStreamExtractor {
   private finishedTarget = false;
   private totalEmitted = "";
 
+  private pendingEmit = "";
+
   constructor(
     targetKeys: readonly string[],
     onDelta: (text: string) => void,
@@ -42,14 +44,39 @@ export class JsonFieldStreamExtractor {
     return this.totalEmitted;
   }
 
+  /** Reset parser state between sequential provider calls when no answer text has been emitted yet. */
+  reset(): void {
+    if (this.emittedAny) return;
+    this.objectDepth = 0;
+    this.arrayDepth = 0;
+    this.inString = false;
+    this.escapeNext = false;
+    this.unicodeBuf = null;
+    this.readingKey = false;
+    this.keyBuf = "";
+    this.awaitingColon = false;
+    this.awaitingValue = false;
+    this.matchedTargetKey = false;
+    this.capturingTarget = false;
+    this.finishedTarget = false;
+    this.pendingEmit = "";
+  }
+
   private emitDecoded(decoded: string): void {
     if (!decoded) return;
     const visible = this.followupParser.push(decoded);
     if (visible) {
-      this.emittedAny = true;
-      this.totalEmitted += visible;
-      this.onDelta(visible);
+      this.pendingEmit += visible;
     }
+  }
+
+  private flushPending(): void {
+    if (!this.pendingEmit) return;
+    const batch = this.pendingEmit;
+    this.pendingEmit = "";
+    this.emittedAny = true;
+    this.totalEmitted += batch;
+    this.onDelta(batch);
   }
 
   private finishTargetString(): void {
@@ -57,17 +84,16 @@ export class JsonFieldStreamExtractor {
     this.finishedTarget = true;
     const tail = this.followupParser.finish().text;
     if (tail) {
-      this.emittedAny = true;
-      this.totalEmitted += tail;
-      this.onDelta(tail);
+      this.pendingEmit += tail;
     }
+    this.flushPending();
   }
 
   push(chunk: string): void {
     if (!chunk || this.finishedTarget) return;
 
     for (let i = 0; i < chunk.length; i++) {
-      if (this.finishedTarget) return;
+      if (this.finishedTarget) break;
       const ch = chunk[i];
 
       if (this.inString) {
@@ -177,5 +203,7 @@ export class JsonFieldStreamExtractor {
         this.matchedTargetKey = false;
       }
     }
+
+    this.flushPending();
   }
 }

@@ -191,6 +191,7 @@ export async function POST(req: Request) {
             }
           });
           const res = await zyraLiveProgress.run(stage => {
+            if (stage === "dispatch" && !extractor.hasEmitted) extractor.reset();
             if (req.signal.aborted || stage === lastStage) return;
             lastStage = stage;
             sendEvent({ type: "data-work-step", data: { stepId: "provider", status: "running", label: labels[stage] } });

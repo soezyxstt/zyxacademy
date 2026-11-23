@@ -54,6 +54,8 @@ describe("Zyra rendering and harness quality", () => {
       action: "new_topic",
       activityKind: "study",
       attemptState: "none",
+      answerReleaseState: undefined,
+      matchState: undefined,
       allowDirectAnswerReveal: true,
       assessmentReasonCode: "NONE",
       evidenceSufficiency: "sufficient",

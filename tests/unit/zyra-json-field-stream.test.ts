@@ -63,5 +63,21 @@ describe("JsonFieldStreamExtractor", () => {
     });
     unicodeExtractor.push('{"covered":true,"answer":"Halo \\u03c0"}');
     expect(unicodeExtractor.emittedText).toBe("Halo \u03c0");
+    expect(deltas).toEqual(["Halo \u03c0"]);
+  });
+
+  test("reset() recovers cleanly after a truncated prior provider call", () => {
+    const deltas: string[] = [];
+    const extractor = new JsonFieldStreamExtractor(["answer"], (delta) => {
+      deltas.push(delta);
+    });
+
+    extractor.push('{"action":"retrie'); // truncated classifier output
+    extractor.reset();
+    extractor.push('{"covered":true,"answer":"Jawaban bersih."}');
+
+    expect(extractor.hasEmitted).toBe(true);
+    expect(extractor.emittedText).toBe("Jawaban bersih.");
+    expect(deltas).toEqual(["Jawaban bersih."]);
   });
 });

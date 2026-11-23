@@ -793,8 +793,10 @@ export async function askTutorRagAction(
     await db.transaction(tx => recordAttemptDisclosures(tx, { userId: user.id, ...reviewDisclosure, occurredAt: new Date(), requestId: crypto.randomUUID() }));
   }
   const isCodingGenerate = Boolean(pageContext?.id.startsWith("coding:generate:"));
-  const suppressLiveTextStream = hasActiveAttempt || codingHintOnly || isCodingGenerate;
-  const runAskTutorRag = () => askTutorRag({
+  if (hasActiveAttempt || codingHintOnly || isCodingGenerate) {
+    zyraLiveTextStream.enterWith(null);
+  }
+  const result = await askTutorRag({
     courseTitle: access?.courseTitle ?? undefined,
     studentId: user.id,
     courseId,
@@ -814,9 +816,6 @@ export async function askTutorRagAction(
     pageContext,
     pedagogyAction: codingPedagogyAction,
   });
-  const result = suppressLiveTextStream
-    ? await zyraLiveTextStream.run(null, runAskTutorRag)
-    : await runAskTutorRag();
 
   const finalizedAnswer = finalizeTutorFollowups(result.answer, {
     sources: result.sources,
