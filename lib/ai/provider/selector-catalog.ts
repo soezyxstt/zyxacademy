@@ -55,7 +55,7 @@ async function googleModels(): Promise<Pick<Snapshot, "ids" | "aliases" | "dates
   return { ids: [...ids], aliases: [], dates };
 }
 
-async function textModels(provider: Exclude<GatewayModelProvider, "gemini">): Promise<Pick<Snapshot, "ids" | "aliases" | "dates">> {
+export async function discoverTextModels(provider: Exclude<GatewayModelProvider, "gemini">): Promise<Pick<Snapshot, "ids" | "aliases" | "dates">> {
   const base = provider === "openai" ? MODEL_IDS.openai : provider === "muse" ? MODEL_IDS.meta : MODEL_IDS.deepseek;
   const profile = getTextProfile(base)!;
   const explicit = (process.env[profile.prefix + "_BYOK_ALIASES"] ?? "").split(",").map(value => value.trim()).filter(Boolean);
@@ -94,7 +94,7 @@ export function selectorCacheKey(provider: GatewayModelProvider, env: Readonly<R
     ["ZYX_ENVIRONMENT", "BETTER_AUTH_URL", "CF_AI_GATEWAY_URL", "CF_AI_GATEWAY_TOKEN", "AI_PROVIDERS"].includes(key) ||
     /^GEMINI_API_KEY(?:_[2-4])?$/.test(key) || /^AI_(?:OPENAI|META|DEEPSEEK)_(?:MODEL(?:_[2-5])?|BYOK_ALIASES|GATEWAY_ROUTE)$/.test(key),
   ).sort(([a], [b]) => a.localeCompare(b));
-  return "ai:selector:v7:" + createHash("sha256").update(JSON.stringify([provider, configuration])).digest("hex");
+  return "ai:selector:v8:" + createHash("sha256").update(JSON.stringify([provider, configuration])).digest("hex");
 }
 
 const NEGATIVE_ALIAS_CACHE_MS = 60_000;
@@ -110,7 +110,7 @@ async function cachedModels(provider: GatewayModelProvider, refresh: boolean): P
     const retained = previous && now - previous.checkedAt < RETAIN_MS ? previous : undefined;
     if (!refresh && retained && (now - retained.checkedAt < FRESH_MS || now < (retained.retryAt ?? 0))) { snapshots.set(key, retained); return retained; }
     try {
-      const result = provider === "gemini" ? await googleModels() : await textModels(provider);
+      const result = provider === "gemini" ? await googleModels() : await discoverTextModels(provider);
       const snapshot = snapshotSchema.parse({ ...result, checkedAt: Date.now() });
       snapshots.set(key, snapshot);
       aliasLookupMissUntil.delete(key);

@@ -34,6 +34,13 @@ Semua panggilan provider memakai CF_AI_GATEWAY_URL dan CF_AI_GATEWAY_TOKEN. URL 
 
 Simpan key Gemini, OpenAI, DeepSeek, dan Meta Muse di Cloudflare BYOK dengan pola alias `<provider>_1`, `<provider>_2`, `<provider>_3`, `<provider>_4` (`gemini_1..4`, `openai_1..4`, `deepseek_1..4`, `muse_1..4`). Untuk Gemini, sistem memprioritaskan BYOK `gemini_1..4` terlebih dahulu dan otomatis fallback ke kredensial `GEMINI_API_KEY`..`4` (dengan query `?key=` pada endpoint native `:generateContent`, `:streamGenerateContent`, `:embedContent`) bila alias BYOK belum dipasang. Untuk Meta Muse, daftarkan custom provider di gateway yang sama dengan slug `custom-muse` dan base URL `https://api.meta.ai/v1` (atau override via `AI_META_GATEWAY_ROUTE`). Env var `AI_*_BYOK_ALIASES` tetap didukung sebagai override eksplisit bila dibutuhkan. Playground staging menyediakan tiga prioritas model. Verifikasi melalui request sintetis dan log gateway sebelum aktivasi. Verifikasi juga dukungan rute Gemini Interactions pada gateway tujuan.
 
+OpenAI dan Meta Muse aktif secara default di staging dan di origin produksi
+`https://www.zyxacademy.com` dengan `ZYX_ENVIRONMENT=production`. Pengaturan
+`AI_PROVIDERS=gemini` membatasi routing produksi ke Gemini setelah redeploy.
+Sebelum promosi revisi produksi, verifikasi daftar model yang lolos filter
+melalui alias BYOK OpenAI dan rute Muse pada gateway produksi. Penugasan model
+per fitur mengikuti pilihan admin dan tetap memakai batas kemampuan tiap model.
+
 Di pemilih model, admin dapat mencari nama model dan memfilter provider. Setiap provider mendukung beberapa ID melalui MODEL, MODEL_2 dan seterusnya (empat slot OpenAI, lima Meta, tiga DeepSeek atau Custom) dengan prefiks provider yang sama, misalnya AI_META_MODEL_2. Isi ID sesuai akses akun. Seluruh varian berbagi rute gateway, alias kredensial, serta batas kelompok provider. Pertahankan pemetaan slot yang sudah dipilih fitur ketika menambahkan varian baru.
 
 ### Katalog selector
