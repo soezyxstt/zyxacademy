@@ -1,11 +1,16 @@
 "use client";
 
+import { useMemo } from "react";
 import { OpsMetricsSkeleton } from "@/components/admin/content-loading-skeletons";
 
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { AdminIconAction } from "@/components/admin/icon-action";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
+import {
+  MOBILE_TOP_NAV_ICON_BUTTON_CLASS,
+  useMobileTopNav,
+} from "@/components/navigation";
 import { adminOpsQuery } from "@/lib/admin/ops-query";
 import { useQueryAccountId } from "@/hooks/use-query-account";
 import { useTranslations } from "@/lib/i18n/client";
@@ -86,6 +91,25 @@ export function OpsClient() {
   const userId = useQueryAccountId();
   const { data, isPending, isFetching, error, refetch } = useQuery(adminOpsQuery(userId ?? ""));
 
+  const refreshLabel = t("opsUI.refresh");
+  const mobileTopNavConfig = useMemo(
+    () => ({
+      pageActions: (
+        <AdminIconAction
+          label={refreshLabel}
+          variant="outline"
+          disabled={isFetching}
+          onClick={() => refetch()}
+          className={MOBILE_TOP_NAV_ICON_BUTTON_CLASS}
+        >
+          <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
+        </AdminIconAction>
+      ),
+    }),
+    [isFetching, refetch, refreshLabel]
+  );
+  useMobileTopNav(mobileTopNavConfig);
+
   if (isPending || !userId) return <OpsMetricsSkeleton />;
 
   if (error || !data) {
@@ -99,8 +123,8 @@ export function OpsClient() {
 
   return (
     <div className="space-y-5">
-      <div className="flex justify-end">
-        <AdminIconAction label={t("opsUI.refresh")}
+      <div className="hidden justify-end md:flex">
+        <AdminIconAction label={refreshLabel}
           variant="outline"
           disabled={isFetching}
           onClick={() => refetch()}>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type ElementType } from "react";
+import { useEffect, useState, type ElementType, type MouseEvent } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { closeDialogsThen } from "@/hooks/use-dialog-history";
 import {
   Activity,
   Archive,
@@ -106,6 +107,7 @@ export interface AdminMoreSheetProps {
 
 export function AdminMoreSheet({ open, onOpenChange }: AdminMoreSheetProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
@@ -116,6 +118,20 @@ export function AdminMoreSheet({ open, onOpenChange }: AdminMoreSheetProps) {
 
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [archivedOpen, setArchivedOpen] = useState(false);
+
+  const handleNavigate = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    ) {
+      return;
+    }
+    event.preventDefault();
+    closeDialogsThen(() => onOpenChange(false), () => router.push(href));
+  };
 
   useEffect(() => {
     if (!open || typeof window === "undefined") return;
@@ -173,7 +189,7 @@ export function AdminMoreSheet({ open, onOpenChange }: AdminMoreSheetProps) {
       >
         <Link
           href={item.href}
-          onClick={() => onOpenChange(false)}
+          onClick={(event) => handleNavigate(event, item.href)}
           aria-current={active ? "page" : undefined}
           className={cn(
             "flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2 text-body-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -245,7 +261,7 @@ export function AdminMoreSheet({ open, onOpenChange }: AdminMoreSheetProps) {
                     <Link
                       key={item.id}
                       href={item.href}
-                      onClick={() => onOpenChange(false)}
+                      onClick={(event) => handleNavigate(event, item.href)}
                       aria-current={active ? "page" : undefined}
                       className={cn(
                         "inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 text-body-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -314,7 +330,7 @@ export function AdminMoreSheet({ open, onOpenChange }: AdminMoreSheetProps) {
           <div className="flex items-center gap-1.5">
             <Link
               href="/dashboard"
-              onClick={() => onOpenChange(false)}
+              onClick={(event) => handleNavigate(event, "/dashboard")}
               className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-body-sm text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <GraduationCap className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -322,7 +338,7 @@ export function AdminMoreSheet({ open, onOpenChange }: AdminMoreSheetProps) {
             </Link>
             <Link
               href="/tutor"
-              onClick={() => onOpenChange(false)}
+              onClick={(event) => handleNavigate(event, "/tutor")}
               className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-body-sm text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <BookOpen className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -12,6 +13,10 @@ import {
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  MOBILE_TOP_NAV_ICON_BUTTON_CLASS,
+  useMobileTopNav,
+} from "@/components/navigation";
 import type { AdminHomeViewProps } from "@/features/admin-home/model/types";
 import { AdminHomeItemIcon } from "@/features/admin-home/ui/shared/admin-home-icons";
 
@@ -20,6 +25,19 @@ export function AdminHomeMobile({
   kpis,
   categories,
 }: AdminHomeViewProps) {
+  const topNavConfig = useMemo(
+    () => ({
+      pageActions: (
+        <RefreshAnalyticsButton
+          variant="outline"
+          className={MOBILE_TOP_NAV_ICON_BUTTON_CLASS}
+        />
+      ),
+    }),
+    []
+  );
+  useMobileTopNav(topNavConfig);
+
   const kpiItems = [
     {
       label: "Mata Kuliah",
@@ -53,11 +71,7 @@ export function AdminHomeMobile({
 
   return (
     <div className="flex w-full min-w-0 flex-col space-y-5">
-      <AdminPageHeader
-        icon={LayoutDashboard}
-        title="Admin"
-        actions={<RefreshAnalyticsButton />}
-      />
+      <AdminPageHeader icon={LayoutDashboard} title="Admin" />
 
       {failedJobs > 0 && (
         <Alert variant="destructive">

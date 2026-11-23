@@ -1,20 +1,93 @@
-
 import { CoursePricingLabel } from "@/components/course/course-pricing-label";
 import type { CoursePricing } from "@/lib/student/course-pricing";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { BookOpen, ArrowRight } from "lucide-react";
+import {
+  Award,
+  BookOpen,
+  ClipboardList,
+  Compass,
+  Layers,
+  MessageSquareText,
+  Target,
+  Terminal,
+  TrendingUp,
+  Trophy,
+  Video,
+} from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { TranslatedText } from "@/components/i18n/translated-text";
 
-export function StudentCourseOverviewView({ href = (path: string) => path,  course, hasFullContentAccess, highlights, chapterOutline }: { href?: (path: string) => string;
+export function StudentCourseOverviewView({ href = (path: string) => path, course, hasFullContentAccess, highlights, chapterOutline }: { href?: (path: string) => string;
   course: { id: string; title: string; description: string | null; pricing?: CoursePricing };
   hasFullContentAccess: boolean;
   highlights: ReactNode;
   chapterOutline: ReactNode;
 }) {
+  const mobileQuickLinks = [
+    {
+      id: "video",
+      href: href(`/courses/${course.id}/video`),
+      icon: Video,
+      label: <TranslatedText namespace="student.navigation" messageKey="video" />,
+    },
+    {
+      id: "flashcard",
+      href: href(`/courses/${course.id}/flashcard`),
+      icon: Layers,
+      label: <TranslatedText namespace="student.navigation" messageKey="flashcard" />,
+    },
+    {
+      id: "tryout",
+      href: href(`/courses/${course.id}/tryout`),
+      icon: ClipboardList,
+      label: <TranslatedText namespace="student.navigation" messageKey="tryout" />,
+    },
+    {
+      id: "discussions",
+      href: href(`/courses/${course.id}/discussions`),
+      icon: MessageSquareText,
+      label: <TranslatedText namespace="tutor.schedule" messageKey="discussion" />,
+    },
+    {
+      id: "path",
+      href: href(`/courses/${course.id}/path`),
+      icon: Compass,
+      label: <TranslatedText namespace="student.mobile" messageKey="studyPathShort" />,
+    },
+    {
+      id: "mastery",
+      href: href(`/courses/${course.id}/mastery`),
+      icon: Target,
+      label: <TranslatedText namespace="student.navigation" messageKey="mastery" />,
+    },
+    {
+      id: "progress",
+      href: href(`/courses/${course.id}/progress`),
+      icon: TrendingUp,
+      label: <TranslatedText namespace="student.navigation" messageKey="progress" />,
+    },
+    {
+      id: "leaderboard",
+      href: href(`/courses/${course.id}/leaderboard`),
+      icon: Trophy,
+      label: <TranslatedText namespace="student.navigation" messageKey="leaderboard" />,
+    },
+    {
+      id: "results",
+      href: href(`/courses/${course.id}/my-results`),
+      icon: Award,
+      label: <TranslatedText namespace="student.mobile" messageKey="examResultsShort" />,
+    },
+    {
+      id: "playground",
+      href: href(`/courses/${course.id}/playground`),
+      icon: Terminal,
+      label: "Playground",
+    },
+  ];
 
   return (
       <CoursePageShell title={course.title} description={course.description ?? ""} icon={BookOpen} maxWidth="7xl" hideMobileTitle>
@@ -34,12 +107,21 @@ export function StudentCourseOverviewView({ href = (path: string) => path,  cour
           {hasFullContentAccess && highlights}
           <div className="mb-6">{chapterOutline}</div>
           {hasFullContentAccess && (
-            <div className="mt-6 flex items-center justify-between border-t border-border/40 pt-4">
-              <Link href={href(`/courses/${course.id}/progress`)} className="inline-flex items-center gap-1.5 text-body-sm font-semibold text-brand-primary hover:underline">
-                <span><TranslatedText namespace="learning" messageKey="courseOverview.viewProgress" /></span>
-                <ArrowRight className="size-4" />
-              </Link>
-            </div>
+            <nav aria-label={course.title} className="grid grid-cols-2 gap-2.5 border-t border-border/60 pt-5 md:hidden">
+              {mobileQuickLinks.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className="flex min-h-12 items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5 text-body-sm font-medium text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
           )}
         </Reveal>
       </CoursePageShell>

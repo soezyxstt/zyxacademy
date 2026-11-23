@@ -8,6 +8,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { closeDialogsThen } from "@/hooks/use-dialog-history";
 import type { TutorCourseSummary } from "./tutor-nav-model";
 
 export interface TutorMobileCourseSheetProps {
@@ -59,8 +60,10 @@ export function TutorMobileCourseSheet({
                     key={course.courseId}
                     type="button"
                     onClick={() => {
-                      onOpenChange(false);
-                      onSelectCourse(course.courseId);
+                      closeDialogsThen(
+                        () => onOpenChange(false),
+                        () => onSelectCourse(course.courseId)
+                      );
                     }}
                     aria-current={isCurrent ? "page" : undefined}
                     className={cn(

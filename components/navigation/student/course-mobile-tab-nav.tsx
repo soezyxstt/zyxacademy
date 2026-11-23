@@ -1,7 +1,26 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type ElementType } from "react";
 import { usePathname } from "next/navigation";
+import {
+  Award,
+  BarChart3,
+  CalendarDays,
+  ClipboardCheck,
+  ClipboardList,
+  Compass,
+  FileText,
+  Layers,
+  LayoutDashboard,
+  ListChecks,
+  MessageSquareText,
+  Radio,
+  Target,
+  Terminal,
+  TrendingUp,
+  Trophy,
+  Video,
+} from "lucide-react";
 import { TabNav, type TabNavItem } from "@/components/ui/tabs";
 import { useMobileChrome } from "@/components/navigation/mobile-chrome-context";
 import { DiscussionCountBadge } from "@/components/discussions/discussion-count-badge";
@@ -14,6 +33,28 @@ import {
   isCourseTabActive,
   setActiveCourseContext,
 } from "./student-nav-model";
+
+const COURSE_TAB_ICONS: Record<string, ElementType> = {
+  summary: LayoutDashboard,
+  documents: FileText,
+  materials: FileText,
+  video: Video,
+  quiz: ListChecks,
+  discussions: MessageSquareText,
+  flashcard: Layers,
+  tryout: ClipboardList,
+  schedule: CalendarDays,
+  pkaSchedule: CalendarDays,
+  simulation: ClipboardCheck,
+  diagnosticReport: BarChart3,
+  playground: Terminal,
+  studyPath: Compass,
+  mastery: Target,
+  progress: TrendingUp,
+  leaderboard: Trophy,
+  examResults: Award,
+  live: Radio,
+};
 
 export interface CourseMobileTabNavProps {
   courseId: string;
@@ -81,18 +122,22 @@ export function CourseMobileTabNav({
       },
     });
 
-    return descriptors.map((tab) => ({
-      href: resolveHref ? resolveHref(tab.href) : tab.href,
-      label: tab.label,
-      active: isCourseTabActive(tab, pathname, courseId),
-      badge:
-        tab.hasDiscussionBadge && !demo ? (
-          <DiscussionCountBadge
-            courseId={courseId}
-            enabled={viewportMode === "mobile"}
-          />
-        ) : undefined,
-    }));
+    return descriptors.map((tab) => {
+      const Icon = COURSE_TAB_ICONS[tab.id];
+      return {
+        href: resolveHref ? resolveHref(tab.href) : tab.href,
+        label: tab.label,
+        icon: Icon ? <Icon className="size-3.5 shrink-0" aria-hidden="true" /> : undefined,
+        active: isCourseTabActive(tab, pathname, courseId),
+        badge:
+          tab.hasDiscussionBadge && !demo ? (
+            <DiscussionCountBadge
+              courseId={courseId}
+              enabled={viewportMode === "mobile"}
+            />
+          ) : undefined,
+      };
+    });
   }, [
     courseId,
     demo,

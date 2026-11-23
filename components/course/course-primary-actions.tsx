@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, ListChecks, CalendarRange } from "lucide-react";
+import { BookOpen, CalendarRange, ChevronRight, ListChecks } from "lucide-react";
 import type { CourseOverviewActionCard } from "@/types/course-learning";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
@@ -33,20 +33,21 @@ function ActionTile({ card, labels }: { card: CourseOverviewActionCard; labels: 
   return (
     <Link
       href={card.href}
-      className="group flex min-w-0 items-center gap-2 py-2.5 transition-colors @min-[36rem]/course-actions:px-2.5 @min-[36rem]/course-actions:first:pl-0 @min-[36rem]/course-actions:last:pr-0 hover:bg-muted/30 active:bg-muted/50"
+      className="group flex min-w-0 items-center gap-3 py-2.5 transition-colors @min-[36rem]/course-actions:gap-2 @min-[36rem]/course-actions:px-2.5 @min-[36rem]/course-actions:first:pl-0 @min-[36rem]/course-actions:last:pr-0 hover:bg-muted/30 active:bg-muted/50"
     >
-      <span className={cn("hidden size-7 shrink-0 items-center justify-center rounded-lg @min-[36rem]/course-actions:flex", colorClass)}>
-        <Icon className="size-3.5" aria-hidden="true" />
+      <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg @min-[36rem]/course-actions:size-7", colorClass)}>
+        <Icon className="size-4 @min-[36rem]/course-actions:size-3.5" aria-hidden="true" />
       </span>
       <div className="min-w-0 flex-1">
         <span className="sr-only">{card.tag}: {card.title}</span>
-        <div className="break-words font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors">
+        <div className="break-words font-heading text-body-sm font-semibold text-foreground transition-colors group-hover:text-brand-primary">
           {label}
         </div>
         <div className="break-words text-body-xs text-muted-foreground">
           {card.meta || card.actionLabel}
         </div>
       </div>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground/70 @min-[36rem]/course-actions:hidden" aria-hidden="true" />
     </Link>
   );
 }
