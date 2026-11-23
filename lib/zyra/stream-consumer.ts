@@ -23,6 +23,7 @@ export type ZyraStreamPart =
   | { type: "data-sources"; sources: ZyraSource[] }
   | { type: "data-canvas"; canvasSpec: CanvasSpec }
   | { type: "data-session"; sessionId: string }
+  | { type: "data-session-title"; sessionId: string; title: string }
   | { type: "data-history"; saved: boolean; message?: string }
   | { type: "data-response-language"; responseLanguage: ZyraResponseLanguage }
   | { type: "data-work-step"; data: ZyraWorkStepData }

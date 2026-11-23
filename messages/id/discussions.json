@@ -211,6 +211,7 @@
   "uploadError_unknown": "Gambar belum dapat diunggah. Coba lagi.",
   "ai_pending": "Permintaan Zyra sedang mengantre.",
   "ai_processing": "Zyra sedang menyiapkan jawaban.",
+  "ai_completed": "Zyra sudah menjawab.",
   "ai_failed": "Zyra belum dapat menjawab. Coba lagi nanti.",
   "ai_uncertain": "Hasil Zyra belum dapat dipastikan. Periksa kembali sebelum mengirim permintaan baru.",
   "ai_freeTextOnly": "Paket Free hanya mendukung pertanyaan teks.",

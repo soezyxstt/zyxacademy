@@ -1,6 +1,7 @@
 import { zyraLiveProgress } from "@/lib/zyra/live-progress";
 import { followupEvent, parseFollowupAnswer } from "@/lib/zyra/followups";
 import { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
+import { after } from "next/server";
 import { headers } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { auth } from "@/lib/auth";
@@ -9,6 +10,7 @@ import { resolveCourseAccess } from "@/lib/student/course-access";
 import { FREE_ALLOWANCE_IDEMPOTENCY_PREFIX } from "@/lib/usage-budget-service";
 import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 import { pythonHistoryReply } from "@/lib/coding/python-reply";
+import { generateZyraSessionTitle } from "@/lib/zyra/title-ai";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -282,17 +284,55 @@ export async function POST(req: Request) {
             }
           }
 
+          if (res.sessionId && normalizedQuestion && !res.failureCode && !res.budgetExhausted && !req.signal.aborted) {
+            const titleTask = generateZyraSessionTitle({
+              sessionId: res.sessionId,
+              studentId: userId,
+              courseId: normalizedCourseId,
+              question: normalizedQuestion,
+            }).catch(() => ({ updated: false as const }));
+            try {
+              after(() => titleTask.then(() => undefined));
+            } catch {
+              // Unit tests outside Next request scope do not provide an after() context.
+            }
+            let titleTimeout: ReturnType<typeof setTimeout> | undefined;
+            const quickTitle = await Promise.race([
+              titleTask,
+              new Promise<null>((resolve) => {
+                titleTimeout = setTimeout(() => resolve(null), 2500);
+              }),
+            ]).finally(() => {
+              if (titleTimeout !== undefined) clearTimeout(titleTimeout);
+            });
+            if (quickTitle?.updated && quickTitle.title && !req.signal.aborted) {
+              sendEvent({
+                type: "data-session-title",
+                sessionId: res.sessionId,
+                title: quickTitle.title,
+              });
+            }
+          }
+
           // 5. Complete stream
-          sendEvent("[DONE]");
-          controller.close();
+          if (!req.signal.aborted) {
+            sendEvent("[DONE]");
+            controller.close();
+          }
         } catch (err: unknown) {
-          const errMsg = publicZyraError(err, requestLanguage);
-          sendEvent({
-            type: "data-error",
-            data: { message: errMsg },
-          });
-          sendEvent("[DONE]");
-          controller.close();
+          if (!req.signal.aborted) {
+            try {
+              const errMsg = publicZyraError(err, requestLanguage);
+              sendEvent({
+                type: "data-error",
+                data: { message: errMsg },
+              });
+              sendEvent("[DONE]");
+              controller.close();
+            } catch {
+              // Stream controller already closed or aborted.
+            }
+          }
         }
       },
     });

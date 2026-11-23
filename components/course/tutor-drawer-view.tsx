@@ -323,19 +323,46 @@ function TutorDrawerContent({
     messageCount: number;
   }
   const [sessions, setSessions] = React.useState<ChatSessionSummary[]>([]);
+  const [sessionTitles, setSessionTitles] = React.useState<Record<string, string>>({});
   const [sessionsLoading, setSessionsLoading] = React.useState(false);
+  const titleRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionsRequestVersionRef = React.useRef(0);
+  const currentCourseIdRef = React.useRef(courseIdFromPath);
+  currentCourseIdRef.current = courseIdFromPath;
+  const streamedTitlesRef = React.useRef(new Map<string, string>());
+
+  React.useEffect(() => () => {
+    if (titleRefreshTimerRef.current) clearTimeout(titleRefreshTimerRef.current);
+  }, []);
 
   const loadSessions = React.useCallback(async () => {
     const courseId = courseIdFromPath;
     if (!courseId) return;
+    const requestVersion = ++sessionsRequestVersionRef.current;
     setSessionsLoading(true);
     try {
-      const list = demo ? [...fictionalHistory.current].map(([id, messages]) => ({ id, title: messages.find(message => message.role === "student")?.content ?? "Zyra", lastMessageAt: null, messageCount: messages.length })) : await listTutorSessionsAction(courseId);
+      const rawList = demo ? [...fictionalHistory.current].map(([id, messages]) => ({ id, title: messages.find(message => message.role === "student")?.content ?? "Zyra", lastMessageAt: null, messageCount: messages.length })) : await listTutorSessionsAction(courseId);
+      if (requestVersion !== sessionsRequestVersionRef.current || currentCourseIdRef.current !== courseId) return;
+      const list = rawList.map((item) => {
+        const streamedTitle = streamedTitlesRef.current.get(item.id);
+        return streamedTitle ? { ...item, title: streamedTitle } : item;
+      });
       setSessions(list);
+      setSessionTitles((prev) => {
+        const next = { ...prev };
+        for (const item of list) {
+          if (item.title && item.title !== "General Chat" && item.title !== "Percakapan") {
+            next[item.id] = item.title;
+          }
+        }
+        return next;
+      });
     } catch {
       // silent
     } finally {
-      setSessionsLoading(false);
+      if (requestVersion === sessionsRequestVersionRef.current) {
+        setSessionsLoading(false);
+      }
     }
   }, [courseIdFromPath, demo]);
 
@@ -373,6 +400,10 @@ function TutorDrawerContent({
 
   const invalidateConversationRequests = React.useCallback(() => {
     conversationEpochRef.current += 1;
+    if (titleRefreshTimerRef.current) {
+      clearTimeout(titleRefreshTimerRef.current);
+      titleRefreshTimerRef.current = null;
+    }
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
     setChatLoading(false);
@@ -508,8 +539,12 @@ function TutorDrawerContent({
     if (activeMode === "study-plan") {
       return t("tutorDrawer.studyPlanTitle");
     }
+    const storedTitle = sessionId ? sessionTitles[sessionId] : undefined;
+    if (storedTitle && storedTitle !== "General Chat" && storedTitle !== "Percakapan") {
+      return storedTitle;
+    }
     const currentSession = sessions.find((s) => s.id === sessionId);
-    if (currentSession?.title && currentSession.title !== "General Chat") {
+    if (currentSession?.title && currentSession.title !== "General Chat" && currentSession.title !== "Percakapan") {
       return currentSession.title;
     }
     const firstStudent = messages.find((m) => m.role === "student");
@@ -517,7 +552,7 @@ function TutorDrawerContent({
       return firstStudent.content;
     }
     return courseLabel || t("tutorDrawer.askZyra");
-  }, [activeMode, data, messages, courseLabel, sessions, sessionId, t]);
+  }, [activeMode, data, messages, courseLabel, sessions, sessionId, sessionTitles, t]);
 
   // Mobile body scroll lock
   React.useEffect(() => {
@@ -555,6 +590,9 @@ function TutorDrawerContent({
           hasStartedConversationRef.current = true;
           if (result.sessionId) {
             activateConversation(conversationKeyForSession(result.sessionId), { invalidate: false });
+            if (result.sessionTitle && result.sessionTitle !== "General Chat" && result.sessionTitle !== "Percakapan") {
+              setSessionTitles((prev) => ({ ...prev, [result.sessionId]: result.sessionTitle! }));
+            }
           }
           setSessionId(result.sessionId);
           if (result.messages.length > 0) {
@@ -995,6 +1033,7 @@ function TutorDrawerContent({
     let finalCanvasSpec: CanvasSpec | null = null;
     let hasError = false;
     let completed = false;
+    let receivedSessionTitle = false;
 
     setMessages((prev) => [
       ...prev,
@@ -1084,6 +1123,11 @@ function TutorDrawerContent({
             activateConversation(conversationKeyForSession(part.sessionId), { invalidate: false, preserveCurrentOverride: true });
             setSessionId(part.sessionId);
             void loadSessions();
+          } else if (part.type === "data-session-title" && part.sessionId && part.title) {
+            receivedSessionTitle = true;
+            streamedTitlesRef.current.set(part.sessionId, part.title);
+            setSessionTitles((prev) => ({ ...prev, [part.sessionId]: part.title }));
+            setSessions((prev) => prev.map((item) => item.id === part.sessionId ? { ...item, title: part.title } : item));
           } else if (part.type === "data-error" && part.data?.message) {
             hasError = true;
             accumulatedContent = t("tutorDrawer.responseError", { message: part.data.message });
@@ -1166,6 +1210,21 @@ function TutorDrawerContent({
         ? "This answer could not be saved. Copy anything you need before closing this conversation."
         : "Jawaban ini belum tersimpan. Salin bagian yang diperlukan sebelum menutup percakapan."));
     }
+
+    if (
+      !demo &&
+      !receivedSessionTitle &&
+      activeSid &&
+      completed &&
+      !hasError &&
+      requestConversationEpoch === conversationEpochRef.current
+    ) {
+      if (titleRefreshTimerRef.current) clearTimeout(titleRefreshTimerRef.current);
+      titleRefreshTimerRef.current = setTimeout(() => {
+        titleRefreshTimerRef.current = null;
+        void loadSessions();
+      }, 3500);
+    }
   };
 
   React.useEffect(() => {
@@ -1205,9 +1264,12 @@ function TutorDrawerContent({
     setChatLoading(true);
     setShowMenu(false);
     try {
-      const res = demo ? { sessionId: targetSessionId, messages: fictionalHistory.current.get(targetSessionId) ?? [] } : await loadTutorHistoryAction(courseId, targetSessionId);
+      const res = demo ? { sessionId: targetSessionId, sessionTitle: undefined, messages: fictionalHistory.current.get(targetSessionId) ?? [] } : await loadTutorHistoryAction(courseId, targetSessionId);
       if (loadEpoch !== conversationEpochRef.current) return;
       activateConversation(conversationKeyForSession(res.sessionId), { invalidate: false });
+      if (res.sessionTitle && res.sessionTitle !== "General Chat" && res.sessionTitle !== "Percakapan") {
+        setSessionTitles((prev) => ({ ...prev, [res.sessionId]: res.sessionTitle! }));
+      }
       setSessionId(res.sessionId);
       if (res.messages.length > 0) {
         setMessages(res.messages);

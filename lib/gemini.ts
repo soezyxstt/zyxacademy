@@ -189,8 +189,8 @@ async function prepareProviderThroughControlPlane(input: {
   if (getModelEntry(input.modelId).family === "chat-completions") {
     try { return await prepareCompatibleText(input); } catch (error) { throw new ProviderNotDispatchedError("compatible provider unavailable", error); }
   }
-  const key = geminiKeyPool.getKeyByProjectAlias(input.projectAlias);
-  if (!key) {
+  const firstKey = geminiKeyPool.getKeyByProjectAlias(input.projectAlias);
+  if (!firstKey) {
     throw new ProviderNotDispatchedError("selected provider project is not configured");
   }
 
@@ -199,11 +199,27 @@ async function prepareProviderThroughControlPlane(input: {
   const viaGateway = true;
   const deadlineMs = zyraLiveProgress.getStore() ? Math.max(30_000, entry.deadlineMs) : entry.deadlineMs;
   const headers = buildAiGatewayHeaders({ ...input, deadlineMs });
+  let key = firstKey;
   let client;
-  try {
-    client = await prepareGoogleGatewayClient(key.key, zyraRuntimeEnv, deadlineMs, headers, { modelId: input.modelId, preferByokAlias: key.byokAlias });
-  } catch (error) { throw new ProviderNotDispatchedError("selected provider alias is unavailable", error); }
+  let prepareError: unknown;
+  const candidateKeys = [
+    firstKey,
+    ...geminiKeyPool.getHealthyKeys().filter((candidate) => candidate.projectAlias === input.projectAlias && candidate.id !== firstKey.id),
+  ];
+  for (const candidate of candidateKeys) {
+    try {
+      const prepared = await prepareGoogleGatewayClient(candidate.key, zyraRuntimeEnv, deadlineMs, headers, { modelId: input.modelId, preferByokAlias: candidate.byokAlias });
+      if (prepared) {
+        key = candidate;
+        client = prepared;
+        break;
+      }
+    } catch (error) {
+      prepareError = error;
+    }
+  }
   if (!client) {
+    if (prepareError) throw new ProviderNotDispatchedError("selected provider alias is unavailable", prepareError);
     throw new ProviderNotDispatchedError("selected provider client is unavailable");
   }
 

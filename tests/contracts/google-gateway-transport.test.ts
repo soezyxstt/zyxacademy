@@ -164,3 +164,24 @@ for (const method of ["generateContent", "generateContentStream"] as const) {
     } finally { fetchSpy.mockRestore(); }
   });
 }
+
+test("embedContent falls back to ?key= when preferByokAlias is in cooldown", async () => {
+  resetGeminiByokCacheForTests();
+  const { withGatewayAlias } = await import("@/lib/ai/provider/alias-health");
+  const baseUrl = env.CF_AI_GATEWAY_URL + "/google-ai-studio";
+  for (let i = 0; i < 3; i++) {
+    await withGatewayAlias(env, baseUrl, "gemini_1", async () => false, value => value);
+  }
+  const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({ embeddings: [{ values: [0.1, 0.2] }] }));
+  try {
+    const client = googleGatewayClient("fallback-embed-key", env, 15000, {}, { preferByokAlias: "gemini_1" });
+    await client.models.embedContent({ model: "gemini-embedding-2", contents: "test" });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const req = new Request(fetchSpy.mock.calls[0][0], fetchSpy.mock.calls[0][1]);
+    expect(req.headers.has("cf-aig-byok-alias")).toBe(false);
+    expect(new URL(req.url).searchParams.get("key")).toBe("fallback-embed-key");
+  } finally {
+    fetchSpy.mockRestore();
+    resetGeminiByokCacheForTests();
+  }
+});

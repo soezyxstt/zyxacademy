@@ -16,7 +16,7 @@ import { eq, and, asc, desc, gt, inArray, isNull, or } from "drizzle-orm";
 import { createHash, randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
 import { askTutorRag, type TutorPageContext } from "@/lib/tutor-rag";
-import { getOrCreateChatSession } from "@/lib/zyra/zyra-context-builder";
+import { createChatSession, getOrCreateChatSession } from "@/lib/zyra/zyra-context-builder";
 import { getRecentSessions } from "@/lib/zyra/analytics-queries";
 import { isFreeChapterScoped } from "@/lib/course-utils";
 import { resolveCourseAccess, type CourseAccessResult } from "@/lib/student/course-access";
@@ -96,6 +96,7 @@ async function requireOwnedChatSession(
   courseId: string,
   requestedSessionId: string | null | undefined,
   title: string,
+  options?: { createNewWhenLatestNonEmpty?: boolean },
 ): Promise<string> {
   const sessionId = typeof requestedSessionId === "string" ? requestedSessionId.trim() : "";
   if (sessionId) {
@@ -110,6 +111,34 @@ async function requireOwnedChatSession(
       .limit(1);
     if (!session) throw new Error(CHAT_SESSION_ACCESS_DENIED);
     return session.id;
+  }
+  if (options?.createNewWhenLatestNonEmpty) {
+    const [latest] = await db
+      .select({ id: chatSessions.id })
+      .from(chatSessions)
+      .where(and(
+        eq(chatSessions.studentId, userId),
+        eq(chatSessions.courseId, courseId),
+      ))
+      .orderBy(desc(chatSessions.lastMessageAt))
+      .limit(1);
+    if (latest) {
+      const [hasMessage] = await db
+        .select({ id: tutorChatMessages.id })
+        .from(tutorChatMessages)
+        .where(eq(tutorChatMessages.sessionId, latest.id))
+        .limit(1);
+      if (hasMessage) {
+        return createChatSession(userId, courseId, title || "General Chat");
+      }
+      if (title && title.trim()) {
+        await db
+          .update(chatSessions)
+          .set({ title: title.trim() })
+          .where(and(eq(chatSessions.id, latest.id), eq(chatSessions.studentId, userId), eq(chatSessions.courseId, courseId)));
+      }
+      return latest.id;
+    }
   }
   return getOrCreateChatSession(userId, courseId, title);
 }
@@ -448,7 +477,8 @@ export async function askTutorRagAction(
     user.id,
     courseId,
     sessionId,
-    normalizedQuestion.slice(0, 100),
+    normalizedQuestion.slice(0, 100) || "General Chat",
+    { createNewWhenLatestNonEmpty: true },
   );
   const startTime = Date.now();
   const requestedAttachmentIds = attachmentIds ?? [];
@@ -969,8 +999,19 @@ export async function loadTutorHistoryAction(
     attachmentsByMessage.set(attachment.messageId, current);
   }
 
+  const [sessionRow] = await db
+    .select({ title: chatSessions.title })
+    .from(chatSessions)
+    .where(and(
+      eq(chatSessions.id, sid),
+      eq(chatSessions.studentId, user.id),
+      eq(chatSessions.courseId, courseId),
+    ))
+    .limit(1);
+
   return {
     sessionId: sid,
+    sessionTitle: sessionRow?.title ?? undefined,
     messages: rows.map((r) => {
       const decoded = deserializeTutorMessageSources(r.sources);
       const content = r.role === "ai"

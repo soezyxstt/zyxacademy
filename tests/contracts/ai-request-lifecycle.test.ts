@@ -376,4 +376,29 @@ describe("Plan 005 request lifecycle", () => {
     expect(fixture.events).toContain("provider:gemini-3.6-flash");
     expect(fixture.events).toContain("provider:gemini-2.5-flash");
   });
+
+  it("falls back on confirmed gateway HTTP 400 missing BYOK credentials and HTTP 404", async () => {
+    for (const [label, error] of [
+      ["missing-byok-400", new ProviderAdapterError({ code: "PROVIDER_AUTHENTICATION", message: "missing byok", retryClassification: "authentication", httpStatus: 400 })],
+      ["model-404", new ProviderAdapterError({ code: "PROVIDER_ERROR", message: "not found", retryClassification: "unknown", httpStatus: 404 })],
+    ] as const) {
+      const fixture = dependencies({
+        resolveModelChain: async () => ["openai-gpt", "gemini-3.5-flash-lite"],
+        invokeProvider: async ({ modelId }) => {
+          fixture.events.push(`provider:${modelId}`);
+          if (modelId === "openai-gpt") throw error;
+          return result(modelId);
+        },
+      });
+      const output = await new RequestLifecycle(fixture.dependencies).execute({
+        userId: "user-1",
+        feature: "playground",
+        idempotencyKey: `fallback-${label}`,
+        parts: [{ type: "text", text: "Explain" }],
+      });
+      expect(output.modelId).toBe("gemini-3.5-flash-lite");
+      expect(fixture.events).toContain("provider:openai-gpt");
+      expect(fixture.events).toContain("provider:gemini-3.5-flash-lite");
+    }
+  });
 });

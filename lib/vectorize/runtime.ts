@@ -44,7 +44,13 @@ export async function getCanonicalContentV2EmbeddingAdapter(): Promise<Canonical
   if (process.env.MOCK_GEMINI === "true") return deterministicAdapter;
 
   const { geminiKeyPool } = await import("@/lib/gemini-keys");
-  const clients = geminiKeyPool.getAllKeys().map((key) =>
+  const healthy = geminiKeyPool.getHealthyKeys();
+  const healthyIds = new Set(healthy.map((key) => key.id));
+  const orderedKeys = [
+    ...healthy,
+    ...geminiKeyPool.getAllKeys().filter((key) => !healthyIds.has(key.id)),
+  ];
+  const clients = orderedKeys.map((key) =>
     createGoogleGenAiEmbeddingClient({
       projectId: key.id,
       client: key.client,

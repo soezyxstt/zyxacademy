@@ -120,8 +120,9 @@ function safeOutcomeCode(error: unknown): string {
 export function providerFailureAllowsFallback(error: unknown): boolean {
   if (!(error instanceof ProviderAdapterError)) return false;
   if (error.retryClassification === "malformed_response") return true;
+  if (error.code === "PROVIDER_AUTHENTICATION") return true;
   const status = error.httpStatus;
-  return status !== undefined && (status === 401 || status === 402 || status === 403 || status === 429 || status >= 500);
+  return status !== undefined && (status === 401 || status === 402 || status === 403 || status === 404 || status === 429 || status >= 500);
 }
 
 export function isConfirmedHttpFailure(error: unknown): boolean {

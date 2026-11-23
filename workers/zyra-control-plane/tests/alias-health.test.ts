@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ALIAS_COOLDOWN_MS, GatewayAliasLedger } from "../src/quota/alias-health";
+import { ALIAS_COOLDOWN_MS, FAILURE_WINDOW_MS, GatewayAliasLedger } from "../src/quota/alias-health";
 import { BunSqliteHarness } from "./sqlite-harness";
 
 test("three consecutive failures persist for five minutes and success resets the counter", () => {
@@ -39,5 +39,34 @@ test("existing day-long cooldowns expire five minutes after the original failure
   expect(ledger.status(alias).cooldownUntil).toBe(start + 300_000);
   now++;
   expect(ledger.record(alias, "recovered", true)).toEqual({ failures: 0, cooldownUntil: 0 });
+  sql.close();
+});
+
+test("sporadic failures decay after the failure window and manual reset clears cooldowns immediately", () => {
+  const sql = new BunSqliteHarness();
+  let now = 5_000;
+  const ledger = new GatewayAliasLedger(sql, () => now);
+  const aliasA = "e".repeat(64);
+  const aliasB = "f".repeat(64);
+
+  expect(ledger.record(aliasA, "err-1", false)).toEqual({ failures: 1, cooldownUntil: 0 });
+  expect(ledger.record(aliasA, "err-2", false)).toEqual({ failures: 2, cooldownUntil: 0 });
+  now += FAILURE_WINDOW_MS + 1;
+  expect(ledger.status(aliasA)).toEqual({ failures: 0, cooldownUntil: 0 });
+  expect(ledger.record(aliasA, "err-3-after-window", false)).toEqual({ failures: 1, cooldownUntil: 0 });
+
+  for (let i = 0; i < 3; i++) {
+    ledger.record(aliasA, `a-fail-${i}`, false);
+    ledger.record(aliasB, `b-fail-${i}`, false);
+  }
+  expect(ledger.status(aliasA).cooldownUntil).toBeGreaterThan(now);
+  expect(ledger.status(aliasB).cooldownUntil).toBeGreaterThan(now);
+
+  expect(ledger.reset(aliasA)).toEqual({ cleared: 1 });
+  expect(ledger.status(aliasA)).toEqual({ failures: 0, cooldownUntil: 0 });
+  expect(ledger.status(aliasB).cooldownUntil).toBeGreaterThan(now);
+
+  expect(ledger.reset()).toEqual({ cleared: 1 });
+  expect(ledger.status(aliasB)).toEqual({ failures: 0, cooldownUntil: 0 });
   sql.close();
 });
