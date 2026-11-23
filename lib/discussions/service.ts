@@ -21,7 +21,7 @@ import { getAccessibleDiscussionChannels, getDiscussionActor, getDiscussionChann
 import { getDiscussionRecipientAccess } from "./recipient-access";
 import * as discussionAccess from "./access";
 import { discussionMentionTokens, canDeleteDiscussionMessage, canEditDiscussionMessage, canForwardDiscussion, deriveInitialDiscussionTitle, DISCUSSION_REACTIONS, validDiscussionId, validDiscussionReplyType, validDiscussionText } from "./policy";
-import type { CreateDiscussionThread, DiscussionActor, DiscussionAuthorProfile, DiscussionStudentProfile, DiscussionChannel, DiscussionChannelKind, DiscussionMessage, DiscussionPage, DiscussionReport, DiscussionRole, DiscussionSubmit, DiscussionThread, ReplyToDiscussion } from "./contracts";
+import type { CreateDiscussionThread, DiscussionActor, DiscussionAuthorProfile, DiscussionStudentProfile, DiscussionChannel, DiscussionChannelMetadata, DiscussionChannelKind, DiscussionMessage, DiscussionPage, DiscussionReport, DiscussionRole, DiscussionSubmit, DiscussionThread, ReplyToDiscussion } from "./contracts";
 
 const PAGE_SIZE = 30;
 const unavailable = () => new Error("DISCUSSION_UNAVAILABLE");
@@ -196,7 +196,7 @@ async function repairChannelAliases(actor: DiscussionActor, rows: ChannelRow[]) 
  }
 }
 
-export async function listChannels(actorId: string, channelIds?: string[]): Promise<DiscussionChannel[]> {
+export async function listChannelMetadata(actorId: string, channelIds?: string[]): Promise<DiscussionChannelMetadata[]> {
  const actor = await getDiscussionActor(actorId);
  if (channelIds !== undefined && (!Array.isArray(channelIds) || channelIds.length > 31 || !channelIds.every(validDiscussionId))) throw invalid();
  if (channelIds === undefined) await ensureVisibleChannels(actor);
@@ -212,14 +212,33 @@ export async function listChannels(actorId: string, channelIds?: string[]): Prom
   return checked && checked.kind === channel.kind && checked.requesterId === channel.requesterId
    && checked.courseId === channel.courseId && checked.legacyCourseId === channel.legacyCourseId;
  });
- const counts = await getDiscussionCounts(actorId, { channelIds: visible.map(({ channel }) => channel.id) });
- return visible.map(({ channel, muted }): DiscussionChannel => ({
-  id: channel.id, kind: channel.kind, title: channel.title, courseId: channel.courseId ?? channel.legacyCourseId,
-  muted: muted ?? false, unreadThreads: counts.channels?.[channel.id]?.unreadThreads ?? 0, activeThreads: counts.channels?.[channel.id]?.activeThreads ?? 0,
+ return visible.map(({ channel, muted }) => ({
+  id: channel.id, kind: channel.kind, title: channel.title, courseId: channel.courseId ?? channel.legacyCourseId, muted: muted ?? false,
  }));
 }
 
-export async function listChannelsPage(actorId: string, options: { cursor?: string; search?: string; courseId?: string; kind?: DiscussionChannelKind; kinds?: DiscussionChannelKind[]; limit?: number } = {}): Promise<DiscussionPage<DiscussionChannel>> {
+export async function listChannels(actorId: string, channelIds?: string[]): Promise<DiscussionChannel[]> {
+ const visible = await listChannelMetadata(actorId, channelIds);
+ if (!visible.length) return [];
+ const counts = await getDiscussionCounts(actorId, { channelIds: visible.map(channel => channel.id) });
+ return visible.map(channel => ({
+  ...channel, unreadThreads: counts.channels?.[channel.id]?.unreadThreads ?? 0, activeThreads: counts.channels?.[channel.id]?.activeThreads ?? 0,
+ }));
+}
+
+type ChannelPageOptions = { cursor?: string; search?: string; courseId?: string; kind?: DiscussionChannelKind; kinds?: DiscussionChannelKind[]; limit?: number };
+
+export async function listChannelsPage(actorId: string, options: ChannelPageOptions = {}) {
+ return listChannelPage(actorId, options, listChannels);
+}
+
+export async function listChannelMetadataPage(actorId: string, options: ChannelPageOptions = {}) {
+ return listChannelPage(actorId, options, listChannelMetadata);
+}
+
+async function listChannelPage<T extends DiscussionChannelMetadata>(
+ actorId: string, options: ChannelPageOptions, loadChannels: (id: string, channelIds: string[]) => Promise<T[]>,
+): Promise<DiscussionPage<T>> {
  const actor = await getDiscussionActor(actorId);
  const isAllowedKind = (kind: DiscussionChannelKind): kind is "global" | "course" => kind === "global" || kind === "course";
  if (options.courseId !== undefined) checkId(options.courseId);
@@ -248,7 +267,8 @@ export async function listChannelsPage(actorId: string, options: { cursor?: stri
   if (courseEntry) {
    const entry = courseEntry;
    try {
-    await channelForScope(actor, "course", entry.canonicalCourseId, entry.legacyCourseId, entry.courseTitle ?? "Mata kuliah");
+    const channel = await channelForScope(actor, "course", entry.canonicalCourseId, entry.legacyCourseId, entry.courseTitle ?? "Mata kuliah");
+    if (options.kind === "course") return { items: await loadChannels(actor.id, [channel.id]), nextCursor: null };
    } catch (error) {
     if (!(error instanceof Error && error.message === "DISCUSSION_UNAVAILABLE")) throw error;
    }
@@ -295,7 +315,7 @@ export async function listChannelsPage(actorId: string, options: { cursor?: stri
  const page = authorized.slice(0, limit), last = page.at(-1);
  const batches: string[][] = [];
  for (let offset = 0; offset < page.length; offset += 31) batches.push(page.slice(offset, offset + 31).map(row => row.id));
- const items = (await Promise.all(batches.map(ids => listChannels(actor.id, ids)))).flat();
+ const items = (await Promise.all(batches.map(ids => loadChannels(actor.id, ids)))).flat();
  return { items, nextCursor: authorized.length > limit && last ? encodeCursor({ kind: last.kind, title: last.title, id: last.id }) : null };
 }
 
@@ -384,18 +404,20 @@ export async function listThreads(actorId: string, channelId: string, cursor?: s
 }
 
 export async function listThreadsAcrossChannels(actorId: string, options: { channelId?: string; search?: string; cursor?: string; status?: DiscussionThread["status"] } = {}): Promise<DiscussionPage<DiscussionThread>> {
- const actor = await getDiscussionActor(actorId);
  if (options.channelId !== undefined) checkId(options.channelId);
  if (options.search !== undefined && (typeof options.search !== "string" || options.search.length > 160 || options.search.includes("\0"))) throw invalid();
  if (options.status !== undefined && options.status !== "open" && options.status !== "resolved") throw invalid();
+ let actor: DiscussionActor;
  let channelFilter;
  if (options.channelId) {
+  actor = await getDiscussionActor(actorId);
   const channels = await getAccessibleDiscussionChannels(actor.id, { channelIds: [options.channelId] });
   if (!channels.length) throw unavailable();
   channelFilter = eq(discussionThreads.channelId, options.channelId);
  } else {
-  const { predicate } = await getDiscussionChannelVisibility(actor.id, { discoveryScope: discussionAccess.discussionChannelsWithThreads() });
-  channelFilter = inArray(discussionThreads.channelId, db.select({ id: discussionChannels.id }).from(discussionChannels).where(predicate));
+  const visibility = await getDiscussionChannelVisibility(actorId, { discoveryScope: discussionAccess.discussionChannelsWithThreads() });
+  actor = visibility.actor;
+  channelFilter = inArray(discussionThreads.channelId, db.select({ id: discussionChannels.id }).from(discussionChannels).where(visibility.predicate));
  }
  const after = pageCursor(options.cursor);
  const rawSearch = options.search?.trim() ?? "";
@@ -407,12 +429,9 @@ export async function listThreadsAcrossChannels(actorId: string, options: { chan
    ? or(
     sql`${discussionThreads.title} ilike ${`%${search}%`} escape '\\'`,
     sql`to_tsvector('simple', ${discussionThreads.title}) @@ to_tsquery('simple', ${prefixTsQuery})`,
-    sql`exists (
-     select 1 from ${discussionMessages}
-     where ${discussionMessages.threadId} = ${discussionThreads.id}
-      and ${discussionMessages.deletedAt} is null
-      and to_tsvector('simple', ${discussionMessages.body}) @@ to_tsquery('simple', ${prefixTsQuery})
-    )`
+    inArray(discussionThreads.id, db.select({ threadId: discussionMessages.threadId }).from(discussionMessages)
+     .where(and(isNull(discussionMessages.deletedAt),
+      sql`to_tsvector('simple', ${discussionMessages.body}) @@ to_tsquery('simple', ${prefixTsQuery})`)))
    )
    : sql`${discussionThreads.title} ilike ${`%${search}%`} escape '\\'`
   : undefined;
@@ -443,8 +462,7 @@ function safeAiStatusReason(code: string | null, status: string) {
 }
 
 export async function getThread(actorId: string, threadId: string, cursor?: string, targetMessageId?: string): Promise<{ thread: DiscussionThread; messages: DiscussionPage<DiscussionMessage> & { observationReceipt: string; startCursor?: string; previousCursor?: string }; readThroughSeq: number; aiStatuses: Array<{ messageId: string; status: string; reason: string | null }> }> {
- const actor = await getDiscussionActor(actorId);
- const { channel, thread } = await requireDiscussionThreadAccess(actor, threadId);
+ const { actor, channel, thread } = await requireDiscussionThreadAccess({ id: actorId }, threadId);
  if (targetMessageId !== undefined) checkId(targetMessageId);
  if (cursor && targetMessageId) throw invalid();
  const [target] = targetMessageId ? await db.select({ seq: discussionMessages.seq }).from(discussionMessages)
