@@ -27,7 +27,7 @@ export type OpsRegisteredOperation = {
   invoke: (input: Record<string, unknown>) => Promise<CallToolResult>;
 };
 
-export function browserOperations(identity: OpsBrowserIdentity) {
+export function browserOperations(identity: OpsBrowserIdentity, beforeMutation?: McpPrincipal["beforeMutation"]) {
   const tools = new Map<string, OpsRegisteredOperation>();
   const registrar = {
     registerResource() { /* Embedded MCP resources have no browser chat operation. */ },
@@ -72,6 +72,7 @@ export function browserOperations(identity: OpsBrowserIdentity) {
     userId: identity.actorId,
     sessionId: identity.sessionId,
     authMethod: "session",
+    beforeMutation,
     scopes: [...MCP_AUTHORING_SCOPES, ...ADMIN_MCP_SCOPES.filter(scope => !excludedScopes.has(scope))],
   };
   registerAuthoringMcpTools(server, principal);

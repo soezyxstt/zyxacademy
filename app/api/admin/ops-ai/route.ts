@@ -17,6 +17,7 @@ const chatRequest = z.object({
   context: z.object({
     currentPath: z.string().max(512).regex(/^\/admin(?:\/[\w%./-]*)?$/).optional(),
     mode: z.enum(["ask", "edit"]).default("edit"),
+    queryParams: z.object({ tab: z.string().regex(/^[\w-]{1,80}$/).optional() }).optional(),
   }).default({ mode: "edit" }),
   chatId: z.string().regex(/^[\w-]{1,100}$/).optional(),
   grantIds: z.array(z.string().regex(/^prop-[a-f0-9-]{36}$/)).max(8).default([]),
@@ -51,7 +52,11 @@ export async function POST(req: Request) {
       : undefined;
     return createOpsAiRuntimeResponse({
       messages,
-      context,
+      context: {
+        currentPath: context.currentPath ?? "/admin",
+        mode: context.mode,
+        ...(context.queryParams?.tab ? { queryParams: { tab: context.queryParams.tab } } : {}),
+      },
       browserChat,
       ...(browserChat ? { maxToolSteps: 8, maxConsecutiveToolCalls: 8 } : {}),
       abortSignal: req.signal,

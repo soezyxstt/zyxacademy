@@ -1,3 +1,4 @@
+import type { AdminTransaction } from "@/lib/admin-mcp/mutations";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { session as authSession } from "@/db/schema";
@@ -15,6 +16,7 @@ export type McpPrincipal = {
   authMethod: "session" | "oauth";
   clientId?: string;
   resource?: string;
+  beforeMutation?: (tx: AdminTransaction) => Promise<void>;
 };
 
 async function liveSession(userId: string, sessionId: string): Promise<boolean> {

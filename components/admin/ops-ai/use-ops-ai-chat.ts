@@ -58,7 +58,14 @@ export interface UseOpsAiChatReturn {
  * Consumes a ReadableStream of SSE events and yields typed OpsAiStreamPart items.
  * Replaces manual reader and string splitting in UI components.
  */
-export const consumeOpsAiStream = consumeZyraStream<OpsAiStreamPart>;
+export async function* consumeOpsAiStream(
+  body: ReadableStream<Uint8Array>,
+  signal?: AbortSignal,
+): AsyncGenerator<OpsAiStreamPart> {
+  for await (const part of consumeZyraStream<OpsAiStreamPart>(body, signal)) {
+    if (part.type !== "data-followups") yield part;
+  }
+}
 
 // ============================================================================
 // 3. useOpsAiChat Hook
@@ -132,9 +139,9 @@ export function useOpsAiChat({
         for (const message of [...messages, userMsg].reverse()) {
           if (message.role === "system") continue;
           const approved = message.role === "assistant" && chat
-            ? (message.proposals ?? []).filter(proposal => proposal.type === "admin_operation" && proposal.status === "executed").slice(-8).map(proposal => proposal.id)
+            ? (message.proposals ?? []).filter(proposal => proposal.type === "admin_operation").slice(-8).map(proposal => proposal.id)
             : [];
-          const reference = approved.length ? `\n\nID persetujuan selesai dalam chat ini: ${approved.join(", ")}` : "";
+          const reference = approved.length ? `\n\nID persetujuan dalam chat ini: ${approved.join(", ")}` : "";
           if (!message.content && !reference) continue;
           const content = message.content.slice(0, Math.max(0, OPS_AI_POLICY_BOUNDS.maxMessageCharLength - reference.length)) + reference;
           if (history.length >= OPS_AI_POLICY_BOUNDS.maxMessagesHistory || content.length > remaining) break;

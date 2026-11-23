@@ -25,6 +25,7 @@ interface ActionProposalCardProps {
   proposal: SupportedProposal;
   chatId?: string;
   disabled?: boolean;
+  onExecutionChange?: (pending: boolean) => boolean;
   onExecuted?: (proposalId: string, result: unknown, grantUntil?: number) => void;
 }
 
@@ -80,6 +81,7 @@ export function ActionProposalCard({
   chatId,
   disabled,
   onExecuted,
+  onExecutionChange,
 }: ActionProposalCardProps) {
   const [status, setStatus] = useState<string>(initialProposal.status);
   const [loading, setLoading] = useState(false);
@@ -123,6 +125,7 @@ export function ActionProposalCard({
 
   const handleExecute = async (choice: "once" | "chat") => {
     if (inFlight.current || disabled || (approval && !chatId)) return;
+    if (onExecutionChange?.(true) === false) return;
     inFlight.current = true;
     setSubmittedChoice(choice);
     setCanCheckResult(false);
@@ -149,7 +152,7 @@ export function ActionProposalCard({
       setStatus("executed");
       const resObj = (data.result && typeof data.result === "object") ? data.result : { message: "Aksi berhasil dieksekusi." };
       setExecutionResult(resObj);
-      toast.success("Aksi berhasil dieksekusi.");
+      if (!resObj.jobId) toast.success("Aksi berhasil dieksekusi.");
       onExecuted?.(initialProposal.id, resObj, typeof data.grantUntil === "number" ? data.grantUntil : undefined);
     } catch {
       setStatus("failed");
@@ -157,6 +160,7 @@ export function ActionProposalCard({
       setErrorMessage("Hasil aksi belum terverifikasi. Coba lagi dengan izin yang sama.");
     } finally {
       inFlight.current = false;
+      onExecutionChange?.(false);
       setLoading(false);
     }
   };

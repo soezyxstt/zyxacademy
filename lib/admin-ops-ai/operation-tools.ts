@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { tool, type Tool } from "ai";
 import { z } from "zod";
 import { readMcpChapterChoice, readMcpCourseChoice, readMcpRunToken, readMcpSourceFileKey } from "@/lib/authoring/mcp-workflows";
+import { AdminMcpError } from "@/lib/admin-mcp/mutations";
 import { mcpEnvironmentIdentity } from "@/lib/authoring/mcp-environment";
 import { hasChatOperationGrant, invokeApprovedOperation, readApprovedOperation, type OpsOperationPlan } from "./operation-approvals";
 import { opsGrantTarget } from "./operation-policy";
@@ -97,7 +98,16 @@ export function createBrowserOperationTools(chat: OpsBrowserChat, runId: string,
         if (options.abortSignal?.aborted) return { summary: "Permintaan dihentikan." };
         if (await hasChatOperationGrant(chat, operation, grantTarget)) {
           if (options.abortSignal?.aborted) return { summary: "Permintaan dihentikan." };
-          const result = await invokeApprovedOperation(entry, plan);
+          const guardedEntry = browserOperations(chat, async tx => {
+            if (options.abortSignal?.aborted || !await hasChatOperationGrant(chat, operation, grantTarget, tx)) {
+              throw new AdminMcpError("OPS_CHAT_GRANT_ENDED");
+            }
+          }).get(operation);
+          if (!guardedEntry) return { summary: "Operasi tidak tersedia di chat ini." };
+          const result = await invokeApprovedOperation(guardedEntry, plan);
+          if (result.structuredContent?.error === "OPS_CHAT_GRANT_ENDED") {
+            return { summary: "Izin chat telah berakhir. Siapkan persetujuan baru sebelum menjalankan perubahan." };
+          }
           if (result.isError || result.structuredContent?.ok !== true) {
             return { summary: "Aksi belum terverifikasi. Baca ulang target sebelum melanjutkan.", data: result.structuredContent, requestKey };
           }
@@ -106,9 +116,8 @@ export function createBrowserOperationTools(chat: OpsBrowserChat, runId: string,
 
         const preview = (value: unknown) => JSON.stringify(value, (key, field) => {
           if (/(?:token|credential|secret)s?$|^(?:courseKey|chapterKey|fileKey)$/i.test(key)) return undefined;
-          if ((typeof field === "string" && field.length > 2048) || (Array.isArray(field) && field.length > 30)) {
-            const hash = createHash("sha256").update(JSON.stringify(field)).digest("hex");
-            return { length: field.length, sha256: hash };
+          if (/base64$/i.test(key) && typeof field === "string" && field.length > 2048) {
+            return { length: field.length, sha256: createHash("sha256").update(field).digest("hex") };
           }
           return field;
         }, 2);

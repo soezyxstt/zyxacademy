@@ -3,7 +3,7 @@
 import { usePanelViewport } from "@/hooks/use-panel-viewport";
 import { useDialogHistory } from "@/hooks/use-dialog-history";
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   X,
   Loader2,
@@ -85,13 +85,26 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const pathname = usePathname();
+  const tab = useSearchParams()?.get("tab");
   const { messages, setMessages, input, setInput, isStreaming, stop, sendMessage } = useOpsAiChat({
     initialMessages,
-    context: { currentPath: pathname || "/admin", mode: "edit" },
+    context: {
+      currentPath: pathname || "/admin",
+      mode: "edit",
+      ...(tab && /^[\w-]{1,80}$/.test(tab) ? { queryParams: { tab } } : {}),
+    },
   });
   const [revoking, setRevoking] = useState(false);
+  const approvalPending = useRef(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const handleApprovalPending = (pending: boolean) => {
+    if (pending && approvalPending.current) return false;
+    approvalPending.current = pending;
+    setIsApproving(pending);
+    return true;
+  };
   const [grants, setGrants] = useState<Array<{ id: string; chatId: string; until: number }>>([]);
-  const activeGrants = grants.filter(grant => grant.chatId === activeSessionId && grant.until > Date.now());
+  const activeGrants = grants.filter(grant => grant.chatId === activeSessionId);
   const nextGrantExpiry = Math.min(...activeGrants.map(grant => grant.until));
   useEffect(() => {
     if (!Number.isFinite(nextGrantExpiry)) return;
@@ -374,6 +387,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
 
   // Handle creating a new session
   const handleCreateNewSession = () => {
+    if (approvalPending.current) return;
     stop();
     const newSession = createOpsAiSession(undefined, accountId);
     setSessions(loadOpsAiSessions(accountId));
@@ -386,6 +400,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
 
   // Handle switching active session
   const handleSwitchSession = (session: OpsAiSession) => {
+    if (approvalPending.current) return;
     stop();
     setActiveSessionId(session.id);
     saveActiveSessionId(session.id, accountId);
@@ -396,7 +411,8 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
 
   // Handle deleting a single session
   const handleDeleteSession = (e: React.MouseEvent, sessionId: string) => {
-    stop();
+    if (approvalPending.current) return;
+    if (activeSessionId === sessionId) stop();
     setGrants(current => current.filter(grant => grant.chatId !== sessionId));
     e.stopPropagation();
     const remaining = deleteOpsAiSession(sessionId, accountId);
@@ -419,6 +435,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
 
   // Handle clearing history of active session
   const handleClearActiveHistory = () => {
+    if (approvalPending.current) return;
     stop();
     setGrants(current => current.filter(grant => grant.chatId !== activeSessionId));
     setMessages([]);
@@ -433,6 +450,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
 
   // Handle clearing all sessions completely
   const handleClearAllSessions = () => {
+    if (approvalPending.current) return;
     stop();
     setGrants([]);
     clearAllOpsAiSessions(accountId);
@@ -464,7 +482,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
 
   const handleSendMessage = (textToSend?: string) => {
     const query = (textToSend ?? input).trim();
-    if (!query || isStreaming || revoking || query.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength) return;
+    if (!query || isStreaming || approvalPending.current || revoking || query.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength) return;
     let chatId = activeSessionId;
     if (!chatId) {
       const fresh = createOpsAiSession(undefined, accountId);
@@ -472,7 +490,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
       setActiveSessionId(chatId);
       setSessions(loadOpsAiSessions(accountId));
     }
-    const grantIds = activeGrants.map(grant => grant.id);
+    const grantIds = activeGrants.filter(grant => grant.until > Date.now()).map(grant => grant.id);
     void sendMessage(query, { chatId, grantIds });
   };
 
@@ -588,7 +606,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                   <span>Daftar Sesi ({sessions.length})</span>
                   <button
                     type="button"
-                    onClick={handleCreateNewSession}
+                    onClick={handleCreateNewSession} disabled={isApproving}
                     aria-label="Percakapan baru"
                     className="text-primary hover:underline text-[11px] font-medium cursor-pointer"
                   >
@@ -614,7 +632,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                               : "hover:bg-muted text-foreground"
                           )}
                         >
-                          <button type="button" onClick={() => handleSwitchSession(sess)} aria-current={isActive ? "true" : undefined} className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-body-sm">
+                          <button type="button" onClick={() => handleSwitchSession(sess)} disabled={isApproving} aria-current={isActive ? "true" : undefined} className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-body-sm">
                             <MessageSquare className="size-3 shrink-0 opacity-70" aria-hidden="true" />
                             <span className="truncate">{sess.title || "Percakapan baru"}</span>
                           </button>
@@ -625,7 +643,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                             </span>
                             <button
                               type="button"
-                              onClick={(e) => handleDeleteSession(e, sess.id)}
+                              onClick={(e) => handleDeleteSession(e, sess.id)} disabled={isApproving}
                               aria-label={`Hapus sesi ${sess.title}`}
                               className="size-6 inline-flex items-center justify-center text-muted-foreground hover:text-destructive rounded-sm"
                             >
@@ -642,7 +660,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                   <div className="pt-1 border-t border-border/50 flex justify-between px-1">
                     <button
                       type="button"
-                      onClick={handleClearAllSessions}
+                      onClick={handleClearAllSessions} disabled={isApproving}
                       className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer"
                     >
                       Hapus Semua Sesi
@@ -650,7 +668,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                     {messages.length > 0 && (
                       <button
                         type="button"
-                        onClick={handleClearActiveHistory}
+                        onClick={handleClearActiveHistory} disabled={isApproving}
                         aria-label="Bersihkan riwayat percakapan"
                         className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer"
                       >
@@ -668,7 +686,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
             {/* New Chat Button */}
             <button
               type="button"
-              onClick={handleCreateNewSession}
+              onClick={handleCreateNewSession} disabled={isApproving}
               aria-label="Percakapan baru"
               title="Percakapan baru"
               className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
@@ -807,7 +825,8 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                             key={prop.id}
                             proposal={prop}
                             chatId={activeSessionId ?? undefined}
-                            disabled={isStreaming}
+                            disabled={isStreaming || revoking || isApproving}
+                            onExecutionChange={handleApprovalPending}
                             onExecuted={(proposalId, result, grantUntil) => {
                               if (grantUntil && grantUntil > Date.now() && activeSessionId) {
                                 const chatId = activeSessionId;
@@ -877,7 +896,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
             value={input}
             onChange={setInput}
             onSubmit={() => handleSendMessage()}
-            disabled={isStreaming || revoking}
+            disabled={isStreaming || revoking || isApproving}
             placeholder="Tanyakan atau minta aksi admin"
             aria-label="Ketik pesan untuk Zyx Ops AI"
           />
@@ -886,7 +905,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
           )}
           <div className="flex items-center justify-end gap-2 pt-1">
             {activeGrants.length > 0 && (
-              <Button type="button" size="sm" variant="ghost" disabled={isStreaming || revoking} onClick={() => void handleRevokeGrants()}>
+              <Button type="button" size="sm" variant="ghost" disabled={isStreaming || revoking || isApproving} onClick={() => void handleRevokeGrants()}>
                 Akhiri izin chat
               </Button>
             )}
@@ -900,7 +919,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                 <TooltipContent>Hentikan respons</TooltipContent>
               </Tooltip></TooltipProvider>
             ) : (
-              <ZyraSendButton label="Kirim pesan" onClick={() => handleSendMessage()} disabled={revoking || !input.trim() || input.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength} />
+              <ZyraSendButton label="Kirim pesan" onClick={() => handleSendMessage()} disabled={revoking || isApproving || !input.trim() || input.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength} />
             )}
           </div>
         </ZyraChatComposer>

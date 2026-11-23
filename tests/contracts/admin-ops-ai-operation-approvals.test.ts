@@ -167,6 +167,14 @@ test("authoring uses MCP choices and playbooks, then continues from a chat-scope
   expect(await confirmAdminOperation(chat, uncertain.proposal!.id, chat.chatId, "once")).toMatchObject({ success: false, retryable: false });
 });
 
+test("approval previews retain every quiz question ID", async () => {
+  const questionIds = Array.from({ length: 31 }, (_, index) => `question-${index + 1}`);
+  const prepared = await useOperation("quiz.set_questions", { quizId: "quiz-preview", questionIds });
+  const serialized = JSON.stringify(prepared);
+  expect(prepared.proposal?.approval).toBe("once");
+  for (const id of questionIds) expect(serialized).toContain(id);
+});
+
 test("obsolete revisions cannot commit and a chat grant cannot survive session revocation", async () => {
   const previous = await preset("preset-b");
   const prepare = (name: string) => useOperation("forms.presets.update", { id: "preset-b", expectedRevision: previous.revision, name, questions });

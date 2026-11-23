@@ -2,6 +2,7 @@ import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { zyraProposals } from "@/db/schema";
+import type { AdminTransaction } from "@/lib/admin-mcp/mutations";
 import { affectedRows } from "@/lib/mutation-result";
 import { resolveMcpAdmin } from "@/lib/authoring/mcp-auth";
 import { mcpEnvironmentIdentity } from "@/lib/authoring/mcp-environment";
@@ -41,9 +42,10 @@ export async function hasChatOperationGrant(
   chat: OpsBrowserIdentity & { chatId: string; grantIds: string[] },
   operation: string,
   target: string | undefined,
+  transaction?: AdminTransaction,
 ) {
   if (!target || !chat.grantIds.length) return false;
-  const rows = await db.select({ scope: zyraProposals.scope, reversibility: zyraProposals.reversibility })
+  const query = (transaction ?? db).select({ scope: zyraProposals.scope, reversibility: zyraProposals.reversibility, confirmedAt: zyraProposals.confirmedAt })
     .from(zyraProposals)
     .where(and(
       inArray(zyraProposals.id, chat.grantIds),
@@ -52,9 +54,11 @@ export async function hasChatOperationGrant(
       eq(zyraProposals.status, "applied"),
       gt(zyraProposals.confirmedAt, new Date(Date.now() - CHAT_GRANT_MS)),
     ));
+  const rows = await (transaction ? query.for("share") : query);
   return rows.some(row => {
     const plan = storedPlan(row.scope);
-    return row.reversibility.approval === "chat" && plan
+    return row.reversibility.approval === "chat" && row.confirmedAt
+      && row.confirmedAt.getTime() + CHAT_GRANT_MS > Date.now() && plan
       && plan.sessionId === chat.sessionId && plan.chatId === chat.chatId
       && plan.operation === operation && plan.grantTarget === target
       && sameEnvironment(plan);
@@ -169,9 +173,20 @@ export async function confirmAdminOperation(
     }
     return conflict("Hasil aksi belum terverifikasi. Periksa kembali persetujuan atau target dengan detail yang sama.", response.structuredContent?.retryable === true);
   }
-  const data = response.structuredContent.data;
-  const target = data && typeof data === "object" && "id" in data && typeof data.id === "string" ? data.id : undefined;
-  const result = { message: "Aksi selesai.", ...(target ? { target } : {}) };
+  const envelope = response.structuredContent;
+  const payload = envelope.data ?? envelope.result ?? envelope;
+  const data = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+  const target = typeof data.id === "string" ? data.id : undefined;
+  const jobId = typeof data.jobId === "string" ? data.jobId : undefined;
+  const status = typeof data.status === "string" ? data.status : undefined;
+  const awaitingJob = status !== undefined && ["pending", "queued", "running", "processing"].includes(status);
+  const unsuccessfulJob = status !== undefined && ["failed", "cancelled", "unknown"].includes(status);
+  const message = awaitingJob
+    ? `Job sedang diproses${jobId ? ` (${jobId})` : ""}.`
+    : unsuccessfulJob
+      ? `Hasil job perlu diperiksa${jobId ? ` (${jobId})` : ""}.`
+      : "Aksi selesai.";
+  const result = { message, ...(target ? { target } : {}), ...(jobId ? { jobId } : {}) };
   await db.update(zyraProposals).set({
     status: "applied",
     appliedAt: new Date(),
