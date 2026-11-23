@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from deploy_cloud_run_staging import (
     REQUIRED_SECRET_KEYS, REVISION, RUNTIME_ACCOUNT, STAGING, change_traffic,
-    prepare, public_config, traffic, validate_template,
+    IMAGE, prepare, public_config, pushed_image, traffic, validate_template,
 )
 
 
@@ -47,6 +47,15 @@ def spec():
 
 
 class CloudRunStagingTest(unittest.TestCase):
+    def test_push_digest_requires_one_registry_receipt_for_the_exact_release_tag(self):
+        digest = "sha256:" + "a" * 64
+        receipt = f"release-123: digest: {digest} size: 2629"
+        image = f"{IMAGE}:release-123"
+        self.assertEqual(pushed_image(image, "existing layer\n" + receipt), f"{IMAGE}@{digest}")
+        for invalid in (receipt.replace("release-123", "other"), receipt + "\n" + receipt, ""):
+            with self.assertRaisesRegex(ValueError, "exactly one digest"):
+                pushed_image(image, invalid)
+
     def test_missing_python_ticket_key_blocks_deployment(self):
         candidate = spec()
         entries = candidate["containers"][0]["env"]
