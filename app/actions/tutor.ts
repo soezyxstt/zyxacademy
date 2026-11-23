@@ -131,6 +131,13 @@ async function requireOwnedChatSession(
       if (hasMessage) {
         return createChatSession(userId, courseId, title || "General Chat");
       }
+      if (title && title.trim()) {
+        await db
+          .update(chatSessions)
+          .set({ title: title.trim() })
+          .where(and(eq(chatSessions.id, latest.id), eq(chatSessions.studentId, userId), eq(chatSessions.courseId, courseId)));
+      }
+      return latest.id;
     }
   }
   return getOrCreateChatSession(userId, courseId, title);

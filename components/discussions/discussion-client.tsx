@@ -391,7 +391,12 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     const refresh = async () => {
       if (!cancelled && document.visibilityState === "visible" && currentThread.current === selectedThread) {
         try { await refreshThreadPage(selectedThread, messagePagesRef.current.at(-1)?.cursor, { refreshMetadata: false }); }
-        catch { if (!cancelled) setLiveError(true); }
+        catch {
+          if (!cancelled) {
+            setLiveError(true);
+            refreshChannelMetadata();
+          }
+        }
       }
     };
     const tick = () => {
@@ -404,7 +409,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     window.addEventListener("focus", focus);
     tick();
     return () => { cancelled = true; clearTimeout(timer); window.removeEventListener("focus", focus); };
-  }, [selectedThread, activeTab, threadState, refreshThreadPage, hasActiveZyraRequest]);
+  }, [selectedThread, activeTab, threadState, refreshThreadPage, refreshChannelMetadata, hasActiveZyraRequest]);
 
   useEffect(() => {
     if (!channelsReady || listState !== "ready") return;

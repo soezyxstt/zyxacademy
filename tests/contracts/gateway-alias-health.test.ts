@@ -85,9 +85,15 @@ test("legacy 24-hour cooldowns returned by an older control plane normalize to t
   const configured = { ...env, ZYRA_CONTROL_PLANE_URL: "https://control.fixture", ZYRA_CONTROL_PLANE_TOKEN: "fixture" };
   const now = Date.now();
   const legacyCooldownMs = 24 * 60 * 60_000;
+  // Fresh 5-minute cooldown with positive worker clock skew (+30s) must stay active
+  const skewedFresh = now + 5 * 60_000 + 30_000;
+  const healthSpy = spyOn(ControlPlaneClient.prototype, "aliasHealth").mockResolvedValue({ failures: 3, cooldownUntil: skewedFresh });
+  await expect(withGatewayAlias(configured, "openai", "openai_skewed_fresh", async () => "ok", () => true))
+    .rejects.toBeInstanceOf(GatewayAliasCooldownError);
+
   // Started 2 minutes ago under legacy 24h TTL -> still within 5-minute cooldown
   const recentLegacy = now - 2 * 60_000 + legacyCooldownMs;
-  const healthSpy = spyOn(ControlPlaneClient.prototype, "aliasHealth").mockResolvedValue({ failures: 3, cooldownUntil: recentLegacy });
+  healthSpy.mockResolvedValue({ failures: 3, cooldownUntil: recentLegacy });
   await expect(withGatewayAlias(configured, "openai", "openai_legacy_recent", async () => "ok", () => true))
     .rejects.toBeInstanceOf(GatewayAliasCooldownError);
 

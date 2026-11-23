@@ -37,7 +37,7 @@ export function isInitialZyraSessionTitle(
   if (PLACEHOLDER_TITLES.has(normalized.toLowerCase())) return true;
   if (question) {
     const rawQuestion = question.trim();
-    if (normalized === rawQuestion || normalized === rawQuestion.slice(0, 100)) {
+    if (normalized === rawQuestion || normalized === rawQuestion.slice(0, 100).trim()) {
       return true;
     }
   }

@@ -296,10 +296,15 @@ export async function POST(req: Request) {
             } catch {
               // Unit tests outside Next request scope do not provide an after() context.
             }
+            let titleTimeout: ReturnType<typeof setTimeout> | undefined;
             const quickTitle = await Promise.race([
               titleTask,
-              new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
-            ]);
+              new Promise<null>((resolve) => {
+                titleTimeout = setTimeout(() => resolve(null), 2500);
+              }),
+            ]).finally(() => {
+              if (titleTimeout !== undefined) clearTimeout(titleTimeout);
+            });
             if (quickTitle?.updated && quickTitle.title && !req.signal.aborted) {
               sendEvent({
                 type: "data-session-title",
@@ -310,16 +315,24 @@ export async function POST(req: Request) {
           }
 
           // 5. Complete stream
-          sendEvent("[DONE]");
-          controller.close();
+          if (!req.signal.aborted) {
+            sendEvent("[DONE]");
+            controller.close();
+          }
         } catch (err: unknown) {
-          const errMsg = publicZyraError(err, requestLanguage);
-          sendEvent({
-            type: "data-error",
-            data: { message: errMsg },
-          });
-          sendEvent("[DONE]");
-          controller.close();
+          if (!req.signal.aborted) {
+            try {
+              const errMsg = publicZyraError(err, requestLanguage);
+              sendEvent({
+                type: "data-error",
+                data: { message: errMsg },
+              });
+              sendEvent("[DONE]");
+              controller.close();
+            } catch {
+              // Stream controller already closed or aborted.
+            }
+          }
         }
       },
     });

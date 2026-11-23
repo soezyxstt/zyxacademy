@@ -7,6 +7,7 @@ const ALIAS_COOLDOWN_MS = 5 * 60_000;
 const FAILURE_WINDOW_MS = 10 * 60_000;
 const HEALTHY_CACHE_TTL_MS = 10_000;
 const LEGACY_COOLDOWN_MS = 24 * 60 * 60_000;
+const LEGACY_COOLDOWN_DETECT_MS = 60 * 60_000;
 type LocalAliasState = { failures: number; cooldownUntil: number; lastFailureAt?: number; checkedAt?: number };
 const local = new Map<string, LocalAliasState>();
 export function resetAliasHealthForTests() { local.clear(); }
@@ -20,7 +21,7 @@ function normalizeAliasHealth(state: LocalAliasState, now: number): LocalAliasSt
     }
     return { failures: state.failures, cooldownUntil: 0, ...(state.lastFailureAt != null ? { lastFailureAt: state.lastFailureAt } : {}) };
   }
-  const effectiveCooldownUntil = state.cooldownUntil - now > ALIAS_COOLDOWN_MS
+  const effectiveCooldownUntil = state.cooldownUntil - now > LEGACY_COOLDOWN_DETECT_MS
     ? state.cooldownUntil - LEGACY_COOLDOWN_MS + ALIAS_COOLDOWN_MS
     : state.cooldownUntil;
   return effectiveCooldownUntil > now
@@ -58,9 +59,16 @@ export async function assertGatewayAliasAvailable(env: Readonly<Record<string, s
   const control = env.ZYRA_CONTROL_PLANE_URL && env.ZYRA_CONTROL_PLANE_TOKEN
     ? new ControlPlaneClient({ baseUrl: env.ZYRA_CONTROL_PLANE_URL, token: env.ZYRA_CONTROL_PLANE_TOKEN }) : undefined;
   let state: LocalAliasState = cached ?? { failures: 0, cooldownUntil: 0 };
+  let verified = !control;
   // shortcut: without a reachable control plane, protection is process-local; configure it for shared cooldowns.
-  if (control) { try { state = await control.aliasHealth(id); } catch { /* Keep local protection if health storage is unreachable. */ } }
-  state = { ...normalizeAliasHealth(state, now), checkedAt: now };
+  if (control) {
+    try {
+      state = await control.aliasHealth(id);
+      verified = true;
+    } catch { /* Keep local protection if health storage is unreachable. */ }
+  }
+  const normalized = normalizeAliasHealth(state, now);
+  state = verified ? { ...normalized, checkedAt: now } : normalized;
   local.set(id, state);
   if (state.cooldownUntil > now) throw new GatewayAliasCooldownError();
 }

@@ -326,6 +326,10 @@ function TutorDrawerContent({
   const [sessionTitles, setSessionTitles] = React.useState<Record<string, string>>({});
   const [sessionsLoading, setSessionsLoading] = React.useState(false);
   const titleRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionsRequestVersionRef = React.useRef(0);
+  const currentCourseIdRef = React.useRef(courseIdFromPath);
+  currentCourseIdRef.current = courseIdFromPath;
+  const streamedTitlesRef = React.useRef(new Map<string, string>());
 
   React.useEffect(() => () => {
     if (titleRefreshTimerRef.current) clearTimeout(titleRefreshTimerRef.current);
@@ -334,9 +338,15 @@ function TutorDrawerContent({
   const loadSessions = React.useCallback(async () => {
     const courseId = courseIdFromPath;
     if (!courseId) return;
+    const requestVersion = ++sessionsRequestVersionRef.current;
     setSessionsLoading(true);
     try {
-      const list = demo ? [...fictionalHistory.current].map(([id, messages]) => ({ id, title: messages.find(message => message.role === "student")?.content ?? "Zyra", lastMessageAt: null, messageCount: messages.length })) : await listTutorSessionsAction(courseId);
+      const rawList = demo ? [...fictionalHistory.current].map(([id, messages]) => ({ id, title: messages.find(message => message.role === "student")?.content ?? "Zyra", lastMessageAt: null, messageCount: messages.length })) : await listTutorSessionsAction(courseId);
+      if (requestVersion !== sessionsRequestVersionRef.current || currentCourseIdRef.current !== courseId) return;
+      const list = rawList.map((item) => {
+        const streamedTitle = streamedTitlesRef.current.get(item.id);
+        return streamedTitle ? { ...item, title: streamedTitle } : item;
+      });
       setSessions(list);
       setSessionTitles((prev) => {
         const next = { ...prev };
@@ -350,7 +360,9 @@ function TutorDrawerContent({
     } catch {
       // silent
     } finally {
-      setSessionsLoading(false);
+      if (requestVersion === sessionsRequestVersionRef.current) {
+        setSessionsLoading(false);
+      }
     }
   }, [courseIdFromPath, demo]);
 
@@ -388,6 +400,10 @@ function TutorDrawerContent({
 
   const invalidateConversationRequests = React.useCallback(() => {
     conversationEpochRef.current += 1;
+    if (titleRefreshTimerRef.current) {
+      clearTimeout(titleRefreshTimerRef.current);
+      titleRefreshTimerRef.current = null;
+    }
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
     setChatLoading(false);
@@ -1109,6 +1125,7 @@ function TutorDrawerContent({
             void loadSessions();
           } else if (part.type === "data-session-title" && part.sessionId && part.title) {
             receivedSessionTitle = true;
+            streamedTitlesRef.current.set(part.sessionId, part.title);
             setSessionTitles((prev) => ({ ...prev, [part.sessionId]: part.title }));
             setSessions((prev) => prev.map((item) => item.id === part.sessionId ? { ...item, title: part.title } : item));
           } else if (part.type === "data-error" && part.data?.message) {
