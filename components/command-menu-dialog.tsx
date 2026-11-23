@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useRouter } from "nextjs-toploader/app";
 import { Command } from "cmdk";
-import * as Dialog from "@radix-ui/react-dialog";
+import { Dialog } from "radix-ui";
 import { Dialog as DialogRoot } from "@/components/ui/dialog";
 import { closeDialogsThen } from "@/hooks/use-dialog-history";
 import { closeMobileSidebar } from "@/lib/sidebar-overlay";
