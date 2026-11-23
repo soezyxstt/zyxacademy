@@ -18,6 +18,7 @@ export type ZyraResponseLanguage = "id" | "en";
 
 export type ZyraStreamPart =
   | { type: "text-delta"; textDelta: string }
+  | { type: "text-replace"; text: string }
   | { type: "chunk"; text: string }
   | { type: "data-followups"; followups: Followup[] }
   | { type: "data-sources"; sources: ZyraSource[] }

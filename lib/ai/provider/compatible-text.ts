@@ -1,4 +1,4 @@
-import { zyraLiveProgress } from "@/lib/zyra/live-progress";
+import { zyraLiveProgress, zyraLiveTextStream } from "@/lib/zyra/live-progress";
 import { readChatCompletion } from "./chat-stream";
 import { textProviderFeatureAllowed } from "../model-settings";
 import { modelDisplayName } from "./recent-models";
@@ -211,7 +211,11 @@ export async function prepareCompatibleText(input: ProviderGenerateRequest & Omi
       if (!response.ok) throw classifyProviderError({status: response.status}, input.modelId);
       let data: Awaited<ReturnType<typeof readChatCompletion>>;
       try {
-        data = await readChatCompletion(response, () => progress?.("receiving"));
+        const textStream = zyraLiveTextStream.getStore();
+        data = await readChatCompletion(response, (delta) => {
+          progress?.("receiving");
+          textStream?.(delta);
+        });
       } catch (streamError) {
         throw new ProviderAdapterError({
           code: "MALFORMED_RESPONSE",

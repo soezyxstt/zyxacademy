@@ -1,6 +1,6 @@
 import { EventSourceParserStream } from "eventsource-parser/stream";
 
-export async function readChatCompletion(response: Response, received: () => void) {
+export async function readChatCompletion(response: Response, received: (delta: string) => void) {
   if (!response.headers.get("content-type")?.includes("text/event-stream")) return response.json();
   if (!response.body) throw new Error("Missing provider stream");
   const events = response.body.pipeThrough(new TextDecoderStream()).pipeThrough(new EventSourceParserStream());
@@ -15,7 +15,7 @@ export async function readChatCompletion(response: Response, received: () => voi
       const choice = chunk.choices?.[0];
       if (typeof choice?.delta?.content === "string" && choice.delta.content) {
         content += choice.delta.content;
-        received();
+        received(choice.delta.content);
       }
       if (choice?.finish_reason) finishReason = choice.finish_reason;
       if (chunk.usage) usage = chunk.usage;

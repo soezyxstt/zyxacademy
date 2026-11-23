@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { VisualSpecSchema } from "@/lib/tutor/visual-contracts";
 import { CanvasSpecSchema } from "@/lib/zyra/canvas";
+import { FollowupSchema } from "@/lib/zyra/followups";
 import { ZyraImageResponseFieldsSchema } from "@/lib/zyra/images/contracts";
 
 export const PEDAGOGY_VERSION = "zyra-pedagogy-v3";
@@ -140,12 +141,14 @@ const AssessmentSafetySchema = z.object({
 }).strict();
 
 export const ZyraTeachingResponseSchema = z.object({
-  learningGoal: z.string().min(1).max(500),
-  observedFacts: z.array(z.string().min(1).max(500)).max(8),
-  diagnosisHypotheses: z.array(DiagnosisHypothesisSchema).max(4),
   selectedState: TeachingStateSchema,
   teachingMove: TeachingMoveSchema,
   hintLevel: HintLevelSchema,
+  learnerFacingText: z.string().min(1).max(5000),
+  followups: z.array(FollowupSchema).max(3).optional(),
+  learningGoal: z.string().min(1).max(500),
+  observedFacts: z.array(z.string().min(1).max(500)).max(8),
+  diagnosisHypotheses: z.array(DiagnosisHypothesisSchema).max(4),
   explanationBlocks: z.array(ExplanationBlockSchema).min(1).max(8),
   citations: z.array(CitationSchema).max(12),
   visualSpec: VisualSpecSchema.nullable().optional(),
@@ -156,7 +159,6 @@ export const ZyraTeachingResponseSchema = z.object({
   checkForUnderstanding: CheckForUnderstandingSchema.nullable(),
   nextAllowedAction: NextAllowedActionSchema,
   assessmentSafety: AssessmentSafetySchema,
-  learnerFacingText: z.string().min(1).max(5000),
 }).strict();
 export type ZyraTeachingResponse = z.infer<typeof ZyraTeachingResponseSchema>;
 

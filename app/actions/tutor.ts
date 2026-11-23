@@ -3,6 +3,7 @@
 import { recordAttemptDisclosures } from "@/lib/gamification/question-exposure";
 
 import { finalizeTutorFollowups } from "@/lib/zyra/followup-safety";
+import { zyraLiveTextStream } from "@/lib/zyra/live-progress";
 
 import { resolveCodingTutorContext, CODING_TUTOR_INSTRUCTIONS } from "@/lib/coding/tutor-context-server";
 import { getConversationMemory } from "@/lib/zyra/conversation-memory";
@@ -791,7 +792,9 @@ export async function askTutorRagAction(
   if (reviewDisclosure && pageContext?.id === `quiz-review-${reviewDisclosure.attemptId}`) {
     await db.transaction(tx => recordAttemptDisclosures(tx, { userId: user.id, ...reviewDisclosure, occurredAt: new Date(), requestId: crypto.randomUUID() }));
   }
-  const result = await askTutorRag({
+  const isCodingGenerate = Boolean(pageContext?.id.startsWith("coding:generate:"));
+  const suppressLiveTextStream = hasActiveAttempt || codingHintOnly || isCodingGenerate;
+  const runAskTutorRag = () => askTutorRag({
     courseTitle: access?.courseTitle ?? undefined,
     studentId: user.id,
     courseId,
@@ -811,6 +814,9 @@ export async function askTutorRagAction(
     pageContext,
     pedagogyAction: codingPedagogyAction,
   });
+  const result = suppressLiveTextStream
+    ? await zyraLiveTextStream.run(null, runAskTutorRag)
+    : await runAskTutorRag();
 
   const finalizedAnswer = finalizeTutorFollowups(result.answer, {
     sources: result.sources,

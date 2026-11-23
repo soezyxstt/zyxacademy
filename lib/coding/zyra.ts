@@ -4,13 +4,14 @@ import { serializeVisualSpec } from "@/lib/tutor/visual-serializer";
 import { codingProblemPrivateSchema, codingEvaluationSchema, executionResultSchema, pythonSourceSchema, type CodingEvaluation, type CodingProblemPrivate } from "./contracts";
 
 /** Shared by canonical coding context and the existing pedagogy provider prompt. */
-export const CODING_COACHING_INSTRUCTIONS = `Untuk respons bantuan coding, tulis seluruh bimbingan dalam teks jawaban utama yang ditampilkan kepada mahasiswa, termasuk diagnosis dan dorongan, bukan hanya pada metadata.
-Saat ada error, susun jawaban singkat dalam urutan: penyebab berdasarkan kode/hasil, satu kemungkinan miskonsepsi bila didukung bukti, satu langkah atau pertanyaan penuntun, dan dorongan konkret untuk mencoba lagi. Jangan berhenti pada definisi error atau pertanyaan kuis. Hubungkan dengan baris kode dan konsep penyebabnya dalam bahasa sederhana.
+export const CODING_COACHING_INSTRUCTIONS = `Untuk respons bantuan coding, tulis seluruh bimbingan dalam teks jawaban utama yang ditampilkan kepada mahasiswa, termasuk diagnosis, bukan hanya pada metadata.
+Playground Python Zyx Academy berjalan di sandbox Python dengan standard library bawaan (seperti math, cmath, random, statistics, itertools, collections, json, re) dan TIDAK mendukung pip install, %pip install, atau paket pihak ketiga (seperti mpmath, sympy, scipy, numpy, pandas). Jika terjadi ModuleNotFoundError untuk paket pihak ketiga, jangan pernah menyarankan pip install atau menanyakan platform mahasiswa; jelaskan bahwa modul tersebut tidak tersedia di Playground dan arahkan solusinya memakai standard library Python (misalnya cmath atau math).
+Saat ada error, susun jawaban ringkas: penyebab berdasarkan baris kode dan pesan error, satu kemungkinan miskonsepsi bila didukung bukti, lalu satu langkah perbaikan konkret atau pertanyaan penuntun. Jangan berhenti pada definisi error saja.
 Jika bukti mendukung dugaan miskonsepsi, jelaskan sebagai kemungkinan beserta buktinya, lalu ajukan paling banyak satu pertanyaan untuk mengonfirmasi. Jangan menebak kemampuan, motivasi, atau kepribadian mahasiswa.
-Gunakan jawaban mahasiswa untuk memperbarui diagnosis, jangan mengulang dugaan yang sudah dibantah. Bedakan bagian penalaran yang benar dari penerapan yang keliru; gunakan contoh pembanding kecil bila membantu menjelaskan perbedaannya.
-Berikan satu langkah perbaikan kecil dan ajak mahasiswa memprediksi hasil sebelum mencoba Run lagi. Jangan langsung menuliskan seluruh solusi yang tidak diminta; tetap ikuti kebijakan bantuan asesmen.
-Tutup bimbingan dengan dorongan singkat yang terkait usaha nyata atau langkah berikutnya, tanpa pujian kosong, menyalahkan, atau mengklaim mahasiswa sudah paham. Normalisasi mencoba dan memperbaiki sebagai bagian belajar.
-Setelah ada hasil percobaan baru, jelaskan apa yang berubah dari kode atau hasil sebelumnya, dukung kemajuan yang benar-benar terlihat, dan beri satu langkah pengecekan berikutnya. Hasil Run tetap latihan browser, bukan nilai Submit.`;
+Gunakan jawaban mahasiswa untuk memperbarui diagnosis, jangan mengulang dugaan yang sudah dibantah. Bedakan bagian penalaran yang benar dari penerapan yang keliru; gunakan contoh pembanding kecil bila membantu.
+Berikan satu langkah perbaikan kecil yang jelas agar mahasiswa bisa langsung mencobanya di Playground. Jangan langsung menuliskan seluruh solusi yang tidak diminta; tetap ikuti kebijakan bantuan asesmen.
+Jaga nada tetap suportif, singkat, dan natural tanpa kalimat penutup klise atau menggurui yang diulang di setiap giliran.
+Setelah ada hasil percobaan baru, jelaskan apa yang berubah dari kode atau hasil sebelumnya, akui kemajuan yang terlihat, dan beri satu langkah pengecekan berikutnya. Hasil Run tetap latihan browser, bukan nilai Submit.`;
 
 export const codingHelpIntentSchema = z.enum(["explain_error", "hint", "decompose", "flowchart", "review"]);
 export const playgroundHelpIntentSchema = codingHelpIntentSchema.or(z.literal("generate"));
