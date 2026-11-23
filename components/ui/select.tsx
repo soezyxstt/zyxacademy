@@ -51,7 +51,7 @@ function SelectContent({ className, children, position = "popper", ...props }: R
           className={cn(
             "p-1 max-h-[inherit] overflow-y-auto",
             position === "popper" &&
-              "w-full min-w-[var(--radix-select-trigger-width)]"
+              "w-full min-w-[min(var(--radix-select-trigger-width),var(--radix-select-content-available-width,100%))]"
           )}
         >
           {children}

@@ -84,3 +84,37 @@ export function isDocumentGetNavigation(request: {
   if (purpose?.toLowerCase().includes("prefetch")) return false;
   return true;
 }
+
+/**
+ * Detects Zyx native mobile (Capacitor) or desktop (Tauri) shells via User-Agent.
+ */
+export function isNativeUserAgent(userAgent: string | null | undefined): boolean {
+  if (!userAgent) return false;
+  return /\bZyx(?:Mobile|Desktop)App\//i.test(userAgent);
+}
+
+const NATIVE_MARKETING_EXACT_PATHS = new Set([
+  "/",
+  "/about",
+  "/plans",
+  "/testimonial",
+  "/blog",
+  "/demo",
+  "/forms-playground",
+]);
+
+/**
+ * Returns true when a pathname belongs to the public marketing site that native
+ * app shells should bypass directly into the role dashboard (or /sign-in).
+ * Auth and legal routes (/sign-in, /sign-up, /sign-out, /privacy, /terms,
+ * /unsubscribe) remain accessible.
+ */
+export function isNativeMarketingRedirectPath(pathname: string): boolean {
+  const trimmed = pathname.length > 1 ? pathname.replace(/\/+$/, "") || "/" : pathname;
+  const normalized = trimmed.replace(/^\/(?:id|en)(?=\/|$)/, "") || "/";
+  if (NATIVE_MARKETING_EXACT_PATHS.has(normalized)) return true;
+  if (normalized.startsWith("/blog/") || normalized.startsWith("/demo/")) {
+    return true;
+  }
+  return false;
+}

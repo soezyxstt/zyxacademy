@@ -210,12 +210,13 @@ export function DiscussionWorkspaceMobile({
     <div
       data-discussion-frame=""
       data-discussion-layout="mobile-list"
-      className="flex min-h-[calc(100dvh-var(--mobile-navbar-height,3.25rem)-var(--mobile-bottom-nav-height,3.75rem)-2rem)] min-w-0 flex-col pb-20"
+      className="flex h-[calc(100dvh-var(--mobile-navbar-height,3.25rem)-var(--mobile-bottom-nav-height,3.75rem)-1rem)] min-h-[20rem] min-w-0 flex-col overflow-hidden"
     >
       <DiscussionListPane
         props={props}
         controller={controller}
         showToolbar={false}
+        listClassName="pb-16"
         renderQuestionRow={(item, row) => (
           <SwipeableDiscussionRow
             shareLabel={common("share.button")}
@@ -245,7 +246,7 @@ export function DiscussionWorkspaceMobile({
           data-discussion-mobile-fab=""
           aria-label={t("newQuestion")}
           onClick={controller.openNew}
-          className="fixed right-4 bottom-[calc(var(--mobile-bottom-nav-height,0px)+1rem)] z-30 size-12 rounded-full shadow-md transition-transform duration-150 active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 md:hidden"
+          className="fixed right-4 bottom-[calc(var(--mobile-bottom-nav-height,3.75rem)+3.5rem)] z-30 size-12 rounded-full shadow-md transition-transform duration-150 active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 md:hidden"
         >
           <SquarePen className="size-5" aria-hidden="true" />
         </Button>

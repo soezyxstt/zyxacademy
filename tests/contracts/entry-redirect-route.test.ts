@@ -97,4 +97,14 @@ describe("GET /api/entry-redirect", () => {
     mockSessionError = new Error("DB_UNAVAILABLE");
     expect((await GET(request())).headers.get("location")).toBe(`${mockBaseUrl}/en`);
   });
+
+  test("redirects unauthenticated native=1 requests to /sign-in without setting stale cooldown", async () => {
+    mockSession = null;
+    const response = await GET(
+      new NextRequest("https://www.zyxacademy.com/api/entry-redirect?native=1"),
+    );
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://www.zyxacademy.com/sign-in");
+    expect(response.cookies.get(DASHBOARD_ENTRY_COOKIE_NAME)).toBeUndefined();
+  });
 });
