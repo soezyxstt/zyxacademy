@@ -9,7 +9,7 @@ from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from cloud_run_runtime import REQUIRED, RUNTIME_KEYS, validate_database
+from cloud_run_runtime import AI_PROVIDER_SETTINGS, REQUIRED, RUNTIME_KEYS, validate_database
 from prepare_worker_runtime import TARGETS
 
 PROJECT = "zyx-academy"
@@ -28,7 +28,7 @@ TARGET = TARGETS[ENVIRONMENT]
 ORIGIN_TOKEN = "CLOUD_RUN_ORIGIN_TOKEN"
 BUILD_KEYS = {"AUTHORING_VERIFICATION_BROWSER_PROVIDER", "AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION",
               "SENTRY_ORG", "SENTRY_PROJECT", "NEXT_PUBLIC_STAGING_MEDIA_ORIGIN"}
-PLAIN_RUNTIME_KEYS = BUILD_KEYS | {
+PLAIN_RUNTIME_KEYS = BUILD_KEYS | AI_PROVIDER_SETTINGS | {
     "ZYX_ENVIRONMENT", "ZYX_MCP_ENVIRONMENT", "NODE_ENV", "BETTER_AUTH_URL",
     "STORAGE_PROVIDER_MODE", "NEON_STORAGE_BUCKET", "AWS_ENDPOINT_URL_S3", "AWS_REGION",
     "QUEUE_PROVIDER", "INNGEST_ENV", "DIKTAT_RENDERER_URL", "COMPUTE_SERVICE_URL", "R2_ENDPOINT", "R2_BUCKET", "R2_PUBLIC_URL",
@@ -38,6 +38,8 @@ PLAIN_RUNTIME_KEYS = BUILD_KEYS | {
 }
 REQUIRED_SECRET_KEYS = set(REQUIRED) - PLAIN_RUNTIME_KEYS | {
     ORIGIN_TOKEN, "INNGEST_SIGNING_KEY", "COMPUTE_SERVICE_SECRET", "DIKTAT_RENDERER_SECRET",
+    "PYTHON_RUNTIME_TOKEN_SECRET", "CF_AI_GATEWAY_URL", "CF_AI_GATEWAY_TOKEN",
+    "ZYRA_CONTROL_PLANE_TOKEN",
 }
 REVISION = re.compile(re.escape(SERVICE) + r"-r([1-9][0-9]*)a([1-9][0-9]*)")
 COMMIT_SHA = re.compile(r"[a-f0-9]{40}")
@@ -130,6 +132,8 @@ def validate_template(spec, config):
     require(provider in ("inngest", "cloud-tasks"), "Invalid staging queue provider.")
     required_secrets = REQUIRED_SECRET_KEYS - ({"INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY"} if provider == "cloud-tasks" else set())
     require(required_secrets <= refs.keys(), "Cloud Run staging runtime is missing required Secret Manager references.")
+    require("ZYRA_CONTROL_PLANE_URL" in plain or "ZYRA_CONTROL_PLANE_URL" in refs,
+            "Cloud Run staging runtime is missing ZYRA_CONTROL_PLANE_URL.")
     require("CF_ACCOUNT_ID" in plain and bool({"CF_API_TOKEN", "CF_BROWSER_API_TOKEN"} & refs.keys()),
             "Cloud Run staging Cloudflare Browser Run settings are incomplete.")
     expected = {
@@ -194,7 +198,13 @@ def prepare():
             "Configure CLOUD_RUN_STAGING_WORKLOAD_IDENTITY_PROVIDER in the staging-cloud-run GitHub environment.")
     require(ENVIRONMENT == "production" or VERSION.fullmatch(os.environ.get("CLOUD_RUN_PREFLIGHT_DATABASE_VERSION", "")),
             "Configure CLOUD_RUN_STAGING_PREFLIGHT_DATABASE_VERSION in the staging-cloud-run GitHub environment.")
-    config = public_config(os.environ["CLOUD_RUN_PUBLIC_CONFIG"])
+    raw_config = os.environ.get("CLOUD_RUN_PUBLIC_CONFIG")
+    if ENVIRONMENT == "production" and operation != "candidate":
+        data, _ = check_revision(revision)
+        raw_config = json.dumps({entry["name"]: entry["value"]
+                                 for entry in data["spec"]["containers"][0].get("env", [])
+                                 if is_build_key(entry["name"])})
+    config = public_config(raw_config)
     (Path(os.environ["RUNNER_TEMP"]) / "cloud-run-public.json").write_text(json.dumps(config), encoding="utf-8")
     return config
 
@@ -252,7 +262,7 @@ def smoke(url, refs):
             require(response.status == expected, f"Unexpected HTTP status at {path}: {response.status}.")
             return response.read(2_000_000).decode("utf-8", errors="replace"), response.headers
 
-    request("/", 403, {"X-Forwarded-Host": "staging.zyxacademy.com", "X-Forwarded-Proto": "https"})
+    request("/", 403, {"X-Forwarded-Host": urlsplit(TARGET["origin"]).hostname, "X-Forwarded-Proto": "https"})
     headers = {"X-Zyx-Origin-Token": token}
     home, _ = request("/", 200, headers)
     require("<html" in home.lower(), "Cloud Run did not return the application landing page.")

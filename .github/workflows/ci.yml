@@ -281,7 +281,7 @@ jobs:
       actions: read
       id-token: write
     needs: [impact, gate]
-    if: ${{ !cancelled() && needs.impact.result == 'success' && needs.gate.result == 'success' && github.event_name == 'push' && (github.ref != 'refs/heads/main' || vars.HOLD_WEB_DEPLOYMENT != 'true') && (needs.impact.outputs.worker == 'true' || needs.impact.outputs.v4 == 'true') }}
+    if: ${{ !cancelled() && needs.impact.result == 'success' && needs.gate.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.HOLD_WEB_DEPLOYMENT != 'true' && (needs.impact.outputs.worker == 'true' || needs.impact.outputs.v4 == 'true') }}
     uses: ./.github/workflows/deploy.yml
     with:
       check_worker: ${{ needs.impact.outputs.worker == 'true' }}

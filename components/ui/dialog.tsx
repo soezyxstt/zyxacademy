@@ -7,9 +7,11 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useDialogOpenState } from "@/hooks/use-dialog-history";
 
-function Dialog({ ...props }: React.ComponentProps<typeof DialogNs.Root>) {
-  return <DialogNs.Root data-slot="dialog" {...props} />;
+function Dialog({ open, defaultOpen, onOpenChange, ...props }: React.ComponentProps<typeof DialogNs.Root>) {
+  const state = useDialogOpenState({ open, defaultOpen, onOpenChange });
+  return <DialogNs.Root data-slot="dialog" {...props} {...state} />;
 }
 
 function DialogTrigger({

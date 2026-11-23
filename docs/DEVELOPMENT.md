@@ -44,6 +44,16 @@ check; individual conditional jobs may legitimately be skipped. The specialized
 Authoring access security checks and migration-only Neon validation from staging
 retain their existing triggers and environment boundaries.
 
+Staging CI validates changes automatically but never starts web or Neon worker
+deployments. Use Actions > Run workflow with branch `staging`: select
+`deploy-cloud-run-staging.yml` for web releases, or `deploy-neon-worker.yml` with
+`environment=staging` for workers. The existing manual `deploy.yml` worker entry
+point also remains available. Cloud Run deployments use the dedicated
+`staging-cloud-run` environment without a separate approval step once configured.
+The shared `staging` environment still requires reviewer approval. Coordinate
+matching web and worker revisions before promotion. The automatic production
+paths below still apply only to `main` pushes.
+
 The first job runs `scripts/ci/plan.py` with Python's standard library. It installs
 no application packages. Checkout uses two commits; a multi-commit push fetches
 only the exact base SHA when needed. PR comparisons use the target base and the
@@ -61,14 +71,14 @@ planner instead of returning an empty plan.
 
 | Changed input | Selected work |
 | --- | --- |
-| Ordinary frontend component | Application typecheck, lint changed files, tests and test compilation affected through imports; web release on push |
-| Worker-only entry or module | Deno dependency audit, typecheck and asset smoke on PR; worker release on push; no web release unless the file is also a web dependency |
-| V4 renderer or fingerprinted CSS | V4 binding/verification contracts; coordinated web and worker releases on push; worker import checks only if worker code is also affected |
+| Ordinary frontend component | Application typecheck, lint changed files, tests and test compilation affected through imports; web release on main push |
+| Worker-only entry or module | Deno dependency audit, typecheck and asset smoke on PR; worker release on main push; no web release unless the file is also a web dependency |
+| V4 renderer or fingerprinted CSS | V4 binding/verification contracts; coordinated web and worker releases on main push; worker import checks only if worker code is also affected |
 | Schedule implementation or dependency | Schedule contracts and booking integration, including dependencies such as tutor audit helpers |
 | Authoring implementation or dependency | Both locked skills distributions and authoring contracts |
 | Plugin distribution | Python distribution checks; mirroring still requires the explicit manual plugin operation |
 | Another worker project | Its own TypeScript configuration and local Bun tests; Python runtime gets Node syntax checks; no background-worker or web deployment by directory alone |
-| Documentation | Web release for operations knowledge; no compiler checks from prose alone |
+| Documentation | Web release for operations knowledge on main push; no compiler checks from prose alone |
 | Plans or Android files | Planner and gate only, unless a code graph actually references the changed file |
 | Root dependency locks or planner implementation | All checks, conservatively |
 
@@ -230,9 +240,24 @@ Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (
 - `R2_ENDPOINT`, `R2_BUCKET`, `R2_PUBLIC_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` ; Cloudflare R2
 - `STORAGE_PROVIDER_MODE` ; this branch supports `neon` as well as the existing `r2` and `uploadthing` modes
 
-### Optional ; AI Gateway
-- `CF_AI_GATEWAY_URL`, `CF_AI_GATEWAY_TOKEN` ; Cloudflare AI Gateway
+### AI Gateway
+- `CF_AI_GATEWAY_URL`, `CF_AI_GATEWAY_TOKEN` ; required Cloudflare AI Gateway credentials
 - `CF_ACCOUNT_ID`, `CF_KV_NAMESPACE_ID`, `CF_API_TOKEN` ; KV cache for tutor
+
+The model picker reads model-list metadata through AI Gateway, without generation probes or quota reservations. It stores discovered model identities and working aliases in configuration-scoped KV snapshots for 12 hours. The background job runs at 00:00 and 12:00 UTC and reuses fresh catalog snapshots; expired metadata is rediscovered automatically. Successful snapshots remain usable up to 14 days from discovery if discovery fails, with a five-minute retry delay. The manual refresh button only queues latency measurements. Unsupported endpoint families and quarantined models remain excluded. Listing does not prove billing balance or successful generation. Staging chat-completions providers can be assigned to every generation feature, including JSON analytics and streaming Ops AI tools. Embedding retains its separate vector profile.
+
+Model choices sort newest first using verified release dates from the source-linked release registry, then valid provider `created` timestamps. The UI distinguishes release dates from creation times. Gemini's model-list payload has no release timestamp and Muse currently reports `created: 0`; undated models stay selectable at the end without guessing from names or versions. Release enrichment is separate from dynamic model discovery. Video-only Gemini Omni entries are excluded from text choices.
+
+For staging Gemini and Gemma diagnostics, use the application adapter and its Google GenAI SDK client in `lib/ai/provider/google-gateway-client.ts`. For streaming, exercise the same `generateContentStream` path as Zyra. When comparing gateway costs, record the upstream model, credential alias, prompt, output and thinking settings, reported token usage, cache status and number of dispatched attempts. Label direct HTTP measurements separately from application measurements.
+
+Using the cached catalog, the background job measures each listed model with three bounded, uncached requests using a fixed short prompt. It publishes only the median of three successful complete responses, including network time rather than time to first token. Each model uses a durable step and each sample uses a quota lease with cycle/model/sample idempotency; job retries do not replay a dispatched attempt. The per-provider KV observation snapshot is separate from catalog metadata, and manual latency refresh does not bypass catalog freshness. Manual and scheduled runs share a three-hour admission window in PostgreSQL. Manual requests use distinct request identities, while retries reuse their existing leases. The page polls for refreshed observations without discarding unsaved model selections. The picker shows the median on the right, the probe status for missing medians, and an age label after 12 hours. Probes require reachable control-plane bindings for accounting. Shared alias health is admitted before lease dispatch; cooldown rejection refunds the reserved provider slot without a billed attempt. Accepted in-flight calls record their outcomes without a second admission check. Cloud Tasks serializes manual and scheduled model jobs with a shared advisory lock. No successful metadata response, including all aliases missing, preserves stale snapshots instead of replacing them with an empty list. Provider text request ceilings are provider-managed: the old synthetic 20-per-day and five-per-minute limits are removed; remaining provider capacity is unknown, not zero or unlimited. Alias cooldown and application allowance accounting remain active.
+
+Gemini 3.8 Flash generation and streaming use the Google AI Studio gateway credential alias `default`, without a project API key fallback.
+
+Missing BYOK credentials are recognized from Gateway credential errors, including the specific alias-missing message returned with internal code 2040. Other 2040 errors do not trigger credential fallback. Gemini alone may use its matching environment API key when its alias is missing. An alias enters a five-minute cooldown after three consecutive generation transport/HTTP failures; success resets its count before cooldown. On chat completions and Gemini generateContent, payload and model rejections (400 except missing credentials, 404, 413, 415 and 422) leave alias health intact. Latency sampling stops once a three-success median is impossible. Model-list reads do not reset generation health. `ZYRA_CONTROL_PLANE_URL` and `ZYRA_CONTROL_PLANE_TOKEN` enable shared atomic health in the quota Durable Object. Without a reachable control plane, protection is process-local and cannot survive instance replacement. Do not describe that fallback as distributed protection.
+
+Discussion text turns can use the configured Zyra chain while preserving single-dispatch accounting. Gemini Interactions forwards JSON response schemas, including normalized legacy Gemini schemas; the full response validators remain authoritative.
+
 
 ### Optional ; Authoring MCP
 
@@ -497,7 +522,7 @@ Configure the five density and reading-size preset values in `app/appearance-pre
 
 - **DB schema**: `db/schema.ts` only. Edit → `bun run db:generate` → `bun run db:migrate`. Never hand-edit `drizzle/`.
 - **Auth**: Better-Auth (credentials + Google OAuth). Canonical access roles: `admin`, `tutor`, `murid`; `user.role` remains a legacy compatibility projection during expand.
-- **AI calls**: All Gemini traffic routes through Cloudflare AI Gateway when `CF_AI_GATEWAY_URL` is set.
+- **AI calls**: Gemini traffic requires the configured Cloudflare AI Gateway.
 - **Cost rule**: AI quota is spent only on tutoring, mistake feedback, and content generation. Streaks, recommendations, study paths, reflections are deterministic SQL + logic.
 
 ## Google Spreadsheet Export Workflow
@@ -704,4 +729,29 @@ Use the profile-specific review context and explicit decisions. When the server 
 
 ## Agent-first content checks
 
-The repository plugin source is `plugins/zyx-authoring-mcp`, version 0.5.0. Run its Python distribution tests and focused blog, media and operation-discovery contracts in separate processes. Local candidate packaging does not publish the plugin or advance the server external-source pin. See [agent-first content operations](operations/agent-first-content.md).
+The repository plugin source is `plugins/zyx-authoring-mcp`, version 0.5.1. Run its Python distribution tests and focused blog, media and operation-discovery contracts in separate processes. Local candidate packaging does not publish the plugin or advance the server external-source pin. See [agent-first content operations](operations/agent-first-content.md).
+
+### Google Calendar schedule sync
+
+Local implementation, not deployed or verified against live OAuth/Calendar yet.
+
+- Apply guarded PostgreSQL migration `0040_google_calendar_sync` before deploying the web and compute worker changes. The table stores status metadata only; Better Auth retains each user's tokens.
+- Enable Google Calendar API in the existing OAuth project. Add `https://www.googleapis.com/auth/calendar.events` to the consent configuration and complete any Google verification required for the intended audience. Ordinary login does not request Calendar access. The schedule popover starts an incremental, offline consent flow through Better Auth's existing Google callback. Existing accounts must explicitly connect Calendar.
+- The central Zyx calendar uses `primary`, the primary calendar of the account behind the existing `GOOGLE_REFRESH_TOKEN`. No separate calendar ID or new environment variable is needed. Existing `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REFRESH_TOKEN` must be present in both web and compute environments. Authorize the intended central Zyx account with Calendar events scope, keeping its prior Meet, Forms, Sheets and Drive grants. See the token replacement procedure below.
+- Daily sync runs at 20:00 UTC, 03:00 WIB, through the registered Inngest cron or the Cloud Tasks cron window. Manual requests use the same `google-calendar/sync.requested` worker. Deploy both registrations and the worker environment schema together.
+- Personal calendars use each connected account's primary calendar. The central calendar receives all concrete tutorial bookings, published academic schedules, published quizzes/exams with a date, and PKA schedules. Unbooked tutor availability is not an appointment. Personal scope includes group membership, assigned tutor sessions, enrolled/assigned courses, global academic events, and PKA registration when that campaign is enabled.
+- The mirror is one way. Updates overwrite Zyx-managed event fields; unrelated Google events remain untouched. A complete source load and all upserts must succeed before stale managed future events are removed. Past events remain as history. Entries without an explicit end use 60 minutes for academic events, 90 for PKA, and 1 minute for an assessment deadline. Quizzes mirror their closing deadline, or their opening time when no deadline exists, rather than reserving their entire availability window. Stable IDs and environment/target ownership markers prevent duplicate inserts and cross-target cleanup. Do not share an operational calendar between staging and production.
+- Rollback: roll back both web and worker calendar-sync releases to stop central writes while retaining shared Google credentials for Meet, Forms, Sheets and Drive. Disconnect personal Google Calendar grants to stop personal writes. Existing Google events and the additive status table are retained. No feature flag is introduced.
+
+
+#### Replace the shared Google host token through OAuth Playground
+
+1. Choose the deployment environment first. Use its existing Google OAuth client and intended host account; staging must use a different Google account from production because `primary` follows the token owner.
+2. In [Google Cloud credentials](https://console.cloud.google.com/apis/credentials), edit the existing web OAuth client matching `GOOGLE_CLIENT_ID`. Add `https://developers.google.com/oauthplayground` as an authorized redirect URI alongside the existing app callbacks. Enable Google Calendar API in that same project and include the Calendar events scope in its consent configuration.
+3. Open [OAuth Playground](https://developers.google.com/oauthplayground/). In the gear menu, select **Use your own OAuth credentials** and enter that environment's existing client ID and secret. Use the server-side flow, access type **Offline**, and consent prompting. Do not use Playground's default client, because the resulting refresh token must match the application's client credentials.
+4. In Step 1, request all scopes already used by the host's Meet, Forms, Sheets and Drive integrations, plus `https://www.googleapis.com/auth/calendar.events`. The existing minimal Meet/Sheets setup uses `https://www.googleapis.com/auth/meetings.space.created` and `https://www.googleapis.com/auth/drive.file`; retain any additional existing grants for Forms, recordings, transcripts or analytics. Replacing the shared token with a Calendar-only grant can break those integrations. Click **Authorize APIs**, select the central Zyx account, verify its displayed email and approve the requested permissions.
+5. In Step 2, click **Exchange authorization code for tokens**. Copy the **Refresh token**, not the short-lived Access token. Do not paste it into chat, source files, screenshots or logs. Google documents this flow in its [Playground guide](https://developers.google.com/admob/api/v1/how-tos/playground).
+6. Replace only the existing `GOOGLE_REFRESH_TOKEN` value in the chosen environment's private web configuration and compute-worker configuration. Keep `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` unchanged when reusing the same OAuth client. Redeploy/restart both runtimes using the existing guarded environment workflow. No new calendar environment variable is needed. Do not revoke the shared app grant just to rotate the token, because that can revoke the replacement grant too.
+7. After the calendar-sync code and migration are deployed, open Admin schedules, choose **Google Calendar Zyx**, then **Sinkronkan sekarang**. Check the recorded sync status, inspect the intended account's primary Google Calendar, and smoke-check existing Meet, Forms and Sheets flows. Token presence alone does not verify scopes, account identity or remote API availability. Remove only the Playground redirect URI afterwards if it is no longer needed; retain every app callback.
+
+For an external OAuth app in **Testing**, Google normally expires refresh tokens with these non-basic scopes after 7 days. Use the appropriate published/internal setup for unattended daily operation and complete verification if Google requires it. See [Google's refresh-token expiration rules](https://developers.google.com/identity/protocols/oauth2#expiration).

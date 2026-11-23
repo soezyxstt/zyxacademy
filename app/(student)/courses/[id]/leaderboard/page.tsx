@@ -1,7 +1,6 @@
 import { StudentCourseLeaderboardContent } from "@/components/course/student-course-leaderboard-content";
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Lock, Trophy } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CourseLeaderboardContentSkeleton } from "@/components/course/course-skeletons";
@@ -13,8 +12,7 @@ import { getAuthSession } from "@/lib/auth-session";
 import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
-import { cn } from "@/lib/utils";
+import { TabNav } from "@/components/ui/tabs";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { getTranslations } from "@/lib/i18n/server";
@@ -99,15 +97,22 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
       title={<TranslatedText namespace="learning" messageKey="leaderboard.title" values={{ course: course.title }} />}
       icon={Trophy}
     >
-      <Reveal>
-        <nav aria-labelledby="leaderboard-type-label" className="mb-4">
-          <span id="leaderboard-type-label" className="sr-only"><TranslatedText namespace="learning" messageKey="leaderboard.typeLabel" /></span>
-          <div className={tabListClassName}>
-            <Link href={`/courses/${id}/leaderboard?type=quiz`} aria-current={activeType === "quiz" ? "page" : undefined} className={cn(tabTriggerClassName, activeType === "quiz" && tabTriggerActiveClassName)}><TranslatedText namespace="learning" messageKey="leaderboard.quiz" /></Link>
-            <Link href={`/courses/${id}/leaderboard?type=simulation`} aria-current={activeType === "simulation" ? "page" : undefined} className={cn(tabTriggerClassName, activeType === "simulation" && tabTriggerActiveClassName)}><TranslatedText namespace="learning" messageKey={`leaderboard.${simulationLabelKey}`} /></Link>
-          </div>
-        </nav>
+      <TabNav
+        tabs={[
+          {
+            href: `/courses/${id}/leaderboard?type=quiz`,
+            label: <TranslatedText namespace="learning" messageKey="leaderboard.quiz" />,
+            active: activeType === "quiz",
+          },
+          {
+            href: `/courses/${id}/leaderboard?type=simulation`,
+            label: <TranslatedText namespace="learning" messageKey={`leaderboard.${simulationLabelKey}`} />,
+            active: activeType === "simulation",
+          },
+        ]}
+      />
 
+      <Reveal>
         <Suspense fallback={<CourseLeaderboardContentSkeleton />}>
           <CourseLeaderboardContent id={id} activeType={activeType} userId={userId} />
         </Suspense>

@@ -196,3 +196,13 @@ test("a draft question image requires canonical admin access and a supported ras
   expect(uploads[0].mime).toBe("image/png");
   expect(uploads[0].key).toMatch(/^forms\/draft-survey\/question-1\//);
 });
+
+test("recognizes legacy builder defaults and preserves custom respondent messages", () => {
+  for (const closedMessage of ["Formulir ini telah ditutup dan tidak lagi menerima tanggapan.", "This form is closed and no longer accepts responses."]) {
+    expect(responsePolicy.getFormClosure({ acceptingResponses: false, closedMessage })).toEqual({ kind: "closed", message: "" });
+  }
+  expect(responsePolicy.customFormMessage("customSuccessMessage", "Jawaban Anda telah berhasil disimpan.")).toBe("");
+  for (const key of ["closedMessage", "customSuccessMessage"] as const) {
+    expect(responsePolicy.customFormMessage(key, "Terima kasih, kelas A.")).toBe("Terima kasih, kelas A.");
+  }
+});

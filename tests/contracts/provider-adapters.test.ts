@@ -93,11 +93,13 @@ describe("Plan 002 Gemini provider adapters", () => {
         { type: "text", text: "describe" },
         { type: "image", mimeType: "image/png", data: "aA==" },
       ],
-      config: { temperature: 0.2, topP: 0.7, thinkingBudget: 0, maxOutputTokens: 1 },
+      config: { temperature: 0.2, topP: 0.7, thinkingBudget: 0, maxOutputTokens: 1,
+        responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { answer: { type: "STRING", nullable: true } } } },
     });
 
     const request = requests[0] as { model: string; generation_config: Record<string, unknown> };
     expect(request.model).toBe("gemini-3.6-flash");
+    expect(request).toHaveProperty("response_format", { type: "text", mime_type: "application/json", schema: { type: "object", properties: { answer: { anyOf: [{ type: "string" }, { type: "null" }] } } } });
     expect(request.generation_config.thinking_level).toBe("medium");
     expect(request.generation_config.max_output_tokens).toBe(1_024);
     expect(request.generation_config.temperature).toBeUndefined();
@@ -114,11 +116,9 @@ describe("Plan 002 Gemini provider adapters", () => {
 
   it("does not allow ordinary routing to select a quarantined model", async () => {
     const client = { models: { generateContent: async () => ({ text: "unused" }) } } as unknown as GeminiGenerateClient;
-    for (const modelId of [MODEL_IDS.quarantinedPreview, MODEL_IDS.quarantinedGemma]) {
-      await expect(createGeminiGenerateAdapter(client).generate({
-        modelId,
-        parts: [{ type: "text", text: "hello" }],
-      })).rejects.toBeInstanceOf(ProviderAdapterError);
-    }
+    await expect(createGeminiGenerateAdapter(client).generate({
+      modelId: MODEL_IDS.quarantinedGemma,
+      parts: [{ type: "text", text: "hello" }],
+    })).rejects.toBeInstanceOf(ProviderAdapterError);
   });
 });

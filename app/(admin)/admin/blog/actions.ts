@@ -44,7 +44,7 @@ export async function saveArticle(rawData: unknown) {
         const generated = await generateContentWithFallback({
           userId: user.id, feature: "blog-summary", useCase: "chapter-summary",
           contents: `Tolong buatkan ringkasan untuk artikel berikut:\n\n${prepared.content}`,
-          config: { temperature: 0.3, maxOutputTokens: 100, systemInstruction: { parts: [{ text: "Tulis ringkasan artikel Zyx Academy maksimal 2 kalimat dalam bahasa Indonesia yang komunikatif. Gunakan sentence case. Hindari tanda seru, tanda hubung panjang, dan filler. Kembalikan ringkasan saja." }] } },
+          config: { temperature: 0.3, maxOutputTokens: 100, systemInstruction: "Tulis ringkasan artikel Zyx Academy maksimal 2 kalimat dalam bahasa Indonesia yang komunikatif. Gunakan sentence case. Hindari tanda seru, tanda hubung panjang, dan filler. Kembalikan ringkasan saja." },
         });
         const summary = generated.response.text?.trim().replace(/[\u2013\u2014]/g, ", ").replace(/!/g, ".").replace(/\bZYX\b/gi, "Zyx");
         if (summary) prepared.summary = summary.slice(0, 2000);

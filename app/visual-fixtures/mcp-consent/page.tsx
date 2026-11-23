@@ -12,7 +12,7 @@ export default function McpConsentFixture() {
   return <NextIntlClientProvider locale="id" timeZone="UTC" messages={{ consent: messages, ui }}>
     <FixtureReady />
     <McpLayout>
-    <McpAuthorizeView client={{ clientId: "fixture", clientName: "Zyx Admin", redirectUri: "https://example.test/callback" }} user={{ id: "fixture", name: "Admin", email: "admin@example.test", image: null }} isAdmin scopes={scopes} defaultScopes={scopes} searchParams={{ clientId: "fixture", redirectUri: "https://example.test/callback", scope: scopes.join(" "), codeChallenge: "fixture", codeChallengeMethod: "S256" }} currentPathWithSearch="/visual-fixtures/mcp-consent" />
+    <McpAuthorizeView client={{ clientId: "fixture", clientName: "Zyx Admin", redirectUri: "https://example.test/callback" }} user={{ id: "fixture", name: "Admin", email: "admin@example.test", image: null }} sessionId="fixture-session" isAdmin scopes={scopes} defaultScopes={scopes} searchParams={{ clientId: "fixture", redirectUri: "https://example.test/callback", scope: scopes.join(" "), codeChallenge: "fixture", codeChallengeMethod: "S256" }} currentPathWithSearch="/visual-fixtures/mcp-consent" />
     </McpLayout>
   </NextIntlClientProvider>;
 }

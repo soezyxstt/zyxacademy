@@ -1,7 +1,7 @@
 {
   "name": "zyx-authoring-mcp-staging",
-  "version": "0.5.0",
-  "description": "Zyx staging MCP workflows",
+  "version": "0.5.1",
+  "description": "Zyx staging content and ops",
   "author": {
     "name": "Zyx Academy"
   },
@@ -26,8 +26,8 @@
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "Zyx Authoring MCP (Staging)",
-    "shortDescription": "Zyx staging MCP workflows",
+    "displayName": "Zyx Academy (Staging)",
+    "shortDescription": "Zyx staging content and ops",
     "longDescription": "Provides focused workflows for academic authoring, V3+ content revisions, blog editing, forms, media and operation recovery. The remote MCP server remains authoritative for current capabilities, environment identity, scopes, exact revisions, signed mutation plans, trusted evidence and explicit publication. The Admin website is optional for supported workflows.",
     "developerName": "Zyx Academy",
     "category": "Productivity",
@@ -38,6 +38,7 @@
     "websiteURL": "https://staging.zyxacademy.com/",
     "defaultPrompt": [
       "Use only the zyx-authoring-staging MCP connection for this task. Do not substitute another Zyx environment.",
+      "Inspect admin.environment and admin.capabilities before managing content, forms, or other admin operations.",
       "Run or resume the end-to-end authoring pipeline from course sources through validated Idea and Product Bundles.",
       "Build a Source Pack from stored course PDFs and validate it through Zyx MCP.",
       "Author an Idea Bundle from a validated Source Pack.",

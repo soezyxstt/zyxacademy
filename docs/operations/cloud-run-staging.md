@@ -24,6 +24,20 @@ Bangkok's native Cloud Run domain mapping is unavailable. An origin rule alone s
 
 ## Google and GitHub setup
 
+### Runtime secret coverage
+
+The `import-secrets` operation reads GitHub Environment `staging`. It imports the required application credentials, including `PYTHON_RUNTIME_TOKEN_SECRET`, `CF_AI_GATEWAY_URL`, `CF_AI_GATEWAY_TOKEN`, `ZYRA_CONTROL_PLANE_URL`, and `ZYRA_CONTROL_PLANE_TOKEN`, along with configured optional Google, Gemini fallback, Vectorize, Live Quiz, Steel, and analytics credentials. Companion server settings are versioned with those credentials. Empty optional settings are skipped. CI credentials, unused R2 rollback credentials, public build settings and feature flags are excluded. Existing staging Firebase credentials remain separately managed to preserve project isolation.
+
+Provision each destination under `zyx-staging-web-`, grant the staging runtime access, then run the approved import. Imports print only secret names and numeric versions. Attach those numeric versions to a candidate before promotion; importing alone does not configure Cloud Run. Preserve existing bindings when repairing missing settings, use the currently serving image, verify the candidate and keep the prior revision available for rollback. Deployment validation requires the Python ticket key, Cloudflare AI Gateway settings (`CF_AI_GATEWAY_URL`, `CF_AI_GATEWAY_TOKEN`), and Zyra control-plane settings (`ZYRA_CONTROL_PLANE_URL`, `ZYRA_CONTROL_PLANE_TOKEN`). This repairs existing API and MCP environment configuration without changing tools, scopes, consent, capability discovery, playbooks or packaged skills.
+
+### Staging push isolation
+
+Staging Web and Android Nightly use Firebase project `zyx-academy-staging`. Production Web and Android Stable are configured as separate apps in the same project, with separate sender accounts. App registration separates client configuration, but Firebase messaging permissions and the sender ID remain shared at project scope. Keep `NEXT_PUBLIC_FIREBASE_*` aligned in `CLOUD_RUN_STAGING_PUBLIC_CONFIG` in both GitHub environments, `staging` and `staging-cloud-run`, and in the staging Cloud Run runtime. The browser worker imports `/firebase-config.js`, which exposes only public runtime Firebase settings with `Cache-Control: no-store`.
+
+The staging sender is `zyx-staging-fcm-sender@zyx-academy-staging.iam.gserviceaccount.com`, with only `cloudmessaging.messages.create` on the staging Firebase project. Bind `FIREBASE_SERVICE_ACCOUNT_JSON` to a numeric version of Secret Manager secret `zyx-staging-web-firebase-service-account-json` in Google project `zyx-academy`. Its value is base64-encoded sender JSON. The Cloud Run staging runtime identity has access to this secret. Private keys belong in Secret Manager and restricted operator backups, never in Git or public configuration.
+
+Build with `operation=candidate`; retain existing traffic until browser background delivery and Android Nightly registration and delivery have been checked. Firebase API acceptance alone does not prove device delivery.
+
 Record the results of these read-only commands with an authenticated operator account. Share only sanitized metadata.
 
 ```bash

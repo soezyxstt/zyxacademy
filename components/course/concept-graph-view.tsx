@@ -6,6 +6,8 @@
  * charting library: a deterministic layered SVG layout.
  */
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { closeDialogsThen, useDialogHistory } from "@/hooks/use-dialog-history";
 import { TermPopover } from "@/components/course/term-popover";
 
 export interface GraphNode {
@@ -41,6 +43,9 @@ export function ConceptGraphView({
   courseId: string;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const router = useRouter();
+  useDialogHistory(selected !== null, () => setSelected(null));
+  const navigate = (href: string) => closeDialogsThen(() => setSelected(null), () => router.push(href));
 
   const layout = useMemo(() => {
     const names = nodes.map((n) => n.conceptName);
@@ -175,11 +180,8 @@ export function ConceptGraphView({
             <TermPopover
               courseId={courseId}
               conceptName={selected}
-              onAskTutor={() => {
-                setSelected(null);
-                // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-                window.location.href = `/courses/${courseId}/material`;
-              }}
+              onNavigate={navigate}
+              onAskTutor={() => navigate(`/courses/${courseId}/material`)}
             />
           </div>
         </div>

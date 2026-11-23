@@ -86,19 +86,6 @@ export function StudentOnboardingView({
             {t("dashboard.startLearning", { name: firstName })}
           </>
         }
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button asChild variant="outline" size="sm" className="rounded-lg text-body-sm">
-              <Link href="/plans">{t("dashboard.plans")}</Link>
-            </Button>
-            <Button asChild size="sm" className="gap-1.5 rounded-lg text-body-sm">
-              <Link href="/courses">
-                {t("dashboard.exploreAllCourses")}
-                <ArrowRight className="size-3.5" />
-              </Link>
-            </Button>
-          </div>
-        }
       />
 
       <div className="grid gap-6 lg:grid-cols-12">

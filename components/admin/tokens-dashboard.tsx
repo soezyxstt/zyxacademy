@@ -160,7 +160,6 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
         setTotalQuota(15);
         setWeeklyQuota(1);
         setCreateOpen(false);
-        router.refresh();
       } else {
         toast.error(translate("tokensUI.createFailure"));
       }
@@ -181,7 +180,6 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
       if (res.success) {
         toast.success(translate("tokensUI.deleteSuccess"));
         setPendingDelete(null);
-        router.refresh();
       } else {
         toast.error(translate("tokensUI.deleteFailure"));
       }

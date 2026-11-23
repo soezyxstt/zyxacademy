@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || (github.ref_name == 'main' && inputs.environment == 'production') || (github.ref_name == 'staging' && inputs.environment == 'staging')
+    if: github.event_name == 'workflow_dispatch' || (github.ref_name == 'main' && inputs.environment == 'production')
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     timeout-minutes: 25
@@ -85,7 +85,7 @@ jobs:
           QUEUE_SMOKE_PROVIDER: ${{ vars.QUEUE_PROVIDER || 'inngest' }}
         run: bun scripts/neon/smoke-worker.ts "$COMPUTE_ENVIRONMENT"
       - name: Exercise remote thumbnail persistence and quiz feedback
-        if: inputs.environment == 'staging' && github.event_name == 'workflow_dispatch' && !inputs.queue_smoke
+        if: inputs.environment == 'staging' && github.event_name == 'workflow_dispatch' && !inputs.queue_smoke && vars.QUEUE_PROVIDER != 'cloud-tasks'
         run: bun scripts/neon/smoke-business-workers.ts staging
       - name: Inspect PDF text and source figure geometry in Browser Run
         if: inputs.environment == 'staging' && github.event_name == 'workflow_dispatch' && !inputs.queue_smoke

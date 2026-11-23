@@ -161,6 +161,14 @@ function renderMath(value: string, displayMode: boolean): string {
   }
 }
 
+function tryRenderStreamingMath(value: string, displayMode: boolean): string | null {
+  try {
+    return renderKatexToString(value, { ...katexOptions, throwOnError: true, displayMode });
+  } catch {
+    return null;
+  }
+}
+
 // --- Inline Parser ---
 
 /** Converts inline Markdown tokens into text, math, and emphasis nodes. */
@@ -231,30 +239,42 @@ function parseInline(text: string): ReactNode[] {
 
     // 1. Math Block (e.g. $$...$$ or \[...\])
     let mathBlockMatch = remaining.match(/^`?\$\$([\s\S]+?)\$\$`?/) || remaining.match(/^`?\\\[([\s\S]+?)\\\]`?/);
+    let isUnclosedBlock = false;
     if (!mathBlockMatch) {
       const unclosedBlock = remaining.match(/^`?\$\$([\s\S]*)$/) || remaining.match(/^`?\\\[([\s\S]*)$/);
       if (unclosedBlock) {
         mathBlockMatch = unclosedBlock;
+        isUnclosedBlock = true;
       }
     }
     if (mathBlockMatch) {
       flushText();
       let content = mathBlockMatch[1] || mathBlockMatch[2] || "";
       if (content.endsWith("`")) content = content.substring(0, content.length - 1);
-      result.push(
-        <MathRegion as="span"
-          key={`mathblk-${index}`}
-          data-math-scroll role="region" tabIndex={0}
-          className="my-2 block max-w-full overflow-x-auto overflow-y-hidden py-1 text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left"
-          dangerouslySetInnerHTML={{ __html: renderMath(content, true) }}
-        />
-      );
+      const renderedHtml = isUnclosedBlock ? tryRenderStreamingMath(content, true) : renderMath(content, true);
+      if (renderedHtml !== null) {
+        result.push(
+          <MathRegion as="span"
+            key={`mathblk-${index}`}
+            data-math-scroll role="region" tabIndex={0}
+            className="my-2 block max-w-full overflow-x-auto overflow-y-hidden py-1 text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left"
+            dangerouslySetInnerHTML={{ __html: renderedHtml }}
+          />
+        );
+      } else {
+        result.push(
+          <span key={`mathblk-raw-${index}`} className="my-2 block max-w-full overflow-x-auto font-mono text-body-xs text-muted-foreground">
+            {content}
+          </span>
+        );
+      }
       index += mathBlockMatch[0].length;
       continue;
     }
 
     // 2. Math Inline (e.g. $...$ or \(...\))
     let mathInlineMatch = remaining.match(/^`?\$([^$]+?)\$`?/) || remaining.match(/^`?\\\(([\s\S]+?)\\\)`?/);
+    let isUnclosedInline = false;
     if (!mathInlineMatch) {
       const unclosedInline = remaining.match(/^`?\$([^$]+)$/) || remaining.match(/^`?\\\(([\s\S]+)$/);
       if (unclosedInline) {
@@ -263,6 +283,7 @@ function parseInline(text: string): ReactNode[] {
         const looksLikeMath = /[\+\-\*\/=\\_\^<>]/g.test(content) || content.includes(" ") || content.length > 5;
         if (looksLikeMath) {
           mathInlineMatch = unclosedInline;
+          isUnclosedInline = true;
         }
       }
     }
@@ -270,13 +291,22 @@ function parseInline(text: string): ReactNode[] {
       flushText();
       let content = mathInlineMatch[1] || mathInlineMatch[2] || "";
       if (content.endsWith("`")) content = content.substring(0, content.length - 1);
-      result.push(
-        <span
-          key={`mathinline-${index}`}
-          className="inline-block max-w-full align-baseline px-0.5"
-          dangerouslySetInnerHTML={{ __html: renderMath(content, false) }}
-        />
-      );
+      const renderedHtml = isUnclosedInline ? tryRenderStreamingMath(content, false) : renderMath(content, false);
+      if (renderedHtml !== null) {
+        result.push(
+          <span
+            key={`mathinline-${index}`}
+            className="inline-block max-w-full align-baseline px-0.5"
+            dangerouslySetInnerHTML={{ __html: renderedHtml }}
+          />
+        );
+      } else {
+        result.push(
+          <span key={`mathinline-raw-${index}`} className="inline font-mono text-body-xs text-muted-foreground">
+            {content}
+          </span>
+        );
+      }
       index += mathInlineMatch[0].length;
       continue;
     }

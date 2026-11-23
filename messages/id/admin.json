@@ -1,4 +1,14 @@
 {
+  "dashboardStats": {
+    "courses": "{count} mata kuliah aktif",
+    "tokens": "{total} dibuat, {today} diklaim hari ini",
+    "questions": "{count} menunggu tinjauan",
+    "notifications": "{total} siaran, {devices} perangkat",
+    "ops": "{queued} antrean sinkronisasi, {requests} permintaan",
+    "blog": "{count} artikel",
+    "failed": "{count} generasi soal gagal",
+    "review": "Tinjau generasi"
+  },
   "googleSetup": {
     "title": "Panduan Google",
     "library": "Buka pustaka API Google Cloud",
@@ -49,7 +59,7 @@
     "tutorActivity": "Aktivitas tutor",
     "featureFlags": "Feature Flags",
     "zyraAnalytics": "Analitik Zyra",
-    "featureUsage": "Fitur",
+    "featureUsage": "Penggunaan fitur",
     "apiKeys": "API Keys",
     "shortLinks": "Short Links",
     "webAnalytics": "Web Analytics",
@@ -85,6 +95,9 @@
     "academicContent": "Akademik",
     "toolsCommunication": "Alat & pesan",
     "usersAccess": "Pengguna dan akses",
+    "publishingContent": "Publikasi dan konten",
+    "analyticsMonitor": "Analitik dan monitor",
+    "system": "Sistem",
     "systemOps": "Sistem dan ops",
     "pka": "Tutorial PKA"
   },

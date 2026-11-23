@@ -15,6 +15,7 @@ import {
   type SpreadsheetExportPayload,
 } from "@/lib/export-spreadsheet-client";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { isNativeSystemBrowserSupported, openNativeSystemBrowser } from "@/lib/native/auth";
 
 export type SpreadsheetExportSuccess = { spreadsheetUrl: string; isNew: boolean; sharingIncomplete: boolean };
 
@@ -117,7 +118,20 @@ export function useSpreadsheetExport(opts: {
     return (
       <div className="inline-flex items-center gap-1">
         {savedUrl && <AdminIconAction asChild variant="ghost" label={t("open")}>
-          <a href={savedUrl} target="_blank" rel="noopener noreferrer"><ExternalLink /></a>
+          <a
+            href={savedUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(event) => {
+              if (!isNativeSystemBrowserSupported()) return;
+              event.preventDefault();
+              void openNativeSystemBrowser(savedUrl).then((opened) => {
+                if (!opened) window.open(savedUrl, "_blank", "noopener,noreferrer");
+              });
+            }}
+          >
+            <ExternalLink />
+          </a>
         </AdminIconAction>}
         <Button type="button" variant="outline" size="sm" className="h-9" onClick={onExport}
           disabled={disabled || exporting || confirming} isLoading={exporting || confirming}>

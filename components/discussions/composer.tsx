@@ -3,7 +3,11 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ComponentType, type ReactNode } from "react";
 import Image from "next/image";
 import { useTranslations } from "@/lib/i18n/client";
-import { AlertCircle, AtSign, Bold, Check, CircleHelp, Code2, ImageOff, ImagePlus, Italic, Link2, List, Loader2, MoreHorizontal, RotateCcw, Send, Sigma, X } from "lucide-react";
+import { AlertCircle, AtSign, Bold, Camera, Check, CircleHelp, Code2, ImageOff, ImagePlus, Italic, Link2, List, Loader2, MoreHorizontal, RotateCcw, Send, Sigma, X } from "lucide-react";
+import { captureNativeQuestionPhoto, hasNativeCameraBridge, prepareQuestionImageFiles } from "@/lib/native/camera";
+import { hapticSuccess } from "@/lib/native/haptics";
+import { usePullToRefreshLock } from "@/hooks/use-pull-to-refresh-lock";
+import { consumeRestoredCameraPayload, ZYX_CAMERA_RESTORED_EVENT } from "@/lib/native/camera-recovery";
 import { Button } from "@/components/ui/button";
 import { ZyraCosmeticAvatar } from "@/components/gamification/zyra-cosmetic-avatar";
 import { StudentAvatar } from "@/components/gamification/student-avatar";
@@ -181,6 +185,10 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
   const t = useTranslations("discussions");
   const textRef = useRef<ZyraComposerInputHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const pendingImagesRef = useRef(0);
   const inFlight = useRef(new Set<string>());
   const uploadsInFlight = useRef(new Set<string>());
   const [fileError, setFileError] = useState<"" | "maxImages" | "fileRequirements">("");
@@ -234,6 +242,8 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
   const canReplay = uncertain && draft.pendingSubmission?.viewerId === viewer.id && draft.pendingSubmission.channelId === channelId && draft.pendingSubmission.questionId === questionId;
   const uploading = draft.images.some((image) => image.status === "uploading");
   const failedImage = draft.images.some((image) => image.status === "error");
+  usePullToRefreshLock(uploading, "discussion-upload");
+  usePullToRefreshLock(draft.sending, "discussion-submit");
   const sendLabel = draft.sending ? t("sending") : uploading ? t("uploadingImages") : draft.error ? t("retrySend") : submitLabel;
   const mentions = discussionMentions(draft.body, draft.mentionedPeople);
   const staleMentions = draft.mentionedPeople.some((person) => person.channelId !== channelId && mentions.mentionIds.includes(person.id));
@@ -265,22 +275,117 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
     }
   }
 
-  function pickImages(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = "";
-    if (files.length + draft.images.length > MAX_IMAGES) {
+  async function addFiles(rawFiles: readonly File[]) {
+    if (rawFiles.length === 0) return;
+    if (rawFiles.length + draftRef.current.images.length + pendingImagesRef.current > MAX_IMAGES) {
       setFileError("maxImages");
       return;
     }
-    if (files.some((file) => !IMAGE_TYPES.includes(file.type) || file.size > MAX_IMAGE_BYTES || file.size === 0)) {
-      setFileError("fileRequirements");
+    pendingImagesRef.current += rawFiles.length;
+    try {
+      const files = await prepareQuestionImageFiles(rawFiles);
+      if (files.some((file) => !IMAGE_TYPES.includes(file.type) || file.size > MAX_IMAGE_BYTES || file.size === 0)) {
+        setFileError("fileRequirements");
+        return;
+      }
+      const remaining = Math.max(0, MAX_IMAGES - draftRef.current.images.length);
+      if (remaining === 0) {
+        setFileError("maxImages");
+        return;
+      }
+      const acceptedFiles = files.slice(0, remaining);
+      setFileError(files.length > remaining ? "maxImages" : "");
+      const accepted: ComposerImage[] = acceptedFiles.map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+        status: "uploading",
+      }));
+      update((current) => ({ ...current, images: [...current.images, ...accepted], requestId: undefined }));
+      accepted.forEach((image) => { void upload(image); });
+    } finally {
+      pendingImagesRef.current = Math.max(0, pendingImagesRef.current - rawFiles.length);
+    }
+  }
+
+  function pickImages(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    void addFiles(files);
+  }
+
+  function openCamera() {
+    if (editingDisabled || draft.images.length >= MAX_IMAGES) return;
+    if (hasNativeCameraBridge()) {
+      const pathname = typeof window !== "undefined" ? window.location.pathname : "/discussions";
+      const search = typeof window !== "undefined" ? window.location.search : "";
+      const recoveryTarget = questionId
+        ? {
+            surface: "discussion" as const,
+            mode: "reply" as const,
+            channelId,
+            questionId,
+            viewerId: viewer.id,
+            draftBody: draft.body,
+            replyTo: draft.replyTo,
+            pathname,
+            search,
+          }
+        : {
+            surface: "discussion" as const,
+            mode: "new" as const,
+            channelId,
+            viewerId: viewer.id,
+            draftBody: draft.body,
+            pathname,
+            search,
+          };
+      void captureNativeQuestionPhoto(recoveryTarget).then((file) => {
+        if (file) void addFiles([file]);
+      });
       return;
     }
-    setFileError("");
-    const images: ComposerImage[] = files.map((file) => ({ id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file), status: "uploading" }));
-    update((current) => ({ ...current, images: [...current.images, ...images], requestId: undefined }));
-    images.forEach((image) => { void upload(image); });
+    cameraRef.current?.click();
   }
+
+  const addFilesRef = useRef(addFiles);
+  const updateRef = useRef(update);
+  useEffect(() => {
+    addFilesRef.current = addFiles;
+    updateRef.current = update;
+  });
+
+  useEffect(() => {
+    if (!channelId || !onUpload) return;
+    const tryConsumeRestoredPhoto = () => {
+      const restored = consumeRestoredCameraPayload((target) => {
+        if (target.surface !== "discussion") return false;
+        if (target.viewerId !== viewer.id || target.channelId !== channelId) return false;
+        if (questionId) {
+          return target.mode === "reply" && target.questionId === questionId;
+        }
+        return target.mode === "new";
+      });
+      if (!restored) return;
+      const { payload, file } = restored;
+      if (payload.target.surface === "discussion") {
+        const restoredBody = payload.target.draftBody;
+        const restoredReplyTo = payload.target.mode === "reply" ? payload.target.replyTo : undefined;
+        if (restoredBody || restoredReplyTo) {
+          updateRef.current((current) => ({
+            ...current,
+            body: current.body.length > 0 ? current.body : restoredBody,
+            replyTo: current.replyTo ?? restoredReplyTo,
+          }));
+        }
+      }
+      void addFilesRef.current([file]);
+    };
+
+    tryConsumeRestoredPhoto();
+    window.addEventListener(ZYX_CAMERA_RESTORED_EVENT, tryConsumeRestoredPhoto);
+    return () => window.removeEventListener(ZYX_CAMERA_RESTORED_EVENT, tryConsumeRestoredPhoto);
+  }, [channelId, questionId, viewer.id, onUpload]);
 
   function removeImage(image: ComposerImage) {
     URL.revokeObjectURL(image.previewUrl);
@@ -297,6 +402,7 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
       if (!canAskZyra) prepared.submission.askZyra = false;
       if (await deliverComposerSubmission(prepared, uncertain, update, onSubmit)) {
         draft.images.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+        void hapticSuccess();
         onSuccess?.();
       }
     } finally {
@@ -365,7 +471,9 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
             {canAskZyra && zyraUnscoped !== undefined && <p>{t(viewer.role === "student" ? zyraUnscoped ? "zyraUnscopedFreeText" : "zyraFreeText" : "zyraImages")}</p>}
             {canAskZyra && viewer.role === "student" && <p>{t("zyraQuota")}</p>}
           </PopoverContent></Popover>
-          {onUpload && <><ToolButton label={t("addImage")} icon={ImagePlus} disabled={editingDisabled || draft.images.length >= MAX_IMAGES} onClick={() => fileRef.current?.click()} />
+          {onUpload && <><ToolButton label={t("takePhoto")} icon={Camera} disabled={editingDisabled || draft.images.length >= MAX_IMAGES} onClick={openCamera} />
+          <input ref={cameraRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={editingDisabled} className="sr-only" tabIndex={-1} onChange={pickImages} />
+          <ToolButton label={t("addImage")} icon={ImagePlus} disabled={editingDisabled || draft.images.length >= MAX_IMAGES} onClick={() => fileRef.current?.click()} />
           <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" disabled={editingDisabled} multiple className="sr-only" tabIndex={-1} onChange={pickImages} /></>}
         </div>
       </div>

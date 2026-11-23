@@ -1,8 +1,13 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
+import { prepareCompatibleText } from "@/lib/ai/provider/compatible-text";
+import { setModelSettingsReaderForTests } from "@/lib/ai/model-settings-store";
 import { ControlPlaneClient } from "@/lib/ai/control-plane-client";
 import { ProviderAdapterError } from "@/lib/ai/provider/errors";
 import type { ProviderGenerationResult } from "@/lib/ai/provider/provider-adapter";
-import { RequestLifecycle, type RequestLifecycleDependencies } from "@/lib/ai/request-lifecycle";
+import { ProviderNotDispatchedError, RequestLifecycle, type RequestLifecycleDependencies } from "@/lib/ai/request-lifecycle";
+
+beforeAll(() => setModelSettingsReaderForTests(async () => null));
+afterAll(() => setModelSettingsReaderForTests(null));
 
 function appLease() {
   return {
@@ -98,6 +103,46 @@ function dependencies(overrides: Partial<RequestLifecycleDependencies> = {}) {
 }
 
 describe("Plan 005 request lifecycle", () => {
+  it("checks shared cooldown on a cold instance before dispatch and safely uses the next model", async () => {
+    const health = spyOn(ControlPlaneClient.prototype, "aliasHealth").mockResolvedValue({ failures: 3, cooldownUntil: Date.now() + 86400000 });
+    const fixture = dependencies({
+      resolveModelChain: async () => ["openai-gpt", "deepseek-text"],
+      prepareProvider: async input => {
+        if (input.modelId !== "openai-gpt") return async () => result(input.modelId);
+        try {
+          return await prepareCompatibleText({ ...input, projectAlias: "openai" }, {
+            BETTER_AUTH_URL: "https://staging.zyxacademy.com", CF_AI_GATEWAY_URL: "https://gateway.ai.cloudflare.com/v1/account/gateway", CF_AI_GATEWAY_TOKEN: "fixture",
+            ZYRA_CONTROL_PLANE_URL: "https://control.fixture", ZYRA_CONTROL_PLANE_TOKEN: "fixture", AI_OPENAI_BYOK_ALIASES: "openai_1",
+          });
+        } catch (error) { throw new ProviderNotDispatchedError("alias unavailable before provider dispatch", error); }
+      },
+    });
+    try {
+      const output = await new RequestLifecycle(fixture.dependencies).execute({ userId: "user-1", feature: "playground", idempotencyKey: "cold-alias-fixture", singleDispatch: true, parts: [{ type: "text", text: "test" }] });
+      expect(health).toHaveBeenCalledTimes(1);
+      expect(output.modelId).toBe("deepseek-text");
+      expect(fixture.events.filter(event => event === "cp.dispatch")).toHaveLength(1);
+      expect(fixture.events.filter(event => event === "cp.refund")).toHaveLength(1);
+      expect(fixture.events.filter(event => event === "cp.commit")).toHaveLength(1);
+      expect(fixture.events).not.toContain("allowance.refund");
+    } finally { health.mockRestore(); }
+  });
+  it("releases an unavailable provider slot and dispatches the next model under the same allowance", async () => {
+    const fixture = dependencies({
+      resolveModelChain: async () => ["openai-gpt", "deepseek-text"],
+      prepareProvider: input => {
+        if (input.modelId === "openai-gpt") throw new ProviderNotDispatchedError("all keys cooling down");
+        return async () => result(input.modelId);
+      },
+    });
+    const output = await new RequestLifecycle(fixture.dependencies).execute({
+      userId: "user-1", feature: "playground", parts: [{type:"text",text:"test"}],
+    });
+    expect(output.modelId).toBe("deepseek-text");
+    expect(fixture.events.filter(x => x === "cp.refund")).toHaveLength(1);
+    expect(fixture.events.filter(x => x === "allowance.dispatch")).toHaveLength(1);
+    expect(fixture.events).not.toContain("allowance.refund");
+  });
   it("waits for an in-flight duplicate instead of dispatching a second provider call", async () => {
     let providerCalls = 0;
     let releaseProvider!: () => void;
@@ -234,7 +279,9 @@ describe("Plan 005 request lifecycle", () => {
   });
 
   it("falls back before dispatch while keeping one application allowance", async () => {
-    const fixture = dependencies();
+    const fixture = dependencies({
+      resolveModelChain: async () => ["gemini-3.5-flash", "gemini-3.5-flash-lite"],
+    });
     const lifecycle = new RequestLifecycle(fixture.dependencies);
     const output = await lifecycle.execute({
       userId: "user-1",
@@ -295,6 +342,7 @@ describe("Plan 005 request lifecycle", () => {
 
   it("falls back from Interactions to generateContent with one allowance", async () => {
     const fixture = dependencies({
+      resolveModelChain: async () => ["gemini-3.6-flash", "gemini-2.5-flash"],
       invokeProvider: async ({ modelId }) => {
         fixture.events.push(`provider:${modelId}`);
         if (modelId === "gemini-3.6-flash") {
@@ -327,5 +375,30 @@ describe("Plan 005 request lifecycle", () => {
     expect(fixture.events.filter((event) => event === "allowance.commit")).toHaveLength(1);
     expect(fixture.events).toContain("provider:gemini-3.6-flash");
     expect(fixture.events).toContain("provider:gemini-2.5-flash");
+  });
+
+  it("falls back on confirmed gateway HTTP 400 missing BYOK credentials and HTTP 404", async () => {
+    for (const [label, error] of [
+      ["missing-byok-400", new ProviderAdapterError({ code: "PROVIDER_AUTHENTICATION", message: "missing byok", retryClassification: "authentication", httpStatus: 400 })],
+      ["model-404", new ProviderAdapterError({ code: "PROVIDER_ERROR", message: "not found", retryClassification: "unknown", httpStatus: 404 })],
+    ] as const) {
+      const fixture = dependencies({
+        resolveModelChain: async () => ["openai-gpt", "gemini-3.5-flash-lite"],
+        invokeProvider: async ({ modelId }) => {
+          fixture.events.push(`provider:${modelId}`);
+          if (modelId === "openai-gpt") throw error;
+          return result(modelId);
+        },
+      });
+      const output = await new RequestLifecycle(fixture.dependencies).execute({
+        userId: "user-1",
+        feature: "playground",
+        idempotencyKey: `fallback-${label}`,
+        parts: [{ type: "text", text: "Explain" }],
+      });
+      expect(output.modelId).toBe("gemini-3.5-flash-lite");
+      expect(fixture.events).toContain("provider:openai-gpt");
+      expect(fixture.events).toContain("provider:gemini-3.5-flash-lite");
+    }
   });
 });

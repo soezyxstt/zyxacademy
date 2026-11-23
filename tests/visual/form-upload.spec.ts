@@ -54,3 +54,36 @@ for (const preview of [false, true]) {
     expect(errors).toEqual([]);
   });
 }
+
+test("English preview localizes the upload and submission dialog and preserves the authored question", async ({ page }) => {
+  await page.route(origin + "/**", route => route.fulfill({ contentType: "text/html", body: '<div id="root"></div>' }));
+  await page.goto(origin + "/?preview&lang=en");
+  await page.addStyleTag({ content: fixture.styles });
+  await page.addScriptTag({ content: fixture.script });
+  await expect(page.getByText("Berkas pendukung", { exact: true })).toBeVisible();
+  await expect(page.getByText("Choose file", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Submit response", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Submit your response?", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Continue editing" }).click();
+  await expect(dialog).toBeHidden();
+});
+
+test("closed form shows the server's opening time in English", async ({ page }) => {
+  await page.route(origin + "/**", route => {
+    if (new URL(route.request().url()).pathname === "/api/forms/fixture-slug") {
+      return route.fulfill({ json: {
+        form: { id: "fixture-id", title: "Pendaftaran tutorial", settings: {}, questions: [] },
+        isClosed: true,
+        closure: { kind: "scheduled", opensAt: "2026-12-01T01:30:00Z" },
+        closedReason: "Formulir belum dibuka.",
+      } });
+    }
+    return route.fulfill({ contentType: "text/html", body: '<div id="root"></div>' });
+  });
+  await page.goto(origin + "/?lang=en");
+  await page.addStyleTag({ content: fixture.styles });
+  await page.addScriptTag({ content: fixture.script });
+  await expect(page.getByText(/This form opens on .*8:30.*WIB/)).toBeVisible();
+  await expect(page.getByText("Formulir belum dibuka.")).toHaveCount(0);
+});

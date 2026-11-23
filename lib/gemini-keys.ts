@@ -1,4 +1,5 @@
-import { GoogleGenAI } from '@google/genai';
+import { googleGatewayClient } from "@/lib/ai/provider/google-gateway-client";
+import type { GoogleGenAI } from '@google/genai';
 import { zyraRuntimeEnv } from '@/lib/zyra/runtime-env';
 import { getRpdLimit, getRpmLimit, getProjectAliases } from '@/lib/ai/provider/model-registry';
 import { ProviderAdapterError } from '@/lib/ai/provider/errors';
@@ -7,6 +8,7 @@ import { todayUtc } from '@/lib/date-utils';
 export interface GeminiKey {
   id: string;
   projectAlias: string;
+  byokAlias: string;
   key: string;
   client: GoogleGenAI;
   clientGateway: GoogleGenAI | null;
@@ -53,29 +55,14 @@ export interface KeyModelDiagnostics {
 
 const CIRCUIT_BREAKER_THRESHOLD = 3;
 const CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
-
-function createClients(apiKey: string, gatewayUrl?: string) {
-  const direct = new GoogleGenAI({ apiKey });
-  const gateway = gatewayUrl
-    ? new GoogleGenAI({
-        apiKey,
-        httpOptions: {
-          baseUrl: gatewayUrl,
-          headers: zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN
-            ? { 'cf-aig-authorization': `Bearer ${zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN}` }
-            : {},
-        },
-      })
-    : null;
-  return { direct, gateway };
-}
+const RATE_LIMIT_CIRCUIT_COOLDOWN_MS = 60 * 1000; // 60 seconds (aligns with RPM window)
 
 export class GeminiKeyPool {
   private keys: GeminiKey[] = [];
   private schedulerStates = new Map<string, KeyModelSchedulerState>();
 
   constructor() {
-    const gatewayUrl = zyraRuntimeEnv.CF_AI_GATEWAY_URL;
+
 
     const keyConfigs = [
       { id: 'key1', alias: zyraRuntimeEnv.GEMINI_PROJECT_ALIAS_1, key: zyraRuntimeEnv.GEMINI_API_KEY },
@@ -101,13 +88,18 @@ export class GeminiKeyPool {
 
     this.keys = keyConfigs.map(({ id, alias, key }) => {
       const slotIndex = Number(id.replace("key", "")) - 1;
-      const { direct, gateway } = createClients(key, gatewayUrl);
+      const byokAlias = `gemini_${slotIndex + 1}`;
+      let gateway: GoogleGenAI | undefined;
+      const getClient = () => gateway ??= googleGatewayClient(key, zyraRuntimeEnv, undefined, {}, {
+        preferByokAlias: byokAlias,
+      });
       return {
         id,
         projectAlias: alias ?? aliases[slotIndex],
+        byokAlias,
         key,
-        client: direct,
-        clientGateway: gateway,
+        get client() { return getClient(); },
+        get clientGateway() { return getClient(); },
         errorCount: 0,
         lastErrorAt: 0,
         isHealthy: true,
@@ -245,7 +237,8 @@ export class GeminiKeyPool {
       const state = this.getSchedulerState(key.id, modelId);
 
       // Check RPD (daily quota); skip if exhausted for today
-      const todayCount = this.cleanAndGetRpd(state);
+      const peers = this.keys.filter(item => item.projectAlias === key.projectAlias).map(item => this.getSchedulerState(item.id, modelId));
+      const todayCount = peers.reduce((sum, peer) => sum + this.cleanAndGetRpd(peer), 0);
       if (todayCount >= state.rpdLimit) {
         continue;
       }
@@ -274,7 +267,7 @@ export class GeminiKeyPool {
       }
 
       // Check sliding window limits
-      const currentRpm = this.cleanAndGetRpm(state, now);
+      const currentRpm = peers.reduce((sum, peer) => sum + this.cleanAndGetRpm(peer, now), 0);
       const activeCount = this.cleanAndGetActiveCount(state, now);
 
       if (currentRpm >= state.estimatedRpmLimit) {
@@ -369,14 +362,14 @@ export class GeminiKeyPool {
         state.cooldownUntil = now + retryAfterMs;
         console.warn(`[GeminiKeyPool] Key ${keyId} model ${modelId} cooling down for ${retryAfterMs / 1000}s (retry-after)`);
       } else {
-        const backoffMs = Math.min(1000 * Math.pow(2, state.consecutiveFailures) + Math.random() * 500, 300000);
+        const backoffMs = Math.min(1000 * Math.pow(2, state.consecutiveFailures) + Math.random() * 500, RATE_LIMIT_CIRCUIT_COOLDOWN_MS);
         state.cooldownUntil = now + backoffMs;
         console.warn(`[GeminiKeyPool] Key ${keyId} model ${modelId} cooling down for ${backoffMs / 1000}s (exponential backoff)`);
       }
 
       if (state.consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
         state.circuitState = 'OPEN';
-        state.cooldownUntil = Math.max(state.cooldownUntil, now + CIRCUIT_BREAKER_COOLDOWN_MS);
+        state.cooldownUntil = Math.max(state.cooldownUntil, now + RATE_LIMIT_CIRCUIT_COOLDOWN_MS);
         console.error(`[GeminiKeyPool] Key ${keyId} model ${modelId} CIRCUIT OPEN (rate limits) - cooling down until ${new Date(state.cooldownUntil).toISOString()}`);
       }
     } else {
@@ -440,30 +433,15 @@ export class GeminiKeyPool {
 
   /** Returns only the selected project slot; key material never leaves this class. */
   getKeyByProjectAlias(projectAlias: string): GeminiKey | null {
-    return this.keys.find((key) => key.projectAlias === projectAlias) ?? null;
+    const candidates = this.getHealthyKeys().filter(key => key.projectAlias === projectAlias);
+    return candidates[Math.floor(Math.random() * candidates.length)] ?? null;
   }
 
   /** Builds a request-scoped SDK client so AI Gateway metadata cannot bleed across requests. */
   createRequestClient(projectAlias: string, options: GeminiRequestClientOptions): GoogleGenAI | null {
     const key = this.getKeyByProjectAlias(projectAlias);
     if (!key) return null;
-    if (options.viaGateway && !zyraRuntimeEnv.CF_AI_GATEWAY_URL) return null;
-
-    const headers: Record<string, string> = { ...(options.headers ?? {}) };
-    if (options.viaGateway && zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN) {
-      headers["cf-aig-authorization"] = `Bearer ${zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN}`;
-    }
-
-    return new GoogleGenAI({
-      apiKey: key.key,
-      httpOptions: {
-        ...(options.viaGateway && zyraRuntimeEnv.CF_AI_GATEWAY_URL
-          ? { baseUrl: zyraRuntimeEnv.CF_AI_GATEWAY_URL }
-          : {}),
-        ...(Object.keys(headers).length > 0 ? { headers } : {}),
-        ...(options.timeoutMs ? { timeout: options.timeoutMs } : {}),
-      },
-    });
+    return googleGatewayClient(key.key, zyraRuntimeEnv, options.timeoutMs, options.headers);
   }
 
   getHealthyKeys(): GeminiKey[] {

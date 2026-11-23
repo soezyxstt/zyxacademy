@@ -1,5 +1,14 @@
 {
   "publicForm": {
+    "opensAt": "This form opens on {date} WIB.",
+    "endedAt": "This form closed on {date} WIB.",
+    "chooseFile": "Choose file",
+    "confirmTitle": "Submit your response?",
+    "confirmBody": "Your response has not been sent. Select Submit response to finish.",
+    "keepEditing": "Continue editing",
+    "estimatedMinutes": "{count, plural, one {About # minute} other {About # minutes}}",
+    "questionCount": "{count, plural, one {# question} other {# questions}}",
+    "clearNamed": "Clear answer: {title}",
     "loading": "Loading form...",
     "loginRequired": "Sign-in required",
     "loginDescription": "Sign in to your Zyx account before filling out this form.",

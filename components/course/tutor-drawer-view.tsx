@@ -1,5 +1,7 @@
 "use client";
 
+import { useDialogHistory } from "@/hooks/use-dialog-history";
+import { usePanelViewport } from "@/hooks/use-panel-viewport";
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,6 +23,7 @@ import {
   Copy,
   Trash2,
   HelpCircle,
+  Camera,
   Paperclip,
   Plus,
   ArrowUp,
@@ -121,6 +124,16 @@ const DEFAULT_SIDEBAR_WIDTH = DEFAULT_TUTOR_PANEL_WIDTH;
 const MAX_SIDEBAR_WIDTH = MAX_TUTOR_PANEL_WIDTH;
 const STORAGE_KEY_WIDTH = "zyra_tutor_sidebar_width";
 
+function WaitDuration({ locale }: { locale: string }) {
+  const [seconds, setSeconds] = React.useState(0);
+  React.useEffect(() => {
+    const started = Date.now();
+    const timer = setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return seconds > 1 ? <span aria-hidden className="tabular-nums">{seconds} {locale === "en" ? "s" : "dtk"}</span> : null;
+}
+
 function safeText(value: unknown, fallback: string): string {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
@@ -161,12 +174,18 @@ function FollowUpChips({ followups, disabled, onSend }: {
   const t = useTranslations("studentCourse");
   return (
     <TooltipProvider>
-    <div className="mt-2 flex flex-wrap items-center gap-1" aria-label={t("tutorDrawer.followUpActions")}>
+    <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label={t("tutorDrawer.followUpActions")}>
       {followups.map((chip, index) => (
         <Tooltip key={`${chip.label}-${index}`}>
           <TooltipTrigger asChild>
-            <Button type="button" variant="ghost" size="sm" disabled={disabled}
-              onClick={() => onSend(chip)} className="h-auto max-w-full whitespace-normal px-2 py-1 text-left">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={disabled}
+              onClick={() => onSend(chip)}
+              className="h-auto max-w-full whitespace-normal rounded-full border border-border/70 bg-muted/35 px-2.5 py-1 text-left text-body-xs font-normal text-muted-foreground hover:border-border hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
+            >
               <FollowUpChipIcon name={chip.icon} />
               <span className="break-words">{chip.label}</span>
             </Button>
@@ -242,8 +261,19 @@ function TutorDrawerContent({
   const pathname = experience.pathname ?? realPathname;
   const registeredBridge = React.useSyncExternalStore(subscribePlaygroundBridge, getPlaygroundBridge, () => null);
   const codingBridge = pathname?.startsWith("/courses/") && pathname.split("/")[2] !== registeredBridge?.courseId ? null : registeredBridge;
+  const playgroundSessionStartedRef = React.useRef(false);
+  const revealRafRef = React.useRef<number | null>(null);
   const [assistantMode, setAssistantMode] = React.useState<"python" | "tutor">(() => codingBridge ? "python" : "tutor");
-  React.useEffect(() => { setAssistantMode(codingBridge ? "python" : "tutor"); }, [codingBridge]);
+  React.useEffect(() => {
+    setAssistantMode(codingBridge ? "python" : "tutor");
+    playgroundSessionStartedRef.current = false;
+  }, [codingBridge]);
+  React.useEffect(() => () => {
+    if (revealRafRef.current !== null) {
+      window.cancelAnimationFrame(revealRafRef.current);
+      revealRafRef.current = null;
+    }
+  }, []);
   const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : codingBridge?.courseId ?? null;
   const conversationScope = `${accountId ?? "anonymous"}:${courseIdFromPath ?? "none"}`;
   const conversationKeyForSession = React.useCallback(
@@ -286,6 +316,7 @@ function TutorDrawerContent({
     }
   }, [quotedContext, codingBridge]);
 
+  const [workStep, setWorkStep] = React.useState("");
   const [chatLoading, setChatLoading] = React.useState(false);
   const [sessionId, setSessionId] = React.useState<string | null>(null);
   const [attachmentIds, setAttachmentIds] = React.useState<string[]>([]);
@@ -309,19 +340,46 @@ function TutorDrawerContent({
     messageCount: number;
   }
   const [sessions, setSessions] = React.useState<ChatSessionSummary[]>([]);
+  const [sessionTitles, setSessionTitles] = React.useState<Record<string, string>>({});
   const [sessionsLoading, setSessionsLoading] = React.useState(false);
+  const titleRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionsRequestVersionRef = React.useRef(0);
+  const currentCourseIdRef = React.useRef(courseIdFromPath);
+  currentCourseIdRef.current = courseIdFromPath;
+  const streamedTitlesRef = React.useRef(new Map<string, string>());
+
+  React.useEffect(() => () => {
+    if (titleRefreshTimerRef.current) clearTimeout(titleRefreshTimerRef.current);
+  }, []);
 
   const loadSessions = React.useCallback(async () => {
     const courseId = courseIdFromPath;
     if (!courseId) return;
+    const requestVersion = ++sessionsRequestVersionRef.current;
     setSessionsLoading(true);
     try {
-      const list = demo ? [...fictionalHistory.current].map(([id, messages]) => ({ id, title: messages.find(message => message.role === "student")?.content ?? "Zyra", lastMessageAt: null, messageCount: messages.length })) : await listTutorSessionsAction(courseId);
+      const rawList = demo ? [...fictionalHistory.current].map(([id, messages]) => ({ id, title: messages.find(message => message.role === "student")?.content ?? "Zyra", lastMessageAt: null, messageCount: messages.length })) : await listTutorSessionsAction(courseId);
+      if (requestVersion !== sessionsRequestVersionRef.current || currentCourseIdRef.current !== courseId) return;
+      const list = rawList.map((item) => {
+        const streamedTitle = streamedTitlesRef.current.get(item.id);
+        return streamedTitle ? { ...item, title: streamedTitle } : item;
+      });
       setSessions(list);
+      setSessionTitles((prev) => {
+        const next = { ...prev };
+        for (const item of list) {
+          if (item.title && item.title !== "General Chat" && item.title !== "Percakapan") {
+            next[item.id] = item.title;
+          }
+        }
+        return next;
+      });
     } catch {
       // silent
     } finally {
-      setSessionsLoading(false);
+      if (requestVersion === sessionsRequestVersionRef.current) {
+        setSessionsLoading(false);
+      }
     }
   }, [courseIdFromPath, demo]);
 
@@ -359,6 +417,14 @@ function TutorDrawerContent({
 
   const invalidateConversationRequests = React.useCallback(() => {
     conversationEpochRef.current += 1;
+    if (titleRefreshTimerRef.current) {
+      clearTimeout(titleRefreshTimerRef.current);
+      titleRefreshTimerRef.current = null;
+    }
+    if (revealRafRef.current !== null) {
+      window.cancelAnimationFrame(revealRafRef.current);
+      revealRafRef.current = null;
+    }
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
     setChatLoading(false);
@@ -446,6 +512,9 @@ function TutorDrawerContent({
   // Micro-apps inside drawer
   const [activeAction, setActiveAction] = React.useState<ActiveAction>("none");
   const [actionData] = React.useState<any[]>([]);
+  const activityOpen = activeAction !== "none" && actionData.length > 0;
+  useDialogHistory(isOpen, onClose);
+  useDialogHistory(isOpen && activityOpen, () => setActiveAction("none"));
   const [actionIndex, setActionIndex] = React.useState(0);
   const [actionFlipped, setActionFlipped] = React.useState(false);
   const [actionSelectedAnswer, setActionSelectedAnswer] = React.useState<number | null>(null);
@@ -491,8 +560,12 @@ function TutorDrawerContent({
     if (activeMode === "study-plan") {
       return t("tutorDrawer.studyPlanTitle");
     }
+    const storedTitle = sessionId ? sessionTitles[sessionId] : undefined;
+    if (storedTitle && storedTitle !== "General Chat" && storedTitle !== "Percakapan") {
+      return storedTitle;
+    }
     const currentSession = sessions.find((s) => s.id === sessionId);
-    if (currentSession?.title && currentSession.title !== "General Chat") {
+    if (currentSession?.title && currentSession.title !== "General Chat" && currentSession.title !== "Percakapan") {
       return currentSession.title;
     }
     const firstStudent = messages.find((m) => m.role === "student");
@@ -500,7 +573,7 @@ function TutorDrawerContent({
       return firstStudent.content;
     }
     return courseLabel || t("tutorDrawer.askZyra");
-  }, [activeMode, data, messages, courseLabel, sessions, sessionId, t]);
+  }, [activeMode, data, messages, courseLabel, sessions, sessionId, sessionTitles, t]);
 
   // Mobile body scroll lock
   React.useEffect(() => {
@@ -538,6 +611,9 @@ function TutorDrawerContent({
           hasStartedConversationRef.current = true;
           if (result.sessionId) {
             activateConversation(conversationKeyForSession(result.sessionId), { invalidate: false });
+            if (result.sessionTitle && result.sessionTitle !== "General Chat" && result.sessionTitle !== "Percakapan") {
+              setSessionTitles((prev) => ({ ...prev, [result.sessionId]: result.sessionTitle! }));
+            }
           }
           setSessionId(result.sessionId);
           if (result.messages.length > 0) {
@@ -573,6 +649,7 @@ function TutorDrawerContent({
   // Smooth open/close presence state for both mobile overlay and desktop docked sheet
   const [shouldRender, setShouldRender] = React.useState(isOpen);
   const [isVisible, setIsVisible] = React.useState(typeof window === "undefined" ? isOpen : false);
+  usePanelViewport(panelRef, isVisible);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -882,7 +959,13 @@ function TutorDrawerContent({
   );
 
   // Handle sending arbitrary chat messages with SSE streaming
-  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null, presetIntent?: PythonPreset["intent"] | "hint" | "generate", retry?: NonNullable<ChatMessage["failedPayload"]>) => {
+  const handleSend = async (
+    suggestedQuestion?: string,
+    overrideQuote?: ZyraQuotedContext | null,
+    presetIntent?: PythonPreset["intent"] | "hint" | "generate",
+    retry?: NonNullable<ChatMessage["failedPayload"]>,
+    options?: { forceNewSession?: boolean },
+  ) => {
     if (chatLoading || abortControllerRef.current) return;
     if (retry && (retry.courseId !== courseIdFromPath || retry.conversationEpoch !== conversationEpochRef.current || (retry.sessionId !== null && retry.sessionId !== sessionId))) return;
     const codingRequest = codingBridge?.capture();
@@ -908,8 +991,10 @@ function TutorDrawerContent({
       return;
     }
     hasStartedConversationRef.current = true;
+    if (codingBridge) playgroundSessionStartedRef.current = true;
     if (activeMode !== "chat") setActiveMode("chat");
 
+    const effectiveSessionId = options?.forceNewSession ? null : sessionId;
     const studentMsg: ChatMessage = {
       persisted: false,
       id: `msg-${Date.now()}`,
@@ -917,10 +1002,17 @@ function TutorDrawerContent({
       content: displayStudentQuestion,
       quotedContext: effectiveQuote,
       attachments: requestedAttachments.length > 0 ? requestedAttachments : undefined,
-      sessionId,
+      sessionId: effectiveSessionId,
     };
 
-    setMessages((prev) => [...prev.map((message) => ({ ...message, followups: undefined })), studentMsg]);
+    if (options?.forceNewSession) {
+      setMessages([
+        { id: "chat-welcome", role: "ai", content: t("tutorDrawer.welcome") },
+        studentMsg,
+      ]);
+    } else {
+      setMessages((prev) => [...prev.map((message) => ({ ...message, followups: undefined })), studentMsg]);
+    }
     if (!retry) {
       setInputVal("");
       setActiveQuotedContext(null);
@@ -928,15 +1020,19 @@ function TutorDrawerContent({
       resetComposerAttachments();
     }
     if (demo) {
-      const id = sessionId ?? `fictional-chat-${crypto.randomUUID()}`;
+      const id = effectiveSessionId ?? `fictional-chat-${crypto.randomUUID()}`;
       const reply: ChatMessage = { id: `fictional-reply-${crypto.randomUUID()}`, role: "ai", content: demoT("demo.zyra.reply"), sessionId: id };
-      const nextMessages = [...messages, studentMsg, reply];
+      const baseMessages = options?.forceNewSession
+        ? [{ id: "chat-welcome", role: "ai" as const, content: t("tutorDrawer.welcome") }]
+        : messages;
+      const nextMessages = [...baseMessages, studentMsg, reply];
       fictionalHistory.current.set(id, nextMessages);
       setSessionId(id);
       setMessages(nextMessages);
       setSessions([...fictionalHistory.current].map(([key, history]) => ({ id: key, title: history.find(message => message.role === "student")?.content ?? "Zyra", lastMessageAt: null, messageCount: history.length })));
       return;
     }
+    setWorkStep("");
     setChatLoading(true);
 
     const abortController = new AbortController();
@@ -948,7 +1044,7 @@ function TutorDrawerContent({
     const requestId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : `zyra-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    let activeSid = sessionId;
+    let activeSid = effectiveSessionId;
     const failureSnapshot = () => ({ question: rawQuestion, quotedContext: effectiveQuote, intent, attachmentIds: requestedAttachmentIds, attachments: requestedAttachments, courseId: courseIdFromPath, sessionId: activeSid, conversationEpoch: requestConversationEpoch });
     const requestConversationKey = conversationKeyRef.current;
     const requestConversationEpoch = conversationEpochRef.current;
@@ -972,10 +1068,83 @@ function TutorDrawerContent({
       } : undefined,
     };
     let accumulatedContent = "";
+    let displayedLength = 0;
+    let revealDoneResolve: (() => void) | null = null;
     let finalSources: any = undefined;
     let finalCanvasSpec: CanvasSpec | null = null;
     let hasError = false;
     let completed = false;
+    let receivedSessionTitle = false;
+
+    const stopReveal = () => {
+      if (revealRafRef.current !== null) {
+        window.cancelAnimationFrame(revealRafRef.current);
+        revealRafRef.current = null;
+      }
+      if (revealDoneResolve) {
+        const resolve = revealDoneResolve;
+        revealDoneResolve = null;
+        resolve();
+      }
+    };
+
+    const setAiVisibleContent = (text: string) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(text).explanation : text } : m
+        )
+      );
+    };
+
+    const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+    const scheduleReveal = () => {
+      if (prefersReducedMotion || pythonRequest) {
+        displayedLength = accumulatedContent.length;
+        setAiVisibleContent(accumulatedContent);
+        if (revealDoneResolve) {
+          const resolve = revealDoneResolve;
+          revealDoneResolve = null;
+          resolve();
+        }
+        return;
+      }
+      if (revealRafRef.current !== null) return;
+      const step = () => {
+        revealRafRef.current = null;
+        if (abortController.signal.aborted || requestConversationEpoch !== conversationEpochRef.current) {
+          stopReveal();
+          return;
+        }
+        const remaining = accumulatedContent.length - displayedLength;
+        if (remaining <= 0) {
+          if (revealDoneResolve) {
+            const resolve = revealDoneResolve;
+            revealDoneResolve = null;
+            resolve();
+          }
+          return;
+        }
+        const stepSize = Math.max(4, Math.ceil(remaining / 10));
+        let nextLength = Math.min(accumulatedContent.length, displayedLength + stepSize);
+        if (nextLength < accumulatedContent.length) {
+          const spaceAhead = accumulatedContent.indexOf(" ", nextLength);
+          if (spaceAhead !== -1 && spaceAhead - nextLength <= 8) {
+            nextLength = spaceAhead + 1;
+          }
+        }
+        displayedLength = nextLength;
+        setAiVisibleContent(accumulatedContent.slice(0, displayedLength));
+        if (displayedLength < accumulatedContent.length) {
+          revealRafRef.current = window.requestAnimationFrame(step);
+        } else if (revealDoneResolve) {
+          const resolve = revealDoneResolve;
+          revealDoneResolve = null;
+          resolve();
+        }
+      };
+      revealRafRef.current = window.requestAnimationFrame(step);
+    };
 
     setMessages((prev) => [
       ...prev,
@@ -1006,21 +1175,23 @@ function TutorDrawerContent({
 
       if (response.body) {
         for await (const part of consumeZyraStream(response.body, abortController.signal)) {
-          if (part.type === "done") { completed = true; }
+          if (part.type === "data-work-step") {
+            if (part.data.status === "running" && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current) setWorkStep(part.data.label);
+          } else if (part.type === "done") { completed = true; }
           else if (part.type === "text-delta" && part.textDelta) {
             accumulatedContent += part.textDelta;
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent } : m
-              )
-            );
+            scheduleReveal();
+          } else if (part.type === "text-replace") {
+            accumulatedContent = part.text;
+            if (displayedLength >= accumulatedContent.length) {
+              displayedLength = accumulatedContent.length;
+              setAiVisibleContent(accumulatedContent);
+            } else {
+              scheduleReveal();
+            }
           } else if (part.type === "chunk" && part.text) {
             accumulatedContent += part.text;
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent } : m
-              )
-            );
+            scheduleReveal();
           } else if (part.type === "data-response-language") {
             if (
               requestLocaleEpoch === localeEpochRef.current &&
@@ -1063,8 +1234,14 @@ function TutorDrawerContent({
             activateConversation(conversationKeyForSession(part.sessionId), { invalidate: false, preserveCurrentOverride: true });
             setSessionId(part.sessionId);
             void loadSessions();
+          } else if (part.type === "data-session-title" && part.sessionId && part.title) {
+            receivedSessionTitle = true;
+            streamedTitlesRef.current.set(part.sessionId, part.title);
+            setSessionTitles((prev) => ({ ...prev, [part.sessionId]: part.title }));
+            setSessions((prev) => prev.map((item) => item.id === part.sessionId ? { ...item, title: part.title } : item));
           } else if (part.type === "data-error" && part.data?.message) {
             hasError = true;
+            stopReveal();
             accumulatedContent = t("tutorDrawer.responseError", { message: part.data.message });
             setMessages((prev) =>
               prev.map((m) =>
@@ -1079,8 +1256,16 @@ function TutorDrawerContent({
           }
         }
       }
+
+      if (completed && !hasError && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current && displayedLength < accumulatedContent.length) {
+        await new Promise<void>((resolve) => {
+          revealDoneResolve = resolve;
+          scheduleReveal();
+        });
+      }
     } catch (err: unknown) {
       hasError = true;
+      stopReveal();
       if (abortController.signal.aborted) {
         accumulatedContent = accumulatedContent || t("tutorDrawer.responseStopped");
         setMessages((prev) =>
@@ -1103,6 +1288,7 @@ function TutorDrawerContent({
         );
       }
     } finally {
+      stopReveal();
       if (requestConversationEpoch === conversationEpochRef.current) {
         setChatLoading(false);
         if (abortControllerRef.current === abortController) abortControllerRef.current = null;
@@ -1145,13 +1331,40 @@ function TutorDrawerContent({
         ? "This answer could not be saved. Copy anything you need before closing this conversation."
         : "Jawaban ini belum tersimpan. Salin bagian yang diperlukan sebelum menutup percakapan."));
     }
+
+    if (
+      !demo &&
+      !receivedSessionTitle &&
+      activeSid &&
+      completed &&
+      !hasError &&
+      requestConversationEpoch === conversationEpochRef.current
+    ) {
+      if (titleRefreshTimerRef.current) clearTimeout(titleRefreshTimerRef.current);
+      titleRefreshTimerRef.current = setTimeout(() => {
+        titleRefreshTimerRef.current = null;
+        void loadSessions();
+      }, 3500);
+    }
+  };
+
+  const handlePlaygroundPreset = (preset: PythonPreset) => {
+    setAssistantMode("python");
+    if (!playgroundSessionStartedRef.current) {
+      playgroundSessionStartedRef.current = true;
+      startNewConversation();
+      setSessionId(null);
+      resetComposerAttachments();
+      void handleSend(preset.message, null, preset.intent, undefined, { forceNewSession: true });
+      return;
+    }
+    void handleSend(preset.message, null, preset.intent);
   };
 
   React.useEffect(() => {
     const preset = pythonPresets.find(item => item.message === initialQuestion);
     if (!isOpen || !codingBridge || !preset) return;
-    setAssistantMode("python");
-    void handleSend(preset.message, null, preset.intent);
+    handlePlaygroundPreset(preset);
     // Initial preset requests are consumed once, like initialQuestion above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuestion, isOpen]);
@@ -1180,12 +1393,16 @@ function TutorDrawerContent({
     invalidateConversationRequests();
     resetComposerAttachments();
     const loadEpoch = conversationEpochRef.current;
+    setWorkStep("");
     setChatLoading(true);
     setShowMenu(false);
     try {
-      const res = demo ? { sessionId: targetSessionId, messages: fictionalHistory.current.get(targetSessionId) ?? [] } : await loadTutorHistoryAction(courseId, targetSessionId);
+      const res = demo ? { sessionId: targetSessionId, sessionTitle: undefined, messages: fictionalHistory.current.get(targetSessionId) ?? [] } : await loadTutorHistoryAction(courseId, targetSessionId);
       if (loadEpoch !== conversationEpochRef.current) return;
       activateConversation(conversationKeyForSession(res.sessionId), { invalidate: false });
+      if (res.sessionTitle && res.sessionTitle !== "General Chat" && res.sessionTitle !== "Percakapan") {
+        setSessionTitles((prev) => ({ ...prev, [res.sessionId]: res.sessionTitle! }));
+      }
       setSessionId(res.sessionId);
       if (res.messages.length > 0) {
         setMessages(res.messages);
@@ -1301,7 +1518,7 @@ function TutorDrawerContent({
       {/* Backdrop for Mobile Only */}
       <div
         role="presentation"
-        onClick={onClose}
+        onClick={activityOpen ? () => setActiveAction("none") : onClose}
         data-state={isVisible ? "open" : "closed"}
         className={cn(
           "fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-300 ease-out motion-reduce:transition-none md:hidden",
@@ -1315,11 +1532,10 @@ function TutorDrawerContent({
         aria-label={t("tutorDrawer.accessibleName")}
         data-state={isVisible ? "open" : "closed"}
         style={{
-          top: 0,
           "--zyra-panel-width": `${targetPanelWidth}px`,
         } as React.CSSProperties}
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-background shadow-2xl md:sticky md:top-0 md:bottom-auto md:right-auto md:self-start md:z-20 md:h-screen md:h-[100svh] md:shrink-0 md:shadow-none select-text",
+          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),calc(100vw-1rem))] flex-col overflow-hidden border-l border-border bg-background shadow-2xl md:sticky md:bottom-auto md:right-auto md:self-start md:z-20 md:shrink-0 md:shadow-none select-text top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           isDragging
             ? "transition-none select-none"
@@ -1717,25 +1933,34 @@ function TutorDrawerContent({
                 );
               })}
 
-              {chatLoading && (
-                <div role="status" className="flex items-center gap-2 text-muted-foreground text-body-xs p-2">
-                  <Loader2 className="size-3.5 animate-spin text-brand-primary" />
-                  <span>{t("tutorDrawer.thinking")}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleStopStream}
-                    className="px-2 text-destructive hover:bg-destructive/10"
-                  >
-                    {t("tutorDrawer.stop")}
-                  </Button>
-                </div>
-              )}
+              {chatLoading && (() => {
+                const lastMessage = messages[messages.length - 1];
+                const isStreamingVisibleText = Boolean(lastMessage && lastMessage.role === "ai" && lastMessage.content.length > 0);
+                return (
+                  <div role="status" className="flex items-center gap-2 text-muted-foreground text-body-xs p-2">
+                    {!isStreamingVisibleText && (
+                      <>
+                        <Loader2 className="size-3.5 animate-spin text-brand-primary" />
+                        <span>{workStep || t("tutorDrawer.thinking")}</span>
+                        <WaitDuration locale={locale} />
+                      </>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleStopStream}
+                      className="px-2 text-destructive hover:bg-destructive/10"
+                    >
+                      {t("tutorDrawer.stop")}
+                    </Button>
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
 
-        {assistantMode === "python" && codingBridge ? <div className="shrink-0 px-3 pb-1"><PythonPresets code={codingBridge.capture().context.code} hasError={["syntax_error", "runtime_error", "timeout"].includes(codingBridge.capture().context.execution?.status ?? "")} disabled={chatLoading} onSelect={preset => void handleSend(preset.message, null, preset.intent)} /></div> : null}
+        {assistantMode === "python" && codingBridge ? <div className="shrink-0 px-3 pb-1"><PythonPresets code={codingBridge.capture().context.code} hasError={["syntax_error", "runtime_error", "timeout"].includes(codingBridge.capture().context.execution?.status ?? "")} disabled={chatLoading} onSelect={handlePlaygroundPreset} /></div> : null}
 
         {/* Input Composer & Toolbar */}
         <footer className="shrink-0 border-t border-border/40 bg-background p-2">
@@ -1751,6 +1976,10 @@ function TutorDrawerContent({
                 sessionId={sessionId}
                 disabled={chatLoading}
                 hideStandaloneTrigger
+                getDraftBody={() => inputVal}
+                onRestoreDraftBody={(restoredBody) => {
+                  setInputVal((current) => (current.length > 0 ? current : restoredBody));
+                }}
                 onSessionCreated={handleComposerSessionCreated}
                 onAttachmentIdsChange={setAttachmentIds}
                 onAttachmentsChange={setReadyAttachments}
@@ -1807,22 +2036,36 @@ function TutorDrawerContent({
             <div className="flex items-center justify-between gap-1 pt-1">
               <div className="flex items-center gap-1">
                 {imageInputEnabled && courseIdFromPath && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    disabled={chatLoading}
-                    onClick={() => attachmentComposerRef.current?.openFileDialog()}
-                    aria-label="Lampirkan gambar (atau tempel dengan Ctrl+V)"
-                    title="Lampirkan gambar (Ctrl+V)"
-                    className="size-7 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
-                  >
-                    <Paperclip className="size-3.5" />
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      disabled={chatLoading}
+                      onClick={() => attachmentComposerRef.current?.openCameraDialog()}
+                      aria-label="Foto soal dengan kamera"
+                      title="Foto soal"
+                      className="size-7 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                    >
+                      <Camera className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      disabled={chatLoading}
+                      onClick={() => attachmentComposerRef.current?.openFileDialog()}
+                      aria-label="Lampirkan gambar (atau tempel dengan Ctrl+V)"
+                      title="Lampirkan gambar (Ctrl+V)"
+                      className="size-7 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                    >
+                      <Paperclip className="size-3.5" />
+                    </Button>
+                  </>
                 )}
                 <ZyraMathPalette onInsert={handleInsertSnippet} disabled={chatLoading} />
                 <Tabs value={assistantMode} onValueChange={(mode) => { setAssistantMode(mode as "python" | "tutor"); setActiveMode("chat"); }} syncUrl={false}>
-                  <TabsList aria-label="Mode Zyra" className="gap-0 p-0.5">
+                  <TabsList variant="inline" disableOverflow aria-label="Mode Zyra" className="w-auto gap-0 p-0.5">
                     <TabsTrigger value="python" disabled={!codingBridge || chatLoading} className="px-2 py-1" title={!codingBridge ? "Buka Playground untuk menggunakan Python" : undefined}>Python</TabsTrigger>
                     <TabsTrigger value="tutor" disabled={chatLoading} className="px-2 py-1">Tutor</TabsTrigger>
                   </TabsList>
@@ -1861,7 +2104,7 @@ function TutorDrawerContent({
         </footer>
 
         {/* Micro-apps Modal View (Flashcards / Practice Quiz) */}
-        {activeAction !== "none" && actionData.length > 0 && (
+        {activityOpen && (
           <div className="absolute inset-0 z-50 flex flex-col bg-background p-4 animate-in fade-in duration-200">
             <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
               <span className="font-heading text-body-base font-bold">

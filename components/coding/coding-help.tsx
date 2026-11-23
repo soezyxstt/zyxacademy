@@ -18,6 +18,7 @@ export function CodingHelp({ courseId, context, disabled = false, problemDescrip
   const experience = useStudentExperience();
   const [question, setQuestion] = useState(""), [answer, setAnswer] = useState(""), [error, setError] = useState("");
   const [busy, setBusy] = useState(false), [snapshot, setSnapshot] = useState<string | null>(null);
+  const [workStep, setWorkStep] = useState("");
   const [activeIntent, setActiveIntent] = useState<z.infer<typeof codingHelpRequestSchema>["intent"]>("review");
   const [canvas, setCanvas] = useState<CanvasSpec | null>(null);
   const sessionId = useRef<string | null>(null);
@@ -34,7 +35,7 @@ export function CodingHelp({ courseId, context, disabled = false, problemDescrip
   async function ask(intent: z.infer<typeof codingHelpRequestSchema>["intent"], message: string) {
     controller.current?.abort();
     const abort = new AbortController(); controller.current = abort;
-    setActiveIntent(intent); setBusy(true); setError(""); setAnswer(""); setCanvas(null); setSnapshot(contextKey);
+    setWorkStep(""); setActiveIntent(intent); setBusy(true); setError(""); setAnswer(""); setCanvas(null); setSnapshot(contextKey);
     try {
       if (experience.mode === "demo") { setAnswer("Periksa nilai awal dan ikuti perubahan variabel pada setiap langkah. Prediksikan hasilnya, lalu jalankan kode untuk membandingkan."); return; }
       const response = await fetch("/api/zyra/chat", { method: "POST", signal: abort.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ courseId, sessionId: sessionId.current, question: problemDescription ? `Masalah yang sedang dikerjakan: ${problemDescription}
@@ -43,6 +44,8 @@ ${message}` : message, requestId: crypto.randomUUID(), codingContext: { ...conte
       if (!response.ok) { const body = await response.json(); throw new Error(body.error ?? "Zyra belum dapat merespons."); }
       if (!response.body) throw new Error("Respons Zyra belum tersedia.");
       for await (const part of consumeZyraStream(response.body, abort.signal)) {
+        if (abort.signal.aborted) break;
+        if (part.type === "data-work-step" && part.data.status === "running") setWorkStep(part.data.label);
         if (part.type === "text-delta") setAnswer((text) => text + part.textDelta);
         if (part.type === "data-session") sessionId.current = part.sessionId;
         if (part.type === "data-canvas") { const parsed = CanvasSpecSchema.safeParse(part.canvasSpec); if (parsed.success) setCanvas(parsed.data); }
@@ -53,7 +56,7 @@ ${message}` : message, requestId: crypto.randomUUID(), codingContext: { ...conte
   }
   function submitQuestion() { if (!busy && !disabled && question.trim()) void ask("review", question); }
   return <section className="min-w-0 space-y-2" aria-label="Konsultasi Zyra">
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h3 className="font-heading text-body-base font-bold">Zyra</h3>{busy ? <p role="status" className="flex items-center gap-1.5 text-body-xs text-muted-foreground"><Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />{answer ? "Zyra sedang menjawab..." : activeIntent === "explain_error" ? "Zyra sedang meninjau error..." : activeIntent === "flowchart" ? "Zyra sedang menyusun flowchart..." : activeIntent === "decompose" ? "Zyra sedang menguraikan masalah..." : activeIntent === "hint" ? "Zyra sedang menyiapkan petunjuk..." : "Zyra sedang meninjau pertanyaan..."}</p> : null}</div>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h3 className="font-heading text-body-base font-bold">Zyra</h3>{busy ? <p role="status" className="flex items-center gap-1.5 text-body-xs text-muted-foreground"><Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />{workStep || (answer ? "Zyra sedang menjawab..." : activeIntent === "explain_error" ? "Zyra sedang meninjau error..." : activeIntent === "flowchart" ? "Zyra sedang menyusun flowchart..." : activeIntent === "decompose" ? "Zyra sedang menguraikan masalah..." : activeIntent === "hint" ? "Zyra sedang menyiapkan petunjuk..." : "Zyra sedang meninjau pertanyaan...")}</p> : null}</div>
     <form className="min-w-0 space-y-2" onSubmit={(event) => { event.preventDefault(); submitQuestion(); }}>
       <div role="toolbar" aria-label="Bantuan cepat" className="flex flex-wrap items-center gap-1.5">
         <TooltipProvider>

@@ -133,7 +133,7 @@ export function ZyraMathPalette({
         }}
       >
         <Tabs defaultValue="populer" syncUrl={false}>
-          <TabsList className="w-full flex-wrap h-auto gap-0.5">
+          <TabsList variant="inline" className="w-full flex-wrap h-auto gap-0.5">
             {TAB_ITEMS.map((tab) => (
               <TabsTrigger key={tab.value} value={tab.value} className="text-body-xs px-2 py-1">
                 {t(`mathPalette.tabs.${tab.label}`)}

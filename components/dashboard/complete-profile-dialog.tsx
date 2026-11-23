@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "@/lib/i18n/client";
+import { closeDialogsThen } from "@/hooks/use-dialog-history";
 
 const STORAGE_KEY = "zyx_dismiss_profile_prompt";
 
@@ -60,8 +61,7 @@ export function CompleteProfileDialog({
   };
 
   const handleCompleteNow = () => {
-    setOpen(false);
-    router.push("/profile/edit");
+    closeDialogsThen(() => setOpen(false), () => router.push("/profile/edit"));
   };
 
   if (!isProfileIncomplete) return null;
@@ -115,13 +115,13 @@ export function CompleteProfileDialog({
           </div>
         )}
 
-        <DialogFooter className="flex flex-wrap items-center justify-end gap-2 pt-2 sm:justify-end">
+        <DialogFooter className="flex-row items-center justify-end gap-2 pt-2">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={handleDismiss}
-            className="text-body-sm font-semibold"
+            className="flex-1 text-body-sm font-semibold sm:flex-none"
           >
             {t("dashboard.profilePrompt.later")}
           </Button>
@@ -129,7 +129,7 @@ export function CompleteProfileDialog({
             type="button"
             size="sm"
             onClick={handleCompleteNow}
-            className="gap-1.5 text-body-sm font-semibold bg-brand-primary hover:bg-primary-hover text-primary-foreground"
+            className="flex-1 gap-1.5 text-body-sm font-semibold bg-brand-primary hover:bg-primary-hover text-primary-foreground sm:flex-none"
           >
             {t("dashboard.profilePrompt.completeNow")}
             <ArrowRight className="size-3.5" />

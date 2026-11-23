@@ -2939,7 +2939,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
       <Tabs value={activeType} onValueChange={handleTypeTabChange}>
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-1.5 shadow-2xs">
           {/* Filter Tabs */}
-          <TabsList className="bg-transparent p-0 border-0 shrink-0">
+          <TabsList variant="inline" className="bg-transparent p-0 border-0 shrink-0">
             <TabsTrigger disabled={reviewFieldsDisabled} value="all" className="h-8 text-body-xs font-medium">{t("materials.all")}</TabsTrigger>
             {Object.entries(typeCounts).map(([type]) => (
               <TabsTrigger disabled={reviewFieldsDisabled} key={type} value={type} className="h-8 text-body-xs font-medium">

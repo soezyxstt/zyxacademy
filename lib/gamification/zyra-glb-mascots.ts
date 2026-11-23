@@ -1,4 +1,6 @@
 /** Lightweight asset registry. Safe to import in catalogs without loading Three. */
+import { PET_SUITS } from "./pet-studio";
+
 export const GLB_CHARACTERS = ["cat", "tiger", "rhino", "crocodile"] as const;
 export type GlbCharacter = (typeof GLB_CHARACTERS)[number];
 export type GlbMascotKey = `studio-${GlbCharacter}`;
@@ -45,6 +47,14 @@ export function getZyraGlbMascot(character?: string | null) {
 
 export function getZyraGlbMascotByKey(key: string) {
   return ZYRA_GLB_MASCOTS.find(model => model.key === key);
+}
+
+export function getZyraGlbSuitSrc(character: GlbCharacter, suit: string) {
+  const outfit = PET_SUITS.find(({ assetId }) => assetId === suit);
+  if (!outfit) return undefined;
+
+  const folder = character === "cat" ? "items" : `items/${character}`;
+  return `${ASSET_ROOT}/models/${folder}/${outfit.assetId}.glb`;
 }
 
 export function resolveMascotAnimation(model: GlbMascot, requested?: string) {

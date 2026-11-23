@@ -177,11 +177,12 @@ test('studio enforces ownership and species compatibility while switching the ac
 });
 
 test('removing an old suit preserves a newer equipped suit', async () => {
-  for (const id of ['pet-suit-itb-sport-outfit', 'pet-suit-astronaut-outfit']) {
+  for (const id of ['pet-suit-itb-sport-outfit', 'pet-suit-graduation-gown']) {
     await rewards.purchaseGamificationCosmetic('owner', id);
     await rewards.equipGamificationCosmetics('owner', { petSuitId: id });
   }
+  expect(await balance()).toBe(3600);
   await rewards.removePetGear('owner', 'pet_suit', 'pet-suit-itb-sport-outfit');
   const saved = await client.query('select equipped_pet_suit_id from gamification_profiles where user_id=$1', ['owner']);
-  expect(saved.rows[0]).toEqual({equipped_pet_suit_id:'pet-suit-astronaut-outfit'});
+  expect(saved.rows[0]).toEqual({equipped_pet_suit_id:'pet-suit-graduation-gown'});
 });

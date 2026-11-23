@@ -14,6 +14,7 @@ type NavProfileOrSignInProps = {
   variant?: "toolbar" | "sheet";
   callbackURL?: string;
   onNavigate?: () => void;
+  onLinkNavigate?: (event: { preventDefault: () => void }, href: string) => void;
   /** Set false for contexts (e.g. admin bar) where Sign In must not appear. */
   showSignIn?: boolean;
 };
@@ -22,6 +23,7 @@ export function NavProfileOrSignIn({
   variant = "toolbar",
   callbackURL = "/dashboard",
   onNavigate,
+  onLinkNavigate,
   showSignIn = true,
 }: NavProfileOrSignInProps) {
   const t = useTranslations("marketing");
@@ -103,7 +105,7 @@ export function NavProfileOrSignIn({
                 asChild
                 className="hover:bg-accent hover:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
               >
-                <Link href="/settings" prefetch={false} onClick={onNavigate}>
+                <Link href="/settings" prefetch={false} onNavigate={event => onLinkNavigate?.(event, "/settings")}>
                   <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   <span>{account("preferences")}</span>
                 </Link>
@@ -112,7 +114,7 @@ export function NavProfileOrSignIn({
                 asChild
                 className="hover:bg-accent hover:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
               >
-                <Link href="/dashboard" prefetch={false} onClick={onNavigate}>
+                <Link href="/dashboard" prefetch={false} onNavigate={event => onLinkNavigate?.(event, "/dashboard")}>
                   <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   <span>{account("studentDashboard")}</span>
                 </Link>
@@ -122,7 +124,7 @@ export function NavProfileOrSignIn({
                   asChild
                   className="hover:bg-accent hover:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
                 >
-                  <Link href="/tutor" prefetch={false} onClick={onNavigate}>
+                  <Link href="/tutor" prefetch={false} onNavigate={event => onLinkNavigate?.(event, "/tutor")}>
                     <GraduationCap className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                     <span>{account("tutorPanel")}</span>
                   </Link>
@@ -133,7 +135,7 @@ export function NavProfileOrSignIn({
                   asChild
                   className="hover:bg-accent hover:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
                 >
-                  <Link href="/admin" prefetch={false} onClick={onNavigate}>
+                  <Link href="/admin" prefetch={false} onNavigate={event => onLinkNavigate?.(event, "/admin")}>
                     <ShieldCheck className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                     <span>{account("adminPanel")}</span>
                   </Link>

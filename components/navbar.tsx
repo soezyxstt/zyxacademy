@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { closeDialogsThen } from "@/hooks/use-dialog-history";
 import { Menu, Search, X, Tag, Info, Star, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,9 +35,14 @@ const navLinks = [
 
 export function Navbar() {
  const t = useTranslations("marketing");
+ const router = useRouter();
  const { locale } = useAppLocale();
  const navHref = (href: string) => localizedPublicPath(locale, href) ?? href;
  const [mobileOpen, setMobileOpen] = useState(false);
+ const navigateFromSheet = (event: { preventDefault: () => void }, href: string) => {
+ event.preventDefault();
+ closeDialogsThen(() => setMobileOpen(false), () => router.push(href));
+ };
  const { setOpen: setSearchOpen } = useCommandMenu();
  const [isScrolled, setIsScrolled] = useState(false);
  const [modKeyHint, setModKeyHint] = useState("Ctrl + K");
@@ -162,7 +169,7 @@ export function Navbar() {
  {/* Header: logo + close button ; mirrors student sidebar */}
  <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-3">
  <SheetClose asChild>
- <Link href={navHref("/")} prefetch={false} className="flex items-center" aria-label={t("nav.home")}>
+ <Link href={navHref("/")} prefetch={false} onNavigate={event => navigateFromSheet(event, navHref("/"))} className="flex items-center" aria-label={t("nav.home")}>
  <Logo variant="horizontal" className="[--logo-height:1.25rem]" />
  </Link>
  </SheetClose>
@@ -198,16 +205,16 @@ export function Navbar() {
  {/* Nav links */}
  <nav className="flex flex-1 flex-col gap-1 px-3 py-4 overflow-y-auto" aria-label={t("nav.mobileMenu")}>
  {navLinks.map(({ key, href, icon: Icon }) => (
- <SheetClose key={href} asChild>
  <Link
+ key={href}
  href={navHref(href)}
+ onNavigate={event => navigateFromSheet(event, navHref(href))}
  prefetch={false}
  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
  >
  <Icon className="size-5 shrink-0" aria-hidden />
  {t(key)}
  </Link>
- </SheetClose>
  ))}
  </nav>
 
@@ -221,6 +228,7 @@ export function Navbar() {
   variant="sheet"
   callbackURL="/dashboard"
   onNavigate={() => setMobileOpen(false)}
+  onLinkNavigate={navigateFromSheet}
   />
   </div>
  </SheetContent>

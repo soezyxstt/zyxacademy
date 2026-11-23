@@ -1,5 +1,9 @@
 # Zyx Database Schema Reference
 
+## Google Calendar sync status
+
+Migration `0040_google_calendar_sync` adds `google_calendar_sync`. The primary key `target` identifies `central` or `user:<id>`. Personal rows reference the account owner with cascading deletion. `requested_at`, `last_synced_at` and sanitized `error` track asynchronous sync; OAuth credentials remain in the existing Better Auth account table or the shared host environment. This additive migration is prepared locally and has not been applied to staging or production.
+
 ## Cloud Tasks checkpoints
 
 Migration 0035 adds `queue_task_checkpoints`. Its composite primary key identifies a task and a completed step. The worker retains a terminal marker after releasing step payloads. The dispatcher expires records older than 35 days. Apply this migration to the verified target before enabling the dispatcher.

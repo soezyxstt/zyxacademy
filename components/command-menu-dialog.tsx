@@ -10,6 +10,9 @@ import {
 import { useRouter } from "nextjs-toploader/app";
 import { Command } from "cmdk";
 import * as Dialog from "@radix-ui/react-dialog";
+import { Dialog as DialogRoot } from "@/components/ui/dialog";
+import { closeDialogsThen } from "@/hooks/use-dialog-history";
+import { closeMobileSidebar } from "@/lib/sidebar-overlay";
 import {
   BookOpen,
   ChevronRight,
@@ -751,15 +754,17 @@ function CommandMenuDialogContent({ open, onOpenChange, onSelectStudent, student
     (item: SearchItem) => {
       const target = { ...item, href: experience.href?.(item.href) ?? item.href };
       saveRecent(target);
-      onOpenChange(false);
-      setSearch("");
-      router.push(target.href);
+      closeDialogsThen(() => {
+        onOpenChange(false);
+        setSearch("");
+        closeMobileSidebar();
+      }, () => router.push(target.href));
     },
     [router, saveRecent, onOpenChange, experience]
   );
 
   return (
-    <Dialog.Root
+    <DialogRoot
       open={open}
       onOpenChange={(next) => {
         onOpenChange(next);
@@ -1557,6 +1562,6 @@ function CommandMenuDialogContent({ open, onOpenChange, onSelectStudent, student
             </Dialog.Content>
           </div>
         </Dialog.Portal>
-      </Dialog.Root>
+      </DialogRoot>
     );
   }

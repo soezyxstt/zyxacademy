@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { customForms, customFormResponses } from "@/db/schema";
 import { eq, or, isNull, and } from "drizzle-orm";
-import { getFormClosedReason, getFormRespondentError } from "@/lib/forms/response-policy";
+import { describeFormClosure, getFormClosure, getFormClosedReason, getFormRespondentError } from "@/lib/forms/response-policy";
 
 export async function GET(
   _req: Request,
@@ -35,9 +35,9 @@ export async function GET(
       return NextResponse.json({ error: "Formulir tidak ditemukan atau telah dihapus." }, { status: 404 });
     }
 
-    const closedReason = getFormClosedReason(form.settings || {});
-    if (closedReason) {
-      return NextResponse.json({ success: false, form, isClosed: true, closedReason });
+    const closure = getFormClosure(form.settings || {});
+    if (closure) {
+      return NextResponse.json({ success: false, form, isClosed: true, closure, closedReason: describeFormClosure(closure) });
     }
 
     return NextResponse.json({ success: true, form, isClosed: false });

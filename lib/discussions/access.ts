@@ -22,18 +22,16 @@ async function pkaAllowed(actor: DiscussionActor, client: Connection) {
  return Boolean(enrollment);
 }
 
-export async function resolveDiscussionCourses(actor: DiscussionActor, courseIds: readonly string[], client: Connection = db): Promise<Map<string, CourseScope>> {
+async function resolveDiscussionCoursesForVerifiedActor(actor: DiscussionActor, courseIds: readonly string[], client: Connection = db): Promise<Map<string, CourseScope>> {
  const ids = [...new Set(courseIds.filter(validDiscussionId))];
  if (!ids.length) return new Map();
  const batchSize = actor.role === "tutor" ? 500 : 5000;
  if (ids.length > batchSize) {
   const result = new Map<string, CourseScope>();
   for (let offset = 0; offset < ids.length; offset += batchSize)
-   for (const [id, scope] of await resolveDiscussionCourses(actor, ids.slice(offset, offset + batchSize), client)) result.set(id, scope);
+   for (const [id, scope] of await resolveDiscussionCoursesForVerifiedActor(actor, ids.slice(offset, offset + batchSize), client)) result.set(id, scope);
   return result;
  }
- const current = await getDiscussionActor(actor.id, client === db ? undefined : client as DiscussionTransaction);
- if (current.role !== actor.role) throw denied();
  let result: Map<string, CourseScope>;
  if (actor.role !== "tutor") result = await resolveCourseEntitlementsBatch(actor.id, ids, { executor: client });
  else {
@@ -76,6 +74,14 @@ export async function resolveDiscussionCourses(actor: DiscussionActor, courseIds
  return result;
 }
 
+export async function resolveDiscussionCourses(actor: DiscussionActor, courseIds: readonly string[], client: Connection = db): Promise<Map<string, CourseScope>> {
+ const ids = [...new Set(courseIds.filter(validDiscussionId))];
+ if (!ids.length) return new Map();
+ const current = await getDiscussionActor(actor.id, client === db ? undefined : client as DiscussionTransaction);
+ if (current.role !== actor.role) throw denied();
+ return resolveDiscussionCoursesForVerifiedActor(current, ids, client);
+}
+
 function scopeAllowed(channel: Pick<Channel, "courseId" | "legacyCourseId">, access: Map<string, CourseScope>): boolean {
  if (!channel.courseId && !channel.legacyCourseId) return true;
  return [channel.courseId, channel.legacyCourseId].filter((id): id is string => !!id).every(id => {
@@ -115,7 +121,7 @@ export async function getDiscussionChannelVisibility(actorId: string, options: {
  const scopes = await db.selectDistinct({ courseId: sql<string | null>`${discussionChannels.courseId}`, legacyCourseId: sql<string | null>`${discussionChannels.legacyCourseId}` })
   .from(discussionChannels).where(and(discussionChannelCandidateScope(actor), options.scope, options.discoveryScope));
  const ids = [...new Set(scopes.flatMap(scope => [scope.courseId, scope.legacyCourseId].filter((id): id is string => !!id)))];
- const access = await resolveDiscussionCourses(actor, ids);
+ const access = await resolveDiscussionCoursesForVerifiedActor(actor, ids);
  if (options.includeRepairable) {
   const missing = [...new Set(scopes.filter(scope => Boolean(scope.courseId) !== Boolean(scope.legacyCourseId))
    .flatMap(scope => {
@@ -123,7 +129,7 @@ export async function getDiscussionChannelVisibility(actorId: string, options: {
     return entry?.hasFullContentAccess && !entry.reason
      ? [entry.canonicalCourseId, entry.legacyCourseId].filter((id): id is string => !!id && !access.has(id)) : [];
    }))];
-  if (missing.length) for (const [id, entry] of await resolveDiscussionCourses(actor, missing)) access.set(id, entry);
+  if (missing.length) for (const [id, entry] of await resolveDiscussionCoursesForVerifiedActor(actor, missing)) access.set(id, entry);
  }
  const allowed = scopes.filter(scope => (scope.courseId || scope.legacyCourseId) && scopeAllowed(scope, access))
   .map(scope => ({ course_id: scope.courseId, legacy_course_id: scope.legacyCourseId }));
@@ -154,7 +160,7 @@ export async function getAccessibleDiscussionChannels(actorId: string, options: 
  if (ids && !ids.length) return [];
  const rows = await db.select().from(discussionChannels).where(and(ids ? inArray(discussionChannels.id, ids) : undefined, discussionChannelCandidateScope(actor)));
  const courseIds = [...new Set(rows.flatMap(row => [row.courseId, row.legacyCourseId].filter((id): id is string => !!id)))];
- const access = await resolveDiscussionCourses(actor, courseIds);
+ const access = await resolveDiscussionCoursesForVerifiedActor(actor, courseIds);
  return rows.filter(row => scopeAllowed(row, access));
 }
 
@@ -185,6 +191,14 @@ export async function requireDiscussionMentionAccess(tx: DiscussionTransaction, 
  if ((await getDiscussionRecipientAccess(channelId, userIds, tx)).size !== userIds.length) throw denied();
 }
 
+async function requireDiscussionCourseForVerifiedActor(actor: DiscussionActor, courseId: string | null, legacyCourseId: string | null, client: Connection = db) {
+ const ids = [courseId, legacyCourseId].filter((value): value is string => !!value);
+ if (!ids.length) throw denied();
+ const access = await resolveDiscussionCoursesForVerifiedActor(actor, ids, client);
+ if (!scopeAllowed({ courseId, legacyCourseId }, access)) throw denied();
+ return access.get(ids[0])!;
+}
+
 /** Both aliases must resolve to the same current identity before they can name an audience. */
 export async function requireDiscussionCourse(actor: DiscussionActor, courseId: string | null, legacyCourseId: string | null, client: Connection = db) {
  const ids = [courseId, legacyCourseId].filter((value): value is string => !!value);
@@ -194,40 +208,79 @@ export async function requireDiscussionCourse(actor: DiscussionActor, courseId: 
  return access.get(ids[0])!;
 }
 
-export async function requireDiscussionChannelAccess(actor: DiscussionActor, channelId: string, tx?: DiscussionTransaction): Promise<Channel> {
- if (!validDiscussionId(channelId)) throw denied();
- const client = tx ?? db;
- const current = await getDiscussionActor(actor.id, tx);
- const [channel] = await client.select().from(discussionChannels).where(eq(discussionChannels.id, channelId)).limit(1);
+async function authorizeLoadedDiscussionChannel(current: DiscussionActor, channel: Channel | undefined, client: Connection): Promise<Channel> {
  if (!channel) throw denied();
  if (channel.kind === "global") return channel;
  if (channel.kind !== "course") throw denied();
- if (channel.courseId || channel.legacyCourseId) await requireDiscussionCourse(current, channel.courseId, channel.legacyCourseId, client);
+ if (channel.courseId || channel.legacyCourseId) await requireDiscussionCourseForVerifiedActor(current, channel.courseId, channel.legacyCourseId, client);
  return channel;
+}
+
+async function authorizeDiscussionChannel(current: DiscussionActor, channelId: string, client: Connection): Promise<Channel> {
+ const [channel] = await client.select().from(discussionChannels).where(eq(discussionChannels.id, channelId)).limit(1);
+ return authorizeLoadedDiscussionChannel(current, channel, client);
+}
+
+export async function requireDiscussionChannelAccess(actor: DiscussionActor, channelId: string, tx?: DiscussionTransaction): Promise<Channel> {
+ if (!validDiscussionId(channelId)) throw denied();
+ const client = tx ?? db;
+ if (tx) {
+  const current = await getDiscussionActor(actor.id, tx);
+  return authorizeDiscussionChannel(current, channelId, tx);
+ }
+ const [current, [channel]] = await Promise.all([
+  getDiscussionActor(actor.id),
+  client.select().from(discussionChannels).where(eq(discussionChannels.id, channelId)).limit(1),
+ ]);
+ return authorizeLoadedDiscussionChannel(current, channel, client);
 }
 
 export async function requireDiscussionThreadAccess(actor: DiscussionActor, threadId: string, tx?: DiscussionTransaction) {
  if (!validDiscussionId(threadId)) throw denied();
  const client = tx ?? db;
- const [thread] = await client.select().from(discussionThreads).where(eq(discussionThreads.id, threadId)).limit(1);
- if (!thread) throw denied();
- const channel = await requireDiscussionChannelAccess(actor, thread.channelId, tx);
- return { channel, thread };
+ const loadRow = () => client.select({ thread: discussionThreads, channel: discussionChannels })
+  .from(discussionThreads)
+  .innerJoin(discussionChannels, eq(discussionChannels.id, discussionThreads.channelId))
+  .where(eq(discussionThreads.id, threadId))
+  .limit(1);
+ if (tx) {
+  const current = await getDiscussionActor(actor.id, tx);
+  const [row] = await loadRow();
+  if (!row) throw denied();
+  const channel = await authorizeLoadedDiscussionChannel(current, row.channel, tx);
+  return { channel, thread: row.thread };
+ }
+ const [current, [row]] = await Promise.all([getDiscussionActor(actor.id), loadRow()]);
+ if (!row) throw denied();
+ const channel = await authorizeLoadedDiscussionChannel(current, row.channel, client);
+ return { channel, thread: row.thread };
 }
 
 export async function requireDiscussionMessageAccess(actor: DiscussionActor, messageId: string, tx?: DiscussionTransaction) {
  if (!validDiscussionId(messageId)) throw denied();
  const client = tx ?? db;
- const [message] = await client.select().from(discussionMessages).where(eq(discussionMessages.id, messageId)).limit(1);
- if (!message) throw denied();
- const { channel, thread } = await requireDiscussionThreadAccess(actor, message.threadId, tx);
- return { channel, thread, message };
+ const loadRow = () => client.select({ message: discussionMessages, thread: discussionThreads, channel: discussionChannels })
+  .from(discussionMessages)
+  .innerJoin(discussionThreads, eq(discussionThreads.id, discussionMessages.threadId))
+  .innerJoin(discussionChannels, eq(discussionChannels.id, discussionThreads.channelId))
+  .where(eq(discussionMessages.id, messageId))
+  .limit(1);
+ if (tx) {
+  const current = await getDiscussionActor(actor.id, tx);
+  const [row] = await loadRow();
+  if (!row) throw denied();
+  const channel = await authorizeLoadedDiscussionChannel(current, row.channel, tx);
+  return { channel, thread: row.thread, message: row.message };
+ }
+ const [current, [row]] = await Promise.all([getDiscussionActor(actor.id), loadRow()]);
+ if (!row) throw denied();
+ const channel = await authorizeLoadedDiscussionChannel(current, row.channel, client);
+ return { channel, thread: row.thread, message: row.message };
 }
 
 export async function canAccessDiscussionChannel(userId: string, channelId: string): Promise<boolean> {
  try {
-  const actor = await getDiscussionActor(userId);
-  await requireDiscussionChannelAccess(actor, channelId);
+  await requireDiscussionChannelAccess({ id: userId, role: "student" }, channelId);
   return true;
  } catch (error) {
   if (error instanceof Error && error.message === "DISCUSSION_UNAVAILABLE") return false;

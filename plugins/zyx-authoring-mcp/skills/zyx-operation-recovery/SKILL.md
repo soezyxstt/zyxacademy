@@ -6,10 +6,10 @@ description: Memulihkan operasi Zyx MCP yang responsnya hilang, token plannya ke
 # Pemulihan operasi Zyx MCP
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.0"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain.
+Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.1"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain.
 <!-- END:environment-connection -->
 
-Metadata paket: `{ "pluginVersion": "0.5.0", "bootstrapProtocol": 1 }`.
+Metadata paket: `{ "pluginVersion": "0.5.1", "bootstrapProtocol": 1 }`.
 
 Panggil `admin.environment` pada koneksi tujuan dan cocokkan `environment` serta `origin` dengan target pengguna. Jika target belum jelas, pastikan target sebelum membaca data. Jangan mengganti staging dengan production atau sebaliknya. Kirim `expectedEnvironment` dan `expectedOrigin` pada setiap tool admin data. Baca `admin.capabilities` untuk domain yang relevan dan gunakan schema tool yang benar-benar tersedia. Izin yang kurang memerlukan consent OAuth yang sesuai; metadata discovery tidak memberikan izin baru.
 

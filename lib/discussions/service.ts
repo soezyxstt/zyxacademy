@@ -17,7 +17,7 @@ import { clearDiscussionNotificationsThroughSeq } from "./notifications";
 import { recordDiscussionParticipant } from "./participants";
 import { cacheDiscussionCounts, getCachedDiscussionCounts } from "./count-cache";
 import { signDiscussionReadReceipt, verifyDiscussionReadReceipt } from "./read-receipt";
-import { getAccessibleDiscussionChannels, getDiscussionActor, getDiscussionChannelVisibility, requireDiscussionChannelAccess, requireDiscussionCourse, requireDiscussionMessageAccess, requireDiscussionThreadAccess, resolveDiscussionCourses, type DiscussionTransaction } from "./access";
+import { getAccessibleDiscussionChannels, getDiscussionActor, getDiscussionChannelVisibility, requireDiscussionChannelAccess, requireDiscussionMessageAccess, requireDiscussionThreadAccess, resolveDiscussionCourses, type DiscussionTransaction } from "./access";
 import { getDiscussionRecipientAccess } from "./recipient-access";
 import * as discussionAccess from "./access";
 import { discussionMentionTokens, canDeleteDiscussionMessage, canEditDiscussionMessage, canForwardDiscussion, deriveInitialDiscussionTitle, DISCUSSION_REACTIONS, validDiscussionId, validDiscussionReplyType, validDiscussionText } from "./policy";
@@ -237,7 +237,8 @@ export async function listChannelsPage(actorId: string, options: { cursor?: stri
  if (options.courseId) {
   if (!courseEntry?.hasFullContentAccess || courseEntry.reason) return { items: [], nextCursor: null };
   courseAliases = [courseEntry.canonicalCourseId, courseEntry.legacyCourseId].filter((value): value is string => !!value);
-  const scopes = await resolveDiscussionCourses(actor, courseAliases);
+  const missingAliases = courseAliases.filter(alias => alias !== options.courseId);
+  const scopes = new Map([[options.courseId, courseEntry], ...(missingAliases.length ? await resolveDiscussionCourses(actor, missingAliases) : [])]);
   if (!courseAliases.length || !courseAliases.every(alias => {
    const match = scopes.get(alias);
    return match?.hasFullContentAccess && !match.reason && match.canonicalCourseId === courseEntry?.canonicalCourseId && match.legacyCourseId === courseEntry?.legacyCourseId;
@@ -247,7 +248,6 @@ export async function listChannelsPage(actorId: string, options: { cursor?: stri
   if (courseEntry) {
    const entry = courseEntry;
    try {
-    await requireDiscussionCourse(actor, entry.canonicalCourseId, entry.legacyCourseId);
     await channelForScope(actor, "course", entry.canonicalCourseId, entry.legacyCourseId, entry.courseTitle ?? "Mata kuliah");
    } catch (error) {
     if (!(error instanceof Error && error.message === "DISCUSSION_UNAVAILABLE")) throw error;
@@ -410,7 +410,22 @@ export async function listThreadsAcrossChannels(actorId: string, options: { chan
  return { items, nextCursor: rows.length > PAGE_SIZE && last ? encodeCursor({ at: last.cursorAt, id: last.thread.id }) : null };
 }
 
-export async function getThread(actorId: string, threadId: string, cursor?: string, targetMessageId?: string): Promise<{ thread: DiscussionThread; messages: DiscussionPage<DiscussionMessage> & { observationReceipt: string; startCursor?: string; previousCursor?: string } }> {
+function safeAiStatusReason(code: string | null, status: string) {
+ switch (code) {
+  case "DISCUSSION_AI_FREE_TEXT_ONLY": return "ai_freeTextOnly";
+  case "DISCUSSION_AI_IMAGE_LIMIT": return "ai_imageLimit";
+  case "DISCUSSION_AI_IMAGE_DISABLED": return "ai_imageDisabled";
+  case "DISCUSSION_AI_IMAGE_UNAVAILABLE": return "ai_imageUnavailable";
+  case "REQUEST_TOO_LARGE": return "ai_requestTooLarge";
+  case "DISCUSSION_AI_ASSESSMENT_ACTIVE": return "ai_assessmentActive";
+  case "DISCUSSION_AI_QUOTA": return "ai_quota";
+  case "DISCUSSION_AI_SOURCE_CHANGED": return "ai_sourceChanged";
+  case "DISCUSSION_AI_UNCERTAIN": return "ai_uncertain";
+  default: return status === "uncertain" ? "ai_uncertain" : "ai_failed";
+ }
+}
+
+export async function getThread(actorId: string, threadId: string, cursor?: string, targetMessageId?: string): Promise<{ thread: DiscussionThread; messages: DiscussionPage<DiscussionMessage> & { observationReceipt: string; startCursor?: string; previousCursor?: string }; readThroughSeq: number; aiStatuses: Array<{ messageId: string; status: string; reason: string | null }> }> {
  const actor = await getDiscussionActor(actorId);
  const { channel, thread } = await requireDiscussionThreadAccess(actor, threadId);
  if (targetMessageId !== undefined) checkId(targetMessageId);
@@ -419,16 +434,20 @@ export async function getThread(actorId: string, threadId: string, cursor?: stri
   .where(and(eq(discussionMessages.threadId, threadId), eq(discussionMessages.id, targetMessageId))).limit(1) : [];
  if (targetMessageId && !target) throw unavailable();
  const after = target ? target.seq - 1 : messageCursor(cursor);
- const previous = after > 0 ? await db.select({ seq: discussionMessages.seq }).from(discussionMessages)
-  .where(and(eq(discussionMessages.threadId, threadId), lte(discussionMessages.seq, after)))
-  .orderBy(desc(discussionMessages.seq)).limit(PAGE_SIZE + 1) : [];
- const rows = await db.select().from(discussionMessages).where(and(eq(discussionMessages.threadId, threadId), gt(discussionMessages.seq, after)))
-  .orderBy(asc(discussionMessages.seq)).limit(PAGE_SIZE + 1);
+ const [previous, rows] = await Promise.all([
+  after > 0 ? db.select({ seq: discussionMessages.seq }).from(discussionMessages)
+   .where(and(eq(discussionMessages.threadId, threadId), lte(discussionMessages.seq, after)))
+   .orderBy(desc(discussionMessages.seq)).limit(PAGE_SIZE + 1) : [],
+  db.select().from(discussionMessages).where(and(eq(discussionMessages.threadId, threadId), gt(discussionMessages.seq, after)))
+   .orderBy(asc(discussionMessages.seq)).limit(PAGE_SIZE + 1),
+ ]);
  const visible = rows.slice(0, PAGE_SIZE);
  const authors = [...new Set(visible.flatMap(row => [...(row.authorId ? [row.authorId] : []), ...(row.deletedAt ? [] : row.mentionIds)]))];
  const refs = [...new Set(visible.flatMap(row => row.replyToId ? [row.replyToId] : []))];
  const ids = visible.map(row => row.id);
- const [names, replies, reactions] = await Promise.all([
+ const ownAttachmentIds = visible.filter(row => !row.deletedAt && !row.forwardedFromId).map(row => row.id);
+ const zyraIds = visible.filter(row => row.askZyra).map(row => row.id);
+ const [names, replies, reactions, threadMeta, ownAttachments, aiRows] = await Promise.all([
   authors.length ? db.select({ id: user.id, name: user.name, image: user.image, role: peran.code }).from(user)
    .leftJoin(pengguna, and(eq(pengguna.id, user.id), eq(pengguna.status, "active")))
    .leftJoin(penggunaPeran, eq(penggunaPeran.penggunaId, pengguna.id)).leftJoin(peran, eq(peran.id, penggunaPeran.peranId))
@@ -441,6 +460,22 @@ export async function getThread(actorId: string, threadId: string, cursor?: stri
    count: sql<number>`count(*)::int`, selected: sql<boolean>`bool_or(${discussionReactions.userId} = ${actor.id})` })
    .from(discussionReactions).where(inArray(discussionReactions.messageId, ids))
    .groupBy(discussionReactions.messageId, discussionReactions.emoji) : [],
+  db.select({
+   threadId: discussionThreads.id,
+   answerCount: discussionThreads.answerCount,
+   unreadCount: sql<number>`(select count(*)::int from discussion_messages m where m.thread_id = ${discussionThreads.id} and m.seq > coalesce(${discussionThreadReads.throughSeq}, 0) and m.deleted_at is null and m.author_id is distinct from ${actor.id})`,
+   throughSeq: sql<number>`coalesce(${discussionThreadReads.throughSeq}, 0)::int`,
+   observedSeq: sql<number>`coalesce(${discussionThreadReads.observedSeq}, 0)::int`,
+  }).from(discussionThreads)
+   .leftJoin(discussionThreadReads, and(eq(discussionThreadReads.threadId, discussionThreads.id), eq(discussionThreadReads.userId, actor.id)))
+   .where(eq(discussionThreads.id, thread.id)),
+  ownAttachmentIds.length
+   ? listDiscussionAttachmentsForMessages(actor.id, ownAttachmentIds, new Map(ownAttachmentIds.map(messageId => [messageId, channel.id])))
+   : new Map(),
+  zyraIds.length ? db.select({ messageId: discussionAiRequests.messageId, status: discussionAiRequests.status, errorCode: discussionAiRequests.errorCode })
+   .from(discussionAiRequests)
+   .where(and(eq(discussionAiRequests.kind, "zyra"), eq(discussionAiRequests.requestedById, actor.id), inArray(discussionAiRequests.messageId, zyraIds)))
+   .limit(PAGE_SIZE) : [],
  ]);
  const sourceIds = [...new Set([...visible.flatMap(row => !row.deletedAt && row.forwardedFromId ? [row.forwardedFromId] : []),
   ...replies.flatMap(row => !row.deletedAt && row.forwardedFromId ? [row.forwardedFromId] : [])])];
@@ -455,11 +490,18 @@ export async function getThread(actorId: string, threadId: string, cursor?: stri
   if (!existing) authorMap.set(name.id, { id: name.id, name: name.name, role: role ?? null, avatarUrl: name.image ?? null });
   else if (role && (!existing.role || priority[role] > priority[existing.role])) existing.role = role;
  }
- const allowedSources = new Set((await getAccessibleDiscussionChannels(actor.id, { channelIds: sources.map(row => row.channel.id) })).map(row => row.id));
+ const allowedSources = sources.length
+  ? new Set((await getAccessibleDiscussionChannels(actor.id, { channelIds: sources.map(row => row.channel.id) })).map(row => row.id))
+  : new Set<string>();
  const sourceMap = new Map(sources.filter(row => allowedSources.has(row.channel.id) && !row.message.deletedAt &&
   row.message.messageType !== "forward" && canForwardDiscussion(row.channel, channel)).map(row => [row.message.id, row]));
- const attachmentSources = visible.flatMap(row => row.forwardedFromId && sourceMap.has(row.forwardedFromId) ? [row.forwardedFromId] : []);
- const attachments = await listDiscussionAttachmentsForMessages(actor.id, [...ids, ...attachmentSources]);
+ const attachmentSources = [...new Set(visible.flatMap(row => !row.deletedAt && row.forwardedFromId && sourceMap.has(row.forwardedFromId) ? [row.forwardedFromId] : []))];
+ const attachments = new Map(ownAttachments);
+ if (attachmentSources.length) {
+  const sourceChannelMap = new Map(attachmentSources.map(sourceId => [sourceId, sourceMap.get(sourceId)!.channel.id]));
+  const forwardedAttachments = await listDiscussionAttachmentsForMessages(actor.id, attachmentSources, sourceChannelMap);
+  for (const [messageId, items] of forwardedAttachments) attachments.set(messageId, items);
+ }
  const items = visible.map(message => {
   let body = message.deletedAt ? "Pesan dihapus." : message.body;
   let forwardedFrom: DiscussionMessage["forwardedFrom"] = null;
@@ -503,8 +545,11 @@ export async function getThread(actorId: string, threadId: string, cursor?: stri
   } satisfies DiscussionMessage;
  });
  const last = visible.at(-1);
- const counts = await threadCounts(actor.id, [thread.id]);
- if (last) await db.transaction(async tx => {
+ const meta = threadMeta[0];
+ const counts = meta ? { answerCount: Number(meta.answerCount), unreadCount: Number(meta.unreadCount) } : undefined;
+ const readThroughSeq = Number(meta?.throughSeq ?? 0);
+ const currentObservedSeq = Number(meta?.observedSeq ?? 0);
+ if (last && last.seq > currentObservedSeq) await db.transaction(async tx => {
   const current = await getDiscussionActor(actor.id, tx);
   await requireDiscussionThreadAccess(current, thread.id, tx);
   await tx.insert(discussionThreadReads).values({ userId: current.id, threadId: thread.id, observedSeq: last.seq }).onConflictDoUpdate({
@@ -514,7 +559,11 @@ export async function getThread(actorId: string, threadId: string, cursor?: stri
  });
  const observationReceipt = signDiscussionReadReceipt({ userId: actor.id, threadId: thread.id, status: thread.status,
   statusRevision: thread.statusRevision, messages: visible.map(message => ({ id: message.id, seq: message.seq, revision: message.revision })) }, resolveAuthSecret());
- return { thread: threadDto(actor, thread, counts.get(thread.id)), messages: { items, nextCursor: rows.length > PAGE_SIZE && last ? encodeCursor(last.seq) : null, observationReceipt, ...(target && after > 0 ? { startCursor: encodeCursor(after) } : {}), ...(previous.length ? { previousCursor: encodeCursor(previous[PAGE_SIZE]?.seq ?? 0) } : {}) } };
+ const aiStatuses = aiRows.map(({ messageId, status, errorCode }) => ({
+  messageId, status,
+  reason: status === "failed" || status === "uncertain" ? safeAiStatusReason(errorCode, status) : null,
+ }));
+ return { thread: threadDto(actor, thread, counts), messages: { items, nextCursor: rows.length > PAGE_SIZE && last ? encodeCursor(last.seq) : null, observationReceipt, ...(target && after > 0 ? { startCursor: encodeCursor(after) } : {}), ...(previous.length ? { previousCursor: encodeCursor(previous[PAGE_SIZE]?.seq ?? 0) } : {}) }, readThroughSeq, aiStatuses };
 }
 
 async function lockRequest(tx: DiscussionTransaction, actorId: string, requestId: string) {

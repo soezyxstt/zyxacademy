@@ -87,6 +87,8 @@ describe("Plan 007 masked startup diagnostics", () => {
       STAGING_ZYRA_PEDAGOGY_USER_ID: "shadow-user",
       GEMINI_API_KEY: "test-key",
       CF_AI_GATEWAY_URL: "https://gateway.example.test",
+      ZYRA_CONTROL_PLANE_URL: "https://control.example.test",
+      ZYRA_CONTROL_PLANE_TOKEN: "control-fixture",
       VECTORIZE_WORKER_URL: "https://vector.example.test",
       UPLOADTHING_TOKEN: undefined,
       RESEND_API_KEY: undefined,
@@ -94,6 +96,8 @@ describe("Plan 007 masked startup diagnostics", () => {
 
     expect(runtime.ZYX_ENVIRONMENT).toBe("staging");
     expect(runtime.STAGING_ZYRA_PEDAGOGY_USER_ID).toBe("shadow-user");
+    expect(runtime.ZYRA_CONTROL_PLANE_URL).toBe("https://control.example.test");
+    expect(runtime.ZYRA_CONTROL_PLANE_TOKEN).toBe("control-fixture");
     expect(runtime).not.toHaveProperty("UPLOADTHING_TOKEN");
     expect(runtime).not.toHaveProperty("RESEND_API_KEY");
   });

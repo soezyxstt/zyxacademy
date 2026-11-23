@@ -228,7 +228,8 @@ test("a card-only V4 revision obtains a fresh immutable Diktat PDF and publishes
   const diktat = original.products.find(product => product.productType === "diktat")!;
   if (diktat.productType !== "diktat") throw new Error("FIXTURE_DIKTAT_REQUIRED");
   const [oldCanonicalDiktat] = await testDb.select().from(schema.diktatMateri).where(eq(schema.diktatMateri.id, productVersionId(diktat.id, diktat.version)));
-  const fork = await revisions.createRevisionDraft({ actorId, kind: "product", baseImportId: liveProductId, expectedRevision: original.checksum });
+  const fork = await revisions.createRevisionDraft({ actorId, kind: "product", baseImportId: liveProductId, expectedRevision: original.checksum, entityIds: ["release-card"] });
+  await expect(revisions.patchRevisionDraft({ actorId, kind: "product", importId: fork.importId, expectedRevision: fork.revision, operations: [{ op: "set", target: { entityType: "article", entityId: article.id }, field: "title", value: "Outside selection" }] })).rejects.toThrow("REVISION_PATCH_OUTSIDE_SELECTION");
   const patched = await revisions.patchRevisionDraft({ actorId, kind: "product", importId: fork.importId, expectedRevision: fork.revision, operations: [{ op: "set", target: { entityType: "flashcard", entityId: "release-card" }, field: "back", value: "Delta membatasi jarak masukan untuk menjamin toleransi keluaran epsilon." }] });
   const changed = await storedBundle(patched.importId);
   const nextDiktat = changed.products.find(product => product.productType === "diktat")!;

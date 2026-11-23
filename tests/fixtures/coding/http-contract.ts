@@ -16,7 +16,12 @@ const drafts = await import("@/app/api/coding/drafts/route");
 const problem: CodingProblemPrivate = { problemId: "problem", version: 1, courseId: "course", language: "python", title: "Python", prompt: "Solve this", learningObjectives: ["Loops"], starterCode: "", publicTests: [{ id: "public", stdin: "public", expectedStdout: "public-result\n" }], privateTests: [{ id: "private", stdin: "PRIVATE-INPUT", expectedStdout: "PRIVATE-RESULT\n" }], referenceSolution: "PRIVATE-SOLUTION", solutionExplanation: "PRIVATE-EXPLANATION", misconceptions: [], limits: { timeoutMs: 1000, maxOutputChars: 1000 } };
 const surface = { kind: "article", articleId: "article", articleVersion: 1, partId: "exercise" };
 const submission = { requestId: "request", problem: { problemId: "problem", version: 1 }, code: "print('answer')", stdin: "" };
-function request(path: string, body?: object, method = "POST") { return new Request(`http://app.test${path}`, body ? { method, headers: { "Content-Type": "application/json", Origin: "http://app.test" }, body: JSON.stringify(body) } : undefined); }
+function request(path: string, body?: object, method = "POST", expectedUserId = userId) {
+  const headers = new Headers();
+  if (path.startsWith("/api/coding/drafts") && expectedUserId) headers.set("x-student-id", expectedUserId);
+  if (body) { headers.set("Content-Type", "application/json"); headers.set("Origin", "http://app.test"); }
+  return new Request(`http://app.test${path}`, { headers, ...(body ? { method, body: JSON.stringify(body) } : {}) });
+}
 beforeAll(async () => {
   await testDb.insert(schema.user).values(["student", "other"].map(id => ({ id, name: id, email: `${id}@example.test` })));
   await testDb.insert(schema.pengguna).values({ id: "student" });
@@ -84,5 +89,21 @@ describe("authenticated coding HTTP integration", () => {
     userId = "other";
     expect((await (await drafts.GET(request("/api/coding/drafts?courseId=course&draftKey=playground"))).json()).draft).toBeNull();
     userId = "student";
+  });
+  it("rejects drafts from a tab opened under a different account before reading or writing", async () => {
+    const body = { courseId: "course", draftKey: "stale-tab", code: "private student code", stdin: "", revision: 0 };
+    userId = "other";
+    try {
+      for (const expected of ["student", null]) {
+        const read = await drafts.GET(request("/api/coding/drafts?courseId=course&draftKey=stale-tab", undefined, "GET", expected));
+        expect(read.status).toBe(409);
+        expect(await read.json()).toMatchObject({ code: "ACCOUNT_CHANGED" });
+        const write = await drafts.PUT(request("/api/coding/drafts", body, "PUT", expected));
+        expect(write.status).toBe(409);
+        expect(await write.json()).toMatchObject({ code: "ACCOUNT_CHANGED" });
+      }
+      const current = await drafts.GET(request("/api/coding/drafts?courseId=course&draftKey=stale-tab"));
+      expect((await current.json()).draft).toBeNull();
+    } finally { userId = "student"; }
   });
 });

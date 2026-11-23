@@ -1,3 +1,5 @@
+import { zyraLiveProgress, zyraLiveTextStream } from "@/lib/zyra/live-progress";
+import { upstreamModelName } from "@/lib/ai/provider/model-registry";
 import type { GenerateContentConfig, Part } from "@google/genai";
 import {
   assertGenerationModel,
@@ -76,13 +78,37 @@ export function createGeminiGenerateAdapter(client: GeminiGenerateClient) {
       const parts = normalizeInputParts(request.parts, entry);
       const startedAt = Date.now();
       try {
+        const deadlineMs = zyraLiveProgress.getStore() ? Math.max(entry.deadlineMs, 30_000) : entry.deadlineMs;
         const response = await withProviderDeadline(
-          (signal) => client.models.generateContent({
-            model: entry.id,
-            contents: [{ role: "user", parts: toSdkParts(parts) }],
-            config: buildLegacyConfig(request, entry.thinking, entry.outputFloor, signal, entry.deadlineMs),
-          }),
-          entry.deadlineMs,
+          async (signal) => {
+            const params = {
+              model: upstreamModelName(entry.id),
+              contents: [{ role: "user", parts: toSdkParts(parts) }],
+              config: buildLegacyConfig(request, entry.thinking, entry.outputFloor, signal, deadlineMs),
+            };
+            const progress = zyraLiveProgress.getStore();
+            const textStream = zyraLiveTextStream.getStore();
+            progress?.("dispatch");
+            if (!progress || !client.models.generateContentStream) return client.models.generateContent(params);
+            const stream = await client.models.generateContentStream(params);
+            let text = "";
+            let last;
+            for await (const chunk of stream) {
+              last = chunk;
+              const delta = chunk.candidates?.[0]?.content?.parts?.filter(part => !part.thought).map(part => part.text ?? "").join("");
+              if (delta) {
+                text += delta;
+                progress("receiving");
+                textStream?.(delta);
+              }
+            }
+            const candidate = last?.candidates?.[0];
+            if (!last || !candidate?.finishReason) throw new Error("Incomplete Gemini stream");
+            progress("checking");
+            last.candidates = [{ ...candidate, content: { role: "model", parts: [{ text }] } }];
+            return last;
+          },
+          deadlineMs,
           entry.id,
         );
         return normalizeModelResponse(response, entry.id, startedAt);

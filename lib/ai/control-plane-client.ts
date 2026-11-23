@@ -21,7 +21,8 @@ const leaseSchema = z.object({
 }).passthrough();
 
 const reserveSchema = z.union([
-  z.object({ status: z.enum(["reserved", "idempotent"]), lease: leaseSchema }),
+  z.object({ status: z.literal("reserved"), lease: leaseSchema }),
+  z.object({ status: z.literal("idempotent"), lease: leaseSchema }),
   z.object({ status: z.enum(["fallback_allowed", "quota_exhausted"]), code: z.string(), modelId: z.string() }),
 ]);
 
@@ -32,6 +33,8 @@ const transitionSchema = z.union([
 
 const diagnosticsSchema = z.object({
   schemaVersion: z.string(),
+  projectGroupCount: z.number().optional(),
+  providerDay: z.string().optional(),
   activeLeaseCount: z.number(),
   terminalLeaseCount: z.number(),
   counters: z.array(z.object({
@@ -87,6 +90,7 @@ export type ControlPlaneReserveInput = {
   readonly feature: string;
   readonly routeClass: ModelRouteClass;
   readonly modelId: ModelId;
+  probeProjectAlias?: string;
   readonly cacheStatus: "hit" | "miss" | "bypass";
 };
 
@@ -197,6 +201,18 @@ export class ControlPlaneClient {
     return this.request("/quota/diagnostics", { method: "GET" }, diagnosticsSchema);
   }
 
+  async aliasHealth(aliasHash: string) {
+    return this.post("/quota/alias/status", { aliasHash }, z.object({ failures: z.number().int().nonnegative(), cooldownUntil: z.number().nonnegative() }));
+  }
+
+  async recordAliasAttempt(aliasHash: string, attemptId: string, success: boolean) {
+    return this.post("/quota/alias/record", { aliasHash, attemptId, success }, z.object({ failures: z.number().int().nonnegative(), cooldownUntil: z.number().nonnegative() }));
+  }
+
+  async resetAliasHealth(aliasHash?: string) {
+    return this.post("/quota/alias/reset", aliasHash ? { aliasHash } : {}, z.object({ cleared: z.number().int().nonnegative() }));
+  }
+
   async cacheGet(cacheKey: string): Promise<ControlPlaneCacheGetResult> {
     return this.request(`/cache/get?key=${encodeURIComponent(cacheKey)}`, { method: "GET" }, cacheGetSchema);
   }
@@ -268,7 +284,9 @@ export class ControlPlaneClient {
       if (!parsed || typeof parsed !== "object") {
         throw new ControlPlaneClientError("CONTROL_PLANE_NON_JSON", "control-plane returned a non-JSON response", response.status);
       }
-      if (!response.ok) {
+      const capacityDenial = path === "/quota/reserve" && response.status === 429 &&
+        "status" in parsed && (parsed.status === "quota_exhausted" || parsed.status === "fallback_allowed");
+      if (!response.ok && !capacityDenial) {
         throw new ControlPlaneClientError("CONTROL_PLANE_HTTP_ERROR", "control-plane returned an HTTP error", response.status);
       }
       const result = schema.safeParse(parsed);

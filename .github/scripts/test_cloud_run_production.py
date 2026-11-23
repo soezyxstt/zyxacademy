@@ -13,7 +13,15 @@ class ProductionRuntimeTest(unittest.TestCase):
                "GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_RUNTIME_VARS": "{}"}
         for source, expected in [("{}", "WORKER_DATABASE_TARGET_MISMATCH"),
                                  ('{"NEXT_PUBLIC_APP_URL":"https://private-value.invalid"}', "WORKER_APP_ORIGIN_MISMATCH")]:
-            result = subprocess.run([sys.executable, "prepare_cloud_run_production.py"], cwd=scripts,
+            code = """
+import json, os, sys
+from prepare_cloud_run_production import settings
+try:
+    settings(json.loads(os.environ["GITHUB_RUNTIME_SECRETS"]), {})
+except ValueError as error:
+    sys.exit(str(error))
+"""
+            result = subprocess.run([sys.executable, "-c", code], cwd=scripts,
                                     env={**env, "GITHUB_RUNTIME_SECRETS": source}, capture_output=True, text=True)
             self.assertEqual(result.returncode, 1)
             self.assertEqual(result.stderr.strip(), expected)

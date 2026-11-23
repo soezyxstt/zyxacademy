@@ -1,6 +1,14 @@
 import { expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { ADMIN_MCP_SCOPES } from "@/lib/admin-mcp/registry";
+import { operationsCatalog } from "@/lib/admin-mcp/operations-catalog";
+
+test("model configuration and billed latency refresh remain explicitly UI-only", () => {
+  const entry = operationsCatalog.find(item => item.source === "app/(admin)/admin/ops/models/page.tsx")!;
+  expect(entry.status).toBe("excluded");
+  expect(entry.tools).toEqual([]);
+  expect(entry.actions).toEqual(["listAiModelSettingsAction", "updateAiModelSettingAction", "resetAiModelSettingAction", "refreshAiModelLatenciesAction"]);
+});
 test("every registered and conditional permission is grantable, and tool names are unique", () => {
   const names: string[] = []; const scopes = new Set<string>();
   for (const file of readdirSync("lib/admin-mcp").filter(file => file.endsWith("-tools.ts"))) {

@@ -1,5 +1,7 @@
-import tempfile
 import copy
+from pathlib import Path
+import re
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -35,6 +37,7 @@ def spec():
         "DIKTAT_RENDERER_URL": STAGING["renderer"],
         "COMPUTE_SERVICE_URL": f"https://{STAGING['branch']}-zyxcompute.compute.c-3.ap-southeast-1.aws.neon.tech",
         "CF_ACCOUNT_ID": "fake-staging-account",
+        "ZYRA_CONTROL_PLANE_URL": "https://zyra-control-plane.example.workers.dev",
     }
     secrets = REQUIRED_SECRET_KEYS | {"CF_BROWSER_API_TOKEN"}
     env = ([{"name": name, "value": value} for name, value in settings.items()] +
@@ -44,6 +47,54 @@ def spec():
 
 
 class CloudRunStagingTest(unittest.TestCase):
+    def test_missing_python_ticket_key_blocks_deployment(self):
+        candidate = spec()
+        entries = candidate["containers"][0]["env"]
+        entries[:] = [item for item in entries if item["name"] != "PYTHON_RUNTIME_TOKEN_SECRET"]
+        with self.assertRaisesRegex(ValueError, "missing required Secret Manager references"):
+            validate_template(candidate, CONFIG)
+
+    def test_missing_ai_gateway_or_control_plane_settings_block_deployment(self):
+        for key in ("CF_AI_GATEWAY_URL", "CF_AI_GATEWAY_TOKEN", "ZYRA_CONTROL_PLANE_TOKEN"):
+            candidate = spec()
+            entries = candidate["containers"][0]["env"]
+            entries[:] = [item for item in entries if item["name"] != key]
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "missing required Secret Manager references"):
+                validate_template(candidate, CONFIG)
+
+        candidate = spec()
+        entries = candidate["containers"][0]["env"]
+        entries[:] = [item for item in entries if item["name"] != "ZYRA_CONTROL_PLANE_URL"]
+        with self.assertRaisesRegex(ValueError, "missing ZYRA_CONTROL_PLANE_URL"):
+            validate_template(candidate, CONFIG)
+
+        # ZYRA_CONTROL_PLANE_URL is accepted as a pinned Secret Manager reference as well as plaintext.
+        entries.append({
+            "name": "ZYRA_CONTROL_PLANE_URL",
+            "valueFrom": {"secretKeyRef": {"name": "zyx-staging-web-zyra-control-plane-url", "key": "1"}},
+        })
+        validate_template(candidate, CONFIG)
+
+    def test_cloud_run_jobs_require_manual_staging_dispatch(self):
+        text = (Path(__file__).resolve().parents[1] / 'workflows/deploy-cloud-run-staging.yml').read_text()
+        triggers = text.split('\non:\n', 1)[1].split('\npermissions:', 1)[0]
+        self.assertEqual(re.findall(r'^  ([\w_]+):', triggers, re.MULTILINE), ['workflow_dispatch'])
+        jobs = re.findall(r'^  ([\w-]+):\n    if: (.+)\n    environment: (.+)$', text, re.MULTILINE)
+        self.assertEqual({name: environment for name, _, environment in jobs},
+                         {'release': 'staging-cloud-run', 'import-secrets': 'staging'})
+        for name, condition, _ in jobs:
+            for event in ('push', 'pull_request', 'workflow_call', 'workflow_dispatch'):
+                for branch in ('staging', 'main'):
+                    for operation in ('candidate', 'promote', 'rollback', 'import-secrets'):
+                        values = {'github.event_name': event, 'github.repository': 'soezyxstt/zyxacademy',
+                                  'github.ref': f'refs/heads/{branch}', 'inputs.operation': operation}
+                        expression = re.sub(r'(?:github|inputs)\.[\w.]+',
+                                            lambda match: repr(values[match.group()]), condition)
+                        with self.subTest(condition=condition, event=event, branch=branch, operation=operation):
+                            expected_operation = (operation == 'import-secrets') == (name == 'import-secrets')
+                            self.assertEqual(eval(expression.replace('&&', 'and'), {'__builtins__': {}}),
+                                             event == 'workflow_dispatch' and branch == 'staging' and expected_operation)
+
     def test_traffic_dispatch_requires_an_exact_revision(self):
         sha = "f" * 40
         with tempfile.TemporaryDirectory() as temp:
@@ -95,6 +146,17 @@ class CloudRunStagingTest(unittest.TestCase):
             entries[:] = [entry for entry in entries if entry["name"] != key] + [{"name": key, **value}]
             with self.subTest(key=key), self.assertRaises(ValueError):
                 validate_template(changed, CONFIG)
+
+    def test_accepts_gateway_route_and_byok_aliases_and_rejects_provider_keys_in_plaintext(self):
+        candidate = spec()
+        entries = candidate["containers"][0]["env"]
+        entries.extend({"name": key, "value": value} for key, value in (
+            ("AI_META_GATEWAY_ROUTE", "custom-meta"), ("AI_META_MODEL_5", "muse-spark-1.2-contributor"),
+            ("AI_META_BYOK_ALIASES", "meta-1,meta-2")))
+        validate_template(candidate, CONFIG)
+        entries.append({"name": "AI_META_API_KEY", "value": "test"})
+        with self.assertRaises(ValueError):
+            validate_template(candidate, CONFIG)
 
     def test_ignores_tagged_revisions_without_traffic(self):
         self.assertTrue(REVISION.fullmatch(CANDIDATE))

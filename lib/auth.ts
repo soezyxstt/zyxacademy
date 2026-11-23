@@ -1,5 +1,8 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { oneTimeToken } from "better-auth/plugins/one-time-token";
+import { multiSession } from "better-auth/plugins/multi-session";
+import { eq } from "drizzle-orm";
 import { db } from "@/db"; // Assuming you export your Drizzle db instance from here
 import * as schema from "@/db/schema";
 import { resolveAuthSecret } from "@/lib/auth-secret";
@@ -8,6 +11,9 @@ import { provisionPenggunaForNewUser } from "@/lib/auth/authorization";
 import { LOCALE_COOKIE_NAME } from "@/lib/i18n/shared";
 import { inheritUserLocalePreference } from "@/lib/i18n/preferences";
 import { normalizeLocale } from "@/lib/i18n/locale";
+import { accountSwitchPlugin } from "@/lib/auth/account-switch-plugin";
+import { MAX_SAVED_ACCOUNTS } from "@/lib/auth/account-switch-contract";
+import { nativeGoogleSignInGuard } from "@/lib/native/google-auth-plugin";
 
 function requiredEnv(name: string): string {
   const v = process.env[name];
@@ -33,12 +39,30 @@ export const auth = betterAuth({
    "https://zyxacademy.com",
    "https://www.zyxacademy.com",
  ],
+ plugins: [
+   multiSession({ maximumSessions: MAX_SAVED_ACCOUNTS }),
+   nativeGoogleSignInGuard(),
+   accountSwitchPlugin({
+     isAccountAvailable: async (userId) => {
+       const [identity] = await db.select({ status: schema.pengguna.status })
+         .from(schema.pengguna).where(eq(schema.pengguna.id, userId)).limit(1);
+       // Legacy identities still use the existing provisioning flow.
+       return identity?.status !== "suspended";
+     },
+   }),
+   oneTimeToken({
+     expiresIn: 2,
+     storeToken: "hashed",
+     disableClientRequest: true,
+   }),
+ ],
  database: drizzleAdapter(db, {
  provider: "pg",
  schema: schema,
  }),
  socialProviders: {
  google: {
+ prompt: "select_account",
  clientId: requiredEnv("GOOGLE_CLIENT_ID"),
  clientSecret: requiredEnv("GOOGLE_CLIENT_SECRET"),
  },

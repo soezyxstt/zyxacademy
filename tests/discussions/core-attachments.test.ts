@@ -84,6 +84,33 @@ test("repeated forwards reuse authorized source and attachment reads", async () 
  } finally { client.query = originalQuery; }
 });
 
+test("thread reopen skips observedSeq write transaction and returns readThroughSeq and scoped aiStatuses", async () => {
+ await db.insert(schema.user).values({ id: "bob", name: "Bob", email: "bob@example.test", role: "student" }).onConflictDoNothing();
+ await db.update(schema.discussionMessages).set({ askZyra: true }).where(eq(schema.discussionMessages.id, "message-0"));
+ await db.insert(schema.discussionAiRequests).values([
+  { id: "req-alice", messageId: "message-0", requestedById: "alice", kind: "zyra", status: "failed", errorCode: "DISCUSSION_AI_QUOTA", requestId: "req-alice" },
+  { id: "req-bob", messageId: "message-1", requestedById: "bob", kind: "zyra", status: "pending", requestId: "req-bob" },
+ ]).onConflictDoNothing();
+ await db.update(schema.discussionMessages).set({ askZyra: true }).where(eq(schema.discussionMessages.id, "message-1"));
+ await db.insert(schema.discussionThreadReads).values({ userId: "alice", threadId: "thread-a", throughSeq: 12, observedSeq: 30 })
+  .onConflictDoUpdate({ target: [schema.discussionThreadReads.userId, schema.discussionThreadReads.threadId], set: { throughSeq: 12, observedSeq: 30 } });
+ const sqlLog: string[] = [];
+ const originalQuery = client.query;
+ client.query = function (this: unknown, ...args: Parameters<typeof client.query>) {
+  const text = typeof args[0] === "string" ? args[0] : (args[0] as { text?: string } | undefined)?.text ?? "";
+  sqlLog.push(text);
+  return originalQuery.apply(this, args);
+ } as typeof client.query;
+ try {
+  const reopened = await service.getThread("alice", "thread-a");
+  expect(reopened.readThroughSeq).toBe(12);
+  expect(reopened.aiStatuses).toEqual([{ messageId: "message-0", status: "failed", reason: "ai_quota" }]);
+  expect(sqlLog.some(query => /\bbegin\b/i.test(query))).toBe(false);
+  expect(sqlLog.some(query => /insert into "discussion_thread_reads"/i.test(query))).toBe(false);
+  expect(sqlLog.length).toBeLessThan(20);
+ } finally { client.query = originalQuery; }
+});
+
 test("preview reads use current course access and enforce database metadata bounds", async () => {
  const previewKey = "discussions/channel-a/previews/image-0.webp";
  const preview = new Uint8Array([1, 2, 3]);

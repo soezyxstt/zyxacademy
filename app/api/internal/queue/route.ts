@@ -4,6 +4,8 @@ import { enqueueTask } from "@/lib/queue/cloud-tasks";
 
 const childEvent = z.object({
   name: z.enum([
+    "ai-model-catalog-cron",
+    "google-calendar-sync-cron", "google-calendar/sync.requested",
     "vector.sync.dispatch", "discussion/notifications.continue", "discussion/ai.continue",
     "discussion/images.sweep-continue", "gamification/outbox.continue", "gamification/missions.page",
     "admin/operations.continue", "product.verification.requested",

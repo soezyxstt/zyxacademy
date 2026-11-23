@@ -1,23 +1,23 @@
 "use client";
 
+import { AdminIconAction } from "@/components/admin/icon-action";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
-  CheckCircle2,
-  Cpu,
-  Image as ImageIcon,
   Info,
-  Layers,
+  MoreHorizontal,
   RefreshCw,
   RotateCcw,
   Search,
-  SlidersHorizontal,
-  Wrench,
   X,
 } from "lucide-react";
 import { AdminEmptyState } from "@/components/admin/state-panels";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { Button } from "@/components/ui/button";
+import { modelDisplayName } from "@/lib/ai/provider/recent-models";
+import { ModelPicker } from "./model-picker";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SearchBar } from "@/components/ui/search-bar";
 import {
   Select,
@@ -31,16 +31,18 @@ import { toast } from "@/components/ui/toast";
 import {
   MODEL_FEATURE_GROUPS,
   getSelectableModelOption,
-  selectableModels,
   type FeatureModelSettingView,
   type ModelFeature,
   type ModelFeatureGroup,
 } from "@/lib/ai/model-settings";
-import type { ModelId } from "@/lib/ai/provider/model-registry";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
+import { EMBEDDING_PROFILES, type ModelId } from "@/lib/ai/provider/model-registry";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { useTranslations } from "@/lib/i18n/client";
 import {
   listAiModelSettingsAction,
+  refreshAiModelLatenciesAction,
   resetAiModelSettingAction,
   updateAiModelSettingAction,
   type ModelSettingMutationResult,
@@ -61,6 +63,7 @@ export interface ModelsClientProps {
     expectedUpdatedAt?: string | null;
   }) => Promise<ModelSettingMutationResult>;
   onRefreshOverride?: () => Promise<ModelSettingMutationResult>;
+  onReadOverride?: () => Promise<ModelSettingMutationResult>;
   initialSearch?: string;
   initialGroupFilter?: "all" | ModelFeatureGroup;
   initialStatusFilter?: StatusFilter;
@@ -81,22 +84,60 @@ export function ModelsClient({
   onSaveOverride,
   onResetOverride,
   onRefreshOverride,
+  onReadOverride,
   initialSearch = "",
   initialGroupFilter = "all",
   initialStatusFilter = "all",
   initialBannerError = null,
 }: ModelsClientProps) {
   const t = useTranslations("adminOps");
+  const [selectedTask, setTask] = useUrlTab("task", "all");
+  const task = ["zyra", "admin-ops-ai", "embedding"].includes(selectedTask) ? selectedTask : "all";
   const [views, setViews] = useState<FeatureModelSettingView[]>(initialViews);
   const [drafts, setDrafts] = useState<Partial<Record<ModelFeature, ModelTrio>>>({});
   const [pendingFeature, setPendingFeature] = useState<ModelFeature | null>(null);
   const [pendingKind, setPendingKind] = useState<"save" | "reset" | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [latencyRefreshRequestedAt, setLatencyRefreshRequestedAt] = useState<number | null>(null);
+  const refreshing = isRefreshing || latencyRefreshRequestedAt !== null;
   const [bannerError, setBannerError] = useState<string | null>(initialBannerError);
   const [search, setSearch] = useState(initialSearch);
   const [groupFilter, setGroupFilter] = useState<"all" | ModelFeatureGroup>(initialGroupFilter);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatusFilter);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [searchExpanded, setSearchExpanded] = useState(Boolean(initialSearch));
+
+  useEffect(() => {
+    if (latencyRefreshRequestedAt === null) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const result = await (onReadOverride ?? listAiModelSettingsAction)();
+        if (cancelled) return;
+        if (!result.ok) throw new Error(result.error);
+        setViews(result.views);
+        const models = [...new Set(result.views.flatMap(view => view.selectableModels ?? []))];
+        const observations: NonNullable<FeatureModelSettingView["modelLatencies"]> = Object.assign({}, ...result.views.map(view => view.modelLatencies ?? {}));
+        if (models.length && models.every(id => observations[id]?.status === "complete" && (observations[id]?.checkedAt ?? 0) >= latencyRefreshRequestedAt)) {
+          setLatencyRefreshRequestedAt(null);
+          toast.success(t("modelsUI.latencyUpdated"));
+          return;
+        }
+        if (Date.now() - latencyRefreshRequestedAt >= 15 * 60_000) throw new Error(t("modelsUI.latencyWaiting"));
+        timer = setTimeout(poll, 10_000);
+      } catch (error) {
+        if (!cancelled) {
+          setLatencyRefreshRequestedAt(null);
+          setBannerError(error instanceof Error ? error.message : t("modelsUI.latencyWaiting"));
+        }
+      }
+    };
+    timer = setTimeout(poll, 10_000);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [latencyRefreshRequestedAt, onReadOverride, t]);
+
+  useEffect(() => { if (searchExpanded) searchInputRef.current?.focus(); }, [searchExpanded]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -108,18 +149,13 @@ export function ModelsClient({
         !target?.isContentEditable
       ) {
         event.preventDefault();
+        setSearchExpanded(true);
         searchInputRef.current?.focus();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  const customCount = useMemo(
-    () => views.filter((view) => view.isCustom).length,
-    [views],
-  );
-  const defaultCount = views.length - customCount;
 
   const groupCounts = useMemo(() => {
     const counts = new Map<ModelFeatureGroup, number>();
@@ -132,13 +168,14 @@ export function ModelsClient({
   const filteredViews = useMemo(() => {
     const query = search.trim().toLowerCase();
     return views.filter((view) => {
+      if (task !== "all") return view.feature === task;
       if (groupFilter !== "all" && view.group !== groupFilter) return false;
       if (statusFilter === "custom" && !view.isCustom) return false;
       if (statusFilter === "default" && view.isCustom) return false;
       if (!query) return true;
 
       const modelText = view.models
-        .map((id) => `${id} ${formatModelLabel(id)}`)
+        .map((id) => `${id} ${view.modelLabels?.[id] ?? ""} ${modelDisplayName(view.modelLabels?.[id] ?? formatModelLabel(id))}`)
         .join(" ")
         .toLowerCase();
       return (
@@ -148,7 +185,7 @@ export function ModelsClient({
         modelText.includes(query)
       );
     });
-  }, [views, groupFilter, statusFilter, search]);
+  }, [views, groupFilter, statusFilter, search, task]);
 
   const groupedViews = useMemo(() => {
     return MODEL_FEATURE_GROUPS.map(([groupKey]) => ({
@@ -200,15 +237,20 @@ export function ModelsClient({
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      const runRefresh = onRefreshOverride ?? listAiModelSettingsAction;
+      const runRefresh = onRefreshOverride ?? refreshAiModelLatenciesAction;
       const result = await runRefresh();
       if (!result.ok) {
-        setBannerError(result.error);
-        toast.error(result.error);
+        const message = result.code === "LATENCY_COOLDOWN" ? t("modelsUI.latencyCooldown") : result.error;
+        setBannerError(message);
+        toast.error(message);
         return;
       }
       setViews(result.views);
       setBannerError(null);
+      if (result.latencyRefreshRequestedAt) {
+        setLatencyRefreshRequestedAt(result.latencyRefreshRequestedAt);
+        toast.success(t("modelsUI.latencyQueued"));
+      }
     } catch {
       setBannerError("Gagal memuat konfigurasi. Coba muat ulang.");
     } finally {
@@ -310,30 +352,6 @@ export function ModelsClient({
 
   return (
     <div className="space-y-6">
-      <AdminStatStrip className="lg:grid-cols-4">
-        <AdminStatStripItem
-          label={t("modelsUI.totalFeatures")}
-          value={views.length}
-          icon={Layers}
-        />
-        <AdminStatStripItem
-          label={t("modelsUI.customChains")}
-          value={customCount}
-          icon={SlidersHorizontal}
-        />
-        <AdminStatStripItem
-          label={t("modelsUI.defaultChains")}
-          value={defaultCount}
-          icon={CheckCircle2}
-        />
-        <AdminStatStripItem
-          label={t("modelsUI.availableModels")}
-          value={selectableModels.length}
-
-          icon={Cpu}
-        />
-      </AdminStatStrip>
-
       {bannerError && (
         <div
           role="alert"
@@ -357,16 +375,37 @@ export function ModelsClient({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <Tabs value={task} onValueChange={setTask}>
+        <TabsList aria-label={t("modelsUI.assignments")} trailing={task !== "all" ? <AdminIconAction variant="outline" className="size-9 shrink-0" label={t("modelsUI.refresh")} onClick={handleRefresh} disabled={refreshing || pendingFeature !== null}><RefreshCw aria-hidden className={refreshing ? "animate-spin" : ""} /></AdminIconAction> : undefined}>
+          <TabsTrigger value="all">{t("modelsUI.features")}</TabsTrigger>
+          <TabsTrigger value="zyra">Zyra</TabsTrigger>
+          <TabsTrigger value="admin-ops-ai">Ops AI</TabsTrigger>
+          <TabsTrigger value="embedding">Embedding</TabsTrigger>
+        </TabsList>
+        <TabsContent value="embedding">
+          <dl className="divide-y divide-border">
+            {Object.values(EMBEDDING_PROFILES).map(profile => (
+              <div key={profile.id} className="flex flex-wrap justify-between gap-2 py-3">
+                <dt className="text-body-sm font-semibold">{t(profile.id === "canonical-content-v2" ? "modelsUI.materialSearch" : "modelsUI.semanticCache")}</dt>
+                <dd className="text-body-sm">{profile.model} · {t("modelsUI.dimensions", { count: profile.dimensions })}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="text-body-xs text-muted-foreground">{t("modelsUI.embeddingMigration")}</p>
+        </TabsContent>
+        {task !== "embedding" && <TabsContent value={task} className="space-y-4">
+      {task === "all" && <div data-testid="model-filters" className="flex items-center gap-2">
         <SearchBar
           size="sm"
           ref={searchInputRef}
           value={search}
           onSearch={setSearch}
           onClear={() => setSearch("")}
+          expanded={searchExpanded}
+          onExpandedChange={setSearchExpanded}
           shortcut="/"
           placeholder={t("modelsUI.search")}
-          containerClassName="min-w-[140px] flex-1"
+          containerClassName="min-w-0 flex-1"
         />
 
         <Select
@@ -375,9 +414,9 @@ export function ModelsClient({
         >
           <SelectTrigger
             aria-label={t("modelsUI.allGroups")}
-            className="h-9 w-full rounded-lg text-body-sm sm:w-[210px] [&>span]:truncate"
+            className={`h-9 min-w-0 flex-1 rounded-lg text-body-sm sm:w-[210px] sm:flex-none [&>span]:truncate ${searchExpanded ? "hidden sm:flex" : ""}`}
           >
-            <SelectValue placeholder={t("modelsUI.allGroups")} />
+            <SelectValue>{groupFilter === "all" ? t("modelsUI.groupFilter") : t(`modelsUI.groups.${groupFilter}`)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">
@@ -392,7 +431,7 @@ export function ModelsClient({
         </Select>
 
         <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-          <SelectTrigger aria-label={t("modelsUI.filterAll")} className="h-9 w-[140px] shrink-0 rounded-lg text-body-sm"><SelectValue /></SelectTrigger>
+          <SelectTrigger aria-label={t("modelsUI.filterAll")} className={`h-9 w-[104px] shrink-0 rounded-lg text-body-sm sm:w-[140px] ${searchExpanded ? "hidden sm:flex" : ""}`}><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("modelsUI.filterAll")}</SelectItem>
             <SelectItem value="custom">{t("modelsUI.filterCustom")}</SelectItem>
@@ -400,31 +439,26 @@ export function ModelsClient({
           </SelectContent>
         </Select>
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing || pendingFeature !== null}
-          className="h-9 px-3"
-        >
-          <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin text-brand-primary" : ""}`} />
-          <span>{t("modelsUI.refresh")}</span>
-        </Button>
-      </div>
+        <TooltipProvider><Tooltip><TooltipTrigger asChild>
+          <Button type="button" variant="outline" size="icon-lg" onClick={handleRefresh}
+            disabled={refreshing || pendingFeature !== null} aria-label={t("modelsUI.refresh")}>
+            <RefreshCw aria-hidden className={refreshing ? "animate-spin" : ""} />
+          </Button>
+        </TooltipTrigger><TooltipContent>{t("modelsUI.refresh")}</TooltipContent></Tooltip></TooltipProvider>
+      </div>}
 
       {groupedViews.length === 0 ? (
-        <AdminEmptyState icon={Search} title={t("modelsUI.noMatchTitle")} description={t("modelsUI.noMatchDescription")}
+        <AdminEmptyState icon={Search} title={t("modelsUI.noMatchTitle")}
           action={hasActiveFilter ? <Button variant="outline" size="sm" onClick={clearFilters}>{t("modelsUI.clearFilters")}</Button> : undefined} />
       ) : (
         <div className="space-y-6">
           {groupedViews.map(({ groupKey, items }) => (
             <section key={groupKey} className="space-y-2.5">
-              <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+              {task === "all" && <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
                 <h2 className="font-heading text-body-base font-semibold text-foreground">
                   {t(`modelsUI.groups.${groupKey}`)}
                 </h2>
-              </div>
+              </div>}
 
               <div className="divide-y divide-border/60 border-y border-border">
                 {items.map((view) => {
@@ -442,45 +476,23 @@ export function ModelsClient({
                     <div
                       key={view.feature}
                       data-testid={`model-feature-row-${view.feature}`}
-                      className="grid grid-cols-1 gap-4 p-4 transition-colors hover:bg-muted/15 xl:grid-cols-[minmax(220px,1fr)_minmax(480px,1.45fr)] xl:items-start sm:px-5"
+                      className="grid grid-cols-1 gap-3 py-3 transition-colors hover:bg-muted/15 xl:grid-cols-[minmax(160px,0.65fr)_minmax(0,3fr)] xl:items-start"
                     >
                       <div className="min-w-0 space-y-1.5">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-heading text-body-base font-semibold text-foreground">
-                            {view.label}
+                            {view.feature === "global-default" ? t("modelsUI.globalTitle") : view.label}
                           </span>
-                          <span
-                            className={`inline-flex items-center rounded-md border px-2 py-0.5 text-body-xs font-medium ${
-                              view.isCustom
-                                ? "border-brand-primary/30 bg-brand-primary/10 text-brand-primary"
-                                : "border-border bg-muted/60 text-muted-foreground"
-                            }`}
-                          >
-                            {view.isCustom ? t("modelsUI.statusCustom") : t("modelsUI.statusDefault")}
-                          </span>
-                          {view.supportsImages && (
-                            <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-0.5 text-body-xs text-muted-foreground">
-                              <ImageIcon className="size-3" aria-hidden />
-                              <span>{t("modelsUI.tagVisual")}</span>
-                            </span>
-                          )}
-                          {view.requiresStreamingTools && (
-                            <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-0.5 text-body-xs text-muted-foreground">
-                              <Wrench className="size-3" aria-hidden />
-                              <span>{t("modelsUI.tagStreamingTools")}</span>
-                            </span>
-                          )}
-                        </div>
-
-                        <p className="text-body-xs text-muted-foreground leading-relaxed">
-                          {view.description}
-                        </p>
-
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body-xs text-muted-foreground">
-                          <span>
-                            {t("modelsUI.runtimeDefaultPrefix")}{" "}
-                            {view.runtimeDefaultModels.map(formatModelLabel).join(", ")}
-                          </span>
+                          {view.isCustom && <span className="inline-flex items-center rounded-md border border-brand-primary/30 bg-brand-primary/10 px-2 py-0.5 text-body-xs font-medium text-brand-primary">{t("modelsUI.statusCustom")}</span>}
+                        <Popover><PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon-sm" aria-label={view.label + ": " + t("modelsUI.capabilityHeading")}><Info aria-hidden /></Button>
+                        </PopoverTrigger><PopoverContent className="space-y-2 text-body-xs">
+                          <p className="text-body-xs">{view.feature === "global-default" ? t("modelsUI.globalHelp") : view.description}</p>
+                          <p className="text-body-xs">{t("modelsUI.runtimeDefaultPrefix")} {view.runtimeDefaultModels.map(formatModelLabel).join(", ")}</p>
+                          <p className="text-body-xs">{t("modelsUI.capabilityDistinct")}</p>
+                          {view.requiresStreamingTools && <p className="text-body-xs">{t("modelsUI.capabilityOpsAi")}</p>}
+                          {view.supportsImages && <p className="text-body-xs">{t("modelsUI.capabilityVisual")}</p>}
+                        </PopoverContent></Popover>
                         </div>
 
                         {view.isCustom && view.updatedAt && (
@@ -490,6 +502,9 @@ export function ModelsClient({
                           </p>
                         )}
 
+                        {draftModels.some(id => view.modelLabels?.[id]?.endsWith("-contributor")) && (
+                          <p className="text-body-xs text-status-warning">{t("modelsUI.contributorUsage")}</p>
+                        )}
                         {view.supportsImages && !hasVisualInDraft && (
                           <p className="text-body-xs text-muted-foreground">
                             {t("modelsUI.visualFallbackHint")}
@@ -497,81 +512,37 @@ export function ModelsClient({
                         )}
                       </div>
 
-                      <div className="min-w-0 space-y-3">
-                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                      <div className="min-w-0 space-y-2 xl:flex xl:items-end xl:gap-2 xl:space-y-0">
+                        <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
                           {([0, 1, 2] as const).map((slotIndex) => {
                             const selectedId = draftModels[slotIndex];
                             return (
-                              <div key={slotIndex} className="min-w-0 space-y-1">
+                              <div key={slotIndex} className="grid min-w-0 grid-cols-[72px_minmax(0,1fr)] items-center gap-2 sm:grid-cols-1 sm:gap-1">
                                 <span className="block text-body-xs font-medium text-muted-foreground">
                                   {priorityLabels[slotIndex]}
                                 </span>
-                                <Select
-                                  value={selectedId}
-                                  disabled={isRowBusy}
-                                  onValueChange={(val) =>
-                                    handleModelChange(view, slotIndex, val as ModelId)
-                                  }
-                                >
-                                  <SelectTrigger
-                                    aria-label={`${view.label} ${priorityLabels[slotIndex]}`}
-                                    className="h-9 w-full min-w-0 rounded-lg text-body-sm [&>span]:truncate"
-                                  >
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {view.selectableModels.map((candidateId) => {
-                                      const opt = getSelectableModelOption(candidateId);
-                                      const inSlot = draftModels.indexOf(candidateId);
-                                      const slotSuffix =
-                                        inSlot !== -1 && inSlot !== slotIndex
-                                          ? ` (${priorityLabels[inSlot]})`
-                                          : "";
-                                      return (
-                                        <SelectItem key={candidateId} value={candidateId}>
-                                          {opt.label}
-                                          {slotSuffix}
-                                        </SelectItem>
-                                      );
-                                    })}
-                                  </SelectContent>
-                                </Select>
+                                <ModelPicker view={view} value={selectedId} disabled={isRowBusy}
+                                  label={`${view.feature === "global-default" ? t("modelsUI.globalTitle") : view.label} ${priorityLabels[slotIndex]}`}
+                                  priorities={Object.fromEntries(draftModels.map((id, index) => [id, priorityLabels[index]]))}
+                                  onChange={id => handleModelChange(view, slotIndex, id)} />
                               </div>
                             );
                           })}
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          {isDirty && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              disabled={isRowBusy}
-                              onClick={() => handleDiscardDraft(view.feature)}
-                            >
-                              {t("modelsUI.discard")}
-                            </Button>
-                          )}
-
-                          {view.isCustom && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              isLoading={isResetting}
-                              disabled={pendingFeature !== null && !isRowBusy}
-                              onClick={() => handleReset(view)}
-                            >
-                              <RotateCcw className="size-3.5" />
-                              <span>{t("modelsUI.resetDefault")}</span>
-                            </Button>
-                          )}
+                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                          {(isDirty || view.isCustom) && <DropdownMenu><DropdownMenuTrigger asChild>
+                            <AdminIconAction variant="ghost" disabled={isRowBusy} label={view.label + ": " + t("modelsUI.actions")}><MoreHorizontal aria-hidden /></AdminIconAction>
+                          </DropdownMenuTrigger><DropdownMenuContent align="end">
+                            {isDirty && <DropdownMenuItem onSelect={() => handleDiscardDraft(view.feature)}>{t("modelsUI.discard")}</DropdownMenuItem>}
+                            {view.isCustom && <DropdownMenuItem disabled={pendingFeature !== null} onSelect={() => void handleReset(view)}><RotateCcw aria-hidden className={isResetting ? "animate-spin" : ""} />{t(view.feature === "global-default" ? "modelsUI.resetDefault" : "modelsUI.useGlobal")}</DropdownMenuItem>}
+                          </DropdownMenuContent></DropdownMenu>}
 
                           <Button
                             type="button"
                             variant={isDirty ? "default" : "outline"}
                             size="sm"
+                            className="h-9"
                             isLoading={isSaving}
                             disabled={!canSave || (pendingFeature !== null && !isRowBusy)}
                             onClick={() => handleSave(view)}
@@ -591,17 +562,8 @@ export function ModelsClient({
         </div>
       )}
 
-      <div className="border-t border-border pt-4 space-y-2">
-        <div className="flex items-center gap-2 font-heading text-body-base font-semibold text-foreground">
-          <Info className="size-4 text-brand-primary" aria-hidden />
-          <span>{t("modelsUI.capabilityHeading")}</span>
-        </div>
-        <ul className="space-y-1.5 text-body-xs text-muted-foreground leading-relaxed list-disc pl-5">
-          <li>{t("modelsUI.capabilityDistinct")}</li>
-          <li>{t("modelsUI.capabilityOpsAi")}</li>
-          <li>{t("modelsUI.capabilityVisual")}</li>
-        </ul>
-      </div>
+        </TabsContent>}
+      </Tabs>
     </div>
   );
 }

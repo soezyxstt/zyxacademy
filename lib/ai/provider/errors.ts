@@ -63,7 +63,7 @@ export function classifyProviderError(error: unknown, modelId?: string): Provide
   if (httpStatus === 401 || httpStatus === 403 || /authentication|api key|unauthorized|forbidden/.test(message)) {
     return new ProviderAdapterError({
       code: "PROVIDER_AUTHENTICATION",
-      message: "Gemini provider authentication failed",
+      message: "AI provider authentication failed",
       retryClassification: "authentication",
       modelId,
       httpStatus,
@@ -74,7 +74,7 @@ export function classifyProviderError(error: unknown, modelId?: string): Provide
   if (httpStatus === 429 || /resource_exhausted|rate.?limit|quota/.test(message)) {
     return new ProviderAdapterError({
       code: "PROVIDER_RATE_LIMITED",
-      message: "Gemini provider rate limit reached",
+      message: "AI provider rate limit reached",
       retryClassification: "rate_limited",
       modelId,
       httpStatus,
@@ -85,7 +85,7 @@ export function classifyProviderError(error: unknown, modelId?: string): Provide
   if (httpStatus !== undefined && httpStatus >= 500 || /temporar|unavailable|overloaded|502|503|504/.test(message)) {
     return new ProviderAdapterError({
       code: "PROVIDER_TRANSIENT",
-      message: "Gemini provider returned a transient failure",
+      message: "AI provider returned a transient failure",
       retryClassification: "transient",
       modelId,
       httpStatus,
@@ -96,7 +96,7 @@ export function classifyProviderError(error: unknown, modelId?: string): Provide
   if (/invalid argument|invalid request|bad request|400/.test(message) || httpStatus === 400) {
     return new ProviderAdapterError({
       code: "PROVIDER_ERROR",
-      message: "Gemini provider rejected the request",
+      message: "AI provider rejected the request",
       retryClassification: "invalid_request",
       modelId,
       httpStatus,
@@ -106,7 +106,7 @@ export function classifyProviderError(error: unknown, modelId?: string): Provide
 
   return new ProviderAdapterError({
     code: "PROVIDER_ERROR",
-    message: "Gemini provider request failed",
+    message: "AI provider request failed",
     retryClassification: "unknown",
     modelId,
     httpStatus,

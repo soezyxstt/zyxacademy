@@ -19,7 +19,6 @@ export async function generateMetadata() {
 
 export default async function AiModelsAdminPage() {
   await assertAdmin();
-  const t = await getTranslations("adminOps");
   const initialViews = await listModelSettingViews();
 
   return (
@@ -27,7 +26,6 @@ export default async function AiModelsAdminPage() {
       <AdminPageHeader
         icon={Cpu}
         title={<TranslatedText namespace="adminOps" messageKey="models.title" />}
-        description={t("models.description")}
       />
       <ModelsClient initialViews={initialViews} />
     </div>

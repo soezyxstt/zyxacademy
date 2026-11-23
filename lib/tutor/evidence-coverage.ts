@@ -43,7 +43,7 @@ export function extractClaimUnits(query: string): ClaimUnit[] {
 
   // Split on conjunctions or question marks to find multi-part questions
   const parts = norm
-    .split(/(?:\s+(?:dan|serta|sekaligus|sambil)\s+|\?+|,+)/gi)
+    .split(/(?:\s+(?:dan|serta|sekaligus|sambil|and also|and)\s+|\?+|,+)/gi)
     .map((p) => p.trim())
     .filter((p) => p.length >= 3);
 
@@ -153,16 +153,20 @@ export function classifyEvidence(params: {
   const claimSupports: ClaimSupport[] = [];
   const missingScope: string[] = [];
 
+  const sourceTexts = sources.map(source => ({ id: source.id, text: normalizeText(source.content) }));
+  const questionWords = new Set([
+    "apa", "bagaimana", "dan", "yang", "untuk", "pada", "jelaskan", "tolong", "itu", "adalah",
+    "what", "why", "how", "the", "does", "are", "can", "you", "please", "explain", "and", "with", "this",
+  ]);
   for (const claim of claims) {
     const claimTerms = normalizeText(claim.statement)
       .split(" ")
-      .filter((t) => t.length >= 3 && !["apa", "bagaimana", "dan", "yang", "untuk", "pada"].includes(t));
+      .filter((t) => t.length >= 3 && !questionWords.has(t));
 
     const matchingSourceIds: string[] = [];
 
-    for (const src of sources) {
-      const srcNorm = normalizeText(src.content);
-      const matchCount = claimTerms.filter((term) => srcNorm.includes(term)).length;
+    for (const src of sourceTexts) {
+      const matchCount = claimTerms.filter((term) => src.text.includes(term)).length;
       const matchRatio = claimTerms.length > 0 ? matchCount / claimTerms.length : 0;
 
       if (matchRatio >= 0.4 || (claimTerms.length <= 2 && matchCount >= 1)) {

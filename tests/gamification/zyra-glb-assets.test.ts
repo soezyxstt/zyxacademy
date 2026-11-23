@@ -2,8 +2,9 @@ import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
-import { ZYRA_GLB_MASCOTS, getZyraGlbMascot, resolveMascotAnimation } from "../../lib/gamification/zyra-glb-mascots";
+import { ZYRA_GLB_MASCOTS, getZyraGlbMascot, getZyraGlbSuitSrc, resolveMascotAnimation } from "../../lib/gamification/zyra-glb-mascots";
 import { ZYRA_AVATARS } from "../../lib/gamification/zyra-cosmetics";
+import { COSMETIC_CATALOG } from "../../lib/gamification/catalog";
 
 const root = "public/gamification/mascots/v10.1";
 const manifest = JSON.parse(readFileSync(`${root}/asset-manifest.json`, "utf8")) as {
@@ -69,7 +70,7 @@ test("the crocodile asset preserves the repaired neck provenance", () => {
 
 test("all 35 wardrobe concepts retain a valid file for each of the four characters", () => {
   const catalog = JSON.parse(readFileSync(`${root}/web-catalog.json`, "utf8")) as {
-    components: { id: string; assets: Record<string, string> }[];
+    components: { id: string; slot: string; assets: Record<string, string> }[];
   };
   expect(catalog.components).toHaveLength(35);
   for (const item of catalog.components) for (const model of ZYRA_GLB_MASCOTS) {
@@ -77,4 +78,13 @@ test("all 35 wardrobe concepts retain a valid file for each of the four characte
     expect(file).toBeTruthy();
     expect(manifest.assets.some(asset => asset.path === file)).toBe(true);
   }
+  const outfits = catalog.components.filter(item => item.slot === "outfit");
+  const suits = COSMETIC_CATALOG.filter(item => item.slot === "pet_suit" && item.active);
+  const suitIds = suits.map<string>(item => item.id).sort();
+  expect(suitIds).toEqual(outfits.map(item => `pet-suit-${item.id}`).sort());
+  for (const outfit of outfits) for (const { character } of ZYRA_GLB_MASCOTS) {
+    expect(getZyraGlbSuitSrc(character, outfit.id)).toBe(`/gamification/mascots/v10.1/${outfit.assets[character]}`);
+  }
+  expect(getZyraGlbSuitSrc("cat", "none")).toBeUndefined();
+  expect(getZyraGlbSuitSrc("cat", "../base-full")).toBeUndefined();
 });

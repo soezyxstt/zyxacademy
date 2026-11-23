@@ -1,3 +1,4 @@
+import { modelFeature } from "./model-settings";
 import { configuredModelChain } from "@/lib/ai/model-settings-store";
 import { createHash, randomUUID } from "node:crypto";
 import { UsageBudgetService, type AllowanceReserveResult } from "@/lib/usage-budget-service";
@@ -93,7 +94,7 @@ export type RequestLifecycleDependencies = {
     readonly singleDispatch?: boolean;
   }) => Promise<ProviderGenerationResult>;
   // Preparation must not call the provider; the returned closure runs after dispatch.
-  readonly prepareProvider?: (input: Parameters<RequestLifecycleDependencies["invokeProvider"]>[0]) => () => Promise<ProviderGenerationResult>;
+  readonly prepareProvider?: (input: Parameters<RequestLifecycleDependencies["invokeProvider"]>[0]) => (() => Promise<ProviderGenerationResult>) | Promise<() => Promise<ProviderGenerationResult>>;
   readonly requestIdFactory?: () => string;
   readonly resolveModelChain?: typeof configuredModelChain;
 };
@@ -119,8 +120,9 @@ function safeOutcomeCode(error: unknown): string {
 export function providerFailureAllowsFallback(error: unknown): boolean {
   if (!(error instanceof ProviderAdapterError)) return false;
   if (error.retryClassification === "malformed_response") return true;
+  if (error.code === "PROVIDER_AUTHENTICATION") return true;
   const status = error.httpStatus;
-  return status !== undefined && (status === 401 || status === 403 || status === 429 || status >= 500);
+  return status !== undefined && (status === 401 || status === 402 || status === 403 || status === 404 || status === 429 || status >= 500);
 }
 
 export function isConfirmedHttpFailure(error: unknown): boolean {
@@ -411,11 +413,13 @@ export class RequestLifecycle {
       let reservationResolved = false;
       let invokePreparedProvider: (() => Promise<ProviderGenerationResult>) | undefined;
       try {
+        const providerFeature = getModelEntry(model).family === "chat-completions"
+          ? modelFeature(input.feature, input.useCase) ?? input.feature : input.feature;
         const reservation = await this.controlPlane.reserve({
           idempotencyKey: `${requestId}:${model}`,
           userId: input.userId,
           role: applicationAllowance.lease.peran,
-          feature: input.feature,
+          feature: providerFeature,
           routeClass: controlPlaneRouteClass(model, route.routeClass),
           modelId: model,
           cacheStatus,
@@ -425,13 +429,16 @@ export class RequestLifecycle {
           refundApplication = false;
           throw new RequestLifecycleError("IDEMPOTENCY_IN_PROGRESS", "provider lease is already in use");
         }
-        if (reservation.status !== "reserved") continue;
+        if (reservation.status !== "reserved") {
+          console.warn(JSON.stringify({ event: "ai_model_not_dispatched", model, feature: providerFeature, stage: "reserve", code: reservation.code }));
+          continue;
+        }
         controlPlaneLease = reservation.lease;
 
         const providerInput = {
           requestId: `${requestId}:${model}`,
           userCohort: hashUserCohort(input.userId),
-          feature: input.feature,
+          feature: providerFeature,
           routeClass: route.routeClass,
           modelId: model,
           projectAlias: controlPlaneLease.projectAlias,
@@ -442,7 +449,7 @@ export class RequestLifecycle {
           cacheTtlSeconds: input.cacheTtlSeconds,
           singleDispatch: input.singleDispatch,
         };
-        invokePreparedProvider = this.dependencies.prepareProvider?.(providerInput)
+        invokePreparedProvider = await this.dependencies.prepareProvider?.(providerInput)
           ?? (() => this.dependencies.invokeProvider(providerInput));
 
         if (!applicationDispatched) {
@@ -486,6 +493,10 @@ export class RequestLifecycle {
             const refund = await this.controlPlane.refund(controlPlaneLease.leaseId, "DISPATCH_FAILED_BEFORE_PROVIDER");
             if (refund.status === "rejected" || refund.lease.leaseId !== controlPlaneLease.leaseId || !["refunded", "expired_refunded"].includes(refund.lease.state)) refundFailed = true;
           } catch { refundFailed = true; }
+        }
+        if (error instanceof ProviderNotDispatchedError && controlPlaneLease && !refundFailed) {
+          console.warn(JSON.stringify({ event: "ai_model_not_dispatched", model, stage: "prepare", code: safeOutcomeCode(error.cause) }));
+          continue;
         }
         if (refundApplication && !isReplay && (!providerAttempted || (reservationResolved && !refundFailed))) {
           try {
@@ -593,7 +604,7 @@ export class RequestLifecycle {
       modelClass: selectedModel,
       projectAlias: selectedProjectAlias,
       routeClass: route.routeClass,
-      resultCode: "PROVIDER_SUCCESS",
+      resultCode: lastProviderError ? "PROVIDER_FALLBACK_SUCCESS" : "PROVIDER_SUCCESS",
       latencyMs,
       sizeBytes: lifecycleRequestBytes(input.parts),
       cacheResult: hasImage ? "bypass" : cacheStatus,

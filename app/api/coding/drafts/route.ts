@@ -5,9 +5,13 @@ import { codingDrafts } from "@/db/schema";
 import { pythonSourceSchema } from "@/lib/coding/contracts";
 import { requireCodingAccess, assertCodingSameOrigin, codingErrorResponse } from "@/lib/coding/server-access";
 const bodySchema = z.object({ courseId: z.string().min(1), draftKey: z.string().min(1).max(300), code: pythonSourceSchema, stdin: z.string().max(8_000), revision: z.number().int().nonnegative() }).strict();
+function accountChanged() {
+  return Response.json({ code: "ACCOUNT_CHANGED", error: "Akun berubah. Muat ulang halaman." }, { status: 409 });
+}
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url), actor = await requireCodingAccess(request, url.searchParams.get("courseId") ?? "");
+    if (request.headers.get("x-student-id") !== actor.userId) return accountChanged();
     const [draft] = await db.select({ code: codingDrafts.code, stdin: codingDrafts.stdin, revision: codingDrafts.revision }).from(codingDrafts).where(and(eq(codingDrafts.learnerId, actor.userId), eq(codingDrafts.courseId, actor.courseId), eq(codingDrafts.draftKey, url.searchParams.get("draftKey") ?? ""))).limit(1);
     return Response.json({ draft: draft ?? null });
   } catch (error) { return codingErrorResponse(error); }
@@ -18,6 +22,8 @@ export async function PUT(request: Request) {
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return Response.json({ error: "Draft tidak valid." }, { status: 400 });
     const input = parsed.data, actor = await requireCodingAccess(request, input.courseId);
+    // A background tab can still hold a draft for the previous cookie identity.
+    if (request.headers.get("x-student-id") !== actor.userId) return accountChanged();
     const where = and(eq(codingDrafts.learnerId, actor.userId), eq(codingDrafts.courseId, actor.courseId), eq(codingDrafts.draftKey, input.draftKey));
     let saved;
     if (!input.revision) {

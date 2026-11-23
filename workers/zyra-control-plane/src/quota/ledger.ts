@@ -25,9 +25,10 @@ import {
 import {
   getWorkerModelContract,
   PROJECT_ALIASES,
-  projectDailyCeiling,
+  projectDailyCeiling, textQuotaGroup,
   type WorkerModelContract
 } from "./model-contract";
+import { textProviderFeatureAllowed } from "../../../../lib/ai/model-settings";
 import type { SqlExecutor } from "./schema";
 
 type LeaseRow = {
@@ -170,16 +171,20 @@ export class QuotaLedger {
     private readonly sql: SqlExecutor,
     private readonly now: () => number = Date.now,
     private readonly projectAliases: readonly string[] = PROJECT_ALIASES
-  ) {}
+  ) { this.projectAliases = [...new Set(projectAliases)]; }
 
   reserve(input: ReserveInput): ReserveResult {
     const failures = validateReserveInput(input);
     const model = getWorkerModelContract(input.modelId);
 
     if (!model) return { status: "quota_exhausted", code: "UNKNOWN_MODEL", modelId: input.modelId };
-    if (!model.ordinaryRoutingAllowed || model.initialUsableRpd <= 0) {
+    if (!model.ordinaryRoutingAllowed || (!model.providerManaged && model.initialUsableRpd <= 0)) {
       return { status: "fallback_allowed", code: "MODEL_QUARANTINED", modelId: input.modelId };
     }
+    const group = textQuotaGroup(model.id);
+    const probe = input.role === "admin" && input.feature === "selector-smoke";
+    if (input.probeProjectAlias && !probe) failures.push("invalid_probe_project");
+    if (group && !probe && !textProviderFeatureAllowed(input.feature)) failures.push("unsupported_feature");
     if (!model.routeClasses.includes(input.routeClass)) failures.push("route_class_model_mismatch");
     if (failures.length > 0) return { status: "quota_exhausted", code: "INVALID_RESERVE_INPUT", modelId: input.modelId };
 
@@ -190,7 +195,8 @@ export class QuotaLedger {
     const providerDay = providerDayLabel(new Date(nowMs));
     const appDay = appDayLabel(new Date(nowMs));
     const minuteBucket = providerMinuteBucket(new Date(nowMs));
-    const candidates = this.projectAliases
+    const candidates = (group ? [group] : this.projectAliases)
+      .filter(alias => !input.probeProjectAlias || alias === input.probeProjectAlias)
       .map((projectAlias) => this.readCandidate(projectAlias, model, providerDay, minuteBucket, nowMs))
       .filter((candidate): candidate is Candidate => candidate !== null);
 
@@ -407,8 +413,9 @@ export class QuotaLedger {
        FROM zyra_quota_daily_counters d
        LEFT JOIN zyra_quota_minute_counters m
          ON m.model_id = d.model_id AND m.project_alias = d.project_alias AND m.minute_bucket = ?
+       WHERE d.provider_day = ?
        ORDER BY d.model_id, d.project_alias`,
-      minuteBucket
+      minuteBucket, providerDayLabel(new Date(nowMs))
     ).toArray();
     const health = this.sql.exec<HealthDiagnosticRow>(
       `SELECT model_id, project_alias, circuit_state, consecutive_failures, sample_count, failure_count
@@ -417,6 +424,8 @@ export class QuotaLedger {
 
     return {
       schemaVersion: "plan-003-v1",
+      projectGroupCount: this.projectAliases.length,
+      providerDay: providerDayLabel(new Date(nowMs)),
       activeLeaseCount: asNumber(active),
       terminalLeaseCount: asNumber(terminal),
       counters: counters.map((row) => ({
@@ -466,16 +475,17 @@ export class QuotaLedger {
     minuteBucket: string,
     nowMs: number
   ): Candidate | null {
+    const sharedGroup = textQuotaGroup(model.id) ?? null;
     const daily = this.sql.exec<CounterRow>(
-      `SELECT reserved_count, committed_count, last_selected_at_ms
-       FROM zyra_quota_daily_counters WHERE provider_day = ? AND model_id = ? AND project_alias = ?`,
-      providerDay,
+      `SELECT sum(reserved_count) AS reserved_count, sum(committed_count) AS committed_count, max(last_selected_at_ms) AS last_selected_at_ms
+       FROM zyra_quota_daily_counters WHERE provider_day = ? AND (? IS NOT NULL OR model_id = ?) AND project_alias = ?`,
+      providerDay, sharedGroup,
       model.id,
       projectAlias
     ).toArray()[0] ?? { reserved_count: 0, committed_count: 0, last_selected_at_ms: null };
     const minute = this.sql.exec<MinuteRow>(
-      `SELECT request_count FROM zyra_quota_minute_counters WHERE minute_bucket = ? AND model_id = ? AND project_alias = ?`,
-      minuteBucket,
+      `SELECT sum(request_count) AS request_count FROM zyra_quota_minute_counters WHERE minute_bucket = ? AND (? IS NOT NULL OR model_id = ?) AND project_alias = ?`,
+      minuteBucket, sharedGroup,
       model.id,
       projectAlias
     ).toArray()[0] ?? { request_count: 0 };
@@ -500,7 +510,7 @@ export class QuotaLedger {
       projectAlias
     ).toArray()[0]?.count ?? 0;
 
-    if (health.open_reason === "rpd" && health.rpd_day !== providerDay) {
+    if (health.open_reason === "rpd" && (model.providerManaged || health.rpd_day !== providerDay)) {
       this.sql.exec(
         `UPDATE zyra_quota_health SET circuit_state = 'closed', open_reason = NULL, rpd_day = NULL, half_open_at_ms = NULL, updated_at_ms = ? WHERE model_id = ? AND project_alias = ?`,
         nowMs,
@@ -512,7 +522,7 @@ export class QuotaLedger {
 
     const ceiling = projectDailyCeiling(model);
     const dailyCount = asNumber(daily.reserved_count) + asNumber(daily.committed_count);
-    if (ceiling <= dailyCount) {
+    if (ceiling !== null && ceiling <= dailyCount) {
       this.sql.exec(
         `INSERT INTO zyra_quota_health (model_id, project_alias, circuit_state, open_reason, rpd_day, half_open_at_ms, consecutive_failures, sample_count, failure_count, updated_at_ms)
          VALUES (?, ?, 'open', 'rpd', ?, NULL, ?, ?, ?, ?)
@@ -538,7 +548,7 @@ export class QuotaLedger {
       health = { ...health, circuit_state: "half_open" };
     }
 
-    if (asNumber(minute.request_count) >= model.perProjectRpm) return null;
+    if (!model.providerManaged && asNumber(minute.request_count) >= model.perProjectRpm) return null;
     if (health.circuit_state === "open") return null;
     if (health.circuit_state === "half_open" && activeCount > 0) return null;
 
@@ -548,8 +558,8 @@ export class QuotaLedger {
       minute,
       health,
       activeCount: asNumber(activeCount),
-      dailyUtilization: dailyCount / ceiling,
-      minuteUtilization: asNumber(minute.request_count) / model.perProjectRpm,
+      dailyUtilization: ceiling === null ? 0 : dailyCount / ceiling,
+      minuteUtilization: model.providerManaged ? 0 : asNumber(minute.request_count) / model.perProjectRpm,
       lastSelectedAtMs: asNumber(daily.last_selected_at_ms)
     };
   }

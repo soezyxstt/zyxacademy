@@ -24,7 +24,12 @@ export interface VectorStoreMatch {
   metadata: Record<string, unknown>;
 }
 
+export function queryEmbedding(text: string) {
+  return getCanonicalContentV2EmbeddingAdapter().then(adapter => adapter.embedQuery(text));
+}
+
 export interface VectorStoreQueryOptions {
+  getEmbedding?: () => ReturnType<typeof queryEmbedding>;
   topK?: number;
   filter?: Record<string, unknown>;
 }
@@ -73,8 +78,7 @@ export class CanonicalVectorizeStore implements VectorStore {
     options: VectorStoreQueryOptions = {},
   ): Promise<VectorStoreMatch[]> {
     const { courseId, namespace } = parseCourseAndNamespace(courseNamespace);
-    const adapter = await getCanonicalContentV2EmbeddingAdapter();
-    const vector = await adapter.embedQuery(queryText);
+    const vector = await (options.getEmbedding?.() ?? queryEmbedding(queryText));
     const result = await vectorizeCanonicalQuery({
       profileId: CANONICAL_VECTOR_PROFILE.id,
       vector,

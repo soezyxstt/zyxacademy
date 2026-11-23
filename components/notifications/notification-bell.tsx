@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DISCUSSION_COUNTS_CHANGED } from "@/components/discussions/discussion-count-badge";
+import { ZYX_LIFECYCLE_REFRESH_EVENT } from "@/lib/native/lifecycle-refresh";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -161,7 +162,11 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
     if (demo || !identity) return;
     const refresh = () => { void (open ? fetchHistory() : fetchUnreadCount()); };
     window.addEventListener(DISCUSSION_COUNTS_CHANGED, refresh);
-    return () => window.removeEventListener(DISCUSSION_COUNTS_CHANGED, refresh);
+    window.addEventListener(ZYX_LIFECYCLE_REFRESH_EVENT, refresh);
+    return () => {
+      window.removeEventListener(DISCUSSION_COUNTS_CHANGED, refresh);
+      window.removeEventListener(ZYX_LIFECYCLE_REFRESH_EVENT, refresh);
+    };
   }, [demo, identity, open, fetchHistory, fetchUnreadCount]);
 
   // Fetch only unread count once on initial mount
@@ -170,31 +175,47 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
     void fetchUnreadCount();
   }, [session?.user, fetchUnreadCount, demo]);
 
-  // Foreground FCM messages refresh the inbox if open, or refresh unread count and show a toast.
+  const openRef = useRef(open);
+  openRef.current = open;
+
+  // Foreground push messages (Web FCM, Capacitor Push, Tauri OS) refresh the inbox and show a toast.
   useEffect(() => {
     if (demo || !session?.user) return;
     let unsubscribe: (() => void) | undefined;
     let disposed = false;
     (async () => {
-      const { onForegroundMessage } = await import("@/lib/firebase/messaging");
+      const { subscribeNativeNotifications } = await import("@/lib/native/notifications");
       if (disposed) return;
-      unsubscribe = onForegroundMessage((payload) => {
-        const { notification = {} } = payload;
-        if (notification?.title) {
-          toast(notification.title, { description: notification.body ?? undefined });
-        }
-        if (open) {
-          void fetchHistory();
-        } else {
-          void fetchUnreadCount();
-        }
+      const unsub = await subscribeNativeNotifications({
+        onForeground: ({ title, body }) => {
+          if (title) {
+            toast(title, { description: body ?? undefined });
+          }
+          if (openRef.current) {
+            void fetchHistory();
+          } else {
+            void fetchUnreadCount();
+          }
+        },
+        onNavigate: (url) => {
+          const safeUrl =
+            url.startsWith("/") && !url.startsWith("//") && !url.startsWith("/\\")
+              ? url
+              : "/dashboard";
+          router.push(safeUrl);
+        },
       });
+      if (disposed) {
+        unsub();
+        return;
+      }
+      unsubscribe = unsub;
     })();
     return () => {
       disposed = true;
       unsubscribe?.();
     };
-  }, [session?.user, open, fetchHistory, fetchUnreadCount, demo]);
+  }, [session?.user, fetchHistory, fetchUnreadCount, demo, router]);
 
   if (isPending || !session?.user) return null;
 

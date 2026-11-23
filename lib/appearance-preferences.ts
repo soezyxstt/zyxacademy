@@ -19,7 +19,7 @@ export const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {
   fontSize: "normal",
   animations: true,
   background: "default",
-  toastPosition: "bottom-right",
+  toastPosition: "top-right",
 };
 
 export const APPEARANCE_STORAGE_KEY = "zyx-appearance-preferences";

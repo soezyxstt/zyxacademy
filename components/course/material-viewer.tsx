@@ -62,6 +62,7 @@ import { TermPopover } from "@/components/course/term-popover";
 import { matchTerm, type TermIndexEntry } from "@/lib/term-match";
 import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
 import { formatReaderTocTitle } from "@/lib/materials/reader-toc";
+import { readerPersonalStorageKeys } from "@/lib/materials/reader-personal-storage";
 import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/reader-mode";
 import { useTranslations } from "@/lib/i18n/client";
 import type { CourseAccessTier } from "@/lib/student/course-access";
@@ -69,6 +70,17 @@ import type { StudentCourseAccessTier } from "@/lib/course-utils";
 import { ChapterSummarySheet } from "@/components/course/chapter-summary-sheet";
 import { useMaterialReadingProgress } from "@/hooks/use-material-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
+import { saveTextMaterialOffline } from "@/lib/offline/reading-cache";
+import { ShareLinkButton } from "@/components/share-link-button";
+import { hapticSelection } from "@/lib/native/haptics";
+import { openAuthorizedFile, saveAuthorizedFile } from "@/lib/native/files";
+import {
+  buildOfflineReadingKey,
+  computeScrollRatio,
+  loadLatestOfflineReadingPosition,
+  resolveRestoredScrollY,
+  saveOfflineReadingPosition,
+} from "@/lib/offline/reading-position";
 
 type MaterialViewerProps = {
   material: CourseMaterial;
@@ -481,9 +493,90 @@ function MaterialViewerContent({
   canDownload = true,
 }: MaterialViewerProps) {
   const t = useTranslations("learning");
+  const common = useTranslations("common");
   const learnerMode = isLearnerReaderMode(mode);
   const experience = useStudentExperience();
   const demo = experience.mode === "demo";
+
+  useEffect(() => {
+    if (demo || !studentId || !learnerMode) return;
+    if (material.kind !== "article" || !material.body?.trim()) return;
+    void saveTextMaterialOffline(studentId, material, course?.title);
+  }, [demo, studentId, learnerMode, material, course?.title]);
+
+  useEffect(() => {
+    if (demo || !studentId || !learnerMode || material.kind !== "article") return;
+    const readingKey = buildOfflineReadingKey(studentId, material.courseId, material.id);
+    let cancelled = false;
+    let restorationReady = false;
+    let raf1 = 0;
+    let raf2 = 0;
+
+    void loadLatestOfflineReadingPosition(readingKey).then((saved) => {
+      if (cancelled) return;
+      if (saved) {
+        raf1 = window.requestAnimationFrame(() => {
+          raf2 = window.requestAnimationFrame(() => {
+            if (cancelled) return;
+            const scrollHeight = Math.max(
+              document.documentElement.scrollHeight || 0,
+              document.body.scrollHeight || 0,
+            );
+            const targetY = resolveRestoredScrollY(saved, scrollHeight, window.innerHeight);
+            if (targetY > 0) window.scrollTo(0, targetY);
+            restorationReady = true;
+          });
+        });
+        return;
+      }
+      restorationReady = true;
+    });
+
+    const persist = () => {
+      if (!restorationReady) return;
+      const scrollY = Math.max(0, Math.round(window.scrollY || document.documentElement.scrollTop || 0));
+      const scrollHeight = Math.max(
+        document.documentElement.scrollHeight || 0,
+        document.body.scrollHeight || 0,
+      );
+      saveOfflineReadingPosition({
+        key: readingKey,
+        sectionSlug: null,
+        sectionIndex: 0,
+        scrollY,
+        scrollRatio: computeScrollRatio(scrollY, scrollHeight, window.innerHeight),
+        scope: "document",
+        updatedAt: Date.now(),
+      });
+    };
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onScroll = () => {
+      if (!restorationReady) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        persist();
+      }, 300);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") persist();
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", persist);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+      if (timer) clearTimeout(timer);
+      if (restorationReady) persist();
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", persist);
+    };
+  }, [demo, studentId, learnerMode, material.kind, material.courseId, material.id]);
   const revision = experience.baseline.find(item => item.courseId === material.courseId)?.revision ?? "fictional";
   const storage = useMemo(() => {
     const fallback = new Map<string,string>();
@@ -493,6 +586,9 @@ function MaterialViewerContent({
       setItem: (key: string, value: string) => { try { (demo ? window.sessionStorage : window.localStorage).setItem(prefix + key,value); } catch { fallback.set(key,value); } },
     };
   }, [demo, material.courseId, revision]);
+  const personalStorageKeys = useMemo(() => readerPersonalStorageKeys({
+    userId: studentId, courseId: material.courseId, materialId: material.id, demo,
+  }), [studentId, material.courseId, material.id, demo]);
   const [viewerType, setViewerType] = useState<"custom" | "chrome">("chrome");
   const [showDemoViewer, setShowDemoViewer] = useState(false);
 
@@ -794,19 +890,20 @@ function MaterialViewerContent({
   useEffect(() => {
     if (!learnerMode) return;
     try {
-      const storedNotes = storage.getItem(`zyx-notes-${material.id}`);
-      const storedBookmarks = storage.getItem(`zyx-bookmarks-${material.id}`);
+      // Legacy material-only keys have no proven owner and must not be adopted.
+      const storedNotes = personalStorageKeys ? storage.getItem(personalStorageKeys.notes) : null;
+      const storedBookmarks = personalStorageKeys ? storage.getItem(personalStorageKeys.bookmarks) : null;
       const storedTheme = storage.getItem(`zyx-reader-theme`);
       const storedSidebar = storage.getItem(`zyx-reader-sidebar`);
 
-      if (storedNotes) setNotes(JSON.parse(storedNotes));
-      if (storedBookmarks) setBookmarks(JSON.parse(storedBookmarks));
+      setNotes(storedNotes ? JSON.parse(storedNotes) : {});
+      setBookmarks(storedBookmarks ? JSON.parse(storedBookmarks) : []);
       if (storedTheme) setTheme(storedTheme as ThemeMode);
       if (storedSidebar) setShowSidebar(storedSidebar === "true");
     } catch (e) {
       console.error("Could not load reader configurations from localStorage", e);
     }
-  }, [learnerMode, material.id, storage]);
+  }, [learnerMode, personalStorageKeys, storage]);
 
   // Handle active note loading when page changes
   useEffect(() => {
@@ -878,7 +975,8 @@ function MaterialViewerContent({
       toast.success(t("reader.bookmarkAdded", { page: pNum }));
     }
     setBookmarks(newBookmarks);
-    storage.setItem(`zyx-bookmarks-${material.id}`, JSON.stringify(newBookmarks));
+    if (personalStorageKeys) storage.setItem(personalStorageKeys.bookmarks, JSON.stringify(newBookmarks));
+    void hapticSelection();
   };
 
   // Save Personal Note
@@ -892,7 +990,7 @@ function MaterialViewerContent({
       newNotes[page] = noteText;
     }
     setNotes(newNotes);
-    storage.setItem(`zyx-notes-${material.id}`, JSON.stringify(newNotes));
+    if (personalStorageKeys) storage.setItem(personalStorageKeys.notes, JSON.stringify(newNotes));
     
     // Simulate minor network/disk delay for a smooth "saving..." feedback
     if (noteSaveTimerRef.current) clearTimeout(noteSaveTimerRef.current);
@@ -906,7 +1004,7 @@ function MaterialViewerContent({
     const newNotes = { ...notes };
     delete newNotes[pNum];
     setNotes(newNotes);
-    storage.setItem(`zyx-notes-${material.id}`, JSON.stringify(newNotes));
+    if (personalStorageKeys) storage.setItem(personalStorageKeys.notes, JSON.stringify(newNotes));
     if (pNum === page) setActiveNoteText("");
     toast.success(t("reader.noteRemoved", { page: pNum }));
   };
@@ -1021,6 +1119,42 @@ function MaterialViewerContent({
   };
 
   const openUrl = getViewablePdfUrl(material.url);
+  const [downloadingFile, setDownloadingFile] = useState(false);
+  const [openingFile, setOpeningFile] = useState(false);
+
+  const handleDownloadMaterial = async (targetTitle: string) => {
+    if (!material.url || downloadingFile) return;
+    setDownloadingFile(true);
+    try {
+      const result = await saveAuthorizedFile({
+        url: material.url,
+        fileName: `${targetTitle}.pdf`,
+        title: targetTitle,
+      });
+      if (!result.ok && !result.cancelled) {
+        toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.saveFailed"));
+      }
+    } finally {
+      setDownloadingFile(false);
+    }
+  };
+
+  const handleOpenMaterial = async () => {
+    if (!openUrl || openingFile) return;
+    setOpeningFile(true);
+    try {
+      const result = await openAuthorizedFile({
+        url: openUrl,
+        fileName: `${material.title}.pdf`,
+        title: material.title,
+      });
+      if (!result.ok && !result.cancelled) {
+        toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.openFailed"));
+      }
+    } finally {
+      setOpeningFile(false);
+    }
+  };
 
   const tutorPopover = learnerMode && selectionCoords && selectedText ? (
     <div
@@ -1236,27 +1370,35 @@ function MaterialViewerContent({
                       </span>
                       {course?.title && <span>· {course.title}</span>}
                     </div>
-                    {((material.url && canDownload) || summaryChapterId) && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {material.url && canDownload && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="outline" size="icon-lg" asChild>
-                                  <a href={material.url} download target="_blank" rel="noopener noreferrer" aria-label={t("reader.downloadPdf")}>
-                                    <Download aria-hidden />
-                                  </a>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        {summaryChapterId && (
-                          <ChapterSummarySheet studentId={studentId} chapterId={summaryChapterId} chapterTitle={material.title} />
-                        )}
-                      </div>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ShareLinkButton
+                        title={chapterTitle || material.title}
+                        variant="outline"
+                        size="icon-lg"
+                      />
+                      {material.url && canDownload && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-lg"
+                                aria-label={t("reader.downloadPdf")}
+                                disabled={downloadingFile}
+                                onClick={() => void handleDownloadMaterial(chapterTitle || material.title)}
+                              >
+                                <Download aria-hidden />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      {summaryChapterId && (
+                        <ChapterSummarySheet studentId={studentId} chapterId={summaryChapterId} chapterTitle={material.title} />
+                      )}
+                    </div>
                   </div>
                   <h1 className="font-heading text-h3 font-bold tracking-tight text-foreground sm:text-h2">
                     {chapterTitle || material.title}
@@ -1415,15 +1557,28 @@ function MaterialViewerContent({
           </button>
         </div>
       )}
+      <ShareLinkButton
+        title={material.title}
+        variant="outline"
+        size="icon-sm"
+        className="size-7"
+        iconClassName="size-3.5"
+      />
       {material.url && (
         <TooltipProvider>
           {canDownload && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button asChild variant="outline" size="icon-sm" className="size-7">
-                  <a href={material.url} download target="_blank" rel="noopener noreferrer" aria-label={t("reader.downloadPdf")}>
-                    <Download className="size-3.5" aria-hidden />
-                  </a>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  className="size-7"
+                  aria-label={t("reader.downloadPdf")}
+                  disabled={downloadingFile}
+                  onClick={() => void handleDownloadMaterial(material.title)}
+                >
+                  <Download className="size-3.5" aria-hidden />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
@@ -1433,14 +1588,15 @@ function MaterialViewerContent({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  asChild
+                  type="button"
                   variant="outline"
                   size="icon-sm"
                   className={cn("size-7", viewerType === "chrome" && "hidden md:inline-flex")}
+                  aria-label={t("reader.openOriginal")}
+                  disabled={openingFile}
+                  onClick={() => void handleOpenMaterial()}
                 >
-                  <a href={openUrl} target="_blank" rel="noopener noreferrer" aria-label={t("reader.openOriginal")}>
-                    <ExternalLink className="size-3.5" aria-hidden />
-                  </a>
+                  <ExternalLink className="size-3.5" aria-hidden />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t("reader.openOriginal")}</TooltipContent>

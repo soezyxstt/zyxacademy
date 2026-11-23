@@ -80,6 +80,7 @@ export type DiscussionMessage = {
   replyTo?: { id: string; authorName: string; excerpt: string; authorKind?: "name" | "deleted" | "unavailable"; excerptKind?: "body" | "deleted" | "image" | "source_unavailable" } | null;
   attachments: DiscussionAttachment[];
   reactions: DiscussionReaction[];
+  zyraStatus?: { status: string; reason: string | null } | null;
   canEdit: boolean;
   canDelete: boolean;
   canReport: boolean;

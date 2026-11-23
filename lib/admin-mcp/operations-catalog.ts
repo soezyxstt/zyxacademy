@@ -1426,5 +1426,40 @@ export const operationsCatalog = [
     ],
     "status": "partial",
     "reason": "Related MCP operations are implemented; this source may contain additional UI actions. See docs/operations/admin-mcp.md for exact supported boundaries."
+  },
+  {
+    "source": "app/(admin)/admin/docs/page.tsx",
+    "actions": [],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Documentation navigation is available in the Admin UI."
+  },
+  {
+    "source": "app/(admin)/admin/docs/[slug]/page.tsx",
+    "actions": [],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Documentation reading is available in the Admin UI."
+  },
+  {
+    "source": "app/(admin)/admin/discussions/page.tsx",
+    "actions": [],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Discussion moderation and replies use the Admin UI."
+  },
+  {
+    "source": "app/(admin)/admin/ops/models/page.tsx",
+    "actions": ["listAiModelSettingsAction", "updateAiModelSettingAction", "resetAiModelSettingAction", "refreshAiModelLatenciesAction"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Model assignments, Gateway catalog observations and billed latency refresh use the Admin UI. Feature flag reads do not expose these actions or authorize provider probes."
+  },
+  {
+    "source": "components/auth/sidebar-account-menu.tsx",
+    "actions": ["switchAccount", "addAccount", "removeAccount", "logout"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Saved-account selection, Google sign-in and device session removal require the user's browser or native app. MCP bearer tokens retain their authorized user, session, scopes and environment; account switching cannot retarget them."
   }
 ] as const;

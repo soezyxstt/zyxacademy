@@ -49,7 +49,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    if: github.event_name != 'pull_request' && (!inputs.maintenance || inputs.maintenance == 'none') && !inputs.business_acceptance && !inputs.browser_diagnostics && github.ref_name == 'staging'
+    if: github.event_name == 'workflow_dispatch' && (!inputs.maintenance || inputs.maintenance == 'none') && !inputs.business_acceptance && !inputs.browser_diagnostics && github.ref_name == 'staging'
     uses: ./.github/workflows/deploy-neon-worker.yml
     with:
       environment: staging

@@ -18,11 +18,13 @@ export type ZyraResponseLanguage = "id" | "en";
 
 export type ZyraStreamPart =
   | { type: "text-delta"; textDelta: string }
+  | { type: "text-replace"; text: string }
   | { type: "chunk"; text: string }
   | { type: "data-followups"; followups: Followup[] }
   | { type: "data-sources"; sources: ZyraSource[] }
   | { type: "data-canvas"; canvasSpec: CanvasSpec }
   | { type: "data-session"; sessionId: string }
+  | { type: "data-session-title"; sessionId: string; title: string }
   | { type: "data-history"; saved: boolean; message?: string }
   | { type: "data-response-language"; responseLanguage: ZyraResponseLanguage }
   | { type: "data-work-step"; data: ZyraWorkStepData }

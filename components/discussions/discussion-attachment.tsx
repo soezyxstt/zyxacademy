@@ -3,9 +3,11 @@
 import Image from "next/image";
 import { useState } from "react";
 import { useTranslations } from "@/lib/i18n/client";
-import { Download, ImageOff } from "lucide-react";
+import { Download, ImageOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { toast } from "@/components/ui/toast";
+import { saveAuthorizedFile } from "@/lib/native/files";
 
 export type DiscussionAttachmentView = {
   id: string;
@@ -20,12 +22,31 @@ export type DiscussionAttachmentView = {
 
 export function DiscussionAttachment({ attachment }: { attachment: DiscussionAttachmentView }) {
   const t = useTranslations("discussions");
+  const common = useTranslations("common");
   const [previewFailed, setPreviewFailed] = useState(false);
   const [fullFailed, setFullFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
   const expectedUrl = `/api/discussions/attachments/${encodeURIComponent(attachment.id)}`;
   const available = attachment.url === expectedUrl;
   const alt = attachment.alt || attachment.name || t("imageAlt");
   if (!available) return <div role="status" className="flex min-h-24 items-center gap-2 rounded-lg border border-border bg-muted/40 p-3 text-body-xs text-muted-foreground"><ImageOff className="size-4 shrink-0" aria-hidden="true" />{t("imageUnavailable")}</div>;
+
+  async function handleSave() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const result = await saveAuthorizedFile({
+        url: `${expectedUrl}?download=1`,
+        fileName: attachment.name,
+        title: attachment.name,
+      });
+      if (!result.ok && !result.cancelled) {
+        toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.saveFailed"));
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return <Dialog onOpenChange={(open) => { if (open) { setFullFailed(false); setPreviewFailed(false); } }}>
     <DialogTrigger asChild>
@@ -40,7 +61,23 @@ export function DiscussionAttachment({ attachment }: { attachment: DiscussionAtt
       <div className="flex min-h-0 items-center justify-center overflow-auto rounded-lg bg-muted/40">
         {fullFailed ? <div role="status" className="flex flex-wrap items-center gap-2 p-3 text-body-xs text-muted-foreground"><ImageOff className="size-4 shrink-0" aria-hidden="true" />{t("imageUnavailable")}<Button type="button" variant="outline" size="sm" onClick={() => setFullFailed(false)}>{t("retry")}</Button></div> : <Image src={expectedUrl} alt={alt} width={attachment.width || 1200} height={attachment.height || 800} sizes="90vw" unoptimized className="max-h-[70dvh] w-auto max-w-full object-contain" onError={() => setFullFailed(true)} />}
       </div>
-      <div className="shrink-0"><Button asChild variant="outline" size="sm"><a href={`${expectedUrl}?download=1`} download><Download aria-hidden="true" />{t("download")}</a></Button></div>
+      <div className="shrink-0">
+        <Button asChild variant="outline" size="sm" className={saving ? "pointer-events-none opacity-50" : undefined}>
+          <a
+            href={`${expectedUrl}?download=1`}
+            download
+            aria-disabled={saving}
+            aria-busy={saving || undefined}
+            onClick={(e) => {
+              e.preventDefault();
+              void handleSave();
+            }}
+          >
+            {saving ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}
+            {t("download")}
+          </a>
+        </Button>
+      </div>
     </DialogContent>
   </Dialog>;
 }

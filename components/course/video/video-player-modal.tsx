@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { useDialogHistory } from "@/hooks/use-dialog-history";
 import {
   ChevronLeft,
   ChevronRight,
@@ -69,6 +70,8 @@ export function VideoPlayerModal({
   const t = useTranslations("studentCourse");
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
+  const playlistOpen = isPlaylistOpen && (playlist?.videos.length ?? 0) > 1;
+  useDialogHistory(open && video !== null && playlistOpen, () => setIsPlaylistOpen(false));
 
   if (!video) return null;
 
@@ -92,18 +95,13 @@ export function VideoPlayerModal({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape" && isPlaylistOpen) {
-      e.stopPropagation();
-      setIsPlaylistOpen(false);
-    }
-  };
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => {
+      if (!next && playlistOpen) setIsPlaylistOpen(false);
+      else onOpenChange(next);
+    }}>
       <DialogContent
         showCloseButton={false}
-        onKeyDown={handleKeyDown}
         className={cn(
           "!flex flex-col p-0 gap-0 w-full max-w-4xl lg:max-w-5xl xl:max-w-6xl",
           "h-auto max-h-[calc(100dvh-2rem)] md:max-h-[calc(100dvh-5rem)]",
@@ -281,7 +279,7 @@ export function VideoPlayerModal({
         </div>
 
         {/* Netflix-style Episodes / Available Videos Slide-over Drawer */}
-        {playlistVideos.length > 1 && isPlaylistOpen && (
+        {playlistOpen && (
           <>
             {/* Backdrop */}
             <div
@@ -292,7 +290,7 @@ export function VideoPlayerModal({
 
             {/* Slide-over Drawer Panel */}
             <aside
-              className="absolute inset-y-0 right-0 z-50 w-full sm:w-80 md:w-96 max-w-full bg-background/95 backdrop-blur-md border-l border-border/80 flex flex-col shadow-2xl animate-in slide-in-from-right duration-200 ease-out font-sans"
+              className="absolute inset-y-0 right-0 z-50 w-full sm:w-80 md:w-96 max-w-[calc(100%-1rem)] bg-background/95 backdrop-blur-md border-l border-border/80 flex flex-col shadow-2xl animate-in slide-in-from-right duration-200 ease-out font-sans"
               aria-label={t("courseVideos.videoList")}
             >
               {/* Drawer Header */}

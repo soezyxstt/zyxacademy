@@ -88,7 +88,7 @@ try {
   }
   function consent(decision: string, selected: string[], overrides: Record<string, string> = {}) {
     const data = new FormData();
-    for (const [key, value] of Object.entries({ ...params, ...overrides })) data.set(key, value);
+    for (const [key, value] of Object.entries({ ...params, expected_user_id: userId, expected_session_id: sessionId, ...overrides })) data.set(key, value);
     if (decision) data.set("decision", decision);
     for (const scope of selected) data.append("selected_scope", scope);
     return redirectOf(submitMcpAuthorization(data));
@@ -138,6 +138,17 @@ try {
   await expect(consent("deny", [], { redirect_uri: "https://unregistered.example" })).rejects.toThrow("Invalid redirect URI");
   expect(await db.select().from(verification)).toHaveLength(0);
 
+  // An old approval form must not silently grant access to the newly active account.
+  expect((await consent("approve", [read], { expected_user_id: "", expected_session_id: "" })).searchParams.get("error")).toBe("login_required");
+  userId = "ben"; sessionId = "ben-session";
+  const staleAccount = await consent("approve", [read], { expected_user_id: "ada", expected_session_id: "ada-session" });
+  expect(staleAccount.searchParams.get("error")).toBe("login_required");
+  expect(staleAccount.searchParams.get("state")).toBe(params.state);
+  userId = "ada"; sessionId = "second-session";
+  expect((await consent("approve", [read], { expected_session_id: "ada-session" })).searchParams.get("error")).toBe("login_required");
+  expect(await db.select().from(verification)).toHaveLength(0);
+  sessionId = "ada-session";
+
   const binding = { userId, sessionId, clientId, resource, scopes: [read] };
   const oldBearer = issueMcpConnectionToken(binding);
   await expect(principalFromConnectionToken(oldBearer, resource)).rejects.toThrow("AUTHORING_MCP_CONSENT_REQUIRED");
@@ -177,6 +188,8 @@ try {
   }
   userId = "ben"; sessionId = "ben-session";
   expect((await silent()).get("error")).toBe("consent_required");
+  // Switching the browser account never retargets an existing MCP bearer token.
+  expect(await principalFromConnectionToken(subset.access_token, resource)).toMatchObject({ userId: "ada", sessionId: "ada-session" });
   userId = "student"; sessionId = "student-session";
   expect((await silent()).get("error")).toBe("access_denied");
   userId = "ada"; sessionId = "second-session";

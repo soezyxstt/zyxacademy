@@ -12,6 +12,9 @@ describe("Zyra learning presentation", () => {
     expect(rules).toContain("defaultValue");
     expect(rules).toContain("preserve paragraph breaks");
     expect(rules).toContain("actual explanation");
+    expect(input.outputRules[0]).toContain('"sourceVersion"');
+    expect(input.outputRules[0]).toContain('"learnerFacingText"');
+    expect(input.outputRules[0]).toContain(`selectedState=${input.selectedState}`);
   });
 
   it("includes bounded private conversation to resolve follow-ups", () => {

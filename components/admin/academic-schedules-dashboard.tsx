@@ -1,5 +1,7 @@
 "use client";
 
+import { GoogleCalendarControl } from "@/components/schedule/google-calendar-control";
+
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -578,6 +580,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
 
   const headerActions = (
     <>
+      <GoogleCalendarControl central />
       {activeTab === "calendar" && calendarMode !== "academic" && (
         <Popover>
           <Tooltip>
