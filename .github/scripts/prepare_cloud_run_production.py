@@ -5,13 +5,14 @@ import re
 from pathlib import Path
 import subprocess
 import sys
+from urllib.error import HTTPError
 
 from cloud_run_runtime import ALIASES, RUNTIME_KEYS, validate_database
 from prepare_worker_runtime import prepare_worker_runtime
 from deploy_cloud_run_staging import (
     BLOCKED_KEYS, ENVIRONMENT, ORIGIN_TOKEN, PLAIN_RUNTIME_KEYS, PROJECT, RUNTIME_ACCOUNT,
-    SECRET_PREFIX, TARGET, VERSION, check_revision, describe_service, is_build_key,
-    public_config, read_secret, require, traffic,
+    SECRET_PREFIX, SERVICE, TARGET, VERSION, describe_service, is_build_key, is_ready,
+    public_config, read_secret, require, run, traffic,
 )
 
 
@@ -58,17 +59,42 @@ def write_private(path, value):
 
 
 def current_runtime():
-    serving = traffic(describe_service())
-    require(len(serving) == 1 and list(serving.values()) == [100],
-            "Production runtime requires one serving revision at 100%.")
+    try:
+        service = describe_service()
+    except (ValueError, KeyError) as error:
+        raise ValueError("PRODUCTION_SERVICE_UNVERIFIED") from error
+    serving = traffic(service)
+    require(len(serving) == 1 and list(serving.values()) == [100], "PRODUCTION_TRAFFIC_NOT_SINGLE_REVISION")
     revision = next(iter(serving))
-    data, _ = check_revision(revision)
-    require(data["spec"].get("serviceAccountName") == RUNTIME_ACCOUNT, "Production runtime account mismatch.")
-    entries = {entry["name"]: entry for entry in data["spec"]["containers"][0].get("env", [])}
-    refs = {key: entry["valueFrom"]["secretKeyRef"] for key, entry in entries.items() if "valueFrom" in entry}
-    for key, ref in refs.items():
-        require(re.fullmatch(SECRET_PREFIX + r"[a-z0-9-]+", ref.get("name", ""))
-                and VERSION.fullmatch(ref.get("key", "")), f"Invalid production secret reference: {key}")
+    require(re.fullmatch(re.escape(SERVICE) + r"-[a-z0-9-]+", revision), "PRODUCTION_SERVING_REVISION_NAME_INVALID")
+    print(f"Current production revision: {revision} (100%)", flush=True)
+    try:
+        data = json.loads(run("revisions", "describe", revision, "--format=json"))
+    except (ValueError, KeyError) as error:
+        raise ValueError("PRODUCTION_SERVING_REVISION_UNREADABLE") from error
+    metadata = data.get("metadata", {})
+    require(metadata.get("name") == revision
+            and metadata.get("labels", {}).get("serving.knative.dev/service") == SERVICE
+            and is_ready(data), "PRODUCTION_SERVING_REVISION_UNVERIFIED")
+    spec = data.get("spec", {})
+    require(spec.get("serviceAccountName") == RUNTIME_ACCOUNT, "PRODUCTION_RUNTIME_ACCOUNT_MISMATCH")
+    containers = spec.get("containers", [])
+    require(len(containers) == 1, "PRODUCTION_RUNTIME_CONTAINER_COUNT")
+    entries = {entry["name"]: entry for entry in containers[0].get("env", [])}
+    refs = {}
+    for key, entry in entries.items():
+        if "valueFrom" not in entry:
+            continue
+        require(re.fullmatch(r"[A-Z][A-Z0-9_]*", key), "PRODUCTION_RUNTIME_KEY_INVALID")
+        ref = entry["valueFrom"].get("secretKeyRef", {})
+        require(re.fullmatch(SECRET_PREFIX + r"[a-z0-9-]+", ref.get("name", "")),
+                f"PRODUCTION_RUNTIME_SECRET_DESTINATION:{key}")
+        if ref.get("key") == "latest":
+            require(ref["name"] == SECRET_PREFIX + key.lower().replace("_", "-"),
+                    f"PRODUCTION_RUNTIME_LATEST_ALIAS_MISMATCH:{key}")
+            ref = secret_version(key)
+        require(VERSION.fullmatch(ref.get("key", "")), f"PRODUCTION_RUNTIME_SECRET_VERSION:{key}")
+        refs[key] = ref
     return revision, entries, refs
 
 
@@ -93,8 +119,13 @@ def main():
     secrets = json.loads(os.environ["GITHUB_RUNTIME_SECRETS"])
     variables = json.loads(os.environ["GITHUB_RUNTIME_VARS"])
     revision, current, existing_refs = current_runtime()
-    database = read_secret(existing_refs["DATABASE_URL"])
-    validate_database(database, TARGET["host"])
+    try:
+        database_ref = existing_refs.get("DATABASE_URL") or secret_version("DATABASE_URL")
+        database = read_secret(database_ref)
+        validate_database(database, TARGET["host"])
+    except (ValueError, KeyError) as error:
+        raise ValueError("PRODUCTION_RUNTIME_DATABASE_REF_UNVERIFIED") from error
+    existing_refs["DATABASE_URL"] = database_ref
     queue_provider = current.get("QUEUE_PROVIDER", {}).get("value", "inngest")
     values, public = settings(secrets, variables, database, queue_provider)
     print(f"Current production revision: {revision} (100%)")
@@ -103,11 +134,14 @@ def main():
     vectorize_values = {**values}
     if "CF_API_TOKEN" in existing_refs:
         vectorize_values["CF_API_TOKEN"] = read_secret(existing_refs["CF_API_TOKEN"])
-    validate_vectorize(vectorize_values)
+    try:
+        validate_vectorize(vectorize_values)
+    except HTTPError as error:
+        raise ValueError(f"PRODUCTION_VECTORIZE_API_HTTP_{error.code}") from error
     print("Verified both production Vectorize indexes (768 dimensions, cosine).")
     if os.environ["CLOUD_RUN_OPERATION"] == "inspect-runtime":
         return
-    plain, refs = {}, {}
+    plain, refs = {}, {key: ref for key, ref in existing_refs.items() if key in RUNTIME_KEYS and key not in BLOCKED_KEYS}
     for key, value in sorted(values.items()):
         if key in existing_refs:
             refs[key] = existing_refs[key]
@@ -115,8 +149,12 @@ def main():
             plain[key] = value
         else:
             require(key in RUNTIME_KEYS, "Unsupported production runtime key.")
-            refs[key] = secret_version(key, value)
-    refs[ORIGIN_TOKEN] = existing_refs[ORIGIN_TOKEN]
+            try:
+                refs[key] = secret_version(key, value)
+            except ValueError as error:
+                raise ValueError(f"PRODUCTION_RUNTIME_SECRET_SYNC_FAILED:{key}") from error
+            print(f"Prepared missing Secret Manager reference: {key}", flush=True)
+    refs[ORIGIN_TOKEN] = existing_refs.get(ORIGIN_TOKEN) or secret_version(ORIGIN_TOKEN)
     env = [{"name": key, "value": value} for key, value in plain.items()] + [
         {"name": key, "valueFrom": {"secretKeyRef": ref}} for key, ref in refs.items()]
     spec = {"serviceAccountName": RUNTIME_ACCOUNT, "containers": [{"env": env}]}
@@ -133,6 +171,6 @@ if __name__ == "__main__":
         main()
     except (ValueError, KeyError, OSError) as error:
         code = str(error)
-        if isinstance(error, ValueError) and re.fullmatch(r"WORKER_[A-Z_]+(?::[A-Z_]+)?|Production runtime configuration command failed: [A-Za-z0-9 -]+", code):
+        if isinstance(error, ValueError) and re.fullmatch(r"(?:WORKER|PRODUCTION)_[A-Z_0-9]+(?::[A-Z_0-9]+)?", code):
             sys.exit(code)
         sys.exit("Production runtime preparation failed. Check the production environment and provisioned secret permissions.")

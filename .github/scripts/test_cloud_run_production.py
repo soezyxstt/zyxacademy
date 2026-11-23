@@ -27,6 +27,33 @@ except ValueError as error:
             self.assertEqual(result.stderr.strip(), expected)
             self.assertNotIn("private-value", result.stdout + result.stderr)
 
+    def test_inventory_accepts_ready_serving_revision_without_candidate_metadata(self):
+        code = """
+import json
+from unittest.mock import patch
+from prepare_cloud_run_production import current_runtime, RUNTIME_ACCOUNT, SERVICE, SECRET_PREFIX
+
+revision = SERVICE + "-00012-abc"
+service = {"status": {"traffic": [{"revisionName": revision, "percent": 100}]}}
+spec = {"metadata": {"name": revision, "labels": {"serving.knative.dev/service": SERVICE}},
+        "status": {"conditions": [{"type": "Ready", "status": "True"}]},
+        "spec": {"serviceAccountName": RUNTIME_ACCOUNT, "containers": [{"env": [
+            {"name": "PYTHON_RUNTIME_TOKEN_SECRET", "valueFrom": {"secretKeyRef": {
+                "name": SECRET_PREFIX + "python-runtime-token-secret", "key": "5"}}},
+        ]}]}}
+with patch("prepare_cloud_run_production.describe_service", return_value=service), patch(
+    "prepare_cloud_run_production.run", return_value=json.dumps(spec)
+):
+    actual, entries, refs = current_runtime()
+    assert actual == revision
+    assert refs["PYTHON_RUNTIME_TOKEN_SECRET"]["key"] == "5"
+    assert refs.keys() == entries.keys()
+"""
+        scripts = Path(__file__).resolve().parent
+        result = subprocess.run([sys.executable, "-c", code], cwd=scripts,
+                                env={**os.environ, "CLOUD_RUN_ENVIRONMENT": "production"}, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_production_runtime_keeps_web_retrieval_and_rejects_cross_environment(self):
         code = '''
 from prepare_cloud_run_production import settings
