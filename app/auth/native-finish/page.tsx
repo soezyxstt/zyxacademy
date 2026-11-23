@@ -35,6 +35,7 @@ function consumeAndVerifyPendingState(incomingState: string | null): boolean {
 }
 
 export default function NativeAuthFinishPage() {
+  const tr = useTranslations("auth.native");
   const accounts = useTranslations("common.accounts");
   const startedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +56,7 @@ export default function NativeAuthFinishPage() {
     }
 
     if (!token || !consumeAndVerifyPendingState(state)) {
-      setError("Sesi masuk tidak valid atau sudah kedaluwarsa. Silakan masuk lagi.");
+      setError("invalidSession");
       return;
     }
 
@@ -87,9 +88,9 @@ export default function NativeAuthFinishPage() {
           SESSION_EXPIRED: "expired", ACCOUNT_UNAVAILABLE: "unavailable", SESSION_LIMIT: "limit",
           CANCELLED: "addFailed", ACTIVE_ACCOUNT: "addFailed", SWITCH_FAILED: "addFailed",
         }[code];
-        setError(accounts(key, { count: MAX_SAVED_ACCOUNTS }));
+        setError(key);
       });
-  }, [accounts]);
+  }, []);
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-6 text-foreground">
@@ -98,20 +99,20 @@ export default function NativeAuthFinishPage() {
           <>
             <Loader2 className="mx-auto size-6 animate-spin text-primary" />
             <h1 className="font-heading text-body-base font-bold">
-              Menyelesaikan masuk
+              {tr("finishing")}
             </h1>
             <p className="text-body-xs text-muted-foreground">
-              Menyiapkan sesi Zyx Academy Anda.
+              {tr("preparing")}
             </p>
           </>
         ) : (
           <>
             <h1 className="font-heading text-body-base font-bold">
-              Gagal masuk
+              {tr("failed")}
             </h1>
-            <p className="text-body-xs text-muted-foreground">{error}</p>
+            <p className="text-body-xs text-muted-foreground">{error === "invalidSession" ? tr("expired") : accounts(error, { count: MAX_SAVED_ACCOUNTS })}</p>
             <Button asChild size="sm">
-              <Link href="/sign-in">Kembali ke halaman masuk</Link>
+              <Link href="/sign-in">{tr("back")}</Link>
             </Button>
           </>
         )}

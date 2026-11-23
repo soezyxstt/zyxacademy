@@ -1,4 +1,35 @@
 {
+  "proposalPanel": {
+    "revision": "diff {hash} · version {version}",
+    "createFailed": "Could not create the proposal.",
+    "transitionFailed": "Could not change the proposal status. Check the review and data version.",
+    "unavailable": "Proposals are unavailable.",
+    "title": "Zyra proposals",
+    "create": "Create proposal",
+    "summary": "Zyra prepares summaries and structured proposals. Data changes require a separate action.",
+    "loading": "Loading proposals...",
+    "none": "No proposals in this scope yet.",
+    "confirm": "Confirm",
+    "handoff": "Confirmation prepares the handoff. Applying the change requires the mutation service and a final audit."
+  },
+  "attachmentComposer": {
+    "account": "Sign in to upload images.",
+    "failedUpload": "The image could not be uploaded. Check its format and size, then try again.",
+    "disconnected": "The connection was lost during upload. Try again.",
+    "tooLarge": "Each image must be 8 MB or smaller.",
+    "tooMany": "You can attach up to 4 images per question.",
+    "duplicate": "You already selected this image.",
+    "format": "Choose a PNG, JPG, or WebP image.",
+    "attachments": "Image attachments",
+    "uploading": "Uploading",
+    "add": "Add image",
+    "preview": "Preview {name}",
+    "retry": "Retry {name}",
+    "remove": "Remove {name}",
+    "failed": "Failed",
+    "image": "Image",
+    "hint": "Upload up to 4 images or paste them with Ctrl+V"
+  },
   "chat": {
     "workSearching": "Searching course material...",
     "workReady": "Course material is ready",

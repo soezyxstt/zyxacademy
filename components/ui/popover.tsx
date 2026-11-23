@@ -4,9 +4,11 @@ import * as React from "react";
 import { Popover as PopoverNs } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { MobileSearchInlineProvider } from "@/components/navigation/mobile-chrome-context";
+import { useDialogOpenState } from "@/hooks/use-dialog-history";
 
-function Popover({ ...props }: React.ComponentProps<typeof PopoverNs.Root>) {
-  return <PopoverNs.Root data-slot="popover" {...props} />;
+function Popover({ open, defaultOpen, onOpenChange, modal, ...props }: React.ComponentProps<typeof PopoverNs.Root>) {
+  const state = useDialogOpenState({ open, defaultOpen, onOpenChange, trackHistory: modal ?? false });
+  return <PopoverNs.Root data-slot="popover" modal={modal} {...props} {...state} />;
 }
 
 function PopoverTrigger({

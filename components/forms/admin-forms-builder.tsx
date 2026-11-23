@@ -1,5 +1,7 @@
 "use client";
 
+import { customFormMessage } from "@/lib/forms/response-policy";
+
 import { getAppScrollBehavior } from "@/components/appearance-preferences";
 import { FormListSkeleton } from "@/components/admin/content-loading-skeletons";
 import { AdminEmptyState } from "@/components/admin/state-panels";
@@ -96,7 +98,7 @@ function settingsForSave<T extends { openAt?: string; closeAt?: string }>(settin
 const DEFAULT_FORM_SETTINGS = {
   displayMode: "question" as FormDisplayMode,
   acceptingResponses: true,
-  closedMessage: "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.",
+  closedMessage: "",
   openAt: "",
   closeAt: "",
   collectEmail: "none" as "none" | "input" | "verified",
@@ -104,7 +106,7 @@ const DEFAULT_FORM_SETTINGS = {
   allowResponseEditing: false,
   limitToOneResponse: false,
   maxFileSizeLimit: "1GB" as "1GB" | "10GB" | "100GB",
-  customSuccessMessage: "Jawaban Anda telah berhasil disimpan.",
+  customSuccessMessage: "",
 };
 
 function createBlankQuestion(): ExtendedQuestionInput {
@@ -123,6 +125,7 @@ export default function AdminFormsBuilder({
   presetsEnabled: boolean;
 }) {
   const t = useTranslations("adminForms");
+  const defaults = useTranslations("adminOps.formDetailsUI");
   const router = useRouter();
   const searchParams = useSearchParams();
   const editIdParam = searchParams.get("edit");
@@ -247,7 +250,7 @@ export default function AdminFormsBuilder({
       setSettings({
         displayMode: s.displayMode === "section" ? "section" : "question",
         acceptingResponses: s.acceptingResponses ?? true,
-        closedMessage: s.closedMessage || "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.",
+        closedMessage: customFormMessage("closedMessage", s.closedMessage),
         openAt: s.openAt ? formatDatetimeLocal(s.openAt) : "",
         closeAt: s.closeAt ? formatDatetimeLocal(s.closeAt) : "",
         collectEmail: s.collectEmail || "none",
@@ -255,7 +258,7 @@ export default function AdminFormsBuilder({
         allowResponseEditing: s.allowResponseEditing ?? false,
         limitToOneResponse: s.limitToOneResponse ?? false,
         maxFileSizeLimit: s.maxFileSizeLimit || "1GB",
-        customSuccessMessage: s.customSuccessMessage || "Jawaban Anda telah berhasil disimpan.",
+        customSuccessMessage: customFormMessage("customSuccessMessage", s.customSuccessMessage),
       });
       setActiveQIndex(0);
       setActiveTab("builder");
@@ -1237,7 +1240,7 @@ export default function AdminFormsBuilder({
                       rows={2}
                       value={settings.closedMessage}
                       onChange={(e) => setSettings({ ...settings, closedMessage: e.target.value })}
-                      placeholder="Formulir ini telah ditutup dan tidak lagi menerima tanggapan."
+                      placeholder={defaults("closedMessageDefault")}
                       className="w-full text-body-sm min-h-[44px]"
                     />
                   </div>
@@ -1340,7 +1343,7 @@ export default function AdminFormsBuilder({
                       type="text"
                       value={settings.customSuccessMessage}
                       onChange={(e) => setSettings({ ...settings, customSuccessMessage: e.target.value })}
-                      placeholder="Jawaban Anda telah berhasil disimpan."
+                      placeholder={defaults("successMessageDefault")}
                       className="h-9 w-full text-body-sm"
                     />
                   </div>

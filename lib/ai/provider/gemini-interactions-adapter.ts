@@ -1,3 +1,4 @@
+import { zyraLiveProgress } from "@/lib/zyra/live-progress";
 import type { Interactions } from "@google/genai";
 import {
   assertGenerationModel,
@@ -59,6 +60,20 @@ function toInteractionInput(parts: ReturnType<typeof normalizeInputParts>): Inte
   });
 }
 
+function interactionJsonSchema(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid response schema");
+  const { nullable, ...schema } = value as Record<string, unknown>;
+  if (typeof schema.type === "string") schema.type = schema.type.toLowerCase();
+  if (schema.properties && typeof schema.properties === "object") {
+    schema.properties = Object.fromEntries(Object.entries(schema.properties).map(([key, item]) => [key, interactionJsonSchema(item)]));
+  }
+  if (schema.items) schema.items = interactionJsonSchema(schema.items);
+  for (const key of ["anyOf", "oneOf", "allOf"]) {
+    if (Array.isArray(schema[key])) schema[key] = schema[key].map(interactionJsonSchema);
+  }
+  return nullable === true ? { anyOf: [schema, { type: "null" }] } : schema;
+}
+
 /**
  * Creates an adapter for Gemini Interactions API models.
  */
@@ -79,6 +94,15 @@ export function createGeminiInteractionsAdapter(client: GeminiInteractionsClient
         model: entry.id,
         input: toInteractionInput(parts),
         stream: false,
+        ...(source.responseMimeType === "application/json"
+          ? { response_format: {
+              type: "text" as const,
+              mime_type: "application/json",
+              ...(source.responseJsonSchema || source.responseSchema
+                ? { schema: source.responseJsonSchema as Record<string, unknown> ?? interactionJsonSchema(source.responseSchema) }
+                : {}),
+            } }
+          : {}),
         generation_config: {
           ...(typeof requestedOutput === "number" ? { max_output_tokens: requestedOutput } : {}),
           ...(entry.thinking.kind === "level" && entry.thinking.level
@@ -94,6 +118,7 @@ export function createGeminiInteractionsAdapter(client: GeminiInteractionsClient
       };
 
       const startedAt = Date.now();
+      zyraLiveProgress.getStore()?.("dispatch");
       try {
         const response = await withProviderDeadline(
           (signal) => client.interactions.create(input, {

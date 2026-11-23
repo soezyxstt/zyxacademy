@@ -55,6 +55,7 @@ export interface KeyModelDiagnostics {
 
 const CIRCUIT_BREAKER_THRESHOLD = 3;
 const CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+const RATE_LIMIT_CIRCUIT_COOLDOWN_MS = 60 * 1000; // 60 seconds (aligns with RPM window)
 
 export class GeminiKeyPool {
   private keys: GeminiKey[] = [];
@@ -361,14 +362,14 @@ export class GeminiKeyPool {
         state.cooldownUntil = now + retryAfterMs;
         console.warn(`[GeminiKeyPool] Key ${keyId} model ${modelId} cooling down for ${retryAfterMs / 1000}s (retry-after)`);
       } else {
-        const backoffMs = Math.min(1000 * Math.pow(2, state.consecutiveFailures) + Math.random() * 500, 300000);
+        const backoffMs = Math.min(1000 * Math.pow(2, state.consecutiveFailures) + Math.random() * 500, RATE_LIMIT_CIRCUIT_COOLDOWN_MS);
         state.cooldownUntil = now + backoffMs;
         console.warn(`[GeminiKeyPool] Key ${keyId} model ${modelId} cooling down for ${backoffMs / 1000}s (exponential backoff)`);
       }
 
       if (state.consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
         state.circuitState = 'OPEN';
-        state.cooldownUntil = Math.max(state.cooldownUntil, now + CIRCUIT_BREAKER_COOLDOWN_MS);
+        state.cooldownUntil = Math.max(state.cooldownUntil, now + RATE_LIMIT_CIRCUIT_COOLDOWN_MS);
         console.error(`[GeminiKeyPool] Key ${keyId} model ${modelId} CIRCUIT OPEN (rate limits) - cooling down until ${new Date(state.cooldownUntil).toISOString()}`);
       }
     } else {

@@ -44,13 +44,14 @@ import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 
 export async function getCourses() {
   await assertAdmin();
-  const canonicalCourses = await db
-    .select()
-    .from(mataKuliah)
-    .where(eq(mataKuliah.status, "active"))
-    .orderBy(asc(mataKuliah.title));
-
-  const legacyList = await db.select().from(courses);
+  const [canonicalCourses, legacyList] = await Promise.all([
+    db
+      .select()
+      .from(mataKuliah)
+      .where(eq(mataKuliah.status, "active"))
+      .orderBy(asc(mataKuliah.title)),
+    db.select().from(courses).orderBy(asc(courses.title)),
+  ]);
   const legacyMap = new Map(legacyList.map((c) => [c.id, c]));
 
   if (canonicalCourses.length > 0) {
@@ -69,34 +70,43 @@ export async function getCourses() {
     });
   }
 
-  return (await db.select().from(courses).orderBy(asc(courses.title)))
-    .map((course) => ({ ...course, pricing: PREMIUM_PRICING }));
+  return legacyList.map((course) => ({ ...course, pricing: PREMIUM_PRICING }));
 }
 
 export async function getCoursesWithStats() {
   await assertAdmin();
 
-  const [canonicalCourses, allBab, allMaterials, allQuizzes, legacyList] = await Promise.all([
+  const [canonicalCourses, babCounts, materialCounts, quizCounts, legacyList] = await Promise.all([
     db.select().from(mataKuliah).where(eq(mataKuliah.status, "active")).orderBy(asc(mataKuliah.title)),
-    db.select({ courseId: bab.mataKuliahId }).from(bab).where(eq(bab.status, "active")),
-    db.select({ courseId: courseMaterials.courseId }).from(courseMaterials),
-    db.select({ courseId: quizTemplates.courseId }).from(quizTemplates),
+    db
+      .select({ courseId: bab.mataKuliahId, count: sql<number>`count(*)` })
+      .from(bab)
+      .where(eq(bab.status, "active"))
+      .groupBy(bab.mataKuliahId),
+    db
+      .select({ courseId: courseMaterials.courseId, count: sql<number>`count(*)` })
+      .from(courseMaterials)
+      .groupBy(courseMaterials.courseId),
+    db
+      .select({ courseId: quizTemplates.courseId, count: sql<number>`count(*)` })
+      .from(quizTemplates)
+      .groupBy(quizTemplates.courseId),
     db.select().from(courses).orderBy(asc(courses.title)),
   ]);
 
   const chapterCountMap: Record<string, number> = {};
-  for (const ch of allBab) {
-    if (ch.courseId) chapterCountMap[ch.courseId] = (chapterCountMap[ch.courseId] || 0) + 1;
+  for (const ch of babCounts) {
+    if (ch.courseId) chapterCountMap[ch.courseId] = Number(ch.count) || 0;
   }
 
   const materialCountMap: Record<string, number> = {};
-  for (const m of allMaterials) {
-    if (m.courseId) materialCountMap[m.courseId] = (materialCountMap[m.courseId] || 0) + 1;
+  for (const m of materialCounts) {
+    if (m.courseId) materialCountMap[m.courseId] = Number(m.count) || 0;
   }
 
   const quizCountMap: Record<string, number> = {};
-  for (const q of allQuizzes) {
-    if (q.courseId) quizCountMap[q.courseId] = (quizCountMap[q.courseId] || 0) + 1;
+  for (const q of quizCounts) {
+    if (q.courseId) quizCountMap[q.courseId] = Number(q.count) || 0;
   }
 
   const legacyMap = new Map(legacyList.map((c) => [c.id, c]));
@@ -121,10 +131,13 @@ export async function getCoursesWithStats() {
     });
   }
 
-  const allChapters = await db.select({ courseId: chapters.courseId }).from(chapters);
+  const legacyChapterCounts = await db
+    .select({ courseId: chapters.courseId, count: sql<number>`count(*)` })
+    .from(chapters)
+    .groupBy(chapters.courseId);
   const legacyChapterCountMap: Record<string, number> = {};
-  for (const ch of allChapters) {
-    if (ch.courseId) legacyChapterCountMap[ch.courseId] = (legacyChapterCountMap[ch.courseId] || 0) + 1;
+  for (const ch of legacyChapterCounts) {
+    if (ch.courseId) legacyChapterCountMap[ch.courseId] = Number(ch.count) || 0;
   }
 
   return legacyList.map((c) => ({

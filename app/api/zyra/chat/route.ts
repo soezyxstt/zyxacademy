@@ -1,5 +1,8 @@
+import { zyraLiveProgress, zyraLiveTextStream } from "@/lib/zyra/live-progress";
+import { JsonFieldStreamExtractor } from "@/lib/zyra/json-field-stream";
 import { followupEvent, parseFollowupAnswer } from "@/lib/zyra/followups";
 import { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
+import { after } from "next/server";
 import { headers } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { auth } from "@/lib/auth";
@@ -8,6 +11,7 @@ import { resolveCourseAccess } from "@/lib/student/course-access";
 import { FREE_ALLOWANCE_IDEMPOTENCY_PREFIX } from "@/lib/usage-budget-service";
 import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 import { pythonHistoryReply } from "@/lib/coding/python-reply";
+import { generateZyraSessionTitle } from "@/lib/zyra/title-ai";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -161,12 +165,12 @@ export async function POST(req: Request) {
         };
 
         try {
-          // 1. Initial work-step: Searching relevant course materials
+          // 1. Initial work-step: Reading relevant course materials
           sendEvent({
             type: "data-work-step",
             data: {
               stepId: "step-search",
-              label: requestLanguage === "en" ? "Searching course material..." : "Menelusuri materi kuliah dan kurikulum...",
+              label: requestLanguage === "en" ? "Reading course material..." : "Membaca materi kuliah...",
               status: "running",
             },
           });
@@ -176,8 +180,24 @@ export async function POST(req: Request) {
             return;
           }
 
-          // 2. Call askTutorRagAction
-          const res = await askTutorRagAction(
+          // 2. Call askTutorRagAction with live progress & real-time text streaming
+          let lastStage = "";
+          const labels = requestLanguage === "en"
+            ? { dispatch: "Thinking...", receiving: "Preparing response...", checking: "Refining answer..." }
+            : { dispatch: "Sedang berpikir...", receiving: "Menyiapkan jawaban...", checking: "Merapikan jawaban..." };
+          const extractor = new JsonFieldStreamExtractor(["learnerFacingText", "answer"], (textDelta) => {
+            if (!req.signal.aborted && textDelta) {
+              sendEvent({ type: "text-delta", textDelta });
+            }
+          });
+          const res = await zyraLiveProgress.run(stage => {
+            if (stage === "dispatch" && !extractor.hasEmitted) extractor.reset();
+            if (req.signal.aborted || stage === lastStage) return;
+            lastStage = stage;
+            sendEvent({ type: "data-work-step", data: { stepId: "provider", status: "running", label: labels[stage] } });
+          }, () => zyraLiveTextStream.run((rawChunk) => {
+            if (!req.signal.aborted) extractor.push(rawChunk);
+          }, () => askTutorRagAction(
             normalizedCourseId,
             normalizedConceptId,
             normalizedQuestion || (sanitizedSelectionContext?.snippet ? `Jelaskan kutipan: "${sanitizedSelectionContext.snippet}"` : "Tolong jelaskan materi sesuai konteks."),
@@ -188,7 +208,7 @@ export async function POST(req: Request) {
             sanitizedSelectionContext,
             coding?.success ? coding.data : undefined,
             normalizedResponseLanguage,
-          );
+          )));
 
           if (req.signal.aborted) {
             controller.close();
@@ -205,7 +225,7 @@ export async function POST(req: Request) {
             type: "data-work-step",
             data: {
               stepId: "step-search",
-              label: res.responseLanguage === "en" ? "Course material is ready" : "Materi dan konteks pembelajaran siap",
+              label: res.responseLanguage === "en" ? "Ready" : "Siap",
               status: "completed",
             },
           });
@@ -227,30 +247,21 @@ export async function POST(req: Request) {
           } else if (res.failureCode === "provider_unavailable") {
             fullAnswer = attachmentIds.length > 0
               ? normalizedQuestion
-                ? res.responseLanguage === "en" ? "Your image and question were received, but the AI service is temporarily unavailable. Please try again shortly." : "Gambar dan pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi."
-                : res.responseLanguage === "en" ? "Your image was received, but the AI service is temporarily unavailable. Please try again shortly." : "Gambarmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi."
-              : res.responseLanguage === "en" ? "Your question was received, but the AI service is temporarily unavailable. Please try again shortly." : "Pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi.";
+                ? res.responseLanguage === "en" ? "Your image and question were received, but Zyra is temporarily unavailable. Please try again shortly." : "Gambar dan pertanyaanmu sudah diterima, tetapi Zyra sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi."
+                : res.responseLanguage === "en" ? "Your image was received, but Zyra is temporarily unavailable. Please try again shortly." : "Gambarmu sudah diterima, tetapi Zyra sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi."
+              : res.responseLanguage === "en" ? "Your question was received, but Zyra is temporarily unavailable. Please try again shortly." : "Pertanyaanmu sudah diterima, tetapi Zyra sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi.";
           } else if (!res.answer) {
             fullAnswer = res.responseLanguage === "en" ? "Sorry, something went wrong while preparing the answer. Please try again shortly." : "Maaf, terjadi gangguan saat memproses jawaban. Coba lagi dalam beberapa saat.";
           } else {
             fullAnswer = sanitizeAnswer(parseFollowupAnswer(res.answer).text, res.sources);
           }
 
-          // 3. Progressive stream of text-delta chunks for smooth typing effect
-          // Chunk by tokens/words with a tiny interval
-          const words = fullAnswer.split(/(\s+)/);
-          const chunkSize = 3;
-          for (let i = 0; i < words.length; i += chunkSize) {
-            if (req.signal.aborted) break;
-            const chunk = words.slice(i, i + chunkSize).join("");
-            sendEvent({
-              type: "text-delta",
-              textDelta: chunk,
-            });
-            // 15ms pace for fluid typing feel
-            if (words.length > 10) {
-              await new Promise((r) => setTimeout(r, 15));
+          if (extractor.hasEmitted) {
+            if (extractor.emittedText !== fullAnswer) {
+              sendEvent({ type: "text-replace", text: fullAnswer });
             }
+          } else if (fullAnswer) {
+            sendEvent({ type: "text-delta", textDelta: fullAnswer });
           }
 
           const followups = followupEvent(res.followups);
@@ -288,17 +299,55 @@ export async function POST(req: Request) {
             }
           }
 
+          if (res.sessionId && normalizedQuestion && !res.failureCode && !res.budgetExhausted && !req.signal.aborted) {
+            const titleTask = generateZyraSessionTitle({
+              sessionId: res.sessionId,
+              studentId: userId,
+              courseId: normalizedCourseId,
+              question: normalizedQuestion,
+            }).catch(() => ({ updated: false as const }));
+            try {
+              after(() => titleTask.then(() => undefined));
+            } catch {
+              // Unit tests outside Next request scope do not provide an after() context.
+            }
+            let titleTimeout: ReturnType<typeof setTimeout> | undefined;
+            const quickTitle = await Promise.race([
+              titleTask,
+              new Promise<null>((resolve) => {
+                titleTimeout = setTimeout(() => resolve(null), 2500);
+              }),
+            ]).finally(() => {
+              if (titleTimeout !== undefined) clearTimeout(titleTimeout);
+            });
+            if (quickTitle?.updated && quickTitle.title && !req.signal.aborted) {
+              sendEvent({
+                type: "data-session-title",
+                sessionId: res.sessionId,
+                title: quickTitle.title,
+              });
+            }
+          }
+
           // 5. Complete stream
-          sendEvent("[DONE]");
-          controller.close();
+          if (!req.signal.aborted) {
+            sendEvent("[DONE]");
+            controller.close();
+          }
         } catch (err: unknown) {
-          const errMsg = publicZyraError(err, requestLanguage);
-          sendEvent({
-            type: "data-error",
-            data: { message: errMsg },
-          });
-          sendEvent("[DONE]");
-          controller.close();
+          if (!req.signal.aborted) {
+            try {
+              const errMsg = publicZyraError(err, requestLanguage);
+              sendEvent({
+                type: "data-error",
+                data: { message: errMsg },
+              });
+              sendEvent("[DONE]");
+              controller.close();
+            } catch {
+              // Stream controller already closed or aborted.
+            }
+          }
         }
       },
     });

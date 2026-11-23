@@ -1,5 +1,5 @@
-export const DEFAULT_AI_PROVIDERS = ["gemini", "openai", "deepseek", "muse"] as const;
-export type GatewayProviderName = (typeof DEFAULT_AI_PROVIDERS)[number];
+export const DEFAULT_AI_PROVIDERS = ["gemini", "openai", "muse"] as const;
+export type GatewayProviderName = (typeof DEFAULT_AI_PROVIDERS)[number] | "deepseek";
 export const CONVENTION_BYOK_SLOTS = 4;
 
 const PROVIDER_ALIASES: Readonly<Record<string, GatewayProviderName>> = {
@@ -31,11 +31,19 @@ export function conventionByokAliases(
   return Array.from({ length: slots }, (_, index) => `${provider}_${index + 1}`);
 }
 
+function isMissingByokMessage(message: unknown): boolean {
+  return typeof message === "string" && (
+    message.includes("Customer-provided provider credentials are required") ||
+    message.includes("has no BYOK credential named") ||
+    message.includes("AI Gateway BYOK alias is not configured")
+  );
+}
+
 export function isGatewayCredentialsRequiredBody(body: unknown): boolean {
   if (!body || typeof body !== "object") return false;
   const record = body as Record<string, unknown>;
   if (record.internalCode === 2044) return true;
-  if (typeof record.message === "string" && record.message.includes("Customer-provided provider credentials are required")) {
+  if (isMissingByokMessage(record.message)) {
     return true;
   }
   if (Array.isArray(record.error)) {
@@ -44,8 +52,7 @@ export function isGatewayCredentialsRequiredBody(body: unknown): boolean {
         item &&
         typeof item === "object" &&
         ((item as Record<string, unknown>).code === 2044 ||
-          (typeof (item as Record<string, unknown>).message === "string" &&
-            String((item as Record<string, unknown>).message).includes("Customer-provided provider credentials are required"))),
+          isMissingByokMessage((item as Record<string, unknown>).message)),
     );
   }
   return false;
@@ -59,7 +66,7 @@ export function isGatewayCredentialsRequiredError(error: unknown): boolean {
   if (status !== undefined && status !== 400) return false;
   return (
     message.includes("2044") ||
-    message.includes("Customer-provided provider credentials are required")
+    isMissingByokMessage(message)
   );
 }
 

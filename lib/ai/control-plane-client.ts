@@ -21,7 +21,8 @@ const leaseSchema = z.object({
 }).passthrough();
 
 const reserveSchema = z.union([
-  z.object({ status: z.enum(["reserved", "idempotent"]), lease: leaseSchema }),
+  z.object({ status: z.literal("reserved"), lease: leaseSchema }),
+  z.object({ status: z.literal("idempotent"), lease: leaseSchema }),
   z.object({ status: z.enum(["fallback_allowed", "quota_exhausted"]), code: z.string(), modelId: z.string() }),
 ]);
 
@@ -198,6 +199,18 @@ export class ControlPlaneClient {
 
   async diagnostics(): Promise<ControlPlaneDiagnostics> {
     return this.request("/quota/diagnostics", { method: "GET" }, diagnosticsSchema);
+  }
+
+  async aliasHealth(aliasHash: string) {
+    return this.post("/quota/alias/status", { aliasHash }, z.object({ failures: z.number().int().nonnegative(), cooldownUntil: z.number().nonnegative() }));
+  }
+
+  async recordAliasAttempt(aliasHash: string, attemptId: string, success: boolean) {
+    return this.post("/quota/alias/record", { aliasHash, attemptId, success }, z.object({ failures: z.number().int().nonnegative(), cooldownUntil: z.number().nonnegative() }));
+  }
+
+  async resetAliasHealth(aliasHash?: string) {
+    return this.post("/quota/alias/reset", aliasHash ? { aliasHash } : {}, z.object({ cleared: z.number().int().nonnegative() }));
   }
 
   async cacheGet(cacheKey: string): Promise<ControlPlaneCacheGetResult> {

@@ -19,7 +19,7 @@ export const bulkChapterGenerator = defineJob(
     triggers: [{ event: "ai.bulk.chapter.generate" }],
   },
   async ({ event, step }) => {
-    const { chapterId } = event.data as { chapterId: string };
+    const { chapterId, userId } = event.data as { chapterId: string; userId?: string };
 
     try {
       // Step 1: Identify chapter and course
@@ -66,7 +66,7 @@ export const bulkChapterGenerator = defineJob(
 
       // Step 2: Generate Flashcards for target Mastery Units
       const fcCount = await step.run("generate-flashcards", async () => {
-        return await generateFlashcardsForChapter(chapterId);
+        return await generateFlashcardsForChapter(chapterId, userId);
       });
 
       // Update flashcards progress
@@ -89,7 +89,7 @@ export const bulkChapterGenerator = defineJob(
         const koIds = koBatch.map(ko => ko.id);
 
         const qRes = await step.run(`generate-questions-ko-batch-${i}`, async () => {
-          return await generateQuestionsForKOBatch(koIds);
+          return await generateQuestionsForKOBatch(koIds, undefined, userId);
         });
 
         for (const result of qRes.results) {
@@ -113,7 +113,7 @@ export const bulkChapterGenerator = defineJob(
 
       // Step 4: Generate Website Material Markdown and compile Website Material
       await step.run("generate-website-material", async () => {
-        const compiledMarkdown = await generateMarkdownForChapter(chapterId);
+        const compiledMarkdown = await generateMarkdownForChapter(chapterId, userId);
 
         const mtdId = activeKOs[0]?.mtdId;
         const [mtd] = mtdId

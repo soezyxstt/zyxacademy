@@ -159,7 +159,7 @@ export async function executeGenerationJob(
  let localInserted = 0;
  try {
  bufferJobProgress(jobId, `Memulai batch generasi soal kuis untuk ${koIds.length} Objek Pengetahuan.`);
- const res = await generateQuestionsForKOBatch(koIds);
+ const res = await generateQuestionsForKOBatch(koIds, undefined, params.tutorId);
  for (const result of res.results) {
  const koTitle = koTitleMap.get(result.koId) || result.koId;
  if (result.success) {

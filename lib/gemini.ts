@@ -1,6 +1,7 @@
+import { zyraLiveProgress } from "./zyra/live-progress";
 import { prepareCompatibleText } from "./ai/provider/compatible-text";
 import { configuredModelChain } from "@/lib/ai/model-settings-store";
-import { googleGatewayClient } from "./ai/provider/google-gateway-client";
+import { googleGatewayClient, prepareGoogleGatewayClient } from "./ai/provider/google-gateway-client";
 import type { GoogleGenAI } from "@google/genai";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { logAiRequest } from "@/lib/ai/analytics";
@@ -114,6 +115,10 @@ function singleDispatchClient(client: GoogleGenAI, viaGateway: boolean): GeminiG
         ...input,
         config: { ...input.config, httpOptions: { ...input.config?.httpOptions, headers: { ...input.config?.httpOptions?.headers, ...headers }, retryOptions: { attempts: 1 } } },
       })) as GoogleGenAI["models"]["generateContent"],
+      generateContentStream: ((input: any) => client.models.generateContentStream({
+        ...input,
+        config: { ...input.config, httpOptions: { ...input.config?.httpOptions, headers: { ...input.config?.httpOptions?.headers, ...headers }, retryOptions: { attempts: 1 } } },
+      })) as GoogleGenAI["models"]["generateContentStream"],
     },
     interactions: {
       create: ((input: any, options: any) => client.interactions.create(input, { ...options, headers: { ...options?.headers, ...headers }, maxRetries: 0 })) as GoogleGenAI["interactions"]["create"],
@@ -167,7 +172,7 @@ function makeCompatibilityResponse(result: {
   };
 }
 
-function prepareProviderThroughControlPlane(input: {
+async function prepareProviderThroughControlPlane(input: {
   requestId: string;
   userCohort: string;
   feature: string;
@@ -180,23 +185,41 @@ function prepareProviderThroughControlPlane(input: {
   cacheKey?: string;
   cacheTtlSeconds?: number;
   singleDispatch?: boolean;
-}): () => Promise<ProviderGenerationResult> {
+}): Promise<() => Promise<ProviderGenerationResult>> {
   if (getModelEntry(input.modelId).family === "chat-completions") {
-    try { return prepareCompatibleText(input); } catch (error) { throw new ProviderNotDispatchedError("compatible provider unavailable", error); }
+    try { return await prepareCompatibleText(input); } catch (error) { throw new ProviderNotDispatchedError("compatible provider unavailable", error); }
   }
-  const key = geminiKeyPool.getKeyByProjectAlias(input.projectAlias);
-  if (!key) {
+  const firstKey = geminiKeyPool.getKeyByProjectAlias(input.projectAlias);
+  if (!firstKey) {
     throw new ProviderNotDispatchedError("selected provider project is not configured");
   }
 
   const entry = assertGenerationModel(input.modelId);
   normalizeInputParts(input.parts, entry);
   const viaGateway = true;
-  const headers = buildAiGatewayHeaders({ ...input, deadlineMs: entry.deadlineMs });
-  const client = googleGatewayClient(key.key, zyraRuntimeEnv, entry.deadlineMs, headers, {
-    preferByokAlias: key.byokAlias,
-  });
+  const deadlineMs = zyraLiveProgress.getStore() ? Math.max(30_000, entry.deadlineMs) : entry.deadlineMs;
+  const headers = buildAiGatewayHeaders({ ...input, deadlineMs });
+  let key = firstKey;
+  let client;
+  let prepareError: unknown;
+  const candidateKeys = [
+    firstKey,
+    ...geminiKeyPool.getHealthyKeys().filter((candidate) => candidate.projectAlias === input.projectAlias && candidate.id !== firstKey.id),
+  ];
+  for (const candidate of candidateKeys) {
+    try {
+      const prepared = await prepareGoogleGatewayClient(candidate.key, zyraRuntimeEnv, deadlineMs, headers, { modelId: input.modelId, preferByokAlias: candidate.byokAlias });
+      if (prepared) {
+        key = candidate;
+        client = prepared;
+        break;
+      }
+    } catch (error) {
+      prepareError = error;
+    }
+  }
   if (!client) {
+    if (prepareError) throw new ProviderNotDispatchedError("selected provider alias is unavailable", prepareError);
     throw new ProviderNotDispatchedError("selected provider client is unavailable");
   }
 
@@ -213,7 +236,7 @@ function prepareProviderThroughControlPlane(input: {
         config: input.config,
       });
       geminiKeyPool.markSuccess(key.id, input.modelId);
-      logAiRequest({
+      await logAiRequest({
         operation: entry.family === "interactions" ? "interactions" : "generateContent",
         model: input.modelId,
         viaGateway,
@@ -236,7 +259,7 @@ function prepareProviderThroughControlPlane(input: {
             modelId: input.modelId,
             cause: error,
           });
-      logAiRequest({
+      await logAiRequest({
         operation: entry.family === "interactions" ? "interactions" : "generateContent",
         model: input.modelId,
         viaGateway,
@@ -307,7 +330,7 @@ export async function generateContentWithFallback(
     }
     const lifecycle = new RequestLifecycle({
       prepareProvider: prepareProviderThroughControlPlane,
-      invokeProvider: (input) => prepareProviderThroughControlPlane(input)(),
+      invokeProvider: async (input) => (await prepareProviderThroughControlPlane(input))(),
     });
     const result = await lifecycle.execute({
       userId: params.userId,
@@ -402,7 +425,7 @@ export async function generateContentWithFallback(
             }
           }, params.singleDispatch ? 1 : undefined);
           const response = makeCompatibilityResponse(result);
-          logAiRequest({
+          await logAiRequest({
             operation: "generateContent",
             model,
             viaGateway,
@@ -421,7 +444,7 @@ export async function generateContentWithFallback(
           lastError = error;
           allFailuresConfirmed &&= isConfirmedHttpFailure(error);
           geminiKeyPool.markFailure(key.id, model, error instanceof Error ? error : new Error("Gemini request failed"));
-          logAiRequest({
+          await logAiRequest({
             operation: "generateContent",
             model,
             viaGateway,

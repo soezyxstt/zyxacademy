@@ -5,6 +5,7 @@ import "./globals.css";
 import "./appearance-preferences.css";
 import { AppearancePreferencesRuntime } from "@/components/appearance-preferences";
 import { NativeAuthListener } from "@/components/native/native-auth-listener";
+import { DialogHistoryRuntime } from "@/components/ui/dialog-history-runtime";
 import { OfflineShellRegister } from "@/components/offline/offline-shell-register";
 import { appearanceBootstrapScript } from "@/lib/appearance-preferences";
 import { AppToaster } from "@/components/app-toaster";
@@ -116,6 +117,7 @@ export default async function RootLayout({
         <AppearancePreferencesRuntime />
         <OfflineShellRegister />
         <NativeAuthListener />
+        <DialogHistoryRuntime />
         <AppToaster />
         {process.env.NODE_ENV === "production" && process.env.VERCEL === "1" && (
           <TelemetryBoundary>

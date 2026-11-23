@@ -84,7 +84,7 @@ jobs:
           QUEUE_SMOKE_PROVIDER: ${{ inputs.environment == 'staging' && 'cloud-tasks' || 'inngest' }}
         run: bun scripts/neon/smoke-worker.ts "$COMPUTE_ENVIRONMENT"
       - name: Exercise remote thumbnail persistence and quiz feedback
-        if: inputs.environment == 'staging' && github.event_name == 'workflow_dispatch' && !inputs.queue_smoke
+        if: inputs.environment == 'staging' && github.event_name == 'workflow_dispatch' && !inputs.queue_smoke && vars.QUEUE_PROVIDER != 'cloud-tasks'
         run: bun scripts/neon/smoke-business-workers.ts staging
       - name: Inspect PDF text and source figure geometry in Browser Run
         if: inputs.environment == 'staging' && github.event_name == 'workflow_dispatch' && !inputs.queue_smoke

@@ -1,8 +1,10 @@
+import type { RequestLatency } from "./provider/request-latency";
 import { officialRelease } from "./provider/recent-models";
+import type { ModelDate, ModelLatency } from "./provider/model-observations";
 import { z } from "zod";
 import {
   MODEL_IDS,
-  supportsTextProvider, MODEL_REGISTRY, TEXT_PROFILES, isTextProfile, textProfileIds,
+  MODEL_REGISTRY, supportsTextProvider, getTextProfile, isTextProfile, textProfileIds, discoveredModel,
   ROUTE_POLICY,
   getModelEntry,
   type ModelFamily,
@@ -49,6 +51,16 @@ const OPS_AI_EDITABLE_TRIO: readonly [ModelId, ModelId, ModelId] = [
 ];
 
 export const MODEL_FEATURE_CATALOG = [
+  {
+    id: "global-default",
+    label: "Model global",
+    group: "interactive",
+    description: "Urutan model untuk semua fitur tanpa pengaturan khusus.",
+    requiresStreamingTools: false,
+    supportsImages: false,
+    runtimeDefaultModels: ROUTE_POLICY.default,
+    editableDefaultModels: DEFAULT_EDITABLE_TRIO,
+  },
   {
     id: "zyra",
     label: "Zyra",
@@ -153,7 +165,7 @@ export const MODEL_FEATURE_CATALOG = [
     id: "practice-question-gen",
     label: "Generasi soal",
     group: "generation",
-    description: "Pembuatan soal latihan dan verifikasi solver independen.",
+    description: "Pembuatan soal latihan dari objek pengetahuan.",
     requiresStreamingTools: false,
     supportsImages: false,
     runtimeDefaultModels: ROUTE_POLICY.default,
@@ -163,7 +175,7 @@ export const MODEL_FEATURE_CATALOG = [
     id: "question-review",
     label: "Review soal",
     group: "generation",
-    description: "Pemeriksaan kualitas dan validitas pedagogis butir soal.",
+    description: "Verifikasi jawaban soal oleh solver independen.",
     requiresStreamingTools: false,
     supportsImages: false,
     runtimeDefaultModels: ROUTE_POLICY.premiumPedagogy,
@@ -305,16 +317,16 @@ export function getFeatureDefinition(feature: ModelFeature): (typeof MODEL_FEATU
 export function selectableModelsForFeature(feature: ModelFeature): readonly ModelId[] {
   const def = getFeatureDefinition(feature);
   if (def.requiresStreamingTools) {
-    return generateContentSelectableModels;
+    return [...generateContentSelectableModels, ...textProfileIds];
   }
-  return supportsTextProvider(feature) ? [...selectableModels, ...textProfileIds] : selectableModels;
+  return [...selectableModels, ...textProfileIds];
 }
 
 export function getSelectableModelOption(id: ModelId): SelectableModelOption {
   const entry = getModelEntry(id);
   return {
     id,
-    label: isTextProfile(id) ? TEXT_PROFILES[id].label : officialRelease(id)?.label ?? MODEL_DISPLAY_NAMES[id] ?? id,
+    label: discoveredModel(id)?.model ?? (isTextProfile(id) ? getTextProfile(id)!.label : officialRelease(id)?.label ?? MODEL_DISPLAY_NAMES[id] ?? id),
     family: entry.family,
     stability: entry.stability,
     supportsImage: entry.input.image,
@@ -336,23 +348,30 @@ const featureEnumValues = MODEL_FEATURE_CATALOG.map((entry) => entry.id) as [
 ];
 const modelEnumValues = [...selectableModels, ...textProfileIds] as [ModelId, ...ModelId[]];
 
+export function modelAllowedForFeature(feature: ModelFeature, id: string): id is ModelId {
+  try {
+    const entry = getModelEntry(id);
+    return entry.ordinaryRoutingAllowed && entry.operations.includes("generate") &&
+      (!getFeatureDefinition(feature).requiresStreamingTools || entry.family === "generate-content" || entry.family === "chat-completions");
+  } catch { return false; }
+}
+
 export const modelSettingSchema = z
   .object({
     feature: z.enum(featureEnumValues),
     models: z
-      .array(z.enum(modelEnumValues))
+      .array(z.string().refine(id => modelEnumValues.includes(id as ModelId) || Boolean(discoveredModel(id)), "Model tidak dikenal.").transform(id => id as ModelId))
       .length(3, "Pilih tepat tiga prioritas model.")
       .refine((models) => new Set(models).size === models.length, "Pilih tiga model berbeda."),
   })
   .superRefine((value, ctx) => {
-    const allowed = new Set(selectableModelsForFeature(value.feature));
     value.models.forEach((modelId, index) => {
-      if (!allowed.has(modelId)) {
+      if (!modelAllowedForFeature(value.feature, modelId)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["models", index],
           message:
-            "Model ini belum mendukung streaming tool untuk Ops AI. Pilih model keluarga generate-content.",
+            "Model ini belum mendukung streaming tool untuk Ops AI. Pilih model dengan dukungan tool.",
         });
       }
     });
@@ -384,6 +403,10 @@ export function modelFeature(feature?: string, useCase?: string): ModelFeature |
   return undefined;
 }
 
+export function textProviderFeatureAllowed(feature: string) {
+  return supportsTextProvider(feature) || (feature !== "global-default" && FEATURE_DEFINITION_MAP.has(feature as ModelFeature));
+}
+
 export function compatibleModelChain(
   models: readonly ModelId[],
   visualOrOptions:
@@ -413,7 +436,6 @@ export function compatibleModelChain(
     return primary;
   }
 
-  // Only 2 models in MODEL_REGISTRY accept image input (gemini-3.6-flash and gemini-2.5-flash).
   // Preserve admin priority for any selected image-capable models, then append remaining
   // visual fallback models so image turns never fail solely from a text-only trio override.
   const seen = new Set<ModelId>(primary);
@@ -444,6 +466,9 @@ export interface FeatureModelSettingView {
   readonly editableDefaultModels: readonly [ModelId, ModelId, ModelId];
   readonly selectableModels: readonly ModelId[];
   readonly modelLabels?: Partial<Record<ModelId, string>>;
+  readonly modelDates?: Partial<Record<ModelId, ModelDate>>;
+  readonly requestLatencies?: Record<string, RequestLatency>;
+  readonly modelLatencies?: Partial<Record<ModelId, ModelLatency>>;
   readonly requiresStreamingTools: boolean;
   readonly supportsImages: boolean;
   readonly updatedBy: string | null;

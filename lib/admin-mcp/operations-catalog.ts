@@ -1450,10 +1450,10 @@ export const operationsCatalog = [
   },
   {
     "source": "app/(admin)/admin/ops/models/page.tsx",
-    "actions": [],
+    "actions": ["listAiModelSettingsAction", "updateAiModelSettingAction", "resetAiModelSettingAction", "refreshAiModelLatenciesAction"],
     "tools": [],
     "status": "excluded",
-    "reason": "Model configuration uses the Admin UI. Feature flag reads do not cover model settings."
+    "reason": "Model assignments, Gateway catalog observations and billed latency refresh use the Admin UI. Feature flag reads do not expose these actions or authorize provider probes."
   },
   {
     "source": "components/auth/sidebar-account-menu.tsx",

@@ -327,7 +327,7 @@ export default function DetailedFormAnalyticsPage({
         setResponses(data.responses || []);
         setFormSettings(data.form.settings || {
           acceptingResponses: true,
-          closedMessage: t("formDetailsUI.closedMessageDefault"),
+          closedMessage: "",
           openAt: "",
           closeAt: "",
           collectEmail: "none",
@@ -335,7 +335,7 @@ export default function DetailedFormAnalyticsPage({
           allowResponseEditing: false,
           limitToOneResponse: false,
           maxFileSizeLimit: "1GB",
-          customSuccessMessage: t("formDetailsUI.successMessageDefault"),
+          customSuccessMessage: "",
         });
       } else {
         setError(t("formDetailsUI.loadError"));

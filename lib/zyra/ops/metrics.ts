@@ -4,7 +4,7 @@ import { gte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { aiAllowanceLeases, aiGenerationTraces, zyraMessageAttachments, zyraOperationalEvents } from "@/db/schema";
 import { startOfJakartaDayUtc } from "@/lib/date-utils";
-import { isTextProfile, TEXT_PROFILES, MODEL_REGISTRY } from "@/lib/ai/provider/model-registry";
+import { isTextProfile, getTextProfile, MODEL_REGISTRY, getModelEntry } from "@/lib/ai/provider/model-registry";
 import { ZyraOpsMetricsSchema, type ZyraOpsMetrics } from "./contracts";
 import { evaluateZyraOpsAlerts } from "./alerts";
 
@@ -52,15 +52,19 @@ export async function getZyraOpsMetrics(now = new Date()): Promise<ZyraOpsMetric
   const validationViolations = traceRows
     .filter((row) => Boolean(row.violationCodes))
     .reduce((sum, row) => sum + Number(row.count), 0);
-  const visibleModels = Object.values(MODEL_REGISTRY).filter(model => model.family !== "chat-completions" || compatibleSettings(process.env, model.id));
+  const catalogModels = new Map(Object.values(MODEL_REGISTRY).map(entry => [entry.id, entry]));
+  for (const row of quota?.counters ?? []) {
+    try { const entry = getModelEntry(row.modelId); catalogModels.set(entry.id, entry); } catch { /* Ignore obsolete telemetry identities. */ }
+  }
+  const visibleModels = [...catalogModels.values()].filter(model => model.family !== "chat-completions" || compatibleSettings(process.env, model.id));
   const configuredModels = visibleModels
     .filter((model) => model.operations.includes("generate") && model.stability !== "quarantined")
-    .map((model) => ({ model: model.id, initialUsableRpd: model.limits.initialUsableRpd }));
+    .map((model) => ({ model: model.id, initialUsableRpd: model.limits.providerManaged ? null : model.limits.initialUsableRpd }));
   const modelPools = (quota?.providerDay ? visibleModels : [])
     .filter((model) => model.operations.includes("generate") && model.stability !== "quarantined")
     .map((model) => {
       const rows = quota!.counters.filter(row => row.modelId === model.id);
-      const group = isTextProfile(model.id) ? TEXT_PROFILES[model.id].group : null;
+      const group = isTextProfile(model.id) ? getTextProfile(model.id)!.group : null;
       const usageRows = group ? quota!.counters.filter(row => row.projectAlias === group && isTextProfile(row.modelId)) : rows;
       const used = usageRows.reduce((sum, row) => sum + row.committedCount + row.reservedCount, 0);
       const committed = rows.reduce((sum, row) => sum + row.committedCount, 0);
@@ -71,12 +75,12 @@ export async function getZyraOpsMetrics(now = new Date()): Promise<ZyraOpsMetric
         : Math.min(model.limits.perProjectRpd, Math.floor(model.limits.initialUsableRpd / 4)) * groups;
       return {
         model: model.id,
-        configuredPerProjectRpd: model.limits.perProjectRpd,
-        configuredUsableRpd,
-        safetyReserveRpd: Math.max(0, configuredProviderRpd - configuredUsableRpd),
+        configuredPerProjectRpd: model.limits.providerManaged ? null : model.limits.perProjectRpd,
+        configuredUsableRpd: model.limits.providerManaged ? null : configuredUsableRpd,
+        safetyReserveRpd: model.limits.providerManaged ? null : Math.max(0, configuredProviderRpd - configuredUsableRpd),
         zyxCommittedRequests: committed,
         activeReservations: active,
-        usableRemainingRpd: Math.max(0, configuredUsableRpd - used),
+        usableRemainingRpd: model.limits.providerManaged ? null : Math.max(0, configuredUsableRpd - used),
       };
     });
   const metrics = {

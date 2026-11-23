@@ -7,11 +7,12 @@ const { client, testDb } = await createPostgresTestDb();
 // PGlite exposes one connection. Simulate the independent advisory-lock
 // connection while exercising checkpoint writes in the real migrated schema.
 let busyCalendar = false;
+let busyCatalog = false;
 const lockKeys: string[] = [];
 const lockConnection = { execute: async (query: SQL) => {
   const key = new PgDialect().sqlToQuery(query).params[0] as string;
   lockKeys.push(key);
-  return { rows: [{ acquired: !(busyCalendar && key.startsWith("queue:google-calendar:")) }] };
+  return { rows: [{ acquired: !(busyCalendar && key.startsWith("queue:google-calendar:")) && !(busyCatalog && key === "queue:ai-model-catalog") }] };
 } };
 mock.module("@/db", () => ({ db: {
   transaction: (run: (tx: typeof lockConnection) => Promise<unknown>) => run(lockConnection),
@@ -39,6 +40,19 @@ test("a redelivery resumes completed steps and terminal failure is recorded once
   await runQueueJob("test.retry", {}, "fixture-retry", 2, 3);
   expect(executions).toBe(1);
   expect(failures).toBe(1);
+});
+
+test("manual and scheduled latency tasks share one job lock", async () => {
+  let runs = 0;
+  queueJobs.set("test.catalog", { definition: { id: "ai-model-catalog-cron", triggers: [] }, run: async () => { runs++; } });
+  busyCatalog = true;
+  await expect(runQueueJob("test.catalog", {}, "catalog-manual", 0, 4)).rejects.toThrow("QUEUE_JOB_BUSY");
+  await expect(runQueueJob("test.catalog", {}, "catalog-scheduled", 0, 4)).rejects.toThrow("QUEUE_JOB_BUSY");
+  expect(runs).toBe(0);
+  busyCatalog = false;
+  await runQueueJob("test.catalog", {}, "catalog-manual", 1, 4);
+  expect(runs).toBe(1);
+  expect(lockKeys.filter(key => key === "queue:ai-model-catalog")).toHaveLength(3);
 });
 
 test("calendar requests with different delivery IDs share the target lock", async () => {

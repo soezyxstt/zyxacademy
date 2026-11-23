@@ -201,9 +201,7 @@ Berikan output JSON dengan format persis berikut:
       feature: "academic-document-standardizer",
       useCase: "tutoring",
       config: {
-        systemInstruction: {
-          parts: [{ text: systemInstruction }],
-        },
+        systemInstruction,
         responseMimeType: "application/json",
         temperature: 0.1,
       },
@@ -338,9 +336,7 @@ Kembalikan output HANYA dalam JSON valid berbentuk array pada properti "items":
       feature: "academic-batch-document-standardizer",
       useCase: "tutoring",
       config: {
-        systemInstruction: {
-          parts: [{ text: systemInstruction }],
-        },
+        systemInstruction,
         responseMimeType: "application/json",
         temperature: 0.1,
       },

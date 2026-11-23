@@ -19,25 +19,13 @@ export function RefreshAnalyticsButton() {
         method: "POST",
       });
 
-      if (!response.ok) {
-        throw new Error("Gagal menyinkronkan data.");
-      }
-
+      if (!response.ok) throw new Error("sync_failed");
       const data = await response.json();
-      if (data.success) {
-        toast.success("Sukses", {
-          description: `Berhasil menyinkronkan ${data.count} halaman populer.`,
-        });
-        router.refresh();
-      } else {
-        toast.error("Gagal", {
-          description: data.message || "Gagal menyinkronkan data dari GA4.",
-        });
-      }
-    } catch (error: any) {
-      toast.error("Error", {
-        description: error.message,
-      });
+      if (!data.success) throw new Error("sync_failed");
+      toast.success(t("analyticsSync.success", { count: data.count }));
+      router.refresh();
+    } catch {
+      toast.error(t("analyticsSync.failed"));
     } finally {
       setLoading(false);
     }

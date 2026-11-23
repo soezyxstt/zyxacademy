@@ -8,8 +8,11 @@ test("daily quiz exposes selection and feedback in a keyboard-accessible dialog"
   page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
   page.on("response", response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
   await page.goto("/visual-fixtures/daily-quiz");
+  const baseUrl = new URL(page.url());
+  baseUrl.searchParams.delete("dialog");
   const dialog = page.getByRole("dialog", { name: "Matematika Trivia" });
   await expect(dialog).toBeVisible();
+  await expect(page).toHaveURL(/[?&]dialog=/);
   const answer = dialog.getByRole("button", { name: "B 4" });
 
   async function capture(name: string) {
@@ -26,8 +29,10 @@ test("daily quiz exposes selection and feedback in a keyboard-accessible dialog"
   await capture("selected");
   await dialog.getByRole("button", { name: /kirim/i }).click();
   await capture("correct");
-  await page.keyboard.press("Escape");
+  await page.evaluate(() => history.back());
   await expect(dialog).not.toBeVisible();
+  await expect(page).toHaveURL(baseUrl.href);
+  await capture("closed-with-back");
   expect(errors).toEqual([]);
 });
 
@@ -47,5 +52,9 @@ test("daily quiz explains an incorrect answer in dark mode", async ({ page }, in
   await page.screenshot({ path, animations: "disabled" });
   await info.attach("incorrect-dark", { path, contentType: "image/png" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await expect(page).toHaveURL(/[?&]dialog=/);
+  await page.mouse.click(8, 100);
+  await expect(dialog).toBeHidden();
+  await expect(page).not.toHaveURL(/[?&]dialog=/);
   expect(errors).toEqual([]);
 });

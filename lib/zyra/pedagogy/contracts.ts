@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { VisualSpecSchema } from "@/lib/tutor/visual-contracts";
 import { CanvasSpecSchema } from "@/lib/zyra/canvas";
+import { FollowupSchema } from "@/lib/zyra/followups";
 import { ZyraImageResponseFieldsSchema } from "@/lib/zyra/images/contracts";
 
 export const PEDAGOGY_VERSION = "zyra-pedagogy-v3";
-export const PEDAGOGY_PROMPT_VERSION = "3.2.0";
+export const PEDAGOGY_PROMPT_VERSION = "3.2.1";
 export const PEDAGOGY_POLICY_VERSION = "3.1.0";
 export const PEDAGOGY_RESPONSE_SCHEMA_VERSION = "3.0.0";
 
@@ -87,6 +88,7 @@ export type PedagogySource = z.infer<typeof PedagogySourceSchema>;
 export const PedagogyContextSchema = z.object({
   responseLanguage: z.enum(["id", "en"]).default("id"),
   courseId: z.string().min(1),
+  courseTitle: z.string().max(500).optional(),
   chapterId: z.string().nullable(),
   action: z.enum(["new_topic", "follow_up", "hint_request", "teach_back", "check_response"]),
   evidenceSufficiency: PedagogicalEvidenceSufficiencySchema,
@@ -139,12 +141,14 @@ const AssessmentSafetySchema = z.object({
 }).strict();
 
 export const ZyraTeachingResponseSchema = z.object({
-  learningGoal: z.string().min(1).max(500),
-  observedFacts: z.array(z.string().min(1).max(500)).max(8),
-  diagnosisHypotheses: z.array(DiagnosisHypothesisSchema).max(4),
   selectedState: TeachingStateSchema,
   teachingMove: TeachingMoveSchema,
   hintLevel: HintLevelSchema,
+  learnerFacingText: z.string().min(1).max(5000),
+  followups: z.array(FollowupSchema).max(3).optional(),
+  learningGoal: z.string().min(1).max(500),
+  observedFacts: z.array(z.string().min(1).max(500)).max(8),
+  diagnosisHypotheses: z.array(DiagnosisHypothesisSchema).max(4),
   explanationBlocks: z.array(ExplanationBlockSchema).min(1).max(8),
   citations: z.array(CitationSchema).max(12),
   visualSpec: VisualSpecSchema.nullable().optional(),
@@ -155,7 +159,6 @@ export const ZyraTeachingResponseSchema = z.object({
   checkForUnderstanding: CheckForUnderstandingSchema.nullable(),
   nextAllowedAction: NextAllowedActionSchema,
   assessmentSafety: AssessmentSafetySchema,
-  learnerFacingText: z.string().min(1).max(5000),
 }).strict();
 export type ZyraTeachingResponse = z.infer<typeof ZyraTeachingResponseSchema>;
 

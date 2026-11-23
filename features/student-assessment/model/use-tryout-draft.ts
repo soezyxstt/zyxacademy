@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { useSession } from "@/lib/auth-client";
 import { useTranslations } from "@/lib/i18n/client";
+import { closeDialogsThen } from "@/hooks/use-dialog-history";
 import { usePersistentDraft } from "@/hooks/use-persistent-draft";
 import { submitTryoutAction } from "@/app/actions/tutor-management";
 import {
@@ -158,7 +159,13 @@ export function useTryoutForm({ courseId, exam, transport, userId }: TryoutFormP
         : `/courses/${courseId}/my-results`;
       if (href) {
         toast.success(t("tryout.submitted"));
-        router.push(href);
+        closeDialogsThen(
+          () => {
+            setShowConfirmModal(false);
+            setQuestionMapOpen(false);
+          },
+          () => router.push(href)
+        );
       }
     } catch (err) {
       console.error("Error submitting tryout:", err);

@@ -7,16 +7,25 @@ interface Release {
   source: string;
 }
 
-const google = "https://aistudio.google.com/docs/deprecations";
+const google = "https://aistudio.google.com/docs/changelog";
 const openai = "https://developers.openai.com/api/docs/changelog";
 const deepseek = "https://api-docs.deepseek.com/updates/";
 const releases: Readonly<Record<string, Release>> = {
+  "gemini-2.5-flash": { publisher: "google", label: "Gemini 2.5 Flash", released: "2025-06-17", source: google },
+  "gemini-2.5-pro": { publisher: "google", label: "Gemini 2.5 Pro", released: "2025-06-17", source: google },
+  "gemini-2.5-flash-lite": { publisher: "google", label: "Gemini 2.5 Flash-Lite", released: "2025-07-22", source: google },
+  "gemini-3.1-pro-preview": { publisher: "google", label: "Gemini 3.1 Pro Preview", released: "2026-02-19", source: google },
+  "gemini-3.1-pro-preview-customtools": { publisher: "google", label: "Gemini 3.1 Pro Preview Custom Tools", released: "2026-02-19", source: google },
+  "gemini-3.1-flash-lite-preview": { publisher: "google", label: "Gemini 3.1 Flash-Lite Preview", released: "2026-03-03", source: google },
+  "gemini-3.1-flash-lite": { publisher: "google", label: "Gemini 3.1 Flash-Lite", released: "2026-05-07", source: google },
+  "gemini-3.7-flash": { publisher: "google", label: "Gemini 3.7 Flash", released: "2026-08-13", source: google },
+  "muse-spark-1.1": { publisher: "meta", label: "Muse Spark 1.1", released: "2026-07-09", source: "https://ai.meta.com/global_search/" },
   "muse-spark-1.3-contributor": { publisher: "meta", label: "Muse Spark 1.3 Contributor", released: "2026-09-02", source: "https://dev.meta.ai/docs/muse-spark" },
   "muse-spark-1.2-contributor": { publisher: "meta", label: "Muse Spark 1.2 Contributor", released: "2026-08-05", source: "https://dev.meta.ai/docs/muse-spark" },
   "muse-spark-1.2": { publisher: "meta", label: "Muse Spark 1.2", released: "2026-08-05", source: "https://ai.meta.com/research/" },
   "gpt-6-luna": { publisher: "openai", label: "GPT 6 Luna", released: "2026-09-22", source: openai },
   "gpt-6.1-terra": { publisher: "openai", label: "GPT 6.1 Terra", released: "2026-10-26", source: openai },
-  "gemma-4-31b-it": { publisher: "google", label: "Gemma 4 31B IT", released: "2026-03-31", source: "https://ai.google.dev/gemma/docs/releases" },
+  "gemma-4-31b-it": { publisher: "google", label: "Gemma 4 31B IT", released: "2026-04-02", source: "https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/" },
   "gemini-4-hydrogen": { publisher: "google", label: "Gemini 4 Hydrogen", released: "2026-11-12", source: google },
   "gemini-4-carbon": { publisher: "google", label: "Gemini 4 Carbon", released: "2026-11-10", source: google },
   "gemini-4-argon": { publisher: "google", label: "Gemini 4 Argon", released: "2026-10-13", source: google },

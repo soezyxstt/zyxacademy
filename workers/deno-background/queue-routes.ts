@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { queueTaskCheckpoints } from "@/db/schema";
 import { queueJobs } from "@/jobs/define-job";
 import { enqueueTask, prepareTask } from "@/lib/queue/cloud-tasks";
-import { cronWindow } from "@/lib/queue/cron";
+import { cronWindow, isCronJobName } from "@/lib/queue/cron";
 import { runQueueJob } from "@/lib/queue/run-job";
 
 const verifier = new OAuth2Client();
@@ -44,7 +44,7 @@ export async function dispatchQueueTask(c: Context) {
 export async function dispatchCron(c: Context) {
   const env = await authorize(c);
   if (!env) return c.body(null, 401);
-  if (c.req.header("X-CloudScheduler-JobName") !== `projects/zyx-academy/locations/asia-southeast1/jobs/zyx-${env}-dispatcher`) return c.body(null, 403);
+  if (!isCronJobName(c.req.header("X-CloudScheduler-JobName"), env)) return c.body(null, 403);
   const scheduledAt = new Date(c.req.header("X-CloudScheduler-ScheduleTime") ?? "");
   if (!Number.isFinite(scheduledAt.getTime())) return c.body(null, 400);
   const now = Date.now();

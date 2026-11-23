@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "@/lib/i18n/client";
+import { closeDialogsThen } from "@/hooks/use-dialog-history";
 
 const STORAGE_KEY = "zyx_dismiss_profile_prompt";
 
@@ -60,8 +61,7 @@ export function CompleteProfileDialog({
   };
 
   const handleCompleteNow = () => {
-    setOpen(false);
-    router.push("/profile/edit");
+    closeDialogsThen(() => setOpen(false), () => router.push("/profile/edit"));
   };
 
   if (!isProfileIncomplete) return null;

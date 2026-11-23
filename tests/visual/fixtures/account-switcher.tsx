@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { BookOpen, CalendarDays, CircleHelp, LayoutDashboard, MessageCircle, PanelLeftOpen } from "lucide-react";
 import { SidebarShell, NavItem, openMobileSidebar } from "@/components/sidebar-shell";
 import { MobileSidebarController } from "@/components/mobile-sidebar-controller";
+import { listenToDialogHistory } from "@/hooks/use-dialog-history";
 import { StudentExperienceProvider, type StudentExperienceAdapter } from "@/components/student-experience-provider";
 import commonId from "@/messages/id/common.json";
 import commonEn from "@/messages/en/common.json";
@@ -26,6 +27,7 @@ const nav = [
   { icon: CircleHelp, label: english ? "Help" : "Bantuan", href: "/help" },
 ];
 
+listenToDialogHistory();
 createRoot(document.getElementById("root")!).render(
   <NextIntlClientProvider locale={english ? "en" : "id"} messages={{ common: english ? commonEn : commonId, ui: english ? uiEn : uiId }} timeZone="Asia/Jakarta">
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>

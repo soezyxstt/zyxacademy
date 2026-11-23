@@ -1,4 +1,14 @@
 {
+  "dashboardStats": {
+    "courses": "{count} mata kuliah aktif",
+    "tokens": "{total} dibuat, {today} diklaim hari ini",
+    "questions": "{count} menunggu tinjauan",
+    "notifications": "{total} siaran, {devices} perangkat",
+    "ops": "{queued} antrean sinkronisasi, {requests} permintaan",
+    "blog": "{count} artikel",
+    "failed": "{count} generasi soal gagal",
+    "review": "Tinjau generasi"
+  },
   "googleSetup": {
     "title": "Panduan Google",
     "library": "Buka pustaka API Google Cloud",

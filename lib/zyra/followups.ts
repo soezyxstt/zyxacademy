@@ -1,7 +1,16 @@
-/** Hidden, optional metadata appended to an answer by the same generation. */
+import { z } from 'zod';
+
+/** Hidden, optional metadata appended to an answer or returned in the structured followups field. */
 export const FOLLOWUPS_OPEN = '<zyra-followups>';
 export const FOLLOWUPS_CLOSE = '</zyra-followups>';
-export const FOLLOWUPS_GUIDANCE = `Optionally append a final ${FOLLOWUPS_OPEN} JSON array ${FOLLOWUPS_CLOSE} to the answer. Offer at most three distinct, context-specific next learning steps in the response language. Each object has short label, prompt, icon (example, help, compass, refresh, arrow), and intent (hint, explain, practice, check). Do not suggest revealing a full answer or bypassing assessment restrictions. Omit the block if no useful safe step exists.`;
+export const FOLLOWUPS_GUIDANCE = `Include a "followups" array (at most 3 items) of short, predictable next replies or actions the student is likely to click next in the response language. Whenever you ask a closing question, offer a choice, finish an explanation, or diagnose an error, predict the 1 to 3 most likely short student replies (for example, choosing a branch/approach, asking for another example, trying a quick check, or rewriting code with standard library). Each item must have: short "label" (2 to 5 words, max 48 chars), concise "prompt" (what gets sent if clicked, max 240 chars), "icon" ("example" | "help" | "compass" | "refresh" | "arrow"), and "intent" ("hint" | "explain" | "practice" | "check"). Never suggest revealing a protected assessment answer. Omit or return an empty array only if no short predictable next step makes sense.`;
+
+export const FollowupSchema = z.object({
+  label: z.string().min(1).max(48),
+  prompt: z.string().min(1).max(240),
+  icon: z.enum(['example', 'help', 'compass', 'refresh', 'arrow']),
+  intent: z.enum(['hint', 'explain', 'practice', 'check']),
+}).strict();
 
 export type Followup = { label: string; prompt: string; icon: 'example' | 'help' | 'compass' | 'refresh' | 'arrow'; intent: 'hint' | 'explain' | 'practice' | 'check' };
 const icons = new Set(['example', 'help', 'compass', 'refresh', 'arrow']);

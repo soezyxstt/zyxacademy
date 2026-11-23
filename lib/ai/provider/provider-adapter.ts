@@ -50,7 +50,7 @@ export interface ProviderGenerationResult {
 }
 
 export interface GeminiGenerateClient {
-  readonly models: Pick<GoogleGenAI["models"], "generateContent">;
+  readonly models: Pick<GoogleGenAI["models"], "generateContent"> & Partial<Pick<GoogleGenAI["models"], "generateContentStream">>;
 }
 
 export interface GeminiInteractionsClient {

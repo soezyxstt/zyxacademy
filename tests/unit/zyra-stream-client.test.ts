@@ -15,10 +15,11 @@ describe("Zyra Stream Consumer", () => {
     });
   }
 
-  test("yields text-delta and chunk parts correctly", async () => {
+  test("yields text-delta, text-replace, and chunk parts correctly", async () => {
     const stream = createMockStream([
       "data: {\"type\":\"text-delta\",\"textDelta\":\"Halo \"}\n\n",
       "data: {\"type\":\"chunk\",\"text\":\"dunia!\"}\n\n",
+      "data: {\"type\":\"text-replace\",\"text\":\"Halo dunia.\"}\n\n",
       "data: [DONE]\n\n",
     ]);
 
@@ -27,10 +28,11 @@ describe("Zyra Stream Consumer", () => {
       parts.push(part);
     }
 
-    expect(parts).toHaveLength(3);
+    expect(parts).toHaveLength(4);
     expect(parts[0]).toEqual({ type: "text-delta", textDelta: "Halo " });
     expect(parts[1]).toEqual({ type: "chunk", text: "dunia!" });
-    expect(parts[2]).toEqual({ type: "done" });
+    expect(parts[2]).toEqual({ type: "text-replace", text: "Halo dunia." });
+    expect(parts[3]).toEqual({ type: "done" });
   });
 
   test("yields data-sources, data-canvas, and data-session parts correctly", async () => {
@@ -70,15 +72,17 @@ describe("Zyra Stream Consumer", () => {
     expect(parts[3]).toEqual({ type: "done" });
   });
 
-  test("yields the server-resolved response language metadata", async () => {
+  test("yields the server-resolved response language and session title metadata", async () => {
     const stream = createMockStream([
       `data: ${JSON.stringify({ type: "data-response-language", responseLanguage: "en" })}\n`,
+      `data: ${JSON.stringify({ type: "data-session-title", sessionId: "session-xyz", title: "Logarithmic equation solution" })}\n`,
       "data: [DONE]\n",
     ]);
     const parts = [];
     for await (const part of consumeZyraStream(stream)) parts.push(part);
     expect(parts).toEqual([
       { type: "data-response-language", responseLanguage: "en" },
+      { type: "data-session-title", sessionId: "session-xyz", title: "Logarithmic equation solution" },
       { type: "done" },
     ]);
   });

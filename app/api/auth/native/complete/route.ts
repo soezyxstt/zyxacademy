@@ -1,3 +1,5 @@
+import { resolveLocale } from "@/lib/i18n/locale";
+import { LOCALE_COOKIE_NAME } from "@/lib/i18n/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getSafeRedirectPath } from "@/lib/auth-redirect";
@@ -21,15 +23,23 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function buildDesktopHandoffHtml(deepLink: string): string {
+async function buildDesktopHandoffHtml(deepLink: string, request: NextRequest) {
+  const locale = resolveLocale({
+    explicitUrlLocale: request.headers.get("x-app-locale"),
+    cookieLocale: request.cookies.get(LOCALE_COOKIE_NAME)?.value,
+    acceptLanguage: request.headers.get("accept-language"),
+  });
+  const { default: messages } = locale === "en"
+    ? await import("@/messages/en/auth.json")
+    : await import("@/messages/id/auth.json");
   const escapedHref = escapeHtml(deepLink);
   const serializedUrl = JSON.stringify(deepLink);
   return `<!doctype html>
-<html lang="id">
+<html lang="${locale}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Kembali ke Zyx Academy</title>
+    <title>${escapeHtml(messages.native.returnTitle)}</title>
     <style>
       body {
         margin: 0;
@@ -71,9 +81,9 @@ function buildDesktopHandoffHtml(deepLink: string): string {
   </head>
   <body>
     <div class="card">
-      <h1>Login berhasil</h1>
-      <p class="muted">Membuka kembali aplikasi Zyx Academy. Jika tidak terbuka otomatis, klik tombol di bawah.</p>
-      <a class="btn" href="${escapedHref}">Buka Zyx Academy</a>
+      <h1>${escapeHtml(messages.native.signedIn)}</h1>
+      <p class="muted">${escapeHtml(messages.native.reopening)}</p>
+      <a class="btn" href="${escapedHref}">${escapeHtml(messages.native.openApp)}</a>
     </div>
     <script>
       window.location.href = ${serializedUrl};
@@ -155,7 +165,7 @@ export async function GET(request: NextRequest) {
           "Cache-Control": "no-store",
         },
       })
-    : new NextResponse(buildDesktopHandoffHtml(deepLink), {
+    : new NextResponse(await buildDesktopHandoffHtml(deepLink, request), {
         status: 200,
         headers: {
           "Content-Type": "text/html; charset=utf-8",

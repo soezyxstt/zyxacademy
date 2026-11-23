@@ -188,7 +188,7 @@ export class ZyxLanguageModel implements LanguageModelV3 {
       ? [this.explicitModelId]
       : await (async () => {
           const resolved = await this.resolveModelChain(
-            { feature: this.feature, requireGenerateContent: true },
+            { feature: this.feature },
             [this.modelId as ModelId],
           );
           return resolved.length > 0 ? resolved : [this.modelId];
@@ -275,6 +275,7 @@ export class ZyxLanguageModel implements LanguageModelV3 {
 
             try {
               const generator = streamOpsAiModel({
+                sdkOptions: options,
                 systemPrompt,
                 messages,
                 tools: tools.length > 0 ? tools : undefined,

@@ -34,7 +34,19 @@ describe("Plan 003 atomic quota selection", () => {
   });
 });
 
-test("pilot keys share a single five-request minute across the Playground", () => {
+test("provider-managed models remain accounted for without artificial daily or minute ceilings", () => {
+  const sql = new BunSqliteHarness();
+  ensureQuotaSchema(sql);
+  const ledger = new QuotaLedger(sql, () => Date.parse("2026-11-22T12:00:00Z"));
+  for (let index = 0; index < 100; index++) {
+    expect(ledger.reserve({ idempotencyKey: `dynamic-${index}`, userHash: "a".repeat(64), role: "murid", feature: "discussion-tutor",
+      routeClass: "default", modelId: `gateway:openai:gpt-fixture-${index}`, cacheStatus: "bypass" }).status).toBe("reserved");
+  }
+  expect(ledger.diagnostics().counters.reduce((sum, row) => sum + row.reservedCount, 0)).toBe(100);
+  sql.close();
+});
+
+test("text providers preserve feature permissions without the old five-request limit", () => {
   const harness = new BunSqliteHarness();
   try {
     ensureQuotaSchema(harness);
@@ -43,13 +55,15 @@ test("pilot keys share a single five-request minute across the Playground", () =
       idempotencyKey: `pilot-${index}`, userHash: "a".repeat(64), role: "murid", feature,
       routeClass: "default", modelId: "compatible-text-pilot", cacheStatus: "miss",
     });
-    expect(reserve(0, "chapter-summary").status).toBe("quota_exhausted");
+    expect(reserve(0, "chapter-summary").status).toBe("reserved");
     for (let index = 1; index <= 5; index++) {
       const result = reserve(index, index === 1 ? "zyra-pedagogy" : "playground");
       expect(result.status).toBe("reserved");
       if (result.status === "reserved") expect(result.lease.projectAlias).toBe("compatible-text");
     }
-    expect(reserve(6).status).toBe("quota_exhausted");
+    expect(reserve(7, "weak-concept-guidance").status).toBe("reserved");
+    expect(reserve(8, "unknown-feature").status).toBe("quota_exhausted");
+    expect(reserve(6).status).toBe("reserved");
   } finally {
     harness.close();
   }
@@ -89,7 +103,22 @@ test("admin catalog probes consume shared group capacity and cannot select a for
     for (let index = 1; index <= 5; index++) {
       const result = ledger.reserve({ ...input, modelId: "openai-gpt-2", feature: "playground", probeProjectAlias: undefined,
         idempotencyKey: "playground-" + index });
-      expect(result.status).toBe(index < 5 ? "reserved" : "quota_exhausted");
+      expect(result.status).toBe("reserved");
+    }
+  } finally { harness.close(); }
+});
+
+
+test("discussion text providers reserve from their own quota group", () => {
+  const harness = new BunSqliteHarness();
+  try {
+    ensureQuotaSchema(harness);
+    const ledger = new QuotaLedger(harness);
+    for (const [modelId, projectAlias] of [["openai-gpt", "openai"], ["meta-muse", "meta"]] as const) {
+      const result = ledger.reserve({ userHash: "a".repeat(64), role: "murid", feature: "discussion-tutor",
+        modelId, routeClass: "default", cacheStatus: "bypass", idempotencyKey: "discussion-" + modelId });
+      expect(result.status).toBe("reserved");
+      if (result.status === "reserved") expect(result.lease.projectAlias).toBe(projectAlias);
     }
   } finally { harness.close(); }
 });

@@ -17,7 +17,11 @@ test.beforeAll(async () => {
   const stubs: Record<string, string> = {
     "next/link": `import React from "react"; export default function Link({href,prefetch,...props}) { return React.createElement("a", {href,...props}); }`,
     "next/image": `import React from "react"; export default function Image({priority,fill,...props}) { return React.createElement("img", props); }`,
-    "next/navigation": `export const usePathname = () => "/dashboard";`,
+    "next/navigation": `
+      const router = { push(href) { window.history.pushState(null, "", href); } };
+      export const useRouter = () => router;
+      export const usePathname = () => "/dashboard";
+    `,
     "@/components/command-menu": `export const useCommandMenu = () => ({setOpen() {}});`,
     "@/components/providers/locale-provider": `export const useAppLocale = () => ({locale:"id"});`,
     "@/components/notifications/notification-bell": `export const NotificationBell = () => null;`,
@@ -263,6 +267,8 @@ test("mobile sidebar stays open during popover actions and first outside click",
   const issues = await prepare(page, info);
   const sidebar = page.locator("aside[data-sidebar-ready=true]");
   await expect(sidebar).not.toHaveAttribute("aria-hidden", "true");
+  await expect(page).toHaveURL(/[?&]dialog=/);
+  const sidebarUrl = page.url();
 
   const { panel } = await openMenu(page);
   await panel.getByRole("button", { name: "Kelola akun nadia.kampus@example.test" }).click();
@@ -274,10 +280,12 @@ test("mobile sidebar stays open during popover actions and first outside click",
   await page.mouse.click(viewport.width - 10, 20);
   await expect(panel).toBeHidden();
   await expect(sidebar).not.toHaveAttribute("aria-hidden", "true");
+  await expect(page).toHaveURL(sidebarUrl);
 
   // Clicking outside again with no overlay open closes the mobile sidebar.
   await page.mouse.click(viewport.width - 10, 20);
   await expect(sidebar).toHaveAttribute("aria-hidden", "true");
+  await expect(page).not.toHaveURL(/[?&]dialog=/);
   expect(issues).toEqual([]);
 });
 

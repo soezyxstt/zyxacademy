@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { DiscussionAttachment } from "./discussion-attachment";
-import { canSuggestForwardChannel, channelOptionIndex, mentionHandle, discussionMessageHref } from "./discussion-adapter";
+import { canSuggestForwardChannel, channelOptionIndex, mentionHandle, discussionMessageHref, zyraStatusReaction } from "./discussion-adapter";
 import { DiscussionMarkdown } from "./discussion-markdown";
 import type { DiscussionChannel, DiscussionForwardDraft, DiscussionForwardTarget, DiscussionMessage as Message, DiscussionPerson, DiscussionWorkspaceProps } from "./view-model";
 
@@ -345,6 +345,9 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
     <span aria-hidden="true" className="flex size-7 md:size-9 items-center justify-center rounded-full bg-primary/10 font-heading text-body-2xs md:text-body-xs font-bold text-primary">{message.author.name.trim().slice(0, 2).toUpperCase()}</span>
   );
 
+  const zyraReaction = message.zyraStatus ? zyraStatusReaction(message.zyraStatus.status, message.zyraStatus.reason) : null;
+  const showReactionRow = canReact || Boolean(zyraReaction?.emoji);
+
   return <div data-message-id={message.id} data-own-message={isOwn ? "true" : undefined} data-discussion-target={targeted || undefined} tabIndex={targeted ? -1 : undefined} className={cn("min-w-0 touch-pan-y", targeted && "rounded-lg ring-2 ring-primary")} onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={(event) => endGesture(event, true)}>
     <div className={cn("flex min-w-0 gap-2 md:gap-2.5", isOwn && "flex-row-reverse")}>
       {canViewAuthorProfile ? (
@@ -401,9 +404,34 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
           {message.attachments.map((attachment) => <div key={attachment.id} className="mt-2 w-60 max-w-full">{renderAttachment ? renderAttachment(attachment) : <DiscussionAttachment attachment={attachment} />}</div>)}</div>
           {message.editedAt && <p className="mt-1 text-body-xs text-muted-foreground">{t("edited")}</p>}
         </ZyraBubbleSkin>
-        {canReact && <div className={cn("flex flex-wrap items-center gap-1", isOwn && "justify-end")}>{message.reactions.filter((reaction) => reaction.count > 0).map((reaction) => <Button key={reaction.emoji} type="button" variant={reaction.selected ? "secondary" : "outline"} size="xs" aria-label={`${t("reaction", { emoji: reaction.emoji, count: reaction.count })}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} aria-pressed={reaction.selected} disabled={pending} onClick={() => void run(() => onReact({ questionId, messageId: message.id, emoji: reaction.emoji, selected: !reaction.selected }))}>{reaction.emoji} {reaction.count}</Button>)}
-          <DropdownMenu><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={`${t("addReaction")}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} disabled={pending}><Plus /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("addReaction")}</TooltipContent></Tooltip><DropdownMenuContent>{REACTIONS.map((emoji) => <DropdownMenuItem key={emoji} onSelect={() => void run(() => onReact({ questionId, messageId: message.id, emoji, selected: !message.reactions.find((reaction) => reaction.emoji === emoji)?.selected }))}>{emoji}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>
+        {showReactionRow && <div className={cn("flex flex-wrap items-center gap-1", isOwn && "justify-end")}>
+          {zyraReaction?.emoji && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  role="status"
+                  tabIndex={0}
+                  data-zyra-status={message.zyraStatus?.status}
+                  data-zyra-reaction={zyraReaction.emoji}
+                  aria-label={t(zyraReaction.key)}
+                  className={cn(
+                    "inline-flex h-7 items-center gap-1 rounded-md border px-2 text-body-xs font-medium select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                    zyraReaction.tone === "completed"
+                      ? "border-primary/25 bg-primary/10 text-foreground"
+                      : "border-border bg-muted/60 text-foreground",
+                  )}
+                >
+                  <span aria-hidden="true">{zyraReaction.emoji}</span>
+                  <span className="text-body-2xs text-muted-foreground">{t("role_zyra")}</span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t(zyraReaction.key)}</TooltipContent>
+            </Tooltip>
+          )}
+          {canReact && message.reactions.filter((reaction) => reaction.count > 0).map((reaction) => <Button key={reaction.emoji} type="button" variant={reaction.selected ? "secondary" : "outline"} size="xs" aria-label={`${t("reaction", { emoji: reaction.emoji, count: reaction.count })}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} aria-pressed={reaction.selected} disabled={pending} onClick={() => void run(() => onReact({ questionId, messageId: message.id, emoji: reaction.emoji, selected: !reaction.selected }))}>{reaction.emoji} {reaction.count}</Button>)}
+          {canReact && <DropdownMenu><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={`${t("addReaction")}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} disabled={pending}><Plus /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("addReaction")}</TooltipContent></Tooltip><DropdownMenuContent>{REACTIONS.map((emoji) => <DropdownMenuItem key={emoji} onSelect={() => void run(() => onReact({ questionId, messageId: message.id, emoji, selected: !message.reactions.find((reaction) => reaction.emoji === emoji)?.selected }))}>{emoji}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}
         </div>}
+        {zyraReaction?.tone === "error" && <p role="alert" data-zyra-status={message.zyraStatus?.status} className="text-body-xs text-destructive">{t(zyraReaction.key)}</p>}
         {error && !activeDialog && <p role="alert" className="text-body-xs text-destructive">{t(error)} {retry && <Button type="button" variant="link" size="xs" disabled={pending} onClick={() => void run(retry)}>{t("retry")}</Button>}</p>}
       </div>
     </div>

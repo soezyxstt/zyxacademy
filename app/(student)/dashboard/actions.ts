@@ -81,7 +81,15 @@ export async function updateMaterialProgress(materialId: string, status: "in_pro
   if (expectedUserId && expectedUserId !== user.id) throw new Error("Account changed");
   const now = new Date();
 
-  const materialAccess = await getStudentMaterialAccess(user.id, materialId);
+  const [materialAccess, existing] = await Promise.all([
+    getStudentMaterialAccess(user.id, materialId),
+    db.query.progress.findFirst({
+      where: and(
+        eq(progress.userId, user.id),
+        eq(progress.materialId, materialId)
+      ),
+    }),
+  ]);
   if (!materialAccess) {
     throw new Error("MATERIAL_ACCESS_DENIED");
   }
@@ -97,14 +105,6 @@ export async function updateMaterialProgress(materialId: string, status: "in_pro
   ) {
     throw new Error("MATERIAL_UPGRADE_REQUIRED");
   }
-
-  // Find if progress record already exists
-  const existing = await db.query.progress.findFirst({
-    where: and(
-      eq(progress.userId, user.id),
-      eq(progress.materialId, materialId)
-    ),
-  });
 
   if (existing) {
     // If it is already completed, do not revert to in_progress
@@ -131,32 +131,32 @@ export async function updateMaterialProgress(materialId: string, status: "in_pro
 
   // Fire learning event on completion
   if (status === "completed") {
-    const [legacyMaterial] = await db
-      .select({ courseId: websiteMaterials.courseId })
-      .from(websiteMaterials)
-      .where(eq(websiteMaterials.id, materialId))
-      .limit(1);
-    const [canonicalArticle] = legacyMaterial
-      ? []
-      : await db
-          .select({ courseId: artikel.mataKuliahId, legacyCourseId: mataKuliah.legacyCourseId })
-          .from(artikel)
-          .innerJoin(mataKuliah, eq(artikel.mataKuliahId, mataKuliah.id))
-          .where(and(eq(artikel.id, materialId), eq(artikel.status, "published")))
-          .limit(1);
-    const [canonicalDiktat] = legacyMaterial || canonicalArticle
-      ? []
-      : await db
-          .select({ courseId: diktatMateri.mataKuliahId, legacyCourseId: mataKuliah.legacyCourseId })
-          .from(diktatMateri)
-          .innerJoin(mataKuliah, eq(diktatMateri.mataKuliahId, mataKuliah.id))
-          .where(and(eq(diktatMateri.id, materialId), eq(diktatMateri.status, "published")))
-          .limit(1);
+    const [[legacyMaterial], [canonicalArticle], [canonicalDiktat]] = await Promise.all([
+      db
+        .select({ courseId: websiteMaterials.courseId })
+        .from(websiteMaterials)
+        .where(eq(websiteMaterials.id, materialId))
+        .limit(1),
+      db
+        .select({ courseId: artikel.mataKuliahId, legacyCourseId: mataKuliah.legacyCourseId })
+        .from(artikel)
+        .innerJoin(mataKuliah, eq(artikel.mataKuliahId, mataKuliah.id))
+        .where(and(eq(artikel.id, materialId), eq(artikel.status, "published")))
+        .limit(1),
+      db
+        .select({ courseId: diktatMateri.mataKuliahId, legacyCourseId: mataKuliah.legacyCourseId })
+        .from(diktatMateri)
+        .innerJoin(mataKuliah, eq(diktatMateri.mataKuliahId, mataKuliah.id))
+        .where(and(eq(diktatMateri.id, materialId), eq(diktatMateri.status, "published")))
+        .limit(1),
+    ]);
+    const resolvedCanonicalArticle = legacyMaterial ? undefined : canonicalArticle;
+    const resolvedCanonicalDiktat = legacyMaterial || resolvedCanonicalArticle ? undefined : canonicalDiktat;
     const courseId = legacyMaterial?.courseId
-      ?? canonicalArticle?.legacyCourseId
-      ?? canonicalArticle?.courseId
-      ?? canonicalDiktat?.legacyCourseId
-      ?? canonicalDiktat?.courseId;
+      ?? resolvedCanonicalArticle?.legacyCourseId
+      ?? resolvedCanonicalArticle?.courseId
+      ?? resolvedCanonicalDiktat?.legacyCourseId
+      ?? resolvedCanonicalDiktat?.courseId;
 
     if (courseId) {
       const recomputePromise = inngest
@@ -178,9 +178,9 @@ export async function updateMaterialProgress(materialId: string, status: "in_pro
       ]);
     }
 
-    const ideaLinks = canonicalArticle
+    const ideaLinks = resolvedCanonicalArticle
       ? await db.select({ ideId: artikelIde.ideId, weight: artikelIde.weight }).from(artikelIde).where(eq(artikelIde.artikelId, materialId))
-      : canonicalDiktat
+      : resolvedCanonicalDiktat
         ? await db.select({ ideId: diktatIde.ideId, weight: diktatIde.weight }).from(diktatIde).where(eq(diktatIde.diktatMateriId, materialId))
         : [];
     await Promise.all(ideaLinks.map((link) => recordLearningEvidence({
@@ -254,42 +254,44 @@ export async function getDailyTrivia(courseId: string) {
     const { validateDailyTriviaCandidate, selectDailyTrivia } = await import("@/lib/daily-trivia");
     const course = await resolveStudentCourse(courseId);
     const questionCourseId = course?.legacyId ?? courseId;
-    const activeQuestions = await db
-      .select()
-      .from(aiQuestionBank)
-      .where(
-        and(
-          eq(aiQuestionBank.courseId, questionCourseId),
-          eq(aiQuestionBank.status, "active"),
-          eq(aiQuestionBank.reviewStatus, "published"),
-          or(
-            eq(aiQuestionBank.origin, "zyx_original"),
-            eq(aiQuestionBank.origin, "itb_example"),
-            eq(aiQuestionBank.quizEligible, true),
-          ),
-        )
-      );
-
-    if (activeQuestions.length === 0) return null;
-    const canonicalAnchors = course?.canonicalId
-      ? await db.select({ questionId: petaIdLegacy.legacyId }).from(soal)
-          .innerJoin(soalIde, eq(soalIde.soalId, soal.id))
-          .innerJoin(ide, and(eq(ide.id, soalIde.ideId), eq(ide.status, "published")))
-          .innerJoin(
-            petaIdLegacy,
-            and(
-              eq(petaIdLegacy.targetId, soal.id),
-              eq(petaIdLegacy.legacyTable, "ai_question_bank"),
-              eq(petaIdLegacy.targetTable, "soal"),
+    const [activeQuestions, canonicalAnchors, validKnowledgeObjects] = await Promise.all([
+      db
+        .select()
+        .from(aiQuestionBank)
+        .where(
+          and(
+            eq(aiQuestionBank.courseId, questionCourseId),
+            eq(aiQuestionBank.status, "active"),
+            eq(aiQuestionBank.reviewStatus, "published"),
+            or(
+              eq(aiQuestionBank.origin, "zyx_original"),
+              eq(aiQuestionBank.origin, "itb_example"),
+              eq(aiQuestionBank.quizEligible, true),
             ),
           )
-          .where(and(eq(soal.mataKuliahId, course.canonicalId), eq(soal.status, "published")))
-      : [];
+        ),
+      course?.canonicalId
+        ? db.select({ questionId: petaIdLegacy.legacyId }).from(soal)
+            .innerJoin(soalIde, eq(soalIde.soalId, soal.id))
+            .innerJoin(ide, and(eq(ide.id, soalIde.ideId), eq(ide.status, "published")))
+            .innerJoin(
+              petaIdLegacy,
+              and(
+                eq(petaIdLegacy.targetId, soal.id),
+                eq(petaIdLegacy.legacyTable, "ai_question_bank"),
+                eq(petaIdLegacy.targetTable, "soal"),
+              ),
+            )
+            .where(and(eq(soal.mataKuliahId, course.canonicalId), eq(soal.status, "published")))
+        : Promise.resolve([]),
+      db
+        .select({ id: knowledgeObjects.id })
+        .from(knowledgeObjects)
+        .where(eq(knowledgeObjects.courseId, questionCourseId)),
+    ]);
+
+    if (activeQuestions.length === 0) return null;
     const anchoredIds = new Set(canonicalAnchors.map((row) => row.questionId));
-    const validKnowledgeObjects = await db
-      .select({ id: knowledgeObjects.id })
-      .from(knowledgeObjects)
-      .where(eq(knowledgeObjects.courseId, questionCourseId));
     const validKnowledgeObjectIds = new Set(validKnowledgeObjects.map((row) => row.id));
     const eligible = activeQuestions.flatMap((question) => {
       const validated = validateDailyTriviaCandidate(

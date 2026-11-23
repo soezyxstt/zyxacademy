@@ -99,6 +99,19 @@ The plugin uses the server environment's existing **Web application** `GOOGLE_CL
 
 Deploying the web app enables saved-session switching. Installing a new APK enables the native chooser. Google account selection and signed-device acceptance still require the checks in that guide; web UI screenshots cover a different boundary.
 
+## Back navigation
+
+The web app gives each open dialog, sheet, modal popover and mobile sidebar a temporary history entry. Android Back uses WebView history and dismisses the top overlay before leaving the current page. Backdrop dismissal returns to the same underlying URL.
+
 ## Offline Fallback
 
 When the remote Zyx Academy URL cannot be reached, Capacitor loads `www/index.html` (`server.errorPath`). It provides an Indonesian and English retry screen and a direct link to `/offline` for saved readings.
+
+## Android App Links
+
+`/.well-known/assetlinks.json` is built from `ANDROID_APP_LINKS_SHA256_FINGERPRINTS` (stable, `com.zyx.academy`) and `ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS` (nightly, `com.zyx.academy.nightly`). Values are comma-separated SHA-256 signing-certificate fingerprints.
+
+- Staging: store the nightly value in GitHub Environment `staging`. `sync_vercel_staging.py` copies it to the Vercel staging environment during `deploy-web.yml`.
+- Production: store the stable value in GitHub Environment `production`. `deploy-web.yml` passes it to the production deployment when it is set.
+
+Android verifies links at install time. After the endpoint returns the fingerprint, reinstall the app and check `adb shell pm get-app-links <package>`. Links typed into the browser address bar always stay in the browser. iOS Universal Links stay inactive until an Apple team ID is configured.

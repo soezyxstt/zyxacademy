@@ -38,6 +38,7 @@ test.describe("Sticky full-width horizontal tabs with GitHub-style More popover"
     // 2. More button should be visible because 7 tabs exceed 380px
     const moreTrigger = page.locator('[data-slot="tabs-more-trigger"]');
     await expect(moreTrigger).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Question Editor" })).toBeVisible();
 
     await page.screenshot({ path: testInfo.outputPath("mobile-default.png") });
 
@@ -75,6 +76,26 @@ test.describe("Sticky full-width horizontal tabs with GitHub-style More popover"
     });
     expect(Math.abs(stickyMetrics.listTop - stickyMetrics.navBottom)).toBeLessThanOrEqual(1);
     await page.screenshot({ path: testInfo.outputPath("mobile-scrolled-sticky.png") });
+  });
+
+  test("tabs recover when a flex container grows after collapsing", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 380, height: 844 });
+    await page.goto("/visual-fixtures/sticky-tabs", { waitUntil: "domcontentloaded" });
+
+    const bar = page.locator('[data-slot="tabs-list"]');
+    const moreTrigger = bar.locator('[data-slot="tabs-more-trigger"]');
+    await expect(moreTrigger).toBeVisible();
+    await expect(bar.getByRole("tab", { name: "Question Editor" })).toBeVisible();
+
+    await page.setViewportSize({ width: 1536, height: 864 });
+    await expect(bar.getByRole("tab")).toHaveCount(7);
+    await expect(moreTrigger).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath("tabs-after-widening.png") });
+
+    await page.setViewportSize({ width: 380, height: 844 });
+    await expect(moreTrigger).toBeVisible();
+    await expect(bar.getByRole("tab", { name: "Question Editor" })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("tabs-after-narrowing.png") });
   });
 
   test("desktop 1536x864: full main-column sticky bar without overflow", async ({

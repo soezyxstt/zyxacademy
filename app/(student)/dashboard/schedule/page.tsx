@@ -8,6 +8,13 @@ import { PageHeader } from "@/components/page-header";
 import { StudentScheduleClient, ScheduleCalendarSkeleton } from "./schedule-client";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
+import { getScheduleData } from "./actions";
+
+async function InitialSchedule({ selectedCourse }: { selectedCourse: Awaited<ReturnType<typeof resolveCourseIdentity>> }) {
+  const scope = selectedCourse ? { id: selectedCourse.primaryId, title: selectedCourse.title, compatibleCourseIds: selectedCourse.allIds } : undefined;
+  const initialData = await getScheduleData(0, scope?.id).catch(() => null);
+  return <StudentScheduleClient key={scope?.id ?? "all"} selectedCourse={scope} initialData={initialData} fetchedAt={initialData?.fetchedAt} />;
+}
 
 export default async function StudentSchedulePage({ searchParams }: { searchParams: Promise<{ course?: string | string[] }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -27,7 +34,7 @@ export default async function StudentSchedulePage({ searchParams }: { searchPara
         </ApplicationPage>
       }
     >
-      <StudentScheduleClient key={selectedCourse?.primaryId ?? "all"} selectedCourse={selectedCourse ? { id: selectedCourse.primaryId, title: selectedCourse.title, compatibleCourseIds: selectedCourse.allIds } : undefined} />
+      <InitialSchedule selectedCourse={selectedCourse} />
     </Suspense>
   );
 }

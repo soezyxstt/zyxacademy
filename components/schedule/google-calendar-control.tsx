@@ -21,6 +21,7 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
   const isDemo = useStudentExperience().mode === "demo";
   const mountedRef = useRef(true);
   const [status, setStatus] = useState<CalendarSyncStatus | null>(null);
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [callbackFailed, setCallbackFailed] = useState(false);
@@ -28,19 +29,36 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
+  const hasStatus = status !== null;
+  const syncPending = status?.pending === true;
   useEffect(() => {
     if (isDemo) return;
     let active = true;
+    let running = false;
+    let timer: ReturnType<typeof setTimeout>;
     async function refresh() {
+      if (document.hidden || running || busy) return;
+      running = true;
+      clearTimeout(timer);
+      let pending = syncPending;
       try {
         const next = await getGoogleCalendarStatus(central);
+        pending = next.pending;
         if (active) { setStatus(next); setFailed(false); }
       } catch { if (active) setFailed(true); }
+      finally {
+        running = false;
+        if (active && pending && !document.hidden) timer = setTimeout(refresh, 10000);
+      }
     }
-    void refresh();
-    const timer = setInterval(() => void refresh(), 10000);
-    return () => { active = false; clearInterval(timer); };
-  }, [central, isDemo]);
+    if (open || !hasStatus || syncPending) void refresh();
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [central, isDemo, open, busy, hasStatus, syncPending]);
   useEffect(() => {
     if (central) return;
     const url = new URL(window.location.href);
@@ -92,7 +110,7 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
   const title = t(central ? "googleCalendar.central" : "googleCalendar.title");
   return (
     <TooltipProvider>
-      <Popover>
+      <Popover open={open} onOpenChange={setOpen}>
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>

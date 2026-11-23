@@ -30,11 +30,30 @@ export const MODEL_IDS = {
   emergencyText: "gemma-4-31b-it",
   embedding: "gemini-embedding-2",
   legacyEmbedding: "gemini-embedding-001",
-  quarantinedPreview: "gemini-3-flash-preview",
+  flash3Preview: "gemini-3-flash-preview",
   quarantinedGemma: "gemma-4-26b-a4b-it",
 } as const;
 
-export type ModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];
+type BuiltInModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];
+export type GatewayModelProvider = "gemini" | "openai" | "muse" | "deepseek";
+export type DiscoveredModelId = `gateway:${GatewayModelProvider}:${string}`;
+export type ModelId = BuiltInModelId | DiscoveredModelId;
+
+export function discoveredModel(id: string): { provider: GatewayModelProvider; model: string } | undefined {
+  const match = /^gateway:(gemini|openai|muse|deepseek):([A-Za-z0-9][A-Za-z0-9._-]{0,127})$/.exec(id);
+  return match ? { provider: match[1] as GatewayModelProvider, model: match[2] } : undefined;
+}
+
+export function upstreamModelName(id: string): string {
+  return discoveredModel(id)?.model ?? id;
+}
+
+export function discoveredModelId(provider: GatewayModelProvider, model: string): ModelId {
+  if (provider === "gemini" && Object.hasOwn(MODEL_REGISTRY, model)) return model as BuiltInModelId;
+  const id: DiscoveredModelId = `gateway:${provider}:${model}`;
+  if (!discoveredModel(id)) throw new Error("Invalid gateway model ID");
+  return id;
+}
 export type ModelFamily = "chat-completions" | "generate-content" | "interactions" | "embedding";
 export type ModelStability = "stable" | "premium" | "emergency" | "quarantined" | "legacy";
 export type ModelOperation = "generate" | "embed";
@@ -48,6 +67,7 @@ export type ModelRouteClass =
   | "legacy-rollback";
 
 export interface ModelLimits {
+  readonly providerManaged?: boolean;
   readonly perProjectRpm: number;
   readonly perProjectTpm: number;
   readonly perProjectRpd: number;
@@ -133,19 +153,27 @@ export const TEXT_PROFILES = {
 } as const;
 // Only answer generation stages can invoke a configured text provider.
 export function supportsTextProvider(feature?: string) {
-  return feature === "playground" || feature === "zyra" || feature === "zyra-pedagogy";
+  return feature === "playground" || feature === "zyra" || feature === "zyra-pedagogy" || feature === "discussion-tutor";
 }
 
-export type TextProfileId = keyof typeof TEXT_PROFILES;
+export type TextProfileId = keyof typeof TEXT_PROFILES | `gateway:${Exclude<GatewayModelProvider, "gemini">}:${string}`;
 export const textProfileIds = Object.keys(TEXT_PROFILES) as TextProfileId[];
 export function isTextProfile(id: string): id is TextProfileId {
-  return Object.hasOwn(TEXT_PROFILES, id);
+  return Boolean(getTextProfile(id));
+}
+
+export function getTextProfile(id: string): { modelSuffix: string; label: string; prefix: string; group: string; route: string; model?: string } | undefined {
+  if (Object.hasOwn(TEXT_PROFILES, id)) return TEXT_PROFILES[id as keyof typeof TEXT_PROFILES];
+  const model = discoveredModel(id);
+  if (!model || model.provider === "gemini") return undefined;
+  const base = model.provider === "openai" ? MODEL_IDS.openai : model.provider === "muse" ? MODEL_IDS.meta : MODEL_IDS.deepseek;
+  return { ...TEXT_PROFILES[base], model: model.model };
 }
 const textDefaults = {
     family: "chat-completions", stability: "stable",
     operations: ["generate"], ordinaryRoutingAllowed: true,
-    // Internal staging budget shared by every pilot key.
-    limits: { perProjectRpm: 5, perProjectTpm: 10000, perProjectRpd: 20, initialUsableRpd: 20 },
+    // Provider-managed limits are unknown locally; zero is not a routing ceiling.
+    limits: { providerManaged: true, perProjectRpm: 0, perProjectTpm: 0, perProjectRpd: 0, initialUsableRpd: 0 },
     deadlineMs: 15000, thinking: { kind: "none" }, outputFloor: 512, routeClasses: ["default"],
     input: TEXT_INPUT, healthGate: STANDARD_HEALTH_GATE,
 } as const;
@@ -188,7 +216,7 @@ const REGISTRY = {
     thinking: { kind: "none" },
     outputFloor: 512,
     routeClasses: ["default"],
-    input: TEXT_INPUT,
+    input: VISUAL_INPUT,
     healthGate: STANDARD_HEALTH_GATE,
   },
   [MODEL_IDS.fallbackFlashLite]: {
@@ -202,7 +230,7 @@ const REGISTRY = {
     thinking: { kind: "level", level: "minimal" },
     outputFloor: 512,
     routeClasses: ["default"],
-    input: TEXT_INPUT,
+    input: VISUAL_INPUT,
     healthGate: STANDARD_HEALTH_GATE,
   },
   [MODEL_IDS.premiumPedagogy]: {
@@ -305,20 +333,7 @@ const REGISTRY = {
     healthGate: STANDARD_HEALTH_GATE,
     dimensions: 768,
   },
-  [MODEL_IDS.quarantinedPreview]: {
-    id: MODEL_IDS.quarantinedPreview,
-    family: "generate-content",
-    stability: "quarantined",
-    operations: ["generate"],
-    ordinaryRoutingAllowed: false,
-    limits: { ...GENERATION_LIMITS, perProjectRpd: 20, initialUsableRpd: 0 },
-    deadlineMs: 15_000,
-    thinking: { kind: "none" },
-    outputFloor: 1_024,
-    routeClasses: [],
-    input: TEXT_INPUT,
-    healthGate: { required: true, minimumSuccessRate: 0.95, maximumP95LatencyMs: 4_000, minimumSampleSize: 20 },
-  },
+  [MODEL_IDS.flash3Preview]: { ...assignedGoogleModel, id: MODEL_IDS.flash3Preview },
   [MODEL_IDS.quarantinedGemma]: {
     id: MODEL_IDS.quarantinedGemma,
     family: "generate-content",
@@ -333,7 +348,7 @@ const REGISTRY = {
     input: TEXT_INPUT,
     healthGate: { required: true, minimumSuccessRate: 0.95, maximumP95LatencyMs: 5_000, minimumSampleSize: 20 },
   },
-} as const satisfies Record<ModelId, ModelRegistryEntry>;
+} as const satisfies Record<BuiltInModelId, ModelRegistryEntry>;
 
 export const MODEL_REGISTRY: Readonly<Record<ModelId, ModelRegistryEntry>> = Object.freeze(REGISTRY);
 
@@ -373,8 +388,10 @@ export const ROUTE_POLICY = {
 } as const;
 
 export function normalizeModelId(modelId: string): ModelId {
-  const normalized = modelId.startsWith("models/") ? modelId.slice("models/".length) : modelId;
-  if (!(normalized in MODEL_REGISTRY)) {
+  let normalized = modelId.startsWith("models/") ? modelId.slice("models/".length) : modelId;
+  const discovered = discoveredModel(normalized);
+  if (discovered?.provider === "gemini" && Object.hasOwn(MODEL_REGISTRY, discovered.model)) normalized = discovered.model;
+  if (!Object.hasOwn(MODEL_REGISTRY, normalized) && !discoveredModel(normalized)) {
     throw new ProviderAdapterError({
       code: "UNKNOWN_MODEL",
       message: `unknown Gemini model ${normalized}`,
@@ -385,8 +402,16 @@ export function normalizeModelId(modelId: string): ModelId {
   return normalized as ModelId;
 }
 
+const visualChatModels = new Set<ModelId>([
+  "gateway:openai:gpt-6.1-terra",
+  "gateway:openai:gpt-6-luna",
+  "gateway:muse:muse-spark-1.3-contributor",
+]);
+
 export function getModelEntry(modelId: string): ModelRegistryEntry {
-  return MODEL_REGISTRY[normalizeModelId(modelId)];
+  const id = normalizeModelId(modelId);
+  if (visualChatModels.has(id)) return { ...textDefaults, id, input: { ...VISUAL_INPUT, structuredVisualOutput: false } };
+  return MODEL_REGISTRY[id] ?? { ...(discoveredModel(id)?.provider === "gemini" ? assignedGoogleModel : textDefaults), id };
 }
 
 export function assertOrdinaryRoutingAllowed(modelId: string): ModelRegistryEntry {

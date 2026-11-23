@@ -265,27 +265,38 @@ export async function computeStudyPath(
   const canonicalPath = await computeCanonicalStudyPath(studentId, courseId);
   if (canonicalPath) return canonicalPath;
 
-  // 1. Fetch all active Knowledge Objects for this course joined with published chapters
-  const activeKOs = await db
-    .select({
-      id: knowledgeObjects.id,
-      conceptId: knowledgeObjects.conceptId,
-      conceptName: knowledgeObjects.conceptName,
-      importance: knowledgeObjects.importance,
-      chapterId: knowledgeObjects.chapterId,
-      chapterOrderIndex: chapters.orderIndex,
-      chapterTitle: chapters.title,
-      tags: knowledgeObjects.tags,
-    })
-    .from(knowledgeObjects)
-    .innerJoin(chapters, eq(knowledgeObjects.chapterId, chapters.id))
-    .where(
-      and(
-        eq(knowledgeObjects.courseId, courseId),
-        eq(knowledgeObjects.status, "active"),
-        eq(chapters.status, "published")
-      )
-    );
+  // 1. Fetch active Knowledge Objects and student's concept mastery in parallel
+  const [activeKOs, masteryRows] = await Promise.all([
+    db
+      .select({
+        id: knowledgeObjects.id,
+        conceptId: knowledgeObjects.conceptId,
+        conceptName: knowledgeObjects.conceptName,
+        importance: knowledgeObjects.importance,
+        chapterId: knowledgeObjects.chapterId,
+        chapterOrderIndex: chapters.orderIndex,
+        chapterTitle: chapters.title,
+        tags: knowledgeObjects.tags,
+      })
+      .from(knowledgeObjects)
+      .innerJoin(chapters, eq(knowledgeObjects.chapterId, chapters.id))
+      .where(
+        and(
+          eq(knowledgeObjects.courseId, courseId),
+          eq(knowledgeObjects.status, "active"),
+          eq(chapters.status, "published")
+        )
+      ),
+    db
+      .select()
+      .from(studentConceptMastery)
+      .where(
+        and(
+          eq(studentConceptMastery.studentId, studentId),
+          eq(studentConceptMastery.courseId, courseId)
+        )
+      ),
+  ]);
 
   if (activeKOs.length === 0) return [];
 
@@ -300,17 +311,6 @@ export async function computeStudyPath(
 
   const conceptNames = Array.from(conceptMap.keys());
 
-  // 2. Fetch student's concept mastery
-  const masteryRows = await db
-    .select()
-    .from(studentConceptMastery)
-    .where(
-      and(
-        eq(studentConceptMastery.studentId, studentId),
-        eq(studentConceptMastery.courseId, courseId)
-      )
-    );
-
   const masteryMap = new Map<string, { masteryScore: number; confidence: number }>();
   for (const row of masteryRows) {
     masteryMap.set(row.conceptName.trim(), {
@@ -319,14 +319,55 @@ export async function computeStudyPath(
     });
   }
 
-  // 3. Fetch knowledge relationships of type prerequisite
-  const relationships = await db
-    .select({
-      sourceKoId: knowledgeRelationships.sourceKoId,
-      targetKoId: knowledgeRelationships.targetKoId,
-    })
-    .from(knowledgeRelationships)
-    .where(eq(knowledgeRelationships.type, "prerequisite"));
+  // 3. Fetch knowledge relationships, materials, quiz templates, and flashcard counts in parallel
+  const activeKoIds = activeKOs.map((k) => k.id);
+  const [relationships, materials, quizTemplatesList, flashcardRows] = await Promise.all([
+    db
+      .select({
+        sourceKoId: knowledgeRelationships.sourceKoId,
+        targetKoId: knowledgeRelationships.targetKoId,
+      })
+      .from(knowledgeRelationships)
+      .where(
+        and(
+          eq(knowledgeRelationships.type, "prerequisite"),
+          inArray(knowledgeRelationships.sourceKoId, activeKoIds)
+        )
+      ),
+    db
+      .select({
+        id: websiteMaterials.id,
+        chapterId: websiteMaterials.chapterId,
+        structuredContent: websiteMaterials.structuredContent,
+      })
+      .from(websiteMaterials)
+      .where(
+        and(
+          eq(websiteMaterials.courseId, courseId),
+          eq(websiteMaterials.status, "published")
+        )
+      ),
+    db
+      .select({
+        id: quizTemplates.id,
+        title: quizTemplates.title,
+        selectionRules: quizTemplates.selectionRules,
+      })
+      .from(quizTemplates)
+      .where(eq(quizTemplates.courseId, courseId)),
+    db
+      .select({
+        id: flashcards.id,
+        koId: flashcards.koId,
+      })
+      .from(flashcards)
+      .where(
+        and(
+          eq(flashcards.status, "active"),
+          inArray(flashcards.koId, activeKoIds)
+        )
+      ),
+  ]);
 
   // Create a mapping of KO ID to normalized concept name
   const koIdToConcept = new Map<string, string>();
@@ -497,52 +538,10 @@ export async function computeStudyPath(
     }
   }
 
-  // 6. Fetch published website materials
-  const materials = await db
-    .select({
-      id: websiteMaterials.id,
-      chapterId: websiteMaterials.chapterId,
-      structuredContent: websiteMaterials.structuredContent,
-    })
-    .from(websiteMaterials)
-    .where(
-      and(
-        eq(websiteMaterials.courseId, courseId),
-        eq(websiteMaterials.status, "published")
-      )
-    );
-
   const chapterToMaterial = new Map<string, typeof materials[0]>();
   for (const mat of materials) {
     chapterToMaterial.set(mat.chapterId, mat);
   }
-
-  // 7. Fetch published quiz templates
-  const quizTemplatesList = await db
-    .select({
-      id: quizTemplates.id,
-      title: quizTemplates.title,
-      selectionRules: quizTemplates.selectionRules,
-    })
-    .from(quizTemplates)
-    .where(eq(quizTemplates.courseId, courseId));
-
-  // 8. Fetch active flashcards count
-  const activeKoIds = activeKOs.map((k) => k.id);
-  const flashcardRows = activeKoIds.length > 0
-    ? await db
-        .select({
-          id: flashcards.id,
-          koId: flashcards.koId,
-        })
-        .from(flashcards)
-        .where(
-          and(
-            eq(flashcards.status, "active"),
-            inArray(flashcards.koId, activeKoIds)
-          )
-        )
-    : [];
 
   const koIdToFlashcardCount = new Map<string, number>();
   for (const card of flashcardRows) {

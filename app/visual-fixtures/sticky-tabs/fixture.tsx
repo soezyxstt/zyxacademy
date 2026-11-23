@@ -42,7 +42,7 @@ export function StickyTabsFixture() {
           </aside>
         }
       >
-        <ApplicationPage>
+        <ApplicationPage className="flex flex-col items-start">
           <PageHeader title="Form Studio" />
           <Tabs value={active} onValueChange={setActive} syncUrl={false}>
             <TabsList aria-label="Form studio sections">

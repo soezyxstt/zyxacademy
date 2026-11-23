@@ -123,7 +123,11 @@ export function validateTeachingResponse(
   }
 
   violations.push(...validateNoProtectedAnswer(value, context, protectedAnswers));
-  const followups = safeFollowups(parsedAnswer.followups, { sources: evidenceList, activeAssessment: context.activeAssessment, protectedAnswers });
+  const rawFollowups = Array.isArray(value.followups) && value.followups.length > 0
+    ? value.followups
+    : parsedAnswer.followups;
+  const followups = safeFollowups(rawFollowups, { sources: evidenceList, activeAssessment: context.activeAssessment, protectedAnswers });
+  value.followups = followups.length ? followups : undefined;
   if (followups.length) {
     value.learnerFacingText += `\n${FOLLOWUPS_OPEN}${JSON.stringify(followups)}${FOLLOWUPS_CLOSE}`;
   }

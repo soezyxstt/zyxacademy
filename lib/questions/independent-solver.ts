@@ -28,7 +28,8 @@ export type SolverResult = z.infer<typeof SolverResultSchema>;
  * In contract test mode, evaluates stem heuristics without answer leaks.
  */
 export async function solveQuestionIndependently(
-  input: SolverInput
+  input: SolverInput,
+  userId?: string,
 ): Promise<SolverResult> {
   const parsed = SolverInputSchema.parse(input);
 
@@ -65,7 +66,9 @@ Return a single JSON object with this exact schema:
 
   try {
     const { response } = await generateContentWithFallback({
+      feature: USE_CASES.QUESTION_REVIEW,
       useCase: USE_CASES.PRACTICE_QUESTION_GEN,
+      userId,
       contents: prompt,
     });
 

@@ -6,7 +6,7 @@ import { ParticipantPickerSkeleton } from "@/components/admin/content-loading-sk
 
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import {
   Video,
@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AdminIconAction } from "@/components/admin/icon-action";
@@ -116,6 +117,8 @@ export default function AdminMeetPage() {
   const [records, setRecords] = useState<ConferenceRecordItem[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ name: string; title: string } | null>(null);
+  const deleteTrigger = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -232,8 +235,7 @@ export default function AdminMeetPage() {
 
   const handleDeleteRecord = async (recordName: string) => {
     const recordId = recordName.replace(/^conferenceRecords\//, "");
-    if (!confirm(t("meetMainUI.deleteConfirm"))) return;
-
+    setDeleteTarget(null);
     setDeletingId(recordId);
     try {
       const res = await fetch(`/api/admin/meet/records/${recordId}/delete`, {
@@ -912,7 +914,13 @@ export default function AdminMeetPage() {
                               type="button"
                               variant="destructive"
                               size="icon"
-                              onClick={() => handleDeleteRecord(rec.name)}
+                              onClick={event => {
+                                deleteTrigger.current = event.currentTarget;
+                                setDeleteTarget({
+                                  name: rec.name,
+                                  title: rec.title || t("meetMainUI.recordFallback", { id: recordId.slice(0, 8) }),
+                                });
+                              }}
                               disabled={isDeleting}
                               title={t("meetMainUI.deleteLog")}
                               className="border-status-error/30 bg-status-error/10 text-status-error hover:bg-status-error/20"
@@ -934,6 +942,17 @@ export default function AdminMeetPage() {
           </div>
         )}
       </section>
+      <AdminConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={open => { if (!open) setDeleteTarget(null); }}
+        title={t("meetMainUI.deleteLog")}
+        description={<>{deleteTarget?.title}<br />{t("meetMainUI.deleteConfirm")}</>}
+        onConfirm={() => { if (deleteTarget) void handleDeleteRecord(deleteTarget.name); }}
+        onCloseAutoFocus={event => {
+          event.preventDefault();
+          deleteTrigger.current?.focus();
+        }}
+      />
     </div>
   );
 }

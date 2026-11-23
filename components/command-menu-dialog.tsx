@@ -10,6 +10,9 @@ import {
 import { useRouter } from "nextjs-toploader/app";
 import { Command } from "cmdk";
 import * as Dialog from "@radix-ui/react-dialog";
+import { Dialog as DialogRoot } from "@/components/ui/dialog";
+import { closeDialogsThen } from "@/hooks/use-dialog-history";
+import { closeMobileSidebar } from "@/lib/sidebar-overlay";
 import {
   BookOpen,
   ChevronRight,
@@ -764,9 +767,11 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
     (item: SearchItem) => {
       const target = { ...item, href: experience.href?.(item.href) ?? item.href };
       saveRecent(target);
-      onOpenChange(false);
-      setSearch("");
-      router.push(target.href);
+      closeDialogsThen(() => {
+        onOpenChange(false);
+        setSearch("");
+        closeMobileSidebar();
+      }, () => router.push(target.href));
     },
     [router, saveRecent, onOpenChange, experience]
   );
@@ -778,7 +783,7 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
     "group relative flex items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-body-sm text-foreground outline-none cursor-pointer transition-colors duration-150 select-none hover:bg-muted/60 aria-selected:bg-muted/90";
 
   return (
-    <Dialog.Root
+    <DialogRoot
       open={open}
       onOpenChange={(next) => {
         onOpenChange(next);
@@ -1494,7 +1499,6 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
                     <span>{t("open")}</span>
                   </span>
                 </div>
-
                 <div className="flex items-center gap-1.5">
                   <Logo
                     variant="symbol"
@@ -1509,6 +1513,6 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
           </Dialog.Content>
         </div>
       </Dialog.Portal>
-    </Dialog.Root>
+    </DialogRoot>
   );
 }

@@ -1,13 +1,16 @@
-import { selectorCatalog } from "./provider/selector-catalog";
-import { compatibleSettings } from "./provider/compatible-text";
-import { isTextProfile, supportsTextProvider } from "./provider/model-registry";
-import { and, eq } from "drizzle-orm";
+import { readRequestLatencies } from "./provider/request-latency";
+import { defaultGenerationModels, selectedGenerationModel } from "./provider/selected-models";
+import { selectorCatalog, selectorModelDates } from "./provider/selector-catalog";
+import { readModelLatencies } from "./provider/model-latency";
+import { compatibleSettings, textGatewaySettings } from "./provider/compatible-text";
+import { discoveredModel, discoveredModelId, getTextProfile, isTextProfile, supportsTextProvider, upstreamModelName } from "./provider/model-registry";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   buildFeatureModelSettingViews,
-  defaultEditableModels,
   compatibleModelChain,
   modelFeature,
   modelSettingSchema,
+  modelAllowedForFeature,
   type FeatureModelSettingView,
   type ModelFeature,
   type StoredModelSettingRow,
@@ -70,18 +73,17 @@ async function readStoredModelSetting(
   feature: ModelFeature,
 ): Promise<StoredModelSettingRow | null> {
   if (testReaderOverride) {
-    return testReaderOverride(feature);
+    return await testReaderOverride(feature) ?? await testReaderOverride("global-default");
   }
   const handle = await resolveDatabaseHandle();
   if (!handle) {
     return null;
   }
-  const [row] = await handle.db
+  const rows = await handle.db
     .select()
     .from(handle.aiModelSettings)
-    .where(eq(handle.aiModelSettings.feature, feature))
-    .limit(1);
-  return row ?? null;
+    .where(inArray(handle.aiModelSettings.feature, [feature, "global-default"]));
+  return rows.find(row => row.feature === feature) ?? rows.find(row => row.feature === "global-default") ?? null;
 }
 
 /** Read on each new request so all instances see committed admin changes. */
@@ -94,11 +96,12 @@ export async function configuredModelChain(
   },
   defaults: readonly ModelId[],
 ): Promise<readonly ModelId[]> {
+  const selectedDefaults = compatibleModelChain([...new Set([...defaults.filter(id => defaultGenerationModels.some(model => model === id)), ...defaultGenerationModels])], input);
   const feature = modelFeature(input.feature, input.useCase);
-  if (!feature) return defaults;
+  if (!feature) return selectedDefaults;
 
   const row = await readStoredModelSetting(feature);
-  if (!row) return defaults;
+  if (!row) return selectedDefaults;
 
   const parsed = modelSettingSchema.safeParse({
     feature: row.feature,
@@ -111,11 +114,11 @@ export async function configuredModelChain(
   // Several auxiliary tasks historically share the Zyra settings row.
   // Keep their native defaults when the row now specifies an answer provider.
   if (feature === "zyra" && parsed.data.models.some(isTextProfile) &&
-      (!supportsTextProvider(input.feature) || input.useCase === "chapter-summary")) return defaults;
-  const available = parsed.data.models.filter(profileAvailable);
-  return compatibleModelChain(available.length ? available : defaults, {
+      ((!supportsTextProvider(input.feature) && modelFeature(undefined, input.useCase) !== "zyra") || input.useCase === "chapter-summary")) return selectedDefaults;
+  const available = effectiveTrio(parsed.data.models).filter(profileAvailable);
+  return compatibleModelChain(available.length ? available : selectedDefaults, {
     visual: Boolean(input.visual),
-    fallbackModels: defaults,
+    fallbackModels: selectedDefaults,
     requireGenerateContent: Boolean(input.requireGenerateContent),
   });
 }
@@ -124,17 +127,38 @@ function profileAvailable(id: string) {
   return !isTextProfile(id) || Boolean(compatibleSettings(process.env, id));
 }
 
+function canonicalSettingModel(id: ModelId): ModelId {
+  if (!isTextProfile(id) || discoveredModel(id)) return id;
+  const profile = getTextProfile(id)!, settings = textGatewaySettings(process.env, id);
+  if (!settings || !["openai", "meta", "deepseek"].includes(profile.group)) return id;
+  return discoveredModelId(profile.group === "meta" ? "muse" : profile.group as "openai" | "deepseek", settings.model);
+}
+
+function effectiveTrio(models: readonly ModelId[]): [ModelId, ModelId, ModelId] {
+  const selected = models.map(canonicalSettingModel).filter(selectedGenerationModel);
+  const trio = [...new Set([...selected, ...defaultGenerationModels])];
+  return [trio[0], trio[1], trio[2]];
+}
+
 export async function listModelSettingViews(): Promise<FeatureModelSettingView[]> {
   const handle = await resolveDatabaseHandle();
   const rows = handle ? await handle.db.select().from(handle.aiModelSettings) : [];
   const catalog = await selectorCatalog();
+  const modelDates = selectorModelDates(), modelLatencies = await readModelLatencies();
+  const requestLatencies = handle ? await readRequestLatencies().catch(() => ({})) : {};
+  const globalRow = rows.find(row => row.feature === "global-default");
+  const inherited = globalRow ? effectiveTrio(globalRow.models as ModelId[]) : defaultGenerationModels;
   return buildFeatureModelSettingViews(rows).map(view => ({
     ...view,
-    modelLabels: Object.fromEntries(view.selectableModels.flatMap(id => {
-      const settings = isTextProfile(id) && compatibleSettings(process.env, id);
+    modelDates, modelLatencies, requestLatencies,
+    models: view.isCustom ? effectiveTrio(view.models) : [...inherited] as [ModelId, ModelId, ModelId],
+    runtimeDefaultModels: globalRow && view.feature !== "global-default" ? inherited : [...new Set([...view.runtimeDefaultModels.filter(id => defaultGenerationModels.some(model => model === id)), ...defaultGenerationModels])],
+    editableDefaultModels: view.feature === "global-default" ? defaultGenerationModels : inherited,
+    modelLabels: Object.fromEntries([...new Set([...catalog, ...view.models.map(canonicalSettingModel)])].flatMap(id => {
+      const settings = isTextProfile(id) && textGatewaySettings(process.env, id);
       return settings ? [[id, settings.model]] : [];
     })),
-    selectableModels: view.selectableModels.filter(id => catalog.has(id)),
+    selectableModels: [...catalog].filter(id => modelAllowedForFeature(view.feature, id)),
   }));
 }
 
@@ -161,6 +185,11 @@ export async function saveModelSetting(input: {
   const { db, aiModelSettings } = handle;
   const now = new Date();
   const nextModels = [...parsed.data.models];
+  const identities = nextModels.map(id => {
+    const canonical = canonicalSettingModel(id);
+    return `${getTextProfile(canonical)?.group ?? "gemini"}:${upstreamModelName(canonical)}`;
+  });
+  if (new Set(identities).size !== 3) throw new Error("Pilih tiga model berbeda.");
   const available = await selectorCatalog();
 
   return db.transaction(async (tx) => {
@@ -177,7 +206,8 @@ export async function saveModelSetting(input: {
       }
     }
 
-    const previous = existing?.models ?? defaultEditableModels(parsed.data.feature);
+    const previous = existing ? effectiveTrio(existing.models as ModelId[]) : defaultGenerationModels;
+    if (nextModels.some(id => !selectedGenerationModel(canonicalSettingModel(id)))) throw new Error("Model belum tersedia dalam katalog aktif.");
     if (nextModels.some((id, index) => previous[index] !== id && !available.has(id))) {
       throw new Error("Model belum tersedia. Muat ulang daftar model.");
     }
