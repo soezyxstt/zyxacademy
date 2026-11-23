@@ -80,6 +80,10 @@
     "settings": "Settings"
   },
   "preferences": {
+    "downloadApp": "Download app",
+    "appIntroTitle": "Get Zyx Academy on your device",
+    "appIntroDescription": "Install the app to open Zyx directly from your device.",
+    "appIntroLater": "Maybe later",
     "appearance": "Appearance",
     "email": "Email notifications",
     "interface": "Display and language",

@@ -37,6 +37,10 @@ For other targets, inspect their complete history and schema independently. The 
 
 ## Nightly native app releases
 
+The public marketing page `/download` reads GitHub Releases with five-minute revalidation. The configured staging origin selects Nightly. Production selects Stable. Version, release notes and installers come from one release. Windows, Android and Linux downloads require the corresponding asset. macOS and iPhone remain disabled.
+
+For a Stable rollback, mark the intended stable app release as Latest on GitHub. For a Nightly rollback, withdraw newer published Nightlies or publish a new Nightly built from the intended revision. A web deployment rollback alone does not change GitHub release selection.
+
 Run **Release Apps (Desktop & Mobile)** manually from `staging` with the `nightly` channel. Web-only changes take effect through the staging web deployment. Reserve a native release for changes to the wrapper, native plugins, or bundled offline assets.
 
 The workflow builds the existing APK, Windows NSIS installer, macOS Apple Silicon DMG, and Linux AppImage and Debian packages. It also collects signed Tauri updater artifacts when the existing signing keys are configured. For each package, it compares up to the two most recent published Nightlies and uploads a version-specific patch when it saves at least 20% of the full download. The workflow publishes full packages for initial installation and recovery.

@@ -96,6 +96,7 @@ export function isNativeUserAgent(userAgent: string | null | undefined): boolean
 const NATIVE_MARKETING_EXACT_PATHS = new Set([
   "/",
   "/about",
+  "/download",
   "/plans",
   "/testimonial",
   "/blog",

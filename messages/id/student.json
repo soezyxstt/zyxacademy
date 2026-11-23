@@ -80,6 +80,10 @@
     "settings": "Pengaturan"
   },
   "preferences": {
+    "downloadApp": "Unduh aplikasi",
+    "appIntroTitle": "Zyx Academy tersedia untuk perangkatmu",
+    "appIntroDescription": "Pasang aplikasi untuk membuka Zyx langsung dari perangkatmu.",
+    "appIntroLater": "Nanti saja",
     "appearance": "Tampilan",
     "email": "Notifikasi email",
     "interface": "Tampilan dan bahasa",

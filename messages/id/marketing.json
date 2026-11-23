@@ -6,6 +6,7 @@
     "schedule": "{component}: {percent}% off, {start} sampai {end} WIB."
   },
   "nav": {
+    "download": "Unduh",
     "plans": "Paket",
     "about": "Tentang kami",
     "testimonials": "Testimoni",
@@ -31,6 +32,15 @@
     "adminPanel": "Panel Admin",
     "signInGoogle": "Masuk dengan Google",
     "signIn": "Login"
+  },
+  "download": {
+    "verb": "Unduh",
+    "platforms": "Pilih platform",
+    "title": "Unduh Zyx Academy",
+    "description": "Pasang Zyx Academy di komputer atau ponsel Anda.",
+    "unavailable": "Belum tersedia",
+    "error": "Rilis gagal dimuat. Muat ulang halaman untuk mencoba lagi.",
+    "empty": "Rilis {channel} belum tersedia."
   },
   "footer": {
     "description": "Zyx Academy membantu mahasiswa S1 ITB tahun pertama dan kedua (TPB dan jurusan) menguasai materi dengan modul selaras kampus, latihan terarah, dan tutorial bersama tutor ITB.",
