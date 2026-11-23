@@ -1,7 +1,5 @@
-import { notFound } from "next/navigation";
 import { Megaphone } from "lucide-react";
 import { pageTitle } from "@/lib/site";
-import { env } from "@/lib/env";
 import { getPkaAnnouncementsAction } from "../actions";
 import { AnnouncementsTab } from "../_components/announcements-tab";
 import { AdminPageHeader } from "@/components/admin/page-header";
@@ -18,7 +16,6 @@ export async function generateMetadata() {
 
 export default async function TutorialPkaAnnouncementsPage() {
   const t = await getTranslations("adminOps");
-  if (env.FEATURE_PKA !== "1") notFound();
 
   const announcements = await getPkaAnnouncementsAction();
 

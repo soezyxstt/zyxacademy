@@ -1,7 +1,5 @@
-import { notFound } from "next/navigation";
 import { UserCheck } from "lucide-react";
 import { pageTitle } from "@/lib/site";
-import { env } from "@/lib/env";
 import { getPkaRegistrationsAction } from "../actions";
 import { RegistrationsTab } from "../_components/registrations-tab";
 import { AdminPageHeader } from "@/components/admin/page-header";
@@ -18,7 +16,6 @@ export async function generateMetadata() {
 
 export default async function TutorialPkaRegistrationsPage() {
   const t = await getTranslations("adminOps");
-  if (env.FEATURE_PKA !== "1") notFound();
 
   const registrations = await getPkaRegistrationsAction();
 

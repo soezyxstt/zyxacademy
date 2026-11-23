@@ -25,9 +25,9 @@ describe("Zyx Ops AI Tools & Schema Introspection", () => {
   });
 
   it("handles navigate_admin tool properly", async () => {
-    const res = await executeToolCall("navigate_admin", { destination: "flags" });
+    const res = await executeToolCall("navigate_admin", { destination: "Monitor Ops" });
     expect(res.data).toBeDefined();
-    expect((res.data as any).href).toBe("/admin/ops/flags");
+    expect((res.data as any).href).toBe("/admin/ops");
   });
 
   it("generates a structured proposal for create_token", async () => {
@@ -42,16 +42,9 @@ describe("Zyx Ops AI Tools & Schema Introspection", () => {
     expect(res.proposal?.params.capacity).toBe(4);
   });
 
-  it("generates a structured proposal for toggle_flag", async () => {
-    const res = await executeToolCall("propose_toggle_flag", {
-      flagKey: "FEATURE_PKA",
-      enabled: "true",
-      reason: "Testing toggle flag",
-    });
-
-    expect(res.proposal).toBeDefined();
-    expect(res.proposal?.params.flagKey).toBe("FEATURE_PKA");
-    expect(res.proposal?.params.enabled).toBe(true);
+  it("does not propose feature flag mutations", async () => {
+    const result = await executeToolCall("propose_toggle_flag", {});
+    expect(result.proposal).toBeUndefined();
   });
 });
 
@@ -318,20 +311,14 @@ describe("Zyx Ops AI - Expanded Autonomous & Query Tools", () => {
   });
 
   describe("Ops, Feature Flags & Short Links", () => {
-    it("reads and toggles feature flags", async () => {
+    it("reads retained feature flags without exposing a mutation", async () => {
       const flagsRes = await executeOpsAiTool("get_feature_flags", {}, adminContext);
       expect(flagsRes.summary).toContain("Feature Flags");
-
-      const toggleRes = await executeOpsAiTool(
-        "set_feature_flag",
-        {
-          flagKey: "FEATURE_PKA",
-          enabled: true,
-          reason: "Diaktifkan via test",
-        },
-        adminContext
-      );
-      expect(toggleRes.summary).toContain("berhasil diubah");
+      expect(flagsRes.data).toEqual(expect.arrayContaining([
+        expect.objectContaining({ key: "FEATURE_DRIVE_EDITOR_SYNC" }),
+        expect.objectContaining({ key: "FEATURE_STRUCTURED_ARTICLE_READER_V1" }),
+      ]));
+      await expect(executeOpsAiTool("set_feature_flag", {}, adminContext)).rejects.toThrow("tidak terdaftar");
     });
 
     it("creates a short redirect link", async () => {

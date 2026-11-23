@@ -1,7 +1,5 @@
 import { StudentCourseCatalogView } from "@/components/course/student-course-catalog-view";
 import type { Metadata } from "next";
-import { PKA_COURSE_ID } from "@/lib/pka-config";
-import { env } from "@/lib/env";
 import { createMetadata} from "@/lib/site";
 import { getAuthSession } from "@/lib/auth-session";
 import { db } from "@/db";
@@ -75,7 +73,7 @@ export default async function CoursesPage() {
     "graph-test-course",
   ]);
   const courses = dbCourses.filter(
-    (c) => !TEST_COURSE_IDS.has(c.id) && (c.id !== PKA_COURSE_ID || env.FEATURE_PKA === "1")
+    (c) => !TEST_COURSE_IDS.has(c.id)
   );
 
   const coursesWithStats = await attachCourseCatalogStats(courses);

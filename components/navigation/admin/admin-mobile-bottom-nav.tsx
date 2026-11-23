@@ -58,7 +58,7 @@ export function AdminMobileBottomNav() {
         id: "ops",
         label: tMobile("ops"),
         icon: Gauge,
-        href: "/admin/ops",
+        href: "/admin/ops/web-analytics",
         active: activeTab === "ops",
       },
       {

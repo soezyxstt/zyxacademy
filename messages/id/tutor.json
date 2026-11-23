@@ -25,7 +25,11 @@
     "quizzes": "Kuis",
     "quizGrading": "Penilaian kuis",
     "liveQuiz": "Kuis langsung",
-    "tryoutGrading": "Penilaian tryout"
+    "tryoutGrading": "Penilaian tryout",
+    "backToTeaching": "Kembali ke Pengajaran",
+    "switchCourse": "Ganti mata kuliah",
+    "groupClass": "Kelas",
+    "groupEvaluation": "Evaluasi"
   },
   "mobile": {
     "bottomNavLabel": "Navigasi pengajar",

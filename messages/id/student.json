@@ -28,7 +28,13 @@
     "diagnosticReport": "Laporan Diagnostik",
     "materials": "Materi",
     "streak": "{count, plural, one {Streak: # hari} other {Streak: # hari}}",
-    "achievements": "Pencapaian"
+    "achievements": "Pencapaian",
+    "groupCommunity": "Komunitas",
+    "groupLearn": "Belajar",
+    "groupPractice": "Latihan",
+    "groupClassProgress": "Kelas & Progres",
+    "groupPkaProgram": "Program PKA",
+    "groupPkaPractice": "Latihan & Materi"
   },
   "mobile": {
     "openNavigation": "Buka navigasi",

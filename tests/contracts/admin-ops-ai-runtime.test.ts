@@ -453,9 +453,9 @@ describe("Admin Ops AI Runtime - CP3 Native Streaming Agent & Contracts", () => 
       expect(tokenNav.summary).toContain("Token Aktivasi");
       expect((tokenNav.data as any).href).toBe("/admin/tokens");
 
-      const flagsNav = await executeOpsAiTool("navigate_admin", { destination: "flags" });
-      expect(flagsNav.summary).toContain("Feature Flags");
-      expect((flagsNav.data as any).href).toBe("/admin/ops/flags");
+      const opsNav = await executeOpsAiTool("navigate_admin", { destination: "Monitor Ops" });
+      expect(opsNav.summary).toContain("Monitor Ops");
+      expect(opsNav.data).toMatchObject({ href: "/admin/ops" });
     });
 
     it("executes search_users tool and enforces PII minimum projection", async () => {

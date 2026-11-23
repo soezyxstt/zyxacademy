@@ -3,7 +3,6 @@ import {
   chatSessions,
   flashcardReviews,
   liveQuizResults,
-  percobaanAsesmen,
   studentMaterialProgress,
   studentQuizAttempts,
   tutorChatMessages,
@@ -23,10 +22,14 @@ export function resolveFeatureUsageRange(value: string | undefined): FeatureUsag
 }
 
 export type FeatureUsageRow = {
-  key: string;
+  key: "materi" | "flashcard" | "kuis" | "kuisLive" | "zyra";
   label: string;
   events: number;
+  previousEvents: number;
+  trendPercent: number | null;
   users: number;
+  adoptionPercent: number;
+  eventsPerUser: number;
   lastUsedAt: string | null;
   detailCount?: number;
 };
@@ -36,7 +39,6 @@ export type FeatureUsageDailyPoint = {
   materi: number;
   flashcard: number;
   kuis: number;
-  asesmen: number;
   kuisLive: number;
   zyra: number;
 };
@@ -48,9 +50,17 @@ export type FeatureUsageMetrics = {
   daily: FeatureUsageDailyPoint[];
   totals: {
     events: number;
+    previousEvents: number;
+    trendPercent: number | null;
     activeUsers: number;
+    topFeatureKey: FeatureUsageRow["key"] | null;
     topFeatureLabel: string | null;
     topFeatureSharePercent: number | null;
+  };
+  insights: {
+    fastestGrowing: { key: FeatureUsageRow["key"]; trendPercent: number } | null;
+    highestAdoption: { key: FeatureUsageRow["key"]; adoptionPercent: number } | null;
+    needsAttention: { key: FeatureUsageRow["key"]; adoptionPercent: number; events: number } | null;
   };
 };
 
@@ -60,8 +70,13 @@ const isoFromEpochSeconds = (value: unknown): string | null => {
   return seconds > 0 ? new Date(seconds * 1000).toISOString() : null;
 };
 
+const calcTrendPercent = (current: number, previous: number): number | null => {
+  if (previous <= 0) return null;
+  return Math.round(((current - previous) / previous) * 100);
+};
+
 const withinWindow = (column: AnyColumn, startEpochSeconds: number, endEpochSeconds: number) =>
-  sql`${column} >= to_timestamp(${startEpochSeconds}) and ${column} <= to_timestamp(${endEpochSeconds})`;
+  sql`${column} >= to_timestamp(${startEpochSeconds}) and ${column} < to_timestamp(${endEpochSeconds})`;
 
 const maxEpochSeconds = (column: AnyColumn) =>
   sql<number>`extract(epoch from max(${column}))`;
@@ -76,29 +91,35 @@ export function featureUsageDailyDates(rangeDays: FeatureUsageRange, now: Date):
 }
 
 /**
- * Cross-feature student usage read model. Aggregates existing per-domain
- * tables into one ranked view; it does not introduce new event writes.
+ * Cross-feature student usage read model. Aggregates active learning domain
+ * tables (excluding retired V1/V2/V3 assessments) with period-over-period
+ * trends, student adoption rate, and per-user depth.
  */
 export async function getFeatureUsageMetrics(
   rangeDays: FeatureUsageRange
 ): Promise<FeatureUsageMetrics> {
   const now = new Date();
   const windowStart = elapsedDaysAgo(rangeDays, now);
+  const prevWindowStart = elapsedDaysAgo(rangeDays * 2, now);
   const startEpochSeconds = windowStart.getTime() / 1000;
   const endEpochSeconds = now.getTime() / 1000;
+  const prevStartEpochSeconds = prevWindowStart.getTime() / 1000;
 
   const [
     materiStats,
     flashcardStats,
     quizStats,
-    assessmentStats,
     liveQuizStats,
     zyraMessageStats,
     zyraSessionStats,
+    prevMateriStats,
+    prevFlashcardStats,
+    prevQuizStats,
+    prevLiveQuizStats,
+    prevZyraStats,
     materiDaily,
     flashcardDaily,
     quizDaily,
-    assessmentDaily,
     liveQuizDaily,
     zyraDaily,
     activeUserIds,
@@ -134,16 +155,6 @@ export async function getFeatureUsageMetrics(
     db
       .select({
         events: sql<number>`count(*)`,
-        submitted: sql<number>`sum(case when ${percobaanAsesmen.submittedAt} is not null then 1 else 0 end)`,
-        users: sql<number>`count(distinct ${percobaanAsesmen.penggunaId})`,
-        lastUsedAt: maxEpochSeconds(percobaanAsesmen.createdAt),
-      })
-      .from(percobaanAsesmen)
-      .where(withinWindow(percobaanAsesmen.createdAt, startEpochSeconds, endEpochSeconds)),
-
-    db
-      .select({
-        events: sql<number>`count(*)`,
         users: sql<number>`count(distinct ${liveQuizResults.studentId})`,
         lastUsedAt: maxEpochSeconds(liveQuizResults.completedAt),
       })
@@ -169,6 +180,33 @@ export async function getFeatureUsageMetrics(
       .from(chatSessions)
       .where(withinWindow(chatSessions.startedAt, startEpochSeconds, endEpochSeconds)),
 
+    // Previous period counts for trend calculation
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(studentMaterialProgress)
+      .where(withinWindow(studentMaterialProgress.lastOpenedAt, prevStartEpochSeconds, startEpochSeconds)),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(flashcardReviews)
+      .where(withinWindow(flashcardReviews.reviewedAt, prevStartEpochSeconds, startEpochSeconds)),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(studentQuizAttempts)
+      .where(withinWindow(studentQuizAttempts.startedAt, prevStartEpochSeconds, startEpochSeconds)),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(liveQuizResults)
+      .where(withinWindow(liveQuizResults.completedAt, prevStartEpochSeconds, startEpochSeconds)),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(tutorChatMessages)
+      .where(
+        and(
+          eq(tutorChatMessages.role, "student"),
+          withinWindow(tutorChatMessages.createdAt, prevStartEpochSeconds, startEpochSeconds)
+        )
+      ),
+
     db
       .select({ date: dayExpr(studentMaterialProgress.lastOpenedAt), count: sql<number>`count(*)` })
       .from(studentMaterialProgress)
@@ -186,12 +224,6 @@ export async function getFeatureUsageMetrics(
       .from(studentQuizAttempts)
       .where(withinWindow(studentQuizAttempts.startedAt, startEpochSeconds, endEpochSeconds))
       .groupBy(dayExpr(studentQuizAttempts.startedAt)),
-
-    db
-      .select({ date: dayExpr(percobaanAsesmen.createdAt), count: sql<number>`count(*)` })
-      .from(percobaanAsesmen)
-      .where(withinWindow(percobaanAsesmen.createdAt, startEpochSeconds, endEpochSeconds))
-      .groupBy(dayExpr(percobaanAsesmen.createdAt)),
 
     db
       .select({ date: dayExpr(liveQuizResults.completedAt), count: sql<number>`count(*)` })
@@ -224,10 +256,6 @@ export async function getFeatureUsageMetrics(
         .from(studentQuizAttempts)
         .where(withinWindow(studentQuizAttempts.startedAt, startEpochSeconds, endEpochSeconds)),
       db
-        .selectDistinct({ id: percobaanAsesmen.penggunaId })
-        .from(percobaanAsesmen)
-        .where(withinWindow(percobaanAsesmen.createdAt, startEpochSeconds, endEpochSeconds)),
-      db
         .selectDistinct({ id: liveQuizResults.studentId })
         .from(liveQuizResults)
         .where(withinWindow(liveQuizResults.completedAt, startEpochSeconds, endEpochSeconds)),
@@ -236,61 +264,79 @@ export async function getFeatureUsageMetrics(
         .from(tutorChatMessages)
         .where(
           and(
-          eq(tutorChatMessages.role, "student"),
-          withinWindow(tutorChatMessages.createdAt, startEpochSeconds, endEpochSeconds)
-        )
+            eq(tutorChatMessages.role, "student"),
+            withinWindow(tutorChatMessages.createdAt, startEpochSeconds, endEpochSeconds)
+          )
         ),
     ]),
   ]);
 
+  const uniqueActiveUsers = new Set<string>();
+  for (const source of activeUserIds) {
+    for (const row of source) uniqueActiveUsers.add(row.id);
+  }
+  const activeUsersCount = uniqueActiveUsers.size;
+
+  const makeRow = (input: {
+    key: FeatureUsageRow["key"];
+    label: string;
+    events: number;
+    previousEvents: number;
+    users: number;
+    lastUsedAt: string | null;
+    detailCount?: number;
+  }): FeatureUsageRow => ({
+    ...input,
+    trendPercent: calcTrendPercent(input.events, input.previousEvents),
+    adoptionPercent: activeUsersCount > 0 ? Math.round((input.users / activeUsersCount) * 100) : 0,
+    eventsPerUser: input.users > 0 ? Number((input.events / input.users).toFixed(1)) : 0,
+  });
+
   const newZyraSessions = num(zyraSessionStats[0]?.count);
 
   const rows: FeatureUsageRow[] = [
-    {
+    makeRow({
       key: "materi",
       label: "Materi & Dokumen",
       events: num(materiStats[0]?.events),
+      previousEvents: num(prevMateriStats[0]?.events),
       users: num(materiStats[0]?.users),
       lastUsedAt: isoFromEpochSeconds(materiStats[0]?.lastUsedAt),
-    },
-    {
+    }),
+    makeRow({
       key: "flashcard",
       label: "Flashcard",
       events: num(flashcardStats[0]?.events),
+      previousEvents: num(prevFlashcardStats[0]?.events),
       users: num(flashcardStats[0]?.users),
       lastUsedAt: isoFromEpochSeconds(flashcardStats[0]?.lastUsedAt),
-    },
-    {
+    }),
+    makeRow({
       key: "kuis",
       label: "Kuis Mandiri",
       events: num(quizStats[0]?.events),
+      previousEvents: num(prevQuizStats[0]?.events),
       users: num(quizStats[0]?.users),
       lastUsedAt: isoFromEpochSeconds(quizStats[0]?.lastUsedAt),
       detailCount: num(quizStats[0]?.completed),
-    },
-    {
-      key: "asesmen",
-      label: "Asesmen v2",
-      events: num(assessmentStats[0]?.events),
-      users: num(assessmentStats[0]?.users),
-      lastUsedAt: isoFromEpochSeconds(assessmentStats[0]?.lastUsedAt),
-      detailCount: num(assessmentStats[0]?.submitted),
-    },
-    {
+    }),
+    makeRow({
       key: "kuisLive",
       label: "Kuis Live Kelas",
       events: num(liveQuizStats[0]?.events),
+      previousEvents: num(prevLiveQuizStats[0]?.events),
       users: num(liveQuizStats[0]?.users),
       lastUsedAt: isoFromEpochSeconds(liveQuizStats[0]?.lastUsedAt),
-    },
-    {
+    }),
+    makeRow({
       key: "zyra",
       label: "Zyra Chat",
       events: num(zyraMessageStats[0]?.events),
+      previousEvents: num(prevZyraStats[0]?.events),
       users: num(zyraMessageStats[0]?.users),
       lastUsedAt: isoFromEpochSeconds(zyraMessageStats[0]?.lastUsedAt),
       detailCount: newZyraSessions,
-    },
+    }),
   ].sort((a, b) => b.events - a.events || a.label.localeCompare(b.label));
 
   const dailyByDate = new Map<string, FeatureUsageDailyPoint>();
@@ -300,7 +346,6 @@ export async function getFeatureUsageMetrics(
       materi: 0,
       flashcard: 0,
       kuis: 0,
-      asesmen: 0,
       kuisLive: 0,
       zyra: 0,
     });
@@ -319,17 +364,35 @@ export async function getFeatureUsageMetrics(
   applyDaily(materiDaily, "materi");
   applyDaily(flashcardDaily, "flashcard");
   applyDaily(quizDaily, "kuis");
-  applyDaily(assessmentDaily, "asesmen");
   applyDaily(liveQuizDaily, "kuisLive");
   applyDaily(zyraDaily, "zyra");
 
-  const uniqueActiveUsers = new Set<string>();
-  for (const source of activeUserIds) {
-    for (const row of source) uniqueActiveUsers.add(row.id);
-  }
-
   const totalEvents = rows.reduce((sum, row) => sum + row.events, 0);
+  const totalPreviousEvents = rows.reduce((sum, row) => sum + row.previousEvents, 0);
   const topRow = rows[0];
+
+  const growingRows = rows
+    .filter((r) => r.events > 0 && r.trendPercent !== null && r.trendPercent > 0)
+    .sort((a, b) => (b.trendPercent ?? 0) - (a.trendPercent ?? 0));
+  const fastestGrowing = growingRows[0]
+    ? { key: growingRows[0].key, trendPercent: growingRows[0].trendPercent! }
+    : null;
+
+  const byAdoptionDesc = [...rows].sort((a, b) => b.adoptionPercent - a.adoptionPercent || b.events - a.events);
+  const highestAdoption =
+    byAdoptionDesc[0] && byAdoptionDesc[0].adoptionPercent > 0
+      ? { key: byAdoptionDesc[0].key, adoptionPercent: byAdoptionDesc[0].adoptionPercent }
+      : null;
+
+  const byAdoptionAsc = [...rows].sort((a, b) => a.adoptionPercent - b.adoptionPercent || a.events - b.events);
+  const needsAttention =
+    activeUsersCount > 0 && byAdoptionAsc[0]
+      ? {
+          key: byAdoptionAsc[0].key,
+          adoptionPercent: byAdoptionAsc[0].adoptionPercent,
+          events: byAdoptionAsc[0].events,
+        }
+      : null;
 
   return {
     rangeDays,
@@ -338,12 +401,20 @@ export async function getFeatureUsageMetrics(
     daily: Array.from(dailyByDate.values()),
     totals: {
       events: totalEvents,
-      activeUsers: uniqueActiveUsers.size,
+      previousEvents: totalPreviousEvents,
+      trendPercent: calcTrendPercent(totalEvents, totalPreviousEvents),
+      activeUsers: activeUsersCount,
+      topFeatureKey: topRow && topRow.events > 0 ? topRow.key : null,
       topFeatureLabel: topRow && topRow.events > 0 ? topRow.label : null,
       topFeatureSharePercent:
         topRow && topRow.events > 0 && totalEvents > 0
           ? Math.round((topRow.events / totalEvents) * 100)
           : null,
+    },
+    insights: {
+      fastestGrowing,
+      highestAdoption,
+      needsAttention,
     },
   };
 }

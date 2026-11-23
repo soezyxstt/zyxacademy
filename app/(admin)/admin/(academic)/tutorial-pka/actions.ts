@@ -6,7 +6,6 @@ import { and, desc, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { enrollments, pkaAnnouncements, pkaRegistrations, pkaSchedules, user } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { env } from "@/lib/env";
 import { storage } from "@/lib/storage";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { sendToMany } from "@/lib/notifications/send";
@@ -31,13 +30,6 @@ async function requireAdmin() {
     throw new Error("Unauthorized - admin only");
   }
   return session.user;
-}
-
-function requirePkaFeature(): string | null {
-  if (env.FEATURE_PKA !== "1") {
-    return "Fitur Tutorial PKA sedang tidak aktif.";
-  }
-  return null;
 }
 
 async function getAllEnrolledStudents() {
@@ -70,9 +62,6 @@ export async function createAndSendPkaAnnouncementAction(
 ): Promise<PkaActionState> {
   try {
     const admin = await requireAdmin();
-
-    const featureError = requirePkaFeature();
-    if (featureError) return { error: featureError };
 
     const title = formData.get("title")?.toString().trim() ?? "";
     const body = formData.get("body")?.toString().trim() ?? "";
@@ -171,9 +160,6 @@ export async function archivePkaAnnouncementAction(
   try {
     await requireAdmin();
 
-    const featureError = requirePkaFeature();
-    if (featureError) return { error: featureError };
-
     await db
       .update(pkaAnnouncements)
       .set({ isArchived: archive })
@@ -192,9 +178,6 @@ export async function togglePinPkaAnnouncementAction(
 ): Promise<PkaActionState> {
   try {
     await requireAdmin();
-
-    const featureError = requirePkaFeature();
-    if (featureError) return { error: featureError };
 
     await db
       .update(pkaAnnouncements)
@@ -215,9 +198,6 @@ export async function editPkaAnnouncementAction(
 ): Promise<PkaActionState> {
   try {
     await requireAdmin();
-
-    const featureError = requirePkaFeature();
-    if (featureError) return { error: featureError };
 
     await db
       .update(pkaAnnouncements)
@@ -265,9 +245,6 @@ export async function createPkaScheduleAction(
 ): Promise<PkaActionState> {
   try {
     const admin = await requireAdmin();
-
-    const featureError = requirePkaFeature();
-    if (featureError) return { error: featureError };
 
     const parsed = parseScheduleForm(formData);
     if ("error" in parsed) return { error: parsed.error };
@@ -342,9 +319,6 @@ export async function updatePkaScheduleAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await requireAdmin();
-
-    const featureError = requirePkaFeature();
-    if (featureError) return { success: false, error: featureError };
 
     const parsed = parseScheduleForm(formData);
     if ("error" in parsed) return { success: false, error: parsed.error };

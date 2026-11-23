@@ -33,7 +33,7 @@ Every feature change must check the affected workflow against MCP tools, scopes,
 2. For Next.js APIs, routing, or framework behavior, read the relevant guide in `node_modules/next/dist/docs/` first. This project uses Next.js 16.3 and its APIs may differ from older examples.
 3. Search for an existing route, server action, helper, component, feature flag, and test before creating a new one.
 4. Read the relevant document in `docs/` before changing a documented contract.
-5. If a new user-facing capability or material behavior change could be always-on or flag-gated, ask before implementing it. A flag needs a key, rationale, default, scope, rollback path, owner, and removal condition. Do not add or remove a `FEATURE_*` flag silently.
+5. Foundational capabilities are always-on by default. If a new capability or material change could be always-on or flag-gated, ask before implementing it. A flag needs a key, rationale, default, scope, rollback path, owner, and removal condition. Check `lib/feature-flags.ts` for existing operational gates and obtain approval before adding or removing a flag.
 
 ## Source of truth map
 
@@ -56,7 +56,9 @@ Every feature change must check the affected workflow against MCP tools, scopes,
 
 ## Repository invariants
 
-- The application uses Next.js, React, Bun scripts, Drizzle, Better Auth, Inngest, and Gemini provider adapters. Follow the existing adapter and environment boundaries.
+- The application uses Next.js, React, Bun scripts, Drizzle, Better Auth, Inngest, and multi-provider AI adapters via Cloudflare AI Gateway. Follow the existing adapter and environment boundaries.
+- Desktop sidebars (`StudentSidebar`, `TutorSidebar`, `AdminSidebar`) use a unified context-switching layout on `DesktopSidebarShell`: clean top chrome without browser Back/Forward buttons, `SidebarBackLink` plus a unified course switcher in course mode, semantic `NavGroup` sections, and `SquareTerminal` for Admin Ops AI. Mobile navigation uses its own components.
+- Admin monitoring and analytics prioritize `Web Analytics` first on both desktop and mobile. Retired V1, V2, and V3 assessments are excluded from feature usage metrics, and AI telemetry relies on AI Gateway analytics rather than static per-model RPD limit tables.
 - Staging and production use separate Neon PostgreSQL branches. The adapter requires PostgreSQL, including local development and CI; it never falls back to SQLite or Turso. Verify the exact branch and environment before any database action.
 - Staging and production explicitly use separate private Neon object-storage buckets with `STORAGE_PROVIDER_MODE=neon`. R2 remains the adapter default when no mode is set, not the serving production configuration. UploadThing remains only where its compatibility call paths still exist. Preserve source Turso/R2 and the rollback units in `docs/operations/neon-migration.md` and `docs/operations/neon-production-cutover.md`.
 - Canonical retrieval uses the current Vectorize adapter and namespace. Do not delete legacy vector resources or change the retrieval cutover as part of an unrelated task.

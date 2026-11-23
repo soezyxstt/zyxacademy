@@ -1,7 +1,5 @@
-import { notFound } from "next/navigation";
 import { CalendarDays } from "lucide-react";
 import { pageTitle } from "@/lib/site";
-import { env } from "@/lib/env";
 import { getPkaSchedulesAction } from "../actions";
 import { SchedulesTab } from "../_components/schedules-tab";
 import { AdminPageHeader } from "@/components/admin/page-header";
@@ -18,7 +16,6 @@ export async function generateMetadata() {
 
 export default async function TutorialPkaSchedulesPage() {
   const t = await getTranslations("adminOps");
-  if (env.FEATURE_PKA !== "1") notFound();
 
   const schedules = await getPkaSchedulesAction();
 

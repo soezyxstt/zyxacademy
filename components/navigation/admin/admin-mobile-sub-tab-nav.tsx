@@ -140,13 +140,12 @@ export function AdminMobileSubTabNav() {
 
     if (context === "ops") {
       const descriptors = buildAdminOpsSubTabs({
+        web: tTabs("web"),
         monitor: tTabs("monitor"),
-        tutor: tTabs("tutor"),
         zyra: tTabs("zyra"),
         usage: tTabs("usage"),
-        web: tTabs("web"),
+        tutor: tTabs("tutor"),
         models: tTabs("models"),
-        flags: tTabs("flags"),
         keys: tTabs("keys"),
       });
       return {

@@ -386,11 +386,7 @@ bun run db:push:prod
 
 ## PKA Campaign
 
-The PKA (Tutorial Akademik) campaign is a seasonal product. Deploy steps:
-1. Enable `FEATURE_PKA` in Vercel env
-2. Configure PKA stages via admin panel
-3. Seed quiz templates for each stage
-4. Enable registration window via admin announcements
+The PKA (Tutorial Akademik) campaign opens registration through admin announcements. To prepare a campaign, configure PKA stages in the admin panel, seed quiz templates for each stage, and open the registration window.
 
 ## Email Notification Preferences
 
@@ -522,7 +518,7 @@ The smoke validates one bounded synthetic spec, records masked resource fingerpr
 
 ## Zyra private images and operations
 
-Plan 010 keeps `FEATURE_ZYRA_IMAGE_INPUT_V1` absent or `0` until its staging gate is approved. Private attachment reads and deletes require the exact course and chat-session scope in addition to authenticated owner or admin authorization. The attachment composer supplies both scope values when deleting an unsent upload. The expiry sweeper is controlled and staging-only:
+To keep image input disabled before staging approval, set `FEATURE_ZYRA_IMAGE_INPUT_V1` and `NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1` to `0`. Private attachment reads and deletes require the exact course and chat-session scope in addition to authenticated owner or admin authorization. The attachment composer supplies both scope values when deleting an unsent upload. The expiry sweeper is controlled and staging-only:
 
 ```bash
 bun --env-file=.env.staging run staging:sweep-zyra-attachments -- --run-id <runId> --limit 100

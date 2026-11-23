@@ -404,16 +404,53 @@ export function NavCollapsible({
 
 
 
-export function NavGroup({ label, collapsed }: { label: string; collapsed: boolean }) {
+export function NavGroup({
+  label,
+  collapsed,
+  trailing,
+}: {
+  label: string;
+  collapsed: boolean;
+  trailing?: ReactNode;
+}) {
   if (collapsed) {
-    return <div className="h-2 w-full" />;
+    return <div className="my-1.5 w-5 border-t border-border/60 shrink-0" />;
   }
   return (
-    <div className="px-2.5 pt-2.5 pb-1">
-      <p className="text-[11px] font-semibold tracking-wider text-muted-foreground/80 uppercase font-sans">
+    <div className="flex items-center justify-between gap-1 px-2.5 pt-3 pb-1">
+      <p className="text-body-2xs font-semibold tracking-wider text-muted-foreground/80 uppercase font-sans truncate">
         {label}
       </p>
+      {trailing}
     </div>
+  );
+}
+
+export function SidebarBackLink({
+  href,
+  label,
+  collapsed,
+}: {
+  href: string;
+  label: string;
+  collapsed: boolean;
+}) {
+  return (
+    <SidebarTooltip label={label} collapsed={collapsed}>
+      <Link
+        href={href}
+        aria-label={collapsed ? label : undefined}
+        className={cn(
+          "flex items-center gap-2 rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          collapsed
+            ? "mx-auto size-10 shrink-0 justify-center px-0"
+            : "w-full px-2.5 py-1.5 text-body-xs font-medium"
+        )}
+      >
+        <ArrowLeft className={cn("shrink-0", collapsed ? "size-4" : "size-3.5")} />
+        {!collapsed && <span className="truncate">{label}</span>}
+      </Link>
+    </SidebarTooltip>
   );
 }
 

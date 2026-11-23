@@ -163,7 +163,9 @@
     "dailyRecommendations": "Daily recommendations",
     "analyticsSnapshots": "Course analytics snapshots",
     "studyPaths": "Study paths",
-    "checkedTotal": "{count} total requests today"
+    "checkedTotal": "{count} total requests today",
+    "aiGatewayHint": "Active models & latency telemetry",
+    "monitoringShortcuts": "Monitoring shortcuts"
   },
   "analytics": {
     "title": "Analytics",
@@ -189,6 +191,13 @@
     "activity": "Activity",
     "students": "Students",
     "contribution": "Contribution",
+    "trend": "Trend",
+    "adoption": "Adoption",
+    "depth": "Depth",
+    "vsPrevPeriod": "{delta} vs previous period",
+    "insightFastestGrowing": "Fastest growing",
+    "insightHighestAdoption": "Highest adoption",
+    "insightNeedsAttention": "Lowest adoption",
     "lastUsed": "Last used",
     "coverage": "Measurement coverage",
     "coverageItems": [
@@ -196,7 +205,7 @@
       "Command palette searches (Cmd+K) are not recorded on the server.",
       "Diktat downloads are available as a cumulative total without download times."
     ],
-    "publicVisits": "Public page visits are monitored through ",
+    "publicVisits": "See also:",
     "rangeLabel": "Feature usage time range",
     "range7": "Last 7 days",
     "range30": "Last 30 days",
@@ -207,7 +216,6 @@
       "materi": "Materials",
       "flashcard": "Flashcards",
       "kuis": "Self-study quizzes",
-      "asesmen": "Assessments v2",
       "kuisLive": "Live quizzes",
       "zyra": "Zyra Chat"
     },
@@ -218,7 +226,6 @@
       "materi": "Latest material progress",
       "flashcard": "Flashcard reviews",
       "kuis": "{count} attempts completed",
-      "asesmen": "{count} attempts submitted",
       "kuisLive": "Completed live quiz results",
       "zyra": "{count} new sessions"
     }
@@ -685,7 +692,9 @@
     "emptyDescription": "Stats accumulate while the server process is running. Trigger an inference operation (quiz generation, KO extraction, etc.) to see data here.",
     "previous": "Previous",
     "next": "Next",
-    "logPageSummary": "Showing {start} to {end} of {total} requests"
+    "logPageSummary": "Showing {start} to {end} of {total} requests",
+    "activeModels": "Active models",
+    "filterAll": "All"
   },
   "models": {
     "title": "AI models",
@@ -1089,7 +1098,7 @@
     "success": "Success",
     "rejected": "Rejected",
     "failed": "Failed",
-    "unclassified": "Unclassified",
+    "unclassified": "Logged",
     "startDate": "Start date",
     "endDate": "End date",
     "to": "to",
@@ -1137,13 +1146,25 @@
       "slot": "Tutor slot",
       "booking": "Session",
       "ticket": "Reschedule request",
-      "slotCreate": "Create slot",
-      "slotDelete": "Delete slot",
-      "slotCopy": "Copy slots from last week",
-      "sessionMove": "Move session",
-      "ticketCreate": "Create reschedule request",
-      "ticketDecide": "Respond to reschedule request",
-      "ticketMessage": "Send reschedule request message"
+      "chapter": "Chapter",
+      "course": "Course",
+      "productBundle": "Material bundle",
+      "tutorAssignment": "Tutor assignment",
+      "quiz": "Quiz",
+      "tryout": "Tryout",
+      "material": "Material",
+      "slotCreate": "Created slot",
+      "slotDelete": "Deleted slot",
+      "slotCopy": "Copied last week's slots",
+      "sessionMove": "Moved session",
+      "ticketCreate": "Created reschedule request",
+      "ticketDecide": "Responded to reschedule request",
+      "ticketMessage": "Sent reschedule message",
+      "created": "Created entry",
+      "updated": "Updated entry",
+      "deleted": "Deleted entry",
+      "draftCreated": "Created draft",
+      "assignmentUpdated": "Updated assignment"
     }
   },
   "formDetailsUI": {

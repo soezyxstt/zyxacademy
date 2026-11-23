@@ -72,7 +72,6 @@ const OPS_LABELS: AdminOpsSubTabLabels = {
   usage: "Usage",
   web: "Web",
   models: "Models",
-  flags: "Flags",
   keys: "Keys",
 };
 
@@ -297,17 +296,16 @@ describe("Admin Course, People, and Ops Sub-Tab Builders", () => {
     expect(isAdminSubTabActive(tabs[3], "/admin/pricing")).toBe(true);
   });
 
-  test("builds 8 Ops sub-tabs and excludes /admin/ops/short-links", () => {
+  test("prioritizes Web Analytics in the seven Ops sub-tabs and excludes short links", () => {
     const tabs = buildAdminOpsSubTabs(OPS_LABELS);
-    expect(tabs).toHaveLength(8);
+    expect(tabs).toHaveLength(7);
     expect(tabs.map((tab) => tab.label)).toEqual([
+      "Web",
       "Monitor",
-      "Tutor",
       "Zyra AI",
       "Usage",
-      "Web",
+      "Tutor",
       "Models",
-      "Flags",
       "Keys",
     ]);
 
@@ -315,7 +313,8 @@ describe("Admin Course, People, and Ops Sub-Tab Builders", () => {
     expect(isAdminOpsHubRoute("/admin/ops/models")).toBe(true);
     expect(isAdminOpsHubRoute("/admin/ops/short-links")).toBe(false);
 
-    expect(isAdminSubTabActive(tabs[0], "/admin/ops")).toBe(true);
+    expect(isAdminSubTabActive(tabs[0], "/admin/ops/web-analytics")).toBe(true);
+    expect(isAdminSubTabActive(tabs[1], "/admin/ops")).toBe(true);
     expect(isAdminSubTabActive(tabs[0], "/admin/ops/models")).toBe(false);
     expect(isAdminSubTabActive(tabs[5], "/admin/ops/models")).toBe(true);
   });

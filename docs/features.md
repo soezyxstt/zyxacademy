@@ -80,7 +80,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Creates and publishes course-scoped tryouts at `/admin/courses/[slug]/tryouts` from published question bank items; essay questions can accept typed responses and PDF or image attachments
 - Accesses Tutor Quiz Attempt Spreadsheet portal (`/tutor/[courseId]/quizzes/[templateId]/attempts`) for detailed student answer inspection and CSV exports
 - Monitors real-time tutor mutations, rejections, and failures with cursor pagination, stats aggregation, and sanitized snapshot inspection (`/admin/ops/tutor-activity`)
-- Monitors real-time statuses for the approved optional feature flags (`/admin/ops/flags`) with status badges, category filters, and env key helpers
+- Reads retained operational feature flag status through Admin Ops AI or the `settings.feature_flags` MCP tool
 - Configures live AI primary and two fallback models per feature (`/admin/ops/models`) across Zyra, Python Playground, Ops AI, and background learning or generation tasks, with optimistic concurrency checks, per-feature capability validation, and instant reset to built-in defaults
 - Manages course-scoped leaderboard (`/admin/courses/[slug]/leaderboard`) for per-student ranking within a single course, with backward compatibility redirects from `/admin/leaderboard`
 - Operates inside unified course workspaces (`/admin/courses/[slug]`) with contextual navigation across Bab, Dokumen, Kuis, Soal, Flashcard, Hasil, Papan Peringkat, Analitik, Review Materi, and Pengaturan

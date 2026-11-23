@@ -529,41 +529,34 @@ describe("discussion authorization and transactions", { concurrency: false }, ()
   await db.delete(schema.penggunaPeran).where(eq(schema.penggunaPeran.id, "bob-tutor"));
  });
 
- test("PKA flag and existing registration gate apply to lists, direct access, and mentions", async () => {
-  const previous = process.env.FEATURE_PKA;
-  try {
-   await db.insert(schema.courses).values({ id: "tutorial-pka", title: "Tutorial PKA", category: "Matematika" });
-   await db.insert(schema.mataKuliah).values({ id: "canonical-pka", code: "PKA", title: "Tutorial PKA", legacyCourseId: "tutorial-pka", pricingCategory: "free" });
-   await db.insert(schema.discussionChannels).values({ id: "pka-channel", kind: "course", title: "Tutorial PKA", courseId: "canonical-pka", legacyCourseId: "tutorial-pka" });
-   const alice = await access.getDiscussionActor("alice"), bob = await access.getDiscussionActor("bob"), admin = await access.getDiscussionActor("admin");
-   process.env.FEATURE_PKA = "0";
-   await db.insert(schema.enrollments).values({ id: "alice-pka", userId: "alice", courseId: "tutorial-pka", expiresAt: new Date("2099-01-01") });
-   await expect(access.requireDiscussionChannelAccess(alice, "pka-channel")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
-   expect(await access.getAccessibleDiscussionChannels("alice", { channelIds: ["pka-channel"] })).toEqual([]);
-   expect(await db.select({ id: schema.discussionChannels.id }).from(schema.discussionChannels)
-    .where((await access.getDiscussionChannelVisibility("alice")).predicate)).not.toContainEqual({ id: "pka-channel" });
-   process.env.FEATURE_PKA = "1";
-   await expect(access.requireDiscussionChannelAccess(alice, "pka-channel")).resolves.toBeDefined();
-   await expect(access.requireDiscussionChannelAccess(bob, "pka-channel")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
-   await expect(access.requireDiscussionChannelAccess(admin, "pka-channel")).resolves.toBeDefined();
-   const tutor = await access.getDiscussionActor("tutor");
-   await expect(access.requireDiscussionChannelAccess(tutor, "pka-channel")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
-   await db.insert(schema.penugasanTutor).values({ id: "pka-assignment", penggunaId: "tutor", mataKuliahId: "canonical-pka", status: "active", assignmentScope: "course" });
-   await expect(access.requireDiscussionChannelAccess(tutor, "pka-channel")).resolves.toBeDefined();
-   await db.update(schema.penugasanTutor).set({ status: "revoked" }).where(eq(schema.penugasanTutor.id, "pka-assignment"));
-   await expect(access.requireDiscussionChannelAccess(tutor, "pka-channel")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
-   expect((await service.listChannelsPage("bob", { search: "Tutorial PKA" })).items).toEqual([]);
-   expect((await service.listChannelsPage("alice", { search: "Tutorial PKA" })).items.map(row => row.id)).toEqual(["pka-channel"]);
-   expect(await db.select({ id: schema.discussionChannels.id }).from(schema.discussionChannels)
-    .where((await access.getDiscussionChannelVisibility("alice")).predicate)).toContainEqual({ id: "pka-channel" });
-   expect(await service.searchChannelMentions("alice", "pka-channel", "bo")).toEqual([]);
-   await db.insert(schema.enrollments).values({ id: "bob-pka", userId: "bob", courseId: "tutorial-pka", expiresAt: new Date("2099-01-01") });
-   expect(await service.searchChannelMentions("alice", "pka-channel", "bo")).toEqual([{ id: "bob", name: "bob", role: "student" }]);
-   await db.delete(schema.enrollments).where(eq(schema.enrollments.id, "bob-pka"));
-   await expect(access.requireDiscussionChannelAccess(bob, "pka-channel")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
-  } finally {
-   if (previous === undefined) delete process.env.FEATURE_PKA; else process.env.FEATURE_PKA = previous;
-  }
+ test("PKA registration and staff access apply to lists, direct access, and mentions", async () => {
+  await db.insert(schema.courses).values({ id: "tutorial-pka", title: "Tutorial PKA", category: "Matematika" });
+  await db.insert(schema.mataKuliah).values({ id: "canonical-pka", code: "PKA", title: "Tutorial PKA", legacyCourseId: "tutorial-pka", pricingCategory: "free" });
+  await db.insert(schema.discussionChannels).values({ id: "pka-channel", kind: "course", title: "Tutorial PKA", courseId: "canonical-pka", legacyCourseId: "tutorial-pka" });
+  const alice = await access.getDiscussionActor("alice"), bob = await access.getDiscussionActor("bob"), admin = await access.getDiscussionActor("admin");
+  await expect(access.requireDiscussionChannelAccess(alice, "pka-channel")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
+  expect(await access.getAccessibleDiscussionChannels("alice", { channelIds: ["pka-channel"] })).toEqual([]);
+  expect(await db.select({ id: schema.discussionChannels.id }).from(schema.discussionChannels)
+   .where((await access.getDiscussionChannelVisibility("alice")).predicate)).not.toContainEqual({ id: "pka-channel" });
+  await db.insert(schema.enrollments).values({ id: "alice-pka", userId: "alice", courseId: "tutorial-pka", expiresAt: new Date("2099-01-01") });
+  await expect(access.requireDiscussionChannelAccess(alice, "pka-channel")).resolves.toBeDefined();
+  await expect(access.requireDiscussionChannelAccess(bob, "pka-channel")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
+  await expect(access.requireDiscussionChannelAccess(admin, "pka-channel")).resolves.toBeDefined();
+  const tutor = await access.getDiscussionActor("tutor");
+  await expect(access.requireDiscussionChannelAccess(tutor, "pka-channel")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
+  await db.insert(schema.penugasanTutor).values({ id: "pka-assignment", penggunaId: "tutor", mataKuliahId: "canonical-pka", status: "active", assignmentScope: "course" });
+  await expect(access.requireDiscussionChannelAccess(tutor, "pka-channel")).resolves.toBeDefined();
+  await db.update(schema.penugasanTutor).set({ status: "revoked" }).where(eq(schema.penugasanTutor.id, "pka-assignment"));
+  await expect(access.requireDiscussionChannelAccess(tutor, "pka-channel")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
+  expect((await service.listChannelsPage("bob", { search: "Tutorial PKA" })).items).toEqual([]);
+  expect((await service.listChannelsPage("alice", { search: "Tutorial PKA" })).items.map(row => row.id)).toEqual(["pka-channel"]);
+  expect(await db.select({ id: schema.discussionChannels.id }).from(schema.discussionChannels)
+   .where((await access.getDiscussionChannelVisibility("alice")).predicate)).toContainEqual({ id: "pka-channel" });
+  expect(await service.searchChannelMentions("alice", "pka-channel", "bo")).toEqual([]);
+  await db.insert(schema.enrollments).values({ id: "bob-pka", userId: "bob", courseId: "tutorial-pka", expiresAt: new Date("2099-01-01") });
+  expect(await service.searchChannelMentions("alice", "pka-channel", "bo")).toEqual([{ id: "bob", name: "bob", role: "student" }]);
+  await db.delete(schema.enrollments).where(eq(schema.enrollments.id, "bob-pka"));
+  await expect(access.requireDiscussionChannelAccess(bob, "pka-channel")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
  });
 
  test("aggregate visibility matches bounded channel authorization for each role and after revocation", async () => {

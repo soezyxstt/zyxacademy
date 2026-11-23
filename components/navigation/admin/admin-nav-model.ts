@@ -85,23 +85,21 @@ export interface AdminPeopleSubTabLabels {
 }
 
 export type AdminOpsSubTabId =
+  | "web"
   | "monitor"
-  | "tutor"
   | "zyra"
   | "usage"
-  | "web"
+  | "tutor"
   | "models"
-  | "flags"
   | "keys";
 
 export interface AdminOpsSubTabLabels {
+  web: string;
   monitor: string;
-  tutor: string;
   zyra: string;
   usage: string;
-  web: string;
+  tutor: string;
   models: string;
-  flags: string;
   keys: string;
 }
 
@@ -144,7 +142,6 @@ export type AdminMoreIconId =
   | "featureUsage"
   | "webAnalytics"
   | "aiModels"
-  | "featureFlags"
   | "apiKeys"
   | "docs"
   | "astInspector"
@@ -346,10 +343,10 @@ export const ADMIN_MORE_CATEGORIES: AdminMoreCategoryDef[] = [
     titleKey: "analyticsSystem",
     items: [
       {
-        id: "tutor-activity",
-        href: "/admin/ops/tutor-activity",
-        icon: "tutorActivity",
-        labelKey: "tutorActivity",
+        id: "web-analytics",
+        href: "/admin/ops/web-analytics",
+        icon: "webAnalytics",
+        labelKey: "webAnalytics",
         labelSource: "nav",
       },
       {
@@ -367,10 +364,10 @@ export const ADMIN_MORE_CATEGORIES: AdminMoreCategoryDef[] = [
         labelSource: "nav",
       },
       {
-        id: "web-analytics",
-        href: "/admin/ops/web-analytics",
-        icon: "webAnalytics",
-        labelKey: "webAnalytics",
+        id: "tutor-activity",
+        href: "/admin/ops/tutor-activity",
+        icon: "tutorActivity",
+        labelKey: "tutorActivity",
         labelSource: "nav",
       },
       {
@@ -378,13 +375,6 @@ export const ADMIN_MORE_CATEGORIES: AdminMoreCategoryDef[] = [
         href: "/admin/ops/models",
         icon: "aiModels",
         labelKey: "aiModels",
-        labelSource: "nav",
-      },
-      {
-        id: "feature-flags",
-        href: "/admin/ops/flags",
-        icon: "featureFlags",
-        labelKey: "featureFlags",
         labelSource: "nav",
       },
       {
@@ -812,21 +802,20 @@ export function buildAdminOpsSubTabs(
   labels: AdminOpsSubTabLabels
 ): AdminSubTabDescriptor<AdminOpsSubTabId>[] {
   return [
+    { id: "web", href: "/admin/ops/web-analytics", label: labels.web },
     { id: "monitor", href: "/admin/ops", label: labels.monitor, exact: true },
-    {
-      id: "tutor",
-      href: "/admin/ops/tutor-activity",
-      label: labels.tutor,
-    },
     { id: "zyra", href: "/admin/ops/analytics", label: labels.zyra },
     {
       id: "usage",
       href: "/admin/ops/feature-usage",
       label: labels.usage,
     },
-    { id: "web", href: "/admin/ops/web-analytics", label: labels.web },
+    {
+      id: "tutor",
+      href: "/admin/ops/tutor-activity",
+      label: labels.tutor,
+    },
     { id: "models", href: "/admin/ops/models", label: labels.models },
-    { id: "flags", href: "/admin/ops/flags", label: labels.flags },
     { id: "keys", href: "/admin/ops/keys", label: labels.keys },
   ];
 }

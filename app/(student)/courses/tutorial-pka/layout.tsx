@@ -14,8 +14,6 @@ export const dynamic = "force-dynamic";
  * while inheriting the regular (student) shell (sidebar + ambient background).
  */
 export default async function PkaCourseLayout({ children }: { children: ReactNode }) {
-  if (env.FEATURE_PKA !== "1") notFound();
-
   const course = await getCourse(PKA_COURSE_ID);
   if (!course) notFound();
 

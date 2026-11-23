@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Bot } from "lucide-react";
+import { SquareTerminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -59,14 +59,15 @@ export function OpsAiTrigger({
         aria-expanded={isPanelOpen}
         aria-controls="ops-ai-panel"
         className={cn(
-          "flex shrink-0 items-center justify-center transition-colors cursor-pointer text-muted-foreground hover:text-foreground",
-          collapsed
-            ? "size-10 rounded-xl border border-border bg-muted/40 hover:bg-muted/80"
-            : "size-8 rounded-lg border border-border bg-muted/40 hover:bg-muted/80",
+          "flex shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          collapsed ? "size-8" : "size-7",
+          isPanelOpen
+            ? "bg-muted text-foreground"
+            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
           className
         )}
       >
-        <Bot className="size-4 text-primary" />
+        <SquareTerminal className="size-4" />
       </button>
     );
 
@@ -99,7 +100,7 @@ export function OpsAiTrigger({
                 className
               )}
             >
-              <Bot className="size-4 text-primary" />
+              <SquareTerminal className="size-4 text-primary" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={6}>
@@ -131,7 +132,7 @@ export function OpsAiTrigger({
                 className="group flex items-center gap-2 rounded-xl border border-border/80 bg-card/95 px-3 py-2 text-body-sm font-medium text-foreground shadow-lg backdrop-blur-md transition-all hover:border-primary/50 hover:bg-primary/10 hover:text-primary hover:shadow-xl active:scale-95 cursor-pointer"
               >
                 <div className="flex size-6 items-center justify-center rounded-md bg-primary/15 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  <Bot className="size-3.5" />
+                  <SquareTerminal className="size-3.5" />
                 </div>
                 <span className="text-body-sm font-semibold hidden sm:inline">Zyx Ops AI</span>
                 <span className="hidden md:inline-flex rounded-md border border-border/80 bg-muted/80 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
@@ -162,7 +163,7 @@ export function OpsAiTrigger({
         className
       )}
     >
-      <Bot className="size-4 text-primary" />
+      <SquareTerminal className="size-4 text-primary" />
       <span className="hidden sm:inline">Zyx Ops AI</span>
       <kbd className="hidden md:inline-flex rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
         {shortcutLabel}
