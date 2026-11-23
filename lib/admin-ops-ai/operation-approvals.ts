@@ -178,7 +178,8 @@ export async function confirmAdminOperation(
   const data = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
   const target = typeof data.id === "string" ? data.id : undefined;
   const jobId = typeof data.jobId === "string" ? data.jobId : typeof data.jobTool === "string" ? target : undefined;
-  const status = typeof data.status === "string" ? data.status : undefined;
+  const nestedState = data.state && typeof data.state === "object" && "status" in data.state ? data.state.status : undefined;
+  const status = typeof data.status === "string" ? data.status : typeof nestedState === "string" ? nestedState : undefined;
   const awaitingJob = jobId && status !== undefined && ["pending", "queued", "running", "processing"].includes(status);
   const unsuccessfulJob = jobId && status !== undefined && ["failed", "cancelled", "unknown"].includes(status);
   const message = awaitingJob
