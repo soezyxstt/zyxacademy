@@ -209,6 +209,10 @@ export class ControlPlaneClient {
     return this.post("/quota/alias/record", { aliasHash, attemptId, success }, z.object({ failures: z.number().int().nonnegative(), cooldownUntil: z.number().nonnegative() }));
   }
 
+  async resetAliasHealth(aliasHash?: string) {
+    return this.post("/quota/alias/reset", aliasHash ? { aliasHash } : {}, z.object({ cleared: z.number().int().nonnegative() }));
+  }
+
   async cacheGet(cacheKey: string): Promise<ControlPlaneCacheGetResult> {
     return this.request(`/cache/get?key=${encodeURIComponent(cacheKey)}`, { method: "GET" }, cacheGetSchema);
   }

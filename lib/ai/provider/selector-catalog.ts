@@ -126,6 +126,32 @@ async function cachedModels(provider: GatewayModelProvider, refresh: boolean): P
   try { return await task; } finally { pending.delete(key); }
 }
 
+export async function loadCachedDiscoveredByokAliases(
+  provider: Exclude<GatewayModelProvider, "gemini">,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): Promise<readonly string[] | null> {
+  if (!env.CF_KV_NAMESPACE_ID || !env.CF_ACCOUNT_ID || !env.CF_API_TOKEN) return null;
+  try {
+    const key = selectorCacheKey(provider);
+    const local = snapshots.get(key);
+    if (local && local.aliases.length > 0 && Date.now() - local.checkedAt < RETAIN_MS) {
+      const group = provider === "muse" ? "meta" : provider;
+      setDiscoveredByokAliases(group, local.aliases);
+      return local.aliases;
+    }
+    const parsed = snapshotSchema.safeParse(await kvGet(key));
+    if (!parsed.success || parsed.data.aliases.length === 0 || Date.now() - parsed.data.checkedAt >= RETAIN_MS) {
+      return null;
+    }
+    snapshots.set(key, parsed.data);
+    const group = provider === "muse" ? "meta" : provider;
+    setDiscoveredByokAliases(group, parsed.data.aliases);
+    return parsed.data.aliases;
+  } catch {
+    return null;
+  }
+}
+
 export async function selectorCatalog(refresh = false, requireAllProviders = false): Promise<Set<ModelId>> {
   const providers = [...enabledGatewayProviders(process.env)].filter(provider => provider !== "deepseek");
   const results = await Promise.all(providers.map(async provider => {

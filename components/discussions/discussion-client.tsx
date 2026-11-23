@@ -8,7 +8,7 @@ import { useSession } from "@/lib/auth-client";
 import * as actions from "@/lib/discussions/actions";
 import type { DiscussionChannel as Channel, DiscussionMessage as Message, DiscussionReport as Report, DiscussionThread as Thread } from "@/lib/discussions/contracts";
 import { DISCUSSION_COUNTS_CHANGED } from "./discussion-count-badge";
-import { aiStatusKey, beginChannelMetadataRequest, beginPageRequest, canSuggestForwardChannel, discussionPrivateQuestionHref, discussionStatusUncovered, discussionUploadError, discussionVisibilityBlocked, initialDiscussionMessageCursors, listDiscussionQuestionPage, loadDiscussionChannelMetadata, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, replyQuote, retryDiscussionRead, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot, watchDiscussionVisibility } from "./discussion-adapter";
+import { beginChannelMetadataRequest, beginPageRequest, canSuggestForwardChannel, discussionPrivateQuestionHref, discussionStatusUncovered, discussionUploadError, discussionVisibilityBlocked, initialDiscussionMessageCursors, listDiscussionQuestionPage, loadDiscussionChannelMetadata, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, replyQuote, retryDiscussionRead, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot, watchDiscussionVisibility } from "./discussion-adapter";
 import { discussionChannelLabel } from "./discussion-message";
 import { listDiscussionAiStatuses } from "./discussion-ai-status";
 import { getDiscussionReadThrough } from "./discussion-read-state";
@@ -181,9 +181,15 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   const messages = useMemo(() => messagePages.flatMap((page) => page.items), [messagePages]);
   const messagesById = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
   const selectedQuestion = thread && thread.id === selectedThread ? toQuestion(thread, visibleChannels) : null;
-  const hasThreadChannel = Boolean(thread && channelMetadata.items.some((item) => item.id === thread.channelId));
+  const metadataFailed = channelMetadata.key === metadataKey && channelMetadata.status === "error";
+  const hasThreadChannel = Boolean(
+    thread && (
+      channelMetadata.items.some((item) => item.id === thread.channelId)
+      || (!metadataReady && !metadataFailed && channels.some((item) => item.id === thread.channelId))
+    ),
+  );
   const renderedThreadState = thread?.id === selectedThread && !hasThreadChannel
-    ? (channelMetadata.key === metadataKey && channelMetadata.status === "error" || metadataReady ? "error" : "loading") : threadState;
+    ? (metadataFailed || metadataReady ? "error" : "loading") : threadState;
   const hasMoreQuestions = !!threadPage.nextCursor;
   const hasNextMessagePage = !!nextDiscussionMessageCursor(messagePageCursors.current, messagePageIndex, messageCursor);
 
@@ -206,19 +212,23 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     router.push(`${pathname}${query.size ? `?${query}` : ""}`, { scroll: false });
   }, [pathname, router, selectedChannel]);
 
+  const applyAiStatuses = useCallback((items: Message[], statuses: Array<{ messageId: string; status: string; reason: string | null }>) => {
+    setAiStatuses((old) => {
+      const next = { ...old };
+      items.forEach((item) => { delete next[item.id]; });
+      statuses.forEach((item) => { next[item.messageId] = { status: item.status, reason: item.reason }; });
+      return next;
+    });
+    setAiStatusError(false);
+  }, []);
+
   const refreshAiStatuses = useCallback(async (id: string, items: Message[], current: () => boolean) => {
     try {
       const statuses = await listDiscussionAiStatuses(id, items.map((item) => item.id));
       if (!current() || currentThread.current !== id) return;
-      setAiStatuses((old) => {
-        const next = { ...old };
-        items.forEach((item) => { delete next[item.id]; });
-        statuses.forEach((item) => { next[item.messageId] = { status: item.status, reason: item.reason }; });
-        return next;
-      });
-      setAiStatusError(false);
+      applyAiStatuses(items, statuses);
     } catch { if (current() && currentThread.current === id) setAiStatusError(true); }
-  }, []);
+  }, [applyAiStatuses]);
 
   useEffect(() => {
     let cancelled = false;
@@ -300,8 +310,8 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     setResolvedPaging(old => ({ ...old, index, cursors: direction === "next" ? [...old.cursors.slice(0, index), resolvedPage.nextCursor!] : old.cursors }));
   }
 
-  const refreshThreadPage = useCallback(async (id: string, cursor?: string) => {
-    refreshChannelMetadata();
+  const refreshThreadPage = useCallback(async (id: string, cursor?: string, options?: { refreshMetadata?: boolean }) => {
+    if (options?.refreshMetadata !== false) refreshChannelMetadata();
     const version = threadVersion.current;
     const pageVersion = messagePageVersion.current;
     const current = beginPageRequest(pageVersions.current, cursor);
@@ -315,9 +325,10 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     setMessagePages([{ cursor, items: result.messages.items, observationReceipt: result.messages.observationReceipt }]);
     setMessageCursor(result.messages.nextCursor);
     setThreadState("ready");
-    void refreshAiStatuses(id, result.messages.items, () => version === threadVersion.current && pageVersion === messagePageVersion.current && current());
+    if (result.aiStatuses) applyAiStatuses(result.messages.items, result.aiStatuses);
+    else void refreshAiStatuses(id, result.messages.items, () => version === threadVersion.current && pageVersion === messagePageVersion.current && current());
     return result;
-  }, [refreshAiStatuses, refreshChannelMetadata]);
+  }, [applyAiStatuses, refreshAiStatuses, refreshChannelMetadata]);
 
   useEffect(() => {
     let cancelled = false;
@@ -347,7 +358,8 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     if (courseId && !channelsReady) { setThreadState("loading"); return; }
     setThreadState("loading");
     const current = beginPageRequest(pageVersions.current);
-    void Promise.all([actions.getThread(selectedThread, undefined, selectedMessage ?? undefined), getDiscussionReadThrough(selectedThread)]).then(([result, throughSeq]) => {
+    void actions.getThread(selectedThread, undefined, selectedMessage ?? undefined).then(async (result) => {
+      const throughSeq = typeof result.readThroughSeq === "number" ? result.readThroughSeq : await getDiscussionReadThrough(selectedThread);
       if (cancelled || version !== threadVersion.current || pageVersion !== messagePageVersion.current || currentThread.current !== selectedThread || !current()) return;
       if (courseId && result.thread.channelId !== courseChannelId) { setThreadState("error"); return; }
       observation.current.through = throughSeq;
@@ -360,18 +372,25 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       setMessagePages([{ cursor: result.messages.startCursor, items: result.messages.items, observationReceipt: result.messages.observationReceipt }]);
       setMessageCursor(result.messages.nextCursor);
       setThreadState("ready");
-      void refreshAiStatuses(selectedThread, result.messages.items, () => !cancelled && version === threadVersion.current && pageVersion === messagePageVersion.current && current());
+      if (result.aiStatuses) applyAiStatuses(result.messages.items, result.aiStatuses);
+      else void refreshAiStatuses(selectedThread, result.messages.items, () => !cancelled && version === threadVersion.current && pageVersion === messagePageVersion.current && current());
     }).catch(() => { if (!cancelled && version === threadVersion.current && pageVersion === messagePageVersion.current && current()) setThreadState("error"); });
     return () => { cancelled = true; };
-  }, [selectedThread, selectedMessage, activeTab, retryThread, courseId, courseChannelId, channelsReady, refreshAiStatuses]);
+  }, [selectedThread, selectedMessage, activeTab, retryThread, courseId, courseChannelId, channelsReady, applyAiStatuses, refreshAiStatuses]);
+
+  const hasActiveZyraRequest = useMemo(
+    () => Object.values(aiStatuses).some((item) => item.status === "pending" || item.status === "processing"),
+    [aiStatuses],
+  );
 
   useEffect(() => {
     if (!selectedThread || activeTab !== "questions" || threadState !== "ready") return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
+    const intervalMs = hasActiveZyraRequest ? 4_000 : 60_000;
     const refresh = async () => {
       if (!cancelled && document.visibilityState === "visible" && currentThread.current === selectedThread) {
-        try { await refreshThreadPage(selectedThread, messagePagesRef.current.at(-1)?.cursor); }
+        try { await refreshThreadPage(selectedThread, messagePagesRef.current.at(-1)?.cursor, { refreshMetadata: false }); }
         catch { if (!cancelled) setLiveError(true); }
       }
     };
@@ -379,13 +398,13 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       timer = setTimeout(async () => {
         await refresh();
         if (!cancelled) tick();
-      }, 60_000);
+      }, intervalMs);
     };
     const focus = () => { void refresh(); };
     window.addEventListener("focus", focus);
     tick();
     return () => { cancelled = true; clearTimeout(timer); window.removeEventListener("focus", focus); };
-  }, [selectedThread, activeTab, threadState, refreshThreadPage]);
+  }, [selectedThread, activeTab, threadState, refreshThreadPage, hasActiveZyraRequest]);
 
   useEffect(() => {
     if (!channelsReady || listState !== "ready") return;
@@ -556,8 +575,13 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       setThread(result.thread);
       setMessagePages([{ cursor, items: result.messages.items, observationReceipt: result.messages.observationReceipt }]);
       setMessageCursor(result.messages.nextCursor);
-      setAiStatuses({});
-      void refreshAiStatuses(selectedThread, result.messages.items, () => version === threadVersion.current && pageVersion === messagePageVersion.current && current());
+      if (result.aiStatuses) {
+        setAiStatuses(Object.fromEntries(result.aiStatuses.map((item) => [item.messageId, { status: item.status, reason: item.reason }])));
+        setAiStatusError(false);
+      } else {
+        setAiStatuses({});
+        void refreshAiStatuses(selectedThread, result.messages.items, () => version === threadVersion.current && pageVersion === messagePageVersion.current && current());
+      }
     } catch {
       if (version === threadVersion.current && pageVersion === messagePageVersion.current) setMessagePageError(true);
     } finally {
@@ -583,14 +607,13 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     const role = message.author?.role;
     const author: DiscussionPerson = message.kind === "zyra" ? { id: "zyra", name: "Zyra", role: "zyra" }
       : { id: message.author?.id ?? "", name: message.author?.name ?? t("unknownAuthor"), role: (role ?? (message.author?.id === viewer.id ? viewer.role : undefined)) as DiscussionPerson["role"], avatarUrl: message.author?.avatarUrl ?? null };
-    return { ...message, author, replyTo: message.replyTo ? replyQuote(message.replyTo, original, t("previousMessage")) : null };
+    return { ...message, author, zyraStatus: aiStatuses[message.id] ?? null, replyTo: message.replyTo ? replyQuote(message.replyTo, original, t("previousMessage")) : null };
   });
 
   return <div className="space-y-2">
     {channelMetadata.key === metadataKey && channelMetadata.status === "error" && <div role="alert" className="flex items-center gap-2 text-body-sm">{t("channelMetadataError")}<Button type="button" variant="outline" size="sm" onClick={refreshChannelMetadata}>{t("retry")}</Button></div>}
     {listRefreshError && <div role="alert" className="flex items-center gap-2 text-body-sm">{t("listRefreshError")}<Button type="button" variant="outline" size="sm" onClick={() => void fetchThreadPage(threadPageCursors.current[threadPageIndexRef.current]).catch(() => setListRefreshError(true))}>{t("retry")}</Button></div>}
     {thread?.id === selectedThread && liveError && <div role="alert" className="flex items-center gap-2 text-body-sm">{t("threadRefreshError")}<Button type="button" variant="outline" size="sm" onClick={() => { if (selectedThread) void refreshThreadPage(selectedThread, messagePagesRef.current.at(-1)?.cursor).catch(() => setLiveError(true)); }}>{t("retry")}</Button></div>}
-    {thread?.id === selectedThread && Object.entries(aiStatuses).map(([id, item]) => { const key = aiStatusKey(item.status, item.reason); const source = messagesById.get(id); const request = source?.bodyKind === "deleted" ? t("deletedMessage") : source?.bodyKind === "source_unavailable" ? t("sourceUnavailable") : source?.body.slice(0, 80) || t("image"); return key && source ? <p key={id} role={item.status === "failed" || item.status === "uncertain" ? "alert" : "status"} className="text-body-xs text-muted-foreground">{t(key)} {t("ai_request", { request })}</p> : null; })}
     {thread?.id === selectedThread && aiStatusError && <p role="alert" className="text-body-xs text-destructive">{t("ai_statusError")}</p>}
     {sentMessage?.threadId === selectedThread && !messagesById.has(sentMessage.id) && <p role="status" className="text-body-xs text-muted-foreground">{t("sentMessageOtherPage")}</p>}
     {activeTab === "questions" && listState === "ready" && threadPageIndex > 0 && <div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={threadPageBusy} onClick={() => void changeQuestionPage("previous").catch(() => setListRefreshError(true))}>{t("previousQuestions")}</Button><span className="text-body-xs text-muted-foreground">{t("page", { page: threadPageIndex + 1 })}</span></div>}

@@ -128,3 +128,27 @@ test("the complete fictional thread renders English controls and authored conten
   expect(html).toContain("Matematika I");
   expect(html).toContain("Mengapa limit ini perlu difaktorkan?");
 });
+
+test("Zyra status renders as message emoji reactions (eyes while seen/queued, thumbs up when answered) and inline alert on failure", () => {
+  const channel: DiscussionChannel = { id: "course", kind: "course", name: "Matematika I", courseId: "course", unreadCount: 0, muted: false, canCreate: true };
+  const base: Message = { id: "m", author: { id: "a", name: "Nadia", role: "student" }, body: "@Zyra what is 2^3", createdAt: "2026-01-01T00:00:00Z", revision: 1, messageType: "question", attachments: [], reactions: [], canEdit: false, canDelete: false, canReport: false };
+  const noop = async () => {};
+  const render = (zyraStatus: Message["zyraStatus"]) => renderToStaticMarkup(
+    <DiscussionI18nFixture locale="en"><TooltipProvider>
+      <DiscussionMessage message={{ ...base, zyraStatus }} questionId="q" viewer={base.author} sourceChannel={channel} updateForwardDraft={() => {}} onSearchChannels={async () => ({ items: [], nextCursor: null })} onSearchForwardTargets={async () => ({ items: [], nextCursor: null })} canReply onReply={() => {}} onEdit={noop} onDelete={noop} onReact={noop} onForward={noop} onReport={noop} />
+    </TooltipProvider></DiscussionI18nFixture>,
+  );
+
+  const queuedHtml = render({ status: "pending", reason: null });
+  expect(queuedHtml).toContain('data-zyra-reaction="👀"');
+  expect(queuedHtml).toContain('aria-label="Your Zyra request is queued."');
+
+  const answeredHtml = render({ status: "completed", reason: null });
+  expect(answeredHtml).toContain('data-zyra-reaction="👍"');
+  expect(answeredHtml).toContain('aria-label="Zyra answered."');
+
+  const failedHtml = render({ status: "failed", reason: "ai_failed" });
+  expect(failedHtml).toContain('role="alert"');
+  expect(failedHtml).toContain("Zyra could not answer. Try again later.");
+  expect(failedHtml).not.toContain("data-zyra-reaction=");
+});

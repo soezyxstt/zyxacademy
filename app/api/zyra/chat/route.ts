@@ -1,6 +1,7 @@
 import { zyraLiveProgress } from "@/lib/zyra/live-progress";
 import { followupEvent, parseFollowupAnswer } from "@/lib/zyra/followups";
 import { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
+import { after } from "next/server";
 import { headers } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { auth } from "@/lib/auth";
@@ -9,6 +10,7 @@ import { resolveCourseAccess } from "@/lib/student/course-access";
 import { FREE_ALLOWANCE_IDEMPOTENCY_PREFIX } from "@/lib/usage-budget-service";
 import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 import { pythonHistoryReply } from "@/lib/coding/python-reply";
+import { generateZyraSessionTitle } from "@/lib/zyra/title-ai";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -279,6 +281,31 @@ export async function POST(req: Request) {
               sendEvent({ type: "data-history", saved: false, message: res.responseLanguage === "en"
                 ? "This answer could not be saved. Copy anything you need before closing this conversation."
                 : "Jawaban ini belum tersimpan. Salin bagian yang diperlukan sebelum menutup percakapan." });
+            }
+          }
+
+          if (res.sessionId && normalizedQuestion && !res.failureCode && !res.budgetExhausted && !req.signal.aborted) {
+            const titleTask = generateZyraSessionTitle({
+              sessionId: res.sessionId,
+              studentId: userId,
+              courseId: normalizedCourseId,
+              question: normalizedQuestion,
+            }).catch(() => ({ updated: false as const }));
+            try {
+              after(() => titleTask.then(() => undefined));
+            } catch {
+              // Unit tests outside Next request scope do not provide an after() context.
+            }
+            const quickTitle = await Promise.race([
+              titleTask,
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+            ]);
+            if (quickTitle?.updated && quickTitle.title && !req.signal.aborted) {
+              sendEvent({
+                type: "data-session-title",
+                sessionId: res.sessionId,
+                title: quickTitle.title,
+              });
             }
           }
 

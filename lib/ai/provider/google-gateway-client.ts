@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { generationAliasOutcome, assertGatewayAliasAvailable, withGatewayAlias } from "./alias-health";
+import { generationAliasOutcome, assertGatewayAliasAvailable, withGatewayAlias, GatewayAliasCooldownError, isAliasCredentialFailure } from "./alias-health";
 import { gatewayEndpoint, isGatewayCredentialsRequiredBody, isGatewayCredentialsRequiredError } from "./gateway";
 
 import { MODEL_IDS, upstreamModelName } from "./model-registry";
@@ -143,9 +143,21 @@ export function googleGatewayClient(
         const byokHeaders = new Headers(byokInit.headers);
         byokHeaders.set("cf-aig-byok-alias", preferredByok);
         const invoke = () => originalApiCall(url, { ...byokInit, headers: byokHeaders });
-        const response = NATIVE_QUERY_KEY_PATH.test(new URL(url).pathname)
-          ? await withGatewayAlias(env, baseUrl, preferredByok, invoke, generationAliasOutcome, options.aliasAdmitted)
-          : await invoke();
+        const aliasOutcome = async (res: Response) => {
+          if (canFallbackToKey && await isCredentialsRequiredResponse(res)) return undefined;
+          return generationAliasOutcome(res);
+        };
+        let response: Response;
+        try {
+          response = NATIVE_QUERY_KEY_PATH.test(new URL(url).pathname)
+            ? await withGatewayAlias(env, baseUrl, preferredByok, invoke, aliasOutcome, options.aliasAdmitted)
+            : await invoke();
+        } catch (error) {
+          if (canFallbackToKey && error instanceof GatewayAliasCooldownError) {
+            return originalApiCall(withQueryApiKey(url, apiKey), withGoogleApiKeyHeader(requestInit, apiKey));
+          }
+          throw error;
+        }
         if (canFallbackToKey && await isCredentialsRequiredResponse(response)) {
           missingGeminiByokUntil.set(cacheKey!, Date.now() + MISSING_BYOK_TTL_MS);
           return originalApiCall(withQueryApiKey(url, apiKey), withGoogleApiKeyHeader(requestInit, apiKey));
@@ -173,10 +185,12 @@ export function googleGatewayClient(
             "cf-aig-byok-alias": preferredByok,
           },
           maxRetries: 0,
-        }), () => true, options.aliasAdmitted);
+        }), () => true, options.aliasAdmitted, (error) => !(canFallbackToKey && isGatewayCredentialsRequiredError(error)) && isAliasCredentialFailure(error));
       } catch (error) {
-        if (canFallbackToKey && isGatewayCredentialsRequiredError(error)) {
-          missingGeminiByokUntil.set(cacheKey!, Date.now() + MISSING_BYOK_TTL_MS);
+        if (canFallbackToKey && (isGatewayCredentialsRequiredError(error) || error instanceof GatewayAliasCooldownError)) {
+          if (isGatewayCredentialsRequiredError(error)) {
+            missingGeminiByokUntil.set(cacheKey!, Date.now() + MISSING_BYOK_TTL_MS);
+          }
           const fallbackHeaders = { ...baseHeaders };
           delete fallbackHeaders["cf-aig-byok-alias"];
           return create(params, {

@@ -217,12 +217,29 @@ export function beginChannelMetadataRequest(version: { current: number }, key: {
 export function aiStatusKey(status: string, reason?: string | null) {
   if (status === "pending") return "ai_pending";
   if (status === "processing") return "ai_processing";
+  if (status === "completed") return "ai_completed";
   if (status !== "failed" && status !== "uncertain") return null;
   switch (reason) {
     case "ai_freeTextOnly": case "ai_imageLimit": case "ai_imageDisabled": case "ai_imageUnavailable":
     case "ai_requestTooLarge": case "ai_assessmentActive": case "ai_quota": case "ai_sourceChanged": case "ai_uncertain": return reason;
     default: return status === "uncertain" ? "ai_uncertain" : "ai_failed";
   }
+}
+
+export function zyraStatusReaction(status: string, reason?: string | null): {
+  emoji: "👀" | "👍" | null;
+  key: NonNullable<ReturnType<typeof aiStatusKey>>;
+  tone: "active" | "completed" | "error";
+} | null {
+  const key = aiStatusKey(status, reason);
+  if (!key) return null;
+  if (status === "pending" || status === "processing") {
+    return { emoji: "👀", key, tone: "active" };
+  }
+  if (status === "completed") {
+    return { emoji: "👍", key, tone: "completed" };
+  }
+  return { emoji: null, key, tone: "error" };
 }
 
 export function replyQuote(reply: NonNullable<DiscussionMessage["replyTo"]>, original?: DiscussionMessage, fallback = "Pesan sebelumnya") {

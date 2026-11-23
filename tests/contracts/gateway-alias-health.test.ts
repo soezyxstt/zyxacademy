@@ -55,11 +55,70 @@ test("the projected Gemini web environment checks shared cooldown before prepari
   expect(health).toHaveBeenCalledTimes(1); expect(request).not.toHaveBeenCalled();
 });
 
-test("rejected model requests leave the alias available for another model", async () => {
+test("rejected model requests, rate limits, upstream 5xx, and timeouts leave the alias available", async () => {
   const { generationAliasOutcome } = await import("@/lib/ai/provider/alias-health");
-  for (const status of [400, 404, 413, 415, 422, 200]) {
+  for (const status of [400, 404, 413, 415, 422, 429, 500, 502, 503, 504, 200]) {
     const response = await withGatewayAlias(env, "muse", "muse_1",
       async () => new Response("{}", { status }), generationAliasOutcome);
     expect(response.status).toBe(status);
   }
+  for (let i = 0; i < 4; i++) {
+    const timeout = new DOMException("The operation timed out", "TimeoutError");
+    await expect(withGatewayAlias(env, "muse", "muse_1", async () => { throw timeout; }, generationAliasOutcome)).rejects.toThrow();
+  }
+  const ok = await withGatewayAlias(env, "muse", "muse_1", async () => new Response("{}", { status: 200 }), generationAliasOutcome);
+  expect(ok.status).toBe(200);
+});
+
+test("repeated 401/403 responses still cool down the failing BYOK alias", async () => {
+  const { generationAliasOutcome } = await import("@/lib/ai/provider/alias-health");
+  for (let i = 0; i < 3; i++) {
+    const res = await withGatewayAlias(env, "openai", "openai_auth_bad",
+      async () => new Response("{}", { status: 401 }), generationAliasOutcome);
+    expect(res.status).toBe(401);
+  }
+  await expect(withGatewayAlias(env, "openai", "openai_auth_bad",
+    async () => new Response("{}", { status: 200 }), generationAliasOutcome)).rejects.toBeInstanceOf(GatewayAliasCooldownError);
+});
+
+test("legacy 24-hour cooldowns returned by an older control plane normalize to the 5-minute window", async () => {
+  const configured = { ...env, ZYRA_CONTROL_PLANE_URL: "https://control.fixture", ZYRA_CONTROL_PLANE_TOKEN: "fixture" };
+  const now = Date.now();
+  const legacyCooldownMs = 24 * 60 * 60_000;
+  // Started 2 minutes ago under legacy 24h TTL -> still within 5-minute cooldown
+  const recentLegacy = now - 2 * 60_000 + legacyCooldownMs;
+  const healthSpy = spyOn(ControlPlaneClient.prototype, "aliasHealth").mockResolvedValue({ failures: 3, cooldownUntil: recentLegacy });
+  await expect(withGatewayAlias(configured, "openai", "openai_legacy_recent", async () => "ok", () => true))
+    .rejects.toBeInstanceOf(GatewayAliasCooldownError);
+
+  // Started 10 minutes ago under legacy 24h TTL -> expired under 5-minute cooldown
+  const expiredLegacy = now - 10 * 60_000 + legacyCooldownMs;
+  healthSpy.mockResolvedValue({ failures: 3, cooldownUntil: expiredLegacy });
+  spyOn(ControlPlaneClient.prototype, "recordAliasAttempt").mockResolvedValue({ failures: 0, cooldownUntil: 0 });
+  expect(await withGatewayAlias(configured, "openai", "openai_legacy_expired", async () => "recovered", () => true))
+    .toBe("recovered");
+});
+
+test("caches confirmed-healthy alias checks briefly and decays stale local failures after 10 minutes", async () => {
+  const configured = { ...env, ZYRA_CONTROL_PLANE_URL: "https://control.fixture", ZYRA_CONTROL_PLANE_TOKEN: "fixture" };
+  let now = 50_000;
+  spyOn(Date, "now").mockImplementation(() => now);
+  const healthSpy = spyOn(ControlPlaneClient.prototype, "aliasHealth").mockResolvedValue({ failures: 0, cooldownUntil: 0 });
+  spyOn(ControlPlaneClient.prototype, "recordAliasAttempt").mockResolvedValue({ failures: 0, cooldownUntil: 0 });
+
+  await withGatewayAlias(configured, "openai", "openai_cached", async () => "ok", () => true);
+  now += 5_000;
+  await withGatewayAlias(configured, "openai", "openai_cached", async () => "ok", () => true);
+  expect(healthSpy).toHaveBeenCalledTimes(1);
+
+  now += 10_001;
+  await withGatewayAlias(configured, "openai", "openai_cached", async () => "ok", () => true);
+  expect(healthSpy).toHaveBeenCalledTimes(2);
+
+  // Local failure decay after 10 minutes prevents sporadic failures from opening cooldown
+  await withGatewayAlias(env, "muse", "muse_decay", async () => false, value => value);
+  await withGatewayAlias(env, "muse", "muse_decay", async () => false, value => value);
+  now += 10 * 60_000 + 1;
+  await withGatewayAlias(env, "muse", "muse_decay", async () => false, value => value);
+  expect(await withGatewayAlias(env, "muse", "muse_decay", async () => "still-open", () => true)).toBe("still-open");
 });

@@ -156,19 +156,46 @@ export async function prepareCompatibleText(input: ProviderGenerateRequest & Omi
   const outputLimit = config.maxOutputTokens === undefined ? {} : { [getTextProfile(input.modelId)!.group === "openai" ? "max_completion_tokens" : "max_tokens"]: config.maxOutputTokens };
   const fixedSampling = getTextProfile(input.modelId)!.group === "openai" && /^(?:gpt-[56]|o[1-9])/.test(settings.model);
   const progress = zyraLiveProgress.getStore();
-  const deadlineMs = progress ? 30_000 : 15_000;
+  const deadlineMs = progress || input.userCohort !== "system" ? 30_000 : 15_000;
   const body = JSON.stringify({ model: settings.model, messages, ...(progress ? { stream: true, stream_options: { include_usage: true } } : {}), ...outputLimit, temperature: fixedSampling ? undefined : config.temperature, ...(config.responseMimeType ? {response_format: {type: "json_object"}} : {}) });
-  const credential = await selectGatewayCredential(settings, env);
+  let effectiveSettings = settings;
+  const group = getTextProfile(input.modelId)!.group;
+  if (settings.conventionManaged && discoveredByokAliases.get(group) === undefined) {
+    const provider = conventionProviderForGroup(group);
+    if (provider && provider !== "gemini") {
+      const cachedAliases = await import("./selector-catalog")
+        .then(mod => mod.loadCachedDiscoveredByokAliases(provider, env))
+        .catch(() => null);
+      if (cachedAliases && cachedAliases.length > 0) {
+        effectiveSettings = { ...settings, credentials: [...cachedAliases] };
+      }
+    }
+  }
+  const credential = await selectGatewayCredential(effectiveSettings, env);
   const headers: Record<string, string> = {"Content-Type": "application/json"};
   Object.assign(headers, buildAiGatewayHeaders({ ...input, deadlineMs }));
-  headers["cf-aig-authorization"] = "Bearer " + settings.token;
+  headers["cf-aig-authorization"] = "Bearer " + effectiveSettings.token;
   headers["cf-aig-no-wholesale"] = "true";
   return async (): Promise<ProviderGenerationResult> => {
     const started = Date.now();
     try {
       progress?.("dispatch");
-      const response = await withGatewayAlias(env, settings.url, credential,
-        () => fetch(settings.url, { method: "POST", redirect: "error", headers: { ...headers, "cf-aig-byok-alias": credential }, body, signal: AbortSignal.timeout(deadlineMs) }), generationAliasOutcome, true);
+      let response: Response;
+      try {
+        response = await withGatewayAlias(env, effectiveSettings.url, credential,
+          () => fetch(effectiveSettings.url, { method: "POST", redirect: "error", headers: { ...headers, "cf-aig-byok-alias": credential }, body, signal: AbortSignal.timeout(deadlineMs) }), generationAliasOutcome, true);
+      } catch (fetchError) {
+        if (fetchError instanceof Error && (fetchError.name === "TimeoutError" || fetchError.name === "AbortError")) {
+          throw new ProviderAdapterError({
+            code: "REQUEST_TIMEOUT",
+            message: "AI provider request timed out",
+            retryClassification: "timeout",
+            modelId: input.modelId,
+            cause: fetchError,
+          });
+        }
+        throw fetchError;
+      }
       if (response.status === 400) {
         const errorBody = await response.clone().json().catch(() => null);
         if (isGatewayCredentialsRequiredBody(errorBody)) {
@@ -182,23 +209,39 @@ export async function prepareCompatibleText(input: ProviderGenerateRequest & Omi
         }
       }
       if (!response.ok) throw classifyProviderError({status: response.status}, input.modelId);
-      const data = await readChatCompletion(response, () => progress?.("receiving"));
+      let data: Awaited<ReturnType<typeof readChatCompletion>>;
+      try {
+        data = await readChatCompletion(response, () => progress?.("receiving"));
+      } catch (streamError) {
+        throw new ProviderAdapterError({
+          code: "MALFORMED_RESPONSE",
+          message: streamError instanceof Error ? streamError.message : "Invalid provider response",
+          retryClassification: "malformed_response",
+          modelId: input.modelId,
+          cause: streamError,
+        });
+      }
       progress?.("checking");
       const choice = data?.choices?.[0];
-      if (typeof choice?.message?.content !== "string" || !choice.message.content.trim()) throw new ProviderAdapterError({code:"MALFORMED_RESPONSE", message:"Missing provider text", retryClassification:"malformed_response"});
+      if (typeof choice?.message?.content !== "string" || !choice.message.content.trim()) throw new ProviderAdapterError({code:"MALFORMED_RESPONSE", message:"Missing provider text", retryClassification:"malformed_response", modelId: input.modelId});
       let text = choice.message.content;
       if (arrayOutput) {
-        const envelope = JSON.parse(text);
-        const items = Array.isArray(envelope) ? envelope : envelope?.items;
-        if (!Array.isArray(items)) throw new ProviderAdapterError({code:"MALFORMED_RESPONSE", message:"Missing result array", retryClassification:"malformed_response"});
+        let envelope: unknown;
+        try {
+          envelope = JSON.parse(text);
+        } catch (parseError) {
+          throw new ProviderAdapterError({code:"MALFORMED_RESPONSE", message:"Invalid JSON array envelope", retryClassification:"malformed_response", modelId: input.modelId, cause: parseError});
+        }
+        const items = Array.isArray(envelope) ? envelope : (envelope as Record<string, unknown> | null)?.items;
+        if (!Array.isArray(items)) throw new ProviderAdapterError({code:"MALFORMED_RESPONSE", message:"Missing result array", retryClassification:"malformed_response", modelId: input.modelId});
         text = JSON.stringify(items);
       }
       const latencyMs = Date.now() - started;
-      await logAiRequest({ operation: "chatCompletions", model: settings.model, viaGateway: true, latencyMs, success: true }, input.userCohort !== "system");
-      return {modelId: input.modelId, upstreamModel: settings.model, text, finishReason: String(choice.finish_reason ?? "unknown"), latencyMs, viaGateway: true, retryClassification: "none",
+      await logAiRequest({ operation: "chatCompletions", model: effectiveSettings.model, viaGateway: true, latencyMs, success: true }, input.userCohort !== "system");
+      return {modelId: input.modelId, upstreamModel: effectiveSettings.model, text, finishReason: String(choice.finish_reason ?? "unknown"), latencyMs, viaGateway: true, retryClassification: "none",
         usage: {promptTokens: data.usage?.prompt_tokens, outputTokens: data.usage?.completion_tokens, totalTokens: data.usage?.total_tokens}};
     } catch (error) {
-      await logAiRequest({ operation: "chatCompletions", model: settings.model, viaGateway: true, latencyMs: Date.now() - started, success: false });
+      await logAiRequest({ operation: "chatCompletions", model: effectiveSettings.model, viaGateway: true, latencyMs: Date.now() - started, success: false });
       throw error;
     }
   };

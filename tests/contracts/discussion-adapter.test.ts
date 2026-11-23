@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import { advanceObserved, aiStatusKey, beginChannelMetadataRequest, beginPageRequest, canSuggestForwardChannel, channelIdBatches, channelOptionIndex, discussionPrivateQuestionHref, discussionUploadError, discussionViewerState, initialDiscussionMessageCursors, listDiscussionQuestionPage, loadDiscussionChannelMetadata, mentionHandle, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, replyQuote, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot } from "@/components/discussions/discussion-adapter";
+import { advanceObserved, aiStatusKey, beginChannelMetadataRequest, beginPageRequest, canSuggestForwardChannel, channelIdBatches, channelOptionIndex, discussionPrivateQuestionHref, discussionUploadError, discussionViewerState, initialDiscussionMessageCursors, listDiscussionQuestionPage, loadDiscussionChannelMetadata, mentionHandle, mergeById, nextDiscussionMessageCursor, observeDiscussionSnapshot, replyQuote, searchDiscussionChannels, searchDiscussionForwardTargets, searchDiscussionMentions, toQuestion, toUiChannel, visibleDiscussionReadSnapshot, zyraStatusReaction } from "@/components/discussions/discussion-adapter";
 import type { DiscussionChannel, DiscussionThread } from "@/lib/discussions/contracts";
 
 const channels: DiscussionChannel[] = [
@@ -206,9 +206,15 @@ describe("discussion adapter", () => {
   });
   test("describes only known AI states and does not echo unknown backend text", () => {
     expect(aiStatusKey("pending")).toBe("ai_pending");
+    expect(aiStatusKey("completed")).toBe("ai_completed");
     expect(aiStatusKey("uncertain")).toBe("ai_uncertain");
     expect(aiStatusKey("internal-recovery-envelope")).toBeNull();
     expect(aiStatusKey("failed", "private-backend-error")).toBe("ai_failed");
     expect(aiStatusKey("failed", "ai_quota")).toBe("ai_quota");
+    expect(zyraStatusReaction("pending")).toEqual({ emoji: "👀", key: "ai_pending", tone: "active" });
+    expect(zyraStatusReaction("processing")).toEqual({ emoji: "👀", key: "ai_processing", tone: "active" });
+    expect(zyraStatusReaction("completed")).toEqual({ emoji: "👍", key: "ai_completed", tone: "completed" });
+    expect(zyraStatusReaction("failed", "ai_quota")).toEqual({ emoji: null, key: "ai_quota", tone: "error" });
+    expect(zyraStatusReaction("unknown")).toBeNull();
   });
 });
