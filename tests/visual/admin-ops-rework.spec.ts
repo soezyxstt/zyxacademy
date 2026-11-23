@@ -71,7 +71,7 @@ async function mockAdminApis(page: Page) {
         recentLogs: [
           {
             timestamp: new Date(Date.now() - 60_000).toISOString(),
-            operation: "tutor_rag",
+            operation: "generateContent",
             model: "google/gemini-2.5-flash",
             viaGateway: true,
             latencyMs: 520,
@@ -79,7 +79,7 @@ async function mockAdminApis(page: Page) {
           },
           {
             timestamp: new Date(Date.now() - 180_000).toISOString(),
-            operation: "discussion-tutor",
+            operation: "chatCompletions",
             model: "openai/gpt-4o-mini",
             viaGateway: true,
             latencyMs: 780,
@@ -87,7 +87,7 @@ async function mockAdminApis(page: Page) {
           },
           {
             timestamp: new Date(Date.now() - 320_000).toISOString(),
-            operation: "playground",
+            operation: "interactions",
             model: "anthropic/claude-3-5-haiku",
             viaGateway: true,
             latencyMs: 890,
@@ -95,7 +95,7 @@ async function mockAdminApis(page: Page) {
           },
           {
             timestamp: new Date(Date.now() - 480_000).toISOString(),
-            operation: "quiz_generation",
+            operation: "embed",
             model: "google/gemini-2.5-flash",
             viaGateway: false,
             latencyMs: 1420,
@@ -112,26 +112,37 @@ async function mockAdminApis(page: Page) {
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        summary: {
-          totalRequests: 148,
-          totalTokens: 197900,
-          estimatedCostUsd: 0.42,
-          avgLatencyMs: 640,
-          cacheHitRate: 24,
+        success: true,
+        data: {
+          users: [
+            {
+              userId: "u-1",
+              name: "Raka Pratama",
+              email: "raka.pratama@zyxacademy.id",
+              requests: 64,
+              inputTokens: 48200,
+              outputTokens: 31400,
+              totalTokens: 79600,
+            },
+            {
+              userId: "u-2",
+              name: "Nadia Putri",
+              email: "nadia.putri@zyxacademy.id",
+              requests: 42,
+              inputTokens: 32100,
+              outputTokens: 21800,
+              totalTokens: 53900,
+            },
+          ],
+          daily: [
+            { date: "2026-11-18", requests: 18, inputTokens: 14500, outputTokens: 10000 },
+            { date: "2026-11-19", requests: 24, inputTokens: 19200, outputTokens: 12000 },
+            { date: "2026-11-20", requests: 31, inputTokens: 26100, outputTokens: 16000 },
+            { date: "2026-11-21", requests: 28, inputTokens: 22800, outputTokens: 14000 },
+            { date: "2026-11-22", requests: 22, inputTokens: 17400, outputTokens: 12000 },
+            { date: "2026-11-23", requests: 25, inputTokens: 20900, outputTokens: 13000 },
+          ],
         },
-        daily: [
-          { date: "2026-11-18", requests: 18, tokens: 24500 },
-          { date: "2026-11-19", requests: 24, tokens: 31200 },
-          { date: "2026-11-20", requests: 31, tokens: 42100 },
-          { date: "2026-11-21", requests: 28, tokens: 36800 },
-          { date: "2026-11-22", requests: 22, tokens: 29400 },
-          { date: "2026-11-23", requests: 25, tokens: 33900 },
-        ],
-        byFeature: [
-          { feature: "tutor_rag", requests: 86, tokens: 112000 },
-          { feature: "discussion-tutor", requests: 34, tokens: 44000 },
-          { feature: "playground", requests: 28, tokens: 41900 },
-        ],
       }),
     })
   );
@@ -143,18 +154,24 @@ async function mockAdminApis(page: Page) {
       body: JSON.stringify({
         checkedAt: nowIso,
         totalRequestsToday: 42,
-        rpdLimits: { "gemini-2.5-flash": 250 },
+        rpdLimits: { "gemini-2.5-flash": 250, "gemini-2.5-pro": 100 },
+        usageByModel: [
+          { model: "gemini-2.5-flash", count: 34, totalTokens: 68200 },
+          { model: "gemini-2.5-pro", count: 8, totalTokens: 24100 },
+        ],
         geminiKeys: [
           {
             keyId: "project-primary",
             modelId: "gemini-2.5-flash",
             requestsToday: 34,
             requestsMinute: 2,
+            rpdLimit: 250,
             estimatedRpmLimit: 15,
             utilizationPercent: 13.6,
             circuitState: "CLOSED",
             successes: 34,
             failures: 0,
+            consecutiveFailures: 0,
             cooldownRemainingMs: 0,
             activeRequestsCount: 0,
           },
@@ -163,11 +180,13 @@ async function mockAdminApis(page: Page) {
             modelId: "gemini-2.5-pro",
             requestsToday: 8,
             requestsMinute: 0,
+            rpdLimit: 100,
             estimatedRpmLimit: 5,
             utilizationPercent: 8,
             circuitState: "CLOSED",
             successes: 8,
             failures: 0,
+            consecutiveFailures: 0,
             cooldownRemainingMs: 0,
             activeRequestsCount: 0,
           },
