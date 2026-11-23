@@ -433,7 +433,7 @@ export function StudentScheduleMobile({
       <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
         <SheetContent
           side="bottom"
-          className="max-h-[80dvh] rounded-t-2xl pb-[calc(1rem+env(safe-area-inset-bottom))]"
+          className="max-h-[80dvh] overflow-y-auto rounded-t-2xl pb-[calc(1rem+env(safe-area-inset-bottom))]"
           aria-describedby={undefined}
         >
           <SheetHeader className="border-b border-border/70 pb-3 text-left">
@@ -442,7 +442,7 @@ export function StudentScheduleMobile({
             </SheetTitle>
           </SheetHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 px-(--panel-padding) py-4">
             <div className="space-y-1.5">
               <label className="block text-body-sm font-semibold text-foreground">
                 {t("academic.course")}

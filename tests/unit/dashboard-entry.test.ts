@@ -3,6 +3,8 @@ import {
   getSafeEntryReturnPath,
   isAppEntryVisitedPath,
   isDocumentGetNavigation,
+  isNativeMarketingRedirectPath,
+  isNativeUserAgent,
   resolveRoleDashboardPath,
 } from "@/lib/auth/dashboard-entry";
 
@@ -109,5 +111,37 @@ describe("isDocumentGetNavigation", () => {
         headers: new Headers({ "sec-purpose": "prefetch;anonymous-client-ip" }),
       }),
     ).toBe(false);
+  });
+});
+
+describe("isNativeUserAgent", () => {
+  test("detects ZyxMobileApp and ZyxDesktopApp user agents", () => {
+    expect(isNativeUserAgent("Mozilla/5.0 ZyxMobileApp/0.1.0 (Capacitor; nightly)")).toBe(true);
+    expect(isNativeUserAgent("Mozilla/5.0 ZyxDesktopApp/0.1.0 (Tauri)")).toBe(true);
+    expect(isNativeUserAgent("Mozilla/5.0 Chrome/120.0.0.0 Safari/537.36")).toBe(false);
+    expect(isNativeUserAgent(null)).toBe(false);
+  });
+});
+
+describe("isNativeMarketingRedirectPath", () => {
+  test("matches marketing routes including locale-prefixed variants", () => {
+    expect(isNativeMarketingRedirectPath("/")).toBe(true);
+    expect(isNativeMarketingRedirectPath("/id")).toBe(true);
+    expect(isNativeMarketingRedirectPath("/en")).toBe(true);
+    expect(isNativeMarketingRedirectPath("/about")).toBe(true);
+    expect(isNativeMarketingRedirectPath("/id/plans")).toBe(true);
+    expect(isNativeMarketingRedirectPath("/en/blog/post-1")).toBe(true);
+    expect(isNativeMarketingRedirectPath("/demo/courses")).toBe(true);
+  });
+
+  test("excludes auth, legal, and authenticated app routes", () => {
+    expect(isNativeMarketingRedirectPath("/sign-in")).toBe(false);
+    expect(isNativeMarketingRedirectPath("/sign-up")).toBe(false);
+    expect(isNativeMarketingRedirectPath("/sign-out")).toBe(false);
+    expect(isNativeMarketingRedirectPath("/privacy")).toBe(false);
+    expect(isNativeMarketingRedirectPath("/terms")).toBe(false);
+    expect(isNativeMarketingRedirectPath("/dashboard")).toBe(false);
+    expect(isNativeMarketingRedirectPath("/admin")).toBe(false);
+    expect(isNativeMarketingRedirectPath("/tutor")).toBe(false);
   });
 });

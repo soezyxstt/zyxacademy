@@ -13,6 +13,7 @@ import { resolveUserDashboardPath } from "@/lib/auth/dashboard-entry-server";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const isNative = request.nextUrl.searchParams.get("native") === "1";
   const returnTo = getSafeEntryReturnPath(
     request.nextUrl.searchParams.get("returnTo"),
   );
@@ -39,14 +40,17 @@ export async function GET(request: NextRequest) {
     console.error("[entry-redirect] Failed to resolve role dashboard:", error);
   }
 
-  const fallback = NextResponse.redirect(new URL(returnTo, publicOrigin));
+  const fallbackPath = isNative ? "/sign-in" : returnTo;
+  const fallback = NextResponse.redirect(new URL(fallbackPath, publicOrigin));
   fallback.headers.set("Cache-Control", "no-store");
-  fallback.cookies.set(DASHBOARD_ENTRY_COOKIE_NAME, "1", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: isSecure,
-    path: "/",
-    maxAge: DASHBOARD_ENTRY_STALE_COOLDOWN_SECONDS,
-  });
+  if (!isNative) {
+    fallback.cookies.set(DASHBOARD_ENTRY_COOKIE_NAME, "1", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: isSecure,
+      path: "/",
+      maxAge: DASHBOARD_ENTRY_STALE_COOLDOWN_SECONDS,
+    });
+  }
   return fallback;
 }

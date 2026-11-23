@@ -109,7 +109,7 @@ export function DiscussionWorkspaceSkeleton({ label }: { label?: string }) {
       {label && <span className="sr-only">{label}</span>}
       <div className="flex h-[calc(100dvh-9rem)] min-h-[20rem] min-w-0 overflow-hidden" aria-hidden="true">
         <aside className="flex min-h-0 min-w-0 flex-1 flex-col @min-[52rem]/discussions:w-[21rem] @min-[52rem]/discussions:flex-none @min-[52rem]/discussions:border-r @min-[52rem]/discussions:border-border">
-          <div className="flex shrink-0 items-center gap-1.5 border-b border-border py-1.5 @min-[52rem]/discussions:pr-3">
+          <div className="hidden shrink-0 items-center gap-1.5 border-b border-border py-1.5 md:flex @min-[52rem]/discussions:pr-3">
             <Skeleton className="h-9 flex-1 rounded-md" />
             <Skeleton className="size-8 shrink-0 rounded-md" />
             <Skeleton className="size-8 shrink-0 rounded-md" />

@@ -210,7 +210,7 @@ export function DiscussionWorkspaceMobile({
     <div
       data-discussion-frame=""
       data-discussion-layout="mobile-list"
-      className="flex min-h-[calc(100dvh-var(--mobile-navbar-height,3.25rem)-var(--mobile-bottom-nav-height,3.75rem)-2rem)] min-w-0 flex-col pb-20"
+      className="flex min-h-[calc(100dvh-var(--mobile-navbar-height,3.25rem)-var(--mobile-bottom-nav-height,3.75rem)-1rem)] min-w-0 flex-col"
     >
       <DiscussionListPane
         props={props}

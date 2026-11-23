@@ -21,8 +21,6 @@ import { ApplicationPage } from "@/components/application-page";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { ProfileHero } from "@/components/gamification/profile-hero";
-import { SidebarAccountMenu } from "@/components/auth/sidebar-account-menu";
-import { StudentAccountBoundary } from "@/components/student-account-boundary";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { MICRO } from "@/lib/gamification/catalog";
 import { signOut } from "@/lib/auth-client";
@@ -230,18 +228,8 @@ export function StudentProfileMobile({
 
       <section
         aria-label={tStudent("mobile.accountSection")}
-        className="space-y-2 border-t border-border pt-3"
+        className="border-t border-border pt-3"
       >
-        <StudentAccountBoundary>
-          {({ data }) =>
-            data?.user ? (
-              <div className="rounded-xl border border-border bg-card">
-                <SidebarAccountMenu collapsed={false} session={data} />
-              </div>
-            ) : null
-          }
-        </StudentAccountBoundary>
-
         <Button
           type="button"
           variant="outline"
