@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Popover as PopoverNs } from "radix-ui";
 import { cn } from "@/lib/utils";
+import { MobileSearchInlineProvider } from "@/components/navigation/mobile-chrome-context";
 
 function Popover({ ...props }: React.ComponentProps<typeof PopoverNs.Root>) {
   return <PopoverNs.Root data-slot="popover" {...props} />;
@@ -24,6 +25,7 @@ function PopoverContent({
   className,
   align = "center",
   sideOffset = 4,
+  children,
   ...props
 }: React.ComponentProps<typeof PopoverNs.Content>) {
   return (
@@ -37,7 +39,9 @@ function PopoverContent({
           className
         )}
         {...props}
-      />
+      >
+        <MobileSearchInlineProvider>{children}</MobileSearchInlineProvider>
+      </PopoverNs.Content>
     </PopoverNs.Portal>
   );
 }

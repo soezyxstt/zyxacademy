@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import {
   Select,
   SelectContent,
@@ -12,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTranslations } from "@/lib/i18n/client";
-import { ListFilter, RotateCcw, Search } from "lucide-react";
+import { ListFilter, RotateCcw } from "lucide-react";
 import { activityLabel } from "./activity-label";
 import type {
   TutorActivityFilterInput,
@@ -161,18 +162,16 @@ export function ActivityFilters({
   return (
     <div className="flex flex-wrap items-center gap-2 w-full">
       {/* Correlation ID Input with Debounce & Enter Submit */}
-      <div className="relative min-w-[140px] max-w-[200px] flex-1">
-        <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-        <Input
-          type="text"
-          placeholder={t("tutorActivityUI.correlationId")}
-          aria-label={t("tutorActivityUI.correlationId")}
-          value={localCorrelationId}
-          onChange={(e) => setLocalCorrelationId(e.target.value)}
-          onKeyDown={handleCorrelationKeyDown}
-          className="h-9 pl-8 text-body-sm bg-background w-full"
-        />
-      </div>
+      <SearchBar
+        size="sm"
+        expandable={false}
+        placeholder={t("tutorActivityUI.correlationId")}
+        aria-label={t("tutorActivityUI.correlationId")}
+        value={localCorrelationId}
+        onSearch={setLocalCorrelationId}
+        onKeyDown={handleCorrelationKeyDown}
+        containerClassName="min-w-[140px] max-w-[200px] flex-1"
+      />
 
       <Popover>
         <PopoverTrigger asChild>

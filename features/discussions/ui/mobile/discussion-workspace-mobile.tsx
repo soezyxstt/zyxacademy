@@ -7,6 +7,7 @@ import {
   MOBILE_TOP_NAV_ICON_BUTTON_CLASS,
   useHideMobileBottomNav,
   useMobileTopNav,
+  useMobileTopNavSearch,
 } from "@/components/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -132,6 +133,20 @@ export function DiscussionWorkspaceMobile({
     t,
   ]);
   useMobileTopNav(mobileTopNavConfig);
+
+  useMobileTopNavSearch(
+    !isDetailOpen
+      ? {
+          value: props.search,
+          onChange: props.onSearchChange,
+          onClear: () => props.onSearchChange(""),
+          placeholder: t("searchQuestion"),
+          ariaLabel: t("searchQuestion"),
+          isLoading:
+            props.listState === "loading" && props.search.trim().length > 0,
+        }
+      : null
+  );
 
   const detailFrameRef = useRef<HTMLDivElement | null>(null);
 

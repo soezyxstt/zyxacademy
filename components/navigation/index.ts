@@ -6,17 +6,25 @@ export {
 
 export {
   MobileChromeProvider,
+  MobileSearchInlineProvider,
+  useIsMobileSearchInline,
   useMobileChrome,
   useMobileTopNav,
+  useMobileTopNavSearch,
   useHideMobileBottomNav,
   createMobileChromeState,
   upsertTopNavEntry,
   removeTopNavEntry,
   resolveTopNavConfig,
+  upsertPageSearchEntry,
+  removePageSearchEntry,
+  resolvePageSearchConfig,
   addHideBottomNavToken,
   removeHideBottomNavToken,
   type MobileTopNavConfig,
+  type MobileTopNavSearchConfig,
   type MobileTopNavStackEntry,
+  type MobileTopNavSearchStackEntry,
   type MobileChromeState,
   type MobileChromeContextValue,
 } from "./mobile-chrome-context";
@@ -25,8 +33,10 @@ export {
   MOBILE_TOP_NAV_ICON_BUTTON_CLASS,
   MobileTopNavbar,
   MobileTopNavActionButton,
+  MobileTopNavSearchTrigger,
   type MobileTopNavbarProps,
   type MobileTopNavActionButtonProps,
+  type MobileTopNavSearchLabels,
 } from "./mobile-top-navbar";
 
 export {

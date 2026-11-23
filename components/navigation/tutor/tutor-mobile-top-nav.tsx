@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronsUpDown, Search } from "lucide-react";
+import { ChevronsUpDown } from "lucide-react";
 import {
-  MobileTopNavActionButton,
+  MobileTopNavSearchTrigger,
   MobileTopNavbar,
   useMobileChrome,
 } from "@/components/navigation";
@@ -71,7 +71,8 @@ function TutorMobileTopNavContent({
   const t = useTranslations("tutor");
   const tAdmin = useTranslations("admin");
   const tStudent = useTranslations("student");
-  const { setOpen: setSearchOpen } = useCommandMenu();
+  const tSearch = useTranslations("search");
+  const { setOpen: setSearchOpen, openWithQuery } = useCommandMenu();
   const { topNav } = useMobileChrome();
 
   const [courseSheetOpen, setCourseSheetOpen] = useState(false);
@@ -210,12 +211,7 @@ function TutorMobileTopNavContent({
     <>
       <AppUpdateControl variant="mobile" />
 
-      <MobileTopNavActionButton
-        label={t("mobile.search")}
-        onClick={() => setSearchOpen(true)}
-      >
-        <Search className="size-4" aria-hidden="true" />
-      </MobileTopNavActionButton>
+      <MobileTopNavSearchTrigger label={t("mobile.search")} />
 
       <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-card/85 shadow-xs backdrop-blur-md">
         <NotificationBell variant="sidebar" />
@@ -227,6 +223,18 @@ function TutorMobileTopNavContent({
         </div>
       ) : null}
     </>
+  );
+
+  const searchLabels = useMemo(
+    () => ({
+      placeholder: tSearch("searchPagePlaceholder"),
+      searchGlobally: tSearch("searchGlobally"),
+      searchGloballyQuery: (query: string) =>
+        tSearch("searchGloballyQuery", { query }),
+      clear: tSearch("clear"),
+      close: tSearch("closeSearch"),
+    }),
+    [tSearch]
   );
 
   return (
@@ -243,6 +251,10 @@ function TutorMobileTopNavContent({
         backLabel={t("mobile.back")}
         leftSlot={courseLeftSlot}
         rightActions={rightActions}
+        searchLabels={searchLabels}
+        onOpenGlobalSearch={(q) =>
+          q && openWithQuery ? openWithQuery(q) : setSearchOpen(true)
+        }
       />
 
       {isCourseRoute && canSwitchCourses ? (

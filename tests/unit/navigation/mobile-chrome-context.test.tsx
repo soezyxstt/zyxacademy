@@ -9,12 +9,18 @@ import {
   addHideBottomNavToken,
   createMobileChromeState,
   removeHideBottomNavToken,
+  removePageSearchEntry,
   removeTopNavEntry,
+  resolvePageSearchConfig,
   resolveTopNavConfig,
+  upsertPageSearchEntry,
   upsertTopNavEntry,
 } from "@/components/navigation/mobile-chrome-context";
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
-import { MobileTopNavbar } from "@/components/navigation/mobile-top-navbar";
+import {
+  MobileTopNavSearchTrigger,
+  MobileTopNavbar,
+} from "@/components/navigation/mobile-top-navbar";
 import { PageHeader } from "@/components/page-header";
 
 describe("MobileChromeContext state management", () => {
@@ -230,5 +236,63 @@ describe("MobileChromeContext state management", () => {
     expect(html.indexOf("data-test-search")).toBeGreaterThan(-1);
     expect(html.indexOf("data-test-share")).toBeLessThan(html.indexOf("data-test-search"));
     expect(html).not.toContain("border-b border-border/80");
+  });
+
+  test("stacks and restores pageSearch registrations cleanly", () => {
+    let state = createMobileChromeState();
+    expect(resolvePageSearchConfig(state.pageSearchStack)).toBeNull();
+
+    const onOuterChange = () => {};
+    state = upsertPageSearchEntry(state, "documents-list", {
+      value: "",
+      onChange: onOuterChange,
+      placeholder: "Cari dokumen...",
+    });
+    expect(resolvePageSearchConfig(state.pageSearchStack)?.placeholder).toBe(
+      "Cari dokumen..."
+    );
+
+    // Updating existing entry updates in place without duplicating.
+    state = upsertPageSearchEntry(state, "documents-list", {
+      value: "kond",
+      onChange: onOuterChange,
+      placeholder: "Cari dokumen...",
+    });
+    expect(state.pageSearchStack).toHaveLength(1);
+    expect(resolvePageSearchConfig(state.pageSearchStack)?.value).toBe("kond");
+
+    // Nested view overrides pageSearch; unmounting restores previous entry.
+    state = upsertPageSearchEntry(state, "nested-list", {
+      value: "bab 2",
+      onChange: () => {},
+      placeholder: "Cari topik...",
+    });
+    expect(resolvePageSearchConfig(state.pageSearchStack)?.placeholder).toBe(
+      "Cari topik..."
+    );
+
+    state = removePageSearchEntry(state, "nested-list");
+    expect(resolvePageSearchConfig(state.pageSearchStack)?.value).toBe("kond");
+
+    state = removePageSearchEntry(state, "documents-list");
+    expect(resolvePageSearchConfig(state.pageSearchStack)).toBeNull();
+  });
+
+  test("renders unified MobileTopNavSearchTrigger and global vector search prompt section", () => {
+    const html = renderToStaticMarkup(
+      <MobileChromeProvider>
+        <MobileTopNavbar
+          title="Bank Soal"
+          subtitle="Perpindahan Kalor"
+          rightActions={<MobileTopNavSearchTrigger label="Cari" />}
+        />
+      </MobileChromeProvider>
+    );
+
+    expect(html).toContain("data-mobile-search-trigger");
+    expect(html).toContain("data-mobile-search-bar");
+    expect(html).toContain("data-mobile-global-search-section");
+    expect(html).toContain("data-mobile-global-search-button");
+    expect(html).toContain("Cari di seluruh Zyx");
   });
 });

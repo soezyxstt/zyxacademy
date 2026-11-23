@@ -7,6 +7,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -25,19 +26,35 @@ export interface MobileTopNavConfig {
   hideTopNav?: boolean;
 }
 
+export interface MobileTopNavSearchConfig {
+  value: string;
+  onChange: (value: string) => void;
+  onClear?: () => void;
+  placeholder?: string;
+  ariaLabel?: string;
+  isLoading?: boolean;
+}
+
 export interface MobileTopNavStackEntry {
   id: string;
   config: MobileTopNavConfig;
 }
 
+export interface MobileTopNavSearchStackEntry {
+  id: string;
+  config: MobileTopNavSearchConfig;
+}
+
 export interface MobileChromeState {
   topNavStack: MobileTopNavStackEntry[];
+  pageSearchStack: MobileTopNavSearchStackEntry[];
   hideBottomNavTokens: string[];
 }
 
 export function createMobileChromeState(): MobileChromeState {
   return {
     topNavStack: [],
+    pageSearchStack: [],
     hideBottomNavTokens: [],
   };
 }
@@ -97,6 +114,49 @@ export function resolveTopNavConfig(
   return merged;
 }
 
+export function upsertPageSearchEntry(
+  state: MobileChromeState,
+  id: string,
+  config: MobileTopNavSearchConfig
+): MobileChromeState {
+  const existingIndex = state.pageSearchStack.findIndex(
+    (entry) => entry.id === id
+  );
+  if (existingIndex === -1) {
+    return {
+      ...state,
+      pageSearchStack: [...state.pageSearchStack, { id, config }],
+    };
+  }
+
+  const nextStack = state.pageSearchStack.slice();
+  nextStack[existingIndex] = { id, config };
+  return {
+    ...state,
+    pageSearchStack: nextStack,
+  };
+}
+
+export function removePageSearchEntry(
+  state: MobileChromeState,
+  id: string
+): MobileChromeState {
+  if (!state.pageSearchStack.some((entry) => entry.id === id)) {
+    return state;
+  }
+  return {
+    ...state,
+    pageSearchStack: state.pageSearchStack.filter((entry) => entry.id !== id),
+  };
+}
+
+export function resolvePageSearchConfig(
+  stack: MobileTopNavSearchStackEntry[]
+): MobileTopNavSearchConfig | null {
+  if (stack.length === 0) return null;
+  return stack[stack.length - 1]?.config ?? null;
+}
+
 export function addHideBottomNavToken(
   state: MobileChromeState,
   token: string
@@ -125,20 +185,28 @@ export function removeHideBottomNavToken(
 
 export interface MobileChromeContextValue {
   topNav: MobileTopNavConfig;
+  pageSearch: MobileTopNavSearchConfig | null;
+  isTopNavActive: boolean;
   hideBottomNav: boolean;
   hiddenBottomNavCount: number;
   registerTopNav: (id: string, config: MobileTopNavConfig) => void;
   unregisterTopNav: (id: string) => void;
+  registerPageSearch: (id: string, config: MobileTopNavSearchConfig) => void;
+  unregisterPageSearch: (id: string) => void;
   acquireHideBottomNav: (token: string) => void;
   releaseHideBottomNav: (token: string) => void;
 }
 
 const DEFAULT_MOBILE_CHROME_VALUE: MobileChromeContextValue = {
   topNav: {},
+  pageSearch: null,
+  isTopNavActive: false,
   hideBottomNav: false,
   hiddenBottomNavCount: 0,
   registerTopNav: () => {},
   unregisterTopNav: () => {},
+  registerPageSearch: () => {},
+  unregisterPageSearch: () => {},
   acquireHideBottomNav: () => {},
   releaseHideBottomNav: () => {},
 };
@@ -147,7 +215,35 @@ const MobileChromeContext = createContext<MobileChromeContextValue>(
   DEFAULT_MOBILE_CHROME_VALUE
 );
 
-export function MobileChromeProvider({ children }: { children: ReactNode }) {
+const MobileSearchInlineContext = createContext<boolean>(false);
+
+/**
+ * Marks a subtree (such as Dialog, Sheet, or Popover) so SearchBar instances
+ * inside it remain inline instead of delegating to the mobile top navbar.
+ */
+export function MobileSearchInlineProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <MobileSearchInlineContext.Provider value={true}>
+      {children}
+    </MobileSearchInlineContext.Provider>
+  );
+}
+
+export function useIsMobileSearchInline(): boolean {
+  return useContext(MobileSearchInlineContext);
+}
+
+export function MobileChromeProvider({
+  children,
+  hasTopNav = true,
+}: {
+  children: ReactNode;
+  hasTopNav?: boolean;
+}) {
   const [state, setState] = useState<MobileChromeState>(createMobileChromeState);
 
   const registerTopNav = useCallback((id: string, config: MobileTopNavConfig) => {
@@ -156,6 +252,17 @@ export function MobileChromeProvider({ children }: { children: ReactNode }) {
 
   const unregisterTopNav = useCallback((id: string) => {
     setState((prev) => removeTopNavEntry(prev, id));
+  }, []);
+
+  const registerPageSearch = useCallback(
+    (id: string, config: MobileTopNavSearchConfig) => {
+      setState((prev) => upsertPageSearchEntry(prev, id, config));
+    },
+    []
+  );
+
+  const unregisterPageSearch = useCallback((id: string) => {
+    setState((prev) => removePageSearchEntry(prev, id));
   }, []);
 
   const acquireHideBottomNav = useCallback((token: string) => {
@@ -167,21 +274,30 @@ export function MobileChromeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<MobileChromeContextValue>(() => {
+    const resolvedTopNav = resolveTopNavConfig(state.topNavStack);
     return {
-      topNav: resolveTopNavConfig(state.topNavStack),
+      topNav: resolvedTopNav,
+      pageSearch: resolvePageSearchConfig(state.pageSearchStack),
+      isTopNavActive: hasTopNav && !resolvedTopNav.hideTopNav,
       hideBottomNav: state.hideBottomNavTokens.length > 0,
       hiddenBottomNavCount: state.hideBottomNavTokens.length,
       registerTopNav,
       unregisterTopNav,
+      registerPageSearch,
+      unregisterPageSearch,
       acquireHideBottomNav,
       releaseHideBottomNav,
     };
   }, [
     acquireHideBottomNav,
+    hasTopNav,
+    registerPageSearch,
     registerTopNav,
     releaseHideBottomNav,
     state.hideBottomNavTokens.length,
+    state.pageSearchStack,
     state.topNavStack,
+    unregisterPageSearch,
     unregisterTopNav,
   ]);
 
@@ -256,6 +372,63 @@ export function useMobileTopNav(config: MobileTopNavConfig | null) {
     subtitle,
     title,
     unregisterTopNav,
+  ]);
+}
+
+/**
+ * Declaratively binds a page-level search input to the unified mobile top navbar.
+ * Uses refs for callbacks so inline handlers never trigger effect loops.
+ */
+export function useMobileTopNavSearch(config: MobileTopNavSearchConfig | null) {
+  const id = useId();
+  const { registerPageSearch, unregisterPageSearch } = useMobileChrome();
+  const onChangeRef = useRef(config?.onChange);
+  const onClearRef = useRef(config?.onClear);
+
+  useEffect(() => {
+    onChangeRef.current = config?.onChange;
+    onClearRef.current = config?.onClear;
+  });
+
+  const enabled = config !== null;
+  const value = config?.value ?? "";
+  const placeholder = config?.placeholder;
+  const ariaLabel = config?.ariaLabel;
+  const isLoading = config?.isLoading;
+
+  useEffect(() => {
+    if (!enabled) {
+      unregisterPageSearch(id);
+      return;
+    }
+
+    registerPageSearch(id, {
+      value,
+      onChange: (next) => onChangeRef.current?.(next),
+      onClear: () => {
+        if (onClearRef.current) {
+          onClearRef.current();
+        } else {
+          onChangeRef.current?.("");
+        }
+      },
+      placeholder,
+      ariaLabel,
+      isLoading,
+    });
+
+    return () => {
+      unregisterPageSearch(id);
+    };
+  }, [
+    ariaLabel,
+    enabled,
+    id,
+    isLoading,
+    placeholder,
+    registerPageSearch,
+    unregisterPageSearch,
+    value,
   ]);
 }
 

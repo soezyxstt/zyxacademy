@@ -398,9 +398,25 @@ export async function listThreadsAcrossChannels(actorId: string, options: { chan
   channelFilter = inArray(discussionThreads.channelId, db.select({ id: discussionChannels.id }).from(discussionChannels).where(predicate));
  }
  const after = pageCursor(options.cursor);
- const search = options.search?.trim().replace(/[\\%_]/g, "\\$&");
+ const rawSearch = options.search?.trim() ?? "";
+ const search = rawSearch.replace(/[\\%_]/g, "\\$&");
+ const searchPredicate = rawSearch
+  ? or(
+   sql`${discussionThreads.title} ilike ${`%${search}%`} escape '\\'`,
+   sql`to_tsvector('simple', ${discussionThreads.title}) @@ plainto_tsquery('simple', ${rawSearch})`,
+   sql`exists (
+    select 1 from ${discussionMessages}
+    where ${discussionMessages.threadId} = ${discussionThreads.id}
+     and ${discussionMessages.deletedAt} is null
+     and (
+      ${discussionMessages.body} ilike ${`%${search}%`} escape '\\'
+      or to_tsvector('simple', ${discussionMessages.body}) @@ plainto_tsquery('simple', ${rawSearch})
+     )
+   )`
+  )
+  : undefined;
  const rows = await db.select({ thread: discussionThreads, cursorAt: sql<string>`to_char(${discussionThreads.lastActivityAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')` }).from(discussionThreads)
-  .where(and(channelFilter, options.status ? eq(discussionThreads.status, options.status) : undefined, search ? sql`${discussionThreads.title} ilike ${`%${search}%`} escape '\\'` : undefined, after
+  .where(and(channelFilter, options.status ? eq(discussionThreads.status, options.status) : undefined, searchPredicate, after
   ? or(sql`${discussionThreads.lastActivityAt} < ${after.at}::timestamptz`, and(sql`${discussionThreads.lastActivityAt} = ${after.at}::timestamptz`, lt(discussionThreads.id, after.id))) : undefined))
   .orderBy(desc(discussionThreads.lastActivityAt), desc(discussionThreads.id)).limit(PAGE_SIZE + 1);
  const visible = rows.slice(0, PAGE_SIZE);

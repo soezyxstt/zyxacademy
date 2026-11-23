@@ -40,7 +40,7 @@ export function ApplicationShell({
     Boolean(sidebar || mobileNavigation) && !desktopSidebar && !mobileTopNav;
 
   return (
-    <MobileChromeProvider>
+    <MobileChromeProvider hasTopNav={Boolean(resolvedMobileTopNav)}>
       <div
         data-personalized-surface={personalizeTypographyAndSpacing ? "" : undefined}
         className={cn(
