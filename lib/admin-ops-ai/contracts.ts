@@ -740,7 +740,7 @@ export const OPS_AI_DOMAIN_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecur
     requiredRole: "admin",
     requiresHumanConfirmation: false,
     allowsMutation: false,
-    description: "Melihat status semua feature flag pada platform.",
+    description: "Melihat status feature flag operasional yang dipertahankan.",
   },
   create_short_link: {
     name: "create_short_link",

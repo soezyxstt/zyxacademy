@@ -5588,8 +5588,7 @@ export const careerPathConceptsRelations = relations(careerPathConcepts, ({ one 
 // the multi-stage Pemetaan Kesiapan Akademik test (Stage 1 -> 2 -> 3 per
 // subject; passing an earlier stage skips the rest). Routed off a hardcoded
 // course id (see lib/pka-config.ts), not a courses.type discriminator, since
-// this is a single seasonal campaign, not a general course category. Gated
-// end-to-end behind FEATURE_PKA.
+// this is a single seasonal campaign, not a general course category.
 
 // Static subject/stage -> quiz template mapping, admin/seed-authored.
 export const pkaSimulationStages = pgTable(

@@ -119,23 +119,14 @@ test("aggregate visibility uses authorized distinct scopes and excludes revoked 
  expect(compiled.params).not.toContain(JSON.stringify([{ course_id: "canonical", legacy_course_id: "legacy" }]));
 });
 
-test("free PKA still requires the campaign flag and registration", async () => {
- const previous = process.env.FEATURE_PKA;
+test("free PKA still requires registration", async () => {
  tables.mata_kuliah = [{ ...tables.mata_kuliah[0], legacyCourseId: "tutorial-pka", pricingCategory: "free" }];
  tables.courses = [{ id: "tutorial-pka", title: "Tutorial PKA" }];
  const actor = { id: "student", role: "student" as const };
- try {
-  process.env.FEATURE_PKA = "0";
-  tables.enrollments = [{ id: "tutorial-pka" }];
-  expect((await resolveDiscussionCourses(actor, ["canonical", "tutorial-pka"], executor as never)).get("canonical")?.hasFullContentAccess).toBe(false);
-  process.env.FEATURE_PKA = "1";
-  tables.enrollments = [];
-  expect((await resolveDiscussionCourses(actor, ["canonical", "tutorial-pka"], executor as never)).get("canonical")?.hasFullContentAccess).toBe(false);
-  await expect(requireDiscussionCourse(actor, "canonical", "tutorial-pka", executor as never)).rejects.toThrow("DISCUSSION_UNAVAILABLE");
-  tables.enrollments = [{ id: "tutorial-pka" }];
-  expect((await resolveDiscussionCourses(actor, ["canonical", "tutorial-pka"], executor as never)).get("canonical")?.hasFullContentAccess).toBe(true);
-  await expect(requireDiscussionCourse(actor, "canonical", "tutorial-pka", executor as never)).resolves.toMatchObject({ hasFullContentAccess: true });
- } finally {
-  if (previous === undefined) delete process.env.FEATURE_PKA; else process.env.FEATURE_PKA = previous;
- }
+ tables.enrollments = [];
+ expect((await resolveDiscussionCourses(actor, ["canonical", "tutorial-pka"], executor as never)).get("canonical")?.hasFullContentAccess).toBe(false);
+ await expect(requireDiscussionCourse(actor, "canonical", "tutorial-pka", executor as never)).rejects.toThrow("DISCUSSION_UNAVAILABLE");
+ tables.enrollments = [{ id: "tutorial-pka" }];
+ expect((await resolveDiscussionCourses(actor, ["canonical", "tutorial-pka"], executor as never)).get("canonical")?.hasFullContentAccess).toBe(true);
+ await expect(requireDiscussionCourse(actor, "canonical", "tutorial-pka", executor as never)).resolves.toMatchObject({ hasFullContentAccess: true });
 });

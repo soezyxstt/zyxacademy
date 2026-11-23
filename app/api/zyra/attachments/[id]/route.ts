@@ -72,7 +72,7 @@ async function authorizedRow(
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
-  if (!isZyraImageFeatureEnabled()) return notFound();
+  if (!isZyraImageFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_IMAGE_INPUT_V1)) return notFound();
   const { id } = await params;
   const authorized = await authorizedRow(id, requestedScope(request));
   if (!authorized || !storage.download) return notFound();
@@ -93,7 +93,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
-  if (!isZyraImageFeatureEnabled()) return notFound();
+  if (!isZyraImageFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_IMAGE_INPUT_V1)) return notFound();
   const { id } = await params;
   const authorized = await authorizedRow(id, requestedScope(request));
   if (!authorized) return notFound();

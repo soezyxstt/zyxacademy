@@ -1,7 +1,5 @@
-import { notFound } from "next/navigation";
 import { Megaphone } from "lucide-react";
 import { pageTitle } from "@/lib/site";
-import { env } from "@/lib/env";
 import { getPkaAnnouncementsAction } from "../actions";
 import { AnnouncementsTab } from "../_components/announcements-tab";
 import { AdminPageHeader } from "@/components/admin/page-header";

@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export const dynamic = "force-dynamic";
 
 export default async function DemoPage({ searchParams }: { searchParams: Promise<DemoSearchParams> }) {
-  const ui = { showLive: true };
+  const ui = { showLive: env.FEATURE_LIVE === "1" };
   const summaries = await getDemoSummaries();
   if (!summaries.length) return <DemoEmptyState />;
   const parsed = parseDemoSelection(await searchParams);

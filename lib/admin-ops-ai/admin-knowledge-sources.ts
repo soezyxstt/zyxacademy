@@ -290,8 +290,8 @@ export function generateFeatureFlagsCatalog(): string {
 
   lines.push("");
   lines.push("### Panduan Operasional Flag");
-  lines.push("- Artikel V3 aktif dengan '1' atau 'true'. Sinkronisasi editor Drive dan email refleksi aktif dengan '1'.");
-  lines.push("- Flag default tidak aktif (false) jika tidak disetel.");
+  lines.push("- Artikel V3 aktif dengan '1' atau 'true'. Kelas Live, AI Diktat, cache semantik Zyra, sinkronisasi editor Drive, dan email refleksi aktif dengan '1'.");
+  lines.push("- Input gambar Zyra aktif secara default. Setel flag server dan versi publik ke '0' untuk menonaktifkannya.");
   lines.push("- Perubahan flag diatur melalui konfigurasi environment.");
 
   return lines.join("\n");

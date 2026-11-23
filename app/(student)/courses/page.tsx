@@ -1,7 +1,5 @@
 import { StudentCourseCatalogView } from "@/components/course/student-course-catalog-view";
 import type { Metadata } from "next";
-import { PKA_COURSE_ID } from "@/lib/pka-config";
-import { env } from "@/lib/env";
 import { createMetadata} from "@/lib/site";
 import { getAuthSession } from "@/lib/auth-session";
 import { db } from "@/db";

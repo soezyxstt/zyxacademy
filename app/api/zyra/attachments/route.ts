@@ -21,7 +21,7 @@ function errorResponse(code: string, status: number): NextResponse {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  if (!isZyraImageFeatureEnabled()) {
+  if (!isZyraImageFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_IMAGE_INPUT_V1)) {
     return errorResponse("NOT_FOUND", 404);
   }
   const session = await auth.api.getSession({ headers: await headers() });

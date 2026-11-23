@@ -41,7 +41,7 @@ export default async function CourseLayout({ children, params }: Props) {
         courseTitle={course.title}
         showStudyPath
         showMastery
-        showLive
+        showLive={env.FEATURE_LIVE === "1"}
       />
       {children}
     </>

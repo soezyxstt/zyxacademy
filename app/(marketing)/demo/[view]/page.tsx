@@ -61,7 +61,7 @@ export default async function DemoViewPage({ params, searchParams }: Props) {
 
   const parsed = parseDemoSelection(await searchParams);
   if (!parsed) notFound();
-  const ui = { showLive: true, whatsappHref: getWhatsAppAdminChatHref() };
+  const ui = { showLive: env.FEATURE_LIVE === "1", whatsappHref: getWhatsAppAdminChatHref() };
   const experiences = await getDemoSummaries();
   if (!experiences.length) return <DemoEmptyState />;
   const courseId = parsed.course ?? experiences[0].snapshot.courseId;

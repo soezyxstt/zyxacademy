@@ -70,7 +70,7 @@ export async function executeDiktatPDFGeneration(
 
   // 3. Apply safe AI revisions (gated)
   let revisionsApplied = 0;
-  if (auditResult.proposedRevisions.length > 0) {
+  if (process.env.FEATURE_DIKTAT_AI === "1" && auditResult.proposedRevisions.length > 0) {
     auditedStructure = await applyDiktatRevisions(structure, auditResult.proposedRevisions, sourceKOs);
     revisionsApplied = auditResult.proposedRevisions.length;
   }

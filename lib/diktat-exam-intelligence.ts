@@ -407,7 +407,7 @@ export async function generateExamIntelligence(
  let examPatterns: ExamPattern[] = [];
  let quickMethods: QuickMethod[] = [];
 
- {
+ if (process.env.FEATURE_DIKTAT_AI === "1") {
  console.log("[diktat-exam-intelligence] generateExamPatterns (AI)");
  [examPatterns, quickMethods] = await Promise.all([
  generateExamPatternsAI(structure.chapters).catch(err => {
