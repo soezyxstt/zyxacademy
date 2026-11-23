@@ -10,7 +10,7 @@ const LazyOpsAiPanel = dynamic(
   { ssr: false },
 );
 
-export function OpsAiDrawer(props: { initialMessages?: OpsAiMessageV2[] } = {}) {
+export function OpsAiDrawer(props: { initialMessages?: OpsAiMessageV2[]; accountId?: string } = {}) {
   const { isOpen } = useOpsAiContext();
   const [hasOpened, setHasOpened] = useState(isOpen);
 
@@ -19,7 +19,7 @@ export function OpsAiDrawer(props: { initialMessages?: OpsAiMessageV2[] } = {}) 
   }, [isOpen]);
 
   // Keep the panel mounted after its first opening so a stream or draft survives closing it.
-  return isOpen || hasOpened ? <LazyOpsAiPanel {...props} /> : null;
+  return isOpen || hasOpened ? <LazyOpsAiPanel key={props.accountId} {...props} /> : null;
 }
 
 export const OpsAiPanel = OpsAiDrawer;

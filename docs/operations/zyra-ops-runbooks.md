@@ -109,13 +109,12 @@ Embedding runs outside database locks. The provider write and queue finalization
 3. Client Resilience:
    The UI panel displays actionable Indonesian guidance with a retry action button. If provider degradation persists, admins can execute operational tasks manually through standard admin dashboard routes listed in the catalog.
 
-## Admin action proposal retention and expiration policy
+## Admin action approvals
 
-1. Lifecycle and TTL:
-   - Action proposals generated via Ops AI tools are initially created in `pending` (or `draft`) status with an authoritative expiration TTL of 30 minutes.
-   - Proposals not confirmed by an authenticated admin within 30 minutes transition automatically to `expired`.
-2. Replay and Precondition Protection:
-   - Once executed, proposals cannot be re-executed. A duplicate execution request returns the previously recorded result idempotently without re-triggering side effects.
-   - Live preconditions (such as course existence) are verified immediately prior to execution; if preconditions drift, the execution fails with `STALE_PRECONDITION`.
-3. Retention and Archival:
-   Records in `zyra_proposals` and `ops_ai_mutation_audit` are immutable audit trails. Expired and cancelled proposals must be retained for at least 90 days for compliance before automated cold storage archiving.
+The Ops AI browser chat uses the common MCP registrars for admin and authoring tools, applying the [chat permission policy](../../lib/admin-ops-ai/operation-policy.ts) and browser exclusions. It uses the same operation handlers, schemas, environment identity, playbooks and existing transaction paths. Discover the supported operations through the chat tool. The browser session must still hold the active admin role when the operation runs. The Zyra review API exposes only review proposals. Chat approval plans stay server-side.
+
+- **Allow** commits one reviewed change. An approval binds the actor, login session, environment, browser chat, operation and exact input for up to 10 minutes. Admin-plan operations retain their signed plan. Authoring operations retain their workflow tokens, revision checks, and review and publication gates. Legacy bulk and token proposals retain their existing 30-minute lifecycle.
+- **Allow in chat** also grants permission to update the same form preset or private blog draft for 10 minutes from approval. Each subsequent write reads a fresh plan and checks the current revision. A published article needs a new one-time approval. The composer can revoke chat permission. Chat grants are held in browser memory while the admin panel is mounted.
+- A stale target requires a fresh read and proposal. After an interrupted confirmation, use the same approval card to retry the exact request. For signed admin plans, the shared audit receipt commits with the business write and prevents a second commit. Direct authoring tools claim the approval once. If their result is unknown, inspect the target or job before proceeding. Use the scoped approval-result tool to continue a successful authoring workflow with its returned IDs and tokens.
+- Provider operations that require OAuth consent, including notifications, Meet changes and spreadsheet export, use the existing authorized MCP or Admin workflows. Private form responses, token lookup and admin promotion are outside the browser operation policy.
+- Expired proposals are rejected at execution. Keep proposal records and mutation receipts under the existing audit retention policy.

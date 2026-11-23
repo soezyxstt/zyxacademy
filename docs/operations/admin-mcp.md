@@ -15,6 +15,10 @@ The existing `/api/mcp/authoring` endpoint now registers admin domain tools alon
 
 See [agent-first content operations](agent-first-content.md) for registered capability discovery, structured scope recovery, own-operation receipts, shared blog revision checks and public media resolution. Repository plugin 0.5.0 adds five focused skills without changing environment identity or automatically granting scopes.
 
+## Browser Ops AI compatibility
+
+Ops AI and the MCP endpoint use the same tool registration function. The browser harness uses registered schemas and annotations to discover operations, with browser-specific exclusions for credential disclosure, response-level data and OAuth-delegated provider writes. The browser gets the current authoring playbook through the same tool. Chat approvals and revocation apply to the active browser session. External MCP clients use their own existing scopes, consent and packaged host skills. Provider jobs still require persisted OAuth delegation. See [admin action approvals](zyra-ops-runbooks.md#admin-action-approvals).
+
 ## External effects
 
 `admin_operation_jobs` is the durable outbox. The existing Deno Inngest registry runs `admin-operations-outbox` every minute, processes at most 25 queued jobs and allows only one function instance at a time. Jobs bind the originating live admin session, OAuth client, resource, required scopes and environment. Enqueue and execution both check persisted OAuth consent, including secondary response-read permission for exports. Revoked or narrowed consent prevents queued provider effects. Manual/session connections cannot delegate these admin provider operations; legacy jobs without client/resource binding fail closed. No bearer token is stored. Missing provider configuration fails before an effect.

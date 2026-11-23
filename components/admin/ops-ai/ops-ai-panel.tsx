@@ -1,9 +1,9 @@
 "use client";
 
 import { usePanelViewport } from "@/hooks/use-panel-viewport";
-import { DIALOG_PARAM, useDialogHistory } from "@/hooks/use-dialog-history";
+import { useDialogHistory } from "@/hooks/use-dialog-history";
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   X,
   Loader2,
@@ -15,10 +15,8 @@ import {
   ChevronDown,
   Plus,
   MessageSquare,
-  ArrowUp,
   Maximize2,
   Minimize2,
-  FileEdit,
 } from "lucide-react";
 import { useOpsAiContext } from "./ops-ai-context";
 import {
@@ -45,13 +43,13 @@ import { QuickActionsBar, extractQuickActions } from "./quick-actions-bar";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import type {
-  OpsAiWorkStep,
-  OpsAiCitation,
-  OpsAiActionProposalV2,
-  OpsAiErrorData,
-} from "@/lib/admin-ops-ai/contracts";
-import { consumeOpsAiStream } from "./use-ops-ai-chat";
+import { useOpsAiChat } from "./use-ops-ai-chat";
+import { OPS_AI_POLICY_BOUNDS } from "@/lib/admin-ops-ai/contracts";
+import { ZyraComposerInput, type ZyraComposerInputHandle } from "@/components/course/zyra-composer-input";
+import { ZyraChatComposer, ZyraChatHeader, ZyraChatHistory, ZyraSendButton } from "@/components/course/zyra-chat-frame";
+import { TutorAssistantLabel, TutorAssistantSurface, TutorStudentMessage } from "@/components/course/tutor-message-frame";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const DEFAULT_SUGGESTIONS = [
   "Jelaskan fitur dan fungsi halaman ini",
@@ -61,7 +59,7 @@ const DEFAULT_SUGGESTIONS = [
   "Bagaimana prosedur darurat rollback cache?",
 ];
 
-export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessageV2[] } = {}) {
+export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: OpsAiMessageV2[]; accountId?: string } = {}) {
   const {
     isOpen,
     closePanel,
@@ -73,31 +71,38 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
 
   const [sessions, setSessions] = useState<OpsAiSession[]>(() => {
     if (typeof window === "undefined") return [];
-    return loadOpsAiSessions();
+    return loadOpsAiSessions(accountId);
   });
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
-    return loadActiveSessionId();
+    return loadActiveSessionId(accountId);
   });
-  const [messages, setMessages] = useState<OpsAiMessageV2[]>(() => initialMessages ?? []);
   const [hasHydrated, setHasHydrated] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isVisible, setIsVisible] = useState(typeof window === "undefined" ? isOpen : false);
   const [showSessionsDropdown, setShowSessionsDropdown] = useState(false);
-  const [mode, setMode] = useState<"ask" | "edit">("ask");
-  const [input, setInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { messages, setMessages, input, setInput, isStreaming, stop, sendMessage } = useOpsAiChat({
+    initialMessages,
+    context: { currentPath: pathname || "/admin", mode: "edit" },
+  });
+  const [revoking, setRevoking] = useState(false);
+  const [grants, setGrants] = useState<Array<{ id: string; chatId: string; until: number }>>([]);
+  const activeGrants = grants.filter(grant => grant.chatId === activeSessionId && grant.until > Date.now());
+  const nextGrantExpiry = Math.min(...activeGrants.map(grant => grant.until));
+  useEffect(() => {
+    if (!Number.isFinite(nextGrantExpiry)) return;
+    const timer = window.setTimeout(() => setGrants(current => current.filter(grant => grant.until > Date.now())), Math.max(0, nextGrantExpiry - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [nextGrantExpiry]);
   useDialogHistory(isOpen, closePanel);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<ZyraComposerInputHandle>(null);
   const panelRef = useRef<HTMLElement>(null);
   usePanelViewport(panelRef, isVisible);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<{ startX: number; startWidth: number; latestWidth: number }>({
     startX: 0,
@@ -141,13 +146,13 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
   // Hydration-safe initial load from localStorage and external update sync
   useEffect(() => {
     if (!initialMessages) {
-      const loadedSessions = loadOpsAiSessions();
+      const loadedSessions = loadOpsAiSessions(accountId);
       setSessions(loadedSessions);
 
-      let curSessionId = loadActiveSessionId();
+      let curSessionId = loadActiveSessionId(accountId);
       if (!curSessionId && loadedSessions.length > 0) {
         curSessionId = loadedSessions[0].id;
-        saveActiveSessionId(curSessionId);
+        saveActiveSessionId(curSessionId, accountId);
       }
 
       if (curSessionId) {
@@ -157,7 +162,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           setMessages(curSession.messages);
         }
       } else {
-        const loaded = loadOpsAiMessages();
+        const loaded = loadOpsAiMessages(accountId);
         if (loaded.length > 0) {
           setMessages(loaded);
         }
@@ -166,14 +171,14 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
     setHasHydrated(true);
 
     const handleExternalUpdate = () => {
-      const reloadedSessions = loadOpsAiSessions();
+      const reloadedSessions = loadOpsAiSessions(accountId);
       setSessions(reloadedSessions);
-      const curId = loadActiveSessionId();
+      const curId = loadActiveSessionId(accountId);
       if (curId) {
         const current = reloadedSessions.find((s) => s.id === curId);
         if (current) setMessages(current.messages);
       } else {
-        const reloaded = loadOpsAiMessages();
+        const reloaded = loadOpsAiMessages(accountId);
         setMessages(reloaded);
       }
     };
@@ -184,18 +189,18 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
       window.removeEventListener("zyx:ops-ai-messages-updated", handleExternalUpdate);
       window.removeEventListener("zyx:ops-ai-sessions-updated", handleExternalUpdate);
     };
-  }, [initialMessages]);
+  }, [initialMessages, accountId, setMessages]);
 
   // Synchronize messages with persistent session storage after client mount
   useEffect(() => {
     if (hasHydrated) {
       if (activeSessionId) {
-        updateOpsAiSessionMessages(activeSessionId, messages);
+        updateOpsAiSessionMessages(activeSessionId, messages, accountId);
       } else {
-        saveOpsAiMessages(messages, true);
+        saveOpsAiMessages(messages, true, accountId);
       }
     }
-  }, [messages, hasHydrated, activeSessionId]);
+  }, [messages, hasHydrated, activeSessionId, accountId]);
 
   // Internal container auto-scroll: Strictly scrolls drawer without moving outer page
   useEffect(() => {
@@ -207,9 +212,8 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
   // Focus textarea when panel opens without causing mobile horizontal page shift
   useEffect(() => {
     if (isOpen && !showSessionsDropdown) {
-      setTimeout(() => {
-        textareaRef.current?.focus({ preventScroll: true });
-      }, 100);
+      const timer = window.setTimeout(() => textareaRef.current?.focus(), 100);
+      return () => window.clearTimeout(timer);
     }
   }, [isOpen, showSessionsDropdown]);
 
@@ -222,7 +226,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
       if (!container) return;
 
       const focusables = container.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), [tabindex="0"], a[href]'
+        'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), [contenteditable="true"], [tabindex="0"], a[href]'
       );
       if (focusables.length === 0) {
         e.preventDefault();
@@ -370,35 +374,41 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
 
   // Handle creating a new session
   const handleCreateNewSession = () => {
-    const newSession = createOpsAiSession();
-    const updatedSessions = [newSession, ...sessions];
-    setSessions(updatedSessions);
+    stop();
+    const newSession = createOpsAiSession(undefined, accountId);
+    setSessions(loadOpsAiSessions(accountId));
     setActiveSessionId(newSession.id);
     setMessages([]);
+    setInput("");
     setShowSessionsDropdown(false);
     toast.success("Sesi percakapan baru telah dimulai.");
   };
 
   // Handle switching active session
   const handleSwitchSession = (session: OpsAiSession) => {
+    stop();
     setActiveSessionId(session.id);
-    saveActiveSessionId(session.id);
-    setMessages(session.messages);
+    saveActiveSessionId(session.id, accountId);
+    setMessages(loadOpsAiSessions(accountId).find(current => current.id === session.id)?.messages ?? session.messages);
+    setInput("");
     setShowSessionsDropdown(false);
   };
 
   // Handle deleting a single session
   const handleDeleteSession = (e: React.MouseEvent, sessionId: string) => {
+    stop();
+    setGrants(current => current.filter(grant => grant.chatId !== sessionId));
     e.stopPropagation();
-    const remaining = deleteOpsAiSession(sessionId);
+    const remaining = deleteOpsAiSession(sessionId, accountId);
     setSessions(remaining);
 
     if (activeSessionId === sessionId) {
+      setInput("");
       if (remaining.length > 0) {
         setActiveSessionId(remaining[0].id);
         setMessages(remaining[0].messages);
       } else {
-        const fresh = createOpsAiSession();
+        const fresh = createOpsAiSession(undefined, accountId);
         setSessions([fresh]);
         setActiveSessionId(fresh.id);
         setMessages([]);
@@ -409,11 +419,13 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
 
   // Handle clearing history of active session
   const handleClearActiveHistory = () => {
+    stop();
+    setGrants(current => current.filter(grant => grant.chatId !== activeSessionId));
     setMessages([]);
-    clearOpsAiMessages();
+    clearOpsAiMessages(accountId);
     if (activeSessionId) {
-      updateOpsAiSessionMessages(activeSessionId, []);
-      const reloaded = loadOpsAiSessions();
+      updateOpsAiSessionMessages(activeSessionId, [], accountId);
+      const reloaded = loadOpsAiSessions(accountId);
       setSessions(reloaded);
     }
     toast.success("Riwayat percakapan sesi ini telah dibersihkan.");
@@ -421,11 +433,14 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
 
   // Handle clearing all sessions completely
   const handleClearAllSessions = () => {
-    clearAllOpsAiSessions();
-    const fresh = createOpsAiSession();
+    stop();
+    setGrants([]);
+    clearAllOpsAiSessions(accountId);
+    const fresh = createOpsAiSession(undefined, accountId);
     setSessions([fresh]);
     setActiveSessionId(fresh.id);
     setMessages([]);
+    setInput("");
     setShowSessionsDropdown(false);
     toast.success("Seluruh riwayat sesi telah dibersihkan.");
   };
@@ -447,193 +462,36 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
     }
   };
 
-  const handleStopStream = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      setIsStreaming(false);
-      toast.info("Pemrosesan respons telah dihentikan.");
+  const handleSendMessage = (textToSend?: string) => {
+    const query = (textToSend ?? input).trim();
+    if (!query || isStreaming || revoking || query.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength) return;
+    let chatId = activeSessionId;
+    if (!chatId) {
+      const fresh = createOpsAiSession(undefined, accountId);
+      chatId = fresh.id;
+      setActiveSessionId(chatId);
+      setSessions(loadOpsAiSessions(accountId));
     }
+    const grantIds = activeGrants.map(grant => grant.id);
+    void sendMessage(query, { chatId, grantIds });
   };
 
-  const handleSendMessage = async (textToSend?: string) => {
-    const query = (textToSend || input).trim();
-    if (!query || isStreaming) return;
-
-    let targetSessionId = activeSessionId;
-    if (!targetSessionId) {
-      const fresh = createOpsAiSession();
-      targetSessionId = fresh.id;
-      setActiveSessionId(fresh.id);
-      setSessions((prev) => [fresh, ...prev]);
-    }
-
-    const userMsg: OpsAiMessageV2 = {
-      id: `msg-user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      role: "user",
-      content: query,
-      createdAt: Date.now(),
-    };
-
-    const assistantMsgId = `msg-asst-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const assistantMsg: OpsAiMessageV2 = {
-      id: assistantMsgId,
-      role: "assistant",
-      content: "",
-      createdAt: Date.now(),
-      workSteps: [],
-      citations: [],
-      proposals: [],
-    };
-
-    const nextMessages = [...messages, userMsg, assistantMsg];
-    setMessages(nextMessages);
-    setInput("");
-    setIsStreaming(true);
-
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
+  const handleRevokeGrants = async () => {
+    if (revoking || !activeSessionId || !activeGrants.length) return;
+    const revokeGrantIds = activeGrants.map(grant => grant.id);
+    setRevoking(true);
     try {
-      const qParams: Record<string, string> = {};
-      searchParams?.forEach((val, key) => {
-        if (key !== DIALOG_PARAM) qParams[key] = val;
-      });
-
-      const res = await fetch("/api/admin/ops-ai", {
+      const response = await fetch("/api/admin/ops-ai/execute", {
         method: "POST",
-        signal: abortController.signal,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: nextMessages
-            .filter((m) => m.role === "user" || (m.role === "assistant" && m.content.length > 0))
-            .map((m) => ({
-              role: m.role === "user" ? "user" : "assistant",
-              content: m.content,
-            })),
-          context: {
-            currentPath: pathname || "/admin",
-            queryParams: qParams,
-            mode,
-          },
-        }),
+        body: JSON.stringify({ chatId: activeSessionId, revokeGrantIds }),
       });
-
-      if (!res.ok) {
-        let errText = "Gagal menghubungi layanan Zyx Ops AI.";
-        try {
-          const errJson = await res.json();
-          if (errJson.error) errText = errJson.error;
-        } catch {
-          // Ignore parse errors
-        }
-        throw new Error(errText);
-      }
-
-      if (!res.body) {
-        throw new Error("Respons stream tidak tersedia.");
-      }
-
-      for await (const part of consumeOpsAiStream(res.body, abortController.signal)) {
-        if (part.type === "text-delta") {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsgId
-                ? { ...m, content: m.content + part.textDelta }
-                : m
-            )
-          );
-        } else if (part.type === "data-work-step") {
-          const step: OpsAiWorkStep = part.data;
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m.id !== assistantMsgId) return m;
-              const existing = m.workSteps || [];
-              const stepIdx = existing.findIndex((s) => s.stepId === step.stepId);
-              let updatedSteps: OpsAiWorkStep[];
-              if (stepIdx >= 0) {
-                updatedSteps = [...existing];
-                updatedSteps[stepIdx] = step;
-              } else {
-                updatedSteps = [...existing, step];
-              }
-              return { ...m, workSteps: updatedSteps };
-            })
-          );
-        } else if (part.type === "data-citation") {
-          const citation: OpsAiCitation = part.data;
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m.id !== assistantMsgId) return m;
-              const existing = m.citations || [];
-              if (existing.some((c) => c.id === citation.id)) return m;
-              return { ...m, citations: [...existing, citation] };
-            })
-          );
-        } else if (part.type === "data-proposal") {
-          const proposal: OpsAiActionProposalV2 = part.data;
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m.id !== assistantMsgId) return m;
-              const existing = m.proposals || [];
-              if (existing.some((p) => p.id === proposal.id)) return m;
-              return { ...m, proposals: [...existing, proposal] };
-            })
-          );
-        } else if (part.type === "data-error") {
-          const errData: OpsAiErrorData = part.data;
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsgId
-                ? {
-                    ...m,
-                    error: errData,
-                    content: m.content || `Terjadi kendala: ${errData.message}`,
-                  }
-                : m
-            )
-          );
-        }
-      }
-    } catch (err: unknown) {
-      if (abortController.signal.aborted) {
-        setMessages((prev) =>
-          prev.map((m) => {
-            if (m.id !== assistantMsgId) return m;
-            const updatedSteps = (m.workSteps || []).map((s) =>
-              s.status === "running" ? { ...s, status: "cancelled" as const } : s
-            );
-            return {
-              ...m,
-              workSteps: updatedSteps,
-              content: m.content || "Permintaan dihentikan oleh pengguna.",
-            };
-          })
-        );
-      } else {
-        const msg = err instanceof Error ? err.message : "Terjadi kesalahan sistem saat streaming.";
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMsgId
-              ? {
-                  ...m,
-                  content:
-                    m.content ||
-                    `Maaf, terjadi kesalahan saat menghubungi layanan AI: ${msg}`,
-                }
-              : m
-          )
-        );
-      }
+      if (!response.ok) throw new Error();
+      setGrants(current => current.filter(grant => !revokeGrantIds.includes(grant.id)));
+    } catch {
+      toast.error("Izin chat belum bisa diakhiri. Coba lagi.");
     } finally {
-      setIsStreaming(false);
-      abortControllerRef.current = null;
-    }
-  };
-
-  const handleKeyDownInput = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+      setRevoking(false);
     }
   };
 
@@ -643,7 +501,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
   const activeTitle =
     currentSession?.title && currentSession.title !== "Percakapan Baru"
       ? currentSession.title
-      : "Zyx Ops Assistant";
+      : messages.find(message => message.role === "user")?.content.trim().slice(0, 48) || "Zyx Ops AI";
 
   return (
     <>
@@ -709,7 +567,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         </div>
 
         {/* 1. Header: Cloudflare Style (Title Dropdown + Minimal Action Icons) */}
-        <header className="shrink-0 border-b border-border/80 px-3.5 py-2.5 pt-[calc(0.625rem+env(safe-area-inset-top,0px))] md:pt-2.5 bg-background/80 backdrop-blur-md flex items-center justify-between z-20 gap-2">
+        <ZyraChatHeader>
           {/* Left: Session Dropdown Selector */}
           <div className="relative min-w-0 flex-1">
             <button
@@ -749,7 +607,6 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
                       return (
                         <div
                           key={sess.id}
-                          onClick={() => handleSwitchSession(sess)}
                           className={cn(
                             "flex items-center justify-between gap-2 p-2 rounded-lg text-body-xs cursor-pointer transition-colors",
                             isActive
@@ -757,10 +614,10 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
                               : "hover:bg-muted text-foreground"
                           )}
                         >
-                          <div className="min-w-0 flex-1 flex items-center gap-1.5">
-                            <MessageSquare className="size-3 shrink-0 opacity-70" />
-                            <span className="truncate">{sess.title || "Percakapan Baru"}</span>
-                          </div>
+                          <button type="button" onClick={() => handleSwitchSession(sess)} aria-current={isActive ? "true" : undefined} className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-body-sm">
+                            <MessageSquare className="size-3 shrink-0 opacity-70" aria-hidden="true" />
+                            <span className="truncate">{sess.title || "Percakapan baru"}</span>
+                          </button>
 
                           <div className="flex items-center gap-1 shrink-0">
                             <span className="text-[10px] text-muted-foreground font-mono">
@@ -855,16 +712,10 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
               Tutup
             </button>
           </div>
-        </header>
+        </ZyraChatHeader>
 
         {/* 2. Conversation Flow: Natural Stream Without Heavy Card Wrapper */}
-        <div
-          ref={scrollContainerRef}
-          role="region"
-          aria-label="Riwayat percakapan"
-          tabIndex={0}
-          className="flex-1 overflow-y-auto min-h-0 p-4 space-y-6 focus-visible:outline-none"
-        >
+        <ZyraChatHistory ref={scrollContainerRef} aria-label="Riwayat percakapan">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-2 py-12 space-y-4">
               <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -874,9 +725,6 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
                 <h4 className="font-heading text-body-base font-bold text-foreground">
                   Zyx Ops AI
                 </h4>
-                <p className="mt-1 text-body-xs text-muted-foreground max-w-[320px]">
-                  Asisten operasional Zyx Academy. Tanyakan konfigurasi, jalankan query skema, atau buat token aktivasi.
-                </p>
               </div>
 
               {/* Suggestions */}
@@ -898,209 +746,164 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
               const isAssistant = msg.role === "assistant";
 
               if (!isAssistant) {
-                // User Message Bubble (Cloudflare Style: Compact Right-Aligned Bubble)
                 return (
-                  <div key={msg.id || index} className="flex justify-end">
-                    <div className="max-w-[85%] rounded-2xl bg-muted/90 text-foreground px-4 py-2.5 text-body-sm leading-relaxed shadow-2xs">
-                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                    </div>
-                  </div>
+                  <TutorStudentMessage key={msg.id || index}>
+                    <MarkdownRenderer content={msg.content} density="compact" />
+                  </TutorStudentMessage>
                 );
               }
 
-              // Assistant Message Stream (Cloudflare Style: Direct In-Line Flow)
               return (
                 <div key={msg.id || index} className="space-y-2 select-text">
-                  {/* Reasoning / Work Trace (In-line top) */}
-                  {msg.workSteps && msg.workSteps.length > 0 && (
-                    <WorkTraceView steps={msg.workSteps} />
-                  )}
+                  <TutorAssistantSurface>
+                    <TutorAssistantLabel label="Zyx Ops AI" />
+                    {msg.workSteps && msg.workSteps.length > 0 && <WorkTraceView steps={msg.workSteps} />}
+                    {/* Message Content Flow (Natural typography, no heavy outer card) */}
+                    {(() => {
+                      const { cleanedContent, quickActions } = extractQuickActions(msg.content);
+                      const isLatestAssistant = index === messages.length - 1;
 
-                  {/* Agent Header Label */}
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-heading text-body-xs font-bold text-primary">
-                      Agent
-                    </span>
-                  </div>
+                      return (
+                        <>
+                          {cleanedContent ? (
+                            <div className="min-w-0 max-w-full wrap-break-word text-body-base text-foreground">
+                              <MarkdownRenderer content={cleanedContent} density="compact" />
+                            </div>
+                          ) : isStreaming && isLatestAssistant ? (
+                            <div role="status" className="flex items-center gap-2 py-1 text-body-xs text-muted-foreground">
+                              <Loader2 className="size-3 animate-spin text-primary" />
+                              <span>Menyiapkan respons</span>
+                            </div>
+                          ) : null}
 
-                  {/* Message Content Flow (Natural typography, no heavy outer card) */}
-                  {(() => {
-                    const { cleanedContent, quickActions } = extractQuickActions(msg.content);
-                    const isLatestAssistant = index === messages.length - 1;
+                          {/* Interactive Quick Actions Bar */}
+                          {quickActions.length > 0 && isLatestAssistant && !msg.proposals?.length && (
+                            <QuickActionsBar
+                              options={quickActions}
+                              onSelect={(opt) => handleSendMessage(opt)}
+                              disabled={isStreaming}
+                            />
+                          )}
+                        </>
+                      );
+                    })()}
 
-                    return (
-                      <>
-                        {cleanedContent ? (
-                          <div className="prose prose-sm dark:prose-invert max-w-none break-words text-body-sm leading-relaxed">
-                            <MarkdownRenderer content={cleanedContent} />
-                          </div>
-                        ) : isStreaming && isLatestAssistant ? (
-                          <div className="flex items-center gap-2 text-body-xs text-muted-foreground italic py-1">
-                            <Loader2 className="size-3 animate-spin text-primary" />
-                            <span>Sedang menganalisis dokumen dan konteks...</span>
-                          </div>
-                        ) : null}
+                    {msg.error && msg.content !== `Terjadi kendala: ${msg.error.message}` && (
+                      <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/5 p-2 text-body-xs text-destructive">
+                        {msg.error.message}
+                      </p>
+                    )}
 
-                        {/* Interactive Quick Actions Bar */}
-                        {quickActions.length > 0 && isLatestAssistant && (
-                          <QuickActionsBar
-                            options={quickActions}
-                            onSelect={(opt) => handleSendMessage(opt)}
+                    {/* Official Grounded Citations (In-line bottom) */}
+                    {msg.citations && msg.citations.length > 0 && (
+                      <CitationCards citations={msg.citations} />
+                    )}
+
+                    {/* Action Proposals */}
+                    {msg.proposals && msg.proposals.length > 0 && (
+                      <div className="my-3 space-y-2">
+                        {msg.proposals.map((prop) => (
+                          <ActionProposalCard
+                            key={prop.id}
+                            proposal={prop}
+                            chatId={activeSessionId ?? undefined}
                             disabled={isStreaming}
+                            onExecuted={(proposalId, result, grantUntil) => {
+                              if (grantUntil && grantUntil > Date.now() && activeSessionId) {
+                                const chatId = activeSessionId;
+                                setGrants(current => [...current.filter(grant => grant.id !== proposalId && grant.until > Date.now()), { id: proposalId, chatId, until: grantUntil }].slice(-8));
+                              }
+                              setMessages((prev) =>
+                                prev.map((m) => {
+                                  if (!m.proposals) return m;
+                                  return {
+                                    ...m,
+                                    proposals: m.proposals.map((p) =>
+                                      p.id === proposalId
+                                        ? {
+                                            ...p,
+                                            status: "executed" as const,
+                                            result:
+                                              typeof result === "object" && result !== null
+                                                ? (result as Record<string, unknown>)
+                                                : { result },
+                                            confirmedAt: Date.now(),
+                                          }
+                                        : p
+                                    ),
+                                  };
+                                })
+                              );
+                            }}
                           />
-                        )}
-                      </>
-                    );
-                  })()}
+                        ))}
+                      </div>
+                    )}
 
-                  {/* Official Grounded Citations (In-line bottom) */}
-                  {msg.citations && msg.citations.length > 0 && (
-                    <CitationCards citations={msg.citations} />
-                  )}
-
-                  {/* Action Proposals */}
-                  {msg.proposals && msg.proposals.length > 0 && (
-                    <div className="my-3 space-y-2">
-                      {msg.proposals.map((prop) => (
-                        <ActionProposalCard
-                          key={prop.id}
-                          proposal={prop}
-                          onExecuted={(proposalId, result) => {
-                            setMessages((prev) =>
-                              prev.map((m) => {
-                                if (!m.proposals) return m;
-                                return {
-                                  ...m,
-                                  proposals: m.proposals.map((p) =>
-                                    p.id === proposalId
-                                      ? {
-                                          ...p,
-                                          status: "executed" as const,
-                                          result:
-                                            typeof result === "object" && result !== null
-                                              ? (result as Record<string, unknown>)
-                                              : { result },
-                                          confirmedAt: Date.now(),
-                                        }
-                                      : p
-                                  ),
-                                };
-                              })
-                            );
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Copy button */}
-                  {msg.content && (
-                    <div className="flex items-center gap-2 pt-1 text-muted-foreground">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyMessage(msg.id, msg.content)}
-                        aria-label="Salin jawaban"
-                        title="Salin jawaban"
-                        className="inline-flex items-center gap-1 text-[11px] hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded-md hover:bg-muted"
-                      >
-                        {copiedId === msg.id ? (
-                          <>
-                            <Check className="size-3 text-emerald-500" />
-                            <span>Tersalin</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="size-3" />
-                            <span>Salin</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
+                    {/* Copy button */}
+                    {msg.content && (
+                      <div className="flex items-center gap-2 pt-1 text-muted-foreground">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyMessage(msg.id, msg.content)}
+                          aria-label="Salin jawaban"
+                          title="Salin jawaban"
+                          className="inline-flex items-center gap-1 text-[11px] hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded-md hover:bg-muted"
+                        >
+                          {copiedId === msg.id ? (
+                            <>
+                              <Check className="size-3 text-emerald-500" />
+                              <span>Tersalin</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="size-3" />
+                              <span>Salin</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </TutorAssistantSurface>
                 </div>
               );
             })
           )}
-        </div>
+        </ZyraChatHistory>
 
-        {/* 3. Floating Modern Composer (Cloudflare Style) */}
-        <footer className="shrink-0 border-t border-border/40 p-3 pt-2">
-          <div className="relative rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/20 transition-all p-2.5">
-            <textarea
-              ref={textareaRef}
-              rows={2}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDownInput}
-              disabled={isStreaming}
-              placeholder={
-                isStreaming
-                  ? "Asisten sedang merespons..."
-                  : mode === "edit"
-                  ? "Perintahkan aksi atau edit (misal: Buatkan token kelompok 5 orang)..."
-                  : "Tanyakan apa saja seputar operasional & dokumentasi Zyx..."
-              }
-              aria-label="Ketik pesan untuk Zyx Ops AI"
-              className="w-full resize-none bg-transparent px-1.5 py-1 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 min-h-[44px]"
-            />
-
-            <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-border/40 px-1">
-              {/* Left: Mode Selector Button (Tanya vs Edit) */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setMode((prev) => (prev === "ask" ? "edit" : "ask"))}
-                  aria-label={`Beralih mode. Mode saat ini: ${mode === "ask" ? "Tanya" : "Edit"}`}
-                  title={`Klik untuk beralih ke Mode ${mode === "ask" ? "Edit" : "Tanya"}`}
-                  className={cn(
-                    "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-body-sm font-semibold transition-colors cursor-pointer select-none border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    mode === "edit"
-                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/25"
-                      : "bg-muted/80 text-foreground/90 border-border/50 hover:bg-muted"
-                  )}
-                >
-                  {mode === "edit" ? (
-                    <>
-                      <FileEdit className="size-3 text-amber-600 dark:text-amber-400" />
-                      <span>Mode Edit</span>
-                    </>
-                  ) : (
-                    <>
-                      <MessageSquare className="size-3 text-primary" />
-                      <span>Mode Tanya</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Right: Send / Stop Circular Action Button */}
-              <div className="flex items-center gap-1.5">
-                {isStreaming ? (
-                  <button
-                    type="button"
-                    onClick={handleStopStream}
-                    aria-label="Hentikan respons"
-                    title="Hentikan respons"
-                    className="flex size-7.5 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors cursor-pointer shadow-xs"
-                  >
-                    <Square className="size-3 fill-current" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleSendMessage()}
-                    disabled={!input.trim()}
-                    aria-label="Kirim pesan"
-                    title="Kirim pesan"
-                    className="flex size-7.5 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-xs"
-                  >
-                    <ArrowUp className="size-4" />
-                  </button>
-                )}
-              </div>
-            </div>
+        <ZyraChatComposer>
+          <ZyraComposerInput
+            ref={textareaRef}
+            value={input}
+            onChange={setInput}
+            onSubmit={() => handleSendMessage()}
+            disabled={isStreaming || revoking}
+            placeholder="Tanyakan atau minta aksi admin"
+            aria-label="Ketik pesan untuk Zyx Ops AI"
+          />
+          {input.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength && (
+            <p role="status" className="px-1 text-body-xs text-destructive">Pesan maksimal {OPS_AI_POLICY_BOUNDS.maxMessageCharLength} karakter.</p>
+          )}
+          <div className="flex items-center justify-end gap-2 pt-1">
+            {activeGrants.length > 0 && (
+              <Button type="button" size="sm" variant="ghost" disabled={isStreaming || revoking} onClick={() => void handleRevokeGrants()}>
+                Akhiri izin chat
+              </Button>
+            )}
+            {isStreaming ? (
+              <TooltipProvider><Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" size="icon-xs" variant="outline" onClick={stop} aria-label="Hentikan respons" className="size-8">
+                    <Square className="size-3 fill-current" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Hentikan respons</TooltipContent>
+              </Tooltip></TooltipProvider>
+            ) : (
+              <ZyraSendButton label="Kirim pesan" onClick={() => handleSendMessage()} disabled={revoking || !input.trim() || input.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength} />
+            )}
           </div>
-        </footer>
+        </ZyraChatComposer>
         </div>
       </aside>
     </>

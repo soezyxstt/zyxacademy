@@ -211,6 +211,14 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(migrated[1].proposals?.[0].preview.fields).toBeDefined();
     });
 
+    it("isolates saved chats by admin account", () => {
+      const session = createOpsAiSession("Admin chat", "admin-a");
+      updateOpsAiSessionMessages(session.id, [{ id: "msg", role: "user", content: "Private chat", createdAt: 1000 }], "admin-a");
+      expect(loadOpsAiMessages("admin-a")[0]?.content).toBe("Private chat");
+      expect(loadOpsAiMessages("admin-b")).toEqual([]);
+      expect(loadOpsAiMessages()).toEqual([]);
+    });
+
     it("automatically reads v1 from localStorage and migrates to v2 on loadOpsAiMessages()", () => {
       mockStorage[STORAGE_KEY_MESSAGES_V1] = JSON.stringify([
         {
@@ -298,7 +306,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
       // Header is a distinct header element with border-b and shrink-0
       expect(html).toContain("<header");
-      expect(html).toContain("shrink-0 border-b");
+      expect(html.match(/<header[^>]*>/)?.[0]).toContain("border-b");
 
       // Footer is a distinct footer element with border-t and shrink-0
       expect(html).toContain("<footer");
@@ -499,7 +507,6 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       const html = renderToStaticMarkup(<ActionProposalCard proposal={sampleProposal} />);
 
       // Title and Description
-      expect(html).toContain("Proposal Aksi Admin");
       expect(html).toContain("Pembuatan Token Aktivasi");
       expect(html).toContain("Token untuk kelompok 5 orang mata kuliah kalkulus-1.");
 
@@ -507,18 +514,41 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain("Menunggu Konfirmasi");
 
       // Preview key-value fields
-      expect(html).toContain("Kapasitas:");
+      expect(html).toContain(">Kapasitas</dt>");
       expect(html).toContain("5");
-      expect(html).toContain("Mata Kuliah:");
+      expect(html).toContain(">Mata Kuliah</dt>");
       expect(html).toContain("kalkulus-1");
 
       // Action button
-      expect(html).toContain("Konfirmasi dan Eksekusi");
+      expect(html).toContain(">Allow<");
       expect(html).toContain('aria-label="Konfirmasi dan eksekusi aksi"');
 
       // Zero em-dashes
       expect(html).not.toContain("—");
       expect(html).not.toContain("–");
+    });
+
+    it("offers chat permission only when the server classifies the proposal as reversible", () => {
+      const proposal: OpsAiActionProposalV2 = {
+        id: "prop-approval",
+        runId: "run-approval",
+        stepId: "step-approval",
+        type: "admin_operation",
+        title: "Edit preset",
+        description: "Izinkan perubahan ini?",
+        preview: { summary: "forms.presets.update" },
+        status: "pending",
+        createdAt: 1000,
+        approval: "chat",
+      };
+      const chatApproval = renderToStaticMarkup(<ActionProposalCard proposal={proposal} chatId="session-approval" />);
+      const onceApproval = renderToStaticMarkup(<ActionProposalCard proposal={{ ...proposal, approval: "once" }} chatId="session-approval" />);
+      const expired = renderToStaticMarkup(<ActionProposalCard proposal={{ ...proposal, expiresAt: 1000 }} chatId="session-approval" />);
+      expect(chatApproval).toContain("Allow in chat");
+      expect(onceApproval).toContain(">Allow<");
+      expect(onceApproval).not.toContain("Allow in chat");
+      expect(expired).toContain("Kedaluwarsa");
+      expect(expired).not.toContain(">Allow<");
     });
 
     it("renders executed result state with token string", () => {
@@ -663,7 +693,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(proposalHtml).not.toContain("rounded-full");
     });
 
-    it("uses standard typography classes: text-body-sm, text-body-xs, font-heading font-bold", () => {
+    it("uses semantic typography for the empty chat", () => {
       const panelHtml = renderToStaticMarkup(
         <OpsAiProvider initialOpen={true}>
           <OpsAiPanel />
@@ -672,7 +702,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
       expect(panelHtml).toContain("font-heading");
       expect(panelHtml).toContain("text-body-sm");
-      expect(panelHtml).toContain("text-body-xs");
+      expect(panelHtml).toContain("text-body-base");
     });
   });
 
@@ -715,7 +745,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
         // Render card
         const cardHtml = renderToStaticMarkup(<ActionProposalCard proposal={proposal} />);
-        expect(cardHtml).toContain("Konfirmasi dan Eksekusi");
+        expect(cardHtml).toContain(">Allow<");
 
         // Simulate execution call equivalent to ActionProposalCard.handleExecute
         const res = await fetch("/api/admin/ops-ai/execute", {
@@ -761,8 +791,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
       expect(html).toContain("Gagal");
       expect(html).toContain("Kapasitas kuota token tidak valid.");
-      // Failed proposals allow retry
-      expect(html).toContain("Konfirmasi dan Eksekusi");
+      expect(html).not.toContain(">Allow<");
     });
   });
 
@@ -958,17 +987,16 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
     });
   });
 
-  describe("Suite 12: Mode Selector & Interaction Modes (Ask vs Edit)", () => {
-    it("renders the interactive Mode Selector button defaulting to Mode Tanya", () => {
+  describe("Shared Zyra composer", () => {
+    it("renders the live editor host and send button in one chat", () => {
       const html = renderToStaticMarkup(
         <OpsAiProvider initialOpen={true}>
           <OpsAiPanel />
         </OpsAiProvider>
       );
 
-      expect(html).toContain("Mode Tanya");
-      expect(html).toContain('title="Klik untuk beralih ke Mode Edit"');
-      expect(html).toContain("Tanyakan apa saja seputar operasional &amp; dokumentasi Zyx...");
+      expect(html).toContain('data-editor-disabled="false"');
+      expect(html).toContain('aria-label="Kirim pesan"');
     });
   });
 
@@ -1054,7 +1082,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain("text-body-sm");
     });
 
-    it("renders QuickActionsBar under the latest assistant proposal message in OpsAiPanel", () => {
+    it("renders QuickActionsBar for disambiguation without an approval card", () => {
       const testMessages = [
         {
           id: "msg-user-1",

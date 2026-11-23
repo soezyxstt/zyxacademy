@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { zyraProposalEvents, zyraProposals } from "@/db/schema";
 import { daysFrom } from "@/lib/date-utils";
 import {
+  AdminProposalTypeSchema,
+  TutorProposalTypeSchema,
   proposalDiffHash,
   transitionZyraProposalStatus,
   validateZyraProposalDraft,
@@ -12,6 +14,12 @@ import {
   type ZyraProposalRole,
   type ZyraProposalStatus,
 } from "./contracts";
+
+// Ops AI approvals share the table with review proposals. Only review types belong here.
+const reviewProposalType = inArray(zyraProposals.proposalType, [
+  ...AdminProposalTypeSchema.options,
+  ...TutorProposalTypeSchema.options,
+]);
 
 function eventReason(to: ZyraProposalStatus): string {
   return `PROPOSAL_${to.toUpperCase()}`;
@@ -75,14 +83,16 @@ export async function createZyraProposal(input: {
 }
 
 export async function getZyraProposal(id: string) {
-  const [row] = await db.select().from(zyraProposals).where(eq(zyraProposals.id, id)).limit(1);
+  const [row] = await db.select().from(zyraProposals).where(and(eq(zyraProposals.id, id), reviewProposalType)).limit(1);
   return row ?? null;
 }
 
 export async function listZyraProposals(input: { actorId: string; role: ZyraProposalRole; courseId?: string | null }) {
-  const conditions = input.role === "admin"
-    ? input.courseId ? eq(zyraProposals.courseId, input.courseId) : undefined
-    : and(eq(zyraProposals.actorId, input.actorId), input.courseId ? eq(zyraProposals.courseId, input.courseId) : undefined);
+  const conditions = and(
+    reviewProposalType,
+    input.role === "admin" ? undefined : eq(zyraProposals.actorId, input.actorId),
+    input.courseId ? eq(zyraProposals.courseId, input.courseId) : undefined,
+  );
   return db.select().from(zyraProposals).where(conditions).orderBy(desc(zyraProposals.createdAt)).limit(50);
 }
 
@@ -100,7 +110,7 @@ export async function transitionZyraProposal(input: {
   const [initialRow] = await db
     .select()
     .from(zyraProposals)
-    .where(eq(zyraProposals.id, input.id))
+    .where(and(eq(zyraProposals.id, input.id), reviewProposalType))
     .limit(1);
 
   if (!initialRow) throw new Error("PROPOSAL_NOT_FOUND");
@@ -115,7 +125,7 @@ export async function transitionZyraProposal(input: {
       const [currentRow] = await tx
         .select()
         .from(zyraProposals)
-        .where(eq(zyraProposals.id, input.id))
+        .where(and(eq(zyraProposals.id, input.id), reviewProposalType))
         .limit(1);
 
       if (!currentRow || ["expired", "rejected"].includes(currentRow.status)) {
@@ -147,7 +157,7 @@ export async function transitionZyraProposal(input: {
   }
 
   return db.transaction(async (tx) => {
-    const [row] = await tx.select().from(zyraProposals).where(eq(zyraProposals.id, input.id)).limit(1);
+    const [row] = await tx.select().from(zyraProposals).where(and(eq(zyraProposals.id, input.id), reviewProposalType)).limit(1);
     if (!row) throw new Error("PROPOSAL_NOT_FOUND");
     if (row.status === "expired") throw new Error("PROPOSAL_EXPIRED");
 
@@ -185,7 +195,7 @@ export async function transitionZyraProposal(input: {
       createdAt: now,
     });
 
-    const [updated] = await tx.select().from(zyraProposals).where(eq(zyraProposals.id, input.id)).limit(1);
+    const [updated] = await tx.select().from(zyraProposals).where(and(eq(zyraProposals.id, input.id), reviewProposalType)).limit(1);
     return updated ?? null;
   });
 }

@@ -4539,17 +4539,8 @@ function registerQuizAssemblyTools(server: McpServer, principal: McpPrincipal): 
   }));
 }
 
-export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: string, skillsProfile: SkillCatalogProfile = "chatgpt"): McpServer {
-  const identity = mcpEnvironmentIdentity();
-  const server = new McpServer(
-    { name: `zyx-authoring-${identity.environment}`, version: "1.1.0" },
-    {
-      capabilities: { tools: {} },
-      instructions:
-        `Koneksi ini adalah ${identity.environment} di ${identity.origin}. ` +
-        "Sebelum operasi admin, panggil admin.environment dan cocokkan dengan target yang diminta pengguna. Jika target belum disebutkan, pastikan target dahulu; jangan memilih production secara default. Jangan substitusi staging dan production. Operasi data wajib menyebut expectedEnvironment dan expectedOrigin. Baca admin.capabilities untuk menemukan operasi dan scope yang tersedia. Periksa admin.operation_receipt atau status job jika hasil operasi belum pasti. Untuk revisi konten tersimpan, gunakan alur authoring.get_edit_context. Operasi admin memakai scope eksplisit; baca revisi target dan siapkan dryRun sebelum mutasi. Untuk authoring, panggil workflow.get_playbook sebelum memulai authoring, setiap berpindah tahap, dan saat melanjutkan run untuk mengambil playbook terbaru serta bootstrapToken bertanda tangan.",
-    },
-  );
+/** Register the common tool catalog for MCP transport and the browser harness. */
+export function registerAuthoringMcpTools(server: McpServer, principal: McpPrincipal, requestId?: string): void {
   server.registerTool("admin.environment", {
     description: "Baca identitas koneksi ini sebelum operasi. Cocokkan dengan target pengguna; jangan mengganti staging dengan production atau sebaliknya.",
     inputSchema: {}, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
@@ -4577,7 +4568,6 @@ export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: st
   registerWorkflowTools(server, principal, requestId);
   registerProductV4Tools(server, principal);
   registerRevisionTools(server, principal);
-  registerAuthoringSkills(server, skillsProfile, undefined, resolveAuthoringMcpEnvironment(), formsUiResources);
   registerValidationTools(server, principal);
   registerReferenceQuestionTools(server, principal);
   registerLifecycleTools(server, principal);
@@ -4586,5 +4576,20 @@ export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: st
   registerAssessmentAnalysisTools(server, principal);
   registerQuizAssemblyTools(server, principal);
   registerAgentTools(server, principal);
+}
+
+export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: string, skillsProfile: SkillCatalogProfile = "chatgpt"): McpServer {
+  const identity = mcpEnvironmentIdentity();
+  const server = new McpServer(
+    { name: `zyx-authoring-${identity.environment}`, version: "1.1.0" },
+    {
+      capabilities: { tools: {} },
+      instructions:
+        `Koneksi ini adalah ${identity.environment} di ${identity.origin}. ` +
+        "Sebelum operasi admin, panggil admin.environment dan cocokkan dengan target yang diminta pengguna. Jika target belum disebutkan, pastikan target dahulu; jangan memilih production secara default. Jangan substitusi staging dan production. Operasi data wajib menyebut expectedEnvironment dan expectedOrigin. Baca admin.capabilities untuk menemukan operasi dan scope yang tersedia. Periksa admin.operation_receipt atau status job jika hasil operasi belum pasti. Untuk revisi konten tersimpan, gunakan alur authoring.get_edit_context. Operasi admin memakai scope eksplisit; baca revisi target dan siapkan dryRun sebelum mutasi. Untuk authoring, panggil workflow.get_playbook sebelum memulai authoring, setiap berpindah tahap, dan saat melanjutkan run untuk mengambil playbook terbaru serta bootstrapToken bertanda tangan.",
+    },
+  );
+  registerAuthoringMcpTools(server, principal, requestId);
+  registerAuthoringSkills(server, skillsProfile, undefined, resolveAuthoringMcpEnvironment(), formsUiResources);
   return server;
 }
