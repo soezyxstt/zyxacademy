@@ -278,7 +278,7 @@ Start immediately with:
  * Compiles a chapter's constituent Knowledge Objects into Website Material canonical Markdown.
  * Interacts with PostgreSQL to fetch course, chapter and KO records, and routes to Gemini.
  */
-export async function generateMarkdownForChapter(chapterId: string): Promise<string> {
+export async function generateMarkdownForChapter(chapterId: string, userId?: string): Promise<string> {
   // 1. Fetch chapter from database
   const [chapterRecord] = await db
     .select()
@@ -386,6 +386,7 @@ export async function generateMarkdownForChapter(chapterId: string): Promise<str
   );
 
   const { response } = await generateContentWithFallback({
+      userId,
     useCase: USE_CASES.MATERIAL_GEN,
     contents: prompt,
   });

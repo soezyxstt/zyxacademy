@@ -126,3 +126,7 @@ The existing purchase/equip service and explicit server catalog remain authorita
 The student sidebar and LP shop link to `/pet`. The cat is free. Tiger, rhino and crocodile each have their own LP purchase. Suits fit all four characters. Cycling and jumping belong to the cat, roaring to the tiger, charging to the rhino and giving flowers to the crocodile. Buying a character grants only the character. Equip and remove update the authenticated student's profile. Switching pets clears an incompatible action and keeps the suit. The shop retires the ten procedural characters and preserves historical inventory and LP ledger entries.
 
 Release order for staging is migration 0036, the guarded staging catalog seed, then the web revision. The seed disables the old sale entries and inserts missing studio entries. Reads never seed the catalog.
+
+The LP shop and Pet studio share 15 suits. Each suit uses a fitted model for the cat, tiger, rhino and crocodile. Prices range from 400 LP for simpler clothing to 900 LP for the graduation gown, based on garment layers, material detail and mesh complexity. The sports kit remains 500 LP and the space suit remains 750 LP.
+
+For the expanded catalog, run the existing guarded catalog seed on verified staging before releasing the matching web revision. The seed accepts the exact staging migration chain through 0038 and inserts the 13 new entries alongside the two existing suits. Verify all 15 active `pet_suit` rows and their LP prices before release. The expansion needs no schema change.

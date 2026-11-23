@@ -1,4 +1,15 @@
 {
+  "pdfPreview": {
+    "document": "Document preview: {title}",
+    "pdf": "PDF preview: {title}",
+    "download": "Download PDF",
+    "openTab": "Open in new tab",
+    "closeEsc": "Close (Esc)",
+    "closePreview": "Close preview",
+    "loading": "Loading PDF...",
+    "missing": "The PDF link is unavailable.",
+    "close": "Close"
+  },
   "solutionCollection": {
     "search": "Search questions",
     "itemList": "Questions",

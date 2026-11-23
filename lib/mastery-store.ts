@@ -183,26 +183,27 @@ export async function getMastery(studentId: string, courseId: string): Promise<M
     }
   }
 
-  const rows = await db
-    .select()
-    .from(studentConceptMastery)
-    .where(
-      and(
-        eq(studentConceptMastery.studentId, studentId),
-        eq(studentConceptMastery.courseId, courseId)
+  const [rows, activeKOs] = await Promise.all([
+    db
+      .select()
+      .from(studentConceptMastery)
+      .where(
+        and(
+          eq(studentConceptMastery.studentId, studentId),
+          eq(studentConceptMastery.courseId, courseId)
+        )
       )
-    )
-    .orderBy(asc(studentConceptMastery.masteryScore));
-
-  const activeKOs = await db
-    .select({ id: knowledgeObjects.id, conceptName: knowledgeObjects.conceptName })
-    .from(knowledgeObjects)
-    .where(
-      and(
-        eq(knowledgeObjects.courseId, courseId),
-        eq(knowledgeObjects.status, "active")
-      )
-    );
+      .orderBy(asc(studentConceptMastery.masteryScore)),
+    db
+      .select({ id: knowledgeObjects.id, conceptName: knowledgeObjects.conceptName })
+      .from(knowledgeObjects)
+      .where(
+        and(
+          eq(knowledgeObjects.courseId, courseId),
+          eq(knowledgeObjects.status, "active")
+        )
+      ),
+  ]);
 
   if (activeKOs.length === 0) {
     return rows

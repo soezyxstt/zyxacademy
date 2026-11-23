@@ -693,7 +693,7 @@ export function ScheduleCalendarView({
           </div>
         ) : null}
 
-        <div className="flex min-w-0 items-center justify-between gap-1 sm:gap-1.5 lg:contents">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-1 sm:gap-1.5 lg:contents">
           <div className="flex min-w-0 items-center gap-1 sm:gap-1.5 lg:order-2">
             {role === "student" && onSelectSlotToBook ? (
               <Button size="sm" className="h-8 sm:h-9 shrink-0" onClick={() => setBookingPickerOpen(true)}>{t("booking.openPicker")}</Button>

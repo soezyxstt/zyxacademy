@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { BookOpen, MessageCircle } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { ApplicationPage } from "@/components/application-page";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
 import { studentSectionClass } from "@/components/course/course-surfaces";
 import { CourseCatalogClient, type CourseGroup } from "@/app/(student)/courses/course-catalog-client";
 import { TranslatedText } from "@/components/i18n/translated-text";
@@ -17,21 +16,6 @@ export function StudentCourseCatalogView({ groups, studentTargetCategory, whatsa
       <PageHeader
         title={<TranslatedText namespace="learning" messageKey="catalog.pageTitle" />}
         icon={BookOpen}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            {whatsappHref && (
-              <Button asChild variant="outline" size="sm" className="rounded-lg text-body-sm gap-1.5">
-                <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
-                  <MessageCircle className="size-3.5 text-status-success" />
-                  <TranslatedText namespace="learning" messageKey="catalog.contactAdmin" />
-                </a>
-              </Button>
-            )}
-            <Button asChild size="sm" className="rounded-lg text-body-sm">
-              <Link href="/plans"><TranslatedText namespace="learning" messageKey="catalog.viewPlans" /></Link>
-            </Button>
-          </div>
-        }
       />
 
       {groups.length > 0 ? (

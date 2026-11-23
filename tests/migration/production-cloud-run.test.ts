@@ -32,8 +32,8 @@ describe('production baseline and checked-in bytes', () => {
    rows().reverse(), rows().map((row, i) => i === 3 ? { ...row, hash: EXPECTED_JOURNAL[3][1] } : row),
    rows().map((row, i) => i === 4 ? rows()[3] : row)]) expect(() => classifyJournal(invalid)).toThrow('UNEXPECTED_MIGRATION_HISTORY');
  });
- test('pins all 39 Git SQL blobs and timestamps, independent of checkout line endings', () => {
-  expect(migrations).toHaveLength(39);
+ test('pins all 41 Git SQL blobs and timestamps, independent of checkout line endings', () => {
+  expect(migrations).toHaveLength(41);
   expect(migrations.slice(9).map(m => m.tag)).toEqual(FILES.slice(9).map(([, tag]) => tag));
   expect(migrations[35].sql).toContain('CREATE TABLE "queue_task_checkpoints"');
   expect(migrations[36].sql).toContain('"equipped_pet_suit_id"');
@@ -138,16 +138,16 @@ class OfflineClient implements SqlClient {
 describe('offline transaction protocol, not PostgreSQL execution', () => {
  test('check is read only, acquires share locks, and emits no SQL/seed/ledger writes', async () => {
   const client = new OfflineClient();
-  expect(await runMigration(client, 'check', migrations)).toMatchObject({ state: 'pending', migrations: 30 });
+  expect(await runMigration(client, 'check', migrations)).toMatchObject({ state: 'pending', migrations: 32 });
   expect(client.calls[0].text).toBe('begin isolation level repeatable read read only');
   expect(client.calls.some(c => c.text.startsWith('lock table') && c.text.includes('access share mode'))).toBe(true);
   expect(client.calls.some(c => /^(insert|update|alter|create|drop)/i.test(c.text))).toBe(false);
   expect(client.calls.at(-1)?.text).toBe('rollback');
  });
- test('apply executes unchanged 0009..0038, appends true timestamps/hashes, backfills, seeds, and preserves every historical row', async () => {
+ test('apply executes unchanged 0009..0040, appends true timestamps/hashes, backfills, seeds, and preserves every historical row', async () => {
   const client = new OfflineClient();
   const before = structuredClone(client.ledger);
-  expect(await runMigration(client, 'apply', migrations)).toMatchObject({ state: 'applied', migrations: 30 });
+  expect(await runMigration(client, 'apply', migrations)).toMatchObject({ state: 'applied', migrations: 32 });
   expect(client.ledger.slice(0, 9)).toEqual(before);
   expect(classifyJournal(client.ledger)).toBe('complete');
   const writes = client.calls.filter(c => c.text.startsWith('insert into drizzle.'));

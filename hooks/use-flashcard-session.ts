@@ -13,6 +13,7 @@ import { queryKeys } from "@/lib/query/keys";
 import { isQueryAccountCurrent } from "@/lib/query/client";
 import { ApiError } from "@/lib/query/http";
 import { invalidateLearningQueries } from "@/lib/query/invalidation";
+import { hapticSuccess } from "@/lib/native/haptics";
 
 export function useFlashcardSession({ courseId, initialQueue, studentId, adapter }: FlashcardSessionProps) {
   const t = useTranslations("learning");
@@ -108,6 +109,7 @@ export function useFlashcardSession({ courseId, initialQueue, studentId, adapter
         isExamMode: mode === "exam",
       });
       if (!mountedRef.current || (!adapter && !isQueryAccountCurrent(client, studentId))) return;
+      void hapticSuccess();
       toast.success(t("flashcards.gradeSaved"));
       setCompletedCount((previous) => previous + 1);
       if (grade === 1) {

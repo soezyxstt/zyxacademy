@@ -351,25 +351,46 @@ export async function getCanonicalPublishedTextProduct(
       const matchedCourse = await findCanonicalMataKuliah(normalizedCourseId);
       if (!matchedCourse) return null;
 
-      const [articleRecord] = await db
-        .select({
-          id: artikel.id,
-          title: artikel.title,
-          contentMarkdown: artikel.contentMarkdown,
-          structureStatus: artikel.structureStatus,
-          babId: artikel.babId,
-          legacyChapterId: bab.legacyChapterId,
-        })
-        .from(artikel)
-        .leftJoin(bab, eq(artikel.babId, bab.id))
-        .where(
-          and(
-            eq(artikel.mataKuliahId, matchedCourse.id),
-            eq(artikel.status, "published"),
-            or(eq(artikel.id, normalizedProductId), eq(artikel.slug, normalizedProductId)),
-          ),
-        )
-        .limit(1);
+      const [[articleRecord], [diktatRecord]] = await Promise.all([
+        db
+          .select({
+            id: artikel.id,
+            title: artikel.title,
+            contentMarkdown: artikel.contentMarkdown,
+            structureStatus: artikel.structureStatus,
+            babId: artikel.babId,
+            legacyChapterId: bab.legacyChapterId,
+          })
+          .from(artikel)
+          .leftJoin(bab, eq(artikel.babId, bab.id))
+          .where(
+            and(
+              eq(artikel.mataKuliahId, matchedCourse.id),
+              eq(artikel.status, "published"),
+              or(eq(artikel.id, normalizedProductId), eq(artikel.slug, normalizedProductId)),
+            ),
+          )
+          .limit(1),
+        db
+          .select({
+            id: diktatMateri.id,
+            title: diktatMateri.title,
+            contentMarkdown: diktatMateri.contentMarkdown,
+            fileKey: diktatMateri.fileKey,
+            babId: diktatMateri.babId,
+            legacyChapterId: bab.legacyChapterId,
+          })
+          .from(diktatMateri)
+          .leftJoin(bab, eq(diktatMateri.babId, bab.id))
+          .where(
+            and(
+              eq(diktatMateri.mataKuliahId, matchedCourse.id),
+              eq(diktatMateri.status, "published"),
+              eq(diktatMateri.id, normalizedProductId),
+            ),
+          )
+          .limit(1),
+      ]);
       if (articleRecord && articleRecord.structureStatus !== "structured") {
         if (hasLegacyPrivateFormativeEnvelope(articleRecord.contentMarkdown)) return null;
         return {
@@ -381,26 +402,6 @@ export async function getCanonicalPublishedTextProduct(
           babId: articleRecord.babId ?? null,
         };
       }
-
-      const [diktatRecord] = await db
-        .select({
-          id: diktatMateri.id,
-          title: diktatMateri.title,
-          contentMarkdown: diktatMateri.contentMarkdown,
-          fileKey: diktatMateri.fileKey,
-          babId: diktatMateri.babId,
-          legacyChapterId: bab.legacyChapterId,
-        })
-        .from(diktatMateri)
-        .leftJoin(bab, eq(diktatMateri.babId, bab.id))
-        .where(
-          and(
-            eq(diktatMateri.mataKuliahId, matchedCourse.id),
-            eq(diktatMateri.status, "published"),
-            eq(diktatMateri.id, normalizedProductId),
-          ),
-        )
-        .limit(1);
       return diktatRecord
         ? {
             id: diktatRecord.id,
@@ -418,10 +419,34 @@ export async function getCanonicalPublishedTextProduct(
     }
   }
 
+export type SharedCourseArticleRecord = Pick<
+  typeof artikel.$inferSelect,
+  | "id"
+  | "mataKuliahId"
+  | "babId"
+  | "slug"
+  | "title"
+  | "version"
+  | "status"
+  | "structureStatus"
+  | "publishedAt"
+  | "updatedAt"
+>;
+
+export type SharedCourseBabRecord = Pick<
+  typeof bab.$inferSelect,
+  "id" | "legacyChapterId"
+>;
+
+export type SharedCourseSectionRecord = Pick<
+  typeof bagianArtikel.$inferSelect,
+  "id" | "artikelId" | "version" | "estimatedReadingMinutes"
+>;
+
 export interface SharedCourseArticlesData {
-  articles: Array<typeof artikel.$inferSelect>;
-  babMap: Map<string, typeof bab.$inferSelect>;
-  sectionsByArticle: Map<string, Array<typeof bagianArtikel.$inferSelect>>;
+  articles: Array<SharedCourseArticleRecord>;
+  babMap: Map<string, SharedCourseBabRecord>;
+  sectionsByArticle: Map<string, Array<SharedCourseSectionRecord>>;
 }
 
 /**
@@ -437,8 +462,19 @@ export async function fetchSharedCourseArticlesData(
         ? [matchedCourse.id, ...(matchedCourse.legacyCourseId ? [matchedCourse.legacyCourseId] : [])]
         : [courseId];
 
-      const articles = await db
-        .select()
+      const articles: Array<SharedCourseArticleRecord> = await db
+        .select({
+          id: artikel.id,
+          mataKuliahId: artikel.mataKuliahId,
+          babId: artikel.babId,
+          slug: artikel.slug,
+          title: artikel.title,
+          version: artikel.version,
+          status: artikel.status,
+          structureStatus: artikel.structureStatus,
+          publishedAt: artikel.publishedAt,
+          updatedAt: artikel.updatedAt,
+        })
         .from(artikel)
         .where(
           and(
@@ -452,28 +488,35 @@ export async function fetchSharedCourseArticlesData(
       }
 
       const articleIds = articles.map((a) => a.id);
-      const babIds = articles.map((a) => a.babId).filter(Boolean) as string[];
+      const babIds = [...new Set(articles.map((a) => a.babId).filter(Boolean) as string[])];
 
-      // Fetch associated babs for legacy chapter mapping
-      const babRecords =
+      // Fetch associated babs and published sections concurrently
+      const [babRecords, sections]: [Array<SharedCourseBabRecord>, Array<SharedCourseSectionRecord>] = await Promise.all([
         babIds.length > 0
-          ? await db
-              .select()
+          ? db
+              .select({
+                id: bab.id,
+                legacyChapterId: bab.legacyChapterId,
+              })
               .from(bab)
               .where(inArray(bab.id, babIds))
-          : [];
-      const babMap = new Map(babRecords.map((b) => [b.id, b]));
-
-      // Fetch published sections for all these articles
-      const sections = await db
-        .select()
-        .from(bagianArtikel)
-        .where(
-          and(
-            inArray(bagianArtikel.artikelId, articleIds),
-            eq(bagianArtikel.status, "published"),
+          : Promise.resolve([] as Array<SharedCourseBabRecord>),
+        db
+          .select({
+            id: bagianArtikel.id,
+            artikelId: bagianArtikel.artikelId,
+            version: bagianArtikel.version,
+            estimatedReadingMinutes: bagianArtikel.estimatedReadingMinutes,
+          })
+          .from(bagianArtikel)
+          .where(
+            and(
+              inArray(bagianArtikel.artikelId, articleIds),
+              eq(bagianArtikel.status, "published"),
+            ),
           ),
-        );
+      ]);
+      const babMap = new Map(babRecords.map((b) => [b.id, b]));
 
       const sectionsByArticle = new Map<string, typeof sections>();
       for (const s of sections) {
@@ -508,12 +551,17 @@ export async function getCanonicalPublishedArticlesForCourse(
     const { articles, babMap, sectionsByArticle } = shared;
     const articleIds = articles.map((a) => a.id);
 
-    // Fetch user progress for all these articles if authenticated
+    // Fetch user progress bounded to this course's articleIds
     const normalizedUserId = userId?.trim();
     const progressRecords =
       normalizedUserId && articleIds.length > 0
         ? await db
-            .select()
+            .select({
+              artikelId: kemajuanBacaArtikel.artikelId,
+              artikelVersion: kemajuanBacaArtikel.artikelVersion,
+              maxReadPercent: kemajuanBacaArtikel.maxReadPercent,
+              completedAt: kemajuanBacaArtikel.completedAt,
+            })
             .from(kemajuanBacaArtikel)
             .where(
               and(

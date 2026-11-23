@@ -200,6 +200,8 @@ Tugas Anda adalah menganalisis hasil kuis siswa berdasarkan data terstruktur yan
 
   try {
     const { response } = await generateContentWithFallback({
+      userId: attempt.studentId,
+      feature: USE_CASES.WEAK_CONCEPT_GUIDANCE,
       contents: [
         { role: "user", parts: [{ text: `${systemInstructions}\n\nDATA INPUT:\n${JSON.stringify(promptPayload, null, 2)}` }] },
       ],

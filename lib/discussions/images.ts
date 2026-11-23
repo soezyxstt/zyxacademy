@@ -63,16 +63,28 @@ export async function listDiscussionMessageAttachments(actorId: string, messageI
   return rows.map(toDiscussionImageDto);
 }
 
-export async function listDiscussionAttachmentsForMessages(actorId: string, messageIds: readonly string[]): Promise<Map<string, DiscussionAttachment[]>> {
+export async function listDiscussionAttachmentsForMessages(
+  actorId: string,
+  messageIds: readonly string[],
+  verifiedMessageChannels?: ReadonlyMap<string, string>,
+): Promise<Map<string, DiscussionAttachment[]>> {
   const ids = [...new Set(messageIds)];
   if (ids.length > 60 || ids.some(id => typeof id !== "string" || !id || id.length > 160)) throw new Error("DISCUSSION_INVALID");
   if (!ids.length) return new Map();
-  const messages = await db.select({ id: discussionMessages.id, channelId: discussionThreads.channelId }).from(discussionMessages)
-    .innerJoin(discussionThreads, eq(discussionThreads.id, discussionMessages.threadId))
-    .where(and(inArray(discussionMessages.id, ids), isNull(discussionMessages.deletedAt)));
-  const { getAccessibleDiscussionChannels } = await import("./access");
-  const allowed = new Set((await getAccessibleDiscussionChannels(actorId, { channelIds: messages.map(row => row.channelId) })).map(row => row.id));
-  const messageChannels = new Map(messages.filter(row => allowed.has(row.channelId)).map(row => [row.id, row.channelId]));
+  let messageChannels: Map<string, string>;
+  if (verifiedMessageChannels) {
+    messageChannels = new Map(ids.flatMap(id => {
+      const channelId = verifiedMessageChannels.get(id);
+      return channelId ? [[id, channelId] as const] : [];
+    }));
+  } else {
+    const messages = await db.select({ id: discussionMessages.id, channelId: discussionThreads.channelId }).from(discussionMessages)
+      .innerJoin(discussionThreads, eq(discussionThreads.id, discussionMessages.threadId))
+      .where(and(inArray(discussionMessages.id, ids), isNull(discussionMessages.deletedAt)));
+    const { getAccessibleDiscussionChannels } = await import("./access");
+    const allowed = new Set((await getAccessibleDiscussionChannels(actorId, { channelIds: messages.map(row => row.channelId) })).map(row => row.id));
+    messageChannels = new Map(messages.filter(row => allowed.has(row.channelId)).map(row => [row.id, row.channelId]));
+  }
   if (!messageChannels.size) return new Map();
   const rows = await db.select().from(discussionAttachments).where(and(inArray(discussionAttachments.messageId, [...messageChannels.keys()]),
     eq(discussionAttachments.status, "attached"))).orderBy(asc(discussionAttachments.createdAt), asc(discussionAttachments.id)).limit(messageChannels.size * DISCUSSION_IMAGE_MAX_COUNT);

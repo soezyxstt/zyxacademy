@@ -6,6 +6,7 @@ import { useTranslations } from "@/lib/i18n/client";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { addHistoryTraversalGuard, closeDialogsThen, isDialogHistoryTraversal } from "@/hooks/use-dialog-history";
 
 type State = { dirty: boolean; pending: boolean };
 type Destination = { kind: "link"; href: string } | { kind: "history"; delta: number; href: string };
@@ -128,6 +129,7 @@ export function MaterialReviewNavigation({ children }: { children: ReactNode }) 
       }
       if (!stateRef.current.dirty && !stateRef.current.pending) { adoptCurrent(event.state); return; }
       if (isOrigin) return;
+      if (isDialogHistoryTraversal(guard.href, window.location.href)) { adoptCurrent(event.state); return; }
       if (!stateRef.current.pending && target?.chain === guard.chain && isReviewItemNavigation(guard.href, window.location.href)) { adoptCurrent(event.state); return; }
       event.stopImmediatePropagation();
       const href = `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -148,13 +150,13 @@ export function MaterialReviewNavigation({ children }: { children: ReactNode }) 
       event.preventDefault(); event.stopImmediatePropagation();
       setDestination({ kind: "link", href: `${url.pathname}${url.search}${url.hash}` });
     };
-    window.addEventListener("popstate", onPopState, true);
+    const removeTraversalGuard = addHistoryTraversalGuard(onPopState);
     document.addEventListener("click", onClick, true);
     return () => {
       active = false;
       if (window.history.pushState === guardedPush) window.history.pushState = originalPush;
       if (window.history.replaceState === guardedReplace) window.history.replaceState = originalReplace;
-      window.removeEventListener("popstate", onPopState, true);
+      removeTraversalGuard();
       document.removeEventListener("click", onClick, true);
       if (historyRef.current === guard) historyRef.current = null;
     };
@@ -167,9 +169,14 @@ export function MaterialReviewNavigation({ children }: { children: ReactNode }) 
     onConfirm={() => {
       if (stateRef.current.pending || !destination) return;
       const next = destination;
-      setDestination(null);
-      if (next.kind === "link") router.push(next.href);
-      else if (next.delta !== 0) { if (historyRef.current) historyRef.current.allow = true; window.history.go(next.delta); }
+      closeDialogsThen(() => setDestination(null), () => {
+        // Opening the confirmation replaces any forward branch.
+        if (next.kind === "link" || next.delta > 0) router.push(next.href);
+        else if (next.delta < 0) {
+          if (historyRef.current) historyRef.current.allow = true;
+          window.history.go(next.delta);
+        }
+      });
     }}
   /><Dialog open={destination !== null && state.pending} onOpenChange={open => { if (!open) setDestination(null); }}>
     <DialogContent className="max-w-md rounded-xl border border-border p-6 text-left">

@@ -65,6 +65,24 @@ export function getAdminApp(): App {
 }
 
 /**
+ * Returns true when FIREBASE_SERVICE_ACCOUNT_JSON is set and parses as valid
+ * base64-encoded JSON credentials.
+ */
+export function isFirebaseAdminConfigured(
+  envSource: Record<string, string | undefined> = process.env,
+): boolean {
+  const serviceAccountJson = envSource.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+  if (!serviceAccountJson) return false;
+  try {
+    const decoded = Buffer.from(serviceAccountJson, "base64").toString("utf-8");
+    const parsed = JSON.parse(decoded) as Record<string, unknown>;
+    return Boolean(parsed && typeof parsed === "object" && (parsed.private_key || parsed.privateKey));
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Returns the Firebase Admin Messaging instance.
  * Use this to send push notifications from the server.
  */

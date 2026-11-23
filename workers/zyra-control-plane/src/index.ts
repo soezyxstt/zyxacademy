@@ -16,6 +16,7 @@ import {
 import { hashUserId, QuotaLedger } from "./quota/ledger";
 import { ensureQuotaSchema, type SqlExecutor } from "./quota/schema";
 import { CacheFlightLedger } from "./cache/ledger";
+import { GatewayAliasLedger } from "./quota/alias-health";
 import { ensureCacheSchema } from "./cache/schema";
 import {
   validateCacheKey,
@@ -100,8 +101,25 @@ export class ZyraQuotaCoordinator extends DurableObject<WorkerEnv> {
     } catch {
       return quotaInternalError("quota_storage_unavailable");
     }
-    const ledger = new QuotaLedger(sql);
+    const ledger = new QuotaLedger(sql, Date.now, this.env.GEMINI_QUOTA_GROUPS?.split(",").map(s => s.trim()).filter(Boolean));
     const cacheLedger = new CacheFlightLedger(sql);
+
+    if (url.pathname === "/quota/alias/status" || url.pathname === "/quota/alias/record" || url.pathname === "/quota/alias/reset") {
+      if (request.method !== "POST") return methodNotAllowed("POST");
+      const body = await readJson(request);
+      if (!body) return invalidRequest("invalid_alias_health_request");
+      try {
+        const aliases = new GatewayAliasLedger(sql);
+        if (url.pathname.endsWith("/reset")) {
+          if (body.aliasHash !== undefined && typeof body.aliasHash !== "string") return invalidRequest("invalid_alias_health_request");
+          return jsonResponse(aliases.reset(typeof body.aliasHash === "string" ? body.aliasHash : undefined));
+        }
+        if (typeof body.aliasHash !== "string") return invalidRequest("invalid_alias_health_request");
+        if (url.pathname.endsWith("/status")) return jsonResponse(aliases.status(body.aliasHash));
+        if (typeof body.attemptId !== "string" || typeof body.success !== "boolean") return invalidRequest("invalid_alias_health_request");
+        return jsonResponse(aliases.record(body.aliasHash, body.attemptId, body.success));
+      } catch { return invalidRequest("invalid_alias_health_request"); }
+    }
 
     if (url.pathname === "/cache/diagnostics") {
       if (request.method !== "GET") return methodNotAllowed("GET");
@@ -214,6 +232,7 @@ export class ZyraQuotaCoordinator extends DurableObject<WorkerEnv> {
         feature,
         routeClass: routeClass as ModelRouteClass,
         modelId: modelId as ModelId,
+        probeProjectAlias: stringField(body, "probeProjectAlias") || undefined,
         cacheStatus: cacheStatus as CacheStatus
       };
       const result = ledger.reserve(input);
@@ -285,7 +304,7 @@ export class ZyraQuotaCoordinator extends DurableObject<WorkerEnv> {
   async alarm(): Promise<void> {
     const sql = sqlExecutor(this.ctx);
     ensureQuotaSchema(sql);
-    const ledger = new QuotaLedger(sql);
+    const ledger = new QuotaLedger(sql, Date.now, this.env.GEMINI_QUOTA_GROUPS?.split(",").map(s => s.trim()).filter(Boolean));
     ledger.expire();
     await this.scheduleAlarm(ledger);
   }

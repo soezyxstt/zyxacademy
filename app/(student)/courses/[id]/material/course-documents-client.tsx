@@ -666,7 +666,21 @@ export function CourseDocumentsClient({
 
   const categoryTabs = (
     <Tabs value={activeTab} onValueChange={(value) => setUrlTab(normalizeTabKey(value))}>
-      <TabsList className="max-w-full justify-start" aria-label={t("documents.courseCategoryLabel")}>
+      <TabsList
+        aria-label={t("documents.courseCategoryLabel")}
+        trailing={isAdmin && activeTab === "all" ? (
+          <Button
+            type="button"
+            size="icon"
+            className="shadow-xs"
+            onClick={() => setUploadOpen(true)}
+            aria-label={t("documents.uploadPdf")}
+            title={t("documents.uploadPdf")}
+          >
+            <Plus className="size-4" />
+          </Button>
+        ) : undefined}
+      >
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -695,23 +709,7 @@ export function CourseDocumentsClient({
 
       {activeTab === "all" ? (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            {categoryTabs}
-
-            {isAdmin ? (
-              <Button
-                type="button"
-                size="icon"
-                variant="default"
-                className="size-8 rounded-lg shrink-0 cursor-pointer shadow-xs"
-                onClick={() => setUploadOpen(true)}
-                aria-label={t("documents.uploadPdf")}
-                title={t("documents.uploadPdf")}
-              >
-                <Plus className="size-4" />
-              </Button>
-            ) : null}
-          </div>
+          {categoryTabs}
 
           {materials.length > 0 ? (
           <div className="border-t border-border/60">

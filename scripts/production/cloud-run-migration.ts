@@ -130,6 +130,15 @@ async function inspectCompletedSchema(client: SqlClient, newTables: string[]) {
    and column_name='visibility' and column_default='''members''::text' and is_nullable='NO')
   and exists (select 1 from information_schema.columns where table_schema='public' and table_name='discussion_messages'
    and column_name='mention_handles' and data_type='jsonb' and is_nullable='YES' and column_default is null)
+  and (select count(*)=2 from information_schema.columns where table_schema='public' and table_name='user_push_tokens'
+   and data_type='text' and is_nullable='NO'
+   and ((column_name='platform' and column_default='''web''::text') or (column_name='transport' and column_default='''fcm''::text')))
+  and exists (select 1 from pg_index where indexrelid=to_regclass('public.idx_push_tokens_user_transport')
+   and indrelid='public.user_push_tokens'::regclass and indisvalid and indisready
+   and pg_get_indexdef(indexrelid)='CREATE INDEX idx_push_tokens_user_transport ON public.user_push_tokens USING btree (user_id, transport)')
+  and exists (select 1 from pg_constraint where conrelid=to_regclass('public.google_calendar_sync')
+   and conname='google_calendar_sync_user_id_user_id_fk' and convalidated
+   and pg_get_constraintdef(oid)='FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE')
   as valid`, [newTables.map(table => `public.${table}`)]);
  if (schema.rows[0]?.valid !== true) throw new Error('COMPLETED_SCHEMA_INVALID');
 }

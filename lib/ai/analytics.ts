@@ -13,7 +13,7 @@ export interface AiRequestLog {
  /** ISO timestamp of when the request was made */
  timestamp: string;
  /** Type of AI operation performed */
- operation: 'generateContent' | 'interactions' | 'embed';
+ operation: 'generateContent' | 'interactions' | 'embed' | 'chatCompletions';
  /** Model name used (e.g. 'gemini-3.5-flash', 'gemini-embedding-2') */
  model: string;
  /** Whether the request was routed through Cloudflare AI Gateway */
@@ -46,7 +46,7 @@ const logBuffer: AiRequestLog[] = [];
  * Record a single AI API call. Called automatically by `lib/gemini.ts`;
  * application code does NOT need to call this directly.
  */
-export function logAiRequest(entry: Omit<AiRequestLog, 'timestamp'>): void {
+export async function logAiRequest(entry: Omit<AiRequestLog, 'timestamp'>, recordLatency = true): Promise<void> {
  const record: AiRequestLog = {
  timestamp: new Date().toISOString(),
  ...entry,
@@ -56,6 +56,12 @@ export function logAiRequest(entry: Omit<AiRequestLog, 'timestamp'>): void {
  logBuffer.shift(); // drop oldest
  }
  logBuffer.push(record);
+ if (recordLatency && entry.success && process.env.DATABASE_URL) {
+   try {
+     const { recordRequestLatency } = await import("./provider/request-latency");
+     await recordRequestLatency(entry.model, entry.latencyMs);
+   } catch { console.warn("AI request latency could not be saved"); }
+ }
 
  // Development console output
  if (process.env.NODE_ENV === 'development') {

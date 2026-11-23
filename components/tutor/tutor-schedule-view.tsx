@@ -1,5 +1,7 @@
 "use client";
 
+import { GoogleCalendarControl } from "@/components/schedule/google-calendar-control";
+
 import { useEffect, useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -481,6 +483,7 @@ export function TutorScheduleView({
 
   const headerActions = (
     <>
+      <GoogleCalendarControl />
       <Popover>
         <Tooltip>
           <TooltipTrigger asChild>

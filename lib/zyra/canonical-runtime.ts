@@ -18,9 +18,10 @@ import {
   type AttemptState,
   type MatchState,
 } from "@/lib/assessment-assistance-policy";
-import { vectorStore } from "@/lib/vector-store";
+import { queryEmbedding, vectorStore } from "@/lib/vector-store";
 import {
   CANONICAL_VECTOR_PROFILE,
+  VectorizeContractError,
   createVersionedVectorId,
   parseVersionedVectorId,
   type CanonicalAccessClass,
@@ -128,9 +129,10 @@ export async function runCanonicalRuntimeFailClosed(
 ): Promise<CanonicalHydrationResult> {
   try {
     return await action();
-  } catch {
+  } catch (error) {
     console.error(JSON.stringify({
       event: "zyra_canonical_runtime_failed_closed",
+      causeCode: error instanceof VectorizeContractError ? error.code : "DEPENDENCY_ERROR",
       code: "CANONICAL_RUNTIME_UNAVAILABLE",
       operation,
     }));
@@ -714,8 +716,11 @@ export async function retrieveCanonicalEvidence(
       namespaces.push("published_solutions");
     }
 
+    let embedding: ReturnType<typeof queryEmbedding> | undefined;
+    const getEmbedding = () => embedding ??= queryEmbedding(question);
     const matchGroups = await Promise.all(namespaces.map(async (namespace) => {
       const matches = await vectorStore.query(`${canonicalCourseId}_${namespace}`, question, {
+        getEmbedding,
         topK: 6,
         ...(scopedRequest.chapterId ? { filter: { chapterId: scopedRequest.chapterId } } : {}),
       });

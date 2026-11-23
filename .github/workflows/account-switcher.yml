@@ -1,0 +1,140 @@
+name: Account switcher
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [staging]
+    paths:
+      - '.github/workflows/account-switcher.yml'
+      - 'components/auth/**'
+      - 'components/sidebar-shell.tsx'
+      - 'components/ui/avatar.tsx'
+      - 'components/ui/popover.tsx'
+      - 'components/admin/confirm-dialog.tsx'
+      - 'components/providers/query-provider.tsx'
+      - 'lib/auth*'
+      - 'lib/auth/**'
+      - 'lib/native/auth.ts'
+      - 'lib/native/google-auth*.ts'
+      - 'app/api/auth/native/**'
+      - 'app/auth/native-finish/**'
+      - 'messages/*/common.json'
+      - 'tests/visual/account-switcher.spec.ts'
+      - 'tests/visual/account-transition.spec.ts'
+      - 'tests/visual/fixtures/account-switcher.tsx'
+      - 'tests/visual/fixtures/account-transition.tsx'
+      - 'tests/visual/fixtures/fonts*'
+      - 'tests/visual/fixtures/fonts/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: account-switcher-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Account switcher production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: placeholder
+          POSTGRES_PASSWORD: placeholder
+          POSTGRES_DB: placeholder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U placeholder -d placeholder"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'
+      SKIP_ENV_VALIDATION: '1'
+      BETTER_AUTH_SECRET: ci-contract-tests-only-not-a-real-secret
+      DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+      NODE_OPTIONS: --max-old-space-size=4096
+      RAYON_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-1.3.14-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-1.3.14-
+      - run: bun install --frozen-lockfile
+      - name: Prepare disposable PostgreSQL build fixture
+        run: |
+          bun - <<'TS'
+          import assert from "node:assert/strict";
+          import { Client } from "pg";
+          import { drizzle } from "drizzle-orm/node-postgres";
+          import { migrate } from "drizzle-orm/node-postgres/migrator";
+          const target = new URL(process.env.DATABASE_URL!);
+          assert.equal(target.href, "postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder");
+          const client = new Client({ connectionString: target.href });
+          try {
+            await client.connect();
+            const identity = await client.query("SELECT current_database() AS database, current_user AS role");
+            assert.equal(identity.rows[0].database, "placeholder");
+            assert.equal(identity.rows[0].role, "placeholder");
+            await migrate(drizzle(client), { migrationsFolder: "drizzle-postgres" });
+            await client.query('SELECT "slug", "published_at" FROM "blog_articles" WHERE "status" = $1', ["published"]);
+            console.log("Disposable PostgreSQL schema is ready for prerendering");
+          } finally { await client.end(); }
+          TS
+      - run: bun run build
+
+  browser:
+    name: Account switcher browser checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # The fixture uses production UI and intercepts every request with test data.
+      PLAYWRIGHT_BASE_URL: http://account-switch.test
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-1.3.14-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-1.3.14-
+      - run: bun install --frozen-lockfile
+      - run: bun run test:visual:install
+      - name: Verify account menu at mobile and desktop sizes
+        run: bun run test:visual tests/visual/account-switcher.spec.ts tests/visual/account-transition.spec.ts
+      - name: Upload screenshots, report, and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: account-switcher-browser
+          path: |
+            artifacts/visual-quality/report/
+            artifacts/visual-quality/results/
+          if-no-files-found: warn
+          retention-days: 7

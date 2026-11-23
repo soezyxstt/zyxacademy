@@ -24,7 +24,10 @@ describe("admin course reader mode contract", () => {
     expect(content).toContain("useMaterialReadingProgress({");
     expect(progress).toContain("const enabled = learnerMode && !demo && Boolean(studentId) && currentAccount;");
     expect(progress).toContain('if (!enabled || material.source !== "website_material") return;');
-    expect(content).toContain('if (!learnerMode) return;\n    try {\n      const storedNotes');
+    expect(content).toMatch(
+      /if \(!learnerMode\) return;\s*try \{\s*(?:\/\/[^\n]*\n\s*)*const storedNotes = personalStorageKeys \? storage\.getItem\(personalStorageKeys\.notes\) : null;/,
+    );
+    expect(content).toContain("const storedBookmarks = personalStorageKeys ? storage.getItem(personalStorageKeys.bookmarks) : null;");
     expect(progress).toContain("if (!learnerMode || done || completingRef.current) return;");
     expect(content).toContain('learnerMode && accessTier !== "free" && ragEnabled && chapterId');
   });

@@ -1,8 +1,11 @@
 "use client";
 
+import { useTranslations } from "@/lib/i18n/client";
+
 import { useState } from "react";
 import { Download, ExternalLink, FileText, X } from "lucide-react";
 import { Dialog as DialogNs } from "radix-ui";
+import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
 import { getViewablePdfUrl } from "@/lib/pdf-utils";
@@ -16,6 +19,7 @@ export function PdfViewerModal({
   onClose: () => void;
   allowDownload?: boolean;
 }) {
+  const tr = useTranslations("learning.pdfPreview");
   const [loaded, setLoaded] = useState(false);
 
   if (!material) return null;
@@ -24,20 +28,19 @@ export function PdfViewerModal({
   const downloadUrl = material.url;
 
   return (
-    <DialogNs.Root open={Boolean(material)} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={Boolean(material)} onOpenChange={(open) => !open && onClose()}>
       <DialogNs.Portal>
         {/* Backdrop overlay */}
         <DialogNs.Overlay className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
 
-        {/* Ultra-thin bezel modal container: 0 padding on mobile, 4-6px on desktop */}
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-1 md:p-1.5 pointer-events-none">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-1 md:p-1.5 pointer-events-none">
           <DialogNs.Content
             className="pointer-events-auto relative flex size-full flex-col overflow-hidden rounded-none sm:rounded-lg border-0 sm:border border-border/80 bg-background shadow-2xl outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-150"
-            aria-label={`Pratinjau dokumen ${material.title}`}
+            aria-label={tr("document", { title: material.title })}
           >
             <DialogNs.Title className="sr-only">{material.title}</DialogNs.Title>
             <DialogNs.Description className="sr-only">
-              Pratinjau PDF {material.title}
+              {tr("pdf", { title: material.title })}
             </DialogNs.Description>
 
             {/* Ultra-slim header: 34px height (h-8.5), edge-to-edge */}
@@ -74,8 +77,8 @@ export function PdfViewerModal({
                           download
                           target="_blank"
                           rel="noopener noreferrer"
-                          title="Unduh PDF"
-                          aria-label="Unduh PDF"
+                          title={tr("download")}
+                          aria-label={tr("download")}
                         >
                           <Download className="size-3.5" />
                         </a>
@@ -91,8 +94,8 @@ export function PdfViewerModal({
                         href={pdfUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        title="Buka di tab baru"
-                        aria-label="Buka di tab baru"
+                        title={tr("openTab")}
+                        aria-label={tr("openTab")}
                       >
                         <ExternalLink className="size-3.5" />
                       </a>
@@ -104,8 +107,8 @@ export function PdfViewerModal({
                   size="icon"
                   className="size-7 rounded-md text-muted-foreground hover:text-foreground"
                   onClick={onClose}
-                  title="Tutup (Esc)"
-                  aria-label="Tutup pratinjau"
+                  title={tr("closeEsc")}
+                  aria-label={tr("closePreview")}
                 >
                   <X className="size-3.5" />
                 </Button>
@@ -119,7 +122,7 @@ export function PdfViewerModal({
                   {!loaded && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground pointer-events-none">
                       <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                      <span className="text-body-xs">Memuat PDF...</span>
+                      <span className="text-body-xs">{tr("loading")}</span>
                     </div>
                   )}
                   <iframe
@@ -133,14 +136,14 @@ export function PdfViewerModal({
               ) : (
                 <div className="flex size-full flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
                   <FileText className="size-8 opacity-50" />
-                  <p className="text-body-sm font-medium">Tautan berkas PDF belum tersedia.</p>
+                  <p className="text-body-sm font-medium">{tr("missing")}</p>
                   <Button
                     variant="outline"
                     size="sm"
                     className="mt-2 rounded-md text-body-xs"
                     onClick={onClose}
                   >
-                    Tutup
+                    {tr("close")}
                   </Button>
                 </div>
               )}
@@ -148,6 +151,6 @@ export function PdfViewerModal({
           </DialogNs.Content>
         </div>
       </DialogNs.Portal>
-    </DialogNs.Root>
+    </Dialog>
   );
 }

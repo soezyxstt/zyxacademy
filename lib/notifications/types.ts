@@ -41,14 +41,46 @@ export interface NotificationPayload {
     | { key: "discussion"; params: Record<string, never> };
 }
 
-// ─── Send result ──────────────────────────────────────────────────────────────
+export type PushPlatform = "web" | "android" | "ios" | "desktop";
+
+export type PushTransport = "fcm" | "apns" | "webpush" | "desktop";
+
+export type PushOsPermissionStatus = "granted" | "denied" | "prompt" | "unsupported";
+
+export type PushDeliveryReadiness =
+  | "ready"
+  | "permission_required"
+  | "permission_denied"
+  | "unregistered"
+  | "transport_inactive"
+  | "unsupported";
+
+export interface PushTransportReadiness {
+  configured: boolean;
+  registeredCount: number;
+  active: boolean;
+}
+
+export interface PushStatusSummary {
+  registered: boolean;
+  devices: Array<{
+    id: string;
+    device: string;
+    platform: PushPlatform;
+    transport: PushTransport;
+    updatedAt: string;
+  }>;
+  transports: Record<PushTransport, PushTransportReadiness>;
+}
+
+// Send result
 
 export interface SendResult {
-  /** Total number of FCM send attempts. */
+  /** Total number of push send attempts. */
   attempted: number;
   /** Number of successfully delivered pushes. */
   succeeded: number;
-  /** Tokens that were rejected by FCM (removed from DB automatically). */
+  /** Tokens rejected by FCM or APNs (removed from DB automatically). */
   failedTokens: string[];
   /** Any non-token-specific errors. */
   errors: string[];

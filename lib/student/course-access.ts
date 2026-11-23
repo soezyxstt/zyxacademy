@@ -256,7 +256,8 @@ async function resolveCourseIdentity(
   requestedCourseId: string,
   client: typeof db,
 ): Promise<CourseIdentity> {
-  const canonicalRows = await client
+  const [canonicalRows, legacyRows] = await Promise.all([
+    client
       .select({
         id: mataKuliah.id,
         title: mataKuliah.title,
@@ -269,12 +270,13 @@ async function resolveCourseIdentity(
       })
       .from(mataKuliah)
       .where(or(eq(mataKuliah.id, requestedCourseId), eq(mataKuliah.legacyCourseId, requestedCourseId)))
-      .limit(2);
-  const legacyRows = await client
+      .limit(2),
+    client
       .select({ id: courses.id, title: courses.title })
       .from(courses)
       .where(eq(courses.id, requestedCourseId))
-      .limit(2);
+      .limit(2),
+  ]);
 
   return projectCourseIdentity(requestedCourseId, canonicalRows, legacyRows);
 }
@@ -378,11 +380,6 @@ async function resolveActor(
       .from(pengguna)
       .where(eq(pengguna.id, userId))
       .limit(1);
-  const [knownAuthUser] = await client
-      .select({ id: authUser.id, createdAt: authUser.createdAt, updatedAt: authUser.updatedAt, role: authUser.role })
-      .from(authUser)
-      .where(eq(authUser.id, userId))
-      .limit(1);
   let identity: { status: "active" | "suspended" } | null | undefined = existingIdentity;
   if (identity?.status === "suspended") {
     return {
@@ -399,31 +396,38 @@ async function resolveActor(
   // Older Better Auth accounts can predate the canonical identity migration.
   // Provision the identity before granting the Free lane so every downstream
   // canonical write, including allowance leases, has a valid FK target.
-  if (provision && !identity && knownAuthUser) {
-    try {
-      await client.transaction(async tx => {
-        const legacyRole = mapLegacyRole(knownAuthUser.role ?? "student");
-        if (!legacyRole) throw new Error("Unsupported Better Auth role");
-        const [roleRecord] = await tx.select({ id: peran.id }).from(peran)
-          .where(eq(peran.code, legacyRole)).limit(1);
-        if (!roleRecord) throw new Error("Canonical role seed is unavailable");
-        const [created] = await tx.insert(pengguna).values({
-          id: userId, status: "active", createdAt: knownAuthUser.createdAt, updatedAt: knownAuthUser.updatedAt,
-        }).onConflictDoNothing().returning({ id: pengguna.id });
-        // Only the transaction creating the identity may grant its initial role.
-        if (created) await tx.insert(penggunaPeran).values({
-          id: membershipIdFor(userId, legacyRole), penggunaId: userId, peranId: roleRecord.id,
-          source: "better_auth_user_create", auditActorPenggunaId: null, createdAt: knownAuthUser.createdAt,
-        }).onConflictDoNothing();
-      });
-      const [provisionedIdentity] = await client
-        .select({ status: pengguna.status })
-        .from(pengguna)
-        .where(eq(pengguna.id, userId))
-        .limit(1);
-      identity = provisionedIdentity ?? null;
-    } catch {
-      identity = null;
+  if (provision && !identity) {
+    const [knownAuthUser] = await client
+      .select({ id: authUser.id, createdAt: authUser.createdAt, updatedAt: authUser.updatedAt, role: authUser.role })
+      .from(authUser)
+      .where(eq(authUser.id, userId))
+      .limit(1);
+    if (knownAuthUser) {
+      try {
+        await client.transaction(async tx => {
+          const legacyRole = mapLegacyRole(knownAuthUser.role ?? "student");
+          if (!legacyRole) throw new Error("Unsupported Better Auth role");
+          const [roleRecord] = await tx.select({ id: peran.id }).from(peran)
+            .where(eq(peran.code, legacyRole)).limit(1);
+          if (!roleRecord) throw new Error("Canonical role seed is unavailable");
+          const [created] = await tx.insert(pengguna).values({
+            id: userId, status: "active", createdAt: knownAuthUser.createdAt, updatedAt: knownAuthUser.updatedAt,
+          }).onConflictDoNothing().returning({ id: pengguna.id });
+          // Only the transaction creating the identity may grant its initial role.
+          if (created) await tx.insert(penggunaPeran).values({
+            id: membershipIdFor(userId, legacyRole), penggunaId: userId, peranId: roleRecord.id,
+            source: "better_auth_user_create", auditActorPenggunaId: null, createdAt: knownAuthUser.createdAt,
+          }).onConflictDoNothing();
+        });
+        const [provisionedIdentity] = await client
+          .select({ status: pengguna.status })
+          .from(pengguna)
+          .where(eq(pengguna.id, userId))
+          .limit(1);
+        identity = provisionedIdentity ?? null;
+      } catch {
+        identity = null;
+      }
     }
   }
 
@@ -509,31 +513,31 @@ async function resolveEnrollment(
 ): Promise<boolean> {
   if (!userId || identity.status !== "active" || Number.isNaN(now.getTime())) return false;
 
-  if (identity.canonicalCourseId) {
-    const [canonicalEnrollment] = await client
-      .select({ id: pendaftaranMurid.id })
-      .from(pendaftaranMurid)
-      .where(and(
-        eq(pendaftaranMurid.penggunaId, userId),
-        eq(pendaftaranMurid.mataKuliahId, identity.canonicalCourseId),
-        inArray(pendaftaranMurid.status, ["active", "completed"]),
-        or(isNull(pendaftaranMurid.endAt), gt(pendaftaranMurid.endAt, now)),
-      ))
-      .limit(1);
-    if (canonicalEnrollment) return true;
-  }
-
   const legacyCourseId = identity.legacyCourseId ?? identity.courseId;
-  const [legacyEnrollment] = await client
-    .select({ id: enrollments.id })
-    .from(enrollments)
-    .where(and(
-      eq(enrollments.userId, userId),
-      eq(enrollments.courseId, legacyCourseId),
-      gt(enrollments.expiresAt, now),
-    ))
-    .limit(1);
-  return Boolean(legacyEnrollment);
+  const [canonicalEnrollment, legacyEnrollment] = await Promise.all([
+    identity.canonicalCourseId
+      ? client
+          .select({ id: pendaftaranMurid.id })
+          .from(pendaftaranMurid)
+          .where(and(
+            eq(pendaftaranMurid.penggunaId, userId),
+            eq(pendaftaranMurid.mataKuliahId, identity.canonicalCourseId),
+            inArray(pendaftaranMurid.status, ["active", "completed"]),
+            or(isNull(pendaftaranMurid.endAt), gt(pendaftaranMurid.endAt, now)),
+          ))
+          .limit(1)
+      : Promise.resolve([]),
+    client
+      .select({ id: enrollments.id })
+      .from(enrollments)
+      .where(and(
+        eq(enrollments.userId, userId),
+        eq(enrollments.courseId, legacyCourseId),
+        gt(enrollments.expiresAt, now),
+      ))
+      .limit(1),
+  ]);
+  return Boolean(canonicalEnrollment[0] || legacyEnrollment[0]);
 }
 
 async function resolveActiveChapters(
@@ -679,8 +683,10 @@ export async function resolveCourseAccess(
     }, false, "COURSE_NOT_FOUND");
   }
 
-  const identity = await resolveCourseIdentity(requestedCourseId, client);
-  const actor = await resolveActor(userId, client);
+  const [identity, actor] = await Promise.all([
+    resolveCourseIdentity(requestedCourseId, client),
+    resolveActor(userId, client),
+  ]);
   if (identity.status !== "active") {
     return deniedResult(normalizedInput, identity, actor, false, identity.reason);
   }
@@ -689,9 +695,11 @@ export async function resolveCourseAccess(
   }
 
   const now = input.now ?? new Date();
-  const isEnrolled = await resolveEnrollment(userId, identity, now, client);
-  const isStaff = await resolveStaffCourseAccess(actor, userId, identity.courseId, client);
-  const activeRows = await resolveActiveChapters(identity, client);
+  const [isEnrolled, isStaff, activeRows] = await Promise.all([
+    resolveEnrollment(userId, identity, now, client),
+    resolveStaffCourseAccess(actor, userId, identity.courseId, client),
+    resolveActiveChapters(identity, client),
+  ]);
   return projectCourseAccess(requestedCourseId, identity, actor, isEnrolled, isStaff, activeRows, now);
 }
 

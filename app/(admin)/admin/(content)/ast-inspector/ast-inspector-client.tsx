@@ -342,7 +342,7 @@ export function ASTInspectorClient() {
         <div className="w-full min-h-80 flex flex-col bg-background md:w-1/2">
           {/* TABS */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
+            <TabsList variant="inline">
               {[
                 { id: "preview", label: t("astInspectorUI.livePreview"), icon: <Eye className="size-3.5" /> },
                 { id: "block-explorer", label: t("astInspectorUI.blockExplorer"), icon: <List className="size-3.5" /> },

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "@/lib/i18n/client";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,9 +90,12 @@ export function MaterialsTab({
   showList = true,
 }: Props) {
   const router = useRouter();
+  const t = useTranslations("adminAcademic.documents");
   const [materials] = useState<UploadedMaterial[]>(initialMaterials);
   const [loading, setLoading] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<UploadedMaterial | null>(null);
+  const deleteTrigger = useRef<HTMLButtonElement>(null);
   const [batchOpen, setBatchOpen] = useState(false);
 
   // Form State
@@ -295,7 +300,7 @@ export function MaterialsTab({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus materi ini?")) return;
+    setDeleteTarget(null);
     setDeleteLoadingId(id);
     try {
       const res = await deleteCourseMaterial(id);
@@ -655,7 +660,10 @@ export function MaterialsTab({
                           size="icon"
                           variant="ghost"
                           className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(m.id)}
+                          onClick={event => {
+                            deleteTrigger.current = event.currentTarget;
+                            setDeleteTarget(m);
+                          }}
                           disabled={deleteLoadingId === m.id}
                           title="Hapus Dokumen"
                         >
@@ -675,6 +683,17 @@ export function MaterialsTab({
         )}
       </div>}
 
+      <AdminConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={open => { if (!open) setDeleteTarget(null); }}
+        title={t("deleteTitle")}
+        description={t("deleteDescription", { title: deleteTarget?.title ?? "" })}
+        onConfirm={() => { if (deleteTarget) void handleDelete(deleteTarget.id); }}
+        onCloseAutoFocus={event => {
+          event.preventDefault();
+          deleteTrigger.current?.focus();
+        }}
+      />
       <BatchUploadDialog
         open={batchOpen}
         onOpenChange={setBatchOpen}

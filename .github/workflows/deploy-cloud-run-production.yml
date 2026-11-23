@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Inspect production Vercel control plane, build a candidate, promote, or roll back
+        description: Inspect production, build a candidate, promote, or roll back
         required: true
         type: choice
         default: candidate
-        options: [inventory, candidate, promote, rollback]
+        options: [inventory, inspect-runtime, candidate, promote, rollback]
       revision:
         description: Exact verified revision for promote or rollback
         type: string
@@ -43,7 +43,7 @@ jobs:
           retention-days: 7
 
   release:
-    if: github.repository == 'soezyxstt/zyxacademy' && github.ref == 'refs/heads/main' && (inputs.operation == 'candidate' || inputs.operation == 'promote' || inputs.operation == 'rollback')
+    if: github.repository == 'soezyxstt/zyxacademy' && github.ref == 'refs/heads/main' && (inputs.operation == 'inspect-runtime' || inputs.operation == 'candidate' || inputs.operation == 'promote' || inputs.operation == 'rollback')
     environment: production
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -55,7 +55,6 @@ jobs:
       CLOUD_RUN_OPERATION: ${{ inputs.operation }}
       CLOUD_RUN_REVISION: ${{ inputs.revision }}
       CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER: projects/307641710075/locations/global/workloadIdentityPools/zyx-web-production/providers/github
-      QUEUE_PROVIDER: cloud-tasks
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -83,11 +82,13 @@ jobs:
         with:
           version: '>= 520.0.0'
       - name: Prepare production runtime and public build configuration
+        if: inputs.operation == 'candidate' || inputs.operation == 'inspect-runtime'
         env:
           GITHUB_RUNTIME_SECRETS: ${{ toJSON(secrets) }}
           GITHUB_RUNTIME_VARS: ${{ toJSON(vars) }}
         run: python3 .github/scripts/prepare_cloud_run_production.py
       - name: Validate dispatch and production origin
+        if: inputs.operation == 'candidate'
         run: |
           export CLOUD_RUN_PUBLIC_CONFIG="$(cat "$RUNNER_TEMP/cloud-run-public.json")"
           python3 .github/scripts/deploy_cloud_run_staging.py preflight
@@ -109,8 +110,11 @@ jobs:
             "${build_secrets[@]}" --tag "$image" .
           bash .github/scripts/smoke-cloud-run.sh "$image"
       - name: Release only to verified production service
+        if: inputs.operation != 'inspect-runtime'
         run: |
-          export CLOUD_RUN_PUBLIC_CONFIG="$(cat "$RUNNER_TEMP/cloud-run-public.json")"
+          if [[ "$CLOUD_RUN_OPERATION" == candidate ]]; then
+            export CLOUD_RUN_PUBLIC_CONFIG="$(cat "$RUNNER_TEMP/cloud-run-public.json")"
+          fi
           python3 .github/scripts/deploy_cloud_run_staging.py release
       - name: Remove private runner configuration
         if: always()

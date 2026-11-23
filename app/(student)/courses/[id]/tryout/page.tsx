@@ -21,8 +21,10 @@ type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const course = await getCourse(id);
-  const t = await getTranslations("learning");
+  const [course, t] = await Promise.all([
+    getCourse(id),
+    getTranslations("learning"),
+  ]);
   return {
     title: pageTitle(course ? t("metadata.tryoutTitle", { course: course.title }) : t("metadata.tryoutTitleFallback")),
     description: t("metadata.tryoutDescription"),
@@ -36,16 +38,17 @@ async function CourseTryoutListContent({
   id: string;
   course: NonNullable<Awaited<ReturnType<typeof getCourse>>>;
 }) {
-  const hasFullContentAccess = await checkFullCourseContentAccess(id);
-
-  // Retrieve db tryouts
+  // Retrieve db tryouts and access state concurrently
   const compatibilityCourseId = course.legacyId ?? id;
   const courseIds = [...new Set([course.id, course.canonicalId, compatibilityCourseId].filter(Boolean))] as string[];
 
-  const dbTryouts = await db
-    .select()
-    .from(exams)
-    .where(and(inArray(exams.courseId, courseIds), eq(exams.type, "tryout"), eq(exams.status, "published")));
+  const [hasFullContentAccess, dbTryouts] = await Promise.all([
+    checkFullCourseContentAccess(id),
+    db
+      .select()
+      .from(exams)
+      .where(and(inArray(exams.courseId, courseIds), eq(exams.type, "tryout"), eq(exams.status, "published"))),
+  ]);
 
   const questionCounts = dbTryouts.length
     ? await db

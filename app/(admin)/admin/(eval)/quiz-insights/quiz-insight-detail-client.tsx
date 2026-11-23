@@ -304,7 +304,7 @@ export function QuizInsightDetailClient({
 
       {/* Multi-Tab Analytics Section */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
+        <TabsList flush={false}>
           <TabsTrigger value="ai-insights" className="gap-2">
             <BrainCircuit className="size-4" />
             <span>{tx("aiEvaluation")}</span>

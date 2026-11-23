@@ -104,7 +104,7 @@ Format instructions:
 // PIPELINE GENERATOR SERVICE
 // ==========================================
 
-export async function generateFlashcardsForChapter(chapterId: string): Promise<number> {
+export async function generateFlashcardsForChapter(chapterId: string, userId?: string): Promise<number> {
   // 1. Fetch chapter
   const [chapterRecord] = await db
     .select()
@@ -214,9 +214,27 @@ export async function generateFlashcardsForChapter(chapterId: string): Promise<n
     console.log(`[AI Flashcards] Extracting cards from ${activeKOs.length} KOs...`);
     const prompt = buildFlashcardPrompt(courseRecord.title, chapterRecord.title, activeKOs);
     const { response } = await generateContentWithFallback({
+      userId,
       useCase: USE_CASES.FLASHCARD_GEN,
       contents: prompt,
-      config: { responseMimeType: "application/json" },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              koId: { type: "STRING" },
+              front: { type: "STRING" },
+              back: { type: "STRING" },
+              cardType: { type: "STRING", enum: GeneratedFlashcardSchema.shape.cardType.options },
+              explanation: { type: "STRING" },
+              recallDifficulty: { type: "INTEGER", minimum: 1, maximum: 5 },
+            },
+            required: ["koId", "front", "back", "cardType"],
+          },
+        },
+      },
     });
 
     const outputText = response.text || "";

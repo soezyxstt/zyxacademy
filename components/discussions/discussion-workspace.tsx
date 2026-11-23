@@ -10,8 +10,10 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ShareLinkButton } from "@/components/share-link-button";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { normalizeDate } from "@/lib/date-utils";
+import { peekRestoredCameraPayload, ZYX_CAMERA_RESTORED_EVENT } from "@/lib/native/camera-recovery";
 import { cn } from "@/lib/utils";
 import { DiscussionComposer, emptyComposerDraft, setComposerReplyTarget, type ComposerDraft } from "./composer";
 import { DiscussionChannelPicker, DiscussionMessage, discussionChannelLabel } from "./discussion-message";
@@ -117,6 +119,33 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
     prevQuestionId.current = props.selectedQuestionId;
   }, [props.selectedQuestionId, setNewOpen]);
 
+  const { viewer, channels, selectedQuestionId, onSelectQuestion } = props;
+
+  useEffect(() => {
+    const restoreComposerIfNeeded = () => {
+      const pending = peekRestoredCameraPayload(
+        (target) => target.surface === "discussion" && target.viewerId === viewer.id,
+      );
+      if (!pending || pending.target.surface !== "discussion") return;
+      const target = pending.target;
+      if (target.mode === "new") {
+        const targetChannelId = target.channelId;
+        const matched = channels.find((item) => item.id === targetChannelId && item.canCreate);
+        if (matched) {
+          setNewChannel(matched);
+          setNewOpen(true);
+        }
+      } else if (target.mode === "reply" && selectedQuestionId !== target.questionId) {
+        setNewOpen(false);
+        onSelectQuestion(target.questionId);
+      }
+    };
+
+    restoreComposerIfNeeded();
+    window.addEventListener(ZYX_CAMERA_RESTORED_EVENT, restoreComposerIfNeeded);
+    return () => window.removeEventListener(ZYX_CAMERA_RESTORED_EVENT, restoreComposerIfNeeded);
+  }, [channels, onSelectQuestion, selectedQuestionId, viewer.id, setNewChannel, setNewOpen]);
+
   function updateDraft(key: string, change: (draft: ComposerDraft) => ComposerDraft) {
     setDrafts((current) => ({ ...current, [key]: change(current[key] ?? emptyComposerDraft()) }));
   }
@@ -164,12 +193,18 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
   useEffect(() => {
     const frame = frameElement;
     if (!frame) return;
+    let shift = 0;
     const measure = () => {
       const viewport = window.visualViewport;
       const bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
       const appPage = frame.closest<HTMLElement>("[data-discussion-page]");
       const padBottom = appPage ? parseFloat(window.getComputedStyle(appPage).paddingBottom) || 0 : 12;
-      const height = `${Math.max(320, Math.floor(bottom - Math.max(0, frame.getBoundingClientRect().top) - padBottom))}px`;
+      const naturalTop = frame.getBoundingClientRect().top - shift;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const editing = frame.contains(document.activeElement) && document.activeElement?.matches("textarea, input, [contenteditable=true]");
+      shift = editing && viewportTop > 0 ? Math.max(0, viewportTop - naturalTop) : 0;
+      frame.style.top = shift ? `${shift}px` : "";
+      const height = `${Math.max(0, Math.floor(bottom - Math.max(viewportTop, naturalTop + shift) - padBottom))}px`;
       if (frame.style.height !== height) frame.style.height = height;
       if (frame.style.maxHeight !== height) frame.style.maxHeight = height;
     };
@@ -181,7 +216,7 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
     window.addEventListener("scroll", measure);
     window.visualViewport?.addEventListener("resize", measure);
     window.visualViewport?.addEventListener("scroll", measure);
-    return () => { observer?.disconnect(); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure); window.visualViewport?.removeEventListener("resize", measure); window.visualViewport?.removeEventListener("scroll", measure); };
+    return () => { frame.style.top = ""; observer?.disconnect(); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure); window.visualViewport?.removeEventListener("resize", measure); window.visualViewport?.removeEventListener("scroll", measure); };
   }, [frameElement, activeTab, canReport]);
 
   function changeTab(tab: "questions" | "reports") {
@@ -243,7 +278,7 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
     <Tabs value={activeTab} onValueChange={(tab) => changeTab(tab as "questions" | "reports")}>
       {canReport && <TabsList className="mb-2"><TabsTrigger value="questions">{t("questions")}</TabsTrigger><TabsTrigger value="reports">{t("reports")}{props.reports!.some((report) => report.status === "pending") && <span className="ml-1 rounded-md bg-primary/10 px-1.5 text-body-xs text-primary">{props.reports!.filter((report) => report.status === "pending").length}</span>}</TabsTrigger></TabsList>}
       <TabsContent value="questions" className="mt-0">
-        <div ref={setFrameElement} className="flex h-[calc(100dvh-9rem)] min-h-[20rem] min-w-0 overflow-hidden">
+        <div ref={setFrameElement} data-discussion-frame className="relative flex h-[calc(100dvh-9rem)] min-h-0 min-w-0 overflow-hidden">
           <aside aria-label={t("questionList")} className={cn("min-h-0 min-w-0 flex-1 flex-col @min-[52rem]/discussions:flex @min-[52rem]/discussions:w-[21rem] @min-[52rem]/discussions:flex-none @min-[52rem]/discussions:border-r @min-[52rem]/discussions:border-border", props.selectedQuestionId || composeActive ? "hidden" : "flex")}>
             <header data-discussion-list-toolbar="" className="shrink-0 border-b border-border py-1.5 @min-[52rem]/discussions:pr-3">
               <div className="flex min-w-0 items-center gap-1.5">
@@ -334,7 +369,7 @@ export function DiscussionWorkspace(props: DiscussionWorkspaceProps & { draftSta
               />
             </div>
           </> : !props.selectedQuestionId ? <AdminEmptyState icon={MessageSquareText} title={t("selectQuestion")} className="min-h-full flex-1" /> : props.threadState === "loading" ? <DiscussionThreadSkeleton label={t("loadingThread")} backButton={threadBack} /> : props.threadState === "error" || !question || !channel ? <div className="flex min-h-0 flex-1 flex-col"><div className="px-3 pt-3 @min-[52rem]/discussions:hidden">{threadBack}</div><AdminEmptyState icon={CircleHelp} title={t("threadError")} className="min-h-full flex-1" action={<Button type="button" variant="outline" onClick={props.onRetryMessages}>{t("retry")}</Button>} /></div> : <>
-            <div className="shrink-0 border-b border-border p-3"><div className="flex items-start gap-2">{threadBack}<div className="min-w-0 flex-1"><h2 data-discussion-status aria-describedby="discussion-thread-status" className="break-words font-heading text-body-base font-bold">{question.title}</h2><span id="discussion-thread-status" className="sr-only">{t(question.status === "open" ? "status_open" : question.status === "answered" ? "status_answered" : "status_resolved")}</span><div className="mt-1 flex flex-wrap items-center gap-2 text-body-xs text-muted-foreground"><ChannelName channel={channel} /></div></div>{question.canResolve && props.onSetQuestionStatus && <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="sm" aria-label={t(question.status === "resolved" ? "reopen" : "resolve")} className="size-8 px-0 @min-[32rem]/discussions:w-auto @min-[32rem]/discussions:px-3" isLoading={statusPending} onClick={() => void toggleStatus()}>{question.status === "resolved" ? <RotateCcw /> : <CheckCircle2 />}<span className="hidden @min-[32rem]/discussions:inline">{t(question.status === "resolved" ? "reopen" : "resolve")}</span></Button></TooltipTrigger><TooltipContent>{t(question.status === "resolved" ? "reopen" : "resolve")}</TooltipContent></Tooltip>}</div>{statusError && <p role="alert" className="mt-1 text-body-xs text-destructive">{t("statusError")}</p>}</div>
+            <div className="shrink-0 border-b border-border p-3"><div className="flex items-start gap-2">{threadBack}<div className="min-w-0 flex-1"><h2 data-discussion-status aria-describedby="discussion-thread-status" className="break-words font-heading text-body-base font-bold">{question.title}</h2><span id="discussion-thread-status" className="sr-only">{t(question.status === "open" ? "status_open" : question.status === "answered" ? "status_answered" : "status_resolved")}</span><div className="mt-1 flex flex-wrap items-center gap-2 text-body-xs text-muted-foreground"><ChannelName channel={channel} /></div></div><ShareLinkButton title={question.title} variant="outline" size="icon-sm" className="size-8 shrink-0" />{question.canResolve && props.onSetQuestionStatus && <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="sm" aria-label={t(question.status === "resolved" ? "reopen" : "resolve")} className="size-8 px-0 @min-[32rem]/discussions:w-auto @min-[32rem]/discussions:px-3" isLoading={statusPending} onClick={() => void toggleStatus()}>{question.status === "resolved" ? <RotateCcw /> : <CheckCircle2 />}<span className="hidden @min-[32rem]/discussions:inline">{t(question.status === "resolved" ? "reopen" : "resolve")}</span></Button></TooltipTrigger><TooltipContent>{t(question.status === "resolved" ? "reopen" : "resolve")}</TooltipContent></Tooltip>}</div>{statusError && <p role="alert" className="mt-1 text-body-xs text-destructive">{t("statusError")}</p>}</div>
             <div data-discussion-messages className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto p-3 @min-[52rem]/discussions:p-5">{props.hasMoreMessages && props.onLoadMoreMessages && <LoadMore onLoad={props.onLoadMoreMessages} label={t("loadMessages")} />}{props.messages.length ? (() => {
               let lastDayKey: string | null = null;
               return props.messages.map((message) => {

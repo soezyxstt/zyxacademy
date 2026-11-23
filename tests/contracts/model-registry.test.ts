@@ -5,7 +5,6 @@ import {
   getProjectAliases,
   getRpdLimit,
   MODEL_REGISTRY,
-  modelSupportsAiGateway,
   normalizeModelId,
   type ModelId,
 } from "@/lib/ai/provider/model-registry";
@@ -21,9 +20,14 @@ describe("Plan 002 model registry", () => {
 
     for (const id of ids) {
       const entry = getModelEntry(id);
-      expect(entry.limits.perProjectRpm).toBeGreaterThan(0);
-      expect(entry.limits.perProjectTpm).toBeGreaterThan(0);
-      expect(entry.limits.perProjectRpd).toBeGreaterThan(0);
+      if (entry.limits.providerManaged) {
+        expect(entry.family).toBe("chat-completions");
+        expect(entry.limits).toMatchObject({ perProjectRpm: 0, perProjectTpm: 0, perProjectRpd: 0, initialUsableRpd: 0 });
+      } else {
+        expect(entry.limits.perProjectRpm).toBeGreaterThan(0);
+        expect(entry.limits.perProjectTpm).toBeGreaterThan(0);
+        expect(entry.limits.perProjectRpd).toBeGreaterThan(0);
+      }
       if (entry.operations.includes("generate")) expect(entry.input.text).toBe(true);
       if (entry.family === "embedding") expect(entry.dimensions).toBe(768);
     }
@@ -41,7 +45,7 @@ describe("Plan 002 model registry", () => {
   it("keeps quarantined and legacy entries out of ordinary routing while allowing 3.5 Flash-Lite", () => {
     expect(getModelEntry("gemini-3.5-flash-lite").ordinaryRoutingAllowed).toBe(true);
     expect(getModelEntry("gemini-3.5-flash-lite").stability).toBe("stable");
-    expect(getModelEntry("gemini-3-flash-preview").ordinaryRoutingAllowed).toBe(false);
+    expect(getModelEntry("gemini-3-flash-preview").ordinaryRoutingAllowed).toBe(true);
     expect(getModelEntry("gemini-embedding-001").ordinaryRoutingAllowed).toBe(false);
   });
 
@@ -54,16 +58,7 @@ describe("Plan 002 model registry", () => {
       .toBe(EMBEDDING_PROFILES["zyra-semantic-cache-v1"].model);
   });
 
-  it("rejects duplicate project aliases", () => {
-    expect(() => getProjectAliases({
-      GEMINI_PROJECT_ALIAS_1: "project-a",
-      GEMINI_PROJECT_ALIAS_2: "project-a",
-    })).toThrow("GEMINI_PROJECT_ALIASES_MUST_BE_DISTINCT");
-  });
-
-  it("keeps Interactions direct and the visual fallback gateway-compatible", () => {
-    expect(modelSupportsAiGateway("gemini-3.6-flash")).toBe(false);
-    expect(modelSupportsAiGateway("gemini-2.5-flash")).toBe(true);
-    expect(getModelEntry("gemini-2.5-flash").input.image).toBe(true);
+  it("maps multiple credentials to the same quota group", () => {
+    expect(getProjectAliases({ GEMINI_PROJECT_ALIAS_1: "a", GEMINI_PROJECT_ALIAS_2: "a" }).slice(0, 2)).toEqual(["a", "a"]);
   });
 });

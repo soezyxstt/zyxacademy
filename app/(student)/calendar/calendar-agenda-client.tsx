@@ -1,5 +1,7 @@
 "use client";
 
+import { GoogleCalendarControl } from "@/components/schedule/google-calendar-control";
+
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -43,8 +45,10 @@ const CALENDAR_FILTERS = { all: "calendar.filterAll", quiz_tryout: "calendar.fil
 
 export function CalendarAgendaClient({
   events,
+  canSync = true,
 }: {
   events: CalendarEventItem[];
+  canSync?: boolean;
 }) {
   const t = useTranslations("student");
   const [filter, setFilter] = useState<keyof typeof CALENDAR_FILTERS>("all");
@@ -61,6 +65,7 @@ export function CalendarAgendaClient({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2">
+        {canSync && <GoogleCalendarControl />}
         <Select value={filter} onValueChange={(value) => setFilter(value as keyof typeof CALENDAR_FILTERS)}>
           <SelectTrigger variant="inline" aria-label={t("calendar.eventCategory")}>
             <SelectValue />

@@ -873,6 +873,9 @@
     }
   },
   "blog": {
+    "pagination": "Article pages",
+    "previous": "Previous",
+    "next": "Next",
     "heroTitle": "Blog",
     "heroDescription": "Articles to help you study, understand campus life, and learn about Zyx activities.",
     "categories": {
@@ -883,7 +886,7 @@
       "zyxActivities": "Zyx Activities"
     },
     "categoryNav": "Blog categories",
-    "categoryCount": "Showing {count} articles in this category.",
+    "categoryCount": "{count} articles in this category.",
     "latest": "Latest articles",
     "latestDescription": "Read the latest articles before exploring study features.",
     "available": "{count} articles available",

@@ -24,6 +24,8 @@ test.describe("Video Player and Dual-Mode Admin Visuals", () => {
     // 1. Capture default player modal appearance
     const dialog = page.locator("[data-slot='dialog-content']");
     await expect(dialog).toBeVisible();
+    await expect(page).toHaveURL(/[?&]dialog=/);
+    const playerUrl = page.url();
     await expect(page.getByText("Bagian A - Soal 1 s.d. 5")).toBeVisible();
     await page.waitForTimeout(1000);
 
@@ -43,6 +45,11 @@ test.describe("Video Player and Dual-Mode Admin Visuals", () => {
     const shot2 = await page.screenshot();
     saveScreenshot("video-player-playlist-drawer.png", shot2, testInfo);
 
+    await page.evaluate(() => history.back());
+    await expect(drawer).toBeHidden();
+    await expect(dialog).toBeVisible();
+    await expect(page).toHaveURL(playerUrl);
+
     // Close player modal
     const closeBtn = page.getByRole("button", { name: "Tutup pemutar video" });
     if (await closeBtn.isVisible()) {
@@ -50,7 +57,8 @@ test.describe("Video Player and Dual-Mode Admin Visuals", () => {
     } else {
       await page.keyboard.press("Escape");
     }
-    await page.waitForTimeout(400);
+    await expect(dialog).toBeHidden();
+    await expect(page).not.toHaveURL(/[?&]dialog=/);
 
     // 3. Open Admin Video Dialog (Add new video - YouTube mode default)
     await page.locator("[data-testid='btn-open-admin-add']").click();

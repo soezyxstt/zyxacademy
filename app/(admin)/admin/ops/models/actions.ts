@@ -1,6 +1,9 @@
 "use server";
 
+import { claimLatencyCycle } from "@/lib/ai/model-latency-cooldown";
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "node:crypto";
+import { inngest } from "@/jobs/client";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import {
   ModelSettingConflictError,
@@ -14,6 +17,7 @@ export type ModelSettingMutationResult =
   | {
       readonly ok: true;
       readonly views: FeatureModelSettingView[];
+      readonly latencyRefreshRequestedAt?: number;
     }
   | {
       readonly ok: false;
@@ -56,6 +60,24 @@ export async function listAiModelSettingsAction(): Promise<ModelSettingMutationR
       ok: false,
       error: toSafeErrorMessage(error, "Gagal memuat konfigurasi model AI."),
     };
+  }
+}
+
+export async function refreshAiModelLatenciesAction(): Promise<ModelSettingMutationResult> {
+  try {
+    await assertAdmin();
+    if (!process.env.ZYRA_CONTROL_PLANE_URL || !process.env.ZYRA_CONTROL_PLANE_TOKEN ||
+        !process.env.CF_KV_NAMESPACE_ID || !process.env.CF_ACCOUNT_ID || !process.env.CF_API_TOKEN) {
+      throw new Error("Pengukuran latensi belum tersedia. Periksa koneksi control plane dan cache.");
+    }
+    const views = await listModelSettingViews();
+    const requestedAt = Date.now(), requestId = randomUUID();
+    const accepted = await claimLatencyCycle(requestId, () =>
+      inngest.send({ name: "ai-model-catalog-cron", id: requestId, data: { requestId } }));
+    if (!accepted) return { ok: false, code: "LATENCY_COOLDOWN", error: "Pengujian latensi dibatasi sekali setiap 3 jam." };
+    return { ok: true, views, latencyRefreshRequestedAt: requestedAt };
+  } catch (error) {
+    return { ok: false, error: toSafeErrorMessage(error, "Gagal menjadwalkan pengukuran latensi. Coba lagi.") };
   }
 }
 

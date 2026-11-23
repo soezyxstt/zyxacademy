@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "@/lib/i18n/client";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ClipboardList, Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +17,7 @@ export function ZyraProposalPanel({ courseId, role }: { courseId?: string | null
 }
 
 function AccountProposalPanel({ userId, courseId, role }: { userId?: string; courseId?: string | null; role: ProposalRole }) {
+  const tr = useTranslations("zyra.proposalPanel");
   const client = useQueryClient();
   const query = useQuery(zyraProposalsQuery(userId ?? "", courseId));
   const createMutation = useMutation(createZyraProposalMutation(client, userId ?? "", role, courseId));
@@ -22,9 +25,9 @@ function AccountProposalPanel({ userId, courseId, role }: { userId?: string; cou
   const proposals = query.data?.proposals ?? [];
   const loading = query.isPending;
   const busy = !userId || createMutation.isPending || transitionMutation.isPending;
-  const error = createMutation.isError ? "Proposal tidak dapat dibuat."
-    : transitionMutation.isError ? "Status proposal tidak dapat diubah. Periksa review dan versi data."
-      : query.isError ? "Proposal belum tersedia." : null;
+  const error = createMutation.isError ? tr("createFailed")
+    : transitionMutation.isError ? tr("transitionFailed")
+      : query.isError ? tr("unavailable") : null;
 
   const createProposal = () => {
     if (busy) return;
@@ -43,28 +46,28 @@ function AccountProposalPanel({ userId, courseId, role }: { userId?: string; cou
       <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
         <CardTitle className="flex items-center gap-2 text-body-base font-heading">
           <ClipboardList className="size-5 text-brand-primary" aria-hidden="true" />
-          Zyra proposal
+          {tr("title")}
         </CardTitle>
         <Button type="button" size="sm" onClick={() => void createProposal()} disabled={busy || !courseId && role !== "admin"}>
-          {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : "Buat proposal"}
+          {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : tr("create")}
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-body-sm text-muted-foreground">
-          Zyra hanya menyusun ringkasan dan proposal bertipe. Tidak ada perubahan data yang dijalankan otomatis.
+          {tr("summary")}
         </p>
         {error && <p className="text-body-sm text-status-error" role="status">{error}</p>}
         {loading ? (
-          <p className="text-body-sm text-muted-foreground">Memuat proposal...</p>
+          <p className="text-body-sm text-muted-foreground">{tr("loading")}</p>
         ) : proposals.length === 0 ? (
-          <p className="text-body-sm text-muted-foreground">Belum ada proposal untuk scope ini.</p>
+          <p className="text-body-sm text-muted-foreground">{tr("none")}</p>
         ) : (
           <div className="divide-y divide-border border-y border-border">
             {proposals.map((proposal) => (
               <div key={proposal.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div className="space-y-1">
                   <p className="text-body-sm font-semibold text-foreground">{proposal.proposalType}</p>
-                  <p className="font-mono text-body-xs text-muted-foreground">diff {proposal.diffHash.slice(0, 12)} · versi {proposal.preconditionVersion}</p>
+                  <p className="font-mono text-body-xs text-muted-foreground">{tr("revision", { hash: proposal.diffHash.slice(0, 12), version: proposal.preconditionVersion })}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="rounded-md">{proposal.status}</Badge>
@@ -75,7 +78,7 @@ function AccountProposalPanel({ userId, courseId, role }: { userId?: string; cou
                   )}
                   {proposal.status === "reviewed" && (
                     <Button type="button" size="xs" onClick={() => void transition(proposal, "confirm")} disabled={busy}>
-                      Konfirmasi
+                      {tr("confirm")}
                     </Button>
                   )}
                 </div>
@@ -85,7 +88,7 @@ function AccountProposalPanel({ userId, courseId, role }: { userId?: string; cou
         )}
         <p className={cn("flex items-start gap-2 text-body-xs text-muted-foreground")}>
           <ShieldAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          Konfirmasi hanya menyiapkan handoff; mutation service dan audit final tetap wajib tersedia.
+          {tr("handoff")}
         </p>
       </CardContent>
     </Card>

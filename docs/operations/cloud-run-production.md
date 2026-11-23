@@ -65,3 +65,20 @@ The public DNS and worker routes, production schema, legacy writer state and pro
 Production already contained 37 ledger entries through 0036. Migrations 0037 and 0038 were rehearsed on `br-hidden-rice-azq54qqa`, cloned from backup `br-spring-recipe-aznzg7ii`, then committed together to production `br-wandering-butterfly-azi11h8r`. The transaction checked the exact existing ledger and schema under an advisory lock and exclusive locks on the ledger and two affected tables, with a 10-second lock timeout and 60-second statement timeout. Historical ledger rows and existing profile visibility values were preserved.
 
 Independent readback confirmed 39 ledger entries, the `members` default and nullable JSONB `mention_handles`. The updated Cloud Run read-only gate returned `already complete` using the production runtime credential. Its 16 focused offline tests passed. The gate pins all 39 committed migration blobs and rejects a 37- or 38-entry ledger; incremental application from those states remains an operator-controlled transaction, not the historical baseline runner. Preserve the backup through release acceptance.
+
+## Staging promotion through migration 0040
+
+Use the read-only `inspect-runtime` operation to verify the serving revision and
+production Vectorize indexes, and list missing runtime configuration keys before
+deploying. The candidate uses the verified serving database reference and queue
+provider. Existing Secret Manager references are retained and missing supported
+runtime settings are sourced from GitHub's production environment. Deployment
+credentials stay in Actions. Promotion uses the candidate's pinned runtime and
+build configuration.
+
+The 0039 and 0040 release requires the exact 39-entry production ledger through
+0038 and a fresh snapshot. The migrations add push-token transport metadata and
+the Google Calendar sync table. Rehearse against a branch of production, then
+apply the checked SQL and ledger entries in one bounded transaction. The
+production Cloud Run gate verifies all 41 entries and the new schema. Keep the
+migration in place if traffic rolls back to the prior application revision.

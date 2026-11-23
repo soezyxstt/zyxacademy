@@ -38,6 +38,8 @@ describe("mobile/tablet 1-step direct PDF opening contract", () => {
     const src = source("components/course/pdf-viewer-modal.tsx");
     expect(src).toContain("<iframe");
     expect(src).toContain("getViewablePdfUrl(material.url)");
-    expect(src).toContain("Buka di tab baru");
+    expect(src).toContain('aria-label={tr("openTab")}');
+    expect(JSON.parse(source("messages/id/learning.json")).pdfPreview.openTab).toBe("Buka di tab baru");
+    expect(JSON.parse(source("messages/en/learning.json")).pdfPreview.openTab).toBe("Open in new tab");
   });
 });

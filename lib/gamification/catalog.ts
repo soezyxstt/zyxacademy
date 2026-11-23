@@ -1,4 +1,5 @@
 import type { BadgeFamily, RankKey } from './contracts';
+import { PET_SUITS } from './pet-studio';
 export const MICRO = 1_000_000;
 export const RANKS: ReadonlyArray<{ key: RankKey; xp: number; courses: number; bonusPercent: number; zyraPercent: number }> = [
  { key: 'rakyat', xp: 0, courses: 0, bonusPercent: 0, zyraPercent: 0 },
@@ -52,8 +53,9 @@ export const COSMETIC_CATALOG = [
  { id: 'pet-action-roar', name: 'Mengaum', slot: 'pet_action', priceLp: 400, active: true },
  { id: 'pet-action-charge', name: 'Menyeruduk', slot: 'pet_action', priceLp: 400, active: true },
  { id: 'pet-action-giveFlowers', name: 'Memberi bunga', slot: 'pet_action', priceLp: 400, active: true },
- { id: 'pet-suit-itb-sport-outfit', name: 'Seragam olahraga', slot: 'pet_suit', priceLp: 500, active: true },
- { id: 'pet-suit-astronaut-outfit', name: 'Baju astronaut', slot: 'pet_suit', priceLp: 750, active: true },
+ ...PET_SUITS.map(({ assetId, name, priceLp }) => ({
+  id: `pet-suit-${assetId}`, name, slot: 'pet_suit', priceLp, active: true,
+ } as const)),
  // Draft studio prices follow existing character tiers. Confirm them before catalog seeding.
  { id: 'zyra-avatar-studio-cat', name: 'Zyra', slot: 'zyra_avatar', priceLp: 0, active: true },
  { id: 'zyra-avatar-studio-tiger', name: 'Harimau', slot: 'zyra_avatar', priceLp: 900, active: true },

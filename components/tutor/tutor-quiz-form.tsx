@@ -384,52 +384,54 @@ export function TutorQuizForm({
         title={headerTitle}
         backHref={`/tutor/${courseId}/quizzes`}
         backLabel={t("backToQuizList")}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-lg"
-                    aria-label={saveLabel}
-                    disabled={isPending}
-                    isLoading={isSaving}
-                    onClick={() => handleSubmit(false)}
-                  >
-                    <Save aria-hidden />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{saveLabel}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <Button
-              type="button"
-              size="sm"
-              disabled={isPending}
-              aria-busy={isPublishing}
-              onClick={() => handleSubmit(true)}
-              className="h-9 rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold text-body-sm shadow-xs"
-            >
-              {isPublishing ? (
-                <>
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" /> {t("saving")}
-                </>
-              ) : (
-                <>
-                  <Send className="mr-1.5 size-3.5" />
-                  {isEdit ? t("saveAndPublish") : t("publishQuiz")}
-                </>
-              )}
-            </Button>
-          </div>
-        }
       />
 
       {/* 2-Tab Navigation */}
       <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full space-y-(--related-gap)">
-        <TabsList>
+        <TabsList
+          trailing={
+            <div className="flex items-center gap-1.5">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-8"
+                      aria-label={saveLabel}
+                      disabled={isPending}
+                      isLoading={isSaving}
+                      onClick={() => handleSubmit(false)}
+                    >
+                      <Save className="size-4" aria-hidden />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{saveLabel}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <Button
+                type="button"
+                size="sm"
+                disabled={isPending}
+                aria-busy={isPublishing}
+                onClick={() => handleSubmit(true)}
+                className="h-8 rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold text-body-sm shadow-xs"
+              >
+                {isPublishing ? (
+                  <>
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" /> {t("saving")}
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-1.5 size-3.5" />
+                    {isEdit ? t("saveAndPublish") : t("publishQuiz")}
+                  </>
+                )}
+              </Button>
+            </div>
+          }
+        >
           <TabsTrigger value="pengaturan">
             <Settings2 className="size-4" />
             {t("settings")}

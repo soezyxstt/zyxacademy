@@ -1,21 +1,21 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { readPlaygroundHandoff } from "@/lib/coding/playground-handoff";
 import { CodingWorkspace } from "./coding-workspace";
 
 export function Playground({ courseId, learnerId }: { courseId: string; learnerId: string }) {
   const params = useSearchParams(), handoff = params.get("handoff");
-  const [loaded, setLoaded] = useState(false), [code, setCode] = useState(""), [stdin, setStdin] = useState("");
+  const [restored, setRestored] = useState<{ learnerId: string; courseId: string; handoff: string | null; code: string; stdin: string } | null>(null);
   useEffect(() => {
+    let value: { code: string; stdin: string } | null = null;
     try {
-      const value = handoff ? JSON.parse(sessionStorage.getItem(`zyx-python-handoff:${handoff}`) ?? "null") : null;
-      if (value?.courseId === courseId && typeof value.code === "string" && value.code.length <= 64_000) {
-        setCode(value.code);
-        if (typeof value.stdin === "string" && value.stdin.length <= 8000) setStdin(value.stdin);
-      }
+      value = readPlaygroundHandoff(sessionStorage, handoff, { learnerId, courseId });
     } catch { /* Keep the empty editor if handoff is unavailable. */ }
-    setLoaded(true);
-  }, [courseId, handoff]);
-  if (!loaded) return <p role="status" className="text-body-sm text-muted-foreground">Memuat Playground...</p>;
-  return <div className="space-y-4"><CodingWorkspace key={handoff ?? "default"} courseId={courseId} learnerId={learnerId} draftKey={`playground:${handoff ?? "default"}`} initialCode={code} initialStdin={stdin} interactive /></div>;
+    setRestored({ learnerId, courseId, handoff, code: value?.code ?? "", stdin: value?.stdin ?? "" });
+  }, [courseId, handoff, learnerId]);
+  // Server props can change before effects run. Never pass the previous owner's
+  // initial code into the new account's draft, even for that first render.
+  if (!restored || restored.learnerId !== learnerId || restored.courseId !== courseId || restored.handoff !== handoff) return <p role="status" className="text-body-sm text-muted-foreground">Memuat Playground...</p>;
+  return <div className="space-y-4"><CodingWorkspace key={JSON.stringify([learnerId, courseId, handoff])} courseId={courseId} learnerId={learnerId} draftKey={`playground:${handoff ?? "default"}`} initialCode={restored.code} initialStdin={restored.stdin} interactive /></div>;
 }

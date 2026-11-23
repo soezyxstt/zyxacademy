@@ -11,8 +11,8 @@ describe('expanded cosmetic catalog', () => {
     originalIds.forEach((key, index) => expect(COSMETIC_CATALOG.find(item => item.id === key)?.priceLp).toBe(originalPrices[index]));
   });
   test('adds four studio characters to the existing catalog', () => {
-    expect(COSMETIC_CATALOG).toHaveLength(39);
-    expect(new Set(COSMETIC_CATALOG.map(item => item.id)).size).toBe(39);
+    expect(COSMETIC_CATALOG).toHaveLength(52);
+    expect(new Set(COSMETIC_CATALOG.map(item => item.id)).size).toBe(COSMETIC_CATALOG.length);
     expect(COSMETIC_CATALOG.filter(item => item.slot === 'frame')).toHaveLength(10);
     expect(COSMETIC_CATALOG.filter(item => item.slot === 'zyra_avatar')).toHaveLength(14);
     const added = COSMETIC_CATALOG.filter(item => item.slot === "zyra_avatar" && !originalIds.includes(item.id));
@@ -23,6 +23,10 @@ describe('expanded cosmetic catalog', () => {
       else expect(item.priceLp).toBeGreaterThanOrEqual(600);
       expect(item.priceLp).toBeLessThanOrEqual(1250);
     }
+  });
+  test('keeps the two original suit prices', () => {
+    expect(COSMETIC_CATALOG.find(item => item.id === 'pet-suit-itb-sport-outfit')?.priceLp).toBe(500);
+    expect(COSMETIC_CATALOG.find(item => item.id === 'pet-suit-astronaut-outfit')?.priceLp).toBe(750);
   });
   test('every reward and settings choice resolves a label in both locales', () => {
     for (const item of COSMETIC_CATALOG) for (const locale of [id, en]) {

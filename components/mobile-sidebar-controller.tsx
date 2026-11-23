@@ -4,8 +4,14 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { useSwipe } from "@/hooks/use-swipe";
+import {
+  hasOpenSidebarOverlay,
+  MOBILE_SIDEBAR_QUERY,
+  isSidebarOverlayGestureActive,
+  isSidebarOverlayTarget,
+  syncSidebarOverlayGesture,
+} from "@/lib/sidebar-overlay";
 
-const MOBILE_QUERY = "(max-width: 767px)";
 // The sidebar can hydrate after this controller. Do not mutate server-rendered
 // attributes until the sidebar has mounted and owns its initial state.
 const SIDEBAR_SELECTOR = "aside.fixed.inset-y-0.left-0[data-sidebar-ready='true']";
@@ -15,7 +21,7 @@ function getSidebar(): HTMLElement | null {
 }
 
 function isMobileViewport(): boolean {
-  return typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches;
+  return typeof window !== "undefined" && window.matchMedia(MOBILE_SIDEBAR_QUERY).matches;
 }
 
 function setSidebarOpen(open: boolean) {
@@ -68,7 +74,7 @@ export function MobileSidebarController() {
       }
     },
     onSwipeLeft: () => {
-      if (!isMobileViewport() || !openRef.current) return;
+      if (!isMobileViewport() || !openRef.current || hasOpenSidebarOverlay()) return;
       close();
       window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
     },
@@ -79,16 +85,32 @@ export function MobileSidebarController() {
     const handleClose = () => close();
     const handleToggle = () => (openRef.current ? close() : open());
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && openRef.current) {
+      if (
+        event.key === "Escape" &&
+        openRef.current &&
+        !event.defaultPrevented &&
+        !hasOpenSidebarOverlay()
+      ) {
         close();
         window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
       }
+    };
+    const handlePointerDownCapture = (event: PointerEvent) => {
+      if (!openRef.current || !isMobileViewport()) return;
+      syncSidebarOverlayGesture(event.target);
     };
     const handlePointerDown = (event: PointerEvent) => {
       if (!openRef.current || !isMobileViewport()) return;
       const sidebar = getSidebar();
       const target = event.target as Node | null;
-      if (sidebar && target && !sidebar.contains(target)) {
+      if (
+        sidebar &&
+        target &&
+        !sidebar.contains(target) &&
+        !isSidebarOverlayTarget(target) &&
+        !hasOpenSidebarOverlay() &&
+        !isSidebarOverlayGestureActive()
+      ) {
         close();
         window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
       }
@@ -101,7 +123,7 @@ export function MobileSidebarController() {
         window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
       }
     };
-    const media = window.matchMedia(MOBILE_QUERY);
+    const media = window.matchMedia(MOBILE_SIDEBAR_QUERY);
     const handleViewportChange = () => {
       const sidebar = getSidebar();
       if (!media.matches && sidebar) {
@@ -118,6 +140,7 @@ export function MobileSidebarController() {
     window.addEventListener("zyx:close-mobile-sidebar", handleClose);
     window.addEventListener("zyx:toggle-mobile-sidebar", handleToggle);
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDownCapture, { capture: true });
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("click", handleClick);
     media.addEventListener("change", handleViewportChange);
@@ -128,6 +151,7 @@ export function MobileSidebarController() {
       window.removeEventListener("zyx:close-mobile-sidebar", handleClose);
       window.removeEventListener("zyx:toggle-mobile-sidebar", handleToggle);
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDownCapture, { capture: true });
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("click", handleClick);
       media.removeEventListener("change", handleViewportChange);

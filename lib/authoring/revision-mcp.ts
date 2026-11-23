@@ -133,7 +133,7 @@ export function registerRevisionTools(server: McpServer, principal: McpPrincipal
     verify(input.kind, input.bootstrapToken);
     return withExecution(await readContext(input), input.kind, input.bootstrapToken);
   });
-  register("authoring.create_revision", z.object({ kind, bootstrapToken: bootstrap, baseImportId: identifier, expectedRevision: revision, entityIds: z.array(identifier).min(1).max(REVISION_MCP_LIMITS.entityIds).optional() }), "stage", "Create a durable editable revision from the observed live artifact or editable V3+ draft. Use restore_revision for withdrawn historical content. Live content remains unchanged. Server computes the archive and lineage.", async ({ bootstrapToken, ...input }) => {
+  register("authoring.create_revision", z.object({ kind, bootstrapToken: bootstrap, baseImportId: identifier, expectedRevision: revision, entityIds: z.array(identifier).min(1).max(REVISION_MCP_LIMITS.entityIds).optional() }), "stage", "Create a durable editable revision from the observed live artifact or editable V3+ draft. Use restore_revision for withdrawn historical content. For a single-product edit, pass entityIds containing its stable product ID. Direct patches outside this selection are rejected. Inspect dependency and print evidence impact before release.", async ({ bootstrapToken, ...input }) => {
     verify(input.kind, bootstrapToken);
     await readContext({ kind: input.kind, importId: input.baseImportId, expectedRevision: input.expectedRevision });
     return draftResult("createRevisionDraft", { actorId, ...input }, input.kind, bootstrapToken);

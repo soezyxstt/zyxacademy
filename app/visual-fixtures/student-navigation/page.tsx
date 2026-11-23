@@ -89,7 +89,7 @@ const mockMaterials: CourseMaterial[] = [
     completed: true,
     isPastYear: false,
     isPreview: true,
-    href: "/courses/ma1101/material/mat-1",
+    href: "/visual-fixtures/student-navigation?state=reader-loading",
     locked: false,
   },
   {

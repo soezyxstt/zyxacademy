@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { GoogleGenAI } from "@google/genai";
+import { googleGatewayClient } from "@/lib/ai/provider/google-gateway-client";
 import {
   createProfiledEmbeddingAdapter,
 } from "@/lib/ai/provider/embedding-adapter";
@@ -65,12 +65,12 @@ function getProjectAliasesForProbe(): readonly string[] {
 
 function probeModels(): ModelRegistryEntry[] {
   return Object.values(MODEL_REGISTRY).filter(
-    (entry) => entry.stability !== "legacy" && (entry.ordinaryRoutingAllowed || entry.stability === "quarantined"),
+    (entry) => entry.family !== "chat-completions" && entry.stability !== "legacy" && (entry.ordinaryRoutingAllowed || entry.stability === "quarantined"),
   );
 }
 
 async function probeOne(entry: ModelRegistryEntry, key: string): Promise<{ latencyMs: number; dimensions?: number }> {
-  const client = new GoogleGenAI({ apiKey: key });
+  const client = googleGatewayClient(key);
   const startedAt = Date.now();
   if (entry.family === "embedding") {
     const adapter = createProfiledEmbeddingAdapter({ profileId: "canonical-content-v2", clients: [{ models: client.models }] });

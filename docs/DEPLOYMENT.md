@@ -1,5 +1,7 @@
 # Deployment Guide
 
+Google Calendar sync is a local implementation awaiting deployment. Apply guarded migration `0040_google_calendar_sync` to the exact environment before deploying the matching web and worker registrations. The central token must retain existing Google API scopes and include Calendar events; its account owns the destination primary calendar. No new environment variable is required. Follow the token replacement procedure in [Development](DEVELOPMENT.md#replace-the-shared-google-host-token-through-oauth-playground), then verify manual and daily sync against a non-production account. No migration, token rotation or deployment is authorized by this implementation record.
+
 PR #339 discussion migrations 0024 through 0034 passed rehearsal and staging application on 2026-11-17. The [discussion migration record](discussions.md#staging-migration-2026-11-17) identifies the exact target, backup and 37-entry ledger verification. No existing discussion data required backfill; targets with existing rows still need the documented fence and backfill before new writers start. This does not authorize production rollout or establish hosted application acceptance.
 
 The 2026-11-15 [staging recovery record](operations/vercel-staging.md#database-cutover-evidence-2026-11-15) supersedes the historical pending database status below: the 26-entry journal, compact history backfill, 28-item seed and rollback fixtures passed. Old staging database credentials are fenced. Matching web/worker release remains in progress; no production rollout is authorized.
@@ -10,7 +12,7 @@ PR 333 completed its temporary read-only control-plane inventory on commit `6099
 
 The inventory does not establish a complete writer fence or drain. Cloud Run scaling and Inngest pause controls do not independently prove that old Neon or Deno executions have ended. The bridge, backfill and matching-code release remain blocked until a verified maintenance mechanism covers every writer and stays in place through deployment. Do not enable unused Google APIs or infer an empty resource list from a disabled API to clear this gate.
 
-A staging merge can trigger its background worker deployment after affected checks pass. Staging web deployment requires an explicit manual dispatch. On main, `HOLD_WEB_DEPLOYMENT=true` blocks both automatic web and worker releases so code can be promoted before the production database and runtime are ready. Explicit manual worker deployment remains available. Neither workflow applies migrations or seeds cosmetics. Verify the target, apply the prerequisites below, and verify the result before releasing. No production rollout is authorized by these instructions.
+Staging pushes and merges run CI checks without starting web or Neon worker deployments. In Actions > Run workflow, select branch `staging` and use `deploy-cloud-run-staging.yml` for web candidates, promotion, and rollback. The workflow uses [`staging-cloud-run`](operations/cloud-run-staging.md) for deployments without a separate approval step. Workers use `deploy-neon-worker.yml` with `environment=staging` or the existing `deploy.yml` entry point. Workers and the Cloud Run secret import retain approval in the shared `staging` environment. Verify matching web and worker revisions before promotion. These workflows do not apply migrations or seed cosmetics. On main, `HOLD_WEB_DEPLOYMENT=true` blocks automatic Vercel and worker releases while the manual production Cloud Run release remains available. No production rollout is authorized by these instructions.
 
 The 2026-11-14 staging preflight found 18 journal rows: the two upstream migrations `0009_polite_wendigo` and `0010_silky_misty_knight` and gamification migrations 0009 through 0015 are already applied. The new review constraint and six-column dependency index exist, migration 0016 is absent, and the catalog has seven rows. Evidence: `artifacts/gamification/pr333-staging-preflight-round2.json`. The stock migrator must not be used for this observed state: generated 0017 unconditionally drops the earlier indexes. Historical 0000 and 0002 hashes differ from the current files; neither old row is rewritten.
 
@@ -32,6 +34,37 @@ Only deploy and restart the matching new application and workers after the backf
 For other targets, inspect their complete history and schema independently. The bridge accepts only the observed staging branch and history. A target with only the gamification chain and the expected old indexes can use the standard guarded Drizzle migrator after its own compatibility checks. A different upstream-applied or partial history needs its own reviewed reconciliation, not a guessed skip or a journal edit.
 
 
+
+## Nightly native app releases
+
+Run **Release Apps (Desktop & Mobile)** manually from `staging` with the `nightly` channel. Web-only changes take effect through the staging web deployment. Reserve a native release for changes to the wrapper, native plugins, or bundled offline assets.
+
+The workflow builds the existing APK, Windows NSIS installer, macOS Apple Silicon DMG, and Linux AppImage and Debian packages. It also collects signed Tauri updater artifacts when the existing signing keys are configured. For each package, it compares up to the two most recent published Nightlies and uploads a version-specific patch when it saves at least 20% of the full download. The workflow publishes full packages for initial installation and recovery.
+
+- **Android** prefers an optimized patch when the workflow can reproduce the release APK's compressed DEX files exactly. It verifies the reconstructed APK byte for byte, then falls back to the regular patch or full APK if needed. Android validates and applies the in-place update and can request confirmation. The workflow requires the persistent Nightly Android signing key, including when a patch is unavailable.
+- **Desktop** checks Tauri signatures for signed updates and release SHA-256 checksums for patches to the direct GitHub installers. Windows and Debian builds using the direct GitHub updater first try a patch based on the installed executable. The release workflow uses an uncompressed installer as the patch target and publishes the regular compressed installer for full downloads. The client checks the patch against the release checksum and verifies the reconstructed installer before opening it. Signed Tauri updates use their signed package and cached-package path. Other direct desktop updates can use the previous cached installer. AppImage builds can reuse the installed AppImage directly. A writable AppImage is replaced in place before the app restarts. Other packages use their existing OS installation path.
+- **iOS** uses TestFlight for native Nightly updates. Testers can enable automatic updates in TestFlight. The GitHub release workflow publishes no iOS binaries.
+
+Users on builds without patch support need a regular update first. If a patch is missing or fails validation, the updater uses the full package. To stop serving patches for a release, remove its `.zyxdelta`, `.zyxdelta-apk.gz`, and `.zyxdesktop.gz` assets and keep its full packages and checksums.
+
+After publishing, upgrade from the previous Nightly on each supported package format. Compare GitHub asset sizes, verify the app reports the new version and can still open saved readings, and test a missing-patch path. Test the iOS update through TestFlight. Check the staging origin and Nightly channel before collecting evidence.
+
+### Google account switching in native apps
+
+Status: `OPEN / IN PROGRESS`. The sidebar account switcher and multi-session support require the matching web deployment. The Android Credential Manager picker also requires an APK containing the new `ZyxGoogleAuth` plugin. Existing APKs, iOS and Tauri keep the browser sign-in fallback. No database migration, new secret or feature flag is required for this feature.
+
+The native challenge endpoint uses `GOOGLE_CLIENT_ID` from the exact web environment as its **Web application** OAuth client ID. Do not replace it with an Android client ID. In the same Google Cloud project, configure **Android** OAuth clients for each installed package and its actual signing certificate:
+
+| Build | Package | Signing identity to register |
+|---|---|---|
+| Stable Android | `com.zyx.academy` | SHA-1 of the release signing certificate |
+| Nightly Android | `com.zyx.academy.nightly` | SHA-1 of the persistent Nightly signing certificate used by release CI |
+| Local Android testing | The package installed by that build | SHA-1 of its debug or local signing certificate |
+| Future Play distribution | The package published in Play | SHA-1 of the Play App Signing certificate used for installed APKs |
+
+Register each required package/certificate pair. A package name alone is insufficient. App-link SHA-256 fingerprints serve a separate purpose and do not replace the OAuth SHA-1 configuration. Keep existing browser OAuth redirect URIs and Firebase push configuration. Do not copy a production client or signing identity into staging without checking the intended environment.
+
+After a native build, verify two Google accounts on an Android device: add the second account, switch to the first saved Zyx session, cancel the chooser, remove the inactive session, and sign out of the saved sessions. Confirm each account gets its own role navigation, language, drafts, notes and notifications. Test an older APK's browser flow and a native error's explicit browser recovery. Local contract tests and web screenshots do not certify the Google configuration, signed APK or installed-device behavior.
 
 ## Cloud Tasks pilot and production rollback
 
@@ -94,9 +127,10 @@ The following records the previous Deno deployment path. Current production rele
 ### Automated Pipeline Capabilities
 
 The central `.github/workflows/ci.yml` planner calls the reusable deployment
-workflow only for worker dependencies or V4 fingerprint inputs on push, after
-selected checks pass. Direct manual `workflow_dispatch` remains available on
-`main` and `staging`. For a V4-only release, worker import/typecheck/asset checks
+workflow only for worker dependencies or V4 fingerprint inputs on `main` pushes,
+after selected checks pass. Staging worker deployment requires manual
+`workflow_dispatch`; direct manual operations remain available on `main` and
+`staging`. For a V4-only release, worker import/typecheck/asset checks
 are skipped because the worker import graph is unchanged; its build identity is
 still regenerated and deployed. A worker-code release retains those checks.
 Push impact is measured from the last successful CI release, so replacing a
@@ -395,6 +429,12 @@ The Worker configuration is `workers/zyra-control-plane/wrangler.jsonc` and must
 
 ## Zyra model registry staging probe
 
+The local AI recovery adds `ai-model-catalog-cron` to the compute registry, bringing its function count to 32. The existing queue cron allowlist schedules it at 00:00 and 12:00 UTC. The background environment projection includes Gateway provider settings and `CF_KV_NAMESPACE_ID`; verify its environment-specific KV account, namespace and API token before enabling the deployed job. The web and background processes must receive the same Gateway and cache configuration to share snapshots.
+
+Coordinated web, background and Zyra control-plane releases are needed for the complete catalog and alias-health behavior. The control-plane release creates additive SQLite alias-health and idempotency tables inside the existing Durable Object, not PostgreSQL. Verify the web control-plane URL/token binding for shared cooldowns. Source registration and local tests do not prove scheduler delivery or a hosted rollout; this change has not deployed these components.
+
+The scheduled catalog job also measures three short uncached requests per discovered text model. These are provider-billed calls, split into durable steps with idempotent lease accounting. Verify background control-plane bindings before enabling the job. Text-provider contracts remove the synthetic 20-request daily and five-request minute ceilings and report unknown provider capacity as null. Release the matching control-plane and web contracts together; the provider still enforces its own rate, billing and account limits. Catalog metadata stays fresh for 12 hours, with up to 14 days of retention on discovery failure. Manual refresh queues latency probes through the same job without bypassing catalog freshness.
+
 Plan 002 uses the model registry as the default route. Run the deterministic mock probe before any provider call:
 
 ```bash
@@ -544,7 +584,7 @@ The always-on PDF page reader requires `source-read-page` in the Deno compute ap
 
 Interactive Playground and runnable Article examples use the shared Render
 Python worker on the public staging and production origins. Set
-`PYTHON_RUNTIME_TOKEN_SECRET` in GitHub Environment `staging`, Vercel staging,
+`PYTHON_RUNTIME_TOKEN_SECRET` in GitHub Environment `staging`, Cloud Run staging,
 and Vercel Production to the key configured on the Render worker. Configure the
 worker's `PYTHON_RUNTIME_ORIGIN` as the comma-separated exact origins
 `https://staging.zyxacademy.com,https://www.zyxacademy.com,https://zyxacademy.com`.
@@ -554,6 +594,7 @@ Production tickets use audience `zyx-python-production`; staging keeps
 The key never reaches the browser. The worker and Daytona sandbox must already
 be available; both environments share the existing two-session capacity.
 Deploy the worker's multi-origin support before releasing the web changes.
+For Cloud Run staging, run `import-secrets` and bind the imported numeric Secret Manager version to the candidate. GitHub secrets are not inherited by Cloud Run automatically; its deployment validation requires the ticket key.
 For key rotation, update the worker and both ticket issuers together and verify
 fresh staging and production tickets. Local and unrecognized browser origins
 retain Pyodide. Submit grading is separate.

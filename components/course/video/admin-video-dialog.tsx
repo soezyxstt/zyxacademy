@@ -499,7 +499,7 @@ export function AdminVideoDialog({
           syncUrl={false}
           className="w-full pt-1"
         >
-          <TabsList className="w-full grid grid-cols-2">
+          <TabsList variant="inline" className="w-full grid grid-cols-2">
             <TabsTrigger
               value="youtube"
               className="flex items-center gap-1.5 text-body-sm font-semibold"

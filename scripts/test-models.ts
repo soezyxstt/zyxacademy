@@ -1,11 +1,11 @@
 // @ts-nocheck
 
 import { config } from 'dotenv';
-import { GoogleGenAI } from '@google/genai';
+import { googleGatewayClient } from "@/lib/ai/provider/google-gateway-client";
 
 config({ path: '.env' });
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const ai = googleGatewayClient(process.env.GEMINI_API_KEY!);
 
 const TEST_PROMPT = "Say 'OK' if you can respond.";
 

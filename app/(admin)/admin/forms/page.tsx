@@ -20,7 +20,7 @@ export default async function AdminFormsPage() {
   const presetsEnabled = true;
 
   return (
-    <div className="space-y-5">
+    <div>
       <AdminPageHeader
         icon={FileText}
         title={<TranslatedText namespace="adminOps" messageKey="forms.title" />}

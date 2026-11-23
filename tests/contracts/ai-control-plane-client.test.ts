@@ -22,6 +22,24 @@ function lease() {
 }
 
 describe("Plan 005 control-plane client", () => {
+  it("sends hashed alias health receipts through authenticated routes", async () => {
+    const requests: Request[] = [];
+    const client = new ControlPlaneClient({
+      baseUrl: "https://staging.example.invalid", token: "test-secret",
+      fetchImpl: async (input, init) => {
+        requests.push(new Request(input, init));
+        return Response.json({ failures: 3, cooldownUntil: 123456 });
+      },
+    });
+    const aliasHash = "a".repeat(64);
+    await expect(client.aliasHealth(aliasHash)).resolves.toEqual({ failures: 3, cooldownUntil: 123456 });
+    await client.recordAliasAttempt(aliasHash, "attempt-1", false);
+    expect(requests.map(request => new URL(request.url).pathname)).toEqual(["/quota/alias/status", "/quota/alias/record"]);
+    for (const request of requests) expect(request.headers.get("authorization")).toBe("Bearer test-secret");
+    expect(await requests[0].json()).toEqual({ aliasHash });
+    expect(await requests[1].json()).toEqual({ aliasHash, attemptId: "attempt-1", success: false });
+  });
+
   it("sends bearer auth and validates a typed reserve response", async () => {
     let captured: Request | undefined;
     const client = new ControlPlaneClient({
@@ -51,6 +69,17 @@ describe("Plan 005 control-plane client", () => {
     expect(captured?.url).toBe("https://staging.example.invalid/quota/reserve");
     expect(captured?.headers.get("authorization")).toBe("Bearer test-secret");
     expect(captured?.headers.get("x-request-id")).toBe("request-id");
+  });
+
+  it("returns the worker's typed capacity denial so routing can try another model", async () => {
+    const denial = { status: "quota_exhausted", code: "QUOTA_EXHAUSTED", modelId: "openai-gpt" } as const;
+    const client = new ControlPlaneClient({
+      baseUrl: "https://worker.invalid", token: "fixture",
+      fetchImpl: async () => Response.json(denial, { status: 429 }),
+    });
+    expect(await client.reserve({ idempotencyKey: "probe", userId: "probe", role: "admin",
+      feature: "selector-smoke", routeClass: "default", modelId: "openai-gpt", cacheStatus: "bypass",
+    })).toEqual(denial);
   });
 
   it("masks non-JSON and HTTP failures without exposing URL query or token", async () => {

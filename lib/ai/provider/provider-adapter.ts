@@ -37,6 +37,7 @@ export interface ProviderUsage {
 }
 
 export interface ProviderGenerationResult {
+  readonly upstreamModel?: string;
   readonly modelId: string;
   readonly text: string;
   readonly finishReason: string;
@@ -49,7 +50,7 @@ export interface ProviderGenerationResult {
 }
 
 export interface GeminiGenerateClient {
-  readonly models: Pick<GoogleGenAI["models"], "generateContent">;
+  readonly models: Pick<GoogleGenAI["models"], "generateContent"> & Partial<Pick<GoogleGenAI["models"], "generateContentStream">>;
 }
 
 export interface GeminiInteractionsClient {

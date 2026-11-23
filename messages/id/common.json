@@ -21,5 +21,55 @@
     "label": "Bahasa",
     "indonesian": "Bahasa Indonesia",
     "english": "English"
+  },
+  "share": {
+    "button": "Bagikan",
+    "linkCopied": "Tautan disalin",
+    "failed": "Tautan gagal dibagikan. Coba lagi."
+  },
+  "files": {
+    "saveFailed": "Berkas gagal disimpan. Coba lagi.",
+    "unauthorized": "Anda tidak memiliki akses ke berkas ini.",
+    "openFailed": "Berkas gagal dibuka. Coba lagi."
+  },
+  "pullToRefresh": {
+    "pull": "Tarik untuk memuat ulang",
+    "release": "Lepas untuk memuat ulang",
+    "refreshing": "Memuat ulang...",
+    "failed": "Gagal memuat ulang. Coba lagi.",
+    "retry": "Coba lagi",
+    "dismiss": "Tutup"
+  },
+  "accounts": {
+    "menu": "Akun dan pengaturan",
+    "saved": "Akun tersimpan",
+    "active": "Akun aktif",
+    "activeNamed": "Akun aktif: {name}",
+    "switchNamed": "Beralih ke {email}",
+    "manageNamed": "Kelola akun {email}",
+    "manage": "Kelola akun",
+    "add": "Tambah akun Google",
+    "loading": "Memuat akun...",
+    "loadFailed": "Akun gagal dimuat.",
+    "retry": "Coba lagi",
+    "busy": "Pergantian akun masih berjalan.",
+    "pendingChanges": "Tunggu hingga perubahan selesai disimpan.",
+    "offline": "Sambungkan internet untuk berganti akun.",
+    "expired": "Sesi akun ini berakhir. Tambahkan akun lagi.",
+    "unavailable": "Akun ini tidak dapat digunakan.",
+    "limit": "Maksimal {count} akun. Hapus satu untuk menambah akun.",
+    "switchFailed": "Gagal berganti akun. Coba lagi.",
+    "addFailed": "Akun gagal ditambahkan. Coba lagi.",
+    "removeFailed": "Akun gagal dihapus dari aplikasi. Coba lagi.",
+    "remove": "Hapus akun",
+    "removeTitle": "Hapus akun dari aplikasi?",
+    "removeDescription": "{email} akan keluar dari aplikasi ini. Data akun tetap tersimpan.",
+    "cancel": "Batal",
+    "switching": "Berganti akun...",
+    "signingOut": "Keluar...",
+    "signOutAll": "Keluar dari semua akun",
+    "signOutFailed": "Gagal keluar. Coba lagi.",
+    "browserFallback": "Lanjut lewat browser",
+    "nativeUnavailable": "Login Google belum tersedia di aplikasi ini. Lanjut lewat browser."
   }
 }

@@ -4,7 +4,7 @@ import { discussionMessages, discussionThreads } from "@/db/schema";
 import { configuredModelChain } from "@/lib/ai/model-settings-store";
 import { createGeminiGenerateAdapter } from "@/lib/ai/provider/gemini-generate-adapter";
 import { createGeminiInteractionsAdapter } from "@/lib/ai/provider/gemini-interactions-adapter";
-import { getModelEntry, modelSupportsAiGateway, ROUTE_POLICY } from "@/lib/ai/provider/model-registry";
+import { getModelEntry, ROUTE_POLICY } from "@/lib/ai/provider/model-registry";
 import { geminiKeyPool } from "@/lib/gemini-keys";
 
 const MAX_TITLE_LENGTH = 120;
@@ -120,7 +120,7 @@ export async function generateDiscussionThreadTitle(
           entry.family === "interactions"
             ? createGeminiInteractionsAdapter({ interactions: key.client.interactions })
             : createGeminiGenerateAdapter({
-                models: (modelSupportsAiGateway(model) && key.clientGateway ? key.clientGateway : key.client).models,
+                models: key.client.models,
               });
         const response = await adapter.generate({
           modelId: model,

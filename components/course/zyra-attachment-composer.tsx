@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "@/lib/i18n/client";
+
 import * as React from "react";
 import { AlertCircle, Image as ImageIcon, Paperclip, RotateCcw, X } from "lucide-react";
 import Image from "next/image";
@@ -14,12 +16,17 @@ import {
 import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { captureNativeQuestionPhoto, hasNativeCameraBridge, prepareQuestionImageFiles } from "@/lib/native/camera";
+import { usePullToRefreshLock } from "@/hooks/use-pull-to-refresh-lock";
+import { consumeRestoredCameraPayload, ZYX_CAMERA_RESTORED_EVENT } from "@/lib/native/camera-recovery";
 
 interface ZyraAttachmentComposerProps {
   courseId: string;
   sessionId?: string | null;
   disabled?: boolean;
   hideStandaloneTrigger?: boolean;
+  getDraftBody?: () => string;
+  onRestoreDraftBody?: (body: string) => void;
   onSessionCreated?: (sessionId: string) => void;
   onAttachmentIdsChange: (ids: string[]) => void;
   onAttachmentsChange?: (attachments: ZyraMessageAttachment[]) => void;
@@ -29,6 +36,7 @@ interface ZyraAttachmentComposerProps {
 export interface ZyraAttachmentComposerHandle {
   addFiles: (files: readonly File[]) => void;
   openFileDialog: () => void;
+  openCameraDialog: () => void;
 }
 
 function setItemStatus(
@@ -44,13 +52,18 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
   sessionId = null,
   disabled = false,
   hideStandaloneTrigger = false,
+  getDraftBody,
+  onRestoreDraftBody,
   onSessionCreated,
   onAttachmentIdsChange,
   onAttachmentsChange,
   onAttachmentsReadyChange,
 }: ZyraAttachmentComposerProps, ref) {
+  const t = useTranslations("zyra.attachmentComposer");
   const experience = useStudentExperience();
   const [items, setItems] = React.useState<PendingZyraImage[]>([]);
+  const isUploadingAny = items.some((item) => item.status === "uploading");
+  usePullToRefreshLock(isUploadingAny, "zyra-upload");
   const itemsRef = React.useRef<PendingZyraImage[]>([]);
   const updateItems = React.useCallback((update: (current: PendingZyraImage[]) => PendingZyraImage[]) => {
     itemsRef.current = update(itemsRef.current);
@@ -62,6 +75,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
     source: "selection" | "upload";
   } | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const sessionIdRef = React.useRef<string | null>(sessionId);
   const uploadQueueRef = React.useRef<Promise<void>>(Promise.resolve());
 
@@ -85,7 +99,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
 
   const performUpload = React.useCallback(async (item: PendingZyraImage) => {
     if (experience.mode === "demo") {
-      setComposerError({ message: "Unggahan gambar memerlukan akun.", source: "upload" });
+      setComposerError({ message: "account", source: "upload" });
       updateItems(current => setItemStatus(current, item.key, { status: "failed", errorCode: "ATTACHMENT_UPLOAD_FAILED" }));
       return;
     }
@@ -109,7 +123,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
       } | null;
       if (!response.ok || !payload?.id || !payload.width || !payload.height) {
         setComposerError({
-          message: "Gambar gagal diunggah. Periksa format dan ukuran file, lalu coba lagi.",
+          message: "failedUpload",
           source: "upload",
         });
         updateItems((current) => setItemStatus(current, item.key, {
@@ -134,7 +148,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
       }
     } catch {
       setComposerError({
-        message: "Koneksi terputus saat mengunggah gambar. Coba lagi.",
+        message: "disconnected",
         source: "upload",
       });
       updateItems((current) => setItemStatus(current, item.key, {
@@ -154,19 +168,19 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
     return performUpload(item);
   }, [performUpload]);
 
-  const addFiles = React.useCallback((files: readonly File[]) => {
+  const addPreparedFiles = React.useCallback((files: readonly File[]) => {
     const current = itemsRef.current;
     const result = selectZyraImageFiles(current, files);
     if (result.rejected.length > 0) {
       const first = result.rejected[0];
       setComposerError({
         message: first === "SOURCE_TOO_LARGE"
-          ? "Ukuran setiap gambar maksimal 8 MB."
+          ? "tooLarge"
           : first === "IMAGE_COUNT_LIMIT"
-            ? "Maksimal 4 gambar untuk satu pertanyaan."
+            ? "tooMany"
             : first === "DUPLICATE_IMAGE"
-              ? "Gambar yang sama sudah dipilih."
-              : "Gunakan gambar berformat PNG, JPG, atau WebP.",
+              ? "duplicate"
+              : "format",
         source: "selection",
       });
     } else {
@@ -178,10 +192,69 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
     newItems.forEach((item) => { void uploadItem(item); });
   }, [updateItems, uploadItem]);
 
+  const addFiles = React.useCallback((files: readonly File[]) => {
+    void prepareQuestionImageFiles(files).then((prepared) => {
+      addPreparedFiles(prepared);
+    });
+  }, [addPreparedFiles]);
+
+  const getDraftBodyRef = React.useRef(getDraftBody);
+  const onRestoreDraftBodyRef = React.useRef(onRestoreDraftBody);
+  React.useEffect(() => {
+    getDraftBodyRef.current = getDraftBody;
+    onRestoreDraftBodyRef.current = onRestoreDraftBody;
+  }, [getDraftBody, onRestoreDraftBody]);
+
+  const openCameraDialog = React.useCallback(() => {
+    if (disabled) return;
+    if (hasNativeCameraBridge()) {
+      const pathname = typeof window !== "undefined" ? window.location.pathname : `/courses/${courseId}`;
+      const search = typeof window !== "undefined" ? window.location.search : "";
+      void captureNativeQuestionPhoto({
+        surface: "zyra",
+        courseId,
+        sessionId: sessionIdRef.current,
+        draftBody: getDraftBodyRef.current?.() ?? "",
+        pathname,
+        search,
+      }).then((file) => {
+        if (file) addPreparedFiles([file]);
+      });
+      return;
+    }
+    cameraInputRef.current?.click();
+  }, [disabled, addPreparedFiles, courseId]);
+
+  React.useEffect(() => {
+    if (!courseId) return;
+    const tryConsumeRestoredPhoto = () => {
+      const restored = consumeRestoredCameraPayload(
+        (target) => target.surface === "zyra" && target.courseId === courseId,
+      );
+      if (!restored) return;
+      const { payload, file } = restored;
+      if (payload.target.surface === "zyra") {
+        if (payload.target.sessionId && !sessionIdRef.current) {
+          sessionIdRef.current = payload.target.sessionId;
+          onSessionCreated?.(payload.target.sessionId);
+        }
+        if (payload.target.draftBody) {
+          onRestoreDraftBodyRef.current?.(payload.target.draftBody);
+        }
+      }
+      addFiles([file]);
+    };
+
+    tryConsumeRestoredPhoto();
+    window.addEventListener(ZYX_CAMERA_RESTORED_EVENT, tryConsumeRestoredPhoto);
+    return () => window.removeEventListener(ZYX_CAMERA_RESTORED_EVENT, tryConsumeRestoredPhoto);
+  }, [courseId, addFiles, onSessionCreated]);
+
   React.useImperativeHandle(ref, () => ({
     addFiles,
     openFileDialog: () => inputRef.current?.click(),
-  }), [addFiles]);
+    openCameraDialog,
+  }), [addFiles, openCameraDialog]);
 
   const removeItem = async (item: PendingZyraImage) => {
     const activeSessionId = sessionIdRef.current;
@@ -221,8 +294,19 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        capture="environment"
         multiple
+        className="sr-only"
+        onChange={(event) => {
+          addFiles(Array.from(event.target.files ?? []));
+          event.currentTarget.value = "";
+        }}
+        disabled={disabled}
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        capture="environment"
         className="sr-only"
         onChange={(event) => {
           addFiles(Array.from(event.target.files ?? []));
@@ -232,13 +316,13 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
       />
 
       {items.length > 0 && (
-        <div className="flex flex-wrap gap-1.5" aria-label="Lampiran gambar">
+        <div className="flex flex-wrap gap-1.5" aria-label={t("attachments")}>
           {items.map((item) => (
             <div key={item.key} className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/60 px-2 py-1">
               {previews[item.key] ? (
                 <Image
                   src={previews[item.key]}
-                  alt={`Pratinjau ${item.name}`}
+                  alt={t("preview", { name: item.name })}
                   width={32}
                   height={32}
                   unoptimized
@@ -248,14 +332,14 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
                 <ImageIcon className="size-6 p-0.5 text-muted-foreground" aria-hidden="true" />
               )}
               <span className="max-w-28 truncate text-body-xs font-medium text-foreground">{item.name}</span>
-              {item.status === "uploading" && <span className="size-3 animate-pulse rounded bg-muted-foreground/35" aria-label="Mengunggah" />}
+              {item.status === "uploading" && <span className="size-3 animate-pulse rounded bg-muted-foreground/35" aria-label={t("uploading")} />}
               {item.status === "failed" && (
-                <Button type="button" variant="ghost" size="icon-xs" onClick={() => retryItem(item)} aria-label={`Coba lagi ${item.name}`} className="size-5">
+                <Button type="button" variant="ghost" size="icon-xs" onClick={() => retryItem(item)} aria-label={t("retry", { name: item.name })} className="size-5">
                   <RotateCcw className="size-3" />
                 </Button>
               )}
-              {item.status === "failed" && <span className="inline-flex items-center gap-0.5 text-[11px] text-status-error font-medium"><AlertCircle className="size-3" aria-hidden="true" />Gagal</span>}
-              <Button type="button" variant="ghost" size="icon-xs" onClick={() => void removeItem(item)} aria-label={`Hapus ${item.name}`} className="size-5 text-muted-foreground hover:text-foreground">
+              {item.status === "failed" && <span className="inline-flex items-center gap-0.5 text-[11px] text-status-error font-medium"><AlertCircle className="size-3" aria-hidden="true" />{t("failed")}</span>}
+              <Button type="button" variant="ghost" size="icon-xs" onClick={() => void removeItem(item)} aria-label={t("remove", { name: item.name })} className="size-5 text-muted-foreground hover:text-foreground">
                 <X className="size-3" />
               </Button>
             </div>
@@ -272,15 +356,15 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
             onClick={() => inputRef.current?.click()}
             disabled={disabled || items.length >= 4}
             className={cn("text-muted-foreground", items.length >= 4 && "hidden")}
-            aria-label="Tambahkan gambar"
+            aria-label={t("add")}
           >
             <Paperclip className="size-4" />
-            Gambar
+            {t("image")}
           </Button>
-          <span className="text-body-xs text-muted-foreground">Unggah atau tempel gambar dengan Ctrl+V, maksimal 4</span>
+          <span className="text-body-xs text-muted-foreground">{t("hint")}</span>
         </div>
       )}
-      {composerError && <p className="flex items-center gap-1.5 text-body-xs text-status-error" role="alert"><AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />{composerError.message}</p>}
+      {composerError && <p className="flex items-center gap-1.5 text-body-xs text-status-error" role="alert"><AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />{t(composerError.message)}</p>}
     </div>
   );
 });

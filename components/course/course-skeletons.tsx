@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StudyStatisticsSkeleton } from "@/components/course/study-statistics-card";
 import { RecentActivitySkeleton } from "@/components/course/recent-activity-card";
 import { studentSectionClass } from "@/components/course/course-surfaces";
-import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
+import { tabListStickyBarClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
 import { cn } from "@/lib/utils";
 
 /**
@@ -81,19 +81,17 @@ export function CourseMaterialListSkeleton() {
   return (
     <div data-testid="course-material-list-skeleton" className="space-y-3 font-sans">
       {/* Category tab strip matching TabsList in CourseDocumentsClient */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className={cn(tabListClassName, "max-w-full justify-start")}>
-          <div className={cn(tabTriggerClassName, tabTriggerActiveClassName, "pointer-events-none")}>
-            <Skeleton className="size-3.5 rounded-sm" />
-            <Skeleton className="h-3.5 w-12" />
-          </div>
-          {[10, 10, 12, 16].map((w, idx) => (
-            <div key={idx} className={cn(tabTriggerClassName, "pointer-events-none")}>
-              <Skeleton className="size-3.5 rounded-sm opacity-60" />
-              <Skeleton className="h-3.5 opacity-60" style={{ width: `${w * 4}px` }} />
-            </div>
-          ))}
+      <div data-sticky-tabs-bar="flush" className={tabListStickyBarClassName}>
+        <div className={cn(tabTriggerClassName, tabTriggerActiveClassName, "pointer-events-none")}>
+          <Skeleton className="size-3.5 rounded-sm" />
+          <Skeleton className="h-3.5 w-12" />
         </div>
+        {[10, 10, 12, 16].map((w, idx) => (
+          <div key={idx} className={cn(tabTriggerClassName, "pointer-events-none")}>
+            <Skeleton className="size-3.5 rounded-sm opacity-60" />
+            <Skeleton className="h-3.5 opacity-60" style={{ width: `${w * 4}px` }} />
+          </div>
+        ))}
       </div>
 
       {/* Collapsible Chapter & Exam Accordion matching CollapsibleDocumentSection + HierarchyDocumentCard */}

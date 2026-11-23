@@ -7,7 +7,14 @@ from urllib.parse import parse_qsl, urlparse
 
 # CI credentials, deployment tokens, build-only switches and mutation opt-ins
 # deliberately do not belong to the application runtime.
-RUNTIME_KEYS = set("""
+AI_PROVIDER_SETTINGS = {"AI_PROVIDERS", "AI_META_GATEWAY_ROUTE", "AI_COMPATIBLE_GATEWAY_ROUTE"}
+for provider, slots in (("OPENAI", 4), ("META", 5), ("DEEPSEEK", 3), ("COMPATIBLE", 3)):
+    AI_PROVIDER_SETTINGS.add(f"AI_{provider}_BYOK_ALIASES")
+    for slot in range(1, slots + 1):
+        suffix = "" if slot == 1 else f"_{slot}"
+        AI_PROVIDER_SETTINGS.add(f"AI_{provider}_MODEL{suffix}")
+
+RUNTIME_KEYS = AI_PROVIDER_SETTINGS | set("""
 DATABASE_URL TURSO_DATABASE_URL TURSO_CONNECTION_URL TURSO_AUTH_TOKEN
 BETTER_AUTH_SECRET GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REFRESH_TOKEN GOOGLE_FORMS_REFRESH_TOKEN GOOGLE_MEET_REFRESH_TOKEN
 RESEND_API_KEY UPLOADTHING_TOKEN WHATSAPP_ADMIN_NUMBER GEMINI_API_KEY GEMINI_API_KEY_2 GEMINI_API_KEY_3

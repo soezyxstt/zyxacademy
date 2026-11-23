@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { db } from "@/db";
 import {
@@ -15,32 +14,12 @@ import {
   aiUsageEvents,
   vectorSyncQueue,
   blogArticles,
-  studentQuizAttempts,
 } from "@/db/schema";
 import { sql, eq, gte, ne, and, exists } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
-import {
-  KeyRound,
-  Zap,
-  Bell,
-  Activity,
-  GraduationCap,
-  LineChart,
-  Newspaper,
-  Flag,
-  Video,
-  FileText,
-  Image,
-  Link as LinkIcon,
-  Trophy,
-  MousePointerClick,
-  CalendarDays,
-  Library,
-  Calculator,
-  ChevronRight,
-  LayoutDashboard,
-} from "lucide-react";
+import { ChevronRight, LayoutDashboard, Zap } from "lucide-react";
+import { ALL_ADMIN_TABS, ADMIN_TAB_MESSAGE_KEYS, DEFAULT_ARCHIVED, ADMIN_GROUP_MESSAGE_KEYS } from "@/lib/admin-navigation";
 
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
 import { AdminPageHeader } from "@/components/admin/page-header";
@@ -49,281 +28,74 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("admin");
-  return { title: pageTitle(t("metadata.homeTitle")), description: t("metadata.homeDescription") };
+  const metadataText = await getTranslations("admin");
+  return { title: pageTitle(metadataText("metadata.homeTitle")), description: metadataText("metadata.homeDescription") };
 }
 
-async function AdminHomeContent() {
+const dashboardTabs = ALL_ADMIN_TABS.filter(tab => tab.id !== "dashboard" && !DEFAULT_ARCHIVED.includes(tab.id));
+const dashboardGroups = [...new Set(dashboardTabs.map(tab => tab.group))];
+
+export default async function AdminHomePage() {
+  const [nav, schedule, t] = await Promise.all([
+    getTranslations("admin.navigation"),
+    getTranslations("tutor.schedule"),
+    getTranslations("admin.dashboardStats"),
+  ]);
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  const [
-    courseCountRes,
-    tokenStatsRes,
-    jobStatsRes,
-    questionStatsRes,
-    notificationStatsRes,
-    opsStatsRes,
-    blogCountRes,
-    attemptCountRes,
-  ] = await Promise.all([
+  const courseStat = db
+    .select({ count: sql<number>`count(*)` })
+    .from(mataKuliah)
+    .where(eq(mataKuliah.status, "active"))
+    .then((rows) => (rows[0]?.count > 0 ? rows : db.select({ count: sql<number>`count(*)` }).from(courses)))
+    .then(rows => t("courses", { count: rows[0]?.count ?? 0 }));
+
+  const tokenStat = Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(enrollmentTokens),
+    db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(groupMembers).where(and(
+      gte(groupMembers.joinedAt, todayStart),
+      exists(db.select({ one: sql`1` }).from(enrollmentTokens).where(eq(enrollmentTokens.groupId, groupMembers.groupId))),
+    )),
+  ]).then(([tokens, redeemed]) => t("tokens", { total: tokens[0]?.count ?? 0, today: redeemed[0]?.count ?? 0 }));
+
+  const failedJobs = db.select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(aiGenerationJobs)
+    .where(eq(aiGenerationJobs.status, "failed"))
+    .then(rows => rows[0]?.count ?? 0);
+
+  const questionStat = db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(aiQuestionBank)
+    .where(eq(aiQuestionBank.reviewStatus, "generated")).then(rows => t("questions", { count: rows[0]?.count ?? 0 }));
+
+  const notifStat = Promise.all([
     db
       .select({ count: sql<number>`count(*)` })
-      .from(mataKuliah)
-      .where(eq(mataKuliah.status, "active"))
-      .then((rows) => (rows[0]?.count > 0 ? rows : db.select({ count: sql<number>`count(*)` }).from(courses))),
+      .from(notifications)
+      .where(eq(notifications.type, "admin_broadcast")),
+    db.select({ count: sql<number>`count(*)` }).from(userPushTokens),
+  ]).then(([broadcasts, devices]) => t("notifications", { total: broadcasts[0]?.count ?? 0, devices: devices[0]?.count ?? 0 }));
 
-    Promise.all([
-      db.select({ count: sql<number>`count(*)` }).from(enrollmentTokens),
-      db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(groupMembers).where(and(
-        gte(groupMembers.joinedAt, todayStart),
-        exists(db.select({ one: sql`1` }).from(enrollmentTokens).where(eq(enrollmentTokens.groupId, groupMembers.groupId))),
-      )),
-    ]),
-
-    db.select({
-      running: sql<number>`count(*) filter (where ${aiGenerationJobs.status} in ('pending', 'processing'))`.mapWith(Number),
-      failed: sql<number>`count(*) filter (where ${aiGenerationJobs.status} = 'failed')`.mapWith(Number),
-    }).from(aiGenerationJobs),
-
-    db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(aiQuestionBank)
-      .where(eq(aiQuestionBank.reviewStatus, "generated")),
-
-    Promise.all([
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(notifications)
-        .where(eq(notifications.type, "admin_broadcast")),
-      db.select({ count: sql<number>`count(*)` }).from(userPushTokens),
-    ]),
-
-    Promise.all([
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(vectorSyncQueue)
-        .where(ne(vectorSyncQueue.status, "completed")),
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(aiUsageEvents)
-        .where(gte(aiUsageEvents.createdAt, todayStart)),
-    ]),
-
-    db.select({ count: sql<number>`count(*)` }).from(blogArticles),
-
+  const opsStat = Promise.all([
     db
       .select({ count: sql<number>`count(*)` })
-      .from(studentQuizAttempts)
-      .where(eq(studentQuizAttempts.status, "completed")),
-  ]);
+      .from(vectorSyncQueue)
+      .where(ne(vectorSyncQueue.status, "completed")),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(aiUsageEvents)
+      .where(gte(aiUsageEvents.createdAt, todayStart)),
+  ]).then(([queue, requests]) => t("ops", { queued: queue[0]?.count ?? 0, requests: requests[0]?.count ?? 0 }));
 
-  const totalCourses = courseCountRes[0]?.count ?? 0;
-  const courseStat = `${totalCourses} mata kuliah aktif`;
+  const blogStat = db.select({ count: sql<number>`count(*)` }).from(blogArticles).then(rows => t("blog", { count: rows[0]?.count ?? 0 }));
 
-  const [tokensCountRes, redeemedCountRes] = tokenStatsRes;
-  const totalTokens = tokensCountRes[0]?.count ?? 0;
-  const redeemedTodayCount = redeemedCountRes[0]?.count ?? 0;
-  const tokenStat = `${totalTokens} dibuat, ${redeemedTodayCount} diklaim hari ini`;
-
-  const runningJobs = jobStatsRes[0]?.running ?? 0;
-  const failedJobs = jobStatsRes[0]?.failed ?? 0;
-  const jobStat = `${runningJobs} berjalan, ${failedJobs} gagal`;
-
-  const pendingQuestions = questionStatsRes[0]?.count ?? 0;
-  const questionStat = `${pendingQuestions} menunggu tinjauan`;
-
-  const totalAttempts = attemptCountRes[0]?.count ?? 0;
-  const leaderboardStat = `${totalAttempts} pengerjaan`;
-
-  const totalBroadcasts = notificationStatsRes[0][0]?.count ?? 0;
-  const totalDevices = notificationStatsRes[1][0]?.count ?? 0;
-  const notifStat = `${totalBroadcasts} siaran, ${totalDevices} perangkat`;
-
-  const syncQueueDepth = opsStatsRes[0][0]?.count ?? 0;
-  const aiRequestsToday = opsStatsRes[1][0]?.count ?? 0;
-  const opsStat = `${syncQueueDepth} antrean sinkronisasi, ${aiRequestsToday} permintaan`;
-
-  const totalArticles = blogCountRes[0]?.count ?? 0;
-  const blogStat = `${totalArticles} artikel`;
-
-  const categories = [
-    {
-      name: "Akademik & Konten",
-      items: [
-        {
-          title: "Mata Kuliah",
-          icon: GraduationCap,
-          iconColor: "text-brand-secondary",
-          href: "/admin/courses",
-
-          stat: courseStat,
-        },
-        {
-          title: "Jadwal Umum",
-          icon: CalendarDays,
-          iconColor: "text-brand-primary",
-          href: "/admin/schedules",
-
-          stat: null,
-        },
-        {
-          title: "Bank Soal",
-          icon: Library,
-          iconColor: "text-status-success",
-          href: "/admin/questions",
-
-          stat: questionStat,
-        },
-      ],
-    },
-    {
-      name: "Evaluasi & Asesmen",
-      items: [
-        {
-          title: "Papan Peringkat",
-          icon: Trophy,
-          iconColor: "text-brand-secondary",
-          href: "/admin/leaderboard",
-
-          stat: leaderboardStat,
-        },
-        {
-          title: "Generasi Soal",
-          icon: Zap,
-          iconColor: "text-status-warning",
-          href: "/admin/jobs",
-
-          stat: jobStat,
-        },
-      ],
-    },
-    {
-      name: "Alat & Komunikasi",
-      items: [
-        {
-          title: "Kalkulator Harga",
-          icon: Calculator,
-          iconColor: "text-status-info",
-          href: "/admin/pricing",
-
-          stat: null,
-        },
-        {
-          title: "Kelola Blog",
-          icon: Newspaper,
-          iconColor: "text-brand-primary",
-          href: "/admin/blog",
-
-          stat: blogStat,
-        },
-        {
-          title: "Form Studio & Visualizer",
-          icon: FileText,
-          iconColor: "text-brand-secondary",
-          href: "/admin/forms",
-
-          stat: null,
-        },
-        {
-          title: "Meet",
-          icon: Video,
-          iconColor: "text-brand-primary",
-          href: "/admin/meet",
-
-          stat: null,
-        },
-        {
-          title: "Pustaka Media",
-          icon: Image,
-          iconColor: "text-tertiary-1",
-          href: "/admin/media",
-
-          stat: null,
-        },
-        {
-          title: "Tautan Publik",
-          icon: LinkIcon,
-          iconColor: "text-status-success",
-          href: "/admin/tautan",
-
-          stat: null,
-        },
-      ],
-    },
-    {
-      name: "Akses & Keanggotaan",
-      items: [
-        {
-          title: "Token Aktivasi Kelas",
-          icon: KeyRound,
-          iconColor: "text-brand-secondary",
-          href: "/admin/tokens",
-
-          stat: tokenStat,
-        },
-        {
-          title: "Push Notification",
-          icon: Bell,
-          iconColor: "text-tertiary-3",
-          href: "/admin/notifications",
-
-          stat: notifStat,
-        },
-      ],
-    },
-    {
-      name: "Sistem & Operasional",
-      items: [
-        {
-          title: "Monitor Ops",
-          icon: Activity,
-          iconColor: "text-status-success",
-          href: "/admin/ops",
-
-          stat: opsStat,
-        },
-        {
-          title: "Feature Flags",
-          icon: Flag,
-          iconColor: "text-brand-primary",
-          href: "/admin/ops/flags",
-
-          stat: null,
-        },
-        {
-          title: "API Keys",
-          icon: KeyRound,
-          iconColor: "text-tertiary-1",
-          href: "/admin/ops/keys",
-
-          stat: null,
-        },
-        {
-          title: "Short Links",
-          icon: LinkIcon,
-          iconColor: "text-brand-secondary",
-          href: "/admin/ops/short-links",
-
-          stat: null,
-        },
-        {
-          title: "Web Analytics",
-          icon: LineChart,
-          iconColor: "text-brand-primary",
-          href: "/admin/ops/web-analytics",
-
-          stat: null,
-        },
-        {
-          title: "Penggunaan Fitur",
-          icon: MousePointerClick,
-          iconColor: "text-status-info",
-          href: "/admin/ops/feature-usage",
-
-          stat: null,
-        },
-      ],
-    },
-  ];
+  const stats: Partial<Record<string, Promise<string>>> = {
+    courses: courseStat,
+    tokens: tokenStat,
+    "bank-soal": questionStat,
+    notifications: notifStat,
+    "ops-monitor": opsStat,
+    blog: blogStat,
+  };
 
   return (
     <div className="space-y-5">
@@ -333,37 +105,35 @@ async function AdminHomeContent() {
         actions={<RefreshAnalyticsButton />}
       />
 
-      {failedJobs > 0 && (
-        <Alert variant="destructive">
-          <Zap className="size-4" aria-hidden />
-          <AlertTitle>{failedJobs} generasi soal gagal</AlertTitle>
-          <AlertDescription>
-            <Link href="/admin/jobs" className="underline underline-offset-4">Tinjau generasi</Link>
-          </AlertDescription>
-        </Alert>
-      )}
+      <Suspense fallback={null}><FailedJobs count={failedJobs} /></Suspense>
 
       <div className="columns-1 gap-6 lg:columns-2 xl:columns-3">
-        {categories.map((category) => (
-          <section key={category.name} className="mb-5 inline-block w-full align-top">
-            <h2 className="border-b border-border pb-2 font-heading text-body-base font-bold">
-              {category.name}
-            </h2>
+        {dashboardGroups.map(group => (
+          <section key={group} className="mb-5 inline-block w-full align-top">
+            {group !== "utilitas" && group !== "utama" && <h2 className="border-b border-border pb-2 font-heading text-body-base font-bold">
+              {nav(ADMIN_GROUP_MESSAGE_KEYS[group])}
+            </h2>}
             <div className="divide-y divide-border/60">
-              {category.items.map((item) => (
+              {dashboardTabs.filter(item => item.group === group).map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   className="group flex min-w-0 items-center gap-3 py-2.5 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 >
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted/70">
-                    <item.icon className={`size-4 ${item.iconColor}`} aria-hidden />
+                    <item.icon className="size-4 text-primary" aria-hidden />
                   </span>
                   <div className="min-w-0 flex-1">
                     <span className="block text-body-sm font-semibold text-foreground group-hover:text-primary">
-                      {item.title}
+                      {item.id === "discussions" ? schedule("discussion") : nav(ADMIN_TAB_MESSAGE_KEYS[item.id])}
                     </span>
-                    {item.stat && <span className="mt-0.5 block text-body-xs text-muted-foreground">{item.stat}</span>}
+                    {stats[item.id] && (
+                      <span className="mt-0.5 block text-body-xs text-muted-foreground">
+                        <Suspense fallback={<span aria-hidden className="inline-block h-3 w-24 animate-pulse rounded-md bg-muted motion-reduce:animate-none" />}>
+                          {stats[item.id]}
+                        </Suspense>
+                      </span>
+                    )}
                   </div>
                   <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
                 </Link>
@@ -376,30 +146,15 @@ async function AdminHomeContent() {
   );
 }
 
-function AdminHomeLoading() {
-  return (
-    <div role="status" aria-label="Memuat" className="space-y-5">
-      <AdminPageHeader icon={LayoutDashboard} title="Admin" actions={<Skeleton className="size-9" />} />
-      <div className="columns-1 gap-6 lg:columns-2 xl:columns-3">
-        {[3, 2, 6, 2, 6].map((rows, section) => (
-          <div key={section} className="mb-5 inline-block w-full align-top">
-            <div className="border-b border-border pb-2"><Skeleton className="h-5 w-40" /></div>
-            <div className="divide-y divide-border/60">
-              {Array.from({ length: rows }, (_, row) => (
-                <div key={row} className="flex items-center gap-3 py-2.5">
-                  <Skeleton className="size-9 shrink-0 rounded-lg" />
-                  <div className="min-w-0 flex-1 space-y-1.5"><Skeleton className="h-4 w-36 max-w-full" /><Skeleton className="h-3 w-24" /></div>
-                  <Skeleton className="size-4 shrink-0" />
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export default function AdminHomePage() {
-  return <Suspense fallback={<AdminHomeLoading />}><AdminHomeContent /></Suspense>;
+async function FailedJobs({ count }: { count: Promise<number> }) {
+  const [failedJobs, t] = await Promise.all([count, getTranslations("admin.dashboardStats")]);
+  return failedJobs > 0 ? (
+    <Alert variant="destructive">
+      <Zap className="size-4" aria-hidden />
+      <AlertTitle>{t("failed", { count: failedJobs })}</AlertTitle>
+      <AlertDescription>
+        <Link href="/admin/jobs" className="underline underline-offset-4">{t("review")}</Link>
+      </AlertDescription>
+    </Alert>
+  ) : null;
 }

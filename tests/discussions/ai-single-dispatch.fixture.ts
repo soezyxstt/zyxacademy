@@ -6,7 +6,8 @@ const originalEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[ke
 for (const key of envKeys) delete process.env[key];
 process.env.DATABASE_URL = "postgresql://local:local@127.0.0.1:5432/dummy";
 process.env.GEMINI_API_KEY = "fake-local-key";
-process.env.CF_AI_GATEWAY_URL = "http://127.0.0.1:1/gateway";
+process.env.CF_AI_GATEWAY_URL = "https://gateway.ai.cloudflare.com/v1/test-account/test-gateway/google-ai-studio";
+process.env.CF_AI_GATEWAY_TOKEN = "fake-local-gateway-token";
 process.env.SKIP_ENV_VALIDATION = "1";
 
 type Lease = { id: string; status: "reserved" | "dispatched" | "committed" | "refunded"; peran: "murid" };
@@ -83,7 +84,8 @@ mock.module("@/lib/ai/control-plane-client", () => ({ ControlPlaneClient: FakeCo
 const { PromptExecutor } = await import("@/lib/prompt-executor");
 const { geminiKeyPool } = await import("@/lib/gemini");
 const { ProviderNotDispatchedError } = await import("@/lib/ai/request-lifecycle");
-const key = geminiKeyPool.getAllKeys()[0];
+const { googleGatewayClient } = await import("@/lib/ai/provider/google-gateway-client");
+let key = geminiKeyPool.getAllKeys()[0];
 
 beforeEach(() => {
   Object.assign(state, { leases: new Map(), refunds: 0, commits: 0, providerCalls: 0, controlReserves: 0,
@@ -92,7 +94,6 @@ beforeEach(() => {
     denyCapacity: false, badConfig: false, provider: "success", models: null, requests: [], providerStarted: undefined, waitForProvider: undefined });
   delete process.env.ZYRA_CONTROL_PLANE_URL;
   delete process.env.ZYRA_CONTROL_PLANE_TOKEN;
-  spyOn(geminiKeyPool, "getBestKey").mockReturnValue(key);
   spyOn(geminiKeyPool, "markSuccess").mockImplementation(() => {});
   spyOn(geminiKeyPool, "markFailure").mockImplementation(() => {});
   spyOn(globalThis, "fetch").mockImplementation((async (_url: URL | RequestInfo, init?: RequestInit | BunFetchRequestInit) => {
@@ -107,6 +108,10 @@ beforeEach(() => {
     const text = state.provider === "malformed" ? "not json" : '{"answer":"ok"}';
     return new Response(JSON.stringify({ candidates: [{ content: { role: "model", parts: [{ text }] }, finishReason: "STOP" }] }), { status: 200, headers: { "content-type": "application/json" } });
   }) as unknown as typeof fetch);
+  // The SDK captures fetch, so each test needs its own client after installing its transport mock.
+  const client = googleGatewayClient(key.key);
+  key = { ...key, client, clientGateway: client };
+  spyOn(geminiKeyPool, "getBestKey").mockReturnValue(key);
 });
 afterEach(() => mock.restore());
 afterAll(() => { for (const key of envKeys) { if (originalEnv[key] === undefined) delete process.env[key]; else process.env[key] = originalEnv[key]; } });
@@ -128,6 +133,7 @@ describe("single dispatch through the real executor, Gemini adapter and lifecycl
 
     it(`${mode}: refunds an unavailable key before a provider call`, async () => {
       enableRouter();
+      state.models = ["gemini-2.5-flash"];
       if (router) state.projectAlias = "missing-project";
       else spyOn(geminiKeyPool, "getBestKey").mockImplementation(() => {
         expect(state.leases.get(`no-key-${router}`)?.status).toBe("dispatched");
@@ -334,13 +340,14 @@ describe("single dispatch through the real executor, Gemini adapter and lifecycl
     expect(state.refunds).toBe(0);
   });
 
-  it("refunds when a router key disappears during client preparation", async () => {
+  it("refunds when a router key is unavailable during client preparation", async () => {
     process.env.ZYRA_CONTROL_PLANE_URL = "http://127.0.0.1:1";
     process.env.ZYRA_CONTROL_PLANE_TOKEN = "fake";
-    const lookup = spyOn(geminiKeyPool, "getKeyByProjectAlias").mockReturnValueOnce(key).mockReturnValue(null);
+    state.models = ["gemini-2.5-flash"];
+    const lookup = spyOn(geminiKeyPool, "getKeyByProjectAlias").mockReturnValue(null);
     const id = "project-lookup-disappears";
     expect((await run(id, false)).outcome).toBe("provider_failure");
-    expect(lookup).toHaveBeenCalledTimes(2);
+    expect(lookup).toHaveBeenCalledTimes(1);
     expect(state.providerCalls).toBe(0);
     expect(state.controlDispatches).toBe(0);
     expect(state.controlRefunds).toBe(1);
@@ -353,13 +360,7 @@ describe("single dispatch through the real executor, Gemini adapter and lifecycl
     process.env.ZYRA_CONTROL_PLANE_TOKEN = "fake";
     state.models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
     const directPool = spyOn(geminiKeyPool, "getBestKey");
-    spyOn(geminiKeyPool, "createRequestClient").mockReturnValue({
-      models: { generateContent: async () => {
-        state.providerCalls++;
-        if (state.providerCalls === 1) throw Object.assign(new Error("service unavailable"), { status: 503 });
-        return { text: '{"answer":"ok"}' };
-      } },
-    } as never);
+    state.provider = "fail-once";
     expect(await run("router-ordinary-fallback", false)).toMatchObject({ success: true, data: { answer: "ok" } });
     expect(state.providerCalls).toBe(2);
     expect(state.controlReserves).toBe(2);
@@ -423,12 +424,7 @@ describe("single dispatch through the real executor, Gemini adapter and lifecycl
     state.models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
     state.failControlCommit = true;
     const directPool = spyOn(geminiKeyPool, "getBestKey");
-    spyOn(geminiKeyPool, "createRequestClient").mockReturnValue({
-      models: { generateContent: async () => {
-        state.providerCalls++;
-        throw Object.assign(new Error("service unavailable"), { status: 503 });
-      } },
-    } as never);
+    state.provider = "fail";
     const id = "router-ordinary-reconciliation";
     expect(await run(id, false)).toMatchObject({ outcome: "uncertain", violationCodes: ["PROVIDER_OUTCOME_UNCERTAIN"] });
     expect(state.providerCalls).toBe(1);
@@ -444,12 +440,7 @@ describe("single dispatch through the real executor, Gemini adapter and lifecycl
     process.env.ZYRA_CONTROL_PLANE_URL = "http://127.0.0.1:1";
     process.env.ZYRA_CONTROL_PLANE_TOKEN = "fake";
     state.models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
-    spyOn(geminiKeyPool, "createRequestClient").mockReturnValue({
-      models: { generateContent: async () => {
-        state.providerCalls++;
-        throw new Error("connection lost after 503");
-      } },
-    } as never);
+    state.provider = "error";
     const id = "router-ordinary-unknown";
     expect((await run(id, false)).outcome).toBe("uncertain");
     expect(state.providerCalls).toBe(1);
@@ -497,12 +488,7 @@ describe("single dispatch through the real executor, Gemini adapter and lifecycl
     process.env.ZYRA_CONTROL_PLANE_TOKEN = "fake";
     state.models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
     spyOn(geminiKeyPool, "getKeyByProjectAlias").mockReturnValueOnce(key).mockReturnValue(null);
-    spyOn(geminiKeyPool, "createRequestClient").mockReturnValue({
-      models: { generateContent: async () => {
-        state.providerCalls++;
-        throw Object.assign(new Error("service unavailable"), { status: 503 });
-      } },
-    } as never);
+    state.provider = "fail";
     const id = "router-fallback-key-disappears";
     expect(await run(id, false)).toMatchObject({ outcome: "provider_failure", violationCodes: ["PROVIDER_REQUEST_FAILED"] });
     expect(state.providerCalls).toBe(1);

@@ -2,7 +2,7 @@
 
 This package connects an MCP host to one explicitly named Zyx environment. Focused skills route academic authoring, content revisions, blogs, forms, media and recovery to the server's current capabilities.
 
-Release 0.5.0 adds five focused skills and V3+ content revision guidance. V4 remains the default for new Article/Diktat authoring; existing V3 revisions and V5 Pembahasan use their applicable review gates. The supported Idea and learning Product lifecycle, blog workflow and other advertised admin operations can run through MCP without opening the Admin website. Authentication, grants, sensitive-action confirmation and trusted verification still apply. Bundles below V3 are outside this release's acceptance scope.
+Release 0.5.1 updates workflow selection for independent learning products and admin operations. Release 0.5.0 added five focused skills and V3+ content revision guidance. V4 remains the default for new Article/Diktat authoring; existing V3 revisions and V5 Pembahasan use their applicable review gates. The supported Idea and learning Product lifecycle, blog workflow and other advertised admin operations can run through MCP without opening the Admin website. Authentication, grants, sensitive-action confirmation and trusted verification still apply. Bundles below V3 are outside this release's acceptance scope.
 
 This directory is the repository publishing source. Editing or pushing it does not itself update installed host packages or the external commits pinned by `authoring-skills.lock.json`.
 
@@ -13,7 +13,7 @@ For a local MCP snapshot, render an environment package with `scripts/configure_
 
 - Environment: `staging`
 - Plugin ID: `zyx-authoring-mcp-staging`
-- Release version: `0.5.0`
+- Release version: `0.5.1`
 - Bootstrap protocol: `1`
 - MCP server ID: `zyx-authoring-staging`
 - Endpoint: `https://staging.zyxacademy.com/api/mcp/authoring`
@@ -47,7 +47,7 @@ This package exports 12 skills:
 
 For admin workflows, call `admin.environment` on the intended connection, compare its environment and origin, then call `admin.capabilities` for the relevant domain. Use only advertised operations and granted scopes. Discovery metadata does not grant permission. Blog, forms, media and operation recovery do not require an academic Source Pack or an authoring run.
 
-Initial academic authoring uses thin stage entrypoints. Detailed editorial rubrics, schema contracts, reconciliation checklists and stage workflows come from `workflow.get_playbook` and `workflow.get_contract`. Before authoring a stage or resuming its checkpoint, request a fresh playbook using the stage's literal skill ID, `bootstrapProtocol: 1`, `pluginVersion: "0.5.0"`, and accurate `clientCapabilities`. Pass the returned bootstrap token to the applicable workflow and stage tools. If bootstrap fails or is incompatible, stop instead of using cached instructions.
+Initial academic authoring uses thin stage entrypoints. Detailed editorial rubrics, schema contracts, reconciliation checklists and stage workflows come from `workflow.get_playbook` and `workflow.get_contract`. Before authoring a stage or resuming its checkpoint, request a fresh playbook using the stage's literal skill ID, `bootstrapProtocol: 1`, `pluginVersion: "0.5.1"`, and accurate `clientCapabilities`. Pass the returned bootstrap token to the applicable workflow and stage tools. If bootstrap fails or is incompatible, stop instead of using cached instructions.
 
 For existing Idea or learning Product content, use `zyx-content-revisions`: read edit context, create a revision, patch stable IDs, plan its release, review the exact revision and explicitly publish when authorized. The revision skill bootstraps with `zyx-idea-bundle-mcp` or `zyx-product-bundle-mcp`, never its own name. Existing-content revisions do not require a new Source Pack or an old authoring run. Restore creates a new draft rather than changing immutable history.
 
@@ -57,7 +57,7 @@ Admin writes use the exact payload, `requestKey`, `dryRun` plan and confirmation
 
 ## Host manifests and CLI helpers
 
-- `release.json` is the canonical source for `version` (`0.5.0`), `bootstrapProtocol` (`1`), minimum compatible version (`0.2.0`) and the exact skill inventory.
+- `release.json` is the canonical source for `version` (`0.5.1`), `bootstrapProtocol` (`1`), minimum compatible version (`0.2.0`) and the exact skill inventory.
 - `.codex-plugin/plugin.json` is the Codex Desktop plugin manifest.
 - `.claude-plugin/plugin.json` is the Claude Code plugin manifest.
 - `.mcp.json` is shared by Codex and Claude Code plugin manifests and contains the environment-specific server ID (`type: "http"`).

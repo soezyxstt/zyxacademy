@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
-import type { GlbMascot } from "@/lib/gamification/zyra-glb-mascots";
+import { getZyraGlbSuitSrc, type GlbMascot } from "@/lib/gamification/zyra-glb-mascots";
 
 /** Each viewer owns its parsed scene. Only immutable HTTP assets use the browser cache. */
 async function loadAsset(src: string, signal: AbortSignal): Promise<GLTF> {
@@ -23,11 +23,11 @@ async function loadAsset(src: string, signal: AbortSignal): Promise<GLTF> {
 
 export async function loadZyraGlbMascot(model: GlbMascot, signal: AbortSignal, suit = "none", prop: "cycle" | "giveFlowers" | null = null): Promise<GLTF> {
   const body = await loadAsset(model.src, signal);
-  const outfitFolder = model.character === "cat" ? "items/" : `items/${model.character}/`;
+  const suitSrc = getZyraGlbSuitSrc(model.character, suit);
   const base = model.src.slice(0, model.src.lastIndexOf("/") + 1);
   try {
-    if (suit === "itb-sport-outfit" || suit === "astronaut-outfit") {
-      const outfit = await loadAsset(base + outfitFolder + suit + ".glb", signal);
+    if (suitSrc) {
+      const outfit = await loadAsset(suitSrc, signal);
       const bones = new Map<string, THREE.Bone>();
       body.scene.traverse(node => { if (node instanceof THREE.Bone) bones.set(node.name, node); });
       body.scene.add(outfit.scene);

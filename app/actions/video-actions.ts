@@ -69,12 +69,21 @@ async function assertVideoManagerPermission(courseId: string): Promise<{
   isAdmin: boolean;
   validCourseIds: string[];
 }> {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const sessionPromise = auth.api.getSession({ headers: await headers() });
+  const identityPromise = resolveCourseIdentity(courseId).then(
+    (data) => ({ ok: true as const, data }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
+  const session = await sessionPromise;
   if (!session?.user) {
     throw new Error("Unauthorized");
   }
+  const identityResult = await identityPromise;
+  if (!identityResult.ok) {
+    throw identityResult.error;
+  }
+  const identity = identityResult.data;
 
-  const identity = await resolveCourseIdentity(courseId);
   const primaryId = identity?.primaryId || courseId;
   const courseSlug = identity?.slug || courseId;
   const validCourseIds = identity ? identity.allIds : [primaryId];
@@ -126,27 +135,32 @@ function revalidateVideoPaths(courseId: string, courseSlug?: string) {
  * Requires a valid session and caller entitlement (enrolled student or course manager/staff).
  */
 export async function getCourseVideosData(courseSlugOrId: string) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const sessionPromise = auth.api.getSession({ headers: await headers() });
+  const identityPromise = resolveCourseIdentity(courseSlugOrId).then(
+    (data) => ({ ok: true as const, data }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
+  const session = await sessionPromise;
   if (!session?.user) {
     return null;
   }
-
-  const identity = await resolveCourseIdentity(courseSlugOrId);
+  const identityResult = await identityPromise;
+  if (!identityResult.ok) {
+    throw identityResult.error;
+  }
+  const identity = identityResult.data;
   if (!identity) {
     return null;
   }
 
-  const access = await resolveCourseAccess({
-    courseId: identity.primaryId,
-    userId: session.user.id,
-    roleHint: (session.user as { role?: string | null }).role,
-  });
-
-  const hasFullContentAccess = access.hasFullContentAccess;
-
   const courseIds = identity.allIds;
 
-  const [courseRows, chapterRows, playlistRows, videoRows] = await Promise.all([
+  const [access, courseRows, chapterRows, playlistRows, videoRows] = await Promise.all([
+    resolveCourseAccess({
+      courseId: identity.primaryId,
+      userId: session.user.id,
+      roleHint: (session.user as { role?: string | null }).role,
+    }),
     db
       .select({ id: courses.id, title: courses.title, category: courses.category })
       .from(courses)
@@ -168,6 +182,8 @@ export async function getCourseVideosData(courseSlugOrId: string) {
       .where(inArray(courseVideos.courseId, courseIds))
       .orderBy(asc(courseVideos.orderIndex), asc(courseVideos.createdAt)),
   ]);
+
+  const hasFullContentAccess = access.hasFullContentAccess;
 
   const course = courseRows[0] || {
     id: identity.primaryId,

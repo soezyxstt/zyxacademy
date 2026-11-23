@@ -1,5 +1,7 @@
 "use client";
 
+import { GoogleCalendarControl } from "@/components/schedule/google-calendar-control";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, CalendarDays } from "lucide-react";
@@ -21,7 +23,7 @@ import {
   SessionDetailDrawer,
   type PendingSessionResource,
 } from "@/components/schedule/session-detail-drawer";
-import { useTranslations } from "@/lib/i18n/client";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 
 import { useDemoCommunity } from "@/components/demo/use-demo-community";
 import { demoCommunitySchedule } from "@/lib/demo/community-schedule";
@@ -98,7 +100,13 @@ function getTutorFilterOptions(data: any, fallbackName: string) {
   return Array.from(byId.values()).sort((left, right) => left.name.localeCompare(right.name, "id"));
 }
 
-export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { id: string; title: string; compatibleCourseIds?: string[] } } = {}) {
+type ScheduleProps = {
+  initialData?: Awaited<ReturnType<typeof getScheduleData>> | null;
+  fetchedAt?: number;
+  selectedCourse?: { id: string; title: string; compatibleCourseIds?: string[] };
+};
+
+export function StudentScheduleClient({ selectedCourse, initialData = null, fetchedAt = 0 }: ScheduleProps = {}) {
   const experience = useStudentExperience();
   const community = useDemoCommunity();
   const loadSchedule = useCallback(async (offset: number) => {
@@ -113,48 +121,56 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
     };
   }, [experience, selectedCourse?.id]);
   const t = useTranslations("student");
+  const { locale } = useAppLocale();
   const tRef = useRef(t);
   useEffect(() => {
     tRef.current = t;
   }, [t]);
-  const [data, setData] = useState<any>(null);
-  const [dataWeekOffset, setDataWeekOffset] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(initialData);
+  const [dataWeekOffset, setDataWeekOffset] = useState<number | null>(initialData ? 0 : null);
+  const [loading, setLoading] = useState(!initialData);
   const [loadError, setLoadError] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   const [bookingSlotData, setBookingSlotData] = useState<{ slot: any; dateIso: string } | null>(null);
   const [activeSessionBookingId, setActiveSessionBookingId] = useState<string | null>(null);
   const [selectedAcademicSchedule, setSelectedAcademicSchedule] = useState<AcademicScheduleDetail | null>(null);
   const [pendingSessionResources, setPendingSessionResources] = useState<PendingSessionResource[]>([]);
+  const [reminderSyncVersion, setReminderSyncVersion] = useState(0);
   const searchParams = useSearchParams();
-  const weekCache = useRef(new Map<number, any>());
+  const [weekCache] = useState(() => new Map<number, { data: Awaited<ReturnType<typeof loadSchedule>>; fetchedAt: number }>(
+    initialData ? [[0, { data: initialData, fetchedAt }]] : [],
+  ));
   const activeRequest = useRef(0);
   const cacheVersion = useRef(0);
+  const snapshotTime = useRef(fetchedAt);
+  const lastMutation = useRef(0);
   const invalidateScheduleCache = () => {
+    lastMutation.current = Date.now();
     cacheVersion.current++;
-    weekCache.current.clear();
+    weekCache.clear();
+    setReminderSyncVersion((version) => version + 1);
   };
 
   const fetchData = useCallback(async (offset: number, force = false) => {
     const requestId = ++activeRequest.current;
     const version = cacheVersion.current;
-    const cached = !force && experience.mode !== "demo" ? weekCache.current.get(offset) : null;
+    const cached = !force && experience.mode !== "demo" ? weekCache.get(offset) : null;
     if (cached) {
-      setData(cached);
+      setData(cached.data);
       setDataWeekOffset(offset);
       setLoadError(false);
       setLoading(false);
-      return cached;
+      if (Date.now() - cached.fetchedAt < 60_000) return cached.data;
     }
 
     try {
-      setLoading(true);
+      setLoading(!cached);
       setLoadError(false);
       const nextData = await loadSchedule(offset);
-      if (version === cacheVersion.current) {
-        weekCache.current.delete(offset);
-        weekCache.current.set(offset, nextData);
-        if (weekCache.current.size > 5) weekCache.current.delete(weekCache.current.keys().next().value!);
+      if (version === cacheVersion.current && requestId === activeRequest.current) {
+        weekCache.delete(offset);
+        weekCache.set(offset, { data: nextData, fetchedAt: Date.now() });
+        if (weekCache.size > 5) weekCache.delete(weekCache.keys().next().value!);
       }
       if (requestId === activeRequest.current) {
         setData(nextData);
@@ -174,15 +190,41 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
         setLoading(false);
       }
     }
-  }, [loadSchedule, experience.mode]);
+  }, [loadSchedule, experience.mode, weekCache]);
 
   useEffect(() => {
+    if (snapshotTime.current !== fetchedAt) {
+      snapshotTime.current = fetchedAt;
+      if (fetchedAt >= lastMutation.current) {
+        const currentWeek = weekCache.get(0);
+        weekCache.clear();
+        if (currentWeek && currentWeek.fetchedAt > fetchedAt) weekCache.set(0, currentWeek);
+        else if (initialData) weekCache.set(0, { data: initialData, fetchedAt });
+      }
+    }
     void fetchData(weekOffset);
-  }, [fetchData, weekOffset, community.state]);
+  }, [fetchData, weekOffset, community.state, initialData, fetchedAt, weekCache]);
 
   const courseParam = searchParams.get("course");
   const courseIds = useMemo(() => selectedCourse?.compatibleCourseIds ?? (courseParam ? [courseParam] : []), [selectedCourse, courseParam]);
   const activeData = useMemo(() => dataWeekOffset === weekOffset && data ? scopeStudentSchedule(data, courseIds) : null, [data, dataWeekOffset, weekOffset, courseIds]);
+
+  // Keep local tutor session reminders in sync with the complete unscoped upcoming sessions list
+  // on initial load and after booking/reschedule/cancellation mutations (not on weekOffset browsing).
+  const studentUserId = experience.mode !== "demo" && data?.user?.id ? String(data.user.id) : null;
+  useEffect(() => {
+    if (!studentUserId) return;
+    let cancelled = false;
+    void import("@/lib/native/local-reminders")
+      .then(({ refreshUpcomingTutorSessionReminders }) => {
+        if (cancelled) return;
+        return refreshUpcomingTutorSessionReminders(studentUserId, { locale });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [studentUserId, locale, reminderSyncVersion]);
   if (!activeData) {
     if (loadError) {
       return (
@@ -199,7 +241,6 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
                 <Button type="button" size="sm" onClick={() => void fetchData(weekOffset, true)} disabled={loading}>
                   {loading ? t("schedule.loading") : t("schedule.retry")}
                 </Button>
-                <span className="sr-only">Coba Lagi</span>
               </div>
             </div>
           </div>
@@ -243,6 +284,7 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
           slots={activeData.availableSlots || []}
           bookings={activeData.groupBookings || []}
           academicSchedules={activeData.academicSchedules || []}
+          toolbarControls={experience.mode !== "demo" && ["student", "teacher"].includes(userObj.role) ? <GoogleCalendarControl /> : undefined}
           onSelectSlotToBook={(slot, dateIso) => setBookingSlotData({ slot, dateIso })}
           onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
           onEditSchedule={(schedule) => setSelectedAcademicSchedule(schedule)}
@@ -266,9 +308,9 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
           await fetchData(weekOffset, true);
           setActiveSessionBookingId(bookingId);
         }}
-        onSlotTaken={() => {
+        onSlotTaken={async () => {
           invalidateScheduleCache();
-          return fetchData(weekOffset, true);
+          await fetchData(weekOffset, true);
         }}
       />
       <SessionDetailDrawer
@@ -286,9 +328,9 @@ export function StudentScheduleClient({ selectedCourse }: { selectedCourse?: { i
         availableSlots={activeData.availableSlots || []}
         pendingResources={pendingSessionResources}
         onPendingResourcesChange={setPendingSessionResources}
-        onSuccess={() => {
+        onSuccess={async () => {
           invalidateScheduleCache();
-          return fetchData(weekOffset, true);
+          await fetchData(weekOffset, true);
         }}
       />
       <AcademicScheduleDetailDialog

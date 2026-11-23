@@ -43,6 +43,7 @@
     "workers",
     "tests",
     "scripts",
-    "artifacts"
+    "artifacts",
+    "apps"
   ]
 }

@@ -351,7 +351,7 @@ export function AssessmentDetailClient({
 
       {/* Tabs */}
       <Tabs defaultValue="questions">
-        <TabsList>
+        <TabsList flush={false}>
           <TabsTrigger value="questions">{t("questionsTab")}</TabsTrigger>
           <TabsTrigger value="markdown">
             {t("canonicalMarkdown")}

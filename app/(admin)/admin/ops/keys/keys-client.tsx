@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminIconAction } from "@/components/admin/icon-action";
+
 import { KeysSkeleton } from "@/components/admin/content-loading-skeletons";
 
 
@@ -61,14 +63,13 @@ export function KeysClient() {
   if (!data) return null;
 
   const keys = [...new Set(data.geminiKeys.map((d) => d.keyId))].sort();
-  void [...new Set(data.geminiKeys.map((d) => d.modelId))].sort();
 
   const keyHealth = keys.map((keyId) => {
     const entries = data.geminiKeys.filter((d) => d.keyId === keyId);
     const anyOpen = entries.some((d) => d.circuitState === "OPEN");
     const totalToday = entries.reduce((s, d) => s + d.requestsToday, 0);
     return { keyId, healthy: !anyOpen, totalToday, entries };
-  });
+  }).sort((a, b) => Number(a.healthy) - Number(b.healthy));
 
   return (
     <div className="space-y-6">
@@ -76,16 +77,25 @@ export function KeysClient() {
         <span className="text-body-sm text-muted-foreground">
           {t("keysUI.checked", { time: relativeTime(data.checkedAt, t), count: data.totalRequestsToday })}
         </span>
-        <Button variant="ghost" size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-body-sm text-foreground transition-colors hover:bg-muted disabled:opacity-50 cursor-pointer"
-        >
-          <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
-          {t("keysUI.refresh")}
-        </Button>
+        <AdminIconAction variant="outline" label={t("keysUI.refresh")} onClick={() => void refetch()} disabled={isFetching}>
+            <RefreshCw aria-hidden className={isFetching ? "size-4 animate-spin" : "size-4"} />
+          </AdminIconAction>
       </div>
 
+      {data.compatible?.map(profile => (
+        <section key={profile.model} className="space-y-2">
+          <h2 className="font-heading text-body-base font-bold">{profile.model}</h2>
+          <p className="text-body-xs text-muted-foreground">{t("keysUI.sharedPilotQuota")}</p>
+          <ul className="divide-y divide-border">
+            {profile.keys.map((key, index) => (
+              <li key={index} className="flex justify-between gap-2 py-2 text-body-sm">
+                <span>{key.label}</span>
+                <span>{key.cooldownUntil > Date.parse(data.checkedAt) ? t("keysUI.authRejected") : t("keysUI.readyForDispatch")}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
       {keyHealth.map(({ keyId, healthy, totalToday, entries }) => (
         <div key={keyId} className="border-y border-border">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/50 px-4 py-3">
@@ -115,19 +125,19 @@ export function KeysClient() {
               </thead>
               <tbody>
                 {entries.map((d) => {
-                  const rpd = data.rpdLimits[d.modelId] ?? 1500;
+                  const rpd = data.rpdLimits[d.modelId];
                   return (
                     <tr key={`${d.keyId}:${d.modelId}`} className="border-b border-border last:border-0 hover:bg-muted/30">
                       <td className="px-5 py-2.5 font-medium text-foreground">{d.modelId}</td>
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-2">
                           <span className="tabular-nums font-semibold text-foreground">{d.requestsToday}</span>
-                          <span className="text-muted-foreground">/ {rpd}</span>
+                          <span className="text-muted-foreground">/ {rpd ?? "N/A"}</span>
                         </div>
-                        <ProgressBar current={d.requestsToday} max={rpd} />
+                        {rpd > 0 && <ProgressBar current={d.requestsToday} max={rpd} />}
                       </td>
                       <td className={`px-3 py-2.5 tabular-nums font-medium ${d.utilizationPercent >= 90 ? "text-status-error" : d.utilizationPercent >= 70 ? "text-status-warning" : ""}`}>
-                        {d.utilizationPercent.toFixed(0)}%
+                        {rpd > 0 ? `${d.utilizationPercent.toFixed(0)}%` : "N/A"}
                       </td>
                       <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
                         {d.requestsMinute} / {d.estimatedRpmLimit}

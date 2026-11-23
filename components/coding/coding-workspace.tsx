@@ -22,6 +22,7 @@ import { createRemotePythonRuntime } from "@/lib/coding/remote-runtime";
 import { warmRemotePython } from "@/lib/coding/remote-warm";
 import { executePython } from "@/lib/coding/runtime";
 import { selectPythonRuntime } from "@/lib/coding/runtime-selection";
+import { writePlaygroundHandoff } from "@/lib/coding/playground-handoff";
 import { type CodingProblemPublic, type ExecutionResult } from "@/lib/coding/contracts";
 import type { publicCodingFeedback } from "@/lib/coding/evaluation";
 import type { z } from "zod";
@@ -141,7 +142,7 @@ function CodingWorkspaceContent({ account, courseId, draftKey, initialCode = "",
   function handoff() {
     const key = crypto.randomUUID();
     try {
-      sessionStorage.setItem(`zyx-python-handoff:${key}`, JSON.stringify({ courseId, code: draft.code, stdin: draft.stdin, backHref: location.pathname + location.search }));
+      writePlaygroundHandoff(sessionStorage, key, { learnerId: owner ?? "", courseId, code: draft.code, stdin: draft.stdin, backHref: location.pathname + location.search });
       router.push(`/courses/${encodeURIComponent(courseId)}/playground?handoff=${key}`);
     } catch { setError("Kode belum dapat dibuka di Playground. Salin kode terlebih dahulu."); }
   }
