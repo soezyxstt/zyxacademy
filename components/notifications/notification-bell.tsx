@@ -27,6 +27,11 @@ import {
   ClipboardList,
   Inbox,
   MessagesSquare,
+  GraduationCap,
+  TrendingUp,
+  BookOpen,
+  CalendarClock,
+  ShieldAlert,
 } from "lucide-react";
 import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
 import { useStudentExperience } from "@/components/student-experience-provider";
@@ -34,6 +39,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
+import { getDefaultHomeLinkForRole } from "@/lib/notifications/catalog";
+
+export const ZYX_NOTIFICATIONS_CHANGED = "zyx:notifications-changed";
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface NotificationRow {
   id: string;
@@ -56,20 +65,32 @@ interface HistoryResponse {
 
 const TYPE_ICONS: Record<string, typeof Bell> = {
   quiz_published: ClipboardList,
+  quiz_graded: GraduationCap,
   flashcard_reminder: Brain,
   tutor_reminder: Calendar,
+  tutor_booking: CalendarClock,
+  tutor_digest: ClipboardList,
   payment_success: CreditCard,
+  weekly_progress: TrendingUp,
+  study_reengagement: BookOpen,
   admin_broadcast: Megaphone,
+  admin_alert: ShieldAlert,
   announcement: BellRing,
   discussion: MessagesSquare,
 };
 
 const TYPE_COLORS: Record<string, string> = {
   quiz_published: "text-brand-primary",
+  quiz_graded: "text-status-success",
   flashcard_reminder: "text-tertiary-2",
   tutor_reminder: "text-tertiary-3",
+  tutor_booking: "text-brand-primary",
+  tutor_digest: "text-brand-secondary",
   payment_success: "text-status-success",
+  weekly_progress: "text-status-success",
+  study_reengagement: "text-brand-primary",
   admin_broadcast: "text-brand-secondary",
+  admin_alert: "text-status-error",
   announcement: "text-status-warning",
   discussion: "text-brand-primary",
 };
@@ -90,9 +111,9 @@ function formatRelative(value: string, locale: "id" | "en", t: ReturnType<typeof
   return date.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", { day: "numeric", month: "short" });
 }
 
-function resolveLink(row: NotificationRow): string {
+function resolveLink(row: NotificationRow, fallbackUrl: string): string {
   const url = row.metadata?.url;
-  return typeof url === "string" && url ? url : "/dashboard";
+  return typeof url === "string" && url ? url : fallbackUrl;
 }
 
 interface NotificationBellProps {
@@ -117,6 +138,8 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
   const identity = session?.user?.id;
+  const userRole = (session?.user as { role?: string } | undefined)?.role;
+  const fallbackUrl = getDefaultHomeLinkForRole(userRole);
   const currentIdentity = useRef(identity);
   currentIdentity.current = identity;
   const unreadVersion = useRef(0);
@@ -163,9 +186,11 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
     const refresh = () => { void (open ? fetchHistory() : fetchUnreadCount()); };
     window.addEventListener(DISCUSSION_COUNTS_CHANGED, refresh);
     window.addEventListener(ZYX_LIFECYCLE_REFRESH_EVENT, refresh);
+    window.addEventListener(ZYX_NOTIFICATIONS_CHANGED, refresh);
     return () => {
       window.removeEventListener(DISCUSSION_COUNTS_CHANGED, refresh);
       window.removeEventListener(ZYX_LIFECYCLE_REFRESH_EVENT, refresh);
+      window.removeEventListener(ZYX_NOTIFICATIONS_CHANGED, refresh);
     };
   }, [demo, identity, open, fetchHistory, fetchUnreadCount]);
 
@@ -187,6 +212,7 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
       const { subscribeNativeNotifications } = await import("@/lib/native/notifications");
       if (disposed) return;
       const unsub = await subscribeNativeNotifications({
+        defaultUrl: fallbackUrl,
         onForeground: ({ title, body }) => {
           if (title) {
             toast(title, { description: body ?? undefined });
@@ -197,11 +223,25 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
             void fetchUnreadCount();
           }
         },
-        onNavigate: (url) => {
+        onNavigate: (url, notificationId) => {
+          if (notificationId && UUID_PATTERN.test(notificationId)) {
+            void fetch("/api/notifications/read", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ ids: [notificationId] }),
+            })
+              .then((res) => {
+                if (res.ok && typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent(ZYX_NOTIFICATIONS_CHANGED));
+                }
+              })
+              .catch(() => {});
+          }
           const safeUrl =
             url.startsWith("/") && !url.startsWith("//") && !url.startsWith("/\\")
               ? url
-              : "/dashboard";
+              : fallbackUrl;
           router.push(safeUrl);
         },
       });
@@ -215,7 +255,7 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
       disposed = true;
       unsubscribe?.();
     };
-  }, [session?.user, fetchHistory, fetchUnreadCount, demo, router]);
+  }, [session?.user, fetchHistory, fetchUnreadCount, demo, router, fallbackUrl]);
 
   if (isPending || !session?.user) return null;
 
@@ -230,6 +270,9 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
         credentials: "include",
         body: JSON.stringify(selection),
       });
+      if (response.ok && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(ZYX_NOTIFICATIONS_CHANGED));
+      }
       return response.ok;
     } catch {
       return false;
@@ -249,7 +292,7 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, read: true } : r)));
       setUnread((prev) => Math.max(0, prev - 1));
     }
-    const url = resolveLink(row);
+    const url = resolveLink(row, fallbackUrl);
     if (url && url.startsWith("/")) {
       router.push(experience.href?.(url) ?? url);
     }

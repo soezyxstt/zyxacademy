@@ -106,7 +106,7 @@ describe("FCM client effects and configuration guards (WP6)", () => {
     ).text();
 
     // Granted token registration effect does not depend on pathname
-    expect(pushSource).toContain("}, [isPending, userId, isAdminSurface, syncGrantedTokenForUser]);");
+    expect(pushSource).toContain("}, [isPending, userId, syncGrantedTokenForUser]);");
     // Prompt scheduling effect retains pathname and admin surface gating
     expect(pushSource).toContain("}, [isPending, userId, isAdminSurface, pathname]);");
     expect(pushSource).toContain('pathname.startsWith("/admin") || userRole === "admin"');

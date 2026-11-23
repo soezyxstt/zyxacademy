@@ -12,6 +12,7 @@ const childEvent = z.object({
     "admin-operations-outbox", "discussion-notifications", "discussion-ai-cron", "discussion-image-sweep",
     "gamification-outbox-cron", "vector-sync-cron-worker", "course-analytics-snapshot-cron",
     "content-quality-audit-cron", "weekly-reflection-cron", "gamification-missions-cron", "mastery-snapshot-cron",
+    "study-reengagement-cron", "flashcard-reminder-cron", "upcoming-session-reminder-cron", "tutor-daily-digest-cron",
   ]),
   id: z.string().min(1).max(1024),
   data: z.record(z.string(), z.unknown()),

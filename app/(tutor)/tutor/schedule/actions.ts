@@ -58,6 +58,8 @@ import {
   tutorTicketDecisionPayload,
   tutorTicketMessagePayload,
 } from "@/lib/notifications/templates";
+import { sendOptionalEmail } from "@/lib/email-preferences/send";
+import { renderScheduleEventEmail } from "@/lib/notifications/email-templates";
 import {
   recordTutorFailureAudit,
   recordUnauthenticatedRejectAudit,
@@ -1629,6 +1631,32 @@ export async function executeMoveTutorSession(
           startTime: targetSlot.startTime,
           endTime: targetSlot.endTime,
         }));
+        if (process.env.RESEND_API_KEY) {
+          await Promise.allSettled(
+            memberUserIds.map((uid: string) =>
+              sendOptionalEmail({
+                userId: uid,
+                category: "events_and_schedules",
+                render: (locale) =>
+                  renderScheduleEventEmail({
+                    locale,
+                    recipientName: locale === "en" ? "Student" : "Siswa",
+                    title: locale === "en" ? "Tutorial schedule updated" : "Jadwal tutorial diperbarui",
+                    summary:
+                      locale === "en"
+                        ? "Your tutor moved a scheduled tutorial session to a new slot."
+                        : "Pengajar memindahkan sesi tutorial ke slot baru.",
+                    details: [
+                      { label: locale === "en" ? "Day" : "Hari", value: targetSlot.dayOfWeek },
+                      { label: locale === "en" ? "Date" : "Tanggal", value: targetSessionDateIso },
+                      { label: locale === "en" ? "Time" : "Waktu", value: `${targetSlot.startTime} - ${targetSlot.endTime} WIB` },
+                    ],
+                    link: "/dashboard/schedule",
+                  }),
+              }),
+            ),
+          );
+        }
       }
     } catch (notifErr) {
       console.error("[TUTOR_SCHEDULE] Move notification failed:", notifErr);
@@ -2400,6 +2428,40 @@ export async function executeDecideTutorRescheduleTicket(
           decision,
           notes: notes || null,
         }));
+        if (process.env.RESEND_API_KEY) {
+          await Promise.allSettled(
+            memberUserIds.map((uid: string) =>
+              sendOptionalEmail({
+                userId: uid,
+                category: "events_and_schedules",
+                render: (locale) => {
+                  const isEn = locale === "en";
+                  const typeLabel = ticket.type === "reschedule"
+                    ? "Reschedule"
+                    : isEn ? "Cancellation" : "Pembatalan";
+                  const decisionLabel = decision === "approved"
+                    ? isEn ? "approved" : "disetujui"
+                    : isEn ? "declined" : "ditolak";
+                  return renderScheduleEventEmail({
+                    locale,
+                    recipientName: isEn ? "Student" : "Siswa",
+                    title: isEn
+                      ? `${typeLabel} request ${decisionLabel}`
+                      : `Tiket ${typeLabel} ${decisionLabel}`,
+                    summary: notes || (isEn
+                      ? `Your tutor has ${decisionLabel} the ${typeLabel.toLowerCase()} request.`
+                      : `Pengajar telah memutuskan tiket ${typeLabel.toLowerCase()} (${decisionLabel}).`),
+                    details: [
+                      { label: isEn ? "Request" : "Jenis tiket", value: typeLabel },
+                      { label: isEn ? "Decision" : "Keputusan", value: decisionLabel },
+                    ],
+                    link: "/dashboard/schedule",
+                  });
+                },
+              }),
+            ),
+          );
+        }
       }
     } catch (notifErr) {
       console.error("[TUTOR_SCHEDULE] Ticket decision notification error:", notifErr);

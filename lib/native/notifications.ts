@@ -32,6 +32,7 @@ import type {
 export type UnifiedNotificationPermission = "granted" | "denied" | "default" | "unsupported";
 
 export interface ForegroundNotificationEvent {
+  notificationId?: string;
   title?: string;
   body?: string;
   url?: string;
@@ -576,7 +577,7 @@ export function startDesktopNotificationBridge(
           lastCursorIso = row.createdAt;
         }
         const url = typeof row.metadata?.url === "string" ? row.metadata.url : undefined;
-        handlers.onForeground({ title: row.title, body: row.body, url });
+        handlers.onForeground({ notificationId: row.id, title: row.title, body: row.body, url });
         if (row.title) {
           await sendNative(row.title, row.body);
           if (disposed) break;
@@ -601,19 +602,21 @@ export function startDesktopNotificationBridge(
   return stopBridge;
 }
 
-function sanitizeNotificationUrl(rawUrl: unknown): string {
-  if (typeof rawUrl !== "string") return "/dashboard";
+function sanitizeNotificationUrl(rawUrl: unknown, fallbackUrl = "/dashboard"): string {
+  if (typeof rawUrl !== "string") return fallbackUrl;
   if (rawUrl.startsWith("/") && !rawUrl.startsWith("//") && !rawUrl.startsWith("/\\")) {
     return rawUrl;
   }
-  return "/dashboard";
+  return fallbackUrl;
 }
 
 export async function subscribeNativeNotifications(handlers: {
   onForeground: (event: ForegroundNotificationEvent) => void;
-  onNavigate?: (url: string) => void;
+  onNavigate?: (url: string, notificationId?: string) => void;
+  defaultUrl?: string;
 }): Promise<() => void> {
   const runtime = getNativeRuntime();
+  const fallbackUrl = sanitizeNotificationUrl(handlers.defaultUrl, "/dashboard");
 
   if (runtime === "capacitor") {
     const handles: CapacitorPluginListenerHandle[] = [];
@@ -627,7 +630,8 @@ export async function subscribeNativeNotifications(handlers: {
           (event) => {
             const notification = (event?.notification as Record<string, unknown> | undefined) ?? {};
             const extra = (notification.extra as Record<string, unknown> | undefined) ?? {};
-            handlers.onNavigate?.(sanitizeNotificationUrl(extra.url));
+            const notificationId = typeof extra.notificationId === "string" ? extra.notificationId : undefined;
+            handlers.onNavigate?.(sanitizeNotificationUrl(extra.url, fallbackUrl), notificationId);
           },
         );
         if (disposed) {
@@ -648,6 +652,7 @@ export async function subscribeNativeNotifications(handlers: {
           receivedHandle = await plugin.addListener("pushNotificationReceived", (event) => {
             const data = (event?.data as Record<string, unknown> | undefined) ?? {};
             handlers.onForeground({
+              notificationId: typeof data.notificationId === "string" ? data.notificationId : undefined,
               title: typeof event?.title === "string" ? event.title : undefined,
               body: typeof event?.body === "string" ? event.body : undefined,
               url: typeof data.url === "string" ? data.url : undefined,
@@ -657,7 +662,8 @@ export async function subscribeNativeNotifications(handlers: {
           const actionHandle = await plugin.addListener("pushNotificationActionPerformed", (event) => {
             const notification = (event?.notification as Record<string, unknown> | undefined) ?? {};
             const data = (notification.data as Record<string, unknown> | undefined) ?? {};
-            handlers.onNavigate?.(sanitizeNotificationUrl(data.url));
+            const notificationId = typeof data.notificationId === "string" ? data.notificationId : undefined;
+            handlers.onNavigate?.(sanitizeNotificationUrl(data.url, fallbackUrl), notificationId);
           });
 
           if (disposed) {
@@ -691,6 +697,7 @@ export async function subscribeNativeNotifications(handlers: {
     const title = payload.notification?.title;
     const body = payload.notification?.body;
     const url = typeof payload.data?.url === "string" ? payload.data.url : undefined;
-    handlers.onForeground({ title, body, url });
+    const notificationId = typeof payload.data?.notificationId === "string" ? payload.data.notificationId : undefined;
+    handlers.onForeground({ notificationId, title, body, url });
   });
 }

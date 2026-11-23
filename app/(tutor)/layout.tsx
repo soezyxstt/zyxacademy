@@ -15,6 +15,7 @@ import { db } from "@/db";
 import { mataKuliah, courses } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { CommandMenuProvider } from "@/components/command-menu";
+import { PushPermissionInit } from "@/components/notifications/push-permission-init";
 
 export default async function TutorLayout({ children }: { children: ReactNode }) {
   const session = await getAuthSession();
@@ -78,6 +79,7 @@ export default async function TutorLayout({ children }: { children: ReactNode })
         desktopSidebar={<TutorSidebar assignedCourses={assignedCourses} />}
         mobileTopNav={<TutorMobileTopNav assignedCourses={assignedCourses} />}
         mobileBottomNav={<TutorMobileBottomNav assignedCourses={assignedCourses} />}
+        overlays={<PushPermissionInit />}
       >
         <TutorMobileCourseTabNav assignedCourses={assignedCourses} />
         {children}

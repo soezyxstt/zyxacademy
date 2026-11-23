@@ -13,6 +13,9 @@ import {
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
 import { getSemesterEndDate } from "@/lib/utils";
+import { sendToUser, sendTransactionalEmail } from "@/lib/notifications/send";
+import { paymentSuccessPayload } from "@/lib/notifications/templates";
+import { renderPaymentSuccessEmail } from "@/lib/notifications/email-templates";
 
 type ErrorCode = "empty" | "invalid" | "alreadyMember" | "capacityReached" | "expired" | "noCourses" | "alreadyEnrolled";
 type Redemption = { success: true; errorCode?: never } | { success: false; errorCode: ErrorCode };
@@ -25,14 +28,16 @@ export async function redeemGroupToken(
   const cleanToken = token.trim();
   if (!cleanToken) return { success: false, errorCode: "empty" };
 
-  return db.transaction(async (tx): Promise<Redemption> => {
+  let notificationContext: { groupName: string; courseCount: number } | null = null;
+
+  const outcome = await db.transaction(async (tx): Promise<Redemption> => {
     const [target] = await tx.select({ groupId: enrollmentTokens.groupId }).from(enrollmentTokens)
       .where(eq(enrollmentTokens.token, cleanToken));
     if (!target) return { success: false, errorCode: "invalid" };
 
     // The group owns the seats, even when it has multiple tokens. Read its
     // membership in a separate statement after acquiring the row lock.
-    const [group] = await tx.select({ endDate: groups.endDate }).from(groups)
+    const [group] = await tx.select({ name: groups.name, endDate: groups.endDate }).from(groups)
       .where(eq(groups.id, target.groupId)).for("no key update");
     if (!group) return { success: false, errorCode: "invalid" };
 
@@ -110,6 +115,41 @@ export async function redeemGroupToken(
       }
     }
 
-    return alreadyMember && !repaired ? { success: false, errorCode: "alreadyMember" } : { success: true };
+    if (alreadyMember && !repaired) {
+      return { success: false, errorCode: "alreadyMember" };
+    }
+    notificationContext = {
+      groupName: group.name || "Zyx Academy",
+      courseCount: Math.max(1, courseIds.size),
+    };
+    return { success: true };
   }, { isolationLevel: "read committed" });
+
+  if (outcome.success && notificationContext) {
+    const ctx = notificationContext as { groupName: string; courseCount: number };
+    try {
+      await Promise.allSettled([
+        sendToUser(userId, paymentSuccessPayload({
+          groupName: ctx.groupName,
+          courseCount: ctx.courseCount,
+          link: "/dashboard",
+        })),
+        sendTransactionalEmail({
+          userId,
+          render: (locale, recipient) =>
+            renderPaymentSuccessEmail({
+              locale,
+              name: recipient.name,
+              groupName: ctx.groupName,
+              courseCount: ctx.courseCount,
+              link: "/dashboard",
+            }),
+        }),
+      ]);
+    } catch (err) {
+      console.error("[redeemGroupToken] Post-redemption notification failed:", err);
+    }
+  }
+
+  return outcome;
 }
