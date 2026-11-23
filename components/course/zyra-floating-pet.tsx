@@ -18,23 +18,37 @@ const EDGE_GAP = 16;
 type Point = { x: number; y: number };
 export type ZyraPetAnchor = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
-export function clampZyraPetPosition(point: Point, viewport: { width: number; height: number }, safeLeft = EDGE_GAP): Point {
+export function clampZyraPetPosition(
+  point: Point,
+  viewport: { width: number; height: number },
+  safeLeft = EDGE_GAP,
+  safeBottom = EDGE_GAP
+): Point {
   return {
     x: Math.min(Math.max(safeLeft, point.x), Math.max(safeLeft, viewport.width - PET_WIDTH - EDGE_GAP)),
-    y: Math.min(Math.max(EDGE_GAP, point.y), Math.max(EDGE_GAP, viewport.height - PET_HEIGHT - EDGE_GAP)),
+    y: Math.min(Math.max(EDGE_GAP, point.y), Math.max(EDGE_GAP, viewport.height - PET_HEIGHT - safeBottom)),
   };
 }
 
-export function zyraPetAnchorPositions(viewport: { width: number; height: number }, safeLeft = EDGE_GAP): Record<ZyraPetAnchor, Point> {
+export function zyraPetAnchorPositions(
+  viewport: { width: number; height: number },
+  safeLeft = EDGE_GAP,
+  safeBottom = EDGE_GAP
+): Record<ZyraPetAnchor, Point> {
   const left = Math.min(safeLeft, Math.max(EDGE_GAP, viewport.width - PET_WIDTH - EDGE_GAP));
   const right = Math.max(left, viewport.width - PET_WIDTH - EDGE_GAP);
   const top = EDGE_GAP;
-  const bottom = Math.max(top, viewport.height - PET_HEIGHT - EDGE_GAP);
+  const bottom = Math.max(top, viewport.height - PET_HEIGHT - safeBottom);
   return { "top-left": { x: left, y: top }, "top-right": { x: right, y: top }, "bottom-left": { x: left, y: bottom }, "bottom-right": { x: right, y: bottom } };
 }
 
-export function nearestZyraPetAnchor(point: Point, viewport: { width: number; height: number }, safeLeft = EDGE_GAP): ZyraPetAnchor {
-  const anchors = zyraPetAnchorPositions(viewport, safeLeft);
+export function nearestZyraPetAnchor(
+  point: Point,
+  viewport: { width: number; height: number },
+  safeLeft = EDGE_GAP,
+  safeBottom = EDGE_GAP
+): ZyraPetAnchor {
+  const anchors = zyraPetAnchorPositions(viewport, safeLeft, safeBottom);
   return (Object.entries(anchors) as Array<[ZyraPetAnchor, Point]>).sort((left, right) => {
     const leftDistance = (left[1].x - point.x) ** 2 + (left[1].y - point.y) ** 2;
     const rightDistance = (right[1].x - point.x) ** 2 + (right[1].y - point.y) ** 2;
@@ -46,6 +60,18 @@ function studentContentLeft(): number {
   if (!window.matchMedia("(min-width: 768px)").matches) return EDGE_GAP;
   const sidebar = Array.from(document.querySelectorAll("aside")).find((element) => element.getBoundingClientRect().left === 0);
   return sidebar ? Math.round(sidebar.getBoundingClientRect().right + EDGE_GAP) : EDGE_GAP;
+}
+
+function mobileBottomInset(): number {
+  if (window.matchMedia("(min-width: 768px)").matches) return EDGE_GAP;
+  const bottomNav = document.querySelector("[data-mobile-bottom-nav]");
+  if (bottomNav) {
+    const rect = bottomNav.getBoundingClientRect();
+    if (rect.height > 0) return Math.round(rect.height + EDGE_GAP);
+  }
+  const rawVar = window.getComputedStyle(document.body).getPropertyValue("--mobile-bottom-nav-height").trim();
+  const parsedPx = Number.parseFloat(rawVar);
+  return Number.isFinite(parsedPx) && parsedPx > 0 ? Math.round(parsedPx + EDGE_GAP) : EDGE_GAP;
 }
 
 export function ZyraFloatingPet({ state, onOpen, cosmeticId }: { cosmeticId?: string | null; state: ZyraPetState; onOpen: () => void }) {
@@ -60,20 +86,34 @@ export function ZyraFloatingPet({ state, onOpen, cosmeticId }: { cosmeticId?: st
   const setPosition = React.useCallback((next: Point) => { positionRef.current = next; setPositionState(next); }, []);
 
   const snapTo = React.useCallback((nextAnchor: ZyraPetAnchor) => {
-    const next = zyraPetAnchorPositions({ width: window.innerWidth, height: window.innerHeight }, studentContentLeft())[nextAnchor];
+    const next = zyraPetAnchorPositions({ width: window.innerWidth, height: window.innerHeight }, studentContentLeft(), mobileBottomInset())[nextAnchor];
     setAnchor(nextAnchor); setPosition(next); window.localStorage.setItem(POSITION_KEY, nextAnchor);
   }, [setPosition]);
 
   React.useEffect(() => {
     const saved = window.localStorage.getItem(POSITION_KEY) as ZyraPetAnchor | null;
     const initialAnchor: ZyraPetAnchor = saved && ["top-left", "top-right", "bottom-left", "bottom-right"].includes(saved) ? saved : "bottom-right";
+    let lastBottomInset = mobileBottomInset();
     snapTo(initialAnchor);
     const handleResize = () => {
+      lastBottomInset = mobileBottomInset();
       const storedAnchor = window.localStorage.getItem(POSITION_KEY) as ZyraPetAnchor | null;
       snapTo(storedAnchor && ["top-left", "top-right", "bottom-left", "bottom-right"].includes(storedAnchor) ? storedAnchor : "bottom-right");
     };
+    const handleDomChange = () => {
+      const nextInset = mobileBottomInset();
+      if (nextInset !== lastBottomInset) {
+        handleResize();
+      }
+    };
     window.addEventListener("resize", handleResize);
-    return () => { window.removeEventListener("resize", handleResize); if (frameRef.current !== null) cancelAnimationFrame(frameRef.current); };
+    const observer = typeof MutationObserver !== "undefined" ? new MutationObserver(handleDomChange) : null;
+    observer?.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      observer?.disconnect();
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    };
   }, [snapTo]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -86,7 +126,7 @@ export function ZyraFloatingPet({ state, onOpen, cosmeticId }: { cosmeticId?: st
     const drag = dragRef.current; if (!drag || drag.pointerId !== event.pointerId) return;
     const deltaX = event.clientX - drag.start.x; const deltaY = event.clientY - drag.start.y;
     if (Math.abs(deltaX) + Math.abs(deltaY) > 6) drag.moved = true;
-    const next = clampZyraPetPosition({ x: drag.origin.x + deltaX, y: drag.origin.y + deltaY }, { width: window.innerWidth, height: window.innerHeight }, studentContentLeft());
+    const next = clampZyraPetPosition({ x: drag.origin.x + deltaX, y: drag.origin.y + deltaY }, { width: window.innerWidth, height: window.innerHeight }, studentContentLeft(), mobileBottomInset());
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     frameRef.current = requestAnimationFrame(() => setPosition(next));
   };
@@ -95,11 +135,11 @@ export function ZyraFloatingPet({ state, onOpen, cosmeticId }: { cosmeticId?: st
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     dragRef.current = null; setDragging(false); suppressClickRef.current = drag.moved;
     const current = positionRef.current;
-    if (current) snapTo(nearestZyraPetAnchor(current, { width: window.innerWidth, height: window.innerHeight }, studentContentLeft()));
+    if (current) snapTo(nearestZyraPetAnchor(current, { width: window.innerWidth, height: window.innerHeight }, studentContentLeft(), mobileBottomInset()));
   };
   const handleClick = () => { if (suppressClickRef.current) { suppressClickRef.current = false; return; } onOpen(); };
 
-  if (!visible) return <Button type="button" variant="outline" size="icon" onClick={() => setPetVisibility(true)} className="fixed bottom-6 right-6 z-40 size-12 rounded-full border-brand-primary/40 bg-card/90 text-brand-primary shadow-lg backdrop-blur-md" aria-label="Tampilkan pet Zyra"><ZyraCosmeticAvatar cosmeticId={cosmeticId} headOnly size={40} /><Eye className="absolute -right-1 -top-1 size-4 rounded-full border border-border bg-card p-0.5 text-muted-foreground" /></Button>;
+  if (!visible) return <Button type="button" variant="outline" size="icon" onClick={() => setPetVisibility(true)} className="fixed bottom-[calc(1.5rem+var(--mobile-bottom-nav-height,0px))] right-6 z-40 size-12 rounded-full border-brand-primary/40 bg-card/90 text-brand-primary shadow-lg backdrop-blur-md" aria-label="Tampilkan pet Zyra"><ZyraCosmeticAvatar cosmeticId={cosmeticId} headOnly size={40} /><Eye className="absolute -right-1 -top-1 size-4 rounded-full border border-border bg-card p-0.5 text-muted-foreground" /></Button>;
   if (!position) return null;
 
   return (

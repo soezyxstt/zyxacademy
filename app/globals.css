@@ -442,7 +442,7 @@
 
 /* Sonner injects unlayered styles. Scope the overrides to its styled toasts. */
 .zyx-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
-  @apply flex flex-wrap items-center justify-end gap-x-1.5 gap-y-2 rounded-lg border-border bg-card p-3 font-sans text-body-sm text-card-foreground shadow-lg;
+  @apply flex flex-wrap items-center justify-end gap-x-1.5 gap-y-2 rounded-xl border-border bg-card p-3 font-sans text-body-sm text-card-foreground shadow-lg;
   --toast-status: var(--muted-foreground);
 
   &[data-type="success"] { --toast-status: var(--color-status-success); }
@@ -508,6 +508,52 @@
   > :is([data-close-button], [data-button]):focus-visible {
     outline: 2px solid var(--zx-accent);
     outline-offset: 2px;
+  }
+}
+
+/* Compact, top-right mobile Sonner toasts directly below MobileTopNavbar (<768px). */
+@media (max-width: 767.98px) {
+  .zyx-toaster[data-sonner-toaster] {
+    left: auto !important;
+    right: 12px !important;
+    top: calc(var(--mobile-navbar-height, 0px) + 8px) !important;
+    bottom: auto !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: min(21.5rem, calc(100vw - 1.5rem)) !important;
+    --width: min(21.5rem, calc(100vw - 1.5rem));
+  }
+
+  .zyx-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+    top: 0 !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: 0 !important;
+    width: auto !important;
+    min-width: 15.5rem;
+    max-width: min(21.5rem, calc(100vw - 1.5rem)) !important;
+    @apply rounded-xl px-3.5 py-2.5 shadow-lg;
+
+    > [data-icon] {
+      display: none !important;
+    }
+
+    &:has(> [data-icon]:not(:empty)) > [data-content] {
+      padding-inline-start: 0 !important;
+    }
+
+    &[data-type="success"],
+    &[data-type="error"],
+    &[data-type="warning"] {
+      background-color: color-mix(in oklab, var(--toast-status) 12%, var(--card)) !important;
+      border-color: color-mix(in oklab, var(--toast-status) 38%, var(--border)) !important;
+    }
+
+    &[data-type="info"],
+    &:not([data-type]) {
+      background-color: var(--card) !important;
+      border-color: var(--border) !important;
+    }
   }
 }
 
@@ -1151,19 +1197,29 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
   margin-top: 0;
 }
 
-/* Seamless join between MobileNavbar and sticky page tab bar. */
+/* Seamless join between MobileNavbar and sticky page tab bar, plus mobile bottom nav offset. */
 :root {
   --mobile-navbar-height: 0px;
+  --mobile-bottom-nav-height: 0px;
 }
 
 @media (max-width: 767.98px) {
   body:has([data-mobile-navbar]) {
-    --mobile-navbar-height: 3.25rem;
+    --mobile-navbar-height: calc(3.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-mobile-search-expanded="true"]) {
+    --mobile-navbar-height: calc(6.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-bottom-nav]) {
+    --mobile-bottom-nav-height: calc(3.75rem + env(safe-area-inset-bottom, 0px));
   }
 }
 
 [data-mobile-navbar]:has(~ main [data-sticky-tabs-bar="flush"]) {
-  border-bottom-color: transparent;
+  background-image: none;
+  background-color: color-mix(in oklab, var(--background) 95%, transparent);
 }
 
 /* Flush sticky page tab bar attaches directly under the navbar without top page padding. */

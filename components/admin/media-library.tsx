@@ -1008,8 +1008,95 @@ export function MediaLibrary() {
   );
 
   const renderTable = (
-    <div className="overflow-x-auto border-y border-border">
-      <table className="w-full min-w-[640px] border-collapse text-left text-body-sm">
+    <>
+      {/* Mobile stacked rows */}
+      <div className="divide-y divide-border border-y border-border md:hidden">
+        {visibleItems.map((item) => {
+          if (item.kind === "folder") {
+            return (
+              <div
+                key={item.path}
+                {...getDropProps(item.path)}
+                className={cn(
+                  "flex items-center gap-2.5 py-2.5",
+                  selected.includes(item.ref) && "bg-primary/5",
+                  dropFolder === item.path && "bg-brand-primary/5"
+                )}
+              >
+                <Checkbox
+                  checked={selected.includes(item.ref)}
+                  aria-label={t("media.selectFolder", { name: item.name })}
+                  onCheckedChange={() => toggleRef(item.ref)}
+                />
+                <button
+                  type="button"
+                  onClick={(e) => onItemClick(e, item.ref, () => navigate(item.path))}
+                  className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-left"
+                >
+                  <Folder className="size-5 shrink-0 text-brand-primary" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-body-sm font-medium text-foreground">{item.name}</p>
+                    <p className="text-body-xs text-muted-foreground">{t("media.folder")}</p>
+                  </div>
+                </button>
+                <ItemMenu
+                  item={{ kind: "folder", name: item.name, folderPath: item.path }}
+                  onPreview={() => navigate(item.path)}
+                  onRename={() => openRename({ kind: "folder", name: item.name, folderPath: item.path })}
+                  onMove={() => openMove({ kind: "folder", name: item.name, folderPath: item.path })}
+                  onCopy={() => openCopy({ kind: "folder", name: item.name, folderPath: item.path })}
+                  onDelete={() => setDeleteTarget({ kind: "folder", name: item.name, folderPath: item.path })}
+                />
+              </div>
+            );
+          }
+
+          const file = item.file;
+          const FileIconComp = KIND_ICON[file.kind];
+          return (
+            <div
+              key={file.key}
+              className={cn("flex items-center gap-2.5 py-2.5", selected.includes(item.ref) && "bg-primary/5")}
+            >
+              <Checkbox
+                checked={selected.includes(item.ref)}
+                aria-label={t("media.selectFile", { name: file.name })}
+                onCheckedChange={() => toggleRef(item.ref)}
+              />
+              <button
+                type="button"
+                onClick={(e) => onItemClick(e, item.ref, () => setViewerFile(file))}
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-left"
+              >
+                <FileIconComp className="size-5 shrink-0 text-brand-primary" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-body-sm font-medium text-foreground">{file.name}</p>
+                  <p className="truncate text-body-xs tabular-nums text-muted-foreground">
+                    {formatBytes(file.size)} · {new Date(file.lastModified).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                </div>
+              </button>
+              <ItemMenu
+                item={{ kind: "file", name: file.name, key: file.key }}
+                onPreview={() => setViewerFile(file)}
+                onDownload={`${file.url}?download=1`}
+                onRename={() => openRename({ kind: "file", name: file.name, key: file.key })}
+                onMove={() => openMove({ kind: "file", name: file.name, key: file.key })}
+                onCopy={() => openCopy({ kind: "file", name: file.name, key: file.key })}
+                onReplace={() => {
+                  setReplaceTarget({ kind: "file", name: file.name, key: file.key });
+                  setReplaceFile(null);
+                }}
+                onDelete={() => setDeleteTarget({ kind: "file", name: file.name, key: file.key })}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden overflow-x-auto border-y border-border md:block">
+        <table className="w-full min-w-[640px] border-collapse text-left text-body-sm">
         <thead>
           <tr className="bg-muted/40 text-muted-foreground border-b">
             <th className="w-10 px-3 py-2.5 font-medium" scope="col">
@@ -1128,7 +1215,8 @@ export function MediaLibrary() {
           })}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 
   return (

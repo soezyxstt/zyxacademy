@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useUrlTab } from "@/hooks/use-url-tab";
+import { useHideMobileBottomNav } from "@/components/navigation";
 import {
   Calendar,
   HelpCircle,
@@ -128,6 +129,7 @@ export function QuizForm({
   const router = useRouter();
   const tr = useTranslations("adminEval.quizForm");
   const filterT = useTranslations("adminEval.questionBank");
+  useHideMobileBottomNav(true);
 
   // Tab State synced with URL query param ?tab=pengaturan | ?tab=soal (instant switching)
   const [currentTab, handleTabChange] = useUrlTab("tab", "pengaturan");

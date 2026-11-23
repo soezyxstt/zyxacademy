@@ -376,7 +376,23 @@ export function ModelsClient({
       )}
 
       <Tabs value={task} onValueChange={setTask}>
-        <TabsList aria-label={t("modelsUI.assignments")} trailing={task !== "all" ? <AdminIconAction variant="outline" className="size-9 shrink-0" label={t("modelsUI.refresh")} onClick={handleRefresh} disabled={refreshing || pendingFeature !== null}><RefreshCw aria-hidden className={refreshing ? "animate-spin" : ""} /></AdminIconAction> : undefined}>
+        <TabsList
+          mobileInline
+          aria-label={t("modelsUI.assignments")}
+          trailing={
+            task !== "all" ? (
+              <AdminIconAction
+                variant="outline"
+                className="size-9 shrink-0"
+                label={t("modelsUI.refresh")}
+                onClick={handleRefresh}
+                disabled={refreshing || pendingFeature !== null}
+              >
+                <RefreshCw aria-hidden className={refreshing ? "animate-spin" : ""} />
+              </AdminIconAction>
+            ) : undefined
+          }
+        >
           <TabsTrigger value="all">{t("modelsUI.features")}</TabsTrigger>
           <TabsTrigger value="zyra">Zyra</TabsTrigger>
           <TabsTrigger value="admin-ops-ai">Ops AI</TabsTrigger>

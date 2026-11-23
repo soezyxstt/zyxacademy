@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { useUrlTab } from "@/hooks/use-url-tab";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 import type {
   TutorCourseParticipantsPayload,
@@ -23,6 +24,7 @@ interface ParticipantsClientProps {
 export function ParticipantsClient({ data }: ParticipantsClientProps) {
   const t = useTranslations("tutor.participants");
   const { locale } = useAppLocale();
+  const viewportMode = useViewportMode();
   const [search, setSearch] = useState("");
   const [enrollmentFilter, setEnrollmentFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useUrlTab("tab", "participants");
@@ -70,10 +72,10 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
         <AdminStatStripItem icon={Shield} label={t("activeGroups")} value={data.summary.activeGroupsCount} caption={t("studyGroups")} />
       </AdminStatStrip>
 
-      {/* ── Tabs & Search Toolbar ── */}
+      {/* Tabs & Search Toolbar */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-(--related-gap)">
         <div className="space-y-(--compact-gap)">
-          <TabsList>
+          <TabsList variant={viewportMode === "mobile" ? "inline" : "page"} flush={false}>
             <TabsTrigger value="participants">
               {t("participants")}
             </TabsTrigger>
@@ -120,81 +122,148 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                   : t("noActiveParticipants")} className="px-4 py-5" />
             </div>
           ) : (
-            <div className="border-y border-border">
-              <table role="table" className="block w-full text-left text-body-sm md:table">
-                <thead role="rowgroup" className="sr-only border-b border-border bg-muted/40 text-body-xs font-semibold text-muted-foreground md:not-sr-only md:table-header-group">
-                  <tr role="row">
-                    <th role="columnheader" scope="col" className="px-3 py-3">{t("participants")}</th>
-                    <th role="columnheader" scope="col" className="px-3 py-3">{t("accessType")}</th>
-                    <th role="columnheader" scope="col" className="px-3 py-3">{t("groups")}</th>
-                    <th role="columnheader" scope="col" className="px-3 py-3">{t("enrolledSince")}</th>
-                    <th role="columnheader" scope="col" className="px-3 py-3">{t("validity")}</th>
-                  </tr>
-                </thead>
-                <tbody role="rowgroup" className="block divide-y divide-border md:table-row-group">
-                  {filteredParticipants.map((p) => (
-                    <tr role="row" key={p.userId} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-3 gap-y-2 py-3 hover:bg-muted/20 md:table-row md:p-0">
-                      <td role="cell" className="col-span-2 wrap-anywhere md:px-3 md:py-3">
-                        <div className="flex items-center gap-(--compact-gap)">
-                          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-heading text-body-xs font-bold text-primary">
-                            {p.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="break-words font-medium text-foreground">{p.name}</p>
-                            <p className="break-all text-body-xs text-muted-foreground">{p.email}</p>
-                          </div>
+            <>
+              {/* Mobile stacked participant cards (zero horizontal scroll) */}
+              <div className="divide-y divide-border border-y border-border md:hidden">
+                {filteredParticipants.map((p) => (
+                  <div key={p.userId} className="space-y-2.5 py-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-heading text-body-xs font-bold text-primary">
+                          {p.name.charAt(0).toUpperCase()}
                         </div>
-                      </td>
-                      <td role="cell" className="col-span-2 wrap-anywhere md:px-3 md:py-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="break-words text-body-sm font-medium text-foreground">{p.name}</p>
+                          <p className="break-all text-body-xs text-muted-foreground">{p.email}</p>
+                        </div>
+                      </div>
+                      <div className="shrink-0">
                         {p.enrollmentType === "both" && (
-                          <Badge variant="outline" className="rounded-md border-brand-primary/30 bg-brand-primary/5 text-brand-primary text-body-xs font-normal">
+                          <Badge variant="outline" className="rounded-md border-brand-primary/30 bg-brand-primary/5 text-body-2xs font-normal text-brand-primary">
                             {t("directAndGroup")}
                           </Badge>
                         )}
                         {p.enrollmentType === "direct" && (
-                          <Badge variant="outline" className="rounded-md border-status-success/30 bg-status-success/5 text-foreground text-body-xs font-normal">
+                          <Badge variant="outline" className="rounded-md border-status-success/30 bg-status-success/5 text-body-2xs font-normal text-foreground">
                             {t("direct")}
                           </Badge>
                         )}
                         {p.enrollmentType === "group" && (
-                          <Badge variant="outline" className="rounded-md border-border bg-muted text-muted-foreground text-body-xs font-normal">
+                          <Badge variant="outline" className="rounded-md border-border bg-muted text-body-2xs font-normal text-muted-foreground">
                             {t("group")}
                           </Badge>
                         )}
-                      </td>
-                      <td role="cell" className="col-span-2 wrap-anywhere md:px-3 md:py-3">
-                        <span className="mb-1 block text-body-xs font-semibold text-muted-foreground md:hidden">{t("groups")}</span>
-                        {p.groups.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {p.groups.map((g) => (
-                              <span
-                                key={g.id}
-                                className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-body-xs text-foreground"
-                              >
-                                <span>{g.name}</span>
-                                {g.role === "leader" && (
-                                  <span className="font-semibold text-primary">({t("leader")})</span>
-                                )}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-body-xs text-muted-foreground">{t("none")}</span>
-                        )}
-                      </td>
-                      <td role="cell" className="min-w-0 wrap-anywhere text-body-xs text-muted-foreground tabular-nums md:px-3 md:py-3">
-                        <span className="block font-semibold md:hidden">{t("enrolledSince")}</span>
-                        {p.enrolledAt ? formatParticipantDate(p.enrolledAt) : t("notRecorded")}
-                      </td>
-                      <td role="cell" className="min-w-0 wrap-anywhere text-body-xs text-muted-foreground tabular-nums md:px-3 md:py-3">
-                        <span className="block font-semibold md:hidden">{t("validity")}</span>
-                        {p.expiresAt ? formatParticipantDate(p.expiresAt) : t("activeThisSemester")}
-                      </td>
+                      </div>
+                    </div>
+
+                    {p.groups.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {p.groups.map((g) => (
+                          <span
+                            key={g.id}
+                            className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-body-xs text-foreground"
+                          >
+                            <span>{g.name}</span>
+                            {g.role === "leader" && (
+                              <span className="font-semibold text-primary">({t("leader")})</span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-body-xs tabular-nums text-muted-foreground">
+                      <div className="min-w-0">
+                        <dt className="font-semibold">{t("enrolledSince")}</dt>
+                        <dd className="break-words">
+                          {p.enrolledAt ? formatParticipantDate(p.enrolledAt) : t("notRecorded")}
+                        </dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="font-semibold">{t("validity")}</dt>
+                        <dd className="break-words">
+                          {p.expiresAt ? formatParticipantDate(p.expiresAt) : t("activeThisSemester")}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop 5-column table */}
+              <div className="hidden border-y border-border md:block">
+                <table role="table" className="w-full text-left text-body-sm">
+                  <thead role="rowgroup" className="border-b border-border bg-muted/40 text-body-xs font-semibold text-muted-foreground">
+                    <tr role="row">
+                      <th role="columnheader" scope="col" className="px-3 py-3">{t("participants")}</th>
+                      <th role="columnheader" scope="col" className="px-3 py-3">{t("accessType")}</th>
+                      <th role="columnheader" scope="col" className="px-3 py-3">{t("groups")}</th>
+                      <th role="columnheader" scope="col" className="px-3 py-3">{t("enrolledSince")}</th>
+                      <th role="columnheader" scope="col" className="px-3 py-3">{t("validity")}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody role="rowgroup" className="divide-y divide-border">
+                    {filteredParticipants.map((p) => (
+                      <tr role="row" key={p.userId} className="hover:bg-muted/20">
+                        <td role="cell" className="wrap-anywhere px-3 py-3">
+                          <div className="flex items-center gap-(--compact-gap)">
+                            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-heading text-body-xs font-bold text-primary">
+                              {p.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="break-words font-medium text-foreground">{p.name}</p>
+                              <p className="break-all text-body-xs text-muted-foreground">{p.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td role="cell" className="wrap-anywhere px-3 py-3">
+                          {p.enrollmentType === "both" && (
+                            <Badge variant="outline" className="rounded-md border-brand-primary/30 bg-brand-primary/5 text-body-xs font-normal text-brand-primary">
+                              {t("directAndGroup")}
+                            </Badge>
+                          )}
+                          {p.enrollmentType === "direct" && (
+                            <Badge variant="outline" className="rounded-md border-status-success/30 bg-status-success/5 text-body-xs font-normal text-foreground">
+                              {t("direct")}
+                            </Badge>
+                          )}
+                          {p.enrollmentType === "group" && (
+                            <Badge variant="outline" className="rounded-md border-border bg-muted text-body-xs font-normal text-muted-foreground">
+                              {t("group")}
+                            </Badge>
+                          )}
+                        </td>
+                        <td role="cell" className="wrap-anywhere px-3 py-3">
+                          {p.groups.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {p.groups.map((g) => (
+                                <span
+                                  key={g.id}
+                                  className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-body-xs text-foreground"
+                                >
+                                  <span>{g.name}</span>
+                                  {g.role === "leader" && (
+                                    <span className="font-semibold text-primary">({t("leader")})</span>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-body-xs text-muted-foreground">{t("none")}</span>
+                          )}
+                        </td>
+                        <td role="cell" className="min-w-0 wrap-anywhere px-3 py-3 text-body-xs tabular-nums text-muted-foreground">
+                          {p.enrolledAt ? formatParticipantDate(p.enrolledAt) : t("notRecorded")}
+                        </td>
+                        <td role="cell" className="min-w-0 wrap-anywhere px-3 py-3 text-body-xs tabular-nums text-muted-foreground">
+                          {p.expiresAt ? formatParticipantDate(p.expiresAt) : t("activeThisSemester")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </TabsContent>
 

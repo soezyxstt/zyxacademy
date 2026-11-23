@@ -667,6 +667,7 @@ export function CourseDocumentsClient({
   const categoryTabs = (
     <Tabs value={activeTab} onValueChange={(value) => setUrlTab(normalizeTabKey(value))}>
       <TabsList
+        mobileInline
         aria-label={t("documents.courseCategoryLabel")}
         trailing={isAdmin && activeTab === "all" ? (
           <Button

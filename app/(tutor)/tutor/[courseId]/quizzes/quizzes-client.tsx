@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MathText } from "@/components/course/math-text";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 import {
   deleteQuizTemplateAction,
   toggleQuizTemplateStatusAction,
@@ -92,6 +93,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   const router = useRouter();
   const tr = useTranslations("tutor.quizList");
   const { locale } = useAppLocale();
+  const viewportMode = useViewportMode();
   const dateLocale = locale === "id" ? "id-ID" : "en-US";
   const [isPending, startTransition] = useTransition();
   const [questionPage, setQuestionPage] = useState(0);
@@ -298,7 +300,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   return (
     <div className="space-y-(--major-gap)">
       <Tabs defaultValue="templates" className="w-full">
-        <TabsList>
+        <TabsList variant={viewportMode === "mobile" ? "inline" : "page"} flush={false}>
           <TabsTrigger value="templates">
             <ClipboardList className="size-4 mr-2" />
             {tr("quizzes")}
@@ -336,7 +338,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 const isSimulation = t.category === "simulation";
 
                 return (
-                  <div key={t.id} className="-mx-2 space-y-2.5 rounded-lg px-2 py-3 transition-colors hover:bg-muted/35">
+                  <div key={t.id} className="space-y-2.5 rounded-lg py-3 transition-colors hover:bg-muted/35 sm:-mx-2 sm:px-2">
                     <div className="space-y-1">
                       <div className="flex justify-between items-start gap-2">
                         <h3 className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</h3>
@@ -530,7 +532,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 const correct = typeof q.correctIndices === "string" ? JSON.parse(q.correctIndices) : q.correctIndices;
 
                 return (
-                  <div key={q.id} className="relative -mx-2 rounded-lg px-2 py-(--row-padding) transition-colors hover:bg-muted/35">
+                  <div key={q.id} className="relative rounded-lg py-(--row-padding) transition-colors hover:bg-muted/35 sm:-mx-2 sm:px-2">
                     <div className="flex items-start justify-between gap-(--related-gap)">
                       <div className="space-y-1.5 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -579,14 +581,14 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
                     {/* Options list / Acceptable answers preview */}
                     {(q.questionType === "multiple_choice" || q.questionType === "multiple_choices" || (!q.questionType && Array.isArray(opts) && opts.length > 0)) && (
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2 pl-2">
+                      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 md:pl-2">
                         {Array.isArray(opts) && opts.map((opt, i) => {
                           const isCorrect = Array.isArray(correct) && correct.includes(i);
                           return (
                             <div key={i} className={`flex items-center gap-2 text-body-xs px-3 py-1.5 rounded-lg border ${
                               isCorrect ? "bg-status-success/5 border-status-success/25 text-foreground" : "bg-muted/10 border-border/50 text-muted-foreground"
                             }`}>
-                              <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-body-2xs font-bold ${
+                              <span className={`flex size-5 shrink-0 items-center justify-center rounded-md text-body-2xs font-bold ${
                                 isCorrect ? "bg-status-success/15 text-foreground" : "bg-muted text-muted-foreground"
                               }`}>
                                 {String.fromCharCode(65 + i)}

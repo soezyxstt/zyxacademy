@@ -665,22 +665,13 @@ export default function DetailedFormAnalyticsPage({
                         <SimpleSvgPieChart slices={chartItems} />
                       )
                     ) : q.type === "GRID_RADIO" || q.type === "GRID_CHECKBOX" ? (
-                      <div className="overflow-x-auto rounded-lg border border-border bg-card p-4">
-                        <table className="w-full text-left text-body-xs">
-                          <thead>
-                            <tr className="border-b border-border bg-muted/40">
-                              <th className="p-2.5 font-bold text-foreground">{t("formDetailsUI.rowColumn")}</th>
-                              {(q.gridColumns || []).map((col: string, cIdx: number) => (
-                                <th key={cIdx} className="p-2.5 font-bold text-foreground text-center">
-                                  {col}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border/60">
-                            {(q.gridRows || []).map((rowName: string, rIdx: number) => (
-                              <tr key={rIdx} className="hover:bg-muted/20">
-                                <td className="p-2.5 font-semibold text-foreground">{rowName}</td>
+                      <>
+                        {/* Mobile stacked grid summary */}
+                        <div className="divide-y divide-border/60 rounded-lg border border-border bg-card md:hidden">
+                          {(q.gridRows || []).map((rowName: string, rIdx: number) => (
+                            <div key={rIdx} className="space-y-2 p-3">
+                              <p className="text-body-sm font-semibold text-foreground">{rowName}</p>
+                              <div className="flex flex-wrap gap-1.5">
                                 {(q.gridColumns || []).map((colName: string, cIdx: number) => {
                                   let matchCount = 0;
                                   allAnswers.forEach((ansObj: any) => {
@@ -696,21 +687,72 @@ export default function DetailedFormAnalyticsPage({
                                   const pct = allAnswers.length > 0 ? Math.round((matchCount / allAnswers.length) * 100) : 0;
 
                                   return (
-                                    <td key={cIdx} className="p-2.5 text-center">
-                                      <Badge
-                                        variant="secondary"
-                                        className={matchCount > 0 ? "bg-primary/15 text-primary" : "text-muted-foreground bg-muted/30"}
-                                      >
-                                        {matchCount} ({pct}%)
-                                      </Badge>
-                                    </td>
+                                    <Badge
+                                      key={cIdx}
+                                      variant="secondary"
+                                      className={
+                                        matchCount > 0
+                                          ? "bg-primary/15 text-primary"
+                                          : "bg-muted/30 text-muted-foreground"
+                                      }
+                                    >
+                                      {colName}: {matchCount} ({pct}%)
+                                    </Badge>
                                   );
                                 })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Desktop grid table */}
+                        <div className="hidden overflow-x-auto rounded-lg border border-border bg-card p-4 md:block">
+                          <table className="w-full text-left text-body-xs">
+                            <thead>
+                              <tr className="border-b border-border bg-muted/40">
+                                <th className="p-2.5 font-bold text-foreground">{t("formDetailsUI.rowColumn")}</th>
+                                {(q.gridColumns || []).map((col: string, cIdx: number) => (
+                                  <th key={cIdx} className="p-2.5 font-bold text-foreground text-center">
+                                    {col}
+                                  </th>
+                                ))}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody className="divide-y divide-border/60">
+                              {(q.gridRows || []).map((rowName: string, rIdx: number) => (
+                                <tr key={rIdx} className="hover:bg-muted/20">
+                                  <td className="p-2.5 font-semibold text-foreground">{rowName}</td>
+                                  {(q.gridColumns || []).map((colName: string, cIdx: number) => {
+                                    let matchCount = 0;
+                                    allAnswers.forEach((ansObj: any) => {
+                                      if (ansObj && typeof ansObj === "object") {
+                                        const userCol = ansObj[rowName];
+                                        if (Array.isArray(userCol)) {
+                                          if (userCol.includes(colName)) matchCount++;
+                                        } else if (userCol === colName) {
+                                          matchCount++;
+                                        }
+                                      }
+                                    });
+                                    const pct = allAnswers.length > 0 ? Math.round((matchCount / allAnswers.length) * 100) : 0;
+
+                                    return (
+                                      <td key={cIdx} className="p-2.5 text-center">
+                                        <Badge
+                                          variant="secondary"
+                                          className={matchCount > 0 ? "bg-primary/15 text-primary" : "text-muted-foreground bg-muted/30"}
+                                        >
+                                          {matchCount} ({pct}%)
+                                        </Badge>
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
                     ) : q.type === "FILE_UPLOAD" ? (
                       <div className="space-y-2">
                         {allAnswers.map((fileUrl: unknown, fIdx: number) => (

@@ -781,7 +781,76 @@ export default function AdminMeetPage() {
           </div>
         ) : (
           <div className="border-y border-border">
-            <div className="overflow-x-auto">
+            {/* Mobile stacked rows */}
+            <div className="divide-y divide-border md:hidden">
+              {records.map((rec) => {
+                const recordId = rec.name.replace(/^conferenceRecords\//, "");
+                const isDeleting = deletingId === recordId;
+                const peak = rec.peakConcurrentParticipants || rec.participantCount || 0;
+                const total = rec.participantCount || 0;
+
+                return (
+                  <div key={rec.name} className="space-y-2 py-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words text-body-sm font-bold text-foreground">
+                          {rec.title || t("meetMainUI.recordFallback", { id: recordId.slice(0, 8) })}
+                        </p>
+                        <p className="mt-0.5 text-body-xs text-muted-foreground">
+                          {new Date(rec.startTime).toLocaleDateString(locale === "id" ? "id-ID" : "en-US", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}{" "}
+                          · {formatTimeOnly(rec.startTime)} - {formatTimeOnly(rec.endTime)}
+                        </p>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Button variant="outline" size="sm" asChild className="h-8 px-2.5 text-body-sm">
+                          <Link href={`/admin/meet/${recordId}`}>
+                            <Users className="size-3.5" />
+                            <span>{t("meetMainUI.logDetails")}</span>
+                          </Link>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => handleDeleteRecord(rec.name)}
+                          disabled={isDeleting}
+                          aria-label={t("meetMainUI.deleteLog")}
+                          title={t("meetMainUI.deleteLog")}
+                          className="size-8 border-status-error/30 bg-status-error/10 text-status-error hover:bg-status-error/20"
+                        >
+                          {isDeleting ? (
+                            <RefreshCw className="size-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-3.5" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs text-muted-foreground">
+                      <span className="font-medium">{calculateDuration(rec.startTime, rec.endTime)}</span>
+                      <div className="flex items-center gap-1.5 font-semibold text-foreground tabular-nums">
+                        <TrendingUp className="size-3.5 text-brand-primary" />
+                        <span>
+                          {t("meetMainUI.peakLabel")}: <strong className="text-brand-primary">{peak}</strong>
+                        </span>
+                        <span className="font-normal text-muted-foreground">
+                          ({t("meetMainUI.totalLabel")}: {total})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto md:block">
               <Table className="w-full text-left text-body-sm">
                 <TableHeader className="border-b border-border bg-muted/50 text-body-xs font-semibold text-muted-foreground">
                   <TableRow>

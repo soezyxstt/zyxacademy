@@ -36,6 +36,7 @@ import {
   FolderOpen,
   Search,
 } from "lucide-react";
+import { SearchBar } from "@/components/ui/search-bar";
 import type { FormDisplayMode } from "@/lib/forms/presentation";
 import { formatDatetimeLocal } from "@/lib/date-utils";
 import {
@@ -1355,17 +1356,15 @@ export default function AdminFormsBuilder({
           <TabsContent value="forms" className="pt-4">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="relative min-w-[140px] flex-1 sm:max-w-xs">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    aria-label="Cari formulir"
-                    placeholder="Cari formulir..."
-                    value={formsQuery}
-                    onChange={(e) => setFormsQuery(e.target.value)}
-                    className="h-9 pl-9 text-body-sm"
-                  />
-                </div>
+                <SearchBar
+                  size="sm"
+                  expandable={false}
+                  aria-label="Cari formulir"
+                  placeholder="Cari formulir..."
+                  value={formsQuery}
+                  onSearch={setFormsQuery}
+                  containerClassName="min-w-[140px] flex-1 sm:max-w-xs"
+                />
 
                 <Tooltip>
                   <TooltipTrigger asChild>

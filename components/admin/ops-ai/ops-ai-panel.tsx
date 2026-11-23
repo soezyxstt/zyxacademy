@@ -709,7 +709,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         </div>
 
         {/* 1. Header: Cloudflare Style (Title Dropdown + Minimal Action Icons) */}
-        <header className="shrink-0 border-b border-border/80 px-3.5 py-2.5 bg-background/80 backdrop-blur-md flex items-center justify-between z-20 gap-2">
+        <header className="shrink-0 border-b border-border/80 px-3.5 py-2.5 pt-[calc(0.625rem+env(safe-area-inset-top,0px))] md:pt-2.5 bg-background/80 backdrop-blur-md flex items-center justify-between z-20 gap-2">
           {/* Left: Session Dropdown Selector */}
           <div className="relative min-w-0 flex-1">
             <button
@@ -725,7 +725,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
 
             {/* Session Dropdown Menu */}
             {showSessionsDropdown && (
-              <div className="absolute top-full left-0 mt-1 w-[320px] rounded-xl border border-border bg-background shadow-xl p-2 z-50 space-y-1">
+              <div className="absolute top-full left-0 mt-1 w-[min(320px,calc(100vw-2rem))] rounded-xl border border-border bg-background shadow-xl p-2 z-50 space-y-1">
                 <div className="flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   <span>Daftar Sesi ({sessions.length})</span>
                   <button

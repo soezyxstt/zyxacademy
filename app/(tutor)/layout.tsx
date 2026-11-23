@@ -5,7 +5,11 @@ import { hasAnyPeran } from "@/lib/auth/request-cache";
 import type { ReactNode } from "react";
 import { TutorSidebar, type AssignedTutorCourse } from "@/components/tutor/tutor-sidebar";
 import { ApplicationShell } from "@/components/application-shell";
-import { MobileNavbar } from "@/components/mobile-navbar";
+import {
+  TutorMobileBottomNav,
+  TutorMobileCourseTabNav,
+  TutorMobileTopNav,
+} from "@/components/navigation/tutor";
 import { listTutorAccessibleCourses } from "@/lib/auth/request-cache";
 import { db } from "@/db";
 import { mataKuliah, courses } from "@/db/schema";
@@ -71,9 +75,11 @@ export default async function TutorLayout({ children }: { children: ReactNode })
     <CommandMenuProvider>
       <ApplicationShell
         personalizeTypographyAndSpacing
-        sidebar={<TutorSidebar assignedCourses={assignedCourses} />}
-        mobileNavigation={<MobileNavbar surface="tutor" />}
+        desktopSidebar={<TutorSidebar assignedCourses={assignedCourses} />}
+        mobileTopNav={<TutorMobileTopNav assignedCourses={assignedCourses} />}
+        mobileBottomNav={<TutorMobileBottomNav assignedCourses={assignedCourses} />}
       >
+        <TutorMobileCourseTabNav assignedCourses={assignedCourses} />
         {children}
       </ApplicationShell>
     </CommandMenuProvider>

@@ -11,6 +11,7 @@
     "build:authoring-skills": "bun scripts/build-authoring-skills.ts",
     "worker:deno:audit": "bun scripts/audit-worker-dependencies.ts",
     "audit:web-boundaries": "bun scripts/audit-web-boundaries.ts",
+    "audit:ui-separation": "bun scripts/audit-ui-separation.ts",
     "start": "next start",
     "preview": "NODE_OPTIONS=\"--max-old-space-size=4096\" next build --turbo && next start",
     "lint": "eslint",

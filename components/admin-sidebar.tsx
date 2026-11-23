@@ -28,12 +28,14 @@ import {
 import { ADMIN_GROUP_MESSAGE_KEYS, ALL_ADMIN_TABS, ADMIN_TAB_MESSAGE_KEYS, DEFAULT_ARCHIVED, type AdminTabDef, type AdminTabGroup } from "@/lib/admin-navigation";
 export { ALL_ADMIN_TABS, type AdminTabDef, type AdminTabGroup } from "@/lib/admin-navigation";
 import {
-  SidebarShell,
   NavItem,
   NavGroup,
   NavCollapsible,
   SidebarTooltip,
 } from "@/components/sidebar-shell";
+import { DesktopSidebarShell } from "@/components/navigation/desktop-sidebar-shell";
+import { ADMIN_PINNED_SYNC_EVENT } from "@/components/navigation/admin/admin-nav-model";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -101,6 +103,7 @@ function AdminSidebarInner() {
   const tDiscussion = useTranslations("tutor.schedule");
   const pathname = usePathname();
   const router = useRouter();
+  const viewportMode = useViewportMode();
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
@@ -114,9 +117,10 @@ function AdminSidebarInner() {
 
   const [adminCourses, setAdminCourses] = useState<Array<{ id: string; title: string }>>([]);
   const [courseFilter, setCourseFilter] = useState("");
+  const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
 
   useEffect(() => {
-    if (!courseSlug) return;
+    if (viewportMode !== "desktop" || !courseDropdownOpen || !courseSlug) return;
     let cancelled = false;
     getCourses()
       .then((res) => {
@@ -128,7 +132,7 @@ function AdminSidebarInner() {
     return () => {
       cancelled = true;
     };
-  }, [courseSlug]);
+  }, [courseDropdownOpen, courseSlug, viewportMode]);
 
   const filteredAdminCourses = useMemo(() => {
     const list: Array<{ id: string; title: string }> = [];
@@ -186,6 +190,7 @@ function AdminSidebarInner() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    if (viewportMode !== "desktop") return;
     if (!courseSlug) {
       setCourseNav(null);
       return;
@@ -232,7 +237,7 @@ function AdminSidebarInner() {
     return () => {
       cancelled = true;
     };
-  }, [courseSlug]);
+  }, [courseSlug, viewportMode]);
 
   useEffect(() => {
     setMounted(true);
@@ -283,6 +288,7 @@ function AdminSidebarInner() {
   const savePinned = (tabs: string[]) => {
     setPinnedTabs(tabs);
     localStorage.setItem(getPinnedStorageKey(userId), JSON.stringify(tabs));
+    window.dispatchEvent(new CustomEvent(ADMIN_PINNED_SYNC_EVENT));
   };
 
   const togglePinTab = (id: string, name: string, e?: React.MouseEvent) => {
@@ -371,7 +377,7 @@ function AdminSidebarInner() {
         >
           {c ? (
             <div className="mb-2 flex w-full justify-center">
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={setCourseDropdownOpen}>
                 <SidebarTooltip
                   label={`Pilih mata kuliah: ${courseNav?.data?.title || courseSlug}`}
                   collapsed={c}
@@ -448,7 +454,7 @@ function AdminSidebarInner() {
             </div>
           ) : (
             <div className="mb-3">
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={setCourseDropdownOpen}>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
@@ -742,7 +748,7 @@ function AdminSidebarInner() {
   };
 
   return (
-    <SidebarShell
+    <DesktopSidebarShell
       collapsedKey="admin-sidebar-collapsed"
       logoHref="/admin"
       logoLabel="Panel Admin Zyx Academy"
@@ -755,8 +761,14 @@ function AdminSidebarInner() {
 }
 
 export function AdminSidebar() {
+  const viewportMode = useViewportMode();
+
+  if (viewportMode === "mobile") {
+    return null;
+  }
+
   return (
-    <Suspense fallback={<div className="w-64 bg-card border-r border-border" />}>
+    <Suspense fallback={<div className="hidden md:block w-64 bg-card border-r border-border" />}>
       <AdminSidebarInner />
     </Suspense>
   );

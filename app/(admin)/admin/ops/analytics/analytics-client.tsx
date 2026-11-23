@@ -147,7 +147,7 @@ export function AiAnalyticsClient() {
         <h2 className="font-heading text-body-base font-semibold text-foreground">
           {t("analyticsUI.recentRequests")}
         </h2>
-        <div className="relative overflow-x-auto rounded-lg border border-border">
+        <div className="hidden md:block relative overflow-x-auto rounded-lg border border-border">
           <table className="w-full min-w-[640px] text-body-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
@@ -224,6 +224,60 @@ export function AiAnalyticsClient() {
             </tbody>
           </table>
         </div>
+
+        <ul className="divide-y divide-border/40 border-y border-border md:hidden">
+          {pagedLogs.map((log: AiRequestLog, index: number) => (
+            <li
+              key={`${log.timestamp}-${log.operation}-${log.model}-${startIndex + index}`}
+              className="py-3 space-y-1.5"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-body-sm font-medium text-foreground break-words">
+                    {log.operation}
+                  </p>
+                  <p className="text-body-xs text-muted-foreground truncate mt-0.5">
+                    {modelDisplayName(log.model)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-body-sm font-medium tabular-nums text-foreground">
+                    {formatLatency(log.latencyMs)}
+                  </span>
+                  <StatusDot ok={log.success} />
+                  <span className="sr-only">
+                    {log.success
+                      ? t("analyticsUI.successful")
+                      : t("analyticsUI.failed")}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs">
+                <div className="flex items-center gap-2">
+                  <Badge
+                    via={log.viaGateway}
+                    label={
+                      log.viaGateway
+                        ? t("analyticsUI.gateway")
+                        : t("analyticsUI.direct")
+                    }
+                  />
+                  {!log.success && log.error && (
+                    <span className="text-body-xs text-status-error">
+                      {t("analyticsUI.failed")}
+                    </span>
+                  )}
+                </div>
+                <span className="tabular-nums text-muted-foreground">
+                  {new Date(log.timestamp).toLocaleTimeString(
+                    locale === "id" ? "id-ID" : "en-US",
+                  )}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
 
         {totalLogs > LOGS_PER_PAGE && (
           <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs text-muted-foreground">

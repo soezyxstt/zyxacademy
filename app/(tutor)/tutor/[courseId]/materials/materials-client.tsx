@@ -157,16 +157,16 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
       ) : (
         <div className="divide-y divide-border border-y border-border">
           {initialMaterials.map((m) => (
-            <div key={m.id} className="flex flex-wrap items-center gap-(--compact-gap) py-3">
-              <FileText className="size-4 shrink-0 text-primary" aria-hidden />
-              <div className="min-w-0 flex-1 basis-40">
-                <h3 className="font-heading text-body-sm font-bold text-foreground break-words">{m.title}</h3>
-                <p className="mt-0.5 text-body-xs text-muted-foreground line-clamp-2">{cleanSummary(m.summary)}</p>
+            <div key={m.id} className="flex min-w-0 items-start justify-between gap-(--compact-gap) py-3 sm:items-center">
+              <FileText className="mt-0.5 size-4 shrink-0 text-primary sm:mt-0" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <h3 className="break-words font-heading text-body-sm font-bold text-foreground">{m.title}</h3>
+                <p className="mt-0.5 line-clamp-2 break-words text-body-xs text-muted-foreground">{cleanSummary(m.summary)}</p>
               </div>
               {canManage && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-sm" aria-label={m.title} className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground">
+                    <Button variant="ghost" size="icon-sm" aria-label={m.title} className="size-9 shrink-0 rounded-lg text-muted-foreground hover:text-foreground">
                       <MoreHorizontal className="size-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -188,10 +188,10 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
         </div>
       )}
 
-      {/* Add / Edit Dialog */}
+      {/* Add / Edit Dialog (full-height ergonomics on mobile) */}
       {canManage && <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-3xl rounded-2xl border-border bg-card">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[92dvh] max-w-3xl flex-col overflow-hidden rounded-2xl border-border bg-card max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:border-0">
+          <DialogHeader className="shrink-0">
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {editingMaterial ? t("editMaterial") : t("addMaterial")}
             </DialogTitle>
@@ -200,7 +200,7 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-(--related-gap) my-4 font-sans">
+          <div className="my-4 min-h-0 flex-1 space-y-(--related-gap) overflow-y-auto pr-1 font-sans">
             <div className="grid gap-2">
               <Label htmlFor="title" className="text-body-sm font-semibold">{t("title")}</Label>
               <Input
@@ -231,12 +231,12 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
                 onChange={(e) => setRawText(e.target.value)}
                 rows={12}
                 placeholder={t("contentPlaceholder")}
-                className="rounded-lg border-input bg-background font-mono text-body-sm leading-relaxed focus-visible:ring-brand-primary"
+                className="min-h-48 rounded-lg border-input bg-background font-mono text-body-sm leading-relaxed focus-visible:ring-brand-primary"
               />
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="shrink-0 gap-2 pb-[env(safe-area-inset-bottom)]">
             <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isPending} className="rounded-md border-border/80">
               {t("cancel")}
             </Button>

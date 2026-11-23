@@ -34,7 +34,7 @@ export default async function AdminPricingPage() {
       />
 
       <Tabs defaultValue="student-pricing" paramKey="tab" className="space-y-6">
-        <TabsList>
+        <TabsList mobileInline>
           <TabsTrigger value="student-pricing">{t("pricing.studentTab")}</TabsTrigger>
           <TabsTrigger value="tutor-fee">{t("pricing.tutorTab")}</TabsTrigger>
           <TabsTrigger value="vouchers">{t("pricing.voucherTab")}</TabsTrigger>

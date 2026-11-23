@@ -17,9 +17,11 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NavCollapsible, NavItem, SidebarShell } from "@/components/sidebar-shell";
+import { NavCollapsible, NavItem } from "@/components/sidebar-shell";
+import { DesktopSidebarShell } from "@/components/navigation/desktop-sidebar-shell";
 import type { AssignedTutorCourse } from "@/components/tutor/tutor-course-switcher";
 import { DiscussionCountBadge } from "@/components/discussions/discussion-count-badge";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 
 export type { AssignedTutorCourse };
 
@@ -28,6 +30,15 @@ export interface TutorSidebarProps {
 }
 
 export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
+  const viewportMode = useViewportMode();
+  if (viewportMode === "mobile") {
+    return null;
+  }
+
+  return <TutorSidebarContent assignedCourses={assignedCourses} />;
+}
+
+function TutorSidebarContent({ assignedCourses = [] }: TutorSidebarProps) {
   const t = useTranslations("tutor.navigation");
   const tDiscussion = useTranslations("tutor.schedule");
   const pathname = usePathname();
@@ -189,7 +200,7 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
   );
 
   return (
-    <SidebarShell
+    <DesktopSidebarShell
       collapsedKey="tutor-sidebar-collapsed"
       logoHref="/tutor"
       logoLabel="Panel Pengajar Zyx Academy"

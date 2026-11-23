@@ -45,6 +45,7 @@ function playgroundHarness(storage: Pick<Storage, "getItem">) {
     },
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "next/navigation": { useSearchParams: () => ({ get: () => handoff }) },
+    "@/components/navigation": { useHideMobileBottomNav: () => {} },
     "./coding-workspace": { CodingWorkspace: "workspace" },
     "@/lib/coding/playground-handoff": { readPlaygroundHandoff },
   };

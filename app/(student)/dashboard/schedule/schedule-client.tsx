@@ -12,8 +12,9 @@ import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { getScheduleData } from "./actions";
 import { scopeStudentSchedule } from "@/lib/schedule/student-schedule-scope";
-import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
-import calendarStyles from "@/components/schedule/schedule-calendar-readability.module.css";
+import { ViewportSwitch } from "@/components/navigation";
+import { StudentScheduleDesktop } from "@/features/student-schedule/ui/desktop/student-schedule-desktop";
+import { StudentScheduleMobile } from "@/features/student-schedule/ui/mobile/student-schedule-mobile";
 import { CollaborativeBookingModal } from "@/components/schedule/collaborative-booking-modal";
 import {
   AcademicScheduleDetailDialog,
@@ -263,33 +264,46 @@ export function StudentScheduleClient({ selectedCourse, initialData = null, fetc
     ? (activeData.groupBookings || []).find((booking: any) => booking.id === activeSessionBookingId) || null
     : null;
 
+  const scheduleViewProps = {
+    loading,
+    allowPastBooking: experience.mode === "demo",
+    currentUserId: userObj.id,
+    weekInfo: activeData.weekInfo,
+    isWeekLocked: activeData.isWeekLocked,
+    weekOffset,
+    onWeekChange: setWeekOffset,
+    coursesList,
+    tutorsList,
+    groupsList: activeData.groups || [],
+    initialCourseFilter,
+    compatibleCourseIds: courseIds,
+    slots: activeData.availableSlots || [],
+    bookings: activeData.groupBookings || [],
+    academicSchedules: activeData.academicSchedules || [],
+    toolbarControls:
+      experience.mode !== "demo" && ["student", "teacher"].includes(userObj.role) ? (
+        <GoogleCalendarControl />
+      ) : undefined,
+    onSelectSlotToBook: (slot: any, dateIso: string) => setBookingSlotData({ slot, dateIso }),
+    onOpenSessionDetail: (booking: any) => setActiveSessionBookingId(booking.id),
+    onEditSchedule: (schedule: any) => setSelectedAcademicSchedule(schedule),
+  };
+
   return (
     <ApplicationPage spacing="space-y-(--related-gap)">
       <PageHeader icon={CalendarDays} title={t("schedule.title")} />
 
-      <div className={calendarStyles.root} aria-busy={loading}>
-        <ScheduleCalendarView
-          role="student"
-          allowPastBooking={experience.mode === "demo"}
-          currentUserId={userObj.id}
-          weekInfo={activeData.weekInfo}
-          isWeekLocked={activeData.isWeekLocked}
-          weekOffset={weekOffset}
-          onWeekChange={setWeekOffset}
-          coursesList={coursesList}
-          tutorsList={tutorsList}
-          groupsList={activeData.groups || []}
-          initialCourseFilter={initialCourseFilter}
-          compatibleCourseIds={courseIds}
-          slots={activeData.availableSlots || []}
-          bookings={activeData.groupBookings || []}
-          academicSchedules={activeData.academicSchedules || []}
-          toolbarControls={experience.mode !== "demo" && ["student", "teacher"].includes(userObj.role) ? <GoogleCalendarControl /> : undefined}
-          onSelectSlotToBook={(slot, dateIso) => setBookingSlotData({ slot, dateIso })}
-          onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
-          onEditSchedule={(schedule) => setSelectedAcademicSchedule(schedule)}
-        />
-      </div>
+      <ViewportSwitch
+        desktop={() => (
+          <StudentScheduleDesktop
+            {...scheduleViewProps}
+            weekInfo={activeData.weekInfo}
+            isWeekLocked={activeData.isWeekLocked}
+          />
+        )}
+        mobile={() => <StudentScheduleMobile {...scheduleViewProps} />}
+        fallback={<StudentScheduleDesktop {...scheduleViewProps} />}
+      />
 
       {experience.mode === "demo" && community.error ? <p role="alert" className="text-body-xs text-destructive">{community.error}</p> : null}
       <CollaborativeBookingModal

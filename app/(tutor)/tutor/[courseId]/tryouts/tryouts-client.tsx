@@ -1,9 +1,10 @@
 "use client";
 
 import { AdminEmptyState } from "@/components/admin/state-panels";
-import { useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import { useMobileTopNav } from "@/components/navigation/mobile-chrome-context";
 import { Plus, Edit2, Trash2, Trophy, Clock, Layers, ArrowLeft, Check, Library, MoreHorizontal, NotebookPen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -91,6 +92,19 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
   // Active View (list or questions)
   const [activeExam, setActiveExam] = useState<TryoutExam | null>(null);
   const [questionPage, setQuestionPage] = useState(0);
+
+  const mobileTopNavConfig = useMemo(
+    () =>
+      activeExam
+        ? {
+            title: activeExam.title,
+            onBack: () => setActiveExam(null),
+            backLabel: tr("back"),
+          }
+        : null,
+    [activeExam, tr]
+  );
+  useMobileTopNav(mobileTopNavConfig);
 
   // Question Dialog State
   const [isQOpen, setIsQOpen] = useState(false);
@@ -327,7 +341,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button type="button" size="icon-lg" variant="ghost" className="shrink-0" aria-label={tr("back")} onClick={() => setActiveExam(null)}>
+                  <Button type="button" size="icon-lg" variant="ghost" className="hidden shrink-0 md:inline-flex" aria-label={tr("back")} onClick={() => setActiveExam(null)}>
                     <ArrowLeft aria-hidden />
                   </Button>
                 </TooltipTrigger>

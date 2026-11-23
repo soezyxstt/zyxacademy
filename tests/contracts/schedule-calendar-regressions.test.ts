@@ -78,7 +78,9 @@ describe("schedule calendar regression contracts", () => {
   });
 
   test("tutor slot dialog keeps date editable and persists optional notes", () => {
-    const tutor = source("components/tutor/tutor-schedule-view.tsx");
+    const tutor =
+      source("components/tutor/tutor-schedule-view.tsx") +
+      source("features/tutor-schedule/ui/desktop/tutor-schedule-desktop.tsx");
     const actions = source("app/(tutor)/tutor/schedule/slot-note-actions.ts");
 
     expect(tutor).toContain('id="tutor-slot-date"');

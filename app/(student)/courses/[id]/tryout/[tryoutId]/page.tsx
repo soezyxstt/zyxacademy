@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Lock } from "lucide-react";
 import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
+import { getAuthSession } from "@/lib/auth-session";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { TryoutForm } from "@/components/course/tryout-form";
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -192,10 +193,16 @@ export default async function CourseTryoutTakePage({ params }: Props) {
       };
     }),
   } as unknown as ExamFixture;
+  const session = await getAuthSession();
   return (
     <CoursePageShell title={exam.title} description={<TranslatedText namespace="learning" messageKey="tryoutTake.instructions" />} hideHeader>
       <Reveal>
-        <TryoutForm courseId={id} visualCourseId={dbExam.courseId} exam={exam} />
+        <TryoutForm
+          courseId={id}
+          visualCourseId={dbExam.courseId}
+          exam={exam}
+          userId={session?.user?.id ?? null}
+        />
       </Reveal>
     </CoursePageShell>
   );

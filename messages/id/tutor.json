@@ -27,6 +27,20 @@
     "liveQuiz": "Kuis langsung",
     "tryoutGrading": "Penilaian tryout"
   },
+  "mobile": {
+    "bottomNavLabel": "Navigasi pengajar",
+    "home": "Beranda",
+    "schedule": "Jadwal",
+    "discuss": "Diskusi",
+    "classes": "Kelas",
+    "switchCourse": "Ganti kelas",
+    "courseTabsLabel": "Navigasi kelas",
+    "participantsShort": "Peserta",
+    "liveShort": "Live",
+    "materialsShort": "Materi",
+    "back": "Kembali",
+    "search": "Cari"
+  },
   "dashboard": {
     "title": "Dashboard pengajar",
     "description": "Ringkasan operasional kelas, jadwal, dan tindak lanjut tutor Zyx Academy.",

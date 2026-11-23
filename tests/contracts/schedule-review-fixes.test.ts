@@ -6,7 +6,9 @@ const read = (path: string) => readFileSync(path, "utf8");
 // Keep the previously missed PR #36 review findings pinned to the final source tree.
 describe("schedule PR review fixes", () => {
   test("tutor dashboard loads complete owned work and uses structured empty states", () => {
-    const source = read("app/(tutor)/tutor/page.tsx");
+    const source =
+      read("app/(tutor)/tutor/page.tsx") +
+      read("features/tutor-dashboard/ui/desktop/tutor-dashboard-desktop.tsx");
     expect(source).not.toContain("fromDate: week.startIso");
     expect(source).not.toContain("toDate: week.endIso");
     expect(source).toContain("AdminEmptyState");

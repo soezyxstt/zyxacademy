@@ -177,7 +177,11 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     const checked = new Set(metadataIds), authorized = new Set(channelMetadata.items.map((item) => item.id));
     return mergeById(channels.filter((item) => !checked.has(item.id) || authorized.has(item.id)), channelMetadata.items);
   }, [channels, metadataReady, metadataIds, channelMetadata.items]);
-  const orderedThreads = useMemo(() => allThreads.filter((item) => item.title.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())), [allThreads, search]);
+  const orderedThreads = useMemo(() => {
+    const q = search.trim().toLocaleLowerCase();
+    if (!q || debouncedSearch.trim().toLocaleLowerCase() === q) return allThreads;
+    return allThreads.filter((item) => item.title.toLocaleLowerCase().includes(q));
+  }, [allThreads, search, debouncedSearch]);
   const messages = useMemo(() => messagePages.flatMap((page) => page.items), [messagePages]);
   const messagesById = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
   const selectedQuestion = thread && thread.id === selectedThread ? toQuestion(thread, visibleChannels) : null;
@@ -624,7 +628,13 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     {activeTab === "questions" && listState === "ready" && threadPageIndex > 0 && <div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={threadPageBusy} onClick={() => void changeQuestionPage("previous").catch(() => setListRefreshError(true))}>{t("previousQuestions")}</Button><span className="text-body-xs text-muted-foreground">{t("page", { page: threadPageIndex + 1 })}</span></div>}
     {thread?.id === selectedThread && (messagePageIndex > 0 || hasNextMessagePage) && <div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={messagePageBusy || messagePageIndex === 0} onClick={() => void changeMessagePage("previous")}>{t("previousMessages")}</Button>{!selectedMessage && <span className="text-body-xs text-muted-foreground">{t("page", { page: messagePageIndex + 1 })}</span>}<Button type="button" variant="outline" size="sm" disabled={messagePageBusy || !hasNextMessagePage} onClick={() => void changeMessagePage("next")}>{t("nextMessages")}</Button>{messagePageError && <span role="alert" className="text-body-xs text-destructive">{t("messagePageError")}</span>}</div>}
     <DiscussionWorkspace draftState={draftState} viewer={viewer} channels={uiChannels} questions={orderedThreads.map((item) => toQuestion(item, visibleChannels))}
-      resolvedQuestions={resolvedThreads.filter(item => item.title.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())).map(item => toQuestion(item, visibleChannels))}
+      resolvedQuestions={(() => {
+        const q = search.trim().toLocaleLowerCase();
+        const items = !q || debouncedSearch.trim().toLocaleLowerCase() === q
+          ? resolvedThreads
+          : resolvedThreads.filter((item) => item.title.toLocaleLowerCase().includes(q));
+        return items.map((item) => toQuestion(item, visibleChannels));
+      })()}
       resolvedOpen={resolvedOpen} resolvedState={resolvedPaging.key === resolvedKey ? resolvedState : "loading"} resolvedPageIndex={resolvedPaging.index} resolvedHasMore={!!resolvedPage.nextCursor} onResolvedOpenChange={setResolvedOpen} onResolvedPage={changeResolvedPage} onRetryResolved={() => setResolvedRevision(value => value + 1)}
       readError={readError} onRetryRead={() => { setReadError(false); setRetryRead(value => value + 1); }}
       selectedQuestion={selectedQuestion} messages={uiMessages} selectedChannelId={selectedChannel} selectedQuestionId={selectedThread} selectedMessageId={selectedMessage}

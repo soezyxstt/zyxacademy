@@ -96,7 +96,7 @@ export function MaterialWorkspace({
       ) : (
         <div className="space-y-6">
           <Tabs value={activeReviewTab} onValueChange={(value) => setActiveReviewTab(value as "idea" | "product")}>
-            <TabsList flush={!lockedCourse}>
+            <TabsList mobileInline flush={!lockedCourse}>
               {ideaEnabled && <TabsTrigger value="idea"><FileArchive className="size-4" />{t("materials.ideaTab")}</TabsTrigger>}
               {productEnabled && <TabsTrigger value="product"><FileArchive className="size-4" />{t("materials.productTab")}</TabsTrigger>}
             </TabsList>

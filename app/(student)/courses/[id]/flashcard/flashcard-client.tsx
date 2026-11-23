@@ -16,6 +16,7 @@ import { FLASHCARD_BATCH_SIZE } from "@/lib/demo/flashcard-resume";
 import type { FlashcardSessionProps } from "@/lib/flashcards/review-contract";
 import { useFlashcardSession } from "@/hooks/use-flashcard-session";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
+import { useHideMobileBottomNav } from "@/components/navigation";
 
 export type { FlashcardQueueItem as QueueItem } from "@/lib/flashcards/review-contract";
 
@@ -57,6 +58,9 @@ function FlashcardSession(props: FlashcardSessionProps) {
     handleFlip, handleCheckAnswer, handleGrade, handleSkip,
     changeMode, startNextBatch, resetCard,
   } = useFlashcardSession(props);
+
+  const isReviewing = queue.length > 0 && currentIndex < activeBatch.length;
+  useHideMobileBottomNav(isReviewing);
 
   const frontFlipButton = useRef<HTMLButtonElement>(null);
   const backFlipButton = useRef<HTMLButtonElement>(null);
@@ -155,7 +159,7 @@ function FlashcardSession(props: FlashcardSessionProps) {
   const progressPercent = Math.round((currentIndex / activeBatch.length) * 100);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-(--related-gap)">
+    <div className="mx-auto max-w-2xl space-y-(--related-gap) pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-0">
       {/* Top Controls and Stats - Flat Header without Card border */}
       <div className="space-y-2">
         <div className="h-1 w-full overflow-hidden rounded-md bg-muted">
@@ -350,13 +354,16 @@ function FlashcardSession(props: FlashcardSessionProps) {
 
       {/* Recall Self-Evaluation Grade Buttons (Visible when flipped or checked) */}
       {(isFlipped || isChecked) && (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div
+          data-flashcard-rating-dock=""
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] backdrop-blur-md md:static md:z-auto md:border-t-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
+        >
+          <div className="mx-auto grid max-w-2xl grid-cols-4 gap-2">
             <Button
               type="button"
               disabled={loading}
               onClick={() => handleGrade(1)}
-              className="w-full rounded-md border border-transparent bg-status-error/10 text-status-error hover:bg-status-error/20 active:scale-[0.98] text-body-sm font-semibold py-3 h-auto transition-colors"
+              className="min-h-11 w-full rounded-md border border-transparent bg-status-error/10 py-3 text-body-sm font-semibold text-status-error transition-colors hover:bg-status-error/20 active:scale-[0.98] h-auto"
             >
               {t("flashcards.again")}
             </Button>
@@ -364,7 +371,7 @@ function FlashcardSession(props: FlashcardSessionProps) {
               type="button"
               disabled={loading}
               onClick={() => handleGrade(2)}
-              className="w-full rounded-md border border-transparent bg-status-warning/10 text-status-warning hover:bg-status-warning/20 active:scale-[0.98] text-body-sm font-semibold py-3 h-auto transition-colors"
+              className="min-h-11 w-full rounded-md border border-transparent bg-status-warning/10 py-3 text-body-sm font-semibold text-status-warning transition-colors hover:bg-status-warning/20 active:scale-[0.98] h-auto"
             >
               {t("flashcards.hard")}
             </Button>
@@ -372,7 +379,7 @@ function FlashcardSession(props: FlashcardSessionProps) {
               type="button"
               disabled={loading}
               onClick={() => handleGrade(3)}
-              className="w-full rounded-md border border-transparent bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 active:scale-[0.98] text-body-sm font-semibold py-3 h-auto transition-colors"
+              className="min-h-11 w-full rounded-md border border-transparent bg-brand-primary/10 py-3 text-body-sm font-semibold text-brand-primary transition-colors hover:bg-brand-primary/20 active:scale-[0.98] h-auto"
             >
               {t("flashcards.understood")}
             </Button>
@@ -380,7 +387,7 @@ function FlashcardSession(props: FlashcardSessionProps) {
               type="button"
               disabled={loading}
               onClick={() => handleGrade(4)}
-              className="w-full rounded-md border border-transparent bg-status-success/10 text-status-success hover:bg-status-success/20 active:scale-[0.98] text-body-sm font-semibold py-3 h-auto transition-colors"
+              className="min-h-11 w-full rounded-md border border-transparent bg-status-success/10 py-3 text-body-sm font-semibold text-status-success transition-colors hover:bg-status-success/20 active:scale-[0.98] h-auto"
             >
               {t("flashcards.easy")}
             </Button>

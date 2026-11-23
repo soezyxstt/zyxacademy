@@ -40,6 +40,7 @@ import {
 } from "@/lib/site-search-index";
 import type { SiteSearchDocument } from "@/lib/site-search-index";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/logo";
 import {
   getStudentSearchDocuments,
   getMarketingSearchDocuments,
@@ -194,7 +195,7 @@ function getNavigationSurface(href: string) {
 
 function NavigationSurfaceBadge({ label }: { label: string }) {
   return (
-    <span className="shrink-0 rounded-md border border-border bg-background/70 px-1.5 py-0.5 text-body-xs font-semibold text-muted-foreground group-aria-selected:border-primary-foreground/30 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground">
+    <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-body-2xs font-medium text-muted-foreground group-aria-selected:bg-background/80 group-aria-selected:text-foreground">
       {label}
     </span>
   );
@@ -334,7 +335,7 @@ function HighlightText({ text, query }: { text: string; query: string }) {
         return isMatch ? (
           <span
             key={i}
-            className="font-bold text-foreground underline decoration-primary/50 group-aria-selected:text-primary-foreground group-aria-selected:decoration-primary-foreground/70"
+            className="text-foreground underline decoration-brand-secondary/75 decoration-2 underline-offset-2"
           >
             {part}
           </span>
@@ -416,11 +417,17 @@ const MARKETING_SUGGESTED_TOPICS = [
   },
 ];
 
-type CommandMenuDialogProps = { open: boolean; onOpenChange: (open: boolean) => void; onSelectStudent: (publicId: string) => void; studentSurface: boolean };
+type CommandMenuDialogProps = {
+  open: boolean;
+  initialQuery?: string;
+  onOpenChange: (open: boolean) => void;
+  onSelectStudent: (publicId: string) => void;
+  studentSurface: boolean;
+};
 export function CommandMenuDialog(props: CommandMenuDialogProps) {
   return <StudentAccountBoundary>{account => <CommandMenuDialogContent {...props} account={account} />}</StudentAccountBoundary>;
 }
-function CommandMenuDialogContent({ open, onOpenChange, onSelectStudent, studentSurface, account }: CommandMenuDialogProps & { account: StudentAccountState }) {
+function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSelectStudent, studentSurface, account }: CommandMenuDialogProps & { account: StudentAccountState }) {
   const router = useRouter();
   const t = useTranslations("search");
   const { locale } = useAppLocale();
@@ -447,12 +454,18 @@ function CommandMenuDialogContent({ open, onOpenChange, onSelectStudent, student
       : { title, subtitle };
   };
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialQuery);
   const [isLoading, setIsLoading] = useState(false);
   const [apiResults, setApiResults] = useState<SiteSearchDocument[]>([]);
   const [people, setPeople] = useState<StudentIdentity[]>([]);
   const [peopleLoading, setPeopleLoading] = useState(false);
   const resultListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open && initialQuery) {
+      setSearch(initialQuery);
+    }
+  }, [open, initialQuery]);
 
   // Local storage states
   const [recentItems, setRecentItems] = useState<SearchItem[]>([]);
@@ -763,6 +776,12 @@ function CommandMenuDialogContent({ open, onOpenChange, onSelectStudent, student
     [router, saveRecent, onOpenChange, experience]
   );
 
+  const groupClass =
+    "mt-3 first:mt-0 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pb-1.5 [&_[cmdk-group-heading]]:pt-1 [&_[cmdk-group-heading]]:font-heading [&_[cmdk-group-heading]]:text-body-2xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground";
+
+  const rowClass =
+    "group relative flex items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-body-sm text-foreground outline-none cursor-pointer transition-colors duration-150 select-none hover:bg-muted/60 aria-selected:bg-muted/90";
+
   return (
     <DialogRoot
       open={open}
@@ -775,793 +794,725 @@ function CommandMenuDialogContent({ open, onOpenChange, onSelectStudent, student
         }
       }}
     >
-        <Dialog.Portal>
-          {/* Overlay */}
-          <Dialog.Overlay
+      <Dialog.Portal>
+        <Dialog.Overlay
+          className={cn(
+            "fixed inset-0 z-[200] bg-black/45",
+            "supports-backdrop-filter:backdrop-blur-xs",
+            "data-[state=open]:animate-in data-[state=open]:fade-in-0",
+            "data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
+          )}
+        />
+
+        <div className="pointer-events-none fixed inset-0 z-[201] flex items-start justify-center overflow-y-auto p-3 pt-[6vh] sm:p-4 sm:pt-[11vh]">
+          <Dialog.Content
+            aria-label={t("dialogLabel")}
             className={cn(
-              "fixed inset-0 z-[200] bg-black/50",
-              "supports-backdrop-filter:backdrop-blur-xs",
-              "data-[state=open]:animate-in data-[state=open]:fade-in-0",
-              "data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
+              "pointer-events-auto relative w-full max-w-xl overflow-hidden rounded-2xl border border-border/80 bg-popover/98 text-popover-foreground shadow-2xl backdrop-blur-xl outline-none",
+              "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+              "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
             )}
-          />
+          >
+            <Dialog.Title className="sr-only">{t("dialogLabel")}</Dialog.Title>
+            <Dialog.Description className="sr-only">
+              {t("description")}
+            </Dialog.Description>
 
-          {/* Centering wrapper */}
-          <div className="fixed inset-0 z-[201] flex items-start justify-center p-4 pt-[8vh] md:pt-[12vh] pointer-events-none overflow-y-auto">
-      <Dialog.Content
-              aria-label={t("dialogLabel")}
-              className={cn(
-                "pointer-events-auto relative w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl outline-none",
-                "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
-                "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
-              )}
+            {/* Subtle Zyx brand accent hairline */}
+            <div
+              aria-hidden="true"
+              className="h-0.5 w-full bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-primary/40"
+            />
+
+            <Command
+              shouldFilter={false}
+              vimBindings={false}
+              className="flex w-full flex-col"
             >
-              <Dialog.Title className="sr-only">{t("dialogLabel")}</Dialog.Title>
-              <Dialog.Description className="sr-only">
-                {t("description")}
-              </Dialog.Description>
-
-              <Command
-                shouldFilter={false}
-                vimBindings={false}
-                className="w-full flex flex-col"
-              >
-                {/* Search Header */}
-                <div className="flex items-center gap-2.5 border-b border-border bg-background/40 px-4 py-3">
+              {/* Search Header */}
+              <div className="flex items-center gap-2.5 border-b border-border/60 px-4 py-3">
+                {isLoading ? (
+                  <Loader2
+                    className="size-4 shrink-0 animate-spin text-brand-secondary"
+                    aria-label={t("loading")}
+                  />
+                ) : (
                   <Search
-                    className="text-muted-foreground size-5 shrink-0"
-                    aria-hidden
+                    className="size-4 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
                   />
-                  {parsedQuery.isScoped && activePrefixLabel && (
-                    <div className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 text-body-xs font-semibold shrink-0 select-none animate-in fade-in zoom-in-95 duration-150">
-                      <span>{activePrefixLabel}</span>
-                      <button
-                        type="button"
-                        onClick={() => setSearch(parsedQuery.cleanQuery)}
-                        className="ml-0.5 rounded hover:bg-primary/20 p-0.5 transition-colors cursor-pointer text-primary/80 hover:text-primary"
-                        aria-label={t("clearPrefix")}
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </div>
-                  )}
-                  <Command.Input
-                    placeholder={
-                      parsedQuery.isScoped && activePrefixLabel
-                        ? t("scopedPlaceholder", { prefix: activePrefixLabel.toLowerCase() })
-                        : t("placeholder")
-                    }
-                    value={parsedQuery.isScoped ? parsedQuery.cleanQuery : search}
-                    onValueChange={(val) => {
-                      if (parsedQuery.isScoped) {
-                        const rawPrefix = search.split(":")[0];
-                        setSearch(`${rawPrefix}: ${val}`);
-                      } else {
-                        setSearch(val);
-                      }
-                    }}
-                    className="placeholder:text-muted-foreground/60 flex h-7 w-full bg-transparent text-body-sm sm:text-body-base outline-none text-foreground"
-                  />
+                )}
 
-                  {/* Loading indicator */}
-                  {isLoading && (
-                    <Loader2
-                      className="size-4 shrink-0 animate-spin text-primary"
-                      aria-label={t("loading")}
-                    />
-                  )}
-
-                  {/* Clear button */}
-                  {search.length > 0 && (
+                {parsedQuery.isScoped && activePrefixLabel ? (
+                  <div className="inline-flex shrink-0 select-none items-center gap-1 rounded-md border border-brand-secondary/30 bg-brand-secondary/10 px-2.5 py-0.5 text-body-xs font-medium text-brand-secondary animate-in fade-in zoom-in-95 duration-150">
+                    <span>{activePrefixLabel}</span>
                     <button
                       type="button"
-                      onClick={() => setSearch("")}
-                      className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                      aria-label={t("clear")}
+                      onClick={() => setSearch(parsedQuery.cleanQuery)}
+                      className="relative rounded-sm p-0.5 transition-colors hover:bg-brand-secondary/15 cursor-pointer after:absolute after:-inset-1.5 after:content-['']"
+                      aria-label={t("clearPrefix")}
                     >
-                      <X className="size-4" />
+                      <X className="size-3" />
                     </button>
-                  )}
+                  </div>
+                ) : null}
 
-                  {/* ESC badge */}
-                  <kbd className="bg-muted/70 text-muted-foreground pointer-events-none shrink-0 select-none rounded border border-border px-1.5 py-0.5 font-mono text-body-xs font-semibold">
-                    esc
-                  </kbd>
-                </div>
+                <Command.Input
+                  placeholder={
+                    parsedQuery.isScoped && activePrefixLabel
+                      ? t("scopedPlaceholder", {
+                          prefix: activePrefixLabel.toLowerCase(),
+                        })
+                      : t("placeholder")
+                  }
+                  value={parsedQuery.isScoped ? parsedQuery.cleanQuery : search}
+                  onValueChange={(val) => {
+                    if (parsedQuery.isScoped) {
+                      const rawPrefix = search.split(":")[0];
+                      setSearch(`${rawPrefix}: ${val}`);
+                    } else {
+                      setSearch(val);
+                    }
+                  }}
+                  className="flex h-7 w-full min-w-0 bg-transparent font-sans text-body-sm text-foreground placeholder:text-muted-foreground/60 outline-none"
+                />
 
-                {/* Search Body / Results List */}
-                <Command.List
-                  ref={resultListRef}
-                  className="max-h-[min(460px,calc(100dvh-13rem))] scroll-py-2 overflow-y-auto p-3 outline-none"
-                >
-                  {/* State 1: Zero-State (search === "") */}
-                  {!trimmed && (
-                    <>
-                      {/* Section 1: Recent */}
-                      {recentItems.length > 0 && (
-                        <Command.Group
-                          heading={t("recent")}
-                          className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
-                        >
-                          {recentItems.map((item) => {
-                            const Icon = groupIcon(item.group);
-                            const favorited = isFavorite(item.id, item.href);
-                            const labels = getCuratedTopicLabels(item.title, item.subtitle);
-                            return (
-                              <Command.Item
-                                key={`recent:${item.id}`}
-                                value={`recent ${item.title} ${item.subtitle}`}
-                                onSelect={() => navigate(item)}
-                                className={cn(
-                                  "group flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 my-1 text-body-sm outline-none cursor-pointer transition-all duration-150 select-none",
-                                  "bg-muted/40 hover:bg-muted/80 text-foreground border border-transparent",
-                                  "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20 aria-selected:shadow-sm"
-                                )}
-                              >
-                                <div className="flex min-w-0 items-center gap-3 flex-1">
-                                  <div
-                                    className={cn(
-                                      "flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors",
-                                      "border-border/60 bg-background text-muted-foreground",
-                                      "group-hover:border-border group-hover:text-foreground",
-                                      "group-aria-selected:border-primary-foreground/20 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground"
-                                    )}
-                                  >
-                                    <Icon className="size-4" aria-hidden />
-                                  </div>
-                                  <div className="min-w-0 flex-1 flex flex-col justify-center">
-                                    <span className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
-                                      {labels.title}
-                                    </span>
-                                    <span className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
-                                      {labels.subtitle}
-                                    </span>
-                                  </div>
-                                </div>
+                {search.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground after:absolute after:-inset-1 after:content-['']"
+                    aria-label={t("clear")}
+                  >
+                    <X className="size-3.5" aria-hidden="true" />
+                  </button>
+                ) : null}
 
-                                <div
-                                  className="flex items-center gap-1.5 shrink-0"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {/* Star button */}
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleFavorite(item);
-                                    }}
-                                    className={cn(
-                                      "p-1.5 rounded-md transition-colors cursor-pointer",
-                                      "hover:bg-muted/80 text-muted-foreground/60 hover:text-amber-500",
-                                      "group-aria-selected:hover:bg-primary-foreground/20 group-aria-selected:text-primary-foreground/70",
-                                      favorited &&
-                                        "text-amber-500 hover:text-amber-600 fill-amber-500"
-                                    )}
-                                    aria-label={
-                                      favorited
-                                        ? t("removeFavorite")
-                                        : t("addFavorite")
-                                    }
-                                    title={
-                                      favorited
-                                        ? t("removeFavorite")
-                                        : t("addFavorite")
-                                    }
-                                  >
-                                    <Star
-                                      className={cn(
-                                        "size-3.5",
-                                        favorited &&
-                                          "fill-amber-500 text-amber-500 group-aria-selected:text-amber-300 group-aria-selected:fill-amber-300"
-                                      )}
-                                    />
-                                  </button>
+                {/* Desktop ESC hint */}
+                <kbd className="pointer-events-none hidden shrink-0 select-none rounded-md border border-border/70 bg-muted/60 px-1.5 py-0.5 font-mono text-body-2xs font-medium text-muted-foreground sm:inline-flex">
+                  esc
+                </kbd>
 
-                                  <span className="text-border text-body-xs select-none group-aria-selected:text-primary-foreground/40">
-                                    |
-                                  </span>
+                {/* Mobile close button when query is empty */}
+                {search.length === 0 ? (
+                  <Dialog.Close asChild>
+                    <button
+                      type="button"
+                      className="relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:hidden after:absolute after:-inset-1 after:content-['']"
+                      aria-label={t("close")}
+                    >
+                      <X className="size-4" aria-hidden="true" />
+                    </button>
+                  </Dialog.Close>
+                ) : null}
+              </div>
 
-                                  {/* Remove from recent */}
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      removeRecent(item.id);
-                                    }}
-                                    className={cn(
-                                      "p-1.5 rounded-md transition-colors cursor-pointer",
-                                      "hover:bg-destructive/10 text-muted-foreground/60 hover:text-destructive",
-                                      "group-aria-selected:hover:bg-primary-foreground/20 group-aria-selected:text-primary-foreground/70 group-aria-selected:hover:text-red-200"
-                                    )}
-                                    aria-label={t("removeRecent")}
-                                    title={t("removeRecent")}
-                                  >
-                                    <X className="size-3.5" />
-                                  </button>
-                                </div>
-                              </Command.Item>
-                            );
-                          })}
-                        </Command.Group>
-                      )}
-
-                      {/* Section 2: Favorite */}
-                      {favoriteItems.length > 0 && (
-                        <Command.Group
-                          heading={t("favorite")}
-                          className="mt-2 [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
-                        >
-                          {favoriteItems.map((item) => {
-                            const Icon = groupIcon(item.group);
-                            const labels = getCuratedTopicLabels(item.title, item.subtitle);
-                            return (
-                              <Command.Item
-                                key={`fav:${item.id}`}
-                                value={`favorite ${item.title} ${item.subtitle}`}
-                                onSelect={() => navigate(item)}
-                                className={cn(
-                                  "group flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 my-1 text-body-sm outline-none cursor-pointer transition-all duration-150 select-none",
-                                  "bg-muted/40 hover:bg-muted/80 text-foreground border border-transparent",
-                                  "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20 aria-selected:shadow-sm"
-                                )}
-                              >
-                                <div className="flex min-w-0 items-center gap-3 flex-1">
-                                  <div
-                                    className={cn(
-                                      "flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors",
-                                      "border-border/60 bg-background text-muted-foreground",
-                                      "group-hover:border-border group-hover:text-foreground",
-                                      "group-aria-selected:border-primary-foreground/20 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground"
-                                    )}
-                                  >
-                                    <Icon className="size-4" aria-hidden />
-                                  </div>
-                                  <div className="min-w-0 flex-1 flex flex-col justify-center">
-                                    <span className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
-                                      {labels.title}
-                                    </span>
-                                    <span className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
-                                      {labels.subtitle}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div
-                                  className="flex items-center gap-1.5 shrink-0"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {/* Filled Star */}
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      removeFavorite(item.id);
-                                    }}
-                                    className={cn(
-                                      "p-1.5 rounded-md transition-colors cursor-pointer text-amber-500 hover:text-amber-600",
-                                      "group-aria-selected:hover:bg-primary-foreground/20 group-aria-selected:text-amber-300"
-                                    )}
-                                    aria-label={t("removeFavorite")}
-                                    title={t("removeFavorite")}
-                                  >
-                                    <Star className="size-3.5 fill-amber-500 text-amber-500 group-aria-selected:text-amber-300 group-aria-selected:fill-amber-300" />
-                                  </button>
-
-                                  <span className="text-border text-body-xs select-none group-aria-selected:text-primary-foreground/40">
-                                    |
-                                  </span>
-
-                                  {/* Remove from favorite */}
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      removeFavorite(item.id);
-                                    }}
-                                    className={cn(
-                                      "p-1.5 rounded-md transition-colors cursor-pointer",
-                                      "hover:bg-destructive/10 text-muted-foreground/60 hover:text-destructive",
-                                      "group-aria-selected:hover:bg-primary-foreground/20 group-aria-selected:text-primary-foreground/70 group-aria-selected:hover:text-red-200"
-                                    )}
-                                    aria-label={t("removeFavorite")}
-                                    title={t("removeFavorite")}
-                                  >
-                                    <X className="size-3.5" />
-                                  </button>
-                                </div>
-                              </Command.Item>
-                            );
-                          })}
-                        </Command.Group>
-                      )}
-
-                      {/* Akses Cepat if recent and favorites are empty */}
-                      {recentItems.length === 0 && favoriteItems.length === 0 && (
-                        <Command.Group
-                          heading={t("quickAccess")}
-                          className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
-                        >
-                          {shortcutDocs.map((doc) => {
-                            const Icon = groupIcon(doc.group);
-                            const favorited = isFavorite(doc.id, doc.href);
-                            return (
-                              <Command.Item
-                                key={doc.id}
-                                value={doc.id}
-                                onSelect={() => navigate(doc)}
-                                className={cn(
-                                  "group flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 my-1 text-body-sm outline-none cursor-pointer transition-all duration-150 select-none",
-                                  "bg-muted/40 hover:bg-muted/80 text-foreground border border-transparent",
-                                  "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20 aria-selected:shadow-sm"
-                                )}
-                              >
-                                <div className="flex min-w-0 items-center gap-3 flex-1">
-                                  <div
-                                    className={cn(
-                                      "flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors",
-                                      "border-border/60 bg-background text-muted-foreground",
-                                      "group-hover:border-border group-hover:text-foreground",
-                                      "group-aria-selected:border-primary-foreground/20 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground"
-                                    )}
-                                  >
-                                    <Icon className="size-4" aria-hidden />
-                                  </div>
-                                  <div className="min-w-0 flex-1 flex flex-col justify-center">
-                                    <span className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
-                                      {doc.title}
-                                    </span>
-                                    <span className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
-                                      {doc.subtitle}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div
-                                  className="flex items-center gap-1.5 shrink-0"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleFavorite(doc);
-                                    }}
-                                    className={cn(
-                                      "p-1.5 rounded-md transition-colors cursor-pointer",
-                                      "hover:bg-muted/80 text-muted-foreground/60 hover:text-amber-500",
-                                      "group-aria-selected:hover:bg-primary-foreground/20 group-aria-selected:text-primary-foreground/70",
-                                      favorited && "text-amber-500 fill-amber-500"
-                                    )}
-                                    aria-label={t("addFavorite")}
-                                    title={t("addFavorite")}
-                                  >
-                                    <Star
-                                      className={cn(
-                                        "size-3.5",
-                                        favorited &&
-                                          "fill-amber-500 text-amber-500 group-aria-selected:text-amber-300 group-aria-selected:fill-amber-300"
-                                      )}
-                                    />
-                                  </button>
-                                  <ChevronRight
-                                    className="size-4 text-muted-foreground/50 group-hover:text-foreground group-aria-selected:text-primary-foreground"
-                                    aria-hidden
-                                  />
-                                </div>
-                              </Command.Item>
-                            );
-                          })}
-                        </Command.Group>
-                      )}
-                    </>
-                  )}
-
-                  {/* State 3: Empty / No Results (search !== "" && flatResults.length === 0 && !loading) */}
-                  {trimmed && !isHelpMode && flatResults.length === 0 && people.length === 0 && !isLoading && !peopleLoading && (
-                    <div className="py-4">
-                      <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
-                        <FolderSearch
-                          className="text-muted-foreground/60 size-8"
-                          aria-hidden
-                        />
-                        <div className="text-body-sm font-medium text-foreground">
-                          {t("noResults", { query: search })}
-                        </div>
-                        <div className="max-w-[28ch] text-body-xs text-muted-foreground">
-                          {t("noResultsHelp")}
-                        </div>
-                      </div>
-
-                      {/* Quick pick recommendations */}
-                      <div className="mt-2 border-t border-border/60 pt-3">
-                        <div className="px-2 pb-2 text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          {t("suggestions")}
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          {(isAuthenticated ? SUGGESTED_TOPICS : MARKETING_SUGGESTED_TOPICS).map((topic) => (
+              {/* Search Body / Results List */}
+              <Command.List
+                ref={resultListRef}
+                className="max-h-[min(440px,calc(100dvh-11rem))] scroll-py-2 overflow-y-auto p-2 outline-none"
+              >
+                {/* State 1: Zero-State (search === "") */}
+                {!trimmed ? (
+                  <>
+                    {/* Recent */}
+                    {recentItems.length > 0 ? (
+                      <Command.Group heading={t("recent")} className={groupClass}>
+                        {recentItems.map((item) => {
+                          const Icon = groupIcon(item.group);
+                          const favorited = isFavorite(item.id, item.href);
+                          const labels = getCuratedTopicLabels(
+                            item.title,
+                            item.subtitle
+                          );
+                          return (
                             <Command.Item
-                              key={topic.title}
-                              value={topic.title}
-                              onSelect={() => {
-                                navigate({
-                                  id: `suggested:${topic.title}`,
-                                  title: topic.title,
-                                  subtitle: topic.subtitle,
-                                  href: topic.href,
-                                  group: topic.group,
-                                });
-                              }}
-                              className={cn(
-                                "group flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-body-sm outline-none cursor-pointer transition-colors select-none",
-                                "bg-muted/40 hover:bg-muted/80 text-foreground border border-transparent",
-                                "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20 aria-selected:shadow-sm"
-                              )}
+                              key={`recent:${item.id}`}
+                              value={`recent ${item.title} ${item.subtitle}`}
+                              onSelect={() => navigate(item)}
+                              className={rowClass}
                             >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div
-                                  className={cn(
-                                    "flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors",
-                                    "border-border/60 bg-background text-muted-foreground",
-                                    "group-hover:border-border group-hover:text-foreground",
-                                    "group-aria-selected:border-primary-foreground/20 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground"
-                                  )}
-                                >
-                                  <topic.icon
-                                    className="size-4"
-                                    aria-hidden
-                                  />
-                                </div>
-                                <div className="min-w-0 flex flex-col justify-center">
-                                  <span className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
-                                    {t(`suggestedTopics.${topic.key}.title`)}
+                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                                <Icon
+                                  className="size-4 shrink-0 text-muted-foreground transition-colors group-aria-selected:text-brand-secondary"
+                                  aria-hidden="true"
+                                />
+                                <div className="flex min-w-0 flex-1 flex-col">
+                                  <span className="truncate font-medium text-body-sm leading-snug text-foreground">
+                                    {labels.title}
                                   </span>
-                                  <span className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
-                                    {t(`suggestedTopics.${topic.key}.subtitle`)}
-                                  </span>
+                                  {labels.subtitle ? (
+                                    <span className="truncate text-body-xs leading-tight text-muted-foreground">
+                                      {labels.subtitle}
+                                    </span>
+                                  ) : null}
                                 </div>
                               </div>
-                              <ChevronRight
-                                className="size-4 text-muted-foreground/50 group-hover:text-foreground group-aria-selected:text-primary-foreground shrink-0"
-                                aria-hidden
-                              />
+
+                              <div
+                                className="flex shrink-0 items-center gap-0.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFavorite(item);
+                                  }}
+                                  className={cn(
+                                    "flex size-8 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-background/80 text-muted-foreground/70 hover:text-status-warning",
+                                    favorited && "text-status-warning"
+                                  )}
+                                  aria-label={
+                                    favorited
+                                      ? t("removeFavorite")
+                                      : t("addFavorite")
+                                  }
+                                  title={
+                                    favorited
+                                      ? t("removeFavorite")
+                                      : t("addFavorite")
+                                  }
+                                >
+                                  <Star
+                                    className={cn(
+                                      "size-3.5",
+                                      favorited && "fill-status-warning text-status-warning"
+                                    )}
+                                  />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeRecent(item.id);
+                                  }}
+                                  className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                  aria-label={t("removeRecent")}
+                                  title={t("removeRecent")}
+                                >
+                                  <X className="size-3.5" />
+                                </button>
+                              </div>
                             </Command.Item>
-                          ))}
-                        </div>
+                          );
+                        })}
+                      </Command.Group>
+                    ) : null}
+
+                    {/* Favorites */}
+                    {favoriteItems.length > 0 ? (
+                      <Command.Group heading={t("favorite")} className={groupClass}>
+                        {favoriteItems.map((item) => {
+                          const Icon = groupIcon(item.group);
+                          const labels = getCuratedTopicLabels(
+                            item.title,
+                            item.subtitle
+                          );
+                          return (
+                            <Command.Item
+                              key={`fav:${item.id}`}
+                              value={`favorite ${item.title} ${item.subtitle}`}
+                              onSelect={() => navigate(item)}
+                              className={rowClass}
+                            >
+                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                                <Icon
+                                  className="size-4 shrink-0 text-muted-foreground transition-colors group-aria-selected:text-brand-secondary"
+                                  aria-hidden="true"
+                                />
+                                <div className="flex min-w-0 flex-1 flex-col">
+                                  <span className="truncate font-medium text-body-sm leading-snug text-foreground">
+                                    {labels.title}
+                                  </span>
+                                  {labels.subtitle ? (
+                                    <span className="truncate text-body-xs leading-tight text-muted-foreground">
+                                      {labels.subtitle}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              <div
+                                className="flex shrink-0 items-center gap-0.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeFavorite(item.id);
+                                  }}
+                                  className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-status-warning transition-colors hover:bg-background/80 hover:text-status-warning/80"
+                                  aria-label={t("removeFavorite")}
+                                  title={t("removeFavorite")}
+                                >
+                                  <Star className="size-3.5 fill-status-warning text-status-warning" />
+                                </button>
+                              </div>
+                            </Command.Item>
+                          );
+                        })}
+                      </Command.Group>
+                    ) : null}
+
+                    {/* Quick Access when recent & favorites are empty */}
+                    {recentItems.length === 0 && favoriteItems.length === 0 ? (
+                      <Command.Group
+                        heading={t("quickAccess")}
+                        className={groupClass}
+                      >
+                        {shortcutDocs.map((doc) => {
+                          const Icon = groupIcon(doc.group);
+                          const favorited = isFavorite(doc.id, doc.href);
+                          return (
+                            <Command.Item
+                              key={doc.id}
+                              value={doc.id}
+                              onSelect={() => navigate(doc)}
+                              className={rowClass}
+                            >
+                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                                <Icon
+                                  className="size-4 shrink-0 text-muted-foreground transition-colors group-aria-selected:text-brand-secondary"
+                                  aria-hidden="true"
+                                />
+                                <div className="flex min-w-0 flex-1 flex-col">
+                                  <span className="truncate font-medium text-body-sm leading-snug text-foreground">
+                                    {doc.title}
+                                  </span>
+                                  {doc.subtitle ? (
+                                    <span className="truncate text-body-xs leading-tight text-muted-foreground">
+                                      {doc.subtitle}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              <div
+                                className="flex shrink-0 items-center gap-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFavorite(doc);
+                                  }}
+                                  className={cn(
+                                    "flex size-8 cursor-pointer items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-background/80 hover:text-status-warning",
+                                    favorited && "text-status-warning"
+                                  )}
+                                  aria-label={t("addFavorite")}
+                                  title={t("addFavorite")}
+                                >
+                                  <Star
+                                    className={cn(
+                                      "size-3.5",
+                                      favorited && "fill-status-warning text-status-warning"
+                                    )}
+                                  />
+                                </button>
+                                <ChevronRight
+                                  className="size-3.5 text-muted-foreground/40 transition-colors group-aria-selected:text-foreground"
+                                  aria-hidden="true"
+                                />
+                              </div>
+                            </Command.Item>
+                          );
+                        })}
+                      </Command.Group>
+                    ) : null}
+                  </>
+                ) : null}
+
+                {/* State 3: Empty / No Results */}
+                {trimmed &&
+                !isHelpMode &&
+                flatResults.length === 0 &&
+                people.length === 0 &&
+                !isLoading &&
+                !peopleLoading ? (
+                  <div className="py-3">
+                    <div className="flex flex-col items-center justify-center gap-1.5 px-4 py-7 text-center">
+                      <FolderSearch
+                        className="size-7 text-muted-foreground/50"
+                        aria-hidden="true"
+                      />
+                      <div className="font-heading text-body-sm font-semibold text-foreground">
+                        {t("noResults", { query: search })}
+                      </div>
+                      <div className="max-w-[30ch] text-body-xs text-muted-foreground">
+                        {t("noResultsHelp")}
                       </div>
                     </div>
-                  )}
 
-                  {isHelpMode && (
-                    <div className="py-1">
-                      <div className="mx-2 mb-3 flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
-                        <CircleHelp
-                          className="mt-0.5 size-5 shrink-0 text-primary"
-                          aria-hidden
-                        />
-                        <div className="min-w-0">
-                          <div className="font-heading text-body-sm font-bold text-foreground">
-                            {t("helpTitle")}
-                          </div>
-                          <p className="mt-1 text-body-xs text-muted-foreground">
-                            {isAuthenticated
-                              ? t("helpAuthenticated")
-                              : t("helpGuest")}
-                          </p>
-                        </div>
+                    <div className="mt-1 border-t border-border/50 pt-2">
+                      <div className="px-2.5 pb-1.5 pt-1 font-heading text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {t("suggestions")}
                       </div>
+                      <div className="flex flex-col">
+                        {(isAuthenticated
+                          ? SUGGESTED_TOPICS
+                          : MARKETING_SUGGESTED_TOPICS
+                        ).map((topic) => (
+                          <Command.Item
+                            key={topic.title}
+                            value={topic.title}
+                            onSelect={() => {
+                              navigate({
+                                id: `suggested:${topic.title}`,
+                                title: topic.title,
+                                subtitle: topic.subtitle,
+                                href: topic.href,
+                                group: topic.group,
+                              });
+                            }}
+                            className={rowClass}
+                          >
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                              <topic.icon
+                                className="size-4 shrink-0 text-muted-foreground transition-colors group-aria-selected:text-brand-secondary"
+                                aria-hidden="true"
+                              />
+                              <div className="flex min-w-0 flex-1 flex-col">
+                                <span className="truncate font-medium text-body-sm leading-snug text-foreground">
+                                  {t(`suggestedTopics.${topic.key}.title`)}
+                                </span>
+                                <span className="truncate text-body-xs leading-tight text-muted-foreground">
+                                  {t(`suggestedTopics.${topic.key}.subtitle`)}
+                                </span>
+                              </div>
+                            </div>
+                            <ChevronRight
+                              className="size-3.5 shrink-0 text-muted-foreground/40 transition-colors group-aria-selected:text-foreground"
+                              aria-hidden="true"
+                            />
+                          </Command.Item>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
 
-                      {isAuthenticated ? (
-                        <Command.Group
-                          heading={t("prefixes")}
-                          className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
-                        >
-                          {SEARCH_PREFIX_DEFINITIONS.map((definition) => (
-                            <Command.Item
-                              key={definition.type}
-                              value={`help ${definition.aliases.join(" ")} ${definition.label}`}
-                              onSelect={() =>
-                                setSearch(`${definition.aliases[0]}: `)
-                              }
-                              className={cn(
-                                "group flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-body-sm outline-none transition-colors select-none cursor-pointer",
-                                "bg-muted/40 hover:bg-muted/80 text-foreground",
-                                "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20"
-                              )}
-                            >
-                              <kbd className="mt-0.5 min-w-20 shrink-0 rounded-md border border-border bg-background px-2 py-1 font-mono text-body-xs font-semibold text-foreground group-aria-selected:border-primary-foreground/30 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground">
+                {/* Help Mode */}
+                {isHelpMode ? (
+                  <div className="py-1">
+                    <div className="mx-1.5 mb-2 flex items-start gap-2.5 rounded-xl bg-muted/40 px-3 py-2.5">
+                      <CircleHelp
+                        className="mt-0.5 size-4 shrink-0 text-brand-secondary"
+                        aria-hidden="true"
+                      />
+                      <div className="min-w-0">
+                        <div className="font-heading text-body-sm font-semibold text-foreground">
+                          {t("helpTitle")}
+                        </div>
+                        <p className="mt-0.5 text-body-xs text-muted-foreground">
+                          {isAuthenticated
+                            ? t("helpAuthenticated")
+                            : t("helpGuest")}
+                        </p>
+                      </div>
+                    </div>
+
+                    {isAuthenticated ? (
+                      <Command.Group
+                        heading={t("prefixes")}
+                        className={groupClass}
+                      >
+                        {SEARCH_PREFIX_DEFINITIONS.map((definition) => (
+                          <Command.Item
+                            key={definition.type}
+                            value={`help ${definition.aliases.join(" ")} ${definition.label}`}
+                            onSelect={() =>
+                              setSearch(`${definition.aliases[0]}: `)
+                            }
+                            className={rowClass}
+                          >
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                              <kbd className="min-w-16 shrink-0 rounded-md border border-border/70 bg-background px-2 py-0.5 text-center font-mono text-body-xs font-medium text-foreground">
                                 {definition.aliases[0]}:
                               </kbd>
                               <div className="min-w-0 flex-1">
-                                <div className="truncate font-medium text-body-sm">
+                                <div className="truncate font-medium text-body-sm text-foreground">
                                   {t(`prefixLabels.${definition.type}`)}
                                 </div>
-                                {definition.aliases.length > 1 && (
-                                  <div className="text-body-xs text-muted-foreground group-aria-selected:text-primary-foreground/80">
-                                    {t("otherAliases")} {definition.aliases
-                                      .slice(1)
-                                      .map((alias) => `${alias}:`)
-                                      .join(", ")}
-                                  </div>
-                                )}
-                                <div className="truncate text-body-xs text-muted-foreground group-aria-selected:text-primary-foreground/80">
+                                <div className="truncate text-body-xs text-muted-foreground">
                                   {t("example")} {definition.example}
                                 </div>
                               </div>
-                              <ChevronRight
-                                className="size-4 shrink-0 text-muted-foreground/50 group-aria-selected:text-primary-foreground"
-                                aria-hidden
+                            </div>
+                            <ChevronRight
+                              className="size-3.5 shrink-0 text-muted-foreground/40 group-aria-selected:text-foreground"
+                              aria-hidden="true"
+                            />
+                          </Command.Item>
+                        ))}
+                      </Command.Group>
+                    ) : (
+                      <Command.Group
+                        heading={t("mainPages")}
+                        className={groupClass}
+                      >
+                        {MARKETING_SUGGESTED_TOPICS.map((topic) => (
+                          <Command.Item
+                            key={topic.title}
+                            value={`help ${topic.title} ${topic.subtitle}`}
+                            onSelect={() => {
+                              navigate({
+                                id: `help:${topic.title}`,
+                                title: topic.title,
+                                subtitle: topic.subtitle,
+                                href: topic.href,
+                                group: topic.group,
+                              });
+                            }}
+                            className={rowClass}
+                          >
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                              <topic.icon
+                                className="size-4 shrink-0 text-muted-foreground group-aria-selected:text-brand-secondary"
+                                aria-hidden="true"
                               />
-                            </Command.Item>
-                          ))}
-                        </Command.Group>
-                      ) : (
-                        <Command.Group
-                          heading={t("mainPages")}
-                          className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
-                        >
-                          {MARKETING_SUGGESTED_TOPICS.map((topic) => (
-                            <Command.Item
-                              key={topic.title}
-                              value={`help ${topic.title} ${topic.subtitle}`}
-                              onSelect={() => {
-                                navigate({
-                                  id: `help:${topic.title}`,
-                                  title: topic.title,
-                                  subtitle: topic.subtitle,
-                                  href: topic.href,
-                                  group: topic.group,
-                                });
-                              }}
-                              className={cn(
-                                "group flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-body-sm outline-none cursor-pointer transition-colors select-none",
-                                "bg-muted/40 hover:bg-muted/80 text-foreground border border-transparent",
-                                "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20 aria-selected:shadow-sm"
-                              )}
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div
-                                  className={cn(
-                                    "flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors",
-                                    "border-border/60 bg-background text-muted-foreground",
-                                    "group-hover:border-border group-hover:text-foreground",
-                                    "group-aria-selected:border-primary-foreground/20 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground"
-                                  )}
-                                >
-                                  <topic.icon className="size-4" aria-hidden />
-                                </div>
-                                <div className="min-w-0 flex flex-col justify-center">
-                                  <span className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
-                                    {t(`suggestedTopics.${topic.key}.title`)}
-                                  </span>
-                                  <span className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
-                                    {t(`suggestedTopics.${topic.key}.subtitle`)}
-                                  </span>
-                                </div>
+                              <div className="flex min-w-0 flex-1 flex-col">
+                                <span className="truncate font-medium text-body-sm leading-snug text-foreground">
+                                  {t(`suggestedTopics.${topic.key}.title`)}
+                                </span>
+                                <span className="truncate text-body-xs leading-tight text-muted-foreground">
+                                  {t(`suggestedTopics.${topic.key}.subtitle`)}
+                                </span>
                               </div>
-                              <ChevronRight
-                                className="size-4 text-muted-foreground/50 group-hover:text-foreground group-aria-selected:text-primary-foreground shrink-0"
-                                aria-hidden
-                              />
-                            </Command.Item>
-                          ))}
-                        </Command.Group>
-                      )}
+                            </div>
+                            <ChevronRight
+                              className="size-3.5 shrink-0 text-muted-foreground/40 group-aria-selected:text-foreground"
+                              aria-hidden="true"
+                            />
+                          </Command.Item>
+                        ))}
+                      </Command.Group>
+                    )}
+                  </div>
+                ) : null}
 
-                      <div className="mx-2 mt-3 border-t border-border/60 px-1 pt-3 text-body-xs text-muted-foreground">
-                        {t("keyboardHelp")}
-                      </div>
-                    </div>
-                  )}
-
-                  {trimmed && !isHelpMode && people.length > 0 && <Command.Group
+                {/* People Results */}
+                {trimmed && !isHelpMode && people.length > 0 ? (
+                  <Command.Group
                     heading={locale === "en" ? "People" : "Orang"}
-                    className="mt-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted-foreground"
-                  >{people.map(person => <Command.Item key={person.publicId} value={`person ${person.publicId} ${person.displayName}`} onSelect={() => onSelectStudent(person.publicId)} className="group my-1 flex cursor-pointer items-center gap-3 rounded-lg border border-transparent bg-muted/40 px-3 py-2 text-body-sm outline-none aria-selected:border-primary/20 aria-selected:bg-primary aria-selected:text-primary-foreground">
-                    <StudentIdentityContent name={person.displayName} identity={person} />
-                  </Command.Item>)}</Command.Group>}
+                    className={groupClass}
+                  >
+                    {people.map((person) => (
+                      <Command.Item
+                        key={person.publicId}
+                        value={`person ${person.publicId} ${person.displayName}`}
+                        onSelect={() => onSelectStudent(person.publicId)}
+                        className={rowClass}
+                      >
+                        <StudentIdentityContent
+                          name={person.displayName}
+                          identity={person}
+                        />
+                      </Command.Item>
+                    ))}
+                  </Command.Group>
+                ) : null}
 
-                  {/* State 2: Active Search Results with Parent-Children Hierarchy */}
-                  {trimmed &&
-                    !isHelpMode &&
-                    flatResults.length > 0 &&
-                    CATEGORY_ORDER.map((cat) => {
-                      const items = groupedResults?.get(cat) ?? [];
-                      if (items.length === 0) return null;
-                      const Icon = getCategoryIcon(cat);
-                      const clusters = clusterSearchItems(items);
+                {/* Active Search Results with Parent-Children Hierarchy */}
+                {trimmed &&
+                  !isHelpMode &&
+                  flatResults.length > 0 &&
+                  CATEGORY_ORDER.map((cat) => {
+                    const items = groupedResults?.get(cat) ?? [];
+                    if (items.length === 0) return null;
+                    const Icon = getCategoryIcon(cat);
+                    const clusters = clusterSearchItems(items);
 
-                      return (
-                        <Command.Group
-                          key={cat}
-                          heading={t(`categories.${categoryMessageKey(cat)}`)}
-                          className="mt-2 first:mt-0 [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
-                        >
-                          {clusters.map((cluster) => {
-                            return (
-                              <div key={cluster.id} className="flex flex-col">
-                                {/* Parent Item */}
-                                {cluster.parent && (
-                                  <Command.Item
-                                    key={cluster.parent.id}
-                                    value={`${cluster.parent.id} ${cluster.parent.title} ${cluster.parent.subtitle} ${cluster.parent.keywords || ""}`}
-                                    onSelect={() => navigate(cluster.parent!)}
-                                    className={cn(
-                                      "group flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 my-1 text-body-sm outline-none cursor-pointer transition-all duration-150 select-none",
-                                      "bg-muted/40 hover:bg-muted/80 text-foreground border border-transparent",
-                                      "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20 aria-selected:shadow-sm"
-                                    )}
-                                  >
-                                    <div className="flex min-w-0 items-center gap-3 flex-1">
-                                      <div
-                                        className={cn(
-                                          "flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors",
-                                          "border-border/60 bg-background text-muted-foreground",
-                                          "group-hover:border-border group-hover:text-foreground",
-                                          "group-aria-selected:border-primary-foreground/20 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground"
-                                        )}
-                                      >
-                                        <Icon className="size-4" aria-hidden />
+                    return (
+                      <Command.Group
+                        key={cat}
+                        heading={t(`categories.${categoryMessageKey(cat)}`)}
+                        className={groupClass}
+                      >
+                        {clusters.map((cluster) => (
+                          <div key={cluster.id} className="flex flex-col">
+                            {cluster.parent ? (
+                              <Command.Item
+                                key={cluster.parent.id}
+                                value={`${cluster.parent.id} ${cluster.parent.title} ${cluster.parent.subtitle} ${cluster.parent.keywords || ""}`}
+                                onSelect={() => navigate(cluster.parent!)}
+                                className={rowClass}
+                              >
+                                <div className="flex min-w-0 flex-1 items-center gap-3">
+                                  <Icon
+                                    className="size-4 shrink-0 text-muted-foreground transition-colors group-aria-selected:text-brand-secondary"
+                                    aria-hidden="true"
+                                  />
+                                  <div className="flex min-w-0 flex-1 flex-col">
+                                    <div className="flex min-w-0 items-center gap-2">
+                                      <div className="truncate font-medium text-body-sm leading-snug text-foreground">
+                                        <HighlightText
+                                          text={cluster.parent.title}
+                                          query={trimmed}
+                                        />
                                       </div>
-
-                                      <div className="min-w-0 flex-1 flex flex-col justify-center">
-                                        <div className="flex min-w-0 items-center gap-2">
-                                          <div className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
-                                            <HighlightText
-                                              text={cluster.parent.title}
-                                              query={trimmed}
-                                            />
-                                          </div>
-                                          {cat === "Navigasi" && (
-                                            <NavigationSurfaceBadge
-                                              label={t(`surface.${getNavigationSurface(cluster.parent.href) === "Admin" ? "admin" : getNavigationSurface(cluster.parent.href) === "Tutor" ? "tutor" : getNavigationSurface(cluster.parent.href) === "Murid" ? "student" : "public"}`)}
-                                            />
+                                      {cat === "Navigasi" ? (
+                                        <NavigationSurfaceBadge
+                                          label={t(
+                                            `surface.${
+                                              getNavigationSurface(
+                                                cluster.parent.href
+                                              ) === "Admin"
+                                                ? "admin"
+                                                : getNavigationSurface(
+                                                      cluster.parent.href
+                                                    ) === "Tutor"
+                                                  ? "tutor"
+                                                  : getNavigationSurface(
+                                                        cluster.parent.href
+                                                      ) === "Murid"
+                                                    ? "student"
+                                                    : "public"
+                                            }`
                                           )}
-                                        </div>
-                                        {cluster.children.length === 0 && cluster.parent.subtitle && (
-                                          <div className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
+                                        />
+                                      ) : null}
+                                    </div>
+                                    {cluster.children.length === 0 &&
+                                    cluster.parent.subtitle ? (
+                                      <div className="truncate text-body-xs leading-tight text-muted-foreground">
+                                        <HighlightText
+                                          text={cluster.parent.subtitle}
+                                          query={trimmed}
+                                        />
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </div>
+
+                                <ChevronRight
+                                  className="size-3.5 shrink-0 text-muted-foreground/40 transition-colors group-aria-selected:text-foreground"
+                                  aria-hidden="true"
+                                />
+                              </Command.Item>
+                            ) : null}
+
+                            {cluster.children.length > 0 ? (
+                              <div
+                                className={cn(
+                                  "flex flex-col",
+                                  cluster.parent
+                                    ? "ml-4 border-l border-border/70 pl-2.5"
+                                    : ""
+                                )}
+                              >
+                                {cluster.children.map((child) => (
+                                  <Command.Item
+                                    key={child.id}
+                                    value={`${child.id} ${child.title} ${child.subtitle} ${child.keywords || ""}`}
+                                    onSelect={() => navigate(child)}
+                                    className={rowClass}
+                                  >
+                                    <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                                      <Hash
+                                        className="size-3.5 shrink-0 text-muted-foreground/70 transition-colors group-aria-selected:text-brand-secondary"
+                                        aria-hidden="true"
+                                      />
+                                      <div className="flex min-w-0 flex-1 flex-col">
+                                        {child.subtitle ? (
+                                          <div className="truncate text-body-xs leading-tight text-muted-foreground">
                                             <HighlightText
-                                              text={cluster.parent.subtitle}
+                                              text={child.subtitle}
                                               query={trimmed}
                                             />
                                           </div>
-                                        )}
+                                        ) : null}
+                                        <div className="flex min-w-0 items-center gap-2">
+                                          <div className="truncate font-medium text-body-sm leading-snug text-foreground">
+                                            <HighlightText
+                                              text={child.title}
+                                              query={trimmed}
+                                            />
+                                          </div>
+                                          {cat === "Navigasi" ? (
+                                            <NavigationSurfaceBadge
+                                              label={t(
+                                                `surface.${
+                                                  getNavigationSurface(
+                                                    child.href
+                                                  ) === "Admin"
+                                                    ? "admin"
+                                                    : getNavigationSurface(
+                                                          child.href
+                                                        ) === "Tutor"
+                                                      ? "tutor"
+                                                      : getNavigationSurface(
+                                                            child.href
+                                                          ) === "Murid"
+                                                        ? "student"
+                                                        : "public"
+                                                }`
+                                              )}
+                                            />
+                                          ) : null}
+                                        </div>
                                       </div>
                                     </div>
 
                                     <ChevronRight
-                                      className="size-4 text-muted-foreground/50 group-hover:text-foreground group-aria-selected:text-primary-foreground shrink-0"
-                                      aria-hidden
+                                      className="size-3.5 shrink-0 text-muted-foreground/40 transition-colors group-aria-selected:text-foreground"
+                                      aria-hidden="true"
                                     />
                                   </Command.Item>
-                                )}
-
-                                {/* Children with left connector tree line */}
-                                {cluster.children.length > 0 && (
-                                  <div
-                                    className={cn(
-                                      "flex flex-col gap-1",
-                                      cluster.parent
-                                        ? "relative ml-5 pl-3 my-0.5 border-l-2 border-border/80"
-                                        : "my-0.5"
-                                    )}
-                                  >
-                                    {cluster.children.map((child) => (
-                                      <Command.Item
-                                        key={child.id}
-                                        value={`${child.id} ${child.title} ${child.subtitle} ${child.keywords || ""}`}
-                                        onSelect={() => navigate(child)}
-                                        className={cn(
-                                          "group flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-body-sm outline-none cursor-pointer transition-all duration-150 select-none",
-                                          cluster.parent
-                                            ? "bg-muted/30 hover:bg-muted/70 text-foreground border border-transparent"
-                                            : "bg-muted/40 hover:bg-muted/80 text-foreground border border-transparent my-0.5",
-                                          "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20 aria-selected:shadow-sm"
-                                        )}
-                                      >
-                                        <div className="flex min-w-0 items-center gap-3 flex-1">
-                                          <div
-                                            className={cn(
-                                              "flex size-7 shrink-0 items-center justify-center rounded-md border transition-colors",
-                                              "border-border/60 bg-background/80 text-muted-foreground",
-                                              "group-hover:border-border group-hover:text-foreground",
-                                              "group-aria-selected:border-primary-foreground/20 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground"
-                                            )}
-                                          >
-                                            <Hash className="size-3.5" aria-hidden />
-                                          </div>
-
-                                          <div className="min-w-0 flex-1 flex flex-col justify-center">
-                                            {child.subtitle && (
-                                              <div className="truncate text-body-xs text-muted-foreground leading-tight group-aria-selected:text-primary-foreground/80">
-                                                <HighlightText
-                                                  text={child.subtitle}
-                                                  query={trimmed}
-                                                />
-                                              </div>
-                                            )}
-                                            <div className="mt-0.5 flex min-w-0 items-center gap-2">
-                                              <div className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
-                                                <HighlightText
-                                                  text={child.title}
-                                                  query={trimmed}
-                                                />
-                                              </div>
-                                              {cat === "Navigasi" && (
-                                                <NavigationSurfaceBadge
-                                                  label={t(`surface.${getNavigationSurface(child.href) === "Admin" ? "admin" : getNavigationSurface(child.href) === "Tutor" ? "tutor" : getNavigationSurface(child.href) === "Murid" ? "student" : "public"}`)}
-                                                />
-                                              )}
-                                            </div>
-                                          </div>
-                                        </div>
-
-                                        <ChevronRight
-                                          className="size-4 text-muted-foreground/50 group-hover:text-foreground group-aria-selected:text-primary-foreground shrink-0"
-                                          aria-hidden
-                                        />
-                                      </Command.Item>
-                                    ))}
-                                  </div>
-                                )}
+                                ))}
                               </div>
-                            );
-                          })}
-                        </Command.Group>
-                      );
-                    })}
-                </Command.List>
+                            ) : null}
+                          </div>
+                        ))}
+                      </Command.Group>
+                    );
+                  })}
+              </Command.List>
 
-                {/* Footer Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted/20 px-4 py-2.5 text-body-xs text-muted-foreground select-none">
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setSearch("?")}
-                      className="inline-flex items-center gap-1 rounded-md text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-                      aria-label={t("helpTitle")}
-                    >
-                      <kbd className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono font-medium shadow-2xs text-foreground">
-                        ?
-                      </kbd>
-                      <span className="ml-0.5">{t("helpButton")}</span>
-                    </button>
-                    <span className="inline-flex items-center gap-1">
-                      <kbd className="rounded border border-border bg-background px-1 py-0.5 text-[10px] font-mono font-medium shadow-2xs text-foreground">
-                        ↑
-                      </kbd>
-                      <kbd className="rounded border border-border bg-background px-1 py-0.5 text-[10px] font-mono font-medium shadow-2xs text-foreground">
-                        ↓
-                      </kbd>
-                      <span className="ml-0.5 text-muted-foreground">
-                        {t("navigate")}
-                      </span>
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <kbd className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono font-medium shadow-2xs text-foreground">
-                        ↵
-                      </kbd>
-                      <span className="ml-0.5 text-muted-foreground">{t("open")}</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <kbd className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono font-medium shadow-2xs text-foreground">
-                        esc
-                      </kbd>
-                      <span className="ml-0.5 text-muted-foreground">
-                        {t("close")}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 text-muted-foreground/90">
-                    <span>{t("poweredBy")}</span>
-                    <span className="font-semibold text-foreground">
-                      Zyx AI
-                    </span>
-                  </div>
+              {/* Minimal Zyx Footer */}
+              <div className="flex items-center justify-between gap-2 border-t border-border/60 bg-muted/20 px-4 py-2 text-body-xs text-muted-foreground select-none">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSearch(isHelpMode ? "" : "?")}
+                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label={t("helpTitle")}
+                  >
+                    <kbd className="rounded border border-border/70 bg-background px-1.5 py-0.5 font-mono text-body-2xs font-medium text-foreground">
+                      ?
+                    </kbd>
+                    <span>{t("helpButton")}</span>
+                  </button>
+                  <span className="hidden items-center gap-1 sm:inline-flex">
+                    <kbd className="rounded border border-border/70 bg-background px-1 py-0.5 font-mono text-body-2xs font-medium text-foreground">
+                      ↑↓
+                    </kbd>
+                    <span>{t("navigate")}</span>
+                  </span>
+                  <span className="hidden items-center gap-1 sm:inline-flex">
+                    <kbd className="rounded border border-border/70 bg-background px-1.5 py-0.5 font-mono text-body-2xs font-medium text-foreground">
+                      ↵
+                    </kbd>
+                    <span>{t("open")}</span>
+                  </span>
                 </div>
-              </Command>
-            </Dialog.Content>
-          </div>
-        </Dialog.Portal>
-      </DialogRoot>
-    );
-  }
+                <div className="flex items-center gap-1.5">
+                  <Logo
+                    variant="symbol"
+                    className="[--logo-height:0.875rem]"
+                  />
+                  <span className="font-heading text-body-xs font-semibold tracking-tight text-foreground/80">
+                    Zyx
+                  </span>
+                </div>
+              </div>
+            </Command>
+          </Dialog.Content>
+        </div>
+      </Dialog.Portal>
+    </DialogRoot>
+  );
+}

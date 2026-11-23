@@ -714,10 +714,10 @@ export async function PrimaryLearningSection({
                     </div>
 
                     <div className="mt-2.5 flex flex-wrap items-center gap-2 sm:gap-3 max-w-md">
-                      <div className="h-1.5 w-20 sm:w-28 shrink-0 overflow-hidden rounded-full bg-muted/70">
+                      <div className="h-1.5 w-20 sm:w-28 shrink-0 overflow-hidden rounded bg-muted/70">
                         <div
                           className={cn(
-                            "h-full transition-all duration-300 rounded-full",
+                            "h-full transition-all duration-300 rounded",
                             progressPct >= 100 ? "bg-status-success" : "bg-brand-primary",
                           )}
                           style={{ width: `${progressPct}%` }}
@@ -782,8 +782,8 @@ export async function PrimaryLearningSection({
                         {doc.title}
                       </h3>
                       <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-3 max-w-xs">
-                        <div className="h-1.5 w-20 sm:w-24 shrink-0 overflow-hidden rounded-full bg-muted/70">
-                          <div className="h-full bg-brand-primary transition-all duration-300 rounded-full" style={{ width: `${doc.completionPercent}%` }} />
+                        <div className="h-1.5 w-20 sm:w-24 shrink-0 overflow-hidden rounded bg-muted/70">
+                          <div className="h-full bg-brand-primary transition-all duration-300 rounded" style={{ width: `${doc.completionPercent}%` }} />
                         </div>
                         <span className="text-body-xs font-semibold tabular-nums text-foreground shrink-0">{doc.completionPercent}%</span>
                         {doc.lastSectionId && (
@@ -801,7 +801,6 @@ export async function PrimaryLearningSection({
           <div className="flex flex-col items-center justify-center px-3 py-4 text-center">
             <CheckCircle2 className="size-8 text-status-success/60 mb-2" />
             <p className="text-body-sm font-medium text-foreground"><TranslatedText namespace="student" messageKey="dashboard.documentsRead" /></p>
-            <p className="text-body-xs text-muted-foreground mt-0.5"><TranslatedText namespace="student" messageKey="dashboard.newClassMaterial" /></p>
           </div>
         )}
       </section>
@@ -902,12 +901,8 @@ export async function ReviewQueueSection({
         </span>
       </div>
 
-      <p className="text-body-xs text-muted-foreground leading-relaxed">
-        <TranslatedText namespace="student" messageKey="dashboard.spacedRepetitionDescription" />
-      </p>
-
       {firstCourseWithQueue && (
-        <Button asChild className="group w-full mt-3 rounded-lg text-body-sm font-semibold">
+        <Button asChild className="group w-full rounded-lg text-body-sm font-semibold">
           <Link href={`/courses/${firstCourseWithQueue}/flashcard`}>
             {totalDueFlashcards > 0
               ? <TranslatedText namespace="student" messageKey="dashboard.startFlashcardReview" />
@@ -1049,7 +1044,6 @@ export async function AvailableAssessmentsSection({
         <div className="flex flex-col items-center justify-center px-3 py-4 text-center">
           <Trophy className="size-8 text-status-warning/60 mb-2" />
           <p className="text-body-sm font-medium text-foreground"><TranslatedText namespace="student" messageKey="dashboard.allExamsDone" /></p>
-          <p className="text-body-xs text-muted-foreground mt-0.5"><TranslatedText namespace="student" messageKey="dashboard.newPracticeLater" /></p>
         </div>
       )}
     </section>

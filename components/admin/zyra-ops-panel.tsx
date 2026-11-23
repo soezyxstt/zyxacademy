@@ -79,7 +79,7 @@ export function ZyraOpsPanel() {
       <div className="space-y-2">
         <h3 className="font-semibold text-body-sm text-foreground">{t("zyraOps.capacity")}</h3>
         <p className="text-body-xs text-muted-foreground">{t("zyraOps.description")}</p>
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full border-collapse text-body-sm">
             <caption className="sr-only">{t("zyraOps.table")}</caption>
             <thead>
@@ -108,6 +108,41 @@ export function ZyraOpsPanel() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="md:hidden">
+          {metrics.capacity.modelPools.length === 0 ? (
+            <p className="py-2 text-body-xs text-muted-foreground">
+              {t("analyticsUI.capacityUnavailable")}
+            </p>
+          ) : (
+            <ul className="divide-y divide-border/40 border-y border-border">
+              {metrics.capacity.modelPools.map((pool) => (
+                <li key={pool.model} className="py-3 space-y-1.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="min-w-0 break-all font-mono text-body-xs font-medium text-foreground">
+                      {pool.model}
+                    </span>
+                    <div className="shrink-0 text-right tabular-nums">
+                      <span className="block text-body-sm font-semibold text-foreground">
+                        {pool.usableRemainingRpd}
+                      </span>
+                      <span className="block text-body-2xs text-muted-foreground">
+                        Usable remaining
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-body-xs tabular-nums text-muted-foreground">
+                    <span>Per project: {pool.configuredPerProjectRpd}</span>
+                    <span>Zyx usable ceiling: {pool.configuredUsableRpd}</span>
+                    <span>Committed: {pool.zyxCommittedRequests}</span>
+                    <span>Active: {pool.activeReservations}</span>
+                    <span>Reserve: {pool.safetyReserveRpd}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </section>

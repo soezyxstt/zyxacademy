@@ -1,5 +1,6 @@
 import type { ReactNode, ComponentType } from "react";
 import { cn } from "@/lib/utils";
+import { MobileTopNavBackDelegate } from "@/components/navigation/mobile-top-nav-back-delegate";
 
 export type BreadcrumbItem = {
   label: string;
@@ -24,16 +25,31 @@ export type PageHeaderProps = {
 export function PageHeader({
   title,
   actions,
+  backHref,
+  backLabel,
   className,
 }: PageHeaderProps) {
+  const delegatedBackLabel =
+    typeof backLabel === "string" && backLabel.trim().length > 0
+      ? backLabel
+      : undefined;
+
   // Route titles, breadcrumbs, and back buttons are handled by the sidebar
-  // (desktop) and native navigation (mobile), so keep only an accessible h1
-  // plus any explicit page actions.
+  // (desktop) and MobileTopNavbar (mobile), so keep only an accessible h1,
+  // mobile back delegation, and any explicit page actions.
   if (!actions) {
     return (
-      <h1 data-sr-only-header="" className="sr-only">
-        {title}
-      </h1>
+      <>
+        {backHref ? (
+          <MobileTopNavBackDelegate
+            backHref={backHref}
+            backLabel={delegatedBackLabel}
+          />
+        ) : null}
+        <h1 data-sr-only-header="" className="sr-only">
+          {title}
+        </h1>
+      </>
     );
   }
 
@@ -44,6 +60,12 @@ export function PageHeader({
         className,
       )}
     >
+      {backHref ? (
+        <MobileTopNavBackDelegate
+          backHref={backHref}
+          backLabel={delegatedBackLabel}
+        />
+      ) : null}
       <h1 data-sr-only-header="" className="sr-only">
         {title}
       </h1>

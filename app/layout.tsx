@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Lexend } from "next/font/google";
 import "katex/dist/katex.min.css";
 import "./globals.css";
@@ -21,6 +21,12 @@ import NextTopLoader from "nextjs-toploader";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { getAppLocaleResolution, getAppMessages, getTranslations } from "@/lib/i18n/server";
 import { env } from "@/lib/env";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const [{ locale }, t] = await Promise.all([

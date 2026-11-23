@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUrlTab } from "@/hooks/use-url-tab";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { useTranslations } from "@/lib/i18n/client";
 import {
   DropdownMenu,
@@ -388,6 +389,12 @@ type TabsListProps = React.ComponentProps<typeof TabsPrimitive.List> & {
    */
   variant?: "page" | "inline";
   /**
+   * Renders an inline tab strip on mobile (<768px) to avoid double-stacking
+   * under mobile sub-tab navigation bars, while preserving the sticky page-level
+   * tab strip on desktop.
+   */
+  mobileInline?: boolean;
+  /**
    * When variant="page", removes top ApplicationPage padding and merges seamlessly with MobileNavbar.
    * Set to false when intentional header/KPI content sits above the tabs.
    */
@@ -403,7 +410,8 @@ type TabsListProps = React.ComponentProps<typeof TabsPrimitive.List> & {
 function TabsList({
   className,
   children,
-  variant = "page",
+  variant: variantProp = "page",
+  mobileInline = false,
   flush = true,
   trailing,
   moreLabel: moreLabelProp,
@@ -412,6 +420,8 @@ function TabsList({
   "aria-labelledby": ariaLabelledBy,
   ...props
 }: TabsListProps) {
+  const viewportMode = useViewportMode();
+  const variant = mobileInline && viewportMode === "mobile" ? "inline" : variantProp;
   const { activeValue, selectTab } = React.useContext(TabsContext);
   const moreLabel = useMoreLabel(moreLabelProp);
   const [moreOpen, setMoreOpen] = React.useState(false);

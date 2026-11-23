@@ -5,7 +5,7 @@ import { createQuizSubmissionGate } from "@/lib/quiz/player-state";
 describe("Quiz Timeout and Submission Invariant Contracts", () => {
   const normalize = (s: string) => s.replace(/\r\n/g, "\n");
   const submitRouteCode = normalize(readFileSync("app/api/quiz/attempts/[id]/route.ts", "utf8"));
-  const quizPlayerCode = ["components/course/quiz-player.tsx", "hooks/use-quiz-player.ts", "lib/quiz/player-state.ts"].map(path => normalize(readFileSync(path, "utf8"))).join("\n");
+  const quizPlayerCode = ["components/course/quiz-player.tsx", "features/student-assessment/ui/desktop/quiz-player-desktop.tsx", "features/student-assessment/ui/mobile/quiz-player-mobile.tsx", "hooks/use-quiz-player.ts", "lib/quiz/player-state.ts"].map(path => normalize(readFileSync(path, "utf8"))).join("\n");
   const studentQuizPageCode = normalize(readFileSync("app/(student)/courses/[id]/quiz/[quizId]/page.tsx", "utf8"));
   const featuresDocCode = normalize(readFileSync("docs/features.md", "utf8"));
 

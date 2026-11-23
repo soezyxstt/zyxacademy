@@ -42,6 +42,7 @@ import { ClampedMarquee } from "@/components/ui/clamped-marquee";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
+import { useHideMobileBottomNav } from "@/components/navigation";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -347,6 +348,7 @@ function DetailLoading() {
 // ---------------------------------------------------------------------------
 
 export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
+  useHideMobileBottomNav(true);
   const t = useTranslations("adminAcademic");
   const adminT = useTranslations("admin");
   const { locale } = useAppLocale();
@@ -2495,6 +2497,7 @@ function ProductBundleMetadataPanel({
 
 /** Loads the Product Bundle and coordinates product, section, and bundle review. */
 export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHref }: DetailProps) {
+  useHideMobileBottomNav(true);
   const t = useTranslations("adminAcademic");
   const adminT = useTranslations("admin");
   const rubricT = useTranslations("admin.productRubric");

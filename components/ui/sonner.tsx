@@ -8,7 +8,7 @@ import { DEFAULT_APPEARANCE_PREFERENCES } from "@/lib/appearance-preferences";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
-function Toaster({ className, icons, ...props }: ToasterProps) {
+function Toaster({ className, icons, toastOptions, ...props }: ToasterProps) {
   const { theme = "system" } = useTheme();
 
   return (
@@ -16,6 +16,7 @@ function Toaster({ className, icons, ...props }: ToasterProps) {
       theme={theme as ToasterProps["theme"]}
       className={className ? `zyx-toaster ${className}` : "zyx-toaster"}
       position={DEFAULT_APPEARANCE_PREFERENCES.toastPosition}
+      gap={8}
       icons={{
         success: <CircleCheck aria-hidden="true" />,
         info: <Info aria-hidden="true" />,
@@ -24,6 +25,14 @@ function Toaster({ className, icons, ...props }: ToasterProps) {
         loading: <Loader2 aria-hidden="true" className="motion-safe:animate-spin" />,
         close: <X aria-hidden="true" />,
         ...icons,
+      }}
+      toastOptions={{
+        ...toastOptions,
+        classNames: {
+          toast:
+            "rounded-xl border border-border bg-card text-card-foreground shadow-lg transition-all duration-200 motion-reduce:transition-none",
+          ...toastOptions?.classNames,
+        },
       }}
       {...props}
     />

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { MobileSearchInlineProvider } from "@/components/navigation/mobile-chrome-context"
 import { useDialogOpenState } from "@/hooks/use-dialog-history"
 
 function Sheet({ open, defaultOpen, onOpenChange, ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
@@ -87,7 +88,7 @@ function SheetContent({
           if (!event.isComposing) closeSearch.click()
         }}
       >
-        {children}
+        <MobileSearchInlineProvider>{children}</MobileSearchInlineProvider>
         {showCloseButton && (
           <SheetPrimitive.Close data-slot="sheet-close" asChild>
             <Button

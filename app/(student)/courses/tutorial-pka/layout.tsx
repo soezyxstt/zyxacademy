@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
+import { MobileNavTitle } from "@/components/mobile-nav-title";
+import { CourseMobileTabNav } from "@/components/navigation/student";
 import { env } from "@/lib/env";
 import { getCourse } from "@/lib/course-utils";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
@@ -17,5 +19,16 @@ export default async function PkaCourseLayout({ children }: { children: ReactNod
   const course = await getCourse(PKA_COURSE_ID);
   if (!course) notFound();
 
-  return <>{children}</>;
+  return (
+    <>
+      <MobileNavTitle title={course.title} />
+      <CourseMobileTabNav
+        courseId={course.id}
+        courseTitle={course.title}
+        isPka
+        showLive={env.FEATURE_LIVE === "1"}
+      />
+      {children}
+    </>
+  );
 }

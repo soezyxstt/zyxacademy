@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { connectGoogleCalendar, getGoogleCalendarStatus, requestGoogleCalendarSync } from "@/app/actions/google-calendar";
 import type { CalendarSyncStatus } from "@/lib/google-calendar/shared";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import { useStudentExperience } from "@/components/student-experience-provider";
 import {
   getNativeAuthScheme,
   isNativeSystemBrowserSupported,
@@ -17,6 +18,7 @@ import {
 export function GoogleCalendarControl({ central = false }: { central?: boolean }) {
   const t = useTranslations("schedule");
   const { locale } = useAppLocale();
+  const isDemo = useStudentExperience().mode === "demo";
   const mountedRef = useRef(true);
   const [status, setStatus] = useState<CalendarSyncStatus | null>(null);
   const [open, setOpen] = useState(false);
@@ -30,6 +32,7 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
   const hasStatus = status !== null;
   const syncPending = status?.pending === true;
   useEffect(() => {
+    if (isDemo) return;
     let active = true;
     let running = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -55,7 +58,7 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [central, open, busy, hasStatus, syncPending]);
+  }, [central, isDemo, open, busy, hasStatus, syncPending]);
   useEffect(() => {
     if (central) return;
     const url = new URL(window.location.href);

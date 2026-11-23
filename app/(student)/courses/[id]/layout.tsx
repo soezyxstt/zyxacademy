@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { notFound, redirect } from "next/navigation";
 import { MobileNavTitle } from "@/components/mobile-nav-title";
+import { CourseMobileTabNav } from "@/components/navigation/student";
 import { getCourse } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
+import { env } from "@/lib/env";
 
 type Props = {
   children: ReactNode;
@@ -34,6 +36,13 @@ export default async function CourseLayout({ children, params }: Props) {
   return (
     <>
       <MobileNavTitle title={course.title} />
+      <CourseMobileTabNav
+        courseId={course.id}
+        courseTitle={course.title}
+        showStudyPath
+        showMastery
+        showLive={env.FEATURE_LIVE === "1"}
+      />
       {children}
     </>
   );

@@ -12,6 +12,7 @@ import { MathText } from "@/components/course/math-text";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
+import { useHideMobileBottomNav } from "@/components/navigation/mobile-chrome-context";
 
 interface Template {
   id: string;
@@ -46,6 +47,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
     return () => controller.abort();
   }, [courseId]);
   const [phase, setPhase] = useState<Phase>("setup");
+  useHideMobileBottomNav(phase === "session");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -289,9 +291,41 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
   } = state;
 
   return (
-    <div className="relative min-h-[60vh] space-y-(--related-gap)">
-      {/* Top Status Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-(--compact-gap) border-b border-border pb-4">
+    <div className="relative min-h-[60vh] space-y-(--related-gap) pb-24 md:pb-0">
+      {/* Mobile prominent join code strip */}
+      {session && (
+        <div
+          data-mobile-live-join-strip=""
+          className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 md:hidden"
+        >
+          <div className="min-w-0">
+            <p className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {t("joinCode")}
+            </p>
+            <p className="font-heading text-h5 font-bold tracking-widest text-foreground tabular-nums">
+              {session.code}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5">
+            <span
+              className={cn(
+                "size-2 rounded-sm",
+                state.connectionStatus === "connected"
+                  ? "bg-status-success"
+                  : "animate-pulse bg-status-warning",
+              )}
+              aria-hidden
+            />
+            <Users className="size-3.5 text-muted-foreground" aria-hidden />
+            <span className="text-body-xs font-semibold text-foreground tabular-nums">
+              {participantCount}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Top Status Strip */}
+      <div className="hidden flex-wrap items-center justify-between gap-(--compact-gap) border-b border-border pb-4 md:flex">
         <div className="flex items-center gap-2">
           <Radio className="size-4 text-brand-primary" />
           <span className="font-heading text-body-base font-bold text-foreground">
@@ -404,9 +438,9 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
         </div>
       )}
 
-      {/* ── Host Control Buttons ── */}
+      {/* Desktop Host Control Buttons */}
       {sessionState !== "ended" ? (
-        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+        <div className="hidden flex-wrap items-center gap-2 border-t border-border pt-4 md:flex">
           {sessionState === "lobby" && (
             <Button
               isLoading={controlling}
@@ -453,7 +487,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
           </Button>
         </div>
       ) : (
-        <div className="flex items-center gap-2 border-t border-border pt-4">
+        <div className="hidden items-center gap-2 border-t border-border pt-4 md:flex">
           <Button
             variant="outline"
             onClick={() => {
@@ -467,6 +501,73 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
           </Button>
         </div>
       )}
+
+      {/* Mobile fixed thumb-reachable bottom host control bar */}
+      <div
+        data-mobile-live-controls=""
+        className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-border bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md md:hidden"
+      >
+        {sessionState !== "ended" ? (
+          <>
+            {sessionState === "lobby" && (
+              <Button
+                isLoading={controlling}
+                onClick={() => control("start")}
+                className="min-h-11 flex-1 rounded-md text-body-sm font-semibold"
+              >
+                <Play className="mr-1.5 size-4" aria-hidden />
+                {t("startQuiz")}
+              </Button>
+            )}
+
+            {sessionState === "question" && (
+              <Button
+                variant="outline"
+                isLoading={controlling}
+                onClick={() => control("reveal")}
+                className="min-h-11 flex-1 rounded-md text-body-sm font-semibold"
+              >
+                <CheckCircle2 className="mr-1.5 size-4" aria-hidden />
+                {t("revealAnswers")}
+              </Button>
+            )}
+
+            {sessionState === "reveal" && (
+              <Button
+                variant="outline"
+                isLoading={controlling}
+                onClick={() => control("next")}
+                className="min-h-11 flex-1 rounded-md text-body-sm font-semibold"
+              >
+                <ChevronRight className="mr-1.5 size-4" aria-hidden />
+                {t("nextQuestion")}
+              </Button>
+            )}
+
+            <Button
+              variant="destructive"
+              isLoading={controlling}
+              onClick={() => control("end")}
+              className="min-h-11 shrink-0 rounded-md text-body-sm font-semibold"
+            >
+              <StopCircle className="mr-1.5 size-4" aria-hidden />
+              {t("endSession")}
+            </Button>
+          </>
+        ) : (
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSession(null);
+              setPhase("setup");
+              loadInitialData();
+            }}
+            className="min-h-11 w-full rounded-md text-body-sm font-semibold"
+          >
+            {t("newSession")}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

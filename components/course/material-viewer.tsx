@@ -31,9 +31,16 @@ import {
   Trash2,
   X,
   Check,
+  List,
   Menu,
   Circle,
 } from "lucide-react";
+import {
+  MobileTopNavActionButton,
+  useHideMobileBottomNav,
+  useMobileTopNav,
+} from "@/components/navigation";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { SearchBar } from "@/components/ui/search-bar";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -489,6 +496,7 @@ function MaterialViewerContent({
   materialLiveEnabled,
   course,
   mode = "learner",
+  backHref,
   hideHeader = false,
   canDownload = true,
 }: MaterialViewerProps) {
@@ -622,6 +630,33 @@ function MaterialViewerContent({
   const [showOutlineSheet, setShowOutlineSheet] = useState(false);
   const [isArticleTocOpen, setIsArticleTocOpen] = useState(true);
   const [articleTocSearchQuery, setArticleTocSearchQuery] = useState("");
+
+  const viewportMode = useViewportMode();
+  const isMobile = viewportMode === "mobile";
+  useHideMobileBottomNav(learnerMode);
+
+  const mobileTopNavConfig = useMemo(() => {
+    if (!learnerMode || !isMobile || hideHeader) return null;
+    const resolvedBackHref =
+      backHref ??
+      (material.courseId
+        ? `/courses/${encodeURIComponent(material.courseId)}/material`
+        : undefined);
+    return {
+      title: material.title,
+      backHref: resolvedBackHref,
+      rightActions:
+        material.kind === "article" ? (
+          <MobileTopNavActionButton
+            label={t("reader.tableOfContents")}
+            onClick={() => setShowOutlineSheet(true)}
+          >
+            <List className="size-4" aria-hidden="true" />
+          </MobileTopNavActionButton>
+        ) : undefined,
+    };
+  }, [backHref, hideHeader, isMobile, learnerMode, material.courseId, material.kind, material.title, t]);
+  useMobileTopNav(mobileTopNavConfig);
 
   // Sync URL -> State (e.g. back/forward navigation)
   useEffect(() => {
@@ -1298,16 +1333,18 @@ function MaterialViewerContent({
                   <span className="font-semibold text-foreground">{progressPercent}%</span>
                 </div>
                 <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon-lg" className="md:hidden" aria-label={t("reader.tableOfContents")}>
-                          <Menu aria-hidden />
-                        </Button>
-                      </SheetTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("reader.tableOfContents")}</TooltipContent>
-                  </Tooltip>
+                  {!isMobile && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <SheetTrigger asChild>
+                          <Button variant="ghost" size="icon-lg" className="md:hidden" aria-label={t("reader.tableOfContents")}>
+                            <Menu aria-hidden />
+                          </Button>
+                        </SheetTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("reader.tableOfContents")}</TooltipContent>
+                    </Tooltip>
+                  )}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -1342,7 +1379,15 @@ function MaterialViewerContent({
             </header>
           )}
 
-          <SheetContent side="right" className="gap-0" aria-describedby={undefined}>
+          <SheetContent
+            side={isMobile ? "bottom" : "right"}
+            className={
+              isMobile
+                ? "max-h-[80dvh] rounded-t-2xl gap-0 pb-[env(safe-area-inset-bottom)]"
+                : "gap-0"
+            }
+            aria-describedby={undefined}
+          >
             <SheetHeader className="group/toc min-h-14 flex-row items-center gap-2 border-b border-border/80 py-2 pl-3 pr-14">
               <SheetTitle className="min-w-0 flex-1 truncate text-body-sm group-has-[[data-search-expanded=true]]/toc:sr-only">{t("reader.tableOfContents")}</SheetTitle>
               {articleTocPosition}
@@ -1509,7 +1554,7 @@ function MaterialViewerContent({
               </div>
             </div>
           </div>
-          {isArticleTocOpen && (
+          {isArticleTocOpen && !isMobile && (
             <aside className="hidden w-72 shrink-0 overflow-hidden border-l border-border/80 bg-card/40 md:flex md:flex-col lg:w-80">
               <div className="group/toc flex items-center gap-2 border-b border-border/70 px-3 py-1">
                 <h2 className="min-w-0 flex-1 text-body-sm font-semibold group-has-[[data-search-expanded=true]]/toc:sr-only">{t("reader.tableOfContents")}</h2>
@@ -1520,6 +1565,70 @@ function MaterialViewerContent({
             </aside>
           )}
         </div>
+        {learnerMode && isMobile && (
+          <nav
+            aria-label={t("reader.tableOfContents")}
+            className="shrink-0 flex items-center justify-between gap-2 border-t border-border/80 bg-background/95 px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] backdrop-blur-md md:hidden"
+          >
+            {articleSections.length > 1 ? (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-10 rounded-lg"
+                  aria-label={t("reader.previousPage")}
+                  disabled={activeSectionIdx <= 0}
+                  onClick={() => {
+                    const nextIdx = Math.max(0, activeSectionIdx - 1);
+                    setActiveSectionIdx(nextIdx);
+                    document.getElementById(`diktat-section-${nextIdx}`)?.scrollIntoView({
+                      behavior: prefersAppReducedMotion() ? "auto" : "smooth",
+                      block: "start",
+                    });
+                  }}
+                >
+                  <ChevronLeft className="size-4" aria-hidden />
+                </Button>
+                <span className="min-w-10 text-center text-body-xs font-semibold tabular-nums text-muted-foreground">
+                  {activeSectionIdx + 1}/{articleSections.length}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-10 rounded-lg"
+                  aria-label={t("reader.nextPage")}
+                  disabled={activeSectionIdx >= articleSections.length - 1}
+                  onClick={() => {
+                    const nextIdx = Math.min(articleSections.length - 1, activeSectionIdx + 1);
+                    setActiveSectionIdx(nextIdx);
+                    document.getElementById(`diktat-section-${nextIdx}`)?.scrollIntoView({
+                      behavior: prefersAppReducedMotion() ? "auto" : "smooth",
+                      block: "start",
+                    });
+                  }}
+                >
+                  <ChevronRight className="size-4" aria-hidden />
+                </Button>
+              </div>
+            ) : (
+              <span />
+            )}
+
+            <Button
+              type="button"
+              variant={done ? "outline" : "default"}
+              size="sm"
+              onClick={markDone}
+              disabled={done || markingDone}
+              className="min-h-10 gap-1.5 rounded-lg text-body-sm font-semibold"
+            >
+              <CheckCircle2 className={cn("size-4", done ? "text-status-success" : "")} aria-hidden />
+              <span>{done ? t("reader.complete") : t("reader.markComplete")}</span>
+            </Button>
+          </nav>
+        )}
         {tutorPopover}
       </div>
     );

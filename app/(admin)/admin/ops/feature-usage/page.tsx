@@ -119,53 +119,102 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
           title={t("featureUsageUI.details")}
           icon={MousePointerClick}
         />
-        <AdminTable>
-          <table className="w-full text-body-sm">
-            <AdminTableHead>
-              <tr>
-                <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">#</th>
-                <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">{t("featureUsageUI.feature")}</th>
-                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">{t("featureUsageUI.activity")}</th>
-                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">{t("featureUsageUI.students")}</th>
-                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">{t("featureUsageUI.contribution")}</th>
-                <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">{t("featureUsageUI.lastUsed")}</th>
-              </tr>
-            </AdminTableHead>
-            <tbody>
-              {metrics.rows.map((row, index) => {
-                const share =
-                  metrics.totals.events > 0
-                    ? Math.round((row.events / metrics.totals.events) * 100)
-                    : 0;
-                return (
-                  <tr key={row.key} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
-                    <td className="px-4 py-3">
-                      <span className="font-semibold text-foreground">{t(`featureUsageUI.featureLabels.${row.key}`)}</span>
-                      <span className="block text-body-xs text-muted-foreground">{t(`featureUsageUI.featureDetails.${row.key}`, { count: row.detailCount ?? 0 })}</span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-foreground">
+        <div className="hidden md:block">
+          <AdminTable>
+            <table className="w-full text-body-sm">
+              <AdminTableHead>
+                <tr>
+                  <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">#</th>
+                  <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">{t("featureUsageUI.feature")}</th>
+                  <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">{t("featureUsageUI.activity")}</th>
+                  <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">{t("featureUsageUI.students")}</th>
+                  <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">{t("featureUsageUI.contribution")}</th>
+                  <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">{t("featureUsageUI.lastUsed")}</th>
+                </tr>
+              </AdminTableHead>
+              <tbody>
+                {metrics.rows.map((row, index) => {
+                  const share =
+                    metrics.totals.events > 0
+                      ? Math.round((row.events / metrics.totals.events) * 100)
+                      : 0;
+                  return (
+                    <tr key={row.key} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                      <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
+                      <td className="px-4 py-3">
+                        <span className="font-semibold text-foreground">{t(`featureUsageUI.featureLabels.${row.key}`)}</span>
+                        <span className="block text-body-xs text-muted-foreground">{t(`featureUsageUI.featureDetails.${row.key}`, { count: row.detailCount ?? 0 })}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-foreground">
+                        {row.events.toLocaleString("id-ID")}
+                      </td>
+                      <td className="px-4 py-3 text-right text-foreground">
+                        {row.users.toLocaleString("id-ID")}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="inline-flex min-w-12 justify-end font-medium text-foreground">{share}%</span>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {row.lastUsedAt ? (
+                          <FormattedDate date={row.lastUsedAt} options={{ dateStyle: "medium" }} />
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </AdminTable>
+        </div>
+
+        <ul className="divide-y divide-border/40 border-y border-border md:hidden">
+          {metrics.rows.map((row, index) => {
+            const share =
+              metrics.totals.events > 0
+                ? Math.round((row.events / metrics.totals.events) * 100)
+                : 0;
+            return (
+              <li key={row.key} className="py-3 space-y-1.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-body-xs tabular-nums text-muted-foreground">
+                        #{index + 1}
+                      </span>
+                      <span className="text-body-sm font-semibold text-foreground">
+                        {t(`featureUsageUI.featureLabels.${row.key}`)}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-body-xs text-muted-foreground">
+                      {t(`featureUsageUI.featureDetails.${row.key}`, { count: row.detailCount ?? 0 })}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right tabular-nums">
+                    <p className="text-body-sm font-semibold text-foreground">
                       {row.events.toLocaleString("id-ID")}
-                    </td>
-                    <td className="px-4 py-3 text-right text-foreground">
-                      {row.users.toLocaleString("id-ID")}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="inline-flex min-w-12 justify-end font-medium text-foreground">{share}%</span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {row.lastUsedAt ? (
-                        <FormattedDate date={row.lastUsedAt} options={{ dateStyle: "medium" }} />
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </AdminTable>
+                    </p>
+                    <p className="text-body-xs text-muted-foreground">{share}%</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 text-body-xs text-muted-foreground">
+                  <span className="tabular-nums">
+                    {row.users.toLocaleString("id-ID")} {t("featureUsageUI.students")}
+                  </span>
+                  <span>
+                    {row.lastUsedAt ? (
+                      <FormattedDate date={row.lastUsedAt} options={{ dateStyle: "medium" }} />
+                    ) : (
+                      "-"
+                    )}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
       <section className="border-t border-border pt-3">

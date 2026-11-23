@@ -109,7 +109,7 @@ export function KeysClient() {
             <span className="text-body-sm text-muted-foreground">{totalToday} {t("keysUI.requestsToday")}</span>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-body-sm">
               <thead>
                 <tr className="border-b border-border text-muted-foreground">
@@ -160,6 +160,65 @@ export function KeysClient() {
               </tbody>
             </table>
           </div>
+
+          <ul className="divide-y divide-border/40 md:hidden">
+            {entries.map((d) => {
+              const rpd = data.rpdLimits[d.modelId];
+              return (
+                <li key={`${d.keyId}:${d.modelId}`} className="px-4 py-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="min-w-0 break-all text-body-sm font-medium text-foreground">
+                      {d.modelId}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className={`text-body-xs font-medium ${circuitColor(d.circuitState)}`}>
+                        {d.circuitState}
+                      </span>
+                      <span
+                        className={`text-body-xs tabular-nums font-medium ${
+                          d.utilizationPercent >= 90
+                            ? "text-status-error"
+                            : d.utilizationPercent >= 70
+                            ? "text-status-warning"
+                            : "text-foreground"
+                        }`}
+                      >
+                        {rpd > 0 ? `${d.utilizationPercent.toFixed(0)}%` : "N/A"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-2 text-body-xs">
+                      <span className="text-muted-foreground">{t("keysUI.todayRpd")}</span>
+                      <span className="tabular-nums font-semibold text-foreground">
+                        {d.requestsToday}{" "}
+                        <span className="font-normal text-muted-foreground">/ {rpd ?? "N/A"}</span>
+                      </span>
+                    </div>
+                    {rpd > 0 && <ProgressBar current={d.requestsToday} max={rpd} />}
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-body-xs tabular-nums text-muted-foreground">
+                    <span>
+                      {t("keysUI.rpm")}: {d.requestsMinute}/{d.estimatedRpmLimit}
+                    </span>
+                    <span>
+                      {t("keysUI.successFailure")}: {d.successes}/{d.failures}
+                    </span>
+                    <span>
+                      {t("keysUI.active")}: {d.activeRequestsCount}
+                    </span>
+                    {d.cooldownRemainingMs > 0 && (
+                      <span>
+                        {t("keysUI.cooldown")}: {(d.cooldownRemainingMs / 1000).toFixed(0)}s
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       ))}
 
@@ -167,7 +226,7 @@ export function KeysClient() {
         <div className="border-b border-border bg-muted/50 px-5 py-3">
           <h2 className="font-heading text-body-base font-semibold text-foreground">{t("keysUI.rpdLimits")}</h2>
         </div>
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-body-sm">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
@@ -185,6 +244,14 @@ export function KeysClient() {
             </tbody>
           </table>
         </div>
+        <ul className="divide-y divide-border/40 md:hidden">
+          {Object.entries(data.rpdLimits).map(([model, limit]) => (
+            <li key={model} className="flex items-center justify-between gap-3 px-4 py-2.5 text-body-sm">
+              <span className="min-w-0 break-all font-medium text-foreground">{model}</span>
+              <span className="shrink-0 tabular-nums text-muted-foreground">{limit}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

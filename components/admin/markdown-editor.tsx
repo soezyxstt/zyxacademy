@@ -16,6 +16,7 @@ import { saveArticle } from "@/app/(admin)/admin/blog/actions";
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { useTranslations } from "@/lib/i18n/client";
+import { useHideMobileBottomNav } from "@/components/navigation";
 
 interface MarkdownEditorProps {
   initialData?: any;
@@ -70,6 +71,7 @@ function BlogThumbnailPreview({
 }
 
 export function MarkdownEditor({ initialData, initialRevision }: MarkdownEditorProps) {
+  useHideMobileBottomNav(true);
   const router = useRouter();
   const t = useTranslations("adminAcademic");
   const [isSubmitting, setIsSubmitting] = useState(false);

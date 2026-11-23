@@ -7,9 +7,13 @@ import { AdminSidebar } from "@/components/admin-sidebar";
 import { ApplicationShell } from "@/components/application-shell";
 import { OpsAiDrawer } from "@/components/admin/ops-ai/ops-ai-drawer";
 import { OpsAiProvider } from "@/components/admin/ops-ai/ops-ai-context";
-import { MobileNavbar } from "@/components/mobile-navbar";
 import { CommandMenuProvider } from "@/components/command-menu";
 import { ApplicationPage } from "@/components/application-page";
+import {
+  AdminMobileBottomNav,
+  AdminMobileSubTabNav,
+  AdminMobileTopNav,
+} from "@/components/navigation/admin";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await getAuthSession();
@@ -22,11 +26,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       <OpsAiProvider>
         <ApplicationShell
           showOrnaments={false}
-          sidebar={<AdminSidebar />}
-          mobileNavigation={<MobileNavbar surface="admin" />}
+          desktopSidebar={<AdminSidebar />}
+          mobileTopNav={<AdminMobileTopNav />}
+          mobileBottomNav={<AdminMobileBottomNav />}
           overlays={<OpsAiDrawer />}
           mainClassName="transition-[width] duration-75"
         >
+          <AdminMobileSubTabNav />
           <ApplicationPage>{children}</ApplicationPage>
         </ApplicationShell>
       </OpsAiProvider>
