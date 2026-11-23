@@ -43,6 +43,18 @@ function getProposalStatusBadge(status: OpsAiProposalStatus | string) {
         badgeClass: "bg-primary/10 text-primary border-primary/30",
         icon: <Loader2 className="size-3.5 animate-spin" />,
       };
+    case "job-pending":
+      return {
+        label: "Job diproses",
+        badgeClass: "bg-muted text-muted-foreground border-border/60",
+        icon: <Clock className="size-3.5" />,
+      };
+    case "job-attention":
+      return {
+        label: "Periksa job",
+        badgeClass: "bg-status-warning/15 text-status-warning border-status-warning/30",
+        icon: <AlertCircle className="size-3.5" />,
+      };
     case "executed":
       return {
         label: "Selesai",
@@ -174,7 +186,9 @@ export function ActionProposalCard({
     }
   };
 
-  const badge = getProposalStatusBadge(status === "pending" && expired ? "expired" : status);
+  const jobState = executionResult?.jobState;
+  const jobBadge = jobState === "pending" ? "job-pending" : jobState === "attention" ? "job-attention" : undefined;
+  const badge = getProposalStatusBadge(status === "executed" && jobBadge ? jobBadge : status === "pending" && expired ? "expired" : status);
   const isPending = status === "pending";
   const isExecuted = status === "executed";
   const isFailed = status === "failed";
@@ -229,9 +243,9 @@ export function ActionProposalCard({
 
       {/* Execution Result Banner */}
       {isExecuted && (
-        <div className="rounded-md border border-status-success/30 bg-status-success/10 p-2.5 text-body-xs text-status-success space-y-1.5">
+        <div className={cn("rounded-md border p-2.5 text-body-xs space-y-1.5", jobBadge ? badge.badgeClass : "border-status-success/30 bg-status-success/10 text-status-success")}>
           <div className="flex items-center gap-1.5 font-medium">
-            <CheckCircle2 className="size-4 shrink-0" />
+            {jobBadge ? badge.icon : <CheckCircle2 className="size-4 shrink-0" />}
             <span>{messageString}</span>
           </div>
 

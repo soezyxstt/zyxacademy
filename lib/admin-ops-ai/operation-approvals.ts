@@ -177,16 +177,17 @@ export async function confirmAdminOperation(
   const payload = envelope.data ?? envelope.result ?? envelope;
   const data = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
   const target = typeof data.id === "string" ? data.id : undefined;
-  const jobId = typeof data.jobId === "string" ? data.jobId : undefined;
+  const jobId = typeof data.jobId === "string" ? data.jobId : typeof data.jobTool === "string" ? target : undefined;
   const status = typeof data.status === "string" ? data.status : undefined;
-  const awaitingJob = status !== undefined && ["pending", "queued", "running", "processing"].includes(status);
-  const unsuccessfulJob = status !== undefined && ["failed", "cancelled", "unknown"].includes(status);
+  const awaitingJob = jobId && status !== undefined && ["pending", "queued", "running", "processing"].includes(status);
+  const unsuccessfulJob = jobId && status !== undefined && ["failed", "cancelled", "unknown"].includes(status);
   const message = awaitingJob
     ? `Job sedang diproses${jobId ? ` (${jobId})` : ""}.`
     : unsuccessfulJob
       ? `Hasil job perlu diperiksa${jobId ? ` (${jobId})` : ""}.`
       : "Aksi selesai.";
-  const result = { message, ...(target ? { target } : {}), ...(jobId ? { jobId } : {}) };
+  const jobState = awaitingJob ? "pending" : unsuccessfulJob ? "attention" : undefined;
+  const result = { message, ...(target ? { target } : {}), ...(jobId ? { jobId, jobState } : {}) };
   await db.update(zyraProposals).set({
     status: "applied",
     appliedAt: new Date(),

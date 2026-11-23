@@ -551,6 +551,20 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(expired).not.toContain(">Allow<");
     });
 
+    it("shows an accepted job as processing instead of completed", () => {
+      const proposal = {
+        id: "prop-queued", runId: "run", stepId: "step",
+        type: "admin_operation", status: "executed", approval: "once",
+        title: "Baca halaman PDF", description: "", preview: { summary: "Baca PDF" },
+        createdAt: 1000,
+        result: { jobId: "job-123", jobState: "pending", message: "Job sedang diproses (job-123)." },
+      } as const;
+      const html = renderToStaticMarkup(<ActionProposalCard proposal={proposal} />);
+      expect(html).toContain("Job diproses");
+      expect(html).toContain("job-123");
+      expect(html).not.toContain(">Selesai<");
+    });
+
     it("renders executed result state with token string", () => {
       const executedProposal: OpsAiActionProposalV2 = {
         id: "prop-executed-1",

@@ -99,7 +99,8 @@ export function createBrowserOperationTools(chat: OpsBrowserChat, runId: string,
         if (await hasChatOperationGrant(chat, operation, grantTarget)) {
           if (options.abortSignal?.aborted) return { summary: "Permintaan dihentikan." };
           const guardedEntry = browserOperations(chat, async tx => {
-            if (options.abortSignal?.aborted || !await hasChatOperationGrant(chat, operation, grantTarget, tx)) {
+            const active = await hasChatOperationGrant(chat, operation, grantTarget, tx);
+            if (!active || options.abortSignal?.aborted) {
               throw new AdminMcpError("OPS_CHAT_GRANT_ENDED");
             }
           }).get(operation);
