@@ -93,8 +93,11 @@ export function textGatewaySettings(env: Environment = process.env, id: string =
   const origin = env.BETTER_AUTH_URL?.replace(/\/$/, "") ?? "";
   const staging = origin === "https://staging.zyxacademy.com" ||
     (env.ZYX_ENVIRONMENT === "staging" && /^https:\/\/zyx-academy-staging-edge\.[a-z0-9-]+\.workers\.dev$/.test(origin));
+  const production = env.ZYX_ENVIRONMENT === "production" && origin === "https://www.zyxacademy.com";
+  const productionProvider = (gatewayProvider === "openai" || gatewayProvider === "muse") &&
+    enabledProviders.has(gatewayProvider);
   if (!model || !aliases.length || !env.CF_AI_GATEWAY_TOKEN ||
-      !staging) return null;
+      !(staging || (production && productionProvider))) return null;
   try {
     const route = profile.route || env[profile.prefix + "_GATEWAY_ROUTE"]?.trim() || DEFAULT_CUSTOM_ROUTES[profile.group];
     if (!route || (!profile.route && !route.startsWith("custom-"))) return null;

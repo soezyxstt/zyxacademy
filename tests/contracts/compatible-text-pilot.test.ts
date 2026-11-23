@@ -121,6 +121,18 @@ test("accepts the dedicated Cloud Run staging edge only in staging", () => {
   expect(compatibleSettings({ ...edge, ZYX_ENVIRONMENT: "production" })).toBeNull();
 });
 
+test("resolves OpenAI and Muse by default on the production origin", () => {
+  const production = { ...env, ZYX_ENVIRONMENT: "production", BETTER_AUTH_URL: "https://www.zyxacademy.com" };
+  expect(compatibleSettings(production, MODEL_IDS.openai)?.credentials).toEqual(["openai_1"]);
+  expect(compatibleSettings(production, "gateway:openai:gpt-6.1-terra")?.url).toEndWith("/openai/chat/completions");
+  expect(compatibleSettings(production, MODEL_IDS.meta)?.credentials).toEqual(["muse_1"]);
+  expect(compatibleSettings(production, "gateway:muse:muse-spark-1.3")?.url).toEndWith("/custom-muse/chat/completions");
+  expect(compatibleSettings(production, MODEL_IDS.compatibleText)).toBeNull();
+  expect(compatibleSettings({ ...production, ZYX_ENVIRONMENT: "staging" }, MODEL_IDS.openai)).toBeNull();
+  expect(compatibleSettings({ ...production, BETTER_AUTH_URL: "https://untrusted.example" }, MODEL_IDS.meta)).toBeNull();
+  expect(compatibleSettings({ ...production, AI_PROVIDERS: "gemini", AI_OPENAI_BYOK_ALIASES: "custom-alias" }, MODEL_IDS.openai)).toBeNull();
+});
+
 test("uses default AI_PROVIDERS convention aliases and custom-muse route without extra env vars", async () => {
   const minimalStaging = {
     BETTER_AUTH_URL: "https://staging.zyxacademy.com",

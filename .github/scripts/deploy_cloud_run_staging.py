@@ -389,11 +389,28 @@ def release():
         change_traffic(config, before, operation)
 
 
+def verify_model_catalog(spec, refs):
+    catalog_keys = AI_PROVIDER_SETTINGS | {"ZYX_ENVIRONMENT", "BETTER_AUTH_URL"}
+    runtime = {item["name"]: item["value"] for item in spec["containers"][0]["env"]
+               if item["name"] in catalog_keys and "value" in item}
+    runtime.update({key: read_secret(refs[key]) for key in ("CF_AI_GATEWAY_URL", "CF_AI_GATEWAY_TOKEN")})
+    probe = subprocess.run(["bun", "scripts/production/check-text-model-catalog.ts"],
+                           env={**os.environ, **runtime}, capture_output=True, text=True, check=False)
+    counts = json.loads(probe.stdout)
+    require(set(counts) == {"openai", "muse"} and all(count is None or type(count) is int and count >= 0 for count in counts.values()),
+            "Unexpected production model catalog probe result.")
+    for provider, count in counts.items():
+        print(f"Production {provider} model catalog: {count if count is not None else 'disabled'}", flush=True)
+    require(probe.returncode == 0, "Production OpenAI or Muse model discovery failed.")
+
+
 def preflight():
     require(ENVIRONMENT == "production", "Production preflight requires an explicit environment.")
     config = prepare()
     spec = json.loads((Path(os.environ["RUNNER_TEMP"]) / "cloud-run-spec.json").read_text())
-    verify_database(validate_template(spec, config))
+    refs = validate_template(spec, config)
+    verify_database(refs)
+    verify_model_catalog(spec, refs)
 
 
 if __name__ == "__main__":
