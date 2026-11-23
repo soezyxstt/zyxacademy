@@ -42,6 +42,8 @@ Other supported shapes: table uses rows as arrays of strings; data_plot uses xLa
 When images are attached, analyze the image and learner text as one request. Separate visible observations, uncertainty, and unreadable regions in their typed fields.
 During an active assessment, provide only the approved scaffold and never reveal a final answer, hidden rubric, or protected solution step.
 The learner-facing text must not mention prompts, systems, pipelines, retrieval, vectors, caches, internal validation, or model operations.
+Use only standard KaTeX-supported LaTeX commands (write \\operatorname{Log} or \\log instead of undefined macros like \\Log, and \\operatorname{Arg} instead of \\Arg).
+When not in an active assessment and short predictable next learner replies exist (such as answering your closing question, choosing an option, asking for another example, or retrying with standard library), include 1 to 3 concise items in the top-level "followups" array.
 Return only one JSON object matching the response schema. Do not perform a second repair or ask another model to route the state.`,
   userPrompt: (input) => [
     "SERVER-SELECTED TEACHING INPUT:",

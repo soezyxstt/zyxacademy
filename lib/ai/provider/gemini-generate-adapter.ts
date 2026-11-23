@@ -1,4 +1,4 @@
-import { zyraLiveProgress } from "@/lib/zyra/live-progress";
+import { zyraLiveProgress, zyraLiveTextStream } from "@/lib/zyra/live-progress";
 import { upstreamModelName } from "@/lib/ai/provider/model-registry";
 import type { GenerateContentConfig, Part } from "@google/genai";
 import {
@@ -87,6 +87,7 @@ export function createGeminiGenerateAdapter(client: GeminiGenerateClient) {
               config: buildLegacyConfig(request, entry.thinking, entry.outputFloor, signal, deadlineMs),
             };
             const progress = zyraLiveProgress.getStore();
+            const textStream = zyraLiveTextStream.getStore();
             progress?.("dispatch");
             if (!progress || !client.models.generateContentStream) return client.models.generateContent(params);
             const stream = await client.models.generateContentStream(params);
@@ -95,7 +96,11 @@ export function createGeminiGenerateAdapter(client: GeminiGenerateClient) {
             for await (const chunk of stream) {
               last = chunk;
               const delta = chunk.candidates?.[0]?.content?.parts?.filter(part => !part.thought).map(part => part.text ?? "").join("");
-              if (delta) { text += delta; progress("receiving"); }
+              if (delta) {
+                text += delta;
+                progress("receiving");
+                textStream?.(delta);
+              }
             }
             const candidate = last?.candidates?.[0];
             if (!last || !candidate?.finishReason) throw new Error("Incomplete Gemini stream");

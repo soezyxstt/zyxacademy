@@ -165,8 +165,11 @@ export function teachingResponseToTutorAnswer(
       href: source.href,
     }));
   const parsedAnswer = parseFollowupAnswer(response.learnerFacingText);
-  const suffix = parsedAnswer.followups.length
-    ? `\n${FOLLOWUPS_OPEN}${JSON.stringify(parsedAnswer.followups)}${FOLLOWUPS_CLOSE}`
+  const resolvedFollowups = parsedAnswer.followups.length > 0
+    ? parsedAnswer.followups
+    : (response.followups ?? []);
+  const suffix = resolvedFollowups.length
+    ? `\n${FOLLOWUPS_OPEN}${JSON.stringify(resolvedFollowups)}${FOLLOWUPS_CLOSE}`
     : "";
   return {
     answer: sanitizeAnswer(parsedAnswer.text, evidence) + suffix,

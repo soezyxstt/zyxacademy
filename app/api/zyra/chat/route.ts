@@ -1,4 +1,5 @@
-import { zyraLiveProgress } from "@/lib/zyra/live-progress";
+import { zyraLiveProgress, zyraLiveTextStream } from "@/lib/zyra/live-progress";
+import { JsonFieldStreamExtractor } from "@/lib/zyra/json-field-stream";
 import { followupEvent, parseFollowupAnswer } from "@/lib/zyra/followups";
 import { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
 import { after } from "next/server";
@@ -164,12 +165,12 @@ export async function POST(req: Request) {
         };
 
         try {
-          // 1. Initial work-step: Searching relevant course materials
+          // 1. Initial work-step: Reading relevant course materials
           sendEvent({
             type: "data-work-step",
             data: {
               stepId: "step-search",
-              label: requestLanguage === "en" ? "Searching course material..." : "Menelusuri materi kuliah dan kurikulum...",
+              label: requestLanguage === "en" ? "Reading course material..." : "Membaca materi kuliah...",
               status: "running",
             },
           });
@@ -179,15 +180,23 @@ export async function POST(req: Request) {
             return;
           }
 
-          // 2. Call askTutorRagAction
+          // 2. Call askTutorRagAction with live progress & real-time text streaming
           let lastStage = "";
           const labels = requestLanguage === "en"
-            ? { dispatch: "Contacting the AI model…", receiving: "Receiving the model’s response…", checking: "Checking the answer…" }
-            : { dispatch: "Menghubungi model AI…", receiving: "Menerima respons model…", checking: "Memeriksa jawaban…" };
+            ? { dispatch: "Thinking...", receiving: "Preparing response...", checking: "Refining answer..." }
+            : { dispatch: "Sedang berpikir...", receiving: "Menyiapkan jawaban...", checking: "Merapikan jawaban..." };
+          const extractor = new JsonFieldStreamExtractor(["learnerFacingText", "answer"], (textDelta) => {
+            if (!req.signal.aborted && textDelta) {
+              sendEvent({ type: "text-delta", textDelta });
+            }
+          });
           const res = await zyraLiveProgress.run(stage => {
+            if (stage === "dispatch" && !extractor.hasEmitted) extractor.reset();
             if (req.signal.aborted || stage === lastStage) return;
             lastStage = stage;
             sendEvent({ type: "data-work-step", data: { stepId: "provider", status: "running", label: labels[stage] } });
+          }, () => zyraLiveTextStream.run((rawChunk) => {
+            if (!req.signal.aborted) extractor.push(rawChunk);
           }, () => askTutorRagAction(
             normalizedCourseId,
             normalizedConceptId,
@@ -199,7 +208,7 @@ export async function POST(req: Request) {
             sanitizedSelectionContext,
             coding?.success ? coding.data : undefined,
             normalizedResponseLanguage,
-          ));
+          )));
 
           if (req.signal.aborted) {
             controller.close();
@@ -216,7 +225,7 @@ export async function POST(req: Request) {
             type: "data-work-step",
             data: {
               stepId: "step-search",
-              label: res.responseLanguage === "en" ? "Course material is ready" : "Materi dan konteks pembelajaran siap",
+              label: res.responseLanguage === "en" ? "Ready" : "Siap",
               status: "completed",
             },
           });
@@ -238,16 +247,22 @@ export async function POST(req: Request) {
           } else if (res.failureCode === "provider_unavailable") {
             fullAnswer = attachmentIds.length > 0
               ? normalizedQuestion
-                ? res.responseLanguage === "en" ? "Your image and question were received, but the AI service is temporarily unavailable. Please try again shortly." : "Gambar dan pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi."
-                : res.responseLanguage === "en" ? "Your image was received, but the AI service is temporarily unavailable. Please try again shortly." : "Gambarmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi."
-              : res.responseLanguage === "en" ? "Your question was received, but the AI service is temporarily unavailable. Please try again shortly." : "Pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi.";
+                ? res.responseLanguage === "en" ? "Your image and question were received, but Zyra is temporarily unavailable. Please try again shortly." : "Gambar dan pertanyaanmu sudah diterima, tetapi Zyra sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi."
+                : res.responseLanguage === "en" ? "Your image was received, but Zyra is temporarily unavailable. Please try again shortly." : "Gambarmu sudah diterima, tetapi Zyra sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi."
+              : res.responseLanguage === "en" ? "Your question was received, but Zyra is temporarily unavailable. Please try again shortly." : "Pertanyaanmu sudah diterima, tetapi Zyra sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi.";
           } else if (!res.answer) {
             fullAnswer = res.responseLanguage === "en" ? "Sorry, something went wrong while preparing the answer. Please try again shortly." : "Maaf, terjadi gangguan saat memproses jawaban. Coba lagi dalam beberapa saat.";
           } else {
             fullAnswer = sanitizeAnswer(parseFollowupAnswer(res.answer).text, res.sources);
           }
 
-          sendEvent({ type: "text-delta", textDelta: fullAnswer });
+          if (extractor.hasEmitted) {
+            if (extractor.emittedText !== fullAnswer) {
+              sendEvent({ type: "text-replace", text: fullAnswer });
+            }
+          } else if (fullAnswer) {
+            sendEvent({ type: "text-delta", textDelta: fullAnswer });
+          }
 
           const followups = followupEvent(res.followups);
           if (followups && !req.signal.aborted && !res.failureCode && !res.budgetExhausted) sendEvent(followups);

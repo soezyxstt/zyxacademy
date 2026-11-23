@@ -1,6 +1,6 @@
 import { TUTOR_TEACHING_LANGUAGE } from "@/lib/tutor/teaching-language";
 import { PYTHON_GENERATION_POLICY } from "@/lib/coding/python-generation-policy";
-import { FOLLOWUPS_GUIDANCE, parseFollowupAnswer, FOLLOWUPS_OPEN, FOLLOWUPS_CLOSE } from "@/lib/zyra/followups";
+import { FOLLOWUPS_GUIDANCE, FollowupSchema, parseFollowupAnswer, FOLLOWUPS_OPEN, FOLLOWUPS_CLOSE } from "@/lib/zyra/followups";
 import { CODING_COACHING_INSTRUCTIONS } from "@/lib/coding/zyra";
 /**
  * P3 grounded tutor pipeline. Three tiers:
@@ -163,10 +163,15 @@ function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function sanitizeGeneratedAnswer(text: string, sources?: readonly SanitizationSource[]): string {
+function sanitizeGeneratedAnswer(
+  text: string,
+  sources?: readonly SanitizationSource[],
+  structuredFollowups?: readonly z.infer<typeof FollowupSchema>[],
+): string {
   const parsed = parseFollowupAnswer(text);
   const visible = sanitizeAnswer(parsed.text, sources);
-  return visible + (parsed.followups.length ? `${FOLLOWUPS_OPEN}${JSON.stringify(parsed.followups)}${FOLLOWUPS_CLOSE}` : "");
+  const followups = parsed.followups.length ? parsed.followups : (structuredFollowups ?? []);
+  return visible + (followups.length ? `${FOLLOWUPS_OPEN}${JSON.stringify(followups)}${FOLLOWUPS_CLOSE}` : "");
 }
 
 function assessmentSafeFallback(language: ResponseLanguage): string {
@@ -311,7 +316,7 @@ f(x) &= \\int (6x^2 - 4x + 3)\\,dx \\\\
      &= 2x^3 - 2x^2 + 3x + C.
 \\end{aligned}
 $$
-- Wrap every inline variable or expression in $...$. Return valid JSON with LaTeX backslashes escaped correctly.`;
+- Wrap every inline variable or expression in $...$. Use only standard KaTeX-supported LaTeX commands (write \\operatorname{Log} or \\log instead of undefined macros like \\Log, and \\operatorname{Arg} instead of \\Arg). Return valid JSON with LaTeX backslashes escaped correctly.`;
 
 const tutorGroundedAnswer: SystemPrompt<GroundedVars> = {
  version: "tutor_rag/grounded_answer/v2.0.0",
@@ -327,7 +332,7 @@ QUESTION: ${vars.question}
 
 ${TUTOR_MATH_PRESENTATION_POLICY}
 
-${FOLLOWUPS_GUIDANCE} Place this block at the end of the answer field inside the JSON object, never after the JSON object.
+${FOLLOWUPS_GUIDANCE}
 
 IMAGE INPUT RULE: If images are attached, inspect them together with the question. Distinguish visible facts from inference, state uncertainty for blurry or cropped content, and never invent unreadable labels or values.
 
@@ -341,6 +346,7 @@ Generate a single JSON object:
 {
  "covered": [true only if the excerpts actually address this question, else false],
  "answer": "[Markdown answer in the specified response language. IMPORTANT: Do NOT include any source ids, product ids, slugs, or UUIDs inline in the answer text. Never write bracketed citation tokens like [source-id] or [article-...]. If referring to materials, use human-readable titles, never raw IDs. Source attribution goes exclusively in the sourceIds array below. Do not use ::: visual markdown blocks.]",
+ "followups": [{"label": "[2-5 words]", "prompt": "[short next message]", "icon": "example|help|compass|refresh|arrow", "intent": "hint|explain|practice|check"}],
  "sourceIds": ["[ids you actually used ; only in this array, never embedded in the answer text; empty array when covered is false]"],
  "matchedConcepts": ["[concept names this question is about]"],
  "confidence": [0.0 to 1.0, how well the excerpts cover the question]
@@ -383,7 +389,7 @@ QUESTION: ${vars.question}
 
 ${TUTOR_MATH_PRESENTATION_POLICY}
 
-${FOLLOWUPS_GUIDANCE} Place this block at the end of the answer field inside the JSON object, never after the JSON object.
+${FOLLOWUPS_GUIDANCE}
 
 IMAGE INPUT RULE: If images are attached, inspect them together with the question. Distinguish visible facts from inference, state uncertainty for blurry or cropped content, and never invent unreadable labels or values.
 
@@ -392,6 +398,7 @@ IMAGE INPUT RULE: If images are attached, inspect them together with the questio
  "inScope": [true for course-related learning, prerequisites and follow-ups, otherwise false],
  "learningGoal": "[One short learner-facing goal in the specified response language]",
  "answer": "[Concise staged markdown explanation in the specified response language. Do not include the check question here. Do not use ::: visual markdown blocks.]",
+ "followups": [{"label": "[2-5 words]", "prompt": "[short next message]", "icon": "example|help|compass|refresh|arrow", "intent": "hint|explain|practice|check"}],
  "checkForUnderstanding": "[An optional short question in the specified response language when useful]",
  "matchedConcepts": ["[general concept names this question is about]"],
  "confidence": [0.0 to 1.0]
@@ -412,7 +419,7 @@ ${TUTOR_MATH_PRESENTATION_POLICY}
 RECENT CONVERSATION FOR PRONOUN CONTINUITY ONLY:
 ${vars.conversationHistory || "No previous history."}
 
-${FOLLOWUPS_GUIDANCE} Place this block at the end of the answer field inside the JSON object, never after the JSON object.
+${FOLLOWUPS_GUIDANCE}
 
 Inspect the attached image or images now. The current attachments override unrelated exercises in conversation history.
 
@@ -421,6 +428,7 @@ Generate a single JSON object:
  "inScope": true,
  "learningGoal": "[One short goal in the specified response language based only on the attached problem]",
  "answer": "[Direct, concise solution or a precise request for a clearer image. Do not add source links.]",
+ "followups": [{"label": "[2-5 words]", "prompt": "[short next message]", "icon": "example|help|compass|refresh|arrow", "intent": "hint|explain|practice|check"}],
  "checkForUnderstanding": "[Exactly one short question in the specified response language about the solved concept]",
  "matchedConcepts": ["[concepts actually visible in the image]"],
  "confidence": [0.0 to 1.0]
@@ -469,6 +477,7 @@ Generate a single JSON object:
 const GroundedSchema = z.object({
  covered: z.boolean().default(true),
  answer: z.string(),
+ followups: z.array(FollowupSchema).max(3).optional(),
  sourceIds: z.array(z.string()).default([]),
  matchedConcepts: z.array(z.string()).default([]),
  confidence: z.number().min(0).max(1).default(0),
@@ -478,6 +487,7 @@ const UngroundedSchema = z.object({
  inScope: z.boolean().default(true),
  learningGoal: z.string().min(1).max(300).optional(),
  answer: z.string(),
+ followups: z.array(FollowupSchema).max(3).optional(),
  checkForUnderstanding: z.string().min(5).max(500).optional(),
  matchedConcepts: z.array(z.string()).default([]),
  confidence: z.number().min(0).max(1).default(0),
@@ -490,7 +500,8 @@ export function composeUngroundedTeachingAnswer(
   const data = UngroundedSchema.parse(input);
   const parsed = parseFollowupAnswer(data.answer);
   const answer = sanitizeAnswer(parsed.text);
-  const metadata = parsed.followups.length ? `${FOLLOWUPS_OPEN}${JSON.stringify(parsed.followups)}${FOLLOWUPS_CLOSE}` : "";
+  const followups = parsed.followups.length ? parsed.followups : (data.followups ?? []);
+  const metadata = followups.length ? `${FOLLOWUPS_OPEN}${JSON.stringify(followups)}${FOLLOWUPS_CLOSE}` : "";
   if (!data.inScope) {
     return answer || (responseLanguage === "en"
       ? "Zyra helps with learning topics within Zyx. Ask about a course concept, practice, or study strategy."
@@ -1309,7 +1320,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
               return { type: s.type, id: s.id, label: s.label, href: s.href };
             });
 
-            let ansText = sanitizeGeneratedAnswer(d.answer, sources);
+            let ansText = sanitizeGeneratedAnswer(d.answer, sources, d.followups);
 
             if (policy) {
               const validation = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
@@ -1328,7 +1339,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
               canvasSpec: pedagogyCanvasSpec,
             };
           } else {
-            let ansText = sanitizeGeneratedAnswer(d.answer, retrieved);
+            let ansText = sanitizeGeneratedAnswer(d.answer, retrieved, d.followups);
 
             base = {
               answer: ansText,
