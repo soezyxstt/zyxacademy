@@ -4449,10 +4449,16 @@ export const notifications = pgTable(
  type: text("type")
  .$type<
  | "quiz_published"
+ | "quiz_graded"
  | "flashcard_reminder"
  | "tutor_reminder"
+ | "tutor_booking"
+ | "tutor_digest"
  | "payment_success"
+ | "weekly_progress"
+ | "study_reengagement"
  | "admin_broadcast"
+ | "admin_alert"
  | "announcement"
  | "discussion"
  >()

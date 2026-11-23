@@ -162,6 +162,7 @@ Every document in this repository has one of the following explicit statuses:
 
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
+| [notifications.md](notifications.md) | Product contract | `ACTIVE` | 2026-11-23 | Role-scoped notification event catalog (Student, Tutor, Admin), in-app/push vs email channel policy, scheduled interval crons (weekly progress, inactivity re-engagement, due flashcards, upcoming sessions, tutor daily digest), and native app read-state synchronization. Local checks pass; live FCM/APNs/Resend and hosted rollout remain separate. |
 | [discussions.md](discussions.md) | Product contract | `OPEN / IN PROGRESS` | 2026-11-17 | Bilingual scoped discussions, compact composer, immutable retries, signed read observations, targeted navigation and single-dispatch Zyra. Records 35 Node core cases through migration 0034, PR CI results and staging migration evidence: 37 ledger entries, 13 tables, backup and application-role checks. Authenticated runtime and external-service acceptance remain open. |
 | [operations/vercel-staging.md](operations/vercel-staging.md) | Operations | `OPEN / IN PROGRESS` | 2026-11-15 | Manual Vercel releases, exact target guards, verified database credential fence, backfill and catalog; hosted recovery and user-managed DNS remain pending. |
 | [operations/cloud-run-staging.md](operations/cloud-run-staging.md) | Operations | `OPEN / IN PROGRESS` | 2026-11-19 | Isolated Bangkok candidate with Cloudflare edge and a manual Vercel fallback. |

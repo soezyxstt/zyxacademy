@@ -18,9 +18,9 @@ test("authenticated Scheduler accepts its job ID and both pinned resource names"
 test("staging schedules one UTC day and includes Monday reflection exactly once", () => {
   const monday = new Date("2026-11-23T00:00:00Z");
   const window = cronWindow("staging", monday);
-  expect(window).toHaveLength(14);
+  expect(window).toHaveLength(21);
   expect(window.find(item => item.job === "gamification-missions-cron")?.scheduledAt).toBe(Date.parse("2026-11-23T17:05:00Z"));
-  expect(cronWindow("staging", new Date("2026-11-24T00:00:00Z"))).toHaveLength(13);
+  expect(cronWindow("staging", new Date("2026-11-24T00:00:00Z"))).toHaveLength(20);
   expect(cronWindow("staging", monday)).toEqual(window);
 });
 

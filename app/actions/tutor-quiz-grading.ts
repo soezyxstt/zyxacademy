@@ -9,6 +9,11 @@ import {
   gradeQuizAttemptSchema,
   type GradeQuizAttemptInput,
 } from "@/lib/tutor/quiz-grading";
+import { db } from "@/db";
+import { courses, quizTemplates, studentQuizAttempts } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { sendToUser } from "@/lib/notifications/send";
+import { quizGradedPayload } from "@/lib/notifications/templates";
 
 export async function gradeQuizAttemptAction(input: GradeQuizAttemptInput) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -27,6 +32,40 @@ export async function gradeQuizAttemptAction(input: GradeQuizAttemptInput) {
   }
 
   const result = await gradeQuizAttempt(session.user.id, roles, parsed.data);
+
+  if (result.gradingStatus === "graded") {
+    try {
+      const [row] = await db
+        .select({
+          studentId: studentQuizAttempts.studentId,
+          templateId: studentQuizAttempts.templateId,
+          quizTitle: quizTemplates.title,
+          courseId: quizTemplates.courseId,
+          courseTitle: courses.title,
+        })
+        .from(studentQuizAttempts)
+        .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
+        .leftJoin(courses, eq(quizTemplates.courseId, courses.id))
+        .where(eq(studentQuizAttempts.id, parsed.data.attemptId))
+        .limit(1);
+
+      if (row?.studentId) {
+        const scoreLabel = typeof result.score === "number" ? `${Math.round(result.score)}/100` : "-";
+        await sendToUser(
+          row.studentId,
+          quizGradedPayload({
+            quizTitle: row.quizTitle,
+            courseTitle: row.courseTitle ?? parsed.data.courseId,
+            scoreLabel,
+            link: `/courses/${row.courseId}/quiz/${row.templateId}`,
+            attemptId: parsed.data.attemptId,
+          }),
+        );
+      }
+    } catch (err) {
+      console.error("[gradeQuizAttemptAction] Student graded notification failed:", err);
+    }
+  }
 
   revalidatePath(`/tutor/${parsed.data.courseId}/quizzes/grading`);
   revalidatePath(`/tutor/${parsed.data.courseId}/quizzes`);

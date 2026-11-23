@@ -14,6 +14,13 @@ const recoveryJobs = [
 const scheduledJobs = [
   { job: "ai-model-catalog-cron", hour: 0, minute: 0 },
   { job: "ai-model-catalog-cron", hour: 12, minute: 0 },
+  { job: "tutor-daily-digest-cron", hour: 0, minute: 30 },
+  { job: "flashcard-reminder-cron", hour: 1, minute: 0 },
+  { job: "study-reengagement-cron", hour: 11, minute: 0 },
+  { job: "upcoming-session-reminder-cron", hour: 0, minute: 0 },
+  { job: "upcoming-session-reminder-cron", hour: 6, minute: 0 },
+  { job: "upcoming-session-reminder-cron", hour: 12, minute: 0 },
+  { job: "upcoming-session-reminder-cron", hour: 18, minute: 0 },
   { job: "google-calendar-sync-cron", hour: 20, minute: 0 },
   { job: "course-analytics-snapshot-cron", hour: 2, minute: 0 },
   { job: "content-quality-audit-cron", hour: 3, minute: 0 },

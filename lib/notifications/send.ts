@@ -19,13 +19,15 @@ import {
  notifications,
  enrollments,
  courses,
+ user,
 } from "@/db/schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { adminMessaging } from "@/lib/firebase/admin";
+import { resend } from "@/lib/resend";
 import { randomUUID } from "crypto";
 import { getUserLocalePreference } from "@/lib/i18n/preferences";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
-import type { NotificationPayload, SendResult } from "./types";
+import type { NotificationPayload, NotificationType, SendResult } from "./types";
 import { sendApnsNotifications } from "./apns";
 import { dispatchTokensByTransport, type PushTokenTarget } from "./dispatch";
 import {
@@ -66,13 +68,14 @@ async function pruneInvalidTokens(tokens: string[]): Promise<void> {
 // ─── Internal: persist a notification row to the DB ──────────────────────────
 
 async function persistNotification(
+ notificationId: string,
  userId: string,
  payload: NotificationPayload,
  delivery: DeliveryStats
 ): Promise<void> {
  try {
   await db.insert(notifications).values({
-  id: randomUUID(),
+  id: notificationId,
   userId,
   title: payload.title,
   body: payload.body,
@@ -86,7 +89,7 @@ async function persistNotification(
   createdAt: new Date(),
   });
  } catch (err) {
-  // Non-fatal ; push was already sent; log and continue.
+  // Non-fatal; push was already sent; log and continue.
   console.error("[FCM] Failed to persist notification record:", err);
  }
 }
@@ -122,6 +125,7 @@ async function sendMulticast(
  data: {
  type: payload.type,
  url: payload.link ?? "/dashboard",
+ ...(payload.notificationId ? { notificationId: payload.notificationId } : {}),
  ...(payload.metadata ?? {}),
  },
  webpush: {
@@ -175,7 +179,8 @@ async function sendMulticast(
 
 /**
  * Sends a push notification to all registered devices of one user.
- * Also persists a notification record in the database.
+ * Also persists a notification record in the database with the same ID
+ * embedded in the push payload so native taps can mark it as read.
  */
 export async function sendToUser(
  userId: string,
@@ -184,10 +189,19 @@ export async function sendToUser(
 ): Promise<SendResult> {
  const locale = deliveryLocale ?? (payload.systemTemplate ? (await getUserLocalePreference(userId)) ?? DEFAULT_LOCALE : undefined);
  const renderedPayload = locale ? renderNotificationPayload(payload, locale) : payload;
- const result = await sendPushToUser(userId, renderedPayload);
+ const notificationId = renderedPayload.notificationId ?? randomUUID();
+ const payloadWithId: NotificationPayload = {
+  ...renderedPayload,
+  notificationId,
+  metadata: {
+   ...(renderedPayload.metadata ?? {}),
+   notificationId,
+  },
+ };
+ const result = await sendPushToUser(userId, payloadWithId);
 
  // Persist one notification record per user (not per token)
- await persistNotification(userId, renderedPayload, {
+ await persistNotification(notificationId, userId, payloadWithId, {
   attempted: result.attempted,
   succeeded: result.succeeded,
   failedCount: result.failedTokens.length,
@@ -317,28 +331,84 @@ export async function sendToMany(
 // ─── Public: broadcast to all users with tokens ──────────────────────────────
 
 /**
- * Sends a notification to every user who has at least one registered FCM token.
- * Designed for admin broadcast use cases.
+ * Sends a notification to every registered user account so users without push
+ * tokens still receive the broadcast in their in-app notification inbox.
  */
 export async function sendBroadcast(payload: NotificationPayload): Promise<SendResult> {
- // Fetch distinct userIds that have tokens registered
  const rows = await db
- .selectDistinct({ userId: userPushTokens.userId })
- .from(userPushTokens);
+  .select({ id: user.id })
+  .from(user);
 
- const userIds = rows.map((r) => r.userId);
+ const userIds = rows.map((r) => r.id);
  return sendToMany(userIds, payload);
+}
+
+/**
+ * Checks whether a user already received a notification of a given type with
+ * the specified dedupeKey since `since`. Used by interval cron jobs to stay
+ * idempotent across retries and overlapping windows.
+ */
+export async function hasRecentNotificationByDedupeKey(input: {
+ userId: string;
+ type: NotificationType;
+ dedupeKey: string;
+ since?: Date;
+}): Promise<boolean> {
+ const conditions = [
+  eq(notifications.userId, input.userId),
+  eq(notifications.type, input.type),
+  sql`${notifications.metadata}->>'dedupeKey' = ${input.dedupeKey}`,
+ ];
+ if (input.since) {
+  conditions.push(gte(notifications.createdAt, input.since));
+ }
+ const [row] = await db
+  .select({ id: notifications.id })
+  .from(notifications)
+  .where(and(...conditions))
+  .limit(1);
+ return Boolean(row);
+}
+
+/**
+ * Sends an essential transactional email (such as course activation or critical
+ * operational alert) that bypasses optional marketing/reminder preferences.
+ */
+export async function sendTransactionalEmail(input: {
+ userId: string;
+ render: (locale: Locale, recipient: { name: string; email: string }) => { subject: string; html: string };
+ locale?: Locale;
+ from?: string;
+}): Promise<{ status: "sent"; emailId: string } | { status: "skipped"; reason: string }> {
+ if (!process.env.RESEND_API_KEY) {
+  return { status: "skipped", reason: "resend_not_configured" };
+ }
+ const [recipient] = await db
+  .select({ email: user.email, name: user.name })
+  .from(user)
+  .where(eq(user.id, input.userId))
+  .limit(1);
+ if (!recipient?.email) {
+  return { status: "skipped", reason: "account_email_not_found" };
+ }
+ const locale = input.locale ?? (await getUserLocalePreference(input.userId)) ?? DEFAULT_LOCALE;
+ const rendered = input.render(locale, { name: recipient.name ?? "Zyx Learner", email: recipient.email });
+ const { data, error } = await resend.emails.send({
+  from: input.from ?? `Zyx Academy <${process.env.NEXT_PUBLIC_BRAND_EMAIL || "contact@zyxacademy.com"}>`,
+  to: recipient.email,
+  subject: rendered.subject,
+  html: rendered.html,
+ });
+ if (error || !data?.id) {
+  throw new Error(`TRANSACTIONAL_EMAIL_SEND_FAILED:${error?.message ?? "missing_email_id"}`);
+ }
+ return { status: "sent", emailId: data.id };
 }
 
 // ─── Domain-specific senders ──────────────────────────────────────────────────
 
 /**
  * Notifies all students enrolled in a course that a new quiz is published.
- *
- * @param quizTitle - Title of the quiz.
- * @param courseId - Course ID to find enrolled students.
- * @param courseTitle - Human-readable course title.
- * @param quizUrl - Deep link to the quiz.
  */
 export async function sendQuizPublished(
  quizTitle: string,
@@ -346,7 +416,6 @@ export async function sendQuizPublished(
  courseTitle: string,
  quizUrl: string
 ): Promise<SendResult> {
- // Find all enrolled students for this course
  const enrolled = await db
  .select({ userId: enrollments.userId })
  .from(enrollments)
@@ -400,11 +469,6 @@ export async function notifyQuizPublishedBestEffort(input: {
 
 /**
  * Sends an admin-composed broadcast message.
- *
- * @param title - Notification title.
- * @param body - Notification body.
- * @param link - Optional URL to open on click.
- * @param target - "all" | specific userIds[].
  */
 export async function sendAdminBroadcast(
  title: string,

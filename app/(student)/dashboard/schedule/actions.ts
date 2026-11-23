@@ -59,6 +59,56 @@ import {
   getBookingResources,
   type AddBookingResourceInput,
 } from "@/lib/schedule/session-resources";
+import { sendToMany, sendToUser } from "@/lib/notifications/send";
+import {
+  tutorBookingCancelledPayload,
+  tutorBookingCreatedPayload,
+  tutorBookingMovedPayload,
+  tutorTicketMessagePayload,
+  tutorTicketSubmittedPayload,
+} from "@/lib/notifications/templates";
+import { sendOptionalEmail } from "@/lib/email-preferences/send";
+import { renderScheduleEventEmail } from "@/lib/notifications/email-templates";
+import type { NotificationPayload } from "@/lib/notifications/types";
+
+async function notifyTutorScheduleEventBestEffort(input: {
+  tutorId: string;
+  payload: NotificationPayload;
+  email?: {
+    titleEn: string;
+    titleId: string;
+    summaryEn: string;
+    summaryId: string;
+    details: Array<{ labelEn: string; labelId: string; value: string }>;
+  };
+}): Promise<void> {
+  try {
+    await sendToUser(input.tutorId, input.payload);
+    if (input.email && process.env.RESEND_API_KEY) {
+      const email = input.email;
+      await sendOptionalEmail({
+        userId: input.tutorId,
+        category: "events_and_schedules",
+        render: (locale) => {
+          const isEn = locale === "en";
+          return renderScheduleEventEmail({
+            locale,
+            recipientName: isEn ? "Tutor" : "Pengajar",
+            title: isEn ? email.titleEn : email.titleId,
+            summary: isEn ? email.summaryEn : email.summaryId,
+            details: email.details.map((d) => ({
+              label: isEn ? d.labelEn : d.labelId,
+              value: d.value,
+            })),
+            link: "/tutor/schedule",
+          });
+        },
+      });
+    }
+  } catch (err) {
+    console.error("[STUDENT_SCHEDULE] Tutor notification failed:", err);
+  }
+}
 
 function isBookingSlotUniqueViolation(error: unknown): boolean {
   const message = [
@@ -671,6 +721,32 @@ export async function collaborativeBookSlot(
       } catch {
         // Ignored in non-request test runners
       }
+      if (!options?.executor && slot.tutorId) {
+        const studentName = currentUser.name || "Siswa";
+        const courseTitle = resolvedCourseId;
+        void notifyTutorScheduleEventBestEffort({
+          tutorId: slot.tutorId,
+          payload: tutorBookingCreatedPayload({
+            studentName,
+            courseTitle,
+            sessionDate: sessionDateIso,
+            startTime: slot.startTime,
+            bookingId,
+          }),
+          email: {
+            titleEn: `New tutorial booking: ${courseTitle}`,
+            titleId: `Booking sesi tutorial baru: ${courseTitle}`,
+            summaryEn: `${studentName} booked a tutorial session with you.`,
+            summaryId: `${studentName} memesan sesi tutorial bersama Anda.`,
+            details: [
+              { labelEn: "Student", labelId: "Siswa", value: studentName },
+              { labelEn: "Course", labelId: "Mata kuliah", value: courseTitle },
+              { labelEn: "Date", labelId: "Tanggal", value: sessionDateIso },
+              { labelEn: "Time", labelId: "Waktu", value: `${slot.startTime} - ${slot.endTime} WIB` },
+            ],
+          },
+        });
+      }
       return { success: true, bookingId };
     });
   } catch (err: any) {
@@ -917,6 +993,32 @@ export async function collaborativeMoveSlot(
       } catch {
         // Ignored in non-request test runners
       }
+      if (!options?.executor && newSlot.tutorId) {
+        const studentName = currentUser.name || "Siswa";
+        const courseTitle = booking.courseId;
+        void notifyTutorScheduleEventBestEffort({
+          tutorId: newSlot.tutorId,
+          payload: tutorBookingMovedPayload({
+            studentName,
+            courseTitle,
+            sessionDate: newTargetDateIso,
+            startTime: newSlot.startTime,
+            bookingId,
+          }),
+          email: {
+            titleEn: `Tutorial session moved: ${courseTitle}`,
+            titleId: `Jadwal sesi dipindahkan: ${courseTitle}`,
+            summaryEn: `${studentName} moved a tutorial session to a new slot.`,
+            summaryId: `${studentName} memindahkan sesi tutorial ke slot baru.`,
+            details: [
+              { labelEn: "Student", labelId: "Siswa", value: studentName },
+              { labelEn: "Course", labelId: "Mata kuliah", value: courseTitle },
+              { labelEn: "Date", labelId: "Tanggal", value: newTargetDateIso },
+              { labelEn: "Time", labelId: "Waktu", value: `${newSlot.startTime} - ${newSlot.endTime} WIB` },
+            ],
+          },
+        });
+      }
       return { success: true };
     });
   } catch (err: any) {
@@ -944,6 +1046,7 @@ export async function collaborativeCancelSlot(bookingId: string) {
         with: {
           group: true,
           course: true,
+          slot: true,
         },
       });
 
@@ -1064,6 +1167,34 @@ export async function collaborativeCancelSlot(bookingId: string) {
 
       revalidatePath("/dashboard/schedule");
       revalidatePath("/dashboard/groups");
+      if (booking.slot?.tutorId) {
+        const studentName = currentUser.name || "Siswa";
+        const courseTitle = booking.course?.title || booking.courseId;
+        const sessionDate = booking.sessionDate ?? "-";
+        const startTime = booking.slot.startTime ?? "-";
+        void notifyTutorScheduleEventBestEffort({
+          tutorId: booking.slot.tutorId,
+          payload: tutorBookingCancelledPayload({
+            studentName,
+            courseTitle,
+            sessionDate,
+            startTime,
+            bookingId,
+          }),
+          email: {
+            titleEn: `Tutorial session cancelled: ${courseTitle}`,
+            titleId: `Sesi tutorial dibatalkan: ${courseTitle}`,
+            summaryEn: `${studentName} cancelled a scheduled tutorial session.`,
+            summaryId: `${studentName} membatalkan sesi tutorial yang dijadwalkan.`,
+            details: [
+              { labelEn: "Student", labelId: "Siswa", value: studentName },
+              { labelEn: "Course", labelId: "Mata kuliah", value: courseTitle },
+              { labelEn: "Date", labelId: "Tanggal", value: sessionDate },
+              { labelEn: "Time", labelId: "Waktu", value: startTime },
+            ],
+          },
+        });
+      }
       return { success: true };
     });
   } catch (err: any) {
@@ -1419,6 +1550,30 @@ export async function submitRescheduleTicket(
       );
 
       revalidatePath("/dashboard/schedule");
+      if (booking.slot?.tutorId) {
+        const studentName = currentUser.name || "Siswa";
+        const courseTitle = booking.courseId;
+        void notifyTutorScheduleEventBestEffort({
+          tutorId: booking.slot.tutorId,
+          payload: tutorTicketSubmittedPayload({
+            studentName,
+            ticketType: type,
+            courseTitle,
+            ticketId,
+          }),
+          email: {
+            titleEn: `New ${type} request: ${courseTitle}`,
+            titleId: `Pengajuan tiket ${type === "reschedule" ? "reschedule" : "pembatalan"}: ${courseTitle}`,
+            summaryEn: `${studentName} submitted a ${type} request for your review.`,
+            summaryId: `${studentName} mengajukan tiket ${type === "reschedule" ? "reschedule" : "pembatalan"} untuk ditinjau.`,
+            details: [
+              { labelEn: "Student", labelId: "Siswa", value: studentName },
+              { labelEn: "Course", labelId: "Mata kuliah", value: courseTitle },
+              { labelEn: "Reason", labelId: "Alasan", value: reason },
+            ],
+          },
+        });
+      }
       return { success: true, ticketId };
     });
   } catch (err: any) {
@@ -1464,11 +1619,12 @@ export async function sendTicketMessage(ticketId: string, message: string) {
     }
 
     const now = new Date();
+    const cleanMessage = message.trim();
     await db.insert(bookingTicketMessages).values({
       id: randomUUID(),
       ticketId,
       senderId: currentUser.id,
-      message: message.trim(),
+      message: cleanMessage,
       createdAt: now,
     });
 
@@ -1476,6 +1632,24 @@ export async function sendTicketMessage(ticketId: string, message: string) {
       .update(bookingRescheduleTickets)
       .set({ updatedAt: now })
       .where(eq(bookingRescheduleTickets.id, ticketId));
+
+    try {
+      const tutorId = booking.slot?.tutorId;
+      if (tutorId && currentUser.id !== tutorId) {
+        await sendToUser(tutorId, tutorTicketMessagePayload(cleanMessage, "/tutor/schedule"));
+      } else {
+        const members = await db
+          .select({ userId: groupMembers.userId })
+          .from(groupMembers)
+          .where(eq(groupMembers.groupId, booking.groupId));
+        const recipients = members.map((m) => m.userId).filter((uid) => uid !== currentUser.id);
+        if (recipients.length > 0) {
+          await sendToMany(recipients, tutorTicketMessagePayload(cleanMessage, "/dashboard/schedule"));
+        }
+      }
+    } catch (notifErr) {
+      console.error("[STUDENT_SCHEDULE] Ticket message notification failed:", notifErr);
+    }
 
     revalidatePath("/dashboard/schedule");
     return { success: true };

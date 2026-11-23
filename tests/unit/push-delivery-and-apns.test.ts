@@ -494,7 +494,7 @@ describe("iOS registration, desktop notification bridge, and honest client readi
 
     expect(pollCount).toBeGreaterThanOrEqual(2);
     expect(foregroundCalls).toEqual([
-      { title: "New quiz", body: "Calculus quiz is open", url: "/courses/calc" },
+      { notificationId: "new-2", title: "New quiz", body: "Calculus quiz is open", url: "/courses/calc" },
     ]);
     expect(nativeCalls).toEqual([{ title: "New quiz", body: "Calculus quiz is open" }]);
 

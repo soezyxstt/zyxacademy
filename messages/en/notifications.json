@@ -1,11 +1,22 @@
 {
   "push": {
     "quizPublished": { "title": "📝 New quiz available", "body": "{quizTitle} for {courseTitle} is ready. Start now." },
+    "quizGraded": { "title": "Quiz grade available", "body": "{quizTitle} in {courseTitle} has been graded ({scoreLabel})." },
+    "flashcardReminder": { "title": "Flashcards due for review", "body": "{dueCount} flashcards are ready to review.", "bodyWithCourse": "{dueCount} flashcards are ready to review, starting with {courseTitle}." },
+    "paymentSuccess": { "title": "Course access activated", "body": "Group {groupName} is active for {courseCount} courses." },
+    "weeklyProgress": { "title": "Weekly learning summary", "body": "Last week: {quizzes} quizzes, {flashcards} flashcards, {modules} modules. Active streak {currentStreak} days." },
+    "studyReengagement": { "title": "Continue studying {courseTitle}", "body": "It has been {inactiveDays} days since your last activity. Continue {courseTitle} today.", "bodyWithTopic": "It has been {inactiveDays} days since your last activity. Continue {topicTitle} in {courseTitle}." },
     "pkaSchedule": { "title": "New Tutorial PKA Schedule: {scheduleTitle}", "body": "Tutorial PKA session: {scheduleTitle}, {sessionLabel}. Open Schedule for the Meet link." },
     "pkaScheduleUpdate": { "title": "Meet Link Update: {scheduleTitle}", "body": "A Google Meet link was added for {scheduleTitle} on {sessionLabel}." },
     "tutorScheduleMoved": { "title": "Tutorial schedule updated", "body": "Your session moved to {dayOfWeek}, {sessionDate}, {startTime} to {endTime}." },
     "tutorTicketDecision": { "title": "{ticketType} request {decision}", "body": "Your tutor has decided on the {ticketType} request." },
     "tutorTicketMessage": { "title": "New reply in schedule discussion" },
+    "tutorBookingCreated": { "title": "New tutorial booking", "body": "{studentName} booked {courseTitle} on {sessionDate} at {startTime}." },
+    "tutorBookingMoved": { "title": "Tutorial session moved by student", "body": "{studentName} moved {courseTitle} to {sessionDate} at {startTime}." },
+    "tutorBookingCancelled": { "title": "Tutorial session cancelled", "body": "{studentName} cancelled {courseTitle} on {sessionDate} at {startTime}." },
+    "tutorTicketSubmitted": { "title": "New {ticketType} request", "body": "{studentName} submitted a {ticketType} request for {courseTitle}." },
+    "upcomingSessionReminder": { "title": "Upcoming tutorial session", "body24h": "Your {courseTitle} session is scheduled tomorrow ({sessionDate}) at {startTime}.", "body1h": "Your {courseTitle} session starts in about 1 hour ({startTime})." },
+    "tutorDailyDigest": { "title": "Today's tutor queue", "body": "{pendingTickets} schedule tickets and {pendingGradings} quiz submissions await review." },
     "discussion": { "title": "Discussion update", "body": "There is new activity in a discussion." }
   },
   "bell": "Notifications",
