@@ -48,6 +48,13 @@ class VercelStagingTest(unittest.TestCase):
         self.assertTrue(all("target" not in item for item in result.values()))
         self.assertFalse(result.keys() & {"VERCEL_TOKEN", "NEON_API_KEY", "NODE_ENV", "SKIP_ENV_VALIDATION"})
 
+    def test_android_app_links_fingerprints_are_synchronized(self):
+        fingerprint = ":".join(["AB"] * 32)
+        source = fixture("staging") | {"ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS": fingerprint}
+        result = {item["key"]: item for item in staging_env(source, {})}
+        self.assertEqual(result["ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS"]["value"], fingerprint)
+        self.assertNotIn("ANDROID_APP_LINKS_SHA256_FINGERPRINTS", result)
+
     def test_production_configuration_is_rejected(self):
         with self.assertRaises(ValueError):
             staging_env(fixture("production"), {})
