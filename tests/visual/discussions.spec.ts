@@ -1459,10 +1459,10 @@ test("pull indicator tracks the gesture without moving discussion content", asyn
   const indicator = wrapper.locator("[data-pull-indicator]");
   const content = page.locator("[data-fixture-refresh-attempts]");
   const gesture = async (type: string, y: number) => {
-    await content.evaluate((element, { type, y }) => {
+    return content.evaluate((element, { type, y }) => {
       const touch = new Touch({ identifier: 1, target: element, clientX: 120, clientY: y });
       const touches = type === "touchstart" || type === "touchmove" ? [touch] : [];
-      element.dispatchEvent(new TouchEvent(type, { bubbles: true, cancelable: true, touches, changedTouches: [touch] }));
+      return element.dispatchEvent(new TouchEvent(type, { bubbles: true, cancelable: true, touches, changedTouches: [touch] }));
     }, { type, y });
   };
 
@@ -1490,6 +1490,13 @@ test("pull indicator tracks the gesture without moving discussion content", asyn
   expect((await content.boundingBox())!.y).toBe(y);
   await capture(page, info, "pull-ready");
   await gesture("touchcancel", 290);
+  await expect(wrapper).toHaveAttribute("data-pull-to-refresh", "idle");
+  await expect(content).toHaveAttribute("data-fixture-refresh-attempts", "0");
+
+  await gesture("touchstart", 100);
+  await gesture("touchmove", 290);
+  expect(await gesture("touchmove", 90)).toBe(true);
+  await gesture("touchend", 90);
   await expect(wrapper).toHaveAttribute("data-pull-to-refresh", "idle");
   await expect(content).toHaveAttribute("data-fixture-refresh-attempts", "0");
 

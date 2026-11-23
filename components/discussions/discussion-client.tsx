@@ -62,6 +62,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   const [pinnedChannel, setPinnedChannel] = useState<UiChannel | null>(null);
   const [channelsReady, setChannelsReady] = useState(false);
   const [catalogError, setCatalogError] = useState(false);
+  const [aliasRevision, setAliasRevision] = useState(0);
   const [resolvedOpen, setResolvedOpen] = useState(false);
   const [resolvedPage, setResolvedPage] = useState<ThreadPage>({ items: [], nextCursor: null });
   const [resolvedState, setResolvedState] = useState<"loading" | "ready" | "error">("loading");
@@ -252,13 +253,17 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       if (courseId && !result.items.length) throw new Error();
       setChannels(result.items);
       setChannelsReady(true);
+      if (result.repairedAliases && !courseId) {
+        setAliasRevision(value => value + 1);
+        refreshChannelMetadata();
+      }
     } catch (error) {
       if (version !== channelsVersion.current) return;
       if (courseId) setListState("error");
       else setCatalogError(true);
       throw error;
     }
-  }, [courseId, reads]);
+  }, [courseId, reads, refreshChannelMetadata]);
 
   useEffect(() => {
     void loadCatalog().catch(() => {});
@@ -310,7 +315,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     setListState("loading");
     void fetchThreadPage().catch(() => { if (!cancelled) setListState("error"); });
     return () => { cancelled = true; requests.clear(); };
-  }, [canLoadQuestions, fetchThreadPage, listRetry]);
+  }, [aliasRevision, canLoadQuestions, fetchThreadPage, listRetry]);
 
   useEffect(() => {
     setResolvedPaging({ key: resolvedKey, index: 0, cursors: [undefined] });
@@ -335,7 +340,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
     const requests = resolvedRequests.current;
     void fetchResolvedPage().catch(() => {});
     return () => { requests.clear(); };
-  }, [resolvedOpen, canLoadQuestions, resolvedKey, resolvedPaging.key, resolvedRevision, fetchResolvedPage]);
+  }, [aliasRevision, resolvedOpen, canLoadQuestions, resolvedKey, resolvedPaging.key, resolvedRevision, fetchResolvedPage]);
 
   function changeResolvedPage(direction: "previous" | "next") {
     if (resolvedState !== "ready") return;
@@ -411,7 +416,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       else void refreshAiStatuses(selectedThread, result.messages.items, () => !cancelled && version === threadVersion.current && pageVersion === messagePageVersion.current && current());
     }).catch(() => { if (!cancelled && version === threadVersion.current && pageVersion === messagePageVersion.current && current()) setThreadState("error"); });
     return () => { cancelled = true; };
-  }, [selectedThread, selectedMessage, activeTab, retryThread, courseId, courseChannelId, canLoadQuestions, applyAiStatuses, reads, refreshAiStatuses]);
+  }, [aliasRevision, selectedThread, selectedMessage, activeTab, retryThread, courseId, courseChannelId, canLoadQuestions, applyAiStatuses, reads, refreshAiStatuses]);
 
   usePullToRefreshHandler(activeTab === "questions" ? async () => {
     if (!canLoadQuestions) {

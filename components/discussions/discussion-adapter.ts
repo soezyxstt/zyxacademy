@@ -5,7 +5,7 @@ type Actions = typeof import("@/lib/discussions/actions");
 
 type ChannelReads = {
   getChannelsByIds: (...args: Parameters<Actions["getChannelsByIds"]>) => Promise<DiscussionChannelMetadata[]>;
-  listChannelsPage: (...args: Parameters<Actions["listChannelsPage"]>) => Promise<DiscussionPage<DiscussionChannelMetadata>>;
+  listChannelsPage: (...args: Parameters<Actions["listChannelsPage"]>) => Promise<DiscussionPage<DiscussionChannelMetadata> & { repairedAliases?: true }>;
 };
 
 export function discussionWorkspaceReads(viewerId: string): ChannelReads & Pick<Actions, "getThread" | "listThreadsAcrossChannels"> {

@@ -252,6 +252,11 @@ export function usePullToRefresh({
         gesture.committed = true;
       }
 
+      if (deltaY <= 0) {
+        cancelPull();
+        return;
+      }
+
       if (event.cancelable) {
         event.preventDefault();
       }
