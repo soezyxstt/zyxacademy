@@ -192,7 +192,7 @@ const defaultDeps = {
   getNextConceptsForCourses,
   getReviewQueue,
   getDashboardReviewSummary,
-  isPkaEnabled: () => env.FEATURE_PKA === "1",
+  isPkaEnabled: () => true,
 };
 
 export type DashboardSectionDeps = typeof defaultDeps;

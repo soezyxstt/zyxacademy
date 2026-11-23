@@ -47,7 +47,7 @@ export async function GET(
       if (tr.docsExportUri) driveIds.push(tr.docsExportUri);
     }
 
-    if (env.FEATURE_DRIVE_EDITOR_SYNC === "1" && driveIds.length > 0) {
+    if (driveIds.length > 0) {
       await grantAdminEditorAccessToDriveItems(driveIds);
     }
 

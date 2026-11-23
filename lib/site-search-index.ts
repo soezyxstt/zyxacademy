@@ -397,14 +397,6 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
     content: "Monitoring operasional kesehatan sistem dan infrastruktur",
   },
   {
-    title: "Feature flags",
-    subtitle: "Admin",
-    href: "/admin/ops/flags",
-    group: "Halaman",
-    keywords: "feature flags sakelar fitur rollout toggle",
-    content: "Pengaturan sakelar fitur eksperimental dan rollout pengguna",
-  },
-  {
     title: "Model AI",
     subtitle: "Admin",
     href: "/admin/ops/models",

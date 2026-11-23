@@ -227,7 +227,7 @@ export async function auditDiktatStructure(
   allIssues.push(...deterministicFormulaCheck(structure, sourceKOs));
 
   // AI checks (gated)
-  if (process.env.FEATURE_DIKTAT_AI === "1") {
+  {
     const { issues, proposedRevisions } = await aiAudit(structure, sourceKOs);
     allIssues.push(...issues);
     allRevisions.push(...proposedRevisions);

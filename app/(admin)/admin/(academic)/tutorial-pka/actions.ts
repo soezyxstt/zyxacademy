@@ -34,9 +34,6 @@ async function requireAdmin() {
 }
 
 function requirePkaFeature(): string | null {
-  if (env.FEATURE_PKA !== "1") {
-    return "Fitur Tutorial PKA sedang tidak aktif.";
-  }
   return null;
 }
 

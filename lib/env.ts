@@ -95,26 +95,10 @@ export const env = createEnv({
  CF_KV_NAMESPACE_ID: z.string().optional(),
  /** Cloudflare API token with Workers KV Storage: Edit permission */
  CF_API_TOKEN: z.string().optional(),
-  /** P9 real-time classroom. "1" enables live quiz routes. */
-  FEATURE_LIVE: z.string().optional(),
   /** Shared secret for HMAC token generation and Worker auth (P9). */
   LIVE_HMAC_SECRET: z.string().optional(),
-  /** Email pengingat dan ringkasan refleksi mingguan. */
-  FEATURE_REFLECTION_EMAIL: z.string().optional(),
-  /** Tutorial PKA campaign: free multi-stage PKA simulation course + auto-enroll link + admin announcements. "1" enables. */
-  FEATURE_PKA: z.string().optional(),
-  /** Profile-free exact and semantic cache. "1" enables the semantic gate. */
-  FEATURE_ZYRA_SEMANTIC_CACHE_V1: z.string().optional(),
-  /** Authenticated private learner image input for Zyra. "1" enables the multimodal path. */
-  FEATURE_ZYRA_IMAGE_INPUT_V1: z.string().optional(),
   /** Dedicated staging-only user allowed to execute hidden pedagogy shadow comparisons. */
   STAGING_ZYRA_PEDAGOGY_USER_ID: z.string().optional(),
-  /** Auto-grant editor access on every exported Google Spreadsheet and its Drive folder to all active admin emails. "1" enables. */
-  FEATURE_DRIVE_EDITOR_SYNC: z.string().optional(),
-  /** Optional AI-assisted Diktat audit suggestions. "1" enables. */
-  FEATURE_DIKTAT_AI: z.string().optional(),
-  /** Temporary rollout gate for structured Article V3 authoring, review, and student reading. */
-  FEATURE_STRUCTURED_ARTICLE_READER_V1: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Base URL of the deployed zyx-vector-api Cloudflare Worker (no trailing slash) */
  VECTORIZE_WORKER_URL: z.string().url().optional(),
@@ -185,7 +169,6 @@ export const env = createEnv({
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   /** PostHog API Host URL (default: https://us.i.posthog.com) */
   NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional().default("https://us.i.posthog.com"),
-  NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1: z.enum(["0", "1"]).optional(),
   },
   runtimeEnv: {
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
@@ -197,7 +180,6 @@ export const env = createEnv({
   NEXT_PUBLIC_BRAND_TIKTOK: process.env.NEXT_PUBLIC_BRAND_TIKTOK,
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
   NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-  NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1,
   DATABASE_URL: process.env.DATABASE_URL,
   TURSO_CONNECTION_URL: process.env.TURSO_CONNECTION_URL,
   TURSO_AUTH_TOKEN: process.env.TURSO_AUTH_TOKEN,
@@ -244,16 +226,8 @@ export const env = createEnv({
   STEEL_API_KEY: process.env.STEEL_API_KEY,
   CODING_BROWSER_PROVIDER: process.env.CODING_BROWSER_PROVIDER,
   CF_ACCOUNT_ID: process.env.CF_ACCOUNT_ID,
-  FEATURE_LIVE: process.env.FEATURE_LIVE,
   LIVE_HMAC_SECRET: process.env.LIVE_HMAC_SECRET,
-  FEATURE_REFLECTION_EMAIL: process.env.FEATURE_REFLECTION_EMAIL,
-  FEATURE_PKA: process.env.FEATURE_PKA,
-  FEATURE_ZYRA_SEMANTIC_CACHE_V1: process.env.FEATURE_ZYRA_SEMANTIC_CACHE_V1,
-  FEATURE_ZYRA_IMAGE_INPUT_V1: process.env.FEATURE_ZYRA_IMAGE_INPUT_V1,
   STAGING_ZYRA_PEDAGOGY_USER_ID: process.env.STAGING_ZYRA_PEDAGOGY_USER_ID,
-  FEATURE_DRIVE_EDITOR_SYNC: process.env.FEATURE_DRIVE_EDITOR_SYNC,
-  FEATURE_DIKTAT_AI: process.env.FEATURE_DIKTAT_AI,
-  FEATURE_STRUCTURED_ARTICLE_READER_V1: process.env.FEATURE_STRUCTURED_ARTICLE_READER_V1,
  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,
  VECTORIZE_SHARED_SECRET: process.env.VECTORIZE_SHARED_SECRET,

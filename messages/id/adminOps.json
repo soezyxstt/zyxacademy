@@ -163,7 +163,9 @@
     "dailyRecommendations": "Rekomendasi harian",
     "analyticsSnapshots": "Snapshot analitik kursus",
     "studyPaths": "Jalur belajar",
-    "checkedTotal": "{count} permintaan hari ini"
+    "checkedTotal": "{count} permintaan hari ini",
+    "aiGatewayHint": "Telemetri model aktif & latensi",
+    "monitoringShortcuts": "Akses cepat pemantauan"
   },
   "analytics": {
     "title": "Analitik",
@@ -189,6 +191,13 @@
     "activity": "Aktivitas",
     "students": "Murid",
     "contribution": "Kontribusi",
+    "trend": "Tren",
+    "adoption": "Adopsi",
+    "depth": "Kedalaman",
+    "vsPrevPeriod": "{delta} vs periode lalu",
+    "insightFastestGrowing": "Pertumbuhan tercepat",
+    "insightHighestAdoption": "Adopsi tertinggi",
+    "insightNeedsAttention": "Adopsi terendah",
     "lastUsed": "Terakhir digunakan",
     "coverage": "Cakupan pengukuran",
     "coverageItems": [
@@ -196,7 +205,7 @@
       "Pencarian command palette (Cmd+K) belum direkam di server.",
       "Unduhan diktat hanya tersedia sebagai total kumulatif tanpa waktu unduh."
     ],
-    "publicVisits": "Kunjungan halaman publik dipantau lewat ",
+    "publicVisits": "Lihat juga:",
     "rangeLabel": "Rentang waktu penggunaan fitur",
     "range7": "7 hari terakhir",
     "range30": "30 hari terakhir",
@@ -207,7 +216,6 @@
       "materi": "Materi",
       "flashcard": "Flashcard",
       "kuis": "Kuis mandiri",
-      "asesmen": "Asesmen v2",
       "kuisLive": "Kuis live",
       "zyra": "Zyra Chat"
     },
@@ -218,7 +226,6 @@
       "materi": "Progres materi terakhir",
       "flashcard": "Ulasan kartu belajar",
       "kuis": "{count} percobaan selesai",
-      "asesmen": "{count} percobaan dikumpulkan",
       "kuisLive": "Hasil kuis live yang selesai",
       "zyra": "{count} sesi baru"
     }
@@ -685,7 +692,9 @@
     "emptyDescription": "Statistik terkumpul selama proses server berjalan. Jalankan operasi inferensi (pembuatan kuis, ekstraksi KO, dan lainnya) untuk melihat data di sini.",
     "previous": "Sebelumnya",
     "next": "Berikutnya",
-    "logPageSummary": "Menampilkan {start} sampai {end} dari {total} permintaan"
+    "logPageSummary": "Menampilkan {start} sampai {end} dari {total} permintaan",
+    "activeModels": "Model aktif",
+    "filterAll": "Semua"
   },
   "models": {
     "title": "Model AI",
@@ -1089,7 +1098,7 @@
     "success": "Sukses",
     "rejected": "Ditolak",
     "failed": "Gagal",
-    "unclassified": "Belum Terklasifikasi",
+    "unclassified": "Tercatat",
     "startDate": "Tanggal mulai",
     "endDate": "Tanggal selesai",
     "to": "s/d",
@@ -1137,13 +1146,25 @@
       "slot": "Slot tutor",
       "booking": "Sesi",
       "ticket": "Permintaan jadwal ulang",
+      "chapter": "Bab",
+      "course": "Mata kuliah",
+      "productBundle": "Paket materi",
+      "tutorAssignment": "Penugasan tutor",
+      "quiz": "Kuis",
+      "tryout": "Tryout",
+      "material": "Materi",
       "slotCreate": "Membuat slot",
       "slotDelete": "Menghapus slot",
       "slotCopy": "Menyalin slot minggu lalu",
       "sessionMove": "Memindahkan sesi",
       "ticketCreate": "Membuat permintaan jadwal ulang",
       "ticketDecide": "Menanggapi permintaan jadwal ulang",
-      "ticketMessage": "Mengirim pesan permintaan jadwal ulang"
+      "ticketMessage": "Mengirim pesan permintaan jadwal ulang",
+      "created": "Membuat entri",
+      "updated": "Memperbarui entri",
+      "deleted": "Menghapus entri",
+      "draftCreated": "Membuat draf",
+      "assignmentUpdated": "Memperbarui penugasan"
     }
   },
   "formDetailsUI": {

@@ -939,7 +939,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   const remoteCacheEnabled = conversation.length === 0 && !hasImages
     && accessTier !== "free"
     && !hasPageContext
-    && zyraRuntimeEnv.FEATURE_ZYRA_SEMANTIC_CACHE_V1 === "1"
+    && true
     && classification.action === "retrieve"
     && retrieved.length > 0
     && !attemptState;

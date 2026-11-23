@@ -89,7 +89,6 @@ const ICON_MAP: Record<AdminMoreIconId, ElementType> = {
   featureUsage: MousePointerClick,
   webAnalytics: Globe,
   aiModels: Cpu,
-  featureFlags: Flag,
   apiKeys: Lock,
   docs: BookOpen,
   astInspector: Code2,

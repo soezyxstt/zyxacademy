@@ -51,7 +51,7 @@ export async function calendarSource(userId?: string): Promise<CalendarEntry[]> 
       }
     }
   }
-  if (!userId || (process.env.FEATURE_PKA === "1" && (await db.select({ id: pkaRegistrations.id }).from(pkaRegistrations).where(eq(pkaRegistrations.userId, userId)).limit(1)).length)) {
+  if (!userId || (await db.select({ id: pkaRegistrations.id }).from(pkaRegistrations).where(eq(pkaRegistrations.userId, userId)).limit(1)).length) {
     for (const event of await db.select().from(pkaSchedules)) result.push({ key: `pka:${event.id}`, summary: event.title,
       description: "Tutorial PKA Zyx", location: event.meetLink ?? undefined, start: event.sessionAt, end: minutesFrom(90, event.sessionAt) });
   }

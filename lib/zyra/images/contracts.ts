@@ -91,8 +91,8 @@ export interface ZyraAttachmentOwnerContext {
   role?: string | null;
 }
 
-export function isZyraImageFeatureEnabled(value = process.env.FEATURE_ZYRA_IMAGE_INPUT_V1): boolean {
-  return value !== "0";
+export function isZyraImageFeatureEnabled(): boolean {
+  return true;
 }
 
 export function assertZyraImageCount(count: number): void {

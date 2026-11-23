@@ -6,7 +6,6 @@ import { user, courses } from "@/db/schema";
 import { ilike, or, eq } from "drizzle-orm";
 import { generateEnrollmentToken } from "@/app/(admin)/admin/(academic)/tokens/actions";
 import { type OpsAiActionProposal, type ActionProposalType } from "./types";
-import { KNOWN_FEATURE_FLAGS } from "@/lib/feature-flags";
 
 
 export interface ToolDefinition {
@@ -273,24 +272,7 @@ export async function executeConfirmedProposal(proposal: OpsAiActionProposal): P
   }
 
   if (proposal.type === ("toggle_flag" as any) || proposal.type === "toggle_feature_flag") {
-    const flagKey = String(proposal.params.flagKey);
-    const enabled = Boolean(proposal.params.enabled);
-    const matched = KNOWN_FEATURE_FLAGS.find((f) => f.key === flagKey);
-
-    if (!matched) {
-      return { success: false, error: `Feature flag '${flagKey}' tidak ditemukan dalam katalog resmi.` };
-    }
-
-    return {
-      success: true,
-      result: {
-        flagKey,
-        enabled,
-        name: matched.name,
-        envDirective: `${flagKey}=${enabled ? "1" : "0"}`,
-        message: `Konfigurasi feature flag ${flagKey} disiapkan: ${flagKey}=${enabled ? "1" : "0"}.`,
-      },
-    };
+    return { success: false, error: "Sistem feature flag sudah dihapus; seluruh fitur selalu aktif." };
   }
 
   return { success: false, error: `Tipe proposal '${proposal.type}' belum didukung untuk eksekusi otomatis.` };

@@ -15,7 +15,6 @@ const denied = () => new Error("DISCUSSION_UNAVAILABLE");
 type CourseScope = { canonicalCourseId: string | null; legacyCourseId: string | null; courseTitle: string | null; hasFullContentAccess: boolean; reason?: string };
 
 async function pkaAllowed(actor: DiscussionActor, client: Connection) {
- if (process.env.FEATURE_PKA !== "1") return false;
  if (actor.role !== "student") return true;
  const [enrollment] = await client.select({ id: enrollments.id }).from(enrollments)
   .where(and(eq(enrollments.userId, actor.id), eq(enrollments.courseId, PKA_COURSE_ID))).limit(1);

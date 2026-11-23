@@ -18,7 +18,6 @@ export async function generateMetadata() {
 
 export default async function TutorialPkaSchedulesPage() {
   const t = await getTranslations("adminOps");
-  if (env.FEATURE_PKA !== "1") notFound();
 
   const schedules = await getPkaSchedulesAction();
 

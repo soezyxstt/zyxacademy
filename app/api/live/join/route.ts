@@ -30,7 +30,6 @@ function makeStudentToken(
 }
 
 export async function POST(req: NextRequest) {
- if (env.FEATURE_LIVE !== "1") return NextResponse.json({ error: "Disabled" }, { status: 404 });
 
  const session = await auth.api.getSession({ headers: await headers() });
  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

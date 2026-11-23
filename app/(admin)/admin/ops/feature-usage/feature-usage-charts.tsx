@@ -15,13 +15,12 @@ import type { FeatureUsageDailyPoint, FeatureUsageRow } from "@/lib/feature-usag
 import { useTranslations } from "@/lib/i18n/client";
 import { useViewportMode } from "@/hooks/use-viewport-mode";
 
-const FEATURE_KEYS = ["materi", "flashcard", "kuis", "asesmen", "kuisLive", "zyra"] as const;
+const FEATURE_KEYS = ["materi", "flashcard", "kuis", "kuisLive", "zyra"] as const;
 
 const FEATURE_COLORS: Record<(typeof FEATURE_KEYS)[number], string> = {
   materi: "var(--color-brand-primary)",
   flashcard: "var(--color-tertiary-1)",
   kuis: "var(--color-brand-secondary)",
-  asesmen: "var(--color-status-info)",
   kuisLive: "var(--color-status-warning)",
   zyra: "var(--color-status-success)",
 };

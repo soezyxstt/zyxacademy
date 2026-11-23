@@ -24,7 +24,7 @@ import { resolveTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { resolveActorRoles, recordTutorMutationAuditSafe } from "@/lib/tutor/assessment-policy";
 
 function featureEnabled() {
-  return env.FEATURE_LIVE === "1" || process.env.FEATURE_LIVE === "1";
+  return true;
 }
 
 function makeHostToken(

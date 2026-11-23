@@ -93,15 +93,14 @@ export const ALL_ADMIN_TABS: AdminTabDef[] = [
   { id: "short-links", label: "Short Links", href: "/admin/ops/short-links", icon: LinkIcon, group: "publikasi" },
 
   // Analitik & Monitor
+  { id: "web-analytics", label: "Web Analytics", href: "/admin/ops/web-analytics", icon: Globe, group: "analitik" },
   { id: "ops-monitor", label: "Monitor Ops", href: "/admin/ops", icon: Gauge, group: "analitik", exact: true },
-  { id: "tutor-activity", label: "Aktivitas Tutor", href: "/admin/ops/tutor-activity", icon: Activity, group: "analitik" },
   { id: "ai-analytics", label: "Analitik Zyra", href: "/admin/ops/analytics", icon: LineChart, group: "analitik" },
   { id: "feature-usage", label: "Penggunaan Fitur", href: "/admin/ops/feature-usage", icon: MousePointerClick, group: "analitik" },
-  { id: "web-analytics", label: "Web Analytics", href: "/admin/ops/web-analytics", icon: Globe, group: "analitik" },
+  { id: "tutor-activity", label: "Aktivitas Tutor", href: "/admin/ops/tutor-activity", icon: Activity, group: "analitik" },
 
   // Sistem
   { id: "ai-models", label: "Model AI", href: "/admin/ops/models", icon: Cpu, group: "sistem" },
-  { id: "feature-flags", label: "Feature Flags", href: "/admin/ops/flags", icon: Flag, group: "sistem" },
   { id: "api-keys", label: "API Keys", href: "/admin/ops/keys", icon: Lock, group: "sistem" },
 
   // Utilitas
@@ -120,7 +119,7 @@ export const ADMIN_TAB_MESSAGE_KEYS: Record<string, string> = {
   "bank-soal": "questionBank", pricing: "pricing", docs: "docs", forms: "forms", meet: "meet",
   media: "media", tautan: "publicLinks", users: "users", groups: "groups", tokens: "tokens",
   notifications: "notifications", "ops-monitor": "opsMonitor", "ai-models": "aiModels",
-  "tutor-activity": "tutorActivity", "feature-flags": "featureFlags", "ai-analytics": "zyraAnalytics",
+  "tutor-activity": "tutorActivity", "ai-analytics": "zyraAnalytics",
   "feature-usage": "featureUsage", "api-keys": "apiKeys", "short-links": "shortLinks",
   "web-analytics": "webAnalytics", "pka-registrations": "pkaRegistrations",
   "pka-announcements": "pkaAnnouncements", "pka-schedules": "pkaSchedules",

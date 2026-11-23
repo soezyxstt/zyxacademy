@@ -25,7 +25,6 @@ const ControlSchema = z.object({
 });
 
 export async function POST(req: NextRequest, { params }: Context) {
-  if (env.FEATURE_LIVE !== "1" && process.env.FEATURE_LIVE !== "1") return NextResponse.json({ error: "Disabled" }, { status: 404 });
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

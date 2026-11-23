@@ -25,7 +25,11 @@
     "quizzes": "Quizzes",
     "quizGrading": "Quiz grading",
     "liveQuiz": "Live quiz",
-    "tryoutGrading": "Tryout grading"
+    "tryoutGrading": "Tryout grading",
+    "backToTeaching": "Back to teaching",
+    "switchCourse": "Switch course",
+    "groupClass": "Class",
+    "groupEvaluation": "Evaluation"
   },
   "mobile": {
     "bottomNavLabel": "Tutor navigation",

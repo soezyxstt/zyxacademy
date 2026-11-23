@@ -28,7 +28,13 @@
     "diagnosticReport": "Diagnostic report",
     "materials": "Materials",
     "streak": "{count, plural, one {Streak: # day} other {Streak: # days}}",
-    "achievements": "Achievements"
+    "achievements": "Achievements",
+    "groupCommunity": "Community",
+    "groupLearn": "Learn",
+    "groupPractice": "Practice",
+    "groupClassProgress": "Class & progress",
+    "groupPkaProgram": "PKA program",
+    "groupPkaPractice": "Practice & materials"
   },
   "mobile": {
     "openNavigation": "Open navigation",

@@ -4,7 +4,6 @@ import { MediaLibrary } from "@/components/admin/media-library";
 import { StorageBrowser } from "@/components/admin/storage-browser";
 import { LinksManager } from "@/components/admin/links-manager";
 import { notFound } from "next/navigation";
-import { FlagsClient } from "@/app/(admin)/admin/ops/flags/flags-client";
 import { AiAnalyticsClient } from "@/app/(admin)/admin/ops/analytics/analytics-client";
 import AdminFormsBuilder from "@/components/forms/admin-forms-builder";
 import FormDetail from "@/app/(admin)/admin/forms/[id]/page";
@@ -21,7 +20,6 @@ export default async function AdminLoadingFlowsFixture({
   if (process.env.NODE_ENV !== "development") notFound();
   const { state } = await searchParams;
   const states: Record<string, ReactNode> = {
-    flags: <FlagsClient />,
     analytics: <AiAnalyticsClient />,
     forms: <AdminFormsBuilder presetsEnabled />,
     media: <MediaLibrary />,

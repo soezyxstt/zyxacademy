@@ -8,14 +8,7 @@ const optionalUrl = z.preprocess(
   (value) => typeof value === "string" && value.trim().length === 0 ? undefined : value,
   z.string().url().optional(),
 );
-const optionalFlag = z.preprocess(
-  (value) => typeof value === "string" && value.trim().length === 0 ? undefined : value,
-  z.enum(["0", "1"]).optional(),
-);
-
 export const ZyraRuntimeEnvSchema = z.object({
-  FEATURE_ZYRA_IMAGE_INPUT_V1: optionalFlag,
-  FEATURE_ZYRA_SEMANTIC_CACHE_V1: optionalFlag,
   STAGING_ZYRA_PEDAGOGY_USER_ID: optionalString,
   ZYX_ENVIRONMENT: optionalString,
   GEMINI_API_KEY: optionalString,
@@ -43,8 +36,6 @@ export function createZyraRuntimeEnv(
   source: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
 ): ZyraRuntimeEnv {
   return ZyraRuntimeEnvSchema.parse({
-    FEATURE_ZYRA_IMAGE_INPUT_V1: source.FEATURE_ZYRA_IMAGE_INPUT_V1,
-    FEATURE_ZYRA_SEMANTIC_CACHE_V1: source.FEATURE_ZYRA_SEMANTIC_CACHE_V1,
     STAGING_ZYRA_PEDAGOGY_USER_ID: source.STAGING_ZYRA_PEDAGOGY_USER_ID,
     ZYX_ENVIRONMENT: source.ZYX_ENVIRONMENT,
     GEMINI_API_KEY: source.GEMINI_API_KEY,

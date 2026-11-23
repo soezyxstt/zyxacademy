@@ -487,7 +487,7 @@ export async function askTutorRagAction(
     throw new Error(FREE_TEXT_ONLY);
   }
   assertZyraImageCount(requestedAttachmentIds.length);
-  if (requestedAttachmentIds.length > 0 && !isZyraImageFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_IMAGE_INPUT_V1)) {
+  if (requestedAttachmentIds.length > 0 && !isZyraImageFeatureEnabled()) {
     throw new Error("IMAGE_INPUT_DISABLED");
   }
   const imageParts = requestedAttachmentIds.length > 0
@@ -977,7 +977,7 @@ export async function loadTutorHistoryAction(
   const messageIds = rows.map((row) => row.id);
   const attachmentRows = access?.tier !== "free"
     && messageIds.length > 0
-    && isZyraImageFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_IMAGE_INPUT_V1)
+    && isZyraImageFeatureEnabled()
     ? await db
         .select({
           id: zyraMessageAttachments.id,

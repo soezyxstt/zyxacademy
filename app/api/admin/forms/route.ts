@@ -49,7 +49,7 @@ export async function POST(req: Request) {
 
     const form = await createCustomGoogleForm(title, description, questions);
 
-    if (env.FEATURE_DRIVE_EDITOR_SYNC === "1" && form.formId) {
+    if (form.formId) {
       await grantAdminEditorAccessToDriveItems([form.formId]);
     }
 
