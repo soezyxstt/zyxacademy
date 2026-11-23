@@ -3,6 +3,7 @@ import { z } from "zod";
 import { asc, count, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { aiQuestionBank, aiGenerationJobs, courses, enrollments, studentQuizAttempts } from "@/db/schema";
+import { getAllFeatureFlagsStatus } from "@/lib/feature-flags";
 import type { McpPrincipal } from "@/lib/authoring/mcp-auth";
 import { adminToolkit } from "./toolkit";
 import { AdminMcpError, revisionOf } from "./mutations";
@@ -10,7 +11,7 @@ import { assertSafeKey, buildMediaKey, isMediaKey, leafFilename } from "@/lib/st
 import { kindFromKey } from "@/lib/media";
 export function registerSystemTools(server: McpServer, principal: McpPrincipal) {
   const { read } = adminToolkit(server, principal);
-  read("settings.feature_flags", "settings:read", z.object({}), "Sistem feature flag telah dihapus; seluruh kapabilitas kini selalu aktif.", async () => []);
+  read("settings.feature_flags", "settings:read", z.object({}), "Lihat status flag yang dikenal tanpa nilai environment atau kredensial.", async () => getAllFeatureFlagsStatus().map(({ key, name, category, enabled }) => ({ key, name, category, enabled })));
   read("analytics.overview", "analytics:read", z.object({}), "Agregat soal, job generasi, dan percobaan kuis tanpa peringkat atau identitas murid.", async () => {
     const [questionBank, generationJobs, quizAttempts] = await Promise.all([
       db.select({ status: aiQuestionBank.reviewStatus, count: count(), averageQuality: sql<number | null>`avg(${aiQuestionBank.qualityScore})` }).from(aiQuestionBank).groupBy(aiQuestionBank.reviewStatus),

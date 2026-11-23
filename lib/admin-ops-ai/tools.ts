@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { user, courses } from "@/db/schema";
 import { ilike, or, eq } from "drizzle-orm";
 import { generateEnrollmentToken } from "@/app/(admin)/admin/(academic)/tokens/actions";
-import { type OpsAiActionProposal, type ActionProposalType } from "./types";
+import { type OpsAiActionProposal } from "./types";
 
 
 export interface ToolDefinition {
@@ -54,7 +54,7 @@ export const OPS_AI_TOOLS: ToolDefinition[] = [
     parameters: {
       type: "object",
       properties: {
-        destination: { type: "string", description: "Nama fitur atau halaman yang dicari (misal: feature flags, token aktivasi, bank soal, pendaftar PKA)" },
+        destination: { type: "string", description: "Nama fitur atau halaman yang dicari (misal: Monitor Ops, token aktivasi, bank soal, pendaftar PKA)" },
       },
       required: ["destination"],
     },
@@ -83,19 +83,6 @@ export const OPS_AI_TOOLS: ToolDefinition[] = [
       required: ["courseIds", "capacity"],
     },
   },
-  {
-    name: "propose_toggle_flag",
-    description: "Menyiapkan proposal kartu aksi untuk mengaktifkan atau menonaktifkan feature flag.",
-    parameters: {
-      type: "object",
-      properties: {
-        flagKey: { type: "string", description: "Kunci feature flag (misal: FEATURE_PKA, FEATURE_LIVE, FEATURE_DIKTAT_AI)" },
-        enabled: { type: "string", description: "Status target: 'true' untuk aktifkan, 'false' untuk matikan" },
-        reason: { type: "string", description: "Alasan atau justifikasi perubahan flag" },
-      },
-      required: ["flagKey", "enabled"],
-    },
-  },
 ];
 
 const ADMIN_SITEMAP: Record<string, { href: string; label: string; description: string }> = {
@@ -107,7 +94,6 @@ const ADMIN_SITEMAP: Record<string, { href: string; label: string; description: 
   questions: { href: "/admin/questions", label: "Bank Soal", description: "Kelola bank soal asesmen, kuis, LaTeX formula, dan opsi." },
   quizzes: { href: "/admin/quizzes", label: "Kuis", description: "Daftar kuis aktif dan jadwal pengerjaan siswa." },
   jobs: { href: "/admin/jobs", label: "Generasi Soal", description: "Antrean background job AI untuk pembuatan materi dan soal." },
-  flags: { href: "/admin/ops/flags", label: "Feature Flags", description: "Kelola toggle runtime fitur opsional dan audit log." },
   ops: { href: "/admin/ops", label: "Monitor Ops", description: "Status server, runtime environment, dan health checklist." },
   analytics: { href: "/admin/ops/analytics", label: "Analitik Zyra", description: "Metrik performa model AI, latensi, dan penggunaan token." },
   pka: { href: "/admin/tutorial-pka/registrations", label: "Pendaftar PKA", description: "Verifikasi pendaftaran program Tutorial PKA gratis." },
@@ -212,30 +198,6 @@ export async function executeToolCall(name: string, args: Record<string, any>): 
       };
     }
 
-    case "propose_toggle_flag": {
-      const flagKey = String(args.flagKey || "").trim();
-      const enabled = String(args.enabled || "").toLowerCase() === "true";
-      const reason = String(args.reason || "Diubah melalui Zyx Ops AI");
-
-      const proposal: OpsAiActionProposal = {
-        id: randomUUID(),
-        type: "toggle_flag" as ActionProposalType,
-        title: `Ubah Feature Flag: ${flagKey}`,
-        description: `Mengubah status feature flag '${flagKey}' menjadi ${enabled ? "AKTIF (true)" : "NONAKTIF (false)"}.`,
-        params: {
-          flagKey,
-          enabled,
-          reason,
-        },
-        status: "pending",
-      };
-
-      return {
-        summary: `Proposal pengubahan feature flag disiapkan. Memerlukan konfirmasi admin.`,
-        proposal,
-      };
-    }
-
     default:
       return {
         summary: `Tool '${name}' tidak dikenali.`,
@@ -272,7 +234,7 @@ export async function executeConfirmedProposal(proposal: OpsAiActionProposal): P
   }
 
   if (proposal.type === ("toggle_flag" as any) || proposal.type === "toggle_feature_flag") {
-    return { success: false, error: "Sistem feature flag sudah dihapus; seluruh fitur selalu aktif." };
+    return { success: false, error: "Ubah pengaturan flag yang dipertahankan melalui konfigurasi environment." };
   }
 
   return { success: false, error: `Tipe proposal '${proposal.type}' belum didukung untuk eksekusi otomatis.` };

@@ -71,12 +71,12 @@ const isoFromEpochSeconds = (value: unknown): string | null => {
 };
 
 const calcTrendPercent = (current: number, previous: number): number | null => {
-  if (previous <= 0) return current > 0 ? 100 : null;
+  if (previous <= 0) return null;
   return Math.round(((current - previous) / previous) * 100);
 };
 
 const withinWindow = (column: AnyColumn, startEpochSeconds: number, endEpochSeconds: number) =>
-  sql`${column} >= to_timestamp(${startEpochSeconds}) and ${column} <= to_timestamp(${endEpochSeconds})`;
+  sql`${column} >= to_timestamp(${startEpochSeconds}) and ${column} < to_timestamp(${endEpochSeconds})`;
 
 const maxEpochSeconds = (column: AnyColumn) =>
   sql<number>`extract(epoch from max(${column}))`;

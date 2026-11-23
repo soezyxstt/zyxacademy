@@ -33,7 +33,7 @@ Every feature change must check the affected workflow against MCP tools, scopes,
 2. For Next.js APIs, routing, or framework behavior, read the relevant guide in `node_modules/next/dist/docs/` first. This project uses Next.js 16.3 and its APIs may differ from older examples.
 3. Search for an existing route, server action, helper, component, feature flag, and test before creating a new one.
 4. Read the relevant document in `docs/` before changing a documented contract.
-5. Feature flags (`FEATURE_*` and `lib/feature-flags.ts`) have been retired from this repository; capabilities are always-on by default. Do not reintroduce `FEATURE_*` flags without explicit authorization.
+5. Capabilities are always-on by default. Retain approved operational guards for Drive editor synchronization, Article V3 authoring compatibility, and weekly reflection email. Read the catalog in `lib/feature-flags.ts` before changing them. Obtain approval before adding or removing any feature flag.
 
 ## Source of truth map
 

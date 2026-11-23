@@ -67,7 +67,7 @@ export async function GET(req: Request) {
       })
     );
 
-    if (driveItems.size > 0) {
+    if (env.FEATURE_DRIVE_EDITOR_SYNC === "1" && driveItems.size > 0) {
       await grantAdminEditorAccessToDriveItems([...driveItems]);
     }
 

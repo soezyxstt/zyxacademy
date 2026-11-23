@@ -86,7 +86,6 @@ import {
   executeCreateBlogArticle,
   executePublishBlogArticle,
   executeGetFeatureFlags,
-  executeSetFeatureFlag,
   executeCreateShortLink,
   executeTriggerAiJob,
 } from "./domain-operations";
@@ -141,11 +140,6 @@ export const ADMIN_SITEMAP: Readonly<Record<string, AdminSitemapEntry>> = Object
     href: "/admin/jobs",
     label: "Generasi Soal",
     description: "Antrean background job AI untuk pembuatan materi dan soal.",
-  },
-  flags: {
-    href: "/admin/ops/flags",
-    label: "Feature Flags",
-    description: "Kelola toggle runtime fitur opsional dan audit log.",
   },
   ops: {
     href: "/admin/ops",
@@ -351,7 +345,7 @@ export const OPS_TOOL_DEFINITIONS: Record<string, OpsToolDefinition<any>> = {
     inputSchema: z.object({
       destination: z
         .string()
-        .describe("Nama fitur, topik, atau halaman admin panel yang dituju (misal: token aktivasi, feature flags)"),
+        .describe("Nama fitur, topik, atau halaman admin panel yang dituju (misal: token aktivasi, Monitor Ops)"),
     }),
     execute: async ({ destination }, context) => {
       const dest = String(destination || "").toLowerCase().trim();
@@ -1282,21 +1276,6 @@ export const OPS_TOOL_DEFINITIONS: Record<string, OpsToolDefinition<any>> = {
     inputSchema: z.object({}),
     execute: async () => {
       const res = await executeGetFeatureFlags();
-      return { summary: res.summary, data: res.data };
-    },
-  }),
-
-  set_feature_flag: defineOpsTool({
-    name: "set_feature_flag",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.set_feature_flag.description,
-    security: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.set_feature_flag,
-    inputSchema: z.object({
-      flagKey: z.string().describe("Kunci feature flag (misal: 'FEATURE_PKA')"),
-      enabled: z.boolean().describe("Status aktif (true) atau mati (false)"),
-      reason: z.string().optional().describe("Alasan perubahan status"),
-    }),
-    execute: async (input, context) => {
-      const res = await executeSetFeatureFlag(input as any, context?.actorId);
       return { summary: res.summary, data: res.data };
     },
   }),

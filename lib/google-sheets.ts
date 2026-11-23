@@ -550,7 +550,7 @@ export async function syncGoogleSpreadsheet(input: SyncSpreadsheetInput): Promis
     }
   }
 
-  if (!needsConfirmation) {
+  if (!needsConfirmation && process.env.FEATURE_DRIVE_EDITOR_SYNC === "1") {
     try {
       const adminEmails = await getAdminEmails();
       await grantDriveEditorAccess(spreadsheetId!, adminEmails);

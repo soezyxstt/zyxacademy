@@ -1,3 +1,4 @@
+import { getAllFeatureFlagsStatus } from "@/lib/feature-flags";
 import { db } from "@/db";
 import {
   user,
@@ -406,23 +407,13 @@ export async function executePublishBlogArticle(input: PublishBlogArticleInput, 
 // ─── 6. Ops, Short Links & Feature Flags ─────────────────────────────────────
 
 export async function executeGetFeatureFlags() {
+  const flags = getAllFeatureFlagsStatus();
   return {
-    summary: "Sistem feature flag telah dihapus; seluruh kapabilitas aplikasi kini selalu aktif.",
-    data: [],
+    summary: "Status Feature Flags operasional.",
+    data: flags.map(({ key, name, categoryLabel, enabled, description }) => ({
+      key, name, category: categoryLabel, enabled, description,
+    })),
   };
-}
-
-export interface SetFeatureFlagInput {
-  flagKey: string;
-  enabled: boolean;
-  reason?: string;
-}
-
-export async function executeSetFeatureFlag(
-  _input: SetFeatureFlagInput,
-  _actorId?: string,
-): Promise<{ summary: string; data: null }> {
-  throw new Error("Sistem feature flag telah dihapus; seluruh fitur kini selalu aktif.");
 }
 
 export interface CreateShortLinkInput {

@@ -99,6 +99,12 @@ export const env = createEnv({
   LIVE_HMAC_SECRET: z.string().optional(),
   /** Dedicated staging-only user allowed to execute hidden pedagogy shadow comparisons. */
   STAGING_ZYRA_PEDAGOGY_USER_ID: z.string().optional(),
+  /** Opt in to weekly reflection email delivery. */
+  FEATURE_REFLECTION_EMAIL: z.string().optional(),
+  /** Opt in to granting admin editor access to exported Drive artifacts. */
+  FEATURE_DRIVE_EDITOR_SYNC: z.string().optional(),
+  /** Rollout gate for structured Article V3 authoring, submission and review. */
+  FEATURE_STRUCTURED_ARTICLE_READER_V1: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Base URL of the deployed zyx-vector-api Cloudflare Worker (no trailing slash) */
  VECTORIZE_WORKER_URL: z.string().url().optional(),
@@ -231,6 +237,9 @@ export const env = createEnv({
  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,
  VECTORIZE_SHARED_SECRET: process.env.VECTORIZE_SHARED_SECRET,
+  FEATURE_REFLECTION_EMAIL: process.env.FEATURE_REFLECTION_EMAIL,
+  FEATURE_DRIVE_EDITOR_SYNC: process.env.FEATURE_DRIVE_EDITOR_SYNC,
+  FEATURE_STRUCTURED_ARTICLE_READER_V1: process.env.FEATURE_STRUCTURED_ARTICLE_READER_V1,
   // Diktat PDF Renderer
   DIKTAT_RENDERER_URL: process.env.DIKTAT_RENDERER_URL,
   DIKTAT_RENDERER_SECRET: process.env.DIKTAT_RENDERER_SECRET,

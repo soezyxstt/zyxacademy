@@ -15,8 +15,8 @@ async function mockAdminApis(page: Page) {
       body: JSON.stringify({
         user: {
           id: "admin-1",
-          name: "Adi Haditya Nursyam",
-          email: "soezyxst@gmail.com",
+          name: "Admin Demo",
+          email: "admin.demo@example.com",
           emailVerified: true,
           role: "admin",
           createdAt: nowIso,
@@ -117,8 +117,8 @@ async function mockAdminApis(page: Page) {
           users: [
             {
               userId: "u-1",
-              name: "Raka Pratama",
-              email: "raka.pratama@zyxacademy.id",
+              name: "Raka Contoh",
+              email: "raka.demo@example.com",
               requests: 64,
               inputTokens: 48200,
               outputTokens: 31400,
@@ -126,8 +126,8 @@ async function mockAdminApis(page: Page) {
             },
             {
               userId: "u-2",
-              name: "Nadia Putri",
-              email: "nadia.putri@zyxacademy.id",
+              name: "Nadia Contoh",
+              email: "nadia.demo@example.com",
               requests: 42,
               inputTokens: 32100,
               outputTokens: 21800,

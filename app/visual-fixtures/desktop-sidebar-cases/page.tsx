@@ -97,7 +97,7 @@ function SidebarCasesContent() {
       pathname: studentPathname,
       href: (path: string) => path,
       courses: DEMO_COURSES,
-      account: { name: "Raka Pratama", email: "raka.pratama@zyxacademy.id" },
+      account: { name: "Raka Contoh", email: "raka.demo@example.com" },
       streak: { current: 5, weeklyActivity: [true, true, true, true, true, false, false] },
       courseHref: (id) => `/courses/${encodeURIComponent(id)}`,
       route: (view, id) => (id ? `/courses/${encodeURIComponent(id)}/${view}` : `/${view}`),

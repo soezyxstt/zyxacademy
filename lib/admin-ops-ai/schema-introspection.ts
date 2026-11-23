@@ -8,6 +8,7 @@ import {
   pkaRegistrations,
   groups,
 } from "@/db/schema";
+import { getAllFeatureFlagsStatus } from "@/lib/feature-flags";
 
 export interface SchemaTableInfo {
   tableName: string;
@@ -159,6 +160,13 @@ export async function getLiveSystemMetrics(): Promise<{
       db.select({ count: count() }).from(pkaRegistrations),
     ]);
 
+    const allFlags = getAllFeatureFlagsStatus();
+    const flags = allFlags.map((f) => ({
+      key: f.key,
+      name: f.name,
+      enabled: f.enabled,
+    }));
+
     return {
       usersCount: usersResult[0]?.count ?? 0,
       coursesCount: coursesResult[0]?.count ?? 0,
@@ -166,7 +174,7 @@ export async function getLiveSystemMetrics(): Promise<{
       tokensCount: tokensResult[0]?.count ?? 0,
       groupsCount: groupsResult[0]?.count ?? 0,
       pkaRegistrationsCount: pkaResult[0]?.count ?? 0,
-      featureFlags: [],
+      featureFlags: flags,
     };
   } catch (error) {
     console.warn("[OpsAi Metrics] Error fetching live metrics:", error);
@@ -177,7 +185,11 @@ export async function getLiveSystemMetrics(): Promise<{
       tokensCount: 0,
       groupsCount: 0,
       pkaRegistrationsCount: 0,
-      featureFlags: [],
+      featureFlags: getAllFeatureFlagsStatus().map((f) => ({
+        key: f.key,
+        name: f.name,
+        enabled: f.enabled,
+      })),
     };
   }
 }

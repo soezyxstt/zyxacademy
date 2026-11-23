@@ -5,6 +5,7 @@ import {
   AdminKnowledgeSecurityError,
   type AdminKnowledgeSourceType,
 } from "./admin-knowledge-contracts";
+import { KNOWN_FEATURE_FLAGS } from "@/lib/feature-flags";
 import { OPS_AI_TOOL_SECURITY_REGISTRY } from "@/lib/admin-ops-ai/contracts";
 
 /**
@@ -272,11 +273,28 @@ This document provides a safe, structured architectural summary of the database 
  * Generates a safe markdown catalog of feature flags.
  */
 export function generateFeatureFlagsCatalog(): string {
-  return [
-    "# Feature Flags",
+  const lines: string[] = [
+    "# Feature Flags Catalog",
     "",
-    "Sistem feature flag telah dihapus. Seluruh kapabilitas aplikasi Zyx Academy kini aktif secara permanen.",
-  ].join("\n");
+    "Daftar feature flags resmi Zyx Academy beserta deskripsi, kategori, dan aturan konfigurasinya.",
+    "",
+    "| Key | Nama Fitur | Kategori | Deskripsi |",
+    "|---|---|---|---|",
+  ];
+
+  for (const flag of KNOWN_FEATURE_FLAGS) {
+    lines.push(
+      `| \`${flag.key}\` | ${flag.name} | ${flag.categoryLabel} | ${flag.description} |`
+    );
+  }
+
+  lines.push("");
+  lines.push("### Panduan Operasional Flag");
+  lines.push("- Artikel V3 aktif dengan '1' atau 'true'. Sinkronisasi editor Drive dan email refleksi aktif dengan '1'.");
+  lines.push("- Flag default tidak aktif (false) jika tidak disetel.");
+  lines.push("- Perubahan flag diatur melalui konfigurasi environment.");
+
+  return lines.join("\n");
 }
 
 /**
@@ -308,7 +326,7 @@ Daftar halaman dan menu navigasi pada Admin Panel Zyx Academy (/admin).
 ## 4. Alat & Komunikasi
 - **/admin/forms** (Form Studio): Pembuat kuesioner dan formulir dinamis.
 - **/admin/meet** (Meet): Manajemen tautan ruang pertemuan kelas live.
-- **/admin/media** (Pustaka Media): Manajemen berkas aset gambar dan dokumen objek storage.
+- **/admin/media** (Pustaka Media): Manajemen berkas aset gambar dan dokumen Cloudflare R2.
 - **/admin/tautan** (Tautan Publik): Tautan promosi dan pendaftaran eksternal.
 
 ## 5. Pengguna & Akses
@@ -317,14 +335,11 @@ Daftar halaman dan menu navigasi pada Admin Panel Zyx Academy (/admin).
 - **/admin/tokens** (Token Aktivasi): Pembuatan dan pemantauan kuota token kelompok.
 - **/admin/notifications** (Notifikasi): Pengiriman pengumuman siaran kepada siswa.
 
-## 6. Analitik, Monitor & Sistem
-- **/admin/ops/web-analytics** (Web Analytics): Trafik dan analitik kunjungan web.
-- **/admin/ops** (Monitor Ops): Monitor kesehatan antrean background job, vector sync, dan sistem.
-- **/admin/ops/analytics** (Analitik Zyra): Statistik permintaan AI Gateway, model, dan latensi asisten AI.
-- **/admin/ops/feature-usage** (Penggunaan Fitur): Adopsi dan tren fitur belajar siswa.
-- **/admin/ops/tutor-activity** (Aktivitas Tutor): Log aktivitas dan audit perubahan tutor.
-- **/admin/ops/models** (Model AI): Konfigurasi model AI per fitur.
-- **/admin/ops/keys** (API Keys): Diagnostik dan kesehatan kunci API provider AI.
+## 6. Sistem & Ops
+- **/admin/ops** (Monitor Ops): Monitor kesehatan server, antrean Inngest, dan status database.
+- **/admin/ops/tutor-activity** (Aktivitas Tutor): Log keaktifan dan audit kinerja tutor.
+- **/admin/ops/analytics** (Analitik Zyra): Statistik token, biaya, dan latensi asisten AI.
+- **/admin/ops/keys** (API Keys): Pengelolaan kuota kunci Google Gemini AI.
 `;
 }
 

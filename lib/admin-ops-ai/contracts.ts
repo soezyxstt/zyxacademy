@@ -742,15 +742,6 @@ export const OPS_AI_DOMAIN_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecur
     allowsMutation: false,
     description: "Melihat status semua feature flag pada platform.",
   },
-  set_feature_flag: {
-    name: "set_feature_flag",
-    toolClass: "autonomous-mutation",
-    isModelCallable: false,
-    requiredRole: "admin",
-    requiresHumanConfirmation: true,
-    allowsMutation: true,
-    description: "Mengaktifkan atau mematikan status feature flag.",
-  },
   create_short_link: {
     name: "create_short_link",
     toolClass: "autonomous-mutation",
