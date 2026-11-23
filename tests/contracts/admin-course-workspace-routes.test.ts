@@ -88,7 +88,12 @@ describe("admin course workspace routes", () => {
   test("publishes essay attachments through the existing tryout answer flow", () => {
     const tryoutPage = source(`${courseRoot}/tryouts/page.tsx`);
     const importAction = source("app/actions/tutor-management.ts");
-    const answerForm = source("components/course/tryout-form.tsx");
+    const answerForm = [
+      "components/course/tryout-form.tsx",
+      "features/student-assessment/ui/shared/tryout-form-parts.tsx",
+    ]
+      .map((path) => source(path))
+      .join("\n");
 
     expect(tryoutPage).toContain('eq(aiQuestionBank.reviewStatus, "published")');
     expect(importAction).toContain('acceptsFile: row.questionType === "essay"');

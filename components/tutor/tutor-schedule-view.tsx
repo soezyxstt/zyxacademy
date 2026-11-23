@@ -488,6 +488,7 @@ export function TutorScheduleView({
       <ViewportSwitch
         desktop={() => <TutorScheduleDesktop {...surfaceProps} />}
         mobile={() => <TutorScheduleMobile {...surfaceProps} />}
+        fallback={<TutorScheduleDesktop {...surfaceProps} />}
       />
 
       <AdminConfirmDialog

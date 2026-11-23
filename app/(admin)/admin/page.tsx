@@ -14,13 +14,18 @@ import {
   aiUsageEvents,
   vectorSyncQueue,
   blogArticles,
-  studentQuizAttempts,
 } from "@/db/schema";
 import { sql, eq, gte, ne, and, exists } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
 import { LayoutDashboard } from "lucide-react";
 
+import {
+  ALL_ADMIN_TABS,
+  ADMIN_TAB_MESSAGE_KEYS,
+  DEFAULT_ARCHIVED,
+  ADMIN_GROUP_MESSAGE_KEYS,
+} from "@/lib/admin-navigation";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminHomeContainer } from "@/features/admin-home/ui/admin-home-container";
 import type { AdminHomeCategory } from "@/features/admin-home/model/types";
@@ -28,15 +33,21 @@ import type { AdminHomeCategory } from "@/features/admin-home/model/types";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("admin");
-  return { title: pageTitle(t("metadata.homeTitle")), description: t("metadata.homeDescription") };
+  const metadataText = await getTranslations("admin");
+  return { title: pageTitle(metadataText("metadata.homeTitle")), description: metadataText("metadata.homeDescription") };
 }
+
+const dashboardTabs = ALL_ADMIN_TABS.filter(tab => tab.id !== "dashboard" && !DEFAULT_ARCHIVED.includes(tab.id));
+const dashboardGroups = [...new Set(dashboardTabs.map(tab => tab.group))];
 
 async function AdminHomeContent() {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
   const [
+    nav,
+    schedule,
+    t,
     courseCountRes,
     tokenStatsRes,
     jobStatsRes,
@@ -44,8 +55,10 @@ async function AdminHomeContent() {
     notificationStatsRes,
     opsStatsRes,
     blogCountRes,
-    attemptCountRes,
   ] = await Promise.all([
+    getTranslations("admin.navigation"),
+    getTranslations("tutor.schedule"),
+    getTranslations("admin.dashboardStats"),
     db
       .select({ count: sql<number>`count(*)` })
       .from(mataKuliah)
@@ -88,202 +101,40 @@ async function AdminHomeContent() {
     ]),
 
     db.select({ count: sql<number>`count(*)` }).from(blogArticles),
-
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(studentQuizAttempts)
-      .where(eq(studentQuizAttempts.status, "completed")),
   ]);
 
   const totalCourses = courseCountRes[0]?.count ?? 0;
-  const courseStat = `${totalCourses} mata kuliah aktif`;
-
   const [tokensCountRes, redeemedCountRes] = tokenStatsRes;
   const totalTokens = tokensCountRes[0]?.count ?? 0;
   const redeemedTodayCount = redeemedCountRes[0]?.count ?? 0;
-  const tokenStat = `${totalTokens} dibuat, ${redeemedTodayCount} diklaim hari ini`;
-
   const runningJobs = jobStatsRes[0]?.running ?? 0;
   const failedJobs = jobStatsRes[0]?.failed ?? 0;
-  const jobStat = `${runningJobs} berjalan, ${failedJobs} gagal`;
-
   const pendingQuestions = questionStatsRes[0]?.count ?? 0;
-  const questionStat = `${pendingQuestions} menunggu tinjauan`;
-
-  const totalAttempts = attemptCountRes[0]?.count ?? 0;
-  const leaderboardStat = `${totalAttempts} pengerjaan`;
-
   const totalBroadcasts = notificationStatsRes[0][0]?.count ?? 0;
   const totalDevices = notificationStatsRes[1][0]?.count ?? 0;
-  const notifStat = `${totalBroadcasts} siaran, ${totalDevices} perangkat`;
-
   const syncQueueDepth = opsStatsRes[0][0]?.count ?? 0;
   const aiRequestsToday = opsStatsRes[1][0]?.count ?? 0;
-  const opsStat = `${syncQueueDepth} antrean sinkronisasi, ${aiRequestsToday} permintaan`;
-
   const totalArticles = blogCountRes[0]?.count ?? 0;
-  const blogStat = `${totalArticles} artikel`;
 
-  const categories: AdminHomeCategory[] = [
-    {
-      name: "Akademik & Konten",
-      items: [
-        {
-          title: "Mata Kuliah",
-          iconKey: "graduation-cap",
-          iconColor: "text-brand-secondary",
-          href: "/admin/courses",
-          stat: courseStat,
-        },
-        {
-          title: "Jadwal Umum",
-          iconKey: "calendar-days",
-          iconColor: "text-brand-primary",
-          href: "/admin/schedules",
-          stat: null,
-        },
-        {
-          title: "Bank Soal",
-          iconKey: "library",
-          iconColor: "text-status-success",
-          href: "/admin/questions",
-          stat: questionStat,
-        },
-      ],
-    },
-    {
-      name: "Evaluasi & Asesmen",
-      items: [
-        {
-          title: "Papan Peringkat",
-          iconKey: "trophy",
-          iconColor: "text-brand-secondary",
-          href: "/admin/leaderboard",
-          stat: leaderboardStat,
-        },
-        {
-          title: "Generasi Soal",
-          iconKey: "zap",
-          iconColor: "text-status-warning",
-          href: "/admin/jobs",
-          stat: jobStat,
-        },
-      ],
-    },
-    {
-      name: "Alat & Komunikasi",
-      items: [
-        {
-          title: "Kalkulator Harga",
-          iconKey: "calculator",
-          iconColor: "text-status-info",
-          href: "/admin/pricing",
-          stat: null,
-        },
-        {
-          title: "Kelola Blog",
-          iconKey: "newspaper",
-          iconColor: "text-brand-primary",
-          href: "/admin/blog",
-          stat: blogStat,
-        },
-        {
-          title: "Form Studio & Visualizer",
-          iconKey: "file-text",
-          iconColor: "text-brand-secondary",
-          href: "/admin/forms",
-          stat: null,
-        },
-        {
-          title: "Meet",
-          iconKey: "video",
-          iconColor: "text-brand-primary",
-          href: "/admin/meet",
-          stat: null,
-        },
-        {
-          title: "Pustaka Media",
-          iconKey: "image",
-          iconColor: "text-tertiary-1",
-          href: "/admin/media",
-          stat: null,
-        },
-        {
-          title: "Tautan Publik",
-          iconKey: "link",
-          iconColor: "text-status-success",
-          href: "/admin/tautan",
-          stat: null,
-        },
-      ],
-    },
-    {
-      name: "Akses & Keanggotaan",
-      items: [
-        {
-          title: "Token Aktivasi Kelas",
-          iconKey: "key-round",
-          iconColor: "text-brand-secondary",
-          href: "/admin/tokens",
-          stat: tokenStat,
-        },
-        {
-          title: "Push Notification",
-          iconKey: "bell",
-          iconColor: "text-tertiary-3",
-          href: "/admin/notifications",
-          stat: notifStat,
-        },
-      ],
-    },
-    {
-      name: "Sistem & Operasional",
-      items: [
-        {
-          title: "Monitor Ops",
-          iconKey: "activity",
-          iconColor: "text-status-success",
-          href: "/admin/ops",
-          stat: opsStat,
-        },
-        {
-          title: "Feature Flags",
-          iconKey: "flag",
-          iconColor: "text-brand-primary",
-          href: "/admin/ops/flags",
-          stat: null,
-        },
-        {
-          title: "API Keys",
-          iconKey: "key-round",
-          iconColor: "text-tertiary-1",
-          href: "/admin/ops/keys",
-          stat: null,
-        },
-        {
-          title: "Short Links",
-          iconKey: "link",
-          iconColor: "text-brand-secondary",
-          href: "/admin/ops/short-links",
-          stat: null,
-        },
-        {
-          title: "Web Analytics",
-          iconKey: "line-chart",
-          iconColor: "text-brand-primary",
-          href: "/admin/ops/web-analytics",
-          stat: null,
-        },
-        {
-          title: "Penggunaan Fitur",
-          iconKey: "mouse-pointer-click",
-          iconColor: "text-status-info",
-          href: "/admin/ops/feature-usage",
-          stat: null,
-        },
-      ],
-    },
-  ];
+  const stats: Partial<Record<string, string>> = {
+    courses: t("courses", { count: totalCourses }),
+    tokens: t("tokens", { total: totalTokens, today: redeemedTodayCount }),
+    "bank-soal": t("questions", { count: pendingQuestions }),
+    notifications: t("notifications", { total: totalBroadcasts, devices: totalDevices }),
+    "ops-monitor": t("ops", { queued: syncQueueDepth, requests: aiRequestsToday }),
+    blog: t("blog", { count: totalArticles }),
+  };
+
+  const categories: AdminHomeCategory[] = dashboardGroups.map((group) => ({
+    name: group !== "utilitas" && group !== "utama" ? nav(ADMIN_GROUP_MESSAGE_KEYS[group]) : "",
+    items: dashboardTabs.filter(item => item.group === group).map((item) => ({
+      title: item.id === "discussions" ? schedule("discussion") : nav(ADMIN_TAB_MESSAGE_KEYS[item.id]),
+      iconKey: item.id,
+      iconColor: "text-primary",
+      href: item.href,
+      stat: stats[item.id] ?? null,
+    })),
+  }));
 
   return (
     <AdminHomeContainer

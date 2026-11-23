@@ -294,8 +294,15 @@ export function StudentScheduleClient({ selectedCourse, initialData = null, fetc
       <PageHeader icon={CalendarDays} title={t("schedule.title")} />
 
       <ViewportSwitch
-        desktop={() => <StudentScheduleDesktop {...scheduleViewProps} />}
+        desktop={() => (
+          <StudentScheduleDesktop
+            {...scheduleViewProps}
+            weekInfo={activeData.weekInfo}
+            isWeekLocked={activeData.isWeekLocked}
+          />
+        )}
         mobile={() => <StudentScheduleMobile {...scheduleViewProps} />}
+        fallback={<StudentScheduleDesktop {...scheduleViewProps} />}
       />
 
       {experience.mode === "demo" && community.error ? <p role="alert" className="text-body-xs text-destructive">{community.error}</p> : null}

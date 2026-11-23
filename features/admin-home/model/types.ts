@@ -15,7 +15,8 @@ export type AdminHomeIconKey =
   | "activity"
   | "flag"
   | "line-chart"
-  | "mouse-pointer-click";
+  | "mouse-pointer-click"
+  | (string & {});
 
 export interface AdminHomeItem {
   title: string;
