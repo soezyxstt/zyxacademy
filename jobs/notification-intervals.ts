@@ -142,6 +142,14 @@ export const studyReengagementCron = defineJob(
             })
             .from(learningEvents)
             .innerJoin(courses, eq(courses.id, learningEvents.courseId))
+            .innerJoin(
+              enrollments,
+              and(
+                eq(enrollments.userId, learningEvents.studentId),
+                eq(enrollments.courseId, learningEvents.courseId),
+                gt(enrollments.expiresAt, now),
+              ),
+            )
             .where(eq(learningEvents.studentId, candidate.studentId))
             .orderBy(desc(learningEvents.createdAt))
             .limit(1);
@@ -282,7 +290,7 @@ export const flashcardReminderCron = defineJob(
   },
 );
 
-// ─── 3. Upcoming Tutorial Session Reminder Cron (Hourly / 6-hour windows) ────
+// ─── 3. Upcoming Tutorial Session Reminder Cron (Hourly) ────
 
 export const upcomingSessionReminderCron = defineJob(
   {
@@ -292,6 +300,8 @@ export const upcomingSessionReminderCron = defineJob(
   },
   async ({ step }) => {
     const now = new Date();
+    const hourlyTick = new Date(now);
+    hourlyTick.setUTCMinutes(0, 0, 0);
     const todayKey = formatJakartaDateKey(now);
     const tomorrowKey = formatJakartaDateKey(new Date(now.getTime() + DAY_MS));
     const dayAfterKey = formatJakartaDateKey(new Date(now.getTime() + 2 * DAY_MS));
@@ -328,9 +338,9 @@ export const upcomingSessionReminderCron = defineJob(
       await mapConcurrent(scheduledSessions, 5, async (session) => {
         if (!session.sessionDate || !session.startTime) return;
         const startAt = parseJakartaSessionStart(session.sessionDate, session.startTime);
-        if (!startAt) return;
+        if (!startAt || startAt <= now) return;
 
-        const window = classifyUpcomingSessionWindow(startAt.getTime() - now.getTime());
+        const window = classifyUpcomingSessionWindow(startAt.getTime() - hourlyTick.getTime());
         if (!window) return;
 
         const courseTitle = session.courseTitle ?? session.courseId;

@@ -15,6 +15,8 @@ test("successful discussion reads refresh the mounted bell and stale responses c
  const exports: Record<string, any> = {};
  const code = ts.transpileModule(`exports.boot = () => { ${source.slice(start, end)} return { fetchUnreadCount, currentIdentity }; };`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
  runInNewContext(code, { exports, session: { user: { id: "same-user" } }, demo: false, window,
+  getDefaultHomeLinkForRole: () => "/dashboard",
+  ZYX_NOTIFICATIONS_CHANGED: "zyx:notifications-changed",
   DISCUSSION_COUNTS_CHANGED: "zyx:discussion-counts-changed",
   ZYX_LIFECYCLE_REFRESH_EVENT: "zyx:lifecycle-refresh",
   fetch: (url: string) => new Promise(resolve => requests.push({ url, resolve })),

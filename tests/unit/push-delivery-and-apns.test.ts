@@ -440,7 +440,7 @@ describe("iOS registration, desktop notification bridge, and honest client readi
     // Test desktop inbox bridge polling: first poll seeds existing IDs without firing,
     // second poll fires native notification + foreground handler for new arrival.
     const nativeCalls: Array<{ title: string; body?: string }> = [];
-    const foregroundCalls: Array<{ title?: string; body?: string; url?: string }> = [];
+    const foregroundCalls: Array<{ notificationId?: string; title?: string; body?: string; url?: string }> = [];
     let pollCount = 0;
 
     const fakeFetch = (async () => {

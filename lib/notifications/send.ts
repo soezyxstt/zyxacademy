@@ -4,9 +4,9 @@
  * Core server-side notification delivery layer.
  *
  * All functions in this file:
- * 1. Fetch FCM tokens from the database for the target user(s).
- * 2. Send via Firebase Admin SDK (multicast for efficiency).
- * 3. Persist a record to the `notifications` table.
+ * 1. Persist the inbox record for notifications that need one.
+ * 2. Fetch registered tokens and dispatch them through FCM or APNs.
+ * 3. Record delivery statistics on the inbox entry.
  * 4. Automatically remove tokens that FCM reports as invalid/expired.
  *
  * IMPORTANT: This module is server-only. It imports firebase-admin which
@@ -21,9 +21,8 @@ import {
  courses,
  user,
 } from "@/db/schema";
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, sql } from "drizzle-orm";
 import { adminMessaging } from "@/lib/firebase/admin";
-import { resend } from "@/lib/resend";
 import { randomUUID } from "crypto";
 import { getUserLocalePreference } from "@/lib/i18n/preferences";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
@@ -71,27 +70,21 @@ async function persistNotification(
  notificationId: string,
  userId: string,
  payload: NotificationPayload,
- delivery: DeliveryStats
 ): Promise<void> {
- try {
-  await db.insert(notifications).values({
+ await db.insert(notifications).values({
   id: notificationId,
   userId,
   title: payload.title,
   body: payload.body,
   type: payload.type,
   read: false,
-  metadata: (payload.metadata ?? {}) as Record<string, unknown>,
-  attempted: delivery.attempted,
-  succeeded: delivery.succeeded,
-  failedCount: delivery.failedCount,
-  sentAt: delivery.sentAt,
+  metadata: payload.metadata ?? {},
+  attempted: 0,
+  succeeded: 0,
+  failedCount: 0,
+  sentAt: null,
   createdAt: new Date(),
-  });
- } catch (err) {
-  // Non-fatal; push was already sent; log and continue.
-  console.error("[FCM] Failed to persist notification record:", err);
- }
+ });
 }
 
 // ─── Internal: send FCM multicast to a list of tokens ────────────────────────
@@ -198,15 +191,22 @@ export async function sendToUser(
    notificationId,
   },
  };
+ await persistNotification(notificationId, userId, payloadWithId);
  const result = await sendPushToUser(userId, payloadWithId);
-
- // Persist one notification record per user (not per token)
- await persistNotification(notificationId, userId, payloadWithId, {
-  attempted: result.attempted,
-  succeeded: result.succeeded,
-  failedCount: result.failedTokens.length,
-  sentAt: result.attempted > 0 ? new Date() : null,
- });
+ if (result.attempted > 0) {
+  const delivery: DeliveryStats = {
+   attempted: result.attempted,
+   succeeded: result.succeeded,
+   failedCount: result.failedTokens.length,
+   sentAt: new Date(),
+  };
+  try {
+   await db.update(notifications).set(delivery).where(eq(notifications.id, notificationId));
+  } catch (err) {
+   console.error("[FCM] Failed to persist notification delivery stats:", err);
+   result.errors.push("NOTIFICATION_DELIVERY_STATS_UPDATE_FAILED");
+  }
+ }
 
  return result;
 }
@@ -299,48 +299,49 @@ export async function sendPushToUsers(items: { userId: string; payload: Notifica
 
 // ─── Public: send to multiple users ──────────────────────────────────────────
 
-/**
- * Sends a notification to multiple users concurrently.
- * Uses Promise.allSettled so one failure doesn't block the rest.
- */
+const SEND_CONCURRENCY = 10;
+const BROADCAST_PAGE_SIZE = 100;
+
+function addDeliveryResult(total: SendResult, result: SendResult) {
+ total.attempted += result.attempted;
+ total.succeeded += result.succeeded;
+ total.failedTokens.push(...result.failedTokens);
+ total.errors.push(...result.errors);
+}
+
+/** Sends to a bounded number of recipients at a time and records failures. */
 export async function sendToMany(
  userIds: string[],
  payload: NotificationPayload,
  deliveryLocales?: Record<string, Locale>,
 ): Promise<SendResult> {
- const results = await Promise.allSettled(
- userIds.map((uid) => sendToUser(uid, payload, deliveryLocales?.[uid]))
- );
-
- return results.reduce<SendResult>(
- (acc, r) => {
- if (r.status === "fulfilled") {
- acc.attempted += r.value.attempted;
- acc.succeeded += r.value.succeeded;
- acc.failedTokens.push(...r.value.failedTokens);
- acc.errors.push(...r.value.errors);
- } else {
- acc.errors.push(r.reason instanceof Error ? r.reason.message : String(r.reason));
+ const total: SendResult = { attempted: 0, succeeded: 0, failedTokens: [], errors: [] };
+ for (let offset = 0; offset < userIds.length; offset += SEND_CONCURRENCY) {
+  const batch = userIds.slice(offset, offset + SEND_CONCURRENCY);
+  const results = await Promise.allSettled(batch.map(uid => sendToUser(uid, payload, deliveryLocales?.[uid])));
+  for (const result of results) {
+   if (result.status === "fulfilled") addDeliveryResult(total, result.value);
+   else total.errors.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
+  }
  }
- return acc;
- },
- { attempted: 0, succeeded: 0, failedTokens: [], errors: [] }
- );
+ return total;
 }
 
-// ─── Public: broadcast to all users with tokens ──────────────────────────────
-
-/**
- * Sends a notification to every registered user account so users without push
- * tokens still receive the broadcast in their in-app notification inbox.
- */
+/** Includes every registered account, even accounts without push tokens. */
 export async function sendBroadcast(payload: NotificationPayload): Promise<SendResult> {
- const rows = await db
-  .select({ id: user.id })
-  .from(user);
-
- const userIds = rows.map((r) => r.id);
- return sendToMany(userIds, payload);
+ const total: SendResult = { attempted: 0, succeeded: 0, failedTokens: [], errors: [] };
+ let cursor: string | undefined;
+ while (true) {
+  const page: Array<{ id: string }> = await db.select({ id: user.id }).from(user)
+   .where(cursor === undefined ? undefined : gt(user.id, cursor))
+   .orderBy(asc(user.id))
+   .limit(BROADCAST_PAGE_SIZE);
+  if (page.length === 0) break;
+  addDeliveryResult(total, await sendToMany(page.map(row => row.id), payload));
+  if (page.length < BROADCAST_PAGE_SIZE) break;
+  cursor = page[page.length - 1].id;
+ }
+ return total;
 }
 
 /**
@@ -393,6 +394,7 @@ export async function sendTransactionalEmail(input: {
  }
  const locale = input.locale ?? (await getUserLocalePreference(input.userId)) ?? DEFAULT_LOCALE;
  const rendered = input.render(locale, { name: recipient.name ?? "Zyx Learner", email: recipient.email });
+ const { resend } = await import("@/lib/resend");
  const { data, error } = await resend.emails.send({
   from: input.from ?? `Zyx Academy <${process.env.NEXT_PUBLIC_BRAND_EMAIL || "contact@zyxacademy.com"}>`,
   to: recipient.email,

@@ -32,7 +32,7 @@ export function classifyReengagementTier(inactiveDays: number): "none" | "nudge_
 }
 
 export function classifyUpcomingSessionWindow(msUntilStart: number): "1h" | "24h" | null {
-  if (msUntilStart >= 15 * 60_000 && msUntilStart <= 2 * HOUR_MS) return "1h";
-  if (msUntilStart >= 18 * HOUR_MS && msUntilStart <= 28 * HOUR_MS) return "24h";
+  if (msUntilStart >= 0.5 * HOUR_MS && msUntilStart < 1.5 * HOUR_MS) return "1h";
+  if (msUntilStart >= 23.5 * HOUR_MS && msUntilStart < 24.5 * HOUR_MS) return "24h";
   return null;
 }

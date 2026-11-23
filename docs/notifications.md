@@ -53,7 +53,7 @@ All interval jobs are registered in [`jobs/compute.ts`](../jobs/compute.ts), [`l
 | `weekly-reflection-cron` | Student | Monday 06:00 UTC (13:00 WIB) | Yes (`weekly_progress`) | Optional (`learning_reminders`) | Summarizes completed quizzes, flashcards, modules, mastery growth, and streak from the prior week. |
 | `study-reengagement-cron` | Student | Daily 11:00 UTC (18:00 WIB) | Yes (`study_reengagement`) | Optional at 7+ inactive days (`learning_reminders`) | Targets active enrolled students with no `learning_events` for 3 to 30 days (4-day cooldown for 3 to 6 days inactive, 7-day cooldown for 7+ days) with a deep link to their recent course. |
 | `flashcard-reminder-cron` | Student | Daily 01:00 UTC (08:00 WIB) | Yes (`flashcard_reminder`) | Never | Reminds students with 5 or more active SM-2 cards due (`kemajuan_flashcard_murid.due_at <= now()`). |
-| `upcoming-session-reminder-cron` | Student & Tutor | Hourly in Inngest; 6-hour windows in Cloud Scheduler | Yes (`tutor_reminder`) | Optional at H-24h (`events_and_schedules`) | Sends server-backed reminders at H-24h and H-1h before scheduled tutorial sessions, complementing Capacitor local reminders. |
+| `upcoming-session-reminder-cron` | Student & Tutor | Hourly in Inngest and Cloud Tasks | Yes (`tutor_reminder`) | Optional at H-24h (`events_and_schedules`) | Sends server-backed reminders within 30 minutes of H-24h and H-1h, complementing Capacitor local reminders. |
 | `tutor-daily-digest-cron` | Tutor | Daily 00:30 UTC (07:30 WIB) | Yes (`tutor_digest`) | Never | Summarizes pending reschedule tickets and ungraded completed quiz attempts when the queue is non-empty. |
 
 ## 4. Native App and Cross-Role Synchronization

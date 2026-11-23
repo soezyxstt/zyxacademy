@@ -71,7 +71,7 @@ import { sendOptionalEmail } from "@/lib/email-preferences/send";
 import { renderScheduleEventEmail } from "@/lib/notifications/email-templates";
 import type { NotificationPayload } from "@/lib/notifications/types";
 
-async function notifyTutorScheduleEventBestEffort(input: {
+type TutorScheduleNotification = {
   tutorId: string;
   payload: NotificationPayload;
   email?: {
@@ -81,7 +81,9 @@ async function notifyTutorScheduleEventBestEffort(input: {
     summaryId: string;
     details: Array<{ labelEn: string; labelId: string; value: string }>;
   };
-}): Promise<void> {
+};
+
+async function notifyTutorScheduleEventBestEffort(input: TutorScheduleNotification): Promise<void> {
   try {
     await sendToUser(input.tutorId, input.payload);
     if (input.email && process.env.RESEND_API_KEY) {
@@ -484,7 +486,7 @@ export async function collaborativeBookSlot(
   }
 
   try {
-    return await client.transaction(async (tx) => {
+    const { notification, ...result } = await client.transaction(async (tx) => {
       // 1. Verify student membership in group inside transaction (TOCTOU guard)
       const membership = await tx.query.groupMembers.findFirst({
         where: and(
@@ -721,10 +723,11 @@ export async function collaborativeBookSlot(
       } catch {
         // Ignored in non-request test runners
       }
+      let notification: TutorScheduleNotification | undefined;
       if (!options?.executor && slot.tutorId) {
         const studentName = currentUser.name || "Siswa";
         const courseTitle = resolvedCourseId;
-        void notifyTutorScheduleEventBestEffort({
+        notification = {
           tutorId: slot.tutorId,
           payload: tutorBookingCreatedPayload({
             studentName,
@@ -745,10 +748,12 @@ export async function collaborativeBookSlot(
               { labelEn: "Time", labelId: "Waktu", value: `${slot.startTime} - ${slot.endTime} WIB` },
             ],
           },
-        });
+        };
       }
-      return { success: true, bookingId };
+      return { success: true, bookingId, notification };
     });
+    if (notification) await notifyTutorScheduleEventBestEffort(notification);
+    return result;
   } catch (err: any) {
     if (err?.message === "WEEKLY_QUOTA_EXCEEDED") {
       return {
@@ -798,7 +803,7 @@ export async function collaborativeMoveSlot(
   }
 
   try {
-    return await client.transaction(async (tx) => {
+    const { notification, ...result } = await client.transaction(async (tx) => {
       const booking = await tx.query.bookings.findFirst({
         where: eq(bookings.id, bookingId),
         with: {
@@ -993,10 +998,11 @@ export async function collaborativeMoveSlot(
       } catch {
         // Ignored in non-request test runners
       }
+      let notification: TutorScheduleNotification | undefined;
       if (!options?.executor && newSlot.tutorId) {
         const studentName = currentUser.name || "Siswa";
         const courseTitle = booking.courseId;
-        void notifyTutorScheduleEventBestEffort({
+        notification = {
           tutorId: newSlot.tutorId,
           payload: tutorBookingMovedPayload({
             studentName,
@@ -1017,10 +1023,12 @@ export async function collaborativeMoveSlot(
               { labelEn: "Time", labelId: "Waktu", value: `${newSlot.startTime} - ${newSlot.endTime} WIB` },
             ],
           },
-        });
+        };
       }
-      return { success: true };
+      return { success: true, notification };
     });
+    if (notification) await notifyTutorScheduleEventBestEffort(notification);
+    return result;
   } catch (err: any) {
     if (err?.message === "WEEKLY_QUOTA_EXCEEDED") {
       return {
@@ -1040,7 +1048,7 @@ export async function collaborativeCancelSlot(bookingId: string) {
   const currentUser = await requireUser();
 
   try {
-    return await db.transaction(async (tx) => {
+    const { notification, ...result } = await db.transaction(async (tx) => {
       const booking = await tx.query.bookings.findFirst({
         where: eq(bookings.id, bookingId),
         with: {
@@ -1167,12 +1175,13 @@ export async function collaborativeCancelSlot(bookingId: string) {
 
       revalidatePath("/dashboard/schedule");
       revalidatePath("/dashboard/groups");
+      let notification: TutorScheduleNotification | undefined;
       if (booking.slot?.tutorId) {
         const studentName = currentUser.name || "Siswa";
         const courseTitle = booking.course?.title || booking.courseId;
         const sessionDate = booking.sessionDate ?? "-";
         const startTime = booking.slot.startTime ?? "-";
-        void notifyTutorScheduleEventBestEffort({
+        notification = {
           tutorId: booking.slot.tutorId,
           payload: tutorBookingCancelledPayload({
             studentName,
@@ -1193,10 +1202,12 @@ export async function collaborativeCancelSlot(bookingId: string) {
               { labelEn: "Time", labelId: "Waktu", value: startTime },
             ],
           },
-        });
+        };
       }
-      return { success: true };
+      return { success: true, notification };
     });
+    if (notification) await notifyTutorScheduleEventBestEffort(notification);
+    return result;
   } catch (err: any) {
     console.error("Collaborative cancel slot error:", err);
     return { success: false, error: err?.message || "Gagal membatalkan jadwal" };
@@ -1430,7 +1441,7 @@ export async function submitRescheduleTicket(
   const currentUser = await requireUser();
 
   try {
-    return await db.transaction(async (tx) => {
+    const { notification, ...result } = await db.transaction(async (tx) => {
       await lockScheduleEntity(tx, "ticket", bookingId);
       const booking = await tx.query.bookings.findFirst({
         where: eq(bookings.id, bookingId),
@@ -1550,10 +1561,11 @@ export async function submitRescheduleTicket(
       );
 
       revalidatePath("/dashboard/schedule");
+      let notification: TutorScheduleNotification | undefined;
       if (booking.slot?.tutorId) {
         const studentName = currentUser.name || "Siswa";
         const courseTitle = booking.courseId;
-        void notifyTutorScheduleEventBestEffort({
+        notification = {
           tutorId: booking.slot.tutorId,
           payload: tutorTicketSubmittedPayload({
             studentName,
@@ -1572,10 +1584,12 @@ export async function submitRescheduleTicket(
               { labelEn: "Reason", labelId: "Alasan", value: reason },
             ],
           },
-        });
+        };
       }
-      return { success: true, ticketId };
+      return { success: true, ticketId, notification };
     });
+    if (notification) await notifyTutorScheduleEventBestEffort(notification);
+    return result;
   } catch (err: any) {
     console.error("Submit reschedule ticket error:", err);
     return { success: false, error: err?.message || "Gagal mengajukan tiket" };

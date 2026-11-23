@@ -17,10 +17,6 @@ const scheduledJobs = [
   { job: "tutor-daily-digest-cron", hour: 0, minute: 30 },
   { job: "flashcard-reminder-cron", hour: 1, minute: 0 },
   { job: "study-reengagement-cron", hour: 11, minute: 0 },
-  { job: "upcoming-session-reminder-cron", hour: 0, minute: 0 },
-  { job: "upcoming-session-reminder-cron", hour: 6, minute: 0 },
-  { job: "upcoming-session-reminder-cron", hour: 12, minute: 0 },
-  { job: "upcoming-session-reminder-cron", hour: 18, minute: 0 },
   { job: "google-calendar-sync-cron", hour: 20, minute: 0 },
   { job: "course-analytics-snapshot-cron", hour: 2, minute: 0 },
   { job: "content-quality-audit-cron", hour: 3, minute: 0 },
@@ -37,6 +33,9 @@ export function cronWindow(environment: QueueEnvironment, scheduledAt: Date) {
   if (!Number.isFinite(start) || start % (hours * 3_600_000) !== 0) throw new Error("QUEUE_CRON_WINDOW_INVALID");
   const end = start + hours * 3_600_000;
   const entries = recoveryJobs.map(job => ({ job, scheduledAt: start }));
+  for (let scheduledAt = start; scheduledAt < end; scheduledAt += 3_600_000) {
+    entries.push({ job: "upcoming-session-reminder-cron", scheduledAt });
+  }
   for (const { job, hour, minute, weekday } of scheduledJobs) {
     const due = new Date(start);
     due.setUTCHours(hour, minute, 0, 0);

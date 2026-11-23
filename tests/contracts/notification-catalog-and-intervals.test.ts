@@ -214,8 +214,10 @@ describe("interval notification scheduling helpers", () => {
     expect(classifyReengagementTier(7)).toBe("email_7d");
     expect(classifyReengagementTier(31)).toBe("none");
 
-    expect(classifyUpcomingSessionWindow(60 * 60 * 1000)).toBe("1h");
-    expect(classifyUpcomingSessionWindow(24 * 60 * 60 * 1000)).toBe("24h");
+    expect(classifyUpcomingSessionWindow(30 * 60_000)).toBe("1h");
+    expect(classifyUpcomingSessionWindow(90 * 60_000)).toBeNull();
+    expect(classifyUpcomingSessionWindow(23.5 * 3_600_000)).toBe("24h");
+    expect(classifyUpcomingSessionWindow(24.5 * 3_600_000)).toBeNull();
     expect(classifyUpcomingSessionWindow(5 * 60 * 60 * 1000)).toBeNull();
   });
 
@@ -230,6 +232,6 @@ describe("interval notification scheduling helpers", () => {
     expect(stagingDay.some((e) => e.job === "tutor-daily-digest-cron")).toBe(true);
     expect(stagingDay.some((e) => e.job === "flashcard-reminder-cron")).toBe(true);
     expect(stagingDay.some((e) => e.job === "study-reengagement-cron")).toBe(true);
-    expect(stagingDay.filter((e) => e.job === "upcoming-session-reminder-cron")).toHaveLength(4);
+    expect(stagingDay.filter((e) => e.job === "upcoming-session-reminder-cron")).toHaveLength(24);
   });
 });

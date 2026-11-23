@@ -50,6 +50,7 @@ export const weeklyReflectionCron = defineJob(
       return { processed: p, failed: f };
     });
 
+    const isEmailEnabled = process.env.FEATURE_REFLECTION_EMAIL === "1";
     if (activeStudentIds.length > 0) {
       const deliveryLocales = await step.run("resolve-reflection-email-locales", async () => {
         const entries = await Promise.all(
@@ -118,7 +119,7 @@ export const weeklyReflectionCron = defineJob(
               );
             }
 
-            if (process.env.RESEND_API_KEY && !alreadyNotified) {
+            if (isEmailEnabled && !alreadyNotified) {
               await sendOptionalEmail({
                 userId: studentId,
                 category: "learning_reminders",
