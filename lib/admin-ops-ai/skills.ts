@@ -32,23 +32,42 @@ export async function loadOpsAiSkillMarkdown(skillId: string): Promise<string | 
     return cached;
   }
 
-  const root = process.cwd();
-  const candidates = [
-    path.join(root, "dist", "skills", "all", normalizedId, "SKILL.md"),
-    path.join(root, "plugins", "zyx-authoring-mcp", "skills", normalizedId, "SKILL.md"),
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      const raw = await readFile(candidate, "utf8");
-      const content = stripYamlFrontmatter(raw);
-      if (content) {
-        skillMarkdownCache.set(normalizedId, content);
-        return content;
-      }
-    } catch {
-      // Try next fallback location.
+  const distPath = path.join(
+    process.cwd(),
+    "dist",
+    "skills",
+    "all",
+    normalizedId,
+    "SKILL.md",
+  );
+  try {
+    const raw = await readFile(distPath, "utf8");
+    const content = stripYamlFrontmatter(raw);
+    if (content) {
+      skillMarkdownCache.set(normalizedId, content);
+      return content;
     }
+  } catch {
+    // Fall back to source plugin skill directory in local dev and unit tests.
+  }
+
+  const pluginPath = path.join(
+    process.cwd(),
+    "plugins",
+    "zyx-authoring-mcp",
+    "skills",
+    normalizedId,
+    "SKILL.md",
+  );
+  try {
+    const raw = await readFile(pluginPath, "utf8");
+    const content = stripYamlFrontmatter(raw);
+    if (content) {
+      skillMarkdownCache.set(normalizedId, content);
+      return content;
+    }
+  } catch {
+    // Skill file unavailable in this runtime.
   }
 
   return null;
