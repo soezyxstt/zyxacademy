@@ -63,12 +63,13 @@ Koreksi: Tanda dari $(x-2)$ bergantung pada $x$. Perkalian silang variabel dilar
     expect(watermark).toContain("#FF6B35");
   });
 
-  it("renders running header and footer on every page", () => {
+  it("renders the branded masthead and screen contact footer", () => {
     const html = compileCanonicalDiktatHtml("Pertaksamaan dan Fungsi - Review Cepat", sampleMarkdown);
     expect(html).toContain('class="diktat-running-header"');
     expect(html).toContain('class="diktat-running-footer"');
     expect(html).toContain("Zyx Academy");
-    expect(html).toContain("Diktat Belajar");
+    expect(html).not.toContain("Diktat Belajar");
+    expect(html).not.toContain('class="eyebrow"');
     expect(html).toContain("Pertaksamaan dan Fungsi - Review Cepat");
     expect(html).toContain("Instagram: zyx_academy");
     expect(html).toContain("zyxforbusiness@gmail.com");

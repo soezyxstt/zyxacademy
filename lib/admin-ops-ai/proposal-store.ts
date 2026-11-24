@@ -2,6 +2,7 @@ import { affectedRows } from "@/lib/mutation-result";
 import { createHash, randomUUID } from "node:crypto";
 import {
   OPS_AI_POLICY_BOUNDS,
+  OpsAiActionProposalTypeSchema,
   evaluateProposalExecutionEligibility,
   type OpsAiActionProposalV2,
   type OpsAiActionProposalType,
@@ -63,6 +64,7 @@ export interface CreateProposalInput<T = unknown> {
   preconditions?: OpsAiPreconditionSnapshot;
   actorId?: string;
   ttlMinutes?: number;
+  approval?: OpsAiActionProposalV2["approval"];
 }
 
 export interface OpsAiMutationAuditRecord {
@@ -345,6 +347,7 @@ export class OpsAiProposalStore {
       title: input.title,
       description: input.description,
       preview: input.preview,
+      approval: input.approval,
       status: "pending",
       preconditions: input.preconditions,
       createdAt,
@@ -387,7 +390,9 @@ export class OpsAiProposalStore {
         preconditionSnapshot: (input.preconditions as Record<string, unknown>) ?? {},
         operations: [{ type: input.type, payload: input.payload }],
         learnerImpact: { summary: input.preview.summary },
-        reversibility: { reversible: false, rollback: "manual_revocation" },
+        reversibility: input.approval
+          ? { reversible: input.approval === "chat" }
+          : { reversible: false, rollback: "manual_revocation" },
         warnings: [],
         proposerTrace: { runId: input.runId, stepId: input.stepId, diffHash },
         validatorResult: { valid: true },
@@ -424,7 +429,7 @@ export class OpsAiProposalStore {
         .where(eq(zyraProposals.id, id))
         .limit(1);
 
-      if (row) {
+      if (row && OpsAiActionProposalTypeSchema.safeParse(row.proposalType).success) {
         let full: ServerStoredProposal | null = null;
         const currentStatus = DB_STATUS_TO_PROPOSAL[row.status as ZyraProposalDbStatus] || "pending";
 
@@ -641,7 +646,7 @@ export class OpsAiProposalStore {
     const now = input.currentTimeMs ?? Date.now();
     const stored = await this.getProposal(input.proposalId);
 
-    if (!stored) {
+    if (!stored || stored.type === "admin_operation") {
       return {
         success: false,
         error: `Proposal '${input.proposalId}' tidak ditemukan di server.`,

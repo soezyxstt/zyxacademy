@@ -39,7 +39,7 @@ mock.module("@/lib/discussions/access", () => ({
   discussionChannelsWithThreads: () => undefined,
   getDiscussionActor: async (id: string) => ({ id, role: "student" }),
   getAccessibleDiscussionChannels: async (_id: string, input: { channelIds: string[] }) => input.channelIds.includes("channel") ? [{ id: "channel" }] : [],
-  getDiscussionChannelVisibility: async () => ({ predicate: undefined }),
+  getDiscussionChannelVisibility: async (id: string) => ({ actor: { id, role: "student" }, predicate: undefined }),
   requireDiscussionChannelAccess: async () => ({}), requireDiscussionCourse: async () => ({}),
   requireDiscussionMessageAccess: async () => ({}), requireDiscussionThreadAccess: async () => ({}), resolveDiscussionCourses: async () => new Map(),
 }));

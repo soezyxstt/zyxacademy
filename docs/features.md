@@ -99,6 +99,14 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Manages course-scoped leaderboard (`/admin/courses/[slug]/leaderboard`) for per-student ranking within a single course, with backward compatibility redirects from `/admin/leaderboard`
 - Operates inside unified course workspaces (`/admin/courses/[slug]`) with contextual navigation across Bab, Dokumen, Kuis, Soal, Flashcard, Hasil, Papan Peringkat, Analitik, Review Materi, and Pengaturan
 
+
+### Zyx Ops AI
+
+- Ops AI shares Zyra's message layout, live editor, and incremental response reader. Its admin harness combines documentation, diagnosis, existing batch proposals, and the shared MCP tool catalog for admin operations and authoring.
+- Ops AI can inspect and prepare changes for blog, forms, links, academic metadata, schedules, groups, and access. The agent asks for approval in chat before changes. **Allow** approves the exact action shown. **Allow in chat** also authorizes updates to that same form preset or private blog draft for 10 minutes. End the permission from the composer. Publication, deletion, and role or access changes require a fresh **Allow** each time.
+- The catalog also covers Source Pack, Idea and Product Bundle workflows, revisions and releases, reference and original questions, and quiz assembly. Ops AI loads the MCP stage playbook and can continue after reading the result of an approved action. Admin access to the browser catalog is always on.
+- Chat history in this browser is scoped to the signed-in admin account. The earlier shared browser history is kept in its original storage keys.
+
 ## Plan pricing
 
 - `/plans`, the landing preview, student dashboard preview, and student onboarding use the same scheduled pricing quote and display components.

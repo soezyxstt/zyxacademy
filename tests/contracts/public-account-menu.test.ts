@@ -15,6 +15,7 @@ const dependencies: Record<string, unknown> = {
   "radix-ui": { DropdownMenu: menu },
   "@/components/auth/google-sign-in-button": { GoogleSignInButton: "sign-in" },
   "@/components/ui/button": { Button: "button" },
+  "@/components/ui/avatar": { Avatar: "avatar", AvatarImage: "img", AvatarFallback: "span" },
   "@/lib/auth-client": { useSession: () => ({ data: { user }, isPending: false }), signOut: async () => {} },
   "@/lib/utils": { cn: (...values: unknown[]) => values.filter(Boolean).join(" ") },
   "@/lib/i18n/client": { useTranslations: () => (key: string) => key },
@@ -35,7 +36,7 @@ function links(node: any): string[] {
 }
 
 describe("public account menu", () => {
-  for (const variant of ["toolbar", "sheet"]) {
+  for (const variant of ["toolbar", "sheet", "marketing"]) {
     it(`offers the same role-aware destinations in ${variant}`, () => {
       for (const [role, roles, expected] of [
         ["student", [], ["/settings", "/dashboard"]],

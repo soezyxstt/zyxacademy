@@ -69,7 +69,7 @@ mock.module("@/lib/discussions/access", () => ({
  requireDiscussionChannelAccess: async () => ({}), requireDiscussionCourse: async () => ({}),
  requireDiscussionMessageAccess: async () => ({}), requireDiscussionThreadAccess: async () => ({}),
 }));
-const { listChannelsPage } = await import("@/lib/discussions/service");
+const { listChannelsPage, listChannelMetadataPage } = await import("@/lib/discussions/service");
 
 test("kind filtering precedes limits and searched pages read only enough candidates", async () => {
  const first = await listChannelsPage("viewer", { search: "Picker", kinds: ["global", "course"], limit: 50 });
@@ -104,4 +104,14 @@ test("searches course labels in the SQL predicate before limiting without team s
   expect(candidateConditions[0].sql).not.toContain('from "user" requester');
   expect(candidateConditions[0].sql).toContain('from "mata_kuliah" course');
  } finally { viewerRole = "admin"; }
+});
+
+test("workspace catalog omits aggregates while retaining authorized channels and mute preferences", async () => {
+ candidateReads.length = 0;
+ const page = await listChannelMetadataPage("viewer", { search: "Picker", kinds: ["global", "course"], limit: 10 });
+ expect(page.items).toHaveLength(10);
+ expect(page.items.map(item => item.id)).not.toContain("c-005");
+ expect(page.items[0]).toEqual({ id: "c-000", kind: "course", courseId: "course-000", title: "Picker 000", muted: false });
+ expect(page.nextCursor).not.toBeNull();
+ expect(candidateReads).toEqual([11]);
 });

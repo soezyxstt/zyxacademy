@@ -16,6 +16,8 @@ import { mataKuliah, courses } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { CommandMenuProvider } from "@/components/command-menu";
 import { PushPermissionInit } from "@/components/notifications/push-permission-init";
+import { AppDownloadReminder } from "@/components/native/app-download-reminder";
+import { getDownloadChannel } from "@/lib/native/published-release";
 
 export default async function TutorLayout({ children }: { children: ReactNode }) {
   const session = await getAuthSession();
@@ -79,7 +81,7 @@ export default async function TutorLayout({ children }: { children: ReactNode })
         desktopSidebar={<TutorSidebar assignedCourses={assignedCourses} />}
         mobileTopNav={<TutorMobileTopNav assignedCourses={assignedCourses} />}
         mobileBottomNav={<TutorMobileBottomNav assignedCourses={assignedCourses} />}
-        overlays={<PushPermissionInit />}
+        overlays={<><PushPermissionInit /><AppDownloadReminder channel={getDownloadChannel()} /></>}
       >
         <TutorMobileCourseTabNav assignedCourses={assignedCourses} />
         {children}

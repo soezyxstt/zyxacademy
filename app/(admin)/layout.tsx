@@ -30,7 +30,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           desktopSidebar={<AdminSidebar />}
           mobileTopNav={<AdminMobileTopNav />}
           mobileBottomNav={<AdminMobileBottomNav />}
-          overlays={<><OpsAiDrawer /><PushPermissionInit /></>}
+          overlays={<><OpsAiDrawer accountId={session.user.id} /><PushPermissionInit /></>}
           mainClassName="transition-[width] duration-75"
         >
           <AdminMobileSubTabNav />

@@ -159,10 +159,76 @@ export function compileProductDiktatHtml(source: ProductDiktatRenderSource): str
     : parseCanonicalDiktatMarkdownToHtml(withoutRepeatedDocumentHeading(markdown), source.diktat.title);
   if (source.diktat.units && content.includes('class="katex-error"')) throw new Error("DIKTAT_MATH_RENDER_INVALID");
 
-  return productPrintShell(title, content, "Diktat");
+  return diktatPrintShell(title, content);
 }
 
-/** The legacy Article export shares the exact readable print profile with Diktat. */
+/** Shared Diktat presentation for authored bundles and Admin PDF regeneration. */
+function diktatPrintShell(title: string, content: string): string {
+  return `<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title>
+<style>${getKatexCss()}
+${WATERMARK_CSS}
+@page { size: A4; margin: 9mm 12mm 15mm; }
+* { box-sizing: border-box; }
+body { margin: 0; color: #172033; background: #fff; font-family: Arial, sans-serif; font-size: 10.5pt; line-height: 1.38; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.diktat, .diktat-running-header, .diktat-running-footer { position: relative; z-index: 1; }
+.diktat-running-header { display: flex; align-items: center; gap: 2mm; border-bottom: 1.5px solid #cf5127; padding-bottom: 2mm; margin-bottom: 4mm; color: #002B49; font-size: 9pt; font-weight: 700; }
+.diktat-running-header svg { width: 7mm; height: 4.1mm; }
+.diktat-header { background: #002B49; border-left: 4mm solid #cf5127; color: #fff; padding: 3mm 4mm; margin-bottom: 4mm; break-inside: avoid; break-after: avoid; }
+h1 { color: #fff; font-size: 18pt; line-height: 1.2; margin: 0; overflow-wrap: anywhere; }
+.diktat { column-count: 1; }
+.diktat-unit { margin: 0 0 4mm; padding: 3mm 4mm; background: rgba(241,244,249,.75); border-bottom: 1px solid #cbd5e1; break-inside: avoid; }
+.section-h1, .section-h2 { color: #b64420; font-size: 12pt; line-height: 1.25; margin: 4mm 0 2mm; padding-bottom: 1mm; border-bottom: 1px solid #e5b3a1; break-after: avoid; }
+.diktat-unit > :first-child { margin-top: 0; }
+.section-h3, .section-h4 { color: #002B49; font-size: 10.8pt; line-height: 1.3; margin: 3mm 0 1.5mm; break-after: avoid; }
+p { margin: 0 0 2mm; }
+ol, ul { margin: 0 0 2mm; padding-left: 5.5mm; }
+li { margin-bottom: 1mm; padding-left: .5mm; break-inside: avoid; }
+.pedagogical-card { background: rgba(241,244,249,.75); border-bottom: 1px solid #cbd5e1; padding: 3mm 4mm; margin: 0 0 3mm; }
+.diktat-unit .pedagogical-card { background: none; padding: 0; border: 0; }
+.card-trap { border-left: 2px solid #cf5127; background: rgba(253,240,234,.75); }
+.formula-display { margin: 2mm 0; text-align: center; break-inside: avoid; }
+.katex-display { margin: 0; overflow: visible; }
+.katex { font-size: 1.05em; }
+.formula-list { display: grid; gap: 1.5mm; margin: 2mm 0; break-inside: avoid; }
+.formula-item { min-width: 0; }
+.formula-item .formula-display { margin: 0; }
+.semantic-emphasis, .semantic-label { font-weight: 700; }
+.semantic-label { margin-right: 3px; }
+.semantic-caution, .semantic-avoid { color: #a13718; }
+.diktat-divider { border: 0; border-top: 1px solid #cbd5e1; margin: 3mm 0; }
+.diktat-page-break { break-before: page; page-break-before: always; column-span: all; }
+.table-container { margin: 2mm 0; break-inside: avoid; }
+.diktat-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+.diktat-table th, .diktat-table td { border-bottom: 1px solid #cbd5e1; padding: 1.5mm 2mm; vertical-align: top; }
+.diktat-table th { background: #e8edf5; color: #002B49; text-align: left; }
+.diktat-static-visual { margin: 3mm 0; break-inside: avoid; }
+.diktat-static-visual figcaption { color: #002B49; font-weight: 700; margin-bottom: 1.5mm; }
+.diktat-static-visual > svg, .diktat-static-visual img { display: block; max-width: 100%; height: auto; }
+.misconception-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; margin: 2mm 0; break-inside: avoid; }
+.box-misconception, .box-correction { padding: 2mm; border-left: 2px solid #cf5127; }
+.box-correction { border-color: #26704b; }
+.label-wrong, .label-correct, .solution-header, .example-badge, .step-badge { font-weight: 700; }
+.label-wrong { color: #a13718; }
+.label-correct { color: #26704b; }
+.example-header, .solution-header { margin: 2mm 0 1mm; }
+.example-badge { color: #002B49; margin-right: 1.5mm; }
+.inline-code { font-family: monospace; }
+.article-print-link, .article-print-destination { overflow-wrap: anywhere; }
+.article-print-link, .diktat-running-footer a { color: inherit; text-decoration: underline; }
+.diktat-running-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2mm; border-top: 1px solid #cbd5e1; margin-top: 4mm; padding-top: 2mm; color: #64748b; font-size: 7pt; }
+@media print { .diktat-running-footer { display: none; } }
+@media screen { body { max-width: 186mm; margin: 0 auto; padding: 4mm; } }
+@media screen and (max-width: 600px) { .diktat-header { padding: 3mm; } .diktat-unit, .pedagogical-card { padding: 2mm; } .misconception-grid { grid-template-columns: 1fr; } }
+</style></head><body>
+<div class="diktat-watermark" aria-hidden="true">${ZYX_MAIN_LOGO_SVG}</div>
+<header class="diktat-running-header">${ZYX_MAIN_LOGO_SVG}<span>Zyx Academy</span></header>
+<main class="diktat"><header class="diktat-header"><h1>${title}</h1></header>${content}</main>
+<footer class="diktat-running-footer">${DIKTAT_CONTACT_FOOTER_HTML}</footer>
+</body></html>`;
+}
+
+/** Retains the existing two-column legacy Article export. */
 function productPrintShell(title: string, content: string, label: string): string {
   return `<!doctype html>
 <html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title>
@@ -679,479 +745,11 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
 
 /**
  * Compiles canonical diktat markdown and metadata into a complete, printable HTML document
- * with watermark, running header, running footer, and KaTeX fonts.
+ * with the shared Diktat layout, watermark and embedded KaTeX fonts.
  */
 export function compileCanonicalDiktatHtml(title: string, markdown: string): string {
-  const safeTitle = escapeHtml(title);
-  const printTitle = JSON.stringify(title).replaceAll("<", "\\3c ");
-  const renderedContent = parseCanonicalDiktatMarkdownToHtml(withoutRepeatedDocumentHeading(markdown), title);
-
-  return `<!doctype html>
-<html lang="id"><head><meta charset="utf-8"><title>${safeTitle}</title>
-<style>${getKatexCss()}
-${WATERMARK_CSS}
-@page {
-  size: A4;
-  margin: 22mm 15mm 18mm 15mm;
-  @top-left { content: "Zyx Academy · Diktat Belajar"; font: 600 7.5pt Arial, sans-serif; color: #64748b; }
-  @top-right { content: ${printTitle}; font: 7.5pt Arial, sans-serif; color: #64748b; }
-  @bottom-center { content: "Instagram: zyx_academy | Email: zyxforbusiness@gmail.com | WhatsApp: 0851 9475 4224 | zyxacademy.com"; font: 7pt Arial, sans-serif; color: #64748b; }
-}
-@media print {
-  body > .diktat-running-header, body > .diktat-running-footer { display: none; }
-}
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  color: #1e293b;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "Helvetica Neue", Arial, sans-serif;
-  font-size: 9.5pt;
-  line-height: 1.55;
-  background: #ffffff;
-}
-
-/* Running Header & Footer (Repeated on every page) */
-.diktat-running-header {
-  position: fixed;
-  top: -15mm;
-  left: 0;
-  right: 0;
-  height: 8mm;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 0.75pt solid #cbd5e1;
-  font-size: 7.5pt;
-  color: #64748b;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  z-index: 10;
-}
-.diktat-running-header .brand-text {
-  color: #002B49;
-  font-weight: 800;
-}
-.diktat-running-header .brand-sep {
-  margin: 0 4px;
-  color: #cbd5e1;
-}
-.diktat-running-header .running-header-right {
-  color: #94a3b8;
-  max-width: 55%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-transform: none;
-  font-weight: 500;
-}
-
-.diktat-running-footer {
-  position: fixed;
-  bottom: -12mm;
-  left: 0;
-  right: 0;
-  height: 7mm;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-top: 0.75pt solid #e2e8f0;
-  font-size: 7pt;
-  color: #94a3b8;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
-  z-index: 10;
-}
-
-/* First Page Cover Header */
-.diktat-cover-header {
-  margin-bottom: 6mm;
-  border-bottom: 2px solid #002B49;
-  padding-bottom: 3.5mm;
-}
-.cover-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 2mm;
-}
-.eyebrow-badge {
-  background: #002B49;
-  color: #ffffff;
-  font-size: 7pt;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 3px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-.eyebrow-type {
-  color: #FF6B35;
-  font-size: 7.5pt;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.cover-title {
-  font-size: 19pt;
-  font-weight: 800;
-  color: #002B49;
-  line-height: 1.2;
-  margin: 1.5mm 0 2mm;
-  letter-spacing: -0.02em;
-}
-.cover-meta-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 8pt;
-  color: #64748b;
-  margin-top: 2mm;
-}
-
-/* Typography & Flow */
-h1, h2, h3, h4 {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
-  color: #002B49;
-  break-after: avoid;
-  page-break-after: avoid;
-}
-.section-h1 {
-  font-size: 14pt;
-  font-weight: 800;
-  color: #002B49;
-  margin: 6mm 0 2.5mm;
-}
-.section-h2 {
-  font-size: 12pt;
-  font-weight: 700;
-  color: #002B49;
-  margin: 6.5mm 0 2.5mm;
-  padding-bottom: 1.5mm;
-  border-bottom: 1.5px solid #e2e8f0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.section-h2::before {
-  content: "";
-  display: inline-block;
-  width: 3.5px;
-  height: 13pt;
-  background: #FF6B35;
-  border-radius: 2px;
-}
-.section-h3 {
-  font-size: 10pt;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 4mm 0 2mm;
-}
-.section-h4 {
-  font-size: 9.5pt;
-  font-weight: 600;
-  color: #334155;
-  margin: 3mm 0 1.5mm;
-}
-p {
-  margin: 0 0 2.5mm;
-  text-align: justify;
-}
-.diktat-divider {
-  border: 0;
-  border-top: 1px dashed #cbd5e1;
-  margin: 4mm 0;
-}
-
-/* Lists */
-ol, ul {
-  margin: 0 0 3mm;
-  padding-left: 5mm;
-}
-li {
-  margin-bottom: 1.8mm;
-  line-height: 1.5;
-}
-.diktat-list {
-  list-style-type: disc;
-}
-.diktat-running-footer a { color: inherit; text-decoration: underline; }
-.formula-list {
-  display: grid;
-  gap: 2mm;
-  margin: 2mm 0 4mm;
-}
-.formula-item .formula-display {
-  margin: 0;
-  text-align: left;
-}
-.formula-item .katex-display {
-  text-align: left;
-}
-.diktat-ordered-list {
-  list-style-type: decimal;
-}
-
-/* Tables */
-.table-container {
-  width: 100%;
-  margin: 4mm 0;
-  break-inside: avoid;
-  page-break-inside: avoid;
-}
-.diktat-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 8.5pt;
-  line-height: 1.4;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  overflow: hidden;
-}
-.diktat-table th {
-  background-color: #002B49;
-  color: #ffffff;
-  font-weight: 700;
-  text-align: left;
-  padding: 5pt 7pt;
-  border: 1px solid #002B49;
-  font-size: 8pt;
-  letter-spacing: 0.02em;
-}
-.diktat-table td {
-  padding: 4.5pt 7pt;
-  border: 1px solid #e2e8f0;
-  vertical-align: middle;
-  color: #334155;
-}
-.diktat-table tr:nth-child(even) {
-  background-color: #f8fafc;
-}
-
-/* Pedagogical Section Cards */
-.pedagogical-card {
-  border-radius: 6px;
-  padding: 3.5mm 4mm;
-  margin: 3mm 0 4mm;
-  break-inside: avoid;
-  page-break-inside: avoid;
-  position: relative;
-}
-.card-formula {
-  background: #f0f7ff;
-  border: 1px solid #bfdbfe;
-  border-left: 3.5px solid #2563eb;
-}
-.card-trap {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-left: 3.5px solid #dc2626;
-}
-.card-example {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-left: 3.5px solid #002B49;
-}
-.card-steps {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-left: 3.5px solid #16a34a;
-}
-.card-concept-map {
-  background: #fafafa;
-  border: 1px solid #e5e7eb;
-  border-left: 3.5px solid #FF6B35;
-}
-.card-recall {
-  background: #fdf4ff;
-  border: 1px solid #f5d0fe;
-  border-left: 3.5px solid #a855f7;
-}
-
-/* Trap Grid */
-.misconception-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin: 3mm 0;
-  break-inside: avoid;
-}
-.box-misconception {
-  background: #ffffff;
-  border: 1px solid #fca5a5;
-  border-radius: 4px;
-  padding: 6pt 8pt;
-  font-size: 8.5pt;
-}
-.box-correction {
-  background: #ffffff;
-  border: 1px solid #86efac;
-  border-radius: 4px;
-  padding: 6pt 8pt;
-  font-size: 8.5pt;
-}
-.label-wrong {
-  display: block;
-  color: #991b1b;
-  font-size: 7.5pt;
-  text-transform: uppercase;
-  font-weight: 700;
-  margin-bottom: 2pt;
-}
-.label-correct {
-  display: block;
-  color: #166534;
-  font-size: 7.5pt;
-  text-transform: uppercase;
-  font-weight: 700;
-  margin-bottom: 2pt;
-}
-
-/* Badges & Steps */
-.step-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  margin-bottom: 2mm;
-  list-style: none;
-}
-.step-badge {
-  display: inline-block;
-  background: #16a34a;
-  color: #ffffff;
-  font-size: 7pt;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 3px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-/* Example Box */
-.example-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 3mm;
-  margin-bottom: 1.5mm;
-  font-weight: 700;
-}
-.example-badge {
-  background: #002B49;
-  color: #ffffff;
-  font-size: 7pt;
-  font-weight: 700;
-  padding: 1.5px 6px;
-  border-radius: 3px;
-  text-transform: uppercase;
-}
-.example-title {
-  color: #0f172a;
-  font-size: 9pt;
-}
-.solution-header {
-  font-weight: 700;
-  color: #002B49;
-  font-size: 8pt;
-  margin-top: 2.5mm;
-  margin-bottom: 1.5mm;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  border-top: 1px dashed #cbd5e1;
-  padding-top: 2mm;
-}
-
-/* Formulas */
-.formula-display {
-  background: #ffffff;
-  border: 1px solid #dbeafe;
-  border-radius: 4px;
-  padding: 5pt 8pt;
-  margin: 3mm 0;
-  text-align: center;
-  break-inside: avoid;
-  page-break-inside: avoid;
-}
-.semantic-emphasis { border-bottom: 1px solid currentColor; border-radius: 2px; padding: 0 2px; font-weight: 600; }
-.semantic-label { font-size: 7pt; font-weight: 700; letter-spacing: .04em; margin-right: 3px; text-transform: uppercase; }
-.semantic-remember { background: #ecfdf3; color: #166534; }
-.semantic-avoid { background: #fff1f2; color: #9f1239; }
-.semantic-caution { background: #fffbeb; color: #92400e; }
-.semantic-definition { background: #eff6ff; color: #1d4ed8; }
-.semantic-formula { background: #f5f3ff; color: #6d28d9; }
-.katex-display {
-  margin: 0;
-  overflow: visible;
-  text-align: center;
-}
-.katex {
-  font-family: "DejaVu Serif", serif;
-  font-size: 1.05em;
-}
-.inline-code {
-  background: #f1f5f9;
-  color: #b94c16;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 8.5pt;
-  font-family: monospace;
-}
-blockquote {
-  margin: 3mm 0;
-  padding: 2mm 4mm;
-  border-left: 3px solid #002B49;
-  background: #f8fafc;
-  color: #475569;
-  font-style: italic;
-}
-
-/* Honor the explicit review-section break marker in the legacy compiler too. */
-.diktat-page-break { break-before: page; page-break-before: always; column-span: all; }
-
-/* Print Container */
-.diktat-container {
-  position: relative;
-  z-index: 1;
-}
-</style></head><body>
-<!-- Watermark (Main Zyx SVG Logo repeated on every page) -->
-<div class="diktat-watermark" aria-hidden="true">
-  ${ZYX_MAIN_LOGO_SVG}
-</div>
-
-<!-- Running Header (Repeated on every page) -->
-<header class="diktat-running-header" aria-hidden="true">
-  <div class="running-header-left">
-    <span class="brand-text">Zyx Academy</span>
-    <span class="brand-sep">·</span>
-    <span class="doc-type">Diktat Belajar</span>
-  </div>
-  <div class="running-header-right">${safeTitle}</div>
-</header>
-
-<!-- Running Footer (Repeated on every page) -->
-<footer class="diktat-running-footer">
-  ${DIKTAT_CONTACT_FOOTER_HTML}
-</footer>
-
-<main class="diktat-container">
-  <div class="diktat-cover-header">
-    <div class="cover-eyebrow">
-      <span class="eyebrow-badge">Zyx</span>
-      <span class="eyebrow-type">Diktat Belajar Mandiri</span>
-    </div>
-    <h1 class="cover-title">${safeTitle}</h1>
-    <div class="cover-meta-bar">
-      <span>Ringkasan Materi & Persiapan Ujian</span>
-      <span>·</span>
-      <span>Standar Kompetensi Mandiri</span>
-    </div>
-  </div>
-  <div class="content">${renderedContent}</div>
-</main></body></html>`;
+  const content = parseCanonicalDiktatMarkdownToHtml(withoutRepeatedDocumentHeading(markdown), title);
+  return diktatPrintShell(escapeHtml(title), content);
 }
 
 export async function renderProductDiktatPdf(

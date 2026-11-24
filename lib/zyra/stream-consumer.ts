@@ -31,10 +31,10 @@ export type ZyraStreamPart =
   | { type: "data-error"; data: { message: string } }
   | { type: "done" };
 
-export async function* consumeZyraStream(
+export async function* consumeZyraStream<Part extends { type: string } = ZyraStreamPart>(
   body: ReadableStream<Uint8Array>,
   signal?: AbortSignal
-): AsyncGenerator<ZyraStreamPart, void, unknown> {
+): AsyncGenerator<Part | Extract<ZyraStreamPart, { type: "done" | "data-followups" }>, void, unknown> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -51,6 +51,7 @@ export async function* consumeZyraStream(
       buffer = lines.pop() || "";
 
       for (const line of lines) {
+        if (signal?.aborted) return;
         const trimmed = line.trim();
         if (!trimmed.startsWith("data: ")) continue;
         const dataStr = trimmed.slice(6).trim();
@@ -61,11 +62,11 @@ export async function* consumeZyraStream(
 
         try {
           const parsed = JSON.parse(dataStr);
-          if (parsed && typeof parsed === "object" && "type" in parsed) {
+          if (parsed && typeof parsed.type === "string") {
             if (parsed.type === "data-followups") {
               yield { type: "data-followups", followups: validateFollowups(parsed.followups) };
             } else {
-              yield parsed as ZyraStreamPart;
+              yield parsed as Part;
             }
           }
         } catch {

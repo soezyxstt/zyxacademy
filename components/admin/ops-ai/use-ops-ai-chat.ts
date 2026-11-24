@@ -1,4 +1,6 @@
-import { useState, useRef, useCallback } from "react";
+import { consumeZyraStream } from "@/lib/zyra/stream-consumer";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { OPS_AI_POLICY_BOUNDS } from "@/lib/admin-ops-ai/contracts";
 import type {
   OpsAiWorkStep,
   OpsAiCitation,
@@ -36,13 +38,15 @@ export interface UseOpsAiChatOptions {
   onProposal?: (proposal: OpsAiActionProposalV2) => void;
 }
 
+type ChatRequestOptions = { chatId: string; grantIds: string[] };
+
 export interface UseOpsAiChatReturn {
   messages: OpsAiMessageV2[];
   setMessages: React.Dispatch<React.SetStateAction<OpsAiMessageV2[]>>;
   input: string;
   setInput: React.Dispatch<React.SetStateAction<string>>;
   isStreaming: boolean;
-  sendMessage: (customPrompt?: string) => Promise<void>;
+  sendMessage: (customPrompt?: string, chat?: ChatRequestOptions) => Promise<void>;
   stop: () => void;
 }
 
@@ -56,45 +60,10 @@ export interface UseOpsAiChatReturn {
  */
 export async function* consumeOpsAiStream(
   body: ReadableStream<Uint8Array>,
-  signal?: AbortSignal
-): AsyncGenerator<OpsAiStreamPart, void, unknown> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  try {
-    while (true) {
-      if (signal?.aborted) break;
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (signal?.aborted) return;
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data: ")) continue;
-        const dataStr = trimmed.slice(6).trim();
-        if (dataStr === "[DONE]") {
-          yield { type: "done" };
-          return;
-        }
-
-        try {
-          const parsed = JSON.parse(dataStr);
-          if (parsed && typeof parsed.type === "string") {
-            yield parsed as OpsAiStreamPart;
-            if (signal?.aborted) return;
-          }
-        } catch {
-          // Ignore parse errors on individual stream chunks
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock();
+  signal?: AbortSignal,
+): AsyncGenerator<OpsAiStreamPart> {
+  for await (const part of consumeZyraStream<OpsAiStreamPart>(body, signal)) {
+    if (part.type !== "data-followups") yield part;
   }
 }
 
@@ -121,6 +90,8 @@ export function useOpsAiChat({
   const [isStreaming, setIsStreaming] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  useEffect(() => () => abortControllerRef.current?.abort(), []);
+
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -130,9 +101,9 @@ export function useOpsAiChat({
   }, []);
 
   const sendMessage = useCallback(
-    async (customPrompt?: string) => {
+    async (customPrompt?: string, chat?: ChatRequestOptions) => {
       const promptToSend = (customPrompt ?? input).trim();
-      if (!promptToSend || isStreaming) return;
+      if (!promptToSend || promptToSend.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength || abortControllerRef.current) return;
 
       const userMsgId = `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const assistantMsgId = `asst-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -163,18 +134,28 @@ export function useOpsAiChat({
       abortControllerRef.current = abortController;
 
       try {
+        const history: Array<{ role: "user" | "assistant"; content: string }> = [];
+        let remaining = OPS_AI_POLICY_BOUNDS.maxTotalPromptChars;
+        for (const message of [...messages, userMsg].reverse()) {
+          if (message.role === "system") continue;
+          const approved = message.role === "assistant" && chat
+            ? (message.proposals ?? []).filter(proposal => proposal.type === "admin_operation").slice(-8).map(proposal => proposal.id)
+            : [];
+          const reference = approved.length ? `\n\nID persetujuan dalam chat ini: ${approved.join(", ")}` : "";
+          if (!message.content && !reference) continue;
+          const content = message.content.slice(0, Math.max(0, OPS_AI_POLICY_BOUNDS.maxMessageCharLength - reference.length)) + reference;
+          if (history.length >= OPS_AI_POLICY_BOUNDS.maxMessagesHistory || content.length > remaining) break;
+          history.unshift({ role: message.role, content });
+          remaining -= content.length;
+        }
         const res = await fetch(api, {
           method: "POST",
           signal: abortController.signal,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            messages: nextMessages
-              .filter((m) => m.role === "user" || (m.role === "assistant" && m.content.length > 0))
-              .map((m) => ({
-                role: m.role === "user" ? "user" : "assistant",
-                content: m.content,
-              })),
+            messages: history,
             context,
+            ...chat,
           }),
         });
 
@@ -193,8 +174,11 @@ export function useOpsAiChat({
           throw new Error("Respons stream tidak tersedia.");
         }
 
+        let completed = false;
         for await (const part of consumeOpsAiStream(res.body, abortController.signal)) {
-          if (part.type === "text-delta") {
+          if (part.type === "done") {
+            completed = true;
+          } else if (part.type === "text-delta") {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantMsgId
@@ -258,6 +242,9 @@ export function useOpsAiChat({
           }
         }
 
+        if (abortController.signal.aborted) throw new Error("Permintaan dihentikan.");
+        if (!completed && chat) throw new Error("Koneksi terputus saat menerima respons.");
+
         setMessages((prev: OpsAiMessageV2[]) => {
           const finalAssistantMsg = prev.find((m: OpsAiMessageV2) => m.id === assistantMsgId);
           if (finalAssistantMsg) {
@@ -288,18 +275,20 @@ export function useOpsAiChat({
               m.id === assistantMsgId
                 ? {
                     ...m,
-                    content: m.content || `Terjadi kendala: ${errorObj.message}`,
+                    content: m.content ? `${m.content}\n\n${errorObj.message}` : errorObj.message,
                   }
                 : m
             )
           );
         }
       } finally {
-        setIsStreaming(false);
-        abortControllerRef.current = null;
+        if (abortControllerRef.current === abortController) {
+          setIsStreaming(false);
+          abortControllerRef.current = null;
+        }
       }
     },
-    [api, context, input, isStreaming, messages, onError, onFinish, onProposal, onCitation, onWorkStep]
+    [api, context, input, messages, onError, onFinish, onProposal, onCitation, onWorkStep]
   );
 
   return {

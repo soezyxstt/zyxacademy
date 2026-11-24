@@ -159,7 +159,7 @@ describe("CP5 Product Bundle Diktat PDF", () => {
       let bytes: Uint8Array;
       try {
         await page.setContent(compileCanonicalDiktatHtml("Review", "Pertanyaan\n\n<!-- page-break -->\n\n## Kunci jawaban\nJawaban ringkas."), { waitUntil: "load" });
-        assert.deepEqual(await page.locator(".diktat-running-header,.diktat-running-footer").evaluateAll(elements => elements.map(element => getComputedStyle(element).display)), ["none", "none"]);
+        assert.deepEqual(await page.locator(".diktat-running-header,.diktat-running-footer").evaluateAll(elements => elements.map(element => getComputedStyle(element).display)), ["flex", "none"]);
         bytes = new Uint8Array(await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true }));
         assert.deepEqual(errors, []);
       } finally { await page.close(); }
