@@ -124,7 +124,7 @@ export default function DetailedMeetingLogPage({
               icon={Clock}
               label={translate("meetDetailUI.timeDuration")}
               value={formatDurationSec(analytics.totalDurationSeconds)}
-              caption={`${formatIsoDate(new Date(analytics.startTime))} (${formatTimeOnly(analytics.startTime)} - ${formatTimeOnly(analytics.endTime)})`}
+              caption={`${formatIsoDate(new Date(analytics.startTime))} · ${formatTimeOnly(analytics.startTime)} - ${formatTimeOnly(analytics.endTime)}`}
             />
             <AdminStatStripItem icon={TrendingUp} label={translate("meetDetailUI.peak")} value={analytics.peakConcurrentParticipants} />
             <AdminStatStripItem icon={Users} label={translate("meetDetailUI.participants")} value={analytics.participantCount} />

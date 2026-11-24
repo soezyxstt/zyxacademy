@@ -95,12 +95,12 @@ export function AdminStatStripItem({
   tone = "default",
 }: AdminStatStripItemProps) {
   return (
-    <div className="flex min-w-0 items-baseline justify-between gap-x-3 gap-y-0.5 py-1.5 sm:inline-flex sm:justify-start sm:gap-x-1.5 sm:py-0">
+    <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-1.5 sm:inline-flex sm:justify-start sm:gap-x-1.5 sm:py-0">
       <dt className="flex min-w-0 items-center gap-1.5 text-body-xs text-muted-foreground">
         {Icon && <Icon className={cn("size-3.5 shrink-0 text-muted-foreground/75", iconClassName)} aria-hidden />}
         <span className="min-w-0 wrap-break-word">{label}</span>
       </dt>
-      <dd className="flex min-w-0 shrink-0 flex-wrap items-baseline justify-end gap-x-1.5 text-right sm:justify-start sm:text-left">
+      <dd className="flex min-w-0 flex-wrap items-baseline justify-end gap-x-1.5 text-right sm:justify-start sm:text-left">
         <span className={cn("wrap-break-word text-body-sm font-semibold tabular-nums", toneClasses[tone])}>
           {value}
         </span>
