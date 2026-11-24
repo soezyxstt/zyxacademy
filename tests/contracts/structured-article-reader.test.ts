@@ -378,7 +378,6 @@ it("keeps validated Product Bundle V4 parts, visuals and public checkpoints comp
     source.sections.map(section => ({ ...section, artikelId: source.id })),
     source.sections.flatMap(section => section.blocks.map(block => ({
       ...block, bagianArtikelId: section.id, content: block.contentMarkdown,
-      workedExamplePayload: block.workedExample, formativeCheckPayload: block.formativeCheck,
     }))),
   );
   expect(reader.sections.map(section => section.id)).toEqual(source.sections.map(section => section.id));
@@ -388,8 +387,8 @@ it("keeps validated Product Bundle V4 parts, visuals and public checkpoints comp
     for (const block of section.blocks) {
       const renderedBlock = renderedSection.blocks.find(candidate => candidate.id === block.id)!;
       expect(renderedBlock.parts).toEqual(block.parts);
-      if (block.formativeCheck) {
-        expect(renderedBlock.formativeCheck?.checkKind).toBe(block.formativeCheck.checkKind);
+      if (block.formativeCheckPayload) {
+        expect(renderedBlock.formativeCheck?.checkKind).toBe(block.formativeCheckPayload.checkKind);
         expect(renderedBlock.formativeCheck).not.toHaveProperty("answerKey");
       }
       for (const part of block.parts ?? []) {

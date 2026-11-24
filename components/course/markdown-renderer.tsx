@@ -82,6 +82,7 @@ const InteractiveGraphWidget = dynamic(
 export type MarkdownDensity = "default" | "compact";
 
 const MarkdownDensityContext = React.createContext<MarkdownDensity>("default");
+const StandaloneInlineMathContext = React.createContext<boolean>(false);
 
 export function useMarkdownDensity(): MarkdownDensity {
   return React.useContext(MarkdownDensityContext);
@@ -111,6 +112,8 @@ export interface MarkdownRendererProps {
   content: string | ASTBlock[];
   className?: string;
   density?: MarkdownDensity;
+  /** Promotes standalone inline-delimited formula paragraphs ($...$, \(...\)) to scrollable display regions in editorial readers. */
+  standaloneInlineMath?: boolean;
 }
 
 // --- KaTeX Setup ---
@@ -146,8 +149,8 @@ const semanticEmphasis = {
 
 type SemanticEmphasisTone = keyof typeof semanticEmphasis;
 
-/** Detects a whole formula paragraph, including inline delimiters and closing punctuation. */
-function isStandaloneMathBlock(content: string): boolean {
+/** Detects a whole formula paragraph, optionally promoting inline delimiters with closing punctuation. */
+function isStandaloneMathBlock(content: string, includeInline = false): boolean {
   const trimmed = content.trim().replace(/[.,]$/, "").trimEnd();
   if (trimmed.startsWith("$$") && trimmed.endsWith("$$") && trimmed.length > 4) {
     const inner = trimmed.slice(2, -2);
@@ -157,8 +160,15 @@ function isStandaloneMathBlock(content: string): boolean {
     const inner = trimmed.slice(2, -2);
     return inner.trim().length > 0 && !inner.includes("$$") && !inner.includes("\\[") && !inner.includes("\\]");
   }
-  if (trimmed.startsWith("$") && trimmed.endsWith("$") && trimmed.length > 2) return !trimmed.slice(1, -1).includes("$");
-  if (trimmed.startsWith("\\(") && trimmed.endsWith("\\)") && trimmed.length > 4) return !trimmed.slice(2, -2).includes("\\)");
+  if (!includeInline) return false;
+  if (trimmed.startsWith("$") && trimmed.endsWith("$") && trimmed.length > 2) {
+    const inner = trimmed.slice(1, -1);
+    return inner.trim().length > 0 && !inner.includes("$");
+  }
+  if (trimmed.startsWith("\\(") && trimmed.endsWith("\\)") && trimmed.length > 4) {
+    const inner = trimmed.slice(2, -2);
+    return inner.trim().length > 0 && !inner.includes("\\(") && !inner.includes("\\)");
+  }
   return false;
 }
 
@@ -945,13 +955,13 @@ function parseMermaidToDiagramData(content: string) {
 }
 
 /** Renders a parsed Markdown block, including standalone formulas and formula lists. */
-function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: MarkdownDensity }) {
+function ASTBlockRenderer({ block, density, standaloneInlineMath = false }: { block: ASTBlock; density?: MarkdownDensity; standaloneInlineMath?: boolean }) {
   const isCompact = density === "compact";
   const pythonScope = useArticleMarkdownScope();
 
   switch (block.type) {
     case "p":
-      if (isStandaloneMathBlock(block.content)) {
+      if (isStandaloneMathBlock(block.content, standaloneInlineMath)) {
         return (
           <MathRegion primary
             className="formula-focus max-w-full overflow-x-auto overflow-y-hidden rounded-lg border-l-3 border-primary bg-primary/[0.03] px-3.5 py-2 text-left [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left"
@@ -991,7 +1001,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       const isOrdered = block.items?.[0]?.ordered || false;
       const parseFormulaItem = (text: string) => {
         const trimmed = text.trim();
-        if (isStandaloneMathBlock(trimmed)) {
+        if (isStandaloneMathBlock(trimmed, standaloneInlineMath)) {
           return { math: standaloneMathSource(trimmed), note: undefined };
         }
         const match = trimmed.match(/^(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\])\s*(?:[:—–-]|untuk|dengan)?\s*([\s\S]*)$/i);
@@ -1051,7 +1061,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
           )}
         >
           {block.items?.map((item: any, itemIdx: number) => {
-            const isMath = !isOrdered && isStandaloneMathBlock(item.text);
+            const isMath = !isOrdered && isStandaloneMathBlock(item.text, standaloneInlineMath);
             if (isMath) {
               return (
                 <li
@@ -1482,11 +1492,14 @@ export interface ASTRendererProps {
   blocks: ASTBlock[];
   className?: string;
   density?: MarkdownDensity;
+  standaloneInlineMath?: boolean;
 }
 
-export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
+export function ASTRenderer({ blocks, className, density, standaloneInlineMath }: ASTRendererProps) {
   const contextDensity = useMarkdownDensity();
+  const contextStandaloneInlineMath = React.useContext(StandaloneInlineMathContext);
   const activeDensity = density ?? contextDensity;
+  const activeStandaloneInlineMath = standaloneInlineMath ?? contextStandaloneInlineMath;
   const hasTextColor = className && /\btext-\w+/.test(className);
   if (!blocks || !Array.isArray(blocks)) return null;
   const sortedBlocks = [...blocks].sort((a, b) => a.globalOrderIndex - b.globalOrderIndex);
@@ -1510,7 +1523,7 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
   };
 
   for (const block of sortedBlocks) {
-    if (block.type === "p" && isStandaloneMathBlock(block.content)) {
+    if (block.type === "p" && isStandaloneMathBlock(block.content, activeStandaloneInlineMath)) {
       pendingMathGroup.push(block);
     } else {
       flushMathGroup();
@@ -1521,6 +1534,7 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
 
   return (
     <MarkdownDensityContext.Provider value={activeDensity}>
+      <StandaloneInlineMathContext.Provider value={activeStandaloneInlineMath}>
       <div
         className={cn(
           "markdown-article min-w-0 max-w-full wrap-break-word text-left font-sans text-body-base select-text [&>p+p]:mt-0 [&>:is(h1,h2,h3,h4,h5,h6):not(:last-child)]:mb-2",
@@ -1549,9 +1563,10 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
               </div>
             );
           }
-          return <ArticleMarkdownScope key={item.block.id || idx} id={item.block.id || String(idx)}><ASTBlockRenderer block={item.block} density={activeDensity} /></ArticleMarkdownScope>;
+          return <ArticleMarkdownScope key={item.block.id || idx} id={item.block.id || String(idx)}><ASTBlockRenderer block={item.block} density={activeDensity} standaloneInlineMath={activeStandaloneInlineMath} /></ArticleMarkdownScope>;
         })}
       </div>
+      </StandaloneInlineMathContext.Provider>
     </MarkdownDensityContext.Provider>
   );
 }
@@ -1574,9 +1589,11 @@ function VisualCompilerErrorFallback() {
   );
 }
 
-export function MarkdownRenderer({ content, className, density }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, className, density, standaloneInlineMath }: MarkdownRendererProps) {
   const contextDensity = useMarkdownDensity();
+  const contextStandaloneInlineMath = React.useContext(StandaloneInlineMathContext);
   const activeDensity = density ?? contextDensity;
+  const activeStandaloneInlineMath = standaloneInlineMath ?? contextStandaloneInlineMath;
 
   const embeddedParts = React.useMemo(() => {
     if (typeof content !== "string" || !content) return null;
@@ -1589,17 +1606,17 @@ export function MarkdownRenderer({ content, className, density }: MarkdownRender
   const compiled = React.useMemo(() => {
     if (typeof content !== "string" || !content || embeddedParts) return null;
     try {
-      return { ok: true as const, result: compileMarkdown(isStandaloneMathBlock(content) ? `$$\n${standaloneMathSource(content)}\n$$` : content) };
+      return { ok: true as const, result: compileMarkdown(isStandaloneMathBlock(content, activeStandaloneInlineMath) ? `$$\n${standaloneMathSource(content)}\n$$` : content) };
     } catch (err) {
       console.error("Visual compiler failed, fallback to raw rendering:", err);
       return { ok: false as const, error: err };
     }
-  }, [content, embeddedParts]);
+  }, [content, embeddedParts, activeStandaloneInlineMath]);
 
   if (!content) return null;
   if (typeof content !== "string") {
     if (!Array.isArray(content)) return null;
-    return <ASTRenderer blocks={content} className={className} density={activeDensity} />;
+    return <ASTRenderer blocks={content} className={className} density={activeDensity} standaloneInlineMath={activeStandaloneInlineMath} />;
   }
 
   if (embeddedParts) {
@@ -1625,6 +1642,6 @@ export function MarkdownRenderer({ content, className, density }: MarkdownRender
   }
 
   return (
-    <ASTRenderer blocks={compiled.result.ast.blocks} className={className} density={activeDensity} />
+    <ASTRenderer blocks={compiled.result.ast.blocks} className={className} density={activeDensity} standaloneInlineMath={activeStandaloneInlineMath} />
   );
 }

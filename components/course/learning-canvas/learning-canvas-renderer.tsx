@@ -345,6 +345,28 @@ function niceStep(range: number) {
   return 10 * magnitude;
 }
 
+export function computeValueTableSampling(
+  domainMin: number,
+  domainMax: number,
+  viewMin: number,
+  viewMax: number,
+): { min: number; max: number; sampleCount: number } | null {
+  const min = Math.max(domainMin, viewMin);
+  const max = Math.min(domainMax, viewMax);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || !(min < max)) return null;
+  const span = max - min;
+  for (const step of [niceStep(span * 2), niceStep(span)]) {
+    if (!Number.isFinite(step) || step <= 0) continue;
+    const start = Math.max(min, Math.ceil((min - step * 1e-9) / step) * step);
+    const end = Math.min(max, Math.floor((max + step * 1e-9) / step) * step);
+    if (start < end) {
+      const sampleCount = Math.min(400, Math.max(2, Math.round((end - start) / step) + 1));
+      return { min: start, max: end, sampleCount };
+    }
+  }
+  return { min, max, sampleCount: 5 };
+}
+
 function tickValues(min: number, max: number, step: number): number[] {
   const ticks: number[] = [];
   const epsilon = step * 1e-6;
@@ -598,7 +620,11 @@ function VariableControls({
           const variable = spec.variables.find((item) => item.id === control.variableId);
           if (!variable) return null;
           const value = values[variable.id] ?? variable.defaultValue;
-          const parameterLabel = control.label.includes(`$${variable.id}$`) ? control.label.replace(`$${variable.id}$`, `($${variable.id}$)`) : `${control.label} ($${variable.id}$)`;
+          const parameterLabel = control.label.includes(`($${variable.id}$)`)
+            ? control.label
+            : control.label.includes(`$${variable.id}$`)
+              ? control.label.replace(`$${variable.id}$`, `($${variable.id}$)`)
+              : `${control.label} ($${variable.id}$)`;
           return (
             <div key={control.variableId} className={compact ? "space-y-0.5" : "space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2.5"}>
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -701,14 +727,8 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
   );
 
   const valueTableSpec = useMemo(() => {
-    const min = Math.max(spec.domain.min, view.xMin);
-    const max = Math.min(spec.domain.max, view.xMax);
-    const step = niceStep((max - min) * 2);
-    const start = Math.ceil(min / step) * step;
-    const end = Math.floor(max / step) * step;
-    const tableSeries = evaluateFunctionPlot(spec, values, expressions, {
-      min: start, max: end, sampleCount: Math.round((end - start) / step) + 1,
-    });
+    const sampling = computeValueTableSampling(spec.domain.min, spec.domain.max, view.xMin, view.xMax);
+    const tableSeries = sampling ? evaluateFunctionPlot(spec, values, expressions, sampling) : [];
     return {
       ...spec,
       fallback: {

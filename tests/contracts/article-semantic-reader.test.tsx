@@ -42,14 +42,21 @@ test("short legacy statements pair their formula and explanation without flatten
  expect(long).not.toContain('data-math-pair="compact"');
 });
 
-test("standalone inline equations and punctuation stay in one scrollable math region", () => {
+test("standalone inline equations stay scrollable in editorial mode without altering shared Markdown defaults", () => {
  for (const content of ["$D=(-5)^2-4(1)(6)=25-24=1>0$.", "$$x=1$$,", "\\(x=1\\)."] ) {
-  const html=renderToStaticMarkup(<MarkdownRenderer content={content} />);
+  const html=renderToStaticMarkup(<MarkdownRenderer content={content} standaloneInlineMath />);
   expect(html).toContain('data-content-kind="formula"');
   expect(html).toContain('data-math-scroll');
   expect(html).not.toMatch(/<[^>]+>\.<\//);
  }
- const prose=renderToStaticMarkup(<MarkdownRenderer content={"Ambil $x=1$. Lalu hitung $y=2$."} />);
+ for (const inlineContent of ["$x=1$.", "\\(x=1\\)", "\\(x=1\\)."]) {
+  const sharedHtml = renderToStaticMarkup(<MarkdownRenderer content={inlineContent} />);
+  expect(sharedHtml).not.toContain('data-content-kind="formula"');
+  expect(sharedHtml).not.toContain('formula-focus');
+ }
+ const displayWithPunctuation = renderToStaticMarkup(<MarkdownRenderer content={"$$x=1$$."} />);
+ expect(displayWithPunctuation).toContain('data-content-kind="formula"');
+ const prose=renderToStaticMarkup(<MarkdownRenderer content={"Ambil $x=1$. Lalu hitung $y=2$."} standaloneInlineMath />);
  expect(prose).not.toContain('data-content-kind="formula"');
 });
 
@@ -76,6 +83,8 @@ test("more than four symbol definitions default collapsed while preserving all c
   expect(html).toContain(`data-symbol-id="${sym.id}"`);
   expect(html).toContain(sym.meaningMarkdown);
  }
+ const symbolListHtml = html.slice(html.indexOf('data-math-symbols'));
+ expect(symbolListHtml).not.toContain('data-content-kind="formula"');
 });
 
 test("single-statement gathered implications render inline on one line while preserving aligned and cases", () => {
