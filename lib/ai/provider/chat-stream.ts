@@ -37,10 +37,7 @@ export async function readChatCompletion(response: Response, received: (delta: s
       if (chunk.usage) usage = chunk.usage;
     }
     if (!finishReason) {
-      if (content.length > 0) {
-        if (!sawDone) {
-          console.warn("[ChatStream] Provider stream ended after content without finish_reason or [DONE]; defaulting to stop.");
-        }
+      if (sawDone && content.length > 0) {
         finishReason = "stop";
       } else {
         throw new Error("Incomplete provider stream");

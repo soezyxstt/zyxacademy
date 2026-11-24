@@ -410,7 +410,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
             <div className="mb-0.5 md:mb-1 flex min-w-0 items-center justify-between gap-2.5 md:gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               {canViewAuthorProfile ? (
-                <button type="button" onClick={() => onViewProfile!(message.author)} className="min-w-0 break-words rounded-sm text-left text-body-xs font-semibold hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{message.author.name}</button>
+                <button type="button" onClick={() => onViewProfile!(message.author)} aria-label={t("viewProfile", { name: message.author.name })} className="min-w-0 break-words rounded-sm text-left text-body-xs font-semibold hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{message.author.name}</button>
               ) : (
                 <span className="min-w-0 break-words text-body-xs font-semibold">{message.author.name}</span>
               )}
