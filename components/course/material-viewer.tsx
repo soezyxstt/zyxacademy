@@ -327,7 +327,7 @@ function parseArticleSections(body: string, defaultTitle: string): { chapterTitl
       cleanBody = body.slice(endOfHeading !== -1 ? endOfHeading : headerIndex);
     }
   } else {
-    const firstHeaderMatch = body.match(/^##\s+Bab\s+\d+:\s+([^\n]+)/im);
+    const firstHeaderMatch = body.match(/##\s+Bab\s+\d+:\s+([^\n]+)/i) || body.match(/##\s+([^\n]+)/);
     if (firstHeaderMatch) {
       chapterTitle = firstHeaderMatch[0].replace(/^##\s+/, "").trim();
       const headerIndex = body.indexOf(firstHeaderMatch[0]);
@@ -490,12 +490,10 @@ function MaterialViewerContent({
   course,
   mode = "learner",
   hideHeader = false,
-  backHref,
   canDownload = true,
 }: MaterialViewerProps) {
   const t = useTranslations("learning");
   const common = useTranslations("common");
-  const articleLabels = useTranslations("studentCourse");
   const learnerMode = isLearnerReaderMode(mode);
   const experience = useStudentExperience();
   const demo = experience.mode === "demo";
@@ -620,7 +618,6 @@ function MaterialViewerContent({
 
   // Article states
   const initialSection = parseInt(searchParams?.get("section") || "0", 10);
-  const [showSectionContext, setShowSectionContext] = useState(false);
   const [activeSectionIdx, setActiveSectionIdx] = useState(isNaN(initialSection) ? 0 : initialSection);
   const [showOutlineSheet, setShowOutlineSheet] = useState(false);
   const [isArticleTocOpen, setIsArticleTocOpen] = useState(true);
@@ -656,37 +653,47 @@ function MaterialViewerContent({
     return parseArticleSections(material.body || "", material.title);
   }, [material.body, material.title]);
 
-  // Track the reading edge even when the final section is shorter than the viewport.
+  // Scroll-spy observer for continuous diktat / article sections
   useEffect(() => {
     if (material.kind !== "article" || articleSections.length === 0) return;
-    const container = articleScrollRef.current;
-    if (!container) return;
-    const sections = Array.from(container.querySelectorAll<HTMLElement>("[data-section-idx]"));
-    if (!sections.length) return;
-    let frame = 0;
-    const update = () => {
-      let current = sections[0];
-      const edge = container.getBoundingClientRect().top + 32;
-      for (const section of sections) {
-        if (section.getBoundingClientRect().top <= edge) current = section;
-        else break;
-      }
-      if (container.scrollTop > 0 && container.scrollTop + container.clientHeight >= container.scrollHeight - 2) current = sections[sections.length - 1];
-      setShowSectionContext((current.querySelector("h2")?.getBoundingClientRect().bottom ?? Infinity) <= container.getBoundingClientRect().top);
-      setActiveSectionIdx(Number(current.dataset.sectionIdx));
-    };
-    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update); };
-    container.addEventListener("scroll", schedule, { passive: true });
-    const observer = new ResizeObserver(schedule);
-    observer.observe(container);
-    sections.forEach(section => observer.observe(section));
-    schedule();
-    return () => {
-      cancelAnimationFrame(frame);
-      container.removeEventListener("scroll", schedule);
-      observer.disconnect();
-    };
-  }, [articleSections, material.kind]);
+    const scrollContainer = articleScrollRef.current;
+    if (!scrollContainer) return;
+
+    const sectionElements = articleSections
+      .map((_, idx) => document.getElementById(`diktat-section-${idx}`))
+      .filter(Boolean) as HTMLElement[];
+
+    if (!sectionElements.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const intersecting = entries.filter((e) => e.isIntersecting);
+        if (intersecting.length > 0) {
+          const sorted = intersecting.sort(
+            (a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top)
+          );
+          const idxAttr = sorted[0].target.getAttribute("data-section-idx");
+          if (idxAttr != null) {
+            const newIdx = parseInt(idxAttr, 10);
+            if (!isNaN(newIdx) && newIdx !== activeSectionIdx) {
+              setActiveSectionIdx(newIdx);
+            }
+          }
+        }
+      },
+      {
+        root: scrollContainer,
+        rootMargin: "-10% 0px -60% 0px",
+        threshold: [0, 0.2, 0.5],
+      },
+    );
+
+    for (const el of sectionElements) {
+      observer.observe(el);
+    }
+
+    return () => observer.disconnect();
+  }, [articleSections, material.kind, activeSectionIdx]);
 
   // Scroll to target section on initial load if query param present
   useEffect(() => {
@@ -1199,7 +1206,7 @@ function MaterialViewerContent({
   ) : null;
 
   if (material.kind === "article" && material.body) {
-    const conceptTags = material.docCategory === "diktat" ? [] : getConceptTags(material.courseId, material.title);
+    const conceptTags = getConceptTags(material.courseId, material.title);
     const summaryChapterId = !hideHeader && learnerMode && accessTier !== "free" && ragEnabled ? chapterId : undefined;
     const articleTocSearch = (
       <SearchBar
@@ -1229,6 +1236,7 @@ function MaterialViewerContent({
         ) : (
           visibleArticleSections.map(({ section, index }) => {
             const isActive = index === activeSectionIdx;
+            const isPassed = index < activeSectionIdx;
             return (
               <button
                 key={`${section.title}-${index}`}
@@ -1243,13 +1251,15 @@ function MaterialViewerContent({
                   }
                 }}
                 className={cn(
-                  "flex w-full items-start gap-2.5 border-l-2 border-transparent px-2.5 py-2 text-left text-body-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-body-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                   isActive
-                    ? "border-primary bg-primary/10 text-primary"
+                    ? "border-l-2 border-primary bg-primary/10 text-primary"
                     : "text-foreground hover:bg-muted/60",
                 )}
               >
-                {isActive ? (
+                {isPassed ? (
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-status-success" />
+                ) : isActive ? (
                   <Circle className="mt-0.5 size-4 shrink-0 fill-primary/20 text-primary" />
                 ) : (
                   <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" />
@@ -1268,17 +1278,25 @@ function MaterialViewerContent({
       <div className="flex flex-col h-full w-full overflow-hidden bg-background">
         <Sheet open={showOutlineSheet} onOpenChange={setShowOutlineSheet}>
           {!hideHeader && learnerMode && (
-            <header className="relative w-full shrink-0 border-b border-border/80 bg-background/95 backdrop-blur-sm">
-              <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-2 gap-y-1 px-4 py-1.5 sm:px-6 lg:px-8">
+            <header className="relative flex w-full shrink-0 items-center flex-wrap justify-between gap-x-2 gap-y-1 border-b border-border/80 bg-background/95 px-2 py-1 sm:px-4 backdrop-blur-sm">
               <div className="flex min-w-0 flex-1 basis-32 items-center gap-2">
                 <div className="min-w-0">
+                  <p className="truncate text-body-xs font-medium text-muted-foreground">
+                    {course?.title ?? t("reader.courseMaterials")}
+                  </p>
                   <h1 className="break-words font-heading text-body-sm font-bold text-foreground">
-                    {showSectionContext && articleSections[activeSectionIdx] ? `${String(activeSectionIdx + 1).padStart(2, "0")}. ${formatReaderTocTitle(articleSections[activeSectionIdx].title)}` : course?.title ?? t("reader.courseMaterials")}
+                    {material.title}
                   </h1>
                 </div>
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
+                <div className="hidden items-center gap-2 text-body-xs text-muted-foreground md:flex">
+                  <div className="h-2 w-24 overflow-hidden rounded-md bg-muted">
+                    <div className="h-full rounded-md bg-primary transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+                  </div>
+                  <span className="font-semibold text-foreground">{progressPercent}%</span>
+                </div>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1320,8 +1338,7 @@ function MaterialViewerContent({
                   </Button>
                 )}
               </div>
-              </div>
-              <div className="absolute bottom-0 left-0 h-0.5 w-full bg-border/40" role="progressbar" aria-label={articleLabels("articleReader.readingPosition")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}><div className="h-full bg-primary transition-all duration-300 motion-reduce:transition-none" style={{ width: `${progressPercent}%` }} /></div>
+              <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
             </header>
           )}
 
@@ -1335,7 +1352,7 @@ function MaterialViewerContent({
           </SheetContent>
         </Sheet>
 
-        <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1">
+        <div className="flex min-h-0 flex-1 w-full">
           <div className="flex min-w-0 flex-1 flex-col">
             <div
               id="article-paper-content"
@@ -1343,19 +1360,21 @@ function MaterialViewerContent({
               data-theme={theme}
               className="w-full flex-1 overflow-y-auto bg-background text-foreground transition-colors duration-300"
             >
-              <div className={cn("article-editorial max-w-[66ch] px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 pb-8 space-y-6", !isArticleTocOpen && "mx-auto")}>
+              <div className="max-w-[75ch] mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 pb-8 space-y-(--reading-section-gap)">
                 {/* Document / Diktat Header */}
-                <header className="space-y-2 border-b border-border/60 pb-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <h1 className="min-w-0 font-heading text-h5 font-bold tracking-tight text-foreground">
-                      {chapterTitle || material.title}
-                    </h1>
-                    <div className="flex shrink-0 items-center gap-1.5">
+                <header className="space-y-2 border-b border-border/80 pb-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2 text-body-xs font-semibold text-muted-foreground">
+                      <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-primary">
+                      {material.docCategory === "diktat" ? t("reader.diktatTitle") : t("reader.articleTitle")}
+                      </span>
+                      {course?.title && <span>· {course.title}</span>}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
                       <ShareLinkButton
                         title={chapterTitle || material.title}
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-muted-foreground hover:text-foreground rounded-lg"
+                        variant="outline"
+                        size="icon-lg"
                       />
                       {material.url && canDownload && (
                         <TooltipProvider>
@@ -1363,14 +1382,13 @@ function MaterialViewerContent({
                             <TooltipTrigger asChild>
                               <Button
                                 type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                className="text-muted-foreground hover:text-foreground rounded-lg"
+                                variant="outline"
+                                size="icon-lg"
                                 aria-label={t("reader.downloadPdf")}
                                 disabled={downloadingFile}
                                 onClick={() => void handleDownloadMaterial(chapterTitle || material.title)}
                               >
-                                <Download className="size-4" aria-hidden />
+                                <Download aria-hidden />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
@@ -1382,6 +1400,9 @@ function MaterialViewerContent({
                       )}
                     </div>
                   </div>
+                  <h1 className="font-heading text-h3 font-bold tracking-tight text-foreground sm:text-h2">
+                    {chapterTitle || material.title}
+                  </h1>
                   {conceptTags && conceptTags.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 pt-1">
                       {conceptTags.map((tag) => (
@@ -1399,18 +1420,19 @@ function MaterialViewerContent({
                 {/* Continuous Sections */}
                 {articleSections.length > 0 ? (
                   articleSections.map((section, idx) => {
+                    const isLast = idx === articleSections.length - 1;
                     return (
                       <React.Fragment key={idx}>
                         <section
                           id={`diktat-section-${idx}`}
                           data-section-idx={idx}
-                          className="scroll-mt-8 space-y-6 [&+section]:mt-12 [&+section]:border-t [&+section]:border-border/40 [&+section]:pt-5 md:[&+section]:mt-16"
+                          className="scroll-mt-16 space-y-(--paragraph-gap)"
                         >
-                          <div className="space-y-3">
+                          <div className="border-b border-border/60 pb-3">
                             <span className="text-body-xs font-semibold text-primary/80">
-                              {String(idx + 1).padStart(2, "0")}
+                              Bagian {idx + 1} dari {articleSections.length}
                             </span>
-                            <h2 className="font-heading text-reading-major font-bold text-foreground">
+                            <h2 className="font-heading text-h4 font-bold tracking-tight text-foreground sm:text-h3 mt-1">
                               {section.title}
                             </h2>
                           </div>
@@ -1418,12 +1440,21 @@ function MaterialViewerContent({
                           <div className="w-full">
                             <MarkdownRenderer
                               content={section.content}
-                              density="default"
-                              standaloneInlineMath
+                              density={material.docCategory === "diktat" ? "compact" : "default"}
                             />
                           </div>
                         </section>
 
+                        {!isLast ? (
+                          <div className="py-8 flex items-center gap-4 text-muted-foreground/50">
+                            <div className="h-px flex-1 bg-border/60" />
+                            <div className="flex items-center gap-1.5 text-body-xs font-semibold px-3 py-1 rounded-md bg-muted/40 border border-border/40 text-muted-foreground">
+                              <CheckCircle2 className="size-3.5 text-status-success" />
+                              <span>Selesai Bagian {idx + 1}</span>
+                            </div>
+                            <div className="h-px flex-1 bg-border/60" />
+                          </div>
+                        ) : null}
                       </React.Fragment>
                     );
                   })
@@ -1431,35 +1462,35 @@ function MaterialViewerContent({
                   <div className="w-full">
                     <MarkdownRenderer
                       content={material.body || ""}
-                      density="default"
-                      standaloneInlineMath
+                      density={material.docCategory === "diktat" ? "compact" : "default"}
                     />
                   </div>
                 )}
 
                 {/* End of Diktat milestone */}
                 <div className="space-y-(--related-gap) border-t border-border/40 pt-(--section-gap) text-center">
-                  <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <BookOpen className="size-6" />
+                  <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-status-success/15 text-status-success">
+                    <CheckCircle2 className="size-6 text-status-success" />
                   </div>
                   <div className="space-y-1">
                     <h2 className="font-heading text-h5 font-bold text-foreground">
-                      {done ? (material.docCategory === "diktat" ? t("reader.diktatComplete") : t("reader.materialComplete")) : articleLabels("articleReader.chapterEnd")}
+                      {material.docCategory === "diktat" ? t("reader.diktatComplete") : t("reader.materialComplete")}
                     </h2>
-
+                    <p className="text-body-sm text-muted-foreground max-w-md mx-auto">
+                      Anda telah membaca seluruh isi {material.docCategory === "diktat" ? "diktat" : "materi"} {chapterTitle || material.title}.
+                    </p>
                   </div>
                   {learnerMode && (
                     <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
                       <Button
-                        variant="outline"
+                        variant="default"
                         onClick={markDone}
                         disabled={done || markingDone}
-                        className="gap-2 font-semibold"
+                        className="gap-2 bg-status-success hover:bg-status-success/95 text-white font-bold"
                       >
                         <CheckCircle2 className="size-4" />
                         <span>{done ? t("reader.complete") : t("reader.markAndSave")}</span>
                       </Button>
-                      <Button variant="default" asChild><a href={backHref || experience.href?.(`/courses/${material.courseId}/material`) || `/courses/${material.courseId}/material`}>{articleLabels("articleReader.browseMaterials")}<ChevronRight className="size-4" /></a></Button>
                       {material.url && canDownload && (
                         <Button
                           variant="outline"
@@ -1479,8 +1510,8 @@ function MaterialViewerContent({
             </div>
           </div>
           {isArticleTocOpen && (
-            <aside className="hidden w-64 shrink-0 overflow-hidden border-l border-border/60 md:flex md:flex-col lg:w-68">
-              <div className="group/toc flex items-center gap-2 border-b border-border/60 px-3 py-1.5">
+            <aside className="hidden w-72 shrink-0 overflow-hidden border-l border-border/80 bg-card/40 md:flex md:flex-col lg:w-80">
+              <div className="group/toc flex items-center gap-2 border-b border-border/70 px-3 py-1">
                 <h2 className="min-w-0 flex-1 text-body-sm font-semibold group-has-[[data-search-expanded=true]]/toc:sr-only">{t("reader.tableOfContents")}</h2>
                 {articleTocPosition}
                 {articleTocSearch}
