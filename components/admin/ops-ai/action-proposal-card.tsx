@@ -205,7 +205,7 @@ export function ActionProposalCard({
     : "Proposal berhasil dieksekusi.";
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card/75 backdrop-blur-md p-3.5 shadow-xs space-y-2.5">
+    <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs space-y-2.5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1.5 sm:gap-2">
         <div className="min-w-0 flex-1">
@@ -234,11 +234,11 @@ export function ActionProposalCard({
 
       {/* Preview Parameters */}
       {previewFields.length > 0 && (
-        <dl className="space-y-2">
+        <dl className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-2.5">
           {previewFields.map((field, idx) => (
             <div key={idx} className="min-w-0">
-              <dt className="text-body-xs text-muted-foreground">{field.label}</dt>
-              <dd className={cn("whitespace-pre-wrap wrap-anywhere text-body-sm", field.value.includes("\n") && "max-h-48 overflow-auto rounded-md bg-muted p-2 font-mono")} tabIndex={field.value.includes("\n") ? 0 : undefined}>
+              <dt className="text-body-xs font-medium text-muted-foreground">{field.label}</dt>
+              <dd className={cn("whitespace-pre-wrap wrap-anywhere text-body-sm text-foreground", field.value.includes("\n") && "mt-1 max-h-48 overflow-auto rounded-md border border-border/60 bg-background p-2 font-mono text-body-xs")} tabIndex={field.value.includes("\n") ? 0 : undefined}>
                 {field.value}
               </dd>
             </div>
@@ -257,7 +257,7 @@ export function ActionProposalCard({
           {tokenString && (
             <div className="flex items-center justify-between gap-2 rounded-md bg-background/80 p-2 border border-status-success/20">
               <div className="min-w-0">
-                <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
+                <span className="text-body-2xs uppercase font-semibold text-muted-foreground block">
                   Token Dibuat
                 </span>
                 <span className="font-mono text-body-xs font-bold text-foreground select-all break-all block">
