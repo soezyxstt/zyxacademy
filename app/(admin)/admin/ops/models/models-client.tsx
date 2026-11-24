@@ -351,11 +351,11 @@ export function ModelsClient({
   ] as const;
 
   return (
-    <div className="space-y-6">
+    <div>
       {bannerError && (
         <div
           role="alert"
-          className="flex items-start justify-between gap-3 rounded-lg border border-status-error/30 bg-status-error/5 px-4 py-3 text-body-sm text-foreground"
+          className="mb-(--compact-gap) flex items-start justify-between gap-2 border-y border-status-error/30 py-(--compact-gap) text-body-sm text-foreground"
         >
           <div className="flex min-w-0 items-start gap-2.5">
             <AlertTriangle className="mt-0.5 size-4 shrink-0 text-status-error" aria-hidden />
@@ -377,7 +377,7 @@ export function ModelsClient({
 
       <Tabs value={task} onValueChange={setTask}>
         <TabsList
-          mobileInline
+          flush={!bannerError}
           aria-label={t("modelsUI.assignments")}
           trailing={
             task !== "all" ? (

@@ -91,7 +91,7 @@ export function NotificationPreferencesForm({
           </p>
         </header>
 
-        <div className="divide-y divide-border/30">
+        <div className="divide-y divide-border/25">
           <div className="flex items-center justify-between gap-4 rounded-lg px-3 py-(--row-padding) transition-colors hover:bg-muted/30">
             <label htmlFor={masterId} className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
               <Bell className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />

@@ -9,7 +9,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useHideMobileBottomNav } from "@/components/navigation";
 import { cn } from "@/lib/utils";
 import {
   BookOpen,
@@ -30,7 +29,6 @@ import {
 
 /**
  * Focused mobile quiz player:
- * - Hides MobileBottomNav during active attempt.
  * - Sticky compact focus top bar: Timer + Q X/N + Question Map bottom Sheet trigger + Flag.
  * - Thumb-friendly sticky bottom Prev / Next / Submit bar.
  */
@@ -61,8 +59,6 @@ export function QuizPlayerMobile({
   } = controller;
 
   const locked = submitting || isSubmitted;
-  useHideMobileBottomNav(!locked);
-
   const q = sorted[index];
   if (!q) return null;
   const currentFlagged = !!flags[q.id];
@@ -71,18 +67,21 @@ export function QuizPlayerMobile({
   return (
     <div
       data-quiz-layout="mobile"
-      className="flex min-w-0 flex-col pb-[calc(5.25rem+env(safe-area-inset-bottom))] font-sans"
+      className="flex min-w-0 flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom,0px))] font-sans"
     >
       {/* Sticky compact focus top bar */}
       <div
         data-quiz-mobile-topbar=""
-        className="sticky top-(--mobile-navbar-height,3.25rem) z-20 -mx-4 mb-4 border-b border-border bg-background/95 px-4 py-2 backdrop-blur-md"
+        className="sticky top-(--mobile-navbar-height,0px) z-20 -mx-(--page-gutter) mb-(--compact-gap) border-b border-border/50 bg-background/95 px-(--page-gutter) pt-1 pb-2 backdrop-blur-md"
       >
         <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-1.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="min-w-0 truncate text-body-xs font-semibold tabular-nums">
+              {t("quiz.questionNumber", { number: `${index + 1}/${sorted.length}` })}
+            </span>
             {perQuestionTimerEnabled && (
               <div
-                className="flex shrink-0 items-center gap-1 rounded-md border border-brand-primary/35 bg-brand-primary/10 px-2 py-1 font-mono text-body-xs font-bold text-brand-primary tabular-nums"
+                className={cn("flex shrink-0 items-center gap-1 border-l border-border/60 pl-2 font-mono text-body-xs font-semibold tabular-nums", questionTimeLeft <= 10 ? "text-amber-800 dark:text-status-warning" : "text-foreground")}
                 role="timer"
                 aria-label={t("quiz.questionTimeLimit")}
               >
@@ -92,7 +91,7 @@ export function QuizPlayerMobile({
             )}
             {timeLeft !== null && (
               <div
-                className="flex shrink-0 items-center gap-1 rounded-md border border-brand-secondary/35 bg-brand-secondary/10 px-2 py-1 font-mono text-body-xs font-bold text-brand-secondary tabular-nums"
+                className={cn("flex shrink-0 items-center gap-1 font-mono text-body-xs font-semibold tabular-nums", !perQuestionTimerEnabled && "border-l border-border/60 pl-2", timeLeft <= 60 ? "text-amber-800 dark:text-status-warning" : "text-foreground")}
                 role="timer"
                 aria-label={t("quiz.totalTimeRemaining")}
               >
@@ -100,16 +99,13 @@ export function QuizPlayerMobile({
                 <span>{formatQuizTime(timeLeft)}</span>
               </div>
             )}
-            <span className="truncate font-heading text-body-sm font-semibold tabular-nums text-foreground">
-              Q {index + 1}/{sorted.length}
-            </span>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1">
             <Button
               type="button"
               size="icon-sm"
-              variant={currentFlagged ? "secondary" : "outline"}
+              variant="ghost"
               disabled={locked}
               aria-pressed={currentFlagged}
               aria-label={t("quiz.markForReview")}
@@ -117,7 +113,7 @@ export function QuizPlayerMobile({
               className={cn(
                 "size-9",
                 currentFlagged &&
-                  "border-brand-secondary/50 bg-brand-secondary/15 text-brand-secondary"
+                  "bg-brand-secondary/15 text-brand-secondary"
               )}
             >
               <Flag
@@ -131,7 +127,7 @@ export function QuizPlayerMobile({
                 <Button
                   type="button"
                   size="icon-sm"
-                  variant="outline"
+                  variant="ghost"
                   className="size-9 shrink-0"
                   aria-label={t("quiz.questionNavigation")}
                   disabled={locked}
@@ -163,9 +159,9 @@ export function QuizPlayerMobile({
           </div>
         </div>
 
-        <div className="mt-2 h-1.5 overflow-hidden rounded-md bg-muted">
+        <div className="mt-1 h-1 overflow-hidden rounded-md bg-muted" role="progressbar" aria-label={t("quiz.progress")} aria-valuenow={Math.round(progress)}>
           <div
-            className="h-full rounded-md bg-linear-to-r from-brand-primary via-tertiary-1 to-brand-secondary transition-[width] duration-300 ease-out"
+            className="h-full rounded-md bg-foreground/75 transition-[width] duration-300 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -177,18 +173,18 @@ export function QuizPlayerMobile({
       {/* Thumb-friendly sticky bottom Prev / Next / Submit bar */}
       <div
         data-quiz-mobile-bottombar=""
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] backdrop-blur-md"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-border/50 bg-background/95 px-(--page-gutter) pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur-md"
       >
-        <div className="mx-auto flex max-w-lg items-center gap-2">
+        <div className="flex items-center justify-end gap-2">
           {canGoBack ? (
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               disabled={locked || index === 0}
               onClick={() => {
                 if (!locked) goPrev();
               }}
-              className="min-h-11 flex-1 text-body-sm"
+              className="h-10 px-3"
             >
               <ChevronLeft aria-hidden className="size-4" />
               {t("quiz.previous")}
@@ -199,46 +195,26 @@ export function QuizPlayerMobile({
             </span>
           )}
 
-          {!isLast ? (
-            <>
-              <Button
-                type="button"
-                disabled={locked}
-                onClick={() => {
-                  if (!locked) goNext();
-                }}
-                className="min-h-11 flex-1 text-body-sm"
-              >
+          <Button
+            type="button"
+            disabled={locked}
+            onClick={isLast ? handleRequestSubmit : goNext}
+            className="h-10 bg-foreground px-3 text-background hover:bg-foreground/85"
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                {t("quiz.submitting")}
+              </>
+            ) : isLast ? (
+              t("quiz.submitAnswers")
+            ) : (
+              <>
                 {t("quiz.next")}
                 <ChevronRight aria-hidden className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={locked}
-                onClick={handleRequestSubmit}
-                className="min-h-11 shrink-0 px-3 text-body-sm"
-              >
-                {t("quiz.submitQuiz")}
-              </Button>
-            </>
-          ) : (
-            <Button
-              type="button"
-              disabled={locked}
-              onClick={handleRequestSubmit}
-              className="min-h-11 flex-1 bg-brand-primary text-body-sm font-semibold text-primary-foreground hover:bg-brand-primary/95"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-1.5 size-4 animate-spin" />
-                  {t("quiz.submitting")}
-                </>
-              ) : (
-                t("quiz.submitAnswers")
-              )}
-            </Button>
-          )}
+              </>
+            )}
+          </Button>
         </div>
       </div>
     </div>

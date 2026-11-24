@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   AlertTriangle,
-  ArrowUpRight,
   Clock,
   Database,
   Globe,
@@ -117,7 +116,7 @@ export function OpsClient() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-(--section-gap)">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <StatusBadge tone={hasFailures || queueHigh ? "warning" : "success"}>
@@ -138,7 +137,7 @@ export function OpsClient() {
         </AdminIconAction>
       </div>
 
-      <AdminStatStrip className="grid-cols-1 sm:grid-cols-3">
+      <AdminStatStrip className="sm:grid-cols-3">
         <AdminStatStripItem
           label={t("opsUI.jobFailures")}
           value={data.jobFailures24h}
@@ -161,44 +160,40 @@ export function OpsClient() {
         />
       </AdminStatStrip>
 
-      <section className="space-y-3">
+      <section className="space-y-1">
         <AdminSectionTitle title={t("opsUI.jobHealth")} icon={Clock} border />
-        <div className="divide-y divide-border border-b border-border">
+        <ul className="divide-y divide-border/60">
           {pipelines.map((item) => (
-            <div
+            <li
               key={item.id}
-              className="flex flex-wrap items-center justify-between gap-2 py-3"
+              className="flex items-start justify-between gap-3 py-(--row-padding)"
             >
-              <span className="text-body-sm font-medium text-foreground">
+              <span className="min-w-0 text-body-sm font-medium text-foreground">
                 {item.label}
               </span>
-              <div className="flex items-center gap-2">
-                <StatusBadge tone={item.lastRun ? "success" : "muted"}>
-                  {relativeTime(item.lastRun, t)}
-                </StatusBadge>
-              </div>
-            </div>
+              <StatusBadge className="shrink-0" tone={item.lastRun ? "success" : "muted"}>
+                {relativeTime(item.lastRun, t)}
+              </StatusBadge>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-1">
         <AdminSectionTitle title={t("opsUI.monitoringShortcuts")} border />
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="grid sm:grid-cols-2 sm:gap-x-(--section-gap)">
           {quickLinks.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="group flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3.5 py-2.5 text-body-sm font-medium text-foreground transition-colors hover:border-brand-primary/40 hover:bg-muted/40"
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <item.icon className="size-4 shrink-0 text-muted-foreground group-hover:text-brand-primary" />
-                <span className="truncate">{item.label}</span>
-              </span>
-              <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </Link>
+            <li key={item.href} className="border-b border-border/60 last:border-b-0 sm:nth-last-2:border-b-0">
+              <Link
+                href={item.href}
+                className="flex min-h-10 items-start gap-2 rounded-md py-(--row-padding) text-body-sm font-medium text-foreground transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                <item.icon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 wrap-break-word">{item.label}</span>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
     </div>
   );

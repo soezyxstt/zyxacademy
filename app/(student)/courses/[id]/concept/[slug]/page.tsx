@@ -103,9 +103,9 @@ async function ConceptExplorerContent({
             <h2 className="text-body-base font-heading font-semibold text-foreground"><MathText as="span">{data.conceptName}</MathText></h2>
             {typeof data.masteryScore === "number" && (
               <div className="flex items-center gap-2">
-                <div className="h-1.5 w-32 rounded-md bg-muted overflow-hidden">
+                <div className="h-1.5 w-24 overflow-hidden rounded-md bg-muted sm:w-32">
                   <div
-                    className="h-full rounded-md bg-primary transition-[width] duration-500 ease-out"
+                    className="h-full rounded-md bg-foreground/75 transition-[width] duration-500 ease-out motion-reduce:transition-none"
                     style={{ width: `${data.masteryScore}%` }}
                   />
                 </div>
@@ -143,13 +143,13 @@ async function ConceptExplorerContent({
         return (
           <Reveal key={type}>
             <section aria-labelledby={`${type}-heading`}>
-              <h2 id={`${type}-heading`} className="text-body-base font-semibold mb-3">
+              <h2 id={`${type}-heading`} className="mb-(--compact-gap) font-heading text-body-base font-semibold">
                 {TYPE_LABELS[type] ? <TranslatedText namespace="learning" messageKey={`conceptPage.types.${TYPE_LABELS[type]}`} /> : type}
               </h2>
-              <div className="divide-y divide-border/60">
+              <div className="divide-y divide-border/55 border-t border-border/55">
                 {items.map((ko) => (
-                  <div key={ko.id} className="p-4">
-                    <h3 className="text-body-base font-semibold text-foreground mb-2"><MathText as="span">{ko.title}</MathText></h3>
+                  <div key={ko.id} className="min-w-0 py-(--row-padding)">
+                    <h3 className="mb-1.5 wrap-anywhere text-body-base font-semibold text-foreground"><MathText as="span">{ko.title}</MathText></h3>
                     <MarkdownRenderer content={ko.content} />
                   </div>
                 ))}

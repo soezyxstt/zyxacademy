@@ -162,6 +162,7 @@ export function CourseMobileTabNav({
       tabs={tabs}
       label={tMobile("courseTabsLabel")}
       variant="page"
+      activeTone="neutral"
       flush={true}
       className="mx-0 w-full px-1 md:hidden"
     />

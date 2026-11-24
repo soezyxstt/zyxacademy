@@ -9,13 +9,14 @@ import { connectGoogleCalendar, getGoogleCalendarStatus, requestGoogleCalendarSy
 import type { CalendarSyncStatus } from "@/lib/google-calendar/shared";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { cn } from "@/lib/utils";
 import {
   getNativeAuthScheme,
   isNativeSystemBrowserSupported,
   openNativeSystemBrowser,
 } from "@/lib/native/auth";
 
-export function GoogleCalendarControl({ central = false }: { central?: boolean }) {
+export function GoogleCalendarControl({ central = false, className }: { central?: boolean; className?: string }) {
   const t = useTranslations("schedule");
   const { locale } = useAppLocale();
   const isDemo = useStudentExperience().mode === "demo";
@@ -114,7 +115,7 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label={title}>
+              <Button type="button" variant="ghost" size="icon" className={cn("h-9 w-9 shrink-0", className)} aria-label={title}>
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <CalendarSync className="size-4" />}
               </Button>
             </PopoverTrigger>

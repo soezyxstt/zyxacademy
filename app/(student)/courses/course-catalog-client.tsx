@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CoursePricingLabel } from "@/components/course/course-pricing-label";
 import type { CoursePricing } from "@/lib/student/course-pricing";
 import { useStudentExperience } from "@/components/student-experience-provider";
-import { ArrowRight } from "lucide-react";
+import { LockKeyhole } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ export interface CatalogCourseItem {
   category: string;
   description: string;
   pricing?: CoursePricing;
+  hasFullContentAccess?: boolean;
   materialsCount: number;
   quizzesCount: number;
   tryoutsCount: number;
@@ -45,46 +46,43 @@ function slugifyJurusan(jurusan: string): string {
     .replace(/\s+/g, "-");
 }
 
-/**
- * Interactive client component that groups and renders courses by academic major with tab navigation.
- */
 function getCourseBadgeInfo(course: CatalogCourseItem) {
   if (course.id === PKA_COURSE_ID) {
     return {
       initials: "PKA",
-      color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20",
+      color: "bg-purple-500/10 text-purple-600 ring-purple-500/25 dark:text-purple-400",
     };
   }
   const title = course.title.toLowerCase();
   if (title.includes("matematika") || title.includes("kalkulus")) {
     return {
-      initials: "MA",
-      color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20",
+      initials: title.includes("matematika lanjut") ? "ML" : "MA",
+      color: "bg-blue-500/10 text-blue-600 ring-blue-500/25 dark:text-blue-400",
     };
   }
   if (title.includes("fisika")) {
     return {
       initials: "FI",
-      color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20",
+      color: "bg-emerald-500/10 text-emerald-600 ring-emerald-500/25 dark:text-emerald-400",
     };
   }
   if (title.includes("kimia")) {
     return {
       initials: "KI",
-      color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20",
+      color: "bg-amber-500/10 text-amber-600 ring-amber-500/25 dark:text-amber-400",
     };
   }
-  if (title.includes("komputasional") || title.includes("komputer") || title.includes("informatika")) {
+  if (title.includes("komputasi") || title.includes("komputer") || title.includes("informatika")) {
     return {
       initials: "BK",
-      color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20",
+      color: "bg-cyan-500/10 text-cyan-600 ring-cyan-500/25 dark:text-cyan-400",
     };
   }
   const words = course.title.trim().split(/\s+/);
   const initials = words.slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "MK";
   return {
     initials,
-    color: "bg-brand-primary/10 text-brand-primary border border-brand-primary/20",
+    color: "bg-brand-primary/10 text-brand-primary ring-brand-primary/25",
   };
 }
 
@@ -100,36 +98,41 @@ export function CourseCatalogClient({
   const renderRow = (c: CatalogCourseItem) => {
     const isPka = c.id === PKA_COURSE_ID;
     const badge = getCourseBadgeInfo(c);
+    const hasTimedOffer = !isPka && c.pricing?.category === "limited_time_free";
+    const locked = c.hasFullContentAccess === false && !hasTimedOffer;
+    const counts = [
+      c.materialsCount > 0 && t("courseCatalog.materialCount", { count: c.materialsCount }),
+      c.quizzesCount > 0 && t("courseCatalog.quizCount", { count: c.quizzesCount }),
+      c.tryoutsCount > 0 && t("courseCatalog.tryoutCount", { count: c.tryoutsCount }),
+    ].filter(Boolean);
+    const hasContent = isPka || counts.length > 0;
 
     return (
       <Link
         key={c.id}
         href={courseHref(c.id)}
-        className="group flex items-center justify-between gap-3 py-(--row-padding) transition-colors hover:bg-muted/30 active:bg-muted/50"
+        className="flex items-start gap-3 rounded-lg py-(--row-padding) transition-colors hover:bg-muted/40 active:bg-muted/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       >
-        <div className="flex min-w-0 items-center gap-3">
-          <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg font-bold text-body-xs", badge.color)}>
-            {badge.initials}
-          </span>
-          <div className="min-w-0">
-            <h3 className="break-words font-heading text-body-sm font-semibold text-foreground transition-colors group-hover:text-brand-primary">
-              {c.title}
-            </h3>
-            <CoursePricingLabel pricing={c.pricing} />
-            {showCounts && <p className="mt-0.5 text-body-xs text-muted-foreground flex items-center gap-1.5">
-              {isPka ? (
-                <span>{t("courseCatalog.pkaSummary")}</span>
-              ) : (
-                <span>
-                  {t("courseCatalog.counts", { materials: c.materialsCount, quizzes: c.quizzesCount, tryouts: c.tryoutsCount })}
-                </span>
-              )}
-            </p>}
-          </div>
+        <span aria-hidden className={cn("mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg text-body-xs font-semibold tracking-tight ring-1 ring-inset", !hasContent && "opacity-75", badge.color)}>
+          {badge.initials}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className={cn("wrap-break-word font-heading text-body-sm font-semibold", hasContent ? "text-foreground" : "text-muted-foreground")}>
+            {c.title}
+          </h3>
+          {showCounts && (
+            <p className="mt-0.5 text-body-xs text-muted-foreground">
+              {isPka ? t("courseCatalog.pkaSummary") : counts.join(" · ") || t("courseCatalog.noContent")}
+            </p>
+          )}
+          {hasTimedOffer && <CoursePricingLabel pricing={c.pricing} compact />}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <ArrowRight className="size-4 text-muted-foreground group-hover:text-brand-primary" aria-hidden />
-        </div>
+        {locked && (
+          <>
+            <LockKeyhole className="size-4 shrink-0 self-center text-muted-foreground" aria-hidden />
+            <span className="sr-only">{t(isPka ? "courseCatalog.registrationRequired" : "courseCatalog.limitedAccess")}</span>
+          </>
+        )}
       </Link>
     );
   };
@@ -137,25 +140,23 @@ export function CourseCatalogClient({
   const renderSection = (group: CourseGroup) => (
     <section key={group.jurusan} className="space-y-1">
       {showGroupHeaders && (
-      <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
-        <div className="flex items-center gap-2">
-          <h2 className="font-heading text-body-base font-bold text-foreground">
-            {group.jurusan}
-          </h2>
-          {group.isStudentMajor && (
-            <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20">
-              {t("courseCatalog.yourMajor")}
-            </span>
-          )}
+        <div className="flex items-center justify-between gap-3 pb-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2">
+            <h2 className="font-heading text-body-base font-bold text-foreground">
+              {group.jurusan}
+            </h2>
+            {group.isStudentMajor && (
+              <span className="text-body-xs text-muted-foreground">
+                {t("courseCatalog.yourMajor")}
+              </span>
+            )}
+          </div>
+          <span className="shrink-0 text-body-xs text-muted-foreground">
+            {t("courseCatalog.courseCount", { count: group.courses.length })}
+          </span>
         </div>
-        <span className="text-body-xs text-muted-foreground font-medium">
-          {t("courseCatalog.courseCount", { count: group.courses.length })}
-        </span>
-      </div>
       )}
-      <div className="divide-y divide-border/60">
-        {group.courses.map(renderRow)}
-      </div>
+      <div>{group.courses.map(renderRow)}</div>
     </section>
   );
 
@@ -169,7 +170,10 @@ export function CourseCatalogClient({
 
   return (
     <Tabs defaultValue="all" paramKey="jurusan" className="w-full space-y-(--related-gap)">
-      <TabsList aria-label={t("courseCatalog.filterLabel")}>
+      <TabsList
+        aria-label={t("courseCatalog.filterLabel")}
+        className="[&_[data-state=active][data-slot=tabs-trigger]]:after:bg-foreground [&_[data-active=true][data-slot=tabs-more-trigger]]:after:bg-foreground"
+      >
         <TabsTrigger value="all">
           {t("courseCatalog.all", { count: totalCourses })}
         </TabsTrigger>
@@ -179,7 +183,7 @@ export function CourseCatalogClient({
             <TabsTrigger key={group.jurusan} value={tabSlug} className="gap-1.5">
               <span>{group.jurusan}</span>
               {group.isStudentMajor && (
-                <span className="size-1.5 rounded-full bg-brand-primary shrink-0" title={t("courseCatalog.yourMajor")} />
+                <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground" title={t("courseCatalog.yourMajor")} />
               )}
             </TabsTrigger>
           );

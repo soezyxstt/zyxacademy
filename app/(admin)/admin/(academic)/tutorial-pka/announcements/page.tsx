@@ -20,7 +20,7 @@ export default async function TutorialPkaAnnouncementsPage() {
   const announcements = await getPkaAnnouncementsAction();
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-(--related-gap)">
       <AdminPageHeader
         icon={Megaphone}
         title={<TranslatedText namespace="adminOps" messageKey="pka.announcements" />}
@@ -33,9 +33,7 @@ export default async function TutorialPkaAnnouncementsPage() {
         ]}
       />
 
-      <div>
-        <AnnouncementsTab history={announcements} />
-      </div>
+      <AnnouncementsTab history={announcements} />
     </div>
   );
 }

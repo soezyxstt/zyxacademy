@@ -621,7 +621,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
       data-slot="tabs-trigger"
       className={cn(
         tabTriggerClassName,
-        "data-[state=active]:text-foreground data-[state=active]:after:bg-primary data-[state=active]:hover:bg-transparent",
+        "data-[state=active]:text-foreground data-[state=active]:after:bg-[var(--workspace-tab-indicator,var(--primary))] data-[state=active]:hover:bg-transparent",
         className
       )}
       {...props}
@@ -646,6 +646,7 @@ function TabNav({
   label,
   variant = "page",
   flush = true,
+  activeTone = "primary",
   trailing,
   moreLabel: moreLabelProp,
   disableOverflow,
@@ -655,11 +656,14 @@ function TabNav({
   label?: string;
   variant?: "page" | "inline";
   flush?: boolean;
+  activeTone?: "primary" | "neutral";
   trailing?: React.ReactNode;
   moreLabel?: string;
   disableOverflow?: boolean;
   className?: string;
 }) {
+  const activeTriggerClass = cn(tabTriggerActiveClassName, activeTone === "neutral" && "after:bg-foreground");
+  const activeOverflowClass = cn(tabOverflowItemActiveClassName, activeTone === "neutral" && "before:bg-foreground");
   const pathname = usePathname();
   const t = useTranslations("ui");
   const moreLabel = moreLabelProp ?? t("moreTabs");
@@ -740,7 +744,7 @@ function TabNav({
                 aria-current={tab.isActive ? "page" : undefined}
                 className={cn(
                   tabTriggerClassName,
-                  tab.isActive ? tabTriggerActiveClassName : "text-muted-foreground"
+                  tab.isActive ? activeTriggerClass : "text-muted-foreground"
                 )}
               >
                 {tab.icon}
@@ -765,7 +769,7 @@ function TabNav({
                     data-active={hasActiveOverflow ? "true" : undefined}
                     className={cn(
                       tabTriggerClassName,
-                      hasActiveOverflow && tabTriggerActiveClassName
+                      hasActiveOverflow && activeTriggerClass
                     )}
                   >
                     <span>{moreLabel}</span>
@@ -789,7 +793,7 @@ function TabNav({
                       asChild
                       className={cn(
                         tabOverflowItemClassName,
-                        tab.isActive && tabOverflowItemActiveClassName
+                        tab.isActive && activeOverflowClass
                       )}
                     >
                       <Link

@@ -196,6 +196,7 @@
     "depth": "Kedalaman",
     "vsPrevPeriod": "{delta} vs periode lalu",
     "insightFastestGrowing": "Pertumbuhan tercepat",
+    "highlights": "Sorotan penggunaan",
     "insightHighestAdoption": "Adopsi tertinggi",
     "insightNeedsAttention": "Adopsi terendah",
     "lastUsed": "Terakhir digunakan",
@@ -291,7 +292,10 @@
     "activeUsers": "Pengguna aktif",
     "sessions": "Total sesi",
     "visitorsTrend": "Tren pengunjung",
-    "topPages": "Halaman terpopuler"
+    "topPages": "Halaman terpopuler",
+    "chartSessions": "Sesi",
+    "noChartData": "Belum ada lalu lintas harian",
+    "noTopPages": "Belum ada halaman terpopuler"
   },
   "pricing": {
     "title": "Paket dan harga",
@@ -1395,8 +1399,8 @@
     "customPriceOptional": "Harga paket khusus (Rp, opsional)",
     "useAutomaticPrice": "Gunakan harga otomatis",
     "automaticPricePlaceholder": "Kosongkan untuk harga otomatis",
-    "customPriceHelp": "Gunakan jika harga kelompok berbeda dari harga paket standar.",
-    "feeFormula": "Rumus: (total paket - biaya platform) / jumlah pertemuan, lalu dibagi {tutorPercent}% untuk tutor dan {managementPercent}% untuk manajemen.",
+    "customPriceHelp": "Masukkan harga paket sebelum diskon.",
+    "feeFormula": "Biaya tutorial setelah diskon dibagi {tutorPercent}% untuk tutor dan {managementPercent}% untuk manajemen. Fee per sesi dihitung dari jumlah pertemuan.",
     "estimatedFee": "Perkiraan fee tutor",
     "customPackage": "Harga paket khusus",
     "manual": "Manual",

@@ -17,7 +17,7 @@ export function MissionList({ missions, labels, locale }: { missions: Gamificati
   return <div className="space-y-5">
     {[...groups.entries()].map(([kind, items]) => <section key={kind} className="space-y-2">
       <h2 className="font-heading text-body-base font-bold">{labels.category?.(kind) ?? labels.mission(kind)}</h2>
-      <ul className="divide-y divide-border">
+      <ul className="divide-y divide-border/25">
         {items.map(mission => {
           const progress = mission.target > 0 ? Math.min(100, Math.max(0, (mission.progress / mission.target) * 100)) : 0;
           return <li key={mission.id} className="space-y-2 p-4">

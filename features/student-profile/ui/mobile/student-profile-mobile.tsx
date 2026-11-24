@@ -214,7 +214,7 @@ export function StudentProfileMobile({
             <Link
               key={item.id}
               href={item.href}
-              className="flex min-h-14 items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5 text-body-sm font-medium text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex min-h-12 items-center gap-2.5 rounded-lg py-(--row-padding) text-body-sm font-medium text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Icon
                 className="size-4 shrink-0 text-muted-foreground"

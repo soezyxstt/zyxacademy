@@ -275,8 +275,8 @@ export function MarkdownEditor({ initialData, initialRevision }: MarkdownEditorP
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-(--section-gap) lg:grid-cols-3">
+        <div className="min-w-0 space-y-(--related-gap) lg:col-span-2">
           <div className="space-y-2">
             <Label htmlFor="title">Judul Artikel (Opsional)</Label>
             <Input
@@ -301,19 +301,20 @@ export function MarkdownEditor({ initialData, initialRevision }: MarkdownEditorP
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Label htmlFor="content">Konten (Markdown)</Label>
                 
                 {/* Toggle Group */}
-                <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
+                <div className="inline-flex items-center gap-0.5 rounded-md bg-muted/40">
                   <button
                     type="button"
+                    aria-pressed={activeMode === "write"}
                     onClick={() => setActiveMode("write")}
                     className={cn(
-                      "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-body-xs font-medium transition-all duration-150 cursor-pointer",
+                      "flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-2 text-body-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring",
                       activeMode === "write"
-                        ? "bg-background text-foreground shadow-sm border border-border/30"
+                        ? "bg-muted text-foreground"
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
@@ -322,11 +323,12 @@ export function MarkdownEditor({ initialData, initialRevision }: MarkdownEditorP
                   </button>
                   <button
                     type="button"
+                    aria-pressed={activeMode === "preview"}
                     onClick={() => setActiveMode("preview")}
                     className={cn(
-                      "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-body-xs font-medium transition-all duration-150 cursor-pointer",
+                      "flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-2 text-body-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring",
                       activeMode === "preview"
-                        ? "bg-background text-foreground shadow-sm border border-border/30"
+                        ? "bg-muted text-foreground"
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
@@ -446,8 +448,8 @@ export function MarkdownEditor({ initialData, initialRevision }: MarkdownEditorP
                 required
               />
             ) : (
-              <div className="border border-border rounded-xl bg-card p-6 md:p-8 space-y-6 shadow-sm min-h-[500px] max-w-none">
-                <div className="space-y-4 pb-6 border-b border-border/60">
+              <div className="min-h-80 space-y-(--section-gap) border-y border-border/60 py-(--related-gap)">
+                <div className="space-y-(--compact-gap) border-b border-border/60 pb-(--related-gap)">
                   {formData.thumbnailUrl && (
                       <BlogThumbnailPreview
                         url={formData.thumbnailUrl}
@@ -489,17 +491,17 @@ export function MarkdownEditor({ initialData, initialRevision }: MarkdownEditorP
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="p-5 border border-border rounded-xl bg-card space-y-4 shadow-sm">
-            <h3 className="font-heading font-semibold text-body-base">Pengaturan Publikasi</h3>
+        <div className="min-w-0 space-y-(--section-gap)">
+          <div className="space-y-(--related-gap) border-t border-border/60 pt-(--compact-gap)">
+            <h3 className="font-heading text-body-base font-bold">Pengaturan publikasi</h3>
             
             <div className="space-y-2">
-              <Label>Status</Label>
+              <Label htmlFor="article-status">Status</Label>
               <Select 
                 value={formData.status} 
                 onValueChange={(val) => setFormData({ ...formData, status: val })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="article-status">
                   <SelectValue placeholder="Pilih status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -511,12 +513,12 @@ export function MarkdownEditor({ initialData, initialRevision }: MarkdownEditorP
             </div>
 
             <div className="space-y-2">
-              <Label>Kategori</Label>
+              <Label htmlFor="article-category">Kategori</Label>
               <Select 
                 value={formData.category} 
                 onValueChange={(val) => setFormData({ ...formData, category: val })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="article-category">
                   <SelectValue placeholder="Pilih kategori" />
                 </SelectTrigger>
                 <SelectContent>

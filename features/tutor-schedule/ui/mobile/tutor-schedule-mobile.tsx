@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { INDONESIAN_DAYS, getJakartaCalendarDate } from "@/lib/date-utils";
 import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
@@ -230,7 +231,7 @@ export function TutorScheduleMobile({
         </TabsList>
 
         {/* 1. CALENDAR TAB: 7-day strip + vertical single-day agenda */}
-        <TabsContent value="calendar" className="mt-3 space-y-4">
+        <TabsContent value="calendar" className="mt-(--related-gap) space-y-(--related-gap)">
           <div className="space-y-2.5 border-b border-border/60 pb-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-1">
@@ -359,21 +360,28 @@ export function TutorScheduleMobile({
 
           {/* Selected day agenda header */}
           <div className="flex items-center justify-between gap-2">
-            <h2 className="min-w-0 truncate font-heading text-body-sm font-bold text-foreground">
+            <h2 className="min-w-0 break-words font-heading text-body-base font-bold text-foreground">
               {formatAgendaDateHeading(selectedDate, locale)}
             </h2>
             <div className="flex shrink-0 items-center gap-1.5">
               <GoogleCalendarControl />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="min-h-9 rounded-lg text-body-sm"
-                onClick={() => handleCreateSlotDirect(selectedDate)}
-              >
-                <Plus className="mr-1 size-3.5" aria-hidden />
-                {t("addSlot")}
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-9"
+                      aria-label={t("addSlot")}
+                      onClick={() => handleCreateSlotDirect(selectedDate)}
+                    >
+                      <Plus className="size-4" aria-hidden />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("addSlot")}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 
@@ -383,39 +391,27 @@ export function TutorScheduleMobile({
               <AdminEmptyState
                 icon={CalendarDays}
                 title={t("noSlots")}
-                action={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="min-h-10"
-                    onClick={() => handleCreateSlotDirect(selectedDate)}
-                  >
-                    <Plus className="mr-1.5 size-4" aria-hidden />
-                    {t("addSlot")}
-                  </Button>
-                }
                 className="py-6"
               />
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="divide-y divide-border/60 border-y border-border/60">
               {selectedDayItems.map((item) => {
                 if (item.kind === "booking") {
                   const { booking } = item;
                   return (
                     <div
                       key={`booking-${booking.id}`}
-                      className="rounded-xl border border-brand-primary/30 bg-card p-3"
+                      className="space-y-(--compact-gap) py-(--row-padding)"
                     >
                       <button
                         type="button"
                         onClick={() => onOpenSessionDetail(booking.id)}
-                        className="flex w-full min-w-0 items-start justify-between gap-3 text-left"
+                        className="flex min-h-9 w-full min-w-0 items-start justify-between gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:bg-muted/40"
                       >
                         <div className="min-w-0 flex-1 space-y-1">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 text-body-xs font-semibold tabular-nums text-brand-primary">
+                            <span className="inline-flex items-center gap-1 text-body-xs font-semibold tabular-nums text-muted-foreground">
                               <Clock className="size-3.5 shrink-0" aria-hidden />
                               {booking.startTime} - {booking.endTime}
                             </span>
@@ -445,24 +441,22 @@ export function TutorScheduleMobile({
                         </div>
                       </button>
 
-                      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
                         {booking.googleMeetUrl ? (
                           <a
                             href={booking.googleMeetUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex min-h-9 items-center gap-1.5 text-body-xs font-semibold text-brand-primary"
+                            className="mr-auto inline-flex min-h-9 items-center gap-1.5 text-body-sm font-medium text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground"
                           >
                             <Video className="size-3.5" aria-hidden />
                             <span>{t("googleMeetSession")}</span>
                             <ExternalLink className="size-3" aria-hidden />
                           </a>
-                        ) : (
-                          <span />
-                        )}
+                        ) : null}
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           onClick={() => handleOpenMoveModal(booking)}
                           className="min-h-9 rounded-lg text-body-sm"
@@ -480,7 +474,7 @@ export function TutorScheduleMobile({
                 return (
                   <div
                     key={`slot-${slot.id}`}
-                    className="flex min-w-0 items-start justify-between gap-3 rounded-xl border border-status-success/30 bg-status-success/5 p-3"
+                    className="flex min-w-0 items-start justify-between gap-3 py-(--row-padding)"
                   >
                     <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -672,13 +666,13 @@ export function TutorScheduleMobile({
               <AdminEmptyState icon={ShieldCheck} title={t("noTickets")} />
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="divide-y divide-border/60 border-y border-border/60">
               {filteredTickets.map((ticket) => {
                 const isPendingTicket = ticket.status === "pending";
                 return (
                   <article
                     key={ticket.id}
-                    className="space-y-2.5 rounded-xl border border-border bg-card p-3.5"
+                    className="space-y-(--compact-gap) py-(--row-padding)"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1 space-y-1">
@@ -721,7 +715,7 @@ export function TutorScheduleMobile({
                       </Badge>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-2.5">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                       {isPendingTicket && (
                         <>
                           <Button
@@ -729,7 +723,7 @@ export function TutorScheduleMobile({
                             size="sm"
                             disabled={isPending}
                             onClick={() => openDecideTicket(ticket, "approved")}
-                            className="min-h-10 flex-1 rounded-lg bg-brand-primary text-body-sm text-primary-foreground hover:bg-brand-primary/90"
+                            className="min-h-9 rounded-lg text-body-sm"
                           >
                             <Check className="mr-1 size-4" aria-hidden />
                             {t("approve")}
@@ -740,7 +734,7 @@ export function TutorScheduleMobile({
                             size="sm"
                             disabled={isPending}
                             onClick={() => openDecideTicket(ticket, "rejected")}
-                            className="min-h-10 flex-1 rounded-lg border-status-error/40 text-body-sm text-status-error hover:bg-status-error/10"
+                            className="min-h-9 rounded-lg border-status-error/40 text-body-sm text-status-error hover:bg-status-error/10"
                           >
                             <X className="mr-1 size-4" aria-hidden />
                             {t("rejected")}
@@ -752,10 +746,7 @@ export function TutorScheduleMobile({
                         variant="outline"
                         size="sm"
                         onClick={() => setOpenThreadId(ticket.id)}
-                        className={cn(
-                          "min-h-10 rounded-lg text-body-sm",
-                          !isPendingTicket && "w-full",
-                        )}
+                        className="min-h-9 rounded-lg text-body-sm"
                       >
                         <MessageSquare className="mr-1.5 size-4" aria-hidden />
                         {t("discussion")}
@@ -888,7 +879,7 @@ export function TutorScheduleMobile({
         {/* 5. GROUPS TAB */}
         <TabsContent value="groups" className="mt-3 space-y-5">
           <section className="space-y-2">
-            <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <h2 className="font-heading text-body-base font-bold text-foreground">
               {t("assignedCourses")}
             </h2>
             <div className="divide-y divide-border border-y border-border">
@@ -919,7 +910,7 @@ export function TutorScheduleMobile({
           </section>
 
           <section className="space-y-2">
-            <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <h2 className="font-heading text-body-base font-bold text-foreground">
               {t("activeGroups")}
             </h2>
             <div className="divide-y divide-border border-y border-border">
@@ -971,9 +962,9 @@ export function TutorScheduleMobile({
           <div className="space-y-3 px-(--panel-padding)">
             {showDayFilter && (
               <div className="space-y-1">
-                <Label className="text-body-sm font-semibold">{t("chooseDay")}</Label>
+                <Label htmlFor="mobile-tutor-filter-day" className="text-body-sm font-semibold">{t("chooseDay")}</Label>
                 <Select value={selectedDayFilter} onValueChange={setSelectedDayFilter}>
-                  <SelectTrigger className="h-10 text-body-sm">
+                  <SelectTrigger id="mobile-tutor-filter-day" className="px-0">
                     <SelectValue placeholder={t("chooseDay")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -989,9 +980,9 @@ export function TutorScheduleMobile({
             )}
             {showCourseFilter && (
               <div className="space-y-1">
-                <Label className="text-body-sm font-semibold">{t("allCourses")}</Label>
+                <Label htmlFor="mobile-tutor-filter-course" className="text-body-sm font-semibold">{t("allCourses")}</Label>
                 <Select value={selectedCourseFilter} onValueChange={setSelectedCourseFilter}>
-                  <SelectTrigger className="h-10 text-body-sm">
+                  <SelectTrigger id="mobile-tutor-filter-course" className="px-0">
                     <SelectValue placeholder={t("allCourses")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -1007,9 +998,9 @@ export function TutorScheduleMobile({
             )}
             {showGroupFilter && (
               <div className="space-y-1">
-                <Label className="text-body-sm font-semibold">{t("allGroups")}</Label>
+                <Label htmlFor="mobile-tutor-filter-group" className="text-body-sm font-semibold">{t("allGroups")}</Label>
                 <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
-                  <SelectTrigger className="h-10 text-body-sm">
+                  <SelectTrigger id="mobile-tutor-filter-group" className="px-0">
                     <SelectValue placeholder={t("allGroups")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -1106,12 +1097,12 @@ export function TutorScheduleMobile({
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">{t("sessionMode")}</Label>
+              <Label htmlFor="mobile-tutor-slot-mode" className="text-body-sm font-semibold">{t("sessionMode")}</Label>
               <Select
                 value={newSlotMode}
                 onValueChange={(val) => setNewSlotMode(val as "online" | "offline")}
               >
-                <SelectTrigger className="h-10 text-body-sm">
+                <SelectTrigger id="mobile-tutor-slot-mode" className="px-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

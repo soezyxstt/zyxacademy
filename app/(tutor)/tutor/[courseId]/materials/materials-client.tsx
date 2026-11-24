@@ -155,10 +155,10 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
       {initialMaterials.length === 0 ? (
         <AdminEmptyState icon={BookOpen} title={t("noMaterials")} />
       ) : (
-        <div className="divide-y divide-border border-y border-border">
+        <div className="divide-y divide-border/55 border-y border-border/55">
           {initialMaterials.map((m) => (
             <div key={m.id} className="flex min-w-0 items-start justify-between gap-(--compact-gap) py-3 sm:items-center">
-              <FileText className="mt-0.5 size-4 shrink-0 text-primary sm:mt-0" aria-hidden />
+              <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground sm:mt-0" aria-hidden />
               <div className="min-w-0 flex-1">
                 <h3 className="break-words font-heading text-body-sm font-bold text-foreground">{m.title}</h3>
                 <p className="mt-0.5 line-clamp-2 break-words text-body-xs text-muted-foreground">{cleanSummary(m.summary)}</p>
@@ -200,7 +200,7 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
             </DialogDescription>
           </DialogHeader>
 
-          <div className="my-4 min-h-0 flex-1 space-y-(--related-gap) overflow-y-auto pr-1 font-sans">
+          <div className="min-h-0 flex-1 space-y-(--related-gap) overflow-y-auto pr-1 font-sans">
             <div className="grid gap-2">
               <Label htmlFor="title" className="text-body-sm font-semibold">{t("title")}</Label>
               <Input
@@ -236,7 +236,7 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
             </div>
           </div>
 
-          <DialogFooter className="shrink-0 gap-2 pb-[env(safe-area-inset-bottom)]">
+          <DialogFooter className="shrink-0 flex-row flex-wrap justify-end gap-2 pb-[env(safe-area-inset-bottom)]">
             <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isPending} className="rounded-md border-border/80">
               {t("cancel")}
             </Button>
@@ -256,7 +256,7 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
               {t("deleteDescription")}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 mt-4">
+          <DialogFooter className="flex-row flex-wrap justify-end gap-2">
             <Button variant="outline" onClick={() => setDeleteId(null)} disabled={isPending} className="rounded-md border-border/80">
               {t("cancel")}
             </Button>

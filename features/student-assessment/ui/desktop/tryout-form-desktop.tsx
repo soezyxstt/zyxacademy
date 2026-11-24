@@ -14,6 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { AlertCircle, ArrowLeft, ArrowRight, BookOpen, Timer } from "lucide-react";
 import type {
   TryoutFormController,
@@ -90,10 +91,10 @@ export function TryoutFormDesktop({
   return (
     <div
       data-tryout-layout="desktop"
-      className="grid grid-cols-1 items-start gap-4 font-sans lg:grid-cols-12"
+      className="grid grid-cols-1 items-start gap-(--related-gap) font-sans md:gap-(--section-gap) lg:grid-cols-12"
     >
-      <div className="space-y-4 lg:col-span-8">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="min-w-0 space-y-4 lg:col-span-8">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
           <div className="min-w-0 flex-1 basis-36 space-y-1.5">
             <div className="flex items-center justify-between gap-2 text-body-xs font-semibold text-muted-foreground">
               <span>{t("tryout.examSimulation")}</span>
@@ -104,15 +105,15 @@ export function TryoutFormDesktop({
                 })}
               </span>
             </div>
-            <div className="h-2 overflow-hidden rounded-md bg-muted">
+            <div className="h-1 overflow-hidden rounded-md bg-muted">
               <div
-                className="h-full rounded-md bg-primary transition-[width] duration-300 ease-out"
+                className="h-full rounded-md bg-foreground/75 transition-[width] duration-300 ease-out"
                 style={{ width: `${progress}%` }}
               />
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5 rounded-xl border border-brand-secondary/35 bg-brand-secondary/10 px-3.5 py-1.5 font-mono text-body-sm font-bold text-brand-secondary">
+          <div className={cn("flex shrink-0 items-center gap-1.5 font-mono text-body-sm font-semibold tabular-nums", timeLeft <= 60 && "text-amber-800 dark:text-status-warning")}>
             <Timer aria-hidden className="size-4" />
             <span className="sr-only">{t("tryout.timeRemaining")} </span>
             <span>{formatTryoutTime(timeLeft)}</span>
@@ -123,7 +124,18 @@ export function TryoutFormDesktop({
         <TryoutQuestionBody props={props} controller={controller} showFlagRow={true} />
 
         <TooltipProvider>
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {index < sorted.length - 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="mr-auto"
+                disabled={isSubmitting}
+                onClick={() => setShowConfirmModal(true)}
+              >
+                {t("tryout.submitExam")}
+              </Button>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -132,7 +144,7 @@ export function TryoutFormDesktop({
                   size="icon-lg"
                   aria-label={t("tryout.previous")}
                   onClick={goPrev}
-                  disabled={index === 0}
+                  disabled={isSubmitting || index === 0}
                 >
                   <ArrowLeft aria-hidden />
                 </Button>
@@ -148,7 +160,9 @@ export function TryoutFormDesktop({
                       type="button"
                       size="icon-lg"
                       aria-label={t("tryout.next")}
+                      disabled={isSubmitting}
                       onClick={goNext}
+                      className="bg-foreground text-background hover:bg-foreground/85"
                     >
                       <ArrowRight aria-hidden />
                     </Button>
@@ -159,7 +173,7 @@ export function TryoutFormDesktop({
                 <Button
                   type="button"
                   disabled={isSubmitting}
-                  className="bg-brand-primary px-8 font-bold text-primary-foreground hover:bg-brand-primary/95"
+                  className="h-9 bg-foreground px-4 text-background hover:bg-foreground/85"
                   onClick={() => setShowConfirmModal(true)}
                 >
                   {t("tryout.submitAnswers")}
@@ -170,44 +184,17 @@ export function TryoutFormDesktop({
         </TooltipProvider>
       </div>
 
-      <div className="space-y-4 lg:sticky lg:top-6 lg:col-span-4">
-        <div className="space-y-4">
-          <div className="hidden border-t border-border pt-3 lg:block">
-            <h3 className="flex items-center gap-2 font-heading text-body-sm font-bold text-foreground">
-              <BookOpen className="size-4 text-brand-primary" />
-              {t("tryout.questionNavigation")}
-            </h3>
-          </div>
-
-          <div className="hidden lg:block">
-            <TryoutQuestionMapGrid controller={controller} />
-          </div>
-
-          <div className="border-t border-border pt-3">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isSubmitting}
-              onClick={() => setShowConfirmModal(true)}
-              className="h-9 w-full rounded-md border-border/80 text-body-sm font-semibold text-foreground hover:bg-muted"
-            >
-              {t("tryout.submitExam")}
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-3 rounded-2xl border border-brand-secondary/20 bg-brand-secondary/5 p-4">
-          <AlertCircle className="mt-0.5 size-5 shrink-0 text-brand-secondary" />
-          <div className="space-y-1">
-            <h4 className="text-body-xs font-bold text-foreground">
-              {t("tryout.submitOnTime")}
-            </h4>
-            <p className="text-body-xs leading-relaxed text-muted-foreground">
-              {t("tryout.autoSubmitNotice")}
-            </p>
-          </div>
-        </div>
-      </div>
+      <aside className="hidden space-y-(--related-gap) lg:sticky lg:top-6 lg:col-span-4 lg:block lg:border-l lg:border-border/40 lg:pl-(--section-gap)">
+        <h3 className="flex items-center gap-2 font-heading text-body-sm font-bold text-foreground">
+          <BookOpen className="size-4 text-muted-foreground" aria-hidden />
+          {t("tryout.questionNavigation")}
+        </h3>
+        <TryoutQuestionMapGrid controller={controller} />
+        <p className="flex items-start gap-2 text-body-xs text-muted-foreground">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>{t("tryout.autoSubmitNotice")}</span>
+        </p>
+      </aside>
     </div>
   );
 }

@@ -155,12 +155,12 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
     content: "Papan peringkat nilai dan keaktifan belajar siswa",
   },
   {
-    title: "Kalender akademik",
-    subtitle: "Kalender",
+    title: "Agenda belajar",
+    subtitle: "Murid",
     href: "/calendar",
     group: "Halaman",
-    keywords: "kalender jadwal event deadline timeline perkuliahan",
-    content: "Kalender aktivitas akademik dan agenda belajar",
+    keywords: "agenda kalender jadwal event deadline tenggat kuis tryout tutorial",
+    content: "Agenda pribadi untuk jadwal kuis, tryout, dan tutorial yang dipesan",
   },
   {
     title: "Refleksi belajar",

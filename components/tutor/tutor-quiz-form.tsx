@@ -531,7 +531,7 @@ export function TutorQuizForm({
                         {t("category")}
                       </Label>
                       <Select value={category} onValueChange={(v: any) => setCategory(v)}>
-                        <SelectTrigger id="category" className="mt-1 rounded-lg border-border text-body-sm">
+                        <SelectTrigger id="category" className="mt-1 px-0">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-card border-border">
@@ -548,7 +548,7 @@ export function TutorQuizForm({
                         {t("visibility")}
                       </Label>
                       <Select value={visibility} onValueChange={(v: any) => setVisibility(v)}>
-                        <SelectTrigger id="visibility" className="mt-1 rounded-lg border-border text-body-sm">
+                        <SelectTrigger id="visibility" className="mt-1 px-0">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-card border-border">
@@ -674,7 +674,7 @@ export function TutorQuizForm({
                         {t("quizStatus")}
                       </Label>
                       <Select value={manualStatus} onValueChange={(v: any) => setManualStatus(v)}>
-                        <SelectTrigger id="manualStatus" className="mt-1 rounded-lg border-border text-body-sm">
+                        <SelectTrigger id="manualStatus" className="mt-1 px-0">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-card border-border">
@@ -784,7 +784,7 @@ export function TutorQuizForm({
                       {t("discussionRelease")}
                     </Label>
                     <Select value={explanationRelease} onValueChange={(v: any) => setExplanationRelease(v)}>
-                      <SelectTrigger id="explanationRelease" className="mt-1 rounded-lg border-border text-body-sm">
+                      <SelectTrigger id="explanationRelease" className="mt-1 px-0">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-card border-border">
@@ -1022,7 +1022,7 @@ export function TutorQuizForm({
       {/* Mobile sticky bottom Save Draft / Publish bar */}
       <div
         data-mobile-quiz-form-footer=""
-        className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-border bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-background/95 px-4 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md md:hidden"
       >
         <Button
           type="button"
@@ -1030,9 +1030,9 @@ export function TutorQuizForm({
           disabled={isPending}
           isLoading={isSaving}
           onClick={() => handleSubmit(false)}
-          className="min-h-11 flex-1 rounded-md text-body-sm font-semibold"
+          className="min-h-11 rounded-md text-body-sm font-semibold"
         >
-          <Save className="mr-1.5 size-4" aria-hidden />
+          <Save className="size-4" aria-hidden />
           {saveLabel}
         </Button>
         <Button
@@ -1040,16 +1040,16 @@ export function TutorQuizForm({
           disabled={isPending}
           aria-busy={isPublishing}
           onClick={() => handleSubmit(true)}
-          className="min-h-11 flex-1 rounded-md bg-brand-primary text-body-sm font-semibold text-primary-foreground shadow-xs hover:bg-brand-primary/90"
+          className="min-h-11 rounded-md text-body-sm font-semibold"
         >
           {isPublishing ? (
             <>
-              <Loader2 className="mr-1.5 size-4 animate-spin" aria-hidden />
+              <Loader2 className="size-4 animate-spin" aria-hidden />
               {t("saving")}
             </>
           ) : (
             <>
-              <Send className="mr-1.5 size-4" aria-hidden />
+              <Send className="size-4" aria-hidden />
               {isEdit ? t("saveAndPublish") : t("publishQuiz")}
             </>
           )}

@@ -444,6 +444,7 @@
     "loadFailed": "Could not load the product catalog."
   },
   "usageCharts": {
+    "rangeLabel": "Zyra usage time range",
     "loadFailed": "Could not load AI usage data.",
     "previous": "Previous",
     "next": "Next",

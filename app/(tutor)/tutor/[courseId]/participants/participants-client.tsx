@@ -124,12 +124,12 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
           ) : (
             <>
               {/* Mobile stacked participant cards (zero horizontal scroll) */}
-              <div className="divide-y divide-border border-y border-border md:hidden">
+              <div className="divide-y divide-border/55 border-y border-border/55 md:hidden">
                 {filteredParticipants.map((p) => (
-                  <div key={p.userId} className="space-y-2.5 py-3">
+                  <div key={p.userId} className="space-y-(--compact-gap) py-(--row-padding)">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-heading text-body-xs font-bold text-primary">
+                      <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted font-heading text-body-xs font-bold text-muted-foreground ring-1 ring-inset ring-border/60">
                           {p.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -207,7 +207,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                       <tr role="row" key={p.userId} className="hover:bg-muted/20">
                         <td role="cell" className="wrap-anywhere px-3 py-3">
                           <div className="flex items-center gap-(--compact-gap)">
-                            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-heading text-body-xs font-bold text-primary">
+                            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted font-heading text-body-xs font-bold text-muted-foreground ring-1 ring-inset ring-border/60">
                               {p.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
@@ -277,7 +277,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                   : t("noActiveGroups")} className="px-4 py-5" />
             </div>
           ) : (
-            <div className="divide-y divide-border border-y border-border">
+            <div className="divide-y divide-border/55 border-y border-border/55">
               {filteredGroups.map((grp) => (
                 <div
                   key={grp.id}

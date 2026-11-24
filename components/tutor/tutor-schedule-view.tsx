@@ -531,9 +531,9 @@ export function TutorScheduleView({
           </DialogHeader>
           <div className="space-y-(--compact-gap) py-2">
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">{t("targetSlot")}</Label>
+              <Label htmlFor="tutor-move-slot" className="text-body-sm font-semibold">{t("targetSlot")}</Label>
               <Select value={targetMoveSlotId} onValueChange={setTargetMoveSlotId}>
-                <SelectTrigger className="h-9 text-body-sm">
+                <SelectTrigger id="tutor-move-slot" className="h-9 px-0">
                   <SelectValue placeholder={t("selectNewSlot")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -564,7 +564,7 @@ export function TutorScheduleView({
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-row flex-wrap justify-end">
             <Button
               variant="outline"
               size="sm"
@@ -606,12 +606,12 @@ export function TutorScheduleView({
           </DialogHeader>
           <div className="space-y-(--compact-gap) py-2">
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">{t("decision")}</Label>
+              <Label htmlFor="tutor-ticket-decision" className="text-body-sm font-semibold">{t("decision")}</Label>
               <Select
                 value={ticketDecision}
                 onValueChange={(val) => setTicketDecision(val as "approved" | "rejected")}
               >
-                <SelectTrigger className="h-9 text-body-sm">
+                <SelectTrigger id="tutor-ticket-decision" className="h-9 px-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -630,7 +630,7 @@ export function TutorScheduleView({
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-row flex-wrap justify-end">
             <Button
               variant="outline"
               size="sm"

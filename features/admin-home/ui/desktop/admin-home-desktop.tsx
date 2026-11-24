@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, LayoutDashboard, Zap } from "lucide-react";
+import { LayoutDashboard, Zap } from "lucide-react";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -10,7 +10,7 @@ import { AdminHomeItemIcon } from "@/features/admin-home/ui/shared/admin-home-ic
 
 export function AdminHomeDesktop({ failedJobs, categories }: AdminHomeViewProps) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-(--section-gap)">
       <AdminPageHeader
         icon={LayoutDashboard}
         title="Admin"
@@ -32,9 +32,7 @@ export function AdminHomeDesktop({ failedJobs, categories }: AdminHomeViewProps)
       <div className="columns-1 gap-6 lg:columns-2 xl:columns-3">
         {categories.map((category) => (
           <section key={category.name} className="mb-5 inline-block w-full align-top">
-            <h2 className="border-b border-border pb-2 font-heading text-body-base font-bold">
-              {category.name}
-            </h2>
+            {category.name && <h2 className="border-b border-border/60 pb-2 font-heading text-body-base font-bold">{category.name}</h2>}
             <div className="divide-y divide-border/60">
               {category.items.map((item) => (
                 <Link
@@ -58,10 +56,6 @@ export function AdminHomeDesktop({ failedJobs, categories }: AdminHomeViewProps)
                       </span>
                     )}
                   </div>
-                  <ChevronRight
-                    className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                    aria-hidden
-                  />
                 </Link>
               ))}
             </div>

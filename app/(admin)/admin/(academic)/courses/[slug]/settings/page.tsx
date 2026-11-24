@@ -28,7 +28,7 @@ export default async function AdminCourseSettingsPage({ params }: Props) {
   if (!course) notFound();
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="min-w-0 space-y-(--compact-gap)">
       <CourseDetailHeader course={course} />
       <SettingsTab course={course} />
     </div>

@@ -59,6 +59,7 @@ import {
 import { VideoPlayerModal } from "./video-player-modal";
 import { getYouTubeThumbnailUrl } from "@/lib/video/youtube";
 import { cn } from "@/lib/utils";
+import { courseListRowClass } from "@/components/course/course-surfaces";
 import { useTranslations } from "@/lib/i18n/client";
 
 const PlaylistDialog = dynamic(() =>
@@ -248,7 +249,7 @@ export function CourseVideosClient({
   };
 
   return (
-    <div className="space-y-6 font-sans">
+    <div className={cn("font-sans", canManage ? "space-y-(--related-gap)" : "space-y-6")}>
       {/* Responsive Inline Filter Toolbar */}
       <div className="group/video-toolbar flex flex-wrap items-center gap-1 border-b border-border/40 pb-2">
         <SearchBar
@@ -312,7 +313,10 @@ export function CourseVideosClient({
 
       {/* Playlists Container - Formatted like Collapsible Bab di Dokumen */}
       {initialPlaylists.length === 0 ? (
-        <div className="flex min-h-[45vh] flex-col items-center justify-center px-4 py-12 text-center">
+        <div className={cn(
+            "flex flex-col items-center justify-center text-center",
+            canManage ? "py-(--section-gap)" : "min-h-[45vh] px-4 py-12",
+          )}>
           <div className="mx-auto flex max-w-md flex-col items-center">
             <VideoIcon className="size-10 text-muted-foreground/40 mb-3" aria-hidden />
             <h3 className="font-heading text-body-base font-bold text-foreground">
@@ -345,8 +349,8 @@ export function CourseVideosClient({
           </p>
         </div>
       ) : (
-        <div className="space-y-8">
-          {filteredPlaylists.map((playlist, index) => {
+        <div className={canManage ? "space-y-(--section-gap)" : "space-y-8"}>
+          {filteredPlaylists.map((playlist) => {
             const isOpen = Boolean(openPlaylists[playlist.id]);
             const hasVideos = playlist.videos.length > 0;
 
@@ -358,17 +362,19 @@ export function CourseVideosClient({
                 className="w-full"
               >
                 {/* Collapsible Header */}
-                <div className="group flex w-full items-center justify-between gap-3 border-b border-border/40 pb-2">
+                <div className={cn(
+                  "group flex w-full items-center justify-between border-b border-border/40",
+                  canManage ? "gap-1.5 pb-1" : "gap-3 pb-2",
+                )}>
                   <CollapsibleTrigger asChild>
                     <button
                       type="button"
-                      className="group/trigger -mx-2 flex flex-1 items-center gap-2.5 rounded-lg px-2 py-1 text-left transition-colors hover:bg-muted/40 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                      className={cn(
+                        "group/trigger flex flex-1 items-center gap-2.5 rounded-lg py-1 text-left transition-colors hover:bg-muted/40 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
+                        canManage ? "min-h-10 min-w-0" : "-mx-2 px-2",
+                      )}
                     >
-                      <span className="shrink-0 font-heading text-body-xs font-semibold uppercase tracking-wider text-brand-primary">
-                        Playlist {index + 1}
-                      </span>
-                      <span className="text-border" aria-hidden="true">/</span>
-                      <span className="min-w-0 flex-1 wrap-break-word font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors group-hover/trigger:text-foreground">
+                      <span className="min-w-0 flex-1 wrap-break-word font-heading text-body-base font-semibold text-foreground">
                         {playlist.title}
                       </span>
                       <span className="shrink-0 text-body-xs tabular-nums text-muted-foreground">
@@ -386,31 +392,36 @@ export function CourseVideosClient({
 
                   {/* Actions for playlist header */}
                   {canManage && (
-                    <div className="flex items-center gap-1 shrink-0 ml-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenAddVideo(playlist.id);
-                        }}
-                        className="h-7 px-2 text-body-xs rounded-md gap-1 text-brand-primary hover:text-brand-primary"
-                      >
-                        <Plus className="size-3" />
-                        <span className="hidden sm:inline">{t("courseVideos.addVideo")}</span>
-                      </Button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-lg"
+                              aria-label={t("courseVideos.addVideo")}
+                              aria-description={playlist.title}
+                              onClick={() => handleOpenAddVideo(playlist.id)}
+                            >
+                              <Plus aria-hidden />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t("courseVideos.addVideo")}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
 
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             type="button"
                             variant="ghost"
-                            size="sm"
-                            className="size-7 p-0 rounded-md text-muted-foreground hover:text-foreground"
+                            size="icon-lg"
+                            aria-label={t("courseVideos.playlistMenu")}
+                            aria-description={playlist.title}
+                            className="text-muted-foreground hover:text-foreground"
                           >
-                            <MoreVertical className="size-3.5" />
-                            <span className="sr-only">{t("courseVideos.playlistMenu")}</span>
+                            <MoreVertical aria-hidden />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="text-body-sm">
@@ -435,35 +446,24 @@ export function CourseVideosClient({
                 {/* Collapsible Content: Video Rows */}
                 <CollapsibleContent>
                   {!hasVideos ? (
-                    <div className="py-6 text-center text-body-xs text-muted-foreground">
-                      <p>{t("courseVideos.emptyPlaylist")}</p>
-                      {canManage && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenAddVideo(playlist.id)}
-                          className="mt-2 h-7 text-body-xs gap-1 rounded-lg"
-                        >
-                          <Plus className="size-3" />
-                          <span>{t("courseVideos.addVideo")}</span>
-                        </Button>
-                      )}
+                    <div className={cn("text-body-xs text-muted-foreground", canManage ? "py-(--related-gap)" : "py-6 text-center")}>
+                      <p className={canManage ? "text-body-xs" : undefined}>{t("courseVideos.emptyPlaylist")}</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-border/30">
+                    <div className={cn("divide-y", canManage ? "divide-border/30" : "divide-border/20")}>
                       {playlist.videos.map((video) => {
                         const isLocked = !canManage && !hasFullContentAccess && (video.locked ?? true);
+                        const isYouTube = video.videoUrl.includes("youtube") || video.videoUrl.includes("youtu.be");
                         const thumbnail = video.thumbnailUrl || getYouTubeThumbnailUrl(video.videoUrl);
                         return (
                           <div key={video.id}>
                           <div
-                            className={cn(
-                              "group -mx-2.5 flex items-center justify-between gap-(--compact-gap) rounded-lg px-2.5 py-(--row-padding) transition-colors hover:bg-muted/40",
-                              isLocked ? "opacity-90 cursor-pointer" : "cursor-pointer"
-                            )}
+                            className={canManage
+                              ? "group -mx-2.5 flex cursor-pointer items-center justify-between gap-(--compact-gap) rounded-lg px-2.5 py-(--row-padding) transition-colors hover:bg-muted/40"
+                              : courseListRowClass("cursor-pointer")}
                             onClick={() => handlePlayVideo(video, playlist)}
                           >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className={cn("flex min-w-0 flex-1 gap-3", canManage ? "items-center" : "items-start")}>
                               {/* Landscape Video Thumbnail */}
                               <div className="relative w-28 sm:w-36 aspect-video shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/20">
                                 {thumbnail ? (
@@ -480,7 +480,7 @@ export function CourseVideosClient({
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/25 group-hover:bg-black/40 transition-colors">
                                   {isLocked ? (
                                     <div className="rounded-full bg-black/60 p-1.5 backdrop-blur-xs">
-                                      <Lock className="size-3 text-amber-400" />
+                                      <Lock className="size-3 text-white" aria-hidden />
                                     </div>
                                   ) : (
                                     <div className="rounded-full bg-black/60 p-1.5 backdrop-blur-xs group-hover:scale-110 transition-transform">
@@ -500,22 +500,11 @@ export function CourseVideosClient({
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   <h4
-                                    className={cn(
-                                      "text-body-sm font-semibold wrap-break-word text-foreground transition-colors",
-                                      isLocked
-                                        ? "group-hover:text-amber-600 dark:group-hover:text-amber-400"
-                                        : "group-hover:text-brand-primary"
-                                    )}
+                                    className="wrap-break-word text-body-sm font-semibold text-foreground"
                                     title={video.title}
                                   >
                                     {video.title}
                                   </h4>
-                                  {isLocked && (
-                                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
-                                      <Lock className="size-2.5" />
-                                      Terkunci
-                                    </span>
-                                  )}
                                 </div>
                                 <p className="mt-1 flex items-center gap-1.5 text-body-xs text-muted-foreground flex-wrap">
                                   {video.chapterTitle && (
@@ -523,12 +512,12 @@ export function CourseVideosClient({
                                       {video.chapterTitle}
                                     </span>
                                   )}
-                                  {video.chapterTitle && (video.fileSize || video.videoUrl) && (
+                                  {video.chapterTitle && (isLocked || isYouTube || video.fileSize) && (
                                     <span>·</span>
                                   )}
                                   {isLocked ? (
-                                    <span className="text-amber-600 dark:text-amber-400 font-medium">{t("courseVideos.classAccessRequired")}</span>
-                                  ) : video.videoUrl.includes("youtube") || video.videoUrl.includes("youtu.be") ? (
+                                    <span>{t("courseVideos.classAccessRequired")}</span>
+                                  ) : isYouTube ? (
                                     <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
                                       <FaYoutube className="size-3" />
                                       YouTube
@@ -547,11 +536,12 @@ export function CourseVideosClient({
                                   <DropdownMenuTrigger asChild>
                                     <Button
                                       variant="ghost"
-                                      size="sm"
-                                      className="size-7 p-0 text-muted-foreground hover:text-foreground rounded-md"
+                                      size="icon-lg"
+                                      aria-label={t("courseVideos.videoMenu")}
+                                      aria-description={video.title}
+                                      className="text-muted-foreground hover:text-foreground"
                                     >
-                                      <MoreVertical className="size-3.5" />
-                                      <span className="sr-only">{t("courseVideos.videoMenu")}</span>
+                                      <MoreVertical aria-hidden />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="text-body-sm">

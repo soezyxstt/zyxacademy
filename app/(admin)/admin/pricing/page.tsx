@@ -27,14 +27,14 @@ export default async function AdminPricingPage() {
 
   const discounts = await getPricingDiscounts();
   return (
-    <div className="space-y-6">
+    <div>
       <AdminPageHeader
         icon={Calculator}
         title={<TranslatedText namespace="adminOps" messageKey="pricing.title" />}
       />
 
-      <Tabs defaultValue="student-pricing" paramKey="tab" className="space-y-6">
-        <TabsList mobileInline>
+      <Tabs defaultValue="student-pricing" paramKey="tab">
+        <TabsList>
           <TabsTrigger value="student-pricing">{t("pricing.studentTab")}</TabsTrigger>
           <TabsTrigger value="tutor-fee">{t("pricing.tutorTab")}</TabsTrigger>
           <TabsTrigger value="vouchers">{t("pricing.voucherTab")}</TabsTrigger>

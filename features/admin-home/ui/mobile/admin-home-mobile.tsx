@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import Link from "next/link";
 import {
   Activity,
-  ChevronRight,
   GraduationCap,
   LayoutDashboard,
   Library,
@@ -70,7 +69,7 @@ export function AdminHomeMobile({
   ];
 
   return (
-    <div className="flex w-full min-w-0 flex-col space-y-5">
+    <div className="flex w-full min-w-0 flex-col space-y-(--section-gap)">
       <AdminPageHeader icon={LayoutDashboard} title="Admin" />
 
       {failedJobs > 0 && (
@@ -99,7 +98,7 @@ export function AdminHomeMobile({
             >
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Icon className={`size-3.5 shrink-0 ${item.iconColor}`} aria-hidden />
-                <span className="truncate text-body-xs font-medium">{item.label}</span>
+                <span className="min-w-0 text-body-sm font-medium">{item.label}</span>
               </div>
               <p className="mt-1 font-heading text-h5 font-bold tabular-nums text-foreground">
                 {item.value}
@@ -109,12 +108,10 @@ export function AdminHomeMobile({
         })}
       </section>
 
-      <div className="space-y-5">
+      <div className="space-y-(--section-gap)">
         {categories.map((category) => (
           <section key={category.name} className="min-w-0">
-            <h2 className="border-b border-border/60 pb-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {category.name}
-            </h2>
+            {category.name && <h2 className="border-b border-border/60 pb-2 font-heading text-body-base font-bold">{category.name}</h2>}
             <div className="divide-y divide-border/50">
               {category.items.map((item) => (
                 <Link
@@ -140,10 +137,6 @@ export function AdminHomeMobile({
                       )}
                     </div>
                   </div>
-                  <ChevronRight
-                    className="size-4 shrink-0 text-muted-foreground"
-                    aria-hidden
-                  />
                 </Link>
               ))}
             </div>

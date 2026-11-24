@@ -694,7 +694,7 @@ export async function PrimaryLearningSection({
           }
         />
 
-        <div className="divide-y divide-border/30">
+        <div className="divide-y divide-border/25">
           {enrollments.map((course) => {
             const materials = materialsByCourseId.get(course.id) || [];
             const doneCount = materials.filter((m) => m.completed || completedIds.has(m.id)).length;
@@ -714,8 +714,8 @@ export async function PrimaryLearningSection({
                         {course.title}
                       </h3>
                       <span className="shrink-0 text-body-xs font-medium uppercase tracking-wider text-muted-foreground">{course.category}</span>
-                      <CoursePricingLabel pricing={course.pricing} />
                     </div>
+                    {course.pricing?.category === "limited_time_free" && <CoursePricingLabel pricing={course.pricing} compact />}
 
                     <div className="mt-2 flex items-center gap-3">
                       <div
@@ -738,14 +738,14 @@ export async function PrimaryLearningSection({
                     </div>
 
                     {nextConcept && (
-                      <p className="mt-2 flex min-w-0 items-baseline gap-1.5 text-body-sm">
+                      <div className="mt-2 flex min-w-0 items-baseline gap-1.5 text-body-sm">
                         <span className="shrink-0 text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           <TranslatedText namespace="student" messageKey="dashboard.nextUp" />
                         </span>
-                        <span className="line-clamp-2 min-w-0 break-words font-medium text-foreground group-hover:underline">
-                          <MathText as="span">{nextConcept}</MathText>
-                        </span>
-                      </p>
+                        <div className="min-w-0 wrap-anywhere font-medium text-foreground group-hover:underline">
+                          <MathText as="div">{nextConcept}</MathText>
+                        </div>
+                      </div>
                     )}
                   </div>
 
@@ -828,7 +828,7 @@ export async function RecommendedCoursesSection({
         }
       />
 
-      <div className="divide-y divide-border/30">
+      <div className="divide-y divide-border/25">
         {recommendedCourses.map((course) => (
           <Link
             key={course.id}
@@ -1006,7 +1006,7 @@ export async function AvailableAssessmentsSection({
       />
 
       {availableExams.length > 0 ? (
-        <div className="divide-y divide-border/30">
+        <div className="divide-y divide-border/25">
           {availableExams.slice(0, 4).map((exam) => (
             <Link
               key={exam.id}

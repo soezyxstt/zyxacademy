@@ -88,7 +88,7 @@ export default function DetailedMeetingLogPage({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-(--section-gap)">
       <AdminPageHeader
         icon={Video}
         title={translate("meetDetailUI.title")}
@@ -106,8 +106,8 @@ export default function DetailedMeetingLogPage({
       />
 
       {error && (
-        <div className="flex items-center gap-3 rounded-xl border border-status-error/30 bg-status-error/10 p-4 text-body-sm text-status-error">
-          <AlertCircle className="size-5 shrink-0" />
+        <div role="alert" className="flex items-start gap-2 border-b border-status-error/30 pb-(--compact-gap) text-body-sm text-status-error">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>{translate(`meetDetailUI.${error}`)}</p>
         </div>
       )}
@@ -115,14 +115,9 @@ export default function DetailedMeetingLogPage({
       {loading ? (
         <MeetDetailSkeleton showHeader={false} />
       ) : !analytics ? (
-        <div className="flex flex-col items-center justify-center py-6 text-center">
-          <AlertCircle className="size-10 text-muted-foreground" />
-          <p className="mt-3 font-heading text-body-base font-semibold text-foreground">
-            {translate("meetDetailUI.notFound")}
-          </p>
-        </div>
+        <AdminEmptyState compact icon={AlertCircle} title={translate("meetDetailUI.notFound")} />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-(--section-gap)">
           {/* Overview metric strip */}
           <AdminStatStrip className="sm:grid-cols-2 lg:grid-cols-5">
             <AdminStatStripItem

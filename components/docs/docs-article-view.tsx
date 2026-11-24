@@ -77,7 +77,7 @@ export function DocsArticleView({
       : null;
 
   return (
-    <div className="max-w-3xl">
+    <div className="min-w-0 max-w-3xl">
       <header className="space-y-2">
         <nav
           aria-label="Breadcrumb"
@@ -93,7 +93,7 @@ export function DocsArticleView({
           <span className="text-foreground/80">{doc.category}</span>
         </nav>
 
-        <h1 className="font-heading text-reading-major font-bold tracking-tight text-foreground">
+        <h1 className="wrap-anywhere font-heading text-reading-major font-bold tracking-tight text-foreground">
           {doc.title}
         </h1>
 
@@ -103,11 +103,11 @@ export function DocsArticleView({
       </header>
 
       {doc.quickLinks && doc.quickLinks.length > 0 && (
-        <div
+        <nav
           aria-label={quickLinksLabel}
-          className="mt-(--related-gap) flex flex-wrap items-center gap-2 border-y border-border/80 py-(--compact-gap)"
+          className="mt-(--related-gap) flex flex-wrap items-center gap-x-3 gap-y-1 border-y border-border/55 py-(--compact-gap)"
         >
-          <span className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <span className="text-body-xs font-semibold text-muted-foreground">
             {quickLinksLabel}
           </span>
           {doc.quickLinks.map((item) => (
@@ -115,16 +115,13 @@ export function DocsArticleView({
               key={item.href}
               href={item.href}
               title={item.description}
-              className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-metadata font-medium text-foreground transition-colors hover:border-brand-primary/50 hover:text-brand-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="inline-flex min-h-9 min-w-0 max-w-full items-center gap-1 rounded-md text-body-sm font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <span>{item.label}</span>
-              <span className="font-mono text-body-2xs text-muted-foreground">
-                {item.href}
-              </span>
+              <span className="wrap-anywhere">{item.label}</span>
               <ArrowUpRight className="size-3 shrink-0 text-muted-foreground" aria-hidden />
             </Link>
           ))}
-        </div>
+        </nav>
       )}
 
       <article className="mt-(--section-gap) text-body-base text-foreground/85">
@@ -201,12 +198,12 @@ export function DocsArticleView({
             {section.table && (
               <div className="my-(--group-gap)">
                 {/* Desktop table */}
-                <div className="hidden md:block overflow-hidden rounded-lg border border-border">
+                <div className="hidden md:block">
                   <table className="w-full border-collapse text-left text-support">
                     {section.table.caption && (
                       <caption className="sr-only">{section.table.caption}</caption>
                     )}
-                    <thead className="border-b border-border bg-muted/40">
+                    <thead className="border-y border-border/55">
                       <tr>
                         {section.table.headers.map((header) => (
                           <th
@@ -225,7 +222,7 @@ export function DocsArticleView({
                           {row.map((cell, cellIdx) => (
                             <td
                               key={cellIdx}
-                              className="px-3.5 py-(--table-row-padding) text-support text-foreground/85"
+                              className="wrap-anywhere px-3.5 py-(--table-row-padding) text-support text-foreground/85"
                             >
                               <DocRichText text={cell} />
                             </td>
@@ -239,7 +236,7 @@ export function DocsArticleView({
                 {/* Mobile vertical stacked rows (no horizontal table scroll) */}
                 <div
                   aria-label={section.table.caption}
-                  className="md:hidden divide-y divide-border border-y border-border"
+                  className="divide-y divide-border/55 border-y border-border/55 md:hidden"
                 >
                   {section.table.rows.map((row, rIdx) => (
                     <dl key={rIdx} className="space-y-2 py-(--row-padding)">
@@ -248,7 +245,7 @@ export function DocsArticleView({
                           <dt className="text-metadata font-semibold text-muted-foreground">
                             {section.table?.headers[cellIdx]}
                           </dt>
-                          <dd className="text-support text-foreground/85">
+                          <dd className="wrap-anywhere text-support text-foreground/85">
                             <DocRichText text={cell} />
                           </dd>
                         </div>
@@ -266,7 +263,7 @@ export function DocsArticleView({
                 <div
                   key={calloutIdx}
                   className={cn(
-                    "my-(--group-gap) flex gap-3 rounded-r-lg border border-border/80 border-l-2 bg-muted/35 px-4 py-3.5",
+                    "my-(--group-gap) flex gap-2.5 border-l-2 py-1.5 pl-3",
                     style.border,
                   )}
                 >
@@ -292,7 +289,7 @@ export function DocsArticleView({
       {(previousDoc || nextDoc) && (
         <nav
           aria-label={locale === "en" ? "Guide pagination" : "Navigasi antar panduan"}
-          className="mt-(--major-gap) flex flex-col gap-4 border-t border-border pt-(--section-gap) sm:flex-row sm:items-center sm:justify-between"
+          className="mt-(--section-gap) grid gap-(--related-gap) border-t border-border/55 pt-(--related-gap) sm:grid-cols-2 sm:items-center"
         >
           <div className="min-w-0">
             {previousDoc && (

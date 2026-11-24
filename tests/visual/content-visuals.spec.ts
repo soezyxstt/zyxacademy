@@ -147,6 +147,6 @@ test("quiz exposes both timers and the responsive question map", async ({ page }
   await question.click();
   await expect(sheet).toBeHidden();
   await expect(map).toBeFocused();
-  await expect(page.getByRole("button", { name: "Kumpulkan kuis", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Kirim jawaban", exact: true })).toBeVisible();
   expect(failures).toEqual([]);
 });

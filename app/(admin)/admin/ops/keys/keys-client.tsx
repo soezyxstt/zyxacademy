@@ -59,7 +59,7 @@ export function KeysClient() {
   }).sort((a, b) => Number(a.healthy) - Number(b.healthy));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-(--section-gap)">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-body-sm text-muted-foreground">
           {t("keysUI.checked", { time: relativeTime(data.checkedAt, t), count: data.totalRequestsToday })}
@@ -84,8 +84,8 @@ export function KeysClient() {
         </section>
       ))}
       {keyHealth.map(({ keyId, healthy, totalToday, entries }) => (
-        <div key={keyId} className="border-y border-border">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/50 px-4 py-3">
+        <div key={keyId} className="border-b border-border/60">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 py-(--row-padding)">
             <div className="flex flex-wrap items-center gap-3">
               <span className={`size-2.5 rounded-full ${healthy ? "bg-status-success" : "bg-status-error"}`} />
               <h2 className="font-heading text-body-base font-semibold text-foreground">{keyId}</h2>
@@ -131,9 +131,9 @@ export function KeysClient() {
             </table>
           </div>
 
-          <ul className="divide-y divide-border/40 md:hidden">
+          <ul className="divide-y divide-border/60 md:hidden">
             {entries.map((d) => (
-              <li key={`${d.keyId}:${d.modelId}`} className="px-4 py-3 space-y-1.5">
+              <li key={`${d.keyId}:${d.modelId}`} className="space-y-1.5 py-(--row-padding)">
                 <div className="flex items-start justify-between gap-2">
                   <span className="min-w-0 break-all text-body-sm font-medium text-foreground">
                     {d.modelId}

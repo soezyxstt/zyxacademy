@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { MathText } from "@/components/course/math-text";
+import { TutorQuestionOptionPreview } from "@/components/tutor/question-option-preview";
 import { toast } from "@/components/ui/toast";
 import {
   saveTryoutAction,
@@ -335,7 +335,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
       return typeof content?.bankQuestionId === "string" ? [content.bankQuestionId] : [];
     }));
     return (
-      <div className="space-y-(--major-gap)">
+      <div className="space-y-(--section-gap)">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <TooltipProvider>
@@ -350,7 +350,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             </TooltipProvider>
             <div className="min-w-0">
               <p className="break-words font-heading text-body-sm font-bold text-foreground">{activeExam.title}</p>
-              <p className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{tr("totalQuestions", { count: activeQuestions.length })}</p>
+              <p className="text-body-sm text-muted-foreground">{tr("totalQuestions", { count: activeQuestions.length })}</p>
             </div>
           </div>
 
@@ -382,15 +382,15 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
         {activeQuestions.length === 0 ? (
           <AdminEmptyState icon={Trophy} title={tr("examEmpty")} />
         ) : (
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-border/55">
             {pageQuestions.map((q) => {
               const content = typeof q.content === "string" ? JSON.parse(q.content) : q.content;
               return (
-                <div key={q.id} className="relative -mx-2 rounded-lg px-2 py-(--row-padding) transition-colors hover:bg-muted/35">
+                <div key={q.id} className="py-(--row-padding)">
                   <div className="flex items-start justify-between gap-(--related-gap)">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary text-body-xs font-bold font-mono">
+                        <span className="shrink-0 font-mono text-body-sm font-medium text-muted-foreground">
                           {q.order}
                         </span>
                         <Badge variant="outline" className="text-body-2xs rounded-md text-muted-foreground capitalize">
@@ -426,28 +426,11 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                   </div>
 
                   {/* Options Preview for MC */}
-                  {(q.type === "multiple_choice" || q.type === "multiple_choices") && content.options && (
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2 sm:pl-8">
-                      {content.options.map((opt: string, i: number) => {
-                        const isCorrect = q.type === "multiple_choice"
-                          ? content.correctIndex === i
-                          : content.correctIndices?.includes(i);
-                        return (
-                          <div key={i} className={`flex items-center gap-2 text-body-xs px-3 py-1.5 rounded-lg border ${
-                            isCorrect ? "bg-status-success/10 border-status-success/30 text-foreground font-medium" : "bg-muted/10 border-border/50 text-muted-foreground"
-                          }`}>
-                            <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-body-2xs font-bold ${
-                              isCorrect ? "bg-status-success/15 text-foreground" : "bg-muted text-muted-foreground"
-                            }`}>
-                              {String.fromCharCode(65 + i)}
-                            </span>
-                            <span>
-                              <MathText className="leading-normal" as="span">{opt}</MathText>
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  {(q.type === "multiple_choice" || q.type === "multiple_choices") && Array.isArray(content.options) && content.options.length > 0 && (
+                    <TutorQuestionOptionPreview
+                      options={content.options}
+                      correctIndices={q.type === "multiple_choice" ? [content.correctIndex] : (content.correctIndices ?? [])}
+                    />
                   )}
 
                   {/* Short Answer Key */}
@@ -487,7 +470,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               <DialogTitle className="font-heading text-body-base font-bold text-foreground">{tr("bankTitle")}</DialogTitle>
               <DialogDescription>{tr("bankDescription")}</DialogDescription>
             </DialogHeader>
-            <div className="max-h-[55vh] divide-y divide-border/30 overflow-y-auto border-y border-border/40">
+            <div className="max-h-[55vh] divide-y divide-border/55 overflow-y-auto border-y border-border/40">
               {questionBank.length === 0 ? (
                 <p className="py-8 text-center text-body-sm text-muted-foreground">{tr("noPublishedQuestions")}</p>
               ) : questionBank.slice(currentBankPage * 20, (currentBankPage + 1) * 20).map((question) => {
@@ -541,7 +524,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                 {tr("deleteQuestionDescription")}
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter className="gap-2 mt-4">
+            <DialogFooter className="flex-row flex-wrap justify-end gap-2">
               <Button variant="outline" onClick={() => setDeleteQId(null)} disabled={isPending} className="rounded-md border-border/80">
                 {tr("cancel")}
               </Button>
@@ -570,7 +553,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                     setQCorrectIndex(undefined);
                     setQCorrectIndices([]);
                   }}>
-                    <SelectTrigger id="que-type" className="rounded-lg border-input bg-background">
+                    <SelectTrigger id="que-type" className="px-0">
                       <SelectValue placeholder={tr("chooseType")} />
                     </SelectTrigger>
                     <SelectContent className="bg-card border-border">
@@ -688,10 +671,10 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
   // Default Listing view
   return (
-    <div className="space-y-(--major-gap)">
+    <div className="space-y-(--section-gap)">
       {/* Header action */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-        <span className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{tr("tryoutCount", { count: initialTryouts.length })}</span>
+        <span className="text-body-sm text-muted-foreground">{tr("tryoutCount", { count: initialTryouts.length })}</span>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -707,13 +690,13 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
       {initialTryouts.length === 0 ? (
         <AdminEmptyState icon={Trophy} title={tr("noTryouts")} />
       ) : (
-        <div className="divide-y divide-border/30">
+        <div className="divide-y divide-border/55">
           {initialTryouts.map((t) => {
             const settings = typeof t.settings === "string" ? JSON.parse(t.settings) : t.settings;
             const qCount = initialQuestions.filter((q) => q.examId === t.id).length;
             
             return (
-              <article key={t.id} className="-mx-2 flex items-start justify-between gap-2 rounded-lg px-2 py-3 transition-colors hover:bg-muted/35">
+              <article key={t.id} className="flex items-start justify-between gap-2 py-(--row-padding)">
                 <header className="min-w-0 flex-1 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="min-w-0 break-words font-heading text-body-base font-bold text-foreground">{t.title}</h2>
@@ -820,7 +803,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             <div className="grid gap-2">
               <Label htmlFor="t-status" className="text-body-sm font-semibold">{tr("publicationStatus")}</Label>
               <Select value={tStatus} onValueChange={(val: any) => setTStatus(val)}>
-                <SelectTrigger id="t-status" className="rounded-lg border-input bg-background">
+                <SelectTrigger id="t-status" className="px-0">
                   <SelectValue placeholder={tr("chooseStatus")} />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
@@ -856,7 +839,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             </div>
           </div>
 
-          <DialogFooter className="gap-2 mt-4">
+          <DialogFooter className="flex-row flex-wrap justify-end gap-2">
             <Button variant="outline" onClick={() => setIsTOpen(false)} disabled={isPending} className="rounded-md border-border/80">
               {tr("cancel")}
             </Button>
@@ -876,7 +859,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               {tr("deleteTryoutDescription")}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 mt-4">
+          <DialogFooter className="flex-row flex-wrap justify-end gap-2">
             <Button variant="outline" onClick={() => setDeleteTId(null)} disabled={isPending} className="rounded-md border-border/80">
               {tr("cancel")}
             </Button>

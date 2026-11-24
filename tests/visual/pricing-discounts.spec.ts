@@ -41,6 +41,12 @@ test("independent schedules, validation, save, and shared price states", async (
   await expect(page.getByRole("status")).toContainText("Diskon tersimpan");
   await expect(page.locator('[data-plan-price="minimal"]')).toContainText("20% off");
   await expect(page.locator('[data-plan-price="essential"]')).toContainText("43% off");
+  const tutor = page.locator("[data-tutor-fee-estimator]");
+  await expect(tutor.locator("[data-tutor-fee-per-meeting]").first()).toHaveAttribute("data-tutor-fee-per-meeting", "148944");
+  await tutor.locator("#tutor-custom-price").fill("8325000");
+  await expect(tutor.locator("[data-tutor-fee-per-meeting]").first()).toHaveAttribute("data-tutor-fee-per-meeting", "148944");
+  await capture("tutor-fee-discounted");
+  await tutor.locator("#tutor-custom-price").clear();
   await capture("saved-active");
   await page.getByRole("combobox").press("Enter");
   await expect(page.getByRole("listbox")).toBeVisible();

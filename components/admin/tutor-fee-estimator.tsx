@@ -178,6 +178,7 @@ export function TutorFeeEstimator() {
       now,
     );
   }, [errors, parsed, settings, now]);
+  const displayedPlatform = quote?.custom ? quote.custom.packagePrice - quote.custom.tutorialPool : quote?.platformCost;
 
   const updateValue = (key: QuantityKey, value: string) => {
     setValues((current) => ({ ...current, [key]: value }));
@@ -355,8 +356,8 @@ export function TutorFeeEstimator() {
 
             <div className="border-t border-border pt-3 text-body-xs">
               <span className="text-muted-foreground">{t("pricingEstimatorUI.platformCost")}</span>
-              <p className="mt-1 font-semibold text-foreground" data-platform-cost={quote.platformCost}>
-                {formatPlanPrice(quote.platformCost)}
+              <p className="mt-1 font-semibold text-foreground" data-platform-cost={displayedPlatform}>
+                {formatPlanPrice(displayedPlatform ?? 0)}
               </p>
               <p className="mt-0.5 text-muted-foreground">
                 {t("pricingEstimatorUI.platformAccess", { persons: quote.persons, courses: quote.courses })}

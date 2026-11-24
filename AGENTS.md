@@ -69,6 +69,15 @@ Every feature change must check the affected workflow against MCP tools, scopes,
 
 Use the tokens and components already defined in `app/globals.css`. Prefer semantic utilities over hard-coded colors, arbitrary font stacks, and one-off styles.
 
+### Dense application pages
+
+- Review dense layouts with Web Design Guidelines (bundled reference) and Spacing System. Use the Student dashboard redesign in PR #451 as a reference for task order, readable metadata, and spacing between sections.
+- Show each metric at its point of use. Keep distinct counts and their scope visible. Use muted tabular metadata for neutral counts and categories, with readable status text plus optional semantic dots, bars, or trend icons.
+- Use the existing spacing tokens for related rows and section separation. Group repeated records with light dividers and use open sections for narrative or metrics. Keep independent boundaries where they support selection, comparison, or interaction.
+- Use small muted icons on section headings when they help distinguish groups of text. Leave headings plain when rows already use icons for navigation or status.
+- Put the next actionable section ahead of long diagnostic detail on mobile. On wide layouts, pair information that needs room, such as formulas and tables, with a narrower list or summary when both belong in the same view. Let long labels wrap and keep action widths proportional to their context.
+- Check relevant empty, populated, and long-content states at 380 and 1536 px in both themes with the application fonts. Keep authored text and formulas readable, and verify keyboard focus, status names, and control contrast where the changes affect them.
+
 ### Component reuse and layout efficiency
 
 - Before creating any UI, search the existing pages and `components/` for a reusable component or pattern. This applies to cards, search bars, select fields, filters, wrappers, tables, dialogs, buttons, tooltips, empty states, and layout shells.

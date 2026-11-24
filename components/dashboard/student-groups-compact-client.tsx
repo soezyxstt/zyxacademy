@@ -204,8 +204,8 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
 
   if (!activeGroup) {
     return (
-      <section className="mx-auto max-w-xl rounded-xl border border-border/40 bg-card/30 p-(--panel-padding) sm:p-(--group-gap)">
-        <div className="mb-3 flex items-center gap-2 border-b border-border/40 pb-2">
+      <section className="mx-auto max-w-xl py-(--related-gap)">
+        <div className="mb-3 flex items-center gap-2 border-b border-border/25 pb-2">
           <Users className="size-3.5 shrink-0 text-muted-foreground" />
           <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("groups.join")}</h2>
         </div>
@@ -246,8 +246,8 @@ export function StudentGroupsCompactClient({ initialGroups, onLocalRename }: Pro
         </Tabs>
       ) : null}
 
-      <section className="border-t border-border/40 py-(--panel-padding)">
-        <div className="flex flex-wrap items-start justify-between gap-(--compact-gap) border-b border-border/40 pb-(--related-gap)">
+      <section className="border-t border-border/25 py-(--row-padding)">
+        <div className="flex flex-wrap items-start justify-between gap-(--compact-gap) border-b border-border/25 pb-(--related-gap)">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h2 className="min-w-0 break-words font-heading text-h5 font-bold text-foreground">

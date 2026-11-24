@@ -36,7 +36,8 @@ export function UsageRangeSelect({ current }: { current: number }) {
   return (
     <Select value={String(current)} onValueChange={onValueChange}>
       <SelectTrigger
-        className="w-[170px] shrink-0 text-body-sm"
+        variant="inline"
+        className="shrink-0"
         aria-label={t("featureUsageUI.rangeLabel")}
         data-pending={pending || undefined}
       >

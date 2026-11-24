@@ -102,7 +102,7 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
               </div>
             }
           >
-            <div className="divide-y divide-border/30">
+            <div className="divide-y divide-border/25">
               {enrollments.map((course) => {
                 const { doneCount, total } = courseProgress[course.id];
                 return (
@@ -139,7 +139,7 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
             </div>
 
             {inProgressDocuments.length > 0 ? (
-              <div className="divide-y divide-border/30">
+              <div className="divide-y divide-border/25">
                 {inProgressDocuments.map((doc) => {
                   if (!doc) return null;
                   return (
@@ -228,7 +228,7 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
                 </Link>
               </div>
 
-              <div className="divide-y divide-border/30">
+              <div className="divide-y divide-border/25">
                 {recommendedUnenrolledCourses.map((course) => (
                   <div
                     key={course.id}
@@ -254,9 +254,6 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
                         <h3 className="mt-1 break-words font-heading text-body-sm font-bold text-foreground transition-colors group-hover:text-brand-primary">
                           {course.title}
                         </h3>
-                      </div>
-                      <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground transition-all group-hover:border-brand-primary/30 group-hover:text-brand-primary">
-                        <ArrowRight className="size-4" />
                       </div>
                     </Link>
                   </div>
@@ -319,7 +316,7 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
               </div>
 
               {recentReviews.length > 0 ? (
-                <div className="divide-y divide-border/30">
+                <div className="divide-y divide-border/25">
                   {recentReviews.map((review) => (
                     <div key={review.id} className="px-1 py-2.5">
                       <div className="flex items-start justify-between gap-2">
@@ -393,7 +390,7 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
             </div>
 
             {availableExams.length > 0 ? (
-              <div className="divide-y divide-border/30">
+              <div className="divide-y divide-border/25">
                 {availableExams.slice(0, 4).map((exam) => (
                   <div
                     key={exam.id}
@@ -422,10 +419,6 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
                           </span>
                         </p>
                       </div>
-                      <ArrowRight
-                        className="size-4 shrink-0 text-muted-foreground group-hover:text-primary"
-                        aria-hidden
-                      />
                     </Link>
                   </div>
                 ))}

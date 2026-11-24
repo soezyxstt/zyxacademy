@@ -7,10 +7,18 @@ import { SearchBar } from "@/components/ui/search-bar";
 import { PageHeader } from "@/components/page-header";
 import { Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectField } from "@/components/ui/select-field";
+import { CourseCombobox } from "@/components/admin/course-combobox";
+
+const courseOptions = [
+  { value: "math", label: "Matematika dasar" },
+  { value: "physics", label: "Fisika dasar" },
+];
 
 export default function ControlContrastFixture() {
   const [dark, setDark] = useState(false);
   const [query, setQuery] = useState("");
+  const [course, setCourse] = useState("all");
   return (
     <main className={dark ? "dark" : ""}>
       <div className="min-h-screen space-y-4 bg-background p-6 text-foreground">
@@ -41,6 +49,25 @@ export default function ControlContrastFixture() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="week">Minggu ini</SelectItem>
+            </SelectContent>
+          </Select>
+          <CourseCombobox
+            courses={courseOptions.map(({ value, label }) => ({ id: value, title: label }))}
+            value={course}
+            onValueChange={setCourse}
+            placeholder="Cari dan pilih mata kuliah"
+          />
+        </div>
+        <div className="grid max-w-2xl grid-cols-2 items-start gap-3 border-t border-border pt-3">
+          <SelectField label="Mata kuliah pilihan" defaultValue="math" options={courseOptions} />
+          <SelectField label="Mata kuliah wajib" required error="Pilih mata kuliah." options={courseOptions} />
+          <Select>
+            <SelectTrigger variant="outline" aria-label="Jawaban formulir">
+              <SelectValue placeholder="Pilih jawaban" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="yes">Ya</SelectItem>
+              <SelectItem value="no">Tidak</SelectItem>
             </SelectContent>
           </Select>
         </div>

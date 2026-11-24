@@ -1,21 +1,12 @@
 "use client";
 
+import { useId } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { AssessmentSubmitDialog } from "./assessment-submit-dialog";
 import { ScientificInput } from "@/components/ui/scientific-input";
 import { cn } from "@/lib/utils";
 import {
-  AlertCircle,
   Check,
-  CheckSquare,
-  CircleDot,
   FileText,
   Flag,
   Trash2,
@@ -23,11 +14,7 @@ import {
 } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { InteractiveDocumentAttempt } from "@/components/course/interactive-document-context";
-import {
-  quizOptionClasses,
-  quizOptionIndicatorClasses,
-  quizOptionLetterClasses,
-} from "@/components/course/quiz-option-styles";
+import { quizOptionIndicatorClasses } from "@/components/course/quiz-option-styles";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import type { useQuizPlayer } from "@/hooks/use-quiz-player";
 import {
@@ -98,7 +85,7 @@ export function QuizQuestionMapGrid({
                 (locked || !isAllowed) && "cursor-not-allowed opacity-40",
                 !locked && isAllowed && "cursor-pointer",
                 active
-                  ? "border-brand-primary ring-2 ring-brand-primary/20"
+                  ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
                   : "border-transparent",
                 isFlagged
                   ? "border-brand-secondary/60 bg-brand-secondary/15 text-brand-secondary hover:bg-brand-secondary/25"
@@ -136,7 +123,7 @@ export function QuizQuestionMapGrid({
             <span>{t("quiz.flagged")}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="size-3 shrink-0 rounded border-2 border-brand-primary" />
+            <span className="size-3 shrink-0 rounded border-2 border-foreground" />
             <span>{t("quiz.active")}</span>
           </div>
         </div>
@@ -154,6 +141,7 @@ export function QuizQuestionBody({
   controller: QuizPlayerController;
   showFlagRow?: boolean;
 }) {
+  const writtenAnswerId = useId();
   const { courseId, visualCourseId = courseId, attemptId, transport } = props;
   const {
     t,
@@ -185,163 +173,124 @@ export function QuizQuestionBody({
       Boolean(q.multiple)
   );
   const currentFlagged = !!flags[q.id];
+  const locked = submitting || isSubmitted;
 
   return (
-    <div
-      className={cn(
-        "relative min-w-0",
-        "motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300",
-        currentFlagged && "border-brand-secondary/40 ring-1 ring-brand-secondary/35"
-      )}
-    >
-      <div className="flex items-start gap-2.5 md:gap-3">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary text-body-xs font-bold text-primary-foreground shadow-xs md:size-8 md:text-body-sm">
-          {index + 1}
-        </span>
-        <div className="min-w-0 flex-1 text-foreground">
-          <InteractiveDocumentAttempt
-            value={
-              transport
-                ? null
-                : { courseId: visualCourseId, attemptId, questionId: q.id, field: "prompt" }
-            }
-          >
-            <MarkdownRenderer content={q.prompt} />
-          </InteractiveDocumentAttempt>
-        </div>
+    <div className="min-w-0 space-y-(--compact-gap)">
+      <div className="space-y-1.5">
+        {showFlagRow && (
+          <p className="text-body-xs font-semibold text-muted-foreground">
+            {t("quiz.questionNumber", { number: index + 1 })}
+          </p>
+        )}
+        <InteractiveDocumentAttempt
+          value={
+            transport
+              ? null
+              : { courseId: visualCourseId, attemptId, questionId: q.id, field: "prompt" }
+          }
+        >
+          <MarkdownRenderer content={q.prompt} />
+        </InteractiveDocumentAttempt>
       </div>
 
       {q.type === "short_answer" || q.type === "essay" ? (
-        <div className="mt-5 space-y-3">
-          <label className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="space-y-2">
+          <label htmlFor={writtenAnswerId} className="block text-body-sm font-medium">
             {q.type === "short_answer" ? t("quiz.shortAnswerLabel") : t("quiz.essayLabel")}
           </label>
           {q.type === "short_answer" ? (
             <ScientificInput
-              disabled={submitting || isSubmitted}
+              id={writtenAnswerId}
+              disabled={locked}
               value={answerText}
               onChange={(value) => setAnswerText(q.id, value)}
               placeholder={t("quiz.shortAnswerPlaceholder")}
             />
           ) : (
-            <div className="space-y-(--related-gap)">
+            <div className="space-y-3">
               <textarea
-                rows={6}
-                disabled={submitting || isSubmitted}
+                id={writtenAnswerId}
+                rows={4}
+                disabled={locked}
                 value={answerText}
                 onChange={(event) => setAnswerText(q.id, event.target.value, true)}
                 placeholder={t("quiz.essayPlaceholder")}
-                className="w-full rounded-lg border border-border bg-background p-3 font-sans text-body-base transition-all hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none"
+                className="block w-full resize-y rounded-md border border-border bg-background px-3 py-2 font-sans text-body-base"
               />
 
-              {transport && (
-                <p className="text-body-xs text-muted-foreground">
-                  Lampiran tidak tersedia di demo.
-                </p>
-              )}
-              <div className="space-y-2.5 pt-1">
-                <span className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t("quiz.attachmentLabel")}
-                </span>
-
-                {!essayAnswer?.fileName && !uploadingFile[q.id] ? (
-                  <div className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/10 p-(--group-gap) text-center transition-all hover:border-brand-primary/40 hover:bg-muted/20">
-                    <input
-                      type="file"
-                      accept=".pdf,image/*"
-                      disabled={submitting || isSubmitted || Boolean(transport)}
-                      onChange={(e) => handleFileChange(q.id, e)}
-                      className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                    />
-                    <UploadCloud className="mb-2 size-7 text-muted-foreground" />
-                    <p className="text-body-xs font-bold text-foreground">
-                      {t("quiz.dropFile")}
-                    </p>
-                    <p className="mt-0.5 text-body-xs text-muted-foreground">
-                      {t("quiz.fileTypes")}
-                    </p>
-                  </div>
-                ) : null}
-
-                {uploadingFile[q.id] && (uploadProgress[q.id] ?? 0) < 100 ? (
-                  <div className="animate-pulse space-y-2 rounded-xl border border-brand-secondary/35 bg-brand-secondary/5 p-3.5">
-                    <div className="flex justify-between text-body-xs font-semibold text-brand-secondary">
-                      <span className="max-w-[200px] truncate">
-                        {t("quiz.uploading", { fileName: uploadingFile[q.id] })}
-                      </span>
-                      <span>{uploadProgress[q.id]}%</span>
-                    </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-md bg-muted">
-                      <div
-                        className="h-full rounded-md bg-brand-secondary transition-all"
-                        style={{ width: `${uploadProgress[q.id]}%` }}
+              {!transport && (
+                <div>
+                  {!essayAnswer?.fileName && !uploadingFile[q.id] ? (
+                    <label className="relative flex items-center gap-2.5 rounded-md border border-dashed border-border px-3 py-2 has-[:enabled]:hover:bg-muted/40 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring">
+                      <input
+                        type="file"
+                        accept=".pdf,image/*"
+                        disabled={locked}
+                        onChange={(e) => handleFileChange(q.id, e)}
+                        className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
                       />
-                    </div>
-                    <p className="text-body-xs text-muted-foreground">
-                      {t("quiz.savingFile")}
-                    </p>
-                  </div>
-                ) : null}
-
-                {essayAnswer?.fileName && (
-                  <div className="flex items-center justify-between gap-3 rounded-xl border border-status-success/35 bg-status-success/5 p-3.5">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-status-success/15 text-status-success">
-                        <FileText className="size-5" />
+                      <UploadCloud className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                      <span className="min-w-0">
+                        <span className="block text-body-sm font-medium">{t("quiz.attachmentLabel")}</span>
+                        <span className="block text-body-xs text-muted-foreground">{t("quiz.fileTypes")}</span>
                       </span>
-                      <div className="min-w-0">
-                        <p className="max-w-[200px] truncate text-body-xs font-bold text-foreground md:max-w-xs">
-                          {essayAnswer.fileName}
-                        </p>
-                        <p className="text-body-2xs text-muted-foreground">
-                          {essayAnswer.fileSize || t("quiz.pdfImage")} · Cloudflare R2
-                        </p>
+                    </label>
+                  ) : null}
+
+                  {uploadingFile[q.id] ? (
+                    <div className="space-y-1.5 border-t border-border/60 pt-2" role="status">
+                      <div className="flex items-center justify-between gap-2 text-body-xs font-medium text-muted-foreground">
+                        <span className="min-w-0 truncate">
+                          {t("quiz.uploading", { fileName: uploadingFile[q.id] })}
+                        </span>
+                        <span className="shrink-0 tabular-nums">{uploadProgress[q.id] ?? 0}%</span>
+                      </div>
+                      <div className="h-1 w-full overflow-hidden rounded-md bg-muted">
+                        <div
+                          className="h-full rounded-md bg-foreground/75 transition-[width]"
+                          style={{ width: `${uploadProgress[q.id] ?? 0}%` }}
+                        />
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      disabled={submitting || isSubmitted}
-                      onClick={() => handleRemoveFile(q.id)}
-                      className="shrink-0 text-muted-foreground hover:bg-status-error/10 hover:text-status-error"
-                      title={t("quiz.removeAttachment")}
-                    >
-                      <Trash2 className="size-4" />
-                      <span className="sr-only">{t("quiz.removeAttachment")}</span>
-                    </Button>
-                  </div>
-                )}
-              </div>
+                  ) : null}
+
+                  {essayAnswer?.fileName && (
+                    <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                        <div className="min-w-0">
+                          <p className="truncate text-body-sm font-medium">
+                            {essayAnswer.fileName}
+                          </p>
+                          <p className="m-0 text-body-xs text-muted-foreground">
+                            {essayAnswer.fileSize || t("quiz.pdfImage")}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        disabled={locked}
+                        onClick={() => handleRemoveFile(q.id)}
+                        className="shrink-0 text-muted-foreground hover:bg-status-error/10 hover:text-status-error"
+                        title={t("quiz.removeAttachment")}
+                      >
+                        <Trash2 className="size-4" />
+                        <span className="sr-only">{t("quiz.removeAttachment")}</span>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
       ) : (
-        <div className="mt-5 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
-            <div className="flex items-center gap-2">
-              {isMultiple ? (
-                <>
-                  <span className="inline-flex items-center gap-1.5 rounded-md border border-brand-secondary/35 bg-brand-secondary/10 px-2 py-0.5 text-body-xs font-bold text-brand-secondary">
-                    <CheckSquare className="size-3.5" />
-                    {t("quiz.multipleChoice")}
-                  </span>
-                  <span className="text-body-xs font-medium text-muted-foreground">
-                    {t("quiz.chooseAllCorrect")}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-muted/40 px-2 py-0.5 text-body-xs font-medium text-muted-foreground">
-                    <CircleDot className="size-3.5" />
-                    {t("quiz.singleChoice")}
-                  </span>
-                  <span className="text-body-xs text-muted-foreground">
-                    {t("quiz.chooseOne")}
-                  </span>
-                </>
-              )}
-            </div>
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 text-body-xs text-muted-foreground">
+            <span>{isMultiple ? t("quiz.chooseAllCorrect") : t("quiz.chooseOne")}</span>
             {isMultiple && Array.isArray(ans) && ans.length > 0 ? (
               <span className="text-body-xs font-semibold text-brand-secondary">
                 {t("quiz.selectedCount", { count: ans.length })}
@@ -354,7 +303,7 @@ export function QuizQuestionBody({
             aria-label={
               isMultiple ? t("quiz.multipleAnswersAria") : t("quiz.singleAnswerAria")
             }
-            className="space-y-2"
+            className="divide-y divide-border/55 border-y border-border/55"
           >
             {q.options.map((opt, i) => {
               const selected = isMultiple
@@ -368,12 +317,13 @@ export function QuizQuestionBody({
                 <li key={i}>
                   <div
                     data-question-option
-                    className={quizOptionClasses(
-                      selected ? "selected" : "idle",
-                      "min-h-11 items-start py-3 font-normal"
+                    className={cn(
+                      "group flex min-h-11 items-start gap-2.5 py-2 pr-2 pl-1 transition-colors sm:px-2",
+                      selected ? "bg-muted/65" : !locked && "hover:bg-muted/35",
+                      !locked && "cursor-pointer"
                     )}
                     onClick={(event) => {
-                      if (submitting || isSubmitted) return;
+                      if (locked) return;
                       if (
                         !event.currentTarget.contains(event.target as Node) ||
                         (event.target as Element).closest(
@@ -390,35 +340,33 @@ export function QuizQuestionBody({
                       role={isMultiple ? "checkbox" : "radio"}
                       aria-checked={selected}
                       aria-labelledby={`quiz-letter-${q.id}-${i} quiz-option-${q.id}-${i}`}
-                      disabled={submitting || isSubmitted}
+                      disabled={locked}
                       onClick={(event) => {
                         event.stopPropagation();
                         selectOption(q.id, i, isMultiple);
                       }}
-                      className="flex shrink-0 items-center gap-2.5 self-start rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed md:gap-3"
+                      className="flex min-h-6 shrink-0 items-center gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed"
                     >
                       <span
                         aria-hidden="true"
                         className={quizOptionIndicatorClasses(
                           isMultiple ? "multiple" : "single",
-                          selected ? "selected" : "idle"
+                          selected ? "selected" : "idle",
+                          cn("md:size-4", isMultiple && "rounded-sm")
                         )}
                       >
                         {isMultiple ? (
                           selected ? (
-                            <Check className="size-3 stroke-[3] text-white md:size-3.5" />
+                            <Check className="size-3 stroke-[3] text-primary-foreground" />
                           ) : null
                         ) : selected ? (
-                          <span className="size-1.5 rounded-sm bg-white md:size-2" />
+                          <span className="size-1.5 rounded-full bg-primary-foreground" />
                         ) : null}
                       </span>
 
                       <span
                         id={`quiz-letter-${q.id}-${i}`}
-                        className={quizOptionLetterClasses(
-                          selected ? "selected" : "idle",
-                          "rounded-md"
-                        )}
+                        className={cn("w-4 text-center text-body-xs font-semibold", selected ? "text-foreground" : "text-muted-foreground")}
                       >
                         {String.fromCharCode(65 + i)}
                       </span>
@@ -440,7 +388,7 @@ export function QuizQuestionBody({
                               }
                         }
                       >
-                        <MarkdownRenderer content={opt} className="space-y-3" />
+                        <MarkdownRenderer content={opt} density="compact" />
                       </InteractiveDocumentAttempt>
                     </div>
                   </div>
@@ -452,7 +400,7 @@ export function QuizQuestionBody({
       )}
 
       {showFlagRow && (
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-2.5 border-t border-border/80 pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <label className="flex cursor-pointer select-none items-center gap-2">
             <input
               type="checkbox"
@@ -480,7 +428,6 @@ export function QuizQuestionBody({
           </label>
 
           <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
-            <AlertCircle className="size-3 text-brand-primary" />
             {t("quiz.autoSaved")}
           </span>
         </div>
@@ -510,106 +457,21 @@ export function QuizSubmitConfirmDialog({
   } = controller;
 
   return (
-    <Dialog
+    <AssessmentSubmitDialog
       open={showConfirmModal}
-      onOpenChange={(open) => {
-        if (!submitting) setShowConfirmModal(open);
-      }}
-    >
-      <DialogContent className="max-w-md rounded-2xl border border-border p-(--section-gap) text-left shadow-xl">
-        <DialogHeader>
-          <DialogTitle className="font-heading text-body-base font-bold text-foreground">
-            {t("quiz.confirmSubmitTitle")}
-          </DialogTitle>
-          <DialogDescription className="mt-1.5 text-body-xs text-muted-foreground">
-            {t("quiz.confirmSubmitDescription")}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-3">
-          <dl className="grid grid-cols-3 divide-x divide-border border-y border-border text-center">
-            <div className="min-w-0 px-2 py-2">
-              <dt className="break-words text-body-xs text-muted-foreground">
-                {t("quiz.totalQuestions")}
-              </dt>
-              <dd className="font-heading text-body-base font-bold tabular-nums">
-                {sorted.length}
-              </dd>
-            </div>
-            <div className="min-w-0 px-2 py-2">
-              <dt className="break-words text-body-xs text-muted-foreground">
-                {t("quiz.answered")}
-              </dt>
-              <dd className="font-heading text-body-base font-bold tabular-nums">
-                {answeredCount}
-              </dd>
-            </div>
-            <div className="min-w-0 px-2 py-2">
-              <dt className="break-words text-body-xs text-muted-foreground">
-                {t("quiz.empty")}
-              </dt>
-              <dd
-                className={cn(
-                  "font-heading text-body-base font-bold tabular-nums",
-                  unansweredCount > 0 && "text-status-error"
-                )}
-              >
-                {unansweredCount}
-              </dd>
-            </div>
-          </dl>
-
-          {flaggedCount > 0 && (
-            <div className="flex items-center gap-2 text-body-xs font-semibold text-brand-secondary">
-              <Flag className="size-4 shrink-0 fill-brand-secondary" />
-              <span>{t("quiz.flaggedCount", { count: flaggedCount })}</span>
-            </div>
-          )}
-
-          {unansweredCount > 0 && (
-            <div className="flex items-start gap-2 border-l-2 border-status-warning pl-2 text-body-xs text-foreground">
-              <AlertCircle className="mt-0.5 size-4 shrink-0" />
-              <span>{t("quiz.unansweredWarning", { count: unansweredCount })}</span>
-            </div>
-          )}
-
-          {timeLeft !== null && (
-            <div className="flex items-center justify-between gap-2 border-t border-border pt-2 text-body-xs text-muted-foreground">
-              <span>{t("quiz.remainingTime")}</span>
-              <span className="font-mono font-bold text-foreground">
-                {formatQuizTime(timeLeft)}
-              </span>
-            </div>
-          )}
-
-          <p className="text-body-xs text-muted-foreground">
-            {t("quiz.cannotEditAfterSubmit")}
-          </p>
-        </div>
-
-        <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={submitting}
-            onClick={() => setShowConfirmModal(false)}
-            className="w-full rounded-lg border-border sm:w-auto"
-          >
-            {t("quiz.reviewAgain")}
-          </Button>
-          <Button
-            type="button"
-            disabled={submitting}
-            isLoading={submitting}
-            onClick={() => {
-              handleSubmit(false);
-            }}
-            className="w-full rounded-lg bg-brand-primary font-bold text-primary-foreground hover:bg-brand-primary/90 sm:w-auto"
-          >
-            {t("quiz.confirmSubmit")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      onOpenChange={setShowConfirmModal}
+      submitting={submitting}
+      onSubmit={() => { void handleSubmit(false); }}
+      title={t("quiz.confirmSubmitTitle")}
+      description={t("quiz.cannotEditAfterSubmit")}
+      answeredLabel={t("quiz.answered")}
+      answeredCount={answeredCount}
+      totalQuestions={sorted.length}
+      unansweredWarning={unansweredCount > 0 ? t("quiz.unansweredWarning", { count: unansweredCount }) : undefined}
+      flaggedWarning={flaggedCount > 0 ? t("quiz.flaggedCount", { count: flaggedCount }) : undefined}
+      remainingTime={timeLeft === null ? undefined : { label: t("quiz.remainingTime"), value: formatQuizTime(timeLeft) }}
+      reviewLabel={t("quiz.reviewAgain")}
+      submitLabel={t("quiz.confirmSubmit")}
+    />
   );
 }

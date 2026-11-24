@@ -178,7 +178,7 @@ test("completed quiz remains in history and ranking while another draft is edite
     await page.getByRole("radio").first().click();
     if (index < 3) await page.getByRole("button", { name: /^Lanjut$/ }).click();
   }
-  await page.getByRole("button", { name: /^Kumpulkan kuis$/i }).click();
+  await page.getByRole("button", { name: /^Kirim jawaban$/i }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Ya, kumpulkan", exact: true }).click();
   await expect(page.getByText("Soal yang Anda Kerjakan", { exact: true })).toBeVisible();
   const result = await page.evaluate(() => Object.entries(localStorage).find(([key]) => key.startsWith("zyx-demo-quiz-result:v2:")));

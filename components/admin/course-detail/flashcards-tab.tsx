@@ -458,7 +458,7 @@ export function FlashcardsTab({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-(--related-gap)">
       {/* Grouped KPI Strip */}
       <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
         <AdminStatStripItem
@@ -576,26 +576,26 @@ export function FlashcardsTab({
           }
         />
       ) : (
-        <div className="divide-y divide-border border-y border-border">
+        <div className="divide-y divide-border/60 border-y border-border/60">
           {filteredSets.map((set) => {
             const isExpanded = expandedSets.has(set.id);
             return (
               <section key={set.id}>
-                <div className="flex items-center justify-between gap-2 px-3 py-2">
+                <div className="flex items-start justify-between gap-2 py-1">
                   <button
                     type="button"
                     onClick={() => toggleSetExpanded(set.id)}
                     aria-expanded={isExpanded}
-                    className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex min-h-11 min-w-0 flex-1 items-start gap-2 rounded-md py-2 text-left hover:bg-muted/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {isExpanded ? (
-                      <ChevronDown className="size-4 shrink-0" />
+                      <ChevronDown className="mt-0.5 size-4 shrink-0" aria-hidden />
                     ) : (
-                      <ChevronRight className="size-4 shrink-0" />
+                      <ChevronRight className="mt-0.5 size-4 shrink-0" aria-hidden />
                     )}
                     <span className="min-w-0">
                       <span className="flex flex-wrap items-center gap-2">
-                        <span className="min-w-0 break-words font-heading text-body-base font-bold text-foreground">
+                        <span className="min-w-0 wrap-anywhere font-heading text-body-sm font-bold text-foreground">
                           {set.title}
                         </span>
                         <StatusBadge
@@ -607,7 +607,7 @@ export function FlashcardsTab({
                               : "warning"
                           }
                         >
-                          {set.status}
+                          {t(`courseDetail.flashcards.status.${set.status}`)}
                         </StatusBadge>
                         {set.chapterTitle && (
                           <Badge variant="outline" className="min-w-0 whitespace-normal break-words text-body-xs">
@@ -653,7 +653,7 @@ export function FlashcardsTab({
 
                 {/* Cards Container */}
                 {isExpanded && (
-                  <div className="border-t border-border/60 px-4 py-3">
+                  <div className="ml-6 border-t border-border/60 py-(--compact-gap)">
                     {set.cards.length === 0 ? (
                       <AdminEmptyState
                         icon={Layers}
@@ -667,13 +667,13 @@ export function FlashcardsTab({
                         }
                       />
                     ) : (
-                      <div className="divide-y divide-border">
+                      <div className="divide-y divide-border/60">
                         {set.cards.map((card, idx) => (
                           <div
                             key={card.id}
-                            className="py-3 first:pt-0 last:pb-0 flex flex-col justify-between"
+                            className="py-(--row-padding) first:pt-0 last:pb-0"
                           >
-                            <div className="space-y-2.5">
+                            <div className="space-y-2">
                               <div className="flex items-center justify-between gap-2">
                                 <span className="text-body-2xs font-semibold text-muted-foreground">
                                   #{idx + 1}
@@ -688,7 +688,7 @@ export function FlashcardsTab({
                                         : "warning"
                                     }
                                   >
-                                    {card.status}
+                                    {t(`courseDetail.flashcards.status.${card.status}`)}
                                   </StatusBadge>
 
                                   <DropdownMenu>
@@ -721,8 +721,8 @@ export function FlashcardsTab({
                               </div>
 
                               {/* Front */}
-                              <div className="py-1">
-                                <span className="text-body-2xs font-semibold text-muted-foreground block mb-1">
+                              <div>
+                                <span className="mb-1 block text-body-xs font-semibold text-muted-foreground">
                                   Sisi depan (konsep atau pertanyaan)
                                 </span>
                                 <div className="text-body-sm font-medium text-foreground">
@@ -732,7 +732,7 @@ export function FlashcardsTab({
 
                               {/* Back */}
                               <div className="border-t border-border/50 pt-2">
-                                <span className="text-body-2xs font-semibold text-muted-foreground block mb-1">
+                                <span className="mb-1 block text-body-xs font-semibold text-muted-foreground">
                                   Sisi belakang (jawaban)
                                 </span>
                                 <div className="text-body-sm text-foreground">
@@ -774,10 +774,10 @@ export function FlashcardsTab({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          <div className="space-y-(--compact-gap)">
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.setTitle")}</Label>
-              <Input
+              <Label htmlFor="flashcard-set-title" className="text-body-sm font-semibold">{t("courseDetail.flashcards.setTitle")}</Label>
+              <Input id="flashcard-set-title"
                 placeholder={t("courseDetail.flashcards.setTitlePlaceholder")}
                 value={setTitle}
                 onChange={(e) => setSetTitle(e.target.value)}
@@ -786,9 +786,9 @@ export function FlashcardsTab({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.linkChapter")}</Label>
+              <Label htmlFor="flashcard-set-chapter" className="text-body-sm font-semibold">{t("courseDetail.flashcards.linkChapter")}</Label>
               <Select value={setChapterId} onValueChange={setSetChapterId}>
-                <SelectTrigger className="w-full text-body-sm rounded-lg">
+                <SelectTrigger id="flashcard-set-chapter" className="h-9 bg-muted/35">
                   <SelectValue placeholder={t("documents.selectChapter")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -803,12 +803,12 @@ export function FlashcardsTab({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.statusLabel")}</Label>
+              <Label htmlFor="flashcard-set-status" className="text-body-sm font-semibold">{t("courseDetail.flashcards.statusLabel")}</Label>
               <Select
                 value={setStatus}
                 onValueChange={(val) => setSetStatus(val as "draft" | "published")}
               >
-                <SelectTrigger className="w-full text-body-sm rounded-lg">
+                <SelectTrigger id="flashcard-set-status" className="h-9 bg-muted/35">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -819,7 +819,7 @@ export function FlashcardsTab({
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-row flex-wrap justify-end">
             <Button
               variant="outline"
               size="sm"
@@ -843,7 +843,7 @@ export function FlashcardsTab({
 
       {/* Card Modal */}
       <Dialog open={cardDialogOpen} onOpenChange={setCardDialogOpen}>
-        <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[560px] max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingCard ? t("courseDetail.flashcards.editCardTitle") : t("courseDetail.flashcards.addCardTitle")}
@@ -853,11 +853,11 @@ export function FlashcardsTab({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          <div className="space-y-(--compact-gap)">
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.setLabel")}</Label>
+              <Label htmlFor="flashcard-card-set" className="text-body-sm font-semibold">{t("courseDetail.flashcards.setLabel")}</Label>
               <Select value={targetSetId} onValueChange={setTargetSetId}>
-                <SelectTrigger className="w-full text-body-sm rounded-lg">
+                <SelectTrigger id="flashcard-card-set" className="h-9 bg-muted/35">
                   <SelectValue placeholder={t("courseDetail.flashcards.selectSet")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -871,8 +871,8 @@ export function FlashcardsTab({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.frontSide")}</Label>
-              <Textarea
+              <Label htmlFor="flashcard-card-front" className="text-body-sm font-semibold">{t("courseDetail.flashcards.frontSide")}</Label>
+              <Textarea id="flashcard-card-front"
                 placeholder={t("courseDetail.flashcards.frontPlaceholder")}
                 value={cardFront}
                 onChange={(e) => setCardFront(e.target.value)}
@@ -880,8 +880,8 @@ export function FlashcardsTab({
                 className="text-body-sm rounded-lg font-mono"
               />
               {cardFront.trim() && (
-                <div className="rounded-md bg-muted/40 p-2.5 border border-border/60 text-body-sm">
-                  <span className="text-body-2xs font-semibold text-muted-foreground block mb-1">
+                <div className="border-l-2 border-border/60 pl-3 text-body-sm">
+                  <span className="mb-1 block text-body-xs font-semibold text-muted-foreground">
                     {t("courseDetail.flashcards.frontPreview")}
                   </span>
                   <MathText>{cardFront}</MathText>
@@ -890,8 +890,8 @@ export function FlashcardsTab({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.backSide")}</Label>
-              <Textarea
+              <Label htmlFor="flashcard-card-back" className="text-body-sm font-semibold">{t("courseDetail.flashcards.backSide")}</Label>
+              <Textarea id="flashcard-card-back"
                 placeholder={t("courseDetail.flashcards.backPlaceholder")}
                 value={cardBack}
                 onChange={(e) => setCardBack(e.target.value)}
@@ -899,8 +899,8 @@ export function FlashcardsTab({
                 className="text-body-sm rounded-lg font-mono"
               />
               {cardBack.trim() && (
-                <div className="rounded-md bg-muted/40 p-2.5 border border-border/60 text-body-sm">
-                  <span className="text-body-2xs font-semibold text-muted-foreground block mb-1">
+                <div className="border-l-2 border-border/60 pl-3 text-body-sm">
+                  <span className="mb-1 block text-body-xs font-semibold text-muted-foreground">
                     {t("courseDetail.flashcards.backPreview")}
                   </span>
                   <MathText>{cardBack}</MathText>
@@ -909,8 +909,8 @@ export function FlashcardsTab({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.extraExplanation")}</Label>
-              <Textarea
+              <Label htmlFor="flashcard-card-explanation" className="text-body-sm font-semibold">{t("courseDetail.flashcards.extraExplanation")}</Label>
+              <Textarea id="flashcard-card-explanation"
                 placeholder={t("courseDetail.flashcards.explanationPlaceholder")}
                 value={cardExplanation}
                 onChange={(e) => setCardExplanation(e.target.value)}
@@ -920,14 +920,14 @@ export function FlashcardsTab({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold">{t("courseDetail.flashcards.statusLabel")}</Label>
+              <Label htmlFor="flashcard-card-status" className="text-body-sm font-semibold">{t("courseDetail.flashcards.statusLabel")}</Label>
               <Select
                 value={cardStatus}
                 onValueChange={(val) =>
                   setCardStatus(val as "draft" | "published" | "retired")
                 }
               >
-                <SelectTrigger className="w-full text-body-sm rounded-lg">
+                <SelectTrigger id="flashcard-card-status" className="h-9 bg-muted/35">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -939,7 +939,7 @@ export function FlashcardsTab({
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-row flex-wrap justify-end">
             <Button
               variant="outline"
               size="sm"

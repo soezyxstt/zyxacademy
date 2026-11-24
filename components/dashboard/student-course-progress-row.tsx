@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
 import { MathText } from "@/components/course/math-text";
 import { TranslatedText } from "@/components/i18n/translated-text";
 
@@ -17,7 +16,7 @@ export function StudentCourseProgressRow({ href, category, title, doneCount, tot
                                   <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20 shrink-0">
                                     {category}
                                   </span>
-                                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words min-w-0">
+                                  <h3 className="font-heading text-body-sm font-bold text-foreground break-words min-w-0">
                                     {title}
                                   </h3>
                                 </div>
@@ -37,17 +36,13 @@ export function StudentCourseProgressRow({ href, category, title, doneCount, tot
                                 {nextConcept && (
                                   <div className="mt-2 text-body-xs font-medium text-muted-foreground break-words min-w-0">
                                     <TranslatedText namespace="student" messageKey="dashboard.nextStep" />{" "}
-                                    <span className="text-brand-primary font-semibold group-hover:underline">
+                                    <span className="text-foreground font-medium group-hover:underline">
                                       <MathText as="span">{nextConcept}</MathText>
                                     </span>
                                   </div>
                                 )}
                               </div>
 
-                              {/* Interactive arrow indicator */}
-                              <div className="flex size-7 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground group-hover:text-brand-primary group-hover:border-brand-primary/30 transition-all shrink-0">
-                                <ArrowUpRight className="size-4" />
-                              </div>
                             </div>
                           </Link>
   );

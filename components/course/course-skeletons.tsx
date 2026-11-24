@@ -306,33 +306,53 @@ export function MaterialReaderContentSkeleton({
 }
 
 /**
- * Tailored skeleton for the Course Progress dynamic cards (`StudyStatisticsCard` + `RecentActivityCard`).
+ * Tailored skeleton for Course Progress statistics, activity, and analysis links.
  */
 export function CourseProgressContentSkeleton() {
   return (
-    <div data-testid="course-progress-content-skeleton" className="space-y-6">
+    <div data-testid="course-progress-content-skeleton" className="space-y-(--major-gap) md:space-y-10">
       <StudyStatisticsSkeleton />
-      <RecentActivitySkeleton />
+      <div className="grid min-w-0 gap-y-(--major-gap) lg:grid-cols-12 lg:gap-x-(--reading-section-gap)" aria-hidden="true">
+        <div className="min-w-0 lg:col-span-7">
+          <RecentActivitySkeleton />
+        </div>
+        <div className="min-w-0 lg:col-span-5">
+          <Skeleton className="mb-1 h-4 w-28" />
+          <div className="divide-y divide-border/30">
+            {[1, 2].map((row) => (
+              <div key={row} className="flex min-h-11 items-center gap-3 py-(--row-padding)">
+                <Skeleton className="size-4" />
+                <Skeleton className="h-4 w-36" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 /**
- * Tailored skeleton for the Course Mastery page (`ConceptGraphView` DAG + `ConceptMap` chapter tables).
+ * Tailored skeleton for the Course Mastery recommendation and chapter disclosures.
  */
 export function CourseMasteryContentSkeleton() {
   return (
-    <div data-testid="course-mastery-content-skeleton" className="space-y-3">
-      <Skeleton className="h-4 w-32" />
-      <Skeleton className="h-6 w-2/3 max-w-sm" />
-      <Skeleton className="h-4 w-48" />
-      <div className="divide-y border-y">
-        {[1, 2, 3].map(row => (
-          <div key={row} className="flex items-center justify-between gap-4 py-4">
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="h-3 w-16" />
-          </div>
-        ))}
+    <div data-testid="course-mastery-content-skeleton" className="space-y-(--major-gap) md:space-y-10" aria-hidden="true">
+      <div className="space-y-1">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-6 w-2/3 max-w-sm" />
+        <Skeleton className="h-4 w-48" />
+      </div>
+      <div>
+        <Skeleton className="mb-1 h-4 w-40" />
+        <div className="divide-y divide-border/30">
+          {[1, 2, 3].map((row) => (
+            <div key={row} className="flex min-h-11 items-center justify-between gap-4">
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

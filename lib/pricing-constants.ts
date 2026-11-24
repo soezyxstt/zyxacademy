@@ -283,6 +283,19 @@ export function getTutorFeeQuote(
   const beforeDiscount = componentQuote?.regularPrice ?? Math.ceil((afterDiscount * 100) / (100 - INTRO_DISCOUNT_PERCENT));
   const currentPlatform = componentQuote?.platformPrice ?? platformCost;
   const regularPlatform = settings ? regular.platform : platformCost;
+  let custom: TutorFeeQuoteTier | undefined;
+  if (customPackagePrice !== undefined) {
+    const customPlatform = Math.min(customPackagePrice, regularPlatform);
+    const discounted = settings
+      ? getComponentPriceQuote(customPlatform, customPackagePrice - customPlatform, settings, now)
+      : undefined;
+    custom = buildTutorFeeQuoteTier(
+      discounted?.price ?? customPackagePrice,
+      discounted?.platformPrice ?? customPlatform,
+      meetings,
+      persons,
+    );
+  }
 
   return {
     meetings,
@@ -291,10 +304,7 @@ export function getTutorFeeQuote(
     platformCost: currentPlatform,
     introductory: buildTutorFeeQuoteTier(afterDiscount, currentPlatform, meetings, persons),
     regular: buildTutorFeeQuoteTier(beforeDiscount, regularPlatform, meetings, persons),
-    custom:
-      customPackagePrice !== undefined
-        ? buildTutorFeeQuoteTier(customPackagePrice, currentPlatform, meetings, persons)
-        : undefined,
+    custom,
   };
 }
 

@@ -45,6 +45,8 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { AdminEmptyState } from "@/components/admin/state-panels";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { SearchBar } from "@/components/ui/search-bar";
 import {
   DropdownMenu,
@@ -228,7 +230,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
   };
 
   return (
-    <div className="@container/courses min-w-0 space-y-4">
+    <div className="@container/courses min-w-0 space-y-(--related-gap)">
       {/* Search, Filter, and View Controls */}
       <div className="flex flex-wrap items-center gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true]):not([data-active-filter])]:hidden">
         <SearchBar
@@ -294,13 +296,18 @@ export function CoursesDashboard({ initialCourses }: Props) {
         />
       ) : viewMode === "grid" ? (
         /* Grid View */
-        <div className="grid grid-cols-1 gap-x-4 divide-y divide-border border-y border-border @min-[32rem]/courses:grid-cols-2 @min-[32rem]/courses:divide-y-0 @min-[49rem]/courses:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-(--related-gap) divide-y divide-border/60 border-y border-border/60 @min-[32rem]/courses:grid-cols-2 @min-[32rem]/courses:divide-y-0 @min-[49rem]/courses:grid-cols-3">
           {filteredCourses.map((c) => (
             <div
               key={c.id}
-              className="flex min-w-0 items-start justify-between gap-2 py-3 @min-[32rem]/courses:border-b @min-[32rem]/courses:border-border"
+              className="flex min-w-0 items-start justify-between gap-2 py-(--row-padding) @min-[32rem]/courses:border-b @min-[32rem]/courses:border-border/60"
             >
               <div className="min-w-0 space-y-1">
+                <h3 className="wrap-break-word font-heading text-body-sm font-bold">
+                  <Link href={`/admin/courses/${c.id}`} className="text-foreground hover:underline">
+                    {c.title}
+                  </Link>
+                </h3>
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="min-w-0 break-words font-mono text-body-xs font-bold text-foreground">{c.id}</span>
                   <Badge variant="secondary" className="min-w-0 whitespace-normal break-words rounded-md px-1.5 py-0.5 text-body-xs font-medium">
@@ -308,11 +315,6 @@ export function CoursesDashboard({ initialCourses }: Props) {
                   </Badge>
                   <span className="text-body-xs text-muted-foreground">{pricingCategoryLabel(c.pricing)}</span>
                 </div>
-                <h3 className="break-words font-heading text-body-sm font-bold">
-                  <Link href={`/admin/courses/${c.id}`} className="text-foreground hover:text-primary">
-                    {c.title}
-                  </Link>
-                </h3>
                 <p className="text-body-xs text-muted-foreground">
                   {t("courses.chaptersWithCount", { count: c.chapterCount })} · {c.materialCount} PDF · {t("courses.quizzesWithCount", { count: c.quizCount })}
                 </p>
@@ -362,10 +364,13 @@ export function CoursesDashboard({ initialCourses }: Props) {
       ) : (
         /* Table View (vertical list on mobile, full table on md+) */
         <>
-          <div className="md:hidden divide-y divide-border border-y border-border">
+          <div className="divide-y divide-border/60 border-y border-border/60 md:hidden">
             {filteredCourses.map((c) => (
-              <div key={c.id} className="flex items-start justify-between gap-3 px-3.5 py-3">
+              <div key={c.id} className="flex items-start justify-between gap-3 py-(--row-padding)">
                 <div className="min-w-0 flex-1 space-y-1">
+                  <Link href={`/admin/courses/${c.id}`} className="block wrap-break-word font-heading text-body-sm font-bold text-foreground hover:underline">
+                    {c.title}
+                  </Link>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="font-mono text-body-xs font-bold text-foreground">{c.id}</span>
                     <Badge variant="secondary" className="rounded-md text-body-2xs font-medium px-1.5 py-0.5">
@@ -373,9 +378,6 @@ export function CoursesDashboard({ initialCourses }: Props) {
                     </Badge>
                     <span className="text-body-xs text-muted-foreground">{pricingCategoryLabel(c.pricing)}</span>
                   </div>
-                  <Link href={`/admin/courses/${c.id}`} className="block font-heading text-body-sm font-bold text-foreground hover:text-primary break-words">
-                    {c.title}
-                  </Link>
                   <p className="text-body-xs text-muted-foreground">
                     {t("courses.chaptersWithCount", { count: c.chapterCount })} · {c.materialCount} PDF · {t("courses.quizzesWithCount", { count: c.quizCount })}
                   </p>
@@ -383,9 +385,9 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
-                      size="icon"
+                      size="icon-sm"
                       variant="ghost"
-                      className="size-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+                      className="shrink-0 text-muted-foreground hover:text-foreground"
                       aria-label={t("courses.actions")}
                     >
                       <MoreHorizontal className="size-4" />
@@ -416,9 +418,9 @@ export function CoursesDashboard({ initialCourses }: Props) {
             ))}
           </div>
 
-          <div className="hidden overflow-x-auto border-y border-border md:block">
+          <AdminTable className="hidden md:block">
             <table className="w-full text-left text-body-xs">
-            <thead className="bg-muted text-body-xs font-semibold text-muted-foreground">
+            <AdminTableHead>
               <tr>
                 <th className="px-3.5 py-2.5">ID</th>
                 <th className="px-3.5 py-2.5">{t("courses.name")}</th>
@@ -428,7 +430,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 <th className="px-3.5 py-2.5 text-center">{t("courses.quizCount")}</th>
                 <th className="px-3.5 py-2.5 text-right">{t("courses.actions")}</th>
               </tr>
-            </thead>
+            </AdminTableHead>
             <tbody className="divide-y divide-border/60">
               {filteredCourses.map((c) => (
                 <tr key={c.id} className="hover:bg-muted/20 transition-colors">
@@ -493,7 +495,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
               ))}
             </tbody>
           </table>
-          </div>
+          </AdminTable>
         </>
       )}
 
@@ -502,13 +504,13 @@ export function CoursesDashboard({ initialCourses }: Props) {
         <DialogContent className="max-w-md" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>{t("courses.addTitle")}</DialogTitle>
-
           </DialogHeader>
 
-          <form onSubmit={handleCreateCourse} className="space-y-4 py-2">
+          <form onSubmit={handleCreateCourse} className="space-y-(--compact-gap)">
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">{t("courses.idLabel")}</Label>
+              <Label htmlFor="course-new-id" className="text-body-sm font-semibold text-foreground">{t("courses.idLabel")}</Label>
               <Input
+                id="course-new-id"
                 placeholder={t("courses.idPlaceholder")}
                 value={newId}
                 onChange={(e) => setNewId(e.target.value)}
@@ -521,8 +523,9 @@ export function CoursesDashboard({ initialCourses }: Props) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">{t("courses.name")}</Label>
+              <Label htmlFor="course-new-title" className="text-body-sm font-semibold text-foreground">{t("courses.name")}</Label>
               <Input
+                id="course-new-title"
                 placeholder={t("courses.namePlaceholder")}
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
@@ -532,9 +535,9 @@ export function CoursesDashboard({ initialCourses }: Props) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">{t("courses.category")}</Label>
+              <Label htmlFor="course-new-category" className="text-body-sm font-semibold text-foreground">{t("courses.category")}</Label>
               <Select value={newCategory} onValueChange={setNewCategory} disabled={createLoading}>
-                <SelectTrigger className="rounded-lg">
+                <SelectTrigger id="course-new-category" className="h-9 bg-muted/35">
                   <SelectValue placeholder={t("courses.categoryPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -549,8 +552,9 @@ export function CoursesDashboard({ initialCourses }: Props) {
 
             <CoursePricingFields id="create" value={newPricing} onChange={setNewPricing} disabled={createLoading} />
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">{t("courses.descriptionOptional")}</Label>
+              <Label htmlFor="course-new-description" className="text-body-sm font-semibold text-foreground">{t("courses.descriptionOptional")}</Label>
               <Textarea
+                id="course-new-description"
                 rows={3}
                 placeholder={t("courses.descriptionPlaceholder")}
                 value={newDescription}
@@ -560,15 +564,15 @@ export function CoursesDashboard({ initialCourses }: Props) {
               />
             </div>
 
-            <DialogFooter className="pt-2">
+            <DialogFooter className="flex-row flex-wrap justify-end pt-2">
               <DialogClose asChild>
-                <Button variant="outline" size="sm" disabled={createLoading} className="rounded-lg">
+                <Button variant="ghost" size="lg" disabled={createLoading} className="rounded-lg">
                   {t("common.cancel")}
                 </Button>
               </DialogClose>
               <Button
                 type="submit"
-                size="sm"
+                size="lg"
                 disabled={createLoading || !newId.trim() || !newTitle.trim() || !newCategory}
                 isLoading={createLoading}
                 className="rounded-lg"
@@ -590,10 +594,11 @@ export function CoursesDashboard({ initialCourses }: Props) {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSaveEdit} className="space-y-4 py-2">
+          <form onSubmit={handleSaveEdit} className="space-y-(--compact-gap)">
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">{t("courses.name")}</Label>
+              <Label htmlFor="course-edit-title" className="text-body-sm font-semibold text-foreground">{t("courses.name")}</Label>
               <Input
+                id="course-edit-title"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
                 disabled={editLoading}
@@ -602,9 +607,9 @@ export function CoursesDashboard({ initialCourses }: Props) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">{t("courses.category")}</Label>
+              <Label htmlFor="course-edit-category" className="text-body-sm font-semibold text-foreground">{t("courses.category")}</Label>
               <Select value={editCategory} onValueChange={setEditCategory} disabled={editLoading}>
-                <SelectTrigger className="rounded-lg">
+                <SelectTrigger id="course-edit-category" className="h-9 bg-muted/35">
                   <SelectValue placeholder={t("courses.categoryPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -619,8 +624,9 @@ export function CoursesDashboard({ initialCourses }: Props) {
 
             <CoursePricingFields id="edit" value={editPricing} onChange={setEditPricing} disabled={editLoading} />
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">{t("courses.descriptionOptional")}</Label>
+              <Label htmlFor="course-edit-description" className="text-body-sm font-semibold text-foreground">{t("courses.descriptionOptional")}</Label>
               <Textarea
+                id="course-edit-description"
                 rows={3}
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
@@ -629,15 +635,15 @@ export function CoursesDashboard({ initialCourses }: Props) {
               />
             </div>
 
-            <DialogFooter className="pt-2">
+            <DialogFooter className="flex-row flex-wrap justify-end pt-2">
               <DialogClose asChild>
-                <Button variant="outline" size="sm" disabled={editLoading} className="rounded-lg">
+                <Button variant="ghost" size="lg" disabled={editLoading} className="rounded-lg">
                   {t("common.cancel")}
                 </Button>
               </DialogClose>
               <Button
                 type="submit"
-                size="sm"
+                size="lg"
                 disabled={editLoading || !editTitle.trim() || !editCategory}
                 isLoading={editLoading}
                 className="rounded-lg"
@@ -649,43 +655,22 @@ export function CoursesDashboard({ initialCourses }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Course Dialog */}
-      <Dialog
+      <AdminConfirmDialog
         open={!!deletingCourse}
         onOpenChange={(open) => {
           if (!deleteLoading && !open) setDeletingCourse(null);
         }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("courses.deleteTitle")}</DialogTitle>
-            <DialogDescription>
-              {t.rich("courses.deleteDescription", {
-                title: deletingCourse?.title ?? "",
-                id: deletingCourse?.id ?? "",
-                strong: (chunks) => <strong>{chunks}</strong>,
-              })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" size="sm" disabled={deleteLoading} className="rounded-lg">
-                {t("common.cancel")}
-              </Button>
-            </DialogClose>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDeleteConfirm}
-              disabled={deleteLoading}
-              isLoading={deleteLoading}
-              className="rounded-lg"
-            >
-              {t("courses.delete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title={t("courses.deleteTitle")}
+        description={t.rich("courses.deleteDescription", {
+          title: deletingCourse?.title ?? "",
+          id: deletingCourse?.id ?? "",
+          strong: (chunks) => <strong>{chunks}</strong>,
+        })}
+        confirmLabel={t("courses.delete")}
+        cancelLabel={t("common.cancel")}
+        loading={deleteLoading}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }

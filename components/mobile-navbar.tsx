@@ -110,7 +110,7 @@ export function getRouteTitle(
     return t("course", "Kelas");
   }
   if (pathname.startsWith("/leaderboard")) return t("leaderboard", "Papan Peringkat");
-  if (pathname.startsWith("/calendar")) return t("calendar", "Kalender");
+  if (pathname.startsWith("/calendar")) return t("calendar", "Agenda");
   if (pathname.startsWith("/feedback")) return t("feedback", "Umpan Balik");
   if (pathname.startsWith("/profile")) return t("profile", "Profil");
   if (pathname === "/settings") return t("preferences", "Preferensi");

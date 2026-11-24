@@ -39,7 +39,7 @@ import { StudentDashboardMobile } from "@/features/student-dashboard/ui/mobile/s
 import type { StudentDashboardDataProps } from "@/features/student-dashboard/model/types";
 import { StudentProfileMobile } from "@/features/student-profile/ui/mobile/student-profile-mobile";
 import { StudentScheduleMobile } from "@/features/student-schedule/ui/mobile/student-schedule-mobile";
-import { TutorDashboardMobile } from "@/features/tutor-dashboard/ui/mobile/tutor-dashboard-mobile";
+import { TutorDashboardContent } from "@/features/tutor-dashboard/ui/tutor-dashboard-content";
 import type { TutorDashboardViewProps } from "@/features/tutor-dashboard/model/types";
 import { TutorScheduleMobile } from "@/features/tutor-schedule/ui/mobile/tutor-schedule-mobile";
 import { TryoutGradingMobile } from "@/features/grading/ui/mobile/tryout-grading-mobile";
@@ -1383,7 +1383,7 @@ export function MobileUiPreviewFixtureClient({ view }: { view: MobilePreviewView
           >
             <MobileTopTitleOverride title="Beranda Tutor" />
             <ApplicationPage maxWidth="7xl">
-              <TutorDashboardMobile {...TUTOR_DASHBOARD_FIXTURE} />
+              <TutorDashboardContent {...TUTOR_DASHBOARD_FIXTURE} />
             </ApplicationPage>
           </ApplicationShell>
         </StudentExperienceProvider>

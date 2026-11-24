@@ -106,5 +106,11 @@ export function StudentMobileBottomNav() {
     return null;
   }
 
-  return <MobileBottomNav items={items} ariaLabel={t("bottomNavLabel")} />;
+  return (
+    <MobileBottomNav
+      items={items}
+      ariaLabel={t("bottomNavLabel")}
+      activeTone="neutral"
+    />
+  );
 }

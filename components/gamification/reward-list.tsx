@@ -48,7 +48,7 @@ export function RewardList({ rewards, balance, appearance, onChangeReward, petHr
     </div>
     {error && <p role="alert" className="text-body-sm text-destructive">{t("achievementPage.error")}</p>}
     {success && <p role="status" className="text-body-sm">{t("achievementPage.success")}</p>}
-    {rewards.length === 0 ? <AdminEmptyState icon={Inbox} title={t("achievementPage.noRewards")} /> : <div className="divide-y divide-border">
+    {rewards.length === 0 ? <AdminEmptyState icon={Inbox} title={t("achievementPage.noRewards")} /> : <div className="divide-y divide-border/25">
       {slots.map(slot => {
         const items = rewards.filter(item => item.slot === slot && (item.slot !== "zyra_avatar" || item.id.startsWith("zyra-avatar-studio-")));
         if (!items.length) return null;
@@ -56,7 +56,7 @@ export function RewardList({ rewards, balance, appearance, onChangeReward, petHr
           <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left text-body-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
             {t(slot === "pet_action" ? "petStudio.pet_action" : `achievementPage.rewardGroups.${slot}`)}<ChevronDown className="size-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden />
           </CollapsibleTrigger>
-          <CollapsibleContent><ul className="divide-y divide-border border-t">{items.map(item => <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <CollapsibleContent><ul className="divide-y divide-border/25 border-t border-border/25">{items.map(item => <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
             {accessory(item) ? <span className="min-w-0 flex-1 break-words text-body-sm">{name(item)} · {number.format(item.priceLp)} LP{insufficientBalance(item)}</span> : <button type="button" onClick={event => { previewTrigger.current = event.currentTarget; setSelected(item); }} className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring" aria-label={t("achievementPage.previewItem", { name: name(item) })}>
               <div className="shrink-0"><CosmeticPreview item={{ ...item, name: name(item) }} appearance={displayAppearance} /></div>
               <span className="min-w-0"><span className="block break-words text-body-sm font-semibold">{name(item)}</span><span className="block text-body-xs text-muted-foreground">{number.format(item.priceLp)} LP{item.owned && !item.equipped ? ` · ${t("achievementPage.owned")}` : ""}</span>{insufficientBalance(item)}</span>

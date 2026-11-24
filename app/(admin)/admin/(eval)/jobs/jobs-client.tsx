@@ -161,10 +161,11 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
 
  return (
  <div>
- <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+ <div className="mb-(--compact-gap) flex flex-wrap items-center justify-between gap-2">
  <p className="text-body-sm text-muted-foreground">{localJobs.length} {t("latest")}</p>
  <Button
- className="rounded-lg gap-2"
+ className="min-h-9"
+ aria-expanded={showForm}
  onClick={() => setShowForm((v) => !v)}
  variant={showForm ? "outline" : "default"}
  >
@@ -176,20 +177,20 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  {showForm && (
  <form
  onSubmit={handleCreate}
- className="mb-4 space-y-3 border-y border-border py-3"
+ className="mb-(--related-gap) space-y-(--compact-gap) border-y border-border/60 py-(--row-padding)"
  >
   <AdminSectionTitle size="h6" icon={Zap} iconClassName="text-status-warning" title={t("questionGeneration")} />
 
   <div className="grid gap-4 sm:grid-cols-2">
   <div>
-  <label className="text-body-sm font-medium text-foreground mb-1 block">{t("course")}</label>
+  <label htmlFor="generation-course" className="mb-1 block text-body-sm font-semibold text-foreground">{t("course")}</label>
   <Select
     value={form.courseId}
     onValueChange={(courseId) => {
       setForm({ courseId, chapterId: "", koId: "all" });
     }}
   >
-    <SelectTrigger className="w-full">
+    <SelectTrigger id="generation-course">
       <SelectValue placeholder={t("selectCourse")} />
     </SelectTrigger>
     <SelectContent>
@@ -203,7 +204,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
   </div>
 
   <div>
-  <label className="text-body-sm font-medium text-foreground mb-1 block">{t("chapter")}</label>
+  <label htmlFor="generation-chapter" className="mb-1 block text-body-sm font-semibold text-foreground">{t("chapter")}</label>
   <Select
     value={form.chapterId}
     onValueChange={(chapterId) => {
@@ -211,7 +212,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
     }}
     disabled={!form.courseId}
   >
-    <SelectTrigger className="w-full">
+    <SelectTrigger id="generation-chapter">
       <SelectValue placeholder={t("selectChapter")} />
     </SelectTrigger>
     <SelectContent>
@@ -226,13 +227,13 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
   </div>
 
   <div>
-  <label className="text-body-sm font-medium text-foreground mb-1 block">{t("knowledgeObject")}</label>
+  <label htmlFor="generation-ko" className="mb-1 block text-body-sm font-semibold text-foreground">{t("knowledgeObject")}</label>
   <Select
     value={form.koId}
     onValueChange={(koId) => setForm((f) => ({ ...f, koId }))}
     disabled={!form.chapterId}
   >
-    <SelectTrigger className="w-full">
+    <SelectTrigger id="generation-ko">
       <SelectValue placeholder={t("allKnowledgeObjects")} />
     </SelectTrigger>
     <SelectContent>

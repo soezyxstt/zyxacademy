@@ -116,7 +116,7 @@ export function DiscussionChannelPicker({ value, label, placeholder, onChange, o
     <PopoverTrigger asChild>
       <Button
         type="button"
-        variant={allowAll ? "ghost" : "outline"}
+        variant="ghost"
         role="combobox"
         aria-label={label}
         aria-expanded={open}
@@ -125,7 +125,7 @@ export function DiscussionChannelPicker({ value, label, placeholder, onChange, o
           singleLine
             ? "h-9 w-full min-w-0 py-0 text-left [&>span]:justify-between"
             : "h-auto min-h-9 w-full min-w-0 whitespace-normal py-1 text-left [&>span]:justify-between",
-          allowAll && "px-2 data-[state=open]:bg-muted",
+          "px-2 data-[state=open]:bg-muted",
           triggerClassName
         )}
       >

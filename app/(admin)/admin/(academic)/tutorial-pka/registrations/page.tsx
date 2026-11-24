@@ -20,7 +20,7 @@ export default async function TutorialPkaRegistrationsPage() {
   const registrations = await getPkaRegistrationsAction();
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-(--related-gap)">
       <AdminPageHeader
         icon={UserCheck}
         title={<TranslatedText namespace="adminOps" messageKey="pka.registrations" />}
@@ -33,9 +33,7 @@ export default async function TutorialPkaRegistrationsPage() {
         ]}
       />
 
-      <div>
-        <RegistrationsTab registrations={registrations} />
-      </div>
+      <RegistrationsTab registrations={registrations} />
     </div>
   );
 }

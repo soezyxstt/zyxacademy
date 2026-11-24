@@ -1,45 +1,65 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useId, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import {
+  BarChart3,
+  ChevronDown,
+  ChevronRight,
+  ClipboardCheck,
+  ScanSearch,
+  Target,
+  Users,
+  RefreshCw,
+  TrendingDown,
+  TrendingUp,
+  Minus,
+} from "lucide-react";
+import { toast } from "sonner";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { AdminEmptyState } from "@/components/admin/state-panels";
-import { BarChart3, RefreshCw } from "lucide-react";
-import { LineChart, Line } from "recharts";
+import { MathText } from "@/components/course/math-text";
+import { useMobilePageActions } from "@/components/navigation/mobile-chrome-context";
+import { MobileTopNavActionButton } from "@/components/navigation/mobile-top-navbar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Reveal } from "@/components/ui/reveal";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DistributionBar } from "@/components/tutor/distribution-bar";
 import { ConceptRanking } from "@/components/tutor/concept-ranking";
 import { WatchlistTable } from "@/components/tutor/watchlist-table";
 import { ConceptDrilldown } from "@/components/tutor/concept-drilldown";
 import type { SnapshotPayload, WeakConcept } from "@/lib/cohort-analytics";
 
-function relativeTime(date: Date | null, locale: string, justNow: string): string {
-  if (!date) return "";
-  const diffMs = Date.now() - date.getTime();
-  const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-  if (diffH < 1) return justNow;
-  return new Intl.RelativeTimeFormat(locale === "id" ? "id-ID" : "en-US", { numeric: "auto" }).format(-diffH, "hour");
+function relativeTime(date: Date, locale: string, justNow: string): string {
+  const hours = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60));
+  if (hours < 1) return justNow;
+  return new Intl.RelativeTimeFormat(locale === "id" ? "id-ID" : "en-US", { numeric: "auto" }).format(-hours, "hour");
 }
 
 interface Props {
   courseId: string;
   analytics: SnapshotPayload;
-  updatedAt: string | null; // ISO string from server
+  updatedAt: string | null;
 }
+
+const sectionTitle = "flex min-w-0 items-center gap-2 font-heading text-body-base font-bold text-foreground";
+const headingIcon = "size-4 shrink-0 text-muted-foreground";
+const metadata = "text-body-xs tabular-nums text-muted-foreground";
 
 export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
   const router = useRouter();
   const t = useTranslations("tutor.analytics");
+  const routeT = useTranslations("tutor.routeTitles");
   const { locale } = useAppLocale();
   const [isPending, startTransition] = useTransition();
   const [drillConcept, setDrillConcept] = useState<WeakConcept | null>(null);
+  const conceptLabelPrefix = useId();
+  const drillTrigger = useRef<HTMLButtonElement | null>(null);
+  const refreshLabel = t("refresh");
+  const refreshFailed = t("refreshFailed");
 
-  const updatedDate = updatedAt ? new Date(updatedAt) : null;
-
-  function handleRefresh() {
+  const handleRefresh = useCallback(() => {
     startTransition(async () => {
       try {
         const response = await fetch(`/api/tutor/analytics/refresh?courseId=${encodeURIComponent(courseId)}`, {
@@ -48,179 +68,197 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
         if (!response.ok) throw new Error("Refresh failed");
         startTransition(() => { router.refresh(); });
       } catch {
-        toast.error(t("refreshFailed"));
+        toast.error(refreshFailed);
       }
     });
-  }
+  }, [courseId, refreshFailed, router]);
 
-  function openDrill(concept: WeakConcept) {
-    setDrillConcept(concept);
-  }
+  const refreshAction = useMemo(() => (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <MobileTopNavActionButton label={refreshLabel} aria-busy={isPending} disabled={isPending} onClick={handleRefresh}>
+            <RefreshCw className={isPending ? "animate-spin motion-reduce:animate-none" : undefined} aria-hidden />
+          </MobileTopNavActionButton>
+        </TooltipTrigger>
+        <TooltipContent>{refreshLabel}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  ), [handleRefresh, isPending, refreshLabel]);
+  const refreshInNavbar = useMobilePageActions(refreshAction);
 
-  const drillTrends = drillConcept
-    ? (analytics.conceptTrends[drillConcept.conceptName] ?? [])
-    : [];
-  const drillMissed = drillConcept
-    ? (analytics.mostMissed[drillConcept.conceptName] ?? [])
-    : [];
+  const priorityNames = new Set(analytics.weakConcepts.map((concept) => concept.conceptName));
+  const otherConcepts = analytics.allConcepts.filter((concept) => !priorityNames.has(concept.conceptName));
+  const drillTrends = drillConcept ? (analytics.conceptTrends[drillConcept.conceptName] ?? []) : [];
+  const drillMissed = drillConcept ? (analytics.mostMissed[drillConcept.conceptName] ?? []) : [];
+  const headlineMetrics = [
+    { label: routeT("enrolled"), value: analytics.enrolledCount },
+    { label: routeT("activeThisWeek"), value: analytics.activeCount },
+    ...(analytics.engagement.quizParticipationPct > 0
+      ? [{ label: routeT("quizParticipation"), value: `${analytics.engagement.quizParticipationPct}%` }]
+      : []),
+  ];
 
   return (
-    <>
-      {/* Header meta row */}
-      <div className="flex items-center gap-(--compact-gap) flex-wrap">
-        <span className="text-body-sm text-muted-foreground">
-          {updatedDate ? t("updated", { relative: relativeTime(updatedDate, locale, t("justNow")) }) : t("notCalculated")}
-        </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isPending}
-          className="gap-1.5 h-7 px-2"
-        >
-          <RefreshCw className={`size-3.5 ${isPending ? "animate-spin" : ""}`} aria-hidden />
-          {t("refresh")}
-        </Button>
+    <div className="space-y-(--section-gap)">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-(--related-gap) gap-y-2">
+        <dl className="flex min-w-0 flex-wrap items-baseline gap-x-(--related-gap) gap-y-1">
+          {headlineMetrics.map(({ label, value }) => (
+            <div key={label} className="flex flex-wrap items-baseline gap-x-1.5">
+              <dt className={metadata}>{label}</dt>
+              <dd className="text-body-sm font-semibold tabular-nums text-foreground">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className={metadata} aria-live="polite">
+            {updatedAt ? (
+              <time dateTime={updatedAt}>{t("updated", { relative: relativeTime(new Date(updatedAt), locale, t("justNow")) })}</time>
+            ) : t("notCalculated")}
+          </span>
+          {!refreshInNavbar && refreshAction}
+        </div>
       </div>
 
-      {/* Section 2: Weakest concepts with sparklines */}
       <Reveal>
-        <section className="border-t border-border pt-4" aria-labelledby="weak-heading">
-          <h2 id="weak-heading" className="font-heading text-body-base font-bold mb-3">
-            {t("priorityConcepts")}
-          </h2>
-          {analytics.weakConcepts.length === 0 ? (
-            <AdminEmptyState icon={BarChart3} title={t("noQuizResults")} className="py-6" />
-          ) : (
-            <div className="divide-y divide-border">
-              {analytics.weakConcepts.map((concept, index) => {
-                const trendData = analytics.conceptTrends[concept.conceptName] ?? [];
-                return (
-                  <button
-                    key={concept.conceptName}
-                    onClick={() => openDrill(concept)}
-                    className="w-full py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_5rem_8rem] items-center gap-2 sm:gap-(--related-gap) text-left hover:bg-muted/40 rounded-md px-1 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-                  >
-                    <span className="text-h6 font-heading text-muted-foreground tabular-nums">
-                      {index + 1}
-                    </span>
+        <div className="grid items-start gap-y-(--major-gap) xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:gap-x-10">
+          <section className="min-w-0 space-y-2 xl:row-span-3" aria-labelledby="weak-heading">
+            <h2 id="weak-heading" className={sectionTitle}>
+              <Target className={headingIcon} aria-hidden />
+              {t("priorityConcepts")}
+            </h2>
+            {analytics.weakConcepts.length === 0 ? (
+              <AdminEmptyState icon={BarChart3} title={t("noQuizResults")} className="py-(--related-gap)" />
+            ) : (
+              <ul className="divide-y divide-border/30">
+                {analytics.weakConcepts.map((concept, index) => {
+                  const trends = analytics.conceptTrends[concept.conceptName] ?? [];
+                  const first = trends[0];
+                  const last = trends.at(-1);
+                  const change = first && last && trends.length > 1 ? last.avgMastery - first.avgMastery : null;
+                  const TrendIcon = change === null ? null : change > 0 ? TrendingUp : change < 0 ? TrendingDown : Minus;
+                  const labelId = `${conceptLabelPrefix}-${index}`;
+                  return (
+                    <li key={concept.conceptName} className="grid min-h-11 min-w-0 grid-cols-[minmax(0,1fr)_3.5rem_auto] items-center gap-x-2 py-(--row-padding)">
+                      <div className="min-w-0">
+                        <div id={labelId} className="wrap-anywhere text-body-sm font-medium text-foreground">
+                          <MathText>{concept.conceptName}</MathText>
+                        </div>
+                        <span className={metadata}>{t("students", { count: concept.studentCount })}</span>
+                      </div>
+                      <div className="space-y-1 tabular-nums text-foreground">
+                        <span className="flex items-center justify-end gap-1.5 text-body-sm">
+                          <span className="sr-only">{t("averageMastery")}: </span>{concept.avgMastery}
+                          {TrendIcon && change !== null && (
+                            <>
+                              <TrendIcon className={change > 0 ? "size-4 text-status-success" : change < 0 ? "size-4 text-status-warning" : "size-4 text-muted-foreground"} aria-hidden />
+                              <span className="sr-only">
+                                {change > 0 ? t("trendIncreasing") : change < 0 ? t("trendDecreasing") : t("trendStable")}
+                              </span>
+                            </>
+                          )}
+                        </span>
+                        <DistributionBar low={concept.bucketLow} mid={concept.bucketMid} high={concept.bucketHigh} total={concept.studentCount} className="w-full" />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-lg"
+                        aria-haspopup="dialog"
+                        aria-labelledby={`${labelId}-action ${labelId}`}
+                        onClick={(event) => {
+                          drillTrigger.current = event.currentTarget;
+                          setDrillConcept(concept);
+                        }}
+                      >
+                        <span id={`${labelId}-action`} className="sr-only">{t("viewConcept")}</span>
+                        <ChevronRight className="text-muted-foreground" aria-hidden />
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {otherConcepts.length > 0 && (
+              <Collapsible className="border-t border-border/30">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="group h-auto min-h-11 w-full justify-between whitespace-normal px-0 text-left">
+                    {t("moreConcepts", { count: otherConcepts.length })}
+                    <ChevronDown className="size-4 shrink-0 text-muted-foreground group-data-[state=open]:rotate-180" aria-hidden />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <ConceptRanking concepts={otherConcepts} />
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </section>
+
+          <section className="min-w-0 space-y-2 xl:col-start-2" aria-labelledby="watchlist-heading">
+            <h2 id="watchlist-heading" className={sectionTitle}>
+              <Users className={headingIcon} aria-hidden />
+              {t("needsAttention")}
+            </h2>
+            <WatchlistTable students={analytics.watchlist} />
+          </section>
+
+          <section className="min-w-0 space-y-2 xl:col-start-2" aria-labelledby="misconceptions-heading">
+            <h2 id="misconceptions-heading" className={sectionTitle}>
+              <ScanSearch className={headingIcon} aria-hidden />
+              {t("commonMisconceptions")}
+            </h2>
+            {analytics.topMisconceptions.length === 0 ? (
+              <AdminEmptyState icon={BarChart3} title={t("noMisconceptions")} className="py-(--related-gap)" />
+            ) : (
+              <ul className="divide-y divide-border/30">
+                {analytics.topMisconceptions.slice(0, 10).map((item) => (
+                  <li key={item.misconceptionKoId} className="flex items-start justify-between gap-(--compact-gap) py-(--row-padding)">
                     <div className="min-w-0">
-                      <p className="text-body-sm font-medium break-words">{concept.conceptName}</p>
-                      <p className="text-body-xs text-muted-foreground">{t("students", { count: concept.studentCount })}</p>
+                      <MathText className="block wrap-anywhere text-body-sm font-medium text-foreground" as="span">{item.label}</MathText>
+                      <span className={`block wrap-anywhere ${metadata}`}>
+                        <MathText as="span">{item.conceptName}</MathText> &middot; {t("attempts", { count: item.sampleSize })}
+                      </span>
                     </div>
-                    <span className="tabular-nums text-body-base">{concept.avgMastery}</span>
-                    {/* Sparkline */}
-                    <div className="hidden w-20 h-6 shrink-0 sm:block">
-                      {trendData.length >= 2 ? (
-                        <LineChart width={80} height={24} data={trendData}>
-                          <Line
-                            type="monotone"
-                            dataKey="avgMastery"
-                            stroke="var(--color-primary)"
-                            strokeWidth={1.5}
-                            dot={false}
-                            isAnimationActive={false}
-                          />
-                        </LineChart>
-                      ) : (
-                        <span className="text-muted-foreground/40 text-body-sm">--</span>
-                      )}
-                    </div>
-                    <DistributionBar
-                      low={concept.bucketLow}
-                      mid={concept.bucketMid}
-                      high={concept.bucketHigh}
-                      total={concept.studentCount}
-                      className="col-start-2 col-span-2 w-full sm:col-auto sm:w-32"
-                    />
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
+                    <span className="shrink-0 text-body-sm tabular-nums text-foreground">{item.pctSelected}%</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="min-w-0 space-y-2 xl:col-start-2" aria-labelledby="interventions-heading">
+            <h2 id="interventions-heading" className={sectionTitle}>
+              <ClipboardCheck className={headingIcon} aria-hidden />
+              {t("activeInterventions")}
+            </h2>
+            {analytics.interventionCounts.length === 0 ? (
+              <AdminEmptyState icon={RefreshCw} title={t("noInterventions")} className="py-(--related-gap)" />
+            ) : (
+              <ul className="divide-y divide-border/30">
+                {analytics.interventionCounts.map((item) => (
+                  <li key={item.conceptName} className="flex items-start justify-between gap-(--compact-gap) py-(--row-padding)">
+                    <MathText className="min-w-0 wrap-anywhere text-body-sm text-foreground" as="span">{item.conceptName}</MathText>
+                    <span className="shrink-0 text-body-sm tabular-nums text-foreground">{item.count}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
       </Reveal>
 
-      {/* Section 3: Full mastery distribution */}
-      <Reveal>
-        <section className="border-t border-border pt-4" aria-labelledby="dist-heading">
-          <h2 id="dist-heading" className="font-heading text-body-base font-bold mb-3">
-            {t("masteryDistribution")}
-          </h2>
-          {analytics.allConcepts.length === 0 ? (
-            <AdminEmptyState icon={BarChart3} title={t("noQuizResults")} className="py-6" />
-          ) : (
-            <ConceptRanking concepts={analytics.allConcepts} />
-          )}
-        </section>
-      </Reveal>
-
-      {/* Section 4: Active interventions */}
-      <Reveal>
-        <section className="border-t border-border pt-4" aria-labelledby="interventions-heading">
-          <h2 id="interventions-heading" className="font-heading text-body-base font-bold mb-3">
-            {t("activeInterventions")}
-          </h2>
-          {analytics.interventionCounts.length === 0 ? (
-            <AdminEmptyState icon={RefreshCw} title={t("noInterventions")} />
-          ) : (
-            <div className="divide-y divide-border">
-              {analytics.interventionCounts.map((item) => (
-                <div key={item.conceptName} className="py-2.5 flex items-center justify-between">
-                  <span className="text-body-base">{item.conceptName}</span>
-                  <Badge variant="secondary">{item.count}</Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </Reveal>
-
-      {/* Section 4b: Top misconceptions (cohort-wide) */}
-      <Reveal>
-        <section className="border-t border-border pt-4" aria-labelledby="misconceptions-heading">
-          <h2 id="misconceptions-heading" className="font-heading text-body-base font-bold mb-3">
-            {t("commonMisconceptions")}
-          </h2>
-          {analytics.topMisconceptions.length === 0 ? (
-            <AdminEmptyState icon={BarChart3} title={t("noMisconceptions")} className="py-6" />
-          ) : (
-            <div className="divide-y divide-border">
-              {analytics.topMisconceptions.slice(0, 10).map((m) => (
-                <div key={m.misconceptionKoId} className="py-3 flex items-center justify-between gap-(--related-gap)">
-                  <div className="min-w-0">
-                    <p className="text-body-sm font-medium break-words">{m.label}</p>
-                    <p className="text-body-xs text-muted-foreground">
-                      {m.conceptName} &middot; {t("attempts", { count: m.sampleSize })}
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="shrink-0">{m.pctSelected}%</Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </Reveal>
-
-      {/* Section 5: Watchlist */}
-      <Reveal>
-        <section className="border-t border-border pt-4" aria-labelledby="watchlist-heading">
-          <h2 id="watchlist-heading" className="font-heading text-body-base font-bold mb-3">
-            {t("needsAttention")}
-          </h2>
-          <WatchlistTable students={analytics.watchlist} />
-        </section>
-      </Reveal>
-
-      {/* Drill-down sheet */}
       <ConceptDrilldown
         open={drillConcept !== null}
         onClose={() => setDrillConcept(null)}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          drillTrigger.current?.focus();
+        }}
         concept={drillConcept}
         trends={drillTrends}
         mostMissed={drillMissed}
         courseId={courseId}
       />
-    </>
+    </div>
   );
 }

@@ -74,7 +74,7 @@ export default async function AdminCourseQuizAnalyticsDetailPage({ params }: Pro
   }
 
   return (
-    <div className="space-y-6 font-sans">
+    <div className="min-w-0 space-y-(--related-gap)">
       <QuizInsightDetailClient
         quizId={quizId}
         lockedCourse={{

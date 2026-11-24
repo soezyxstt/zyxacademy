@@ -86,7 +86,7 @@ export function ScheduleCalendarSkeleton() {
               </div>
             ))}
           </div>
-          <div className="divide-y divide-border/40">
+          <div className="divide-y divide-border/25">
             {[1, 2, 3, 4, 5].map((row) => (
               <div key={row} className="grid h-20 grid-cols-7 divide-x divide-border/40">
                 {[1, 2, 3, 4, 5, 6, 7].map((col) => (

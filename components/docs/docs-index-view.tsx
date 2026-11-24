@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -33,7 +33,7 @@ export function DocsIndexView({
   );
 
   return (
-    <div className="space-y-(--section-gap)">
+    <div className="min-w-0 space-y-(--group-gap)">
       <PageHeader title={t("title")} />
       <div className="max-w-3xl space-y-(--section-gap)">
         <SearchBar
@@ -52,34 +52,29 @@ export function DocsIndexView({
           />
         ) : (
           categories.map((category) => (
-            <section key={category} aria-label={category} className="space-y-2.5">
+            <section key={category} aria-label={category} className="space-y-1.5">
               <h2 className="font-heading text-section-title font-bold text-foreground">
                 {category}
               </h2>
-              <div className="divide-y divide-border border-y border-border">
+              <ul className="divide-y divide-border/55 border-t border-border/55">
                 {results
                   .filter((doc) => doc.category === category)
                   .map((doc) => (
-                    <Link
-                      key={doc.slug}
-                      href={`${basePath}/${doc.slug}`}
-                      className="group flex items-center gap-3 py-(--row-padding) transition-colors hover:text-brand-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors">
+                    <li key={doc.slug}>
+                      <Link
+                        href={`${basePath}/${doc.slug}`}
+                        className="block min-h-11 rounded-md py-(--row-padding) transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      >
+                        <span className="block wrap-anywhere text-body-sm font-semibold text-foreground">
                           {doc.title}
                         </span>
-                        <span className="mt-1 block text-support text-muted-foreground">
+                        <span className="mt-0.5 block wrap-anywhere text-body-xs text-muted-foreground">
                           <DocRichText text={doc.summary} />
                         </span>
-                      </span>
-                      <ChevronRight
-                        className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-brand-primary"
-                        aria-hidden
-                      />
-                    </Link>
+                      </Link>
+                    </li>
                   ))}
-              </div>
+              </ul>
             </section>
           ))
         )}

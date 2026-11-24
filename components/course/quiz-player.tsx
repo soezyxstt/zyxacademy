@@ -1,7 +1,9 @@
 "use client";
 
 import { StudentAccountBoundary } from "@/components/student-account-boundary";
-import { ViewportSwitch } from "@/components/navigation";
+import { useHideMobileBottomNav } from "@/components/navigation/mobile-chrome-context";
+import { ViewportSwitch } from "@/components/navigation/viewport-switch";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useQuizPlayer } from "@/hooks/use-quiz-player";
 import { useQuizSubmission } from "@/hooks/use-quiz-submission";
 import type { QuizPlayerProps, QuizSubmission } from "@/lib/quiz/player-state";
@@ -11,8 +13,20 @@ import { QuizPlayerMobile } from "@/features/student-assessment/ui/mobile/quiz-p
 
 export type { QuizPlayerProps } from "@/lib/quiz/player-state";
 
+function QuizPlayerLoading() {
+  return (
+    <div aria-busy="true" data-quiz-pending="" className="space-y-3">
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="h-5 w-3/4" />
+      <Skeleton className="h-5 w-1/2" />
+    </div>
+  );
+}
+
 /** The demo adapter never mounts an authenticated query or mutation. */
 export function QuizPlayer(props: QuizPlayerProps) {
+  useHideMobileBottomNav();
+
   if (props.transport) {
     const transport = props.transport;
     return (
@@ -35,7 +49,7 @@ export function QuizPlayer(props: QuizPlayerProps) {
             userId={data.user.id}
           />
         ) : (
-          <div className="h-40 animate-pulse rounded-xl bg-muted" aria-busy="true" />
+          <QuizPlayerLoading />
         )
       }
     </StudentAccountBoundary>
@@ -72,7 +86,7 @@ function QuizPlayerContent(
       <ViewportSwitch
         desktop={() => <QuizPlayerDesktop props={props} controller={controller} />}
         mobile={() => <QuizPlayerMobile props={props} controller={controller} />}
-        fallback={<QuizPlayerDesktop props={props} controller={controller} />}
+        fallback={<QuizPlayerLoading />}
       />
       <QuizSubmitConfirmDialog controller={controller} />
     </>

@@ -196,6 +196,7 @@
     "depth": "Depth",
     "vsPrevPeriod": "{delta} vs previous period",
     "insightFastestGrowing": "Fastest growing",
+    "highlights": "Usage highlights",
     "insightHighestAdoption": "Highest adoption",
     "insightNeedsAttention": "Lowest adoption",
     "lastUsed": "Last used",
@@ -291,7 +292,10 @@
     "activeUsers": "Active users",
     "sessions": "Total sessions",
     "visitorsTrend": "Visitor trends",
-    "topPages": "Top pages"
+    "topPages": "Top pages",
+    "chartSessions": "Sessions",
+    "noChartData": "No daily traffic yet",
+    "noTopPages": "No top pages yet"
   },
   "pricing": {
     "title": "Plans and pricing",
@@ -1395,8 +1399,8 @@
     "customPriceOptional": "Custom package price (Rp, optional)",
     "useAutomaticPrice": "Use automatic price",
     "automaticPricePlaceholder": "Leave empty for automatic price",
-    "customPriceHelp": "Use when the group price differs from the standard package price.",
-    "feeFormula": "Formula: (package total - platform cost) / number of meetings, then split {tutorPercent}% for the tutor and {managementPercent}% for management.",
+    "customPriceHelp": "Enter the package price before discounts.",
+    "feeFormula": "The discounted tutorial amount is split {tutorPercent}% for the tutor and {managementPercent}% for management. The fee per session depends on the number of meetings.",
     "estimatedFee": "Estimated tutor fee",
     "customPackage": "Custom package price",
     "manual": "Manual",

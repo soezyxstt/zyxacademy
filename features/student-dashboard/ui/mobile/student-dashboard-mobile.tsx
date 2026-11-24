@@ -110,7 +110,7 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
             </Link>
           </div>
         </div>
-        <div className="divide-y divide-border/30">
+        <div className="divide-y divide-border/25">
           {enrollments.map((course) => {
             const { doneCount, total } = courseProgress[course.id];
             return (
@@ -147,7 +147,7 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
         </div>
 
         {inProgressDocuments.length > 0 ? (
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-border/25">
             {inProgressDocuments.map((doc) => {
               if (!doc) return null;
               return (
@@ -254,7 +254,7 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
               <History className="size-3.5 text-muted-foreground" aria-hidden />
               <TranslatedText namespace="student" messageKey="dashboard.recentReviews" />
             </span>
-            <div className="divide-y divide-border/30">
+            <div className="divide-y divide-border/25">
               {recentReviews.slice(0, 3).map((review) => (
                 <div key={review.id} className="py-2">
                   <div className="flex items-center justify-between gap-2">
@@ -306,7 +306,7 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
         </div>
 
         {availableExams.length > 0 ? (
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-border/25">
             {availableExams.slice(0, 4).map((exam) => (
               <Link
                 key={exam.id}
@@ -332,7 +332,6 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
                     </span>
                   </p>
                 </div>
-                <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               </Link>
             ))}
 
@@ -408,7 +407,7 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
             </Link>
           </div>
 
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-border/25">
             {recommendedUnenrolledCourses.map((course) => (
               <Link
                 key={course.id}
@@ -432,7 +431,6 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
                     {course.title}
                   </h3>
                 </div>
-                <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               </Link>
             ))}
           </div>

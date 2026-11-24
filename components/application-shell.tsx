@@ -44,7 +44,7 @@ export function ApplicationShell({
       <div
         data-personalized-surface={personalizeTypographyAndSpacing ? "" : undefined}
         className={cn(
-          "relative flex min-h-screen flex-col overflow-x-clip bg-background md:flex-row",
+          "relative flex min-h-screen flex-col overflow-x-clip bg-background [--workspace-tab-indicator:var(--foreground)] md:flex-row",
           className,
         )}
       >

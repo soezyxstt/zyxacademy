@@ -188,7 +188,7 @@ export function ActivityFilters({
           value={filters.actorId ?? "all"}
           onValueChange={handleTutorChange}
         >
-          <SelectTrigger aria-label={t("tutorActivityUI.actor")} className="h-9 text-body-sm bg-background">
+          <SelectTrigger aria-label={t("tutorActivityUI.actor")} className="h-9 text-body-sm">
             <SelectValue placeholder={t("tutorActivityUI.allTutors")} />
           </SelectTrigger>
           <SelectContent>
@@ -208,7 +208,7 @@ export function ActivityFilters({
           value={filters.courseId ?? "all"}
           onValueChange={handleCourseChange}
         >
-          <SelectTrigger aria-label={t("tutorActivityUI.course")} className="h-9 text-body-sm bg-background">
+          <SelectTrigger aria-label={t("tutorActivityUI.course")} className="h-9 text-body-sm">
             <SelectValue placeholder={t("tutorActivityUI.allCourses")} />
           </SelectTrigger>
           <SelectContent>
@@ -228,7 +228,7 @@ export function ActivityFilters({
           value={filters.entityType ?? "all"}
           onValueChange={handleEntityTypeChange}
         >
-          <SelectTrigger aria-label={t("tutorActivityUI.entity")} className="h-9 text-body-sm bg-background">
+          <SelectTrigger aria-label={t("tutorActivityUI.entity")} className="h-9 text-body-sm">
             <SelectValue placeholder={t("tutorActivityUI.allEntities")} />
           </SelectTrigger>
           <SelectContent>
@@ -248,7 +248,7 @@ export function ActivityFilters({
           value={filters.action ?? "all"}
           onValueChange={handleActionChange}
         >
-          <SelectTrigger aria-label={t("tutorActivityUI.action")} className="h-9 text-body-sm bg-background">
+          <SelectTrigger aria-label={t("tutorActivityUI.action")} className="h-9 text-body-sm">
             <SelectValue placeholder={t("tutorActivityUI.allActions")} />
           </SelectTrigger>
           <SelectContent>
@@ -268,7 +268,7 @@ export function ActivityFilters({
           value={filters.outcome ?? "all"}
           onValueChange={handleOutcomeChange}
         >
-          <SelectTrigger aria-label={t("tutorActivityUI.status")} className="h-9 text-body-sm bg-background">
+          <SelectTrigger aria-label={t("tutorActivityUI.status")} className="h-9 text-body-sm">
             <SelectValue placeholder={t("tutorActivityUI.allStatuses")} />
           </SelectTrigger>
           <SelectContent>
@@ -306,7 +306,7 @@ export function ActivityFilters({
           value={String(filters.limit ?? 25)}
           onValueChange={handleLimitChange}
         >
-          <SelectTrigger aria-label={t("tutorActivityUI.perPage", { count: filters.limit ?? 25 })} className="h-9 text-body-sm bg-background">
+          <SelectTrigger aria-label={t("tutorActivityUI.perPage", { count: filters.limit ?? 25 })} className="h-9 text-body-sm">
             <SelectValue placeholder="25" />
           </SelectTrigger>
           <SelectContent>

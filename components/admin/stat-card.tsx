@@ -55,7 +55,7 @@ export function AdminStatCard({
 }
 
 /* ------------------------------------------------------------------ */
-/*  AdminStatStrip  (compact inline metadata bar, zero stat cards)     */
+/*  AdminStatStrip  (grouped metrics on the page surface)             */
 /* ------------------------------------------------------------------ */
 
 export type AdminStatStripItemProps = {
@@ -77,7 +77,7 @@ export function AdminStatStrip({ children, className }: AdminStatStripProps) {
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border/40 pb-3.5",
+        "grid grid-cols-2 gap-x-(--related-gap) gap-y-(--compact-gap) border-b border-border/40 pb-(--compact-gap) sm:grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))]",
         className
       )}
     >
@@ -95,13 +95,15 @@ export function AdminStatStripItem({
   tone = "default",
 }: AdminStatStripItemProps) {
   return (
-    <div className="inline-flex min-w-0 items-center gap-1.5 text-body-xs">
-      {Icon && <Icon className={cn("size-3.5 shrink-0 text-muted-foreground/70", iconClassName)} aria-hidden />}
-      <span className="text-muted-foreground">{label}</span>
-      <span className={cn("font-semibold tabular-nums", toneClasses[tone])}>
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex min-w-0 items-start gap-1.5 text-body-sm text-muted-foreground">
+        {Icon && <Icon className={cn("mt-0.5 size-3.5 shrink-0", iconClassName)} aria-hidden />}
+        <span className="min-w-0 wrap-break-word">{label}</span>
+      </div>
+      <div className={cn("wrap-break-word font-heading text-h5 font-bold tabular-nums", toneClasses[tone])}>
         {value}
-      </span>
-      {caption && <span className="text-body-2xs text-muted-foreground/80">({caption})</span>}
+      </div>
+      {caption && <div className="wrap-break-word text-body-xs text-muted-foreground">{caption}</div>}
     </div>
   );
 }

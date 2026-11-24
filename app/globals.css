@@ -1215,6 +1215,15 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
   body:has([data-mobile-bottom-nav]) {
     --mobile-bottom-nav-height: calc(3.75rem + env(safe-area-inset-bottom, 0px));
   }
+
+  /* Keep application navigation out of active assessments before hydration. */
+  body:has([data-quiz-pending], [data-tryout-pending], [data-quiz-layout="mobile"], [data-tryout-layout="mobile"]) {
+    --mobile-bottom-nav-height: 0px;
+  }
+
+  body:has([data-quiz-pending], [data-tryout-pending], [data-quiz-layout="mobile"], [data-tryout-layout="mobile"]) [data-mobile-bottom-nav] {
+    display: none;
+  }
 }
 
 [data-mobile-navbar]:has(~ main [data-sticky-tabs-bar="flush"]) {
@@ -1225,4 +1234,9 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
 /* Flush sticky page tab bar attaches directly under the navbar without top page padding. */
 [data-application-page]:has([data-sticky-tabs-bar="flush"]) {
   padding-top: 0;
+}
+
+/* Mobile assessments supply the spacing around their toolbar and fixed footer. */
+[data-application-page]:has([data-quiz-layout="mobile"], [data-tryout-layout="mobile"]) {
+  padding-block: 0;
 }

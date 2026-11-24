@@ -15,13 +15,13 @@ export type AdminErrorStateProps = {
 export function AdminErrorState({ message, onRetry, className }: AdminErrorStateProps) {
   const t = useTranslations("admin.states");
   return (
-    <div className={cn("flex flex-col items-center justify-center gap-3 py-8 text-center", className)}>
-      <div className="flex items-center gap-2">
-        <TriangleAlert className="size-4 text-status-error" aria-hidden />
-        <p className="text-body-sm text-status-error">{message}</p>
+    <div className={cn("flex flex-wrap items-start justify-between gap-(--compact-gap) py-(--compact-gap)", className)}>
+      <div className="flex min-w-0 items-start gap-2">
+        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-status-error" aria-hidden />
+        <p className="wrap-break-word text-body-sm text-foreground">{message}</p>
       </div>
       {onRetry && (
-        <Button variant="ghost" size="sm" className="rounded-lg" onClick={onRetry}>
+        <Button variant="ghost" size="sm" className="min-h-9" onClick={onRetry}>
           {t("retry")}
         </Button>
       )}

@@ -196,14 +196,12 @@ export default async function CourseTryoutTakePage({ params }: Props) {
   const session = await getAuthSession();
   return (
     <CoursePageShell title={exam.title} description={<TranslatedText namespace="learning" messageKey="tryoutTake.instructions" />} hideHeader>
-      <Reveal>
-        <TryoutForm
-          courseId={id}
-          visualCourseId={dbExam.courseId}
-          exam={exam}
-          userId={session?.user?.id ?? null}
-        />
-      </Reveal>
+      <TryoutForm
+        courseId={id}
+        visualCourseId={dbExam.courseId}
+        exam={exam}
+        userId={session?.user?.id ?? null}
+      />
     </CoursePageShell>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FileText } from "lucide-react";
+import { Check, Download, FileText, X } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,7 +66,6 @@ interface TryoutQuestionCardProps {
   answer?: TryoutSnapshotAnswer;
   index: number;
   submissionId: string;
-  singleColumnOptions?: boolean;
 }
 
 export function TryoutQuestionCard({
@@ -74,7 +73,6 @@ export function TryoutQuestionCard({
   answer: ans,
   index: idx,
   submissionId,
-  singleColumnOptions = false,
 }: TryoutQuestionCardProps) {
   const tr = useTranslations("tutor.grading");
   const isEssay = q.type === "essay";
@@ -84,7 +82,7 @@ export function TryoutQuestionCard({
   return (
     <article className="space-y-(--related-gap) py-(--row-padding)">
       <div className="flex items-start gap-2.5">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary font-mono text-body-sm font-bold text-primary-foreground shadow-xs">
+        <span className="w-5 shrink-0 font-mono text-body-sm font-medium tabular-nums text-muted-foreground">
           {idx + 1}
         </span>
         <div className="min-w-0">
@@ -105,56 +103,48 @@ export function TryoutQuestionCard({
       </div>
 
       {isMc && q.options && (
-        <div className={singleColumnOptions ? "grid grid-cols-1 gap-2" : "grid gap-2 sm:grid-cols-2 sm:pl-9"}>
-          {q.options.map((opt: string, i: number) => {
-            const isStudentChoice =
-              q.type === "multiple_choice"
-                ? ans?.index === i
-                : ans?.indices?.includes(i);
-            const isCorrect =
-              q.type === "multiple_choice"
-                ? q.correctIndex === i
-                : q.correctIndices?.includes(i);
+        <ul className="divide-y divide-border/55 border-y border-border/55">
+          {q.options.map((option, index) => {
+            const isStudentChoice = q.type === "multiple_choice" ? ans?.index === index : ans?.indices?.includes(index);
+            const isCorrect = q.type === "multiple_choice" ? q.correctIndex === index : q.correctIndices?.includes(index);
 
             return (
-              <div
-                key={i}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-body-base ${
-                  isStudentChoice && isCorrect
-                    ? "border-status-success/25 bg-status-success/5 text-status-success"
-                    : isStudentChoice && !isCorrect
-                    ? "border-status-error/25 bg-status-error/5 text-status-error"
-                    : !isStudentChoice && isCorrect
-                    ? "border-dashed border-status-success/20 bg-status-success/5 text-muted-foreground"
-                    : "border-border/50 bg-muted/10 text-muted-foreground"
-                }`}
+              <li
+                key={index}
+                className={`flex items-start gap-2.5 px-1 py-1.5 text-body-base ${isStudentChoice ? "bg-muted/35" : ""}`}
               >
-                <span
-                  className={`flex size-5 shrink-0 items-center justify-center rounded-md text-body-2xs font-bold ${
-                    isStudentChoice && isCorrect
-                      ? "bg-status-success text-white"
-                      : isStudentChoice && !isCorrect
-                      ? "bg-status-error text-white"
-                      : isCorrect
-                      ? "border border-status-success text-status-success"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {String.fromCharCode(65 + i)}
+                <span className="w-4 shrink-0 font-mono text-body-sm font-medium text-muted-foreground">
+                  {String.fromCharCode(65 + index)}
                 </span>
-                <span className="min-w-0 break-words">
-                  <MathText className="leading-normal" as="span">
-                    {opt}
-                  </MathText>
-                </span>
-              </div>
+                <MathText className="min-w-0 flex-1 break-words leading-normal" as="span">
+                  {option}
+                </MathText>
+                {(isCorrect || isStudentChoice) && (
+                  <span className="flex shrink-0 items-center justify-end gap-1.5">
+                    {isCorrect ? (
+                      <>
+                        <Check className="size-4 text-status-success" aria-hidden />
+                        <span className="sr-only">{tr("correctAnswer")}</span>
+                      </>
+                    ) : (
+                      <>
+                        <X className="size-4 text-status-error" aria-hidden />
+                        <span className="sr-only">{tr("incorrectAutomatic")}</span>
+                      </>
+                    )}
+                    {isStudentChoice && (
+                      <span className="text-body-xs text-muted-foreground">{tr("selectedAnswer")}</span>
+                    )}
+                  </span>
+                )}
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
 
       {isShort && (
-        <div className={singleColumnOptions ? "space-y-2" : "space-y-2 sm:pl-9"}>
+        <div className="space-y-2">
           <div className="border-l-2 border-border pl-3 text-body-base">
             <span className="block text-body-xs font-semibold text-muted-foreground">
               {tr("studentAnswer")}
@@ -173,7 +163,7 @@ export function TryoutQuestionCard({
       )}
 
       {isEssay && (
-        <div className={singleColumnOptions ? "space-y-(--compact-gap)" : "space-y-(--compact-gap) sm:pl-9"}>
+        <div className="space-y-(--compact-gap)">
           <div className="whitespace-pre-wrap border-l-2 border-border pl-3 text-body-base">
             <span className="mb-1 block text-body-xs font-semibold text-muted-foreground">
               {tr("essayAnswer")}
@@ -186,9 +176,7 @@ export function TryoutQuestionCard({
           {ans?.fileName && (
             <div className="flex flex-wrap items-center justify-between gap-(--related-gap) border-t border-border pt-3">
               <div className="flex min-w-0 items-center gap-(--compact-gap)">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-status-success/10 text-status-success">
-                  <FileText className="size-5" aria-hidden />
-                </span>
+                <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="min-w-0">
                   <p className="max-w-[200px] truncate text-body-xs font-bold text-foreground md:max-w-xs">
                     {ans.fileName}

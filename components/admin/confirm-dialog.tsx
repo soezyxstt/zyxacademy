@@ -3,7 +3,6 @@
 import type { ComponentProps, ReactNode } from "react";
 import { useTranslations } from "@/lib/i18n/client";
 import { ShieldAlert } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -51,25 +50,23 @@ export function AdminConfirmDialog({
         }
       }}
     >
-      <DialogContent onCloseAutoFocus={onCloseAutoFocus} className="max-w-md rounded-xl border border-border p-6 shadow-lg text-left">
-        <DialogHeader>
-          <DialogTitle
-            className={cn(
-              "flex items-center gap-2 font-heading text-body-base font-bold",
-              destructive && "text-status-error"
-            )}
-          >
-            <Icon className="size-5 shrink-0" />
-            {title}
+      <DialogContent showCloseButton={false} onCloseAutoFocus={onCloseAutoFocus} className="max-w-md text-left">
+        <DialogHeader className="pr-0">
+          <DialogTitle className="flex items-start gap-2 text-body-base">
+            <Icon
+              aria-hidden
+              className={destructive ? "mt-0.5 size-4 shrink-0 text-status-error" : "mt-0.5 size-4 shrink-0 text-muted-foreground"}
+            />
+            <span className="min-w-0 wrap-break-word">{title}</span>
           </DialogTitle>
-          <DialogDescription className="text-body-xs text-muted-foreground mt-2">
+          <DialogDescription className="text-body-sm wrap-break-word">
             {description}
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
+        <DialogFooter className="flex-row flex-wrap items-center justify-end">
           <Button
-            variant="outline"
-            className="rounded-lg cursor-pointer font-bold"
+            variant="ghost"
+            className="h-auto min-h-10 max-w-full whitespace-normal"
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
@@ -77,7 +74,7 @@ export function AdminConfirmDialog({
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
-            className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
+            className="h-auto min-h-10 max-w-full whitespace-normal"
             onClick={onConfirm}
             isLoading={loading}
           >

@@ -23,7 +23,7 @@ export default async function AdminCoursesPage() {
 
   const coursesList = await getCoursesWithStats();
   return (
-    <div className="space-y-6 font-sans">
+    <div className="min-w-0 space-y-(--related-gap)">
       <AdminPageHeader
         icon={GraduationCap}
         title={<TranslatedText namespace="adminAcademic" messageKey="courses.pageTitle" as="span" />}

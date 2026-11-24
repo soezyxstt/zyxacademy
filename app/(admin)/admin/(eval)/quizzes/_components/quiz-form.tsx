@@ -696,7 +696,7 @@ export function QuizForm({
                         {tr("course")}
                       </Label>
                       <Select value={courseId} onValueChange={setCourseId} disabled={isEdit}>
-                        <SelectTrigger id="courseId" className="mt-1 w-full rounded-lg border-border h-9 text-body-sm">
+                        <SelectTrigger id="courseId" className="mt-1 w-full rounded-lg h-9 text-body-sm">
                           <SelectValue placeholder={tr("selectCourse")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -729,7 +729,7 @@ export function QuizForm({
                         {tr("category")}
                       </Label>
                       <Select value={category} onValueChange={(v: any) => setCategory(v)}>
-                        <SelectTrigger id="category" className="mt-1 rounded-lg border-border h-9 text-body-sm">
+                        <SelectTrigger id="category" className="mt-1 rounded-lg h-9 text-body-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -747,7 +747,7 @@ export function QuizForm({
                         {tr("studentAccess")}
                       </Label>
                       <Select value={visibility} onValueChange={(v: any) => setVisibility(v)}>
-                        <SelectTrigger id="visibility" className="mt-1 rounded-lg border-border h-9 text-body-sm">
+                        <SelectTrigger id="visibility" className="mt-1 rounded-lg h-9 text-body-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -877,7 +877,7 @@ export function QuizForm({
                           value={manualStatus}
                           onValueChange={(v: "open" | "closed" | "scheduled") => setManualStatus(v)}
                         >
-                          <SelectTrigger id="manualStatusScheduled" className="mt-1 rounded-lg border-border h-8 text-body-sm">
+                          <SelectTrigger id="manualStatusScheduled" className="mt-1 rounded-lg h-8 text-body-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -942,7 +942,7 @@ export function QuizForm({
                       value={explanationRelease}
                       onValueChange={(v: "immediate" | "after_close" | "never") => setExplanationRelease(v)}
                     >
-                      <SelectTrigger id="explanationRelease" className="mt-1 rounded-lg border-border h-9 text-body-sm">
+                      <SelectTrigger id="explanationRelease" className="mt-1 rounded-lg h-9 text-body-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

@@ -9,7 +9,96 @@ export const FORMS_UI_MIME = "text/html;profile=mcp-app";
 // server tool calls, uploads, or persistence are permitted inside this simulation.
 export const formsUiHtml = `<!doctype html>
 <html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'"><style>
-:root{color-scheme:light dark;--background:oklch(1 0 0);--foreground:oklch(0.3211 0 0);--primary:oklch(0.3653 0.0829 266.28);--border:oklch(0.9067 0 0);--muted-foreground:oklch(0.48 0 0);font-family:var(--font-sans,ui-sans-serif,system-ui,sans-serif);color:var(--foreground);background:var(--background)}*{box-sizing:border-box}body{margin:0;padding:20px}main{max-width:800px;margin:auto;overflow-wrap:anywhere}h1{font-family:var(--font-heading,ui-sans-serif,sans-serif);font-size:24px;margin:0 0 12px}h2{font-family:var(--font-heading,ui-sans-serif,sans-serif);font-size:16px;margin:0 0 8px}p{line-height:1.5;white-space:pre-wrap}section{border-top:1px solid var(--border);padding:18px 0}fieldset{border:0;padding:0;margin:0;min-width:0}legend{font-size:14px;font-weight:600;padding:0;margin-bottom:10px}label.choice{display:flex;gap:8px;align-items:center;margin:9px 0;overflow-wrap:anywhere}input,textarea,select,button{font-family:inherit;font-size:14px;font-weight:400}input[type=text],input[type=date],input[type=time],input[type=email],textarea,select{width:100%;max-width:100%;border:1px solid var(--border);border-radius:6px;padding:9px;background:transparent;color:inherit}textarea{min-height:90px}button{border:0;border-radius:6px;padding:10px 16px;background:var(--primary);color:white;cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--primary);outline-offset:2px}.muted{color:var(--muted-foreground);font-size:12px}.error{color:#a12626;font-size:12px}.success{color:var(--primary);font-weight:600}.grid-row{padding:8px 0;border-top:1px solid var(--border)}.bar{height:8px;background:var(--border);border-radius:4px;overflow:hidden}.bar span{display:block;height:100%;background:var(--primary)}.metric{display:flex;justify-content:space-between;gap:10px;margin:12px 0 4px;overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;font-size:14px}td,th{text-align:left;padding:8px;border-bottom:1px solid var(--border);overflow-wrap:anywhere}th:last-child,td:last-child{text-align:right}@media(prefers-color-scheme:dark){:root{--background:oklch(0.2308 0 0);--foreground:oklch(1 0 0);--primary:oklch(0.65 0.14 266.28);--border:oklch(0.4276 0 0);--muted-foreground:oklch(0.75 0 0)}.muted{color:var(--muted-foreground)}.error{color:#ffaaaa}.success{color:var(--primary)}}
+:root {
+  color-scheme: light dark;
+  --background: #fff;
+  --foreground: #292929;
+  --action: #292929;
+  --action-foreground: #fff;
+  --border: #e4e4e4;
+  --muted-foreground: #626262;
+  --hover: #f5f5f5;
+  --error: #a12626;
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  color: var(--foreground);
+  background: var(--background);
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 16px; }
+main { max-width: 42rem; margin-inline: auto; overflow-wrap: anywhere; }
+h1, h2 { font-family: var(--font-heading, ui-sans-serif, sans-serif); }
+h1 { font-size: 24px; margin: 0 0 8px; }
+h2 { font-size: 16px; margin: 0 0 4px; }
+p { line-height: 1.5; margin: 0 0 8px; white-space: pre-wrap; }
+section { border-top: 1px solid var(--border); padding-block: 12px; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+legend { font-size: 14px; font-weight: 600; padding: 0; margin-bottom: 8px; }
+label.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 36px;
+  padding-block: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+label.choice:hover { background: var(--hover); }
+label.choice + label.choice { border-top: 1px solid var(--border); }
+label.choice input { flex-shrink: 0; margin-top: 2px; accent-color: var(--action); }
+input, textarea, select, button { font: inherit; font-size: 14px; }
+input[type=text], input[type=date], input[type=time], input[type=email], textarea, select {
+  display: block;
+  width: 100%;
+  max-width: 28rem;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--background);
+  color: inherit;
+}
+input[hidden] { display: none; }
+select { border-color: transparent; background: var(--hover); cursor: pointer; }
+textarea { min-height: 80px; }
+button {
+  display: block;
+  min-height: 36px;
+  margin-inline-start: auto;
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: var(--action);
+  color: var(--action-foreground);
+  cursor: pointer;
+}
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+}
+.muted, .error { font-size: 12px; }
+.muted { color: var(--muted-foreground); }
+.error { color: var(--error); }
+.error:empty, .success:empty { display: none; }
+.success { font-size: 14px; font-weight: 600; }
+.grid-row { padding-block: 8px; border-top: 1px solid var(--border); }
+.bar { height: 3px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--action); }
+.metric { display: flex; justify-content: space-between; gap: 8px; margin: 8px 0 4px; font-size: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+td, th { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+th:last-child, td:last-child { text-align: right; }
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #212121;
+    --foreground: #f4f4f4;
+    --action: #f4f4f4;
+    --action-foreground: #212121;
+    --border: #414141;
+    --muted-foreground: #b4b4b4;
+    --hover: #2c2c2c;
+    --error: #ffaaaa;
+  }
+}
 </style></head><body><main id="app"><p class="muted">Memuat data...</p></main><script>
 (function(){'use strict';
 const app=document.getElementById('app');

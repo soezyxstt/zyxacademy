@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+import { AdminEmptyState } from "@/components/admin/state-panels";
+import { AdminTableHead } from "@/components/admin/table";
 import {
   BarChart3,
   TrendingUp,
@@ -40,7 +42,7 @@ export function AnalyticsTab({
   const analyzedWithAiCount = quizzes.filter((q) => q.lastAiInsight !== null && q.lastAiInsight !== undefined).length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--related-gap)">
       {/* KPI Strip */}
       <AdminStatStrip className="lg:grid-cols-4">
         <AdminStatStripItem
@@ -79,36 +81,30 @@ export function AnalyticsTab({
       </AdminStatStrip>
 
       {/* Per Quiz Performance Table */}
-      <div className="border-y border-border">
-        <div className="p-3 border-b border-border bg-muted/20 flex items-center justify-between">
-          <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
-            <BarChart3 className="size-4 text-brand-primary" />
+      <section aria-labelledby="course-quiz-results">
+        <div className="flex items-center border-b border-border/60 pb-2">
+          <h2 id="course-quiz-results" className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
+            <BarChart3 className="size-4 text-muted-foreground" aria-hidden />
             {t("courseDetail.analytics.title")}
-          </h3>
+          </h2>
         </div>
 
         {quizzes.length === 0 ? (
-          <div className="text-center py-8 px-4">
-            <HelpCircle className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
-            <p className="text-body-xs font-medium text-foreground">{t("courseDetail.analytics.emptyTitle")}</p>
-            <p className="text-body-xs text-muted-foreground mt-0.5">
-              {t("courseDetail.analytics.emptyDescription")}
-            </p>
-          </div>
+          <AdminEmptyState compact icon={BarChart3} title={t("courseDetail.analytics.emptyTitle")} description={t("courseDetail.analytics.emptyDescription")} />
         ) : (
           <>
             {/* Mobile stacked rows */}
-            <div className="divide-y divide-border/50 md:hidden">
+            <div className="divide-y divide-border/60 lg:hidden">
               {quizzes.map((quiz) => {
                 const reportHref = courseSlug
                   ? `/admin/courses/${encodeURIComponent(courseSlug)}/analytics/${encodeURIComponent(quiz.id)}`
                   : `/admin/quiz-insights/${encodeURIComponent(quiz.id)}`;
 
                 return (
-                  <div key={quiz.id} className="space-y-2 px-3 py-3">
+                  <div key={quiz.id} className="space-y-2 py-(--row-padding)">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1 space-y-1">
-                        <p className="break-words text-body-sm font-semibold text-foreground">
+                        <p className="wrap-anywhere text-body-sm font-semibold text-foreground">
                           {quiz.title}
                         </p>
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -174,9 +170,9 @@ export function AnalyticsTab({
             </div>
 
             {/* Desktop table */}
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[760px] text-left text-body-xs">
-                <thead className="bg-muted text-body-xs font-semibold text-muted-foreground">
+            <div className="hidden overflow-x-auto lg:block">
+              <table className="w-full text-left text-body-xs">
+                <AdminTableHead>
                   <tr>
                     <th className="px-3.5 py-2">{t("courseDetail.analytics.quizName")}</th>
                     <th className="px-3.5 py-2">{t("courseDetail.analytics.category")}</th>
@@ -186,7 +182,7 @@ export function AnalyticsTab({
                     <th className="px-3.5 py-2">{t("courseDetail.analytics.insightStatus")}</th>
                     <th className="px-3.5 py-2 text-right">{t("courseDetail.analytics.actions")}</th>
                   </tr>
-                </thead>
+                </AdminTableHead>
                 <tbody className="divide-y divide-border/50">
                   {quizzes.map((quiz) => (
                     <tr key={quiz.id} className="hover:bg-muted/20 transition-colors">
@@ -260,7 +256,7 @@ export function AnalyticsTab({
             </div>
           </>
         )}
-      </div>
+      </section>
     </div>
   );
 }

@@ -37,7 +37,7 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
   return (
     <>
       {/* Mobile stacked rows (zero horizontal table scroll) */}
-      <div className="divide-y divide-border border-y border-border md:hidden">
+      <div className="divide-y divide-border/30 md:hidden">
         {students.map((student) => {
           const shown = student.decliningConcepts.slice(0, 3);
           const overflow = student.decliningConcepts.length - shown.length;
@@ -49,14 +49,14 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
           return (
             <div key={student.studentId} className="space-y-1 py-3">
               <div className="flex items-start justify-between gap-3">
-                <p className="min-w-0 flex-1 break-words text-body-sm font-medium text-foreground">
+                <p className="min-w-0 flex-1 wrap-anywhere text-body-sm font-medium text-foreground">
                   {student.name}
                 </p>
                 <span className="shrink-0 whitespace-nowrap text-body-xs text-muted-foreground">
                   {relativeTime(student.lastActiveAt, locale, (key) => t(key))}
                 </span>
               </div>
-              <p className="break-words text-body-xs text-muted-foreground">{conceptLabel}</p>
+              <p className="wrap-anywhere text-body-xs text-muted-foreground">{conceptLabel}</p>
             </div>
           );
         })}
@@ -66,15 +66,15 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
       <div className="hidden md:block">
         <Table className="w-full text-body-sm">
           <TableHeader>
-            <TableRow className="border-b border-border text-left text-body-xs font-semibold text-muted-foreground">
-              <TableHead className="px-4 font-medium">{t("student")}</TableHead>
-              <TableHead className="px-4 font-medium">{t("decliningConcepts")}</TableHead>
-              <TableHead className="whitespace-nowrap px-4 font-medium">
+            <TableRow className="border-b border-border/30 text-left text-body-xs font-semibold text-muted-foreground">
+              <TableHead className="pr-2 pl-0 font-medium">{t("student")}</TableHead>
+              <TableHead className="px-2 font-medium">{t("decliningConcepts")}</TableHead>
+              <TableHead className="py-2 pr-0 pl-2 text-right font-medium whitespace-normal">
                 {t("lastActive")}
               </TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody className="divide-y divide-border">
+          <TableBody className="divide-y divide-border/30">
             {students.map((student) => {
               const shown = student.decliningConcepts.slice(0, 3);
               const overflow = student.decliningConcepts.length - shown.length;
@@ -85,13 +85,13 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
                     (overflow > 0 ? ` ${t("otherConcepts", { count: overflow })}` : "");
               return (
                 <TableRow key={student.studentId}>
-                  <TableCell className="whitespace-normal break-words px-4 font-medium text-foreground">
+                  <TableCell className="pr-2 pl-0 wrap-anywhere font-medium whitespace-normal text-foreground">
                     {student.name}
                   </TableCell>
-                  <TableCell className="max-w-xs whitespace-normal break-words px-4 text-muted-foreground">
+                  <TableCell className="max-w-xs px-2 wrap-anywhere whitespace-normal text-muted-foreground">
                     {conceptLabel}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap px-4 text-muted-foreground">
+                  <TableCell className="pr-0 pl-2 text-right whitespace-nowrap text-muted-foreground">
                     {relativeTime(student.lastActiveAt, locale, (key) => t(key))}
                   </TableCell>
                 </TableRow>

@@ -160,15 +160,8 @@ export function VoucherManagementTab({
   const isExpired = (date: Date) => new Date(date).getTime() <= loadedAt;
 
   return (
-    <div className="space-y-6" data-voucher-management>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="font-heading text-body-base font-bold text-foreground">
-            {t("voucher.title")}
-          </h2>
-        </div>
-
-        <div className="flex items-center gap-2">
+    <section className="space-y-(--related-gap)" aria-label={t("voucher.title")} data-voucher-management>
+      <div className="flex flex-wrap items-center justify-end gap-2">
           <AdminIconAction label={t("voucher.refresh")}
             type="button"
             variant="outline"
@@ -186,12 +179,11 @@ export function VoucherManagementTab({
               setFormError(null);
               setFormSuccess(null);
             }}
-            className="gap-1.5"
+            className="min-h-9"
           >
             <Plus className="size-3.5" />
             {showForm ? t("voucher.closeForm") : t("voucher.create")}
           </Button>
-        </div>
       </div>
 
       {formSuccess && (
@@ -215,7 +207,7 @@ export function VoucherManagementTab({
             title={t("voucher.new")}
           />
 
-          <form onSubmit={handleCreateVoucher} className="mt-5 space-y-4">
+          <form onSubmit={handleCreateVoucher} className="mt-(--compact-gap) space-y-(--related-gap)">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-2">
                 <Label htmlFor="voucher-code">{t("voucher.code")}</Label>
@@ -598,6 +590,6 @@ export function VoucherManagementTab({
         loading={isDeleting}
         onConfirm={handleDeleteConfirm}
       />
-    </div>
+    </section>
   );
 }
