@@ -193,7 +193,14 @@
       "noData": "No mastery data yet",
       "noDataDescription": "Complete a quiz to measure concept mastery.",
       "notMeasured": "Not measured",
-      "prerequisite": "Prerequisite"
+      "prerequisite": "Prerequisite",
+      "weak": "Weak",
+      "developing": "Developing",
+      "strong": "Strong",
+      "trendImproving": "Trend improving",
+      "trendDeclining": "Trend declining",
+      "trendStable": "Trend stable",
+      "measuredOf": "{measured} of {total} concepts measured"
     },
     "recentActivity": {
       "learning": "Learning activity",

@@ -4,17 +4,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function DashboardHeaderShell({ firstName }: { firstName: string }) {
   return (
-    <div className="mb-4 sm:mb-6">
-      <PageHeader
-        title={
-          <>
-            <TranslatedText namespace="student" messageKey="dashboard.helloPrefix" />
-            {", "}
-            <span className="text-primary">{firstName}</span>
-          </>
-        }
-      />
-    </div>
+    <PageHeader
+      title={
+        <>
+          <TranslatedText namespace="student" messageKey="dashboard.helloPrefix" />
+          {", "}
+          <span className="text-primary">{firstName}</span>
+        </>
+      }
+    />
   );
 }
 

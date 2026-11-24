@@ -13,7 +13,6 @@ import {
   History,
   Layers,
   Play,
-  Trophy,
 } from "lucide-react";
 import {
   getMaterialsProgress,
@@ -24,6 +23,11 @@ import { DashboardWeakConcepts } from "@/components/course/dashboard-weak-concep
 import { MathText } from "@/components/course/math-text";
 import { ActivateClassModal } from "@/components/dashboard/activate-class-modal";
 import { CompleteProfileDialog } from "@/components/dashboard/complete-profile-dialog";
+import {
+  DashboardInlineEmpty,
+  DashboardSectionCount,
+  DashboardSectionHeading,
+} from "@/components/dashboard/dashboard-section-heading";
 import {
   StudentOnboardingView,
   type CatalogCourse,
@@ -531,6 +535,7 @@ export async function loadReviewQueueData(
   if (!userId || enrollments.length === 0) {
     return {
       totalDueFlashcards: 0,
+      coursesWithQueueCount: 0,
       firstCourseWithQueue: enrollments[0]?.id,
       recentReviews: [] as Awaited<ReturnType<DashboardSectionDeps["queryRecentFlashcardReviews"]>>,
     };
@@ -544,10 +549,11 @@ export async function loadReviewQueueData(
   ]);
 
   const totalDueFlashcards = flashcardQueues.reduce((total, item) => total + item.count, 0);
+  const coursesWithQueueCount = flashcardQueues.filter((item) => item.count > 0).length;
   const firstCourseWithQueue =
     flashcardQueues.find((item) => item.count > 0)?.courseId ?? enrollments[0]?.id;
 
-  return { totalDueFlashcards, firstCourseWithQueue, recentReviews };
+  return { totalDueFlashcards, coursesWithQueueCount, firstCourseWithQueue, recentReviews };
 }
 
 export async function loadAvailableAssessmentsData(
@@ -672,72 +678,79 @@ export async function PrimaryLearningSection({
     await loadPrimaryLearningData(userId, enrollments, deps);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       <section>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-          <h2 className="flex items-center gap-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <GraduationCap className="size-3.5 shrink-0 text-muted-foreground" />
-            <TranslatedText namespace="student" messageKey="dashboard.classesActive" />
-          </h2>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-            <ActivateClassModal />
-            <Link href="/courses" className="group text-body-xs font-semibold text-muted-foreground hover:text-foreground transition-colors flex items-center gap-0.5 shrink-0">
-              <TranslatedText namespace="student" messageKey="dashboard.viewAll" />
-              <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </Link>
-          </div>
-        </div>
+        <DashboardSectionHeading
+          icon={GraduationCap}
+          title={<TranslatedText namespace="student" messageKey="dashboard.classesActive" />}
+          actions={
+            <>
+              <ActivateClassModal />
+              <Link href="/courses" className="group flex shrink-0 items-center gap-0.5 text-body-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
+                <TranslatedText namespace="student" messageKey="dashboard.viewAll" />
+                <ArrowUpRight className="size-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+              </Link>
+            </>
+          }
+        />
 
         <div className="divide-y divide-border/30">
           {enrollments.map((course) => {
             const materials = materialsByCourseId.get(course.id) || [];
             const doneCount = materials.filter((m) => m.completed || completedIds.has(m.id)).length;
             const progressPct = materials.length > 0 ? Math.round((doneCount / materials.length) * 100) : 0;
+            const nextConcept = nextConcepts[course.id];
 
             return (
               <Link
                 key={course.id}
                 href={`/courses/${course.id}`}
-                className="group block py-3.5 px-2 -mx-2 rounded-lg transition-colors hover:bg-muted/40"
+                className="group -mx-2 block rounded-lg px-2 py-4 transition-colors hover:bg-muted/40"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex rounded-md border border-border/50 bg-muted/50 px-2 py-0.5 text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
-                        {course.category}
-                      </span>
-                      <CoursePricingLabel pricing={course.pricing} />
-                      <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <h3 className="min-w-0 break-words font-heading text-body-base font-bold text-foreground transition-colors group-hover:text-primary">
                         {course.title}
                       </h3>
+                      <span className="shrink-0 text-body-xs font-medium uppercase tracking-wider text-muted-foreground">{course.category}</span>
+                      <CoursePricingLabel pricing={course.pricing} />
                     </div>
 
-                    <div className="mt-2.5 flex flex-wrap items-center gap-2 sm:gap-3 max-w-md">
-                      <div className="h-1.5 w-20 sm:w-28 shrink-0 overflow-hidden rounded bg-muted/70">
+                    <div className="mt-2 flex items-center gap-3">
+                      <div
+                        className="h-1.5 min-w-16 max-w-56 flex-1 overflow-hidden rounded-full bg-muted"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={progressPct}
+                        aria-label={course.title}
+                      >
                         <div
-                          className={cn(
-                            "h-full transition-all duration-300 rounded",
-                            progressPct >= 100 ? "bg-status-success" : "bg-brand-primary",
-                          )}
+                          className={cn("h-full rounded-full transition-all duration-300", progressPct >= 100 ? "bg-status-success" : "bg-primary")}
                           style={{ width: `${progressPct}%` }}
                         />
                       </div>
-                      <span className="text-body-xs font-semibold tabular-nums text-foreground shrink-0">{progressPct}%</span>
-                      <span className="text-body-xs text-muted-foreground"><TranslatedText namespace="student" messageKey="dashboard.enrolledMaterialProgress" values={{ done: doneCount, total: materials.length }} /></span>
+                      <span className="shrink-0 text-body-sm font-semibold tabular-nums text-foreground">{progressPct}%</span>
+                      <span className="shrink-0 text-body-xs tabular-nums text-muted-foreground">
+                        <TranslatedText namespace="student" messageKey="dashboard.materialProgressShort" values={{ done: doneCount, total: materials.length }} />
+                      </span>
                     </div>
 
-                    {nextConcepts[course.id] && (
-                      <div className="mt-2 text-body-xs font-medium text-muted-foreground break-words min-w-0">
-                        <TranslatedText namespace="student" messageKey="dashboard.nextStep" />{" "}
-                        <span className="text-foreground font-medium group-hover:underline">
-                          <MathText as="span">{nextConcepts[course.id]}</MathText>
+                    {nextConcept && (
+                      <p className="mt-2 flex min-w-0 items-baseline gap-1.5 text-body-sm">
+                        <span className="shrink-0 text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          <TranslatedText namespace="student" messageKey="dashboard.nextUp" />
                         </span>
-                      </div>
+                        <span className="line-clamp-2 min-w-0 break-words font-medium text-foreground group-hover:underline">
+                          <MathText as="span">{nextConcept}</MathText>
+                        </span>
+                      </p>
                     )}
                   </div>
 
                   <ArrowUpRight
-                    className="mt-0.5 size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"
+                    className="mt-1 size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground"
                     aria-hidden
                   />
                 </div>
@@ -747,62 +760,42 @@ export async function PrimaryLearningSection({
         </div>
       </section>
 
-      <section>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-          <h2 className="flex items-center gap-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Bookmark className="size-3.5 shrink-0 text-muted-foreground" />
-            <TranslatedText namespace="student" messageKey="dashboard.openMaterials" />
-          </h2>
-          {inProgressDocuments.length > 0 && (
-            <span className="text-body-xs font-medium tabular-nums text-muted-foreground shrink-0">
-              <TranslatedText namespace="student" messageKey="dashboard.materialCount" values={{ count: inProgressDocuments.length }} />
-            </span>
-          )}
-        </div>
-
-        {inProgressDocuments.length > 0 ? (
+      {inProgressDocuments.length > 0 && (
+        <section>
+          <DashboardSectionHeading
+            icon={Bookmark}
+            title={<TranslatedText namespace="student" messageKey="dashboard.openMaterials" />}
+            meta={
+              <DashboardSectionCount>
+                <TranslatedText namespace="student" messageKey="dashboard.materialCount" values={{ count: inProgressDocuments.length }} />
+              </DashboardSectionCount>
+            }
+          />
           <div className="divide-y divide-border/30">
-            {inProgressDocuments.map((doc) => {
-              if (!doc) return null;
-              return (
-                <div key={doc.id} className="group py-3 px-2 -mx-2 rounded-lg transition-colors hover:bg-muted/40">
-                  <Link
-                    href={`/courses/${doc.courseId}/material/${doc.id}${doc.lastSectionId ? `?section=${encodeURIComponent(doc.lastSectionId)}` : ""}`}
-                    className="flex items-center justify-between gap-3 sm:gap-4 min-w-0"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex max-w-full break-words rounded-md border border-border/50 bg-muted/50 px-2 py-0.5 text-body-2xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
-                          {doc.courseTitle}
-                        </span>
-                        <span className="text-body-xs text-muted-foreground capitalize">({doc.kind})</span>
-                      </div>
-                      <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors mt-1.5 break-words min-w-0">
-                        {doc.title}
-                      </h3>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-3 max-w-xs">
-                        <div className="h-1.5 w-20 sm:w-24 shrink-0 overflow-hidden rounded bg-muted/70">
-                          <div className="h-full bg-brand-primary transition-all duration-300 rounded" style={{ width: `${doc.completionPercent}%` }} />
-                        </div>
-                        <span className="text-body-xs font-semibold tabular-nums text-foreground shrink-0">{doc.completionPercent}%</span>
-                        {doc.lastSectionId && (
-                          <span className="max-w-[120px] truncate text-body-xs text-muted-foreground">, {doc.lastSectionId}</span>
-                        )}
-                      </div>
+            {inProgressDocuments.map((doc) => (
+              <Link
+                key={doc.id}
+                href={`/courses/${doc.courseId}/material/${doc.id}${doc.lastSectionId ? `?section=${encodeURIComponent(doc.lastSectionId)}` : ""}`}
+                className="group -mx-2 flex min-w-0 items-center justify-between gap-3 rounded-lg px-2 py-3.5 transition-colors hover:bg-muted/40"
+              >
+                <div className="min-w-0 flex-1">
+                  <h3 className="min-w-0 break-words text-body-sm font-semibold text-foreground transition-colors group-hover:text-primary">
+                    {doc.title}
+                  </h3>
+                  <div className="mt-1 flex min-w-0 items-center gap-2 text-body-xs text-muted-foreground">
+                    <span className="min-w-0 truncate">{doc.courseTitle}</span>
+                    <div className="h-1 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${doc.completionPercent}%` }} />
                     </div>
-                    <Play className="size-3.5 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden />
-                  </Link>
+                    <span className="shrink-0 font-semibold tabular-nums text-foreground">{doc.completionPercent}%</span>
+                  </div>
                 </div>
-              );
-            })}
+                <Play className="size-3.5 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden />
+              </Link>
+            ))}
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center px-3 py-4 text-center">
-            <CheckCircle2 className="size-8 text-status-success/60 mb-2" />
-            <p className="text-body-sm font-medium text-foreground"><TranslatedText namespace="student" messageKey="dashboard.documentsRead" /></p>
-          </div>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }
@@ -823,53 +816,56 @@ export async function RecommendedCoursesSection({
 
   return (
     <section>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Compass className="size-3.5 shrink-0 text-muted-foreground" />
-          <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <TranslatedText namespace="student" messageKey="dashboard.recommendedCourses" />
-          </h2>
-          {studentTargetCategory && (
-            <span className="rounded-md border border-border/50 bg-muted/50 px-2 py-0.5 text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
-              {studentTargetCategory === "TPB" ? "TPB" : studentTargetCategory}
-            </span>
-          )}
-        </div>
-        <Link href="/courses" className="group text-body-xs font-semibold text-muted-foreground hover:text-foreground transition-colors flex items-center gap-0.5 shrink-0">
-          <TranslatedText namespace="student" messageKey="dashboard.viewAll" />
-          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-        </Link>
-      </div>
+      <DashboardSectionHeading
+        icon={Compass}
+        title={<TranslatedText namespace="student" messageKey="dashboard.recommendedCourses" />}
+        meta={studentTargetCategory ? <DashboardSectionCount>{studentTargetCategory}</DashboardSectionCount> : null}
+        actions={
+          <Link href="/courses" className="group flex shrink-0 items-center gap-0.5 text-body-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
+            <TranslatedText namespace="student" messageKey="dashboard.viewAll" />
+            <ArrowUpRight className="size-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+          </Link>
+        }
+      />
 
       <div className="divide-y divide-border/30">
         {recommendedCourses.map((course) => (
-          <div key={course.id} className="group py-2.5 px-2 -mx-2 rounded-lg transition-colors hover:bg-muted/40">
-            <Link href={`/courses/${course.id}`} className="flex items-center justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex rounded-md border border-border/50 bg-muted/50 px-2 py-0.5 text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {course.category}
-                  </span>
-                  <CoursePricingLabel pricing={course.pricing} />
-                  <span className="text-body-xs text-muted-foreground">
+          <Link
+            key={course.id}
+            href={`/courses/${course.id}`}
+            className="group -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-3.5 transition-colors hover:bg-muted/40"
+          >
+            <div className="min-w-0 flex-1">
+              <h3 className="break-words text-body-sm font-semibold text-foreground transition-colors group-hover:text-primary">
+                {course.title}
+              </h3>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-body-xs text-muted-foreground">
+                {course.category !== studentTargetCategory && (
+                  <span className="font-medium uppercase tracking-wider">{course.category}</span>
+                )}
+                <CoursePricingLabel pricing={course.pricing} />
+                {course.materialsCount > 0 && (
+                  <span className="tabular-nums">
                     <TranslatedText namespace="student" messageKey="dashboard.materialCount" values={{ count: course.materialsCount }} />
                   </span>
-                </div>
-                <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words mt-1">
-                  {course.title}
-                </h3>
+                )}
               </div>
-              <ArrowRight
-                className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
-                aria-hidden
-              />
-            </Link>
-          </div>
+            </div>
+            <ArrowRight className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden />
+          </Link>
         ))}
       </div>
     </section>
   );
 }
+
+const GRADE_LABELS: Record<number, string> = { 1: "gradeAgain", 2: "gradeHard", 3: "gradeGood", 4: "gradeEasy" };
+const GRADE_TONES: Record<number, string> = {
+  1: "text-status-error",
+  2: "text-status-warning",
+  3: "text-foreground/80",
+  4: "text-status-success",
+};
 
 export async function ReviewQueueSection({
   userId,
@@ -880,78 +876,80 @@ export async function ReviewQueueSection({
   enrollments: ReadonlyArray<StudentEnrollmentRecord>;
   deps?: Partial<DashboardSectionDeps>;
 }) {
-  const { totalDueFlashcards, firstCourseWithQueue, recentReviews } =
+  const { totalDueFlashcards, coursesWithQueueCount, firstCourseWithQueue, recentReviews } =
     await loadReviewQueueData(userId, enrollments, deps);
+  const targetCourseTitle = enrollments.find((course) => course.id === firstCourseWithQueue)?.title;
 
   return (
     <section>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-        <h2 className="flex items-center gap-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <Layers className="size-3.5 shrink-0 text-muted-foreground" />
-          <TranslatedText namespace="student" messageKey="dashboard.spacedRepetition" />
-        </h2>
-        <span className={cn(
-          "text-body-xs font-semibold px-2 py-0.5 rounded-md tabular-nums shrink-0",
-          totalDueFlashcards > 0 ? "bg-status-warning/15 text-status-warning" : "bg-status-success/15 text-status-success",
-        )}>
-          {totalDueFlashcards > 0
-            ? <TranslatedText namespace="student" messageKey="dashboard.cardsDue" values={{ count: totalDueFlashcards }} />
-            : <TranslatedText namespace="student" messageKey="dashboard.allCardsDone" />}
-        </span>
-      </div>
+      <DashboardSectionHeading
+        icon={Layers}
+        title={<TranslatedText namespace="student" messageKey="dashboard.spacedRepetition" />}
+        meta={
+          <DashboardSectionCount tone={totalDueFlashcards > 0 ? "warning" : "success"}>
+            {totalDueFlashcards > 0
+              ? coursesWithQueueCount > 1
+                ? (
+                    <TranslatedText
+                      namespace="student"
+                      messageKey="dashboard.cardsDueMultiCourse"
+                      values={{ count: totalDueFlashcards, courses: coursesWithQueueCount }}
+                    />
+                  )
+                : <TranslatedText namespace="student" messageKey="dashboard.cardsDue" values={{ count: totalDueFlashcards }} />
+              : <TranslatedText namespace="student" messageKey="dashboard.allCardsDone" />}
+          </DashboardSectionCount>
+        }
+      />
 
       {firstCourseWithQueue && (
-        <Button asChild className="group w-full rounded-lg text-body-sm font-semibold">
+        <Button
+          asChild
+          size="sm"
+          variant={totalDueFlashcards > 0 ? "default" : "outline"}
+          className="group mt-1 h-auto min-h-8 w-full max-w-full whitespace-normal py-1.5 text-left sm:w-auto"
+        >
           <Link href={`/courses/${firstCourseWithQueue}/flashcard`}>
-            {totalDueFlashcards > 0
-              ? <TranslatedText namespace="student" messageKey="dashboard.startFlashcardReview" />
-              : <TranslatedText namespace="student" messageKey="dashboard.openFlashcardCollection" />}
-            <ArrowRight className="ml-1.5 size-4 transition-transform group-hover:translate-x-0.5" />
+            <span className="min-w-0 break-words">
+              {totalDueFlashcards > 0
+                ? targetCourseTitle
+                  ? <TranslatedText namespace="student" messageKey="dashboard.startFlashcardReviewCourse" values={{ courseTitle: targetCourseTitle }} />
+                  : <TranslatedText namespace="student" messageKey="dashboard.startFlashcardReview" />
+                : targetCourseTitle
+                  ? <TranslatedText namespace="student" messageKey="dashboard.openFlashcardCollectionCourse" values={{ courseTitle: targetCourseTitle }} />
+                  : <TranslatedText namespace="student" messageKey="dashboard.openFlashcardCollection" />}
+            </span>
+            <ArrowRight className="shrink-0 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </Button>
       )}
 
-      <div className="mt-4 pt-3 border-t border-border/30">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="font-heading text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <History className="size-3.5 text-muted-foreground" />
+      {recentReviews.length > 0 && (
+        <div className="mt-3">
+          <h3 className="mb-1 flex items-center gap-1.5 text-body-xs font-semibold text-muted-foreground">
+            <History className="size-3.5" aria-hidden />
             <TranslatedText namespace="student" messageKey="dashboard.recentReviews" />
-          </span>
-        </div>
-
-        {recentReviews.length > 0 ? (
-          <div className="divide-y divide-border/30">
-            {recentReviews.map((review) => {
-              const gradeLabels: Record<number, string> = { 1: "gradeAgain", 2: "gradeHard", 3: "gradeGood", 4: "gradeEasy" };
-              const gradeColors: Record<number, string> = {
-                1: "text-status-error bg-status-error/10 border-status-error/20",
-                2: "text-status-warning bg-status-warning/10 border-status-warning/20",
-                3: "text-foreground/80 bg-muted/60 border-border/60",
-                4: "text-status-success bg-status-success/10 border-status-success/20",
-              };
-              return (
-                <div key={review.id} className="py-2.5 px-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className={cn(
-                      "inline-flex rounded-md border px-1.5 py-0.2 text-body-2xs font-bold uppercase tracking-wider shrink-0",
-                      gradeColors[review.grade] || "text-muted-foreground border-border bg-muted/40",
-                    )}>
-                      <TranslatedText namespace="student" messageKey={`dashboard.${gradeLabels[review.grade] || "recentReviews"}`} />
-                    </span>
-                    <span className="text-body-xs text-muted-foreground shrink-0">
-                      <FormattedDate date={review.reviewedAt} options={{ dateStyle: "medium" }} />
-                    </span>
-                  </div>
-                  <p className="text-body-xs font-medium text-foreground mt-1 truncate">{review.front}</p>
-                  <p className="text-body-xs text-muted-foreground mt-0.5 truncate">{review.courseTitle}</p>
+          </h3>
+          <ul className="divide-y divide-border/30">
+            {recentReviews.map((review) => (
+              <li key={review.id} className="flex min-w-0 items-center justify-between gap-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-body-sm text-foreground">{review.front}</p>
+                  <p className="truncate text-body-xs text-muted-foreground">{review.courseTitle}</p>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-body-xs text-muted-foreground py-2 text-center"><TranslatedText namespace="student" messageKey="dashboard.noRecentReviews" /></p>
-        )}
-      </div>
+                <div className="flex shrink-0 flex-col items-end">
+                  <span className={cn("text-body-xs font-semibold", GRADE_TONES[review.grade] ?? "text-muted-foreground")}>
+                    <TranslatedText namespace="student" messageKey={`dashboard.${GRADE_LABELS[review.grade] || "recentReviews"}`} />
+                  </span>
+                  <span className="text-body-xs text-muted-foreground">
+                    <FormattedDate date={review.reviewedAt} options={{ dateStyle: "medium" }} />
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
@@ -974,10 +972,10 @@ export async function WeakConceptsSection({
       {firstCourse?.id && (
         <Link
           href={`/courses/${firstCourse.id}/mastery`}
-          className="group mt-3 pt-2.5 border-t border-border/30 inline-flex items-center gap-1 text-body-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          className="group mt-2 inline-flex items-center gap-1 text-body-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
         >
           <TranslatedText namespace="student" messageKey="dashboard.fullMasteryMap" />
-          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          <ArrowUpRight className="size-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
         </Link>
       )}
     </section>
@@ -995,55 +993,57 @@ export async function AvailableAssessmentsSection({
 
   return (
     <section>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-        <h2 className="flex items-center gap-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <ClipboardList className="size-3.5 shrink-0 text-muted-foreground" />
-          <TranslatedText namespace="student" messageKey="dashboard.availableAssessments" />
-        </h2>
-        {availableExams.length > 0 && (
-          <span className="text-body-xs font-medium tabular-nums text-muted-foreground shrink-0">
-            <TranslatedText namespace="student" messageKey="dashboard.examCount" values={{ count: availableExams.length }} />
-          </span>
-        )}
-      </div>
+      <DashboardSectionHeading
+        icon={ClipboardList}
+        title={<TranslatedText namespace="student" messageKey="dashboard.availableAssessments" />}
+        meta={
+          availableExams.length > 0 ? (
+            <DashboardSectionCount>
+              <TranslatedText namespace="student" messageKey="dashboard.examCount" values={{ count: availableExams.length }} />
+            </DashboardSectionCount>
+          ) : null
+        }
+      />
 
       {availableExams.length > 0 ? (
         <div className="divide-y divide-border/30">
           {availableExams.slice(0, 4).map((exam) => (
-            <div key={exam.id} className="group py-2.5 px-2 -mx-2 rounded-lg transition-colors hover:bg-muted/40">
-              <Link href={`/courses/${exam.courseId}/${exam.type}/${exam.id}`} className="flex items-center justify-between gap-3 min-w-0">
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words min-w-0">
-                    {exam.title}
-                  </h4>
-                  <p className="text-body-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate">
-                    <span className="font-medium text-muted-foreground truncate max-w-[140px]">{exam.courseTitle}</span>
-                    <span className="text-border-strong">,</span>
-                    <span className="capitalize shrink-0"><TranslatedText namespace="student" messageKey={exam.type === "quiz" ? "dashboard.examQuiz" : "dashboard.examTryout"} /></span>
-                  </p>
-                </div>
-                <ArrowRight className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden />
-              </Link>
-            </div>
+            <Link
+              key={exam.id}
+              href={`/courses/${exam.courseId}/${exam.type}/${exam.id}`}
+              className="group -mx-2 flex min-w-0 items-center justify-between gap-3 rounded-lg px-2 py-3.5 transition-colors hover:bg-muted/40"
+            >
+              <div className="min-w-0 flex-1">
+                <h3 className="min-w-0 break-words text-body-sm font-semibold text-foreground transition-colors group-hover:text-primary">
+                  {exam.title}
+                </h3>
+                <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-body-xs text-muted-foreground">
+                  <span className="shrink-0 font-medium">
+                    <TranslatedText namespace="student" messageKey={exam.type === "quiz" ? "dashboard.examQuiz" : "dashboard.examTryout"} />
+                  </span>
+                  <span className="min-w-0 truncate">{exam.courseTitle}</span>
+                </p>
+              </div>
+              <ArrowRight className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden />
+            </Link>
           ))}
 
           {availableExams.length > 4 && (
-            <div className="pt-2 text-center border-t border-border/30">
+            <div className="pt-2">
               <Link
                 href={availableExams[0] ? `/courses/${availableExams[0].courseId}/quiz` : "/courses"}
-                className="group text-body-xs font-semibold text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+                className="group inline-flex items-center gap-1 text-body-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
               >
                 <TranslatedText namespace="student" messageKey="dashboard.seeAllExams" values={{ count: availableExams.length }} />
-                <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                <ArrowUpRight className="size-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </Link>
             </div>
           )}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center px-3 py-4 text-center">
-          <Trophy className="size-8 text-status-warning/60 mb-2" />
-          <p className="text-body-sm font-medium text-foreground"><TranslatedText namespace="student" messageKey="dashboard.allExamsDone" /></p>
-        </div>
+        <DashboardInlineEmpty icon={CheckCircle2}>
+          <TranslatedText namespace="student" messageKey="dashboard.allExamsDone" />
+        </DashboardInlineEmpty>
       )}
     </section>
   );
