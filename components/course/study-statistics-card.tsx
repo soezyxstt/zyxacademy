@@ -3,8 +3,8 @@
 import type { StudyStatisticsData } from "@/types/course-learning";
 import { useTranslations } from "@/lib/i18n/client";
 
-const comparisonLayout = "grid min-w-0 divide-y divide-border/30 md:grid-cols-4 md:gap-x-(--group-gap) md:divide-y-0";
-const metricRow = "flex min-w-0 items-baseline justify-between gap-x-(--compact-gap) py-(--table-row-padding) md:flex-col md:items-start md:gap-y-1";
+const comparisonLayout = "flex min-w-0 flex-col divide-y divide-border/40 border-y border-border/40 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-6 sm:gap-y-1.5 sm:divide-y-0 sm:py-2";
+const metricRow = "flex min-w-0 items-baseline justify-between gap-x-3 py-1.5 sm:inline-flex sm:justify-start sm:gap-x-1.5 sm:py-0";
 
 export function StudyStatisticsSkeleton() {
   return (

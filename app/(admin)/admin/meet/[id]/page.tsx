@@ -119,7 +119,7 @@ export default function DetailedMeetingLogPage({
       ) : (
         <div className="space-y-(--section-gap)">
           {/* Overview metric strip */}
-          <AdminStatStrip className="sm:grid-cols-2 lg:grid-cols-5">
+          <AdminStatStrip>
             <AdminStatStripItem
               icon={Clock}
               label={translate("meetDetailUI.timeDuration")}

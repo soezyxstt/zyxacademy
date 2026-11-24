@@ -5,14 +5,6 @@ export default function CourseFlashcardsLoading() {
   return (
     <div role="status" aria-label="Memuat" className="min-w-0 space-y-(--compact-gap)">
       <CourseLoadingHeader />
-      <div className="grid grid-cols-2 gap-px border-y border-border/60 bg-border/60 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((index) => (
-          <div key={index} className="space-y-2 bg-background p-(--compact-gap)">
-            <Skeleton className="h-4 w-24 max-w-full" />
-            <Skeleton className="h-6 w-12" />
-          </div>
-        ))}
-      </div>
       <div className="flex flex-wrap items-center gap-2">
         <Skeleton className="size-9" />
         <Skeleton className="h-9 w-24" />

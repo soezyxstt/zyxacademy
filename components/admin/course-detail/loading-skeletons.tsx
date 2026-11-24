@@ -29,11 +29,11 @@ function Rows({ count = 5 }: { count?: number }) {
 
 function Stats() {
   return (
-    <div className="grid grid-cols-2 gap-px border-y border-border/60 bg-border/60 lg:grid-cols-4">
+    <div className="flex flex-col divide-y divide-border/40 border-y border-border/40 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-1.5 sm:divide-y-0 sm:py-2">
       {[0, 1, 2, 3].map((index) => (
-        <div key={index} className="space-y-2 bg-background p-(--compact-gap)">
-          <Skeleton className="h-4 w-24 max-w-full" />
-          <Skeleton className="h-6 w-12" />
+        <div key={index} className="flex items-center justify-between gap-3 py-1.5 sm:inline-flex sm:justify-start sm:gap-2 sm:py-0">
+          <Skeleton className="h-3.5 w-20 max-w-full" />
+          <Skeleton className="h-4 w-10" />
         </div>
       ))}
     </div>

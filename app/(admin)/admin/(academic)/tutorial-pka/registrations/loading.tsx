@@ -4,14 +4,6 @@ export default function RegistrationsLoading() {
   return (
     <div role="status" aria-label="Memuat" className="min-w-0 space-y-(--related-gap)">
       <Skeleton className="h-9 w-80 max-w-full" />
-      <div className="grid grid-cols-2 gap-px border-y border-border/60 bg-border/60 sm:grid-cols-3">
-        {[0, 1, 2].map((index) => (
-          <div key={index} className="space-y-2 bg-background p-(--compact-gap)">
-            <Skeleton className="h-4 w-24 max-w-full" />
-            <Skeleton className="h-6 w-12" />
-          </div>
-        ))}
-      </div>
       <div className="flex gap-2">
         <Skeleton className="size-9" />
         <Skeleton className="h-9 w-28" />

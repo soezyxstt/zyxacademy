@@ -211,8 +211,8 @@ export function QuizInsightDetailClient({
     return (
       <div role="status" aria-label={tx("loading")} className="space-y-(--section-gap)">
         <div className="hidden justify-end md:flex"><Skeleton className="size-9" /></div>
-        <AdminStatStrip className="lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => <div key={i} className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-6 w-16" /></div>)}
+        <AdminStatStrip>
+          {[0, 1, 2, 3].map((i) => <div key={i} className="flex items-center justify-between gap-2 py-1.5 sm:py-0"><Skeleton className="h-3.5 w-20" /><Skeleton className="h-4 w-12" /></div>)}
         </AdminStatStrip>
         <Skeleton className="h-10 w-80 max-w-full" />
         <div className="grid gap-(--section-gap) md:grid-cols-2">
@@ -274,7 +274,7 @@ export function QuizInsightDetailClient({
       )}
 
       {/* Overview Stat Strip */}
-      <AdminStatStrip className="lg:grid-cols-4">
+      <AdminStatStrip>
         <AdminStatStripItem
           label={tx("completedParticipants")}
           value={summary.totalCompleted}
