@@ -63,6 +63,8 @@ export function formatDayNumber(dateStr: string): string {
   return parts[2] ? String(Number(parts[2])) : "";
 }
 
+export const TUTOR_SLOT_TIME_PRESETS = ["08:00", "09:30", "13:00", "15:00", "16:30", "19:00"] as const;
+
 export interface TutorScheduleSurfaceProps {
   initialData: TutorScheduleReadModel;
   scheduleData: TutorScheduleReadModel;
@@ -93,11 +95,13 @@ export interface TutorScheduleSurfaceProps {
   openedSlotCount: number;
   filledSlotCount: number;
   availableSlotCount: number;
-  // Add slot draft
+  // Create / Edit slot draft
   isAddSlotOpen: boolean;
   setIsAddSlotOpen: (open: boolean) => void;
+  editingSlotId: string | null;
   newSlotDate: string;
   setNewSlotDate: (date: string) => void;
+  derivedWeekday: IndonesianDay;
   newSlotStart: string;
   handleStartTimeChange: (val: string) => void;
   newSlotEnd: string;
@@ -107,8 +111,12 @@ export interface TutorScheduleSurfaceProps {
   setNewSlotLocation: (loc: string) => void;
   newSlotNotes: string;
   setNewSlotNotes: (notes: string) => void;
-  handleAddSlot: () => void;
+  repeatWeeks: number;
+  setRepeatWeeks: (weeks: number) => void;
+  canSaveSlot: boolean;
+  handleSaveSlot: () => void;
   openAddSlotDialog: () => void;
+  openEditSlotDialog: (slot: OwnedSlotItem) => void;
   handleCreateSlotDirect: (dateIso: string, startTimeStr?: string) => void;
   // Actions
   requestDeleteSlot: (slotId: string) => void;

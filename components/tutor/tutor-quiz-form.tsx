@@ -4,6 +4,7 @@ import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Calendar,
+  Clock,
   Save,
   Settings2,
   BookOpen,
@@ -466,17 +467,17 @@ export function TutorQuizForm({
 
         {/* TAB 1: PENGATURAN */}
         <TabsContent value="pengaturan" className="space-y-(--related-gap) focus-visible:outline-none">
-          <div className="grid grid-cols-1 gap-(--related-gap) lg:grid-cols-12">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
             {/* LEFT COLUMN: Main Info & Schedule */}
-            <div className="divide-y divide-border border-y border-border lg:col-span-7">
+            <div className="space-y-8 lg:col-span-7">
               <section>
-                <div className="border-b border-border py-3">
-                  <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-                    <BookOpen className="size-4 text-brand-primary" />
-                    {t("quizTitle")}
-                  </h3>
+                <div className="mb-3 border-b border-border/40 pb-2">
+                  <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
+                    <BookOpen className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <span>{t("quizTitle")}</span>
+                  </h2>
                 </div>
-                <div className="space-y-(--related-gap) py-3">
+                <div className="space-y-(--related-gap)">
                   {isEdit && initialData && (
                     <div className="flex flex-wrap items-center justify-between gap-(--compact-gap) pb-2 text-body-xs">
                       <div className="flex min-w-0 flex-wrap items-center gap-2 wrap-anywhere font-medium text-foreground">
@@ -531,7 +532,7 @@ export function TutorQuizForm({
                         {t("category")}
                       </Label>
                       <Select value={category} onValueChange={(v: any) => setCategory(v)}>
-                        <SelectTrigger id="category" className="mt-1 px-0">
+                        <SelectTrigger id="category" className="mt-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-card border-border">
@@ -548,7 +549,7 @@ export function TutorQuizForm({
                         {t("visibility")}
                       </Label>
                       <Select value={visibility} onValueChange={(v: any) => setVisibility(v)}>
-                        <SelectTrigger id="visibility" className="mt-1 px-0">
+                        <SelectTrigger id="visibility" className="mt-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-card border-border">
@@ -563,13 +564,13 @@ export function TutorQuizForm({
 
               {/* Schedule Settings */}
               <section>
-                <div className="border-b border-border py-3">
-                  <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-                    <Calendar className="size-4 text-brand-primary" />
-                    {t("scheduleType")}
-                  </h3>
+                <div className="mb-3 border-b border-border/40 pb-2">
+                  <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
+                    <Calendar className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <span>{t("scheduleType")}</span>
+                  </h2>
                 </div>
-                <div className="space-y-(--related-gap) py-3">
+                <div className="space-y-(--related-gap)">
                   <div className="grid grid-cols-1 gap-(--compact-gap) md:grid-cols-2">
                     <button
                       type="button"
@@ -674,7 +675,7 @@ export function TutorQuizForm({
                         {t("quizStatus")}
                       </Label>
                       <Select value={manualStatus} onValueChange={(v: any) => setManualStatus(v)}>
-                        <SelectTrigger id="manualStatus" className="mt-1 px-0">
+                        <SelectTrigger id="manualStatus" className="mt-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-card border-border">
@@ -689,14 +690,15 @@ export function TutorQuizForm({
             </div>
 
             {/* RIGHT COLUMN: Duration, Rules & Scoring */}
-            <div className="divide-y divide-border border-y border-border lg:col-span-5">
+            <div className="space-y-8 lg:col-span-5 lg:border-l lg:border-border/35 lg:pl-8">
               <section>
-                <div className="border-b border-border py-3">
-                  <h3 className="font-heading text-body-base font-bold text-foreground">
-                    {t("durationAttempts")}
-                  </h3>
+                <div className="mb-3 border-b border-border/40 pb-2">
+                  <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
+                    <Clock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <span>{t("durationAttempts")}</span>
+                  </h2>
                 </div>
-                <div className="space-y-(--related-gap) py-3">
+                <div className="space-y-(--related-gap)">
                   <div className="flex items-center justify-between">
                     <div>
                       <Label className="text-body-sm font-semibold text-foreground">{t("timeLimit")}</Label>
@@ -741,12 +743,13 @@ export function TutorQuizForm({
               </section>
 
               <section>
-                <div className="border-b border-border py-3">
-                  <h3 className="font-heading text-body-base font-bold text-foreground">
-                    {t("rulesAndExplanations")}
-                  </h3>
+                <div className="mb-3 border-b border-border/40 pb-2">
+                  <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
+                    <Settings2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <span>{t("rulesAndExplanations")}</span>
+                  </h2>
                 </div>
-                <div className="space-y-3.5 py-3">
+                <div className="space-y-3.5">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-body-sm font-semibold text-foreground block">{t("freeNavigation")}</span>
@@ -784,7 +787,7 @@ export function TutorQuizForm({
                       {t("discussionRelease")}
                     </Label>
                     <Select value={explanationRelease} onValueChange={(v: any) => setExplanationRelease(v)}>
-                      <SelectTrigger id="explanationRelease" className="mt-1 px-0">
+                      <SelectTrigger id="explanationRelease" className="mt-1">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-card border-border">

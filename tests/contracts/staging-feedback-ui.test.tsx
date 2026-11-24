@@ -54,6 +54,7 @@ mock.module("@/components/admin/course-detail/admin-upload-document-dialog", () 
 
 mock.module("@/app/(tutor)/tutor/schedule/slot-note-actions", () => ({
   addTutorSlotWithNotesAction: async () => ({ success: true }),
+  updateTutorSlotWithNotesAction: async () => ({ success: true }),
   getTutorSlotNotesAction: async () => ({}),
 }));
 

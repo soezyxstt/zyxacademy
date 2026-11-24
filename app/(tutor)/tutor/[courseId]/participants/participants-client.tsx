@@ -104,16 +104,20 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
         {/* ── Tab 1: Participants List ── */}
         <TabsContent value="participants" className="mt-0 space-y-(--related-gap)">
           {filteredParticipants.length === 0 ? (
-            <div className="border-t border-border">
-              <AdminEmptyState icon={Users} title={t("noParticipantsFound")}
+            <div className="border-t border-border/40">
+              <AdminEmptyState
+                compact
+                icon={Users}
+                title={t("noParticipantsFound")}
                 description={search || enrollmentFilter !== "all"
                   ? t("changeFilters")
-                  : t("noActiveParticipants")} className="px-4 py-5" />
+                  : t("noActiveParticipants")}
+              />
             </div>
           ) : (
             <>
               {/* Mobile stacked participant cards (zero horizontal scroll) */}
-              <div className="divide-y divide-border/55 border-y border-border/55 md:hidden">
+              <div className="divide-y divide-border/40 border-y border-border/40 md:hidden">
                 {filteredParticipants.map((p) => (
                   <div key={p.userId} className="space-y-(--compact-gap) py-(--row-padding)">
                     <div className="flex items-start justify-between gap-2">
