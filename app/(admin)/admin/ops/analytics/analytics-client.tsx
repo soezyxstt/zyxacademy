@@ -13,7 +13,6 @@ import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panel
 import { AdminSectionTitle } from "@/components/admin/section-title";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
-import { StatusBadge } from "@/components/admin/status-badges";
 import { Button } from "@/components/ui/button";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 
@@ -23,6 +22,26 @@ type LogFilter = "all" | "failed" | "gateway";
 
 function formatLatency(ms: number) {
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms)}ms`;
+}
+
+function ModelSuccessRate({ value, label }: { value: number; label?: string }) {
+  const tone = value >= 95 ? "bg-status-success" : value >= 80 ? "bg-status-warning" : "bg-status-error";
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1.5 text-body-xs font-medium tabular-nums text-foreground">
+      <span className={`size-1.5 rounded-full ${tone}`} aria-hidden />
+      {label && <span className="sr-only">{label} </span>}
+      {value}%
+    </span>
+  );
+}
+
+function RequestOutcome({ success, label }: { success: boolean; label: string }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1.5 text-body-xs font-medium text-foreground">
+      <span className={`size-1.5 rounded-full ${success ? "bg-status-success" : "bg-status-error"}`} aria-hidden />
+      {label}
+    </span>
+  );
 }
 
 export function AiAnalyticsClient() {
@@ -87,7 +106,7 @@ export function AiAnalyticsClient() {
 
   if (!stats || stats.totalRequests === 0) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8 md:space-y-10">
         <AdminEmptyState
           title={t("analyticsUI.emptyTitle")}
           description={t("analyticsUI.emptyDescription")}
@@ -115,7 +134,7 @@ export function AiAnalyticsClient() {
       : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 md:space-y-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-body-xs text-muted-foreground">{t("analyticsUI.sampleScope")}</p>
         <div className="flex flex-wrap items-center gap-3">
@@ -131,7 +150,7 @@ export function AiAnalyticsClient() {
             onClick={() => void refetch()}
             disabled={isFetching}
           >
-            <RefreshCw aria-hidden className={isFetching ? "size-4 animate-spin" : "size-4"} />
+            <RefreshCw aria-hidden className={isFetching ? "size-4 motion-safe:animate-spin" : "size-4"} />
           </AdminIconAction>
         </div>
       </div>
@@ -151,8 +170,8 @@ export function AiAnalyticsClient() {
           label={t("analyticsUI.successRate")}
           value={`${successRatePct}%`}
           caption={`${stats.successfulRequests} / ${stats.totalRequests}`}
-          tone={stats.failedRequests > 0 ? "warning" : "default"}
           icon={CheckCircle2}
+          iconClassName={stats.failedRequests > 0 ? "text-status-warning" : undefined}
         />
         <AdminStatStripItem
           label={t("analyticsUI.avgLatency")}
@@ -169,7 +188,7 @@ export function AiAnalyticsClient() {
 
       {modelBreakdown.length > 0 && (
         <section className="space-y-3">
-          <AdminSectionTitle title={t("analyticsUI.activeModels")} icon={Cpu} border />
+          <AdminSectionTitle as="h2" title={t("analyticsUI.activeModels")} icon={Cpu} />
           <div className="hidden md:block">
             <AdminTable>
               <table className="w-full text-left text-body-sm">
@@ -184,7 +203,7 @@ export function AiAnalyticsClient() {
                 <tbody className="divide-y divide-border/60">
                   {modelBreakdown.map((item) => (
                     <tr key={item.model} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-2.5 font-medium text-foreground">
+                      <td className="wrap-anywhere px-4 py-2.5 font-medium text-foreground">
                         {modelDisplayName(item.model)}
                       </td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-foreground">
@@ -192,9 +211,7 @@ export function AiAnalyticsClient() {
                         <span className="text-body-xs text-muted-foreground">({item.sharePct}%)</span>
                       </td>
                       <td className="px-4 py-2.5 text-right tabular-nums">
-                        <StatusBadge tone={item.successRatePct >= 95 ? "success" : item.successRatePct >= 80 ? "warning" : "error"}>
-                          {item.successRatePct}%
-                        </StatusBadge>
+                        <ModelSuccessRate value={item.successRatePct} />
                       </td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
                         {formatLatency(item.avgLatencyMs)}
@@ -205,20 +222,18 @@ export function AiAnalyticsClient() {
               </table>
             </AdminTable>
           </div>
-          <ul className="divide-y divide-border/40 border-y border-border md:hidden">
+          <ul className="divide-y divide-border/30 md:hidden">
             {modelBreakdown.map((item) => (
               <li key={item.model} className="flex items-center justify-between gap-3 py-2.5">
                 <div className="min-w-0">
-                  <p className="truncate text-body-sm font-medium text-foreground">
+                  <p className="m-0 wrap-anywhere text-body-sm font-medium text-foreground">
                     {modelDisplayName(item.model)}
                   </p>
-                  <p className="text-body-xs tabular-nums text-muted-foreground">
+                  <p className="m-0 mt-1 text-body-xs tabular-nums text-muted-foreground">
                     {item.count} ({item.sharePct}%) · {formatLatency(item.avgLatencyMs)}
                   </p>
                 </div>
-                <StatusBadge tone={item.successRatePct >= 95 ? "success" : item.successRatePct >= 80 ? "warning" : "error"}>
-                  {item.successRatePct}%
-                </StatusBadge>
+                <ModelSuccessRate value={item.successRatePct} label={t("analyticsUI.successRate")} />
               </li>
             ))}
           </ul>
@@ -229,8 +244,8 @@ export function AiAnalyticsClient() {
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <AdminSectionTitle title={t("analyticsUI.recentRequests")} />
-          <div className="flex items-center gap-1">
+          <AdminSectionTitle as="h2" title={t("analyticsUI.recentRequests")} />
+          <div className="flex flex-wrap items-center gap-1">
             {(
               [
                 { id: "all", label: t("analyticsUI.filterAll") },
@@ -241,9 +256,9 @@ export function AiAnalyticsClient() {
               <Button
                 key={opt.id}
                 type="button"
-                variant={logFilter === opt.id ? "secondary" : "ghost"}
+                variant="ghost"
                 size="sm"
-                className="min-h-9 px-2.5"
+                className="min-h-9 px-2.5 aria-pressed:bg-muted aria-pressed:text-foreground"
                 aria-pressed={logFilter === opt.id}
                 onClick={() => {
                   setLogFilter(opt.id);
@@ -296,24 +311,20 @@ export function AiAnalyticsClient() {
                             locale === "id" ? "id-ID" : "en-US",
                           )}
                         </td>
-                        <td className="px-4 py-2.5 font-medium text-foreground">
+                        <td className="wrap-anywhere px-4 py-2.5 font-medium text-foreground">
                           {log.operation}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">
+                        <td className="wrap-anywhere px-4 py-2.5 text-muted-foreground">
                           {modelDisplayName(log.model)}
                         </td>
-                        <td className="px-4 py-2.5">
-                          <StatusBadge tone={log.viaGateway ? "info" : "muted"}>
-                            {log.viaGateway ? t("analyticsUI.gateway") : t("analyticsUI.direct")}
-                          </StatusBadge>
+                        <td className="px-4 py-2.5 text-body-xs text-muted-foreground">
+                          {log.viaGateway ? t("analyticsUI.gateway") : t("analyticsUI.direct")}
                         </td>
                         <td className="px-4 py-2.5 text-right tabular-nums text-foreground">
                           {formatLatency(log.latencyMs)}
                         </td>
                         <td className="px-4 py-2.5 text-right">
-                          <StatusBadge tone={log.success ? "success" : "error"}>
-                            {log.success ? t("analyticsUI.successful") : t("analyticsUI.failed")}
-                          </StatusBadge>
+                          <RequestOutcome success={log.success} label={log.success ? t("analyticsUI.successful") : t("analyticsUI.failed")} />
                         </td>
                       </tr>
                     ))}
@@ -322,31 +333,29 @@ export function AiAnalyticsClient() {
               </AdminTable>
             </div>
 
-            <ul className="divide-y divide-border/40 border-y border-border md:hidden">
+            <ul className="divide-y divide-border/30 md:hidden">
               {pagedLogs.map((log: AiRequestLog, index: number) => (
                 <li
                   key={`${log.timestamp}-${log.operation}-${log.model}-${startIndex + index}`}
-                  className="py-3 space-y-1.5"
+                  className="space-y-1 py-(--row-padding)"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="text-body-sm font-medium text-foreground break-words">
+                      <p className="wrap-anywhere text-body-sm font-medium text-foreground">
                         {log.operation}
                       </p>
-                      <p className="text-body-xs text-muted-foreground truncate mt-0.5">
+                      <p className="mt-0.5 wrap-anywhere text-body-xs text-muted-foreground">
                         {modelDisplayName(log.model)}
                       </p>
                     </div>
-                    <StatusBadge tone={log.success ? "success" : "error"}>
-                      {log.success ? t("analyticsUI.successful") : t("analyticsUI.failed")}
-                    </StatusBadge>
+                    <RequestOutcome success={log.success} label={log.success ? t("analyticsUI.successful") : t("analyticsUI.failed")} />
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs">
                     <div className="flex items-center gap-2">
-                      <StatusBadge tone={log.viaGateway ? "info" : "muted"}>
+                      <span className="text-muted-foreground">
                         {log.viaGateway ? t("analyticsUI.gateway") : t("analyticsUI.direct")}
-                      </StatusBadge>
+                      </span>
                       <span className="tabular-nums text-foreground">
                         {formatLatency(log.latencyMs)}
                       </span>

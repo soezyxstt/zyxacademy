@@ -94,22 +94,21 @@ export default async function DashboardPage() {
             </DashboardSectionErrorBoundary>
           )}
 
-          {user?.id ? (
-            <DashboardSectionErrorBoundary
-              variant="secondary"
-              fallbackHeader={<DashboardHeaderShell firstName={firstName} />}
-              sectionTitle={<TranslatedText namespace="student" messageKey="dashboard.studyPlan" />}
-            >
-              <Suspense fallback={<DashboardHeaderShell firstName={firstName} />}>
-                <TodayPlanSection userId={user.id} firstName={firstName} />
-              </Suspense>
-            </DashboardSectionErrorBoundary>
-          ) : (
-            <DashboardHeaderShell firstName={firstName} />
-          )}
-
           <StudentDashboardContent
             sections={{
+              todayPlan: user?.id ? (
+                <DashboardSectionErrorBoundary
+                  variant="secondary"
+                  fallbackHeader={<DashboardHeaderShell firstName={firstName} />}
+                  sectionTitle={<TranslatedText namespace="student" messageKey="dashboard.studyPlan" />}
+                >
+                  <Suspense fallback={<DashboardHeaderShell firstName={firstName} />}>
+                    <TodayPlanSection userId={user.id} firstName={firstName} />
+                  </Suspense>
+                </DashboardSectionErrorBoundary>
+              ) : (
+                <DashboardHeaderShell firstName={firstName} />
+              ),
               gamification: user?.id ? (
                 <DashboardSectionErrorBoundary variant="silent">
                   <Suspense fallback={null}>

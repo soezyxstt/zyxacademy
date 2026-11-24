@@ -35,7 +35,8 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
   if ("sections" in props) {
     const { sections } = props;
     const hasGranularSlots = Boolean(
-      sections.gamification ||
+      sections.todayPlan ||
+        sections.gamification ||
         sections.activeAndReading ||
         sections.reviewQueue ||
         sections.availableAssessments ||
@@ -45,7 +46,8 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
 
     if (hasGranularSlots) {
       return (
-        <div className="flex w-full min-w-0 flex-col space-y-5">
+        <div className="flex w-full min-w-0 flex-col space-y-8">
+          {sections.todayPlan ? <div className="min-w-0">{sections.todayPlan}</div> : null}
           {sections.gamification ? <div className="min-w-0">{sections.gamification}</div> : null}
           {sections.activeAndReading ? (
             <div className="min-w-0">{sections.activeAndReading}</div>
@@ -63,10 +65,10 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
     }
 
     return (
-      <div className="flex w-full min-w-0 flex-col space-y-5">
-        {sections.primary ? <div className="min-w-0 space-y-5">{sections.primary}</div> : null}
+      <div className="flex w-full min-w-0 flex-col space-y-8">
+        {sections.primary ? <div className="min-w-0 space-y-8">{sections.primary}</div> : null}
         {sections.secondary ? (
-          <div className="min-w-0 space-y-5">{sections.secondary}</div>
+          <div className="min-w-0 space-y-8">{sections.secondary}</div>
         ) : null}
       </div>
     );

@@ -196,6 +196,7 @@
     "depth": "Kedalaman",
     "vsPrevPeriod": "{delta} vs periode lalu",
     "insightFastestGrowing": "Pertumbuhan tercepat",
+    "highlights": "Sorotan penggunaan",
     "insightHighestAdoption": "Adopsi tertinggi",
     "insightNeedsAttention": "Adopsi terendah",
     "lastUsed": "Terakhir digunakan",
@@ -291,7 +292,10 @@
     "activeUsers": "Pengguna aktif",
     "sessions": "Total sesi",
     "visitorsTrend": "Tren pengunjung",
-    "topPages": "Halaman terpopuler"
+    "topPages": "Halaman terpopuler",
+    "chartSessions": "Sesi",
+    "noChartData": "Belum ada lalu lintas harian",
+    "noTopPages": "Belum ada halaman terpopuler"
   },
   "pricing": {
     "title": "Paket dan harga",

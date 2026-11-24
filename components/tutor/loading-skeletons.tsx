@@ -64,12 +64,21 @@ function Shell({ children }: { children: ReactNode }) {
 export function TutorDashboardLoading() {
   return (
     <Shell>
-      <Stats />
-      <div className="grid gap-(--section-gap) xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.75fr)]">
-        <Rows count={3} />
-        <Rows count={2} />
+      <div className="grid items-start gap-y-(--major-gap) xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:gap-x-10">
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-3 w-24" />
+          <Rows count={3} />
+        </div>
+        <div className="space-y-2 xl:col-start-2 xl:row-span-2 xl:row-start-1">
+          <Skeleton className="h-5 w-32" />
+          <Rows count={2} />
+        </div>
+        <div className="space-y-2 xl:col-start-1">
+          <Skeleton className="h-5 w-24" />
+          <Rows count={3} />
+        </div>
       </div>
-      <Rows count={3} />
     </Shell>
   );
 }
@@ -77,10 +86,24 @@ export function TutorDashboardLoading() {
 export function TutorCourseLoading() {
   return (
     <Shell>
-      <Stats count={3} />
-      <Toolbar><Skeleton className="h-3 w-28" /><Skeleton className="size-9" /></Toolbar>
-      <Skeleton className="h-5 w-40" />
-      <Rows />
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-(--compact-gap)">
+        <div className="flex min-w-0 flex-wrap gap-(--compact-gap)">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <Skeleton className="h-3 w-28" />
+      </div>
+      <div className="grid items-start gap-y-(--major-gap) xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:gap-x-10">
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-40" />
+          <Rows />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-32" />
+          <Rows count={3} />
+        </div>
+      </div>
     </Shell>
   );
 }

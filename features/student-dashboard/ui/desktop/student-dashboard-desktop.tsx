@@ -34,25 +34,26 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
     const primaryColumn = sections.primary ?? (
       <>
         {sections.activeAndReading}
-        {sections.recommendedCourses}
+        {sections.weakConcepts}
       </>
     );
     const secondaryColumn = sections.secondary ?? (
       <>
+        {sections.todayPlan}
         {sections.gamification}
         {sections.reviewQueue}
-        {sections.weakConcepts}
         {sections.availableAssessments}
+        {sections.recommendedCourses}
       </>
     );
 
     return (
       <Reveal duration="duration-700" className="w-full min-w-0">
-        <div className="grid w-full min-w-0 gap-(--major-gap) lg:grid-cols-12">
-          <div className="min-w-0 space-y-(--major-gap) lg:col-span-7">
+        <div className="grid w-full min-w-0 gap-10 lg:grid-cols-12">
+          <div className="min-w-0 space-y-10 lg:col-span-7">
             {primaryColumn}
           </div>
-          <div className="min-w-0 space-y-(--major-gap) lg:col-span-5 lg:border-l lg:border-border/35 lg:pl-(--major-gap)">
+          <div className="min-w-0 space-y-10 lg:col-span-5 lg:border-l lg:border-border/35 lg:pl-10">
             {secondaryColumn}
           </div>
         </div>

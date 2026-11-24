@@ -8,7 +8,7 @@ test.setTimeout(150_000);
 for (const [section, text] of [
   ["overview", "Limit fungsi dan kontinuitas"], ["material", "Teorema limit"],
   ["video", "Bentuk tak tentu pada limit fungsi"], ["quiz", "Latihan lanjutan"],
-  ["tryout", "Tryout akhir semester"], ["progress", "Fungsi dan grafik"],
+  ["tryout", "Tryout akhir semester"], ["progress", "Fungsi dan grafik"], ["diagnostic", "Best score: 0%"],
 ] as const) {
   test(`course workspace ${section} fits the viewport`, async ({ page }, info) => {
     const errors: string[] = [];
@@ -58,10 +58,30 @@ for (const [section, text] of [
     }
     await capture(section);
 
-    if (section === "progress" && info.project.name === "mobile-380") {
-      await page.getByRole("button", { name: "More", exact: true }).click();
-      await expect(page.getByRole("menu")).toBeVisible();
-      await capture("overflow");
+    if (section === "progress") {
+      await expect(main.locator('dl[aria-label="Study statistics"] dt')).toHaveCount(4);
+      await expect(main.getByRole("heading", { name: "Recent activity" })).toBeVisible();
+      await expect(main.getByText("Latihan fungsi multivariabel dan kontinuitas pada domain yang lebih luas")).toBeVisible();
+      await expect(main.getByRole("link", { name: "Topic results" })).toHaveAttribute("href", "/courses/fixture-math/mastery");
+      if (info.project.name === "mobile-380") {
+        const overflow = page.getByRole("button", { name: "More", exact: true });
+        await overflow.click();
+        await expect(page.getByRole("menu")).toBeVisible();
+        await capture("overflow");
+        await page.keyboard.press("Escape");
+      }
+    }
+    if (section === "diagnostic") {
+      const physics = main.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Physics", exact: true }) });
+      await expect(physics.getByText("The Physics simulation is not complete yet.")).toBeVisible();
+      await expect(physics.getByText("Not attempted", { exact: true })).toHaveCount(0);
+      await expect(main.getByText("May need additional support")).toBeVisible();
+      await expect(main.getByText(/Follow Ditsama ITB/)).toBeVisible();
+    }
+    if (section === "progress" || section === "diagnostic") {
+      await page.emulateMedia({ colorScheme: "light" });
+      await expect(page.locator("html")).toHaveClass(/\blight\b/);
+      await capture(`${section}-light`);
     }
 
     expect(errors).toEqual([]);

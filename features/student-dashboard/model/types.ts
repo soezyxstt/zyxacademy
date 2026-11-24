@@ -66,6 +66,7 @@ export type StudentDashboardDataProps = {
 export type StreamedStudentDashboardSlots = {
   primary?: ReactNode;
   secondary?: ReactNode;
+  todayPlan?: ReactNode;
   gamification?: ReactNode;
   activeAndReading?: ReactNode;
   recommendedCourses?: ReactNode;

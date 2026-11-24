@@ -444,6 +444,7 @@
     "loadFailed": "Gagal memuat katalog produk."
   },
   "usageCharts": {
+    "rangeLabel": "Rentang penggunaan Zyra",
     "loadFailed": "Gagal memuat data penggunaan AI.",
     "previous": "Sebelumnya",
     "next": "Berikutnya",

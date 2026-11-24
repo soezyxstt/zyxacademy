@@ -648,6 +648,7 @@
     "distractorTrap": "Distractor trap:",
     "studentAnswers": "Student answers",
     "answerDistribution": "Answer distribution",
+    "correctOption": "Correct answer",
     "solutionExplanation": "Solution explanation:",
     "conceptMastery": "Concept mastery",
     "noQuestionTags": "There is no tag metadata for this quiz.",

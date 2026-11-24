@@ -21,36 +21,42 @@ export async function DiagnosticReport({ results }: { results: PkaSubjectDiagnos
   };
   const reportMessage = (result: PkaSubjectDiagnostic) => {
     switch (result.status) {
-      case "not_attempted": return result.attempted ? t("reportIncomplete", { subject: subjectLabel(result.subject) }) : t("reportNotAttempted", { subject: subjectLabel(result.subject) });
+      case "not_attempted": return null;
       case "at_risk": return t("reportAtRisk", { subject: subjectLabel(result.subject) });
       case "borderline": return t("reportBorderline", { subject: subjectLabel(result.subject) });
       case "solid": return t("reportSolid", { subject: subjectLabel(result.subject), stage: result.passedAtStage ?? 1 });
     }
   };
   return (
-    <div className="space-y-4">
-      <div className="divide-y divide-border/60">
+    <div className="space-y-(--major-gap)">
+      <ul className="divide-y divide-border/30">
         {results.map((r) => {
           const meta = STATUS_META[r.status];
           const Icon = meta.icon;
+          const status = r.status === "not_attempted" && r.attempted
+            ? t("reportIncomplete", { subject: subjectLabel(r.subject) })
+            : t(meta.messageKey);
+          const detail = reportMessage(r);
           return (
-            <div key={r.subject} className={cn("flex items-start gap-3 py-3", meta.className)}>
-              <Icon className="size-5 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-heading text-body-base font-bold text-foreground">{subjectLabel(r.subject)}</span>
-                  <span className={cn("text-body-sm font-semibold", meta.className)}>{t(meta.messageKey)}</span>
-                </div>
-                <p className="mt-1 text-body-sm text-muted-foreground">{reportMessage(r)}</p>
-                {r.bestScore != null && <p className="mt-1 text-body-sm text-muted-foreground">{t("bestScore", { score: r.bestScore })}</p>}
+            <li key={r.subject} className="min-w-0 py-(--row-padding)">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-(--related-gap) gap-y-1">
+                <h2 className="min-w-0 wrap-anywhere font-heading text-body-base font-bold text-foreground">{subjectLabel(r.subject)}</h2>
+                {r.bestScore != null && <span className="text-body-xs font-semibold tabular-nums text-foreground">{t("bestScore", { score: r.bestScore })}</span>}
               </div>
-            </div>
+              <div className="mt-1 flex items-start gap-2">
+                <Icon className={cn("mt-0.5 size-4 shrink-0", meta.className)} aria-hidden="true" />
+                <div className="min-w-0 space-y-1">
+                  <p className="text-body-sm font-semibold text-foreground">{status}</p>
+                  {detail && <p className="mt-0 text-body-sm text-muted-foreground">{detail}</p>}
+                </div>
+              </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
-      <div className="flex items-start gap-3 border-t border-border py-3">
-        <ShieldAlert className="size-5 shrink-0 text-muted-foreground" />
+      <div className="flex items-start gap-2">
+        <ShieldAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <p className="text-body-sm text-muted-foreground">{t("disclaimer")}</p>
       </div>
     </div>

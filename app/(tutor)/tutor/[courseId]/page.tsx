@@ -9,10 +9,8 @@ import {
   type SnapshotPayload,
 } from "@/lib/cohort-analytics";
 import { AnalyticsClient } from "@/components/tutor/analytics-client";
-import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { pageTitle } from "@/lib/site";
 import { ZyraProposalPanel } from "@/components/zyra/zyra-proposal-panel";
 
@@ -94,35 +92,12 @@ export default async function TutorCoursePage({ params }: Props) {
 
   return (
     <ApplicationPage spacing="space-y-(--section-gap)">
-      {/* Section 1: headline stats */}
-      <Reveal>
-        <section>
-          <PageHeader
-            title={analytics.courseTitle}
-            backHref="/tutor"
-            backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.teaching" />}
-            divider={false}
-          />
-          <AdminStatStrip className={analytics.engagement.quizParticipationPct > 0 ? "sm:grid-cols-3" : "sm:grid-cols-2"}>
-            <AdminStatStripItem
-              label={<TranslatedText namespace="tutor" messageKey="routeTitles.enrolled" />}
-              value={<span className="tabular-nums">{analytics.enrolledCount}</span>}
-            />
-            <AdminStatStripItem
-              label={<TranslatedText namespace="tutor" messageKey="routeTitles.activeThisWeek" />}
-              value={<span className="tabular-nums">{analytics.activeCount}</span>}
-            />
-            {analytics.engagement.quizParticipationPct > 0 && (
-              <AdminStatStripItem
-                label={<TranslatedText namespace="tutor" messageKey="routeTitles.quizParticipation" />}
-                value={<span className="tabular-nums">{analytics.engagement.quizParticipationPct}%</span>}
-              />
-            )}
-          </AdminStatStrip>
-        </section>
-      </Reveal>
-
-      {/* Interactive sections (sparklines, drill-down, watchlist, refresh) */}
+      <PageHeader
+        title={analytics.courseTitle}
+        backHref="/tutor"
+        backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.teaching" />}
+        divider={false}
+      />
       <AnalyticsClient
         courseId={legacyCourseId}
         analytics={analytics}

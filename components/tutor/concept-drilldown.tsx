@@ -18,13 +18,14 @@ import { useSwipe } from "@/hooks/use-swipe";
 interface Props {
   open: boolean;
   onClose: () => void;
+  onCloseAutoFocus?: (event: Event) => void;
   concept: WeakConcept | null;
   trends: ConceptTrend[];
   mostMissed: MostMissedQuestion[];
   courseId: string;
 }
 
-export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, courseId }: Props) {
+export function ConceptDrilldown({ open, onClose, onCloseAutoFocus, concept, trends, mostMissed, courseId }: Props) {
   const t = useTranslations("tutor.analytics");
   useSwipe({
     onSwipeRight: () => {
@@ -38,10 +39,10 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <SheetContent side="right" aria-describedby={undefined} className="sm:max-w-lg flex flex-col gap-0 p-0 overflow-y-auto">
+      <SheetContent side="right" aria-describedby={undefined} onCloseAutoFocus={onCloseAutoFocus} className="flex flex-col gap-0 overflow-y-auto overscroll-contain p-0 sm:max-w-lg">
         <SheetHeader className="border-b border-border/55 ps-(--panel-padding) pe-12 py-(--related-gap)">
-          <SheetTitle className="text-body-base font-heading">
-            {concept.conceptName}
+          <SheetTitle className="wrap-anywhere font-heading text-body-base">
+            <MathText>{concept.conceptName}</MathText>
           </SheetTitle>
         </SheetHeader>
 
@@ -56,10 +57,10 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
               total={concept.studentCount}
               className="w-full"
             />
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-body-xs text-muted-foreground">
-              <span><span className="text-status-error font-medium">{concept.bucketLow}</span> {t("low")}</span>
-              <span><span className="text-status-warning font-medium">{concept.bucketMid}</span> {t("mid")}</span>
-              <span><span className="text-primary font-medium">{concept.bucketHigh}</span> {t("high")}</span>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-body-xs tabular-nums text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-status-error" aria-hidden />{t("low")} <strong className="text-foreground">{concept.bucketLow}</strong></span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-status-warning" aria-hidden />{t("mid")} <strong className="text-foreground">{concept.bucketMid}</strong></span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-status-success" aria-hidden />{t("high")} <strong className="text-foreground">{concept.bucketHigh}</strong></span>
             </div>
           </section>
 
@@ -89,6 +90,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
                       stroke="var(--color-primary)"
                       strokeWidth={2}
                       dot={false}
+                      isAnimationActive={false}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -108,11 +110,11 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
           {mostMissed.length > 0 && (
             <section>
               <p className="text-body-sm text-muted-foreground mb-2">{t("mostMissed")}</p>
-              <div className="divide-y divide-border/55">
+              <div className="divide-y divide-border/30">
                 {mostMissed.map((q) => (
                   <div key={q.id} className="py-2.5 flex items-start justify-between gap-(--related-gap)">
                     <MathText className="text-body-sm min-w-0 break-words block" as="div">{q.prompt}</MathText>
-                    <span className="text-body-sm tabular-nums text-status-error shrink-0 font-medium">
+                    <span className="shrink-0 text-body-sm font-medium tabular-nums text-foreground">
                       {Math.round(q.correctRate * 100)}%
                     </span>
                   </div>
@@ -124,7 +126,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
 
         {/* Footer action */}
         <div className="mt-auto flex justify-end border-t border-border/55 px-(--panel-padding) py-(--related-gap)">
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" size="sm" asChild className="h-auto min-h-9 whitespace-normal">
             <Link href={remediationHref}>{t("makeRemediationQuiz")}</Link>
           </Button>
         </div>

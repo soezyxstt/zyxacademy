@@ -19,7 +19,11 @@ Shared select triggers are borderless by default. Validation states and standalo
 
 Tutor and Admin record lists use divided rows with compact filters and section spacing. On mobile, the Admin schedule stacks event details, tickets, audit entries, and tutor availability inside each row. Tutor grading actions align at the end of the form. Standalone sign-in, form, offline, and consent screens use the same spacing and show recovery and permission information next to the relevant controls. Public forms in one-question mode offer submission on the final question and open the confirmation before sending.
 
-Admin and Tutor documentation uses flat search results and a compact article index. The mobile navbar opens the documentation panel. Selecting a guide or section closes the panel before opening the destination. Assessment results and analysis show scores and metrics in compact rows. On mobile, analysis status and regeneration actions sit in the navbar. Concept analytics presents each concept with its score, question counts, mastery status, and trend in one row. Tutorial PKA uses the same spacing for upcoming sessions and proof of registration.
+Admin and Tutor documentation uses flat search results and a compact article index. The mobile navbar opens the documentation panel. Selecting a guide or section closes the panel before opening the destination.
+
+The Student dashboard groups active courses and mastery separately from daily actions. Mobile places available quizzes and tryouts before the mastery list. Daily flashcard targets and the due queue across courses are identified separately. Course Progress uses a compact metric comparison, and Course Mastery keeps long formulas readable with score and trend labels. The Tutorial PKA diagnostic distinguishes incomplete simulations from simulations that have yet to start.
+
+Quiz analysis puts the study plan before detailed diagnostics. Score, question counts, time, and score change are shown in compact rows. Concept mastery pairs readable status and trend text with semantic indicators. On mobile, refresh and regeneration actions sit in the navbar. PKA registration and upcoming sessions use the same compact spacing.
 
 Achievements and student public profiles share the student parent layout and transition classification. Navigation among student pages does not start the cross-surface logo overlay; reduced-motion preferences remain respected.
 
@@ -649,9 +653,9 @@ The canonical scheduling workflow uses concrete, date-specific 90-minute tutor s
 The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`) with its own navigation sidebar (`components/tutor/tutor-sidebar.tsx`) and course switcher (`components/tutor/tutor-course-switcher.tsx`). Tutors manage schedules and course activities directly within this shell without redirecting to student pages. The overhaul is always-on with no feature flag.
 
 - Subroute Structure:
-  - `/tutor`: Overview portal displaying assigned courses, high-level KPIs, and quick shortcuts.
+  - `/tutor`: Upcoming sessions, pending tickets, assigned courses, and study groups. Weekly and cross-course totals appear beside the lists they describe.
   - `/tutor/schedule`: Full schedule and availability manager (add concrete 90-minute slots, copy the previous week, view assigned bookings, delete unbooked slots, approve or reject reschedule tickets, and complete sessions). Tutors do not directly assign groups to slots from this surface. Each reschedule or cancellation ticket exposes its discussion thread; the assigned tutor can read all group messages and reply inline.
-  - `/tutor/[courseId]`: Course-level dashboard summarizing teaching metrics, active groups, and recent quizzes, with quick-action links to quiz management, live console, grading, and participants.
+  - `/tutor/[courseId]`: Course analytics with cohort metrics, concept distribution, priority concepts, interventions, students who need attention, and common misconceptions. Tutors can expand the concept list or open a concept to inspect its evidence.
   - `/tutor/[courseId]/participants`: Enrolled student roster and active study groups with member lists and deterministic representatives.
   - `/tutor/[courseId]/quizzes`: Full quiz template management (create, edit, delete, preview, toggle draft/published status) with creator attribution.
   - `/tutor/[courseId]/quizzes/grading`: Pending quiz review queue. Tutors score essays from 0 to 100, add optional notes, and may override short-answer scores. Every question has equal weight in the final total.
@@ -716,6 +720,7 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 - `/admin/ops/feature-usage` is a tutor/admin read model that ranks student feature activity (materials, flashcards, self quizzes, assessments v2, live quizzes, Zyra chat) over a 7/30/90-day window selector.
 - It aggregates existing domain tables only (`student_material_progress`, `flashcard_reviews`, `student_quiz_attempts`, `percobaan_asesmen`, `live_quiz_results`, `tutor_chat_messages`/`chat_sessions`); it writes no new events. Unique active students are the union of distinct student ids across those sources.
 - The page lists measurement gaps explicitly: daily pop-up quiz stays in localStorage, Cmd+K search records no server events, and diktat download counts are cumulative only. Page traffic remains in Web Analytics; AI token usage remains in Analitik Zyra.
+- Feature Usage shows daily activity, distinct usage highlights, and one feature ranking. Web Analytics pairs its traffic chart and page ranking on wide screens. Zyra Analytics uses compact model and request rows, with readable labels for request outcomes. Course-scoped quiz insights keep formulas readable and put answer distributions beside the relevant question. The performance analysis icon sits in the mobile navbar.
 
 ## Embedded learning visuals
 

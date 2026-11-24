@@ -14,32 +14,34 @@ export function StudentCourseProgressView({ href = (path: string) => path,  cour
 }) {
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-(--major-gap) md:space-y-10">
       <StudyStatisticsCard data={statistics} />
-      <RecentActivityCard data={activities} />
+      <div className="grid min-w-0 gap-y-(--major-gap) lg:grid-cols-12 lg:gap-x-(--reading-section-gap)">
+        <div className="min-w-0 lg:col-span-7">
+          <RecentActivityCard data={activities} />
+        </div>
 
-      <section className="text-left">
-        <h3 className="mb-1 font-heading text-body-base font-bold text-foreground">
-          <TranslatedText namespace="learning" messageKey="progress.moreAnalysis" />
-        </h3>
-        <ul>
-          {[
-            { path: "mastery", icon: Target, label: "progress.masteryMap" },
-            { path: "my-results", icon: History, label: "progress.quizResults" },
-          ].map(({ path, icon: Icon, label }) => (
-            <li key={path}>
-              <Link href={href(`/courses/${courseId}/${path}`)} className={courseListRowClass("items-center")}>
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground ring-1 ring-inset ring-border/60">
-                  <Icon className="size-4" aria-hidden />
-                </span>
-                <span className="min-w-0 wrap-break-word text-body-sm font-semibold text-foreground">
-                  <TranslatedText namespace="learning" messageKey={label} />
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+        <section className="min-w-0 text-left lg:col-span-5">
+          <h2 className="mb-1 font-heading text-body-base font-bold text-foreground">
+            <TranslatedText namespace="learning" messageKey="progress.moreAnalysis" />
+          </h2>
+          <ul className="divide-y divide-border/30">
+            {[
+              { path: "mastery", icon: Target, label: "progress.masteryMap" },
+              { path: "my-results", icon: History, label: "progress.quizResults" },
+            ].map(({ path, icon: Icon, label }) => (
+              <li key={path}>
+                <Link href={href(`/courses/${courseId}/${path}`)} className={courseListRowClass("min-h-11 items-center")}>
+                  <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <span className="min-w-0 wrap-anywhere text-body-sm font-semibold text-foreground">
+                    <TranslatedText namespace="learning" messageKey={label} />
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
     </div>
   );
 }

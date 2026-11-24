@@ -50,7 +50,11 @@ export function CoursePolishFixture({ section, activityTimestamp }: { section: s
         ]} />}
         {section === "progress" && <StudentCourseProgressView courseId={courseId}
           statistics={{ studyTimeMin: 48, completedMaterialsCount: 2, cardsReviewedCount: 12, currentStreakDays: 3 }}
-          activities={[{ id: "reading", type: "material_completion", title: "Fungsi dan grafik", timestamp: activityTimestamp }]}
+          activities={[
+            { id: "reading", type: "material_completion", title: "Fungsi dan grafik", timestamp: activityTimestamp },
+            { id: "practice", type: "quiz_completion", title: "Latihan fungsi multivariabel dan kontinuitas pada domain yang lebih luas", timestamp: activityTimestamp },
+            { id: "review", type: "flashcard_review", title: "Ulasan transformasi geometri", timestamp: activityTimestamp },
+          ]}
         />}
       </CoursePageShell>
     </CoursePolishShell>
