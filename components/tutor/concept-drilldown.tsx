@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AlertCircle, BarChart3, TrendingUp } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/client";
 import {
   Sheet,
@@ -25,6 +26,9 @@ interface Props {
   courseId: string;
 }
 
+const subheadingClass =
+  "mb-2.5 flex items-center gap-2 border-b border-border/40 pb-1.5 font-heading text-body-sm font-bold text-foreground";
+
 export function ConceptDrilldown({ open, onClose, onCloseAutoFocus, concept, trends, mostMissed, courseId }: Props) {
   const t = useTranslations("tutor.analytics");
   useSwipe({
@@ -35,7 +39,7 @@ export function ConceptDrilldown({ open, onClose, onCloseAutoFocus, concept, tre
 
   if (!concept) return null;
 
-  const remediationHref = `/admin/quizzes?courseId=${encodeURIComponent(courseId)}&tags=${encodeURIComponent(concept.conceptName)}`;
+  const remediationHref = `/tutor/${encodeURIComponent(courseId)}/quizzes?tags=${encodeURIComponent(concept.conceptName)}`;
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -46,10 +50,13 @@ export function ConceptDrilldown({ open, onClose, onCloseAutoFocus, concept, tre
           </SheetTitle>
         </SheetHeader>
 
-        <div className="flex flex-col gap-(--related-gap) px-(--panel-padding) py-(--related-gap)">
+        <div className="flex flex-col gap-6 px-(--panel-padding) py-(--related-gap)">
           {/* Distribution */}
           <section>
-            <p className="text-body-sm text-muted-foreground mb-2">{t("masteryDistribution")}</p>
+            <h3 className={subheadingClass}>
+              <BarChart3 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span>{t("masteryDistribution")}</span>
+            </h3>
             <DistributionBar
               low={concept.bucketLow}
               mid={concept.bucketMid}
@@ -67,7 +74,10 @@ export function ConceptDrilldown({ open, onClose, onCloseAutoFocus, concept, tre
           {/* 4-week trend */}
           {trends.length >= 2 && (
             <section>
-              <p className="text-body-sm text-muted-foreground mb-2">{t("trendFourWeeks")}</p>
+              <h3 className={subheadingClass}>
+                <TrendingUp className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span>{t("trendFourWeeks")}</span>
+              </h3>
               <div className="h-24 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trends} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
@@ -99,7 +109,10 @@ export function ConceptDrilldown({ open, onClose, onCloseAutoFocus, concept, tre
           )}
           {trends.length < 2 && (
             <section>
-              <p className="text-body-sm text-muted-foreground mb-2">{t("trendFourWeeks")}</p>
+              <h3 className={subheadingClass}>
+                <TrendingUp className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span>{t("trendFourWeeks")}</span>
+              </h3>
               <p className="text-body-sm text-muted-foreground italic">
                 {t("trendInsufficient")}
               </p>
@@ -109,7 +122,10 @@ export function ConceptDrilldown({ open, onClose, onCloseAutoFocus, concept, tre
           {/* Most missed */}
           {mostMissed.length > 0 && (
             <section>
-              <p className="text-body-sm text-muted-foreground mb-2">{t("mostMissed")}</p>
+              <h3 className={subheadingClass}>
+                <AlertCircle className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span>{t("mostMissed")}</span>
+              </h3>
               <div className="divide-y divide-border/30">
                 {mostMissed.map((q) => (
                   <div key={q.id} className="py-2.5 flex items-start justify-between gap-(--related-gap)">

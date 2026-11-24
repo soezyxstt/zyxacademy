@@ -206,11 +206,11 @@ export function TryoutGradingMobile({
 
   function renderMobileQueueList(items: SubmissionItem[], emptyTitle: string, emptyIcon: typeof CheckCircle2) {
     if (items.length === 0) {
-      return <AdminEmptyState icon={emptyIcon} title={emptyTitle} />;
+      return <AdminEmptyState compact icon={emptyIcon} title={emptyTitle} />;
     }
 
     return (
-      <div className="divide-y divide-border/55 border-y border-border/55">
+      <div className="divide-y divide-border/40">
         {items.map((s) => (
           <button
             key={s.id}

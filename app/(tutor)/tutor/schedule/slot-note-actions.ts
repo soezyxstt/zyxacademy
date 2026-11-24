@@ -10,6 +10,7 @@ import { auth } from "@/lib/auth";
 import {
   addTutorSlotAction,
   deleteTutorSlotAction,
+  updateTutorSlotAction,
 } from "@/app/(tutor)/tutor/schedule/actions";
 import type { IndonesianDay } from "@/lib/date-utils";
 
@@ -21,6 +22,10 @@ export type AddTutorSlotWithNotesInput = {
   location?: string;
   sessionDate?: string;
   notes?: string;
+};
+
+export type UpdateTutorSlotWithNotesInput = AddTutorSlotWithNotesInput & {
+  slotId: string;
 };
 
 function errorChainMessage(error: unknown): string {
@@ -86,6 +91,63 @@ export async function addTutorSlotWithNotesAction(
       error: isMissingTutorSlotNotesTable(error)
         ? "Schema catatan slot belum tersedia pada database. Slot dibatalkan agar data tidak tersimpan setengah."
         : "Slot tidak disimpan karena catatan tutor gagal disimpan. Coba lagi.",
+      reason: isMissingTutorSlotNotesTable(error)
+        ? "SCHEDULE_SCHEMA_NOT_READY"
+        : "SLOT_NOTES_PERSIST_FAILED",
+    };
+  }
+}
+
+export async function updateTutorSlotWithNotesAction(
+  input: UpdateTutorSlotWithNotesInput,
+) {
+  const notes = input.notes?.trim() ?? "";
+  const result = await updateTutorSlotAction({
+    slotId: input.slotId,
+    dayOfWeek: input.dayOfWeek,
+    startTime: input.startTime,
+    endTime: input.endTime,
+    mode: input.mode,
+    location: input.location,
+    sessionDate: input.sessionDate,
+  });
+
+  if (!result.success || !result.slotId) {
+    return result;
+  }
+
+  try {
+    if (notes) {
+      await db
+        .insert(tutorSlotNotes)
+        .values({
+          slotId: result.slotId,
+          notes,
+        })
+        .onConflictDoUpdate({
+          target: tutorSlotNotes.slotId,
+          set: {
+            notes,
+            updatedAt: new Date(),
+          },
+        });
+    } else {
+      await db
+        .delete(tutorSlotNotes)
+        .where(eq(tutorSlotNotes.slotId, result.slotId));
+    }
+    revalidatePath("/tutor/schedule");
+    return result;
+  } catch (error) {
+    if (isMissingTutorSlotNotesTable(error) && !notes) {
+      return result;
+    }
+    console.error("Failed to persist updated tutor slot notes", error);
+    return {
+      success: false as const,
+      error: isMissingTutorSlotNotesTable(error)
+        ? "Schema catatan slot belum tersedia pada database."
+        : "Slot diperbarui, tetapi catatan tutor gagal disimpan. Coba lagi.",
       reason: isMissingTutorSlotNotesTable(error)
         ? "SCHEDULE_SCHEMA_NOT_READY"
         : "SLOT_NOTES_PERSIST_FAILED",

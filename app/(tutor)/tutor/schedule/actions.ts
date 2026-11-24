@@ -531,6 +531,412 @@ export async function addTutorSlotAction(input: AddTutorSlotInput) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
+ * Action 1b: Update 90-Minute Slot (Rejects Booked Slots)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export interface UpdateTutorSlotInput {
+  slotId: string;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  mode?: "online" | "offline";
+  location?: string;
+  sessionDate?: string;
+}
+
+export interface UpdateTutorSlotOptions {
+  actorId?: string;
+  executor?: DbExecutor;
+  courseId?: string;
+  now?: Date;
+}
+
+export async function executeUpdateTutorSlot(
+  input: UpdateTutorSlotInput,
+  options?: UpdateTutorSlotOptions,
+) {
+  const requestId = randomUUID();
+  let authContext: TutorAuthContext;
+  const targetSlotId = typeof input.slotId === "string" ? input.slotId.trim() : "";
+
+  try {
+    authContext = await getTutorAuthContext(options?.actorId, options?.executor);
+  } catch (err: any) {
+    await recordUnauthenticatedRejectAudit({
+      action: "tutor.slot.update",
+      entityType: "tutor_slot",
+      entityId: targetSlotId || "unknown",
+      courseId: options?.courseId?.trim() || "global",
+      requestId,
+      reason: err?.message || "UNAUTHORIZED",
+      input: { ...input },
+      executor: options?.executor,
+    });
+
+    return {
+      success: false,
+      error: err?.message || "UNAUTHORIZED",
+      reason: "AUTH_FAILED",
+    };
+  }
+
+  const client = (options?.executor ?? db) as typeof db;
+  const courseIdForAudit = options?.courseId?.trim() || "global";
+  const now = options?.now ?? new Date();
+
+  if (!targetSlotId) {
+    return {
+      success: false,
+      error: "Slot tidak ditemukan.",
+      reason: "SLOT_NOT_FOUND",
+    };
+  }
+
+  const sessionDateIso = typeof input.sessionDate === "string" ? input.sessionDate.trim() : "";
+  if (!sessionDateIso) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: targetSlotId,
+      entityVersion: 1,
+      action: "tutor.slot.update",
+      outcome: "rejected",
+      requestId,
+      reason: "SESSION_DATE_REQUIRED",
+      before: null,
+      after: { ...input },
+    }, client);
+
+    return {
+      success: false,
+      error: "Tanggal sesi wajib diisi.",
+      reason: "SESSION_DATE_REQUIRED",
+    };
+  }
+
+  const startTime = typeof input.startTime === "string" ? input.startTime.trim() : "";
+  const endTime = typeof input.endTime === "string" ? input.endTime.trim() : "";
+  const durationCheck = validateSlotDuration(startTime, endTime);
+  if (!durationCheck.isValid) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: targetSlotId,
+      entityVersion: 1,
+      action: "tutor.slot.update",
+      outcome: "rejected",
+      requestId,
+      reason: durationCheck.reason ?? "INVALID_DURATION",
+      before: null,
+      after: { ...input },
+    }, client);
+
+    return {
+      success: false,
+      error: "Durasi slot harus tepat 90 menit (HH:MM).",
+      reason: durationCheck.reason,
+    };
+  }
+
+  const dayName = input.dayOfWeek?.trim() as IndonesianDay;
+  if (!INDONESIAN_DAYS.includes(dayName)) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: targetSlotId,
+      entityVersion: 1,
+      action: "tutor.slot.update",
+      outcome: "rejected",
+      requestId,
+      reason: "INVALID_DAY_OF_WEEK",
+      before: null,
+      after: { ...input },
+    }, client);
+
+    return {
+      success: false,
+      error: "Hari dalam seminggu tidak valid.",
+      reason: "INVALID_DAY_OF_WEEK",
+    };
+  }
+
+  const weekdayDateCheck = validateSlotWeekdayDate(sessionDateIso, dayName);
+  if (!weekdayDateCheck.isValid) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: targetSlotId,
+      entityVersion: 1,
+      action: "tutor.slot.update",
+      outcome: "rejected",
+      requestId,
+      reason: weekdayDateCheck.reason ?? "DATE_WEEKDAY_MISMATCH",
+      before: null,
+      after: { ...input },
+    }, client);
+
+    return {
+      success: false,
+      error: "Tanggal tidak cocok dengan hari yang ditentukan atau tanggal tidak valid.",
+      reason: weekdayDateCheck.reason,
+    };
+  }
+
+  if (sessionDateIso < getJakartaCalendarDate(now)) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: targetSlotId,
+      entityVersion: 1,
+      action: "tutor.slot.update",
+      outcome: "rejected",
+      requestId,
+      reason: "SESSION_DATE_IN_PAST",
+      before: null,
+      after: { ...input },
+    }, client);
+
+    return {
+      success: false,
+      error: "Tanggal sesi tidak boleh sebelum hari ini.",
+      reason: "SESSION_DATE_IN_PAST",
+    };
+  }
+
+  if (input.mode !== undefined && input.mode !== "online" && input.mode !== "offline") {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: targetSlotId,
+      entityVersion: 1,
+      action: "tutor.slot.update",
+      outcome: "rejected",
+      requestId,
+      reason: "INVALID_MODE",
+      before: null,
+      after: { ...input },
+    }, client);
+
+    return {
+      success: false,
+      error: "Mode sesi tidak valid.",
+      reason: "INVALID_MODE",
+    };
+  }
+
+  const mode = input.mode ?? "online";
+  const normalizedLocation = mode === "offline" ? (input.location?.trim() ?? "") : "";
+  if (mode === "offline" && normalizedLocation.length === 0) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: targetSlotId,
+      entityVersion: 1,
+      action: "tutor.slot.update",
+      outcome: "rejected",
+      requestId,
+      reason: "LOCATION_REQUIRED_FOR_OFFLINE",
+      before: null,
+      after: { ...input },
+    }, client);
+
+    return {
+      success: false,
+      error: "Lokasi wajib diisi untuk slot tatap muka.",
+      reason: "LOCATION_REQUIRED_FOR_OFFLINE",
+    };
+  }
+
+  try {
+    await client.transaction(async (tx) => {
+      await lockScheduleEntity(tx, "tutor", authContext.userId);
+      const [existingSlot] = await tx
+        .select({
+          id: tutorSlots.id,
+          tutorId: tutorSlots.tutorId,
+          dayOfWeek: tutorSlots.dayOfWeek,
+          startTime: tutorSlots.startTime,
+          endTime: tutorSlots.endTime,
+          mode: tutorSlots.mode,
+          location: tutorSlots.location,
+          sessionDate: tutorSlots.sessionDate,
+        })
+        .from(tutorSlots)
+        .where(eq(tutorSlots.id, targetSlotId))
+        .for("update");
+
+      if (!existingSlot) {
+        throw new Error("SLOT_NOT_FOUND");
+      }
+
+      if (existingSlot.tutorId !== authContext.userId) {
+        throw new Error("SLOT_NOT_OWNED_BY_TUTOR");
+      }
+
+      const bookingInTx = await tx
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(eq(bookings.slotId, targetSlotId))
+        .limit(1);
+
+      if (bookingInTx.length > 0) {
+        throw new Error("CANNOT_EDIT_BOOKED_SLOT");
+      }
+
+      const sameDateSlots = await tx
+        .select({
+          id: tutorSlots.id,
+          startTime: tutorSlots.startTime,
+          endTime: tutorSlots.endTime,
+        })
+        .from(tutorSlots)
+        .where(
+          and(
+            eq(tutorSlots.tutorId, authContext.userId),
+            eq(tutorSlots.sessionDate, sessionDateIso),
+            ne(tutorSlots.id, targetSlotId),
+          ),
+        );
+
+      const exactDuplicate = sameDateSlots.find(
+        (existing) => existing.startTime === startTime && existing.endTime === endTime,
+      );
+      if (exactDuplicate) {
+        throw new Error("DUPLICATE_TUTOR_SLOT");
+      }
+
+      const overlap = sameDateSlots.find((existing) =>
+        doTutorSlotsOverlap(startTime, endTime, existing.startTime, existing.endTime),
+      );
+      if (overlap) {
+        throw new Error("TUTOR_SLOT_OVERLAP");
+      }
+
+      const updatedLocation = mode === "offline" ? normalizedLocation : null;
+      await tx
+        .update(tutorSlots)
+        .set({
+          dayOfWeek: dayName,
+          startTime,
+          endTime,
+          mode,
+          location: updatedLocation,
+          sessionDate: sessionDateIso,
+        })
+        .where(eq(tutorSlots.id, targetSlotId));
+
+      await recordTutorMutationAudit({
+        actorId: authContext.userId,
+        actorRoles: authContext.roles,
+        courseId: courseIdForAudit,
+        entityType: "tutor_slot",
+        entityId: targetSlotId,
+        entityVersion: 2,
+        action: "tutor.slot.update",
+        outcome: "success",
+        requestId,
+        reason: "TUTOR_SLOT_UPDATED",
+        before: existingSlot,
+        after: {
+          id: targetSlotId,
+          tutorId: authContext.userId,
+          dayOfWeek: dayName,
+          startTime,
+          endTime,
+          mode,
+          location: updatedLocation,
+          sessionDate: sessionDateIso,
+        },
+      }, tx);
+    });
+
+    try {
+      revalidatePath("/tutor/schedule");
+      revalidatePath("/tutor");
+    } catch {
+      // Ignored in non-request test runners
+    }
+
+    return { success: true, slotId: targetSlotId };
+  } catch (err: any) {
+    const duplicateRace = isTutorSlotUniqueViolation(err);
+    const knownReason = duplicateRace
+      ? "DUPLICATE_TUTOR_SLOT"
+      : err?.message;
+
+    const knownErrors: Record<string, string> = {
+      SLOT_NOT_FOUND: "Slot tidak ditemukan.",
+      SLOT_NOT_OWNED_BY_TUTOR: "Anda tidak memiliki wewenang untuk mengubah slot ini.",
+      CANNOT_EDIT_BOOKED_SLOT: "Slot yang sudah dibooking atau memiliki riwayat sesi tidak dapat diedit.",
+      DUPLICATE_TUTOR_SLOT: "Slot dengan waktu yang sama sudah tersedia pada tanggal tersebut.",
+      TUTOR_SLOT_OVERLAP: "Waktu slot bertumpang tindih dengan slot tutor lain pada tanggal tersebut.",
+    };
+
+    if (knownReason && knownErrors[knownReason]) {
+      await recordTutorFailureAudit({
+        actorId: authContext.userId,
+        actorRoles: authContext.roles,
+        courseId: courseIdForAudit,
+        entityType: "tutor_slot",
+        entityId: targetSlotId,
+        entityVersion: 1,
+        action: "tutor.slot.update",
+        outcome: "rejected",
+        requestId,
+        reason: knownReason,
+        before: null,
+        after: { ...input },
+      }, options?.executor ?? client);
+
+      return {
+        success: false,
+        error: knownErrors[knownReason],
+        reason: knownReason,
+      };
+    }
+
+    await recordTutorFailureAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: targetSlotId,
+      entityVersion: 1,
+      action: "tutor.slot.update",
+      outcome: "failed",
+      requestId,
+      reason: err?.message ?? "DATABASE_TRANSACTION_FAILED",
+      before: null,
+      after: { ...input },
+    }, options?.executor);
+
+    return {
+      success: false,
+      error: "Gagal memperbarui slot ketersediaan.",
+      reason: "DATABASE_ERROR",
+    };
+  }
+}
+
+export async function updateTutorSlotAction(input: UpdateTutorSlotInput) {
+  return executeUpdateTutorSlot(input);
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
  * Action 2: Delete Slot (Rejects Booked Slots)
  * ──────────────────────────────────────────────────────────────────────────── */
 

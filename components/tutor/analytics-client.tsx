@@ -101,7 +101,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
 
   return (
     <div className="space-y-(--section-gap)">
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-(--related-gap) gap-y-2">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-(--related-gap) gap-y-2 border-b border-border/40 pb-3">
         <dl className="flex min-w-0 flex-wrap items-baseline gap-x-(--related-gap) gap-y-1">
           {headlineMetrics.map(({ label, value }) => (
             <div key={label} className="flex flex-wrap items-baseline gap-x-1.5">
@@ -121,14 +121,14 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
       </div>
 
       <Reveal>
-        <div className="grid items-start gap-y-(--major-gap) xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:gap-x-10">
-          <section className="min-w-0 space-y-2 xl:row-span-3" aria-labelledby="weak-heading">
-            <h2 id="weak-heading" className={sectionTitle}>
+        <div className="grid items-start gap-y-8 xl:grid-cols-12 xl:gap-x-10">
+          <section className="min-w-0 space-y-3 xl:col-span-7" aria-labelledby="weak-heading">
+            <h2 id="weak-heading" className={`${sectionTitle} border-b border-border/40 pb-2`}>
               <Target className={headingIcon} aria-hidden />
               {t("priorityConcepts")}
             </h2>
             {analytics.weakConcepts.length === 0 ? (
-              <AdminEmptyState icon={BarChart3} title={t("noQuizResults")} className="py-(--related-gap)" />
+              <AdminEmptyState compact icon={BarChart3} title={t("noQuizResults")} />
             ) : (
               <ul className="divide-y divide-border/30">
                 {analytics.weakConcepts.map((concept, index) => {
@@ -194,56 +194,58 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
             )}
           </section>
 
-          <section className="min-w-0 space-y-2 xl:col-start-2" aria-labelledby="watchlist-heading">
-            <h2 id="watchlist-heading" className={sectionTitle}>
-              <Users className={headingIcon} aria-hidden />
-              {t("needsAttention")}
-            </h2>
-            <WatchlistTable students={analytics.watchlist} />
-          </section>
+          <div className="min-w-0 space-y-8 xl:col-span-5 xl:border-l xl:border-border/35 xl:pl-10">
+            <section className="min-w-0 space-y-3" aria-labelledby="watchlist-heading">
+              <h2 id="watchlist-heading" className={`${sectionTitle} border-b border-border/40 pb-2`}>
+                <Users className={headingIcon} aria-hidden />
+                {t("needsAttention")}
+              </h2>
+              <WatchlistTable students={analytics.watchlist} />
+            </section>
 
-          <section className="min-w-0 space-y-2 xl:col-start-2" aria-labelledby="misconceptions-heading">
-            <h2 id="misconceptions-heading" className={sectionTitle}>
-              <ScanSearch className={headingIcon} aria-hidden />
-              {t("commonMisconceptions")}
-            </h2>
-            {analytics.topMisconceptions.length === 0 ? (
-              <AdminEmptyState icon={BarChart3} title={t("noMisconceptions")} className="py-(--related-gap)" />
-            ) : (
-              <ul className="divide-y divide-border/30">
-                {analytics.topMisconceptions.slice(0, 10).map((item) => (
-                  <li key={item.misconceptionKoId} className="flex items-start justify-between gap-(--compact-gap) py-(--row-padding)">
-                    <div className="min-w-0">
-                      <MathText className="block wrap-anywhere text-body-sm font-medium text-foreground" as="span">{item.label}</MathText>
-                      <span className={`block wrap-anywhere ${metadata}`}>
-                        <MathText as="span">{item.conceptName}</MathText> &middot; {t("attempts", { count: item.sampleSize })}
-                      </span>
-                    </div>
-                    <span className="shrink-0 text-body-sm tabular-nums text-foreground">{item.pctSelected}%</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+            <section className="min-w-0 space-y-3" aria-labelledby="misconceptions-heading">
+              <h2 id="misconceptions-heading" className={`${sectionTitle} border-b border-border/40 pb-2`}>
+                <ScanSearch className={headingIcon} aria-hidden />
+                {t("commonMisconceptions")}
+              </h2>
+              {analytics.topMisconceptions.length === 0 ? (
+                <AdminEmptyState compact icon={BarChart3} title={t("noMisconceptions")} />
+              ) : (
+                <ul className="divide-y divide-border/30">
+                  {analytics.topMisconceptions.slice(0, 10).map((item) => (
+                    <li key={item.misconceptionKoId} className="flex items-start justify-between gap-(--compact-gap) py-(--row-padding)">
+                      <div className="min-w-0">
+                        <MathText className="block wrap-anywhere text-body-sm font-medium text-foreground" as="span">{item.label}</MathText>
+                        <span className={`block wrap-anywhere ${metadata}`}>
+                          <MathText as="span">{item.conceptName}</MathText> &middot; {t("attempts", { count: item.sampleSize })}
+                        </span>
+                      </div>
+                      <span className="shrink-0 text-body-sm tabular-nums text-foreground">{item.pctSelected}%</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
 
-          <section className="min-w-0 space-y-2 xl:col-start-2" aria-labelledby="interventions-heading">
-            <h2 id="interventions-heading" className={sectionTitle}>
-              <ClipboardCheck className={headingIcon} aria-hidden />
-              {t("activeInterventions")}
-            </h2>
-            {analytics.interventionCounts.length === 0 ? (
-              <AdminEmptyState icon={RefreshCw} title={t("noInterventions")} className="py-(--related-gap)" />
-            ) : (
-              <ul className="divide-y divide-border/30">
-                {analytics.interventionCounts.map((item) => (
-                  <li key={item.conceptName} className="flex items-start justify-between gap-(--compact-gap) py-(--row-padding)">
-                    <MathText className="min-w-0 wrap-anywhere text-body-sm text-foreground" as="span">{item.conceptName}</MathText>
-                    <span className="shrink-0 text-body-sm tabular-nums text-foreground">{item.count}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+            <section className="min-w-0 space-y-3" aria-labelledby="interventions-heading">
+              <h2 id="interventions-heading" className={`${sectionTitle} border-b border-border/40 pb-2`}>
+                <ClipboardCheck className={headingIcon} aria-hidden />
+                {t("activeInterventions")}
+              </h2>
+              {analytics.interventionCounts.length === 0 ? (
+                <AdminEmptyState compact icon={RefreshCw} title={t("noInterventions")} />
+              ) : (
+                <ul className="divide-y divide-border/30">
+                  {analytics.interventionCounts.map((item) => (
+                    <li key={item.conceptName} className="flex items-start justify-between gap-(--compact-gap) py-(--row-padding)">
+                      <MathText className="min-w-0 wrap-anywhere text-body-sm text-foreground" as="span">{item.conceptName}</MathText>
+                      <span className="shrink-0 text-body-sm tabular-nums text-foreground">{item.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
         </div>
       </Reveal>
 

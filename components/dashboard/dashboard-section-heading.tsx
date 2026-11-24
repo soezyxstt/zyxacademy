@@ -1,19 +1,31 @@
 import type { ComponentType, ReactNode } from "react";
 
-/** Compact 16 px section heading shared by Student dashboard sections. */
+import { cn } from "@/lib/utils";
+
+/** Compact 16 px section heading shared by Student and Tutor sections. */
 export function DashboardSectionHeading({
   icon: Icon,
   title,
   meta,
   actions,
+  divider = false,
+  className,
 }: {
   icon?: ComponentType<{ className?: string }>;
   title: ReactNode;
   meta?: ReactNode;
   actions?: ReactNode;
+  divider?: boolean;
+  className?: string;
 }) {
   return (
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+    <div
+      className={cn(
+        "mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2",
+        divider && "border-b border-border/40 pb-2",
+        className,
+      )}
+    >
       <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
         <h2 className="flex min-w-0 items-center gap-2 font-heading text-body-base font-bold text-foreground">
           {Icon && <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />}

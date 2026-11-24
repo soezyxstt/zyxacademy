@@ -66,10 +66,10 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
     <div className="space-y-(--related-gap)">
       {/* ── KPI Strip ── */}
       <AdminStatStrip className="grid-cols-2 sm:grid-cols-4 gap-(--compact-gap) rounded-none border-x-0 bg-transparent [&>*]:bg-transparent [&>*]:px-0">
-        <AdminStatStripItem icon={Users} label={t("totalParticipants")} value={data.summary.totalParticipants} caption={t("activeEnrolled")} />
-        <AdminStatStripItem icon={UserCheck} label={t("directEnrollments")} value={data.summary.directEnrollmentsCount} caption={t("individualParticipants")} />
-        <AdminStatStripItem icon={Layers} label={t("groupMembers")} value={data.summary.groupParticipantsCount} caption={t("groupParticipants")} />
-        <AdminStatStripItem icon={Shield} label={t("activeGroups")} value={data.summary.activeGroupsCount} caption={t("studyGroups")} />
+        <AdminStatStripItem icon={Users} label={t("totalParticipants")} value={data.summary.totalParticipants} />
+        <AdminStatStripItem icon={UserCheck} label={t("directEnrollments")} value={data.summary.directEnrollmentsCount} />
+        <AdminStatStripItem icon={Layers} label={t("groupMembers")} value={data.summary.groupParticipantsCount} />
+        <AdminStatStripItem icon={Shield} label={t("activeGroups")} value={data.summary.activeGroupsCount} />
       </AdminStatStrip>
 
       {/* Tabs & Search Toolbar */}
@@ -115,16 +115,20 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
         {/* ── Tab 1: Participants List ── */}
         <TabsContent value="participants" className="mt-0 space-y-(--related-gap)">
           {filteredParticipants.length === 0 ? (
-            <div className="border-t border-border">
-              <AdminEmptyState icon={Users} title={t("noParticipantsFound")}
+            <div className="border-t border-border/40">
+              <AdminEmptyState
+                compact
+                icon={Users}
+                title={t("noParticipantsFound")}
                 description={search || enrollmentFilter !== "all"
                   ? t("changeFilters")
-                  : t("noActiveParticipants")} className="px-4 py-5" />
+                  : t("noActiveParticipants")}
+              />
             </div>
           ) : (
             <>
               {/* Mobile stacked participant cards (zero horizontal scroll) */}
-              <div className="divide-y divide-border/55 border-y border-border/55 md:hidden">
+              <div className="divide-y divide-border/40 border-y border-border/40 md:hidden">
                 {filteredParticipants.map((p) => (
                   <div key={p.userId} className="space-y-(--compact-gap) py-(--row-padding)">
                     <div className="flex items-start justify-between gap-2">

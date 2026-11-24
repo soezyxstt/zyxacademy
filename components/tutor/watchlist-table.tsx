@@ -32,7 +32,7 @@ function relativeTime(
 export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
   const t = useTranslations("tutor.analytics");
   const { locale } = useAppLocale();
-  if (students.length === 0) return <AdminEmptyState icon={Users} title={t("noWatchlist")} />;
+  if (students.length === 0) return <AdminEmptyState compact icon={Users} title={t("noWatchlist")} />;
 
   return (
     <>

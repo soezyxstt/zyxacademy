@@ -13,6 +13,7 @@ import {
   MapPin,
   MessageSquare,
   MoreHorizontal,
+  Pencil,
   Plus,
   RotateCcw,
   Send,
@@ -23,6 +24,7 @@ import {
   Video,
   X,
 } from "lucide-react";
+import { DashboardSectionHeading } from "@/components/dashboard/dashboard-section-heading";
 import { GoogleCalendarControl } from "@/components/schedule/google-calendar-control";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +62,7 @@ import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import type { OwnedBookingItem, OwnedSlotItem } from "@/lib/schedule/tutor-read-model";
 import {
+  TUTOR_SLOT_TIME_PRESETS,
   formatAgendaDateHeading,
   formatDayNumber,
   formatShortWeekday,
@@ -76,7 +79,7 @@ type MobileAgendaItem =
  * - Sticky horizontal 5-tab bar (Calendar | Sessions | Tickets | Slots | Groups)
  * - Compact 7-day date strip + single-day vertical agenda timeline
  * - Stacked ticket cards with inline Approve/Reject & Discussion
- * - Bottom-sheet slot creator & bottom-sheet ticket reply composer
+ * - Bottom-sheet slot creator/editor & bottom-sheet ticket reply composer
  */
 export function TutorScheduleMobile({
   initialData,
@@ -108,8 +111,10 @@ export function TutorScheduleMobile({
   filledSlotCount,
   isAddSlotOpen,
   setIsAddSlotOpen,
+  editingSlotId,
   newSlotDate,
   setNewSlotDate,
+  derivedWeekday,
   newSlotStart,
   handleStartTimeChange,
   newSlotEnd,
@@ -119,8 +124,12 @@ export function TutorScheduleMobile({
   setNewSlotLocation,
   newSlotNotes,
   setNewSlotNotes,
-  handleAddSlot,
+  repeatWeeks,
+  setRepeatWeeks,
+  canSaveSlot,
+  handleSaveSlot,
   openAddSlotDialog,
+  openEditSlotDialog,
   handleCreateSlotDirect,
   requestDeleteSlot,
   handleOpenMoveModal,
@@ -359,9 +368,12 @@ export function TutorScheduleMobile({
           </div>
 
           {/* Selected day agenda header */}
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="min-w-0 break-words font-heading text-body-base font-bold text-foreground">
-              {formatAgendaDateHeading(selectedDate, locale)}
+          <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+            <h2 className="flex min-w-0 items-center gap-2 font-heading text-body-base font-bold text-foreground">
+              <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="min-w-0 break-words">
+                {formatAgendaDateHeading(selectedDate, locale)}
+              </span>
             </h2>
             <div className="flex shrink-0 items-center gap-1.5">
               <GoogleCalendarControl />
@@ -387,15 +399,13 @@ export function TutorScheduleMobile({
 
           {/* Selected day vertical timeline */}
           {selectedDayItems.length === 0 ? (
-            <div className="border-t border-border/60">
-              <AdminEmptyState
-                icon={CalendarDays}
-                title={t("noSlots")}
-                className="py-6"
-              />
-            </div>
+            <AdminEmptyState
+              compact
+              icon={CalendarDays}
+              title={t("noSlots")}
+            />
           ) : (
-            <div className="divide-y divide-border/60 border-y border-border/60">
+            <div className="divide-y divide-border/40">
               {selectedDayItems.map((item) => {
                 if (item.kind === "booking") {
                   const { booking } = item;
@@ -470,7 +480,7 @@ export function TutorScheduleMobile({
                 }
 
                 const { slot } = item;
-                const canDelete = !slot.booking && !slotsWithHistory.has(slot.id);
+                const canManageSlot = !slot.booking && !slotsWithHistory.has(slot.id);
                 return (
                   <div
                     key={`slot-${slot.id}`}
@@ -501,18 +511,31 @@ export function TutorScheduleMobile({
                         </p>
                       )}
                     </div>
-                    {canDelete && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        disabled={isPending}
-                        onClick={() => requestDeleteSlot(slot.id)}
-                        aria-label={t("delete")}
-                        className="size-9 shrink-0 rounded-lg text-status-error hover:text-status-error"
-                      >
-                        <Trash2 className="size-4" aria-hidden />
-                      </Button>
+                    {canManageSlot && (
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={isPending}
+                          onClick={() => openEditSlotDialog(slot)}
+                          aria-label={t("edit")}
+                          className="size-9 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+                        >
+                          <Pencil className="size-4" aria-hidden />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={isPending}
+                          onClick={() => requestDeleteSlot(slot.id)}
+                          aria-label={t("delete")}
+                          className="size-9 shrink-0 rounded-lg text-status-error hover:text-status-error"
+                        >
+                          <Trash2 className="size-4" aria-hidden />
+                        </Button>
+                      </div>
                     )}
                   </div>
                 );
@@ -803,18 +826,19 @@ export function TutorScheduleMobile({
           </div>
 
           {filteredSlots.length === 0 ? (
-            <div className="border-t border-border">
+            <div className="border-t border-border/40">
               <AdminEmptyState
+                compact
                 icon={CalendarDays}
                 title={t("noSlots")}
                 description={t("noSlotsDescription")}
               />
             </div>
           ) : (
-            <div className="divide-y divide-border border-y border-border">
+            <div className="divide-y divide-border/40 border-y border-border/40">
               {filteredSlots.map((slot) => {
                 const isBooked = Boolean(slot.booking);
-                const canDelete = !isBooked && !slotsWithHistory.has(slot.id);
+                const canManageSlot = !isBooked && !slotsWithHistory.has(slot.id);
                 return (
                   <div
                     key={slot.id}
@@ -856,18 +880,31 @@ export function TutorScheduleMobile({
                         </p>
                       )}
                     </div>
-                    {canDelete && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        disabled={isPending}
-                        onClick={() => requestDeleteSlot(slot.id)}
-                        aria-label={t("delete")}
-                        className="size-9 shrink-0 rounded-lg text-status-error hover:text-status-error"
-                      >
-                        <Trash2 className="size-4" aria-hidden />
-                      </Button>
+                    {canManageSlot && (
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={isPending}
+                          onClick={() => openEditSlotDialog(slot)}
+                          aria-label={t("edit")}
+                          className="size-9 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+                        >
+                          <Pencil className="size-4" aria-hidden />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={isPending}
+                          onClick={() => requestDeleteSlot(slot.id)}
+                          aria-label={t("delete")}
+                          className="size-9 shrink-0 rounded-lg text-status-error hover:text-status-error"
+                        >
+                          <Trash2 className="size-4" aria-hidden />
+                        </Button>
+                      </div>
                     )}
                   </div>
                 );
@@ -877,12 +914,14 @@ export function TutorScheduleMobile({
         </TabsContent>
 
         {/* 5. GROUPS TAB */}
-        <TabsContent value="groups" className="mt-3 space-y-5">
-          <section className="space-y-2">
-            <h2 className="font-heading text-body-base font-bold text-foreground">
-              {t("assignedCourses")}
-            </h2>
-            <div className="divide-y divide-border border-y border-border">
+        <TabsContent value="groups" className="mt-3 space-y-6">
+          <section className="min-w-0">
+            <DashboardSectionHeading
+              icon={BookOpen}
+              title={t("assignedCourses")}
+              divider
+            />
+            <div className="divide-y divide-border/30">
               {initialData.assignedActiveCourses.map((course) => (
                 <div
                   key={course.courseId}
@@ -892,9 +931,11 @@ export function TutorScheduleMobile({
                     <p className="break-words font-heading text-body-sm font-bold text-foreground">
                       {course.title}
                     </p>
-                    <p className="text-body-xs text-muted-foreground">
-                      {t("courseCode")}: {course.code || course.courseId}
-                    </p>
+                    {course.code && !course.code.toLowerCase().startsWith("legacy-") && (
+                      <p className="text-body-xs text-muted-foreground">
+                        {t("courseCode")}: {course.code}
+                      </p>
+                    )}
                   </div>
                   <Badge
                     variant="outline"
@@ -909,13 +950,15 @@ export function TutorScheduleMobile({
             </div>
           </section>
 
-          <section className="space-y-2">
-            <h2 className="font-heading text-body-base font-bold text-foreground">
-              {t("activeGroups")}
-            </h2>
-            <div className="divide-y divide-border border-y border-border">
+          <section className="min-w-0">
+            <DashboardSectionHeading
+              icon={Users}
+              title={t("activeGroups")}
+              divider
+            />
+            <div className="divide-y divide-border/30">
               {initialData.eligibleGroups.length === 0 ? (
-                <AdminEmptyState icon={Users} title={t("noActiveGroups")} className="py-6" />
+                <AdminEmptyState compact icon={Users} title={t("noActiveGroups")} />
               ) : (
                 initialData.eligibleGroups.map((grp) => (
                   <div
@@ -964,7 +1007,7 @@ export function TutorScheduleMobile({
               <div className="space-y-1">
                 <Label htmlFor="mobile-tutor-filter-day" className="text-body-sm font-semibold">{t("chooseDay")}</Label>
                 <Select value={selectedDayFilter} onValueChange={setSelectedDayFilter}>
-                  <SelectTrigger id="mobile-tutor-filter-day" className="px-0">
+                  <SelectTrigger id="mobile-tutor-filter-day">
                     <SelectValue placeholder={t("chooseDay")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -982,7 +1025,7 @@ export function TutorScheduleMobile({
               <div className="space-y-1">
                 <Label htmlFor="mobile-tutor-filter-course" className="text-body-sm font-semibold">{t("allCourses")}</Label>
                 <Select value={selectedCourseFilter} onValueChange={setSelectedCourseFilter}>
-                  <SelectTrigger id="mobile-tutor-filter-course" className="px-0">
+                  <SelectTrigger id="mobile-tutor-filter-course">
                     <SelectValue placeholder={t("allCourses")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -1000,7 +1043,7 @@ export function TutorScheduleMobile({
               <div className="space-y-1">
                 <Label htmlFor="mobile-tutor-filter-group" className="text-body-sm font-semibold">{t("allGroups")}</Label>
                 <Select value={selectedGroupFilter} onValueChange={setSelectedGroupFilter}>
-                  <SelectTrigger id="mobile-tutor-filter-group" className="px-0">
+                  <SelectTrigger id="mobile-tutor-filter-group">
                     <SelectValue placeholder={t("allGroups")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -1039,7 +1082,7 @@ export function TutorScheduleMobile({
         </SheetContent>
       </Sheet>
 
-      {/* Bottom-Sheet Slot Creator */}
+      {/* Bottom-Sheet Slot Creator / Editor */}
       <Sheet
         open={isAddSlotOpen}
         onOpenChange={(open) => {
@@ -1052,17 +1095,24 @@ export function TutorScheduleMobile({
         >
           <SheetHeader>
             <SheetTitle className="font-heading text-body-base font-bold">
-              {t("addSlotTitle")}
+              {editingSlotId ? t("editSlotTitle") : t("addSlotTitle")}
             </SheetTitle>
             <SheetDescription className="text-body-xs">
-              {t("addSlotDescription")}
+              {editingSlotId ? t("editSlotDescription") : t("addSlotDescription")}
             </SheetDescription>
           </SheetHeader>
           <div className="space-y-3 px-(--panel-padding)">
             <div className="space-y-1">
-              <Label htmlFor="mobile-tutor-slot-date" className="text-body-sm font-semibold">
-                {t("date")}
-              </Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="mobile-tutor-slot-date" className="text-body-sm font-semibold">
+                  {t("date")}
+                </Label>
+                {newSlotDate && (
+                  <span className="text-body-xs font-medium text-muted-foreground">
+                    {t(`days.${derivedWeekday}`)} &middot; {t("durationNinetyMinutes")}
+                  </span>
+                )}
+              </div>
               <Input
                 id="mobile-tutor-slot-date"
                 type="date"
@@ -1072,28 +1122,49 @@ export function TutorScheduleMobile({
                 className="h-10 text-body-sm"
               />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-body-sm font-semibold">{t("start")}</Label>
-                <Input
-                  type="time"
-                  value={newSlotStart}
-                  onChange={(e) => handleStartTimeChange(e.target.value)}
-                  placeholder="09:00"
-                  min="07:00"
-                  max="20:30"
-                  step="1800"
-                  className="h-10 text-body-sm"
-                />
+            <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="mobile-tutor-slot-start" className="text-body-sm font-semibold">
+                    {t("start")}
+                  </Label>
+                  <Input
+                    id="mobile-tutor-slot-start"
+                    type="time"
+                    value={newSlotStart}
+                    onChange={(e) => handleStartTimeChange(e.target.value)}
+                    placeholder="09:00"
+                    min="06:00"
+                    max="22:29"
+                    className="h-10 text-body-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="mobile-tutor-slot-end" className="text-body-sm font-semibold">
+                    {t("end")}
+                  </Label>
+                  <Input
+                    id="mobile-tutor-slot-end"
+                    value={newSlotEnd}
+                    readOnly
+                    placeholder="10:30"
+                    className="h-10 cursor-not-allowed bg-muted text-body-sm text-muted-foreground"
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-body-sm font-semibold">{t("end")}</Label>
-                <Input
-                  value={newSlotEnd}
-                  readOnly
-                  placeholder="10:30"
-                  className="h-10 cursor-not-allowed bg-muted text-body-sm text-muted-foreground"
-                />
+              <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t("quickTimes")}>
+                {TUTOR_SLOT_TIME_PRESETS.map((preset) => (
+                  <Button
+                    key={preset}
+                    type="button"
+                    size="sm"
+                    variant={newSlotStart === preset ? "secondary" : "outline"}
+                    onClick={() => handleStartTimeChange(preset)}
+                    className="h-8 px-2.5 text-body-xs tabular-nums"
+                  >
+                    {preset}
+                  </Button>
+                ))}
               </div>
             </div>
             <div className="space-y-1">
@@ -1102,7 +1173,7 @@ export function TutorScheduleMobile({
                 value={newSlotMode}
                 onValueChange={(val) => setNewSlotMode(val as "online" | "offline")}
               >
-                <SelectTrigger id="mobile-tutor-slot-mode" className="px-0">
+                <SelectTrigger id="mobile-tutor-slot-mode">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1113,13 +1184,40 @@ export function TutorScheduleMobile({
             </div>
             {newSlotMode === "offline" && (
               <div className="space-y-1">
-                <Label className="text-body-sm font-semibold">{t("location")}</Label>
+                <Label htmlFor="mobile-tutor-slot-location" className="text-body-sm font-semibold">
+                  {t("location")}
+                </Label>
                 <Input
+                  id="mobile-tutor-slot-location"
                   value={newSlotLocation}
                   onChange={(e) => setNewSlotLocation(e.target.value)}
                   placeholder={t("locationPlaceholder")}
                   className="h-10 text-body-sm"
                 />
+                {newSlotLocation.trim().length === 0 && (
+                  <p className="text-body-xs text-muted-foreground">{t("locationRequiredHint")}</p>
+                )}
+              </div>
+            )}
+            {!editingSlotId && (
+              <div className="space-y-1">
+                <Label htmlFor="mobile-tutor-slot-repeat" className="text-body-sm font-semibold">
+                  {t("repeatWeekly")}
+                </Label>
+                <Select
+                  value={String(repeatWeeks)}
+                  onValueChange={(val) => setRepeatWeeks(Number(val) || 1)}
+                >
+                  <SelectTrigger id="mobile-tutor-slot-repeat">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">{t("repeatNone")}</SelectItem>
+                    <SelectItem value="2">{t("repeatWeeksOption", { count: 2 })}</SelectItem>
+                    <SelectItem value="3">{t("repeatWeeksOption", { count: 3 })}</SelectItem>
+                    <SelectItem value="4">{t("repeatWeeksOption", { count: 4 })}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             )}
             <div className="space-y-1">
@@ -1150,11 +1248,11 @@ export function TutorScheduleMobile({
             <Button
               type="button"
               isLoading={isPending}
-              disabled={!newSlotStart}
-              onClick={handleAddSlot}
+              disabled={!canSaveSlot}
+              onClick={handleSaveSlot}
               className="min-h-10 flex-1 rounded-lg bg-brand-primary text-body-sm text-primary-foreground hover:bg-brand-primary/90"
             >
-              {t("saveSlot")}
+              {editingSlotId ? t("saveChanges") : t("saveSlot")}
             </Button>
           </SheetFooter>
         </SheetContent>

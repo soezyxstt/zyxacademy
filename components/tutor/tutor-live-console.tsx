@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Radio, Users, AlertTriangle, Play, ChevronRight, CheckCircle2, StopCircle } from "lucide-react";
+import { Loader2, Radio, Trophy, Users, AlertTriangle, Play, ChevronRight, CheckCircle2, StopCircle } from "lucide-react";
 import { useLiveQuizSocket } from "@/components/live/use-live-quiz-socket";
 import { MathText } from "@/components/course/math-text";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
@@ -222,9 +222,10 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
   if (phase === "setup") {
     return (
       <div className="max-w-2xl space-y-(--related-gap)">
-        <div className="border-b border-border/55 pb-(--compact-gap)">
-          <h2 className="font-heading text-body-base font-bold text-foreground">
-            {t("setupTitle")}
+        <div className="border-b border-border/40 pb-2.5">
+          <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
+            <Radio className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span>{t("setupTitle")}</span>
           </h2>
           <p className="mt-1 text-body-sm text-muted-foreground">
             {courseTitle ? t("chooseTemplateForCourse", { course: courseTitle }) : t("choosePublishedTemplate")}
@@ -240,7 +241,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
             <div className="space-y-1.5">
               <label htmlFor="live-template" className="text-body-sm font-semibold text-foreground">{t("template")}</label>
               <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-                <SelectTrigger id="live-template" className="px-0">
+                <SelectTrigger id="live-template">
                   <SelectValue placeholder={t("selectTemplate")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -253,14 +254,30 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
               </Select>
             </div>
 
-            {codingProblems.length ? <div className="space-y-1.5">
-              <label htmlFor="live-python" className="text-body-sm font-semibold">Soal Python</label>
-              <Select value={codingChoice} onValueChange={setCodingChoice}>
-                <SelectTrigger id="live-python" className="px-0"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="none">Gunakan soal templat</SelectItem>{codingProblems.map((problem) => <SelectItem key={`${problem.problemId}@${problem.version}`} value={JSON.stringify([problem.problemId, problem.version])}>{problem.title}, versi {problem.version}</SelectItem>)}</SelectContent>
-              </Select>
-              <p className="text-body-xs text-muted-foreground">Python: 5 menit, percobaan berulang, petunjuk Zyra, skor terbaik.</p>
-            </div> : null}
+            {codingProblems.length ? (
+              <div className="space-y-1.5">
+                <label htmlFor="live-python" className="text-body-sm font-semibold text-foreground">
+                  {t("pythonProblem")}
+                </label>
+                <Select value={codingChoice} onValueChange={setCodingChoice}>
+                  <SelectTrigger id="live-python">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("useTemplateQuestions")}</SelectItem>
+                    {codingProblems.map((problem) => (
+                      <SelectItem
+                        key={`${problem.problemId}@${problem.version}`}
+                        value={JSON.stringify([problem.problemId, problem.version])}
+                      >
+                        {t("pythonVersion", { title: problem.title, version: problem.version })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-body-xs text-muted-foreground">{t("pythonHint")}</p>
+              </div>
+            ) : null}
             <Button
               onClick={createSession}
               disabled={!selectedTemplateId && codingChoice === "none"}
@@ -418,10 +435,11 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
       {/* ── Reveal / Leaderboard ── */}
       {(sessionState === "reveal" || sessionState === "ended") && top10.length > 0 && (
         <div className="mx-auto max-w-lg space-y-(--compact-gap)">
-          <h3 className="font-heading text-body-base font-bold text-foreground">
-            {sessionState === "ended" ? t("finalLeaderboard") : t("liveLeaderboard")}
+          <h3 className="flex items-center gap-2 border-b border-border/40 pb-2 font-heading text-body-base font-bold text-foreground">
+            <Trophy className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span>{sessionState === "ended" ? t("finalLeaderboard") : t("liveLeaderboard")}</span>
           </h3>
-          <div className="divide-y divide-border border-y border-border">
+          <div className="divide-y divide-border/40">
             {top10.map((entry) => (
               <div key={entry.userId} className="flex items-center gap-(--compact-gap) px-4 py-2.5">
                 <span className="w-6 shrink-0 text-center font-heading text-body-sm font-bold tabular-nums text-muted-foreground">
