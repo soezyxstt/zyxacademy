@@ -42,6 +42,7 @@ import {
   saveActiveSessionId,
   createOpsAiSession,
   updateOpsAiSessionMessages,
+  renameOpsAiSession,
   deleteOpsAiSession,
   clearAllOpsAiSessions,
   type OpsAiMessageV2,
@@ -118,6 +119,11 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
     if (typeof window === "undefined") return null;
     return loadActiveSessionId(accountId);
   });
+  const activeSessionIdRef = useRef<string | null>(activeSessionId);
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
+
   const [hasHydrated, setHasHydrated] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(isOpen);
@@ -130,6 +136,22 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const sessionsMenuRef = useRef<HTMLDivElement>(null);
 
+  const currentSession = sessions.find((s) => s.id === activeSessionId);
+  const currentSessionNeedsTitle =
+    currentSession?.titleSource !== "ai" && currentSession?.titleSource !== "manual";
+
+  const handleSessionTitle = useCallback(
+    (title: string, sessionId?: string) => {
+      const targetId = sessionId || activeSessionIdRef.current;
+      if (!targetId) return;
+      const updated = renameOpsAiSession(targetId, title, accountId);
+      if (updated.length > 0) {
+        setSessions(updated);
+      }
+    },
+    [accountId]
+  );
+
   const pathname = usePathname();
   const tab = useSearchParams()?.get("tab");
   const { messages, setMessages, input, setInput, isStreaming, stop, sendMessage } = useOpsAiChat({
@@ -139,6 +161,8 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
       mode: chatMode,
       ...(tab && /^[\w-]{1,80}$/.test(tab) ? { queryParams: { tab } } : {}),
     },
+    needsTitle: currentSessionNeedsTitle,
+    onSessionTitle: handleSessionTitle,
   });
   const [revoking, setRevoking] = useState(false);
   const approvalPending = useRef(false);
@@ -235,7 +259,9 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
       const curId = loadActiveSessionId(accountId);
       if (curId) {
         const current = reloadedSessions.find((s) => s.id === curId);
-        if (current) setMessages(current.messages);
+        if (current) {
+          setMessages(current.messages);
+        }
       } else {
         const reloaded = loadOpsAiMessages(accountId);
         setMessages(reloaded);
@@ -472,6 +498,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
     const newSession = createOpsAiSession(undefined, accountId);
     setSessions(loadOpsAiSessions(accountId));
     setActiveSessionId(newSession.id);
+    activeSessionIdRef.current = newSession.id;
     setMessages([]);
     setInput("");
     setShowSessionsDropdown(false);
@@ -483,8 +510,10 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
     if (approvalPending.current) return;
     stop();
     setActiveSessionId(session.id);
+    activeSessionIdRef.current = session.id;
     saveActiveSessionId(session.id, accountId);
-    setMessages(loadOpsAiSessions(accountId).find(current => current.id === session.id)?.messages ?? session.messages);
+    const latest = loadOpsAiSessions(accountId).find((current) => current.id === session.id);
+    setMessages(latest?.messages ?? session.messages);
     setInput("");
     setShowSessionsDropdown(false);
   };
@@ -502,11 +531,13 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
       setInput("");
       if (remaining.length > 0) {
         setActiveSessionId(remaining[0].id);
+        activeSessionIdRef.current = remaining[0].id;
         setMessages(remaining[0].messages);
       } else {
         const fresh = createOpsAiSession(undefined, accountId);
         setSessions([fresh]);
         setActiveSessionId(fresh.id);
+        activeSessionIdRef.current = fresh.id;
         setMessages([]);
       }
     }
@@ -537,6 +568,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
     const fresh = createOpsAiSession(undefined, accountId);
     setSessions([fresh]);
     setActiveSessionId(fresh.id);
+    activeSessionIdRef.current = fresh.id;
     setMessages([]);
     setInput("");
     setShowSessionsDropdown(false);
@@ -560,10 +592,13 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
     const query = (textToSend ?? input).trim();
     if (!query || isStreaming || approvalPending.current || revoking || query.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength) return;
     let chatId = activeSessionId;
+    let createdFresh = false;
     if (!chatId) {
       const fresh = createOpsAiSession(undefined, accountId);
       chatId = fresh.id;
+      createdFresh = true;
       setActiveSessionId(chatId);
+      activeSessionIdRef.current = chatId;
       setSessions(loadOpsAiSessions(accountId));
     }
     const effectiveMode = modeOverride ?? chatMode;
@@ -571,7 +606,20 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
       setChatMode(modeOverride);
     }
     const grantIds = activeGrants.filter(grant => grant.until > Date.now()).map(grant => grant.id);
-    void sendMessage(query, { chatId, grantIds, mode: effectiveMode });
+    const needsTitleForTurn =
+      createdFresh ||
+      (currentSessionNeedsTitle &&
+        (messages.length === 0 ||
+          !currentSession?.title ||
+          currentSession.title === "Percakapan Baru" ||
+          currentSession.title === "Sesi Percakapan" ||
+          currentSession.titleSource !== "ai"));
+    void sendMessage(query, {
+      chatId,
+      grantIds,
+      mode: effectiveMode,
+      needsTitle: needsTitleForTurn,
+    });
   };
 
   const handleSelectPreset = (preset: OpsAiPreset) => {
@@ -600,7 +648,6 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
 
   if (!shouldRender) return null;
 
-  const currentSession = sessions.find((s) => s.id === activeSessionId);
   const activeTitle =
     currentSession?.title && currentSession.title !== "Percakapan Baru"
       ? currentSession.title

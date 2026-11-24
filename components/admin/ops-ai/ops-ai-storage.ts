@@ -24,6 +24,7 @@ export interface OpsAiSession {
   createdAt: number;
   updatedAt: number;
   messages: OpsAiMessageV2[];
+  titleSource?: "default" | "ai" | "manual";
 }
 
 export const STORAGE_KEY_PANEL_OPEN_V2 = "zyx_ops_ai_panel_open_v2";
@@ -314,6 +315,8 @@ export function updateOpsAiSessionMessages(
     const target = sessions[targetIndex];
     let title = target.title;
     if (
+      target.titleSource !== "ai" &&
+      target.titleSource !== "manual" &&
       (!title || title === "Percakapan Baru" || title === "Sesi Percakapan") &&
       messages.length > 0
     ) {
@@ -337,6 +340,7 @@ export function updateOpsAiSessionMessages(
     const session: OpsAiSession = {
       id: sessionId,
       title,
+      titleSource: "default",
       createdAt: Date.now(),
       updatedAt: Date.now(),
       messages,
@@ -346,6 +350,41 @@ export function updateOpsAiSessionMessages(
 
   // Also sync active messages key for backwards compatibility
   saveOpsAiMessages(messages, true, accountId);
+}
+
+/**
+ * Renames a session with an AI-generated title and persists cleanly.
+ */
+export function renameOpsAiSession(
+  sessionId: string,
+  title: string,
+  accountId?: string | null,
+): OpsAiSession[] {
+  if (typeof localStorage === "undefined") return [];
+
+  const normalizedAccountId = accountId ?? undefined;
+  const cleanedTitle = title
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^["'`]+|["'`]+$/g, "")
+    .trim()
+    .slice(0, 80);
+
+  const sessions = loadOpsAiSessions(normalizedAccountId);
+  if (!cleanedTitle) return sessions;
+
+  const targetIndex = sessions.findIndex((s) => s.id === sessionId);
+  if (targetIndex < 0) return sessions;
+
+  const updated = [...sessions];
+  updated[targetIndex] = {
+    ...updated[targetIndex],
+    title: cleanedTitle,
+    titleSource: "ai",
+    updatedAt: Date.now(),
+  };
+  saveOpsAiSessions(updated, true, normalizedAccountId);
+  return updated;
 }
 
 /**

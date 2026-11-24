@@ -23,6 +23,7 @@ const chatRequest = z.object({
   }).default({ mode: "edit" }),
   chatId: z.string().regex(/^[\w-]{1,100}$/).optional(),
   grantIds: z.array(z.string().regex(/^prop-[a-f0-9-]{36}$/)).max(8).default([]),
+  needsTitle: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Periksa isi pesan dan coba lagi." }, { status: 400 });
     }
 
-    const { messages, context, chatId, grantIds } = parsed.data;
+    const { messages, context, chatId, grantIds, needsTitle } = parsed.data;
     const effectiveChatId = chatId || randomUUID();
     const browserChat = session.session?.id
       ? { chatId: effectiveChatId, grantIds, actorId: session.user.id, sessionId: session.session.id }
@@ -58,6 +59,8 @@ export async function POST(req: Request) {
         mode: context.mode,
         ...(context.queryParams?.tab ? { queryParams: { tab: context.queryParams.tab } } : {}),
       },
+      chatId: effectiveChatId,
+      needsTitle,
       browserChat,
       ...(browserChat ? { maxToolSteps: 8, maxConsecutiveToolCalls: 8 } : {}),
       abortSignal: req.signal,
