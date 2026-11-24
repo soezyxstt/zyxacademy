@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, type ComponentProps } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useTranslations } from "@/lib/i18n/client";
+import { useAppLocale } from "@/lib/i18n/client";
+import idStudentCourseMessages from "@/messages/id/studentCourse.json";
+import enStudentCourseMessages from "@/messages/en/studentCourse.json";
 import { ArticleCodeExample, ArticleCodingExercise, ArticleMarkdownScope, type StaticCodeLabels } from "@/components/coding/article-coding";
 import { articleCaseLatex, type ArticlePart } from "@/lib/materials/article-parts";
 import type { PublicVisualSpec } from "@/lib/articles/structured-read-model";
@@ -13,19 +15,16 @@ import { MarkdownRenderer, type MarkdownDensity } from "@/components/course/mark
 import { ProductLearningVisual } from "@/components/course/product-learning-visual";
 import { InteractiveDocumentArticleLocation } from "@/components/course/interactive-document-context";
 
-function ScopedMarkdown({ scope, ...props }: ComponentProps<typeof MarkdownRenderer> & { scope: string }) {
-  return <ArticleMarkdownScope id={scope}><MarkdownRenderer {...props} /></ArticleMarkdownScope>;
+function ScopedMarkdown({ scope, standaloneInlineMath = true, ...props }: ComponentProps<typeof MarkdownRenderer> & { scope: string }) {
+  return <ArticleMarkdownScope id={scope}><MarkdownRenderer standaloneInlineMath={standaloneInlineMath} {...props} /></ArticleMarkdownScope>;
 }
 
 const COMPACT_SYMBOL_LIMIT = 4;
 
 function useSymbolDefinitionsLabel(count: number) {
-  try {
-    const t = useTranslations("studentCourse");
-    return t("articleReader.symbolDefinitions", { count });
-  } catch {
-    return `Keterangan simbol (${count})`;
-  }
+  const { locale } = useAppLocale();
+  const template = (locale === "en" ? enStudentCourseMessages : idStudentCourseMessages).articleReader.symbolDefinitions;
+  return template.replace("{count}", String(count));
 }
 
 function MathSymbolDefinitions({
@@ -36,12 +35,24 @@ function MathSymbolDefinitions({
   density?: MarkdownDensity;
 }) {
   const [open, setOpen] = useState(symbols.length <= COMPACT_SYMBOL_LIMIT);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const label = useSymbolDefinitionsLabel(symbols.length);
+
+  useEffect(() => {
+    const element = contentRef.current;
+    if (!element) return;
+    if (!open) element.setAttribute("hidden", "until-found");
+    else element.removeAttribute("hidden");
+    const onBeforeMatch = () => setOpen(true);
+    element.addEventListener("beforematch", onBeforeMatch);
+    return () => element.removeEventListener("beforematch", onBeforeMatch);
+  }, [open]);
+
   const list = (
     <dl data-math-symbols className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
       {symbols.map((symbol) => (
         <div key={symbol.id} data-symbol-id={symbol.id} className="flex flex-wrap items-baseline gap-x-2">
-          <dt><MarkdownRenderer content={`$${symbol.latex}$`} density={density} /></dt>
+          <dt><MathText>{`$${symbol.latex}$`}</MathText></dt>
           <dd className="min-w-0 flex-1 basis-32 text-muted-foreground">
             <ScopedMarkdown scope={`symbol:${symbol.id}:meaning`} content={symbol.meaningMarkdown} density={density} />
             {symbol.conditionsMarkdown ? <ScopedMarkdown scope={`symbol:${symbol.id}:conditions`} content={symbol.conditionsMarkdown} density={density} /> : null}
@@ -64,8 +75,8 @@ function MathSymbolDefinitions({
           <span>{label}</span>
         </button>
       </CollapsibleTrigger>
-      <CollapsibleContent forceMount hidden={!open} className="pt-2">
-        {list}
+      <CollapsibleContent ref={contentRef} forceMount hidden={!open}>
+        <div className="pt-2">{list}</div>
       </CollapsibleContent>
     </Collapsible>
   );

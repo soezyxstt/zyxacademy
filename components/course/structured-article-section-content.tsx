@@ -285,7 +285,7 @@ export function StructuredArticleSectionContent({
                   </h3>
                 ) : null}
                 <div className="text-body-base text-foreground">
-                  {block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : <MarkdownRenderer content={block.content} density="default" />}
+                  {block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : <MarkdownRenderer content={block.content} density="default" standaloneInlineMath />}
                 </div>
                 {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
               </div>
@@ -321,7 +321,7 @@ export function StructuredArticleSectionContent({
               </div>
               )}
               <div className="text-body-base text-foreground">
-                {block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : <MarkdownRenderer content={block.content} density="default" />}
+                {block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : <MarkdownRenderer content={block.content} density="default" standaloneInlineMath />}
               </div>
               {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
             </div>

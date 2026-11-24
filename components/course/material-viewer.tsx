@@ -1463,6 +1463,7 @@ function MaterialViewerContent({
                             <MarkdownRenderer
                               content={section.content}
                               density="default"
+                              standaloneInlineMath
                             />
                           </div>
                         </section>
@@ -1475,6 +1476,7 @@ function MaterialViewerContent({
                     <MarkdownRenderer
                       content={material.body || ""}
                       density="default"
+                      standaloneInlineMath
                     />
                   </div>
                 )}
