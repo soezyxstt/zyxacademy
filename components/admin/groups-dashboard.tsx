@@ -7,7 +7,6 @@ import {
   RefreshCw,
   BookOpen,
   GraduationCap,
-  CheckCircle2,
   Trash2,
   Edit3,
   Eye,
@@ -16,7 +15,6 @@ import {
   KeyRound,
   Copy,
   Check,
-  Percent,
   MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +23,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { AdminErrorState } from "@/components/admin/state-panels";
 import { adminListRequestState, scheduleAdminListRequest } from "@/lib/admin/list-request";
@@ -211,7 +208,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
     detailRequest.current += 1;
   }, [requestKey]);
   const filteredGroups = groups;
-  const { totalGroups, activeGroups, totalMembers, avgQuotaUsed } = stats;
+  const { totalMembers } = stats;
   const refreshGroups = () => setRevision((value) => value + 1);
   const handleOpenDetail = async (group: GroupItem) => {
     const request = ++detailRequest.current;
@@ -448,39 +445,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
 
   return (
     <div className="space-y-4">
-      {/* 1. KPI Strip */}
-      <AdminStatStrip className="lg:grid-cols-4">
-        <AdminStatStripItem
-          label={translate("groupsUI.totalGroups")}
-          value={totalGroups}
-          caption={translate("groupsUI.registeredGroups")}
-          icon={Users}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={translate("groupsUI.activeGroups")}
-          value={activeGroups}
-          caption={translate("groupsUI.thisSemester")}
-          icon={CheckCircle2}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={translate("groupsUI.joinedStudents")}
-          value={totalMembers}
-          caption={translate("groupsUI.activeMembers")}
-          icon={GraduationCap}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={translate("groupsUI.quotaUsage")}
-          value={`${avgQuotaUsed}%`}
-          caption={translate("groupsUI.semesterAverage")}
-          icon={Percent}
-          tone="default"
-        />
-      </AdminStatStrip>
-
-      {/* 2. Search, Filter, and Action Bar */}
+      {/* Search, Filter, and Action Bar */}
       <div className="flex flex-wrap items-center gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true])]:hidden">
         {/* Search Input */}
         <SearchBar

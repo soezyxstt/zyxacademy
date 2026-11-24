@@ -270,7 +270,7 @@ export function TryoutGradingMobile({
         onValueChange={(val) => onTabChange(val as TryoutGradingTab)}
         className="w-full"
       >
-        <TabsList variant="inline">
+        <TabsList variant="page" flush>
           <TabsTrigger value="pending">
             <AlertCircle className="mr-1.5 size-4 text-status-warning" aria-hidden />
             {tr("needsGrading")}

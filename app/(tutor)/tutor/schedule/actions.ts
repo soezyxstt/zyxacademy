@@ -21,6 +21,7 @@ import {
   user,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { tutorSlotNotes } from "@/db/schedule-extras";
 import {
   type DbExecutor,
   resolveTutorCourseAccess,
@@ -554,6 +555,7 @@ export interface UpdateTutorSlotOptions {
 export async function executeUpdateTutorSlot(
   input: UpdateTutorSlotInput,
   options?: UpdateTutorSlotOptions,
+  notes?: string,
 ) {
   const requestId = randomUUID();
   let authContext: TutorAuthContext;
@@ -839,6 +841,18 @@ export async function executeUpdateTutorSlot(
         })
         .where(eq(tutorSlots.id, targetSlotId));
 
+      if (notes !== undefined) {
+        if (notes) {
+          await tx.insert(tutorSlotNotes).values({ slotId: targetSlotId, notes })
+            .onConflictDoUpdate({
+              target: tutorSlotNotes.slotId,
+              set: { notes, updatedAt: new Date() },
+            });
+        } else {
+          await tx.delete(tutorSlotNotes).where(eq(tutorSlotNotes.slotId, targetSlotId));
+        }
+      }
+
       await recordTutorMutationAudit({
         actorId: authContext.userId,
         actorRoles: authContext.roles,
@@ -932,8 +946,8 @@ export async function executeUpdateTutorSlot(
   }
 }
 
-export async function updateTutorSlotAction(input: UpdateTutorSlotInput) {
-  return executeUpdateTutorSlot(input);
+export async function updateTutorSlotAction(input: UpdateTutorSlotInput, notes?: string) {
+  return executeUpdateTutorSlot(input, undefined, notes?.trim());
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

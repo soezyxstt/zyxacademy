@@ -13,6 +13,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import {
+  hapticError,
+  hapticHeavy,
+  hapticMedium,
+  hapticSuccess,
+  hapticWarning,
+} from "@/lib/native/haptics";
 import { DiscussionAttachment } from "./discussion-attachment";
 import { canSuggestForwardChannel, channelOptionIndex, mentionHandle, discussionMessageHref, zyraStatusReaction } from "./discussion-adapter";
 import { DiscussionMarkdown } from "./discussion-markdown";
@@ -245,7 +252,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
 
   function startGesture(event: ReactPointerEvent<HTMLDivElement>) {
     if (gesture.current || event.pointerType !== "touch" || event.clientX < 28 || event.clientX > window.innerWidth - 28 || (event.target as HTMLElement).closest("button,a,input,textarea,select")) return;
-    const state = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false, vertical: false, longPressed: false, timer: setTimeout(() => { state.longPressed = true; setMenuOpen(true); }, 550) };
+    const state = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false, vertical: false, longPressed: false, timer: setTimeout(() => { state.longPressed = true; void hapticMedium(); setMenuOpen(true); }, 550) };
     gesture.current = state;
   }
 
@@ -267,7 +274,10 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
     clearTimeout(state.timer);
     const dx = event.clientX - state.x;
     const dy = event.clientY - state.y;
-    if (canReply && !replyDisabled && !cancelled && !state.vertical && !state.longPressed && state.moved && Math.abs(dx) >= 65 && Math.abs(dx) > Math.abs(dy) * 1.5) onReply(message);
+    if (canReply && !replyDisabled && !cancelled && !state.vertical && !state.longPressed && state.moved && Math.abs(dx) >= 65 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      void hapticMedium();
+      onReply(message);
+    }
     gesture.current = null;
   }
 
@@ -278,8 +288,14 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
     setRetry(null);
     try {
       const result = await action();
-      if (closeDialog && result !== false) { setDialog(null); setReason(""); }
+      if (closeDialog && result !== false) {
+        if (activeDialog === "delete") void hapticHeavy();
+        else void hapticSuccess();
+        setDialog(null);
+        setReason("");
+      }
     } catch {
+      void hapticError();
       setError("actionError");
       if (!closeDialog) setRetry(() => action);
     } finally {
@@ -288,6 +304,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
   }
 
   function openDialog(next: "edit" | "delete" | "forward" | "report") {
+    if (next === "delete") void hapticWarning();
     setError("");
     setRetry(null);
     setBody(message.body);

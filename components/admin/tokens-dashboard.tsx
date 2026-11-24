@@ -5,14 +5,13 @@ import { useTranslations } from "@/lib/i18n/client";
 import { useAppLocale } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
-import { Copy, Trash2, KeyRound, Check, RefreshCw, User, Users, ShieldCheck, CheckCircle2, Plus, MoreHorizontal } from "lucide-react";
+import { Copy, Trash2, KeyRound, Check, RefreshCw, User, Users, Plus, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminIconAction } from "@/components/admin/icon-action";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { SearchBar } from "@/components/ui/search-bar";
 import { AdminEmptyState } from "@/components/admin/state-panels";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
@@ -97,18 +96,6 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; token: string } | null>(null);
   const [isDeletingToken, setIsDeletingToken] = useState(false);
-
-  const stats = useMemo(() => {
-    const total = initialTokens.length;
-    const now = new Date();
-    const active = initialTokens.filter((t) => new Date(t.expiresAt) >= now).length;
-    const totalCapacity = initialTokens.reduce((acc, t) => acc + t.capacity, 0);
-    const registeredMembers = initialTokens.reduce(
-      (acc, t) => acc + (t.group?.members?.length || 0),
-      0
-    );
-    return { total, active, totalCapacity, registeredMembers };
-  }, [initialTokens]);
 
   const filteredTokens = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -201,34 +188,6 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
   return (
     <TooltipProvider>
     <div className="space-y-4">
-      {/* KPI Stats Strip */}
-      <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
-        <AdminStatStripItem
-          label={translate("tokensUI.total")}
-          value={stats.total}
-          icon={KeyRound}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={translate("tokensUI.active")}
-          value={stats.active}
-          icon={CheckCircle2}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={translate("tokensUI.capacityTotal")}
-          value={stats.totalCapacity}
-          icon={Users}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={translate("tokensUI.registeredStudents")}
-          value={stats.registeredMembers}
-          icon={ShieldCheck}
-          tone="default"
-        />
-      </AdminStatStrip>
-
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <SearchBar

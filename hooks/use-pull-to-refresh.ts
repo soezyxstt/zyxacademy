@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { hapticError, hapticSelection, hapticSuccess } from "@/lib/native/haptics";
 import { isPullToRefreshLocked } from "@/lib/pull-to-refresh-lock";
 import { useIsPullToRefreshLocked } from "@/hooks/use-pull-to-refresh-lock";
 import {
@@ -32,6 +33,7 @@ export {
 };
 
 const SMARTPHONE_MEDIA_QUERY = "(max-width: 767px)";
+const MAX_VISUAL_PULL_PX = 80;
 
 function isSmartphoneViewport(): boolean {
   if (typeof window === "undefined") return false;
@@ -70,7 +72,9 @@ function getClampedWindowScrollY(): number {
 function hasOpenModalDialog(): boolean {
   if (typeof document === "undefined") return false;
   return Boolean(
-    document.querySelector('[role="dialog"][data-state="open"], [aria-modal="true"]'),
+    document.querySelector(
+      '[role="dialog"][data-state="open"], [aria-modal="true"], [data-mobile-navbar][data-mobile-search-expanded="true"]',
+    ),
   );
 }
 
@@ -79,7 +83,8 @@ export interface UsePullToRefreshOptions {
   disabled?: boolean;
   threshold?: number;
   containerRef: RefObject<HTMLElement | null>;
-  indicatorRef: RefObject<HTMLElement | null>;
+  indicatorRef?: RefObject<HTMLElement | null>;
+  hostRef?: RefObject<HTMLElement | null>;
 }
 
 export interface UsePullToRefreshResult {
@@ -95,6 +100,7 @@ export function usePullToRefresh({
   threshold = PULL_THRESHOLD_PX,
   containerRef,
   indicatorRef,
+  hostRef,
 }: UsePullToRefreshOptions): UsePullToRefreshResult {
   const locked = useIsPullToRefreshLocked();
   const [status, setStatus] = useState<PullToRefreshStatus>("idle");
@@ -115,7 +121,24 @@ export function usePullToRefresh({
     if (statusRef.current === next) return;
     statusRef.current = next;
     setStatus(next);
+    if (next === "ready") {
+      void hapticSelection();
+    }
   }, []);
+
+  const setPullVars = useCallback(
+    (distance: number, progress: number) => {
+      const visualDistance = Math.min(distance, MAX_VISUAL_PULL_PX);
+      const opacity = String(Math.min(1, distance / 24));
+      const target = hostRef?.current ?? indicatorRef?.current;
+      if (!target) return;
+      target.style.setProperty("--pull-distance", `${visualDistance}px`);
+      target.style.setProperty("--pull-progress", String(progress));
+      target.style.setProperty("--pull-turn", `${progress * 180}deg`);
+      target.style.setProperty("--pull-opacity", opacity);
+    },
+    [hostRef, indicatorRef],
+  );
 
   const gestureRef = useRef<{
     active: boolean;
@@ -141,8 +164,10 @@ export function usePullToRefresh({
     updateStatus("refreshing");
     try {
       await onRefreshRef.current();
+      void hapticSuccess();
       updateStatus("idle");
     } catch {
+      void hapticError();
       updateStatus("error");
     }
   }, [updateStatus]);
@@ -178,9 +203,7 @@ export function usePullToRefresh({
       frame = undefined;
       const distance = gestureRef.current.distance;
       const progress = Math.min(1, distance / threshold);
-      indicatorRef.current?.style.setProperty("--pull-distance", `${Math.min(distance, 72)}px`);
-      indicatorRef.current?.style.setProperty("--pull-turn", `${progress * 180}deg`);
-      indicatorRef.current?.style.setProperty("--pull-opacity", String(Math.min(1, distance / 24)));
+      setPullVars(distance, progress);
     };
     const cancelPull = () => {
       if (frame !== undefined) cancelAnimationFrame(frame);
@@ -214,7 +237,7 @@ export function usePullToRefresh({
         return;
       }
 
-      indicatorRef.current?.style.setProperty("--pull-distance", "0px");
+      setPullVars(0, 0);
       gestureRef.current = {
         active: true,
         committed: false,
@@ -294,7 +317,7 @@ export function usePullToRefresh({
       element.removeEventListener("touchend", handleTouchEnd);
       element.removeEventListener("touchcancel", cancelPull);
     };
-  }, [containerRef, indicatorRef, threshold, executeRefresh, updateStatus]);
+  }, [containerRef, setPullVars, threshold, executeRefresh, updateStatus]);
 
   return {
     status,

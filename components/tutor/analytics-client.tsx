@@ -15,7 +15,7 @@ import {
   TrendingUp,
   Minus,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { MathText } from "@/components/course/math-text";

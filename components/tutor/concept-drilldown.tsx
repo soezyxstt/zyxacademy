@@ -15,6 +15,7 @@ import { MathText } from "@/components/course/math-text";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import type { WeakConcept, ConceptTrend, MostMissedQuestion } from "@/lib/cohort-analytics";
 import { useSwipe } from "@/hooks/use-swipe";
+import { hapticLight } from "@/lib/native/haptics";
 
 interface Props {
   open: boolean;
@@ -33,7 +34,10 @@ export function ConceptDrilldown({ open, onClose, onCloseAutoFocus, concept, tre
   const t = useTranslations("tutor.analytics");
   useSwipe({
     onSwipeRight: () => {
-      if (open) onClose();
+      if (open) {
+        void hapticLight();
+        onClose();
+      }
     }
   });
 

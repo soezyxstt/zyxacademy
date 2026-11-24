@@ -101,58 +101,8 @@ export async function addTutorSlotWithNotesAction(
 export async function updateTutorSlotWithNotesAction(
   input: UpdateTutorSlotWithNotesInput,
 ) {
-  const notes = input.notes?.trim() ?? "";
-  const result = await updateTutorSlotAction({
-    slotId: input.slotId,
-    dayOfWeek: input.dayOfWeek,
-    startTime: input.startTime,
-    endTime: input.endTime,
-    mode: input.mode,
-    location: input.location,
-    sessionDate: input.sessionDate,
-  });
-
-  if (!result.success || !result.slotId) {
-    return result;
-  }
-
-  try {
-    if (notes) {
-      await db
-        .insert(tutorSlotNotes)
-        .values({
-          slotId: result.slotId,
-          notes,
-        })
-        .onConflictDoUpdate({
-          target: tutorSlotNotes.slotId,
-          set: {
-            notes,
-            updatedAt: new Date(),
-          },
-        });
-    } else {
-      await db
-        .delete(tutorSlotNotes)
-        .where(eq(tutorSlotNotes.slotId, result.slotId));
-    }
-    revalidatePath("/tutor/schedule");
-    return result;
-  } catch (error) {
-    if (isMissingTutorSlotNotesTable(error) && !notes) {
-      return result;
-    }
-    console.error("Failed to persist updated tutor slot notes", error);
-    return {
-      success: false as const,
-      error: isMissingTutorSlotNotesTable(error)
-        ? "Schema catatan slot belum tersedia pada database."
-        : "Slot diperbarui, tetapi catatan tutor gagal disimpan. Coba lagi.",
-      reason: isMissingTutorSlotNotesTable(error)
-        ? "SCHEDULE_SCHEMA_NOT_READY"
-        : "SLOT_NOTES_PERSIST_FAILED",
-    };
-  }
+  const { notes, ...slot } = input;
+  return updateTutorSlotAction(slot, notes ?? "");
 }
 
 export async function getTutorSlotNotesAction(slotIds: string[]) {

@@ -1,15 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Users, UserCheck, Layers, Shield } from "lucide-react";
+import { Users, Shield } from "lucide-react";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { useUrlTab } from "@/hooks/use-url-tab";
-import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 import type {
   TutorCourseParticipantsPayload,
@@ -24,7 +22,6 @@ interface ParticipantsClientProps {
 export function ParticipantsClient({ data }: ParticipantsClientProps) {
   const t = useTranslations("tutor.participants");
   const { locale } = useAppLocale();
-  const viewportMode = useViewportMode();
   const [search, setSearch] = useState("");
   const [enrollmentFilter, setEnrollmentFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useUrlTab("tab", "participants");
@@ -64,23 +61,15 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
 
   return (
     <div className="space-y-(--related-gap)">
-      {/* ── KPI Strip ── */}
-      <AdminStatStrip className="grid-cols-2 sm:grid-cols-4 gap-(--compact-gap) rounded-none border-x-0 bg-transparent [&>*]:bg-transparent [&>*]:px-0">
-        <AdminStatStripItem icon={Users} label={t("totalParticipants")} value={data.summary.totalParticipants} />
-        <AdminStatStripItem icon={UserCheck} label={t("directEnrollments")} value={data.summary.directEnrollmentsCount} />
-        <AdminStatStripItem icon={Layers} label={t("groupMembers")} value={data.summary.groupParticipantsCount} />
-        <AdminStatStripItem icon={Shield} label={t("activeGroups")} value={data.summary.activeGroupsCount} />
-      </AdminStatStrip>
-
       {/* Tabs & Search Toolbar */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-(--related-gap)">
         <div className="space-y-(--compact-gap)">
-          <TabsList variant={viewportMode === "mobile" ? "inline" : "page"} flush={false}>
+          <TabsList flush={false}>
             <TabsTrigger value="participants">
-              {t("participants")}
+              {t("participants")} ({data.summary.totalParticipants})
             </TabsTrigger>
             <TabsTrigger value="groups">
-              {t("groups")}
+              {t("groups")} ({data.summary.activeGroupsCount})
             </TabsTrigger>
           </TabsList>
 

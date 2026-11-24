@@ -31,10 +31,22 @@ async function clearAccountData(userId: string | null): Promise<void> {
   const client = getQueryClient();
   syncQueryAccount(client, userId);
   client.clear();
-  const [{ clearOfflineReadingsForOtherUsers }, { clearAllLocalRemindersOnLogout }] = await Promise.all([
+  const [
+    { clearOfflineReadingsForOtherUsers },
+    { clearAllLocalRemindersOnLogout },
+    { clearNativeLastRoute },
+    { clearPersistedZyraDrawerOpenFlags },
+    { clearPersistedVideoState },
+  ] = await Promise.all([
     import("@/lib/offline/reading-cache"),
     import("@/lib/native/local-reminders"),
+    import("@/lib/native/route-persistence"),
+    import("@/lib/zyra/drawer-persistence"),
+    import("@/lib/video/playback-persistence"),
   ]);
+  clearNativeLastRoute();
+  clearPersistedZyraDrawerOpenFlags();
+  clearPersistedVideoState();
   await Promise.all([
     clearOfflineReadingsForOtherUsers(userId).catch(() => {}),
     clearAllLocalRemindersOnLogout().catch(() => {}),

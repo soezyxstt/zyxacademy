@@ -27,10 +27,10 @@ export function RankPromotion({ summary, labels, locale }: { summary: Gamificati
         <h2 className="font-heading text-body-base font-bold text-foreground">{labels.rank(summary.rankKey)}</h2>
         <p className="text-body-sm text-muted-foreground">{next ? `${labels.nextRank}: ${labels.rank(next.key)}` : labels.maximumRank}</p>
         {next && labels.requirement && <p className="text-body-xs text-muted-foreground">{labels.requirement}</p>}
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-2 border-t border-border/30 pt-2.5 text-body-sm sm:grid-cols-3">
-          <div><dt className="font-heading text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">{labels.xp}</dt><dd className="mt-0.5 font-semibold tabular-nums text-foreground">{number.format(xp)}{next ? ` / ${number.format(next.xp)}` : ""}</dd></div>
-          <div><dt className="font-heading text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">{labels.courses}</dt><dd className="mt-0.5 font-semibold tabular-nums text-foreground">{number.format(courses)}{next ? ` / ${number.format(next.courses)}` : ""}</dd></div>
-          <div><dt className="font-heading text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">{labels.balance ?? "LP"}</dt><dd className="mt-0.5 font-semibold tabular-nums text-foreground">{number.format(summary.lpBalance)} LP</dd></div>
+        <dl className="flex flex-wrap items-baseline gap-x-5 gap-y-1.5 border-t border-border/30 pt-2.5 text-body-xs">
+          <div className="inline-flex items-baseline gap-1.5"><dt className="text-muted-foreground">{labels.xp}</dt><dd className="text-body-sm font-semibold tabular-nums text-foreground">{number.format(xp)}{next ? ` / ${number.format(next.xp)}` : ""}</dd></div>
+          <div className="inline-flex items-baseline gap-1.5"><dt className="text-muted-foreground">{labels.courses}</dt><dd className="text-body-sm font-semibold tabular-nums text-foreground">{number.format(courses)}{next ? ` / ${number.format(next.courses)}` : ""}</dd></div>
+          <div className="inline-flex items-baseline gap-1.5"><dt className="text-muted-foreground">{labels.balance ?? "LP"}</dt><dd className="text-body-sm font-semibold tabular-nums text-foreground">{number.format(summary.lpBalance)} LP</dd></div>
         </dl>
       </div>
     </section>

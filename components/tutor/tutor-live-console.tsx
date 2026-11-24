@@ -11,6 +11,7 @@ import { useLiveQuizSocket } from "@/components/live/use-live-quiz-socket";
 import { MathText } from "@/components/course/math-text";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { cn } from "@/lib/utils";
+import { hapticHeavy, hapticLight, hapticMedium } from "@/lib/native/haptics";
 import { useTranslations } from "@/lib/i18n/client";
 import { useHideMobileBottomNav } from "@/components/navigation/mobile-chrome-context";
 
@@ -163,6 +164,9 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
   const control = useCallback(
     async (action: "start" | "next" | "reveal" | "end") => {
       if (!session) return;
+      if (action === "end") void hapticHeavy();
+      else if (action === "next") void hapticLight();
+      else void hapticMedium();
       setControlling(true);
       try {
         const res = await fetch(`/api/live/${session.sessionId}/control`, {

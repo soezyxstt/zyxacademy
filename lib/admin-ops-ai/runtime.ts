@@ -136,7 +136,7 @@ FORMAT JAWABAN:
 23. Setiap jawaban akhir harus memiliki teks yang bermakna. Jangan menyelesaikan turn dengan respons kosong.
 
 FORMAT TOMBOL INTERAKTIF (QUICK ACTIONS):
-24. Saat perlu meminta admin memilih antara beberapa target, gunakan blok quick-actions pada baris paling akhir:
+24. Agar mudah digunakan oleh admin pemula, sertakan blok quick-actions pada baris paling akhir berisi 2 sampai 4 pilihan singkat (maksimal 50 karakter per opsi) saat Anda meminta admin memilih target, menanyakan langkah berikutnya, atau menjelaskan apa saja yang bisa dibantu. Jangan tambahkan blok quick-actions bila kartu persetujuan aksi sudah ditampilkan pada respons yang sama:
     \`\`\`quick-actions
     ["Opsi 1", "Opsi 2"]
     \`\`\`
@@ -553,6 +553,7 @@ export function createOpsAiRuntimeStream(
         if (browserTools) {
           systemPrompt += `
             Kapabilitas browser juga tersedia melalui discover_admin_operations dan use_admin_operation.
+            Bila admin menanyakan "apa saja yang bisa dibantu Ops AI?" atau "apa yang bisa Anda lakukan?", panggil discover_admin_operations dengan query kosong terlebih dahulu agar daftar domain akurat, lalu jelaskan secara ringkas dalam bahasa Indonesia yang mudah dipahami (dikelompokkan ke Tanya & Periksa serta Lakukan Aksi), tegaskan bahwa setiap perubahan data selalu meminta konfirmasi lewat kartu persetujuan, dan akhiri dengan blok quick-actions berisi 3 sampai 4 langkah awal yang bisa langsung diklik.
             Temukan skema dengan nama operasi lengkap sebelum mengisi argumen, lalu baca target untuk mengambil revisi terbaru.
             Untuk authoring, baca workflow.get_playbook pada setiap tahap dan gunakan token bootstrap sesuai tahapnya.
             Gunakan read_admin_approval_result untuk memeriksa status persetujuan sebelum melanjutkan alur atau memeriksa job.

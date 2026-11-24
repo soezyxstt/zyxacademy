@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps, ReactNode } from "react";
+import { useEffect, type ComponentProps, type ReactNode } from "react";
 import { useTranslations } from "@/lib/i18n/client";
 import { ShieldAlert } from "lucide-react";
 import {
@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { hapticHeavy, hapticMedium, hapticWarning } from "@/lib/native/haptics";
 
 export type AdminConfirmDialogProps = {
   open: boolean;
@@ -41,6 +42,13 @@ export function AdminConfirmDialog({
   onCloseAutoFocus,
 }: AdminConfirmDialogProps) {
   const t = useTranslations("admin.states");
+
+  useEffect(() => {
+    if (open && destructive) {
+      void hapticWarning();
+    }
+  }, [open, destructive]);
+
   return (
     <Dialog
       open={open}
@@ -75,7 +83,11 @@ export function AdminConfirmDialog({
           <Button
             variant={destructive ? "destructive" : "default"}
             className="h-auto min-h-10 max-w-full whitespace-normal"
-            onClick={onConfirm}
+            onClick={() => {
+              if (destructive) void hapticHeavy();
+              else void hapticMedium();
+              onConfirm();
+            }}
             isLoading={loading}
           >
             {confirmLabel ?? t("confirmDelete")}

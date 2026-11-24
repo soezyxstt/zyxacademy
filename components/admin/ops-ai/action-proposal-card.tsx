@@ -17,6 +17,7 @@ import {
   Check,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { hapticError, hapticMedium, hapticSuccess } from "@/lib/native/haptics";
 import { cn } from "@/lib/utils";
 
 type SupportedProposal = OpsAiActionProposalV2 | OpsAiActionProposal;
@@ -138,6 +139,7 @@ export function ActionProposalCard({
   const handleExecute = async (choice: "once" | "chat") => {
     if (inFlight.current || disabled || (approval && !chatId)) return;
     if (onExecutionChange?.(true) === false) return;
+    void hapticMedium();
     inFlight.current = true;
     setSubmittedChoice(choice);
     setCanCheckResult(false);
@@ -155,6 +157,7 @@ export function ActionProposalCard({
 
       const data = await res.json();
       if (!res.ok) {
+        void hapticError();
         setCanCheckResult(data.retryable === true);
         setStatus("failed");
         setErrorMessage(data.error || "Aksi gagal diproses.");
@@ -164,9 +167,11 @@ export function ActionProposalCard({
       setStatus("executed");
       const resObj = (data.result && typeof data.result === "object") ? data.result : { message: "Aksi berhasil dieksekusi." };
       setExecutionResult(resObj);
+      void hapticSuccess();
       if (!resObj.jobId) toast.success("Aksi berhasil dieksekusi.");
       onExecuted?.(initialProposal.id, resObj, typeof data.grantUntil === "number" ? data.grantUntil : undefined);
     } catch {
+      void hapticError();
       setStatus("failed");
       setCanCheckResult(true);
       setErrorMessage("Hasil aksi belum terverifikasi. Coba lagi dengan izin yang sama.");
@@ -200,7 +205,7 @@ export function ActionProposalCard({
     : "Proposal berhasil dieksekusi.";
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card/75 backdrop-blur-md p-3.5 shadow-xs space-y-2.5">
+    <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs space-y-2.5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1.5 sm:gap-2">
         <div className="min-w-0 flex-1">
@@ -229,11 +234,11 @@ export function ActionProposalCard({
 
       {/* Preview Parameters */}
       {previewFields.length > 0 && (
-        <dl className="space-y-2">
+        <dl className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-2.5">
           {previewFields.map((field, idx) => (
             <div key={idx} className="min-w-0">
-              <dt className="text-body-xs text-muted-foreground">{field.label}</dt>
-              <dd className={cn("whitespace-pre-wrap wrap-anywhere text-body-sm", field.value.includes("\n") && "max-h-48 overflow-auto rounded-md bg-muted p-2 font-mono")} tabIndex={field.value.includes("\n") ? 0 : undefined}>
+              <dt className="text-body-xs font-medium text-muted-foreground">{field.label}</dt>
+              <dd className={cn("whitespace-pre-wrap wrap-anywhere text-body-sm text-foreground", field.value.includes("\n") && "mt-1 max-h-48 overflow-auto rounded-md border border-border/60 bg-background p-2 font-mono text-body-xs")} tabIndex={field.value.includes("\n") ? 0 : undefined}>
                 {field.value}
               </dd>
             </div>
@@ -252,7 +257,7 @@ export function ActionProposalCard({
           {tokenString && (
             <div className="flex items-center justify-between gap-2 rounded-md bg-background/80 p-2 border border-status-success/20">
               <div className="min-w-0">
-                <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
+                <span className="text-body-2xs uppercase font-semibold text-muted-foreground block">
                   Token Dibuat
                 </span>
                 <span className="font-mono text-body-xs font-bold text-foreground select-all break-all block">

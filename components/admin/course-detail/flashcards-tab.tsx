@@ -9,9 +9,6 @@ import {
   Pencil,
   ChevronDown,
   ChevronRight,
-  BookOpen,
-  CheckCircle2,
-  AlertCircle,
   FolderPlus,
   MoreHorizontal,
 } from "lucide-react";
@@ -45,7 +42,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/toast";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminEmptyState } from "@/components/admin/state-panels";
@@ -121,29 +117,6 @@ export function FlashcardsTab({
     title: string;
     setId?: string;
   } | null>(null);
-
-  // Statistics
-  const totalSets = sets.length;
-  const totalCards = useMemo(
-    () => sets.reduce((acc, s) => acc + s.cards.length, 0),
-    [sets]
-  );
-  const publishedCards = useMemo(
-    () =>
-      sets.reduce(
-        (acc, s) => acc + s.cards.filter((c) => c.status === "published").length,
-        0
-      ),
-    [sets]
-  );
-  const draftCards = useMemo(
-    () =>
-      sets.reduce(
-        (acc, s) => acc + s.cards.filter((c) => c.status === "draft").length,
-        0
-      ),
-    [sets]
-  );
 
   // Filtering
   const filteredSets = useMemo(() => {
@@ -459,35 +432,6 @@ export function FlashcardsTab({
 
   return (
     <div className="space-y-(--related-gap)">
-      {/* Grouped KPI Strip */}
-      <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
-        <AdminStatStripItem
-          icon={Layers}
-          label={t("courseDetail.flashcards.stats.totalSets")}
-          value={totalSets}
-          caption={t("courseDetail.flashcards.stats.registeredSets")}
-        />
-        <AdminStatStripItem
-          icon={BookOpen}
-          label={t("courseDetail.flashcards.stats.totalCards")}
-          value={totalCards}
-          caption={t("courseDetail.flashcards.stats.allCards")}
-        />
-        <AdminStatStripItem
-          icon={CheckCircle2}
-          label={t("courseDetail.flashcards.status.published")}
-          value={publishedCards}
-          caption={t("courseDetail.flashcards.stats.availableToStudents")}
-        />
-        <AdminStatStripItem
-          icon={AlertCircle}
-          label={t("courseDetail.flashcards.status.draft")}
-          value={draftCards}
-          tone="default"
-          caption={t("courseDetail.flashcards.stats.notPublished")}
-        />
-      </AdminStatStrip>
-
       {/* Toolbar */}
       <div className="group/flashcard-toolbar flex flex-wrap items-center gap-2">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true]):not([data-active-filter])]:hidden">

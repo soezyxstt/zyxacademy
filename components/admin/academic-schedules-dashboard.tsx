@@ -5,7 +5,7 @@ import { GoogleCalendarControl } from "@/components/schedule/google-calendar-con
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Bot,
+  Video,
   CalendarDays,
   CheckCircle2,
   Edit3,
@@ -646,7 +646,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
             <span>{translate("academicScheduleUI.add")} {translate("academicScheduleUI.availability")}</span>
           </DropdownMenuItem>
           <DropdownMenuItem disabled={batchMeetLoading} onSelect={handleBatchMeetAutomation}>
-            <Bot className="size-4 text-muted-foreground" />
+            <Video className="size-4 text-muted-foreground" />
             <span>{translate("academicScheduleUI.meetAutomation")}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>

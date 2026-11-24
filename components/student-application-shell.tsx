@@ -9,7 +9,6 @@ import {
   StudentMobileTopNav,
 } from "@/components/navigation/student";
 import { CommandMenuProvider } from "@/components/command-menu";
-import { PullToRefresh } from "@/components/pull-to-refresh";
 
 export function StudentApplicationShell({ children, showLive, overlays, personalizeTypographyAndSpacing }: { children: ReactNode; showLive: boolean; overlays?: ReactNode; personalizeTypographyAndSpacing?: boolean }) {
   return <CommandMenuProvider><TutorProvider><ApplicationShell
@@ -19,5 +18,5 @@ export function StudentApplicationShell({ children, showLive, overlays, personal
     mobileTopNav={<StudentMobileTopNav />}
     mobileBottomNav={<StudentMobileBottomNav />}
     overlays={overlays}
-  ><PullToRefresh>{children}</PullToRefresh></ApplicationShell></TutorProvider></CommandMenuProvider>;
+  >{children}</ApplicationShell></TutorProvider></CommandMenuProvider>;
 }

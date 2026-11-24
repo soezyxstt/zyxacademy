@@ -55,7 +55,7 @@ export function AdminStatCard({
 }
 
 /* ------------------------------------------------------------------ */
-/*  AdminStatStrip  (grouped metrics on the page surface)             */
+/*  AdminStatStrip  (minimal key-value list / inline metadata strip)  */
 /* ------------------------------------------------------------------ */
 
 export type AdminStatStripItemProps = {
@@ -75,14 +75,14 @@ export type AdminStatStripProps = {
 
 export function AdminStatStrip({ children, className }: AdminStatStripProps) {
   return (
-    <div
+    <dl
       className={cn(
-        "grid grid-cols-2 gap-x-(--related-gap) gap-y-(--compact-gap) border-b border-border/40 pb-(--compact-gap) sm:grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))]",
+        "flex flex-col divide-y divide-border/40 border-y border-border/40 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-6 sm:gap-y-1.5 sm:divide-y-0 sm:py-2",
         className
       )}
     >
       {children}
-    </div>
+    </dl>
   );
 }
 
@@ -95,15 +95,17 @@ export function AdminStatStripItem({
   tone = "default",
 }: AdminStatStripItemProps) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <div className="flex min-w-0 items-start gap-1.5 text-body-sm text-muted-foreground">
-        {Icon && <Icon className={cn("mt-0.5 size-3.5 shrink-0", iconClassName)} aria-hidden />}
+    <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-1.5 sm:inline-flex sm:justify-start sm:gap-x-1.5 sm:py-0">
+      <dt className="flex min-w-0 items-center gap-1.5 text-body-xs text-muted-foreground">
+        {Icon && <Icon className={cn("size-3.5 shrink-0 text-muted-foreground/75", iconClassName)} aria-hidden />}
         <span className="min-w-0 wrap-break-word">{label}</span>
-      </div>
-      <div className={cn("wrap-break-word font-heading text-h5 font-bold tabular-nums", toneClasses[tone])}>
-        {value}
-      </div>
-      {caption && <div className="wrap-break-word text-body-xs text-muted-foreground">{caption}</div>}
+      </dt>
+      <dd className="flex min-w-0 flex-wrap items-baseline justify-end gap-x-1.5 text-right sm:justify-start sm:text-left">
+        <span className={cn("wrap-break-word text-body-sm font-semibold tabular-nums", toneClasses[tone])}>
+          {value}
+        </span>
+        {caption && <span className="wrap-break-word text-body-xs text-muted-foreground">({caption})</span>}
+      </dd>
     </div>
   );
 }

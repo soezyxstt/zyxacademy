@@ -56,7 +56,7 @@ export function FeatureUsageOverview({
 
   return (
     <div className="min-w-0 space-y-8 md:space-y-10">
-      <AdminStatStrip className="lg:grid-cols-4">
+      <AdminStatStrip>
         <AdminStatStripItem
           label={t("total")}
           value={number.format(totals.events)}

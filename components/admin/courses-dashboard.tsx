@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
+import { hapticMedium, hapticSelection } from "@/lib/native/haptics";
 import { Button } from "@/components/ui/button";
 import { AdminIconAction } from "@/components/admin/icon-action";
 import { Input } from "@/components/ui/input";
@@ -267,7 +268,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             <AdminIconAction
               label={t("courses.cardView")}
               variant={viewMode === "grid" ? "secondary" : "ghost"}
-              onClick={() => setViewMode("grid")}
+              onClick={() => { if (viewMode !== "grid") { void hapticSelection(); setViewMode("grid"); } }}
               aria-pressed={viewMode === "grid"}
             >
               <LayoutGrid className="size-4" />
@@ -275,7 +276,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             <AdminIconAction
               label={t("courses.tableView")}
               variant={viewMode === "table" ? "secondary" : "ghost"}
-              onClick={() => setViewMode("table")}
+              onClick={() => { if (viewMode !== "table") { void hapticSelection(); setViewMode("table"); } }}
               aria-pressed={viewMode === "table"}
             >
               <List className="size-4" />
@@ -304,7 +305,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             >
               <div className="min-w-0 space-y-1">
                 <h3 className="wrap-break-word font-heading text-body-sm font-bold">
-                  <Link href={`/admin/courses/${c.id}`} className="text-foreground hover:underline">
+                  <Link href={`/admin/courses/${c.id}`} onClick={() => void hapticMedium()} className="text-foreground hover:underline">
                     {c.title}
                   </Link>
                 </h3>
@@ -339,7 +340,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 </TooltipProvider>
                 <DropdownMenuContent align="end" className="w-40">
                   <DropdownMenuItem asChild>
-                    <Link href={`/admin/courses/${c.id}`}>
+                    <Link href={`/admin/courses/${c.id}`} onClick={() => void hapticMedium()}>
                       <ArrowRight className="size-4 text-muted-foreground" />
                       <span>{t("courses.manage")}</span>
                     </Link>
@@ -368,7 +369,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             {filteredCourses.map((c) => (
               <div key={c.id} className="flex items-start justify-between gap-3 py-(--row-padding)">
                 <div className="min-w-0 flex-1 space-y-1">
-                  <Link href={`/admin/courses/${c.id}`} className="block wrap-break-word font-heading text-body-sm font-bold text-foreground hover:underline">
+                  <Link href={`/admin/courses/${c.id}`} onClick={() => void hapticMedium()} className="block wrap-break-word font-heading text-body-sm font-bold text-foreground hover:underline">
                     {c.title}
                   </Link>
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -395,7 +396,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-40">
                     <DropdownMenuItem asChild>
-                      <Link href={`/admin/courses/${c.id}`}>
+                      <Link href={`/admin/courses/${c.id}`} onClick={() => void hapticMedium()}>
                         <ArrowRight className="size-4 text-muted-foreground" />
                         <span>{t("courses.manage")}</span>
                       </Link>
@@ -438,7 +439,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                     {c.id}
                   </td>
                   <td className="px-3.5 py-2.5">
-                    <Link href={`/admin/courses/${c.id}`} className="font-semibold text-foreground hover:text-primary">
+                    <Link href={`/admin/courses/${c.id}`} onClick={() => void hapticMedium()} className="font-semibold text-foreground hover:text-primary">
                       {c.title}
                     </Link>
                     <span className="block text-body-xs text-muted-foreground">{pricingCategoryLabel(c.pricing)}</span>
@@ -471,7 +472,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40">
                         <DropdownMenuItem asChild>
-                          <Link href={`/admin/courses/${c.id}`}>
+                          <Link href={`/admin/courses/${c.id}`} onClick={() => void hapticMedium()}>
                             <ArrowRight className="size-4 text-muted-foreground" />
                             <span>{t("courses.manage")}</span>
                           </Link>

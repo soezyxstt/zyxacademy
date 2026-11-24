@@ -187,7 +187,7 @@ export function TryoutGradingDesktop({
         onValueChange={(val) => onTabChange(val as TryoutGradingTab)}
         className="w-full"
       >
-        <TabsList flush={false}>
+        <TabsList>
           <TabsTrigger value="pending">
             <AlertCircle className="mr-2 size-4 text-status-warning" aria-hidden />
             {tr("needsGrading")}

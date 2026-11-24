@@ -9,6 +9,10 @@ import {
   getSafeEntryReturnPath,
 } from "@/lib/auth/dashboard-entry";
 import { resolveUserDashboardPath } from "@/lib/auth/dashboard-entry-server";
+import {
+  NATIVE_LAST_ROUTE_COOKIE_NAME,
+  resolveNativeEntryDestination,
+} from "@/lib/native/route-persistence";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +28,14 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getAuthSession();
     if (session?.user?.id) {
-      const destination = await resolveUserDashboardPath(session.user.id);
+      const roleDashboard = await resolveUserDashboardPath(session.user.id);
+      const destination = isNative
+        ? resolveNativeEntryDestination({
+            rawCookieValue: request.cookies.get(NATIVE_LAST_ROUTE_COOKIE_NAME)?.value,
+            userId: session.user.id,
+            roleDashboard,
+          })
+        : roleDashboard;
       const response = NextResponse.redirect(new URL(destination, publicOrigin));
       response.headers.set("Cache-Control", "no-store");
       response.cookies.set(DASHBOARD_ENTRY_COOKIE_NAME, "1", {

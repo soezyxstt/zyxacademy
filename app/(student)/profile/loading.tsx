@@ -30,14 +30,6 @@ export default function StudentProfileLoading() {
             <Skeleton className="h-4 w-64" />
           </div>
         </div>
-        <div className="grid grid-cols-4 gap-4 border-y border-border py-3">
-          {[1, 2, 3, 4].map((item) => (
-            <div key={item} className="space-y-2">
-              <Skeleton className="h-3.5 w-20" />
-              <Skeleton className="h-6 w-12" />
-            </div>
-          ))}
-        </div>
       </div>
     </ApplicationPage>
   );
