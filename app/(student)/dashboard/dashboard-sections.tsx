@@ -904,16 +904,23 @@ export async function ReviewQueueSection({
       />
 
       {firstCourseWithQueue && (
-        <Button asChild size="sm" variant={totalDueFlashcards > 0 ? "default" : "outline"} className="group mt-1 w-full sm:w-auto">
+        <Button
+          asChild
+          size="sm"
+          variant={totalDueFlashcards > 0 ? "default" : "outline"}
+          className="group mt-1 h-auto min-h-8 w-full max-w-full whitespace-normal py-1.5 text-left sm:w-auto"
+        >
           <Link href={`/courses/${firstCourseWithQueue}/flashcard`}>
-            {totalDueFlashcards > 0
-              ? targetCourseTitle
-                ? <TranslatedText namespace="student" messageKey="dashboard.startFlashcardReviewCourse" values={{ courseTitle: targetCourseTitle }} />
-                : <TranslatedText namespace="student" messageKey="dashboard.startFlashcardReview" />
-              : targetCourseTitle
-                ? <TranslatedText namespace="student" messageKey="dashboard.openFlashcardCollectionCourse" values={{ courseTitle: targetCourseTitle }} />
-                : <TranslatedText namespace="student" messageKey="dashboard.openFlashcardCollection" />}
-            <ArrowRight className="transition-transform group-hover:translate-x-0.5" />
+            <span className="min-w-0 break-words">
+              {totalDueFlashcards > 0
+                ? targetCourseTitle
+                  ? <TranslatedText namespace="student" messageKey="dashboard.startFlashcardReviewCourse" values={{ courseTitle: targetCourseTitle }} />
+                  : <TranslatedText namespace="student" messageKey="dashboard.startFlashcardReview" />
+                : targetCourseTitle
+                  ? <TranslatedText namespace="student" messageKey="dashboard.openFlashcardCollectionCourse" values={{ courseTitle: targetCourseTitle }} />
+                  : <TranslatedText namespace="student" messageKey="dashboard.openFlashcardCollection" />}
+            </span>
+            <ArrowRight className="shrink-0 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </Button>
       )}

@@ -49,6 +49,16 @@ async function renderScenario(
   await page.evaluate(() => document.fonts.ready);
   expect(await page.evaluate(() => document.fonts.check('400 16px "Inter"') && document.fonts.check('700 16px "Lexend"'))).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  expect(
+    await page.evaluate(() => {
+      const section = document.querySelector('[data-testid="review-queue-section"]');
+      const link = section?.querySelector("a");
+      if (!section || !link) return false;
+      const sectionRect = section.getBoundingClientRect();
+      const linkRect = link.getBoundingClientRect();
+      return linkRect.right <= sectionRect.right + 1 && linkRect.left >= sectionRect.left - 1;
+    }),
+  ).toBe(true);
   const checkboxBorderContrast = await page.evaluate(() => {
     const checkbox = document.querySelector('[role="checkbox"][aria-checked="false"]');
     if (!checkbox) return 0;

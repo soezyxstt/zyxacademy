@@ -161,14 +161,21 @@ function App() {
       </section>
     ),
     reviewQueue: (
-      <section>
+      <section data-testid="review-queue-section">
         <DashboardSectionHeading
           icon={Layers}
           title={student.dashboard.spacedRepetition}
           meta={<DashboardSectionCount tone="warning">102 kartu di 2 kelas</DashboardSectionCount>}
         />
-        <Button asChild size="sm" className="mt-1 w-full sm:w-auto">
-          <a href="/courses/ma1101/flashcard">Ulas Matematika I <ArrowRight /></a>
+        <Button
+          asChild
+          size="sm"
+          className="mt-1 h-auto min-h-8 w-full max-w-full whitespace-normal py-1.5 text-left sm:w-auto"
+        >
+          <a href="/courses/ma1101/flashcard">
+            <span className="min-w-0 break-words">Buka flashcard Pengantar Teknologi Informasi dan Komunikasi</span>
+            <ArrowRight className="shrink-0" />
+          </a>
         </Button>
       </section>
     ),
