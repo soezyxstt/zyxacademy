@@ -1,6 +1,13 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "components/native/app-update-control.tsx",
+    "actions": ["checkForUpdates", "triggerInstall"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Installed-device version checks and installer launch require the native app. MCP tokens, scopes, consent, discovery, playbooks, packaged skills and host prompts cannot install or update a user's device."
+  },
+  {
     "source": "components/course/material-viewer.tsx",
     "actions": ["navigateToSection"],
     "tools": [],
