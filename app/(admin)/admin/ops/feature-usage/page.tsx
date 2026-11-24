@@ -57,7 +57,7 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
   const totalTrend = formatTrend(metrics.totals.trendPercent);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-(--section-gap)">
       <AdminPageHeader
         icon={MousePointerClick}
         title={<TranslatedText namespace="adminOps" messageKey="featureUsage.title" />}
@@ -106,9 +106,9 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
       </AdminStatStrip>
 
       {(metrics.insights.fastestGrowing || metrics.insights.highestAdoption || metrics.insights.needsAttention) && (
-        <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <section className="grid divide-y divide-border/60 border-b border-border/60 md:grid-cols-3 md:gap-x-(--related-gap) md:divide-y-0">
           {metrics.insights.fastestGrowing && (
-            <div className="rounded-lg border border-border bg-card p-3.5 space-y-1">
+            <div className="min-w-0 space-y-1 py-(--row-padding)">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-body-xs font-medium text-muted-foreground">
                   {t("featureUsageUI.insightFastestGrowing")}
@@ -124,7 +124,7 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
           )}
 
           {metrics.insights.highestAdoption && (
-            <div className="rounded-lg border border-border bg-card p-3.5 space-y-1">
+            <div className="min-w-0 space-y-1 py-(--row-padding)">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-body-xs font-medium text-muted-foreground">
                   {t("featureUsageUI.insightHighestAdoption")}
@@ -140,7 +140,7 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
           )}
 
           {metrics.insights.needsAttention && (
-            <div className="rounded-lg border border-border bg-card p-3.5 space-y-1">
+            <div className="min-w-0 space-y-1 py-(--row-padding)">
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1 text-body-xs font-medium text-muted-foreground">
                   <AlertCircle className="size-3.5 text-status-warning" aria-hidden />
@@ -159,7 +159,7 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
       )}
 
       <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
-        <section className="border-t border-border pt-3">
+        <section className="min-w-0">
           <AdminSectionTitle
             title={t("featureUsageUI.rank")}
             icon={Trophy}
@@ -169,7 +169,7 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
           <FeatureRankChart rows={metrics.rows} />
         </section>
 
-        <section className="border-t border-border pt-3">
+        <section className="min-w-0">
           <AdminSectionTitle
             title={t("featureUsageUI.daily")}
             icon={Activity}

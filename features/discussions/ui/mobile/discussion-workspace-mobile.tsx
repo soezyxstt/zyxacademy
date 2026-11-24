@@ -119,7 +119,7 @@ export function DiscussionWorkspaceMobile({
               placeholder={t("allChannels")}
               allowAll
               singleLine
-              triggerClassName="rounded-xl border border-border/60 bg-card/85 px-2.5 text-foreground shadow-xs backdrop-blur-md hover:bg-muted/70 active:scale-[0.97] transition-all duration-150 motion-reduce:transition-none motion-reduce:active:scale-100"
+              triggerClassName="rounded-md hover:bg-muted/70 active:bg-muted"
               onSearch={props.onSearchChannels}
               onChange={(next) => {
                 controller.setNewOpen(false);
@@ -306,7 +306,7 @@ export function DiscussionWorkspaceMobile({
           data-discussion-mobile-fab=""
           aria-label={t("newQuestion")}
           onClick={controller.openNew}
-          className="fixed right-4 bottom-[calc(var(--mobile-bottom-nav-height,3.75rem)+3.5rem)] z-30 size-12 rounded-full shadow-md transition-transform duration-150 active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 md:hidden"
+          className="fixed right-4 bottom-[calc(var(--mobile-bottom-nav-height,3.75rem)+3.5rem)] z-30 size-12 rounded-xl shadow-sm transition-transform duration-150 active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 md:hidden"
         >
           <SquarePen className="size-5" aria-hidden="true" />
         </Button>

@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { NextIntlClientProvider } from "next-intl";
 import { TryoutForm } from "@/components/course/tryout-form";
 import { Toaster } from "@/components/ui/toast";
+import { listenToDialogHistory } from "@/hooks/use-dialog-history";
 import studentCourse from "@/messages/id/studentCourse.json";
 import ui from "@/messages/id/ui.json";
 
@@ -14,6 +15,7 @@ const fixture = (window as unknown as {
   };
 }).tryoutFixture;
 const transport = fixture.transport ? { submit: fixture.submit, afterSubmitHref: "/custom-results" } : undefined;
+listenToDialogHistory();
 
 createRoot(document.getElementById("root")!).render(
   <NextIntlClientProvider locale="id" timeZone="UTC" messages={{ studentCourse, ui }}>

@@ -67,22 +67,16 @@ export function TutorMobileCourseSheet({
                     }}
                     aria-current={isCurrent ? "page" : undefined}
                     className={cn(
-                      "flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-body-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left text-body-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       isCurrent
-                        ? "bg-primary/10 text-primary"
+                        ? "bg-muted/65 text-foreground"
                         : "text-foreground hover:bg-muted/60"
                     )}
                   >
                     <span className="flex min-w-0 flex-1 items-center gap-2.5">
-                      <BookOpen
-                        className={cn(
-                          "size-4 shrink-0",
-                          isCurrent ? "text-primary" : "text-muted-foreground"
-                        )}
-                        aria-hidden="true"
-                      />
+                      <BookOpen className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate">{course.title}</span>
+                        <span className="block break-words">{course.title}</span>
                         {course.code ? (
                           <span className="block truncate text-body-xs text-muted-foreground">
                             {course.code}
@@ -92,7 +86,7 @@ export function TutorMobileCourseSheet({
                     </span>
                     {isCurrent ? (
                       <Check
-                        className="size-4 shrink-0 text-primary"
+                        className="size-4 shrink-0 text-foreground"
                         aria-hidden="true"
                       />
                     ) : null}

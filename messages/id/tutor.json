@@ -631,6 +631,7 @@
     "answerSheet": "Lembar jawaban: {exam}",
     "autoKey": "Kunci otomatis",
     "studentAnswer": "Jawaban siswa:",
+    "selectedAnswer": "Dipilih",
     "correctAnswer": "Kunci jawaban benar:",
     "essayAnswer": "Jawaban esai siswa:",
     "noEssayAnswer": "Siswa tidak mengetik jawaban esai.",

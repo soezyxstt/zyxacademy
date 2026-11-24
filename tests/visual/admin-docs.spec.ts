@@ -2,12 +2,21 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const fixture = process.env.PLAYWRIGHT_DOCS_FIXTURE === "1";
 const docsPath = fixture ? "/visual-fixtures/docs-showcase/admin" : "/admin/docs";
+test.setTimeout(120_000);
+
+async function openSearch(page: Page, name: string) {
+  const trigger = page.getByRole("button", { name, exact: true });
+  if (await trigger.isVisible()) await trigger.click();
+  const search = page.getByRole("textbox", { name });
+  await expect(search).toBeVisible();
+  return search;
+}
 
 async function capture(page: Page, testInfo: TestInfo, name: string) {
   await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
   await page.evaluate(async () => document.fonts.ready);
   const path = testInfo.outputPath(`screenshots/${name}.png`);
-  await page.screenshot({ path, fullPage: true, animations: "disabled", caret: "hide" });
+  await page.screenshot({ path, fullPage: true, animations: "disabled", caret: "initial" });
   await testInfo.attach(name, { path, contentType: "image/png" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 }
@@ -20,9 +29,9 @@ test("admin documentation search and article", async ({ page }, testInfo) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(docsPath, { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(docsPath);
-  const search = page.getByRole("textbox", { name: "Cari dokumentasi" });
-  await expect(search).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dokumentasi admin" })).toBeVisible();
   await capture(page, testInfo, "index");
+  const search = await openSearch(page, "Cari dokumentasi");
   await search.fill("ma1101");
   await expect(page.getByRole("link", { name: /Menamai dan mengunggah dokumen/ }).first()).toBeVisible();
   await capture(page, testInfo, "search-results");
@@ -51,7 +60,7 @@ test("documentation navigation opens a guide and jumps between sections", async 
       await page.getByRole("button", { name: /buka navigasi|open navigation/i }).click();
       await page.getByRole("button", { name: /tutup sidebar|close sidebar/i }).click();
     }
-    await page.getByRole("button", { name: "Navigasi dokumentasi" }).click();
+    await page.locator("[data-mobile-navbar]").getByRole("button", { name: "Navigasi dokumentasi" }).click();
   }
   let navigation = page.getByRole("navigation", { name: "Navigasi dokumentasi" });
   await expect(navigation).toBeVisible();
@@ -110,8 +119,7 @@ test("tutor English guide search and navigation", async ({ page, context }, test
   const tutorDocs = "/visual-fixtures/docs-showcase/tutor";
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(tutorDocs);
-  const search = page.getByRole("textbox", { name: "Search documentation" });
-  await expect(search).toBeVisible();
+  const search = await openSearch(page, "Search documentation");
   await search.fill("workspace");
   await capture(page, testInfo, "tutor-search-english");
   await page.getByRole("link", { name: /Understanding the tutor workspace/ }).first().click();

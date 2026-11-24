@@ -4,7 +4,6 @@
     "endedAt": "Formulir ditutup pada {date} WIB.",
     "chooseFile": "Pilih berkas",
     "confirmTitle": "Kirim tanggapan?",
-    "confirmBody": "Tanggapan belum terkirim. Pilih kirim untuk menyelesaikan formulir.",
     "keepEditing": "Kembali mengisi",
     "estimatedMinutes": "~{count} menit pengisian",
     "questionCount": "{count} pertanyaan",

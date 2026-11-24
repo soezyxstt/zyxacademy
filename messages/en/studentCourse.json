@@ -469,9 +469,9 @@
     "confirmDescription": "You cannot change your answers after submitting.",
     "totalQuestions": "Total questions",
     "empty": "Empty",
-    "flaggedWarning": "{count} questions are still marked as unsure.",
-    "unansweredWarning": "{count} questions are unanswered. Unanswered questions will receive zero points.",
-    "timeRemaining": "Time remaining:",
+    "flaggedWarning": "Flagged for review ({count}).",
+    "unansweredWarning": "Unanswered ({count}). Blank answers receive zero points.",
+    "timeRemaining": "Time remaining",
     "reviewAgain": "Review again",
     "confirmSubmit": "Yes, submit"
   },

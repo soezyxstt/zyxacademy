@@ -39,13 +39,13 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <SheetContent side="right" aria-describedby={undefined} className="sm:max-w-lg flex flex-col gap-0 p-0 overflow-y-auto">
-        <SheetHeader className="pl-5 pr-14 pt-5 pb-4 border-b border-border">
+        <SheetHeader className="border-b border-border/55 ps-(--panel-padding) pe-12 py-(--related-gap)">
           <SheetTitle className="text-body-base font-heading">
             {concept.conceptName}
           </SheetTitle>
         </SheetHeader>
 
-        <div className="flex flex-col gap-(--related-gap) px-5 py-4">
+        <div className="flex flex-col gap-(--related-gap) px-(--panel-padding) py-(--related-gap)">
           {/* Distribution */}
           <section>
             <p className="text-body-sm text-muted-foreground mb-2">{t("masteryDistribution")}</p>
@@ -108,7 +108,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
           {mostMissed.length > 0 && (
             <section>
               <p className="text-body-sm text-muted-foreground mb-2">{t("mostMissed")}</p>
-              <div className="divide-y divide-border">
+              <div className="divide-y divide-border/55">
                 {mostMissed.map((q) => (
                   <div key={q.id} className="py-2.5 flex items-start justify-between gap-(--related-gap)">
                     <MathText className="text-body-sm min-w-0 break-words block" as="div">{q.prompt}</MathText>
@@ -123,7 +123,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
         </div>
 
         {/* Footer action */}
-        <div className="mt-auto px-5 pb-5 pt-3 border-t border-border">
+        <div className="mt-auto flex justify-end border-t border-border/55 px-(--panel-padding) py-(--related-gap)">
           <Button variant="outline" size="sm" asChild>
             <Link href={remediationHref}>{t("makeRemediationQuiz")}</Link>
           </Button>

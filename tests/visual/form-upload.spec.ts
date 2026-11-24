@@ -55,8 +55,8 @@ for (const preview of [false, true]) {
   });
 }
 
-test("English preview localizes the upload and submission dialog and preserves the authored question", async ({ page }) => {
-  await page.route(origin + "/**", route => route.fulfill({ contentType: "text/html", body: '<div id="root"></div>' }));
+test("English preview localizes the upload and submission dialog and preserves the authored question", async ({ page }, info) => {
+  await page.route(origin + "/**", route => route.fulfill({ contentType: "text/html", body: '<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div>' }));
   await page.goto(origin + "/?preview&lang=en");
   await page.addStyleTag({ content: fixture.styles });
   await page.addScriptTag({ content: fixture.script });
@@ -65,7 +65,10 @@ test("English preview localizes the upload and submission dialog and preserves t
   await page.getByRole("button", { name: "Submit response", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("Submit your response?", { exact: true })).toBeVisible();
-  await dialog.getByRole("button", { name: "Continue editing" }).click();
+  const continueEditing = dialog.getByRole("button", { name: "Continue editing" });
+  await expect(continueEditing).toBeFocused();
+  await page.screenshot({ path: info.outputPath("form-confirmation.png"), animations: "disabled" });
+  await continueEditing.click();
   await expect(dialog).toBeHidden();
 });
 

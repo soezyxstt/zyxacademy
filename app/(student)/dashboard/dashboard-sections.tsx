@@ -688,7 +688,7 @@ export async function PrimaryLearningSection({
           </div>
         </div>
 
-        <div className="divide-y divide-border/30">
+        <div className="divide-y divide-border/25">
           {enrollments.map((course) => {
             const materials = materialsByCourseId.get(course.id) || [];
             const doneCount = materials.filter((m) => m.completed || completedIds.has(m.id)).length;
@@ -706,7 +706,7 @@ export async function PrimaryLearningSection({
                       <span className="inline-flex rounded-md border border-border/50 bg-muted/50 px-2 py-0.5 text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
                         {course.category}
                       </span>
-                      <CoursePricingLabel pricing={course.pricing} />
+                      {course.pricing?.category === "limited_time_free" && <CoursePricingLabel pricing={course.pricing} compact />}
                       <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words min-w-0">
                         {course.title}
                       </h3>
@@ -736,10 +736,6 @@ export async function PrimaryLearningSection({
                     )}
                   </div>
 
-                  <ArrowUpRight
-                    className="mt-0.5 size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"
-                    aria-hidden
-                  />
                 </div>
               </Link>
             );
@@ -761,7 +757,7 @@ export async function PrimaryLearningSection({
         </div>
 
         {inProgressDocuments.length > 0 ? (
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-border/25">
             {inProgressDocuments.map((doc) => {
               if (!doc) return null;
               return (
@@ -841,7 +837,7 @@ export async function RecommendedCoursesSection({
         </Link>
       </div>
 
-      <div className="divide-y divide-border/30">
+      <div className="divide-y divide-border/25">
         {recommendedCourses.map((course) => (
           <div key={course.id} className="group py-2.5 px-2 -mx-2 rounded-lg transition-colors hover:bg-muted/40">
             <Link href={`/courses/${course.id}`} className="flex items-center justify-between gap-3">
@@ -920,7 +916,7 @@ export async function ReviewQueueSection({
         </div>
 
         {recentReviews.length > 0 ? (
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-border/25">
             {recentReviews.map((review) => {
               const gradeLabels: Record<number, string> = { 1: "gradeAgain", 2: "gradeHard", 3: "gradeGood", 4: "gradeEasy" };
               const gradeColors: Record<number, string> = {
@@ -1008,7 +1004,7 @@ export async function AvailableAssessmentsSection({
       </div>
 
       {availableExams.length > 0 ? (
-        <div className="divide-y divide-border/30">
+        <div className="divide-y divide-border/25">
           {availableExams.slice(0, 4).map((exam) => (
             <div key={exam.id} className="group py-2.5 px-2 -mx-2 rounded-lg transition-colors hover:bg-muted/40">
               <Link href={`/courses/${exam.courseId}/${exam.type}/${exam.id}`} className="flex items-center justify-between gap-3 min-w-0">
@@ -1022,7 +1018,6 @@ export async function AvailableAssessmentsSection({
                     <span className="capitalize shrink-0"><TranslatedText namespace="student" messageKey={exam.type === "quiz" ? "dashboard.examQuiz" : "dashboard.examTryout"} /></span>
                   </p>
                 </div>
-                <ArrowRight className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden />
               </Link>
             </div>
           ))}

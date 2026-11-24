@@ -272,13 +272,13 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
         <AdminEmptyState icon={KeyRound} title={searchQuery ? translate("tokensUI.notFound") : translate("tokensUI.empty")} />
       ) : (
         <AdminTable>
-          <div className="md:hidden divide-y divide-border">
+          <div className="divide-y divide-border/60 md:hidden">
             {filteredTokens.map((t) => {
               const isExpired = new Date(t.expiresAt) < new Date();
               const membersCount = t.group?.members?.length || 0;
               const isFull = membersCount >= t.capacity;
               return (
-                <div key={t.id} className="flex items-start justify-between gap-2.5 px-3.5 py-3">
+                <div key={t.id} className="flex items-start justify-between gap-2.5 py-(--row-padding)">
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="font-mono text-body-xs font-bold text-foreground break-all">{t.token}</span>
@@ -497,7 +497,7 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
 
       {/* Create Token Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <KeyRound className="size-4 text-brand-primary" />
@@ -697,7 +697,7 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
               </div>
             </div>
 
-            <DialogFooter className="gap-2">
+            <DialogFooter className="flex-row flex-wrap items-center justify-end">
               <DialogClose asChild>
                 <Button type="button" variant="outline" disabled={loading}>{translate("usersUI.cancel")}</Button>
               </DialogClose>

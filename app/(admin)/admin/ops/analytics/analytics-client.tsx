@@ -243,7 +243,8 @@ export function AiAnalyticsClient() {
                 type="button"
                 variant={logFilter === opt.id ? "secondary" : "ghost"}
                 size="sm"
-                className="h-7 px-2.5 text-body-xs"
+                className="min-h-9 px-2.5"
+                aria-pressed={logFilter === opt.id}
                 onClick={() => {
                   setLogFilter(opt.id);
                   setLogPage(1);

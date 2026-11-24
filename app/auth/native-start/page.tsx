@@ -51,24 +51,24 @@ function NativeAuthStartContent() {
   }, [triggerGoogleSignIn]);
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background px-6 text-foreground">
-      <div className="w-full max-w-sm space-y-4 text-center">
+    <main className="flex min-h-dvh items-center justify-center bg-background px-(--page-gutter) py-(--section-gap) text-foreground">
+      <div className="w-full max-w-sm space-y-(--compact-gap) text-center">
         {!error ? (
           <>
-            <Loader2 className="mx-auto size-6 animate-spin text-primary" />
-            <h1 className="font-heading text-body-base font-bold">
+            <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" aria-hidden />
+            <h1 className="font-heading text-h5 font-bold">
               {tr("connecting")}
             </h1>
-            <p className="text-body-xs text-muted-foreground">
+            <p className="text-body-sm text-muted-foreground">
               {tr("choose")}
             </p>
           </>
         ) : (
           <>
-            <h1 className="font-heading text-body-base font-bold">
+            <h1 className="font-heading text-h5 font-bold">
               {tr("unavailable")}
             </h1>
-            <p className="text-body-xs text-muted-foreground">{tr(error)}</p>
+            <p className="text-body-sm text-muted-foreground">{tr(error)}</p>
             {scheme && state && (
               <Button type="button" size="sm" onClick={() => void triggerGoogleSignIn()}>
                 {tr("retry")}
@@ -86,7 +86,7 @@ export default function NativeAuthStartPage() {
     <Suspense
       fallback={
         <main className="flex min-h-dvh items-center justify-center bg-background text-foreground">
-          <Loader2 className="size-6 animate-spin text-primary" />
+          <Loader2 className="size-5 animate-spin text-muted-foreground" aria-hidden />
         </main>
       }
     >

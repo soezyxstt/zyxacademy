@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminIconAction } from "@/components/admin/icon-action";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
@@ -142,9 +143,9 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-body-sm text-muted-foreground">
+    <div className="space-y-(--compact-gap)">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-body-xs text-muted-foreground">
           {t("pkaScheduleUI.totalUpcoming", { total: schedules.length, upcoming: upcomingCount })}
         </p>
         <AdminIconAction label={t("pkaScheduleUI.add")} onClick={handleOpenCreate}>
@@ -153,21 +154,19 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
       </div>
 
       {schedules.length === 0 ? (
-        <AdminEmptyState icon={CalendarDays} title={t("pkaScheduleUI.empty")} action={
-          <Button onClick={handleOpenCreate} variant="outline" size="sm"><Plus className="size-4" />{t("pkaScheduleUI.add")}</Button>
-        } />
+        <AdminEmptyState compact icon={CalendarDays} title={t("pkaScheduleUI.empty")} />
       ) : (
         <>
           {/* Mobile stacked rows */}
-          <ul className="divide-y divide-border/60 border-y border-border md:hidden">
+          <ul className="divide-y divide-border/60 border-y border-border/60 lg:hidden">
             {schedules.map((row) => {
               const sessionDate = new Date(row.sessionAt);
               const isPast = sessionDate.getTime() < now;
               return (
-                <li key={row.id} className="space-y-2 py-3">
+                <li key={row.id} className="space-y-2 py-(--row-padding)">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className={cn("break-words text-body-sm font-medium", isPast ? "text-muted-foreground" : "text-foreground")}>
+                      <p className={cn("wrap-anywhere text-body-sm font-semibold", isPast ? "text-muted-foreground" : "text-foreground")}>
                         {row.title}
                       </p>
                       <p className="mt-0.5 flex items-center gap-1.5 text-body-xs text-muted-foreground">
@@ -226,13 +225,13 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
                         href={row.meetLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary/10 px-2 py-1 text-body-xs font-medium text-brand-primary transition-colors duration-150 hover:bg-brand-primary/20"
+                        className="inline-flex min-h-8 items-center gap-1.5 rounded-md px-2 text-body-sm font-medium text-foreground transition-colors hover:bg-muted"
                       >
                         <Video className="size-3.5" />
                         {t("pkaScheduleUI.openMeet")}
                       </a>
                     ) : (
-                      <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-body-xs font-medium text-muted-foreground">
+                      <span className="text-body-xs text-muted-foreground">
                         {t("pkaScheduleUI.noLink")}
                       </span>
                     )}
@@ -243,8 +242,8 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
           </ul>
 
           {/* Desktop table */}
-          <AdminTable className="hidden md:block">
-            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-border bg-muted/30 px-5 py-3">
+          <AdminTable className="hidden lg:block">
+            <div className="grid grid-cols-[minmax(0,1fr)_7rem_7rem_3.25rem] gap-4 border-b border-border/60 py-2">
               <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaScheduleUI.session")}</span>
               <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaScheduleUI.status")}</span>
               <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaScheduleUI.meetLink")}</span>
@@ -257,10 +256,10 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
                 return (
                   <li
                     key={row.id}
-                    className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 px-5 py-3.5 transition-colors hover:bg-muted/20"
+                    className="grid grid-cols-[minmax(0,1fr)_7rem_7rem_3.25rem] items-center gap-4 py-(--row-padding) transition-colors hover:bg-muted/25"
                   >
                     <div className="min-w-0">
-                      <p className={cn("truncate text-body-sm font-medium", isPast ? "text-muted-foreground" : "text-foreground")}>
+                      <p className={cn("wrap-anywhere text-body-sm font-semibold", isPast ? "text-muted-foreground" : "text-foreground")}>
                         {row.title}
                       </p>
                       <p className="mt-0.5 flex items-center gap-1.5 text-body-xs text-muted-foreground">
@@ -289,13 +288,13 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
                           href={row.meetLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary/10 px-2 py-1 text-body-xs font-medium text-brand-primary transition-colors duration-150 hover:bg-brand-primary/20"
+                          className="inline-flex min-h-8 items-center gap-1.5 rounded-md px-2 text-body-sm font-medium text-foreground transition-colors hover:bg-muted"
                         >
                           <Video className="size-3.5" />
                           {t("pkaScheduleUI.openMeet")}
                         </a>
                       ) : (
-                        <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-body-xs font-medium text-muted-foreground">
+                        <span className="text-body-xs text-muted-foreground">
                           {t("pkaScheduleUI.noLink")}
                         </span>
                       )}
@@ -340,7 +339,7 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
       {/* Create / edit dialog */}
       <Dialog open={isFormOpen} onOpenChange={(open) => (open ? setIsFormOpen(true) : resetForm())}>
         <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleSave} className="space-y-4">
+          <form onSubmit={handleSave} className="space-y-(--related-gap)">
             <DialogHeader>
               <DialogTitle>{editItem ? t("pkaScheduleUI.editTitle") : t("pkaScheduleUI.createTitle")}</DialogTitle>
               <DialogDescription>
@@ -350,7 +349,7 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4">
+            <div className="space-y-(--compact-gap)">
               <div className="space-y-1.5">
                 <Label htmlFor="pka-sched-title" className="text-body-sm font-medium text-foreground">
                   {t("pkaScheduleUI.titleTopic")}
@@ -395,8 +394,8 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
               </div>
             </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={resetForm} disabled={isPending}>
+            <DialogFooter className="flex-row flex-wrap justify-end">
+              <Button type="button" variant="ghost" onClick={resetForm} disabled={isPending}>
                 {t("pkaScheduleUI.cancel")}
               </Button>
               <Button type="submit" isLoading={isPending} className="gap-2">
@@ -408,24 +407,16 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
       </Dialog>
 
       {/* Delete confirmation */}
-      <Dialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("pkaScheduleUI.deleteTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("pkaScheduleUI.deleteDescription", { title: deleteItem?.title ?? "" })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDeleteItem(null)} disabled={isPending}>
-              {t("pkaScheduleUI.cancel")}
-            </Button>
-            <Button type="button" variant="destructive" onClick={handleDelete} isLoading={isPending} className="gap-2">
-              {t("pkaScheduleUI.confirmDelete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AdminConfirmDialog
+        open={!!deleteItem}
+        onOpenChange={(open) => { if (!open) setDeleteItem(null); }}
+        title={t("pkaScheduleUI.deleteTitle")}
+        description={t("pkaScheduleUI.deleteDescription", { title: deleteItem?.title ?? "" })}
+        cancelLabel={t("pkaScheduleUI.cancel")}
+        confirmLabel={t("pkaScheduleUI.confirmDelete")}
+        onConfirm={handleDelete}
+        loading={isPending}
+      />
     </div>
   );
 }

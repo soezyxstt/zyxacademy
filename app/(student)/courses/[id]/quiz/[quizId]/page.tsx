@@ -423,18 +423,16 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
     return (
       <CoursePageShell title={template.title} hideHeader>
-        <Reveal>
-          <QuizPlayer
-            courseId={id}
-            expectedUserId={session.user.id}
-            visualCourseId={template.courseId}
-            exam={formattedExam}
-            attemptId={targetAttempt.id}
-            initialAnswers={initialAnswers}
-            startedAtMs={startedAtMs}
-            closeAtMs={closeAtMs}
-          />
-        </Reveal>
+        <QuizPlayer
+          courseId={id}
+          expectedUserId={session.user.id}
+          visualCourseId={template.courseId}
+          exam={formattedExam}
+          attemptId={targetAttempt.id}
+          initialAnswers={initialAnswers}
+          startedAtMs={startedAtMs}
+          closeAtMs={closeAtMs}
+        />
       </CoursePageShell>
     );
   }

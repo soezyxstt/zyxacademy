@@ -5,7 +5,6 @@ import { useTranslations } from "@/lib/i18n/client";
 import {
   CheckCircle2,
   CheckSquare,
-  ChevronRight,
   Clock,
   Loader2,
   User,
@@ -86,7 +85,7 @@ export function QuizGradingMobile({
             const input = gradeInputs[q.id];
             return (
               <div key={q.id} className="space-y-3 py-(--row-padding)">
-                <QuizQuestionContent question={q} compactAttachment />
+                <QuizQuestionContent question={q} />
 
                 {q.isFreeResponse && input && (
                   <div className="space-y-3 border-t border-border/60 pt-3">
@@ -133,18 +132,18 @@ export function QuizGradingMobile({
           })}
         </div>
 
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md">
+        <div className="fixed inset-x-0 bottom-0 z-30 flex justify-end border-t border-border bg-background/95 px-4 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md">
           <Button
             type="button"
             variant="default"
             disabled={isPending}
             onClick={() => onSave(true)}
-            className="min-h-11 w-full rounded-md text-body-sm font-semibold"
+            className="min-h-11 rounded-md text-body-sm font-semibold"
           >
             {isPending ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" aria-hidden />
+              <Loader2 className="size-4 animate-spin" aria-hidden />
             ) : (
-              <CheckCircle2 className="mr-1.5 size-4" aria-hidden />
+              <CheckCircle2 className="size-4" aria-hidden />
             )}
             {tr("finishGrading")}
           </Button>
@@ -180,7 +179,7 @@ export function QuizGradingMobile({
           />
         </div>
       ) : (
-        <div className="divide-y divide-border border-y border-border">
+        <div className="divide-y divide-border/55 border-y border-border/55">
           {filteredAttempts.map((item) => {
             const isLoadingThis = loadingAttemptId === item.id;
             return (
@@ -188,8 +187,9 @@ export function QuizGradingMobile({
                 key={item.id}
                 type="button"
                 disabled={isLoadingThis}
+                aria-busy={isLoadingThis}
                 onClick={() => onSelectAttempt(item.id)}
-                className="flex min-h-14 w-full items-center justify-between gap-3 py-3 text-left transition-colors hover:bg-muted/30 active:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60"
+                className="flex min-h-11 w-full items-start justify-between gap-3 py-(--row-padding) text-left transition-colors hover:bg-muted/30 active:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60"
               >
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -215,13 +215,7 @@ export function QuizGradingMobile({
                   </div>
                 </div>
 
-                <span className="flex size-9 shrink-0 items-center justify-center text-muted-foreground">
-                  {isLoadingThis ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <ChevronRight className="size-4" aria-hidden />
-                  )}
-                </span>
+                {isLoadingThis && <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />}
               </button>
             );
           })}

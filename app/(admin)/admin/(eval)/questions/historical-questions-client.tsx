@@ -329,7 +329,7 @@ export function HistoricalQuestionsClient({
 
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full min-w-0 space-y-(--related-gap)">
       <QuestionBankToolbar>
         <SearchBar
           collapsible
@@ -378,7 +378,7 @@ export function HistoricalQuestionsClient({
       </QuestionBankToolbar>
 
       {selectedEntries.size > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/80 bg-background/90 px-4 py-3 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 border-y border-border/60 py-2">
           <span className="text-body-sm font-semibold text-foreground">{selectedEntries.size} {t("selectedCount")}</span>
           <div className="flex flex-wrap gap-2 sm:ml-auto">
             {selectedForReview.length > 0 ? (
@@ -401,7 +401,7 @@ export function HistoricalQuestionsClient({
       ) : null}
 
 
-      <div ref={tableRef} className="w-full space-y-6">
+      <div ref={tableRef} className="w-full space-y-(--compact-gap)">
       <AdminTable className="w-full">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/50 px-4 py-3">
           <span className="text-body-xs font-semibold text-muted-foreground">

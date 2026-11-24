@@ -20,7 +20,7 @@ export default async function TutorialPkaSchedulesPage() {
   const schedules = await getPkaSchedulesAction();
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-(--related-gap)">
       <AdminPageHeader
         icon={CalendarDays}
         title={<TranslatedText namespace="adminOps" messageKey="pka.schedules" />}
@@ -34,9 +34,7 @@ export default async function TutorialPkaSchedulesPage() {
         ]}
       />
 
-      <div>
-        <SchedulesTab schedules={schedules} />
-      </div>
+      <SchedulesTab schedules={schedules} />
     </div>
   );
 }

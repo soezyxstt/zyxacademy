@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test";
 test.setTimeout(120_000);
 const metrics = {
   quizTitle: "Kuis matematika dasar", courseId: "visual-math", templateId: "visual-quiz", attemptId: "visual-attempt", score: 75, correctCount: 3, incorrectCount: 1, unansweredCount: 0, totalQuestions: 4, durationSeconds: 180,
-  conceptMastery: [], cognitiveSkills: [], difficultyBreakdown: [],
+  conceptMastery: [{ concept: "Limit fungsi aljabar dan kekontinuan pada interval", totalQuestions: 4, correctCount: 3, incorrectCount: 1, accuracyPercent: 75, status: "adequate", previousAccuracyPercent: 70, trend: "improving", subconcepts: ["Substitusi langsung"] }],
+  cognitiveSkills: [], difficultyBreakdown: [],
   timeAnalysis: { totalDurationSeconds: 180, avgTimePerQuestionSeconds: 45, fastAnswerCount: 1, fastIncorrectCount: 1, slowAnswerCount: 0 },
   historicalComparison: { totalAttemptsAnalyzed: 1, scoreTrend: [75], overallImprovementDelta: 5, consistentlyWeakConcepts: [], improvedConcepts: [] },
 };
@@ -27,6 +28,21 @@ test("quiz analysis controls fit the processing state", async ({ page }, info) =
   await page.route("**/api/quiz/attempts/visual-attempt/analytics", route => route.fulfill({ json: { status: "processing", computedMetrics: metrics, aiDiagnosis: diagnosis } }));
   await page.goto("/visual-fixtures/quiz-analytics", { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Hasil latihan")).toBeVisible({ timeout: 60_000 });
+  const navbar = page.locator("[data-mobile-navbar]");
+  const refresh = page.getByRole("button", { name: /refresh status|perbarui status|muat ulang status|segarkan status/i });
+  await expect(refresh).toHaveCount(1);
+  const metricsList = page.locator("[data-quiz-analysis-metrics]");
+  await expect(metricsList.locator("dt")).toHaveCount(5);
+  await expect(metricsList).toHaveCSS("display", "block");
+  await expect(page.getByText(metrics.conceptMastery[0].concept, { exact: true }).filter({ visible: true })).toBeVisible();
+  if (info.project.name === "mobile-380") {
+    await expect(navbar.getByRole("button", { name: await refresh.getAttribute("aria-label") ?? "" })).toBeVisible();
+    await expect(page.getByRole("table")).toHaveCount(0);
+  } else {
+    await expect(page.getByRole("main").getByRole("button", { name: await refresh.getAttribute("aria-label") ?? "" })).toBeVisible();
+    await expect(page.getByRole("table")).toBeVisible();
+  }
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
   const path = info.outputPath("screenshots/processing.png");
   await page.screenshot({ path, fullPage: true, animations: "disabled" });
   await info.attach("processing", { path, contentType: "image/png" });

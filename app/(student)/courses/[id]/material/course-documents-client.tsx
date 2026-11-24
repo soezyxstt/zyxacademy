@@ -9,7 +9,6 @@ import {
   BookOpenCheck,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   ClipboardList,
   ExternalLink,
   Eye,
@@ -43,6 +42,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { cn } from "@/lib/utils";
+import { courseListRowClass } from "@/components/course/course-surfaces";
 import { useTranslations } from "@/lib/i18n/client";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
 import { getSubcategoryLabel, type CourseMaterialSubcategory } from "@/lib/course-materials";
@@ -251,17 +251,16 @@ function HierarchyDocumentCard({
     <Link
       href={itemHref}
       onClick={handleClick}
-      className={cn(
-        "group flex min-w-0 items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-        isLocked && "opacity-90 hover:opacity-100"
-      )}
+      className={isAdmin
+        ? "group flex min-w-0 items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        : courseListRowClass("text-left")}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className={cn("flex min-w-0 flex-1 gap-3", isAdmin ? "items-center" : "items-start")}>
         {/* Document Thumbnail Preview with Seamless Left Color Accent */}
         <div
           className={cn(
-            "relative aspect-[16/10] w-24 sm:w-32 shrink-0 overflow-hidden rounded-md border border-border/60 border-l-[3px] bg-muted/30 transition-colors",
-            tierStyle.borderAccent
+            "relative aspect-[16/10] w-20 sm:w-32 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted/30 transition-colors",
+            isAdmin && cn("w-24 border-l-[3px]", tierStyle.borderAccent)
           )}
         >
           {material.thumbnailUrl && failedThumbnail !== material.thumbnailUrl ? (
@@ -284,13 +283,13 @@ function HierarchyDocumentCard({
         {/* Full-width Title and Seamless Color Meta Line */}
         <div className="min-w-0 flex-1">
           <p
-            className="break-words text-body-sm font-semibold leading-snug text-foreground group-hover:text-primary transition-colors"
+            className={cn("wrap-break-word text-body-sm font-semibold leading-snug text-foreground", isAdmin && "transition-colors group-hover:text-primary")}
             title={material.title}
           >
             {cleanDocTitle(material.title, courseTitle)}
           </p>
           <p className="mt-0.5 break-words text-body-xs leading-tight text-muted-foreground">
-            <span className={tierStyle.textColor}>{t(`documents.materialTypes.${tier}`)}</span>
+            <span className={isAdmin ? tierStyle.textColor : undefined}>{t(`documents.materialTypes.${tier}`)}</span>
             {secondaryMeta.length > 0 && <span> · {secondaryMeta.join(" · ")}</span>}
           </p>
         </div>
@@ -364,18 +363,13 @@ function HierarchyDocumentCard({
           </DropdownMenuContent>
         </DropdownMenu>
       ) : isLocked ? (
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
-          <Lock className="size-2.5" />
-          {t("documents.locked")}
+        <span className="shrink-0 self-center text-muted-foreground">
+          <Lock className="size-4" aria-hidden />
+          <span className="sr-only">{t("documents.locked")}</span>
         </span>
       ) : material.completed ? (
-        <CheckCircle2 className="size-3.5 shrink-0 text-status-success" aria-label={t("documents.markAsRead")} />
-      ) : (
-        <ChevronRight
-          className="size-3.5 shrink-0 text-muted-foreground/55 transition-transform group-hover:translate-x-0.5"
-          aria-hidden
-        />
-      )}
+        <CheckCircle2 className="size-4 shrink-0 self-center text-status-success" aria-label={t("documents.markAsRead")} />
+      ) : null}
     </Link>
   );
 }
@@ -471,30 +465,36 @@ function CollapsibleDocumentSection({
     <Collapsible
       open={open && hasDocuments}
       onOpenChange={onOpenChange}
-      className="border-b border-border/45 last:border-b-0"
+      className={cn("border-b last:border-b-0", isAdmin ? "border-border/45" : "border-border/25")}
     >
       <CollapsibleTrigger
         disabled={!hasDocuments}
         className="group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/30 disabled:cursor-default disabled:hover:bg-transparent sm:px-3.5"
       >
-        <span className="w-14 shrink-0 text-body-xs font-semibold text-muted-foreground sm:w-16">
-          {badge}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-body-sm font-semibold text-foreground" title={title}>
+        {(isAdmin || badge.trim().toLowerCase() !== title.trim().toLowerCase()) && (
+          <span className="w-14 shrink-0 text-body-xs font-semibold text-muted-foreground sm:w-16">
+            {badge}
+          </span>
+        )}
+        <span className={cn("min-w-0 flex-1 wrap-break-word text-body-sm font-semibold", hasDocuments || isAdmin ? "text-foreground" : "text-muted-foreground")}>
           {title}
         </span>
-        <span className="shrink-0 text-body-xs text-muted-foreground">{t("documents.documentCount", { count: materials.length })}</span>
-        <ChevronDown
-          className={cn(
-            "size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180",
-            !hasDocuments && "opacity-30"
-          )}
-          aria-hidden
-        />
+        {(hasDocuments || isAdmin) && (
+          <>
+            <span className="shrink-0 text-body-xs text-muted-foreground">{t("documents.documentCount", { count: materials.length })}</span>
+            <ChevronDown
+              className={cn(
+                "size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180",
+                !hasDocuments && "opacity-30"
+              )}
+              aria-hidden
+            />
+          </>
+        )}
       </CollapsibleTrigger>
       {hasDocuments ? (
         <CollapsibleContent>
-          <div className="divide-y divide-border/40 border-t border-border/40 bg-card/25">
+          <div className={isAdmin ? "divide-y divide-border/40 border-t border-border/40 bg-card/25" : "pb-1"}>
             {materials.map((material) => (
               <HierarchyDocumentCard
                 key={material.id}
@@ -668,6 +668,7 @@ export function CourseDocumentsClient({
     <Tabs value={activeTab} onValueChange={(value) => setUrlTab(normalizeTabKey(value))}>
       <TabsList
         mobileInline
+        className={isAdmin ? undefined : "[&_[data-state=active][data-slot=tabs-trigger]]:after:bg-foreground [&_[data-active=true][data-slot=tabs-more-trigger]]:after:bg-foreground"}
         aria-label={t("documents.courseCategoryLabel")}
         trailing={isAdmin && activeTab === "all" ? (
           <Button
@@ -698,11 +699,11 @@ export function CourseDocumentsClient({
   return (
     <div className="space-y-3 font-sans">
       {activeTab === "all" && accessTier === "free" && lockedMaterialCount > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-primary/25 bg-brand-primary/5 px-3 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
           <div className="flex min-w-0 items-center gap-2 text-body-xs text-muted-foreground">
             <span>{t("documents.lockedArticleNotice")}</span>
           </div>
-          <Link href="/plans" className="shrink-0 rounded-md border border-border bg-card px-2.5 py-1.5 text-body-sm font-semibold text-brand-primary hover:bg-muted">
+          <Link href="/plans" className="shrink-0 rounded-md border border-border bg-card px-2.5 py-1.5 text-body-sm font-semibold text-foreground hover:bg-muted">
             {t("documents.activateAccess")}
           </Link>
         </div>

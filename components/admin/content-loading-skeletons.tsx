@@ -270,27 +270,40 @@ export function AdminLoadingHeader({ back = false }: { back?: boolean }) {
 
 export function OpsMetricsSkeleton() {
   return (
-    <div role="status" aria-label="Memuat" className="space-y-5">
-      <div className="flex justify-end">
-        <Skeleton className="h-9 w-24" />
+    <div role="status" aria-label="Memuat" className="space-y-(--section-gap)">
+      <div className="flex items-center justify-between gap-2">
+        <Skeleton className="h-5 w-44 max-w-full" />
+        <Skeleton className="hidden size-9 md:block" />
       </div>
-      <div className="divide-y divide-border border-y border-border">
-        {[0, 1, 2, 3, 4, 5].map((row) => (
-          <div key={row} className="space-y-3 py-4">
-            <div className="flex justify-between gap-3">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-4 w-20" />
-            </div>
-            <div className="flex flex-wrap gap-6">
-              {[0, 1, 2].map((stat) => (
-                <div key={stat} className="space-y-2">
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="h-5 w-14" />
-                </div>
-              ))}
-            </div>
+      <div className="grid grid-cols-2 gap-(--compact-gap) border-b border-border/40 pb-(--compact-gap) sm:grid-cols-3">
+        {[0, 1, 2].map((stat) => (
+          <div key={stat} className="space-y-1.5">
+            <Skeleton className="h-4 w-24 max-w-full" />
+            <Skeleton className="h-6 w-14" />
+            <Skeleton className="h-3 w-20 max-w-full" />
           </div>
         ))}
+      </div>
+      <div className="space-y-1">
+        <Skeleton className="mb-2 h-4 w-36" />
+        <div className="divide-y divide-border/60 border-t border-border/60">
+          {[0, 1, 2].map((row) => (
+            <div key={row} className="flex justify-between gap-3 py-(--row-padding)">
+              <Skeleton className="h-4 w-40 max-w-full" />
+              <Skeleton className="h-4 w-20 shrink-0" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1">
+        <Skeleton className="mb-2 h-4 w-36" />
+        <div className="grid border-t border-border/60 sm:grid-cols-2 sm:gap-x-(--section-gap)">
+          {[0, 1, 2, 3].map((row) => (
+            <div key={row} className="border-b border-border/60 py-(--row-padding) last:border-b-0 sm:nth-last-2:border-b-0">
+              <Skeleton className="h-4 w-40 max-w-full" />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

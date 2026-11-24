@@ -506,7 +506,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
       <div className="space-y-1.5">
         <label className="block text-body-xs font-semibold text-foreground">{translate("academicScheduleUI.type")}</label>
         <Select value={formType} onValueChange={(value: any) => setFormType(value)}>
-          <SelectTrigger className="h-10 rounded-lg bg-card text-body-sm"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-10 rounded-lg text-body-sm"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="official_exam">{translate("academicScheduleUI.officialExam")}</SelectItem>
             <SelectItem value="tryout">{translate("academicScheduleUI.tryout")}</SelectItem>
@@ -522,7 +522,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
       <div className="space-y-1.5">
         <label className="block text-body-xs font-semibold text-foreground">{translate("academicScheduleUI.courseOptional")}</label>
         <Select value={formCourseId || "all"} onValueChange={(value) => setFormCourseId(value === "all" ? "" : value)}>
-          <SelectTrigger className="h-10 rounded-lg bg-card text-body-sm"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-10 rounded-lg text-body-sm"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{translate("academicScheduleUI.allCourses")}</SelectItem>
             {data.courses.map((course: any) => <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>)}
@@ -561,8 +561,9 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
   const viewSelect = (
     <Select value={activeTab} onValueChange={setActiveTab}>
       <SelectTrigger
+        variant="inline"
         aria-label={translate("academicScheduleUI.calendar")}
-        className="h-8 sm:h-9 w-auto min-w-[116px] sm:min-w-[126px] max-w-[180px] shrink-0 rounded-lg px-2.5 text-body-sm font-semibold"
+        className="min-w-[116px] max-w-[180px] shrink-0 sm:min-w-[126px]"
       >
         <SelectValue />
       </SelectTrigger>
@@ -668,6 +669,35 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
     </>
   );
 
+  function academicScheduleActions(schedule: (typeof data.academicSchedules)[number]) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-sm" aria-label={translate("academicScheduleUI.actions")}>
+            <MoreHorizontal className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem onSelect={() => handleOpenEdit(schedule)}>
+            <Edit3 className="size-4 text-muted-foreground" />
+            <span>{translate("academicScheduleUI.edit")}</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => setPendingDeleteSchedule(schedule)} className="text-status-error focus:text-status-error">
+            <Trash2 className="size-4" />
+            <span>{translate("academicScheduleUI.delete")}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  function ticketStatus(status: string) {
+    if (status === "approved") return <StatusBadge tone="success">{translate("academicScheduleUI.approved")}</StatusBadge>;
+    if (status === "rejected") return <StatusBadge tone="error">{translate("academicScheduleUI.rejected")}</StatusBadge>;
+    return <StatusBadge tone="warning">{translate("academicScheduleUI.pending")}</StatusBadge>;
+  }
+
   return (
     <TooltipProvider>
     <div className="min-w-0 max-w-full space-y-2 font-sans">
@@ -726,97 +756,156 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
         </div>
       )}
 
-      {activeTab === "academic" && (
-        <AdminTable>
-          <table className="w-full min-w-3xl text-left text-body-sm">
-            <AdminTableHead>
-              <tr><th>{translate("academicScheduleUI.tableTypeTitle")}</th><th>{translate("academicScheduleUI.course")}</th><th>{translate("academicScheduleUI.time")}</th><th>{translate("academicScheduleUI.location")}</th><th>{translate("academicScheduleUI.status")}</th><th className="text-center">{translate("academicScheduleUI.actions")}</th></tr>
-            </AdminTableHead>
-            <tbody className="divide-y divide-border">
-              {data.academicSchedules.length === 0 ? (
-                <tr><td colSpan={6}><AdminEmptyState compact title={translate("academicScheduleUI.noAcademic")} /></td></tr>
-              ) : data.academicSchedules.map((schedule: any) => (
-                <tr key={schedule.id} className="align-top transition-colors hover:bg-muted/30">
-                  <td className="max-w-md px-4 py-3">
-                    <p className="break-words font-semibold leading-snug text-foreground">{schedule.title}</p>
-                    <p className="mt-1 text-body-xs text-muted-foreground">{scheduleTypeLabel(schedule.type, translate)}</p>
-                    {schedule.description ? <p className="mt-1.5 line-clamp-2 whitespace-pre-wrap break-words text-body-xs text-muted-foreground">{schedule.description}</p> : null}
-                  </td>
-                  <td className="px-4 py-3 text-body-xs">{schedule.course?.title || <span className="text-muted-foreground">{translate("academicScheduleUI.allCoursesLabel")}</span>}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-body-xs text-muted-foreground">{formatIsoDate(new Date(schedule.startDate))}{schedule.endDate ? ` - ${formatIsoDate(new Date(schedule.endDate))}` : ""}</td>
-                  <td className="max-w-xs break-all px-4 py-3 text-body-xs text-muted-foreground">{schedule.location || "-"}</td>
-                  <td className="px-4 py-3"><StatusBadge tone="success">{translate("academicScheduleUI.published")}</StatusBadge></td>
-                  <td className="px-4 py-3 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm" aria-label={translate("academicScheduleUI.actions")} className="h-8 w-8 rounded-lg">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem onSelect={() => handleOpenEdit(schedule)}>
-                          <Edit3 className="size-4 text-muted-foreground" />
-                          <span>{translate("academicScheduleUI.edit")}</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => setPendingDeleteSchedule(schedule)} className="text-status-error focus:text-status-error">
-                          <Trash2 className="size-4" />
-                          <span>{translate("academicScheduleUI.delete")}</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </AdminTable>
-      )}
+      {activeTab === "academic" && (data.academicSchedules.length === 0 ? (
+        <AdminEmptyState compact title={translate("academicScheduleUI.noAcademic")} />
+      ) : (
+        <>
+          <ul className="divide-y divide-border/60 border-y border-border/60 md:hidden">
+            {data.academicSchedules.map((schedule: any) => (
+              <li key={schedule.id} className="flex items-start justify-between gap-2 py-(--row-padding)">
+                <div className="min-w-0 space-y-1">
+                  <p className="wrap-break-word text-body-sm font-semibold text-foreground">{schedule.title}</p>
+                  <p className="text-body-xs text-muted-foreground">
+                    {scheduleTypeLabel(schedule.type, translate)} · {schedule.course?.title || translate("academicScheduleUI.allCoursesLabel")}
+                  </p>
+                  <p className="text-body-xs tabular-nums text-muted-foreground">
+                    {formatIsoDate(new Date(schedule.startDate))}{schedule.endDate ? ` - ${formatIsoDate(new Date(schedule.endDate))}` : ""}
+                    {schedule.location ? ` · ${schedule.location}` : null}
+                  </p>
+                  {schedule.description && <p className="line-clamp-2 whitespace-pre-wrap wrap-break-word text-body-xs text-muted-foreground">{schedule.description}</p>}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  {academicScheduleActions(schedule)}
+                  <StatusBadge tone="success">{translate("academicScheduleUI.published")}</StatusBadge>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <AdminTable className="hidden md:block">
+            <table className="w-full text-left text-body-sm">
+              <AdminTableHead>
+                <tr><th>{translate("academicScheduleUI.tableTypeTitle")}</th><th>{translate("academicScheduleUI.course")}</th><th>{translate("academicScheduleUI.time")}</th><th>{translate("academicScheduleUI.location")}</th><th>{translate("academicScheduleUI.status")}</th><th className="text-center">{translate("academicScheduleUI.actions")}</th></tr>
+              </AdminTableHead>
+              <tbody className="divide-y divide-border">
+                {data.academicSchedules.map((schedule: any) => (
+                  <tr key={schedule.id} className="align-top transition-colors hover:bg-muted/30">
+                    <td className="max-w-md px-4 py-3">
+                      <p className="break-words font-semibold leading-snug text-foreground">{schedule.title}</p>
+                      <p className="mt-1 text-body-xs text-muted-foreground">{scheduleTypeLabel(schedule.type, translate)}</p>
+                      {schedule.description ? <p className="mt-1.5 line-clamp-2 whitespace-pre-wrap break-words text-body-xs text-muted-foreground">{schedule.description}</p> : null}
+                    </td>
+                    <td className="px-4 py-3 text-body-xs">{schedule.course?.title || <span className="text-muted-foreground">{translate("academicScheduleUI.allCoursesLabel")}</span>}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-body-xs text-muted-foreground">{formatIsoDate(new Date(schedule.startDate))}{schedule.endDate ? ` - ${formatIsoDate(new Date(schedule.endDate))}` : ""}</td>
+                    <td className="max-w-xs break-all px-4 py-3 text-body-xs text-muted-foreground">{schedule.location || "-"}</td>
+                    <td className="px-4 py-3"><StatusBadge tone="success">{translate("academicScheduleUI.published")}</StatusBadge></td>
+                    <td className="px-4 py-3 text-right">{academicScheduleActions(schedule)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </AdminTable>
+        </>
+      ))}
 
-      {activeTab === "tickets" && (
-        <AdminTable>
-          <table className="w-full min-w-3xl text-left text-body-sm">
-            <AdminTableHead><tr><th>{translate("academicScheduleUI.ticketTypeGroup")}</th><th>{translate("academicScheduleUI.courseTutor")}</th><th>{translate("academicScheduleUI.reason")}</th><th>{translate("academicScheduleUI.status")}</th><th>{translate("academicScheduleUI.date")}</th></tr></AdminTableHead>
-            <tbody className="divide-y divide-border">
-              {(data?.tickets ?? []).length === 0 ? <tr><td colSpan={5}><AdminEmptyState compact title={translate("academicScheduleUI.noTickets")} /></td></tr> : (data?.tickets ?? []).map((ticket: any) => (
-                <tr key={ticket.id} className="align-top hover:bg-muted/30">
-                  <td className="px-4 py-3"><p className="font-semibold capitalize text-foreground">{translate("academicScheduleUI.requestType", { type: ticket.type })}</p><p className="text-body-xs text-muted-foreground">{ticket.booking?.group?.name}</p></td>
-                  <td className="px-4 py-3 text-body-xs"><p>{ticket.booking?.course?.title}</p><p className="text-muted-foreground">{translate("academicScheduleUI.tutorPrefix", { name: ticket.tutor?.name ?? "" })}</p></td>
-                  <td className="max-w-sm whitespace-pre-wrap break-words px-4 py-3 text-body-xs text-muted-foreground">{ticket.reason}</td>
-                  <td className="px-4 py-3"><Badge variant={ticket.status === "approved" ? "default" : "outline"}>{ticket.status === "approved" ? translate("academicScheduleUI.approved") : ticket.status === "rejected" ? translate("academicScheduleUI.rejected") : translate("academicScheduleUI.pending")}</Badge></td>
-                  <td className="whitespace-nowrap px-4 py-3 text-body-xs text-muted-foreground">{formatIsoDate(new Date(ticket.createdAt))}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </AdminTable>
-      )}
+      {activeTab === "tickets" && ((data.tickets ?? []).length === 0 ? (
+        <AdminEmptyState compact title={translate("academicScheduleUI.noTickets")} />
+      ) : (
+        <>
+          <ul className="divide-y divide-border/60 border-y border-border/60 md:hidden">
+            {data.tickets.map((ticket: any) => (
+              <li key={ticket.id} className="space-y-1 py-(--row-padding)">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-body-sm font-semibold">{translate("academicScheduleUI.requestType", { type: ticket.type })}</p>
+                  {ticketStatus(ticket.status)}
+                </div>
+                <p className="wrap-break-word text-body-xs text-muted-foreground">
+                  {[ticket.booking?.group?.name, ticket.booking?.course?.title, ticket.tutor?.name && translate("academicScheduleUI.tutorPrefix", { name: ticket.tutor.name }), formatIsoDate(new Date(ticket.createdAt))].filter(Boolean).join(" · ")}
+                </p>
+                <p className="whitespace-pre-wrap wrap-break-word text-body-sm">{ticket.reason}</p>
+              </li>
+            ))}
+          </ul>
+          <AdminTable className="hidden md:block">
+            <table className="w-full text-left text-body-sm">
+              <AdminTableHead><tr><th>{translate("academicScheduleUI.ticketTypeGroup")}</th><th>{translate("academicScheduleUI.courseTutor")}</th><th>{translate("academicScheduleUI.reason")}</th><th>{translate("academicScheduleUI.status")}</th><th>{translate("academicScheduleUI.date")}</th></tr></AdminTableHead>
+              <tbody className="divide-y divide-border">
+                {data.tickets.map((ticket: any) => (
+                  <tr key={ticket.id} className="align-top hover:bg-muted/30">
+                    <td className="px-4 py-3"><p className="font-semibold capitalize text-foreground">{translate("academicScheduleUI.requestType", { type: ticket.type })}</p><p className="text-body-xs text-muted-foreground">{ticket.booking?.group?.name}</p></td>
+                    <td className="px-4 py-3 text-body-xs"><p>{ticket.booking?.course?.title}</p><p className="text-muted-foreground">{translate("academicScheduleUI.tutorPrefix", { name: ticket.tutor?.name ?? "" })}</p></td>
+                    <td className="max-w-sm whitespace-pre-wrap break-words px-4 py-3 text-body-xs text-muted-foreground">{ticket.reason}</td>
+                    <td className="px-4 py-3">{ticketStatus(ticket.status)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-body-xs text-muted-foreground">{formatIsoDate(new Date(ticket.createdAt))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </AdminTable>
+        </>
+      ))}
 
-      {activeTab === "audit" && (
-        <AdminTable>
-          <table className="w-full min-w-3xl text-left text-body-sm">
-            <AdminTableHead><tr><th>{translate("academicScheduleUI.activity")}</th><th>{translate("academicScheduleUI.groupClass")}</th><th>{translate("academicScheduleUI.actor")}</th><th>{translate("academicScheduleUI.time")}</th></tr></AdminTableHead>
-            <tbody className="divide-y divide-border">
-              {(data?.auditLogs ?? []).length === 0 ? <tr><td colSpan={4}><AdminEmptyState compact title={translate("academicScheduleUI.noActivity")} /></td></tr> : (data?.auditLogs ?? []).map((log: any) => (
-                <tr key={log.id} className="hover:bg-muted/30"><td className="max-w-lg whitespace-pre-wrap break-words px-4 py-3 text-body-xs font-semibold">{log.summary}</td><td className="px-4 py-3 text-body-xs"><p>{log.booking?.group?.name}</p><p className="text-muted-foreground">{log.booking?.course?.title}</p></td><td className="px-4 py-3 text-body-xs text-muted-foreground">{log.actor?.name || translate("academicScheduleUI.system")}</td><td className="whitespace-nowrap px-4 py-3 text-body-xs text-muted-foreground">{formatIsoDate(new Date(log.createdAt))}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </AdminTable>
-      )}
+      {activeTab === "audit" && ((data.auditLogs ?? []).length === 0 ? (
+        <AdminEmptyState compact title={translate("academicScheduleUI.noActivity")} />
+      ) : (
+        <>
+          <ul className="divide-y divide-border/60 border-y border-border/60 md:hidden">
+            {data.auditLogs.map((log: any) => (
+              <li key={log.id} className="space-y-1 py-(--row-padding)">
+                <p className="whitespace-pre-wrap wrap-break-word text-body-sm font-semibold">{log.summary}</p>
+                <p className="wrap-break-word text-body-xs text-muted-foreground">
+                  {[log.booking?.group?.name, log.booking?.course?.title, log.actor?.name || translate("academicScheduleUI.system"), formatIsoDate(new Date(log.createdAt))].filter(Boolean).join(" · ")}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <AdminTable className="hidden md:block">
+            <table className="w-full text-left text-body-sm">
+              <AdminTableHead><tr><th>{translate("academicScheduleUI.activity")}</th><th>{translate("academicScheduleUI.groupClass")}</th><th>{translate("academicScheduleUI.actor")}</th><th>{translate("academicScheduleUI.time")}</th></tr></AdminTableHead>
+              <tbody className="divide-y divide-border">
+                {data.auditLogs.map((log: any) => (
+                  <tr key={log.id} className="hover:bg-muted/30"><td className="max-w-lg whitespace-pre-wrap break-words px-4 py-3 text-body-xs font-semibold">{log.summary}</td><td className="px-4 py-3 text-body-xs"><p>{log.booking?.group?.name}</p><p className="text-muted-foreground">{log.booking?.course?.title}</p></td><td className="px-4 py-3 text-body-xs text-muted-foreground">{log.actor?.name || translate("academicScheduleUI.system")}</td><td className="whitespace-nowrap px-4 py-3 text-body-xs text-muted-foreground">{formatIsoDate(new Date(log.createdAt))}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </AdminTable>
+        </>
+      ))}
 
-      {activeTab === "tutors" && (
-        <AdminTable>
-          <table className="w-full min-w-3xl text-left text-body-sm">
-            <AdminTableHead><tr><th>{translate("academicScheduleUI.tutor")}</th><th>{translate("academicScheduleUI.certifiedCourses")}</th><th>{translate("academicScheduleUI.openedSlots")}</th><th className="text-right">{translate("academicScheduleUI.actions")}</th></tr></AdminTableHead>
-            <tbody className="divide-y divide-border">
-              {data.tutors.length === 0 ? <tr><td colSpan={4}><AdminEmptyState compact title={translate("academicScheduleUI.noTutors")} /></td></tr> : data.tutors.map((tutor: any) => (
-                <tr key={tutor.id} className="hover:bg-muted/30"><td className="px-4 py-3 text-body-xs font-semibold">{tutor.name}</td><td className="px-4 py-3"><div className="flex flex-wrap gap-1">{(tutor.tutorCourses || []).length ? tutor.tutorCourses.map((item: any) => <Badge key={item.courseId} variant="outline" className="rounded-md text-body-2xs">{item.course?.title}</Badge>) : <span className="text-body-xs text-muted-foreground">{translate("academicScheduleUI.noCerts")}</span>}</div></td><td className="px-4 py-3 text-body-xs text-muted-foreground">{data.slots.filter((slot: any) => slot.tutorId === tutor.id).length}</td><td className="px-4 py-3 text-right"><Button variant="outline" size="sm" onClick={() => handleOpenCertDialog(tutor)} className="h-8"><GraduationCap className="size-3.5" />{translate("academicScheduleUI.manage")}</Button></td></tr>
-              ))}
-            </tbody>
-          </table>
-        </AdminTable>
-      )}
+      {activeTab === "tutors" && (data.tutors.length === 0 ? (
+        <AdminEmptyState compact title={translate("academicScheduleUI.noTutors")} />
+      ) : (
+        <>
+          <ul className="divide-y divide-border/60 border-y border-border/60 md:hidden">
+            {data.tutors.map((tutor: any) => (
+              <li key={tutor.id} className="space-y-1 py-(--row-padding)">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 wrap-break-word text-body-sm font-semibold">{tutor.name}</p>
+                  <Button variant="ghost" size="sm" onClick={() => handleOpenCertDialog(tutor)} className="min-h-9 shrink-0">
+                    <GraduationCap className="size-4" aria-hidden />
+                    {translate("academicScheduleUI.manage")}
+                  </Button>
+                </div>
+                <p className="wrap-break-word text-body-xs text-muted-foreground">
+                  {tutor.tutorCourses?.map((item: any) => item.course?.title).filter(Boolean).join(" · ") || translate("academicScheduleUI.noCerts")}
+                </p>
+                <p className="text-body-xs text-muted-foreground">
+                  {translate("academicScheduleUI.openedSlots")} {data.slots.filter((slot: any) => slot.tutorId === tutor.id).length}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <AdminTable className="hidden md:block">
+            <table className="w-full text-left text-body-sm">
+              <AdminTableHead><tr><th>{translate("academicScheduleUI.tutor")}</th><th>{translate("academicScheduleUI.certifiedCourses")}</th><th>{translate("academicScheduleUI.openedSlots")}</th><th className="text-right">{translate("academicScheduleUI.actions")}</th></tr></AdminTableHead>
+              <tbody className="divide-y divide-border">
+                {data.tutors.map((tutor: any) => (
+                  <tr key={tutor.id} className="hover:bg-muted/30"><td className="px-4 py-3 text-body-xs font-semibold">{tutor.name}</td><td className="px-4 py-3"><div className="flex flex-wrap gap-1">{(tutor.tutorCourses || []).length ? tutor.tutorCourses.map((item: any) => <Badge key={item.courseId} variant="outline" className="rounded-md text-body-2xs">{item.course?.title}</Badge>) : <span className="text-body-xs text-muted-foreground">{translate("academicScheduleUI.noCerts")}</span>}</div></td><td className="px-4 py-3 text-body-xs text-muted-foreground">{data.slots.filter((slot: any) => slot.tutorId === tutor.id).length}</td><td className="px-4 py-3 text-right"><Button variant="outline" size="sm" onClick={() => handleOpenCertDialog(tutor)} className="h-8"><GraduationCap className="size-3.5" />{translate("academicScheduleUI.manage")}</Button></td></tr>
+                ))}
+              </tbody>
+            </table>
+          </AdminTable>
+        </>
+      ))}
 
       <Dialog open={availabilityOpen} onOpenChange={setAvailabilityOpen}>
         <DialogContent className="max-w-lg">

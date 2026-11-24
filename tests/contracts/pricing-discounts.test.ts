@@ -50,6 +50,17 @@ test("expired default campaigns retain existing regular prices", () => {
   expect(url).not.toContain("31 Oktober");
 });
 
+test("manual and automatic tutor estimates discount the tutorial pool once", () => {
+  const now = new Date("2026-11-06T12:00:00+07:00");
+  const automatic = getTutorFeeQuote(15, 3, 3, undefined, settings, now);
+  const manual = getTutorFeeQuote(15, 3, 3, automatic.regular.packagePrice, settings, now);
+  expect(automatic.introductory.tutorFeeTotal).toBe(2_234_167);
+  expect(manual.custom).toEqual(automatic.introductory);
+  const exhausted = getTutorFeeQuote(15, 3, 3, 100, settings, now);
+  expect(exhausted.custom?.tutorFeeTotal).toBe(0);
+  expect(exhausted.custom?.packagePrice).toBe(100);
+});
+
 test("WhatsApp uses the same saved component discounts as the public quote", () => {
   const active = {
     platform: { percent: 20, startsOn: "2000-01-01", endsOn: "2099-12-31" },

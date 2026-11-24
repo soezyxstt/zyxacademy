@@ -28,7 +28,7 @@ export default async function AdminCourseQuestionsPage({ params }: Props) {
   if (!data) notFound();
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="min-w-0 space-y-(--compact-gap)">
       <CourseDetailHeader course={data.course} />
       <QuestionsTab
         courseId={data.course.id}

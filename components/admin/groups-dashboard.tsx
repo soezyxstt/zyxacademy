@@ -566,7 +566,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
         <AdminErrorState message={translate("groupsUI.systemError")} onRetry={refreshGroups} />
       ) : (
       <AdminTable className={stale ? "opacity-60" : undefined}>
-        <div className="md:hidden divide-y divide-border">
+        <div className="divide-y divide-border/60 md:hidden">
           {filteredGroups.length === 0 ? (
             <div className="px-4 py-10 text-center text-muted-foreground text-body-sm">
               {stale ? translate("shortLinksUI.loading") : translate("groupsUI.noGroups")}
@@ -590,7 +590,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                   ? translate("groupsUI.inactive")
                   : translate("groupsUI.archived");
               return (
-                <div key={g.id} className="flex items-start justify-between gap-2.5 px-3.5 py-3">
+                <div key={g.id} className="flex items-start justify-between gap-2.5 py-(--row-padding)">
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Button
@@ -881,7 +881,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
 
       {/* 4. Dialog: Buat Kelompok Baru */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-xl rounded-xl border border-border p-6 shadow-xl">
+        <DialogContent className="max-w-xl max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
               <Users className="size-5 text-brand-primary" />
@@ -1074,7 +1074,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
               />
             </div>
 
-            <DialogFooter className="gap-2 pt-2">
+            <DialogFooter className="flex-row flex-wrap items-center justify-end">
               <DialogClose asChild>
                 <Button variant="outline" type="button" disabled={formLoading}>
                   {translate("groupsUI.cancel")}
@@ -1095,7 +1095,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
 
       {/* 5. Dialog: Edit Kelompok */}
       <Dialog open={!!editingGroup} onOpenChange={(open) => !open && setEditingGroup(null)}>
-        <DialogContent className="max-w-xl rounded-xl border border-border p-6 shadow-xl">
+        <DialogContent className="max-w-xl max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
               <Edit3 className="size-5 text-brand-primary" />
@@ -1268,7 +1268,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
               </div>
             </div>
 
-            <DialogFooter className="gap-2 pt-2">
+            <DialogFooter className="flex-row flex-wrap items-center justify-end">
               <DialogClose asChild>
                 <Button variant="outline" type="button" disabled={formLoading}>
                   {translate("groupsUI.cancel")}
@@ -1289,7 +1289,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
 
       {/* 6. Modal Detail & Kelola Anggota */}
       <Dialog open={!!detailGroup} onOpenChange={(open) => { if (!open) { detailRequest.current++; handleSearchUsers(""); setDetailGroup(null); } }}>
-        <DialogContent className="max-w-2xl rounded-xl border border-border p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85dvh] overflow-y-auto">
           {detailGroup && (
             <div className="space-y-4">
               <DialogHeader>
@@ -1309,7 +1309,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
               </DialogHeader>
 
               {/* Quota Summary Box */}
-              <div className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
+              <div className="space-y-(--compact-gap) border-y border-border/60 py-(--row-padding)">
                 <div className="flex items-center justify-between text-body-sm font-semibold">
                   <span className="text-foreground">{translate("groupsUI.activityThisWeek")}</span>
                   <span className="text-brand-primary font-bold">
@@ -1368,7 +1368,7 @@ export function GroupsDashboard({ initialGroups, coursesList, initialTotal, init
                 </div>
 
                 {/* Member List */}
-                <div className="divide-y divide-border border border-border rounded-xl bg-card overflow-hidden">
+                <div className="divide-y divide-border/60 border-y border-border/60">
                   {detailGroup.members.length === 0 ? (
                     <div className="p-4 text-center text-body-xs text-muted-foreground">
                       {translate("groupsUI.noMembers")}

@@ -1,5 +1,33 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function RegistrationsLoading() {
-  return <div role="status" aria-label="Memuat" className="space-y-5"><div className="flex items-center gap-3 border-b border-border pb-4"><Skeleton className="size-9" /><Skeleton className="h-7 w-40" /></div><Skeleton className="h-10 w-80 max-w-full" /><div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-3">{Array.from({ length: 3 }, (_, i) => <div key={i} className="space-y-2 bg-card p-4"><Skeleton className="h-4 w-24" /><Skeleton className="h-7 w-12" /></div>)}</div><div className="flex gap-2"><Skeleton className="h-9 max-w-sm flex-1" /><Skeleton className="h-9 w-32" /></div><div className="divide-y divide-border border-y border-border">{Array.from({ length: 5 }, (_, i) => <div key={i} className="flex items-center gap-3 p-4"><Skeleton className="size-9" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-48" /></div><Skeleton className="h-5 w-20" /></div>)}</div></div>;
+  return (
+    <div role="status" aria-label="Memuat" className="min-w-0 space-y-(--related-gap)">
+      <Skeleton className="h-9 w-80 max-w-full" />
+      <div className="grid grid-cols-2 gap-px border-y border-border/60 bg-border/60 sm:grid-cols-3">
+        {[0, 1, 2].map((index) => (
+          <div key={index} className="space-y-2 bg-background p-(--compact-gap)">
+            <Skeleton className="h-4 w-24 max-w-full" />
+            <Skeleton className="h-6 w-12" />
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Skeleton className="size-9" />
+        <Skeleton className="h-9 w-28" />
+      </div>
+      <div className="divide-y divide-border/60 border-y border-border/60">
+        {[0, 1, 2, 3, 4].map((index) => (
+          <div key={index} className="flex min-w-0 items-start gap-2.5 py-(--row-padding)">
+            <Skeleton className="size-8 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-40 max-w-full" />
+              <Skeleton className="h-3 w-48 max-w-full" />
+            </div>
+            <Skeleton className="size-10 shrink-0" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

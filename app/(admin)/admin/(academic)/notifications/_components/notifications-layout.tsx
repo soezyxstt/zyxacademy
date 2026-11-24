@@ -22,8 +22,8 @@ export function NotificationsLayout({
 
   if (viewportMode === "mobile") {
     return (
-      <Tabs defaultValue="compose" syncUrl={false} className="space-y-4">
-        <TabsList variant="inline">
+      <Tabs defaultValue="compose">
+        <TabsList>
           <TabsTrigger value="compose">{composeLabel}</TabsTrigger>
           <TabsTrigger value="history">{historyLabel}</TabsTrigger>
         </TabsList>
@@ -43,7 +43,7 @@ export function NotificationsLayout({
     <>
       <section className="max-w-3xl">
         <div className="mb-3 flex items-center gap-2">
-          <Bell className="size-4 text-brand-primary" aria-hidden />
+          <Bell className="size-4 text-muted-foreground" aria-hidden />
           <h2 className="font-heading text-body-base font-semibold text-foreground">
             {composeLabel}
           </h2>

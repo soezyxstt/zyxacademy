@@ -631,6 +631,7 @@
     "answerSheet": "Answer sheet: {exam}",
     "autoKey": "Automatic answer key",
     "studentAnswer": "Student answer:",
+    "selectedAnswer": "Selected",
     "correctAnswer": "Correct answer key:",
     "essayAnswer": "Student essay answer:",
     "noEssayAnswer": "The student did not enter an essay answer.",

@@ -9,7 +9,6 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { FormFieldWrapper } from "@/components/ui/form-field-wrapper";
-import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 
 interface SelectOption {
@@ -72,10 +71,6 @@ function SelectField({
       >
         <SelectTrigger
           id={selectId}
-          className={cn(
-            error && "border-status-error focus-visible:ring-status-error/30 focus-visible:border-status-error",
-            disabled && "cursor-not-allowed opacity-50 bg-muted"
-          )}
           aria-invalid={!!error}
         >
           <SelectValue placeholder={placeholder ?? t("selectPlaceholder")} />

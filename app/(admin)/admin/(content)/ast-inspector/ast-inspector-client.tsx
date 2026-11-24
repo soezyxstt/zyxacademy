@@ -265,12 +265,12 @@ export function ASTInspectorClient() {
 
   return (
     <div className="w-full">
-      <div className="flex flex-col h-[calc(100vh-250px)] bg-background text-foreground overflow-hidden font-sans border border-border rounded-xl shadow-xs">
+      <div className="flex min-w-0 flex-col md:h-[max(32rem,calc(100dvh-12rem))] md:border-y md:border-border/60">
         {/* DUAL PANE */}
-        <div className="flex flex-1 flex-col overflow-auto md:flex-row md:overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           {/* LEFT PANE: EDITOR */}
-          <div className="flex min-h-80 w-full flex-col border-b border-border bg-card md:w-1/2 md:border-b-0 md:border-r">
-            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 bg-muted/40 border-b border-border">
+          <div className="flex min-w-0 flex-col border-b border-border/60 md:w-1/2 md:border-b-0 md:border-r">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 py-2 md:pe-(--compact-gap)">
               <span className="text-body-xs font-mono font-semibold text-muted-foreground flex items-center gap-1.5">
                 <Terminal className="size-3.5" />
                 <span>canonical-markdown.md</span>
@@ -278,70 +278,68 @@ export function ASTInspectorClient() {
 
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-body-xs text-muted-foreground font-medium">{t("astInspectorUI.demo")}</span>
-                <Button size="sm" variant="outline"
+                <Button size="sm" variant="ghost"
                   type="button"
                   onClick={() => loadTemplate("standard")}
-                  className="px-2 py-1 rounded-md border border-border text-body-xs font-medium hover:bg-muted bg-background transition-colors cursor-pointer"
+                  className="min-h-9 px-2"
                 >
                   {t("astInspectorUI.standard")}
                 </Button>
-                <Button size="sm" variant="outline"
+                <Button size="sm" variant="ghost"
                   type="button"
                   onClick={() => loadTemplate("leakage")}
-                  className="px-2 py-1 rounded-md border border-border text-body-xs font-medium hover:bg-muted bg-background transition-colors cursor-pointer"
+                  className="min-h-9 px-2"
                 >
                   {t("astInspectorUI.leakage")}
                 </Button>
-                <Button size="sm" variant="outline"
+                <Button size="sm" variant="ghost"
                   type="button"
                   onClick={() => loadTemplate("visual")}
-                  className="px-2 py-1 rounded-md border border-border text-body-xs font-medium hover:bg-muted bg-background transition-colors cursor-pointer"
+                  className="min-h-9 px-2"
                 >
                   {t("astInspectorUI.visual")}
                 </Button>
 
-                <div className="w-px h-4 bg-border mx-1" />
-
-                <label className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-body-xs font-medium hover:bg-muted bg-background cursor-pointer transition-colors">
+                <label className="inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-md px-2 text-body-sm font-medium transition-colors hover:bg-muted focus-within:outline-2 focus-within:outline-ring">
                   <Upload className="size-3" />
                   <span>{t("astInspectorUI.import")}</span>
-                  <input type="file" accept=".json" onChange={handleImport} className="hidden" />
+                  <input type="file" accept=".json" onChange={handleImport} className="sr-only" />
                 </label>
 
-                <Button size="sm" variant="outline"
+                <Button size="sm" variant="ghost"
                   type="button"
                   onClick={handleExport}
                   disabled={!result}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-body-xs font-medium hover:bg-muted bg-background disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  className="min-h-9 px-2"
                 >
                   <Download className="size-3" />
                   <span>{t("astInspectorUI.export")}</span>
                 </Button>
               </div>
 
-              <Button size="sm" variant="outline"
+              <Button size="sm"
                 type="button"
                 onClick={handleCompile}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-brand-primary text-primary-foreground text-body-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+                className="ms-auto min-h-9"
               >
                 <Play className="size-3" />
                 <span>{t("astInspectorUI.compile")}</span>
               </Button>
             </div>
-            <div className="flex-1 p-4 overflow-hidden relative">
+            <div className="min-h-0 flex-1 py-(--compact-gap) md:pe-(--compact-gap)">
               <Textarea
                 value={markdown}
                 onChange={(e) => setMarkdown(e.target.value)}
-                className="w-full h-full p-4 font-mono text-body-sm leading-relaxed bg-card text-foreground rounded-xl border border-border/80 focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none overflow-y-auto"
+                className="min-h-56 w-full resize-y overflow-y-auto p-3 font-mono text-body-sm leading-relaxed md:h-full md:min-h-0 md:resize-none"
                 placeholder={t("astInspectorUI.markdownPlaceholder")}
               />
             </div>
           </div>
 
         {/* RIGHT PANE: VIEWER */}
-        <div className="w-full min-h-80 flex flex-col bg-background md:w-1/2">
+        <div className="flex min-w-0 flex-col md:w-1/2">
           {/* TABS */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={setActiveTab} syncUrl={false} className="py-2 md:px-(--compact-gap)">
             <TabsList variant="inline">
               {[
                 { id: "preview", label: t("astInspectorUI.livePreview"), icon: <Eye className="size-3.5" /> },
@@ -360,7 +358,7 @@ export function ASTInspectorClient() {
           </Tabs>
 
           {/* TAB CONTENTS */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="min-w-0 flex-1 py-(--compact-gap) md:overflow-y-auto md:ps-(--compact-gap)">
             {!result ? (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <RefreshCw className="size-8 animate-spin mb-2" />

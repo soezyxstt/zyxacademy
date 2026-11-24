@@ -173,6 +173,7 @@
       "status": {
         "published": "Published",
         "draft": "Draft",
+        "in_review": "In review",
         "retired": "Retired"
       },
       "search": "Search concepts, questions, or explanations...",

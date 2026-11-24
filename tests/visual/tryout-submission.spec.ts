@@ -4,9 +4,10 @@ import { buildFixture } from "./fixtures/interactive-document-build";
 const origin = "http://tryout-submission.invalid";
 let fixture: Awaited<ReturnType<typeof buildFixture>>;
 test.beforeAll(async () => {
+  test.setTimeout(120_000);
   fixture = await buildFixture("tests/visual/fixtures/tryout-submission.tsx", "", {
     "@/app/actions/tutor-management": "export async function submitTryoutAction(_course, _exam, answers) { return window.tryoutFixture.submit(answers); }",
-    "next/navigation": "export const useRouter=()=>({push(href){window.tryoutFixture.destination=href;}});",
+    "next/navigation": "export const useRouter=()=>({push(href){window.tryoutFixture.destination=href;}}); export const usePathname=()=>'/fixture';",
   });
 });
 
@@ -46,6 +47,11 @@ for (const mode of ["rejected", "exception", "custom-timeout"] as const) {
     await page.addScriptTag({ content: fixture.script });
 
     await page.getByRole("radio", { name: "Dua" }).check();
+    await expect(page.getByRole("button", { name: /kumpulkan/i })).toHaveCount(0);
+    const footer = page.locator("[data-tryout-mobile-bottombar]");
+    if (info.project.name === "mobile-380") {
+      await expect(footer.getByRole("button")).toHaveCount(2);
+    }
     await page.getByRole("button", { name: "Lanjut", exact: true }).click();
     const essay = page.locator("textarea");
     await essay.fill("Saya gunakan bilangan genap.");
@@ -54,7 +60,18 @@ for (const mode of ["rejected", "exception", "custom-timeout"] as const) {
       await expect(page.getByText("answer.pdf", { exact: true })).toBeVisible();
     }
     const openConfirmation = async () => {
-      await page.getByRole("button", { name: "Kumpulkan jawaban", exact: true }).click();
+      const submit = page.getByRole("button", { name: "Kumpulkan jawaban", exact: true });
+      if (info.project.name === "mobile-380") {
+        await expect(footer.getByRole("button")).toHaveCount(2);
+        expect(await submit.evaluate(button => {
+          return Math.abs(button.getBoundingClientRect().right - button.parentElement!.getBoundingClientRect().right);
+        })).toBeLessThanOrEqual(1);
+      }
+      await submit.click();
+      await expect(page.getByRole("button", { name: "Periksa kembali", exact: true })).toBeFocused();
+      if (!custom && mode === "rejected") {
+        await page.screenshot({ path: info.outputPath("tryout-confirmation.png"), animations: "disabled" });
+      }
       return page.getByRole("button", { name: "Ya, kumpulkan", exact: true });
     };
     if (custom) {

@@ -17,10 +17,12 @@ import { eq, and, inArray, desc } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
-import { createMetadata} from "@/lib/site";
+import { createMetadata } from "@/lib/site";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
 import { CalendarAgendaClient, type CalendarEventItem } from "./calendar-agenda-client";
 import { TranslatedText } from "@/components/i18n/translated-text";
+import { isCalendarDate, parseJakartaDatetimeLocal } from "@/lib/date-utils";
+import { compareAgendaEvents, getAgendaAssessment, getAgendaStatus } from "@/lib/student/agenda";
 import { getTranslations } from "@/lib/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -42,8 +44,6 @@ export default async function CalendarPage() {
   const enrolledCourseIds = enrollments.map((e) => e.id);
 
   const now = new Date();
-  const nowMs = now.getTime();
-  const todayDateStr = now.toISOString().slice(0, 10);
 
   const events: CalendarEventItem[] = [];
 
@@ -57,6 +57,7 @@ export default async function CalendarPage() {
           category: quizTemplates.category,
           openAt: quizTemplates.openAt,
           closeAt: quizTemplates.closeAt,
+          manualStatus: quizTemplates.manualStatus,
           courseId: quizTemplates.courseId,
           courseTitle: courses.title,
         })
@@ -71,28 +72,19 @@ export default async function CalendarPage() {
         .limit(30);
 
       for (const q of activeQuizzes) {
-        const targetDate = q.closeAt || q.openAt || null;
-        if (!targetDate) continue;
-
-        const dateObj = new Date(targetDate);
-        const dateIso = dateObj.toISOString().slice(0, 10);
-        const isPast = dateObj.getTime() < nowMs;
-        const isToday = dateIso === todayDateStr;
+        const entry = getAgendaAssessment(q, now);
+        if (!entry) continue;
 
         events.push({
           id: `quiz-${q.id}`,
           title: q.title,
           courseTitle: q.courseTitle,
           category: "quiz",
-          categoryLabel: q.category === "simulation" ? "Simulasi" : "Kuis",
-          dateStr: "",
-          timeStr: "",
-          dateValue: dateObj.toISOString(),
-          timeValue: targetDate.toISOString(),
-          timeKind: q.closeAt ? "deadline" : "available",
+          categoryLabel: q.category === "simulation" ? "quizSimulation" : "quiz",
+          dateValue: entry.date.toISOString(),
+          timeKind: entry.timeKind,
           actionUrl: `/courses/${q.courseId}/quiz/${q.id}`,
-          actionLabel: isPast ? "Tinjau Kuis" : "Kerjakan Kuis",
-          status: isToday ? "today" : isPast ? "past" : "upcoming",
+          status: entry.status,
         });
       }
     } catch (e) {
@@ -124,28 +116,19 @@ export default async function CalendarPage() {
         .limit(20);
 
       for (const ex of activeExams) {
-        const targetDate = ex.openAt || ex.closeAt || null;
-        if (!targetDate) continue;
-
-        const dateObj = new Date(targetDate);
-        const dateIso = dateObj.toISOString().slice(0, 10);
-        const isPast = (ex.closeAt ? new Date(ex.closeAt).getTime() : dateObj.getTime()) < nowMs;
-        const isToday = dateIso === todayDateStr;
+        const entry = getAgendaAssessment(ex, now);
+        if (!entry) continue;
 
         events.push({
           id: `exam-${ex.id}`,
           title: ex.title,
           courseTitle: ex.courseTitle,
           category: "tryout",
-          categoryLabel: ex.type === "tryout" ? "Tryout" : "Ujian",
-          dateStr: "",
-          timeStr: "",
-          dateValue: dateObj.toISOString(),
-          timeValue: targetDate.toISOString(),
-          timeKind: "time",
+          categoryLabel: ex.type === "tryout" ? "tryout" : "exam",
+          dateValue: entry.date.toISOString(),
+          timeKind: entry.timeKind,
           actionUrl: `/courses/${ex.courseId}/tryout/${ex.id}`,
-          actionLabel: isPast ? "Tinjau Tryout" : "Buka Tryout",
-          status: isToday ? "today" : isPast ? "past" : "upcoming",
+          status: entry.status,
         });
       }
     } catch (e) {
@@ -177,50 +160,40 @@ export default async function CalendarPage() {
       .limit(15);
 
     for (const b of studentBookings) {
-      if (!b.sessionDate) continue;
+      if (!b.sessionDate || !isCalendarDate(b.sessionDate)) continue;
 
-      const dateParts = b.sessionDate.split("-");
-      const sessionDateObj = new Date(
-        parseInt(dateParts[0], 10),
-        parseInt(dateParts[1], 10) - 1,
-        parseInt(dateParts[2], 10)
-      );
+      const startTime = b.startTime.trim().slice(0, 5);
+      const endTime = b.endTime.trim().slice(0, 5);
+      const wallTime = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+      if (!wallTime.test(startTime) || !wallTime.test(endTime)) continue;
 
-      const isToday = b.sessionDate === todayDateStr;
-      const isPast = b.status === "completed" || b.status === "cancelled" || sessionDateObj.getTime() + 86400000 < nowMs;
+      const start = parseJakartaDatetimeLocal(`${b.sessionDate.trim()}T${startTime}`);
+      const end = parseJakartaDatetimeLocal(`${b.sessionDate.trim()}T${endTime}`);
+      const cancelled = b.status === "cancelled";
+      const past = b.status === "completed" || cancelled || end < now;
 
-        events.push({
+      events.push({
         id: `booking-${b.id}`,
-          title: "",
+        title: "",
         courseTitle: b.courseTitle,
         category: "tutorial",
-        categoryLabel: "Tutorial Kelompok",
-          dateStr: "",
-          timeStr: "",
-          dateValue: new Date(Date.UTC(sessionDateObj.getFullYear(), sessionDateObj.getMonth(), sessionDateObj.getDate(), 12)).toISOString(),
-          timeKind: b.startTime ? "range" : "scheduled",
-          scheduledRange: b.startTime ? `${b.startTime} - ${b.endTime || "Selesai"}` : undefined,
-          tutorialTopic: b.topic,
-          tutorName: b.tutorName,
+        categoryLabel: "tutorialGroup",
+        dateValue: start.toISOString(),
+        timeKind: "range",
+        scheduledRange: `${startTime} - ${endTime}`,
+        tutorialTopic: b.topic,
+        tutorName: b.tutorName,
         actionUrl: "/dashboard/schedule",
-        actionLabel: "Lihat Detail",
-        isOnlineMeet: Boolean(b.googleMeetUrl),
-        meetUrl: b.googleMeetUrl,
-        status: isToday ? "today" : isPast ? "past" : "upcoming",
+        meetUrl: past ? null : b.googleMeetUrl,
+        cancelled,
+        status: getAgendaStatus(start, past, now),
       });
     }
   } catch (e) {
     console.error("Error loading tutorial bookings for calendar:", e);
   }
 
-  // Sort events: today first, then upcoming ascending, then past descending
-  events.sort((a, b) => {
-    if (a.status === "today" && b.status !== "today") return -1;
-    if (b.status === "today" && a.status !== "today") return 1;
-    if (a.status === "upcoming" && b.status === "past") return -1;
-    if (a.status === "past" && b.status === "upcoming") return 1;
-    return 0;
-  });
+  events.sort(compareAgendaEvents);
 
   return (
     <ApplicationPage>
@@ -229,7 +202,7 @@ export default async function CalendarPage() {
         icon={CalendarDays}
       />
 
-      <Reveal className="mt-6">
+      <Reveal>
         <CalendarAgendaClient events={events} canSync={(await getPeranCodes(userId)).some(role => role === "murid" || role === "tutor")} />
       </Reveal>
     </ApplicationPage>

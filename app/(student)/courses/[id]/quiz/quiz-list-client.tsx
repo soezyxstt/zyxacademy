@@ -5,7 +5,7 @@ import { useStudentExperience } from "@/components/student-experience-provider";
 import { Lock, ClipboardList } from "lucide-react";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { useTranslations } from "@/lib/i18n/client";
-import { cn } from "@/lib/utils";
+import { courseListRowClass } from "@/components/course/course-surfaces";
 import type { quizTemplates, studentQuizAttempts } from "@/db/schema";
 
 type TemplateType = Pick<typeof quizTemplates.$inferSelect, "id" | "title" | "visibility" | "category" | "selectionRules" | "timeLimitSeconds" | "manualStatus" | "openAt" | "closeAt">;
@@ -28,7 +28,7 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
 
   return (
     <div className="font-sans">
-      {templates.length > 0 && <ul className="divide-y divide-border/30">
+      {templates.length > 0 && <ul className="divide-y divide-border/20">
         {templates.map((template) => {
           const isFree = template.visibility === "free";
           const accessible = accessTier === "standard"
@@ -51,35 +51,31 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
 
           let isUpcoming = false;
           let isClosed = false;
-          let isOpen = true;
 
           if (template.manualStatus === "closed") {
-            isOpen = false;
             isClosed = true;
           } else if (template.manualStatus === "open") {
-            isOpen = true;
             isClosed = false;
           } else if (closeDate && now > closeDate) {
             isClosed = true;
-            isOpen = false;
           } else if (openDate && now < openDate) {
             isUpcoming = true;
-            isOpen = false;
           }
 
           const actionBadge = (() => {
             if (!accessible) {
               return (
-                <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
-                  {t("quizList.open")} <Lock className="size-3" />
+                <span className="shrink-0 text-muted-foreground">
+                  <Lock className="size-4" aria-hidden />
+                  <span className="sr-only">{t("quizList.locked")}</span>
                 </span>
               );
             }
             if (isClosed) {
               if (accessible && (template as any).showDiscussion) {
                 return (
-                  <span className="rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-2.5 py-1 text-body-xs font-semibold text-brand-primary shrink-0">
-                    {t("quizList.discussion")} ›
+                  <span className="shrink-0 text-body-xs font-semibold text-foreground">
+                    {t("quizList.discussion")}
                   </span>
                 );
               }
@@ -97,8 +93,8 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
               );
             }
             return (
-              <span className="rounded-lg bg-brand-primary/15 px-3 py-1.5 text-body-xs font-semibold text-brand-primary shrink-0 transition-colors group-hover:bg-brand-primary group-hover:text-primary-foreground">
-                {activeAttempt ? `${t("quizList.continue")} ›` : `${t("quizList.start")} ›`}
+              <span className="shrink-0 rounded-md bg-muted px-2.5 py-1 text-body-xs font-semibold text-foreground">
+                {activeAttempt ? t("quizList.continue") : t("quizList.start")}
               </span>
             );
           })();
@@ -112,13 +108,10 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
             <li key={template.id}>
               <Link
                 href={experience.href?.(targetHref) ?? targetHref}
-                className={cn(
-                  "group -mx-2.5 flex items-center justify-between gap-3 rounded-lg px-2.5 py-3 transition-colors",
-                  accessible && isOpen ? "hover:bg-muted/40 active:bg-muted/60" : "hover:bg-muted/40",
-                )}
+                className={courseListRowClass("justify-between [&>span]:self-center")}
               >
                 <div className="min-w-0 flex-1">
-                  <h3 className="break-words font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors">
+                  <h3 className="break-words font-heading text-body-sm font-semibold text-foreground">
                     {template.title}
                   </h3>
 
@@ -126,25 +119,18 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
                     <span>{t("quizList.questions", { count: qCount })}</span>
                     <span>·</span>
                     <span>{template.timeLimitSeconds ? t("quizList.minutes", { count: Math.round(template.timeLimitSeconds / 60) }) : t("quizList.noLimit")}</span>
-                    {template.category && (
+                    {template.category && template.category !== "premium" && (
                       <>
                         <span>·</span>
                         <span className="capitalize">{template.category}</span>
                       </>
                     )}
-                    <span>·</span>
-                    <span
-                      className={cn(
-                        "font-medium",
-                        !accessible
-                          ? "text-amber-600 dark:text-amber-400"
-                          : isFree
-                            ? "text-status-success font-medium"
-                            : "text-brand-primary",
-                      )}
-                    >
-                      {!accessible ? t("quizList.locked") : isFree ? t("quizList.free") : t("quizList.premium")}
-                    </span>
+                    {accessible && isFree && (
+                      <>
+                        <span>·</span>
+                        <span>{t("quizList.free")}</span>
+                      </>
+                    )}
                     {highestScore !== null && (
                       <>
                         <span>·</span>

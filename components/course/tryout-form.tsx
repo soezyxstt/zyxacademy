@@ -1,6 +1,8 @@
 "use client";
 
-import { ViewportSwitch } from "@/components/navigation";
+import { useHideMobileBottomNav } from "@/components/navigation/mobile-chrome-context";
+import { ViewportSwitch } from "@/components/navigation/viewport-switch";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   useTryoutForm,
   type AnswerState,
@@ -19,6 +21,7 @@ export type { AnswerState, TryoutPresentationExam };
  */
 export function TryoutForm(props: TryoutFormProps) {
   const controller = useTryoutForm(props);
+  useHideMobileBottomNav(!controller.submitted && Boolean(controller.q));
 
   if (controller.submitted || !controller.q) return null;
 
@@ -27,7 +30,11 @@ export function TryoutForm(props: TryoutFormProps) {
       <ViewportSwitch
         desktop={() => <TryoutFormDesktop props={props} controller={controller} />}
         mobile={() => <TryoutFormMobile props={props} controller={controller} />}
-        fallback={<TryoutFormDesktop props={props} controller={controller} />}
+        fallback={<div aria-busy="true" data-tryout-pending="" className="space-y-3">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-5 w-3/4" />
+          <Skeleton className="h-5 w-1/2" />
+        </div>}
       />
       <TryoutSubmitConfirmDialog controller={controller} />
     </>

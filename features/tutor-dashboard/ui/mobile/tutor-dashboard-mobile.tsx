@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  ArrowRight,
   BookOpen,
   CalendarDays,
   Clock3,
@@ -41,20 +40,20 @@ export function TutorDashboardMobile({
   ];
 
   return (
-    <div className="flex w-full min-w-0 flex-col space-y-5">
+    <div className="flex w-full min-w-0 flex-col space-y-(--section-gap)">
       <PageHeader title={t("title")} icon={LayoutDashboard} divider={false} />
 
       <section
         aria-label={t("summary")}
-        className="grid grid-cols-2 gap-x-4 gap-y-3 border-y border-border/40 py-3"
+        className="grid grid-cols-2 gap-x-4 gap-y-3 border-y border-border/55 py-3"
       >
         {statItems.map((item) => {
           const Icon = item.icon;
           return (
             <div key={item.label} className="min-w-0">
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Icon className="size-3.5 shrink-0" aria-hidden />
-                <span className="truncate text-body-xs font-medium">{item.label}</span>
+              <div className="flex items-start gap-1.5 text-muted-foreground">
+                <Icon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                <span className="text-body-sm font-medium">{item.label}</span>
               </div>
               <p className="mt-1 font-heading text-h5 font-bold tabular-nums text-foreground">
                 {item.value}
@@ -65,13 +64,13 @@ export function TutorDashboardMobile({
       </section>
 
       <section className="min-w-0">
-        <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
-          <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="flex items-center justify-between gap-2 border-b border-border/55 pb-2">
+          <h2 className="font-heading text-body-base font-bold text-foreground">
             {t("upcomingSessions")}
           </h2>
           <Link
             href="/tutor/schedule"
-            className="flex min-h-9 shrink-0 items-center text-body-xs font-semibold text-brand-primary"
+            className="flex min-h-9 shrink-0 items-center text-body-sm font-medium text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground"
           >
             {t("allSchedules")}
           </Link>
@@ -89,12 +88,12 @@ export function TutorDashboardMobile({
             className="py-4"
           />
         ) : (
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-border/55">
             {upcomingSessions.map((booking) => (
               <Link
                 key={booking.id}
                 href="/tutor/schedule?tab=sessions"
-                className="flex min-h-11 min-w-0 items-center justify-between gap-3 py-3 active:bg-muted/40"
+                className="flex min-h-11 min-w-0 items-start justify-between gap-3 py-(--row-padding) transition-colors active:bg-muted/40"
               >
                 <div className="min-w-0 flex-1">
                   <p className="break-words text-body-sm font-semibold text-foreground">
@@ -107,21 +106,18 @@ export function TutorDashboardMobile({
                       : ""}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2 text-right">
-                  <div className="tabular-nums">
-                    <p className="text-body-xs font-medium text-foreground">
-                      {booking.sessionDate
-                        ? formatTutorSessionDate(booking.sessionDate, locale)
-                        : t("dateUnspecified")}
+                <div className="shrink-0 text-right tabular-nums">
+                  <p className="text-body-xs font-medium text-foreground">
+                    {booking.sessionDate
+                      ? formatTutorSessionDate(booking.sessionDate, locale)
+                      : t("dateUnspecified")}
+                  </p>
+                  {booking.startTime && (
+                    <p className="text-body-xs text-muted-foreground">
+                      {booking.startTime}
+                      {booking.endTime ? `-${booking.endTime}` : ""}
                     </p>
-                    {booking.startTime && (
-                      <p className="text-body-xs text-muted-foreground">
-                        {booking.startTime}
-                        {booking.endTime ? `-${booking.endTime}` : ""}
-                      </p>
-                    )}
-                  </div>
-                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  )}
                 </div>
               </Link>
             ))}
@@ -130,8 +126,8 @@ export function TutorDashboardMobile({
       </section>
 
       <section className="min-w-0">
-        <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
-          <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="flex items-center justify-between gap-2 border-b border-border/55 pb-2">
+          <h2 className="font-heading text-body-base font-bold text-foreground">
             {t("attention")}
           </h2>
           {pendingTickets.length > 0 && (
@@ -148,12 +144,12 @@ export function TutorDashboardMobile({
             className="py-4"
           />
         ) : (
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-border/55">
             {pendingTickets.slice(0, 5).map((ticket) => (
               <Link
                 key={ticket.id}
                 href="/tutor/schedule?tab=tickets"
-                className="flex min-h-11 min-w-0 items-center justify-between gap-3 py-3 active:bg-muted/40"
+                className="flex min-h-11 min-w-0 items-start justify-between gap-3 py-(--row-padding) transition-colors active:bg-muted/40"
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-body-sm font-semibold text-foreground">
@@ -165,7 +161,6 @@ export function TutorDashboardMobile({
                     {ticket.reason}
                   </p>
                 </div>
-                <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               </Link>
             ))}
           </div>
@@ -173,8 +168,8 @@ export function TutorDashboardMobile({
       </section>
 
       <section className="min-w-0">
-        <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
-          <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="flex items-center justify-between gap-2 border-b border-border/55 pb-2">
+          <h2 className="font-heading text-body-base font-bold text-foreground">
             {t("teaching")}
           </h2>
           <span className="shrink-0 text-body-xs tabular-nums text-muted-foreground">
@@ -190,12 +185,12 @@ export function TutorDashboardMobile({
             className="py-5"
           />
         ) : (
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-border/55">
             {courses.map((course) => (
               <Link
                 key={course.courseId}
                 href={`/tutor/${course.courseId}`}
-                className="flex min-h-11 min-w-0 items-center justify-between gap-3 py-3 active:bg-muted/40"
+                className="flex min-h-11 min-w-0 items-start justify-between gap-3 py-(--row-padding) transition-colors active:bg-muted/40"
               >
                 <div className="min-w-0 flex-1">
                   <p className="break-words text-body-sm font-semibold text-foreground">
@@ -205,12 +200,9 @@ export function TutorDashboardMobile({
                     {course.code || t("courses")}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2 text-right">
-                  <span className="text-body-xs tabular-nums text-muted-foreground">
-                    {t("relatedGroups", { count: course.groupCount })}
-                  </span>
-                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                </div>
+                <span className="shrink-0 text-right text-body-xs tabular-nums text-muted-foreground">
+                  {t("relatedGroups", { count: course.groupCount })}
+                </span>
               </Link>
             ))}
           </div>

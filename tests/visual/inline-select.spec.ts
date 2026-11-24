@@ -14,6 +14,7 @@ test("inline filter keeps selection, focus and long options usable", async ({ pa
   await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
 
   const filter = page.getByRole("combobox", { name: "Filter mata kuliah" });
+  await expect(filter).toHaveText("Semua mata kuliah");
   await expect(page.getByRole("combobox", { name: "Rentang waktu" })).toBeDisabled();
   await expect(filter).toHaveCSS("border-top-width", "0px");
   const capture = async (state: string) => {
@@ -44,5 +45,42 @@ test("inline filter keeps selection, focus and long options usable", async ({ pa
   await expect(filter).toHaveText("Matematika dasar");
   await expect(filter).toBeFocused();
   await capture("selected");
+  expect(errors).toEqual([]);
+});
+
+test("shared selects are borderless with a visible form and validation outline", async ({ page }, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
+  page.on("response", response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
+
+  expect((await page.goto("/visual-fixtures/control-contrast"))?.status()).toBe(200);
+  await expect(page).toHaveURL(/\/visual-fixtures\/control-contrast$/);
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+
+  const field = page.getByRole("combobox", { name: "Mata kuliah pilihan" });
+  const invalid = page.getByRole("combobox", { name: "Mata kuliah wajib" });
+  const outlined = page.getByRole("combobox", { name: "Jawaban formulir" });
+  const search = page.getByRole("button", { name: "Cari dan pilih mata kuliah" });
+  await expect(field).toHaveText("Matematika dasar");
+  await expect(field).toHaveCSS("border-top-width", "0px");
+  await expect(search).toHaveCSS("border-top-width", "0px");
+  await expect(invalid).toHaveAttribute("aria-invalid", "true");
+  await expect(invalid).toHaveCSS("border-top-width", "1px");
+  await expect(outlined).toHaveCSS("border-top-width", "1px");
+
+  await field.press("Enter");
+  await page.getByRole("option", { name: "Fisika dasar" }).click();
+  await expect(field).toHaveText("Fisika dasar");
+  await expect(field).toBeFocused();
+  await search.click();
+  await page.getByRole("listbox").getByRole("button", { name: "Fisika dasar" }).click();
+  await expect(search).toHaveText("Fisika dasar");
+
+  for (const theme of ["light", "dark"]) {
+    if (theme === "dark") await page.getByRole("button", { name: "Ganti tema" }).click();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`select-fields-${theme}.png`), animations: "disabled" });
+  }
   expect(errors).toEqual([]);
 });

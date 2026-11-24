@@ -471,7 +471,7 @@
     "empty": "Kosong",
     "flaggedWarning": "Masih ada {count} soal yang ditandai ragu-ragu.",
     "unansweredWarning": "Ada {count} soal yang belum diisi. Soal kosong akan dianggap bernilai nol.",
-    "timeRemaining": "Sisa waktu ujian:",
+    "timeRemaining": "Sisa waktu ujian",
     "reviewAgain": "Periksa kembali",
     "confirmSubmit": "Ya, kumpulkan"
   },

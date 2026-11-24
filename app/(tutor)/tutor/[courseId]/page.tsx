@@ -93,7 +93,7 @@ export default async function TutorCoursePage({ params }: Props) {
   const updatedAt = snapshotRow?.updatedAt.toISOString() ?? null;
 
   return (
-    <ApplicationPage spacing="space-y-(--major-gap)">
+    <ApplicationPage spacing="space-y-(--section-gap)">
       {/* Section 1: headline stats */}
       <Reveal>
         <section>
@@ -103,7 +103,7 @@ export default async function TutorCoursePage({ params }: Props) {
             backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.teaching" />}
             divider={false}
           />
-          <AdminStatStrip className={analytics.engagement.quizParticipationPct > 0 ? "mt-3 sm:grid-cols-3" : "mt-3 sm:grid-cols-2"}>
+          <AdminStatStrip className={analytics.engagement.quizParticipationPct > 0 ? "sm:grid-cols-3" : "sm:grid-cols-2"}>
             <AdminStatStripItem
               label={<TranslatedText namespace="tutor" messageKey="routeTitles.enrolled" />}
               value={<span className="tabular-nums">{analytics.enrolledCount}</span>}

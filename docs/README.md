@@ -1,3 +1,5 @@
+`ACTIVE` local source: [Application workspaces](features.md) use neutral tab navigation, compact documentation, and assessment result rows. Quiz and tryout confirmation includes answered progress, remaining time when available, and actionable warnings.
+
 `ACTIVE` local source: the [AI model workflow](features.md#zyra-operations), [gateway setup](DEVELOPMENT.md#ai-gateway), [architecture](ARCHITECTURE.md#zyra-distributed-quota-coordinator) and [deployment guide](DEPLOYMENT.md#zyra-model-registry-staging-probe) describe dynamic Gateway discovery, release/creation date ordering, shared 12-hour catalog caching, 12-hour and manual three-sample median latency, provider-managed text request limits, compact controls, and five-minute alias cooldown after three consecutive failures. Discussion routing, structured Gemini responses and article teaching prompts are repaired. This repair is based on staging `68b1d2e4`. Live metadata and bounded synthetic probes are separate from authenticated application and hosted deployment acceptance.
 
 `OPEN / IN PROGRESS`: [Account switching](features.md#account-switching) adds saved sessions in the sidebar account menu and an Android Google account chooser. The [architecture](ARCHITECTURE.md#saved-account-sessions), [deployment requirements](DEPLOYMENT.md#google-account-switching-in-native-apps), [mobile setup](../apps/mobile/README.md#google-account-switching) and [MCP operations boundary](operations/admin-mcp.md#remaining-parity-and-rollout-work) describe account data cleanup, private reader storage, guarded coding drafts and Playground handoffs, receiving-tab interaction pause and consent identity. Focused local reader, coding, interaction-guard and MCP checks pass; Android signing/client configuration, device OAuth, hosted acceptance and release remain separate verification boundaries.
@@ -99,7 +101,7 @@ The `ACTIVE` feature catalog records the mobile Article selection action and sav
 
 ---
 
-The `ACTIVE` feature catalog and schema reference document permanent admin-managed platform and tutorial discount schedules, shared public pricing, and the singleton `pricing_settings` table. Local verification does not establish a deployed migration or production pricing change.
+The `ACTIVE` feature catalog and schema reference document admin-managed platform and tutorial discounts, shared public pricing, the discounted tutor fee estimate for automatic and manual quotes, and the singleton `pricing_settings` table. Verification covers local calculation and fixture behavior.
 
 ## 1. Documentation Taxonomy & Hierarchy
 

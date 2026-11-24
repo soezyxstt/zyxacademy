@@ -33,12 +33,12 @@ export default async function WebAnalyticsPage() {
       />
 
       {!metrics ? (
-        <div className="rounded-xl border border-status-warning/20 bg-status-warning/10 p-6 flex flex-col items-center justify-center text-center">
-          <AlertCircle className="size-8 text-status-warning mb-3" />
-          <h2 className="font-heading text-body-base font-semibold text-foreground">{t("webAnalytics.unavailable")}</h2>
-          <p className="mt-1 text-body-sm text-muted-foreground max-w-md">
-            {t("webAnalytics.fetchError")}
-          </p>
+        <div className="flex items-start gap-2 border-y border-border/60 py-(--row-padding)">
+          <AlertCircle className="mt-0.5 size-4 shrink-0 text-status-warning" aria-hidden />
+          <div className="min-w-0 space-y-1">
+            <h2 className="font-heading text-body-sm font-bold text-foreground">{t("webAnalytics.unavailable")}</h2>
+            <p className="text-body-xs text-muted-foreground">{t("webAnalytics.fetchError")}</p>
+          </div>
         </div>
       ) : (
         <>

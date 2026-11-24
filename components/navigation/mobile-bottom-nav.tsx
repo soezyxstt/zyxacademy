@@ -21,6 +21,7 @@ export interface MobileBottomNavItem {
 export interface MobileBottomNavProps {
   items: MobileBottomNavItem[];
   ariaLabel?: string;
+  activeTone?: "primary" | "neutral";
   hidden?: boolean;
   className?: string;
 }
@@ -41,6 +42,7 @@ const GRID_COLS_CLASS: Record<number, string> = {
 export function MobileBottomNav({
   items,
   ariaLabel = "Navigasi utama",
+  activeTone = "neutral",
   hidden = false,
   className,
 }: MobileBottomNavProps) {
@@ -52,6 +54,7 @@ export function MobileBottomNav({
 
   const visibleItems = items.slice(0, 5);
   const gridColsClass = GRID_COLS_CLASS[visibleItems.length] ?? "grid-cols-5";
+  const activeItemClass = activeTone === "neutral" ? "bg-foreground/8 text-foreground" : "bg-primary/10 text-primary";
 
   return (
     <nav
@@ -74,7 +77,7 @@ export function MobileBottomNav({
           const itemClass = cn(
             "relative flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 text-center transition-all duration-150 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
             isActive
-              ? "bg-primary/10 text-primary"
+              ? activeItemClass
               : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
           );
 

@@ -177,7 +177,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--related-gap)">
       {/* Compact summary strip */}
       <AdminStatStrip className="sm:grid-cols-3">
         <AdminStatStripItem icon={Users} value={registrations.length} label={t("pkaRegistrationUI.total")} />
@@ -186,7 +186,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
       </AdminStatStrip>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 [&>[data-search-expanded=true]]:min-w-36">
         <SearchBar
           collapsible
           size="sm"
@@ -202,7 +202,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
 
       {/* Table */}
       <AdminTable>
-        <div className="hidden grid-cols-[minmax(0,1fr)_5rem_7rem_6rem] items-center gap-6 border-b border-border bg-muted/30 px-5 py-2.5 md:grid">
+        <div className="hidden grid-cols-[minmax(0,1fr)_5rem_7rem_6rem] items-center gap-4 border-b border-border/60 py-2 lg:grid">
           <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaRegistrationUI.registrant")}</span>
           <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaRegistrationUI.proof")}</span>
           <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaRegistrationUI.subscription")}</span>
@@ -210,38 +210,35 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
         </div>
 
         {filtered.length === 0 ? (
-          <p className="px-5 py-10 text-center text-body-sm text-muted-foreground">
-            {t("pkaRegistrationUI.noMatch")}
-          </p>
+          <AdminEmptyState compact icon={Users} title={t("pkaRegistrationUI.noMatch")} />
         ) : (
           <ul className="divide-y divide-border/60">
             {filtered.map((r) => (
               <li
                 key={r.id}
-                className="grid grid-cols-1 items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/20 md:grid-cols-[minmax(0,1fr)_5rem_7rem_6rem] md:gap-6"
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 py-(--row-padding) transition-colors hover:bg-muted/25 lg:grid-cols-[minmax(0,1fr)_5rem_7rem_6rem] lg:items-center lg:gap-x-4"
               >
                 {/* Identity */}
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-primary/10 text-body-xs font-bold text-brand-primary">
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-body-xs font-semibold text-muted-foreground">
                     {initials(r.fullName)}
                   </span>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-body-sm font-semibold text-foreground">{r.fullName}</span>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="wrap-anywhere text-body-sm font-semibold text-foreground">{r.fullName}</span>
                       <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-body-xs font-medium text-muted-foreground">
                         {r.faculty}
                       </span>
                     </div>
-                    <div className="mt-0.5 flex items-center gap-2 text-body-xs text-muted-foreground">
-                      <span className="truncate">{r.email}</span>
-                      <span className="text-border">&bull;</span>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body-xs text-muted-foreground">
+                      <span className="wrap-anywhere">{r.email}</span>
                       <a
                         href={`https://instagram.com/${r.instagramUsername}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex shrink-0 items-center gap-0.5 font-medium text-brand-primary transition-colors duration-150 hover:text-brand-primary/80"
+                        className="inline-flex min-w-0 items-center gap-0.5 wrap-anywhere underline underline-offset-2 hover:text-foreground"
                       >
-                        <AtSign className="size-3" />
+                        <AtSign className="size-3 shrink-0" aria-hidden />
                         {r.instagramUsername}
                       </a>
                     </div>
@@ -249,8 +246,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
                 </div>
 
                 {/* Proof */}
-                <div className="flex items-center md:block">
-                  <span className="mr-2 text-body-xs text-muted-foreground md:hidden">{t("pkaRegistrationUI.proofLabel")}</span>
+                <div className="justify-self-end lg:justify-self-start">
                   <ProofThumbnail
                     src={r.proofUrl}
                     alt={t("pkaRegistrationUI.proofFollow", { name: r.fullName })}
@@ -260,14 +256,15 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
                 </div>
 
                 {/* Opt-in */}
-                <div className="flex items-center">
+                <div className="flex items-center pl-[2.625rem] lg:pl-0">
+                  <span className="sr-only">{t("pkaRegistrationUI.subscription")}</span>
                   {r.receiveAnnouncements ? (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-status-success/10 px-2 py-0.5 text-body-xs font-medium text-status-success">
+                    <span className="inline-flex items-center gap-1 text-body-xs text-status-success">
                       <BellRing className="size-3" />
                       {t("pkaRegistrationUI.yes")}
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-body-xs font-medium text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 text-body-xs text-muted-foreground">
                       <BellOff className="size-3" />
                       {t("pkaRegistrationUI.no")}
                     </span>
@@ -275,8 +272,8 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
                 </div>
 
                 {/* Date */}
-                <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground md:justify-end md:whitespace-nowrap">
-                  <CalendarDays className="size-3.5 shrink-0 md:hidden" />
+                <div className="flex items-center justify-end gap-1.5 text-body-xs text-muted-foreground lg:whitespace-nowrap">
+                  <CalendarDays className="size-3.5 shrink-0 lg:hidden" aria-hidden />
                   {formatDate(r.createdAt, locale)}
                 </div>
               </li>

@@ -43,7 +43,7 @@ export default async function TutorPage() {
   }));
 
   return (
-    <ApplicationPage spacing="space-y-(--major-gap)">
+    <ApplicationPage>
       <TutorDashboardContent
         locale={locale}
         counts={{

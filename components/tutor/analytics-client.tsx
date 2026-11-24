@@ -7,6 +7,7 @@ import { AdminEmptyState } from "@/components/admin/state-panels";
 import { BarChart3, RefreshCw } from "lucide-react";
 import { LineChart, Line } from "recharts";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Reveal } from "@/components/ui/reveal";
@@ -66,42 +67,49 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
 
   return (
     <>
-      {/* Header meta row */}
-      <div className="flex items-center gap-(--compact-gap) flex-wrap">
-        <span className="text-body-sm text-muted-foreground">
+      <div className="flex min-w-0 items-center justify-between gap-(--compact-gap)">
+        <span className="text-body-xs text-muted-foreground" aria-live="polite">
           {updatedDate ? t("updated", { relative: relativeTime(updatedDate, locale, t("justNow")) }) : t("notCalculated")}
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isPending}
-          className="gap-1.5 h-7 px-2"
-        >
-          <RefreshCw className={`size-3.5 ${isPending ? "animate-spin" : ""}`} aria-hidden />
-          {t("refresh")}
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-lg"
+                aria-label={t("refresh")}
+                aria-busy={isPending}
+                disabled={isPending}
+                onClick={handleRefresh}
+              >
+                <RefreshCw className={isPending ? "animate-spin motion-reduce:animate-none" : undefined} aria-hidden />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("refresh")}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Section 2: Weakest concepts with sparklines */}
       <Reveal>
-        <section className="border-t border-border pt-4" aria-labelledby="weak-heading">
-          <h2 id="weak-heading" className="font-heading text-body-base font-bold mb-3">
+        <section className="space-y-(--compact-gap) border-t border-border/55 pt-(--related-gap)" aria-labelledby="weak-heading">
+          <h2 id="weak-heading" className="font-heading text-body-base font-bold">
             {t("priorityConcepts")}
           </h2>
           {analytics.weakConcepts.length === 0 ? (
-            <AdminEmptyState icon={BarChart3} title={t("noQuizResults")} className="py-6" />
+            <AdminEmptyState icon={BarChart3} title={t("noQuizResults")} className="py-(--related-gap)" />
           ) : (
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border/55">
               {analytics.weakConcepts.map((concept, index) => {
                 const trendData = analytics.conceptTrends[concept.conceptName] ?? [];
                 return (
                   <button
                     key={concept.conceptName}
                     onClick={() => openDrill(concept)}
-                    className="w-full py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_5rem_8rem] items-center gap-2 sm:gap-(--related-gap) text-left hover:bg-muted/40 rounded-md px-1 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                    className="grid w-full py-(--row-padding) grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_5rem_8rem] items-center gap-2 sm:gap-(--related-gap) text-left hover:bg-muted/40 rounded-md transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                   >
-                    <span className="text-h6 font-heading text-muted-foreground tabular-nums">
+                    <span className="font-mono text-body-sm font-medium tabular-nums text-muted-foreground">
                       {index + 1}
                     </span>
                     <div className="min-w-0">
@@ -143,12 +151,12 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
 
       {/* Section 3: Full mastery distribution */}
       <Reveal>
-        <section className="border-t border-border pt-4" aria-labelledby="dist-heading">
-          <h2 id="dist-heading" className="font-heading text-body-base font-bold mb-3">
+        <section className="space-y-(--compact-gap) border-t border-border/55 pt-(--related-gap)" aria-labelledby="dist-heading">
+          <h2 id="dist-heading" className="font-heading text-body-base font-bold">
             {t("masteryDistribution")}
           </h2>
           {analytics.allConcepts.length === 0 ? (
-            <AdminEmptyState icon={BarChart3} title={t("noQuizResults")} className="py-6" />
+            <AdminEmptyState icon={BarChart3} title={t("noQuizResults")} className="py-(--related-gap)" />
           ) : (
             <ConceptRanking concepts={analytics.allConcepts} />
           )}
@@ -157,17 +165,17 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
 
       {/* Section 4: Active interventions */}
       <Reveal>
-        <section className="border-t border-border pt-4" aria-labelledby="interventions-heading">
-          <h2 id="interventions-heading" className="font-heading text-body-base font-bold mb-3">
+        <section className="space-y-(--compact-gap) border-t border-border/55 pt-(--related-gap)" aria-labelledby="interventions-heading">
+          <h2 id="interventions-heading" className="font-heading text-body-base font-bold">
             {t("activeInterventions")}
           </h2>
           {analytics.interventionCounts.length === 0 ? (
             <AdminEmptyState icon={RefreshCw} title={t("noInterventions")} />
           ) : (
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border/55">
               {analytics.interventionCounts.map((item) => (
-                <div key={item.conceptName} className="py-2.5 flex items-center justify-between">
-                  <span className="text-body-base">{item.conceptName}</span>
+                <div key={item.conceptName} className="flex items-start justify-between gap-2 py-(--row-padding)">
+                  <span className="min-w-0 break-words text-body-base">{item.conceptName}</span>
                   <Badge variant="secondary">{item.count}</Badge>
                 </div>
               ))}
@@ -178,16 +186,16 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
 
       {/* Section 4b: Top misconceptions (cohort-wide) */}
       <Reveal>
-        <section className="border-t border-border pt-4" aria-labelledby="misconceptions-heading">
-          <h2 id="misconceptions-heading" className="font-heading text-body-base font-bold mb-3">
+        <section className="space-y-(--compact-gap) border-t border-border/55 pt-(--related-gap)" aria-labelledby="misconceptions-heading">
+          <h2 id="misconceptions-heading" className="font-heading text-body-base font-bold">
             {t("commonMisconceptions")}
           </h2>
           {analytics.topMisconceptions.length === 0 ? (
-            <AdminEmptyState icon={BarChart3} title={t("noMisconceptions")} className="py-6" />
+            <AdminEmptyState icon={BarChart3} title={t("noMisconceptions")} className="py-(--related-gap)" />
           ) : (
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border/55">
               {analytics.topMisconceptions.slice(0, 10).map((m) => (
-                <div key={m.misconceptionKoId} className="py-3 flex items-center justify-between gap-(--related-gap)">
+                <div key={m.misconceptionKoId} className="flex items-start justify-between gap-(--related-gap) py-(--row-padding)">
                   <div className="min-w-0">
                     <p className="text-body-sm font-medium break-words">{m.label}</p>
                     <p className="text-body-xs text-muted-foreground">
@@ -204,8 +212,8 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
 
       {/* Section 5: Watchlist */}
       <Reveal>
-        <section className="border-t border-border pt-4" aria-labelledby="watchlist-heading">
-          <h2 id="watchlist-heading" className="font-heading text-body-base font-bold mb-3">
+        <section className="space-y-(--compact-gap) border-t border-border/55 pt-(--related-gap)" aria-labelledby="watchlist-heading">
+          <h2 id="watchlist-heading" className="font-heading text-body-base font-bold">
             {t("needsAttention")}
           </h2>
           <WatchlistTable students={analytics.watchlist} />

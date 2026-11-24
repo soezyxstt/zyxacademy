@@ -63,7 +63,7 @@ export default async function DashboardPage() {
   const enrolledCourseIds = enrollments.map((e) => e.id);
 
   return (
-    <ApplicationPage className="pb-16">
+    <ApplicationPage>
       <DashboardSectionErrorBoundary variant="silent">
         <Suspense fallback={null}>
           <ProfilePromptSection user={user} />

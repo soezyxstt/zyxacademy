@@ -46,14 +46,15 @@ export default async function TutorCourseVideosPage({ params }: Props) {
 
   const data = await getCourseVideosData(courseId);
   if (!data) notFound();
+  const t = await getTranslations("tutor.routeTitles");
 
   return (
-    <ApplicationPage spacing="space-y-(--section-gap)">
+    <ApplicationPage>
       <PageHeader
         title={<><TranslatedText namespace="tutor" messageKey="routeTitles.videos" />: {data.course.title}</>}
         icon={VideoIcon}
         backHref={`/tutor/${courseId}`}
-        backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.backToCourse" />}
+        backLabel={t("backToCourse")}
       />
       <Suspense fallback={<TutorVideosContentLoading />}>
         <CourseVideosClient

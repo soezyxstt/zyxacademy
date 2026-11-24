@@ -1,22 +1,23 @@
 "use client";
 
+import { useCallback, useMemo } from "react";
 import { StudentAccountBoundary } from "@/components/student-account-boundary";
 import { useQuizAnalytics } from "@/hooks/use-quiz-analytics";
 import { ApiError } from "@/lib/query/http";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useMobilePageActions } from "@/components/navigation/mobile-chrome-context";
+import { MobileTopNavActionButton } from "@/components/navigation/mobile-top-navbar";
 import type { QuizAnalyticsData } from "@/lib/quiz/analytics-client";
 export type { QuizAnalyticsData } from "@/lib/quiz/analytics-client";
 import {
   BookOpen,
-  Brain,
   CheckCircle2,
-  Clock,
   Loader2,
   RefreshCw,
+  RotateCcw,
   Target,
-  TrendingUp,
   TriangleAlert,
   Zap,
   ArrowUpRight,
@@ -25,7 +26,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { MathText } from "@/components/course/math-text";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { useTranslations } from "@/lib/i18n/client";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
@@ -38,7 +38,7 @@ interface QuizAnalyticsViewProps {
 }
 
 export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnalyticsViewProps) {
-  if (initialData) return <QuizAnalyticsContent courseId={courseId} data={initialData} loading={false} recomputing={false} fetchAnalytics={() => {}} handleRecompute={() => {}} />;
+  if (initialData) return <QuizAnalyticsContent courseId={courseId} data={initialData} loading={false} recomputing={false} />;
   return <StudentAccountBoundary>{({ data }) => data?.user
     ? <LiveQuizAnalytics key={`${data.user.id}:${attemptId}`} userId={data.user.id} attemptId={attemptId} courseId={courseId} />
     : <div className="h-40 animate-pulse rounded-xl bg-muted" aria-busy="true" />}
@@ -48,13 +48,17 @@ export function QuizAnalyticsView({ attemptId, courseId, initialData }: QuizAnal
 function LiveQuizAnalytics({ userId, attemptId, courseId }: { userId: string; attemptId: string; courseId: string }) {
   const { query, recompute } = useQuizAnalytics(userId, attemptId);
   const accessDenied = [query.error, recompute.error].some((error) => error instanceof ApiError && [401, 403, 404, 409].includes(error.status));
+  const { refetch } = query;
+  const { reset, mutate } = recompute;
+  const fetchAnalytics = useCallback(() => {
+    void refetch().then((result) => { if (result.isSuccess) reset(); });
+  }, [refetch, reset]);
+  const handleRecompute = useCallback(() => mutate(), [mutate]);
   return <QuizAnalyticsContent
     courseId={courseId} data={accessDenied ? undefined : query.data} loading={query.isPending} recomputing={recompute.isPending}
     error={Boolean(query.error || recompute.error)}
-    fetchAnalytics={() => {
-      void query.refetch().then((result) => { if (result.isSuccess) recompute.reset(); });
-    }}
-    handleRecompute={() => recompute.mutate()}
+    fetchAnalytics={fetchAnalytics}
+    handleRecompute={handleRecompute}
   />;
 }
 
@@ -64,12 +68,41 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
   loading: boolean;
   recomputing: boolean;
   error?: boolean;
-  fetchAnalytics: () => void;
-  handleRecompute: () => void;
+  fetchAnalytics?: () => void;
+  handleRecompute?: () => void;
 }) {
   const t = useTranslations("studentCourse");
   const experience = useStudentExperience();
   const href = (path: string) => experience.href?.(path) ?? path;
+  const metrics = data?.computedMetrics;
+  const diagnosis = data?.aiDiagnosis;
+  const isProcessing = data?.status === "processing";
+  const refreshLabel = t("quizAnalytics.refreshStatus");
+  const recomputeLabel = t("quizAnalytics.reanalyze");
+  const reportActions = useMemo(() => {
+    if (!metrics && !diagnosis) return null;
+    const actions = [
+      { key: "refresh", run: isProcessing ? fetchAnalytics : undefined, label: refreshLabel, Icon: RefreshCw, busy: false },
+      { key: "reanalyze", run: handleRecompute, label: recomputeLabel, Icon: RotateCcw, busy: recomputing },
+    ].filter(({ run }) => run);
+    return actions.length ? (
+      <TooltipProvider>
+        <div className="flex shrink-0 gap-1">
+          {actions.map(({ key, run, label, Icon, busy }) => (
+            <Tooltip key={key}>
+              <TooltipTrigger asChild>
+                <MobileTopNavActionButton label={label} onClick={run} disabled={busy} aria-busy={busy}>
+                  {busy ? <Loader2 className="animate-spin" aria-hidden /> : <Icon aria-hidden />}
+                </MobileTopNavActionButton>
+              </TooltipTrigger>
+              <TooltipContent>{label}</TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+      </TooltipProvider>
+    ) : null;
+  }, [diagnosis, fetchAnalytics, handleRecompute, isProcessing, metrics, recomputeLabel, recomputing, refreshLabel]);
+  const reportActionInNavbar = useMobilePageActions(reportActions);
 
   if (error && !data) {
     return <div className="flex items-center gap-2 py-4 text-body-sm text-status-error" role="alert">
@@ -100,11 +133,11 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-5 border-y border-border py-3 sm:grid-cols-4">
+          <div className="divide-y divide-border/55 border-y border-border/55">
             {Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} className="flex items-center justify-between py-2">
+              <div key={idx} className="flex items-center justify-between py-1.5">
                 <div className="h-4 w-20 animate-pulse rounded-md bg-muted" />
-                <div className="h-6 w-12 animate-pulse rounded-md bg-muted" />
+                <div className="h-4 w-12 animate-pulse rounded-md bg-muted" />
               </div>
             ))}
           </div>
@@ -122,126 +155,93 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
     );
   }
 
-  const metrics = data?.computedMetrics;
-  const diagnosis = data?.aiDiagnosis;
-  const isProcessing = data?.status === "processing";
+  const conceptTrend = (concept: NonNullable<typeof metrics>["conceptMastery"][number]) => {
+    const percent = concept.previousAccuracyPercent ?? 0;
+    return getTrendLabel(concept.trend, concept.previousAccuracyPercent, {
+      improving: t("quizAnalytics.trendImproving", { percent }),
+      declining: t("quizAnalytics.trendDeclining", { percent }),
+      stable: t("quizAnalytics.trendStable", { percent }),
+    });
+  };
 
   if (!metrics && !diagnosis) {
     return (
-      <div className="space-y-4 py-4 text-center">
-        <div className="flex size-14 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary mx-auto ring-1 ring-brand-primary/20">
-          <Brain className="size-7" />
-        </div>
-        <div className="space-y-2 max-w-lg mx-auto">
+      <div className="max-w-xl space-y-(--related-gap) border-t border-border/55 py-(--group-gap)">
+        <div className="space-y-1">
           <h3 className="font-heading text-body-base font-bold text-foreground">{t("quizAnalytics.notGeneratedTitle")}</h3>
           <p className="text-body-sm text-muted-foreground leading-relaxed">
             {t("quizAnalytics.notGeneratedDescription")}
           </p>
         </div>
-        <Button
+        {handleRecompute && <Button
           onClick={handleRecompute}
           disabled={recomputing}
-          className="rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold px-6 py-2.5 shadow-sm"
+          className="bg-foreground text-background hover:bg-foreground/85"
         >
           {recomputing && <Loader2 className="mr-2 size-4 animate-spin" />}
           {recomputing ? t("quizAnalytics.generating") : t("quizAnalytics.generate")}
-        </Button>
+        </Button>}
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 font-sans">
+    <div className="space-y-(--group-gap) font-sans">
       {error && <div className="flex items-center gap-2 text-body-sm text-status-error" role="alert">
         <TriangleAlert className="size-4" />
         <span>{t("attemptReview.loadFailed")}</span>
         <Button variant="ghost" size="sm" onClick={fetchAnalytics}>{t("attemptReview.retry")}</Button>
       </div>}
-      {/* Processing Banner if analysis is still running */}
       {isProcessing && (
-        <div className="flex items-center justify-between gap-3 border-b border-border py-2 text-brand-primary">
-          <div className="flex min-w-0 items-center gap-3">
-            <Loader2 className="size-5 animate-spin shrink-0" />
-            <div className="text-body-sm">
-              <span className="font-bold">{t("quizAnalytics.analysisInProgress")}</span> {t("quizAnalytics.analysisInProgressDescription")}
-            </div>
-          </div>
-          <TooltipProvider><Tooltip><TooltipTrigger asChild>
-            <Button type="button" onClick={fetchAnalytics} variant="ghost" size="icon-lg" aria-label={t("quizAnalytics.refreshStatus")}>
-              <RefreshCw aria-hidden />
-            </Button>
-          </TooltipTrigger><TooltipContent>{t("quizAnalytics.refreshStatus")}</TooltipContent></Tooltip></TooltipProvider>
+        <div role="status" className="flex items-start gap-2 border-b border-border/55 pb-2 text-body-sm text-muted-foreground">
+          <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin" aria-hidden />
+          <p className="m-0">
+            <span className="font-semibold text-foreground">{t("quizAnalytics.analysisInProgress")}</span>{" "}
+            {t("quizAnalytics.analysisInProgressDescription")}
+          </p>
         </div>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────────────────
-          LAYER 1: RINGKASAN CEPAT (QUICK EXECUTIVE SUMMARY)
-          ───────────────────────────────────────────────────────────────────────── */}
-      <div className="space-y-4">
-        {/* Main Headline Banner */}
-        <div className="min-w-0">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex flex-wrap items-center gap-2">
-                {metrics && (
-                  <Badge variant="outline" className="rounded-md border-border bg-card text-muted-foreground text-body-xs">
-                    {metrics.quizTitle}
-                  </Badge>
-                )}
-                <Button
-                  onClick={handleRecompute}
-                  disabled={recomputing}
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground hover:text-foreground md:ml-0"
-                >
-                  <RefreshCw className={`mr-1 size-3 ${recomputing ? "animate-spin" : ""}`} />
-                  {recomputing ? t("quizAnalytics.processing") : t("quizAnalytics.reanalyze")}
-                </Button>
-              </div>
-              <h2 className="font-heading text-body-base font-bold text-foreground">
-                <MathText as="span">{diagnosis?.headline || t("quizAnalytics.quizResult", { score: metrics?.score ?? 0, correct: metrics?.correctCount ?? 0, total: metrics?.totalQuestions ?? 0 })}</MathText>
-              </h2>
-              <p className="text-body-base text-muted-foreground leading-relaxed">
-                <MathText as="span">{diagnosis?.overall_summary || t("quizAnalytics.quizCompleted", { count: metrics?.totalQuestions ?? 0 })}</MathText>
-              </p>
-            </div>
-
-            {/* Score & Performance Badge */}
-            {metrics && (
-              <div className="flex flex-wrap items-center gap-2 md:shrink-0 md:justify-end md:border-l md:border-border/70 md:pl-5">
-                <span className="text-body-xs font-semibold text-muted-foreground">{t("quizAnalytics.totalScore")}</span>
-                <div className="font-heading text-h5 font-bold text-brand-primary">
-                  {metrics.score}<span className="text-body-base text-muted-foreground font-normal">%</span>
-                </div>
-                <Badge className={`rounded-md ${getPerformanceBadgeClass(diagnosis?.performance_level || (metrics.score >= 75 ? "good" : "developing"))}`}>
-                  {t(`quizAnalytics.performance.${diagnosis?.performance_level || (metrics.score >= 75 ? "good" : "developing")}`)}
-                </Badge>
-              </div>
-            )}
+      <section className="min-w-0 space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            {metrics && <p className="m-0 wrap-anywhere text-body-xs text-muted-foreground">{metrics.quizTitle}</p>}
+            <h2 className="font-heading text-body-base font-bold text-foreground">
+              <MathText as="span">{diagnosis?.headline || t("quizAnalytics.quizResult", { score: metrics?.score ?? 0, correct: metrics?.correctCount ?? 0, total: metrics?.totalQuestions ?? 0 })}</MathText>
+            </h2>
           </div>
+          {!reportActionInNavbar && reportActions}
         </div>
-
-        {/* Quick Facts Strip */}
+        <p className="m-0 text-body-base text-muted-foreground">
+          <MathText as="span">{diagnosis?.overall_summary || t("quizAnalytics.quizCompleted", { count: metrics?.totalQuestions ?? 0 })}</MathText>
+        </p>
         {metrics && (
-          <AdminStatStrip className="grid-cols-2 sm:grid-cols-4">
-            <AdminStatStripItem icon={CheckCircle2} iconClassName="text-status-success" label={t("quizAnalytics.correctAnswers")} value={`${metrics.correctCount} / ${metrics.totalQuestions}`} />
-            <AdminStatStripItem icon={TriangleAlert} iconClassName="text-status-error" label={t("quizAnalytics.incorrectOrBlank")} value={metrics.incorrectCount + metrics.unansweredCount} />
-            <AdminStatStripItem icon={Clock} iconClassName="text-status-info" label={t("quizAnalytics.timeSpent")} value={formatDuration(metrics.durationSeconds, t("quizAnalytics.minuteShort"), t("quizAnalytics.secondShort"))} />
-            <AdminStatStripItem
-              icon={TrendingUp}
-              label={t("quizAnalytics.progress")}
-              value={metrics.historicalComparison.overallImprovementDelta >= 0 ? `+${metrics.historicalComparison.overallImprovementDelta}%` : `${metrics.historicalComparison.overallImprovementDelta}%`}
-              iconClassName="text-brand-secondary"
-            />
-          </AdminStatStrip>
+          <dl className="divide-y divide-border/55 border-y border-border/55 text-body-sm" data-quiz-analysis-metrics="">
+            <div className="flex items-baseline justify-between gap-3 py-1.5">
+              <dt className="text-muted-foreground">{t("quizAnalytics.totalScore")}</dt>
+              <dd className="flex flex-wrap items-baseline justify-end gap-x-2 text-right tabular-nums">
+                <span className="font-semibold">{metrics.score}%</span>
+                <span className="text-body-xs text-muted-foreground">
+                  {t(`quizAnalytics.performance.${diagnosis?.performance_level || (metrics.score >= 75 ? "good" : "developing")}`)}
+                </span>
+              </dd>
+            </div>
+            {[
+              [t("quizAnalytics.correctAnswers"), `${metrics.correctCount} / ${metrics.totalQuestions}`],
+              [t("quizAnalytics.incorrectOrBlank"), metrics.incorrectCount + metrics.unansweredCount],
+              [t("quizAnalytics.timeSpent"), formatDuration(metrics.durationSeconds, t("quizAnalytics.minuteShort"), t("quizAnalytics.secondShort"))],
+              [t("quizAnalytics.progress"), `${metrics.historicalComparison.overallImprovementDelta >= 0 ? "+" : ""}${metrics.historicalComparison.overallImprovementDelta}%`],
+            ].map(([label, value]) => (
+              <div key={label} className="flex items-baseline justify-between gap-3 py-1.5">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="shrink-0 font-semibold tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
         )}
-      </div>
+      </section>
 
-      {/* ─────────────────────────────────────────────────────────────────────────
-          LAYER 2: DIAGNOSIS TERPERINCI (DETAILED DIAGNOSTICS)
-          ───────────────────────────────────────────────────────────────────────── */}
-      <div className="space-y-6">
+      <div className="space-y-(--group-gap)">
         {/* SECTION A: PENGUASAAN KONSEP (CONCEPT MASTERY TABLE) */}
         {metrics && metrics.conceptMastery.length > 0 && (
           <div className="space-y-3 border-t border-border pt-3">
@@ -256,10 +256,30 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <ul className="divide-y divide-border/55 border-y border-border/55 md:hidden">
+              {metrics.conceptMastery.map((concept, index) => (
+                <li key={index} className="space-y-1 py-(--row-padding)">
+                  <div className="flex items-start justify-between gap-3 text-body-sm">
+                    <p className="min-w-0 wrap-anywhere font-semibold"><MathText as="span">{concept.concept}</MathText></p>
+                    <span className="shrink-0 font-semibold tabular-nums">{concept.accuracyPercent}%</span>
+                  </div>
+                  {Boolean(concept.subconcepts?.length) && (
+                    <p className="text-body-xs text-muted-foreground">
+                      {t("quizAnalytics.subconcepts")}: <MathText as="span">{concept.subconcepts?.join(", ") ?? ""}</MathText>
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
+                    <span className="tabular-nums">{t("quizAnalytics.questions")} {concept.correctCount} / {concept.totalQuestions}</span>
+                    <span>{t(`quizAnalytics.mastery.${concept.status}`)}</span>
+                    <span>{conceptTrend(concept)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left text-body-sm">
                 <thead>
-                  <tr className="border-b border-border text-muted-foreground font-semibold text-body-xs uppercase tracking-wider">
+                  <tr className="border-b border-border/55 text-body-xs font-semibold text-muted-foreground">
                     <th className="py-2.5 px-3">{t("quizAnalytics.concept")}</th>
                     <th className="py-2.5 px-3 text-center">{t("quizAnalytics.questions")}</th>
                     <th className="py-2.5 px-3">{t("quizAnalytics.masteryLevel")}</th>
@@ -298,11 +318,7 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
                         </Badge>
                       </td>
                       <td className="py-3 px-3 text-body-xs text-muted-foreground">
-                        {getTrendLabel(c.trend, c.previousAccuracyPercent, {
-                          improving: t("quizAnalytics.trendImproving", { percent: c.previousAccuracyPercent ?? 0 }),
-                          declining: t("quizAnalytics.trendDeclining", { percent: c.previousAccuracyPercent ?? 0 }),
-                          stable: t("quizAnalytics.trendStable", { percent: c.previousAccuracyPercent ?? 0 }),
-                        })}
+                        {conceptTrend(c)}
                       </td>
                     </tr>
                   ))}
@@ -313,7 +329,7 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
         )}
 
         {/* SECTION B: KEKUATAN SISWA & AREA FOKUS (STRENGTHS & FOCUS AREAS) */}
-        {(Boolean(diagnosis?.strengths?.length) || Boolean(diagnosis?.focus_areas?.length)) && <div className={`grid grid-cols-1 gap-6 ${diagnosis?.strengths?.length && diagnosis?.focus_areas?.length ? "md:grid-cols-2" : ""}`}>
+        {(Boolean(diagnosis?.strengths?.length) || Boolean(diagnosis?.focus_areas?.length)) && <div className="space-y-(--group-gap)">
           {/* Strengths Card */}
           {Boolean(diagnosis?.strengths?.length) && <div className="space-y-3 border-t border-border pt-4">
             <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
@@ -326,7 +342,7 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
                     <div className="font-heading text-body-base font-bold text-foreground"><MathText as="span">{item.title}</MathText></div>
                     <p className="text-body-sm text-muted-foreground leading-snug"><MathText as="span">{item.description}</MathText></p>
                     {item.evidence && item.evidence.length > 0 && (
-                      <div className="mt-1 flex items-start gap-1.5 rounded-md bg-brand-primary/5 p-2 text-body-xs font-medium text-foreground">
+                      <div className="flex items-start gap-1.5 text-body-xs text-muted-foreground">
                         <CheckCircle2 className="size-4 shrink-0 text-brand-primary" aria-hidden="true" /> <MathText as="span">{item.evidence[0].observation}</MathText>
                       </div>
                     )}
@@ -347,7 +363,7 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
                   <div key={i} className="border-b border-border/60 py-3 space-y-1.5 last:border-0">
                     <div className="font-heading text-body-base font-bold text-foreground"><MathText as="span">{item.title}</MathText></div>
                     <p className="text-body-sm text-muted-foreground leading-snug"><MathText as="span">{item.description}</MathText></p>
-                    <div className="mt-1 flex items-start gap-1.5 rounded-md bg-status-warning/10 p-2 text-body-xs font-medium text-foreground">
+                    <div className="flex items-start gap-1.5 text-body-xs text-muted-foreground">
                       <TriangleAlert className="size-4 shrink-0 text-status-warning" aria-hidden="true" /> <MathText as="span">{item.importance}</MathText>
                     </div>
                   </div>
@@ -363,7 +379,7 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
             <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
               <BarChart3 className="size-5 text-brand-secondary" /> {t("quizAnalytics.errorPatterns")}
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="divide-y divide-border/55">
               {diagnosis.error_patterns.map((errItem, idx) => (
                 <div key={idx} className="border-b border-border/60 py-3 space-y-2 last:border-0">
                   <div className="flex items-center justify-between gap-2">
@@ -373,7 +389,7 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
                     </Badge>
                   </div>
                   <p className="text-body-sm text-muted-foreground leading-snug"><MathText as="span">{errItem.description}</MathText></p>
-                  <div className="rounded-md bg-muted/50 p-2.5 text-body-xs text-foreground mt-2 border border-border/50">
+                  <div className="border-l-2 border-border/60 pl-2 text-body-xs text-muted-foreground">
                     <span className="font-bold text-brand-primary block mb-0.5">{t("quizAnalytics.correctionStrategy")}</span>
                     <MathText as="span">{errItem.correction_strategy}</MathText>
                   </div>
@@ -385,7 +401,7 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
 
         {/* SECTION D: KEMAMPUAN KOGNITIF & KECEPATAN */}
         {metrics && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-(--group-gap)">
             {/* Cognitive Skills Matrix */}
             {metrics.cognitiveSkills.length > 0 && <div className="space-y-3 border-t border-border pt-3">
               <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
@@ -424,7 +440,7 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
                   <span className="font-bold text-foreground">{t("quizAnalytics.questionCount", { count: metrics.timeAnalysis.fastAnswerCount })}</span>
                 </div>
                 {metrics.timeAnalysis.fastIncorrectCount > 0 && (
-                  <div className="flex items-start gap-1.5 rounded-md bg-status-warning/10 p-2.5 text-body-xs font-medium text-foreground">
+                  <div className="flex items-start gap-1.5 text-body-xs text-muted-foreground">
                     <TriangleAlert className="size-4 shrink-0 text-status-warning" aria-hidden="true" /> {t("quizAnalytics.fastIncorrectWarning", { count: metrics.timeAnalysis.fastIncorrectCount })}
                   </div>
                 )}
@@ -443,7 +459,7 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
       {/* ─────────────────────────────────────────────────────────────────────────
           LAYER 3: RENCANA BELAJAR PERSONAL (3-STEP ACTION PLAN)
           ───────────────────────────────────────────────────────────────────────── */}
-      <div className="@container/study-plan space-y-4 pt-4 border-t border-border">
+      <div className="space-y-2 border-t border-border/55 pt-(--compact-gap)">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <BookOpen className="size-5 text-brand-primary" /> {t("quizAnalytics.studyPlan")}
@@ -465,16 +481,15 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
                 key={idx}
                 className="py-3"
               >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="rounded-md border-brand-primary/40 bg-brand-primary/10 text-brand-primary font-bold text-body-xs">
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                    <h4 className="font-heading text-body-base font-bold text-foreground">
+                      <MathText as="span">{step.focus}</MathText>
+                    </h4>
+                    <span className="text-body-xs text-muted-foreground">
                       {t("quizAnalytics.priority", { number: step.priority || idx + 1 })}
-                    </Badge>
+                    </span>
                   </div>
-
-                  <h4 className="font-heading text-body-base font-bold text-foreground">
-                    <MathText as="span">{step.focus}</MathText>
-                  </h4>
 
                   <p className="text-body-sm text-muted-foreground leading-snug">
                     <MathText as="span">{step.reason}</MathText>
@@ -508,19 +523,6 @@ function QuizAnalyticsContent({ courseId, data, loading, recomputing, error, fet
       </div>
     </div>
   );
-}
-
-function getPerformanceBadgeClass(level: string): string {
-  switch (level) {
-    case "excellent":
-      return "border-status-success/40 bg-status-success/10 text-status-success";
-    case "good":
-      return "border-brand-primary/40 bg-brand-primary/10 text-brand-primary";
-    case "developing":
-      return "border-brand-secondary/40 bg-brand-secondary/10 text-brand-secondary";
-    default:
-      return "border-status-warning/40 bg-status-warning/10 text-status-warning";
-  }
 }
 
 function getMasteryBadgeClass(status: string): string {
