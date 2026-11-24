@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { buildFixture } from "./fixtures/interactive-document-build";
 import {readFileSync} from "node:fs";
 const snapshot=process.env.ARTICLE_STRESS_SNAPSHOT;
+test.use({actionTimeout:15_000});
 test.skip(!snapshot,"Set ARTICLE_STRESS_SNAPSHOT to an authorized public reader snapshot");
 let fixture: Awaited<ReturnType<typeof buildFixture>>;
 test.beforeAll(async () => {
@@ -32,7 +33,10 @@ test("production Math 1 chapter renders all sections locally",async({page},info)
  await page.goto("http://reader.test/");
  const sections=page.locator("article[id^=section-]");
  await expect(sections).toHaveCount(16);
- await page.evaluate(async()=>document.fonts.ready);
+ await page.evaluate(async()=>{
+  await Promise.all(Array.from(document.fonts).map(font=>font.load()));
+  await document.fonts.ready;
+ });
  const pair=sections.nth(1).locator('[data-math-pair="compact"]').first();
  await expect(pair).toHaveCSS("display","grid");
  const positions=await pair.evaluate(el=>Array.from(el.children).map(child=>child.getBoundingClientRect().x));
@@ -59,9 +63,16 @@ test("production Math 1 chapter renders all sections locally",async({page},info)
    await expect(symbolToggle).toBeVisible();
    await expect(symbolToggle).toHaveAttribute("aria-expanded","false");
    await expect(formulaUnit.locator('[data-math-symbols]')).toBeHidden();
+   const disclosure=formulaUnit.locator('[data-slot="collapsible-content"]');
+   await expect(disclosure).toHaveAttribute("hidden","until-found");
+   await formulaUnit.locator('[data-symbol-id]').last().evaluate(el=>el.id="symbol-find-target");
+   await page.evaluate(()=>location.hash="symbol-find-target");
+   await expect(symbolToggle).toHaveAttribute("aria-expanded","true");
+   await symbolToggle.click();
    await symbolToggle.click();
    await expect(symbolToggle).toHaveAttribute("aria-expanded","true");
    await expect(formulaUnit.locator('[data-math-symbols]')).toBeVisible();
+   await section.evaluate(el=>el.scrollIntoView({block:"start"}));
    expect((await formulaUnit.locator('[data-math-symbols]').boundingBox())!.y).toBeGreaterThan((await formulaUnit.locator('[data-math-scroll]').first().boundingBox())!.y);
    await page.screenshot({path:info.outputPath("screenshots/math1-section-13-symbols-expanded.png"),animations:"disabled"});
    await symbolToggle.click();

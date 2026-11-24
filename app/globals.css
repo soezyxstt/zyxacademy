@@ -1275,6 +1275,11 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
   mask-image: linear-gradient(to right, black calc(100% - 16px), transparent);
 }
 @media (max-width: 639px) {
+  .article-editorial .markdown-article,
+  .article-editorial .markdown-article :is(p, li),
+  .article-editorial p.text-body-base {
+    font-size: calc(0.9375rem * var(--user-font-scale, 1));
+  }
   .article-editorial [data-math-scroll] .katex-display { font-size: 0.9rem; }
 }
 

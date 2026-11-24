@@ -15,6 +15,7 @@ const visual: PublicLearningCanvasVisualSpec = {
  canvas: { version: "zyra-learning-canvas-v1", type: "function_plot", title: "Grafik kuadrat", purpose: "Hubungan input dan kuadratnya.", variables: [], controls: [], claimRefs: [], altText: "Parabola melalui titik asal", domain: { min: -2, max: 2, sampleCount: 48 }, series: [{ id: "square", label: "Kuadrat", expression: "x^2", lineStyle: "solid", role: "primary" }], fallback: { summary: "Kuadrat bernilai nonnegatif.", columns: [{ id: "x", label: "Input" }, { id: "y", label: "Keluaran" }], rows: [["0", "0"], ["1", "1"]] } },
 };
 const article: PublicArticleReadModel = {
+ courseTitle: "Matematika", chapterTitle: null,
  id: "editorial", courseId: "math", chapterId: "chapter", chapterNumber: 1, slug: "numbers", title: "Bilangan dan fungsi", version: 1, totalEstimatedReadingMinutes: 5,
  sections: [{ id: "numbers", slug: "numbers", sectionNumber: "01", sectionKind: "topic", orderIndex: 0, parentSectionId: null, title: "Bilangan real", learningObjective: "Membedakan bilangan rasional dan irasional.", estimatedReadingMinutes: 3, blocks: [
   { id: "theory", blockKey: "theory", blockType: "explanation", title: "Penjelasan inti", orderIndex: 0, content: "", visuals: [visual], parts: [
