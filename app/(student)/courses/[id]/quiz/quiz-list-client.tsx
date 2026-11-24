@@ -28,7 +28,7 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
 
   return (
     <div className="font-sans">
-      {templates.length > 0 && <ul className="divide-y divide-border/20">
+      {templates.length > 0 && <ul className="divide-y divide-border/30">
         {templates.map((template) => {
           const isFree = template.visibility === "free";
           const accessible = accessTier === "standard"
@@ -93,7 +93,7 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
               );
             }
             return (
-              <span className="shrink-0 rounded-md bg-muted px-2.5 py-1 text-body-xs font-semibold text-foreground">
+              <span className="shrink-0 rounded-md border border-border/60 bg-muted/80 px-2.5 py-1 text-body-xs font-semibold text-foreground transition-colors group-hover:border-primary/30 group-hover:bg-primary/10 group-hover:text-primary">
                 {activeAttempt ? t("quizList.continue") : t("quizList.start")}
               </span>
             );
@@ -108,7 +108,7 @@ export function QuizListClient({ courseId, hasFullContentAccess, accessTier = ha
             <li key={template.id}>
               <Link
                 href={experience.href?.(targetHref) ?? targetHref}
-                className={courseListRowClass("justify-between [&>span]:self-center")}
+                className={courseListRowClass("-mx-2.5 items-center justify-between px-2.5")}
               >
                 <div className="min-w-0 flex-1">
                   <h3 className="break-words font-heading text-body-sm font-semibold text-foreground">

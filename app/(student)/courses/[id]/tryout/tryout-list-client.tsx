@@ -79,7 +79,7 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
           </div>
         </div>
       ) : (
-        <ul className="divide-y divide-border/20">
+        <ul className="divide-y divide-border/30">
           {tryouts.map((tryout) => {
           const attemptCount = attempts[tryout.id] || 0;
           const maxAttempts = tryout.settings?.maxAttempts ?? 2;
@@ -156,7 +156,7 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
                 asChild
                 variant="ghost"
                 size="sm"
-                className="justify-self-end bg-muted text-foreground hover:bg-foreground/15 dark:hover:bg-foreground/15"
+                className="justify-self-end border border-border/60 bg-muted/80 text-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
               >
                 <Link href={href(`/courses/${courseId}/tryout/${tryout.id}`)}>
                   {t("tryoutList.start")}
@@ -195,7 +195,7 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
                   </p>
                 </div>
 
-                <div className="flex min-w-0 flex-wrap items-center gap-1 text-body-xs text-muted-foreground md:justify-center">
+                <div className="flex min-w-0 flex-wrap items-center gap-1 text-body-xs tabular-nums text-muted-foreground md:justify-center">
                   <span className="font-semibold text-foreground">{attemptCount}</span>
                   <span>/ {t("tryoutList.attempts", { count: maxAttempts })}</span>
                 </div>

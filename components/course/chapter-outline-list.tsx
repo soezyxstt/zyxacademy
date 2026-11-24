@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Lock } from "lucide-react";
+import { CheckCircle2, ChevronRight, Lock } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import { courseListRowClass } from "./course-surfaces";
@@ -36,7 +36,7 @@ export function ChapterOutlineList({ chapters, showCount = true }: { chapters: C
 
   return (
     <section className="mt-8">
-      <div className="mb-1.5 flex items-center justify-between gap-4 pb-1">
+      <div className="mb-2 flex items-center justify-between gap-4 border-b border-border/40 pb-2">
         <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t("course.chapterOutline.title")}
         </h2>
@@ -49,9 +49,11 @@ export function ChapterOutlineList({ chapters, showCount = true }: { chapters: C
           </span>
         )}
       </div>
-      <ul className="zebra-no-rows">
+      <ul className="zebra-no-rows divide-y divide-border/30">
         {chapters.map((chapter) => {
           const isUnavailable = !chapter.hasMaterial;
+          const isInProgress = chapter.hasMaterial && !chapter.completed && chapter.completionPercent > 0;
+          const clampedPercent = Math.min(100, Math.max(0, chapter.completionPercent));
           const status =
             chapter.statusLabel ??
             (chapter.hasMaterial
@@ -63,10 +65,10 @@ export function ChapterOutlineList({ chapters, showCount = true }: { chapters: C
               : t("course.chapterOutline.unavailable"));
 
           const row = (
-            <div className="flex min-w-0 items-start gap-3 py-(--row-padding)">
+            <div className="flex min-w-0 items-center gap-3 py-(--row-padding)">
               <span
                 className={cn(
-                  "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg text-body-xs font-bold tabular-nums",
+                  "flex size-7 shrink-0 items-center justify-center rounded-lg text-body-xs font-bold tabular-nums",
                   chapter.completed
                     ? "bg-status-success/15 text-status-success"
                     : isUnavailable
@@ -82,7 +84,7 @@ export function ChapterOutlineList({ chapters, showCount = true }: { chapters: C
                   chapter.number
                 )}
               </span>
-              <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span
                   className={cn(
                     "break-words text-body-sm font-semibold leading-snug",
@@ -93,15 +95,34 @@ export function ChapterOutlineList({ chapters, showCount = true }: { chapters: C
                 >
                   {chapter.title}
                 </span>
-                <span
-                  className={cn(
-                    "text-body-xs leading-snug",
-                    chapter.completed ? "font-medium text-status-success" : "text-muted-foreground",
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={cn(
+                      "text-body-xs leading-snug tabular-nums",
+                      chapter.completed ? "font-medium text-status-success" : "text-muted-foreground",
+                    )}
+                  >
+                    {status}
+                  </span>
+                  {isInProgress && (
+                    <span
+                      aria-hidden="true"
+                      className="inline-block h-1 w-14 overflow-hidden rounded-sm bg-muted"
+                    >
+                      <span
+                        className="block h-full bg-primary transition-[width]"
+                        style={{ width: `${clampedPercent}%` }}
+                      />
+                    </span>
                   )}
-                >
-                  {status}
-                </span>
+                </div>
               </div>
+              {chapter.href && (
+                <ChevronRight
+                  className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+                  aria-hidden="true"
+                />
+              )}
             </div>
           );
 
