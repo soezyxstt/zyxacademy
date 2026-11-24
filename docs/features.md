@@ -438,7 +438,7 @@ The Profile tab reuses the authenticated profile editor, including student-only 
 
 ### Blog & Short Links
 - Multi-category blog (tips_kuliah, pojok_kampus, fakta_seru, kegiatan_zyx)
-- The public Blog route leads with its identity, category navigation, and latest articles. Feature promotion follows the article content and links to the general course catalog instead of presenting every feature as a detail page.
+- The public Blog leads with category navigation and the latest article, followed by recent articles and category previews. A single link to the course catalog follows the articles.
 - URL shortener (zyxacademy.com/s/[slug])
 
 ### Assessment Integrity & Assistance Policy
