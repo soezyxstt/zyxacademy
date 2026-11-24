@@ -17,6 +17,7 @@ import {
   Check,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { hapticError, hapticMedium, hapticSuccess } from "@/lib/native/haptics";
 import { cn } from "@/lib/utils";
 
 type SupportedProposal = OpsAiActionProposalV2 | OpsAiActionProposal;
@@ -138,6 +139,7 @@ export function ActionProposalCard({
   const handleExecute = async (choice: "once" | "chat") => {
     if (inFlight.current || disabled || (approval && !chatId)) return;
     if (onExecutionChange?.(true) === false) return;
+    void hapticMedium();
     inFlight.current = true;
     setSubmittedChoice(choice);
     setCanCheckResult(false);
@@ -155,6 +157,7 @@ export function ActionProposalCard({
 
       const data = await res.json();
       if (!res.ok) {
+        void hapticError();
         setCanCheckResult(data.retryable === true);
         setStatus("failed");
         setErrorMessage(data.error || "Aksi gagal diproses.");
@@ -164,9 +167,11 @@ export function ActionProposalCard({
       setStatus("executed");
       const resObj = (data.result && typeof data.result === "object") ? data.result : { message: "Aksi berhasil dieksekusi." };
       setExecutionResult(resObj);
+      void hapticSuccess();
       if (!resObj.jobId) toast.success("Aksi berhasil dieksekusi.");
       onExecuted?.(initialProposal.id, resObj, typeof data.grantUntil === "number" ? data.grantUntil : undefined);
     } catch {
+      void hapticError();
       setStatus("failed");
       setCanCheckResult(true);
       setErrorMessage("Hasil aksi belum terverifikasi. Coba lagi dengan izin yang sama.");

@@ -4,8 +4,22 @@ import * as React from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
+import { hapticSelection } from "@/lib/native/haptics";
 
-const Select = SelectPrimitive.Root;
+function Select({
+  onValueChange,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  return (
+    <SelectPrimitive.Root
+      onValueChange={(value) => {
+        void hapticSelection();
+        onValueChange?.(value);
+      }}
+      {...props}
+    />
+  );
+}
 const SelectValue = SelectPrimitive.Value;
 
 function SelectTrigger({

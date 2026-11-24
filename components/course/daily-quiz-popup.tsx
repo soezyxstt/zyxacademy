@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { cn } from "@/lib/utils";
+import { hapticSelection, hapticSuccess, hapticWarning } from "@/lib/native/haptics";
 import { jakartaDay } from "@/lib/date-utils";
 import { useTranslations } from "@/lib/i18n/client";
 
@@ -112,6 +113,8 @@ export function DailyQuizPopup({
     if (selectedIdx === null || !trivia) return;
 
     const correct = selectedIdx === trivia.correctIndex;
+    if (correct) void hapticSuccess();
+    else void hapticWarning();
     setIsCorrect(correct);
     setSubmitted(true);
 
@@ -149,6 +152,7 @@ export function DailyQuizPopup({
                     <div
                       onClick={(event) => {
                         if ((event.target as Element).closest("button, input, select, textarea, a, figure, [data-learning-visual]")) return;
+                        void hapticSelection();
                         setSelectedIdx(idx);
                       }}
                       className={cn(

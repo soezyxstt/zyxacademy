@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { hapticSelection } from "@/lib/native/haptics";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { useTranslations } from "@/lib/i18n/client";
@@ -65,6 +66,7 @@ function TabsInner({
 
   const handleValueChange = React.useCallback(
     (newVal: string) => {
+      void hapticSelection();
       if (!isControlled) {
         if (syncUrl && defaultValue) {
           setUrlTab(newVal);
@@ -111,6 +113,7 @@ function TabsStatic({
 
   const handleValueChange = React.useCallback(
     (newVal: string) => {
+      void hapticSelection();
       if (!isControlled) {
         setLocalTab(newVal);
       }
@@ -742,6 +745,9 @@ function TabNav({
               <Link
                 href={tab.href}
                 aria-current={tab.isActive ? "page" : undefined}
+                onClick={() => {
+                  if (!tab.isActive) void hapticSelection();
+                }}
                 className={cn(
                   tabTriggerClassName,
                   tab.isActive ? activeTriggerClass : "text-muted-foreground"
@@ -799,7 +805,10 @@ function TabNav({
                       <Link
                         href={tab.href}
                         aria-current={tab.isActive ? "page" : undefined}
-                        onClick={() => setMoreOpen(false)}
+                        onClick={() => {
+                          if (!tab.isActive) void hapticSelection();
+                          setMoreOpen(false);
+                        }}
                       >
                         {tab.icon}
                         <span>{tab.label}</span>

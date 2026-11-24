@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { hapticSelection } from "@/lib/native/haptics";
+import { hapticError, hapticSelection, hapticSuccess } from "@/lib/native/haptics";
 import { isPullToRefreshLocked } from "@/lib/pull-to-refresh-lock";
 import { useIsPullToRefreshLocked } from "@/hooks/use-pull-to-refresh-lock";
 import {
@@ -164,8 +164,10 @@ export function usePullToRefresh({
     updateStatus("refreshing");
     try {
       await onRefreshRef.current();
+      void hapticSuccess();
       updateStatus("idle");
     } catch {
+      void hapticError();
       updateStatus("error");
     }
   }, [updateStatus]);

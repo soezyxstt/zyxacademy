@@ -3,6 +3,7 @@
 import type { ElementType } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { hapticSelection } from "@/lib/native/haptics";
 import { useMobileChrome } from "@/components/navigation/mobile-chrome-context";
 
 export interface MobileBottomNavItem {
@@ -111,7 +112,10 @@ export function MobileBottomNav({
                 key={item.id}
                 href={item.href}
                 prefetch={item.prefetch}
-                onClick={item.onClick}
+                onClick={() => {
+                  void hapticSelection();
+                  item.onClick?.();
+                }}
                 aria-current={isActive ? "page" : undefined}
                 className={itemClass}
               >
@@ -124,7 +128,10 @@ export function MobileBottomNav({
             <button
               key={item.id}
               type="button"
-              onClick={item.onClick}
+              onClick={() => {
+                void hapticSelection();
+                item.onClick?.();
+              }}
               aria-current={isActive ? "page" : undefined}
               className={cn(itemClass, "cursor-pointer")}
             >

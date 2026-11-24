@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useTranslations } from "@/lib/i18n/client";
 import { AlertCircle, AtSign, Bold, Camera, Check, CircleHelp, Code2, ImageOff, ImagePlus, Italic, Link2, List, Loader2, MoreHorizontal, RotateCcw, Send, Sigma, X } from "lucide-react";
 import { captureNativeQuestionPhoto, hasNativeCameraBridge, prepareQuestionImageFiles } from "@/lib/native/camera";
-import { hapticSuccess } from "@/lib/native/haptics";
+import { hapticError, hapticSuccess } from "@/lib/native/haptics";
 import { usePullToRefreshLock } from "@/hooks/use-pull-to-refresh-lock";
 import { consumeRestoredCameraPayload, ZYX_CAMERA_RESTORED_EVENT } from "@/lib/native/camera-recovery";
 import { Button } from "@/components/ui/button";

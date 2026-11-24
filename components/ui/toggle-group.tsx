@@ -3,9 +3,27 @@
 import * as React from "react";
 import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
+import { hapticSelection } from "@/lib/native/haptics";
 
-function ToggleGroup({ className, ...props }: React.ComponentProps<typeof ToggleGroupPrimitive.Root>) {
-  return <ToggleGroupPrimitive.Root className={cn("flex items-center gap-2", className)} {...props} />;
+function ToggleGroup({
+  className,
+  onValueChange,
+  ...props
+}: React.ComponentProps<typeof ToggleGroupPrimitive.Root>) {
+  const handleValueChange = React.useCallback(
+    (value: unknown) => {
+      void hapticSelection();
+      (onValueChange as ((v: unknown) => void) | undefined)?.(value);
+    },
+    [onValueChange],
+  );
+  return (
+    <ToggleGroupPrimitive.Root
+      className={cn("flex items-center gap-2", className)}
+      onValueChange={handleValueChange}
+      {...(props as React.ComponentProps<typeof ToggleGroupPrimitive.Root>)}
+    />
+  );
 }
 
 function ToggleGroupItem({ className, ...props }: React.ComponentProps<typeof ToggleGroupPrimitive.Item>) {

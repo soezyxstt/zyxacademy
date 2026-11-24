@@ -5,8 +5,13 @@ import {
   DEFAULT_HAPTICS_ENABLED,
   HAPTICS_STORAGE_KEY,
   getHapticsEnabled,
+  hapticError,
+  hapticHeavy,
+  hapticLight,
+  hapticMedium,
   hapticSelection,
   hapticSuccess,
+  hapticWarning,
   isHapticsSupported,
   parseHapticsPreference,
   resetHapticsPreferenceCache,
@@ -431,6 +436,57 @@ describe("Item #12: Meaningful Haptics", () => {
     expect(isHapticsSupported()).toBe(false);
     expect(await hapticSuccess()).toBe(false);
     expect(await hapticSelection()).toBe(false);
+    expect(await hapticLight()).toBe(false);
+    expect(await hapticMedium()).toBe(false);
+    expect(await hapticHeavy()).toBe(false);
+    expect(await hapticWarning()).toBe(false);
+    expect(await hapticError()).toBe(false);
+  });
+
+  test("semantic haptic helpers map to expected impact/notification calls and coalesce rapid duplicates", async () => {
+    const localStorage = createMemoryStorage();
+    const events: string[] = [];
+
+    (globalThis as Record<string, unknown>).window = {
+      localStorage,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      Capacitor: {
+        isNativePlatform: () => true,
+        Plugins: {
+          Haptics: {
+            notification: async ({ type }: { type: string }) => {
+              events.push(`notification:${type}`);
+            },
+            selectionChanged: async () => {
+              events.push("selection");
+            },
+            impact: async ({ style }: { style: string }) => {
+              events.push(`impact:${style}`);
+            },
+          },
+        },
+      },
+    };
+
+    expect(await hapticLight()).toBe(true);
+    expect(await hapticMedium()).toBe(true);
+    expect(await hapticHeavy()).toBe(true);
+    expect(await hapticWarning()).toBe(true);
+    expect(await hapticError()).toBe(true);
+    // Rapid identical duplicate should be coalesced to avoid double buzz
+    expect(await hapticError()).toBe(false);
+    expect(await hapticSuccess()).toBe(true);
+    expect(await hapticSuccess()).toBe(false);
+
+    expect(events).toEqual([
+      "impact:LIGHT",
+      "impact:MEDIUM",
+      "impact:HEAVY",
+      "notification:WARNING",
+      "notification:ERROR",
+      "notification:SUCCESS",
+    ]);
   });
 });
 
@@ -564,6 +620,43 @@ describe("Integration wiring & AGENTS.md compliance", () => {
       const en = JSON.parse(readFileSync(join(root, "messages/en", file), "utf8")) as Record<string, unknown>;
       const id = JSON.parse(readFileSync(join(root, "messages/id", file), "utf8")) as Record<string, unknown>;
       expect(collectKeys(en).sort()).toEqual(collectKeys(id).sort());
+    }
+  });
+
+  test("haptics are wired across shared UI primitives, discussions, student, tutor, and admin flows", () => {
+    const expectations: Array<[string, string[]]> = [
+      ["components/ui/sonner.tsx", ["hapticSuccess", "hapticWarning", "hapticError", "hapticLight"]],
+      ["components/ui/tabs.tsx", ["hapticSelection"]],
+      ["components/ui/switch.tsx", ["hapticSelection"]],
+      ["components/ui/checkbox.tsx", ["hapticSelection"]],
+      ["components/ui/radio-group.tsx", ["hapticSelection"]],
+      ["components/ui/select.tsx", ["hapticSelection"]],
+      ["components/ui/toggle-group.tsx", ["hapticSelection"]],
+      ["components/ui/accordion.tsx", ["hapticLight"]],
+      ["components/navigation/mobile-bottom-nav.tsx", ["hapticSelection"]],
+      ["components/navigation/mobile-top-navbar.tsx", ["hapticLight", "hapticSelection"]],
+      ["components/discussions/discussion-message.tsx", ["hapticMedium", "hapticHeavy", "hapticWarning"]],
+      ["components/discussions/discussion-client.tsx", ["hapticSelection", "hapticLight", "hapticSuccess", "hapticHeavy"]],
+      ["app/(student)/courses/course-catalog-client.tsx", ["hapticMedium", "hapticWarning"]],
+      ["app/(student)/courses/[id]/quiz/[quizId]/quiz-start-button.tsx", ["hapticSuccess", "hapticMedium"]],
+      ["hooks/use-quiz-player.ts", ["hapticMedium", "hapticSelection", "hapticLight", "hapticWarning", "hapticSuccess"]],
+      ["hooks/use-flashcard-session.ts", ["hapticLight", "hapticSuccess", "hapticWarning", "hapticSelection", "hapticMedium"]],
+      ["components/navigation/tutor/tutor-mobile-course-sheet.tsx", ["hapticMedium"]],
+      ["components/tutor/tutor-live-console.tsx", ["hapticHeavy", "hapticMedium", "hapticLight"]],
+      ["components/tutor/concept-drilldown.tsx", ["hapticLight"]],
+      ["features/tutor-dashboard/ui/tutor-dashboard-content.tsx", ["hapticMedium", "hapticLight"]],
+      ["components/admin/confirm-dialog.tsx", ["hapticWarning", "hapticHeavy", "hapticMedium"]],
+      ["components/navigation/admin/admin-mobile-course-sheet.tsx", ["hapticMedium"]],
+      ["components/navigation/admin/admin-more-sheet.tsx", ["hapticLight", "hapticSelection"]],
+      ["components/admin/courses-dashboard.tsx", ["hapticMedium", "hapticSelection"]],
+      ["components/admin/ops-ai/action-proposal-card.tsx", ["hapticMedium", "hapticSuccess", "hapticError"]],
+    ];
+
+    for (const [file, tokens] of expectations) {
+      const content = readFileSync(join(root, file), "utf8");
+      for (const token of tokens) {
+        expect(content).toContain(token);
+      }
     }
   });
 });

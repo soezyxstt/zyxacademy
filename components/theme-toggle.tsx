@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { hapticSelection } from "@/lib/native/haptics";
 import { DropdownMenu } from "radix-ui";
 import { useTranslations } from "next-intl";
 
@@ -80,7 +81,10 @@ export function ThemeToggle({ mode = "navbar" }: { mode?: ThemeMode }) {
           {themes.map(({ value, icon: Icon }) => (
             <DropdownMenu.Item
               key={value}
-              onClick={() => setTheme(value)}
+              onClick={() => {
+                void hapticSelection();
+                setTheme(value);
+              }}
               className={cn(
                 "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm outline-none transition-colors",
                 "data-[highlighted]:bg-muted data-[highlighted]:text-foreground",
