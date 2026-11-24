@@ -172,6 +172,7 @@ export function AdminMobileSubTabNav() {
       label={label}
       variant="page"
       flush={true}
+      primaryMobileNav
       className="mx-0 w-full px-1 md:hidden"
     />
   );

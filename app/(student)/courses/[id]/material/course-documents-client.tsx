@@ -664,10 +664,12 @@ export function CourseDocumentsClient({
 
   const [openSection, setOpenSection] = useState<string | null>(firstPopulatedSectionKey);
 
+  const hasLockedNotice = accessTier === "free" && lockedMaterialCount > 0;
+
   const categoryTabs = (
     <Tabs value={activeTab} onValueChange={(value) => setUrlTab(normalizeTabKey(value))}>
       <TabsList
-        mobileInline
+        flush={!hasLockedNotice}
         className={isAdmin ? undefined : "[&_[data-state=active][data-slot=tabs-trigger]]:after:bg-foreground [&_[data-active=true][data-slot=tabs-more-trigger]]:after:bg-foreground"}
         aria-label={t("documents.courseCategoryLabel")}
         trailing={isAdmin && activeTab === "all" ? (
