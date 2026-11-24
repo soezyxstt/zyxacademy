@@ -31,6 +31,7 @@ import {
 } from "@/lib/audit/mutasi";
 import { getIsoWeekRange } from "@/lib/schedule-lock";
 import { getJakartaCalendarDate } from "@/lib/date-utils";
+import { triggerGoogleCalendarSyncForBookingId } from "@/lib/google-calendar/trigger";
 import {
   addTutorialDays,
   getTutorialWeekRange,
@@ -1676,7 +1677,11 @@ export async function executeMoveTutorSession(
 }
 
 export async function moveTutorSessionAction(input: MoveTutorSessionInput) {
-  return executeMoveTutorSession(input);
+  const result = await executeMoveTutorSession(input);
+  if (result.success) {
+    await triggerGoogleCalendarSyncForBookingId(input.bookingId);
+  }
+  return result;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -2480,7 +2485,18 @@ export async function executeDecideTutorRescheduleTicket(
 export async function decideTutorRescheduleTicketAction(
   input: DecideTutorRescheduleTicketInput,
 ) {
-  return executeDecideTutorRescheduleTicket(input);
+  const result = await executeDecideTutorRescheduleTicket(input);
+  if (result.success && input.decision === "approved") {
+    const [ticket] = await db
+      .select({ bookingId: bookingRescheduleTickets.bookingId })
+      .from(bookingRescheduleTickets)
+      .where(eq(bookingRescheduleTickets.id, input.ticketId))
+      .limit(1);
+    if (ticket?.bookingId) {
+      await triggerGoogleCalendarSyncForBookingId(ticket.bookingId);
+    }
+  }
+  return result;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

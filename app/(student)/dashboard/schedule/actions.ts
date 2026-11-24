@@ -67,6 +67,11 @@ import {
   tutorTicketMessagePayload,
   tutorTicketSubmittedPayload,
 } from "@/lib/notifications/templates";
+import { tutorSlotNotes } from "@/db/schedule-extras";
+import {
+  triggerGoogleCalendarSyncForBookingId,
+  triggerGoogleCalendarSyncForScheduleChange,
+} from "@/lib/google-calendar/trigger";
 import { sendOptionalEmail } from "@/lib/email-preferences/send";
 import { renderScheduleEventEmail } from "@/lib/notifications/email-templates";
 import type { NotificationPayload } from "@/lib/notifications/types";
@@ -385,6 +390,15 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
       })
     : [];
 
+  const slotIds = allTutorSlots.map((slot) => slot.id);
+  const slotNoteRows = slotIds.length
+    ? await db
+        .select({ slotId: tutorSlotNotes.slotId, notes: tutorSlotNotes.notes })
+        .from(tutorSlotNotes)
+        .where(inArray(tutorSlotNotes.slotId, slotIds))
+    : [];
+  const slotNotesById = new Map(slotNoteRows.map((row) => [row.slotId, row.notes]));
+
   // A student only needs booking occupancy to hide claimed slots. Keep the
   // booking details in the group-scoped read above so another group's topic,
   // notes, resources, audit entries, and ticket thread are never exposed as
@@ -411,7 +425,7 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
       coursesByTutor.set(slot.tutorId, [...new Set([...compatible, ...legacy, ...(adminTutorIds.has(slot.tutorId) ? adminCourseIds : [])])]);
     }
     const matchedCourseIds = courseIds ?? coursesByTutor.get(slot.tutorId) ?? [];
-    return matchedCourseIds.length ? [{ ...slot, matchedCourseIds, booking: occupants[0] ?? null }] : [];
+    return matchedCourseIds.length ? [{ ...slot, notes: slotNotesById.get(slot.id) ?? null, matchedCourseIds, booking: occupants[0] ?? null }] : [];
   });
 
   return {
@@ -560,6 +574,7 @@ export async function collaborativeBookSlot(
         return {
           success: false,
           error: "Tutor ini tidak bersertifikasi untuk mata kuliah ini",
+          reason: "TUTOR_NOT_ASSIGNED",
         };
       }
 
@@ -637,6 +652,7 @@ export async function collaborativeBookSlot(
         return {
           success: false,
           error: "Kuota total sesi kelompok telah tercapai.",
+          reason: "GROUP_QUOTA_EXHAUSTED",
         };
       }
 
@@ -750,10 +766,18 @@ export async function collaborativeBookSlot(
           },
         };
       }
-      return { success: true, bookingId, notification };
+      return { success: true, bookingId, notification, calendarSync: { tutorId: slot.tutorId, groupId } };
     });
     if (notification) await notifyTutorScheduleEventBestEffort(notification);
-    return result;
+    if (result.success && !options?.executor && result.calendarSync) {
+      await triggerGoogleCalendarSyncForScheduleChange({
+        userIds: [result.calendarSync.tutorId],
+        groupIds: [result.calendarSync.groupId],
+        includeCentral: true,
+      });
+    }
+    const { calendarSync: _calendarSync, ...publicResult } = result;
+    return publicResult;
   } catch (err: any) {
     if (err?.message === "WEEKLY_QUOTA_EXCEEDED") {
       return {
@@ -1025,10 +1049,25 @@ export async function collaborativeMoveSlot(
           },
         };
       }
-      return { success: true, notification };
+      return {
+        success: true,
+        notification,
+        calendarSync: {
+          userIds: [booking.slot?.tutorId, newSlot.tutorId],
+          groupId: booking.groupId,
+        },
+      };
     });
     if (notification) await notifyTutorScheduleEventBestEffort(notification);
-    return result;
+    if (result.success && !options?.executor && result.calendarSync) {
+      await triggerGoogleCalendarSyncForScheduleChange({
+        userIds: result.calendarSync.userIds,
+        groupIds: [result.calendarSync.groupId],
+        includeCentral: true,
+      });
+    }
+    const { calendarSync: _calendarSync, ...publicResult } = result;
+    return publicResult;
   } catch (err: any) {
     if (err?.message === "WEEKLY_QUOTA_EXCEEDED") {
       return {
@@ -1204,10 +1243,25 @@ export async function collaborativeCancelSlot(bookingId: string) {
           },
         };
       }
-      return { success: true, notification };
+      return {
+        success: true,
+        notification,
+        calendarSync: {
+          tutorId: booking.slot?.tutorId,
+          groupId: booking.groupId,
+        },
+      };
     });
     if (notification) await notifyTutorScheduleEventBestEffort(notification);
-    return result;
+    if (result.success && result.calendarSync) {
+      await triggerGoogleCalendarSyncForScheduleChange({
+        userIds: [result.calendarSync.tutorId],
+        groupIds: [result.calendarSync.groupId],
+        includeCentral: true,
+      });
+    }
+    const { calendarSync: _calendarSync, ...publicResult } = result;
+    return publicResult;
   } catch (err: any) {
     console.error("Collaborative cancel slot error:", err);
     return { success: false, error: err?.message || "Gagal membatalkan jadwal" };
@@ -1283,6 +1337,7 @@ export async function updatePreSessionContextAction(
 
     revalidatePath("/dashboard/schedule");
     revalidatePath("/tutor/schedule");
+    await triggerGoogleCalendarSyncForBookingId(targetBookingId);
     return { success: true };
   } catch (error) {
     console.error("Update pre-session context error:", error);
@@ -1688,6 +1743,16 @@ export async function tutorDecideTicket(
   });
   if (res.success) {
     revalidatePath("/dashboard/schedule");
+    if (decision === "approved") {
+      const [ticket] = await db
+        .select({ bookingId: bookingRescheduleTickets.bookingId })
+        .from(bookingRescheduleTickets)
+        .where(eq(bookingRescheduleTickets.id, ticketId))
+        .limit(1);
+      if (ticket?.bookingId) {
+        await triggerGoogleCalendarSyncForBookingId(ticket.bookingId);
+      }
+    }
   }
   return res;
 }

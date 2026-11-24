@@ -60,6 +60,11 @@ export const auth = betterAuth({
  provider: "pg",
  schema: schema,
  }),
+ account: {
+ // Preserve incremental OAuth scopes (e.g. Google Calendar) and refresh/access tokens
+ // across ordinary Google sign-ins. Explicit linkSocialAccount and token refresh still update the row.
+ updateAccountOnSignIn: false,
+ },
  socialProviders: {
  google: {
  prompt: "select_account",
