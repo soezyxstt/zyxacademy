@@ -23,7 +23,7 @@ import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import { fitNumericRange, isRepresentableRange, normalizedVectorComponent, zoomNumericRange } from "@/lib/zyra/canvas/viewport";
 import { scientificNumberToLatex, scientificNumberToText, scientificValueToMathText } from "@/lib/math/scientific-format";
-import { Check, ChevronDown, RotateCcw, SlidersHorizontal, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronDown, RotateCcw, SlidersHorizontal, ZoomIn, ZoomOut } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/client";
 import {
   evaluateFunctionPlot,
@@ -345,28 +345,6 @@ function niceStep(range: number) {
   return 10 * magnitude;
 }
 
-export function computeValueTableSampling(
-  domainMin: number,
-  domainMax: number,
-  viewMin: number,
-  viewMax: number,
-): { min: number; max: number; sampleCount: number } | null {
-  const min = Math.max(domainMin, viewMin);
-  const max = Math.min(domainMax, viewMax);
-  if (!Number.isFinite(min) || !Number.isFinite(max) || !(min < max)) return null;
-  const span = max - min;
-  for (const step of [niceStep(span * 2), niceStep(span)]) {
-    if (!Number.isFinite(step) || step <= 0) continue;
-    const start = Math.max(min, Math.ceil((min - step * 1e-9) / step) * step);
-    const end = Math.min(max, Math.floor((max + step * 1e-9) / step) * step);
-    if (start < end) {
-      const sampleCount = Math.min(400, Math.max(2, Math.round((end - start) / step) + 1));
-      return { min: start, max: end, sampleCount };
-    }
-  }
-  return { min, max, sampleCount: 5 };
-}
-
 function tickValues(min: number, max: number, step: number): number[] {
   const ticks: number[] = [];
   const epsilon = step * 1e-6;
@@ -499,7 +477,7 @@ function GridLayer({
 
       {/* Axis quantities stay separate from numeric ticks. */}
       <SvgMathLabel x={PAD_L + PLOT_W / 2} y={PAD_T + PLOT_H + 43} width={300} height={38} fontSize={labelSize}>{`${xLabel ?? "$x$"}${xExponent ? ` $\\times10^{${xExponent}}$` : ""}`}</SvgMathLabel>
-      <SvgMathLabel x={showYAxis ? x0 : PAD_L + 110} y={12} width={300} height={38} fontSize={labelSize}>{`${yLabel ?? "$y$"}${yExponent ? ` $\\times10^{${yExponent}}$` : ""}`}</SvgMathLabel>
+      <SvgMathLabel x={PAD_L + 110} y={16} width={300} height={38} fontSize={labelSize}>{`${yLabel ?? "$y$"}${yExponent ? ` $\\times10^{${yExponent}}$` : ""}`}</SvgMathLabel>
       {/* Numbers */}
       {xTicks.map((xv) => {
         if (xv === 0 && showYAxis) return null;
@@ -517,8 +495,8 @@ function GridLayer({
       {/* Center 0 label */}
       {showXAxis && showYAxis && view.xMin < 0 && view.xMax > 0 && view.yMin < 0 && view.yMax > 0 && (
         <text
-          x={x0 - 14}
-          y={y0 + 20}
+          x={x0 - 8}
+          y={y0 + 12}
           textAnchor="end"
           fill="var(--color-muted-foreground)"
           fontSize={labelSize}
@@ -568,10 +546,10 @@ function SeriesLegend({
             onClick={() => onToggleSeries(series.id)}
             className={cn(
               "group inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg border px-2.5 py-1 text-left text-body-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              compact ? "gap-1.5 rounded-none border-0 bg-transparent p-0 shadow-none hover:text-primary" : isVisible
+              compact && "gap-1.5 border-transparent px-1.5 shadow-none",
+              isVisible
                 ? "border-border/70 bg-muted/30 text-foreground hover:bg-muted/50 shadow-2xs"
                 : "border-transparent bg-muted/10 text-muted-foreground opacity-55 hover:opacity-80",
-              compact && !isVisible && "opacity-55",
             )}
           >
             <span className="flex items-center gap-1.5" aria-hidden>
@@ -614,22 +592,17 @@ function VariableControls({
   const t = useTranslations("studentCourse");
   if (spec.controls.length === 0) return null;
   return (
-    <div className={compact ? "relative border-t border-border py-2" : "border-t border-border bg-card px-4 py-3.5 md:px-5 space-y-3"}>
-      <div className={compact ? "space-y-1.5" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"}>
+    <div className={compact ? "space-y-3 border-t border-border py-3" : "border-t border-border bg-card px-4 py-3.5 md:px-5 space-y-3"}>
+      <div className={compact ? "space-y-3" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"}>
         {spec.controls.map((control) => {
           const variable = spec.variables.find((item) => item.id === control.variableId);
           if (!variable) return null;
           const value = values[variable.id] ?? variable.defaultValue;
-          const parameterLabel = control.label.includes(`($${variable.id}$)`)
-            ? control.label
-            : control.label.includes(`$${variable.id}$`)
-              ? control.label.replace(`$${variable.id}$`, `($${variable.id}$)`)
-              : `${control.label} ($${variable.id}$)`;
           return (
-            <div key={control.variableId} className={compact ? "space-y-0.5" : "space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2.5"}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-sans text-body-sm font-semibold text-foreground">
-                  <MathText>{`${quantityLabel(parameterLabel, variable.unit)}: ${mathNumber(value)}`}</MathText>
+            <div key={control.variableId} className={compact ? "space-y-2" : "space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2.5"}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-body-sm font-semibold text-foreground">
+                  <MathText>{`${quantityLabel(control.label, variable.unit)}: ${mathNumber(value)}`}</MathText>
                 </span>
                 {control.presets && control.presets.length > 0 && (
                   <div className="flex gap-1">
@@ -637,13 +610,13 @@ function VariableControls({
                       <button
                         key={p}
                         type="button"
-                        aria-label={t("learningCanvas.setParameter", { parameter: parameterLabel, value: p })}
+                aria-label={t("learningCanvas.setParameter", { parameter: control.label, value: p })}
                         aria-pressed={value === p}
                         onClick={() => setValues((curr) => ({ ...curr, [variable.id]: p }))}
                         className={cn(
-                          "min-h-8 rounded-md border border-transparent px-2 py-1 text-body-sm font-sans font-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          "min-h-8 rounded-md px-2 py-1 text-body-sm font-mono font-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           value === p
-                            ? "border-primary/40 bg-primary/15 text-primary"
+                            ? "bg-primary text-primary-foreground"
                             : "bg-muted text-muted-foreground hover:text-foreground",
                         )}
                       >
@@ -659,7 +632,7 @@ function VariableControls({
                 max={control.max}
                 step={control.step}
                 value={value}
-                aria-label={t("learningCanvas.changeValue", { parameter: parameterLabel })}
+                aria-label={t("learningCanvas.changeValue", { parameter: control.label })}
                 className="h-6 w-full cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onChange={(event) => setValues((current) => ({
                   ...current,
@@ -670,16 +643,18 @@ function VariableControls({
           );
         })}
       </div>
-      {compact ? (
-        <div className="flex justify-end border-t border-border/40 pt-1">
-          <Button type="button" variant="ghost" size="sm" onClick={onResetAll}><RotateCcw className="size-3.5" />{t("learningCanvas.resetParameters")}</Button>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between gap-2 pt-1 text-body-xs text-muted-foreground">
-          <span>{t("learningCanvas.dragCoefficients")}</span>
-          <Button type="button" variant="outline" size="sm" onClick={onResetAll}>{t("learningCanvas.resetVisualization")}</Button>
-        </div>
-      )}
+      <div className="flex items-center justify-between gap-2 pt-1 text-body-xs text-muted-foreground">
+        {!compact && <span>{t("learningCanvas.dragCoefficients")}</span>}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={compact ? "text-body-sm" : undefined}
+          onClick={onResetAll}
+        >
+          {compact ? t("learningCanvas.resetParameters") : t("learningCanvas.resetVisualization")}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -727,8 +702,7 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
   );
 
   const valueTableSpec = useMemo(() => {
-    const sampling = computeValueTableSampling(spec.domain.min, spec.domain.max, view.xMin, view.xMax);
-    const tableSeries = sampling ? evaluateFunctionPlot(spec, values, expressions, sampling) : [];
+    const tableSeries = evaluateFunctionPlot(spec, values, expressions, { min: view.xMin, max: view.xMax, sampleCount: 7 });
     return {
       ...spec,
       fallback: {
@@ -971,8 +945,8 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
         }
       }}
     >
-      <Collapsible open={showParameters} onOpenChange={setShowParameters} className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-2">
+      {/* Top Header / Legend (Open Toolbar, Not A Card) */}
+      <div className="flex max-w-full min-w-0 flex-wrap items-center justify-between gap-2 px-0.5">
         <SeriesLegend
           spec={spec}
           expressions={expressions}
@@ -980,53 +954,6 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
           onToggleSeries={toggleSeries}
           compact={embedded}
         />
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
-        {embedded && (
-          <Button
-            ref={interactionButtonRef}
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 text-body-sm text-muted-foreground hover:text-foreground aria-pressed:bg-primary/10 aria-pressed:text-primary"
-            aria-pressed={interactionActive}
-            aria-label={interactionActive ? t("learningCanvas.done") : t("learningCanvas.graphInteraction")}
-            aria-controls={`graph-plot-${uid}`}
-            onClick={() => interactionActive ? finishInteraction() : setInteractionActive(true)}
-          >
-            {interactionActive ? <Check className="size-3.5 shrink-0 text-primary" /> : <SlidersHorizontal className="size-3.5 shrink-0" />}
-            <span className="sm:hidden">{interactionActive ? t("learningCanvas.done") : t("learningCanvas.graphInteractionShort")}</span>
-            <span className="hidden sm:inline">{interactionActive ? t("learningCanvas.done") : t("learningCanvas.graphInteraction")}</span>
-          </Button>
-        )}
-        {embedded && spec.controls.length > 0 && (
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 text-body-sm text-muted-foreground hover:text-foreground data-[state=open]:bg-muted/40 data-[state=open]:text-foreground">
-              <ChevronDown className={cn("mr-1.5 h-3.5 w-3.5", showParameters && "rotate-180")} />
-              {t("learningCanvas.parameters")}
-            </Button>
-          </CollapsibleTrigger>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-expanded={showValues}
-          aria-label={t("learningCanvas.graphValues")}
-          aria-controls={`graph-values-${uid}`}
-          onClick={() => setShowValues((value) => !value)}
-          className="h-8 text-body-sm text-muted-foreground hover:text-foreground aria-expanded:bg-muted/40 aria-expanded:text-foreground"
-        >
-          <ChevronDown className={cn("mr-1.5 h-3.5 w-3.5 transition-transform duration-200", showValues && "rotate-180")} />
-          <span className="sm:hidden">{t("learningCanvas.graphValuesShort")}</span>
-          <span className="hidden sm:inline">{t("learningCanvas.graphValues")}</span>
-        </Button>
-        {!embedded && <span className="text-body-xs text-muted-foreground/60">
-          {t("learningCanvas.graphHelp")}
-        </span>}
-        </div>
-      </div>
-      {/* Formula editing is available outside the article reader. */}
-      {editable && <div className="flex max-w-full min-w-0 flex-wrap items-center justify-between gap-2 px-0.5">
-
         <div className="flex shrink-0 items-center gap-1.5">
           {editable ? (
             <Button
@@ -1041,7 +968,7 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
             </Button>
           ) : null}
         </div>
-      </div>}
+      </div>
 
       {editable && showFormulaInput && (
         <div className="rounded-xl border border-border/70 bg-muted/20 p-3 space-y-2">
@@ -1069,7 +996,7 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
       )}
 
       {/* Math Canvas Viewport */}
-      <div className={cn("relative w-full overflow-hidden rounded-xl border bg-muted/15 select-none shadow-2xs transition-colors", interactive ? "border-primary/40" : "border-border/60")}>
+      <div className="relative w-full overflow-hidden rounded-xl border border-border/60 bg-muted/15 select-none shadow-2xs transition-colors">
         <svg
           {...bind}
           className={cn(bind.className, "block h-auto w-full md:h-auto")}
@@ -1238,7 +1165,7 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
       </div>
 
       {/* Keep navigation outside the plotted quantities and ticks. */}
-        {interactive && <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-body-xs text-muted-foreground">{t("learningCanvas.dragToExplore")}</p><TooltipProvider><div className="ml-auto flex w-fit items-center gap-0.5 rounded-lg border border-border/60 bg-background/95 p-1 shadow-xs">
+        {interactive && <TooltipProvider><div className="ml-auto flex w-fit items-center gap-0.5 rounded-lg border border-border/60 bg-background/95 p-1 shadow-xs">
           <Tooltip>
           <TooltipTrigger asChild>
           <button
@@ -1279,21 +1206,8 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
           </TooltipTrigger>
           <TooltipContent>{t("learningCanvas.resetView")}</TooltipContent>
           </Tooltip>
-        </div></TooltipProvider></div>}
+        </div></TooltipProvider>}
 
-      {embedded && spec.controls.length > 0 && (
-        <CollapsibleContent>
-          <VariableControls spec={spec} values={values} setValues={setValues} compact onResetAll={() => setValues(valuesForSpec(spec))} />
-        </CollapsibleContent>
-      )}
-      {showValues ? (
-        <div id={`graph-values-${uid}`} className="divide-y divide-border/40 rounded-xl border border-border/60 bg-muted/10 px-3 [&_table]:table-fixed [&_th]:px-3 [&_th]:text-right [&_td]:px-3 [&_td]:text-right [&_td]:tabular-nums [&_th:first-child]:text-left [&_td:first-child]:text-left">
-          {embedded ? <FallbackTable spec={spec} className="rounded-none border-0 bg-transparent px-0 py-3 shadow-none" /> : null}
-          <FallbackTable spec={valueTableSpec} className="rounded-none border-0 bg-transparent px-0 py-3 shadow-none" />
-        </div>
-      ) : null}
-
-      </Collapsible>
       {!embedded && <VariableControls
         spec={spec}
         values={values}
@@ -1301,7 +1215,56 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
         onResetAll={resetAll}
       />}
 
-
+      <Collapsible open={showParameters} onOpenChange={setShowParameters}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {embedded && (
+          <Button
+            ref={interactionButtonRef}
+            type="button"
+            variant={interactionActive ? "secondary" : "outline"}
+            size="sm"
+            className="text-body-sm"
+            aria-pressed={interactionActive}
+            aria-controls={`graph-plot-${uid}`}
+            onClick={() => interactionActive ? finishInteraction() : setInteractionActive(true)}
+          >
+            {interactionActive ? t("learningCanvas.done") : t("learningCanvas.graphInteraction")}
+          </Button>
+        )}
+        {embedded && spec.controls.length > 0 && (
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="text-body-sm">
+              <ChevronDown className={cn("mr-1.5 h-3.5 w-3.5", showParameters && "rotate-180")} />
+              {t("learningCanvas.parameters")}
+            </Button>
+          </CollapsibleTrigger>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-expanded={showValues}
+          aria-controls={`graph-values-${uid}`}
+          onClick={() => setShowValues((value) => !value)}
+          className="h-8 text-body-sm text-muted-foreground hover:text-foreground"
+        >
+          <ChevronDown className={cn("mr-1.5 h-3.5 w-3.5 transition-transform duration-200", showValues && "rotate-180")} />
+          {showValues ? t("learningCanvas.hideGraphValues") : t("learningCanvas.graphValues")}
+        </Button>
+        {!embedded && <span className="text-body-xs text-muted-foreground/60">
+          {t("learningCanvas.graphHelp")}
+        </span>}
+      </div>
+      {embedded && spec.controls.length > 0 && (
+        <CollapsibleContent>
+          <VariableControls spec={spec} values={values} setValues={setValues} compact onResetAll={() => setValues(valuesForSpec(spec))} />
+        </CollapsibleContent>
+      )}
+      </Collapsible>
+      {showValues ? (
+        <div id={`graph-values-${uid}`}>
+          <FallbackTable spec={valueTableSpec} className="mt-2 rounded-xl border border-border/60 bg-muted/10 shadow-none" />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1610,13 +1573,14 @@ export function LearningCanvasRenderer({ spec, embedded = false }: { spec: Canva
     <section
       aria-labelledby={compactPlot ? undefined : titleId}
       aria-label={compactPlot ? spec.title : undefined}
-      className={isFunctionPlot ? "w-full min-w-0 my-3 space-y-2" : compactPlot ? "w-full min-w-0" : "my-6 w-full min-w-0 space-y-4"}
+      className={isFunctionPlot ? "w-full min-w-0 my-3 space-y-2" : compactPlot ? "w-full min-w-0" : "my-6 w-full min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 md:p-5"}
     >
       {!compactPlot && !isFunctionPlot ? (
         <div>
           <h3 id={titleId} className="font-heading text-body-base font-semibold text-foreground">
             <MathText>{spec.title}</MathText>
           </h3>
+          <MathText as="p" className="mt-1 text-body-sm text-muted-foreground">{spec.purpose}</MathText>
         </div>
       ) : null}
       {spec.type === "function_plot" ? (
@@ -1640,7 +1604,6 @@ export function LearningCanvasRenderer({ spec, embedded = false }: { spec: Canva
       ) : (
         <FallbackTable spec={spec.type === "table" ? { ...spec, fallback: { ...spec.fallback, rows: spec.rows } } : spec} />
       )}
-      {!compactPlot && !isFunctionPlot ? <MathText as="p" className="text-body-xs text-muted-foreground">{spec.purpose}</MathText> : null}
     </section>
   );
 }

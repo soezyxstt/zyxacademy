@@ -131,10 +131,12 @@ function LearningCanvasVisual({ spec, className }: { spec: PublicLearningCanvasV
 
   return (
     <figure id={spec.id} ref={containerRef} aria-label={spec.label} className={`space-y-2 ${className ?? ""}`}>
-      {spec.canvas.type !== "function_plot" ? <Button type="button" variant="outline" size="sm" aria-pressed={showFallback} aria-controls={fallbackId} onClick={() => setShowFallback((value) => !value)}><TableIcon className="mr-2 size-4" />{showFallback ? "Tampilkan visual" : "Tampilkan tabel nilai"}</Button> : null}
+      <Button type="button" variant="outline" size="sm" aria-pressed={showFallback} aria-controls={fallbackId} onClick={() => setShowFallback((value) => !value)}><TableIcon className="mr-2 size-4" />{showFallback ? "Tampilkan visual" : "Tampilkan tabel nilai"}</Button>
       <div hidden={showFallback}>{isVisible ? <LazyLearningCanvasRenderer spec={spec.canvas} embedded /> : null}</div>
       <div id={fallbackId} hidden={isVisible && !showFallback}><CanvasFallback spec={spec} /></div>
-      <figcaption className="text-body-xs text-muted-foreground"><MathText>{spec.description}</MathText></figcaption>
+      {!isVisible && spec.interactive ? (
+        <p className="sr-only">{spec.description}</p>
+      ) : null}
     </figure>
   );
 }
@@ -219,6 +221,9 @@ function EpsilonDeltaVisual({ spec, className, engine }: { spec: PublicEpsilonDe
               <MathText>{spec.label}</MathText>
             </h3>
           </div>
+          <p id={descId} className="mt-1 text-body-xs text-muted-foreground">
+            <MathText>{spec.description}</MathText>
+          </p>
         </div>
         <Button
           type="button"
@@ -493,7 +498,6 @@ function EpsilonDeltaVisual({ spec, className, engine }: { spec: PublicEpsilonDe
           </div>
         </div>
       )}
-      <figcaption id={descId} className="text-body-xs text-muted-foreground"><MathText>{spec.description}</MathText></figcaption>
     </figure>
   );
 }

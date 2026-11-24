@@ -7,6 +7,6 @@ export function formatReaderTocTitle(title: string): string {
 
 export function resolveReaderBlockTitle(title: string | null | undefined, fallback: string, sectionTitle: string): string | null {
   const label = title?.trim() || fallback;
-  if (label === sectionTitle || ["Teori", "Penjelasan inti", "Penjelasan", "Representasi Konseptual", "Representasi Matematis", "Rumus", "Rumus dan syarat", "Simbol, syarat, dan makna"].includes(label)) return null;
-  return label;
+  if (label === sectionTitle || ["Penjelasan", "Representasi Konseptual", "Representasi Matematis", "Rumus", "Rumus dan syarat", "Simbol, syarat, dan makna"].includes(label)) return null;
+  return label === "Penjelasan inti" ? "Teori" : label;
 }
