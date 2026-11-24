@@ -8,6 +8,7 @@ import {
   loadOpsAiSessions,
   createOpsAiSession,
   updateOpsAiSessionMessages,
+  renameOpsAiSession,
   deleteOpsAiSession,
   clearAllOpsAiSessions,
   loadOpsAiMessages,
@@ -29,7 +30,7 @@ import {
 } from "@/components/admin/ops-ai/ops-ai-storage";
 import { WorkTraceView } from "@/components/admin/ops-ai/work-trace-view";
 import { CitationCards } from "@/components/admin/ops-ai/citation-cards";
-import { ActionProposalCard } from "@/components/admin/ops-ai/action-proposal-card";
+import { ActionProposalCard, extractReadableProposalSummary } from "@/components/admin/ops-ai/action-proposal-card";
 import { OpsAiTrigger } from "@/components/admin/ops-ai/ops-ai-trigger";
 import { OpsAiProvider } from "@/components/admin/ops-ai/ops-ai-context";
 import { QuickActionsBar, extractQuickActions } from "@/components/admin/ops-ai/quick-actions-bar";
@@ -520,7 +521,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain("kalkulus-1");
 
       // Action button
-      expect(html).toContain(">Allow<");
+      expect(html).toContain(">Izinkan<");
       expect(html).toContain('aria-label="Konfirmasi dan eksekusi aksi"');
 
       // Zero em-dashes
@@ -544,11 +545,11 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       const chatApproval = renderToStaticMarkup(<ActionProposalCard proposal={proposal} chatId="session-approval" />);
       const onceApproval = renderToStaticMarkup(<ActionProposalCard proposal={{ ...proposal, approval: "once" }} chatId="session-approval" />);
       const expired = renderToStaticMarkup(<ActionProposalCard proposal={{ ...proposal, expiresAt: 1000 }} chatId="session-approval" />);
-      expect(chatApproval).toContain("Allow in chat");
-      expect(onceApproval).toContain(">Allow<");
-      expect(onceApproval).not.toContain("Allow in chat");
+      expect(chatApproval).toContain("Izinkan di chat");
+      expect(onceApproval).toContain(">Izinkan<");
+      expect(onceApproval).not.toContain("Izinkan di chat");
       expect(expired).toContain("Kedaluwarsa");
-      expect(expired).not.toContain(">Allow<");
+      expect(expired).not.toContain(">Izinkan<");
     });
 
     it("shows an accepted job as processing instead of completed", () => {
@@ -759,7 +760,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
         // Render card
         const cardHtml = renderToStaticMarkup(<ActionProposalCard proposal={proposal} />);
-        expect(cardHtml).toContain(">Allow<");
+        expect(cardHtml).toContain(">Izinkan<");
 
         // Simulate execution call equivalent to ActionProposalCard.handleExecute
         const res = await fetch("/api/admin/ops-ai/execute", {
@@ -805,7 +806,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
       expect(html).toContain("Gagal");
       expect(html).toContain("Kapasitas kuota token tidak valid.");
-      expect(html).not.toContain(">Allow<");
+      expect(html).not.toContain(">Izinkan<");
     });
   });
 
@@ -1244,6 +1245,128 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
       const askForms = resolveDynamicOpsPresets({ pathname: "/admin/forms", mode: "ask" });
       expect(askForms.presets.every((p) => p.category === "ask")).toBe(true);
+    });
+
+    it("persists AI session titles without overwriting on subsequent message updates", () => {
+      const sess = createOpsAiSession("Percakapan Baru", "admin-1");
+
+      const renamed = renameOpsAiSession(sess.id, "Audit formulir pendaftaran 2026", "admin-1");
+      const afterRename = renamed.find((s) => s.id === sess.id);
+      expect(afterRename?.title).toBe("Audit formulir pendaftaran 2026");
+      expect(afterRename?.titleSource).toBe("ai");
+
+      updateOpsAiSessionMessages(
+        sess.id,
+        [{ id: "m1", role: "user", content: "Pesan panjang pertama yang berbeda", createdAt: 1000 }],
+        "admin-1"
+      );
+      expect(loadOpsAiSessions("admin-1").find((s) => s.id === sess.id)?.title).toBe(
+        "Audit formulir pendaftaran 2026"
+      );
+    });
+  });
+
+  // ==========================================================================
+  // Suite 17: ActionProposalCard Readable Summary & Collapsible Raw JSON
+  // ==========================================================================
+  describe("Suite 17: ActionProposalCard Readable Summary & Collapsible Raw JSON", () => {
+    it("extracts readable key-value summary from JSON preview fields and collapses raw JSON by default", () => {
+      const detailJson = JSON.stringify(
+        {
+          title: "Survei Kepuasan Tutor",
+          slug: "survei-kepuasan-tutor",
+          category: "feedback",
+          settings: {
+            acceptingResponses: true,
+            requireLogin: false,
+          },
+          questions: [
+            { id: "q1" },
+            { id: "q2" },
+            { id: "q3" },
+            { id: "q4" },
+            { id: "q5" },
+            { id: "q6" },
+          ],
+          status: "draft",
+        },
+        null,
+        2
+      );
+
+      const parsed = extractReadableProposalSummary([
+        { label: "Environment", value: "staging (https://staging.zyxacademy.com)" },
+        { label: "Detail perubahan", value: detailJson },
+      ]);
+
+      expect(parsed.rawJsonBlocks).toHaveLength(1);
+      expect(parsed.summaryItems).toContainEqual({
+        label: "Lingkungan",
+        value: "Staging",
+      });
+      expect(parsed.summaryItems).toContainEqual({
+        label: "Judul",
+        value: "Survei Kepuasan Tutor",
+      });
+      expect(parsed.summaryItems).toContainEqual({
+        label: "Tautan",
+        value: "survei-kepuasan-tutor",
+      });
+      expect(parsed.summaryItems).toContainEqual({
+        label: "Pertanyaan",
+        value: "6 pertanyaan",
+      });
+      expect(parsed.summaryItems).toContainEqual({
+        label: "Terima respons",
+        value: "Ya",
+      });
+      expect(parsed.summaryItems).toContainEqual({
+        label: "Wajib masuk",
+        value: "Tidak",
+      });
+
+      const proposal: OpsAiActionProposalV2 = {
+        id: "prop-form-1",
+        runId: "run-form",
+        stepId: "step-form",
+        type: "admin_operation",
+        title: "Buat formulir baru",
+        description: "Izinkan perubahan ini?",
+        approval: "chat",
+        preview: {
+          summary: "forms.create",
+          fields: [
+            { label: "Environment", value: "staging (https://staging.zyxacademy.com)" },
+            { label: "Detail perubahan", value: detailJson },
+          ],
+        },
+        status: "pending",
+        createdAt: 1000,
+      };
+
+      const html = renderToStaticMarkup(
+        <ActionProposalCard proposal={proposal} chatId="session-form" />
+      );
+
+      // Human-readable Indonesian summary is visible immediately without raw code
+      expect(html).toContain(">Lingkungan</dt>");
+      expect(html).toContain(">Staging</dd>");
+      expect(html).toContain(">Judul</dt>");
+      expect(html).toContain("Survei Kepuasan Tutor");
+      expect(html).toContain(">Terima respons</dt>");
+      expect(html).toContain(">Ya</dd>");
+      expect(html).toContain(">Pertanyaan</dt>");
+      expect(html).toContain("6 pertanyaan");
+      expect(html).toContain("Izinkan di chat");
+      expect(html).toContain(">Izinkan<");
+
+      // Raw JSON is collapsed by default behind Detail teknis toggle
+      expect(html).toContain("Detail teknis");
+      expect(html).toContain('aria-expanded="false"');
+      expect(html).not.toContain("&quot;acceptingResponses&quot;");
+      expect(html).not.toContain("—");
+      expect(html).not.toContain("–");
+      expect(html).not.toContain("rounded-full");
     });
   });
 });

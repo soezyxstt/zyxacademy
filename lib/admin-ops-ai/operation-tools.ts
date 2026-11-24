@@ -8,8 +8,28 @@ import { hasChatOperationGrant, invokeApprovedOperation, readApprovedOperation, 
 import { opsGrantTarget } from "./operation-policy";
 import { proposalStore } from "./proposal-store";
 import { browserOperations, type OpsBrowserChat } from "./registered-operations";
+import { listOpsAiSkillsSummary, loadOpsAiSkillMarkdown } from "./skills";
+import { getOpsAiSkillMeta } from "./skills-catalog";
 
 const maxModelChars = 16000;
+
+const BROWSER_MANAGED_MCP_CONTROL_KEYS = new Set([
+  "dryRun",
+  "expectedEnvironment",
+  "expectedOrigin",
+  "requestKey",
+  "confirmationToken",
+]);
+
+function stripBrowserManagedControlKeys(raw: unknown): unknown {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    return raw;
+  }
+  const entries = Object.entries(raw as Record<string, unknown>).filter(
+    ([key]) => !BROWSER_MANAGED_MCP_CONTROL_KEYS.has(key),
+  );
+  return Object.fromEntries(entries);
+}
 
 function authoringTargets(input: Record<string, unknown>) {
   const target: Record<string, unknown> = {};
@@ -41,6 +61,65 @@ export function createBrowserOperationTools(chat: OpsBrowserChat, runId: string,
         return result;
       },
     }),
+    load_admin_skill: tool({
+      description: "Muat panduan skill operasional atau authoring Zyx sesuai kebutuhan (misalnya formulir, blog, media, authoring, atau pemulihan operasi). Panggil tanpa skillId untuk melihat daftar 12 skill yang tersedia.",
+      inputSchema: z.object({
+        skillId: z.string().trim().max(100).optional(),
+        query: z.string().trim().max(200).optional(),
+      }),
+      execute: async ({ skillId, query }) => {
+        const requestedId = skillId?.trim();
+        if (requestedId) {
+          const meta = getOpsAiSkillMeta(requestedId);
+          if (meta) {
+            const guide = await loadOpsAiSkillMarkdown(meta.id);
+            if (guide) {
+              return {
+                skillId: meta.id,
+                label: meta.label,
+                category: meta.category,
+                guide,
+              };
+            }
+          }
+        }
+
+        const search = (query ?? requestedId ?? "").trim().toLowerCase();
+        const allSkills = listOpsAiSkillsSummary();
+        if (search) {
+          const matched = allSkills.filter(
+            (skill) =>
+              skill.skillId.toLowerCase().includes(search) ||
+              skill.label.toLowerCase().includes(search) ||
+              skill.shortDescription.toLowerCase().includes(search) ||
+              skill.category.toLowerCase().includes(search),
+          );
+          if (matched.length === 1) {
+            const single = matched[0];
+            const guide = await loadOpsAiSkillMarkdown(single.skillId);
+            if (guide) {
+              return {
+                skillId: single.skillId,
+                label: single.label,
+                category: single.category,
+                guide,
+              };
+            }
+          }
+          if (matched.length > 0) {
+            return {
+              summary: "Ditemukan beberapa skill yang cocok. Panggil load_admin_skill dengan skillId yang tepat.",
+              skills: matched,
+            };
+          }
+        }
+
+        return {
+          summary: "Daftar 12 skill Zyx tersedia. Panggil load_admin_skill dengan skillId yang sesuai.",
+          skills: allSkills,
+        };
+      },
+    }),
     discover_admin_operations: tool({
       description: "Temukan operasi admin aktif. Gunakan nama domain untuk daftar, atau nama operasi lengkap untuk skema argumen JSON.",
       inputSchema: z.object({ query: z.string().trim().max(200).default("") }),
@@ -67,9 +146,32 @@ export function createBrowserOperationTools(chat: OpsBrowserChat, runId: string,
 
         let raw: unknown;
         try { raw = argumentsJson.trim() ? JSON.parse(argumentsJson) : {}; } catch { return { summary: "Argumen harus berupa objek JSON yang valid." }; }
-        const parsed = entry.input.safeParse(raw);
+        const sanitizedRaw = stripBrowserManagedControlKeys(raw);
+        const parsed = entry.input.safeParse(sanitizedRaw);
         if (!parsed.success) {
-          return { summary: "Periksa argumen sesuai skema operasi.", issues: parsed.error.issues.map(issue => issue.path.join(".")) };
+          const fieldErrors = parsed.error.issues.map((issue) => {
+            const path = issue.path.join(".") || "(root)";
+            const unrecognizedKeys =
+              issue.code === "unrecognized_keys" && Array.isArray((issue as { keys?: unknown }).keys)
+                ? (issue as { keys: string[] }).keys
+                : undefined;
+            return {
+              path,
+              code: issue.code,
+              message: issue.message,
+              ...(unrecognizedKeys ? { unrecognizedKeys } : {}),
+            };
+          });
+          const previewErrors = fieldErrors
+            .slice(0, 2)
+            .map((err) => `${err.path} (${err.message})`)
+            .join("; ");
+          return {
+            summary: `Argumen tidak valid: ${previewErrors}. Perbaiki argumen lalu panggil ulang use_admin_operation.`,
+            issues: fieldErrors.map((err) => err.path),
+            fieldErrors,
+            inputSchema: z.toJSONSchema(entry.input, { io: "input", unrepresentable: "any" }),
+          };
         }
         const input = parsed.data;
         const { environment, origin } = mcpEnvironmentIdentity();

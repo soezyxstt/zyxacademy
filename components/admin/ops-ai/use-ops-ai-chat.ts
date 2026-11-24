@@ -19,6 +19,7 @@ export type OpsAiStreamPart =
   | { type: "data-citation"; id: string; data: OpsAiCitation }
   | { type: "data-proposal"; id: string; data: OpsAiActionProposalV2 }
   | { type: "data-followups"; followups: OpsFollowup[] }
+  | { type: "data-session-title"; sessionId?: string; title: string }
   | { type: "data-error"; id: string; data: OpsAiErrorData }
   | { type: "tool-call"; toolCallId: string; toolName: string; input: unknown }
   | { type: "tool-result"; toolCallId: string; toolName: string; output: unknown }
@@ -32,14 +33,21 @@ export interface UseOpsAiChatOptions {
     queryParams?: Record<string, string>;
     mode?: "ask" | "edit";
   };
+  needsTitle?: boolean;
   onFinish?: (message: OpsAiMessageV2) => void;
   onError?: (error: Error) => void;
   onWorkStep?: (step: OpsAiWorkStep) => void;
   onCitation?: (citation: OpsAiCitation) => void;
   onProposal?: (proposal: OpsAiActionProposalV2) => void;
+  onSessionTitle?: (title: string, sessionId?: string) => void;
 }
 
-type ChatRequestOptions = { chatId: string; grantIds: string[]; mode?: "ask" | "edit" };
+type ChatRequestOptions = {
+  chatId: string;
+  grantIds: string[];
+  mode?: "ask" | "edit";
+  needsTitle?: boolean;
+};
 
 export interface UseOpsAiChatReturn {
   messages: OpsAiMessageV2[];
@@ -96,6 +104,27 @@ export async function* consumeOpsAiStream(
               if (followups.length > 0) {
                 yield { type: "data-followups", followups };
               }
+            } else if (parsed.type === "data-session-title") {
+              const rawTitle =
+                typeof parsed.title === "string"
+                  ? parsed.title
+                  : typeof parsed.data?.title === "string"
+                    ? parsed.data.title
+                    : "";
+              const cleanedTitle = rawTitle.trim();
+              if (cleanedTitle) {
+                const sessionId =
+                  typeof parsed.sessionId === "string"
+                    ? parsed.sessionId
+                    : typeof parsed.data?.sessionId === "string"
+                      ? parsed.data.sessionId
+                      : undefined;
+                yield {
+                  type: "data-session-title",
+                  ...(sessionId ? { sessionId } : {}),
+                  title: cleanedTitle,
+                };
+              }
             } else {
               yield parsed as OpsAiStreamPart;
             }
@@ -122,11 +151,13 @@ export function useOpsAiChat({
   api = "/api/admin/ops-ai",
   initialMessages = [],
   context,
+  needsTitle,
   onFinish,
   onError,
   onWorkStep,
   onCitation,
   onProposal,
+  onSessionTitle,
 }: UseOpsAiChatOptions = {}): UseOpsAiChatReturn {
   const [messages, setMessages] = useState<OpsAiMessageV2[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -197,6 +228,7 @@ export function useOpsAiChat({
         const requestContext = chat?.mode
           ? { ...context, mode: chat.mode }
           : context;
+        const effectiveNeedsTitle = chat?.needsTitle ?? needsTitle;
         const res = await fetch(api, {
           method: "POST",
           signal: abortController.signal,
@@ -205,6 +237,7 @@ export function useOpsAiChat({
             messages: history,
             context: requestContext,
             ...(chat ? { chatId: chat.chatId, grantIds: chat.grantIds } : {}),
+            ...(effectiveNeedsTitle !== undefined ? { needsTitle: effectiveNeedsTitle } : {}),
           }),
         });
 
@@ -286,6 +319,8 @@ export function useOpsAiChat({
                 )
               );
             }
+          } else if (part.type === "data-session-title") {
+            onSessionTitle?.(part.title, part.sessionId ?? chat?.chatId);
           } else if (part.type === "data-error") {
             const errData = part.data;
             setMessages((prev: OpsAiMessageV2[]) =>
@@ -351,7 +386,19 @@ export function useOpsAiChat({
         }
       }
     },
-    [api, context, input, messages, onError, onFinish, onProposal, onCitation, onWorkStep]
+    [
+      api,
+      context,
+      needsTitle,
+      input,
+      messages,
+      onError,
+      onFinish,
+      onProposal,
+      onCitation,
+      onWorkStep,
+      onSessionTitle,
+    ]
   );
 
   return {
