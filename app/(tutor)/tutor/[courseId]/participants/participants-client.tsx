@@ -9,7 +9,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { useUrlTab } from "@/hooks/use-url-tab";
-import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 import type {
   TutorCourseParticipantsPayload,
@@ -24,7 +23,6 @@ interface ParticipantsClientProps {
 export function ParticipantsClient({ data }: ParticipantsClientProps) {
   const t = useTranslations("tutor.participants");
   const { locale } = useAppLocale();
-  const viewportMode = useViewportMode();
   const [search, setSearch] = useState("");
   const [enrollmentFilter, setEnrollmentFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useUrlTab("tab", "participants");
@@ -75,7 +73,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
       {/* Tabs & Search Toolbar */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-(--related-gap)">
         <div className="space-y-(--compact-gap)">
-          <TabsList variant={viewportMode === "mobile" ? "inline" : "page"} flush={false}>
+          <TabsList flush={false}>
             <TabsTrigger value="participants">
               {t("participants")}
             </TabsTrigger>

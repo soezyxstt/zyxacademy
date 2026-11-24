@@ -1273,6 +1273,25 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
   padding-top: 0;
 }
 
+/* When a primary mobile tab nav is present, secondary page tab bars stay full-width
+   and flush when requested, but do not double-stack as sticky bars on mobile. */
+@media (max-width: 767.98px) {
+  main:has([data-primary-mobile-tabs]) [data-application-page] [data-sticky-tabs-bar] {
+    position: relative;
+    top: auto;
+    z-index: 0;
+    isolation: isolate;
+  }
+}
+
+/* Nested page tab bars inside another tabpanel remain full-width without competing for sticky. */
+[role="tabpanel"] [data-sticky-tabs-bar] {
+  position: relative;
+  top: auto;
+  z-index: 0;
+  isolation: isolate;
+}
+
 /* Mobile assessments supply the spacing around their toolbar and fixed footer. */
 [data-application-page]:has([data-quiz-layout="mobile"], [data-tryout-layout="mobile"]) {
   padding-block: 0;

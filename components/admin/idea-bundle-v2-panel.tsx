@@ -249,7 +249,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
           </AdminStatStrip>
 
           <Tabs value={analysisTab} onValueChange={(value) => setAnalysisTab(value as "ideas" | "relations")}>
-            <TabsList mobileInline flush={false}>
+            <TabsList flush={false}>
               <TabsTrigger value="ideas">Idea</TabsTrigger>
               <TabsTrigger value="relations">Peta relasi</TabsTrigger>
             </TabsList>
