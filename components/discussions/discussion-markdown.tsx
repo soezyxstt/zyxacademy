@@ -14,12 +14,12 @@ function MathValue({ value, display = false }: { value: string; display?: boolea
   if (display) {
     return (
       <div
-        className="my-1 block max-w-full overflow-x-auto py-0.5 [&_.katex-display]:my-1"
+        className="my-1 block max-w-full overflow-x-auto overflow-y-hidden no-scrollbar py-1.5 [&_.katex-display]:my-0 [&_.katex-display]:py-0"
         dangerouslySetInnerHTML={{ __html: html }}
       />
     );
   }
-  return <span className="inline-block max-w-full overflow-x-auto align-middle" dangerouslySetInnerHTML={{ __html: html }} />;
+  return <span className="inline align-baseline" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 type MentionRenderer = (handle: string) => ReactNode;

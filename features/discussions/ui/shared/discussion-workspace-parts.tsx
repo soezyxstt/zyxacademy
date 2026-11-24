@@ -876,7 +876,7 @@ export function DiscussionThreadOrComposePane({
       </div>
 
       {showReplyComposer && (
-        <div className="flex max-h-[80%] min-h-0 shrink-0 flex-col border-t border-border bg-background p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <div className="flex max-h-[80%] min-h-0 shrink-0 flex-col border-t border-border bg-background p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] md:p-3 md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           <DiscussionComposer
             draft={
               question.canReply || threadLocked

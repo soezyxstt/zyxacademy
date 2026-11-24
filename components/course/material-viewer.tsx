@@ -4,7 +4,7 @@ import { prefersAppReducedMotion } from "@/components/appearance-preferences";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Image from "next/image";
 import { useSearchParams, usePathname } from "next/navigation";
 import { 
@@ -467,18 +467,22 @@ function shortenSubbabLabel(title: string): string {
     .replace(/^\d+\.\s*/, "");
 }
 
-const getConceptTags = (courseId: string, materialTitle: string) => {
-  if (courseId === "calc-1") {
-    if (materialTitle.toLowerCase().includes("turunan")) {
-      return ["Turunan", "Aturan Rantai", "Diferensial"];
-    }
-    return ["Limit", "Kekontinuan", "Fungsi"];
-  }
-  if (courseId === "physics-1") {
-    return ["Vektor", "Besaran", "Satuan"];
-  }
-  return ["Kalkulus", "Sains"];
-};
+function extractSectionSnippet(content: string, query: string): string {
+  const plain = content
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/[#>*_`[\]()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!plain) return "";
+  const lower = plain.toLocaleLowerCase("id");
+  const idx = lower.indexOf(query.trim().toLocaleLowerCase("id"));
+  if (idx === -1) return plain.slice(0, 120);
+  const start = Math.max(0, idx - 36);
+  const end = Math.min(plain.length, idx + query.length + 84);
+  const prefix = start > 0 ? "..." : "";
+  const suffix = end < plain.length ? "..." : "";
+  return `${prefix}${plain.slice(start, end).trim()}${suffix}`;
+}
 
 export function MaterialViewer(props: MaterialViewerProps) {
   const currentAccount = useQueryAccountCurrent(props.studentId ?? "");
@@ -502,10 +506,23 @@ function MaterialViewerContent({
 }: MaterialViewerProps) {
   const t = useTranslations("learning");
   const common = useTranslations("common");
+  const tSearch = useTranslations("search");
   const articleLabels = useTranslations("studentCourse");
   const learnerMode = isLearnerReaderMode(mode);
   const experience = useStudentExperience();
   const demo = experience.mode === "demo";
+
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const articleScrollRef = useRef<HTMLDivElement>(null);
+  const initialScrolledRef = useRef(false);
+  const requestedSectionParam = searchParams?.get("section");
+  const initialSection = parseInt(requestedSectionParam || "0", 10);
+  const [activeSectionIdx, setActiveSectionIdx] = useState(isNaN(initialSection) ? 0 : initialSection);
+  const activeSectionIdxRef = useRef(activeSectionIdx);
+  useEffect(() => {
+    activeSectionIdxRef.current = activeSectionIdx;
+  }, [activeSectionIdx]);
 
   useEffect(() => {
     if (demo || !studentId || !learnerMode) return;
@@ -515,7 +532,10 @@ function MaterialViewerContent({
 
   useEffect(() => {
     if (demo || !studentId || !learnerMode || material.kind !== "article") return;
+    const container = articleScrollRef.current;
+    if (!container) return;
     const readingKey = buildOfflineReadingKey(studentId, material.courseId, material.id);
+    const hasExplicitSection = Boolean(requestedSectionParam);
     let cancelled = false;
     let restorationReady = false;
     let raf1 = 0;
@@ -523,16 +543,13 @@ function MaterialViewerContent({
 
     void loadLatestOfflineReadingPosition(readingKey).then((saved) => {
       if (cancelled) return;
-      if (saved) {
+      if (!hasExplicitSection && saved) {
+        initialScrolledRef.current = true;
         raf1 = window.requestAnimationFrame(() => {
           raf2 = window.requestAnimationFrame(() => {
             if (cancelled) return;
-            const scrollHeight = Math.max(
-              document.documentElement.scrollHeight || 0,
-              document.body.scrollHeight || 0,
-            );
-            const targetY = resolveRestoredScrollY(saved, scrollHeight, window.innerHeight);
-            if (targetY > 0) window.scrollTo(0, targetY);
+            const targetY = resolveRestoredScrollY(saved, container.scrollHeight, container.clientHeight);
+            if (targetY > 0) container.scrollTop = targetY;
             restorationReady = true;
           });
         });
@@ -543,17 +560,13 @@ function MaterialViewerContent({
 
     const persist = () => {
       if (!restorationReady) return;
-      const scrollY = Math.max(0, Math.round(window.scrollY || document.documentElement.scrollTop || 0));
-      const scrollHeight = Math.max(
-        document.documentElement.scrollHeight || 0,
-        document.body.scrollHeight || 0,
-      );
+      const scrollY = Math.max(0, Math.round(container.scrollTop));
       saveOfflineReadingPosition({
         key: readingKey,
         sectionSlug: null,
-        sectionIndex: 0,
+        sectionIndex: activeSectionIdxRef.current,
         scrollY,
-        scrollRatio: computeScrollRatio(scrollY, scrollHeight, window.innerHeight),
+        scrollRatio: computeScrollRatio(scrollY, container.scrollHeight, container.clientHeight),
         scope: "document",
         updatedAt: Date.now(),
       });
@@ -572,7 +585,7 @@ function MaterialViewerContent({
       if (document.visibilityState === "hidden") persist();
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
+    container.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pagehide", persist);
     return () => {
@@ -581,11 +594,11 @@ function MaterialViewerContent({
       window.cancelAnimationFrame(raf2);
       if (timer) clearTimeout(timer);
       if (restorationReady) persist();
-      window.removeEventListener("scroll", onScroll);
+      container.removeEventListener("scroll", onScroll);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", persist);
     };
-  }, [demo, studentId, learnerMode, material.kind, material.courseId, material.id]);
+  }, [demo, studentId, learnerMode, material.kind, material.courseId, material.id, requestedSectionParam]);
   const revision = experience.baseline.find(item => item.courseId === material.courseId)?.revision ?? "fictional";
   const storage = useMemo(() => {
     const fallback = new Map<string,string>();
@@ -621,21 +634,60 @@ function MaterialViewerContent({
     };
   }, [learnerMode]);
 
-  // Navigation hooks
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-
   // Article states
-  const initialSection = parseInt(searchParams?.get("section") || "0", 10);
   const [showSectionContext, setShowSectionContext] = useState(false);
-  const [activeSectionIdx, setActiveSectionIdx] = useState(isNaN(initialSection) ? 0 : initialSection);
   const [showOutlineSheet, setShowOutlineSheet] = useState(false);
   const [isArticleTocOpen, setIsArticleTocOpen] = useState(true);
   const [articleTocSearchQuery, setArticleTocSearchQuery] = useState("");
+  const [isArticleMobileSearchOpen, setIsArticleMobileSearchOpen] = useState(false);
+  const mobileArticleSearchInputRef = useRef<HTMLInputElement>(null);
+  const mobileArticleSearchTriggerRef = useRef<HTMLButtonElement>(null);
 
   const viewportMode = useViewportMode();
   const isMobile = viewportMode === "mobile";
   useHideMobileBottomNav(learnerMode);
+
+  useEffect(() => {
+    if (isArticleMobileSearchOpen) {
+      mobileArticleSearchInputRef.current?.focus();
+    }
+  }, [isArticleMobileSearchOpen]);
+
+  useEffect(() => {
+    if (!isMobile && isArticleMobileSearchOpen) {
+      setIsArticleMobileSearchOpen(false);
+    }
+  }, [isMobile, isArticleMobileSearchOpen]);
+
+  const closeArticleMobileSearch = useCallback((restoreFocus = false) => {
+    setIsArticleMobileSearchOpen(false);
+    setArticleTocSearchQuery("");
+    if (restoreFocus) {
+      requestAnimationFrame(() => mobileArticleSearchTriggerRef.current?.focus());
+    }
+  }, []);
+
+  const syncSectionUrl = useCallback((index: number) => {
+    try {
+      const url = new URL(window.location.href);
+      if (index <= 0) {
+        url.searchParams.delete("section");
+      } else {
+        url.searchParams.set("section", String(index));
+      }
+      window.history.replaceState(null, "", url.toString());
+    } catch {}
+  }, []);
+
+  const jumpToArticleSection = useCallback((index: number) => {
+    activeSectionIdxRef.current = index;
+    setActiveSectionIdx(index);
+    syncSectionUrl(index);
+    const el = document.getElementById(`diktat-section-${index}`);
+    if (el) {
+      el.scrollIntoView({ behavior: prefersAppReducedMotion() ? "auto" : "smooth", block: "start" });
+    }
+  }, [syncSectionUrl]);
 
   const mobileTopNavConfig = useMemo(() => {
     if (!learnerMode || !isMobile || hideHeader) return null;
@@ -661,32 +713,6 @@ function MaterialViewerContent({
   }, [backHref, hideHeader, isMobile, learnerMode, material.courseId, material.kind, material.title, t]);
   useMobileTopNav(mobileTopNavConfig);
 
-  // Sync URL -> State (e.g. back/forward navigation)
-  useEffect(() => {
-    const sectionStr = searchParams?.get("section");
-    const sectionFromUrl = sectionStr ? parseInt(sectionStr, 10) : 0;
-    if (sectionFromUrl !== activeSectionIdx) {
-      setActiveSectionIdx(sectionFromUrl);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, material.id]);
-
-  // Sync State -> URL
-  useEffect(() => {
-    const currentUrlSection = searchParams?.get("section") || "0";
-    if (currentUrlSection !== activeSectionIdx.toString()) {
-      const params = new URLSearchParams(searchParams?.toString() || "");
-      if (activeSectionIdx === 0) {
-        params.delete("section");
-      } else {
-        params.set("section", activeSectionIdx.toString());
-      }
-      const newQuery = params.toString();
-      const newUrl = newQuery ? `${pathname}?${newQuery}` : pathname;
-      window.history.replaceState(null, "", newUrl);
-    }
-  }, [activeSectionIdx, pathname, searchParams]);
-
   const { chapterTitle, sections: articleSections } = useMemo(() => {
     return parseArticleSections(material.body || "", material.title);
   }, [material.body, material.title]);
@@ -708,7 +734,12 @@ function MaterialViewerContent({
       }
       if (container.scrollTop > 0 && container.scrollTop + container.clientHeight >= container.scrollHeight - 2) current = sections[sections.length - 1];
       setShowSectionContext((current.querySelector("h2")?.getBoundingClientRect().bottom ?? Infinity) <= container.getBoundingClientRect().top);
-      setActiveSectionIdx(Number(current.dataset.sectionIdx));
+      const nextIdx = Number(current.dataset.sectionIdx);
+      if (nextIdx !== activeSectionIdxRef.current) {
+        activeSectionIdxRef.current = nextIdx;
+        setActiveSectionIdx(nextIdx);
+        syncSectionUrl(nextIdx);
+      }
     };
     const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update); };
     container.addEventListener("scroll", schedule, { passive: true });
@@ -721,25 +752,28 @@ function MaterialViewerContent({
       container.removeEventListener("scroll", schedule);
       observer.disconnect();
     };
-  }, [articleSections, material.kind]);
+  }, [articleSections, material.kind, syncSectionUrl]);
 
-  // Scroll to target section on initial load if query param present
+  // Scroll to target section once on initial load if ?section= query param is present
   useEffect(() => {
+    if (initialScrolledRef.current) return;
     if (material.kind !== "article" || articleSections.length === 0) return;
-    const sectionParam = searchParams?.get("section");
-    if (sectionParam != null) {
-      const targetIdx = parseInt(sectionParam, 10);
+    if (requestedSectionParam != null) {
+      const targetIdx = parseInt(requestedSectionParam, 10);
       if (!isNaN(targetIdx) && targetIdx >= 0 && targetIdx < articleSections.length) {
+        initialScrolledRef.current = true;
+        activeSectionIdxRef.current = targetIdx;
+        setActiveSectionIdx(targetIdx);
         const timer = setTimeout(() => {
           const el = document.getElementById(`diktat-section-${targetIdx}`);
           if (el) {
             el.scrollIntoView({ behavior: prefersAppReducedMotion() ? "auto" : "smooth", block: "start" });
           }
-        }, 250);
+        }, 80);
         return () => clearTimeout(timer);
       }
     }
-  }, [articleSections.length, material.kind, searchParams]);
+  }, [articleSections.length, material.kind, requestedSectionParam]);
 
   const visibleArticleSections = useMemo(() => {
     const query = articleTocSearchQuery.trim().toLocaleLowerCase("id");
@@ -789,7 +823,6 @@ function MaterialViewerContent({
   const viewerRef = useRef<HTMLDivElement>(null);
   const noteSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  const articleScrollRef = useRef<HTMLDivElement>(null);
   const articleProgress = useScrollProgress(articleScrollRef);
   const { done, markDone, markingDone } = useMaterialReadingProgress({
     material, studentId, learnerMode,
@@ -1234,8 +1267,9 @@ function MaterialViewerContent({
   ) : null;
 
   if (material.kind === "article" && material.body) {
-    const conceptTags = material.docCategory === "diktat" ? [] : getConceptTags(material.courseId, material.title);
     const summaryChapterId = !hideHeader && learnerMode && accessTier !== "free" && ragEnabled ? chapterId : undefined;
+    const articleDisplayTitle = chapterTitle || material.title;
+    const articleSearchLabel = material.docCategory === "diktat" ? t("reader.searchDiktat") : t("reader.searchArticle");
     const articleTocSearch = (
       <SearchBar
         collapsible
@@ -1243,8 +1277,8 @@ function MaterialViewerContent({
         value={articleTocSearchQuery}
         onSearch={setArticleTocSearchQuery}
         onClear={() => setArticleTocSearchQuery("")}
-        aria-label={material.docCategory === "diktat" ? t("reader.searchDiktat") : t("reader.searchArticle")}
-        placeholder={material.docCategory === "diktat" ? t("reader.searchDiktat") : t("reader.searchArticle")}
+        aria-label={articleSearchLabel}
+        placeholder={articleSearchLabel}
         variant="bordered"
         size="sm"
         containerClassName="min-w-0 flex-1"
@@ -1270,12 +1304,8 @@ function MaterialViewerContent({
                 type="button"
                 aria-current={isActive ? "location" : undefined}
                 onClick={() => {
-                  setActiveSectionIdx(index);
                   setShowOutlineSheet(false);
-                  const el = document.getElementById(`diktat-section-${index}`);
-                  if (el) {
-                    el.scrollIntoView({ behavior: prefersAppReducedMotion() ? "auto" : "smooth", block: "start" });
-                  }
+                  jumpToArticleSection(index);
                 }}
                 className={cn(
                   "flex w-full items-start gap-2.5 border-l-2 border-transparent px-2.5 py-2 text-left text-body-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
@@ -1303,62 +1333,176 @@ function MaterialViewerContent({
       <div className="flex flex-col h-full w-full overflow-hidden bg-background">
         <Sheet open={showOutlineSheet} onOpenChange={setShowOutlineSheet}>
           {!hideHeader && learnerMode && (
-            <header className="relative w-full shrink-0 border-b border-border/80 bg-background/95 backdrop-blur-sm">
-              <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-2 gap-y-1 px-4 py-1.5 sm:px-6 lg:px-8">
-              <div className="flex min-w-0 flex-1 basis-32 items-center gap-2">
-                <div className="min-w-0">
-                  <h1 className="break-words font-heading text-body-sm font-bold text-foreground">
-                    {showSectionContext && articleSections[activeSectionIdx] ? `${String(activeSectionIdx + 1).padStart(2, "0")}. ${formatReaderTocTitle(articleSections[activeSectionIdx].title)}` : course?.title ?? t("reader.courseMaterials")}
-                  </h1>
+            <header className="relative z-30 w-full shrink-0 border-b border-border/80 bg-background/95 backdrop-blur-sm">
+              {isArticleMobileSearchOpen && isMobile ? (
+                <div className="md:hidden">
+                  <div className="mx-auto flex w-full max-w-6xl items-center gap-1.5 px-3 py-1.5 sm:px-6">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => closeArticleMobileSearch(true)}
+                      className="shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+                      aria-label={tSearch("closeSearch")}
+                    >
+                      <ChevronLeft className="size-4" aria-hidden />
+                    </Button>
+                    <SearchBar
+                      ref={mobileArticleSearchInputRef}
+                      expandable={false}
+                      mobileTopNav={false}
+                      size="sm"
+                      variant="bordered"
+                      value={articleTocSearchQuery}
+                      onSearch={setArticleTocSearchQuery}
+                      onClear={() => setArticleTocSearchQuery("")}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape" && !event.defaultPrevented && !event.nativeEvent.isComposing) {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          closeArticleMobileSearch(true);
+                        }
+                      }}
+                      aria-label={articleSearchLabel}
+                      placeholder={articleSearchLabel}
+                      containerClassName="min-w-0 flex-1"
+                    />
+                  </div>
+                  {articleTocSearchQuery.trim().length >= 2 ? (
+                    <div className="max-h-[55dvh] overflow-y-auto border-t border-border/60 bg-background px-4 py-2 shadow-sm">
+                      <p className="px-1 py-1 text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {articleLabels("articleReader.searchResults", { count: visibleArticleSections.length })}
+                      </p>
+                      {visibleArticleSections.length === 0 ? (
+                        <p className="px-1 py-3 text-center text-body-xs text-muted-foreground">
+                          {articleLabels("articleReader.noSearchResults", { query: articleTocSearchQuery })}
+                        </p>
+                      ) : (
+                        <div className="mt-1 space-y-1.5">
+                          {visibleArticleSections.map(({ section, index }) => {
+                            const isCurrent = index === activeSectionIdx;
+                            const snippet = extractSectionSnippet(section.content, articleTocSearchQuery);
+                            return (
+                              <button
+                                key={`${section.title}-${index}`}
+                                type="button"
+                                onClick={() => {
+                                  jumpToArticleSection(index);
+                                  closeArticleMobileSearch(false);
+                                }}
+                                className={cn(
+                                  "w-full rounded-lg border p-2.5 text-left text-body-xs transition-colors",
+                                  isCurrent
+                                    ? "border-primary/40 bg-primary/10 font-medium text-primary"
+                                    : "border-border/60 text-foreground hover:bg-muted/60",
+                                )}
+                              >
+                                <p className="line-clamp-1 font-semibold">
+                                  {formatReaderTocTitle(section.title)}
+                                </p>
+                                {snippet ? (
+                                  <p className="mt-0.5 line-clamp-2 text-body-xs font-normal text-muted-foreground">
+                                    {snippet}
+                                  </p>
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
-              </div>
+              ) : (
+                <TooltipProvider delayDuration={150}>
+                  <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="min-w-0">
+                        <h1 className="truncate font-heading text-body-sm font-bold leading-tight text-foreground">
+                          {showSectionContext && articleSections[activeSectionIdx]
+                            ? `${String(activeSectionIdx + 1).padStart(2, "0")} ${formatReaderTocTitle(articleSections[activeSectionIdx].title)}`
+                            : articleDisplayTitle}
+                        </h1>
+                      </div>
+                    </div>
 
-              <div className="flex shrink-0 items-center gap-2">
-                <TooltipProvider>
-                  <>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <SheetTrigger asChild>
-                          <Button variant="ghost" size="icon-lg" className="md:hidden" aria-label={t("reader.tableOfContents")}>
-                            <Menu aria-hidden />
-                          </Button>
-                        </SheetTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent>{t("reader.tableOfContents")}</TooltipContent>
-                    </Tooltip>
-                  </>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
+                    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                      {summaryChapterId && (
+                        <ChapterSummarySheet studentId={studentId} chapterId={summaryChapterId} chapterTitle={material.title} />
+                      )}
+                      {material.url && canDownload && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="rounded-lg text-muted-foreground hover:text-foreground"
+                              aria-label={t("reader.downloadPdf")}
+                              disabled={downloadingFile}
+                              onClick={() => void handleDownloadMaterial(articleDisplayTitle)}
+                            >
+                              <Download className="size-4" aria-hidden />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">{t("reader.downloadPdf")}</TooltipContent>
+                        </Tooltip>
+                      )}
+                      <ShareLinkButton
+                        title={articleDisplayTitle}
                         variant="ghost"
-                        size="icon-lg"
-                        className="hidden md:inline-flex"
-                        aria-label={isArticleTocOpen ? t("reader.hideMenu") : t("reader.openMenu")}
-                        aria-expanded={isArticleTocOpen}
-                        onClick={() => setIsArticleTocOpen((open) => !open)}
+                        size="icon-sm"
+                        className="rounded-lg text-muted-foreground hover:text-foreground"
+                      />
+                      <Button
+                        ref={mobileArticleSearchTriggerRef}
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setIsArticleMobileSearchOpen(true)}
+                        className="md:hidden rounded-lg text-muted-foreground hover:text-foreground"
+                        aria-label={articleSearchLabel}
+                        aria-expanded={false}
                       >
-                        {isArticleTocOpen ? <PanelRightClose aria-hidden /> : <PanelRight aria-hidden />}
+                        <Search className="size-4" aria-hidden />
                       </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{isArticleTocOpen ? t("reader.hideMenu") : t("reader.openMenu")}</TooltipContent>
-                  </Tooltip>
+                      <SheetTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="md:hidden rounded-lg text-muted-foreground hover:text-foreground"
+                          aria-label={t("reader.tableOfContents")}
+                        >
+                          <Menu className="size-4" aria-hidden />
+                        </Button>
+                      </SheetTrigger>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className={cn(
+                              "hidden md:inline-flex rounded-lg transition-colors",
+                              isArticleTocOpen
+                                ? "bg-primary/10 text-primary hover:bg-primary/15"
+                                : "text-muted-foreground hover:text-foreground",
+                            )}
+                            aria-label={isArticleTocOpen ? t("reader.hideMenu") : t("reader.openMenu")}
+                            aria-expanded={isArticleTocOpen}
+                            onClick={() => setIsArticleTocOpen((open) => !open)}
+                          >
+                            {isArticleTocOpen ? <PanelRightClose className="size-4" aria-hidden /> : <PanelRight className="size-4" aria-hidden />}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="end">
+                          {isArticleTocOpen ? t("reader.hideMenu") : t("reader.openMenu")}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
                 </TooltipProvider>
-                {learnerMode && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={markDone}
-                    aria-label={done ? t("reader.complete") : t("reader.markComplete")}
-                    disabled={done || markingDone}
-                    className="interactive gap-1.5 font-semibold"
-                  >
-                    <CheckCircle2 className={cn("size-3.5", done ? "text-emerald-500 fill-emerald-500/10" : "text-muted-foreground")} />
-                    <span>{done ? t("reader.complete") : t("reader.markComplete")}</span>
-                  </Button>
-                )}
-              </div>
-              </div>
-              <div className="absolute bottom-0 left-0 h-0.5 w-full bg-border/40" role="progressbar" aria-label={articleLabels("articleReader.readingPosition")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}><div className="h-full bg-primary transition-all duration-300 motion-reduce:transition-none" style={{ width: `${progressPercent}%` }} /></div>
+              )}
+              <div className="h-0.5 w-full bg-border/40" role="progressbar" aria-label={articleLabels("articleReader.readingPosition")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}><div className="h-full bg-primary transition-all duration-300 motion-reduce:transition-none" style={{ width: `${progressPercent}%` }} /></div>
             </header>
           )}
 
@@ -1388,59 +1532,7 @@ function MaterialViewerContent({
               data-theme={theme}
               className="w-full flex-1 overflow-y-auto bg-background text-foreground transition-colors duration-300"
             >
-              <div className={cn("article-editorial max-w-[66ch] px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 pb-8 space-y-6", !isArticleTocOpen && "mx-auto")}>
-                {/* Document / Diktat Header */}
-                <header className="space-y-2 border-b border-border/60 pb-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <h1 className="min-w-0 font-heading text-h5 font-bold tracking-tight text-foreground">
-                      {chapterTitle || material.title}
-                    </h1>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <ShareLinkButton
-                        title={chapterTitle || material.title}
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-muted-foreground hover:text-foreground rounded-lg"
-                      />
-                      {material.url && canDownload && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                className="text-muted-foreground hover:text-foreground rounded-lg"
-                                aria-label={t("reader.downloadPdf")}
-                                disabled={downloadingFile}
-                                onClick={() => void handleDownloadMaterial(chapterTitle || material.title)}
-                              >
-                                <Download className="size-4" aria-hidden />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{t("reader.downloadPdf")}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                      {summaryChapterId && (
-                        <ChapterSummarySheet studentId={studentId} chapterId={summaryChapterId} chapterTitle={material.title} />
-                      )}
-                    </div>
-                  </div>
-                  {conceptTags && conceptTags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {conceptTags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="bg-primary/5 text-primary text-body-xs font-semibold px-2 py-0.5 rounded-md"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </header>
-
+              <div className={cn("article-editorial max-w-[66ch] px-3.5 sm:px-6 lg:px-8 pt-3.5 sm:pt-6 pb-8 space-y-4 sm:space-y-6", !isArticleTocOpen && "mx-auto")}>
                 {/* Continuous Sections */}
                 {articleSections.length > 0 ? (
                   articleSections.map((section, idx) => {
@@ -1449,9 +1541,9 @@ function MaterialViewerContent({
                         <section
                           id={`diktat-section-${idx}`}
                           data-section-idx={idx}
-                          className="scroll-mt-8 space-y-6 [&+section]:mt-12 [&+section]:border-t [&+section]:border-border/40 [&+section]:pt-5 md:[&+section]:mt-16"
+                          className="scroll-mt-8 space-y-3.5 sm:space-y-6 [&+section]:mt-7 [&+section]:border-t [&+section]:border-border/40 [&+section]:pt-4 md:[&+section]:mt-14 md:[&+section]:pt-5"
                         >
-                          <div className="space-y-3">
+                          <div className="space-y-1.5 sm:space-y-3">
                             <span className="text-body-xs font-semibold text-primary/80">
                               {String(idx + 1).padStart(2, "0")}
                             </span>
@@ -1507,14 +1599,14 @@ function MaterialViewerContent({
                       <Button variant="default" asChild><a href={backHref || experience.href?.(`/courses/${material.courseId}/material`) || `/courses/${material.courseId}/material`}>{articleLabels("articleReader.browseMaterials")}<ChevronRight className="size-4" /></a></Button>
                       {material.url && canDownload && (
                         <Button
+                          type="button"
                           variant="outline"
-                          asChild
+                          disabled={downloadingFile}
+                          onClick={() => void handleDownloadMaterial(articleDisplayTitle)}
                           className="gap-2 font-semibold"
                         >
-                          <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                            <Download className="size-4" />
-                            <span>{t("reader.downloadCopy")}</span>
-                          </a>
+                          <Download className="size-4" aria-hidden />
+                          <span>{t("reader.downloadCopy")}</span>
                         </Button>
                       )}
                     </div>
@@ -1548,14 +1640,7 @@ function MaterialViewerContent({
                   className="size-10 rounded-lg"
                   aria-label={t("reader.previousPage")}
                   disabled={activeSectionIdx <= 0}
-                  onClick={() => {
-                    const nextIdx = Math.max(0, activeSectionIdx - 1);
-                    setActiveSectionIdx(nextIdx);
-                    document.getElementById(`diktat-section-${nextIdx}`)?.scrollIntoView({
-                      behavior: prefersAppReducedMotion() ? "auto" : "smooth",
-                      block: "start",
-                    });
-                  }}
+                  onClick={() => jumpToArticleSection(Math.max(0, activeSectionIdx - 1))}
                 >
                   <ChevronLeft className="size-4" aria-hidden />
                 </Button>
@@ -1569,14 +1654,7 @@ function MaterialViewerContent({
                   className="size-10 rounded-lg"
                   aria-label={t("reader.nextPage")}
                   disabled={activeSectionIdx >= articleSections.length - 1}
-                  onClick={() => {
-                    const nextIdx = Math.min(articleSections.length - 1, activeSectionIdx + 1);
-                    setActiveSectionIdx(nextIdx);
-                    document.getElementById(`diktat-section-${nextIdx}`)?.scrollIntoView({
-                      behavior: prefersAppReducedMotion() ? "auto" : "smooth",
-                      block: "start",
-                    });
-                  }}
+                  onClick={() => jumpToArticleSection(Math.min(articleSections.length - 1, activeSectionIdx + 1))}
                 >
                   <ChevronRight className="size-4" aria-hidden />
                 </Button>
@@ -2279,14 +2357,16 @@ function MaterialViewerContent({
                           {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
                         </button>
                         {material.url && canDownload && (
-                          <a
-                            href={material.url}
-                            download
-                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                          <button
+                            type="button"
+                            disabled={downloadingFile}
+                            onClick={() => void handleDownloadMaterial(material.title)}
+                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all disabled:opacity-50"
                             title={t("reader.downloadPdfFile")}
+                            aria-label={t("reader.downloadPdfFile")}
                           >
-                            <Download className="size-4" />
-                          </a>
+                            <Download className="size-4" aria-hidden />
+                          </button>
                         )}
                       </div>
 

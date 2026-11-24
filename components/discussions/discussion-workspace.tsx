@@ -33,7 +33,7 @@ export function DiscussionWorkspace(
     <TooltipProvider>
       <div className="@container/discussions min-w-0" data-discussion-workspace>
         {props.readError && (
-          <div role="alert" className="mb-3 flex items-center gap-2 text-body-xs">
+          <div role="alert" className="mb-3 flex items-center gap-2 px-3 text-body-xs md:px-0">
             {t("readError")}
             <Button
               type="button"
@@ -50,7 +50,7 @@ export function DiscussionWorkspace(
           onValueChange={(tab) => controller.changeTab(tab as "questions" | "reports")}
         >
           {controller.canReport && (
-            <TabsList className="mb-2">
+            <TabsList className="mx-3 mb-2 md:mx-0">
               <TabsTrigger value="questions">{t("questions")}</TabsTrigger>
               <TabsTrigger value="reports">
                 {t("reports")}
@@ -79,7 +79,7 @@ export function DiscussionWorkspace(
             />
           </TabsContent>
           {controller.canReport && (
-            <TabsContent value="reports">
+            <TabsContent value="reports" className="px-3 md:px-0">
               <DiscussionReports
                 state={props.reportState}
                 onRetry={props.onRetryReports}

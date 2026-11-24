@@ -123,7 +123,7 @@ function renderMathSegments(text: string, bareMath = false): ReactNode[] {
         key={index}
         className={cn(
           segment.display
-            ? "my-3 block overflow-x-auto overflow-y-hidden py-1"
+            ? "my-3 block overflow-x-auto overflow-y-hidden no-scrollbar py-1.5"
             : "inline",
         )}
         dangerouslySetInnerHTML={{ __html: renderMath(segment.value, segment.display) }}

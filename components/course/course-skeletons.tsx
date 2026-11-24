@@ -195,7 +195,10 @@ export function MaterialReaderContentSkeleton({
                 <Skeleton className="h-3.5 w-7" />
               </div>
               <div className="hidden sm:block h-4 w-px bg-border/70 mx-1" />
-              <div className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground/40">
+              <div className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground/40 md:hidden">
+                <Search className="size-4" />
+              </div>
+              <div className="hidden md:inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground/40">
                 <Maximize2 className="size-4" />
               </div>
               <div className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground/40 md:hidden">

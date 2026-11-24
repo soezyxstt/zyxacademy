@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -46,8 +47,9 @@ export async function POST(req: Request) {
     }
 
     const { messages, context, chatId, grantIds } = parsed.data;
-    const browserChat = chatId && session.session?.id
-      ? { chatId, grantIds, actorId: session.user.id, sessionId: session.session.id }
+    const effectiveChatId = chatId || randomUUID();
+    const browserChat = session.session?.id
+      ? { chatId: effectiveChatId, grantIds, actorId: session.user.id, sessionId: session.session.id }
       : undefined;
     return createOpsAiRuntimeResponse({
       messages,

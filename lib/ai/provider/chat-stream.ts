@@ -6,11 +6,27 @@ export async function readChatCompletion(response: Response, received: (delta: s
   const events = response.body.pipeThrough(new TextDecoderStream()).pipeThrough(new EventSourceParserStream());
   const reader = events.getReader();
   let content = "", finishReason: string | undefined, usage;
+  let sawDone = false;
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done || value.data === "[DONE]") break;
-      const chunk = JSON.parse(value.data);
+      if (done) break;
+      if (!value.data || !value.data.trim()) continue;
+      if (value.data.trim() === "[DONE]") {
+        sawDone = true;
+        break;
+      }
+      let chunk: Record<string, any>;
+      try {
+        chunk = JSON.parse(value.data);
+      } catch (parseError) {
+        if (content.length > 0) {
+          console.warn("[ChatStream] Ignoring malformed trailing SSE frame after content:", parseError);
+          continue;
+        }
+        throw parseError;
+      }
+      if (!chunk || typeof chunk !== "object") continue;
       if (chunk.error) throw new Error("Provider stream failed");
       const choice = chunk.choices?.[0];
       if (typeof choice?.delta?.content === "string" && choice.delta.content) {
@@ -20,7 +36,16 @@ export async function readChatCompletion(response: Response, received: (delta: s
       if (choice?.finish_reason) finishReason = choice.finish_reason;
       if (chunk.usage) usage = chunk.usage;
     }
-    if (!finishReason) throw new Error("Incomplete provider stream");
+    if (!finishReason) {
+      if (content.length > 0) {
+        if (!sawDone) {
+          console.warn("[ChatStream] Provider stream ended after content without finish_reason or [DONE]; defaulting to stop.");
+        }
+        finishReason = "stop";
+      } else {
+        throw new Error("Incomplete provider stream");
+      }
+    }
     return { choices: [{ message: { content }, finish_reason: finishReason }], usage };
   } finally {
     await reader.cancel().catch(() => {});

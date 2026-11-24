@@ -382,28 +382,32 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
 
   return <div data-message-id={message.id} data-own-message={isOwn ? "true" : undefined} data-discussion-target={targeted || undefined} tabIndex={targeted ? -1 : undefined} className={cn("min-w-0 touch-pan-y", targeted && "rounded-lg ring-2 ring-primary")} onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={(event) => endGesture(event, true)}>
     <div className={cn("flex min-w-0 items-start gap-2 md:gap-2.5", isOwn && "flex-row-reverse")}>
-      {canViewAuthorProfile ? (
-        <button type="button" onClick={() => onViewProfile!(message.author)} aria-label={t("viewProfile", { name: message.author.name })} className="mt-0.5 size-7 md:size-9 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{avatarVisual}</button>
-      ) : (
-        <span className="mt-0.5 size-7 md:size-9 shrink-0">{avatarVisual}</span>
-      )}
+      {!isOwn ? (
+        canViewAuthorProfile ? (
+          <button type="button" onClick={() => onViewProfile!(message.author)} aria-label={t("viewProfile", { name: message.author.name })} className="mt-0.5 size-7 md:size-9 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{avatarVisual}</button>
+        ) : (
+          <span className="mt-0.5 size-7 md:size-9 shrink-0">{avatarVisual}</span>
+        )
+      ) : null}
       <div className={cn("flex min-w-0 flex-1 flex-col gap-1", isOwn ? "items-end" : "items-start")}>
-        <ZyraBubbleSkin
-          skinId={message.skinId}
-          role={message.author.role === "zyra" ? "assistant" : "user"}
-          className={cn(
-            "min-w-0 w-fit max-w-full md:max-w-[85%]",
-            hasBubbleSkin
-              ? undefined
-              : cn(
-                  "rounded-2xl border px-3.5 py-2.5",
-                  isOwn
-                    ? "rounded-tr-sm border-primary/25 bg-primary/10 dark:bg-primary/15"
-                    : "rounded-tl-sm border-border bg-card shadow-2xs"
-                )
-          )}
-        >
-          <div className="mb-1 flex min-w-0 items-center justify-between gap-3">
+        <div className={cn("relative min-w-0 w-fit max-w-[92%] md:max-w-[85%]", isOwn && "mr-1.5")}>
+          <ZyraBubbleSkin
+            skinId={message.skinId}
+            role={message.author.role === "zyra" ? "assistant" : "user"}
+            className={cn(
+              "min-w-0 w-full",
+              isOwn && "!rounded-tr-none",
+              hasBubbleSkin
+                ? undefined
+                : cn(
+                    "rounded-2xl border px-2.5 py-1.5 md:px-3.5 md:py-2.5",
+                    isOwn
+                      ? "border-primary/25 bg-[color-mix(in_oklab,var(--primary)_10%,var(--background))] dark:bg-[color-mix(in_oklab,var(--primary)_15%,var(--background))]"
+                      : "rounded-tl-sm border-border bg-card shadow-2xs"
+                  )
+            )}
+          >
+            <div className="mb-0.5 md:mb-1 flex min-w-0 items-center justify-between gap-2.5 md:gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               {canViewAuthorProfile ? (
                 <button type="button" onClick={() => onViewProfile!(message.author)} className="min-w-0 break-words rounded-sm text-left text-body-xs font-semibold hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{message.author.name}</button>
@@ -451,7 +455,31 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
           }} />}
           {message.attachments.map((attachment) => <div key={attachment.id} className="mt-2 w-60 max-w-full">{renderAttachment ? renderAttachment(attachment) : <DiscussionAttachment attachment={attachment} />}</div>)}</div>
           {message.editedAt && <p className="mt-1 text-body-xs text-muted-foreground">{t("edited")}</p>}
-        </ZyraBubbleSkin>
+          </ZyraBubbleSkin>
+          {isOwn ? (
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 9 11"
+              className="pointer-events-none absolute top-0 -right-[7px] h-[11px] w-[9px] overflow-visible"
+            >
+              <path
+                d="M0 0.5 L7.2 0.5 C8.4 0.5 8.8 1.8 7.8 2.7 L0 10.2 Z"
+                className={
+                  hasBubbleSkin
+                    ? "fill-card"
+                    : "fill-[color-mix(in_oklab,var(--primary)_10%,var(--background))] dark:fill-[color-mix(in_oklab,var(--primary)_15%,var(--background))]"
+                }
+              />
+              <path
+                d="M0 0.5 L7.2 0.5 C8.4 0.5 8.8 1.8 7.8 2.7 L0.5 9.8"
+                fill="none"
+                strokeWidth="1"
+                strokeLinecap="round"
+                className={hasBubbleSkin ? "stroke-border" : "stroke-primary/25"}
+              />
+            </svg>
+          ) : null}
+        </div>
         {showReactionRow && <div className={cn("flex flex-wrap items-center gap-1", isOwn && "justify-end")}>
           {zyraReaction?.emoji && (
             <Tooltip>

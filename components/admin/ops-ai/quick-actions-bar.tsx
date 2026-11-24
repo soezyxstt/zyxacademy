@@ -1,172 +1,107 @@
 "use client";
 
-import React, { useState } from "react";
-import { ArrowUp, Check, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import React from "react";
+import { ArrowRight, Check, Compass, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  parseOpsFollowups,
+  stripOpsFollowupMarkup,
+  type OpsFollowup,
+  type OpsFollowupIcon,
+} from "@/lib/admin-ops-ai/followups";
+
+export { stripOpsFollowupMarkup };
 
 export interface QuickActionsBarProps {
-  options: string[];
-  onSelect: (option: string) => void;
+  followups: OpsFollowup[];
+  onSelect: (followup: OpsFollowup) => void;
   disabled?: boolean;
 }
 
 /**
- * Parses and extracts quick-action suggestions from message content.
- * Returns the cleaned markdown content (with raw code blocks stripped)
- * and an array of actionable choice strings.
+ * Compatibility helper that strips hidden follow-up or legacy quick-actions
+ * markup without client-side heuristic guessing.
  */
 export function extractQuickActions(content: string): {
   cleanedContent: string;
-  quickActions: string[];
+  quickActions: OpsFollowup[];
 } {
-  if (!content) {
-    return { cleanedContent: "", quickActions: [] };
+  const { text, followups } = parseOpsFollowups(content);
+  return { cleanedContent: text, quickActions: followups };
+}
+
+function FollowupChipIcon({ icon }: { icon: OpsFollowupIcon }) {
+  switch (icon) {
+    case "search":
+      return <Search className="size-3 shrink-0 text-primary" aria-hidden="true" />;
+    case "check":
+      return <Check className="size-3 shrink-0 text-primary" aria-hidden="true" />;
+    case "compass":
+      return <Compass className="size-3 shrink-0 text-primary" aria-hidden="true" />;
+    case "refresh":
+      return <RefreshCw className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />;
+    case "arrow":
+    default:
+      return <ArrowRight className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />;
   }
-
-  // 1. Explicit ```quick-actions ... ``` or ```actions ... ``` block
-  const quickActionsRegex = /```(?:quick-actions|actions|quick_actions|options)\s*(\[[\s\S]*?\])\s*```/i;
-  const match = content.match(quickActionsRegex);
-
-  if (match) {
-    try {
-      const parsed = JSON.parse(match[1]);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const cleanedContent = content.replace(match[0], "").trimEnd();
-        const actions = parsed
-          .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-          .map((s) => s.trim());
-        if (actions.length > 0) {
-          return { cleanedContent, quickActions: actions };
-        }
-      }
-    } catch {
-      // Ignore JSON parse errors and proceed to heuristics
-    }
-  }
-
-  // 2. Resilient heuristic fallback: Proposal confirmation questions
-  const proposalConfirmationPattern =
-    /(?:apakah anda (?:ingin|setuju|yakin|mau) (?:melanjutkan|menjalankan|mengeksekusi)|apakah proposal ini sudah sesuai|ingin melanjutkan dengan proposal)/i;
-
-  if (proposalConfirmationPattern.test(content)) {
-    return {
-      cleanedContent: content,
-      quickActions: ["Ya", "Tidak"],
-    };
-  }
-
-  // 3. Resilient heuristic fallback: Disambiguation choices (2 to 4 items)
-  const disambiguationPattern =
-    /(?:mana(?:kah)? yang anda maksud|pilih salah satu|apakah yang dimaksud)[^?:]*[?:]\s*((?:(?:\r?\n)(?:(?:\d+\.|\-|\*)\s+[^\r\n]+)){2,4})/i;
-  const listMatch = content.match(disambiguationPattern);
-  if (listMatch && listMatch[1]) {
-    const lines = listMatch[1]
-      .split(/\r?\n/)
-      .map((l) => l.replace(/^(?:\d+\.|\-|\*)\s+/, "").trim())
-      .filter((l) => l.length > 0 && l.length <= 60);
-    if (lines.length >= 2 && lines.length <= 4) {
-      return {
-        cleanedContent: content,
-        quickActions: lines,
-      };
-    }
-  }
-
-  return { cleanedContent: content, quickActions: [] };
 }
 
 /**
- * Compact, responsive quick-actions toolbar with option buttons and a custom input field.
- * Designed to fit neatly under the assistant message without consuming excessive vertical space.
+ * Compact pill-chip bar for deterministic Ops AI follow-up actions.
+ * Mirrors Zyra's FollowUpChips presentation without an inline input box.
  */
 export function QuickActionsBar({
-  options,
+  followups,
   onSelect,
   disabled = false,
 }: QuickActionsBarProps) {
-  const [customText, setCustomText] = useState("");
-
-  if (!options || options.length === 0) {
+  if (!followups || followups.length === 0) {
     return null;
   }
 
-  const handleSubmitCustom = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = customText.trim();
-    if (trimmed && !disabled) {
-      onSelect(trimmed);
-      setCustomText("");
-    }
-  };
-
   return (
-    <div
-      role="group"
-      aria-label="Pilihan aksi cepat"
-      className="flex flex-wrap items-center gap-1.5 pt-2.5 select-none"
-    >
-      {/* Option Buttons */}
-      {options.map((opt, idx) => {
-        const isYes = /^(?:ya|lanjutkan|setuju|oke|ok)$/i.test(opt);
-        const isNo = /^(?:tidak|batal|jangan)$/i.test(opt);
-
-        return (
-          <Button
-            variant="outline"
-            size="sm"
-            key={`${opt}-${idx}`}
-            type="button"
-            disabled={disabled}
-            onClick={() => onSelect(opt)}
-            aria-label={`Pilih opsi ${opt}`}
-            className={cn(
-              "h-auto min-h-7 max-w-full rounded-lg px-2.5 py-1.5 text-body-sm font-medium whitespace-normal text-left transition-colors cursor-pointer",
-              isYes &&
-                "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60",
-              isNo &&
-                "border-border bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted",
-              !isYes &&
-                !isNo &&
-                "border-border bg-card text-foreground hover:border-primary/50 hover:bg-primary/5"
-            )}
-          >
-            {isYes && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
-            {isNo && <X className="size-3.5 shrink-0" aria-hidden="true" />}
-            <span className="break-words">{opt}</span>
-          </Button>
-        );
-      })}
-
-      {/* Inline Custom Response Field */}
-      <form
-        onSubmit={handleSubmitCustom}
-        className="inline-flex items-center min-w-[150px] max-w-[240px] flex-1 sm:flex-initial"
+    <TooltipProvider>
+      <div
+        role="group"
+        aria-label="Pilihan aksi cepat"
+        className="mt-2 flex flex-wrap items-center gap-1.5"
       >
-        <div className="relative w-full flex items-center">
-          <Input
-            type="text"
-            value={customText}
-            onChange={(e) => setCustomText(e.target.value)}
-            disabled={disabled}
-            placeholder="Ketik sendiri..."
-            aria-label="Ketik sendiri respon Anda"
-            className="h-8 rounded-lg pr-9 text-body-sm"
-          />
-          {customText.trim() && (
+        {followups.map((chip, index) => {
+          const showTooltip = chip.prompt.trim() !== chip.label.trim();
+          const button = (
             <Button
-              size="icon-sm"
-              type="submit"
+              key={`${chip.label}-${index}`}
+              type="button"
+              variant="ghost"
+              size="sm"
               disabled={disabled}
-              aria-label="Kirim respon kustom"
-              className="absolute right-0.5 size-7 rounded-md"
+              onClick={() => onSelect(chip)}
+              aria-label={chip.label}
+              className="h-auto max-w-full whitespace-normal rounded-full border border-border/70 bg-muted/35 px-2.5 py-1 text-left text-body-xs font-normal text-muted-foreground hover:border-border hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
             >
-              <ArrowUp className="size-3.5" aria-hidden="true" />
+              <FollowupChipIcon icon={chip.icon} />
+              <span className="break-words">{chip.label}</span>
             </Button>
-          )}
-        </div>
-      </form>
-    </div>
+          );
+
+          if (!showTooltip) {
+            return button;
+          }
+
+          return (
+            <Tooltip key={`${chip.label}-${index}`}>
+              <TooltipTrigger asChild>{button}</TooltipTrigger>
+              <TooltipContent>{chip.prompt}</TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+    </TooltipProvider>
   );
 }

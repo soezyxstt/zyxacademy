@@ -34,11 +34,11 @@ function TopicList({ courseId, topics }: { courseId: string; topics: StudentMast
             <li key={index} className="flex flex-wrap items-baseline justify-between gap-x-(--compact-gap) gap-y-1 py-(--table-row-padding)">
               <div className="min-w-0 flex-1 basis-44 wrap-anywhere text-body-sm max-sm:has-[.katex]:basis-full">
                 {topic.conceptSlug ? (
-                  <Link data-math-scroll className="block w-fit max-w-full overflow-x-auto underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-current focus-visible:-outline-offset-2" href={`/courses/${courseId}/concept/${topic.conceptSlug}`}>
+                  <Link data-math-scroll className="block w-fit max-w-full overflow-x-auto overflow-y-hidden no-scrollbar underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-current focus-visible:-outline-offset-2" href={`/courses/${courseId}/concept/${topic.conceptSlug}`}>
                     <MathText as="span">{topic.conceptName}</MathText>
                   </Link>
-                ) : <div data-math-scroll className="overflow-x-auto"><MathText as="span">{topic.conceptName}</MathText></div>}
-                {topic.blockedBy.length > 0 && <p data-math-scroll className="mt-1 overflow-x-auto text-body-xs text-muted-foreground">
+                ) : <div data-math-scroll className="overflow-x-auto overflow-y-hidden no-scrollbar"><MathText as="span">{topic.conceptName}</MathText></div>}
+                {topic.blockedBy.length > 0 && <p data-math-scroll className="mt-1 overflow-x-auto overflow-y-hidden no-scrollbar text-body-xs text-muted-foreground">
                   <MathText as="span">{t("prerequisite", { topic: topic.blockedBy.join(", ") })}</MathText>
                 </p>}
               </div>
@@ -103,7 +103,7 @@ export function ConceptMap({ courseId, groups, pathHref = `/courses/${courseId}/
         <section className="flex flex-wrap items-center justify-between gap-x-(--group-gap) gap-y-(--compact-gap)">
           <div className="min-w-0 flex-1 basis-60 wrap-anywhere">
             <p className="text-body-xs text-muted-foreground">{t(!focus.reliable ? "early" : review ? "review" : "strong")}</p>
-            <h2 data-math-scroll className="mt-1 overflow-x-auto font-heading text-body-base font-bold"><MathText as="span">{focus.topic.conceptName}</MathText></h2>
+            <h2 data-math-scroll className="mt-1 overflow-x-auto overflow-y-hidden no-scrollbar font-heading text-body-base font-bold"><MathText as="span">{focus.topic.conceptName}</MathText></h2>
             <p className="mt-1 text-body-xs text-muted-foreground"><MathText as="span">{focus.chapter.title}</MathText> · <span className="tabular-nums text-foreground">{t("score", { score: focus.score })}</span></p>
             <p className="mt-1 text-body-sm">{t(!focus.reliable ? "limited" : review ? "reviewReason" : "strongReason")}</p>
           </div>
