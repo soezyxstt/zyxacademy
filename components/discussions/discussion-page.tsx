@@ -34,7 +34,7 @@ export async function DiscussionPage({ courseId, surface }: { courseId?: string;
       if (!courseKey) throw new Error();
     }
   } catch {
-    return <ApplicationPage data-discussion-page spacing="space-y-(--compact-gap)" className={pageClassName}><PageHeader title={t("title")} /><div className="px-3 md:px-0"><AdminEmptyState icon={MessageSquareText} title={t("pageUnavailable")} description={t("accessChanged")} action={<Button asChild variant="outline"><Link href={surface === "student" ? "/dashboard" : surface === "tutor" ? "/tutor" : "/admin"}>{t("backDashboard")}</Link></Button>} /></div></ApplicationPage>;
+    return <ApplicationPage data-discussion-page spacing="space-y-(--compact-gap)" className={pageClassName}><PageHeader title={t("title")} /><AdminEmptyState icon={MessageSquareText} title={t("pageUnavailable")} description={t("accessChanged")} action={<Button asChild variant="outline"><Link href={surface === "student" ? "/dashboard" : surface === "tutor" ? "/tutor" : "/admin"}>{t("backDashboard")}</Link></Button>} /></ApplicationPage>;
   }
   const appearance = await getEquippedZyraAppearance(actor.id).catch(() => ({ skinId: null }));
   const backHref = courseId ? surface === "tutor" ? `/tutor/${encodeURIComponent(courseId)}` : `/courses/${encodeURIComponent(courseId)}` : undefined;
