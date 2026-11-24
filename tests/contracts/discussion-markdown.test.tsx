@@ -51,11 +51,48 @@ describe("discussion Markdown safety", () => {
   });
 
   test("keeps multiplication inside emphasized math atomic", () => {
-    for (const content of ['**$a*b*c$**', '*$a*b*c$*']) {
+    for (const content of ['**$a*b*c$**', '*$a*b*c$*', '**\\(a*b*c\\)**', '*\\(a*b*c\\)*']) {
       const html = renderToStaticMarkup(<DiscussionMarkdown content={content} />);
       expect(html).toContain('katex');
       expect(html).not.toContain('$');
+      expect(html).not.toContain('\\(');
       expect(html).not.toContain('<em>$a');
     }
+  });
+
+  test("renders LaTeX \\(...\\) inline math and \\[...\\] display math", () => {
+    const content = [
+      "Gunakan rumus kuadrat untuk \\(x^2-5x+3=0\\):",
+      "\\[",
+      "x=\\frac{5\\pm\\sqrt{(-5)^2-4(1)(3)}}{2} = \\frac{5\\pm\\sqrt{13}}{2}.",
+      "\\]",
+      "Jadi, solusinya adalah \\(x=\\frac{5+\\sqrt{13}}{2}\\) atau \\(x=\\frac{5-\\sqrt{13}}{2}\\).",
+    ].join("\n");
+    const html = renderToStaticMarkup(<DiscussionMarkdown content={content} />);
+    expect(html).toContain("katex");
+    expect(html).toContain("katex-display");
+    expect(html).not.toContain("\\(");
+    expect(html).not.toContain("\\)");
+    expect(html).not.toContain("\\[");
+    expect(html).not.toContain("\\]");
+  });
+
+  test("does not execute untrusted commands inside \\(...\\) or \\[...\\] math", () => {
+    const html = renderToStaticMarkup(
+      <DiscussionMarkdown content={'\\(\\href{javascript:alert(1)}{click}\\) \\[\\htmlClass{owned}{x}\\]'} />
+    );
+    expect(html).not.toContain('href="javascript:');
+    expect(html).not.toContain('class="owned"');
+  });
+
+  test("renders mixed intro prose with lists and markdown headings safely", () => {
+    const content = "### Langkah penyelesaian\nPerhatikan langkah berikut:\n- Cek diskriminan\n- Hitung akar\n1. Substitusi\n2. Sederhanakan";
+    const html = renderToStaticMarkup(<DiscussionMarkdown content={content} />);
+    expect(html).toContain("Langkah penyelesaian");
+    expect(html).not.toContain("###");
+    expect(html).toContain("<ul");
+    expect(html).toContain("<ol");
+    expect(html).toContain("Cek diskriminan");
+    expect(html).toContain("Substitusi");
   });
 });

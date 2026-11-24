@@ -460,12 +460,12 @@ export function CourseVideosClient({
                           <div
                             className={canManage
                               ? "group -mx-2.5 flex cursor-pointer items-center justify-between gap-(--compact-gap) rounded-lg px-2.5 py-(--row-padding) transition-colors hover:bg-muted/40"
-                              : courseListRowClass("cursor-pointer")}
+                              : courseListRowClass("-mx-2.5 cursor-pointer items-center px-2.5")}
                             onClick={() => handlePlayVideo(video, playlist)}
                           >
-                            <div className={cn("flex min-w-0 flex-1 gap-3", canManage ? "items-center" : "items-start")}>
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
                               {/* Landscape Video Thumbnail */}
-                              <div className="relative w-28 sm:w-36 aspect-video shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/20">
+                              <div className="relative w-28 sm:w-36 aspect-video shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted/20 shadow-2xs">
                                 {thumbnail ? (
                                   <Image unoptimized loading="lazy" width={160} height={90}
                                     src={thumbnail}

@@ -348,23 +348,52 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
   const zyraReaction = message.zyraStatus ? zyraStatusReaction(message.zyraStatus.status, message.zyraStatus.reason) : null;
   const showReactionRow = canReact || Boolean(zyraReaction?.emoji);
 
+  const roleLabel = t(
+    message.author.role === "student"
+      ? "role_student"
+      : message.author.role === "tutor"
+        ? "role_tutor"
+        : message.author.role === "admin"
+          ? "role_admin"
+          : message.author.role === "zyra"
+            ? "role_zyra"
+            : "role_unknown"
+  );
+  const showRoleBadge = message.author.name.trim().toLowerCase() !== roleLabel.trim().toLowerCase();
+
   return <div data-message-id={message.id} data-own-message={isOwn ? "true" : undefined} data-discussion-target={targeted || undefined} tabIndex={targeted ? -1 : undefined} className={cn("min-w-0 touch-pan-y", targeted && "rounded-lg ring-2 ring-primary")} onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={(event) => endGesture(event, true)}>
-    <div className={cn("flex min-w-0 gap-2 md:gap-2.5", isOwn && "flex-row-reverse")}>
+    <div className={cn("flex min-w-0 items-start gap-2 md:gap-2.5", isOwn && "flex-row-reverse")}>
       {canViewAuthorProfile ? (
-        <button type="button" onClick={() => onViewProfile!(message.author)} aria-label={t("viewProfile", { name: message.author.name })} className="size-7 md:size-9 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{avatarVisual}</button>
+        <button type="button" onClick={() => onViewProfile!(message.author)} aria-label={t("viewProfile", { name: message.author.name })} className="mt-0.5 size-7 md:size-9 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{avatarVisual}</button>
       ) : (
-        <span className="size-7 md:size-9 shrink-0">{avatarVisual}</span>
+        <span className="mt-0.5 size-7 md:size-9 shrink-0">{avatarVisual}</span>
       )}
-      <div className={cn("flex min-w-0 flex-1 flex-col gap-1.5", isOwn ? "items-end" : "items-start")}>
-        <ZyraBubbleSkin skinId={message.skinId} role={message.author.role === "zyra" ? "assistant" : "user"} className={cn("min-w-0 w-full md:w-auto md:max-w-[85%]", message.skinId ? undefined : cn("rounded-xl border px-3 py-2 md:py-2.5", isOwn ? "border-primary/25 bg-primary/10 dark:bg-primary/15" : "border-border bg-card"))}>
-          <div className="mb-1 flex min-w-0 items-center justify-between gap-2">
+      <div className={cn("flex min-w-0 flex-1 flex-col gap-1", isOwn ? "items-end" : "items-start")}>
+        <ZyraBubbleSkin
+          skinId={message.skinId}
+          role={message.author.role === "zyra" ? "assistant" : "user"}
+          className={cn(
+            "min-w-0 w-fit max-w-full md:max-w-[85%]",
+            message.skinId
+              ? undefined
+              : cn(
+                  "rounded-2xl border px-3.5 py-2.5",
+                  isOwn
+                    ? "rounded-tr-sm border-primary/25 bg-primary/10 dark:bg-primary/15"
+                    : "rounded-tl-sm border-border bg-card shadow-2xs"
+                )
+          )}
+        >
+          <div className="mb-1 flex min-w-0 items-center justify-between gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               {canViewAuthorProfile ? (
                 <button type="button" onClick={() => onViewProfile!(message.author)} className="min-w-0 break-words rounded-sm text-left text-body-xs font-semibold hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{message.author.name}</button>
               ) : (
                 <span className="min-w-0 break-words text-body-xs font-semibold">{message.author.name}</span>
               )}
-              <span className="rounded bg-muted/70 px-1.5 py-0.5 text-body-2xs text-muted-foreground">{t(message.author.role === "student" ? "role_student" : message.author.role === "tutor" ? "role_tutor" : message.author.role === "admin" ? "role_admin" : message.author.role === "zyra" ? "role_zyra" : "role_unknown")}</span>
+              {showRoleBadge && (
+                <span className="rounded-md bg-muted/70 px-1.5 py-0.5 text-body-2xs text-muted-foreground">{roleLabel}</span>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <span className="text-body-2xs tabular-nums text-muted-foreground"><FormattedDate date={message.createdAt} options={{ hour: "2-digit", minute: "2-digit" }} /></span>
@@ -373,7 +402,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <DropdownMenuTrigger asChild>
-                        <Button type="button" variant="ghost" size="icon-sm" className="size-6" aria-label={t("messageActionsFor", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 100) || t("image") })}>
+                        <Button type="button" variant="ghost" size="icon-sm" className="size-6 -mr-1 text-muted-foreground hover:text-foreground" aria-label={t("messageActionsFor", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 100) || t("image") })}>
                           <ChevronDown className="size-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -391,8 +420,8 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
               )}
             </div>
           </div>
-          {quote && <div className="mb-2 rounded-md border-l-2 border-primary bg-muted/50 px-2 py-1 text-body-xs"><span className="font-semibold">{quoteAuthor}</span><div className="line-clamp-2 break-words text-muted-foreground [&_div]:text-body-xs [&_p]:text-body-xs"><DiscussionMarkdown content={(quoteExcerpt ?? "").slice(0, 600)} /></div></div>}
-          <div data-discussion-content className="text-body-sm md:text-body-base [&_p]:text-body-sm md:[&_p]:text-body-base [&_li]:text-body-sm md:[&_li]:text-body-base">{visibleBody && <DiscussionMarkdown content={visibleBody} renderMention={handle => {
+          {quote && <div className="mb-2 rounded-md border-l-2 border-primary bg-muted/50 px-2.5 py-1.5 text-body-xs"><span className="font-semibold">{quoteAuthor}</span><div className="line-clamp-2 break-words text-muted-foreground [&_div]:text-body-xs [&_p]:text-body-xs"><DiscussionMarkdown content={(quoteExcerpt ?? "").slice(0, 600)} /></div></div>}
+          <div data-discussion-content className="min-w-0 text-body-sm md:text-body-base [&_p]:text-body-sm md:[&_p]:text-body-base [&_li]:text-body-sm md:[&_li]:text-body-base">{visibleBody && <DiscussionMarkdown content={visibleBody} renderMention={handle => {
             const token = handle.toLowerCase();
             const matches = message.mentionedPeople?.filter(person =>
               (person.mention ?? mentionHandle(person.id, person.name)).toLowerCase() === token);
@@ -415,7 +444,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
                   data-zyra-reaction={zyraReaction.emoji}
                   aria-label={t(zyraReaction.key)}
                   className={cn(
-                    "inline-flex h-7 items-center gap-1 rounded-md border px-2 text-body-xs font-medium select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                    "inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-body-xs font-medium select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                     zyraReaction.tone === "completed"
                       ? "border-primary/25 bg-primary/10 text-foreground"
                       : "border-border bg-muted/60 text-foreground",
@@ -428,8 +457,8 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
               <TooltipContent>{t(zyraReaction.key)}</TooltipContent>
             </Tooltip>
           )}
-          {canReact && message.reactions.filter((reaction) => reaction.count > 0).map((reaction) => <Button key={reaction.emoji} type="button" variant={reaction.selected ? "secondary" : "outline"} size="xs" aria-label={`${t("reaction", { emoji: reaction.emoji, count: reaction.count })}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} aria-pressed={reaction.selected} disabled={pending} onClick={() => void run(() => onReact({ questionId, messageId: message.id, emoji: reaction.emoji, selected: !reaction.selected }))}>{reaction.emoji} {reaction.count}</Button>)}
-          {canReact && <DropdownMenu><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={`${t("addReaction")}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} disabled={pending}><Plus /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("addReaction")}</TooltipContent></Tooltip><DropdownMenuContent>{REACTIONS.map((emoji) => <DropdownMenuItem key={emoji} onSelect={() => void run(() => onReact({ questionId, messageId: message.id, emoji, selected: !message.reactions.find((reaction) => reaction.emoji === emoji)?.selected }))}>{emoji}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}
+          {canReact && message.reactions.filter((reaction) => reaction.count > 0).map((reaction) => <Button key={reaction.emoji} type="button" variant={reaction.selected ? "secondary" : "outline"} size="xs" className="h-6 rounded-md px-1.5 text-body-xs" aria-label={`${t("reaction", { emoji: reaction.emoji, count: reaction.count })}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} aria-pressed={reaction.selected} disabled={pending} onClick={() => void run(() => onReact({ questionId, messageId: message.id, emoji: reaction.emoji, selected: !reaction.selected }))}>{reaction.emoji} {reaction.count}</Button>)}
+          {canReact && <DropdownMenu><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" className="size-6 rounded-md text-muted-foreground/70 hover:bg-muted/70 hover:text-foreground" aria-label={`${t("addReaction")}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} disabled={pending}><Plus className="size-3.5" /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("addReaction")}</TooltipContent></Tooltip><DropdownMenuContent>{REACTIONS.map((emoji) => <DropdownMenuItem key={emoji} onSelect={() => void run(() => onReact({ questionId, messageId: message.id, emoji, selected: !message.reactions.find((reaction) => reaction.emoji === emoji)?.selected }))}>{emoji}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}
         </div>}
         {zyraReaction?.tone === "error" && <p role="alert" data-zyra-status={message.zyraStatus?.status} className="text-body-xs text-destructive">{t(zyraReaction.key)}</p>}
         {error && !activeDialog && <p role="alert" className="text-body-xs text-destructive">{t(error)} {retry && <Button type="button" variant="link" size="xs" disabled={pending} onClick={() => void run(retry)}>{t("retry")}</Button>}</p>}

@@ -13,7 +13,6 @@ import {
   Layers,
   LayoutDashboard,
   ListChecks,
-  MessageSquareText,
   Radio,
   Target,
   Terminal,
@@ -23,7 +22,6 @@ import {
 } from "lucide-react";
 import { TabNav, type TabNavItem } from "@/components/ui/tabs";
 import { useMobileChrome } from "@/components/navigation/mobile-chrome-context";
-import { DiscussionCountBadge } from "@/components/discussions/discussion-count-badge";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { useTranslations } from "@/lib/i18n/client";
@@ -40,7 +38,6 @@ const COURSE_TAB_ICONS: Record<string, ElementType> = {
   materials: FileText,
   video: Video,
   quiz: ListChecks,
-  discussions: MessageSquareText,
   flashcard: Layers,
   tryout: ClipboardList,
   schedule: CalendarDays,
@@ -77,13 +74,11 @@ export function CourseMobileTabNav({
   const experience = useStudentExperience();
   const pathname = experience.pathname ?? actualPathname;
   const resolveHref = experience.href;
-  const demo = experience.mode === "demo";
   const viewportMode = useViewportMode();
   const { hideBottomNav } = useMobileChrome();
 
   const tNav = useTranslations("student.navigation");
   const tMobile = useTranslations("student.mobile");
-  const tDiscussion = useTranslations("tutor.schedule");
 
   useEffect(() => {
     setActiveCourseContext({ id: courseId, title: courseTitle });
@@ -104,7 +99,6 @@ export function CourseMobileTabNav({
         documents: tNav("documents"),
         video: tNav("video"),
         quiz: tNav("quiz"),
-        discussions: tDiscussion("discussion"),
         flashcard: tNav("flashcard"),
         tryout: tNav("tryout"),
         schedule: tNav("schedule"),
@@ -129,28 +123,18 @@ export function CourseMobileTabNav({
         label: tab.label,
         icon: Icon ? <Icon className="size-3.5 shrink-0" aria-hidden="true" /> : undefined,
         active: isCourseTabActive(tab, pathname, courseId),
-        badge:
-          tab.hasDiscussionBadge && !demo ? (
-            <DiscussionCountBadge
-              courseId={courseId}
-              enabled={viewportMode === "mobile"}
-            />
-          ) : undefined,
       };
     });
   }, [
     courseId,
-    demo,
     isPka,
     pathname,
     resolveHref,
     showLive,
     showMastery,
     showStudyPath,
-    tDiscussion,
     tMobile,
     tNav,
-    viewportMode,
   ]);
 
   if (viewportMode === "desktop" || hideBottomNav) {

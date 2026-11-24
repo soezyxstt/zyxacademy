@@ -44,7 +44,6 @@ export interface CourseMobileTabLabels {
   documents: string;
   video: string;
   quiz: string;
-  discussions: string;
   flashcard: string;
   tryout: string;
   schedule: string;
@@ -66,7 +65,6 @@ export interface CourseMobileTabDescriptor {
   href: string;
   label: string;
   exact?: boolean;
-  hasDiscussionBadge?: boolean;
   isScheduleCourseTab?: boolean;
 }
 
@@ -243,12 +241,6 @@ export function buildCourseMobileTabs({
         href: `${base}/laporan`,
         label: labels.diagnosticReport,
       },
-      {
-        id: "discussions",
-        href: `${base}/discussions`,
-        label: labels.discussions,
-        hasDiscussionBadge: true,
-      },
       { id: "flashcard", href: `${base}/flashcard`, label: labels.flashcard },
       { id: "quiz", href: `${base}/quiz`, label: labels.quiz },
       {
@@ -265,12 +257,6 @@ export function buildCourseMobileTabs({
     { id: "documents", href: `${base}/material`, label: labels.documents },
     { id: "video", href: `${base}/video`, label: labels.video },
     { id: "quiz", href: `${base}/quiz`, label: labels.quiz },
-    {
-      id: "discussions",
-      href: `${base}/discussions`,
-      label: labels.discussions,
-      hasDiscussionBadge: true,
-    },
     { id: "flashcard", href: `${base}/flashcard`, label: labels.flashcard },
     { id: "tryout", href: `${base}/tryout`, label: labels.tryout },
     {
