@@ -4,6 +4,7 @@ import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { PageTransition } from "@/components/ui/page-transition";
 import { MobileSidebarController } from "@/components/mobile-sidebar-controller";
 import { MobileChromeProvider } from "@/components/navigation/mobile-chrome-context";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 
 export interface ApplicationShellProps {
   sidebar?: ReactNode;
@@ -39,6 +40,19 @@ export function ApplicationShell({
   const usesLegacyMobileDrawer =
     Boolean(sidebar || mobileNavigation) && !desktopSidebar && !mobileTopNav;
 
+  const contentColumn = (
+    <>
+      {resolvedMobileTopNav}
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={cn("relative min-w-0 flex-1 focus:outline-none", mainClassName)}
+      >
+        <PageTransition>{children}</PageTransition>
+      </main>
+    </>
+  );
+
   return (
     <MobileChromeProvider hasTopNav={Boolean(resolvedMobileTopNav)}>
       <div
@@ -55,16 +69,15 @@ export function ApplicationShell({
           </div>
         )}
         {resolvedSidebar}
-        <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-x-clip">
-          {resolvedMobileTopNav}
-          <main
-            id="main-content"
-            tabIndex={-1}
-            className={cn("relative min-w-0 flex-1 focus:outline-none", mainClassName)}
-          >
-            <PageTransition>{children}</PageTransition>
-          </main>
-        </div>
+        {resolvedMobileTopNav ? (
+          <PullToRefresh className="relative z-10 flex min-w-0 flex-1 flex-col overflow-x-clip">
+            {contentColumn}
+          </PullToRefresh>
+        ) : (
+          <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-x-clip">
+            {contentColumn}
+          </div>
+        )}
         {mobileBottomNav}
         {overlays}
       </div>

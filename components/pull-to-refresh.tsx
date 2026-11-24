@@ -8,18 +8,44 @@
  * while preserving URL params, active filters, drafts, and tab state.
  */
 
-import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Loader2, RefreshCw, X } from "lucide-react";
 import { useAppReducedMotion } from "@/components/appearance-preferences";
 import { Button } from "@/components/ui/button";
-import { PULL_THRESHOLD_PX, usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import {
+  PULL_THRESHOLD_PX,
+  usePullToRefresh,
+  type PullToRefreshStatus,
+} from "@/hooks/use-pull-to-refresh";
 import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 type Refresh = () => Promise<void> | void;
 const RefreshContext = createContext<((refresh: Refresh) => () => void) | null>(null);
+
+export interface PullToRefreshContextValue {
+  status: PullToRefreshStatus;
+  retry: () => void;
+  dismissError: () => void;
+  registerNavbarHost: () => () => void;
+}
+
+const PullToRefreshContext = createContext<PullToRefreshContextValue | null>(null);
+
+export function usePullToRefreshContext(): PullToRefreshContextValue | null {
+  return useContext(PullToRefreshContext);
+}
 
 export function usePullToRefreshHandler(refresh: Refresh | null) {
   const register = useContext(RefreshContext);
@@ -47,10 +73,23 @@ export function PullToRefresh({
   const containerRef = useRef<HTMLDivElement>(null);
   const indicatorRef = useRef<HTMLDivElement>(null);
   const scopedRefresh = useRef<Refresh | null>(null);
+  const [navbarHostCount, setNavbarHostCount] = useState(0);
+
   const register = useCallback((refresh: Refresh) => {
     scopedRefresh.current = refresh;
     return () => { if (scopedRefresh.current === refresh) scopedRefresh.current = null; };
   }, []);
+
+  const registerNavbarHost = useCallback(() => {
+    let active = true;
+    setNavbarHostCount((count) => count + 1);
+    return () => {
+      if (!active) return;
+      active = false;
+      setNavbarHostCount((count) => Math.max(0, count - 1));
+    };
+  }, []);
+
   const router = useRouter();
   const queryClient = useQueryClient();
   const reducedMotion = useAppReducedMotion();
@@ -74,6 +113,17 @@ export function PullToRefresh({
     indicatorRef,
   });
 
+  const contextValue = useMemo<PullToRefreshContextValue>(
+    () => ({
+      status,
+      retry,
+      dismissError,
+      registerNavbarHost,
+    }),
+    [status, retry, dismissError, registerNavbarHost],
+  );
+
+  const hasNavbarHost = navbarHostCount > 0;
   const dragging = status === "pulling" || status === "ready";
   const isIndicatorVisible = dragging || status === "refreshing";
   const distance = isIndicatorVisible
@@ -95,60 +145,66 @@ export function PullToRefresh({
       data-pull-to-refresh={status}
       className={cn("relative min-w-0 flex-1", className)}
     >
-      <div
-        ref={indicatorRef}
-        data-pull-indicator=""
-        role="status"
-        aria-live="polite"
-        className="pointer-events-none absolute inset-x-0 top-0 z-40 hidden h-10 items-center justify-center max-md:flex"
-        style={{
-          transform: `translate3d(0, calc(${distance} - 40px), 0)`,
-          opacity: dragging && !reducedMotion ? "var(--pull-opacity, 0)" : Number(isIndicatorVisible),
-          transition: reducedMotion || dragging ? "none" : "transform 240ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease-out",
-        }}
-      >
-        <span className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-body-xs font-medium text-muted-foreground shadow-sm">
-          {status === "refreshing" ? (
-            <Loader2 className={cn("size-3.5 text-primary", !reducedMotion && "animate-spin")} aria-hidden="true" />
-          ) : (
-            <RefreshCw
-              className="size-3.5 text-primary"
-              aria-hidden="true"
-              style={{ transform: reducedMotion ? undefined : "rotate(var(--pull-turn, 0deg))" }}
-            />
-          )}
-          <span>{statusText}</span>
-        </span>
-      </div>
-
-      {status === "error" && (
-        <div
-          role="alert"
-          className="flex items-center justify-between gap-2 border-b border-destructive/30 bg-destructive/10 px-3 py-2 text-body-xs text-destructive md:hidden"
-        >
-          <span className="inline-flex min-w-0 items-center gap-1.5">
-            <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
-            <span className="truncate">{t("pullToRefresh.failed")}</span>
-          </span>
-          <div className="flex shrink-0 items-center gap-1">
-            <Button type="button" variant="outline" size="sm" className="h-7 px-2" onClick={retry}>
-              {t("pullToRefresh.retry")}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="size-7 text-destructive hover:text-destructive"
-              aria-label={t("pullToRefresh.dismiss")}
-              onClick={dismissError}
-            >
-              <X className="size-3.5" aria-hidden="true" />
-            </Button>
+      {!hasNavbarHost && (
+        <>
+          <div
+            ref={indicatorRef}
+            data-pull-indicator=""
+            role="status"
+            aria-live="polite"
+            className="pointer-events-none absolute inset-x-0 top-0 z-40 hidden h-10 items-center justify-center max-md:flex"
+            style={{
+              transform: `translate3d(0, calc(${distance} - 40px), 0)`,
+              opacity: dragging && !reducedMotion ? "var(--pull-opacity, 0)" : Number(isIndicatorVisible),
+              transition: reducedMotion || dragging ? "none" : "transform 240ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease-out",
+            }}
+          >
+            <span className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-body-xs font-medium text-muted-foreground shadow-sm">
+              {status === "refreshing" ? (
+                <Loader2 className={cn("size-3.5 text-primary", !reducedMotion && "animate-spin")} aria-hidden="true" />
+              ) : (
+                <RefreshCw
+                  className="size-3.5 text-primary"
+                  aria-hidden="true"
+                  style={{ transform: reducedMotion ? undefined : "rotate(var(--pull-turn, 0deg))" }}
+                />
+              )}
+              <span>{statusText}</span>
+            </span>
           </div>
-        </div>
+
+          {status === "error" && (
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-2 border-b border-destructive/30 bg-destructive/10 px-3 py-2 text-body-xs text-destructive md:hidden"
+            >
+              <span className="inline-flex min-w-0 items-center gap-1.5">
+                <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
+                <span className="truncate">{t("pullToRefresh.failed")}</span>
+              </span>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button type="button" variant="outline" size="sm" className="h-7 px-2" onClick={retry}>
+                  {t("pullToRefresh.retry")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-7 text-destructive hover:text-destructive"
+                  aria-label={t("pullToRefresh.dismiss")}
+                  onClick={dismissError}
+                >
+                  <X className="size-3.5" aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
-      <RefreshContext.Provider value={register}>{children}</RefreshContext.Provider>
+      <PullToRefreshContext.Provider value={contextValue}>
+        <RefreshContext.Provider value={register}>{children}</RefreshContext.Provider>
+      </PullToRefreshContext.Provider>
     </div>
   );
 }
