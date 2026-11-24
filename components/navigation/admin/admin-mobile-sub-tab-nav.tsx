@@ -8,7 +8,7 @@ import {
   BarChart3,
   Bell,
   BookOpen,
-  Bot,
+  LineChart,
   Calculator,
   ClipboardCheck,
   ClipboardList,
@@ -63,7 +63,7 @@ const ADMIN_SUB_TAB_ICONS: Record<string, ElementType> = {
   // Ops sub-tabs
   monitor: Activity,
   tutor: GraduationCap,
-  zyra: Bot,
+  zyra: LineChart,
   usage: BarChart3,
   web: Globe,
   models: Cpu,

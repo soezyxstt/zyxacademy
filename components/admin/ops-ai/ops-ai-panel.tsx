@@ -8,7 +8,7 @@ import {
   X,
   Loader2,
   Trash2,
-  Bot,
+  SquareTerminal,
   Copy,
   Check,
   Square,
@@ -737,7 +737,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-2 py-12 space-y-4">
               <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Bot className="size-5" />
+                <SquareTerminal className="size-5" />
               </div>
               <div>
                 <h4 className="font-heading text-body-base font-bold text-foreground">
