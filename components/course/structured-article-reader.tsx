@@ -186,6 +186,7 @@ function StructuredArticleReaderContent({
         ? `/courses/${encodeURIComponent(fallbackCourseId)}/material`
         : undefined);
     return {
+      hideTopNav: true,
       title: article.title,
       backHref: resolvedBackHref,
       rightActions: (
@@ -877,7 +878,7 @@ function StructuredArticleReaderContent({
                   </Tooltip>
 
                   {/* Mobile Sheet Trigger (fallback when not using MobileTopNavbar) */}
-                  {!isMobile && (
+                  <>
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -887,7 +888,7 @@ function StructuredArticleReaderContent({
                     >
                       <Menu className="size-4" />
                     </Button>
-                  )}
+                  </>
 
                   {/* Desktop TOC Toggle (icon only with tooltip) */}
                   <Tooltip>

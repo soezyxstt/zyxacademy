@@ -17,6 +17,7 @@ const createBoundary = (overrides: Record<string, string> = {}): Plugin => ({
       "@/components/student-experience-provider": `export const useStudentExperience=()=>({mode:"full"});`,
       "@/components/course/tutor-drawer": `const setSuppressPet=()=>{}; export const useTutor=()=>({setSuppressPet,openTutor(){}});`,
       "@/components/coding/coding-workspace": `export function CodingWorkspace(){ throw new Error('Coding workspace is outside this fixture'); }`,
+      "@/components/navigation": `export {useMobileTopNav,useHideMobileBottomNav} from "@/components/navigation/mobile-chrome-context"; export {MobileTopNavActionButton} from "@/components/navigation/mobile-top-navbar";`,
       ...overrides,
     };
     build.onResolve({ filter: /.*/ }, args => Object.hasOwn(modules, args.path) ? ({ path: args.path, namespace: "fixture-boundary" }) : undefined);

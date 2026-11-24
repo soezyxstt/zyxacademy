@@ -1,3 +1,5 @@
+import {MobileChromeProvider} from "@/components/navigation/mobile-chrome-context";
+import {MobileTopNavbar} from "@/components/navigation/mobile-top-navbar";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { NextIntlClientProvider } from "next-intl";
@@ -30,6 +32,6 @@ const article: PublicArticleReadModel = {
 };
 function Fixture() {
  const [completed,setCompleted]=React.useState(false);
- return <NextIntlClientProvider locale="id" timeZone="Asia/Jakarta" messages={{ studentCourse, learning, ui, core, common }}><StructuredArticleReader article={article} course={{ id: "math", title: "Matematika" }} adapter={{ ready: true, completed, onComplete(){setCompleted(true);} }} /></NextIntlClientProvider>;
+ return <MobileChromeProvider><div className="md:hidden"><MobileTopNavbar /></div><NextIntlClientProvider locale="id" timeZone="Asia/Jakarta" messages={{ studentCourse, learning, ui, core, common }}><StructuredArticleReader article={article} course={{ id: "math", title: "Matematika" }} adapter={{ ready: true, completed, onComplete(){setCompleted(true);} }} /></NextIntlClientProvider></MobileChromeProvider>;
 }
 createRoot(document.getElementById("root")!).render(<Fixture />);

@@ -645,6 +645,7 @@ function MaterialViewerContent({
         ? `/courses/${encodeURIComponent(material.courseId)}/material`
         : undefined);
     return {
+      hideTopNav: material.kind === "article",
       title: material.title,
       backHref: resolvedBackHref,
       rightActions:
@@ -1314,7 +1315,7 @@ function MaterialViewerContent({
 
               <div className="flex shrink-0 items-center gap-2">
                 <TooltipProvider>
-                  {!isMobile && (
+                  <>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <SheetTrigger asChild>
@@ -1325,7 +1326,7 @@ function MaterialViewerContent({
                       </TooltipTrigger>
                       <TooltipContent>{t("reader.tableOfContents")}</TooltipContent>
                     </Tooltip>
-                  )}
+                  </>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
