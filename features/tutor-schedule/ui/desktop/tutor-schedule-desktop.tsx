@@ -8,6 +8,7 @@ import {
   MapPin,
   MessageSquare,
   MoreHorizontal,
+  Pencil,
   Plus,
   RotateCcw,
   Send,
@@ -17,6 +18,7 @@ import {
   Users,
   Video,
 } from "lucide-react";
+import { DashboardSectionHeading } from "@/components/dashboard/dashboard-section-heading";
 import { GoogleCalendarControl } from "@/components/schedule/google-calendar-control";
 import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
 import calendarStyles from "@/components/schedule/schedule-calendar-readability.module.css";
@@ -60,6 +62,7 @@ import {
 import { INDONESIAN_DAYS, getJakartaCalendarDate } from "@/lib/date-utils";
 import { useTranslations } from "@/lib/i18n/client";
 import {
+  TUTOR_SLOT_TIME_PRESETS,
   formatWeekDate,
   type TutorScheduleSurfaceProps,
 } from "@/features/tutor-schedule/model/types";
@@ -94,8 +97,10 @@ export function TutorScheduleDesktop({
   availableSlotCount,
   isAddSlotOpen,
   setIsAddSlotOpen,
+  editingSlotId,
   newSlotDate,
   setNewSlotDate,
+  derivedWeekday,
   newSlotStart,
   handleStartTimeChange,
   newSlotEnd,
@@ -105,8 +110,12 @@ export function TutorScheduleDesktop({
   setNewSlotLocation,
   newSlotNotes,
   setNewSlotNotes,
-  handleAddSlot,
+  repeatWeeks,
+  setRepeatWeeks,
+  canSaveSlot,
+  handleSaveSlot,
   openAddSlotDialog,
+  openEditSlotDialog,
   handleCreateSlotDirect,
   requestDeleteSlot,
   handleOpenMoveModal,
@@ -353,6 +362,7 @@ export function TutorScheduleDesktop({
               bookings={scheduleData.ownedBookings}
               onCreateScheduleDirect={handleCreateSlotDirect}
               onMoveSession={handleOpenMoveModal}
+              onEditSlot={openEditSlotDialog}
               onDeleteSlot={requestDeleteSlot}
               onOpenSessionDetail={(booking) => onOpenSessionDetail(booking.id)}
               leadingToolbarControls={viewSelect}
@@ -364,17 +374,19 @@ export function TutorScheduleDesktop({
         {activeTab === "slots" && (
           <div className="space-y-(--compact-gap)">
             {filteredSlots.length === 0 ? (
-              <div className="border-t border-border">
+              <div className="border-t border-border/40">
                 <AdminEmptyState
+                  compact
                   icon={CalendarDays}
                   title={t("noSlots")}
                   description={t("noSlotsDescription")}
                 />
               </div>
             ) : (
-              <div className="divide-y divide-border border-y border-border">
+              <div className="divide-y divide-border/40 border-y border-border/40">
                 {filteredSlots.map((slot) => {
                   const isBooked = Boolean(slot.booking);
+                  const canManageSlot = !isBooked && !slotsWithHistory.has(slot.id);
                   return (
                     <div
                       key={slot.id}
@@ -424,20 +436,24 @@ export function TutorScheduleDesktop({
                         )}
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        {!isBooked && !slotsWithHistory.has(slot.id) ? (
+                        {canManageSlot ? (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="icon-sm"
                                 disabled={isPending}
-                                aria-label={t("delete")}
+                                aria-label={t("slotActions")}
                                 className="h-8 w-8 rounded-lg"
                               >
                                 <MoreHorizontal className="size-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-36">
+                              <DropdownMenuItem onSelect={() => openEditSlotDialog(slot)}>
+                                <Pencil className="size-4" />
+                                <span>{t("edit")}</span>
+                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 onSelect={() => requestDeleteSlot(slot.id)}
                                 className="text-status-error focus:text-status-error"
@@ -713,12 +729,14 @@ export function TutorScheduleDesktop({
         )}
 
         {activeTab === "groups" && (
-          <div className="space-y-(--related-gap)">
-            <div className="space-y-(--compact-gap)">
-              <h2 className="font-heading text-body-base font-bold text-foreground">
-                {t("assignedCourses")}
-              </h2>
-              <div className="divide-y divide-border border-y border-border">
+          <div className="space-y-8">
+            <section className="min-w-0">
+              <DashboardSectionHeading
+                icon={BookOpen}
+                title={t("assignedCourses")}
+                divider
+              />
+              <div className="divide-y divide-border/30">
                 {initialData.assignedActiveCourses.map((course) => (
                   <div
                     key={course.courseId}
@@ -728,9 +746,11 @@ export function TutorScheduleDesktop({
                       <p className="font-heading text-body-sm font-bold text-foreground">
                         {course.title}
                       </p>
-                      <p className="text-body-xs text-muted-foreground">
-                        {t("courseCode")}: {course.code || course.courseId}
-                      </p>
+                      {course.code && !course.code.toLowerCase().startsWith("legacy-") && (
+                        <p className="text-body-xs text-muted-foreground">
+                          {t("courseCode")}: {course.code}
+                        </p>
+                      )}
                     </div>
                     <Badge variant="outline" className="rounded-md text-body-xs text-muted-foreground">
                       {course.isCompatibilityFallback
@@ -740,14 +760,16 @@ export function TutorScheduleDesktop({
                   </div>
                 ))}
               </div>
-            </div>
-            <div className="space-y-(--compact-gap)">
-              <h2 className="font-heading text-body-base font-bold text-foreground">
-                {t("activeGroups")}
-              </h2>
-              <div className="divide-y divide-border border-y border-border">
+            </section>
+            <section className="min-w-0">
+              <DashboardSectionHeading
+                icon={Users}
+                title={t("activeGroups")}
+                divider
+              />
+              <div className="divide-y divide-border/30">
                 {initialData.eligibleGroups.length === 0 ? (
-                  <AdminEmptyState icon={Users} title={t("noActiveGroups")} className="py-6" />
+                  <AdminEmptyState compact icon={Users} title={t("noActiveGroups")} />
                 ) : (
                   initialData.eligibleGroups.map((grp) => (
                     <div
@@ -774,7 +796,7 @@ export function TutorScheduleDesktop({
                   ))
                 )}
               </div>
-            </div>
+            </section>
           </div>
         )}
 
@@ -787,17 +809,24 @@ export function TutorScheduleDesktop({
           <DialogContent className="sm:max-w-[460px]">
             <DialogHeader>
               <DialogTitle className="font-heading text-body-base font-bold">
-                {t("addSlotTitle")}
+                {editingSlotId ? t("editSlotTitle") : t("addSlotTitle")}
               </DialogTitle>
               <DialogDescription className="text-body-xs">
-                {t("addSlotDescription")}
+                {editingSlotId ? t("editSlotDescription") : t("addSlotDescription")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-(--compact-gap) py-2">
               <div className="space-y-1">
-                <Label htmlFor="tutor-slot-date" className="text-body-sm font-semibold">
-                  {t("date")}
-                </Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="tutor-slot-date" className="text-body-sm font-semibold">
+                    {t("date")}
+                  </Label>
+                  {newSlotDate && (
+                    <span className="text-body-xs font-medium text-muted-foreground">
+                      {t(`days.${derivedWeekday}`)} &middot; {t("durationNinetyMinutes")}
+                    </span>
+                  )}
+                </div>
                 <Input
                   id="tutor-slot-date"
                   type="date"
@@ -807,37 +836,60 @@ export function TutorScheduleDesktop({
                   className="h-9 text-body-sm"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-body-sm font-semibold">{t("start")}</Label>
-                  <Input
-                    type="time"
-                    value={newSlotStart}
-                    onChange={(e) => handleStartTimeChange(e.target.value)}
-                    placeholder="09:00"
-                    min="07:00"
-                    max="20:30"
-                    step="1800"
-                    className="h-9 text-body-sm"
-                  />
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="tutor-slot-start" className="text-body-sm font-semibold">
+                      {t("start")}
+                    </Label>
+                    <Input
+                      id="tutor-slot-start"
+                      type="time"
+                      value={newSlotStart}
+                      onChange={(e) => handleStartTimeChange(e.target.value)}
+                      placeholder="09:00"
+                      min="06:00"
+                      max="22:29"
+                      className="h-9 text-body-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="tutor-slot-end" className="text-body-sm font-semibold">
+                      {t("end")}
+                    </Label>
+                    <Input
+                      id="tutor-slot-end"
+                      value={newSlotEnd}
+                      readOnly
+                      placeholder="10:30"
+                      className="h-9 cursor-not-allowed bg-muted text-body-sm text-muted-foreground"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-body-sm font-semibold">{t("end")}</Label>
-                  <Input
-                    value={newSlotEnd}
-                    readOnly
-                    placeholder="10:30"
-                    className="h-9 cursor-not-allowed bg-muted text-body-sm text-muted-foreground"
-                  />
+                <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t("quickTimes")}>
+                  {TUTOR_SLOT_TIME_PRESETS.map((preset) => (
+                    <Button
+                      key={preset}
+                      type="button"
+                      size="sm"
+                      variant={newSlotStart === preset ? "secondary" : "outline"}
+                      onClick={() => handleStartTimeChange(preset)}
+                      className="h-7 px-2 text-body-xs tabular-nums"
+                    >
+                      {preset}
+                    </Button>
+                  ))}
                 </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-body-sm font-semibold">{t("sessionMode")}</Label>
+                <Label htmlFor="tutor-slot-mode" className="text-body-sm font-semibold">
+                  {t("sessionMode")}
+                </Label>
                 <Select
                   value={newSlotMode}
                   onValueChange={(val) => setNewSlotMode(val as "online" | "offline")}
                 >
-                  <SelectTrigger className="h-9 text-body-sm">
+                  <SelectTrigger id="tutor-slot-mode" className="h-9 text-body-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -848,13 +900,40 @@ export function TutorScheduleDesktop({
               </div>
               {newSlotMode === "offline" && (
                 <div className="space-y-1">
-                  <Label className="text-body-sm font-semibold">{t("location")}</Label>
+                  <Label htmlFor="tutor-slot-location" className="text-body-sm font-semibold">
+                    {t("location")}
+                  </Label>
                   <Input
+                    id="tutor-slot-location"
                     value={newSlotLocation}
                     onChange={(e) => setNewSlotLocation(e.target.value)}
                     placeholder={t("locationPlaceholder")}
                     className="h-9 text-body-sm"
                   />
+                  {newSlotLocation.trim().length === 0 && (
+                    <p className="text-body-xs text-muted-foreground">{t("locationRequiredHint")}</p>
+                  )}
+                </div>
+              )}
+              {!editingSlotId && (
+                <div className="space-y-1">
+                  <Label htmlFor="tutor-slot-repeat" className="text-body-sm font-semibold">
+                    {t("repeatWeekly")}
+                  </Label>
+                  <Select
+                    value={String(repeatWeeks)}
+                    onValueChange={(val) => setRepeatWeeks(Number(val) || 1)}
+                  >
+                    <SelectTrigger id="tutor-slot-repeat" className="h-9 text-body-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">{t("repeatNone")}</SelectItem>
+                      <SelectItem value="2">{t("repeatWeeksOption", { count: 2 })}</SelectItem>
+                      <SelectItem value="3">{t("repeatWeeksOption", { count: 3 })}</SelectItem>
+                      <SelectItem value="4">{t("repeatWeeksOption", { count: 4 })}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
               <div className="space-y-1">
@@ -885,11 +964,11 @@ export function TutorScheduleDesktop({
               <Button
                 size="sm"
                 isLoading={isPending}
-                disabled={!newSlotStart}
-                onClick={handleAddSlot}
+                disabled={!canSaveSlot}
+                onClick={handleSaveSlot}
                 className="h-9 rounded-lg bg-brand-primary text-body-sm text-primary-foreground hover:bg-brand-primary/90"
               >
-                {t("saveSlot")}
+                {editingSlotId ? t("saveChanges") : t("saveSlot")}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -9,6 +9,7 @@ import {
   BookOpenCheck,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   ClipboardList,
   ExternalLink,
   Eye,
@@ -253,14 +254,14 @@ function HierarchyDocumentCard({
       onClick={handleClick}
       className={isAdmin
         ? "group flex min-w-0 items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        : courseListRowClass("text-left")}
+        : courseListRowClass("items-center justify-between px-2.5 sm:px-3.5 py-2.5 text-left")}
     >
-      <div className={cn("flex min-w-0 flex-1 gap-3", isAdmin ? "items-center" : "items-start")}>
-        {/* Document Thumbnail Preview with Seamless Left Color Accent */}
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        {/* Document Thumbnail Preview */}
         <div
           className={cn(
-            "relative aspect-[16/10] w-20 sm:w-32 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted/30 transition-colors",
-            isAdmin && cn("w-24 border-l-[3px]", tierStyle.borderAccent)
+            "relative aspect-[16/10] w-20 sm:w-28 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted/30 shadow-2xs transition-colors group-hover:border-border",
+            isAdmin && cn("w-24 rounded-md border-l-[3px]", tierStyle.borderAccent)
           )}
         >
           {material.thumbnailUrl && failedThumbnail !== material.thumbnailUrl ? (
@@ -270,7 +271,7 @@ function HierarchyDocumentCard({
               alt=""
               onError={() => setFailedThumbnail(material.thumbnailUrl ?? null)}
               fill
-              sizes="(max-width: 640px) 96px, 128px"
+              sizes="(max-width: 640px) 80px, 112px"
               className="object-cover object-top"
             />
           ) : (
@@ -280,16 +281,16 @@ function HierarchyDocumentCard({
           )}
         </div>
 
-        {/* Full-width Title and Seamless Color Meta Line */}
+        {/* Full-width Title and Meta Line */}
         <div className="min-w-0 flex-1">
           <p
-            className={cn("wrap-break-word text-body-sm font-semibold leading-snug text-foreground", isAdmin && "transition-colors group-hover:text-primary")}
+            className="wrap-break-word text-body-sm font-semibold leading-snug text-foreground transition-colors group-hover:text-primary"
             title={material.title}
           >
             {cleanDocTitle(material.title, courseTitle)}
           </p>
-          <p className="mt-0.5 break-words text-body-xs leading-tight text-muted-foreground">
-            <span className={isAdmin ? tierStyle.textColor : undefined}>{t(`documents.materialTypes.${tier}`)}</span>
+          <p className="mt-1 break-words text-body-xs leading-tight text-muted-foreground">
+            <span className={isAdmin ? tierStyle.textColor : "font-medium text-foreground/75"}>{t(`documents.materialTypes.${tier}`)}</span>
             {secondaryMeta.length > 0 && <span> · {secondaryMeta.join(" · ")}</span>}
           </p>
         </div>
@@ -369,7 +370,9 @@ function HierarchyDocumentCard({
         </span>
       ) : material.completed ? (
         <CheckCircle2 className="size-4 shrink-0 self-center text-status-success" aria-label={t("documents.markAsRead")} />
-      ) : null}
+      ) : (
+        <ChevronRight className="size-4 shrink-0 self-center text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden />
+      )}
     </Link>
   );
 }
@@ -465,14 +468,14 @@ function CollapsibleDocumentSection({
     <Collapsible
       open={open && hasDocuments}
       onOpenChange={onOpenChange}
-      className={cn("border-b last:border-b-0", isAdmin ? "border-border/45" : "border-border/25")}
+      className={cn("border-b last:border-b-0", isAdmin ? "border-border/45" : "border-border/35")}
     >
       <CollapsibleTrigger
         disabled={!hasDocuments}
-        className="group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/30 disabled:cursor-default disabled:hover:bg-transparent sm:px-3.5"
+        className="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-3 text-left transition-colors hover:bg-muted/40 disabled:cursor-default disabled:hover:bg-transparent sm:gap-3 sm:px-3.5"
       >
         {(isAdmin || badge.trim().toLowerCase() !== title.trim().toLowerCase()) && (
-          <span className="w-14 shrink-0 text-body-xs font-semibold text-muted-foreground sm:w-16">
+          <span className="shrink-0 rounded-md bg-muted/80 px-2 py-0.5 text-body-xs font-semibold tabular-nums text-muted-foreground">
             {badge}
           </span>
         )}
@@ -481,7 +484,7 @@ function CollapsibleDocumentSection({
         </span>
         {(hasDocuments || isAdmin) && (
           <>
-            <span className="shrink-0 text-body-xs text-muted-foreground">{t("documents.documentCount", { count: materials.length })}</span>
+            <span className="shrink-0 text-body-xs tabular-nums text-muted-foreground">{t("documents.documentCount", { count: materials.length })}</span>
             <ChevronDown
               className={cn(
                 "size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180",
@@ -494,7 +497,7 @@ function CollapsibleDocumentSection({
       </CollapsibleTrigger>
       {hasDocuments ? (
         <CollapsibleContent>
-          <div className={isAdmin ? "divide-y divide-border/40 border-t border-border/40 bg-card/25" : "pb-1"}>
+          <div className={isAdmin ? "divide-y divide-border/40 border-t border-border/40 bg-card/25" : "divide-y divide-border/25 pb-1.5"}>
             {materials.map((material) => (
               <HierarchyDocumentCard
                 key={material.id}
@@ -716,8 +719,10 @@ export function CourseDocumentsClient({
           {categoryTabs}
 
           {materials.length > 0 ? (
-          <div className="border-t border-border/60">
-            {chapterGroups.map(({ chapter, materials: chapterMaterials }) => {
+          <div>
+            {chapterGroups
+              .filter(({ materials: chapterMaterials }) => isAdmin || chapterMaterials.length > 0)
+              .map(({ chapter, materials: chapterMaterials }) => {
               const sectionKey = `chapter:${chapter.id}`;
               return (
                 <CollapsibleDocumentSection
@@ -735,30 +740,34 @@ export function CourseDocumentsClient({
                 />
               );
             })}
-            <CollapsibleDocumentSection
-              badge={t("documents.examBadges.midterm")}
-              title={t("documents.examSections.midterm")}
-              materials={utsMaterials}
-              courseId={courseId}
-              courseSlug={courseSlug}
-              courseTitle={courseTitle}
-              isAdmin={isAdmin}
-              onDelete={setDeleteTarget}
-              open={openSection === "special:uts"}
-              onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:uts" : null)}
-            />
-            <CollapsibleDocumentSection
-              badge={t("documents.examBadges.final")}
-              title={t("documents.examSections.final")}
-              materials={uasMaterials}
-              courseId={courseId}
-              courseSlug={courseSlug}
-              courseTitle={courseTitle}
-              isAdmin={isAdmin}
-              onDelete={setDeleteTarget}
-              open={openSection === "special:uas"}
-              onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:uas" : null)}
-            />
+            {(isAdmin || utsMaterials.length > 0) && (
+              <CollapsibleDocumentSection
+                badge={t("documents.examBadges.midterm")}
+                title={t("documents.examSections.midterm")}
+                materials={utsMaterials}
+                courseId={courseId}
+                courseSlug={courseSlug}
+                courseTitle={courseTitle}
+                isAdmin={isAdmin}
+                onDelete={setDeleteTarget}
+                open={openSection === "special:uts"}
+                onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:uts" : null)}
+              />
+            )}
+            {(isAdmin || uasMaterials.length > 0) && (
+              <CollapsibleDocumentSection
+                badge={t("documents.examBadges.final")}
+                title={t("documents.examSections.final")}
+                materials={uasMaterials}
+                courseId={courseId}
+                courseSlug={courseSlug}
+                courseTitle={courseTitle}
+                isAdmin={isAdmin}
+                onDelete={setDeleteTarget}
+                open={openSection === "special:uas"}
+                onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:uas" : null)}
+              />
+            )}
             {upMaterials.length > 0 && (
               <CollapsibleDocumentSection
                 badge="UP"
@@ -773,30 +782,34 @@ export function CourseDocumentsClient({
                 onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:up" : null)}
               />
             )}
-            <CollapsibleDocumentSection
-              badge={t("documents.categories.questions")}
-              title={t("documents.examSections.moreQuestions")}
-              materials={soalLainnyaMaterials}
-              courseId={courseId}
-              courseSlug={courseSlug}
-              courseTitle={courseTitle}
-              isAdmin={isAdmin}
-              onDelete={setDeleteTarget}
-              open={openSection === "special:soal_lainnya"}
-              onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:soal_lainnya" : null)}
-            />
-            <CollapsibleDocumentSection
-              badge={t("documents.other")}
-              title={t("documents.examSections.other")}
-              materials={lainLainMaterials}
-              courseId={courseId}
-              courseSlug={courseSlug}
-              courseTitle={courseTitle}
-              isAdmin={isAdmin}
-              onDelete={setDeleteTarget}
-              open={openSection === "special:lain_lain"}
-              onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:lain_lain" : null)}
-            />
+            {(isAdmin || soalLainnyaMaterials.length > 0) && (
+              <CollapsibleDocumentSection
+                badge={t("documents.categories.questions")}
+                title={t("documents.examSections.moreQuestions")}
+                materials={soalLainnyaMaterials}
+                courseId={courseId}
+                courseSlug={courseSlug}
+                courseTitle={courseTitle}
+                isAdmin={isAdmin}
+                onDelete={setDeleteTarget}
+                open={openSection === "special:soal_lainnya"}
+                onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:soal_lainnya" : null)}
+              />
+            )}
+            {(isAdmin || lainLainMaterials.length > 0) && (
+              <CollapsibleDocumentSection
+                badge={t("documents.other")}
+                title={t("documents.examSections.other")}
+                materials={lainLainMaterials}
+                courseId={courseId}
+                courseSlug={courseSlug}
+                courseTitle={courseTitle}
+                isAdmin={isAdmin}
+                onDelete={setDeleteTarget}
+                open={openSection === "special:lain_lain"}
+                onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:lain_lain" : null)}
+              />
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center py-5 text-center">

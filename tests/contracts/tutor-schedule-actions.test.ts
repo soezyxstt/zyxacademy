@@ -9,6 +9,7 @@ import {
 } from "@/lib/schedule/tutor-policy";
 import {
   executeAddTutorSlot,
+  executeUpdateTutorSlot,
   executeDeleteTutorSlot,
   executeMoveTutorSession,
   executeDecideTutorRescheduleTicket,
@@ -2945,6 +2946,197 @@ describe("Tutor Schedule Action Contracts", () => {
       expect(result.success).toBe(true);
       expect(result.bookingId).toBeDefined();
       expect(await testDb.select().from(schema.bookings)).toHaveLength(1);
+    });
+  });
+
+  describe("executeUpdateTutorSlot", () => {
+    it("updates date, time, mode, and location on an unbooked slot and clears location when switching to online", async () => {
+      const { testDb } = await createTestDb();
+      await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 0 });
+      const now = new Date("2026-08-25T08:00:00.000+07:00");
+
+      const created = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Senin",
+          startTime: "09:00",
+          endTime: "10:30",
+          mode: "online",
+          sessionDate: "2026-08-31",
+        },
+        { actorId: "tutor-1", executor: testDb, now },
+      );
+      expect(created.success).toBe(true);
+      const slotId = created.slotId!;
+
+      // Shift time (overlapping its own previous range) + switch to offline
+      const updatedOffline = await executeUpdateTutorSlot(
+        {
+          slotId,
+          dayOfWeek: "Senin",
+          startTime: "09:30",
+          endTime: "11:00",
+          mode: "offline",
+          location: "Ruang 301 Labtek V",
+          sessionDate: "2026-08-31",
+        },
+        { actorId: "tutor-1", executor: testDb, now },
+      );
+      expect(updatedOffline.success).toBe(true);
+
+      const [afterOffline] = await testDb
+        .select()
+        .from(schema.tutorSlots)
+        .where(eq(schema.tutorSlots.id, slotId));
+      expect(afterOffline.startTime).toBe("09:30");
+      expect(afterOffline.endTime).toBe("11:00");
+      expect(afterOffline.mode).toBe("offline");
+      expect(afterOffline.location).toBe("Ruang 301 Labtek V");
+
+      // Move date + non-30-min time + switch back to online (clears location)
+      const updatedOnline = await executeUpdateTutorSlot(
+        {
+          slotId,
+          dayOfWeek: "Selasa",
+          startTime: "14:15",
+          endTime: "15:45",
+          mode: "online",
+          location: "Should be cleared",
+          sessionDate: "2026-09-01",
+        },
+        { actorId: "tutor-1", executor: testDb, now },
+      );
+      expect(updatedOnline.success).toBe(true);
+
+      const [afterOnline] = await testDb
+        .select()
+        .from(schema.tutorSlots)
+        .where(eq(schema.tutorSlots.id, slotId));
+      expect(afterOnline.dayOfWeek).toBe("Selasa");
+      expect(afterOnline.sessionDate).toBe("2026-09-01");
+      expect(afterOnline.startTime).toBe("14:15");
+      expect(afterOnline.endTime).toBe("15:45");
+      expect(afterOnline.mode).toBe("online");
+      expect(afterOnline.location).toBeNull();
+    });
+
+    it("rejects overlapping another slot, offline without location, booked slots, and non-owner edits", async () => {
+      const { testDb } = await createTestDb();
+      await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 0 });
+      const now = new Date("2026-08-25T08:00:00.000+07:00");
+
+      await testDb.insert(schema.user).values({
+        id: "tutor-2",
+        name: "Tutor Dua",
+        email: "tutor2@zyx.test",
+        createdAt: now,
+        updatedAt: now,
+        role: "teacher",
+      });
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-2",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-tutor-2",
+        penggunaId: "tutor-2",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+
+      const slot1 = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Senin",
+          startTime: "09:00",
+          endTime: "10:30",
+          mode: "online",
+          sessionDate: "2026-08-31",
+        },
+        { actorId: "tutor-1", executor: testDb, now },
+      );
+      const slot2 = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Senin",
+          startTime: "13:00",
+          endTime: "14:30",
+          mode: "online",
+          sessionDate: "2026-08-31",
+        },
+        { actorId: "tutor-1", executor: testDb, now },
+      );
+      expect(slot1.success && slot2.success).toBe(true);
+
+      // Overlap with slot1
+      const overlapRes = await executeUpdateTutorSlot(
+        {
+          slotId: slot2.slotId!,
+          dayOfWeek: "Senin",
+          startTime: "10:00",
+          endTime: "11:30",
+          mode: "online",
+          sessionDate: "2026-08-31",
+        },
+        { actorId: "tutor-1", executor: testDb, now },
+      );
+      expect(overlapRes.success).toBe(false);
+      expect(overlapRes.reason).toBe("TUTOR_SLOT_OVERLAP");
+
+      // Offline without location
+      const noLocRes = await executeUpdateTutorSlot(
+        {
+          slotId: slot2.slotId!,
+          dayOfWeek: "Senin",
+          startTime: "13:00",
+          endTime: "14:30",
+          mode: "offline",
+          location: "   ",
+          sessionDate: "2026-08-31",
+        },
+        { actorId: "tutor-1", executor: testDb, now },
+      );
+      expect(noLocRes.success).toBe(false);
+      expect(noLocRes.reason).toBe("LOCATION_REQUIRED_FOR_OFFLINE");
+
+      // Non-owner edit
+      const notOwnerRes = await executeUpdateTutorSlot(
+        {
+          slotId: slot2.slotId!,
+          dayOfWeek: "Senin",
+          startTime: "15:00",
+          endTime: "16:30",
+          mode: "online",
+          sessionDate: "2026-08-31",
+        },
+        { actorId: "tutor-2", executor: testDb, now },
+      );
+      expect(notOwnerRes.success).toBe(false);
+      expect(notOwnerRes.reason).toBe("SLOT_NOT_OWNED_BY_TUTOR");
+
+      // Book slot1, then attempt edit
+      const booked = await collaborativeBookSlot(
+        slot1.slotId!,
+        "crs-calc",
+        "grp-q",
+        "2026-08-31",
+        { actorId: "student-1", executor: testDb, now },
+      );
+      expect(booked.success).toBe(true);
+
+      const bookedEditRes = await executeUpdateTutorSlot(
+        {
+          slotId: slot1.slotId!,
+          dayOfWeek: "Senin",
+          startTime: "16:00",
+          endTime: "17:30",
+          mode: "online",
+          sessionDate: "2026-08-31",
+        },
+        { actorId: "tutor-1", executor: testDb, now },
+      );
+      expect(bookedEditRes.success).toBe(false);
+      expect(bookedEditRes.reason).toBe("CANNOT_EDIT_BOOKED_SLOT");
     });
   });
 });

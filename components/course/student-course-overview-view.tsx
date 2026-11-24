@@ -8,7 +8,6 @@ import {
   ClipboardList,
   Compass,
   Layers,
-  MessageSquareText,
   Target,
   Terminal,
   TrendingUp,
@@ -44,12 +43,6 @@ export function StudentCourseOverviewView({ href = (path: string) => path, cours
       href: href(`/courses/${course.id}/tryout`),
       icon: ClipboardList,
       label: <TranslatedText namespace="student.navigation" messageKey="tryout" />,
-    },
-    {
-      id: "discussions",
-      href: href(`/courses/${course.id}/discussions`),
-      icon: MessageSquareText,
-      label: <TranslatedText namespace="tutor.schedule" messageKey="discussion" />,
     },
     {
       id: "path",
@@ -107,16 +100,18 @@ export function StudentCourseOverviewView({ href = (path: string) => path, cours
           {hasFullContentAccess && highlights}
           <div className="mb-6">{chapterOutline}</div>
           {hasFullContentAccess && (
-            <nav aria-label={course.title} className="grid grid-cols-2 gap-2.5 border-t border-border/60 pt-5 md:hidden">
+            <nav aria-label={course.title} className="grid grid-cols-2 gap-2 border-t border-border/50 pt-5 md:hidden">
               {mobileQuickLinks.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
                     key={item.id}
                     href={item.href}
-                    className="flex min-h-12 items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5 text-body-sm font-medium text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex min-h-11 items-center gap-2.5 rounded-xl border border-border/60 bg-card/70 px-3 py-2 text-body-sm font-medium text-foreground transition-colors hover:border-border hover:bg-muted/50 active:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
+                      <Icon className="size-3.5" aria-hidden="true" />
+                    </span>
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
                   </Link>
                 );

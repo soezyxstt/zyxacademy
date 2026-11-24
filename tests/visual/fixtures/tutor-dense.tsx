@@ -82,7 +82,7 @@ function TutorFixture() {
             {isAnalytics ? (
               <>
                 <PageHeader title={title} backHref="/tutor" backLabel="Teaching" divider={false} />
-                <AnalyticsClient courseId="fixture-math" analytics={state === "empty" ? emptyAnalytics : analytics} updatedAt={null} />
+                <AnalyticsClient courseId="fixture-math" analytics={state === "empty" || state === "uncalculated" ? emptyAnalytics : analytics} updatedAt={state === "uncalculated" ? null : "2026-11-23T12:00:00Z"} />
               </>
             ) : <TutorDashboardContent {...(state === "empty" ? emptyDashboard : dashboard)} />}
           </ApplicationPage>

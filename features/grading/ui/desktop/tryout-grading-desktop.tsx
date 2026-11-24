@@ -114,20 +114,21 @@ export function TryoutGradingDesktop({
             ))}
           </div>
 
-          <div className="space-y-(--related-gap) lg:sticky lg:top-6 lg:col-span-4">
+          <div className="space-y-(--related-gap) lg:sticky lg:top-6 lg:col-span-4 lg:border-l lg:border-border/35 lg:pl-8">
             <section
               id="tryout-grading-panel"
               tabIndex={-1}
               aria-labelledby="tryout-grading-heading"
-              className="scroll-mt-16 border-t border-border/55 pt-(--related-gap)"
+              className="scroll-mt-16"
             >
-              <header className="mb-(--related-gap)">
-                <h3
+              <header className="mb-(--related-gap) border-b border-border/40 pb-2">
+                <h2
                   id="tryout-grading-heading"
-                  className="font-heading text-body-base font-bold text-foreground"
+                  className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground"
                 >
-                  {tr("gradingPanel")}
-                </h3>
+                  <CheckSquare className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span>{tr("gradingPanel")}</span>
+                </h2>
               </header>
 
               <div className="space-y-(--related-gap) font-sans">
@@ -206,9 +207,9 @@ export function TryoutGradingDesktop({
 
         <TabsContent value="pending">
           {pendingList.length === 0 ? (
-            <AdminEmptyState icon={CheckCircle2} title={tr("allGraded")} />
+            <AdminEmptyState compact icon={CheckCircle2} title={tr("allGraded")} />
           ) : (
-            <div className="divide-y divide-border/55 border-y border-border/55">
+            <div className="divide-y divide-border/40">
               {pendingList.map((s) => (
                 <article
                   key={s.id}
@@ -246,9 +247,9 @@ export function TryoutGradingDesktop({
 
         <TabsContent value="graded">
           {gradedList.length === 0 ? (
-            <AdminEmptyState icon={AlertCircle} title={tr("noGraded")} />
+            <AdminEmptyState compact icon={AlertCircle} title={tr("noGraded")} />
           ) : (
-            <div className="divide-y divide-border/55 border-y border-border/55">
+            <div className="divide-y divide-border/40">
               {gradedList.map((s) => (
                 <article
                   key={s.id}

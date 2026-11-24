@@ -315,7 +315,10 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             ===================================================================== */}
         <TabsContent value="templates" className="space-y-(--related-gap)">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-            <span className="text-body-sm text-muted-foreground">{tr("quizCount", { count: initialTemplates.length })}</span>
+            <span className="inline-flex items-center gap-2 text-body-sm font-medium text-muted-foreground">
+              <ClipboardList className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span>{tr("quizCount", { count: initialTemplates.length })}</span>
+            </span>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -329,7 +332,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
           </div>
 
           {initialTemplates.length === 0 ? (
-            <AdminEmptyState icon={ClipboardList} title={tr("noQuizzes")} />
+            <AdminEmptyState compact icon={ClipboardList} title={tr("noQuizzes")} />
           ) : (
             <div className="divide-y divide-border/55">
               {initialTemplates.map((t) => {
@@ -507,7 +510,10 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             ===================================================================== */}
         <TabsContent value="questionbank" className="space-y-(--related-gap)">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-            <span className="text-body-sm text-muted-foreground">{tr("questionBankTitle", { count: initialQuestionBank.length })}</span>
+            <span className="inline-flex items-center gap-2 text-body-sm font-medium text-muted-foreground">
+              <HelpCircle className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span>{tr("questionBankTitle", { count: initialQuestionBank.length })}</span>
+            </span>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -521,7 +527,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
           </div>
 
           {initialQuestionBank.length === 0 ? (
-            <AdminEmptyState icon={HelpCircle} title={tr("emptyBank")} />
+            <AdminEmptyState compact icon={HelpCircle} title={tr("emptyBank")} />
           ) : (
             <>
             <div className="divide-y divide-border/55">
@@ -675,7 +681,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                   setQType(val);
                   setQCorrectIndices([]);
                 }}>
-                  <SelectTrigger id="q-type" className="px-0">
+                  <SelectTrigger id="q-type">
                     <SelectValue placeholder={tr("chooseType")} />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
@@ -690,7 +696,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
               <div className="grid gap-2">
                 <Label htmlFor="q-diff" className="text-body-sm font-semibold">{tr("difficulty")}</Label>
                 <Select value={qDifficulty} onValueChange={(val: any) => setQDifficulty(val)}>
-                  <SelectTrigger id="q-diff" className="px-0">
+                  <SelectTrigger id="q-diff">
                     <SelectValue placeholder={tr("chooseDifficulty")} />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">

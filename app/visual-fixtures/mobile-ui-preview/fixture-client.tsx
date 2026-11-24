@@ -1015,8 +1015,10 @@ function TutorScheduleFixtureView() {
         availableSlotCount={2}
         isAddSlotOpen={isAddSlotOpen}
         setIsAddSlotOpen={setIsAddSlotOpen}
+        editingSlotId={null}
         newSlotDate={newSlotDate}
         setNewSlotDate={setNewSlotDate}
+        derivedWeekday="Selasa"
         newSlotStart={newSlotStart}
         handleStartTimeChange={setNewSlotStart}
         newSlotEnd="20:30"
@@ -1026,8 +1028,12 @@ function TutorScheduleFixtureView() {
         setNewSlotLocation={setNewSlotLocation}
         newSlotNotes={newSlotNotes}
         setNewSlotNotes={setNewSlotNotes}
-        handleAddSlot={() => setIsAddSlotOpen(false)}
+        repeatWeeks={1}
+        setRepeatWeeks={() => undefined}
+        canSaveSlot={true}
+        handleSaveSlot={() => setIsAddSlotOpen(false)}
         openAddSlotDialog={() => setIsAddSlotOpen(true)}
+        openEditSlotDialog={() => setIsAddSlotOpen(true)}
         handleCreateSlotDirect={() => undefined}
         requestDeleteSlot={() => undefined}
         handleOpenMoveModal={() => undefined}

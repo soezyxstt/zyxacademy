@@ -35,12 +35,15 @@ import {
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import type {
   OwnedBookingItem,
+  OwnedSlotItem,
   OwnedTicketItem,
   TutorScheduleReadModel,
 } from "@/lib/schedule/tutor-read-model";
+import { addTutorialDays } from "@/lib/schedule/week-policy";
 import {
   addTutorSlotWithNotesAction,
   getTutorSlotNotesAction,
+  updateTutorSlotWithNotesAction,
 } from "@/app/(tutor)/tutor/schedule/slot-note-actions";
 import {
   copyTutorAvailabilityAction,
@@ -143,6 +146,7 @@ export function TutorScheduleView({
 
   // Lifted modal & draft state (preserved across desktop <-> mobile ViewportSwitch)
   const [isAddSlotOpen, setIsAddSlotOpen] = useState(false);
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [isMoveSessionOpen, setIsMoveSessionOpen] = useState(false);
   const [isDecideTicketOpen, setIsDecideTicketOpen] = useState(false);
 
@@ -152,10 +156,18 @@ export function TutorScheduleView({
   const [newSlotMode, setNewSlotMode] = useState<"online" | "offline">("online");
   const [newSlotLocation, setNewSlotLocation] = useState("");
   const [newSlotNotes, setNewSlotNotes] = useState("");
+  const [repeatWeeks, setRepeatWeeks] = useState(1);
 
   const derivedWeekday = useMemo(
     () => getIndonesianWeekdayFromDate(newSlotDate),
     [newSlotDate],
+  );
+
+  const canSaveSlot = Boolean(
+    newSlotDate &&
+      newSlotStart &&
+      newSlotEnd &&
+      (newSlotMode === "online" || newSlotLocation.trim().length > 0),
   );
 
   const [movingBooking, setMovingBooking] = useState<OwnedBookingItem | null>(null);
@@ -218,25 +230,97 @@ export function TutorScheduleView({
     return true;
   });
 
-  const handleAddSlot = () => {
+  const handleSaveSlot = () => {
+    if (!canSaveSlot) return;
     startTransition(async () => {
-      const res = await addTutorSlotWithNotesAction({
-        dayOfWeek: derivedWeekday,
-        startTime: newSlotStart,
-        endTime: newSlotEnd,
-        mode: newSlotMode,
-        location: newSlotLocation,
-        sessionDate: newSlotDate || undefined,
-        notes: newSlotNotes,
-      });
+      if (editingSlotId) {
+        const res = await updateTutorSlotWithNotesAction({
+          slotId: editingSlotId,
+          dayOfWeek: derivedWeekday,
+          startTime: newSlotStart,
+          endTime: newSlotEnd,
+          mode: newSlotMode,
+          location: newSlotMode === "offline" ? newSlotLocation.trim() : undefined,
+          sessionDate: newSlotDate || undefined,
+          notes: newSlotNotes,
+        });
 
-      if (res.success) {
+        if (res.success) {
+          const trimmedNote = newSlotNotes.trim();
+          setSlotNotes((current) => {
+            const next = { ...current };
+            if (trimmedNote) next[editingSlotId] = trimmedNote;
+            else delete next[editingSlotId];
+            return next;
+          });
+          setIsAddSlotOpen(false);
+          setEditingSlotId(null);
+          setNewSlotNotes("");
+          toast.success(t("slotUpdated"));
+          router.refresh();
+        } else {
+          toast.error(res.error || t("slotUpdateFailed"));
+        }
+        return;
+      }
+
+      const weeksToCreate = Math.max(1, Math.min(4, repeatWeeks));
+      if (weeksToCreate === 1) {
+        const res = await addTutorSlotWithNotesAction({
+          dayOfWeek: derivedWeekday,
+          startTime: newSlotStart,
+          endTime: newSlotEnd,
+          mode: newSlotMode,
+          location: newSlotMode === "offline" ? newSlotLocation.trim() : undefined,
+          sessionDate: newSlotDate || undefined,
+          notes: newSlotNotes,
+        });
+
+        if (res.success) {
+          setIsAddSlotOpen(false);
+          setNewSlotNotes("");
+          setRepeatWeeks(1);
+          toast.success(t("slotAdded"));
+          router.refresh();
+        } else {
+          toast.error(res.error || t("slotAddFailed"));
+        }
+        return;
+      }
+
+      let createdCount = 0;
+      let skippedCount = 0;
+      let lastError: string | undefined;
+
+      for (let weekIdx = 0; weekIdx < weeksToCreate; weekIdx += 1) {
+        const targetDate = weekIdx === 0 ? newSlotDate : addTutorialDays(newSlotDate, weekIdx * 7);
+        const res = await addTutorSlotWithNotesAction({
+          dayOfWeek: getIndonesianWeekdayFromDate(targetDate),
+          startTime: newSlotStart,
+          endTime: newSlotEnd,
+          mode: newSlotMode,
+          location: newSlotMode === "offline" ? newSlotLocation.trim() : undefined,
+          sessionDate: targetDate,
+          notes: newSlotNotes,
+        });
+        if (res.success) {
+          createdCount += 1;
+        } else {
+          skippedCount += 1;
+          lastError = res.error;
+        }
+      }
+
+      if (createdCount > 0) {
         setIsAddSlotOpen(false);
         setNewSlotNotes("");
-        toast.success(t("slotAdded"));
+        setRepeatWeeks(1);
+        const conflictSuffix =
+          skippedCount > 0 ? t("slotConflicts", { count: skippedCount }) : "";
+        toast.success(`${t("slotsAddedMultiple", { count: createdCount })}${conflictSuffix}`);
         router.refresh();
       } else {
-        toast.error(t("slotAddFailed"));
+        toast.error(lastError || t("slotAddFailed"));
       }
     });
   };
@@ -249,23 +333,36 @@ export function TutorScheduleView({
     }
     const [hours, minutes] = val.split(":").map(Number);
     if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return;
-    const snappedMinutes = Math.min(
-      20 * 60 + 30,
-      Math.max(7 * 60, Math.round((hours * 60 + minutes) / 30) * 30),
-    );
-    const snapped = `${String(Math.floor(snappedMinutes / 60)).padStart(2, "0")}:${String(
-      snappedMinutes % 60,
+    const clampedMinutes = Math.min(22 * 60 + 29, Math.max(6 * 60, hours * 60 + minutes));
+    const formatted = `${String(Math.floor(clampedMinutes / 60)).padStart(2, "0")}:${String(
+      clampedMinutes % 60,
     ).padStart(2, "0")}`;
-    setNewSlotStart(snapped);
-    setNewSlotEnd(computeEndTime(snapped));
+    setNewSlotStart(formatted);
+    setNewSlotEnd(computeEndTime(formatted));
   };
 
   const handleCreateSlotDirect = (dateIso: string, startTimeStr?: string) => {
+    setEditingSlotId(null);
     setNewSlotDate(dateIso);
+    setNewSlotMode("online");
+    setNewSlotLocation("");
     setNewSlotNotes("");
+    setRepeatWeeks(1);
     const start = startTimeStr || "09:00";
     setNewSlotStart(start);
     setNewSlotEnd(computeEndTime(start));
+    setIsAddSlotOpen(true);
+  };
+
+  const openEditSlotDialog = (slot: OwnedSlotItem) => {
+    setEditingSlotId(slot.id);
+    setNewSlotDate(slot.sessionDate || getJakartaCalendarDate());
+    setNewSlotStart(slot.startTime);
+    setNewSlotEnd(slot.endTime);
+    setNewSlotMode(slot.mode);
+    setNewSlotLocation(slot.location ?? "");
+    setNewSlotNotes(slotNotes[slot.id] ?? "");
+    setRepeatWeeks(1);
     setIsAddSlotOpen(true);
   };
 
@@ -310,7 +407,7 @@ export function TutorScheduleView({
         setSlotPendingDelete(null);
         router.refresh();
       } else {
-        toast.error(t("slotDeleteFailed"));
+        toast.error(res.error || t("slotDeleteFailed"));
       }
     });
   };
@@ -337,7 +434,7 @@ export function TutorScheduleView({
         }
         router.refresh();
       } else {
-        toast.error(t("sessionMoveFailed"));
+        toast.error(res.error || t("sessionMoveFailed"));
       }
     });
   };
@@ -360,7 +457,7 @@ export function TutorScheduleView({
         );
         router.refresh();
       } else {
-        toast.error(t("ticketProcessFailed"));
+        toast.error(res.error || t("ticketProcessFailed"));
       }
     });
   };
@@ -377,7 +474,7 @@ export function TutorScheduleView({
         toast.success(t("replySent"));
         router.refresh();
       } else {
-        toast.error(t("replyFailed"));
+        toast.error(res.error || t("replyFailed"));
       }
     });
   };
@@ -418,10 +515,14 @@ export function TutorScheduleView({
 
   const openAddSlotDialog = () => {
     const todayIso = getJakartaCalendarDate();
+    setEditingSlotId(null);
     setNewSlotDate(weekInfo.days[0].dateIso < todayIso ? todayIso : weekInfo.days[0].dateIso);
     setNewSlotStart("09:00");
     setNewSlotEnd("10:30");
+    setNewSlotMode("online");
+    setNewSlotLocation("");
     setNewSlotNotes("");
+    setRepeatWeeks(1);
     setIsAddSlotOpen(true);
   };
 
@@ -456,20 +557,32 @@ export function TutorScheduleView({
     filledSlotCount,
     availableSlotCount,
     isAddSlotOpen,
-    setIsAddSlotOpen,
+    setIsAddSlotOpen: (open) => {
+      setIsAddSlotOpen(open);
+      if (!open) setEditingSlotId(null);
+    },
+    editingSlotId,
     newSlotDate,
     setNewSlotDate,
+    derivedWeekday,
     newSlotStart,
     handleStartTimeChange,
     newSlotEnd,
     newSlotMode,
-    setNewSlotMode,
+    setNewSlotMode: (mode) => {
+      setNewSlotMode(mode);
+      if (mode === "online") setNewSlotLocation("");
+    },
     newSlotLocation,
     setNewSlotLocation,
     newSlotNotes,
     setNewSlotNotes,
-    handleAddSlot,
+    repeatWeeks,
+    setRepeatWeeks,
+    canSaveSlot,
+    handleSaveSlot,
     openAddSlotDialog,
+    openEditSlotDialog,
     handleCreateSlotDirect,
     requestDeleteSlot,
     handleOpenMoveModal,
@@ -533,7 +646,7 @@ export function TutorScheduleView({
             <div className="space-y-1">
               <Label htmlFor="tutor-move-slot" className="text-body-sm font-semibold">{t("targetSlot")}</Label>
               <Select value={targetMoveSlotId} onValueChange={setTargetMoveSlotId}>
-                <SelectTrigger id="tutor-move-slot" className="h-9 px-0">
+                <SelectTrigger id="tutor-move-slot" className="h-9">
                   <SelectValue placeholder={t("selectNewSlot")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -611,7 +724,7 @@ export function TutorScheduleView({
                 value={ticketDecision}
                 onValueChange={(val) => setTicketDecision(val as "approved" | "rejected")}
               >
-                <SelectTrigger id="tutor-ticket-decision" className="h-9 px-0">
+                <SelectTrigger id="tutor-ticket-decision" className="h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

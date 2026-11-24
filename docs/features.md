@@ -723,7 +723,7 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 
 ### Zyra tutor and admin copilots
 
-- `FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` are opt-out switches (enabled unless explicitly `0`) for scoped proposal-first workflows. They show evidence, preconditions, impact, warnings, and lifecycle state before any future mutation integration.
+- `FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` are opt-out switches (enabled unless explicitly `0`) for the scoped proposal API. Admin Ops provides a proposal panel. Tutor course Overview shows cohort analytics and follow-up signals. The former tutor proposal button recorded a read-only draft without generating a misconception report.
 - Proposals never auto-apply. The current mutation call fails closed until the accepted mutation boundary is available.
 
 ### Zyra operations

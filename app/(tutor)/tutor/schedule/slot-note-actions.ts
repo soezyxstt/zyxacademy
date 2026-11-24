@@ -10,6 +10,7 @@ import { auth } from "@/lib/auth";
 import {
   addTutorSlotAction,
   deleteTutorSlotAction,
+  updateTutorSlotAction,
 } from "@/app/(tutor)/tutor/schedule/actions";
 import type { IndonesianDay } from "@/lib/date-utils";
 
@@ -21,6 +22,10 @@ export type AddTutorSlotWithNotesInput = {
   location?: string;
   sessionDate?: string;
   notes?: string;
+};
+
+export type UpdateTutorSlotWithNotesInput = AddTutorSlotWithNotesInput & {
+  slotId: string;
 };
 
 function errorChainMessage(error: unknown): string {
@@ -91,6 +96,13 @@ export async function addTutorSlotWithNotesAction(
         : "SLOT_NOTES_PERSIST_FAILED",
     };
   }
+}
+
+export async function updateTutorSlotWithNotesAction(
+  input: UpdateTutorSlotWithNotesInput,
+) {
+  const { notes, ...slot } = input;
+  return updateTutorSlotAction(slot, notes ?? "");
 }
 
 export async function getTutorSlotNotesAction(slotIds: string[]) {

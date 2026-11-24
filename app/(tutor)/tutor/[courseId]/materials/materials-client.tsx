@@ -135,8 +135,11 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
   return (
     <div className="space-y-(--related-gap)">
       {/* Action Row */}
-      <div className="flex flex-wrap justify-between items-center gap-2">
-        <span className="text-body-xs text-muted-foreground">{t("materialsCount", { count: initialMaterials.length })}</span>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+        <span className="inline-flex items-center gap-2 text-body-sm font-medium text-muted-foreground">
+          <BookOpen className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <span>{t("materialsCount", { count: initialMaterials.length })}</span>
+        </span>
         {canManage && (
           <TooltipProvider>
             <Tooltip>
@@ -153,9 +156,9 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
 
       {/* Grid List */}
       {initialMaterials.length === 0 ? (
-        <AdminEmptyState icon={BookOpen} title={t("noMaterials")} />
+        <AdminEmptyState compact icon={BookOpen} title={t("noMaterials")} />
       ) : (
-        <div className="divide-y divide-border/55 border-y border-border/55">
+        <div className="divide-y divide-border/30">
           {initialMaterials.map((m) => (
             <div key={m.id} className="flex min-w-0 items-start justify-between gap-(--compact-gap) py-3 sm:items-center">
               <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground sm:mt-0" aria-hidden />
