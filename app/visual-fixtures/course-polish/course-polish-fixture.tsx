@@ -1,20 +1,16 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { CourseDocumentsClient } from "@/app/(student)/courses/[id]/material/course-documents-client";
 import { QuizListClient } from "@/app/(student)/courses/[id]/quiz/quiz-list-client";
 import { TryoutListClient } from "@/app/(student)/courses/[id]/tryout/tryout-list-client";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { StudentCourseProgressView } from "@/components/course/student-course-progress-view";
 import { CourseVideosClient } from "@/components/course/video/course-videos-client";
-import { CourseMobileTabNav } from "@/components/navigation/student/course-mobile-tab-nav";
-import { StudentMobileBottomNav } from "@/components/navigation/student/student-mobile-bottom-nav";
-import { StudentExperienceProvider, type StudentExperienceAdapter } from "@/components/student-experience-provider";
 import type { VideoItem } from "@/app/actions/video-actions";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
+import { CoursePolishShell } from "./course-polish-shell";
 
 const courseId = "fixture-math";
-const coursePath = `/courses/${courseId}`;
 const courseTitle = "Matematika I";
 const chapters = [{ id: "limit", title: "Limit fungsi", orderIndex: 1, canonicalId: null, legacyChapterId: null }];
 const materials: CourseMaterial[] = [
@@ -31,44 +27,32 @@ const video: VideoItem = {
   createdAt: timestamp, updatedAt: timestamp, locked: false,
 };
 
-export function CoursePolishFixture({ section, activityTimestamp, overview }: { section: string; activityTimestamp: string; overview: ReactNode }) {
-  const experience: StudentExperienceAdapter = {
-    mode: "demo",
-    pathname: section === "overview" ? coursePath : `${coursePath}/${section}`,
-    courseHref: (id) => `/courses/${id}`,
-    route: (view) => `${coursePath}/${view}`,
-    baseline: [], selectedCourseId: courseId, overlay: null, ready: true,
-  };
-
+export function CoursePolishFixture({ section, activityTimestamp }: { section: string; activityTimestamp: string }) {
   return (
-    <StudentExperienceProvider value={experience}>
-      <CourseMobileTabNav courseId={courseId} courseTitle={courseTitle} />
-      <main id="main-content">
-        {overview ?? <CoursePageShell title={courseTitle}>
-          {section === "material" && <CourseDocumentsClient courseId={courseId} courseTitle={courseTitle} materials={materials} chapters={chapters} accessTier="free" lockedMaterialCount={1} />}
-          {section === "video" && <CourseVideosClient courseId={courseId} hasFullContentAccess={false} chapters={chapters} initialPlaylists={[
-            { id: "playlist", courseId, title: "Limit fungsi", description: null, orderIndex: 1, createdAt: timestamp, updatedAt: timestamp, videos: [
-              video,
-              { ...video, id: "indeterminate", title: "Bentuk tak tentu pada limit fungsi", orderIndex: 2, locked: true },
-            ] },
-          ]} />}
-          {section === "quiz" && <QuizListClient courseId={courseId} hasFullContentAccess={false} accessTier="free" freeEligibleTemplateIds={["active", "upcoming"]} templates={[
-            { ...quizDefaults, id: "active", title: "Latihan limit fungsi dan kontinuitas", visibility: "free" },
-            { ...quizDefaults, id: "locked", title: "Latihan lanjutan", visibility: "paid" },
-            { ...quizDefaults, id: "upcoming", title: "Kuis limit pekanan", visibility: "free", manualStatus: "scheduled", openAt: new Date("2030-01-03T00:00:00Z") },
-          ]} attempts={[{ id: "attempt", templateId: "active", status: "in_progress", score: null }]} />}
-          {section === "tryout" && <TryoutListClient courseId={courseId} hasFullContentAccess={false} tryouts={[
-            { ...tryoutDefaults, id: "free", title: "Tryout tengah semester", isFree: true, questions: [] },
-            { ...tryoutDefaults, id: "locked", title: "Tryout akhir semester", questions: [] },
-            { ...tryoutDefaults, id: "upcoming", title: "Tryout pengayaan", isFree: true, questions: [], openAt: new Date("2030-01-03T00:00:00Z") },
-          ]} />}
-          {section === "progress" && <StudentCourseProgressView courseId={courseId}
-            statistics={{ studyTimeMin: 48, completedMaterialsCount: 2, cardsReviewedCount: 12, currentStreakDays: 3 }}
-            activities={[{ id: "reading", type: "material_completion", title: "Fungsi dan grafik", timestamp: activityTimestamp }]}
-          />}
-        </CoursePageShell>}
-      </main>
-      <StudentMobileBottomNav />
-    </StudentExperienceProvider>
+    <CoursePolishShell course={{ id: courseId, title: courseTitle }} section={section}>
+      <CoursePageShell title={courseTitle}>
+        {section === "material" && <CourseDocumentsClient courseId={courseId} courseTitle={courseTitle} materials={materials} chapters={chapters} accessTier="free" lockedMaterialCount={1} />}
+        {section === "video" && <CourseVideosClient courseId={courseId} hasFullContentAccess={false} chapters={chapters} initialPlaylists={[
+          { id: "playlist", courseId, title: "Limit fungsi", description: null, orderIndex: 1, createdAt: timestamp, updatedAt: timestamp, videos: [
+            video,
+            { ...video, id: "indeterminate", title: "Bentuk tak tentu pada limit fungsi", orderIndex: 2, locked: true },
+          ] },
+        ]} />}
+        {section === "quiz" && <QuizListClient courseId={courseId} hasFullContentAccess={false} accessTier="free" freeEligibleTemplateIds={["active", "upcoming"]} templates={[
+          { ...quizDefaults, id: "active", title: "Latihan limit fungsi dan kontinuitas", visibility: "free" },
+          { ...quizDefaults, id: "locked", title: "Latihan lanjutan", visibility: "paid" },
+          { ...quizDefaults, id: "upcoming", title: "Kuis limit pekanan", visibility: "free", manualStatus: "scheduled", openAt: new Date("2030-01-03T00:00:00Z") },
+        ]} attempts={[{ id: "attempt", templateId: "active", status: "in_progress", score: null }]} />}
+        {section === "tryout" && <TryoutListClient courseId={courseId} hasFullContentAccess={false} tryouts={[
+          { ...tryoutDefaults, id: "free", title: "Tryout tengah semester", isFree: true, questions: [] },
+          { ...tryoutDefaults, id: "locked", title: "Tryout akhir semester", questions: [] },
+          { ...tryoutDefaults, id: "upcoming", title: "Tryout pengayaan", isFree: true, questions: [], openAt: new Date("2030-01-03T00:00:00Z") },
+        ]} />}
+        {section === "progress" && <StudentCourseProgressView courseId={courseId}
+          statistics={{ studyTimeMin: 48, completedMaterialsCount: 2, cardsReviewedCount: 12, currentStreakDays: 3 }}
+          activities={[{ id: "reading", type: "material_completion", title: "Fungsi dan grafik", timestamp: activityTimestamp }]}
+        />}
+      </CoursePageShell>
+    </CoursePolishShell>
   );
 }

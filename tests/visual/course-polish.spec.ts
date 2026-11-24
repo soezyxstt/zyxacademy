@@ -28,9 +28,10 @@ for (const [section, text] of [
       await info.attach(view, { path, contentType: "image/png" });
     }
 
-    const response = await page.goto(`${fixture}?section=${section}`, { waitUntil: "domcontentloaded" });
+    const path = section === "overview" ? fixture : `${fixture}/study`;
+    const response = await page.goto(section === "overview" ? path : `${path}?section=${section}`, { waitUntil: "domcontentloaded" });
     expect(response?.status()).toBe(200);
-    expect(new URL(page.url()).pathname).toBe(fixture);
+    expect(new URL(page.url()).pathname).toBe(path);
     await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
     const main = page.getByRole("main");
     await expect(main.getByText(text, { exact: section !== "material" })).toBeVisible();
