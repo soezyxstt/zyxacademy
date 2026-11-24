@@ -1,3 +1,5 @@
+The `ACTIVE` [feature catalog](features.md#editorial-article-reader) documents editorial Article surfaces, collapsed V4 checks, compact mobile prose, reading focus and session-only checkpoint indicators. Local implementation is separate from deployed acceptance.
+
 `ACTIVE` local source: [Application workspaces](features.md) use neutral tab navigation, compact documentation, and assessment result rows. Quiz and tryout confirmation includes answered progress, remaining time when available, and actionable warnings.
 
 `ACTIVE` local source: the [AI model workflow](features.md#zyra-operations), [gateway setup](DEVELOPMENT.md#ai-gateway), [architecture](ARCHITECTURE.md#zyra-distributed-quota-coordinator) and [deployment guide](DEPLOYMENT.md#zyra-model-registry-staging-probe) describe dynamic Gateway discovery, release/creation date ordering, shared 12-hour catalog caching, 12-hour and manual three-sample median latency, provider-managed text request limits, compact controls, and five-minute alias cooldown after three consecutive failures. Discussion routing, structured Gemini responses and article teaching prompts are repaired. This repair is based on staging `68b1d2e4`. Live metadata and bounded synthetic probes are separate from authenticated application and hosted deployment acceptance.
@@ -380,3 +382,5 @@ The active [gamification](gamification.md), [schema](DB_SCHEMA.md), and [deploym
 `ACTIVE` local gamification source includes migration 0023 for retained question identities and the bounded comeback index. Staging migration, cutover, runtime fixture and rollout remain `OPEN / IN PROGRESS`.
 
 `ACTIVE` worker health checks derive the expected function count from the canonical compute registration and verify the archive checksum; the former fixed 22-function expectation is obsolete for the new revision. A verified staging writer drain remains `OPEN / IN PROGRESS`.
+
+Article/Diktat editorial verification: full-chapter and interactive-state checks cover formula overflow, reveal recovery, completion states and expanded graph controls. The behavior contract remains in [features](features.md) (ACTIVE); local screenshots are not deployment evidence.
