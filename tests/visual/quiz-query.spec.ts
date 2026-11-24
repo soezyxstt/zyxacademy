@@ -22,7 +22,7 @@ async function boot(page: Page, config: QuizFixtureConfig, respond?: (route: Rou
   });
   await page.goto(origin);
   await page.addStyleTag({ content: fixture.styles });
-  await page.evaluate((value) => { Object.assign(window, { quizFixture: value }); }, config);
+  await page.evaluate((value) => { window.quizFixture = value; }, config);
   await page.addScriptTag({ content: fixture.script });
   return errors;
 }

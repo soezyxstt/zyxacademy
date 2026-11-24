@@ -17,9 +17,15 @@ export type QuizFixtureConfig = {
   expectedUserId?: string;
 };
 
+declare global {
+  interface Window {
+    quizFixture: QuizFixtureConfig;
+  }
+}
+
 function App() {
   const [demoSubmitted, setDemoSubmitted] = useState(false);
-  const config = (window as Window & { quizFixture: QuizFixtureConfig }).quizFixture;
+  const config = window.quizFixture;
   return <main className="mx-auto max-w-5xl p-4 text-foreground">
     {config.mode === "review" ? <AttemptReview attemptId="fixture-attempt" /> : <QuizPlayer
       courseId="fixture-course" attemptId="fixture-attempt"
