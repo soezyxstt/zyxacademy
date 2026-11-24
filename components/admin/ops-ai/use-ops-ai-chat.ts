@@ -38,7 +38,7 @@ export interface UseOpsAiChatOptions {
   onProposal?: (proposal: OpsAiActionProposalV2) => void;
 }
 
-type ChatRequestOptions = { chatId: string; grantIds: string[] };
+type ChatRequestOptions = { chatId: string; grantIds: string[]; mode?: "ask" | "edit" };
 
 export interface UseOpsAiChatReturn {
   messages: OpsAiMessageV2[];
@@ -148,14 +148,17 @@ export function useOpsAiChat({
           history.unshift({ role: message.role, content });
           remaining -= content.length;
         }
+        const requestContext = chat?.mode
+          ? { ...context, mode: chat.mode }
+          : context;
         const res = await fetch(api, {
           method: "POST",
           signal: abortController.signal,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             messages: history,
-            context,
-            ...chat,
+            context: requestContext,
+            ...(chat ? { chatId: chat.chatId, grantIds: chat.grantIds } : {}),
           }),
         });
 

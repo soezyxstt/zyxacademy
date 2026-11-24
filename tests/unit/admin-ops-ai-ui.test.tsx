@@ -1131,4 +1131,60 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).not.toContain("&lt;code&gt;[&quot;Ya&quot;");
     });
   });
+
+  // ==========================================================================
+  // Suite 15: Interactive Presets, Capability Overview & Mode Toggle
+  // ==========================================================================
+  describe("Suite 15: Interactive Presets, Capability Overview & Mode Toggle", () => {
+    it("renders featured capability overview preset, category filter, mode toggle, and help trigger in empty state", () => {
+      const html = renderToStaticMarkup(
+        <OpsAiProvider initialOpen={true}>
+          <OpsAiPanel />
+        </OpsAiProvider>
+      );
+
+      expect(html).toContain("Apa saja yang bisa dibantu Ops AI?");
+      expect(html).toContain('aria-label="Filter kategori preset"');
+      expect(html).toContain("Semua");
+      expect(html).toContain("Tanya");
+      expect(html).toContain("Aksi");
+      expect(html).toContain('aria-label="Mode percakapan"');
+      expect(html).toContain('aria-label="Bantuan Zyx Ops AI"');
+      expect(html).toContain("Buat token aktivasi kelompok");
+    });
+
+    it("renders mid-chat preset launcher when conversation has messages", () => {
+      const html = renderToStaticMarkup(
+        <OpsAiProvider initialOpen={true}>
+          <OpsAiPanel
+            initialMessages={[
+              { id: "u1", role: "user", content: "Halo", createdAt: 1000 },
+              { id: "a1", role: "assistant", content: "Halo admin.", createdAt: 2000 },
+            ]}
+          />
+        </OpsAiProvider>
+      );
+
+      expect(html).toContain('aria-label="Buka daftar preset pertanyaan dan aksi"');
+      expect(html).toContain("Preset");
+    });
+
+    it("returns route-specific presets for admin sub-pages", async () => {
+      const { getAdminRouteContext, CAPABILITY_OVERVIEW_PRESET, OPS_AI_PRESETS } = await import(
+        "@/components/admin/ops-ai/ops-ai-presets"
+      );
+
+      expect(CAPABILITY_OVERVIEW_PRESET.label).toBe("Apa saja yang bisa dibantu Ops AI?");
+      expect(OPS_AI_PRESETS.some((p) => p.category === "action")).toBe(true);
+      expect(OPS_AI_PRESETS.some((p) => p.category === "ask")).toBe(true);
+
+      const coursesCtx = getAdminRouteContext("/admin/courses/math-1");
+      expect(coursesCtx.pageLabel).toBe("Mata Kuliah");
+      expect(coursesCtx.routePreset?.id).toBe("route-courses");
+
+      const formsCtx = getAdminRouteContext("/admin/forms");
+      expect(formsCtx.pageLabel).toBe("Formulir");
+      expect(formsCtx.routePreset?.id).toBe("route-forms");
+    });
+  });
 });
