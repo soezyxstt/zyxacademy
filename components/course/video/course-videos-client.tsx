@@ -3,7 +3,7 @@
 import Image from "next/image";
 import dynamic from "next/dynamic";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   readActiveCourseVideoId,
@@ -140,32 +140,33 @@ export function CourseVideosClient({
   const [playingVideo, setPlayingVideo] = useState<VideoItem | null>(null);
   const [activePlaylistForPlayer, setActivePlaylistForPlayer] = useState<VideoPlaylistItem | null>(null);
   const [lockedVideo, setLockedVideo] = useState<VideoItem | null>(null);
-  const videoStateHydratedRef = useRef(false);
+  const [hydratedCourseId, setHydratedCourseId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (videoStateHydratedRef.current) return;
-    videoStateHydratedRef.current = true;
+    if (hydratedCourseId === courseId) return;
     const urlVideoId =
       typeof window !== "undefined"
         ? new URLSearchParams(window.location.search).get("video")
         : null;
     const candidateVideoId = urlVideoId || readActiveCourseVideoId(courseId);
-    if (!candidateVideoId) return;
-    for (const pl of initialPlaylists) {
-      const matched = pl.videos.find((v) => v.id === candidateVideoId);
-      if (matched) {
-        const isLocked = !canManage && !hasFullContentAccess && (matched.locked ?? true);
-        if (!isLocked) {
-          setPlayingVideo(matched);
-          setActivePlaylistForPlayer(pl);
+    if (candidateVideoId) {
+      for (const pl of initialPlaylists) {
+        const matched = pl.videos.find((v) => v.id === candidateVideoId);
+        if (matched) {
+          const isLocked = !canManage && !hasFullContentAccess && (matched.locked ?? true);
+          if (!isLocked) {
+            setPlayingVideo(matched);
+            setActivePlaylistForPlayer(pl);
+          }
+          break;
         }
-        break;
       }
     }
-  }, [canManage, courseId, hasFullContentAccess, initialPlaylists]);
+    setHydratedCourseId(courseId);
+  }, [canManage, courseId, hasFullContentAccess, hydratedCourseId, initialPlaylists]);
 
   useEffect(() => {
-    if (!videoStateHydratedRef.current) return;
+    if (hydratedCourseId !== courseId) return;
     const nextVideoId = playingVideo?.id ?? null;
     saveActiveCourseVideoId(courseId, nextVideoId);
     if (typeof window !== "undefined") {
@@ -181,7 +182,7 @@ export function CourseVideosClient({
         window.history.replaceState(window.history.state, "", nextHref);
       }
     }
-  }, [courseId, playingVideo]);
+  }, [courseId, hydratedCourseId, playingVideo]);
 
   const togglePlaylist = (id: string) => {
     setOpenPlaylists((prev) => ({

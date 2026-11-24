@@ -178,3 +178,21 @@ export function saveActiveCourseVideoId(
     "local",
   );
 }
+
+export function clearPersistedVideoState(): void {
+  removePersistentDraft(PROGRESS_KEY, "local");
+  if (typeof window === "undefined") return;
+  try {
+    const prefix = `zyx:course-active-video:v${STORAGE_VERSION}:`;
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (key && key.startsWith(prefix)) keysToRemove.push(key);
+    }
+    for (const key of keysToRemove) {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // Ignore restricted storage errors.
+  }
+}

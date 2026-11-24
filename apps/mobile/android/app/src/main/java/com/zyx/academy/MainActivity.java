@@ -67,14 +67,14 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onPause() {
-        flushWebViewCookies();
         super.onPause();
+        flushWebViewCookies();
     }
 
     @Override
     public void onStop() {
-        flushWebViewCookies();
         super.onStop();
+        flushWebViewCookies();
     }
 
     private void flushWebViewCookies() {

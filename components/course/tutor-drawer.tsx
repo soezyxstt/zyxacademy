@@ -202,30 +202,44 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setQuotedContext(null);
   }, []);
 
-  const restoredOpenForCourseRef = React.useRef<string | null>(null);
+  const [hydratedDrawerCourseId, setHydratedDrawerCourseId] = React.useState<string | null>(null);
+  const isAssessmentRoute = Boolean(
+    pathname &&
+      (pathname.includes("/quiz") ||
+        pathname.includes("/simulasi") ||
+        pathname.includes("/exam") ||
+        pathname.includes("/tryout")),
+  );
   const canPersistDrawerOpen = Boolean(
     experience.mode !== "demo" &&
       courseIdFromPath &&
       !isCourseDiscussion &&
+      !isAssessmentRoute &&
       !pathname?.includes("/live/host") &&
       !pathname?.endsWith("/daftar") &&
       !suppressPet,
   );
 
   React.useEffect(() => {
+    if (suppressPet && isOpen) {
+      setIsOpen(false);
+    }
+  }, [isOpen, suppressPet]);
+
+  React.useEffect(() => {
     if (!canPersistDrawerOpen || !courseIdFromPath) return;
-    if (restoredOpenForCourseRef.current === courseIdFromPath) return;
-    restoredOpenForCourseRef.current = courseIdFromPath;
+    if (hydratedDrawerCourseId === courseIdFromPath) return;
     if (!isOpen && readPersistedZyraDrawerOpen(courseIdFromPath)) {
       openChat();
     }
-  }, [canPersistDrawerOpen, courseIdFromPath, isOpen, openChat]);
+    setHydratedDrawerCourseId(courseIdFromPath);
+  }, [canPersistDrawerOpen, courseIdFromPath, hydratedDrawerCourseId, isOpen, openChat]);
 
   React.useEffect(() => {
-    if (!courseIdFromPath || experience.mode === "demo") return;
-    if (restoredOpenForCourseRef.current !== courseIdFromPath) return;
+    if (!canPersistDrawerOpen || !courseIdFromPath) return;
+    if (hydratedDrawerCourseId !== courseIdFromPath) return;
     savePersistedZyraDrawerOpen(courseIdFromPath, isOpen && activeMode === "chat");
-  }, [activeMode, courseIdFromPath, experience.mode, isOpen]);
+  }, [activeMode, canPersistDrawerOpen, courseIdFromPath, hydratedDrawerCourseId, isOpen]);
 
   React.useEffect(() => {
     if (!courseIdFromPath) return;
@@ -290,7 +304,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
         {(isOpen || hasOpened) && (
           <TutorAppearanceContext.Provider value={appearance}><ZyraWelcomeCopyGuard>
             <TutorDrawerView
-              isOpen={isOpen}
+              isOpen={isOpen && !suppressPet}
               onClose={close}
               activeMode={activeMode}
               setActiveMode={setActiveMode}

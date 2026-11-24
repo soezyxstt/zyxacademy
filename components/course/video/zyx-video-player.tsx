@@ -45,22 +45,38 @@ export function ZyxVideoPlayer({
   const [mounted, setMounted] = useState(false);
   const playerRef = useRef<MediaPlayerInstance | null>(null);
   const restoredForVideoRef = useRef<string | null>(null);
+  const endedRef = useRef(false);
   const lastSavedAtRef = useRef(0);
+  const lastPlaybackSnapshotRef = useRef<{ time: number; duration?: number } | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    endedRef.current = false;
+    lastSavedAtRef.current = 0;
+    lastPlaybackSnapshotRef.current = null;
+  }, [videoId]);
+
   const persistCurrentTime = useCallback(() => {
-    if (!videoId || !playerRef.current) return;
-    const { currentTime, duration } = playerRef.current.state;
-    if (typeof currentTime === "number" && Number.isFinite(currentTime)) {
-      saveVideoPlaybackTime(
-        videoId,
-        currentTime,
-        typeof duration === "number" && Number.isFinite(duration) ? duration : undefined,
-      );
-    }
+    if (!videoId || endedRef.current || restoredForVideoRef.current !== videoId) return;
+    const state = playerRef.current?.state;
+    const liveTime =
+      typeof state?.currentTime === "number" && Number.isFinite(state.currentTime)
+        ? state.currentTime
+        : null;
+    const liveDuration =
+      typeof state?.duration === "number" && Number.isFinite(state.duration) && state.duration > 0
+        ? state.duration
+        : undefined;
+    const snapshot =
+      liveTime !== null && liveTime > 0
+        ? { time: liveTime, duration: liveDuration ?? lastPlaybackSnapshotRef.current?.duration }
+        : lastPlaybackSnapshotRef.current;
+    if (!snapshot) return;
+    lastPlaybackSnapshotRef.current = snapshot;
+    saveVideoPlaybackTime(videoId, snapshot.time, snapshot.duration);
   }, [videoId]);
 
   useEffect(() => {
@@ -84,11 +100,22 @@ export function ZyxVideoPlayer({
     const savedSeconds = readVideoPlaybackTime(videoId);
     if (savedSeconds > 0) {
       playerRef.current.currentTime = savedSeconds;
+      lastPlaybackSnapshotRef.current = { time: savedSeconds };
     }
   }, [videoId]);
 
   const handleTimeUpdate = useCallback(() => {
-    if (!videoId) return;
+    if (!videoId || endedRef.current || restoredForVideoRef.current !== videoId) return;
+    const state = playerRef.current?.state;
+    if (typeof state?.currentTime === "number" && Number.isFinite(state.currentTime) && state.currentTime > 0) {
+      lastPlaybackSnapshotRef.current = {
+        time: state.currentTime,
+        duration:
+          typeof state.duration === "number" && Number.isFinite(state.duration) && state.duration > 0
+            ? state.duration
+            : lastPlaybackSnapshotRef.current?.duration,
+      };
+    }
     const now = Date.now();
     if (now - lastSavedAtRef.current < 3_000) return;
     lastSavedAtRef.current = now;
@@ -96,6 +123,8 @@ export function ZyxVideoPlayer({
   }, [persistCurrentTime, videoId]);
 
   const handleEnded = useCallback(() => {
+    endedRef.current = true;
+    lastPlaybackSnapshotRef.current = null;
     clearVideoPlaybackTime(videoId);
     onEnded?.();
   }, [onEnded, videoId]);

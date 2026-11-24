@@ -27,6 +27,7 @@ const emptyComposerDraft = (): ComposerDraft => ({
 import {
   ACTIVE_VIDEO_TTL_MS,
   VIDEO_PROGRESS_TTL_MS,
+  clearPersistedVideoState,
   clearVideoPlaybackTime,
   readActiveCourseVideoId,
   readVideoPlaybackTime,
@@ -203,5 +204,11 @@ describe("video playback persistence", () => {
 
     saveActiveCourseVideoId("course-math", null, now);
     expect(readActiveCourseVideoId("course-math", now)).toBeNull();
+
+    saveVideoPlaybackTime("vid-99", 300, 1200, now);
+    saveActiveCourseVideoId("course-phys", "vid-99", now);
+    clearPersistedVideoState();
+    expect(readVideoPlaybackTime("vid-99", now)).toBe(0);
+    expect(readActiveCourseVideoId("course-phys", now)).toBeNull();
   });
 });

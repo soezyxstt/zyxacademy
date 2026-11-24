@@ -473,6 +473,8 @@ function TutorDrawerContent({
     draftSequenceRef.current += 1;
     activateConversation(`draft:${draftSequenceRef.current}`);
     setSessionId(null);
+    setInputVal("");
+    setWorkStep("");
     resetComposerAttachments();
     setMessages([{ id: "chat-welcome", role: "ai", content: t("tutorDrawer.welcome") }]);
   }, [activateConversation, conversationScope, resetComposerAttachments, t]);
@@ -1388,7 +1390,10 @@ function TutorDrawerContent({
     }, 2000);
   };
 
-  const handleSelectSession = React.useCallback(async (targetSessionId: string) => {
+  const handleSelectSession = React.useCallback(async (
+    targetSessionId: string,
+    options?: { preserveDraft?: boolean },
+  ) => {
     if (targetSessionId === sessionId) {
       setShowMenu(false);
       return;
@@ -1397,9 +1402,11 @@ function TutorDrawerContent({
     if (!courseId) return;
     hasStartedConversationRef.current = true;
     invalidateConversationRequests();
-    resetComposerAttachments();
+    if (!options?.preserveDraft) {
+      resetComposerAttachments();
+      setWorkStep("");
+    }
     const loadEpoch = conversationEpochRef.current;
-    setWorkStep("");
     setChatLoading(true);
     setShowMenu(false);
     try {
@@ -1430,14 +1437,24 @@ function TutorDrawerContent({
 
   const zyraDraftStateRef = React.useRef({ inputVal, workStep, sessionId });
   zyraDraftStateRef.current = { inputVal, workStep, sessionId };
-  const zyraDraftHydratedScopeRef = React.useRef<string | null>(null);
+  const [hydratedDraftScope, setHydratedDraftScope] = React.useState<string | null>(null);
+  const hydratedDraftScopeRef = React.useRef<string | null>(null);
+  hydratedDraftScopeRef.current = hydratedDraftScope;
+  const hydratingScopeRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (demo || !accountId || !courseIdFromPath) return;
-    if (zyraDraftHydratedScopeRef.current === conversationScope) return;
-    zyraDraftHydratedScopeRef.current = conversationScope;
+    if (hydratedDraftScope === conversationScope || hydratingScopeRef.current === conversationScope) {
+      return;
+    }
+    let cancelled = false;
+    hydratingScopeRef.current = conversationScope;
     const saved = readPersistedZyraDrawerDraft(accountId, courseIdFromPath);
-    if (!saved) return;
+    if (!saved) {
+      hydratingScopeRef.current = null;
+      setHydratedDraftScope(conversationScope);
+      return;
+    }
     if (saved.inputVal && !initialQuestion) {
       setInputVal((current) => (current.trim().length > 0 ? current : saved.inputVal));
     }
@@ -1445,23 +1462,39 @@ function TutorDrawerContent({
       setWorkStep((current) => (current.trim().length > 0 ? current : saved.workStep));
     }
     if (saved.sessionId && !hasStartedConversationRef.current) {
-      void handleSelectSession(saved.sessionId);
+      void handleSelectSession(saved.sessionId, { preserveDraft: true }).finally(() => {
+        if (hydratingScopeRef.current === conversationScope) {
+          hydratingScopeRef.current = null;
+        }
+        if (!cancelled) {
+          setHydratedDraftScope(conversationScope);
+        }
+      });
+    } else {
+      hydratingScopeRef.current = null;
+      setHydratedDraftScope(conversationScope);
     }
-  }, [accountId, conversationScope, courseIdFromPath, demo, handleSelectSession, initialQuestion]);
+    return () => {
+      cancelled = true;
+      if (hydratingScopeRef.current === conversationScope) {
+        hydratingScopeRef.current = null;
+      }
+    };
+  }, [accountId, conversationScope, courseIdFromPath, demo, handleSelectSession, hydratedDraftScope, initialQuestion]);
 
   React.useEffect(() => {
     if (demo || !accountId || !courseIdFromPath) return;
-    if (zyraDraftHydratedScopeRef.current !== conversationScope) return;
+    if (hydratedDraftScope !== conversationScope) return;
     const timer = window.setTimeout(() => {
       savePersistedZyraDrawerDraft(accountId, courseIdFromPath, zyraDraftStateRef.current);
     }, 200);
     return () => window.clearTimeout(timer);
-  }, [accountId, conversationScope, courseIdFromPath, demo, inputVal, sessionId, workStep]);
+  }, [accountId, conversationScope, courseIdFromPath, demo, hydratedDraftScope, inputVal, sessionId, workStep]);
 
   React.useEffect(() => {
     if (demo || !accountId || !courseIdFromPath) return;
     const flush = () => {
-      if (zyraDraftHydratedScopeRef.current === conversationScope) {
+      if (hydratedDraftScopeRef.current === conversationScope) {
         savePersistedZyraDrawerDraft(accountId, courseIdFromPath, zyraDraftStateRef.current);
       }
     };

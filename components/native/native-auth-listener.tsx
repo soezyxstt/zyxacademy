@@ -52,6 +52,16 @@ export function NativeAuthListener() {
 
   useEffect(() => {
     if (!isNativeApp()) return;
+    if (
+      pathname === "/sign-in" ||
+      pathname.startsWith("/sign-in/") ||
+      pathname === "/sign-out" ||
+      pathname.startsWith("/sign-out/")
+    ) {
+      userIdRef.current = null;
+      clearNativeLastRoute();
+      return;
+    }
     if (userIdRef.current) {
       persistCurrentRoute();
       return;
