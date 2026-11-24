@@ -8,6 +8,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { hapticMedium } from "@/lib/native/haptics";
 import { closeDialogsThen } from "@/hooks/use-dialog-history";
 import type { TutorCourseSummary } from "./tutor-nav-model";
 
@@ -60,6 +61,7 @@ export function TutorMobileCourseSheet({
                     key={course.courseId}
                     type="button"
                     onClick={() => {
+                      void hapticMedium();
                       closeDialogsThen(
                         () => onOpenChange(false),
                         () => onSelectCourse(course.courseId)

@@ -47,7 +47,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import {

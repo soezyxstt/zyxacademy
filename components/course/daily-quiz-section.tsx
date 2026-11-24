@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DailyQuizPopup } from "./daily-quiz-popup";
+import { hapticLight } from "@/lib/native/haptics";
 import { useTranslations } from "@/lib/i18n/client";
 
 type DailyQuizSectionProps = {
@@ -39,7 +40,10 @@ export function DailyQuizSection({ courseId, courseTitle, dailyTrivia }: DailyQu
         <Button
           type="button"
           id="daily-trivia-trigger"
-          onClick={() => setManualTrigger(true)}
+          onClick={() => {
+            void hapticLight();
+            setManualTrigger(true);
+          }}
           size="sm"
           variant="outline"
           className="interactive shrink-0 gap-1.5 rounded-md"

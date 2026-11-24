@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/client";
+import { hapticLight, hapticMedium } from "@/lib/native/haptics";
 import {
   formatTutorSessionDate,
   type TutorDashboardViewProps,
@@ -55,7 +56,7 @@ export function TutorDashboardContent({
             <ul className="mt-1 divide-y divide-border/30">
               {upcomingSessions.map((booking) => (
                 <li key={booking.id}>
-                  <Link href="/tutor/schedule?tab=sessions" className={linkedRow}>
+                  <Link href="/tutor/schedule?tab=sessions" onClick={() => void hapticLight()} className={linkedRow}>
                     <div className="flex items-start justify-between gap-(--compact-gap)">
                       <div className="min-w-0 flex-1 space-y-1">
                         <p className="m-0 wrap-anywhere text-body-sm font-semibold text-foreground">
@@ -110,7 +111,7 @@ export function TutorDashboardContent({
             <ul className="divide-y divide-border/30">
               {pendingTickets.slice(0, 5).map((ticket) => (
                 <li key={ticket.id}>
-                  <Link href="/tutor/schedule?tab=tickets" className={linkedRow}>
+                  <Link href="/tutor/schedule?tab=tickets" onClick={() => void hapticLight()} className={linkedRow}>
                     <p className="m-0 text-body-sm font-semibold text-foreground">
                       {ticket.type === "cancellation" ? t("cancellationRequest") : t("rescheduleRequest")}
                     </p>
@@ -141,7 +142,7 @@ export function TutorDashboardContent({
             <ul className="divide-y divide-border/30">
               {courses.map((course) => (
                 <li key={course.courseId}>
-                  <Link href={`/tutor/${course.courseId}`} className={linkedRow}>
+                  <Link href={`/tutor/${course.courseId}`} onClick={() => void hapticMedium()} className={linkedRow}>
                     <div className="flex items-start justify-between gap-(--compact-gap)">
                       <div className="min-w-0 flex-1 space-y-1">
                         <p className="m-0 wrap-anywhere text-body-sm font-semibold text-foreground">{course.title}</p>

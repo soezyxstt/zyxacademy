@@ -25,6 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { hapticLight, hapticSelection } from "@/lib/native/haptics";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { useAppReducedMotion } from "@/components/appearance-preferences";
@@ -82,6 +83,7 @@ export function MobileTopNavActionButton({
   className,
   children,
   type = "button",
+  onClick,
   ...props
 }: MobileTopNavActionButtonProps) {
   return (
@@ -90,6 +92,10 @@ export function MobileTopNavActionButton({
       variant="outline"
       size="icon-lg"
       aria-label={label}
+      onClick={(event) => {
+        void hapticLight();
+        onClick?.(event);
+      }}
       className={cn(MOBILE_TOP_NAV_ICON_BUTTON_CLASS, className)}
       {...props}
     >
@@ -115,6 +121,7 @@ export function MobileTopNavSearchTrigger({
   const control = useContext(MobileTopNavSearchControlContext);
 
   const handleClick = () => {
+    void hapticLight();
     if (control) {
       control.openSearch();
     } else {
@@ -268,6 +275,7 @@ export function MobileTopNavbar({
   }, [onOpenGlobalSearch, pageSearch]);
 
   const closeSearch = useCallback((restoreFocus = true) => {
+    void hapticLight();
     setIsSearchExpanded(false);
     if (restoreFocus) {
       requestAnimationFrame(() => {
@@ -277,6 +285,7 @@ export function MobileTopNavbar({
   }, []);
 
   const handleOpenGlobalSearch = useCallback(() => {
+    void hapticSelection();
     const queryToPass = trimmedQuery;
     setIsSearchExpanded(false);
     onOpenGlobalSearch?.(queryToPass || undefined);
@@ -344,6 +353,7 @@ export function MobileTopNavbar({
           href={topNav.backHref}
           data-mobile-back-button=""
           aria-label={resolvedBackLabel}
+          onClick={() => void hapticLight()}
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
         </Link>
@@ -373,6 +383,7 @@ export function MobileTopNavbar({
           href={backHref}
           data-mobile-back-button=""
           aria-label={resolvedBackLabel}
+          onClick={() => void hapticLight()}
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
         </Link>
@@ -390,6 +401,7 @@ export function MobileTopNavbar({
           href={topNav.fallbackBackHref}
           data-mobile-back-button=""
           aria-label={resolvedFallbackBackLabel}
+          onClick={() => void hapticLight()}
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
         </Link>
