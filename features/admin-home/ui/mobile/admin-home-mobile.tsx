@@ -2,13 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import {
-  Activity,
-  GraduationCap,
-  LayoutDashboard,
-  Library,
-  Zap,
-} from "lucide-react";
+import { LayoutDashboard, Zap } from "lucide-react";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -21,7 +15,6 @@ import { AdminHomeItemIcon } from "@/features/admin-home/ui/shared/admin-home-ic
 
 export function AdminHomeMobile({
   failedJobs,
-  kpis,
   categories,
 }: AdminHomeViewProps) {
   const topNavConfig = useMemo(
@@ -36,37 +29,6 @@ export function AdminHomeMobile({
     []
   );
   useMobileTopNav(topNavConfig);
-
-  const kpiItems = [
-    {
-      label: "Mata Kuliah",
-      value: kpis.totalCourses,
-      href: "/admin/courses",
-      icon: GraduationCap,
-      iconColor: "text-brand-secondary",
-    },
-    {
-      label: "Tinjau Soal",
-      value: kpis.pendingQuestions,
-      href: "/admin/questions",
-      icon: Library,
-      iconColor: "text-status-success",
-    },
-    {
-      label: "Generasi Aktif",
-      value: kpis.runningJobs,
-      href: "/admin/jobs",
-      icon: Zap,
-      iconColor: "text-status-warning",
-    },
-    {
-      label: "Permintaan AI",
-      value: kpis.aiRequestsToday,
-      href: "/admin/ops",
-      icon: Activity,
-      iconColor: "text-status-info",
-    },
-  ];
 
   return (
     <div className="flex w-full min-w-0 flex-col space-y-(--section-gap)">
@@ -83,30 +45,6 @@ export function AdminHomeMobile({
           </AlertDescription>
         </Alert>
       )}
-
-      <section
-        aria-label="Ringkasan"
-        className="grid grid-cols-2 gap-x-4 gap-y-3 border-y border-border/60 py-3"
-      >
-        {kpiItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="min-w-0 rounded-md py-1 transition-colors active:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Icon className={`size-3.5 shrink-0 ${item.iconColor}`} aria-hidden />
-                <span className="min-w-0 text-body-sm font-medium">{item.label}</span>
-              </div>
-              <p className="mt-1 font-heading text-h5 font-bold tabular-nums text-foreground">
-                {item.value}
-              </p>
-            </Link>
-          );
-        })}
-      </section>
 
       <div className="space-y-(--section-gap)">
         {categories.map((category) => (

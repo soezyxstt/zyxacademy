@@ -586,31 +586,31 @@ export function ASTInspectorClient() {
                 {activeTab === "stats" && (
                   <div className="space-y-6 text-left">
                     {/* Quality Score Header */}
-                    <div className="flex flex-col items-center justify-between gap-4 border-b border-border pb-4 md:flex-row">
-                      <div className="space-y-1">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-3">
+                      <div className="space-y-0.5">
                         <h4 className="font-heading text-body-base font-bold text-foreground">{t("astInspectorUI.qualityScore")}</h4>
-                        <p className="text-body-sm text-muted-foreground">{t("astInspectorUI.qualityDescription")}</p>
+                        <p className="text-body-xs text-muted-foreground">{t("astInspectorUI.qualityDescription")}</p>
                       </div>
-                      <div className="flex items-baseline gap-1 select-none">
-                        <span className="text-h1 font-bold text-brand-primary">{result.stats.quality.score}</span>
-                        <span className="text-muted-foreground text-body-base">/100</span>
+                      <div className="flex items-baseline gap-1 select-none tabular-nums">
+                        <span className="font-heading text-h5 font-bold text-brand-primary">{result.stats.quality.score}</span>
+                        <span className="text-body-xs text-muted-foreground">/100</span>
                       </div>
                     </div>
 
-                    {/* Breakdown Cards */}
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Breakdown List */}
+                    <div className="divide-y divide-border/40 border-b border-border/40">
                       {[
                         { label: t("astInspectorUI.glossaryCoverage"), val: result.stats.quality.breakdown.glossaryCoverage, desc: t("astInspectorUI.glossaryCoverageDescription") },
                         { label: t("astInspectorUI.visualReference"), val: result.stats.quality.breakdown.visualReferenceCoverage, desc: t("astInspectorUI.visualReferenceDescription") },
                         { label: t("astInspectorUI.formulaAtomization"), val: result.stats.quality.breakdown.formulaAtomization, desc: t("astInspectorUI.formulaAtomizationDescription") },
                         { label: t("astInspectorUI.visualCoverage"), val: result.stats.quality.breakdown.visualCoverage, desc: t("astInspectorUI.visualCoverageDescription") },
                       ].map((item, idx) => (
-                        <div key={idx} className="py-3 border-b border-border">
-                          <div className="flex justify-between items-center mb-1 select-none">
-                            <span className="text-body-xs font-semibold text-muted-foreground">{item.label}</span>
-                            <span className="text-body-sm font-bold text-brand-primary">{item.val}%</span>
+                        <div key={idx} className="space-y-1.5 py-2.5">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="text-body-sm font-medium text-foreground">{item.label}</span>
+                            <span className="text-body-sm font-semibold tabular-nums text-brand-primary">{item.val}%</span>
                           </div>
-                          <div className="mb-2 h-1.5 w-full overflow-hidden rounded-md bg-muted">
+                          <div className="h-1.5 w-full overflow-hidden rounded-md bg-muted">
                             <div className="h-full rounded-md bg-brand-primary transition-[width] duration-500 ease-out" style={{ width: `${item.val}%` }} />
                           </div>
                           <p className="text-body-xs text-muted-foreground leading-normal">{item.desc}</p>
@@ -619,42 +619,42 @@ export function ASTInspectorClient() {
                     </div>
 
                     {/* Structural Metrics */}
-                    <div className="space-y-4 border-t border-border pt-4">
+                    <div className="space-y-2">
                       <h4 className="font-heading text-body-sm font-bold text-foreground">{t("astInspectorUI.structureMetrics")}</h4>
-                      <div className="grid grid-cols-2 gap-y-4 gap-x-6">
-                        <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.conceptsDetected")}</span>
-                          <span className="text-body-sm font-mono font-bold">{result.stats.conceptCount}</span>
+                      <dl className="divide-y divide-border/40 border-y border-border/40">
+                        <div className="flex items-baseline justify-between gap-3 py-1.5">
+                          <dt className="text-body-xs text-muted-foreground">{t("astInspectorUI.conceptsDetected")}</dt>
+                          <dd className="text-body-sm font-semibold tabular-nums text-foreground">{result.stats.conceptCount}</dd>
                         </div>
-                        <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.formulasDetected")}</span>
-                          <span className="text-body-sm font-mono font-bold">{result.stats.formulaCount}</span>
+                        <div className="flex items-baseline justify-between gap-3 py-1.5">
+                          <dt className="text-body-xs text-muted-foreground">{t("astInspectorUI.formulasDetected")}</dt>
+                          <dd className="text-body-sm font-semibold tabular-nums text-foreground">{result.stats.formulaCount}</dd>
                         </div>
-                        <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.glossaryDetected")}</span>
-                          <span className="text-body-sm font-mono font-bold">{result.stats.glossaryCount}</span>
+                        <div className="flex items-baseline justify-between gap-3 py-1.5">
+                          <dt className="text-body-xs text-muted-foreground">{t("astInspectorUI.glossaryDetected")}</dt>
+                          <dd className="text-body-sm font-semibold tabular-nums text-foreground">{result.stats.glossaryCount}</dd>
                         </div>
-                        <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.visualsDetected")}</span>
-                          <span className="text-body-sm font-mono font-bold">{result.stats.visualCount}</span>
+                        <div className="flex items-baseline justify-between gap-3 py-1.5">
+                          <dt className="text-body-xs text-muted-foreground">{t("astInspectorUI.visualsDetected")}</dt>
+                          <dd className="text-body-sm font-semibold tabular-nums text-foreground">{result.stats.visualCount}</dd>
                         </div>
-                        <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.averageConceptLength")}</span>
-                          <span className="text-body-sm font-mono font-bold">{t("astInspectorUI.characterCount", { count: result.stats.averageConceptLength })}</span>
+                        <div className="flex items-baseline justify-between gap-3 py-1.5">
+                          <dt className="text-body-xs text-muted-foreground">{t("astInspectorUI.averageConceptLength")}</dt>
+                          <dd className="text-body-sm font-semibold tabular-nums text-foreground">{t("astInspectorUI.characterCount", { count: result.stats.averageConceptLength })}</dd>
                         </div>
-                        <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.averageFormulaLength")}</span>
-                          <span className="text-body-sm font-mono font-bold">{t("astInspectorUI.characterCount", { count: result.stats.averageFormulaLength })}</span>
+                        <div className="flex items-baseline justify-between gap-3 py-1.5">
+                          <dt className="text-body-xs text-muted-foreground">{t("astInspectorUI.averageFormulaLength")}</dt>
+                          <dd className="text-body-sm font-semibold tabular-nums text-foreground">{t("astInspectorUI.characterCount", { count: result.stats.averageFormulaLength })}</dd>
                         </div>
-                        <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.averageVisualDistance")}</span>
-                          <span className="text-body-sm font-mono font-bold">{t("astInspectorUI.blockCount", { count: result.stats.averageVisualDistance })}</span>
+                        <div className="flex items-baseline justify-between gap-3 py-1.5">
+                          <dt className="text-body-xs text-muted-foreground">{t("astInspectorUI.averageVisualDistance")}</dt>
+                          <dd className="text-body-sm font-semibold tabular-nums text-foreground">{t("astInspectorUI.blockCount", { count: result.stats.averageVisualDistance })}</dd>
                         </div>
-                        <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.averageGlossaryReferences")}</span>
-                          <span className="text-body-sm font-mono font-bold">{t("astInspectorUI.perTextCount", { count: result.stats.averageGlossaryReferenceCount })}</span>
+                        <div className="flex items-baseline justify-between gap-3 py-1.5">
+                          <dt className="text-body-xs text-muted-foreground">{t("astInspectorUI.averageGlossaryReferences")}</dt>
+                          <dd className="text-body-sm font-semibold tabular-nums text-foreground">{t("astInspectorUI.perTextCount", { count: result.stats.averageGlossaryReferenceCount })}</dd>
                         </div>
-                      </div>
+                      </dl>
                     </div>
                   </div>
                 )}

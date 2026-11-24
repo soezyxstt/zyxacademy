@@ -119,12 +119,12 @@ export default function DetailedMeetingLogPage({
       ) : (
         <div className="space-y-(--section-gap)">
           {/* Overview metric strip */}
-          <AdminStatStrip className="sm:grid-cols-2 lg:grid-cols-5">
+          <AdminStatStrip>
             <AdminStatStripItem
               icon={Clock}
               label={translate("meetDetailUI.timeDuration")}
               value={formatDurationSec(analytics.totalDurationSeconds)}
-              caption={`${formatIsoDate(new Date(analytics.startTime))} (${formatTimeOnly(analytics.startTime)} - ${formatTimeOnly(analytics.endTime)})`}
+              caption={`${formatIsoDate(new Date(analytics.startTime))} · ${formatTimeOnly(analytics.startTime)} - ${formatTimeOnly(analytics.endTime)}`}
             />
             <AdminStatStripItem icon={TrendingUp} label={translate("meetDetailUI.peak")} value={analytics.peakConcurrentParticipants} />
             <AdminStatStripItem icon={Users} label={translate("meetDetailUI.participants")} value={analytics.participantCount} />
