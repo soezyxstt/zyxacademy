@@ -34,22 +34,37 @@ function barTone(score: number) {
   return "bg-status-error";
 }
 
-function scoreTone(score: number) {
-  if (score >= 70) return "text-status-success";
-  if (score >= 40) return "text-status-warning";
-  return "text-status-error";
-}
-
 function scoreLabelKey(score: number) {
   if (score >= 70) return "strong";
   if (score >= 40) return "developing";
   return "weak";
 }
 
-function TrendIcon({ trend }: { trend?: "improving" | "stable" | "declining" | null }) {
-  if (trend === "improving") return <TrendingUp className="size-3.5 text-status-success shrink-0" aria-hidden />;
-  if (trend === "declining") return <TrendingDown className="size-3.5 text-status-error shrink-0" aria-hidden />;
-  return <Minus className="size-3.5 text-muted-foreground/70 shrink-0" aria-hidden />;
+function trendLabelKey(trend?: "improving" | "stable" | "declining" | null) {
+  if (trend === "improving") return "trendImproving";
+  if (trend === "declining") return "trendDeclining";
+  return "trendStable";
+}
+
+function TrendIcon({
+  trend,
+  label,
+}: {
+  trend?: "improving" | "stable" | "declining" | null;
+  label: string;
+}) {
+  return (
+    <span className="inline-flex shrink-0 items-center">
+      {trend === "improving" ? (
+        <TrendingUp className="size-3.5 text-status-success shrink-0" aria-hidden />
+      ) : trend === "declining" ? (
+        <TrendingDown className="size-3.5 text-status-error shrink-0" aria-hidden />
+      ) : (
+        <Minus className="size-3.5 text-muted-foreground shrink-0" aria-hidden />
+      )}
+      <span className="sr-only">{label}</span>
+    </span>
+  );
 }
 
 export function DashboardWeakConcepts({
@@ -98,39 +113,47 @@ export function DashboardWeakConcepts({
             const isMeasured = c.isMeasured ?? (c.evidenceCount > 0);
             const roundedScore = Math.round(c.masteryScore);
             return (
-              <div key={c.conceptName} className="flex flex-col gap-1.5 py-2.5 first:pt-1">
+              <div key={c.conceptName} className="flex flex-col gap-2 py-3.5 first:pt-1">
                 <div className="flex items-start justify-between gap-3">
-                  <span className="line-clamp-2 min-w-0 flex-1 break-words text-body-sm font-medium leading-snug text-foreground">
+                  <span className="min-w-0 flex-1 break-words text-body-sm font-medium leading-relaxed text-foreground">
                     <MathText as="span">{c.conceptName}</MathText>
                   </span>
                   <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
-                    {isMeasured && !hideTrend && <TrendIcon trend={c.trend} />}
+                    {isMeasured && !hideTrend && (
+                      <TrendIcon
+                        trend={c.trend}
+                        label={t(`course.dashboardWeakConcepts.${trendLabelKey(c.trend)}`)}
+                      />
+                    )}
                     <span
                       className={cn(
                         "font-mono text-body-xs font-semibold tabular-nums",
-                        isMeasured ? scoreTone(roundedScore) : "text-muted-foreground",
+                        isMeasured ? "text-foreground" : "text-muted-foreground",
                       )}
                     >
-                      {isMeasured ? `${roundedScore}%` : t("course.dashboardWeakConcepts.notMeasured")}
+                      {isMeasured ? (
+                        <>
+                          {roundedScore}%
+                          <span className="sr-only">
+                            {" "}
+                            ({t(`course.dashboardWeakConcepts.${scoreLabelKey(roundedScore)}`)})
+                          </span>
+                        </>
+                      ) : (
+                        t("course.dashboardWeakConcepts.notMeasured")
+                      )}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted/70">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-all duration-500 ease-out",
-                        isMeasured ? barTone(roundedScore) : "bg-transparent",
-                      )}
-                      style={{ width: isMeasured ? `${roundedScore}%` : "0%" }}
-                    />
-                  </div>
-                  {isMeasured && (
-                    <span className="shrink-0 text-body-2xs font-medium text-muted-foreground">
-                      {t(`course.dashboardWeakConcepts.${scoreLabelKey(roundedScore)}`)}
-                    </span>
-                  )}
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/70">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500 ease-out",
+                      isMeasured ? barTone(roundedScore) : "bg-transparent",
+                    )}
+                    style={{ width: isMeasured ? `${roundedScore}%` : "0%" }}
+                  />
                 </div>
 
                 {c.blockedBy && c.blockedBy.length > 0 && (

@@ -197,6 +197,9 @@
       "weak": "Lemah",
       "developing": "Berkembang",
       "strong": "Kuat",
+      "trendImproving": "Tren meningkat",
+      "trendDeclining": "Tren menurun",
+      "trendStable": "Tren stabil",
       "measuredOf": "{measured} dari {total} konsep terukur"
     },
     "recentActivity": {

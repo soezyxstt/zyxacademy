@@ -68,61 +68,37 @@ export function WeeklyReflection({ reflection }: WeeklyReflectionProps) {
     streak.currentStreak > 0 ? t("dashboard.streakCount", { count: streak.currentStreak }) : null,
   ].filter(Boolean) as string[];
 
-  return (
-    <section className="relative mb-4 hidden border-b border-border/50 pb-3 sm:block">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="size-4 text-primary shrink-0" aria-hidden />
-            <span className="font-heading text-body-sm font-bold text-foreground">
-              {t("dashboard.weeklyReflection")}
-            </span>
-          </div>
-          <div className="flex items-baseline gap-1.5 border-l border-border/50 pl-3">
-            {masteryGrowth > 0 ? (
-              <>
-                <span className="font-heading text-body-base font-bold tabular-nums text-status-success">
-                  +{masteryGrowth}
-                </span>
-                <span className="text-body-xs text-muted-foreground">{t("dashboard.masteryPoints")}</span>
-              </>
-            ) : (
-              <>
-                <span className="font-heading text-body-base font-bold tabular-nums text-foreground">
-                  {totalCompleted}
-                </span>
-                <span className="text-body-xs text-muted-foreground">
-                  {t("dashboard.completedActivities", { count: totalCompleted })}
-                </span>
-              </>
-            )}
-          </div>
-          {breakdown.length > 0 && (
-            <div className="hidden lg:flex items-center gap-x-3 text-body-xs tabular-nums text-muted-foreground">
-              {breakdown.map((item) => (
-                <span key={item}>{item}</span>
-              ))}
-            </div>
-          )}
-        </div>
+  const summaryHead =
+    masteryGrowth > 0
+      ? `+${masteryGrowth} ${t("dashboard.masteryPoints")}`
+      : `${totalCompleted} ${t("dashboard.completedActivities", { count: totalCompleted })}`;
 
-        <div className="flex items-center gap-3 shrink-0">
-          {mostImproved && (
-            <span className="text-body-xs text-muted-foreground hidden md:inline">
-              {t("dashboard.improvement")} <strong className="text-foreground">{mostImproved}</strong>
-            </span>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleDismiss}
-            className="size-7 text-muted-foreground hover:text-foreground"
-            aria-label={t("dashboard.closeReflection")}
-          >
-            <X className="size-3.5" />
-          </Button>
-        </div>
-      </div>
+  return (
+    <section className="mb-6 hidden items-center justify-between gap-3 sm:flex">
+      <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-body-sm text-muted-foreground">
+        <TrendingUp className="size-4 shrink-0 text-primary" aria-hidden />
+        <span className="font-semibold text-foreground">{t("dashboard.weeklyReflection")}:</span>
+        <span className="tabular-nums text-foreground">{summaryHead}</span>
+        {breakdown.length > 0 && (
+          <span className="tabular-nums">({breakdown.join(", ")})</span>
+        )}
+        {mostImproved && (
+          <span>
+            {t("dashboard.improvement")}{" "}
+            <strong className="font-semibold text-foreground">{mostImproved}</strong>
+          </span>
+        )}
+      </p>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleDismiss}
+        className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+        aria-label={t("dashboard.closeReflection")}
+      >
+        <X className="size-3.5" />
+      </Button>
     </section>
   );
 }

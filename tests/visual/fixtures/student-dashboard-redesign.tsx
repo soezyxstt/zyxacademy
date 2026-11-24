@@ -1,5 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
+import "katex/dist/katex.min.css";
 import { NextIntlClientProvider } from "next-intl";
 import {
   ArrowRight,
@@ -10,7 +11,6 @@ import {
   GraduationCap,
   Layers,
 } from "lucide-react";
-import { DashboardFocusStrip, pickDashboardPriority, type DashboardFocusData } from "@/components/dashboard/dashboard-focus-strip";
 import { DashboardInlineEmpty, DashboardSectionCount, DashboardSectionHeading } from "@/components/dashboard/dashboard-section-heading";
 import { TodayPlan } from "@/components/dashboard/today-plan";
 import { WeeklyReflection } from "@/components/dashboard/weekly-reflection";
@@ -28,23 +28,6 @@ declare global {
     dashboardRedesignFixture: { layout: "desktop" | "mobile"; theme: "dark" | "light" };
   }
 }
-
-const baseFocus: Omit<DashboardFocusData, "priority"> = {
-  cards: { due: 102, href: "/courses/ma1101/flashcard" },
-  weak: {
-    weakCount: 3,
-    measuredCount: 6,
-    lowest: { conceptName: "Akar kuadrat $\\sqrt{x}$ untuk $x \\ge 0$", score: 2 },
-    href: "/courses/ma1101/mastery",
-  },
-  materials: { done: 2, total: 6, href: "/courses/ma1101" },
-  exams: { quizzes: 0, tryouts: 0, href: null },
-};
-
-const focusData: DashboardFocusData = {
-  ...baseFocus,
-  priority: pickDashboardPriority(baseFocus),
-};
 
 const masteryConcepts = [
   {
@@ -84,6 +67,21 @@ function App() {
   }, [theme]);
 
   const sections = {
+    todayPlan: (
+      <TodayPlan
+        firstName="Adi"
+        adapter={{
+          data: {
+            streak: { current: 2, longest: 5 },
+            items: [
+              { id: "fc", kind: "flashcards", title: "Ulas flashcard", href: "/courses/ma1101/flashcard", count: 20, done: false },
+              { id: "mod", kind: "module", title: "Pertaksamaan dan Fungsi", href: "/courses/ma1101/material/1", done: true },
+            ],
+          },
+          complete: () => {},
+        }}
+      />
+    ),
     activeAndReading: (
       <section>
         <DashboardSectionHeading
@@ -99,7 +97,7 @@ function App() {
           }
         />
         <div className="divide-y divide-border/30">
-          <a href="/courses/ma1101" className="group -mx-2 block rounded-lg px-2 py-3 hover:bg-muted/40">
+          <a href="/courses/ma1101" className="group -mx-2 block rounded-lg px-2 py-4 hover:bg-muted/40">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -121,6 +119,28 @@ function App() {
               <ArrowUpRight className="mt-1 size-4 shrink-0 text-muted-foreground/60" />
             </div>
           </a>
+          <a href="/courses/fi1101" className="group -mx-2 block rounded-lg px-2 py-4 hover:bg-muted/40">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <h3 className="font-heading text-body-base font-bold text-foreground">Fisika Dasar I</h3>
+                  <span className="text-body-xs font-medium uppercase tracking-wider text-muted-foreground">TPB</span>
+                </div>
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="h-1.5 min-w-16 max-w-56 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary" style={{ width: "60%" }} />
+                  </div>
+                  <span className="text-body-sm font-semibold tabular-nums text-foreground">60%</span>
+                  <span className="text-body-xs tabular-nums text-muted-foreground">3/5 materi</span>
+                </div>
+                <p className="mt-2 flex min-w-0 items-baseline gap-1.5 text-body-sm">
+                  <span className="shrink-0 text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Berikutnya</span>
+                  <span className="line-clamp-2 min-w-0 font-medium text-foreground">Hukum Newton dan gaya gesek</span>
+                </p>
+              </div>
+              <ArrowUpRight className="mt-1 size-4 shrink-0 text-muted-foreground/60" />
+            </div>
+          </a>
         </div>
       </section>
     ),
@@ -128,11 +148,11 @@ function App() {
       <section>
         <DashboardSectionHeading icon={Compass} title={student.dashboard.recommendedCourses} meta={<DashboardSectionCount>TPB</DashboardSectionCount>} />
         <div className="divide-y divide-border/30">
-          <a href="/courses/ku1102" className="group -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 hover:bg-muted/40">
+          <a href="/courses/ku1102" className="group -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-3.5 hover:bg-muted/40">
             <div className="min-w-0 flex-1">
               <h3 className="text-body-sm font-semibold text-foreground">Berpikir Komputasi</h3>
               <div className="mt-1 flex items-center gap-2 text-body-xs text-muted-foreground">
-                <span className="font-medium uppercase tracking-wider">TPB</span>
+                <span className="tabular-nums">12 materi</span>
               </div>
             </div>
             <ArrowRight className="size-4 shrink-0 text-muted-foreground/60" />
@@ -145,10 +165,10 @@ function App() {
         <DashboardSectionHeading
           icon={Layers}
           title={student.dashboard.spacedRepetition}
-          meta={<DashboardSectionCount tone="warning">102 kartu perlu diulas</DashboardSectionCount>}
+          meta={<DashboardSectionCount tone="warning">102 kartu di 2 kelas</DashboardSectionCount>}
         />
-        <Button asChild className="mt-1 w-full">
-          <a href="/courses/ma1101/flashcard">Mulai ulas flashcard <ArrowRight /></a>
+        <Button asChild size="sm" className="mt-1 w-full sm:w-auto">
+          <a href="/courses/ma1101/flashcard">Ulas Matematika I <ArrowRight /></a>
         </Button>
       </section>
     ),
@@ -162,8 +182,23 @@ function App() {
     ),
     availableAssessments: (
       <section>
-        <DashboardSectionHeading icon={ClipboardList} title={student.dashboard.availableAssessments} />
-        <DashboardInlineEmpty icon={CheckCircle2}>{student.dashboard.allExamsDone}</DashboardInlineEmpty>
+        <DashboardSectionHeading
+          icon={ClipboardList}
+          title={student.dashboard.availableAssessments}
+          meta={<DashboardSectionCount>1 ujian</DashboardSectionCount>}
+        />
+        <div className="divide-y divide-border/30">
+          <a href="/courses/ma1101/quiz/q3" className="group -mx-2 flex min-w-0 items-center justify-between gap-3 rounded-lg px-2 py-3.5 hover:bg-muted/40">
+            <div className="min-w-0 flex-1">
+              <h3 className="min-w-0 break-words text-body-sm font-semibold text-foreground">Kuis 3: Limit dan Kekontinuan</h3>
+              <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-body-xs text-muted-foreground">
+                <span className="shrink-0 font-medium">Kuis</span>
+                <span className="min-w-0 truncate">Matematika I</span>
+              </p>
+            </div>
+            <ArrowRight className="size-4 shrink-0 text-muted-foreground/60" />
+          </a>
+        </div>
       </section>
     ),
   };
@@ -182,20 +217,6 @@ function App() {
             mostImproved: null,
             streak: { currentStreak: 2, longestStreak: 5 },
           },
-        }}
-      />
-      <DashboardFocusStrip data={focusData} />
-      <TodayPlan
-        firstName="Adi"
-        adapter={{
-          data: {
-            streak: { current: 2, longest: 5 },
-            items: [
-              { id: "fc", kind: "flashcards", title: "Ulas flashcard", href: "/courses/ma1101/flashcard", count: 20, done: false },
-              { id: "mod", kind: "module", title: "Pertaksamaan dan Fungsi", href: "/courses/ma1101/material/1", done: false },
-            ],
-          },
-          complete: () => {},
         }}
       />
       {layout === "desktop" ? (

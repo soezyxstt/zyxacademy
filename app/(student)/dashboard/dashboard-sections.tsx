@@ -24,11 +24,6 @@ import { MathText } from "@/components/course/math-text";
 import { ActivateClassModal } from "@/components/dashboard/activate-class-modal";
 import { CompleteProfileDialog } from "@/components/dashboard/complete-profile-dialog";
 import {
-  DashboardFocusStrip,
-  pickDashboardPriority,
-  type DashboardFocusData,
-} from "@/components/dashboard/dashboard-focus-strip";
-import {
   DashboardInlineEmpty,
   DashboardSectionCount,
   DashboardSectionHeading,
@@ -541,6 +536,7 @@ export async function loadReviewQueueData(
   if (!userId || enrollments.length === 0) {
     return {
       totalDueFlashcards: 0,
+      coursesWithQueueCount: 0,
       firstCourseWithQueue: enrollments[0]?.id,
       recentReviews: [] as Awaited<ReturnType<DashboardSectionDeps["queryRecentFlashcardReviews"]>>,
     };
@@ -554,10 +550,11 @@ export async function loadReviewQueueData(
   ]);
 
   const totalDueFlashcards = flashcardQueues.reduce((total, item) => total + item.count, 0);
+  const coursesWithQueueCount = flashcardQueues.filter((item) => item.count > 0).length;
   const firstCourseWithQueue =
     flashcardQueues.find((item) => item.count > 0)?.courseId ?? enrollments[0]?.id;
 
-  return { totalDueFlashcards, firstCourseWithQueue, recentReviews };
+  return { totalDueFlashcards, coursesWithQueueCount, firstCourseWithQueue, recentReviews };
 }
 
 export async function loadAvailableAssessmentsData(
@@ -599,155 +596,6 @@ export async function loadAvailableAssessmentsData(
         courseId: courseData.courseId,
       }));
   });
-}
-
-// Per-request dedupe so the focus strip and the detailed sections share one read.
-const cachedPrimaryLearningData = cache(
-  (userId: string | null | undefined, enrollments: ReadonlyArray<StudentEnrollmentRecord>) =>
-    loadPrimaryLearningData(userId, enrollments),
-);
-const cachedReviewQueueData = cache(
-  (userId: string | null | undefined, enrollments: ReadonlyArray<StudentEnrollmentRecord>) =>
-    loadReviewQueueData(userId, enrollments),
-);
-const cachedAvailableAssessmentsData = cache(
-  (enrollments: ReadonlyArray<StudentEnrollmentRecord>) => loadAvailableAssessmentsData(enrollments),
-);
-const cachedMastery = cache((userId: string, courseId: string) => defaultDeps.getMastery(userId, courseId));
-
-function readPrimaryLearning(
-  userId: string | null | undefined,
-  enrollments: ReadonlyArray<StudentEnrollmentRecord>,
-  deps?: Partial<DashboardSectionDeps>,
-) {
-  return deps ? loadPrimaryLearningData(userId, enrollments, deps) : cachedPrimaryLearningData(userId, enrollments);
-}
-
-function readReviewQueue(
-  userId: string | null | undefined,
-  enrollments: ReadonlyArray<StudentEnrollmentRecord>,
-  deps?: Partial<DashboardSectionDeps>,
-) {
-  return deps ? loadReviewQueueData(userId, enrollments, deps) : cachedReviewQueueData(userId, enrollments);
-}
-
-function readAvailableAssessments(
-  enrollments: ReadonlyArray<StudentEnrollmentRecord>,
-  deps?: Partial<DashboardSectionDeps>,
-) {
-  return deps ? loadAvailableAssessmentsData(enrollments, deps) : cachedAvailableAssessmentsData(enrollments);
-}
-
-function readMastery(userId: string, courseId: string, deps?: Partial<DashboardSectionDeps>) {
-  return deps?.getMastery ? deps.getMastery(userId, courseId) : cachedMastery(userId, courseId);
-}
-
-const WEAK_CONCEPT_THRESHOLD = 40;
-const FOCUS_MASTERY_COURSE_LIMIT = 5;
-
-export async function loadFocusData(
-  userId: string | null | undefined,
-  enrollments: ReadonlyArray<StudentEnrollmentRecord>,
-  deps?: Partial<DashboardSectionDeps>,
-): Promise<DashboardFocusData | null> {
-  if (!userId || enrollments.length === 0) return null;
-
-  const [primary, review, exams, mastery] = await Promise.allSettled([
-    readPrimaryLearning(userId, enrollments, deps),
-    readReviewQueue(userId, enrollments, deps),
-    readAvailableAssessments(enrollments, deps),
-    Promise.all(
-      enrollments.slice(0, FOCUS_MASTERY_COURSE_LIMIT).map(async (course) =>
-        (await readMastery(userId, course.id, deps)).map((row) => ({ ...row, courseId: course.id })),
-      ),
-    ),
-  ]);
-  for (const result of [primary, review, exams, mastery]) {
-    if (result.status === "rejected") {
-      unstable_rethrow(result.reason);
-      console.error("[Dashboard] Focus summary source failed:", result.reason);
-    }
-  }
-
-  let materials: DashboardFocusData["materials"] = null;
-  if (primary.status === "fulfilled") {
-    const { materialsByCourseId, completedIds, inProgressDocuments, nextConcepts } = primary.value;
-    let done = 0;
-    let total = 0;
-    let firstIncompleteCourseId: string | null = null;
-    for (const course of enrollments) {
-      const list = materialsByCourseId.get(course.id) ?? [];
-      const courseDone = list.filter((m) => m.completed || completedIds.has(m.id)).length;
-      done += courseDone;
-      total += list.length;
-      if (!firstIncompleteCourseId && courseDone < list.length) firstIncompleteCourseId = course.id;
-    }
-    const resumeDoc = inProgressDocuments[0];
-    const nextCourseId = firstIncompleteCourseId ?? Object.keys(nextConcepts)[0] ?? null;
-    materials = {
-      done,
-      total,
-      href: resumeDoc
-        ? `/courses/${resumeDoc.courseId}/material/${resumeDoc.id}${resumeDoc.lastSectionId ? `?section=${encodeURIComponent(resumeDoc.lastSectionId)}` : ""}`
-        : nextCourseId
-          ? `/courses/${nextCourseId}`
-          : null,
-    };
-  }
-
-  const cards: DashboardFocusData["cards"] =
-    review.status === "fulfilled"
-      ? {
-          due: review.value.totalDueFlashcards,
-          href: review.value.firstCourseWithQueue ? `/courses/${review.value.firstCourseWithQueue}/flashcard` : null,
-        }
-      : null;
-
-  let weak: DashboardFocusData["weak"] = null;
-  if (mastery.status === "fulfilled") {
-    const measured = mastery.value.flat().filter((row) => row.isMeasured ?? row.evidenceCount > 0);
-    const weakRows = measured.filter((row) => row.masteryScore < WEAK_CONCEPT_THRESHOLD);
-    const lowest = measured.reduce<(typeof measured)[number] | null>(
-      (min, row) => (!min || row.masteryScore < min.masteryScore ? row : min),
-      null,
-    );
-    const targetCourseId = lowest?.courseId ?? enrollments[0]?.id;
-    weak = {
-      weakCount: weakRows.length,
-      measuredCount: measured.length,
-      lowest: lowest ? { conceptName: lowest.conceptName, score: Math.round(lowest.masteryScore) } : null,
-      href: targetCourseId ? `/courses/${targetCourseId}/mastery` : null,
-    };
-  }
-
-  let examSummary: DashboardFocusData["exams"] = null;
-  if (exams.status === "fulfilled") {
-    const list = exams.value;
-    const first = list[0];
-    examSummary = {
-      quizzes: list.filter((exam) => exam.type === "quiz").length,
-      tryouts: list.filter((exam) => exam.type !== "quiz").length,
-      href: first ? `/courses/${first.courseId}/${first.type}/${first.id}` : null,
-    };
-  }
-
-  const data = { cards, materials, weak, exams: examSummary };
-  if (!cards && !materials && !weak && !examSummary) return null;
-  return { ...data, priority: pickDashboardPriority(data) };
-}
-
-export async function DashboardFocusSection({
-  userId,
-  enrollments,
-  deps,
-}: {
-  userId: string;
-  enrollments: ReadonlyArray<StudentEnrollmentRecord>;
-  deps?: Partial<DashboardSectionDeps>;
-}) {
-  const data = await loadFocusData(userId, enrollments, deps);
-  if (!data) return null;
-  return <DashboardFocusStrip data={data} />;
 }
 
 export async function ProfilePromptSection({
@@ -828,10 +676,10 @@ export async function PrimaryLearningSection({
   deps?: Partial<DashboardSectionDeps>;
 }) {
   const { materialsByCourseId, completedIds, inProgressDocuments, nextConcepts } =
-    await readPrimaryLearning(userId, enrollments, deps);
+    await loadPrimaryLearningData(userId, enrollments, deps);
 
   return (
-    <div className="space-y-(--section-gap)">
+    <div className="space-y-10">
       <section>
         <DashboardSectionHeading
           icon={GraduationCap}
@@ -858,7 +706,7 @@ export async function PrimaryLearningSection({
               <Link
                 key={course.id}
                 href={`/courses/${course.id}`}
-                className="group -mx-2 block rounded-lg px-2 py-3 transition-colors hover:bg-muted/40"
+                className="group -mx-2 block rounded-lg px-2 py-4 transition-colors hover:bg-muted/40"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -929,7 +777,7 @@ export async function PrimaryLearningSection({
               <Link
                 key={doc.id}
                 href={`/courses/${doc.courseId}/material/${doc.id}${doc.lastSectionId ? `?section=${encodeURIComponent(doc.lastSectionId)}` : ""}`}
-                className="group -mx-2 flex min-w-0 items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/40"
+                className="group -mx-2 flex min-w-0 items-center justify-between gap-3 rounded-lg px-2 py-3.5 transition-colors hover:bg-muted/40"
               >
                 <div className="min-w-0 flex-1">
                   <h3 className="min-w-0 break-words text-body-sm font-semibold text-foreground transition-colors group-hover:text-primary">
@@ -986,14 +834,16 @@ export async function RecommendedCoursesSection({
           <Link
             key={course.id}
             href={`/courses/${course.id}`}
-            className="group -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/40"
+            className="group -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-3.5 transition-colors hover:bg-muted/40"
           >
             <div className="min-w-0 flex-1">
               <h3 className="break-words text-body-sm font-semibold text-foreground transition-colors group-hover:text-primary">
                 {course.title}
               </h3>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-body-xs text-muted-foreground">
-                <span className="font-medium uppercase tracking-wider">{course.category}</span>
+                {course.category !== studentTargetCategory && (
+                  <span className="font-medium uppercase tracking-wider">{course.category}</span>
+                )}
                 <CoursePricingLabel pricing={course.pricing} />
                 {course.materialsCount > 0 && (
                   <span className="tabular-nums">
@@ -1027,8 +877,9 @@ export async function ReviewQueueSection({
   enrollments: ReadonlyArray<StudentEnrollmentRecord>;
   deps?: Partial<DashboardSectionDeps>;
 }) {
-  const { totalDueFlashcards, firstCourseWithQueue, recentReviews } =
-    await readReviewQueue(userId, enrollments, deps);
+  const { totalDueFlashcards, coursesWithQueueCount, firstCourseWithQueue, recentReviews } =
+    await loadReviewQueueData(userId, enrollments, deps);
+  const targetCourseTitle = enrollments.find((course) => course.id === firstCourseWithQueue)?.title;
 
   return (
     <section>
@@ -1038,18 +889,30 @@ export async function ReviewQueueSection({
         meta={
           <DashboardSectionCount tone={totalDueFlashcards > 0 ? "warning" : "success"}>
             {totalDueFlashcards > 0
-              ? <TranslatedText namespace="student" messageKey="dashboard.cardsDue" values={{ count: totalDueFlashcards }} />
+              ? coursesWithQueueCount > 1
+                ? (
+                    <TranslatedText
+                      namespace="student"
+                      messageKey="dashboard.cardsDueMultiCourse"
+                      values={{ count: totalDueFlashcards, courses: coursesWithQueueCount }}
+                    />
+                  )
+                : <TranslatedText namespace="student" messageKey="dashboard.cardsDue" values={{ count: totalDueFlashcards }} />
               : <TranslatedText namespace="student" messageKey="dashboard.allCardsDone" />}
           </DashboardSectionCount>
         }
       />
 
       {firstCourseWithQueue && (
-        <Button asChild variant={totalDueFlashcards > 0 ? "default" : "outline"} className="group mt-1 w-full">
+        <Button asChild size="sm" variant={totalDueFlashcards > 0 ? "default" : "outline"} className="group mt-1 w-full sm:w-auto">
           <Link href={`/courses/${firstCourseWithQueue}/flashcard`}>
             {totalDueFlashcards > 0
-              ? <TranslatedText namespace="student" messageKey="dashboard.startFlashcardReview" />
-              : <TranslatedText namespace="student" messageKey="dashboard.openFlashcardCollection" />}
+              ? targetCourseTitle
+                ? <TranslatedText namespace="student" messageKey="dashboard.startFlashcardReviewCourse" values={{ courseTitle: targetCourseTitle }} />
+                : <TranslatedText namespace="student" messageKey="dashboard.startFlashcardReview" />
+              : targetCourseTitle
+                ? <TranslatedText namespace="student" messageKey="dashboard.openFlashcardCollectionCourse" values={{ courseTitle: targetCourseTitle }} />
+                : <TranslatedText namespace="student" messageKey="dashboard.openFlashcardCollection" />}
             <ArrowRight className="transition-transform group-hover:translate-x-0.5" />
           </Link>
         </Button>
@@ -1095,7 +958,7 @@ export async function WeakConceptsSection({
   deps?: Partial<DashboardSectionDeps>;
 }) {
   const masteryConcepts =
-    userId && firstCourse?.id ? await readMastery(userId, firstCourse.id, deps) : [];
+    userId && firstCourse?.id ? await withDeps(deps).getMastery(userId, firstCourse.id) : [];
 
   return (
     <section>
@@ -1120,7 +983,7 @@ export async function AvailableAssessmentsSection({
   enrollments: ReadonlyArray<StudentEnrollmentRecord>;
   deps?: Partial<DashboardSectionDeps>;
 }) {
-  const availableExams = await readAvailableAssessments(enrollments, deps);
+  const availableExams = await loadAvailableAssessmentsData(enrollments, deps);
 
   return (
     <section>
@@ -1142,7 +1005,7 @@ export async function AvailableAssessmentsSection({
             <Link
               key={exam.id}
               href={`/courses/${exam.courseId}/${exam.type}/${exam.id}`}
-              className="group -mx-2 flex min-w-0 items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/40"
+              className="group -mx-2 flex min-w-0 items-center justify-between gap-3 rounded-lg px-2 py-3.5 transition-colors hover:bg-muted/40"
             >
               <div className="min-w-0 flex-1">
                 <h3 className="min-w-0 break-words text-body-sm font-semibold text-foreground transition-colors group-hover:text-primary">

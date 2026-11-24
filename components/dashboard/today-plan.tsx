@@ -4,9 +4,9 @@ import { useTodayPlan } from "@/hooks/use-today-plan";
 import { StudentAccountBoundary } from "@/components/student-account-boundary";
 import type { TodayData } from "@/lib/student/today-query";
 import Link from "next/link";
-import { Layers, ListChecks, BookOpen, Check, ArrowRight, CalendarCheck } from "lucide-react";
+import { Layers, ListChecks, BookOpen, ArrowRight, CalendarCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DashboardSectionCount,
   DashboardSectionHeading,
@@ -48,7 +48,7 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
 
 
   return (
-    <div className={total > 0 ? "mb-6" : undefined}>
+    <div>
       <PageHeader
         title={
           <>
@@ -81,7 +81,7 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
               ))}
             </div>
           ) : allDone ? (
-            <div className="py-2.5 text-body-sm text-status-success">
+            <div className="py-2.5 text-body-sm text-foreground">
               <p className="text-body-sm font-semibold">{t("dashboard.allTargetsDone")}</p>
             </div>
           ) : (
@@ -91,21 +91,21 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
                 return (
                   <li
                     key={item.id}
-                    className="group -mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/40 sm:gap-3"
+                    className="group -mx-2 flex items-center gap-3 rounded-lg px-2 py-3.5 transition-colors hover:bg-muted/40"
                   >
-                    <button
-                      type="button"
-                      aria-label={item.done ? t("dashboard.done") : t("dashboard.markDone")}
-                      onClick={() => !item.done && complete(item.id)}
-                      className={cn(
-                        "flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    <Checkbox
+                      checked={item.done}
+                      disabled={item.done}
+                      aria-label={
                         item.done
-                          ? "border-status-success bg-status-success text-primary-foreground"
-                          : "border-border/70 hover:border-foreground/40 hover:bg-muted/60"
-                      )}
-                    >
-                      {item.done && <Check className="size-3.5" />}
-                    </button>
+                          ? t("dashboard.itemDone", { title: item.title })
+                          : t("dashboard.markItemDone", { title: item.title })
+                      }
+                      onCheckedChange={(checked) => {
+                        if (checked === true && !item.done) complete(item.id);
+                      }}
+                      className="size-5 shrink-0 rounded-md border-foreground/60 bg-background hover:border-foreground/80 data-[state=checked]:border-status-success data-[state=checked]:bg-status-success data-[state=checked]:text-primary-foreground disabled:cursor-default disabled:opacity-100"
+                    />
 
                     <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
 
@@ -120,9 +120,11 @@ function TodayPlanView({ firstName, data, loading, complete }: { firstName: stri
                     </Link>
 
                     {item.count != null && (
-                      <Badge variant="outline" className="shrink-0 rounded-md border-border/50 px-1.5 py-0.5 text-body-2xs tabular-nums text-muted-foreground">
-                        {t("dashboard.cardsCount", { count: item.count })}
-                      </Badge>
+                      <span className="shrink-0 text-body-xs tabular-nums text-muted-foreground">
+                        {item.kind === "flashcards"
+                          ? t("dashboard.todayTargetCards", { count: item.count })
+                          : t("dashboard.cardsCount", { count: item.count })}
+                      </span>
                     )}
 
                     <Button variant="ghost" size="icon-sm" asChild className="shrink-0 rounded-md hover:bg-muted/60">
