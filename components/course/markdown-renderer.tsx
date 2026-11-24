@@ -24,7 +24,7 @@ import { compileSafeExpression, normalizeLegacyGraphExpression } from "@/lib/zyr
 import { splitScientificText } from "@/lib/math/text-segments";
 import { scientificValueToMathText } from "@/lib/math/scientific-format";
 import { MathText } from "@/components/course/math-text";
-import { ArticleParts } from "@/components/course/article-parts";
+import { ArticleParts, isShortArticleFormula, normalizeSingleStatementFormula } from "@/components/course/article-parts";
 import { ArticleCodeExample, ArticleMarkdownScope, useArticleMarkdownScope, ScrollableStaticCode, useStaticCodeLabels } from "@/components/coding/article-coding";
 import { markdownPythonId } from "@/lib/coding/article-markdown-scope";
 import { extractEmbeddedArticleParts } from "@/lib/tutor/answer-sanitizer";
@@ -90,7 +90,21 @@ export function useMarkdownDensity(): MarkdownDensity {
 function MathRegion({ as: Element = "div", primary = false, ...props }: React.HTMLAttributes<HTMLElement> & { as?: "div" | "span"; primary?: boolean }) {
   const { locale } = useAppLocale();
   const labels = (locale === "en" ? enLearningMessages : idLearningMessages).solutionCollection;
-  return <Element {...props} aria-label={labels[primary ? "primaryFormula" : "mathFormula"]} />;
+  const ref = React.useRef<HTMLElement>(null);
+  const [overflowRight, setOverflowRight] = useState(false);
+  React.useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const update = () => setOverflowRight(element.scrollWidth - element.clientWidth - element.scrollLeft > 2);
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    const content = element.querySelector(".katex") ?? element.firstElementChild;
+    if (content) observer.observe(content);
+    element.addEventListener("scroll", update, { passive: true });
+    update();
+    return () => { observer.disconnect(); element.removeEventListener("scroll", update); };
+  }, [props.dangerouslySetInnerHTML?.__html, props.children]);
+  return <Element {...props} ref={ref as React.Ref<HTMLDivElement & HTMLSpanElement>} data-math-overflow-right={overflowRight || undefined} aria-label={labels[primary ? "primaryFormula" : "mathFormula"]} />;
 }
 
 export interface MarkdownRendererProps {
@@ -132,9 +146,9 @@ const semanticEmphasis = {
 
 type SemanticEmphasisTone = keyof typeof semanticEmphasis;
 
-/** Detects a block containing only a display math expression. */
+/** Detects a whole formula paragraph, including inline delimiters and closing punctuation. */
 function isStandaloneMathBlock(content: string): boolean {
-  const trimmed = content.trim();
+  const trimmed = content.trim().replace(/[.,]$/, "").trimEnd();
   if (trimmed.startsWith("$$") && trimmed.endsWith("$$") && trimmed.length > 4) {
     const inner = trimmed.slice(2, -2);
     return inner.trim().length > 0 && !inner.includes("$$") && !inner.includes("\\[") && !inner.includes("\\]");
@@ -143,13 +157,16 @@ function isStandaloneMathBlock(content: string): boolean {
     const inner = trimmed.slice(2, -2);
     return inner.trim().length > 0 && !inner.includes("$$") && !inner.includes("\\[") && !inner.includes("\\]");
   }
+  if (trimmed.startsWith("$") && trimmed.endsWith("$") && trimmed.length > 2) return !trimmed.slice(1, -1).includes("$");
+  if (trimmed.startsWith("\\(") && trimmed.endsWith("\\)") && trimmed.length > 4) return !trimmed.slice(2, -2).includes("\\)");
   return false;
 }
 
-/** Removes display math delimiters so a formula can be rendered on its own row. */
+/** Removes delimiters and closing prose punctuation from a standalone formula. */
 function standaloneMathSource(content: string): string {
-  const trimmed = content.trim();
-  return trimmed.slice(2, -2);
+  const trimmed = content.trim().replace(/[.,]$/, "").trimEnd();
+  const delimiterLength = trimmed.startsWith("$$") || trimmed.startsWith("\\") ? 2 : 1;
+  return normalizeSingleStatementFormula(trimmed.slice(delimiterLength, -delimiterLength));
 }
 
 function renderMath(value: string, displayMode: boolean): string {
@@ -573,7 +590,7 @@ function AlertCallout({
   }[type];
 
   return (
-    <div className={cn(
+    <div data-article-callout={type} className={cn(
       "border flex leading-relaxed shadow-xs",
       isCompact ? "p-3 rounded-xl gap-3" : "p-3 sm:p-(--panel-padding) rounded-2xl gap-3",
       config.border
@@ -1000,6 +1017,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                 return (
                   <div
                     key={itemIdx}
+                    data-math-pair={parsed.note && isShortArticleFormula(parsed.math) ? "compact" : undefined}
                     className="min-w-0 space-y-2"
                   >
                     <MathRegion className="article-formula-row"
@@ -1038,6 +1056,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
               return (
                 <li
                   key={itemIdx}
+                  data-article-surface="plain"
                   className="list-none my-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
                 >
                   <MathRegion as="span"
@@ -1147,21 +1166,18 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
     case "table": {
       const alignments = block.alignments || [];
       return (
-        <div className={cn(
-          "overflow-x-auto border border-border shadow-2xs",
-          isCompact ? "rounded-xl" : "rounded-2xl"
-        )}>
+        <div className="overflow-x-auto rounded-lg border border-border/70">
           <table className="w-full text-left border-collapse text-body-sm">
             <thead>
-              <tr className="bg-muted/80 text-foreground font-semibold border-b border-border/80">
+              <tr className="bg-muted/35 text-foreground border-b border-border/80">
                 {block.headers?.map((header: string, headIdx: number) => {
                   const align = alignments[headIdx] || "left";
                   return (
                     <th
                       key={headIdx}
                       className={cn(
-                        "font-heading font-bold select-none text-foreground/95",
-                        isCompact ? "px-3 py-2" : "px-4 py-3",
+                        "font-sans text-body-xs font-semibold select-none text-foreground/90",
+                        isCompact ? "px-3 py-1.5" : "px-3 py-2",
                         align === "center" && "text-center",
                         align === "right" && "text-right"
                       )}
@@ -1176,7 +1192,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
               {block.rows?.map((row: string[], rowIdx: number) => (
                 <tr
                   key={rowIdx}
-                  className="border-b border-border/40 last:border-b-0 odd:bg-card/30 even:bg-muted/20 transition-colors hover:bg-muted/30"
+                  className="border-b border-border/40 last:border-b-0 transition-colors hover:bg-muted/25"
                 >
                   {row.map((cell: string, cellIdx: number) => {
                     const align = alignments[cellIdx] || "left";
@@ -1184,8 +1200,8 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                       <td
                         key={cellIdx}
                         className={cn(
-                          "text-foreground/80 font-normal leading-relaxed",
-                          isCompact ? "px-3 py-2" : "px-4 py-3",
+                          "text-foreground/90 font-normal leading-relaxed",
+                          isCompact ? "px-3 py-1.5" : "px-3 py-2",
                           align === "center" && "text-center",
                           align === "right" && "text-right"
                         )}
@@ -1242,7 +1258,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
 
     case "concept":
       return (
-        <div id={block.id} className={cn(
+        <div id={block.id} data-article-surface="plain" className={cn(
           "border border-border bg-card shadow-xs text-left",
           isCompact ? "p-3 rounded-lg" : "p-3 sm:p-(--panel-padding) rounded-xl"
         )}>
@@ -1254,7 +1270,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
     case "formula":
       const formulaHtml = renderKatexToString(block.content.latex, { throwOnError: false, displayMode: true });
       return (
-        <div id={block.id} className={cn(
+        <div id={block.id} data-article-surface="plain" className={cn(
           "border border-border bg-card shadow-xs text-left",
           isCompact ? "p-3 rounded-lg" : "p-3 sm:p-(--panel-padding) rounded-xl"
         )}>
@@ -1434,7 +1450,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
     case "glossary_term":
       return (
         <div className={cn(
-          "border border-border bg-card/60 shadow-2xs flex leading-relaxed text-left",
+          "article-definition border border-border bg-card/60 shadow-2xs flex leading-relaxed text-left",
           isCompact ? "p-3 rounded-lg gap-2.5" : "p-3 sm:p-(--panel-padding) rounded-xl gap-3"
         )}>
           <Info className="size-5 text-brand-primary shrink-0 mt-0.5" />
@@ -1573,7 +1589,7 @@ export function MarkdownRenderer({ content, className, density }: MarkdownRender
   const compiled = React.useMemo(() => {
     if (typeof content !== "string" || !content || embeddedParts) return null;
     try {
-      return { ok: true as const, result: compileMarkdown(content) };
+      return { ok: true as const, result: compileMarkdown(isStandaloneMathBlock(content) ? `$$\n${standaloneMathSource(content)}\n$$` : content) };
     } catch (err) {
       console.error("Visual compiler failed, fallback to raw rendering:", err);
       return { ok: false as const, error: err };

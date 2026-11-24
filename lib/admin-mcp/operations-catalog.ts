@@ -1,6 +1,20 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "components/course/material-viewer.tsx",
+    "actions": ["navigateToSection"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Browser-only Diktat reading layout and position. Bundle payloads, download permissions, completion persistence and MCP contracts are unchanged."
+  },
+  {
+    "source": "components/course/structured-article-reader.tsx",
+    "actions": ["toggleReadingFocus", "toggleFormativeCheck", "navigateToSection"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Browser-only reading presentation and session checkpoint indicators. Authoring content, assessment authorization, scopes and environment bindings are unchanged."
+  },
+  {
     "source": "app/(admin)/admin/(academic)/authoring-context/page.tsx",
     "actions": [],
     "tools": [],
