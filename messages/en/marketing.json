@@ -819,7 +819,7 @@
   },
   "pricing": {
     "loading": "Loading price...",
-    "discount": "{percent}% off",
+    "discount": "{percent, number}% off",
     "regularPriceLabel": "Regular price from {date}: {price} {unit}",
     "regularPriceDate": "November 1, 2026",
     "perPerson": "per person",

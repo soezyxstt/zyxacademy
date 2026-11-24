@@ -819,7 +819,7 @@
   },
   "pricing": {
     "loading": "Memuat harga...",
-    "discount": "Diskon {percent}%",
+    "discount": "Diskon {percent, number}%",
     "regularPriceLabel": "Harga reguler mulai {date}: {price} {unit}",
     "regularPriceDate": "1 November 2026",
     "perPerson": "per orang",
