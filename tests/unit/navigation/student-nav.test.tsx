@@ -29,7 +29,6 @@ const SAMPLE_LABELS: CourseMobileTabLabels = {
   documents: "Dokumen",
   video: "Video",
   quiz: "Kuis",
-  discussions: "Diskusi",
   flashcard: "Flashcard",
   tryout: "Tryout",
   schedule: "Jadwal",
@@ -230,7 +229,6 @@ describe("CourseMobileTabNav tab definitions", () => {
       "Dokumen",
       "Video",
       "Kuis",
-      "Diskusi",
       "Flashcard",
       "Tryout",
       "Jadwal",
@@ -243,8 +241,7 @@ describe("CourseMobileTabNav tab definitions", () => {
       "Live",
     ]);
 
-    const discussionsTab = tabs.find((tab) => tab.id === "discussions");
-    expect(discussionsTab?.hasDiscussionBadge).toBe(true);
+    expect(tabs.map((tab) => tab.id)).not.toContain("discussions");
 
     const summaryTab = tabs[0];
     expect(isCourseTabActive(summaryTab, "/courses/calc-1", "calc-1")).toBe(
@@ -287,7 +284,6 @@ describe("CourseMobileTabNav tab definitions", () => {
       "Jadwal",
       "Simulasi",
       "Laporan",
-      "Diskusi",
       "Flashcard",
       "Kuis",
       "Peringkat",
@@ -297,9 +293,7 @@ describe("CourseMobileTabNav tab definitions", () => {
     expect(tabs.find((tab) => tab.id === "pkaSchedule")?.href).toBe(
       `/courses/${PKA_COURSE_ID}/jadwal`
     );
-    expect(tabs.find((tab) => tab.id === "discussions")?.hasDiscussionBadge).toBe(
-      true
-    );
+    expect(tabs.map((tab) => tab.id)).not.toContain("discussions");
   });
 
   test("active course context store notifies subscribers", () => {

@@ -44,7 +44,6 @@ export type TutorCourseTabId =
   | "quizGrading"
   | "tryoutGrading"
   | "participants"
-  | "discussions"
   | "live"
   | "materials"
   | "videos";
@@ -55,7 +54,6 @@ export interface TutorCourseMobileTabLabels {
   quizGrading: string;
   tryoutGrading: string;
   participants: string;
-  discussions: string;
   live: string;
   materials: string;
   videos: string;
@@ -66,7 +64,6 @@ export interface TutorCourseMobileTabDescriptor {
   href: string;
   label: string;
   exact?: boolean;
-  hasDiscussionBadge?: boolean;
 }
 
 const TUTOR_TOP_LEVEL_SEGMENTS = new Set(["schedule", "discussions", "docs"]);
@@ -264,12 +261,6 @@ export function buildTutorCourseMobileTabs({
       id: "participants",
       href: `${base}/participants`,
       label: labels.participants,
-    },
-    {
-      id: "discussions",
-      href: `${base}/discussions`,
-      label: labels.discussions,
-      hasDiscussionBadge: true,
     },
     { id: "live", href: `${base}/live`, label: labels.live },
     { id: "materials", href: `${base}/materials`, label: labels.materials },
