@@ -68,9 +68,13 @@ npm run info
 
 ## Capabilities
 
-`src-tauri/capabilities/default.json` grants `core:default`, `notification:default`, `opener:default`, and `deep-link:default` to the `main` window and allows remote access from:
+`src-tauri/capabilities/default.json` grants `allow-native-bridge`, `core:default`, `notification:default`, `opener:default`, and `deep-link:default` to the `main` window and allows remote access from:
 
 - `https://www.zyxacademy.com/*`
 - `https://staging.zyxacademy.com/*`
 
 `app.withGlobalTauri` is enabled in `src-tauri/tauri.conf.json` so `window.__TAURI__` is exposed to the remote Next.js application.
+
+`src-tauri/permissions/native-bridge.json` explicitly allows the existing custom update, origin and offline-reading commands. Tauri 2.12.7 checks remote custom commands against ACL permissions even when no application command manifest was configured. A trusted remote URL alone does not grant these commands. Keep the permission list aligned with `generate_handler!`; adding an application permission manifest also makes local command access explicit.
+
+Older binaries without this permission need one manual installer update. The web client falls back to the core app-version command when the custom metadata command is denied, and offers the download page when installation is ACL-blocked. An unavailable version is shown as unknown rather than `alpha.1`. This fix requires a new desktop build; web-only changes cannot replace permissions embedded in an installed binary. Verify the actual previous-to-new Windows upgrade after publishing.

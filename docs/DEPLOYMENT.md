@@ -51,6 +51,8 @@ The workflow builds the existing APK, Windows NSIS installer, macOS Apple Silico
 
 Users on builds without patch support need a regular update first. If a patch is missing or fails validation, the updater uses the full package. To stop serving patches for a release, remove its `.zyxdelta`, `.zyxdelta-apk.gz`, and `.zyxdesktop.gz` assets and keep its full packages and checksums.
 
+Desktop builds without the explicit `allow-native-bridge` permission cannot call custom update or version commands from the hosted web page under Tauri 2.12.7. Publish a desktop build containing `src-tauri/permissions/native-bridge.json`, then install that release manually once from `/download`. Web-only deployment can restore the installed-version label through the core app metadata command and show manual-install guidance, but cannot repair permissions embedded in an older binary. Native updates and offline commands remain scoped to the existing main window and trusted production and staging origins; MCP tokens cannot update a user's installed app.
+
 After publishing, upgrade from the previous Nightly on each supported package format. Compare GitHub asset sizes, verify the app reports the new version and can still open saved readings, and test a missing-patch path. Test the iOS update through TestFlight. Check the staging origin and Nightly channel before collecting evidence.
 
 ### Google account switching in native apps
