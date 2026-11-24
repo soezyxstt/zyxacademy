@@ -37,6 +37,7 @@ test("production Math 1 chapter renders all sections locally",async({page},info)
   await Promise.all(Array.from(document.fonts).map(font=>font.load()));
   await document.fonts.ready;
  });
+ await page.screenshot({path:info.outputPath("screenshots/math1-start.png"),animations:"disabled"});
  const pair=sections.nth(1).locator('[data-math-pair="compact"]').first();
  await expect(pair).toHaveCSS("display","grid");
  const positions=await pair.evaluate(el=>Array.from(el.children).map(child=>child.getBoundingClientRect().x));
@@ -170,8 +171,7 @@ test("production Math 1 chapter renders all sections locally",async({page},info)
  await page.getByRole("button",{name:"Fokus baca",exact:true}).click();
  await expect(page.getByRole("button",{name:"Kerjakan",exact:true})).toHaveCount(0);
  await page.keyboard.press("Escape");
- await page.evaluate(()=>scrollTo(0,0));
- await page.screenshot({path:info.outputPath("screenshots/math1-start.png"),animations:"disabled"});
+ await expect(page.getByRole("button",{name:"Fokus baca",exact:true})).toBeVisible();
  await info.attach("section-measurements",{body:JSON.stringify(observations,null,2),contentType:"application/json"});
  expect(errors).toEqual([]);
 });
