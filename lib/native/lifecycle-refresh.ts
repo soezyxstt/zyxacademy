@@ -40,6 +40,7 @@ export interface LifecycleRefreshDeps {
   refreshSession?: () => Promise<void>;
   notifyInbox?: (reason: LifecycleRefreshReason) => void;
   setOnline?: (connected: boolean) => void;
+  onBackground?: () => void;
   now?: () => number;
   scheduleTimer?: (fn: () => void, ms: number) => ReturnType<typeof setTimeout>;
   clearTimer?: (id: ReturnType<typeof setTimeout>) => void;
@@ -203,6 +204,11 @@ export function createLifecycleRefreshController(
     const current = now();
     if (!isActive) {
       backgroundedAt = current;
+      try {
+        deps.onBackground?.();
+      } catch {
+        // Ignore background hook errors.
+      }
       return;
     }
     if (backgroundedAt !== null && current - backgroundedAt >= minResumeAwayMs) {
@@ -218,6 +224,11 @@ export function createLifecycleRefreshController(
     const current = now();
     if (!visible) {
       hiddenAt = current;
+      try {
+        deps.onBackground?.();
+      } catch {
+        // Ignore background hook errors.
+      }
       return;
     }
     if (hiddenAt !== null && current - hiddenAt >= minVisibilityAwayMs) {
