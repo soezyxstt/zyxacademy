@@ -78,12 +78,12 @@ export function TutorCourseLoading() {
         </div>
         <Skeleton className="h-3 w-28" />
       </div>
-      <div className="grid items-start gap-y-(--major-gap) xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:gap-x-10">
-        <div className="space-y-2">
+      <div className="grid items-start gap-y-(--section-gap) xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:gap-x-10">
+        <div className="space-y-2 border-t border-border pt-4">
           <Skeleton className="h-5 w-40" />
           <Rows />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 border-t border-border pt-4">
           <Skeleton className="h-5 w-32" />
           <Rows count={3} />
         </div>

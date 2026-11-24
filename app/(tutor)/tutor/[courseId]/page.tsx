@@ -12,7 +12,6 @@ import { AnalyticsClient } from "@/components/tutor/analytics-client";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { pageTitle } from "@/lib/site";
-import { ZyraProposalPanel } from "@/components/zyra/zyra-proposal-panel";
 
 import { db } from "@/db";
 import { mataKuliah } from "@/db/schema";
@@ -103,7 +102,6 @@ export default async function TutorCoursePage({ params }: Props) {
         analytics={analytics}
         updatedAt={updatedAt}
       />
-      <ZyraProposalPanel courseId={legacyCourseId} role="tutor" />
     </ApplicationPage>
   );
 }

@@ -24,7 +24,7 @@ describe("compact tutor watchlist", () => {
 
   test("renders a meaningful empty state without an empty table", () => {
     const markup = renderWithMessages(<WatchlistTable students={[]} />);
-    expect(markup).toContain("Tidak ada siswa yang perlu perhatian");
+    expect(markup).toContain("Belum ada siswa yang ditandai untuk ditindaklanjuti.");
     expect(markup).not.toContain("<table");
   });
 });

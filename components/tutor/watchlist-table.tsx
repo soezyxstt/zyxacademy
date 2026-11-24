@@ -1,8 +1,6 @@
 "use client";
 
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
-import { Users } from "lucide-react";
-import { AdminEmptyState } from "@/components/admin/state-panels";
 import {
   Table,
   TableHeader,
@@ -32,7 +30,7 @@ function relativeTime(
 export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
   const t = useTranslations("tutor.analytics");
   const { locale } = useAppLocale();
-  if (students.length === 0) return <AdminEmptyState compact icon={Users} title={t("noWatchlist")} />;
+  if (students.length === 0) return <p className="text-body-sm text-muted-foreground">{t("noWatchlist")}</p>;
 
   return (
     <>
@@ -67,9 +65,9 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
         <Table className="w-full text-body-sm">
           <TableHeader>
             <TableRow className="border-b border-border/30 text-left text-body-xs font-semibold text-muted-foreground">
-              <TableHead className="pr-2 pl-0 font-medium">{t("student")}</TableHead>
-              <TableHead className="px-2 font-medium">{t("decliningConcepts")}</TableHead>
-              <TableHead className="py-2 pr-0 pl-2 text-right font-medium whitespace-normal">
+              <TableHead className="font-medium">{t("student")}</TableHead>
+              <TableHead className="font-medium">{t("decliningConcepts")}</TableHead>
+              <TableHead className="text-right font-medium whitespace-normal">
                 {t("lastActive")}
               </TableHead>
             </TableRow>
@@ -85,13 +83,13 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
                     (overflow > 0 ? ` ${t("otherConcepts", { count: overflow })}` : "");
               return (
                 <TableRow key={student.studentId}>
-                  <TableCell className="pr-2 pl-0 wrap-anywhere font-medium whitespace-normal text-foreground">
+                  <TableCell className="wrap-anywhere font-medium whitespace-normal text-foreground">
                     {student.name}
                   </TableCell>
-                  <TableCell className="max-w-xs px-2 wrap-anywhere whitespace-normal text-muted-foreground">
+                  <TableCell className="max-w-xs wrap-anywhere whitespace-normal text-muted-foreground">
                     {conceptLabel}
                   </TableCell>
-                  <TableCell className="pr-0 pl-2 text-right whitespace-nowrap text-muted-foreground">
+                  <TableCell className="text-right whitespace-nowrap text-muted-foreground">
                     {relativeTime(student.lastActiveAt, locale, (key) => t(key))}
                   </TableCell>
                 </TableRow>
