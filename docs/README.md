@@ -1,4 +1,4 @@
-The `ACTIVE` [feature catalog](features.md#editorial-article-reader) documents editorial Article surfaces, collapsed V4 checks, reading focus and session-only checkpoint indicators. Local implementation is separate from deployed acceptance.
+The `ACTIVE` [feature catalog](features.md#editorial-article-reader) documents editorial Article surfaces, collapsed V4 checks, compact mobile prose, reading focus and session-only checkpoint indicators. Local implementation is separate from deployed acceptance.
 
 `ACTIVE` local source: [Application workspaces](features.md) use neutral tab navigation, compact documentation, and assessment result rows. Quiz and tryout confirmation includes answered progress, remaining time when available, and actionable warnings.
 

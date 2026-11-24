@@ -32,6 +32,7 @@ for (const source of ["layout", "bundle"]) test(`Diktat editorial ${source} pres
   await page.goto(`http://diktat.test/${source}`);
   const paper=page.locator("#article-paper-content");
   await expect(paper).toBeVisible();
+  await expect(paper.locator('.markdown-article p').first()).toHaveCSS('font-size',page.viewportSize()!.width<640?'15px':'16px');
   await expect(paper.getByRole("heading",{name:"Bab 2: Fungsi dan Limit",exact:true})).toBeVisible();
   await expect(paper.getByText("Diktat materi",{exact:true})).toHaveCount(0);
   await expect(page.getByRole("progressbar",{name:"Posisi baca"})).toBeVisible();

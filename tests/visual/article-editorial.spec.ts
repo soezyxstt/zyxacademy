@@ -41,6 +41,7 @@ test("editorial reader preserves answers across disclosure and reading focus", a
     finishEvaluation = () => route.fulfill({ json: { ok: true, result: { verdict: "correct", feedback: "Klasifikasi tepat.", canRetry: true, revealAllowed: true } } });
   });
   await page.goto("http://reader.test/");
+  await expect(page.locator('.article-editorial .markdown-article p').first()).toHaveCSS('font-size',page.viewportSize()!.width<640?'15px':'16px');
   const check = page.locator("#block-real-4");
   await expect(check.getByRole("button", { name: "Kerjakan" })).toBeVisible();
   await expect(check.getByRole("textbox")).toBeHidden();
