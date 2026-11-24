@@ -1212,6 +1212,22 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
     --mobile-navbar-height: calc(6.25rem + env(safe-area-inset-top, 0px));
   }
 
+  body:has([data-mobile-navbar][data-pull-state="refreshing"]) {
+    --mobile-navbar-height: calc(5.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-pull-state="error"]) {
+    --mobile-navbar-height: calc(5.875rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-mobile-search-expanded="true"][data-pull-state="refreshing"]) {
+    --mobile-navbar-height: calc(8.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-mobile-search-expanded="true"][data-pull-state="error"]) {
+    --mobile-navbar-height: calc(8.875rem + env(safe-area-inset-top, 0px));
+  }
+
   body:has([data-mobile-bottom-nav]) {
     --mobile-bottom-nav-height: calc(3.75rem + env(safe-area-inset-bottom, 0px));
   }
@@ -1229,6 +1245,27 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
 [data-mobile-navbar]:has(~ main [data-sticky-tabs-bar="flush"]) {
   background-image: none;
   background-color: color-mix(in oklab, var(--background) 95%, transparent);
+}
+
+@keyframes ptr-ready-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes ptr-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
 }
 
 /* Flush sticky page tab bar attaches directly under the navbar without top page padding. */

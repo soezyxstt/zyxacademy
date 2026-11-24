@@ -507,6 +507,32 @@ describe("Integration wiring & AGENTS.md compliance", () => {
     expect(zyraUpload).toContain('usePullToRefreshLock(isUploadingAny, "zyra-upload")');
   });
 
+  test("pull-to-refresh is wired through ApplicationShell for student, tutor, and admin mobile navbars", () => {
+    const appShell = readFileSync(join(root, "components/application-shell.tsx"), "utf8");
+    expect(appShell).toContain('import { PullToRefresh } from "@/components/pull-to-refresh"');
+    expect(appShell).toContain("<PullToRefresh");
+
+    const studentShell = readFileSync(join(root, "components/student-application-shell.tsx"), "utf8");
+    expect(studentShell).toContain("mobileTopNav={<StudentMobileTopNav />}");
+    expect(studentShell).not.toContain("<PullToRefresh>");
+
+    const tutorLayout = readFileSync(join(root, "app/(tutor)/layout.tsx"), "utf8");
+    expect(tutorLayout).toContain("<ApplicationShell");
+    expect(tutorLayout).toContain("mobileTopNav={<TutorMobileTopNav");
+
+    const adminLayout = readFileSync(join(root, "app/(admin)/layout.tsx"), "utf8");
+    expect(adminLayout).toContain("<ApplicationShell");
+    expect(adminLayout).toContain("mobileTopNav={<AdminMobileTopNav />}");
+
+    const mobileTopNav = readFileSync(join(root, "components/navigation/mobile-top-navbar.tsx"), "utf8");
+    expect(mobileTopNav).toContain("usePullToRefreshContext");
+    expect(mobileTopNav).toContain("registerNavbarHost");
+    expect(mobileTopNav).toContain("data-pull-state=");
+    expect(mobileTopNav).toContain("data-pull-indicator=");
+    expect(mobileTopNav).toContain("data-pull-progress-bar=");
+    expect(mobileTopNav).toContain("ptr-ready-pop");
+  });
+
   test("new files do not contain em dashes or en dashes", () => {
     const files = [
       "lib/native/haptics.ts",
@@ -515,6 +541,8 @@ describe("Integration wiring & AGENTS.md compliance", () => {
       "lib/pull-to-refresh-lock.ts",
       "hooks/use-pull-to-refresh.ts",
       "components/pull-to-refresh.tsx",
+      "components/application-shell.tsx",
+      "components/navigation/mobile-top-navbar.tsx",
       "components/share-link-button.tsx",
     ];
     for (const file of files) {
