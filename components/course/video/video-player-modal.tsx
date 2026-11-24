@@ -114,6 +114,7 @@ export function VideoPlayerModal({
         <div className="relative w-full bg-black shrink-0 flex items-center justify-center overflow-hidden max-h-[58dvh] sm:max-h-[64dvh]">
           <div className="w-full aspect-video max-h-[58dvh] sm:max-h-[64dvh] max-w-full">
             <ZyxVideoPlayer
+              videoId={video.id}
               src={video.videoUrl}
               title={video.title}
               poster={video.thumbnailUrl}

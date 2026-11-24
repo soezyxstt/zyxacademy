@@ -3,8 +3,12 @@
 import Image from "next/image";
 import dynamic from "next/dynamic";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import {
+  readActiveCourseVideoId,
+  saveActiveCourseVideoId,
+} from "@/lib/video/playback-persistence";
 import {
   Video as VideoIcon,
   Plus,
@@ -136,6 +140,48 @@ export function CourseVideosClient({
   const [playingVideo, setPlayingVideo] = useState<VideoItem | null>(null);
   const [activePlaylistForPlayer, setActivePlaylistForPlayer] = useState<VideoPlaylistItem | null>(null);
   const [lockedVideo, setLockedVideo] = useState<VideoItem | null>(null);
+  const videoStateHydratedRef = useRef(false);
+
+  useEffect(() => {
+    if (videoStateHydratedRef.current) return;
+    videoStateHydratedRef.current = true;
+    const urlVideoId =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("video")
+        : null;
+    const candidateVideoId = urlVideoId || readActiveCourseVideoId(courseId);
+    if (!candidateVideoId) return;
+    for (const pl of initialPlaylists) {
+      const matched = pl.videos.find((v) => v.id === candidateVideoId);
+      if (matched) {
+        const isLocked = !canManage && !hasFullContentAccess && (matched.locked ?? true);
+        if (!isLocked) {
+          setPlayingVideo(matched);
+          setActivePlaylistForPlayer(pl);
+        }
+        break;
+      }
+    }
+  }, [canManage, courseId, hasFullContentAccess, initialPlaylists]);
+
+  useEffect(() => {
+    if (!videoStateHydratedRef.current) return;
+    const nextVideoId = playingVideo?.id ?? null;
+    saveActiveCourseVideoId(courseId, nextVideoId);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (nextVideoId) {
+        url.searchParams.set("video", nextVideoId);
+      } else {
+        url.searchParams.delete("video");
+      }
+      const nextHref = `${url.pathname}${url.search}${url.hash}`;
+      const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (nextHref !== currentHref) {
+        window.history.replaceState(window.history.state, "", nextHref);
+      }
+    }
+  }, [courseId, playingVideo]);
 
   const togglePlaylist = (id: string) => {
     setOpenPlaylists((prev) => ({

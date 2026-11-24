@@ -94,6 +94,7 @@ export function quizStorageKeys(attemptId: string) {
     answers: `zyx-quiz-answers-${attemptId}`,
     flags: `zyx-quiz-flags-${attemptId}`,
     deadline: `zyx-quiz-timer-deadline-${attemptId}`,
+    index: `zyx-quiz-index-${attemptId}`,
   };
 }
 
@@ -121,6 +122,13 @@ export function readQuizAnswers(raw: string | null, questions: readonly QuizQues
 export function readQuizFlags(raw: string | null, questions: readonly QuizQuestion[]): Record<string, boolean> {
   const stored = readRecord(raw);
   return Object.fromEntries(questions.filter(({ id }) => typeof stored[id] === "boolean").map(({ id }) => [id, stored[id]])) as Record<string, boolean>;
+}
+
+export function readQuizIndex(raw: string | null, questionCount: number): number {
+  if (!raw || questionCount <= 0) return 0;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed >= questionCount) return 0;
+  return parsed;
 }
 
 export function asEssayAnswer(answer: unknown): EssayAnswer | undefined {

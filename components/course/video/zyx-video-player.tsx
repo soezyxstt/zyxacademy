@@ -2,17 +2,23 @@
 
 import Image from "next/image";
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import "@vidstack/react/player/styles/default/theme.css";
 import "@vidstack/react/player/styles/default/layouts/video.css";
 import { MediaPlayer, MediaProvider, type MediaPlayerInstance } from "@vidstack/react";
 import { DefaultVideoLayout, defaultLayoutIcons } from "@vidstack/react/player/layouts/default";
 import { extractYouTubeVideoId } from "@/lib/video/youtube";
+import {
+  clearVideoPlaybackTime,
+  readVideoPlaybackTime,
+  saveVideoPlaybackTime,
+} from "@/lib/video/playback-persistence";
 import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 
 export type ZyxVideoPlayerProps = {
+  videoId?: string;
   src: string;
   title: string;
   poster?: string | null;
@@ -27,6 +33,7 @@ export type ZyxVideoPlayerProps = {
  * keyboard shortcuts, responsive layout, and dark mode adaptation.
  */
 export function ZyxVideoPlayer({
+  videoId,
   src,
   title,
   poster,
@@ -37,10 +44,61 @@ export function ZyxVideoPlayer({
   const t = useTranslations("studentCourse");
   const [mounted, setMounted] = useState(false);
   const playerRef = useRef<MediaPlayerInstance | null>(null);
+  const restoredForVideoRef = useRef<string | null>(null);
+  const lastSavedAtRef = useRef(0);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const persistCurrentTime = useCallback(() => {
+    if (!videoId || !playerRef.current) return;
+    const { currentTime, duration } = playerRef.current.state;
+    if (typeof currentTime === "number" && Number.isFinite(currentTime)) {
+      saveVideoPlaybackTime(
+        videoId,
+        currentTime,
+        typeof duration === "number" && Number.isFinite(duration) ? duration : undefined,
+      );
+    }
+  }, [videoId]);
+
+  useEffect(() => {
+    if (!videoId) return;
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") persistCurrentTime();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", persistCurrentTime);
+    return () => {
+      persistCurrentTime();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", persistCurrentTime);
+    };
+  }, [persistCurrentTime, videoId]);
+
+  const handleCanPlay = useCallback(() => {
+    if (!videoId || !playerRef.current) return;
+    if (restoredForVideoRef.current === videoId) return;
+    restoredForVideoRef.current = videoId;
+    const savedSeconds = readVideoPlaybackTime(videoId);
+    if (savedSeconds > 0) {
+      playerRef.current.currentTime = savedSeconds;
+    }
+  }, [videoId]);
+
+  const handleTimeUpdate = useCallback(() => {
+    if (!videoId) return;
+    const now = Date.now();
+    if (now - lastSavedAtRef.current < 3_000) return;
+    lastSavedAtRef.current = now;
+    persistCurrentTime();
+  }, [persistCurrentTime, videoId]);
+
+  const handleEnded = useCallback(() => {
+    clearVideoPlaybackTime(videoId);
+    onEnded?.();
+  }, [onEnded, videoId]);
 
   const youtubeId = extractYouTubeVideoId(src);
   const effectiveSrc = youtubeId ? `youtube/${youtubeId}` : src;
@@ -88,7 +146,10 @@ export function ZyxVideoPlayer({
         autoPlay={autoPlay}
         playsInline
         crossOrigin
-        onEnded={onEnded}
+        onCanPlay={handleCanPlay}
+        onTimeUpdate={handleTimeUpdate}
+        onPause={persistCurrentTime}
+        onEnded={handleEnded}
         className="h-full w-full object-contain"
       >
         <MediaProvider />

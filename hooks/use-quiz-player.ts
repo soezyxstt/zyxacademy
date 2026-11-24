@@ -13,7 +13,7 @@ import { usePullToRefreshLock } from "@/hooks/use-pull-to-refresh-lock";
 import { closeDialogsThen } from "@/hooks/use-dialog-history";
 import {
   asEssayAnswer, createQuizStorage, createQuizSubmissionGate, formatQuizAnswers,
-  isQuizAnswerComplete, quizStorageKeys, readQuizAnswers, readQuizFlags,
+  isQuizAnswerComplete, quizStorageKeys, readQuizAnswers, readQuizFlags, readQuizIndex,
   remainingQuizSeconds, resolveQuizDeadline, resolveQuizDuration, selectQuizOption, waitForQuizUploads,
   type QuizAnswer, type QuizAnswers, type QuizPlayerProps, type QuizSubmission,
 } from "@/lib/quiz/player-state";
@@ -73,6 +73,7 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
     answersRef.current = recovered;
     setAnswers(recovered);
     setFlags(readQuizFlags(storage.getItem(keys.flags), exam.questions));
+    setIndex(readQuizIndex(storage.getItem(keys.index), sorted.length));
     const now = Date.now();
     const deadline = resolveQuizDeadline({ stored: storage.getItem(keys.deadline), startedAtMs, closeAtMs, durationSeconds, now });
     deadlineRef.current = deadline;
@@ -87,6 +88,11 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
     // New server props must never overwrite a student's current local answers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keys, storage]);
+
+  useEffect(() => {
+    if (!ready || isSubmitted) return;
+    storage.setItem(keys.index, String(index));
+  }, [index, isSubmitted, keys.index, ready, storage]);
 
   const saveAnswers = useCallback((next: QuizAnswers) => {
     // Update the ref before the render, including the last input before a timeout.
@@ -229,6 +235,7 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
           storage.removeItem(keys.deadline);
           storage.removeItem(keys.answers);
           storage.removeItem(keys.flags);
+          storage.removeItem(keys.index);
           if (!alive.current) return;
           void hapticSuccess();
           if (transport) {

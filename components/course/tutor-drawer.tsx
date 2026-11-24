@@ -9,6 +9,10 @@ import { MessageSquareText } from "lucide-react";
 import { ZyraFloatingPet } from "@/components/course/zyra-floating-pet";
 import { getTutorCapabilities } from "@/lib/tutor-capabilities";
 import { peekRestoredCameraPayload, ZYX_CAMERA_RESTORED_EVENT } from "@/lib/native/camera-recovery";
+import {
+  readPersistedZyraDrawerOpen,
+  savePersistedZyraDrawerOpen,
+} from "@/lib/zyra/drawer-persistence";
 import type { TutorMode } from "./tutor-drawer-view";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
@@ -197,6 +201,31 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setInitialQuestion(null);
     setQuotedContext(null);
   }, []);
+
+  const restoredOpenForCourseRef = React.useRef<string | null>(null);
+  const canPersistDrawerOpen = Boolean(
+    experience.mode !== "demo" &&
+      courseIdFromPath &&
+      !isCourseDiscussion &&
+      !pathname?.includes("/live/host") &&
+      !pathname?.endsWith("/daftar") &&
+      !suppressPet,
+  );
+
+  React.useEffect(() => {
+    if (!canPersistDrawerOpen || !courseIdFromPath) return;
+    if (restoredOpenForCourseRef.current === courseIdFromPath) return;
+    restoredOpenForCourseRef.current = courseIdFromPath;
+    if (!isOpen && readPersistedZyraDrawerOpen(courseIdFromPath)) {
+      openChat();
+    }
+  }, [canPersistDrawerOpen, courseIdFromPath, isOpen, openChat]);
+
+  React.useEffect(() => {
+    if (!courseIdFromPath || experience.mode === "demo") return;
+    if (restoredOpenForCourseRef.current !== courseIdFromPath) return;
+    savePersistedZyraDrawerOpen(courseIdFromPath, isOpen && activeMode === "chat");
+  }, [activeMode, courseIdFromPath, experience.mode, isOpen]);
 
   React.useEffect(() => {
     if (!courseIdFromPath) return;
