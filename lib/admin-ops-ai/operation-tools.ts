@@ -51,9 +51,10 @@ export function createBrowserOperationTools(chat: OpsBrowserChat, runId: string,
           const [name, entry] = exact;
           return { name, description: entry.description, approval: entry.policy, inputSchema: z.toJSONSchema(entry.input, { io: "input", unrepresentable: "any" }) };
         }
+        const normalizedDomainQuery = query.replace(/\.+$/, "");
         return {
           domains: [...new Set(visible.map(([name]) => name.split(".")[0]))].sort(),
-          operations: query ? visible.filter(([name]) => name.startsWith(query + ".")).map(([name, entry]) => ({ name, approval: entry.policy })) : [],
+          operations: normalizedDomainQuery ? visible.filter(([name]) => name.startsWith(normalizedDomainQuery + ".")).map(([name, entry]) => ({ name, approval: entry.policy })) : [],
         };
       },
     }),
@@ -65,7 +66,7 @@ export function createBrowserOperationTools(chat: OpsBrowserChat, runId: string,
         if (!entry || (!allowWrites && entry.policy !== "read")) return { summary: "Operasi tidak tersedia di chat ini." };
 
         let raw: unknown;
-        try { raw = JSON.parse(argumentsJson); } catch { return { summary: "Argumen harus berupa objek JSON yang valid." }; }
+        try { raw = argumentsJson.trim() ? JSON.parse(argumentsJson) : {}; } catch { return { summary: "Argumen harus berupa objek JSON yang valid." }; }
         const parsed = entry.input.safeParse(raw);
         if (!parsed.success) {
           return { summary: "Periksa argumen sesuai skema operasi.", issues: parsed.error.issues.map(issue => issue.path.join(".")) };

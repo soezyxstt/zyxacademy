@@ -254,7 +254,7 @@ export function DiscussionWorkspaceMobile({
           showBackButton={false}
           showComposeBackButton={false}
           hideThreadHeader
-          messagesPaddingClassName="px-3 py-2.5"
+          messagesPaddingClassName="px-2 py-2"
         />
       </section>
     );

@@ -160,7 +160,7 @@ export function StructuredArticleSectionContent({
   const t = useTranslations("studentCourse");
   return (
     <>
-      <header className="space-y-3">
+      <header className="space-y-1.5 sm:space-y-3">
         <div className="flex flex-wrap items-center gap-2 text-body-xs font-semibold text-muted-foreground">
           <span className="font-mono text-primary">
             {section.sectionNumber.padStart(2, "0")}

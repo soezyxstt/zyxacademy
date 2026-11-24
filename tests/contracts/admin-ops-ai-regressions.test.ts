@@ -138,4 +138,29 @@ describe("Zyx Ops AI conversation regressions", () => {
     expect(tools.update_quiz).toBeUndefined();
     expect(tools.reset_quiz_attempt).toBeUndefined();
   });
+
+  it("authorizes MCP bridge tools in TOOL AKTIF and Rules 8/9/15/20 when browserTools are enabled", () => {
+    const editPrompt = buildOpsAiSystemPrompt(
+      { currentPath: "/admin/forms", mode: "edit" },
+      { browserToolsEnabled: true }
+    );
+
+    expect(editPrompt).toContain("TOOL AKTIF PADA SESI INI:");
+    expect(editPrompt).toContain("TOOL OPERASI ADMIN & AUTHORING (BRIDGE MCP AKTIF):");
+    expect(editPrompt).toContain("- discover_admin_operations:");
+    expect(editPrompt).toContain("- use_admin_operation:");
+    expect(editPrompt).toContain("- read_admin_approval_result:");
+    expect(editPrompt).toContain("panggil 'discover_admin_operations' dengan query kosong");
+    expect(editPrompt).toContain("JANGAN langsung menolak");
+    expect(editPrompt).not.toContain("jawab HANYA berdasarkan daftar TOOL AKTIF di bawah");
+    expect(editPrompt).not.toContain("katakan bahwa aksi tersebut belum dapat dijalankan dari Ops AI saat ini");
+    expect(editPrompt).not.toMatch(/[—–]/);
+
+    const askPrompt = buildOpsAiSystemPrompt(
+      { currentPath: "/admin/forms", mode: "ask" },
+      { browserToolsEnabled: true }
+    );
+    expect(askPrompt).toContain("sarankan admin beralih ke mode Edit/Agent");
+    expect(askPrompt).not.toMatch(/[—–]/);
+  });
 });

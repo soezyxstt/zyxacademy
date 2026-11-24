@@ -460,7 +460,7 @@ function ConceptMastery({ concepts }: { concepts: Concepts }) {
 function ConceptTitle({ concept }: { concept: Concepts[number] }) {
   const t = useTranslations("studentCourse");
   return (
-    <div data-math-scroll className="min-w-0 space-y-1 overflow-x-auto">
+    <div data-math-scroll className="min-w-0 space-y-1 overflow-x-auto overflow-y-hidden no-scrollbar py-0.5">
       <MathText as="div" className="wrap-anywhere font-semibold text-foreground">{concept.concept}</MathText>
       {concept.subconcepts && concept.subconcepts.length > 0 && (
         <div className="wrap-anywhere text-body-xs text-muted-foreground">

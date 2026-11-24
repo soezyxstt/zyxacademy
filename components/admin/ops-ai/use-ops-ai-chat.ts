@@ -1,6 +1,6 @@
-import { consumeZyraStream } from "@/lib/zyra/stream-consumer";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { OPS_AI_POLICY_BOUNDS } from "@/lib/admin-ops-ai/contracts";
+import { validateOpsFollowups, type OpsFollowup } from "@/lib/admin-ops-ai/followups";
 import type {
   OpsAiWorkStep,
   OpsAiCitation,
@@ -18,6 +18,7 @@ export type OpsAiStreamPart =
   | { type: "data-work-step"; id: string; data: OpsAiWorkStep }
   | { type: "data-citation"; id: string; data: OpsAiCitation }
   | { type: "data-proposal"; id: string; data: OpsAiActionProposalV2 }
+  | { type: "data-followups"; followups: OpsFollowup[] }
   | { type: "data-error"; id: string; data: OpsAiErrorData }
   | { type: "tool-call"; toolCallId: string; toolName: string; input: unknown }
   | { type: "tool-result"; toolCallId: string; toolName: string; output: unknown }
@@ -56,14 +57,56 @@ export interface UseOpsAiChatReturn {
 
 /**
  * Consumes a ReadableStream of SSE events and yields typed OpsAiStreamPart items.
- * Replaces manual reader and string splitting in UI components.
+ * Re-validates data-followups payloads using validateOpsFollowups.
  */
 export async function* consumeOpsAiStream(
   body: ReadableStream<Uint8Array>,
   signal?: AbortSignal,
 ): AsyncGenerator<OpsAiStreamPart> {
-  for await (const part of consumeZyraStream<OpsAiStreamPart>(body, signal)) {
-    if (part.type !== "data-followups") yield part;
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      if (signal?.aborted) break;
+
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (signal?.aborted) return;
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data: ")) continue;
+        const dataStr = trimmed.slice(6).trim();
+        if (dataStr === "[DONE]") {
+          yield { type: "done" };
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(dataStr);
+          if (parsed && typeof parsed.type === "string") {
+            if (parsed.type === "data-followups") {
+              const followups = validateOpsFollowups(parsed.followups ?? parsed.data);
+              if (followups.length > 0) {
+                yield { type: "data-followups", followups };
+              }
+            } else {
+              yield parsed as OpsAiStreamPart;
+            }
+          }
+        } catch {
+          // Ignore malformed JSON chunks
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
   }
 }
 
@@ -125,7 +168,10 @@ export function useOpsAiChat({
         proposals: [],
       };
 
-      const nextMessages = [...messages, userMsg, assistantMsg];
+      const clearedMessages = messages.map((m) =>
+        m.followups ? { ...m, followups: undefined } : m
+      );
+      const nextMessages = [...clearedMessages, userMsg, assistantMsg];
       setMessages(nextMessages);
       setInput("");
       setIsStreaming(true);
@@ -226,9 +272,20 @@ export function useOpsAiChat({
                 if (m.id !== assistantMsgId) return m;
                 const existing = m.proposals || [];
                 if (existing.some((p: OpsAiActionProposalV2) => p.id === proposal.id)) return m;
-                return { ...m, proposals: [...existing, proposal] };
+                return { ...m, proposals: [...existing, proposal], followups: undefined };
               })
             );
+          } else if (part.type === "data-followups") {
+            const followups = validateOpsFollowups(part.followups);
+            if (followups.length > 0) {
+              setMessages((prev: OpsAiMessageV2[]) =>
+                prev.map((m: OpsAiMessageV2) =>
+                  m.id === assistantMsgId && !m.error && !m.proposals?.length
+                    ? { ...m, followups }
+                    : m
+                )
+              );
+            }
           } else if (part.type === "data-error") {
             const errData = part.data;
             setMessages((prev: OpsAiMessageV2[]) =>
@@ -237,6 +294,7 @@ export function useOpsAiChat({
                   ? {
                       ...m,
                       error: errData,
+                      followups: undefined,
                       content: m.content || `Terjadi kendala: ${errData.message}`,
                     }
                   : m
@@ -266,6 +324,7 @@ export function useOpsAiChat({
               return {
                 ...m,
                 workSteps: updatedSteps,
+                followups: undefined,
                 content: m.content || "Permintaan dibatalkan.",
               };
             })
@@ -278,6 +337,7 @@ export function useOpsAiChat({
               m.id === assistantMsgId
                 ? {
                     ...m,
+                    followups: undefined,
                     content: m.content ? `${m.content}\n\n${errorObj.message}` : errorObj.message,
                   }
                 : m

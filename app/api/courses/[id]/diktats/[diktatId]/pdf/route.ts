@@ -5,9 +5,15 @@ import { db } from "@/db";
 import { bab, diktatMateri, diktats } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { getCourse } from "@/lib/course-utils";
-import { canAccessCourseContent, resolveCourseAccess } from "@/lib/student/course-access";
+import { resolveCourseAccess } from "@/lib/student/course-access";
+import {
+  buildDiktatPdfResponse,
+  canAccessDiktatPdf,
+  downloadDiktatPdfBytes,
+  resolveDiktatPdfSource,
+  type DiktatPdfChapterScope,
+} from "@/lib/student/diktat-pdf";
 import { storage } from "@/lib/storage";
-import { slugifySegment } from "@/lib/storage/keys";
 
 export const runtime = "nodejs";
 
@@ -40,14 +46,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
   let targetFileKey: string | null = null;
   let targetTitle: string = "diktat";
-  let targetChapterIds: string[] = [];
+  let targetScope: DiktatPdfChapterScope = { kind: "legacy", chapterIds: [] };
 
-  if (row) {
+  if (row?.fileKey) {
     targetFileKey = row.fileKey;
     targetTitle = row.title;
-    targetChapterIds = [row.chapterId, row.legacyChapterId].filter(
-      (chapterId): chapterId is string => Boolean(chapterId),
-    );
+    targetScope = {
+      kind: "canonical",
+      chapterIds: [row.chapterId, row.legacyChapterId],
+    };
   } else {
     // 2. Fallback to compiled legacy diktat in diktats table
     const [legacyRow] = await db
@@ -68,11 +75,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     if (legacyRow) {
       targetFileKey = legacyRow.fileUrl;
       targetTitle = legacyRow.title;
-      targetChapterIds = Array.isArray(legacyRow.chapterIds) ? legacyRow.chapterIds : [];
+      targetScope = {
+        kind: "legacy",
+        chapterIds: Array.isArray(legacyRow.chapterIds) ? legacyRow.chapterIds : [],
+      };
     }
   }
 
-  if (!targetFileKey) {
+  const pdfSource = resolveDiktatPdfSource(targetFileKey);
+  if (!pdfSource) {
     return NextResponse.json({ error: "DIKTAT_PDF_NOT_FOUND" }, { status: 404 });
   }
 
@@ -81,27 +92,21 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     userId: session.user.id,
     roleHint: (session.user as { role?: string | null }).role,
   });
-  if (!canAccessCourseContent(access, "diktat", targetChapterIds)) {
+  if (!canAccessDiktatPdf(access, targetScope)) {
     return NextResponse.json({ error: "Diktat ini tersedia setelah aktivasi kelas." }, { status: 403 });
   }
   const wantsDownload = new URL(request.url).searchParams.get("download") === "1";
   if (wantsDownload && !access.capabilities.canDownloadDiktat) {
     return NextResponse.json({ error: "Unduhan diktat tersedia setelah aktivasi kelas." }, { status: 403 });
   }
-  if (typeof storage.download !== "function") {
+  if (pdfSource.kind === "storage" && typeof storage.download !== "function") {
     return NextResponse.json({ error: "DIKTAT_PDF_UNAVAILABLE" }, { status: 503 });
   }
   try {
-    const bytes = await storage.download(targetFileKey);
-    const disposition = wantsDownload ? "attachment" : "inline";
-    const filename = `${slugifySegment(targetTitle) || "diktat"}.pdf`;
-    return new Response(bytes as unknown as BodyInit, {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `${disposition}; filename="${filename}"`,
-        "Cache-Control": "private, no-store",
-      },
+    const bytes = await downloadDiktatPdfBytes(pdfSource, {
+      downloadFromStorage: typeof storage.download === "function" ? (key) => storage.download!(key) : undefined,
     });
+    return buildDiktatPdfResponse(bytes, targetTitle, wantsDownload);
   } catch (err) {
     console.error("[Course Diktat PDF GET] Download failed:", err);
     return NextResponse.json({ error: "DIKTAT_PDF_UNAVAILABLE" }, { status: 503 });

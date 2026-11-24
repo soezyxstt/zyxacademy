@@ -4,6 +4,7 @@ import type {
   OpsAiActionProposalV2,
   OpsAiErrorData,
 } from "@/lib/admin-ops-ai/contracts";
+import type { OpsFollowup } from "@/lib/admin-ops-ai/followups";
 
 export interface OpsAiMessageV2 {
   id: string;
@@ -13,6 +14,7 @@ export interface OpsAiMessageV2 {
   workSteps?: OpsAiWorkStep[];
   citations?: OpsAiCitation[];
   proposals?: OpsAiActionProposalV2[];
+  followups?: OpsFollowup[];
   error?: OpsAiErrorData;
 }
 

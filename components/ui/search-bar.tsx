@@ -335,7 +335,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
             tabIndex={isExpanded ? 0 : -1}
             disabled={disabled}
             className={cn(
-              "min-w-0 bg-transparent text-foreground font-sans placeholder:text-muted-foreground/60 focus:outline-none transition-opacity duration-200 motion-reduce:transition-none",
+              "min-w-0 bg-transparent text-foreground font-sans placeholder:text-muted-foreground/60 focus:outline-none transition-opacity duration-200 motion-reduce:transition-none [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden",
               isExpanded
                 ? cn("w-full flex-1 opacity-100", currentSize.input)
                 : "w-0 flex-none opacity-0 pointer-events-none p-0",

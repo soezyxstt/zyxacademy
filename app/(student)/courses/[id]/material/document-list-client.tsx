@@ -58,6 +58,7 @@ import { cn } from "@/lib/utils";
 import type { CourseMaterial, DocCategory } from "@/lib/student-course-fixtures";
 import { getSubcategoryLabel, type CourseMaterialSubcategory } from "@/lib/course-materials";
 import { materialMatchesDocumentFilters, type DocumentFilterState } from "@/lib/document-filters";
+import { saveAuthorizedFile } from "@/lib/native/files";
 import { useTranslations } from "@/lib/i18n/client";
 
 type Chapter = {
@@ -455,6 +456,7 @@ export function DocumentListClient({
   tabsSlot,
 }: DocumentListClientProps) {
   const t = useTranslations("learning");
+  const common = useTranslations("common");
   const tSearch = useTranslations("search");
   const router = useRouter();
   const initialDefaultTab = normalizeTabKey(defaultTab);
@@ -488,6 +490,24 @@ export function DocumentListClient({
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CourseMaterial | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [downloadingMaterialId, setDownloadingMaterialId] = useState<string | null>(null);
+
+  const handleDownloadMaterial = async (material: CourseMaterial) => {
+    if (!material.url || downloadingMaterialId) return;
+    setDownloadingMaterialId(material.id);
+    try {
+      const result = await saveAuthorizedFile({
+        url: material.url,
+        fileName: `${material.title}.pdf`,
+        title: material.title,
+      });
+      if (!result.ok && !result.cancelled) {
+        toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.saveFailed"));
+      }
+    } finally {
+      setDownloadingMaterialId(null);
+    }
+  };
 
   useEffect(() => {
     if (searchExpanded) {
@@ -943,13 +963,12 @@ export function DocumentListClient({
                           variant="ghost"
                           size="icon"
                           className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
-                          asChild
                           title={t("documents.downloadPdf")}
                           aria-label={`${t("documents.downloadPdf")} ${material.title}`}
+                          disabled={downloadingMaterialId === material.id}
+                          onClick={() => void handleDownloadMaterial(material)}
                         >
-                          <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                            <Download className="size-3.5" />
-                          </a>
+                          <Download className="size-3.5" aria-hidden />
                         </Button>
                       ) : (
                         !material.completed && !material.locked && (
@@ -1134,13 +1153,12 @@ export function DocumentListClient({
                               variant="ghost"
                               size="icon"
                               className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
-                              asChild
                               title={t("documents.downloadPdf")}
                               aria-label={`${t("documents.downloadPdf")} ${material.title}`}
+                              disabled={downloadingMaterialId === material.id}
+                              onClick={() => void handleDownloadMaterial(material)}
                             >
-                              <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                                <Download className="size-3.5" />
-                              </a>
+                              <Download className="size-3.5" aria-hidden />
                             </Button>
                           ) : null}
                         </span>

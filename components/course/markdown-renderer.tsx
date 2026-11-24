@@ -1071,7 +1071,7 @@ function ASTBlockRenderer({ block, density, standaloneInlineMath = false }: { bl
                 >
                   <MathRegion as="span"
                     data-math-scroll role="region" tabIndex={0}
-                    className="block max-w-full overflow-x-auto overflow-y-hidden [&_.katex-display]:my-0 [&_.katex-display]:text-left"
+                    className="block max-w-full overflow-x-auto overflow-y-hidden py-1 [&_.katex-display]:my-0 [&_.katex-display]:text-left"
                     dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(item.text), true) }}
                   />
                 </li>

@@ -1058,13 +1058,13 @@
 
 /* KaTeX overflow formatting overrides. Vertical scrollbar is strictly suppressed
    so tall glyphs (fractions, sums, integrals) never produce vertical scrollbars;
-   horizontal scrolling remains for wide equations without ugly vertical tracks. */
+   horizontal scrolling remains for wide equations without visible scrollbar chrome. */
 .katex-display {
   overflow-x: auto;
   overflow-y: hidden !important;
   max-width: 100%;
-  padding: 0.35em 0;
-  scrollbar-width: thin;
+  padding: 0.45em 0;
+  scrollbar-width: none;
 }
 
 .katex-display > .katex {
@@ -1073,13 +1073,14 @@
   text-align: inherit;
 }
 
-.katex-display::-webkit-scrollbar:vertical {
-  display: none !important;
-  width: 0 !important;
+.katex-display::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .katex-html {
-  overflow-y: hidden;
+  overflow: visible;
 }
 
 [data-katex-display],
@@ -1144,6 +1145,8 @@
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+  width: 0;
+  height: 0;
 }
 
 /* Keep these unlayered so KaTeX's unlayered defaults cannot restore row margins. */
@@ -1151,8 +1154,16 @@
   min-width: 0;
   max-width: 100%;
   overflow-x: auto;
-  padding: 0.125rem 0.25rem;
+  overflow-y: hidden;
+  padding: 0.25rem 0.25rem;
   text-align: left;
+  scrollbar-width: none;
+}
+
+.article-formula-row::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .article-formula-row .katex-display {
@@ -1172,11 +1183,22 @@
 
 /* One named, keyboard-accessible scrollport keeps wide mathematics reachable. */
 [data-math-scroll] {
+  overflow-y: hidden;
+}
+[data-math-scroll]:not(.no-scrollbar) {
   scrollbar-width: thin;
 }
 [data-math-scroll]:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+[data-content-lane="zyra-tutor"] [data-math-scroll] {
+  scrollbar-width: none;
+}
+[data-content-lane="zyra-tutor"] [data-math-scroll]::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 @layer components {
   /* Match the layer of the global important overflow rule. */
@@ -1185,6 +1207,53 @@
     overflow: visible !important;
     max-width: none;
   }
+}
+
+/* Hide scrollbars by default on mobile viewports and touch devices while keeping
+   thin theme-aware scrollbars on desktop (>= 768px with fine pointer).
+   Desktop narrow viewports keep [data-math-scroll] thin for V4 verification. */
+@media (max-width: 767.98px), (pointer: coarse) {
+  *:not(.mobile-scrollbar):not(.show-scrollbar):not([data-math-scroll]),
+  .ds-scrollbar:not(.mobile-scrollbar):not(.show-scrollbar),
+  .sidebar-scroll:not(.mobile-scrollbar):not(.show-scrollbar),
+  .katex-display:not(.mobile-scrollbar):not(.show-scrollbar) {
+    scrollbar-width: none;
+  }
+
+  *:not(.mobile-scrollbar):not(.show-scrollbar):not([data-math-scroll])::-webkit-scrollbar,
+  .ds-scrollbar:not(.mobile-scrollbar):not(.show-scrollbar)::-webkit-scrollbar,
+  .sidebar-scroll:not(.mobile-scrollbar):not(.show-scrollbar)::-webkit-scrollbar,
+  .katex-display:not(.mobile-scrollbar):not(.show-scrollbar)::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+@media (pointer: coarse) {
+  [data-math-scroll]:not(.mobile-scrollbar):not(.show-scrollbar) {
+    scrollbar-width: none;
+  }
+
+  [data-math-scroll]:not(.mobile-scrollbar):not(.show-scrollbar)::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+/* Explicit opt-in utilities for containers that intentionally show a scrollbar on mobile. */
+.mobile-scrollbar,
+.show-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--muted-foreground) 22%, transparent) transparent;
+}
+
+.mobile-scrollbar::-webkit-scrollbar,
+.show-scrollbar::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+  height: 6px;
 }
 
 /* Focus surfaces such as the Python playground opt out of decorative shell ornaments. */
@@ -1399,13 +1468,33 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
 .article-editorial [data-math-overflow-right="true"] {
   mask-image: linear-gradient(to right, black calc(100% - 16px), transparent);
 }
-@media (max-width: 639px) {
+@media (max-width: 767.98px) {
+  .article-editorial {
+    --text-reading-major: calc(1.1875rem * var(--user-font-scale, 1));
+    --text-reading-major--line-height: 1.3;
+    --text-reading-minor: calc(1.03125rem * var(--user-font-scale, 1));
+    --text-reading-minor--line-height: 1.35;
+    --paragraph-gap: 0.65rem;
+  }
   .article-editorial .markdown-article,
   .article-editorial .markdown-article :is(p, li),
   .article-editorial p.text-body-base {
-    font-size: calc(0.9375rem * var(--user-font-scale, 1));
+    font-size: calc(0.875rem * var(--user-font-scale, 1));
+    line-height: 1.65;
   }
-  .article-editorial [data-math-scroll] .katex-display { font-size: 0.9rem; }
+  .article-editorial .markdown-article > :is(p, ul, ol) {
+    margin-block: 0.55rem;
+  }
+  .article-editorial .markdown-article > :is(h1, h2, h3, h4) {
+    margin-top: 1.1rem;
+    margin-bottom: 0.4rem;
+  }
+  .article-editorial .katex-display,
+  .article-editorial [data-math-scroll] .katex-display {
+    font-size: 0.9rem;
+    margin-block: 0.45rem;
+    padding-block: 0.2rem;
+  }
 }
 
 .article-editorial [data-math-symbols] dd .markdown-article :is(p, li) { color: var(--muted-foreground); }

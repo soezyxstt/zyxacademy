@@ -53,11 +53,10 @@ import {
 import { WorkTraceView } from "./work-trace-view";
 import { CitationCards } from "./citation-cards";
 import { ActionProposalCard } from "./action-proposal-card";
-import { QuickActionsBar, extractQuickActions } from "./quick-actions-bar";
+import { QuickActionsBar, stripOpsFollowupMarkup } from "./quick-actions-bar";
 import {
   CAPABILITY_OVERVIEW_PRESET,
-  OPS_AI_PRESETS,
-  getAdminRouteContext,
+  resolveDynamicOpsPresets,
   type OpsAiPreset,
   type OpsAiPresetIcon,
 } from "./ops-ai-presets";
@@ -133,7 +132,6 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
 
   const pathname = usePathname();
   const tab = useSearchParams()?.get("tab");
-  const { routePreset } = getAdminRouteContext(pathname);
   const { messages, setMessages, input, setInput, isStreaming, stop, sendMessage } = useOpsAiChat({
     initialMessages,
     context: {
@@ -551,7 +549,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
 
   const handleCopyMessage = (id: string, text: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(text);
+      navigator.clipboard.writeText(stripOpsFollowupMarkup(text));
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
       toast.success("Jawaban berhasil disalin ke papan klip.");
@@ -608,13 +606,30 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
       ? currentSession.title
       : messages.find(message => message.role === "user")?.content.trim().slice(0, 48) || "Zyx Ops AI";
 
-  const combinedPresets = routePreset
-    ? [routePreset, ...OPS_AI_PRESETS.filter((item) => item.id !== routePreset.id)]
-    : OPS_AI_PRESETS;
+  const dynamicPresets = resolveDynamicOpsPresets({
+    pathname,
+    mode: chatMode,
+    hasMessages: messages.length > 0,
+  });
+  const askPresets = resolveDynamicOpsPresets({
+    pathname,
+    mode: "ask",
+    hasMessages: false,
+  }).presets;
+  const editPresets = resolveDynamicOpsPresets({
+    pathname,
+    mode: "edit",
+    hasMessages: false,
+  }).presets;
+  const actionOnlyPresets = editPresets.filter((item) => item.category === "action");
   const visiblePresets =
     presetFilter === "all"
-      ? combinedPresets.slice(0, 6)
-      : combinedPresets.filter((item) => item.category === presetFilter);
+      ? dynamicPresets.presets
+      : presetFilter === "ask"
+        ? askPresets
+        : actionOnlyPresets.length > 0
+          ? actionOnlyPresets
+          : editPresets;
 
   return (
     <>
@@ -1005,8 +1020,14 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                     {msg.workSteps && msg.workSteps.length > 0 && <WorkTraceView steps={msg.workSteps} />}
 
                     {(() => {
-                      const { cleanedContent, quickActions } = extractQuickActions(msg.content);
+                      const cleanedContent = stripOpsFollowupMarkup(msg.content);
                       const isLatestAssistant = index === messages.length - 1;
+                      const showFollowups =
+                        isLatestAssistant &&
+                        !isStreaming &&
+                        !msg.error &&
+                        !msg.proposals?.length &&
+                        (msg.followups?.length ?? 0) > 0;
 
                       return (
                         <>
@@ -1021,12 +1042,12 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                             </div>
                           ) : null}
 
-                          {/* Interactive Quick Actions Bar */}
-                          {quickActions.length > 0 && isLatestAssistant && !msg.proposals?.length && (
+                          {/* Deterministic Follow-up Chips */}
+                          {showFollowups && (
                             <QuickActionsBar
-                              options={quickActions}
-                              onSelect={(opt) => handleSendMessage(opt)}
-                              disabled={isStreaming}
+                              followups={msg.followups ?? []}
+                              onSelect={(chip) => handleSendMessage(chip.prompt, chip.mode)}
+                              disabled={isStreaming || revoking || isApproving}
                             />
                           )}
                         </>
@@ -1158,7 +1179,10 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                   type="button"
                   aria-pressed={chatMode === "edit"}
                   disabled={isStreaming}
-                  onClick={() => setChatMode("edit")}
+                  onClick={() => {
+                    setChatMode("edit");
+                    setPresetFilter("all");
+                  }}
                   className={cn(
                     "rounded-md px-2 py-0.5 text-body-xs font-medium transition-colors cursor-pointer disabled:opacity-50",
                     chatMode === "edit"
@@ -1172,7 +1196,10 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                   type="button"
                   aria-pressed={chatMode === "ask"}
                   disabled={isStreaming}
-                  onClick={() => setChatMode("ask")}
+                  onClick={() => {
+                    setChatMode("ask");
+                    setPresetFilter("all");
+                  }}
                   className={cn(
                     "rounded-md px-2 py-0.5 text-body-xs font-medium transition-colors cursor-pointer disabled:opacity-50",
                     chatMode === "ask"
@@ -1207,7 +1234,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                       <span>{CAPABILITY_OVERVIEW_PRESET.label}</span>
                     </button>
                     <div className="max-h-56 overflow-y-auto divide-y divide-border/50">
-                      {combinedPresets.slice(0, 6).map((preset) => (
+                      {dynamicPresets.presets.map((preset) => (
                         <button
                           key={preset.id}
                           type="button"
