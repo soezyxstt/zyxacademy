@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "@/lib/i18n/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { hapticLight, hapticSelection, hapticSuccess } from "@/lib/native/haptics";
 import { usePullToRefreshHandler } from "@/components/pull-to-refresh";
 import { useSession } from "@/lib/auth-client";
 import * as actions from "@/lib/discussions/actions";
@@ -697,7 +698,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
           : resolvedThreads.filter((item) => item.title.toLocaleLowerCase().includes(q));
         return items.map((item) => toQuestion(item, visibleChannels));
       })()}
-      resolvedOpen={resolvedOpen} resolvedState={resolvedPaging.key === resolvedKey ? resolvedState : "loading"} resolvedPageIndex={resolvedPaging.index} resolvedHasMore={!!resolvedPage.nextCursor} onResolvedOpenChange={setResolvedOpen} onResolvedPage={changeResolvedPage} onRetryResolved={() => setResolvedRevision(value => value + 1)}
+      resolvedOpen={resolvedOpen} resolvedState={resolvedPaging.key === resolvedKey ? resolvedState : "loading"} resolvedPageIndex={resolvedPaging.index} resolvedHasMore={!!resolvedPage.nextCursor} onResolvedOpenChange={(open) => { void hapticSelection(); setResolvedOpen(open); }} onResolvedPage={changeResolvedPage} onRetryResolved={() => setResolvedRevision(value => value + 1)}
       readError={readError} onRetryRead={() => { setReadError(false); setRetryRead(value => value + 1); }}
       selectedQuestion={selectedQuestion} messages={uiMessages} selectedChannelId={selectedChannel} selectedQuestionId={selectedThread} selectedMessageId={selectedMessage}
       search={search} listState={listState} threadState={renderedThreadState}
@@ -707,8 +708,8 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       reportState={reportBusy ? "loading" : reportError ? "error" : "ready"} onRetryReports={() => setRetryReports((value) => value + 1)}
       activeTab={activeTab}
       hasMoreQuestions={hasMoreQuestions}
-      onSelectChannel={(channel) => { setPinnedChannel(channel); navigate({ channel: channel?.id ?? null, thread: null }); }} onSelectQuestion={(id, messageId) => navigate({ thread: id, message: messageId ?? null, discussionTab: null, ...(activeTab === "reports" ? { channel: null } : {}) })}
-      onSearchChange={(value) => setSearch(value.slice(0, 160))} onTabChange={(tab) => navigate({ discussionTab: tab === "reports" ? tab : null })}
+      onSelectChannel={(channel) => { void hapticSelection(); setPinnedChannel(channel); navigate({ channel: channel?.id ?? null, thread: null }); }} onSelectQuestion={(id, messageId) => { void hapticLight(); navigate({ thread: id, message: messageId ?? null, discussionTab: null, ...(activeTab === "reports" ? { channel: null } : {}) }); }}
+      onSearchChange={(value) => setSearch(value.slice(0, 160))} onTabChange={(tab) => { void hapticSelection(); navigate({ discussionTab: tab === "reports" ? tab : null }); }}
       onRetryQuestions={() => { setRetryLists((value) => value + 1); refreshChannelMetadata(); }} onRetryMessages={() => { setRetryThread((value) => value + 1); refreshChannelMetadata(); }}
       onLoadMoreQuestions={() => moreQuestions()}
       onSearchChannels={(input) => searchDiscussionChannels(reads, input, courseId)}
@@ -766,13 +767,15 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
         return { ok: true, attachment: await response.json() }; }}
       onEditMessage={async ({ questionId, messageId, body, revision }) => { try { await actions.edit(messageId, body, revision); } catch (error) { await refreshMessage(questionId, messageId, true); throw error; } await refreshMessage(questionId, messageId); }}
       onDeleteMessage={async ({ questionId, messageId }) => { await actions.deleteMessage(messageId); await refreshMessage(questionId, messageId); }}
-      onToggleReaction={async ({ questionId, messageId, emoji, selected }) => { await actions.setReaction(messageId, emoji, selected); await refreshMessage(questionId, messageId); }}
+      onToggleReaction={async ({ questionId, messageId, emoji, selected }) => { void hapticSelection(); await actions.setReaction(messageId, emoji, selected); await refreshMessage(questionId, messageId); }}
       onForwardMessage={async ({ questionId, messageId, targetQuestionId, requestId }) => { try { const result = await actions.forward(messageId, targetQuestionId, requestId); if (!result.ok) return result.error === "replay_unverified" ? { error: result.error, target: result.value } : result.error; await refreshMessage(questionId, messageId); } catch { return "unknown"; } }}
       onReportMessage={async ({ messageId, reason }) => { await actions.report(messageId, reason); }}
-      onSetChannelMuted={async ({ channelId, muted }) => { await actions.setMute(channelId, muted); setChannels((old) => old.map((item) => item.id === channelId ? { ...item, muted } : item)); setChannelMetadata((old) => ({ ...old, items: old.items.map((item) => item.id === channelId ? { ...item, muted } : item) })); setPinnedChannel((old) => old?.id === channelId ? { ...old, muted } : old); refreshChannelMetadata(); }}
+      onSetChannelMuted={async ({ channelId, muted }) => { void hapticSelection(); await actions.setMute(channelId, muted); setChannels((old) => old.map((item) => item.id === channelId ? { ...item, muted } : item)); setChannelMetadata((old) => ({ ...old, items: old.items.map((item) => item.id === channelId ? { ...item, muted } : item) })); setPinnedChannel((old) => old?.id === channelId ? { ...old, muted } : old); refreshChannelMetadata(); }}
       onSetQuestionStatus={async ({ questionId, status }) => {
         const result = await actions.setResolved(questionId, status === "resolved");
         if (!mounted.current) return;
+        if (result.status === "resolved") void hapticSuccess();
+        else void hapticLight();
         // Reads started before the write may still return the old status.
         listRequests.current.clear();
         resolvedRequests.current.clear();
@@ -786,7 +789,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
         if (currentThread.current === questionId) await refreshMessage(questionId);
         else signalCounts();
       }}
-      onSetReportStatus={async ({ reportId, status }) => { await actions.resolveReport(reportId, status); setReports((old) => old.filter((item) => item.id !== reportId)); }}
+      onSetReportStatus={async ({ reportId, status }) => { await actions.resolveReport(reportId, status); void hapticSuccess(); setReports((old) => old.filter((item) => item.id !== reportId)); }}
       onLoadAuthorProfile={({ questionId, authorId }) => actions.getAuthorProfile(questionId, authorId)} />
     {activeTab === "reports" && (reportPageIndex > 0 || reportCursor) && <div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={reportBusy || reportPageIndex === 0} onClick={() => void changeReportPage("previous")}>{t("previousReports")}</Button><span className="text-body-xs text-muted-foreground">{t("page", { page: reportPageIndex + 1 })}</span><Button type="button" variant="outline" size="sm" disabled={reportBusy || !reportCursor} onClick={() => void changeReportPage("next")}>{t("nextReports")}</Button></div>}
   </div>;

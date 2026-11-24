@@ -137,7 +137,7 @@ export function OpsClient() {
         </AdminIconAction>
       </div>
 
-      <AdminStatStrip className="sm:grid-cols-3">
+      <AdminStatStrip>
         <AdminStatStripItem
           label={t("opsUI.jobFailures")}
           value={data.jobFailures24h}
@@ -151,12 +151,6 @@ export function OpsClient() {
           caption={t("opsUI.pendingItems")}
           tone={queueHigh ? "warning" : "default"}
           icon={Database}
-        />
-        <AdminStatStripItem
-          label={tNav("zyraAnalytics")}
-          value="AI Gateway"
-          caption={t("opsUI.aiGatewayHint")}
-          icon={LineChart}
         />
       </AdminStatStrip>
 

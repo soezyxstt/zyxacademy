@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AdminIconAction } from "@/components/admin/icon-action";
 import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
+import { hapticLight } from "@/lib/native/haptics";
 import { RefreshCcw } from "lucide-react";
 
 export function RefreshAnalyticsButton({
@@ -19,6 +20,7 @@ export function RefreshAnalyticsButton({
   const router = useRouter();
 
   const handleRefresh = async () => {
+    void hapticLight();
     setLoading(true);
     try {
       const response = await fetch("/api/admin/analytics/sync", {

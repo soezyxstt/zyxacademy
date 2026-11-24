@@ -45,7 +45,7 @@ import {
   List,
   Loader2,
   Plus,
-  Bot,
+  FilePen,
   Trash2,
   Upload,
   X,
@@ -1224,7 +1224,7 @@ export function BatchUploadDialog({
                         {isBatchFormattingAi ? (
                           <Loader2 className="size-3.5 animate-spin" />
                         ) : (
-                          <Bot className="size-3.5" />
+                          <FilePen className="size-3.5" />
                         )}
                         <span>{isBatchFormattingAi ? t("documents.batch.formattingAi") : t("documents.batch.formatWithAi")}</span>
                       </Button>
@@ -1386,7 +1386,7 @@ export function BatchUploadDialog({
                       {isBatchFormattingAi ? (
                         <Loader2 className="size-3.5 animate-spin" />
                       ) : (
-                        <Bot className="size-3.5" />
+                        <FilePen className="size-3.5" />
                       )}
                       <span>{isBatchFormattingAi ? t("documents.batch.formattingAi") : t("documents.batch.formatWithAi")}</span>
                     </Button>

@@ -6,8 +6,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { hapticSelection } from "@/lib/native/haptics";
 import { useUrlTab } from "@/hooks/use-url-tab";
-import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { useTranslations } from "@/lib/i18n/client";
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   tabListClassName,
+  tabListPageBarClassName,
   tabListStickyBarClassName,
   tabTriggerClassName,
   tabTriggerActiveClassName,
@@ -65,6 +66,7 @@ function TabsInner({
 
   const handleValueChange = React.useCallback(
     (newVal: string) => {
+      void hapticSelection();
       if (!isControlled) {
         if (syncUrl && defaultValue) {
           setUrlTab(newVal);
@@ -111,6 +113,7 @@ function TabsStatic({
 
   const handleValueChange = React.useCallback(
     (newVal: string) => {
+      void hapticSelection();
       if (!isControlled) {
         setLocalTab(newVal);
       }
@@ -384,16 +387,15 @@ function normalizeHrefPath(href: string): string {
 
 type TabsListProps = React.ComponentProps<typeof TabsPrimitive.List> & {
   /**
-   * "page" (default): full-width sticky navbar-attached tab strip.
+   * "page" (default): full-width page tab strip.
    * "inline": contained horizontal tab strip for dialogs, popovers, drawers, and nested panels.
    */
   variant?: "page" | "inline";
   /**
-   * Renders an inline tab strip on mobile (<768px) to avoid double-stacking
-   * under mobile sub-tab navigation bars, while preserving the sticky page-level
-   * tab strip on desktop.
+   * Whether a page-level tab strip sticks to the top on scroll. Defaults to true.
+   * Secondary page tab bars under a primary mobile tab nav automatically become non-sticky on mobile.
    */
-  mobileInline?: boolean;
+  sticky?: boolean;
   /**
    * When variant="page", removes top ApplicationPage padding and merges seamlessly with MobileNavbar.
    * Set to false when intentional header/KPI content sits above the tabs.
@@ -410,8 +412,8 @@ type TabsListProps = React.ComponentProps<typeof TabsPrimitive.List> & {
 function TabsList({
   className,
   children,
-  variant: variantProp = "page",
-  mobileInline = false,
+  variant = "page",
+  sticky = true,
   flush = true,
   trailing,
   moreLabel: moreLabelProp,
@@ -420,8 +422,6 @@ function TabsList({
   "aria-labelledby": ariaLabelledBy,
   ...props
 }: TabsListProps) {
-  const viewportMode = useViewportMode();
-  const variant = mobileInline && viewportMode === "mobile" ? "inline" : variantProp;
   const { activeValue, selectTab } = React.useContext(TabsContext);
   const moreLabel = useMoreLabel(moreLabelProp);
   const [moreOpen, setMoreOpen] = React.useState(false);
@@ -494,8 +494,13 @@ function TabsList({
       data-slot="tabs-list"
       data-tabs-variant={variant}
       data-sticky-tabs-bar={variant === "page" ? (flush ? "flush" : "inset") : undefined}
+      data-tabs-sticky={variant === "page" ? (sticky ? "true" : "false") : undefined}
       className={cn(
-        variant === "page" ? tabListStickyBarClassName : tabListClassName,
+        variant === "page"
+          ? sticky
+            ? tabListStickyBarClassName
+            : tabListPageBarClassName
+          : tabListClassName,
         className
       )}
     >
@@ -645,7 +650,9 @@ function TabNav({
   tabs,
   label,
   variant = "page",
+  sticky = true,
   flush = true,
+  primaryMobileNav = false,
   activeTone = "primary",
   trailing,
   moreLabel: moreLabelProp,
@@ -655,7 +662,9 @@ function TabNav({
   tabs: TabNavItem[];
   label?: string;
   variant?: "page" | "inline";
+  sticky?: boolean;
   flush?: boolean;
+  primaryMobileNav?: boolean;
   activeTone?: "primary" | "neutral";
   trailing?: React.ReactNode;
   moreLabel?: string;
@@ -722,8 +731,14 @@ function TabNav({
       data-slot="tabs-list"
       data-tabs-variant={variant}
       data-sticky-tabs-bar={variant === "page" ? (flush ? "flush" : "inset") : undefined}
+      data-tabs-sticky={variant === "page" ? (sticky ? "true" : "false") : undefined}
+      data-primary-mobile-tabs={primaryMobileNav ? "" : undefined}
       className={cn(
-        variant === "page" ? tabListStickyBarClassName : tabListClassName,
+        variant === "page"
+          ? sticky
+            ? tabListStickyBarClassName
+            : tabListPageBarClassName
+          : tabListClassName,
         className
       )}
       ref={navRef}
@@ -742,6 +757,9 @@ function TabNav({
               <Link
                 href={tab.href}
                 aria-current={tab.isActive ? "page" : undefined}
+                onClick={() => {
+                  if (!tab.isActive) void hapticSelection();
+                }}
                 className={cn(
                   tabTriggerClassName,
                   tab.isActive ? activeTriggerClass : "text-muted-foreground"
@@ -799,7 +817,10 @@ function TabNav({
                       <Link
                         href={tab.href}
                         aria-current={tab.isActive ? "page" : undefined}
-                        onClick={() => setMoreOpen(false)}
+                        onClick={() => {
+                          if (!tab.isActive) void hapticSelection();
+                          setMoreOpen(false);
+                        }}
                       >
                         {tab.icon}
                         <span>{tab.label}</span>
@@ -836,6 +857,7 @@ export {
   TabsContent,
   TabNav,
   tabListClassName,
+  tabListPageBarClassName,
   tabListStickyBarClassName,
   tabTriggerClassName,
   tabTriggerActiveClassName,

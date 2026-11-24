@@ -5,6 +5,7 @@ import { hasPeran } from "@/lib/auth/authorization";
 import { createOpsAiRuntimeResponse } from "@/lib/admin-ops-ai/runtime";
 import { z } from "zod";
 import { OPS_AI_POLICY_BOUNDS } from "@/lib/admin-ops-ai/contracts";
+import { isSameOriginAdminRequest } from "@/lib/admin-ops-ai/request-origin";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -36,9 +37,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const fetchSite = req.headers.get("sec-fetch-site");
-    const origin = req.headers.get("origin");
-    if ((fetchSite && fetchSite !== "same-origin") || (origin && origin !== new URL(req.url).origin)) {
+    if (!isSameOriginAdminRequest(req, h)) {
       return NextResponse.json({ error: "Buka chat dari halaman admin Zyx." }, { status: 403 });
     }
     const parsed = chatRequest.safeParse(await req.json().catch(() => null));

@@ -44,7 +44,7 @@ export function AnalyticsTab({
   return (
     <div className="space-y-(--related-gap)">
       {/* KPI Strip */}
-      <AdminStatStrip className="lg:grid-cols-4">
+      <AdminStatStrip>
         <AdminStatStripItem
           label={t("courseDetail.analytics.totalAttempts")}
           value={stats.totalAttempts}

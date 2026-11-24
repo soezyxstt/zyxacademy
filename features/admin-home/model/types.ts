@@ -40,6 +40,6 @@ export interface AdminHomeKpiCounts {
 
 export interface AdminHomeViewProps {
   failedJobs: number;
-  kpis: AdminHomeKpiCounts;
+  kpis?: AdminHomeKpiCounts;
   categories: AdminHomeCategory[];
 }

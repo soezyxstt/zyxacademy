@@ -9,6 +9,10 @@ import { MessageSquareText } from "lucide-react";
 import { ZyraFloatingPet } from "@/components/course/zyra-floating-pet";
 import { getTutorCapabilities } from "@/lib/tutor-capabilities";
 import { peekRestoredCameraPayload, ZYX_CAMERA_RESTORED_EVENT } from "@/lib/native/camera-recovery";
+import {
+  readPersistedZyraDrawerOpen,
+  savePersistedZyraDrawerOpen,
+} from "@/lib/zyra/drawer-persistence";
 import type { TutorMode } from "./tutor-drawer-view";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
@@ -198,6 +202,45 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setQuotedContext(null);
   }, []);
 
+  const [hydratedDrawerCourseId, setHydratedDrawerCourseId] = React.useState<string | null>(null);
+  const isAssessmentRoute = Boolean(
+    pathname &&
+      (pathname.includes("/quiz") ||
+        pathname.includes("/simulasi") ||
+        pathname.includes("/exam") ||
+        pathname.includes("/tryout")),
+  );
+  const canPersistDrawerOpen = Boolean(
+    experience.mode !== "demo" &&
+      courseIdFromPath &&
+      !isCourseDiscussion &&
+      !isAssessmentRoute &&
+      !pathname?.includes("/live/host") &&
+      !pathname?.endsWith("/daftar") &&
+      !suppressPet,
+  );
+
+  React.useEffect(() => {
+    if (suppressPet && isOpen) {
+      setIsOpen(false);
+    }
+  }, [isOpen, suppressPet]);
+
+  React.useEffect(() => {
+    if (!canPersistDrawerOpen || !courseIdFromPath) return;
+    if (hydratedDrawerCourseId === courseIdFromPath) return;
+    if (!isOpen && readPersistedZyraDrawerOpen(courseIdFromPath)) {
+      openChat();
+    }
+    setHydratedDrawerCourseId(courseIdFromPath);
+  }, [canPersistDrawerOpen, courseIdFromPath, hydratedDrawerCourseId, isOpen, openChat]);
+
+  React.useEffect(() => {
+    if (!canPersistDrawerOpen || !courseIdFromPath) return;
+    if (hydratedDrawerCourseId !== courseIdFromPath) return;
+    savePersistedZyraDrawerOpen(courseIdFromPath, isOpen && activeMode === "chat");
+  }, [activeMode, canPersistDrawerOpen, courseIdFromPath, hydratedDrawerCourseId, isOpen]);
+
   React.useEffect(() => {
     if (!courseIdFromPath) return;
     const reopenForRestoredPhoto = () => {
@@ -261,7 +304,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
         {(isOpen || hasOpened) && (
           <TutorAppearanceContext.Provider value={appearance}><ZyraWelcomeCopyGuard>
             <TutorDrawerView
-              isOpen={isOpen}
+              isOpen={isOpen && !suppressPet}
               onClose={close}
               activeMode={activeMode}
               setActiveMode={setActiveMode}

@@ -28,7 +28,6 @@ import { MathText } from "@/components/course/math-text";
 import { TutorQuestionOptionPreview } from "@/components/tutor/question-option-preview";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
-import { useViewportMode } from "@/hooks/use-viewport-mode";
 import {
   deleteQuizTemplateAction,
   toggleQuizTemplateStatusAction,
@@ -94,7 +93,6 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   const router = useRouter();
   const tr = useTranslations("tutor.quizList");
   const { locale } = useAppLocale();
-  const viewportMode = useViewportMode();
   const dateLocale = locale === "id" ? "id-ID" : "en-US";
   const [isPending, startTransition] = useTransition();
   const [questionPage, setQuestionPage] = useState(0);
@@ -301,7 +299,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   return (
     <div className="space-y-(--section-gap)">
       <Tabs defaultValue="templates" className="w-full">
-        <TabsList variant={viewportMode === "mobile" ? "inline" : "page"} flush={false}>
+        <TabsList>
           <TabsTrigger value="templates">
             <ClipboardList className="size-4 mr-2" />
             {tr("quizzes")}

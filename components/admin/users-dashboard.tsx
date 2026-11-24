@@ -4,19 +4,12 @@ import Image from "next/image";
 
 import { useState, useEffect, useRef, useTransition } from "react";
 import {
-  Users,
   ShieldCheck,
-  GraduationCap,
-  BookOpen,
   RotateCcw,
   UserCog,
   ShieldAlert,
   MoreHorizontal,
 } from "lucide-react";
-import {
-  AdminStatStrip,
-  AdminStatStripItem,
-} from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
@@ -47,7 +40,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import {
@@ -99,13 +92,11 @@ function UserAvatar({ name, image }: { name: string; image: string | null }) {
 
 export function UsersDashboard({
   initialUsers,
-  initialStats,
   initialTotal,
   currentUserId,
 }: UsersDashboardProps) {
   const t = useTranslations("adminOps");
   const [users, setUsers] = useState<AdminUserItem[]>(initialUsers);
-  const [stats, setStats] = useState<AdminUserStats>(initialStats);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -131,7 +122,6 @@ export function UsersDashboard({
             return;
           }
           setUsers(result.users);
-          setStats(result.stats);
           setTotal(result.total);
           setLoadedKey(requestKey);
         },
@@ -218,40 +208,6 @@ export function UsersDashboard({
 
   return (
     <div className="space-y-4 font-sans text-left">
-      {/* Grouped KPI Strip */}
-      <AdminStatStrip className="grid-cols-2 md:grid-cols-5">
-        <AdminStatStripItem
-          label={t("usersUI.total")}
-          value={stats.totalUsers}
-          icon={Users}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={t("usersUI.admins")}
-          value={stats.adminCount}
-          icon={ShieldCheck}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={t("usersUI.tutors")}
-          value={stats.tutorCount}
-          icon={GraduationCap}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={t("usersUI.students")}
-          value={stats.muridCount}
-          icon={BookOpen}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={t("usersUI.suspended")}
-          value={stats.suspendedCount}
-          icon={ShieldAlert}
-          tone={stats.suspendedCount > 0 ? "warning" : "default"}
-        />
-      </AdminStatStrip>
-
       {/* Inline Responsive Filter Toolbar */}
       <div className="flex flex-wrap items-center gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true])]:hidden">
         <SearchBar

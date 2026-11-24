@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { useSwipe } from "@/hooks/use-swipe";
+import { hapticLight } from "@/lib/native/haptics";
 import {
   hasOpenSidebarOverlay,
   MOBILE_SIDEBAR_QUERY,
@@ -69,12 +70,14 @@ export function MobileSidebarController() {
       if (!isMobileViewport()) return;
       const edge = Math.max(60, window.innerWidth * 0.15);
       if (!openRef.current && startX <= edge) {
+        void hapticLight();
         open();
         window.dispatchEvent(new CustomEvent("zyx:open-mobile-sidebar"));
       }
     },
     onSwipeLeft: () => {
       if (!isMobileViewport() || !openRef.current || hasOpenSidebarOverlay()) return;
+      void hapticLight();
       close();
       window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
     },

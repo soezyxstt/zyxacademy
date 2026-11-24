@@ -29,6 +29,7 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 import { SearchBar } from "@/components/ui/search-bar";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { CourseCombobox } from "@/components/admin/course-combobox";
 import {
@@ -165,36 +166,26 @@ function AdminLeaderboardContent({
         />
       )}
 
-      {/* KPI Stats Bar */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg border border-border bg-card/60 px-3.5 py-2 text-body-xs shadow-2xs">
-        <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground">{isOverview ? tx("uniqueStudents") : tx("rankedStudents")}</span>
-          <span className="font-bold tabular-nums text-foreground">
-            {summary.totalStudents}
-          </span>
-        </div>
-        <span className="text-border hidden sm:inline">&bull;</span>
-        <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground">{tx("totalAttempts")}</span>
-          <span className="font-bold tabular-nums text-foreground">
-            {summary.totalAttempts}
-          </span>
-        </div>
-        <span className="text-border hidden sm:inline">&bull;</span>
-        <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground">{tx("averageScore")}</span>
-          <span className="font-bold tabular-nums text-brand-primary">
-            {summary.avgOverallScore}%
-          </span>
-        </div>
-        <span className="text-border hidden sm:inline">&bull;</span>
-        <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground">{tx("highestScore")}</span>
-          <span className="font-bold tabular-nums text-status-success">
-            {summary.highestScore}
-          </span>
-        </div>
-      </div>
+      <AdminStatStrip>
+        <AdminStatStripItem
+          label={isOverview ? tx("uniqueStudents") : tx("rankedStudents")}
+          value={summary.totalStudents}
+        />
+        <AdminStatStripItem
+          label={tx("totalAttempts")}
+          value={summary.totalAttempts}
+        />
+        <AdminStatStripItem
+          label={tx("averageScore")}
+          value={`${summary.avgOverallScore}%`}
+          tone="brand"
+        />
+        <AdminStatStripItem
+          label={tx("highestScore")}
+          value={summary.highestScore}
+          tone="success"
+        />
+      </AdminStatStrip>
 
 
       {/* Toolbar: single row on desktop, wraps near 380px */}

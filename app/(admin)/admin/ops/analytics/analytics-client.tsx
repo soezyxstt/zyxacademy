@@ -155,7 +155,7 @@ export function AiAnalyticsClient() {
         </div>
       </div>
 
-      <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
+      <AdminStatStrip>
         <AdminStatStripItem
           label={t("analyticsUI.totalRequests")}
           value={stats.totalRequests.toLocaleString(locale === "id" ? "id-ID" : "en-US")}

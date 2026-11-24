@@ -82,24 +82,24 @@ export function CitationCards({ citations }: CitationCardsProps) {
                           {cite.title}
                         </span>
 
-                        <span className="text-[10px] font-mono text-muted-foreground bg-muted/60 px-1 py-0.2 rounded-sm">
+                        <span className="text-body-2xs font-mono text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-sm">
                           {provLabel}
                         </span>
 
                         {cite.filePath && (
-                          <span className="text-[10px] font-mono text-muted-foreground">
+                          <span className="text-body-2xs font-mono text-muted-foreground">
                             {cite.filePath}
                           </span>
                         )}
 
                         {cite.section && (
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-body-2xs text-muted-foreground">
                             › {cite.section}
                           </span>
                         )}
 
                         {typeof cite.score === "number" && (
-                          <span className="text-[10px] font-mono text-muted-foreground/70">
+                          <span className="text-body-2xs font-mono text-muted-foreground/70">
                             ({Math.round(cite.score * 100)}%)
                           </span>
                         )}

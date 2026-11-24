@@ -19,7 +19,7 @@ export function WebAnalyticsOverview({ metrics }: { metrics: AnalyticsDashboardD
 
   return (
     <div className="min-w-0 space-y-8 md:space-y-10">
-      <AdminStatStrip className="sm:grid-cols-3">
+      <AdminStatStrip>
         <AdminStatStripItem icon={Eye} label={t("views")} value={number.format(metrics.summary.views)} />
         <AdminStatStripItem icon={Users} label={t("activeUsers")} value={number.format(metrics.summary.activeUsers)} />
         <AdminStatStripItem icon={MousePointerClick} label={t("sessions")} value={number.format(metrics.summary.sessions)} />

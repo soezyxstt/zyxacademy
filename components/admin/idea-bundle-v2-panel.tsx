@@ -241,7 +241,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
         <section className="space-y-5">
           <AdminSectionTitle as="h2" size="h6" title="Review isi Idea" description="Identitas, sumber, dan bukti terkunci." right={<Badge variant="outline">Belum disimpan</Badge>} />
 
-          <AdminStatStrip className="sm:grid-cols-2 lg:grid-cols-4">
+          <AdminStatStrip>
             <AdminStatStripItem label="Mata kuliah" value={courseLabels[analysis.manifest.courseId] ?? analysis.manifest.courseId} />
             <AdminStatStripItem label="Isi" value={`${analysis.draft.ideas.length} Idea`} />
             <AdminStatStripItem label="Sumber" value={`${analysis.preview.summary.sourceCount} sumber`} />
@@ -249,7 +249,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
           </AdminStatStrip>
 
           <Tabs value={analysisTab} onValueChange={(value) => setAnalysisTab(value as "ideas" | "relations")}>
-            <TabsList mobileInline flush={false}>
+            <TabsList flush={false}>
               <TabsTrigger value="ideas">Idea</TabsTrigger>
               <TabsTrigger value="relations">Peta relasi</TabsTrigger>
             </TabsList>

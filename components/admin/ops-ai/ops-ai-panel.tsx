@@ -8,15 +8,29 @@ import {
   X,
   Loader2,
   Trash2,
-  Bot,
+  SquareTerminal,
   Copy,
   Check,
   Square,
   ChevronDown,
+  ChevronRight,
   Plus,
   MessageSquare,
   Maximize2,
   Minimize2,
+  CircleHelp,
+  Compass,
+  LayoutTemplate,
+  BarChart3,
+  UserCheck,
+  BookOpenCheck,
+  KeyRound,
+  Layers,
+  ClipboardList,
+  FileText,
+  CalendarClock,
+  LayoutGrid,
+  RotateCcw,
 } from "lucide-react";
 import { useOpsAiContext } from "./ops-ai-context";
 import {
@@ -40,6 +54,13 @@ import { WorkTraceView } from "./work-trace-view";
 import { CitationCards } from "./citation-cards";
 import { ActionProposalCard } from "./action-proposal-card";
 import { QuickActionsBar, extractQuickActions } from "./quick-actions-bar";
+import {
+  CAPABILITY_OVERVIEW_PRESET,
+  OPS_AI_PRESETS,
+  getAdminRouteContext,
+  type OpsAiPreset,
+  type OpsAiPresetIcon,
+} from "./ops-ai-presets";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -47,17 +68,38 @@ import { useOpsAiChat } from "./use-ops-ai-chat";
 import { OPS_AI_POLICY_BOUNDS } from "@/lib/admin-ops-ai/contracts";
 import { ZyraComposerInput, type ZyraComposerInputHandle } from "@/components/course/zyra-composer-input";
 import { ZyraChatComposer, ZyraChatHeader, ZyraChatHistory, ZyraSendButton } from "@/components/course/zyra-chat-frame";
-import { TutorAssistantLabel, TutorAssistantSurface, TutorStudentMessage } from "@/components/course/tutor-message-frame";
+import { TutorAssistantSurface, TutorStudentMessage } from "@/components/course/tutor-message-frame";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const DEFAULT_SUGGESTIONS = [
-  "Jelaskan fitur dan fungsi halaman ini",
-  "Bagaimana format token aktivasi di Zyx Academy?",
-  "Cek status feature flags yang sedang aktif",
-  "Buatkan token aktivasi untuk kelompok 5 orang",
-  "Bagaimana prosedur darurat rollback cache?",
-];
+type PresetFilter = "all" | "ask" | "action";
+
+function PresetIcon({ icon, className }: { icon: OpsAiPresetIcon; className?: string }) {
+  const cls = cn("size-4 shrink-0", className);
+  switch (icon) {
+    case "compass":
+      return <Compass className={cls} aria-hidden="true" />;
+    case "layout":
+      return <LayoutTemplate className={cls} aria-hidden="true" />;
+    case "analytics":
+      return <BarChart3 className={cls} aria-hidden="true" />;
+    case "user-check":
+      return <UserCheck className={cls} aria-hidden="true" />;
+    case "book-check":
+      return <BookOpenCheck className={cls} aria-hidden="true" />;
+    case "key":
+      return <KeyRound className={cls} aria-hidden="true" />;
+    case "layers":
+      return <Layers className={cls} aria-hidden="true" />;
+    case "form":
+      return <ClipboardList className={cls} aria-hidden="true" />;
+    case "article":
+      return <FileText className={cls} aria-hidden="true" />;
+    case "calendar":
+      return <CalendarClock className={cls} aria-hidden="true" />;
+  }
+}
 
 export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: OpsAiMessageV2[]; accountId?: string } = {}) {
   const {
@@ -81,16 +123,22 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isVisible, setIsVisible] = useState(typeof window === "undefined" ? isOpen : false);
+  const [isFullWidth, setIsFullWidth] = useState(false);
   const [showSessionsDropdown, setShowSessionsDropdown] = useState(false);
+  const [showPresetsPopover, setShowPresetsPopover] = useState(false);
+  const [presetFilter, setPresetFilter] = useState<PresetFilter>("all");
+  const [chatMode, setChatMode] = useState<"ask" | "edit">("edit");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const sessionsMenuRef = useRef<HTMLDivElement>(null);
 
   const pathname = usePathname();
   const tab = useSearchParams()?.get("tab");
+  const { routePreset } = getAdminRouteContext(pathname);
   const { messages, setMessages, input, setInput, isStreaming, stop, sendMessage } = useOpsAiChat({
     initialMessages,
     context: {
       currentPath: pathname || "/admin",
-      mode: "edit",
+      mode: chatMode,
       ...(tab && /^[\w-]{1,80}$/.test(tab) ? { queryParams: { tab } } : {}),
     },
   });
@@ -217,10 +265,34 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
 
   // Internal container auto-scroll: Strictly scrolls drawer without moving outer page
   useEffect(() => {
-    if (isOpen && scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    const el = scrollContainerRef.current;
+    if (!isOpen || !el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom < 140 || messages.length <= 2) {
+      el.scrollTop = el.scrollHeight;
     }
   }, [messages, isOpen, isStreaming]);
+
+  // Dismiss session dropdown on outside click or Escape
+  useEffect(() => {
+    if (!showSessionsDropdown) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (sessionsMenuRef.current && !sessionsMenuRef.current.contains(event.target as Node)) {
+        setShowSessionsDropdown(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowSessionsDropdown(false);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showSessionsDropdown]);
 
   // Focus textarea when panel opens without causing mobile horizontal page shift
   useEffect(() => {
@@ -230,10 +302,20 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
     }
   }, [isOpen, showSessionsDropdown]);
 
-  // Mobile focus trap
+  // Lock background page scroll when desktop panel is expanded to full width
+  useEffect(() => {
+    if (typeof document === "undefined" || !isOpen || !isDesktop || !isFullWidth) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, isDesktop, isFullWidth]);
+
+  // Mobile and full-width focus trap
   const handleKeyDownTrap = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key !== "Tab" || isDesktop) return;
+      if (e.key !== "Tab" || (isDesktop && !isFullWidth)) return;
 
       const container = panelRef.current;
       if (!container) return;
@@ -261,7 +343,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
         }
       }
     },
-    [isDesktop]
+    [isDesktop, isFullWidth]
   );
 
   // Keyboard resize for accessibility (separator role)
@@ -464,11 +546,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
   };
 
   const handleToggleExpandWidth = () => {
-    if (width >= maxWidth - 20) {
-      setWidth(OPS_AI_DEFAULT_WIDTH);
-    } else {
-      setWidth(maxWidth);
-    }
+    setIsFullWidth((prev) => !prev);
   };
 
   const handleCopyMessage = (id: string, text: string) => {
@@ -480,7 +558,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
     }
   };
 
-  const handleSendMessage = (textToSend?: string) => {
+  const handleSendMessage = (textToSend?: string, modeOverride?: "ask" | "edit") => {
     const query = (textToSend ?? input).trim();
     if (!query || isStreaming || approvalPending.current || revoking || query.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength) return;
     let chatId = activeSessionId;
@@ -490,8 +568,17 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
       setActiveSessionId(chatId);
       setSessions(loadOpsAiSessions(accountId));
     }
+    const effectiveMode = modeOverride ?? chatMode;
+    if (modeOverride && modeOverride !== chatMode) {
+      setChatMode(modeOverride);
+    }
     const grantIds = activeGrants.filter(grant => grant.until > Date.now()).map(grant => grant.id);
-    void sendMessage(query, { chatId, grantIds });
+    void sendMessage(query, { chatId, grantIds, mode: effectiveMode });
+  };
+
+  const handleSelectPreset = (preset: OpsAiPreset) => {
+    setShowPresetsPopover(false);
+    handleSendMessage(preset.prompt, preset.recommendedMode);
   };
 
   const handleRevokeGrants = async () => {
@@ -521,6 +608,14 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
       ? currentSession.title
       : messages.find(message => message.role === "user")?.content.trim().slice(0, 48) || "Zyx Ops AI";
 
+  const combinedPresets = routePreset
+    ? [routePreset, ...OPS_AI_PRESETS.filter((item) => item.id !== routePreset.id)]
+    : OPS_AI_PRESETS;
+  const visiblePresets =
+    presetFilter === "all"
+      ? combinedPresets.slice(0, 6)
+      : combinedPresets.filter((item) => item.category === presetFilter);
+
   return (
     <>
       {/* Mobile Backdrop Overlay */}
@@ -534,37 +629,38 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
         aria-hidden="true"
       />
 
-      {/* Main Panel Container: Cloudflare Style Layout */}
+      {/* Main Panel Container */}
       <aside
         ref={panelRef}
         id="ops-ai-panel"
         role="complementary"
         aria-label="Zyx Ops AI Assistant"
         data-state={isVisible ? "open" : "closed"}
+        data-full-width={isFullWidth ? "true" : "false"}
         suppressHydrationWarning
         onKeyDown={handleKeyDownTrap}
         style={{
           "--ops-ai-width": `${width}px`,
-          width: mounted && isDesktop ? (isVisible ? `${width}px` : "0px") : undefined,
+          width: mounted && isDesktop && !isFullWidth ? (isVisible ? `${width}px` : "0px") : undefined,
         } as React.CSSProperties}
         className={cn(
-          "flex flex-col overflow-hidden border-l border-border bg-background select-text relative min-w-0",
-          "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
+          "flex flex-col overflow-hidden border-border bg-background select-text relative min-w-0",
           "transition-[transform,width,opacity,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-          "fixed inset-y-0 right-0 left-4 z-50 sm:left-auto sm:w-[480px] shadow-2xl top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
-          "lg:sticky lg:self-start lg:shrink-0 lg:z-40 lg:shadow-none",
+          "fixed inset-y-0 left-0 right-0 z-50 w-full top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
+          !isFullWidth && "sm:border-l sm:left-auto sm:w-[480px] sm:shadow-2xl lg:sticky lg:self-start lg:shrink-0 lg:z-40 lg:shadow-none",
           isVisible
             ? "translate-x-0 opacity-100"
-            : "translate-x-full opacity-0 pointer-events-none lg:translate-x-0 lg:border-l-transparent"
+            : cn("translate-x-full opacity-0 pointer-events-none", !isFullWidth && "lg:translate-x-0 lg:border-l-transparent")
         )}
       >
         <div
           className={cn(
-            "relative flex h-full min-h-0 w-full flex-col lg:min-w-[var(--ops-ai-width)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-            isVisible ? "lg:translate-x-0" : "lg:translate-x-4"
+            "relative flex h-full min-h-0 w-full flex-col transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+            !isFullWidth && "lg:min-w-[var(--ops-ai-width)]",
+            !isFullWidth && (isVisible ? "lg:translate-x-0" : "lg:translate-x-4")
           )}
         >
-        {/* Resize Handle: Desktop & Tablet with wide 24px hit area */}
+        {/* Resize Handle: Desktop & Tablet with wide hit area */}
         <div
           role="separator"
           tabIndex={0}
@@ -574,43 +670,57 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
           aria-valuemin={OPS_AI_MIN_WIDTH}
           aria-valuemax={maxWidth}
           suppressHydrationWarning
+          onDoubleClick={handleToggleExpandWidth}
           onKeyDown={handleKeyDownResize}
           onPointerDown={handlePointerDownResize}
           style={{ touchAction: "none" }}
-          className="flex absolute left-0 inset-y-0 w-3.5 cursor-col-resize items-center justify-center group select-none z-50 hover:bg-primary/5 active:bg-primary/10 transition-colors"
+          className={cn(
+            "hidden sm:flex absolute left-0 inset-y-0 w-3.5 cursor-col-resize items-center justify-center group select-none z-50 hover:bg-primary/5 active:bg-primary/10 transition-colors",
+            isFullWidth && "lg:hidden"
+          )}
         >
           <div
             className="w-1 h-16 rounded-full bg-border/90 transition-all duration-150 flex items-center justify-center group-hover:bg-primary group-hover:w-1.5 group-focus-visible:bg-primary group-focus-visible:w-1.5 active:bg-primary active:w-1.5"
           />
         </div>
 
-        {/* 1. Header: Cloudflare Style (Title Dropdown + Minimal Action Icons) */}
+        {/* 1. Header */}
         <ZyraChatHeader>
           {/* Left: Session Dropdown Selector */}
-          <div className="relative min-w-0 flex-1">
+          <div ref={sessionsMenuRef} className="relative min-w-0 flex-1">
             <button
               type="button"
               onClick={() => setShowSessionsDropdown((prev) => !prev)}
               aria-expanded={showSessionsDropdown}
               aria-label="Daftar riwayat sesi"
-              className="flex items-center gap-1.5 text-left text-body-sm font-semibold text-foreground hover:text-primary transition-colors cursor-pointer truncate max-w-full group"
+              className="flex items-center gap-2 text-left text-body-sm font-semibold text-foreground hover:text-primary transition-colors cursor-pointer truncate max-w-full group rounded-md py-0.5 pr-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <span className="truncate max-w-[240px]">{activeTitle}</span>
-              <ChevronDown className="size-3.5 text-muted-foreground group-hover:text-primary transition-transform shrink-0" />
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <SquareTerminal className="size-3.5" aria-hidden="true" />
+              </span>
+              <span className="truncate max-w-[220px]">{activeTitle}</span>
+              <ChevronDown
+                className={cn(
+                  "size-3.5 text-muted-foreground group-hover:text-primary transition-transform shrink-0",
+                  showSessionsDropdown && "rotate-180"
+                )}
+                aria-hidden="true"
+              />
             </button>
 
             {/* Session Dropdown Menu */}
             {showSessionsDropdown && (
-              <div className="absolute top-full left-0 mt-1 w-[min(320px,calc(100vw-2rem))] rounded-xl border border-border bg-background shadow-xl p-2 z-50 space-y-1">
-                <div className="flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  <span>Daftar Sesi ({sessions.length})</span>
+              <div className="absolute top-full left-0 mt-1.5 w-[min(320px,calc(100vw-2rem))] rounded-xl border border-border bg-popover text-popover-foreground shadow-lg p-2 z-50 space-y-1.5">
+                <div className="flex items-center justify-between px-2 py-1 text-body-xs font-semibold text-muted-foreground">
+                  <span>Riwayat sesi ({sessions.length})</span>
                   <button
                     type="button"
-                    onClick={handleCreateNewSession} disabled={isApproving}
+                    onClick={handleCreateNewSession}
+                    disabled={isApproving}
                     aria-label="Percakapan baru"
-                    className="text-primary hover:underline text-[11px] font-medium cursor-pointer"
+                    className="text-primary hover:underline text-body-xs font-medium cursor-pointer"
                   >
-                    + Sesi Baru
+                    + Sesi baru
                   </button>
                 </div>
 
@@ -626,28 +736,35 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                         <div
                           key={sess.id}
                           className={cn(
-                            "flex items-center justify-between gap-2 p-2 rounded-lg text-body-xs cursor-pointer transition-colors",
+                            "flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg text-body-xs transition-colors",
                             isActive
                               ? "bg-primary/10 text-primary font-semibold"
                               : "hover:bg-muted text-foreground"
                           )}
                         >
-                          <button type="button" onClick={() => handleSwitchSession(sess)} disabled={isApproving} aria-current={isActive ? "true" : undefined} className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-body-sm">
-                            <MessageSquare className="size-3 shrink-0 opacity-70" aria-hidden="true" />
+                          <button
+                            type="button"
+                            onClick={() => handleSwitchSession(sess)}
+                            disabled={isApproving}
+                            aria-current={isActive ? "true" : undefined}
+                            className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-body-sm cursor-pointer"
+                          >
+                            <MessageSquare className="size-3.5 shrink-0 opacity-70" aria-hidden="true" />
                             <span className="truncate">{sess.title || "Percakapan baru"}</span>
                           </button>
 
                           <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-[10px] text-muted-foreground font-mono">
+                            <span className="text-body-2xs text-muted-foreground font-mono">
                               {sess.messages.length}
                             </span>
                             <button
                               type="button"
-                              onClick={(e) => handleDeleteSession(e, sess.id)} disabled={isApproving}
+                              onClick={(e) => handleDeleteSession(e, sess.id)}
+                              disabled={isApproving}
                               aria-label={`Hapus sesi ${sess.title}`}
-                              className="size-6 inline-flex items-center justify-center text-muted-foreground hover:text-destructive rounded-sm"
+                              className="size-6 inline-flex items-center justify-center text-muted-foreground hover:text-destructive rounded-md cursor-pointer"
                             >
-                              <Trash2 className="size-3" />
+                              <Trash2 className="size-3" aria-hidden="true" />
                             </button>
                           </div>
                         </div>
@@ -657,22 +774,24 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                 </div>
 
                 {sessions.length > 0 && (
-                  <div className="pt-1 border-t border-border/50 flex justify-between px-1">
+                  <div className="pt-1.5 border-t border-border/60 flex justify-between px-1">
                     <button
                       type="button"
-                      onClick={handleClearAllSessions} disabled={isApproving}
-                      className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer"
+                      onClick={handleClearAllSessions}
+                      disabled={isApproving}
+                      className="text-body-xs text-muted-foreground hover:text-destructive cursor-pointer"
                     >
-                      Hapus Semua Sesi
+                      Hapus semua sesi
                     </button>
                     {messages.length > 0 && (
                       <button
                         type="button"
-                        onClick={handleClearActiveHistory} disabled={isApproving}
+                        onClick={handleClearActiveHistory}
+                        disabled={isApproving}
                         aria-label="Bersihkan riwayat percakapan"
-                        className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer"
+                        className="text-body-xs text-muted-foreground hover:text-destructive cursor-pointer"
                       >
-                        Bersihkan Chat Ini
+                        Bersihkan chat ini
                       </button>
                     )}
                   </div>
@@ -681,31 +800,55 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
             )}
           </div>
 
-          {/* Right: Cloudflare Minimal Action Buttons */}
+          {/* Right: Action Buttons */}
           <div className="flex items-center gap-1 shrink-0">
+            {/* Help Popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Bantuan Zyx Ops AI"
+                  title="Bantuan Zyx Ops AI"
+                  className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <CircleHelp className="size-4" aria-hidden="true" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 p-3 space-y-2 text-body-xs">
+                <p className="font-heading text-body-sm font-bold text-foreground">Cara pakai Zyx Ops AI</p>
+                <ul className="space-y-1.5 text-body-xs text-muted-foreground list-disc pl-4">
+                  <li>Gunakan mode <span className="font-medium text-foreground">Tanya</span> untuk memeriksa data, SOP, dan fitur tanpa mengubah data.</li>
+                  <li>Gunakan mode <span className="font-medium text-foreground">Aksi</span> untuk menyiapkan perubahan seperti token, bab, formulir, jadwal, atau blog.</li>
+                  <li>Setiap perubahan data selalu menampilkan kartu persetujuan sebelum dijalankan.</li>
+                </ul>
+              </PopoverContent>
+            </Popover>
+
             {/* New Chat Button */}
             <button
               type="button"
-              onClick={handleCreateNewSession} disabled={isApproving}
+              onClick={handleCreateNewSession}
+              disabled={isApproving}
               aria-label="Percakapan baru"
               title="Percakapan baru"
               className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
-              <Plus className="size-4" />
+              <Plus className="size-4" aria-hidden="true" />
             </button>
 
             {/* Expand / Maximize Button (Desktop only) */}
             <button
               type="button"
               onClick={handleToggleExpandWidth}
-              aria-label="Ubah lebar panel"
-              title="Ubah lebar panel"
+              aria-label={isFullWidth ? "Kembalikan lebar panel" : "Perbesar ke layar penuh"}
+              aria-pressed={isFullWidth}
+              title={isFullWidth ? "Kembalikan lebar panel" : "Perbesar ke layar penuh"}
               className="hidden lg:inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
-              {width >= maxWidth - 20 ? (
-                <Minimize2 className="size-3.5" />
+              {isFullWidth ? (
+                <Minimize2 className="size-3.5" aria-hidden="true" />
               ) : (
-                <Maximize2 className="size-3.5" />
+                <Maximize2 className="size-3.5" aria-hidden="true" />
               )}
             </button>
 
@@ -717,7 +860,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
               title="Ciutkan panel"
               className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
-              <X className="size-4" />
+              <X className="size-4" aria-hidden="true" />
             </button>
 
             {/* Dedicated accessible close button for test contracts */}
@@ -732,31 +875,102 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
           </div>
         </ZyraChatHeader>
 
-        {/* 2. Conversation Flow: Natural Stream Without Heavy Card Wrapper */}
+        {/* 2. Conversation Flow */}
         <ZyraChatHistory ref={scrollContainerRef} aria-label="Riwayat percakapan">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-2 py-12 space-y-4">
-              <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Bot className="size-5" />
-              </div>
-              <div>
-                <h4 className="font-heading text-body-base font-bold text-foreground">
-                  Zyx Ops AI
-                </h4>
-              </div>
+            <div className="flex flex-col gap-3">
+              {/* Featured Capability Discovery Preset */}
+              <button
+                type="button"
+                onClick={() => handleSelectPreset(CAPABILITY_OVERVIEW_PRESET)}
+                className="group w-full flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-3 text-left transition-colors hover:border-primary/60 hover:bg-primary/10 cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                    <Compass className="size-4" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <span className="block font-heading text-body-base font-bold text-foreground">
+                      {CAPABILITY_OVERVIEW_PRESET.label}
+                    </span>
+                    <span className="block text-body-xs text-muted-foreground">
+                      Lihat daftar pertanyaan dan aksi yang tersedia
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="size-4 shrink-0 text-primary/70 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              </button>
 
-              {/* Suggestions */}
-              <div className="w-full space-y-1.5 pt-4 text-left">
-                {DEFAULT_SUGGESTIONS.map((sug, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => handleSendMessage(sug)}
-                    className="w-full text-left rounded-xl border border-border/70 bg-background/80 p-2.5 text-body-sm text-foreground/90 transition-colors hover:border-primary/50 hover:bg-primary/5 cursor-pointer shadow-2xs"
+              {/* Filterable Interactive Presets */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div
+                    role="group"
+                    aria-label="Filter kategori preset"
+                    className="inline-flex items-center gap-1 rounded-lg bg-muted/70 p-0.5"
                   >
-                    {sug}
-                  </button>
-                ))}
+                    {(
+                      [
+                        { key: "all", label: "Semua" },
+                        { key: "ask", label: "Tanya" },
+                        { key: "action", label: "Aksi" },
+                      ] as const
+                    ).map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        aria-pressed={presetFilter === item.key}
+                        onClick={() => setPresetFilter(item.key)}
+                        className={cn(
+                          "rounded-md px-2.5 py-1 text-body-xs font-medium transition-colors cursor-pointer",
+                          presetFilter === item.key
+                            ? "bg-background text-foreground shadow-2xs"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="divide-y divide-border/60 rounded-xl border border-border/80 bg-card overflow-hidden">
+                  {visiblePresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleSelectPreset(preset)}
+                      className="group w-full flex items-center justify-between gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted/50 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <PresetIcon
+                          icon={preset.icon}
+                          className={cn(
+                            preset.category === "action"
+                              ? "text-primary"
+                              : "text-muted-foreground group-hover:text-foreground"
+                          )}
+                        />
+                        <span className="text-body-sm text-foreground leading-snug break-words">
+                          {preset.label}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={cn(
+                            "rounded-md px-1.5 py-0.5 text-body-2xs font-medium",
+                            preset.category === "action"
+                              ? "bg-primary/10 text-primary"
+                              : "bg-muted text-muted-foreground"
+                          )}
+                        >
+                          {preset.category === "action" ? "Aksi" : "Tanya"}
+                        </span>
+                        <ChevronRight className="size-3.5 text-muted-foreground/70 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden="true" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
@@ -771,12 +985,25 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                 );
               }
 
+              const precedingUserMessage = messages
+                .slice(0, index)
+                .reverse()
+                .find((item) => item.role === "user");
+
               return (
                 <div key={msg.id || index} className="space-y-2 select-text">
                   <TutorAssistantSurface>
-                    <TutorAssistantLabel label="Zyx Ops AI" />
+                    <div className="flex items-center gap-2">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <SquareTerminal className="size-3.5" aria-hidden="true" />
+                      </span>
+                      <span className="font-heading text-body-xs font-bold text-foreground">
+                        Zyx Ops AI
+                      </span>
+                    </div>
+
                     {msg.workSteps && msg.workSteps.length > 0 && <WorkTraceView steps={msg.workSteps} />}
-                    {/* Message Content Flow (Natural typography, no heavy outer card) */}
+
                     {(() => {
                       const { cleanedContent, quickActions } = extractQuickActions(msg.content);
                       const isLatestAssistant = index === messages.length - 1;
@@ -789,7 +1016,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                             </div>
                           ) : isStreaming && isLatestAssistant ? (
                             <div role="status" className="flex items-center gap-2 py-1 text-body-xs text-muted-foreground">
-                              <Loader2 className="size-3 animate-spin text-primary" />
+                              <Loader2 className="size-3.5 animate-spin text-primary" aria-hidden="true" />
                               <span>Menyiapkan respons</span>
                             </div>
                           ) : null}
@@ -807,9 +1034,21 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                     })()}
 
                     {msg.error && msg.content !== `Terjadi kendala: ${msg.error.message}` && (
-                      <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/5 p-2 text-body-xs text-destructive">
-                        {msg.error.message}
-                      </p>
+                      <div role="alert" className="flex items-center justify-between gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-body-xs text-destructive">
+                        <span className="min-w-0 break-words">{msg.error.message}</span>
+                        {precedingUserMessage && !isStreaming && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSendMessage(precedingUserMessage.content)}
+                            className="h-7 shrink-0 rounded-md px-2 text-body-xs"
+                          >
+                            <RotateCcw className="size-3" aria-hidden="true" />
+                            <span>Coba lagi</span>
+                          </Button>
+                        )}
+                      </div>
                     )}
 
                     {/* Official Grounded Citations (In-line bottom) */}
@@ -867,16 +1106,16 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
                           onClick={() => handleCopyMessage(msg.id, msg.content)}
                           aria-label="Salin jawaban"
                           title="Salin jawaban"
-                          className="inline-flex items-center gap-1 text-[11px] hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded-md hover:bg-muted"
+                          className="inline-flex items-center gap-1 text-body-xs hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded-md hover:bg-muted"
                         >
                           {copiedId === msg.id ? (
                             <>
-                              <Check className="size-3 text-emerald-500" />
+                              <Check className="size-3 text-status-success" aria-hidden="true" />
                               <span>Tersalin</span>
                             </>
                           ) : (
                             <>
-                              <Copy className="size-3" />
+                              <Copy className="size-3" aria-hidden="true" />
                               <span>Salin</span>
                             </>
                           )}
@@ -897,30 +1136,116 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
             onChange={setInput}
             onSubmit={() => handleSendMessage()}
             disabled={isStreaming || revoking || isApproving}
-            placeholder="Tanyakan atau minta aksi admin"
+            placeholder={
+              chatMode === "ask"
+                ? "Tanyakan data, SOP, atau fitur halaman ini"
+                : "Tanyakan atau minta aksi admin"
+            }
             aria-label="Ketik pesan untuk Zyx Ops AI"
           />
           {input.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength && (
             <p role="status" className="px-1 text-body-xs text-destructive">Pesan maksimal {OPS_AI_POLICY_BOUNDS.maxMessageCharLength} karakter.</p>
           )}
-          <div className="flex items-center justify-end gap-2 pt-1">
-            {activeGrants.length > 0 && (
-              <Button type="button" size="sm" variant="ghost" disabled={isStreaming || revoking || isApproving} onClick={() => void handleRevokeGrants()}>
-                Akhiri izin chat
-              </Button>
-            )}
-            {isStreaming ? (
-              <TooltipProvider><Tooltip>
-                <TooltipTrigger asChild>
-                  <Button type="button" size="icon-xs" variant="outline" onClick={stop} aria-label="Hentikan respons" className="size-8">
-                    <Square className="size-3 fill-current" aria-hidden="true" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Hentikan respons</TooltipContent>
-              </Tooltip></TooltipProvider>
-            ) : (
-              <ZyraSendButton label="Kirim pesan" onClick={() => handleSendMessage()} disabled={revoking || isApproving || !input.trim() || input.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength} />
-            )}
+          <div className="flex items-center justify-between gap-2 pt-1.5">
+            {/* Left controls: Mode toggle + Mid-chat Preset Launcher */}
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div
+                role="group"
+                aria-label="Mode percakapan"
+                className="inline-flex items-center gap-0.5 rounded-lg border border-border/70 bg-muted/50 p-0.5"
+              >
+                <button
+                  type="button"
+                  aria-pressed={chatMode === "edit"}
+                  disabled={isStreaming}
+                  onClick={() => setChatMode("edit")}
+                  className={cn(
+                    "rounded-md px-2 py-0.5 text-body-xs font-medium transition-colors cursor-pointer disabled:opacity-50",
+                    chatMode === "edit"
+                      ? "bg-background text-foreground shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Aksi
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={chatMode === "ask"}
+                  disabled={isStreaming}
+                  onClick={() => setChatMode("ask")}
+                  className={cn(
+                    "rounded-md px-2 py-0.5 text-body-xs font-medium transition-colors cursor-pointer disabled:opacity-50",
+                    chatMode === "ask"
+                      ? "bg-background text-foreground shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Tanya
+                </button>
+              </div>
+
+              {messages.length > 0 && (
+                <Popover open={showPresetsPopover} onOpenChange={setShowPresetsPopover}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      disabled={isStreaming || revoking || isApproving}
+                      aria-label="Buka daftar preset pertanyaan dan aksi"
+                      className="inline-flex h-7 items-center gap-1 rounded-md border border-border/70 bg-background px-2 text-body-xs font-medium text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <LayoutGrid className="size-3.5" aria-hidden="true" />
+                      <span>Preset</span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" side="top" className="w-72 p-1.5 space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPreset(CAPABILITY_OVERVIEW_PRESET)}
+                      className="w-full flex items-center gap-2 rounded-lg bg-primary/5 px-2.5 py-2 text-left text-body-xs font-semibold text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                    >
+                      <Compass className="size-3.5 shrink-0" aria-hidden="true" />
+                      <span>{CAPABILITY_OVERVIEW_PRESET.label}</span>
+                    </button>
+                    <div className="max-h-56 overflow-y-auto divide-y divide-border/50">
+                      {combinedPresets.slice(0, 6).map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => handleSelectPreset(preset)}
+                          className="w-full flex items-center justify-between gap-2 px-2.5 py-2 text-left text-body-xs text-foreground hover:bg-muted/60 rounded-md transition-colors cursor-pointer"
+                        >
+                          <span className="truncate">{preset.label}</span>
+                          <span className="text-body-2xs text-muted-foreground shrink-0">
+                            {preset.category === "action" ? "Aksi" : "Tanya"}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+
+            {/* Right controls: Revoke grant + Send/Stop */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {activeGrants.length > 0 && (
+                <Button type="button" size="sm" variant="ghost" disabled={isStreaming || revoking || isApproving} onClick={() => void handleRevokeGrants()}>
+                  Akhiri izin chat
+                </Button>
+              )}
+              {isStreaming ? (
+                <TooltipProvider><Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button type="button" size="icon-xs" variant="outline" onClick={stop} aria-label="Hentikan respons" className="size-8">
+                      <Square className="size-3 fill-current" aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Hentikan respons</TooltipContent>
+                </Tooltip></TooltipProvider>
+              ) : (
+                <ZyraSendButton label="Kirim pesan" onClick={() => handleSendMessage()} disabled={revoking || isApproving || !input.trim() || input.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength} />
+              )}
+            </div>
           </div>
         </ZyraChatComposer>
         </div>

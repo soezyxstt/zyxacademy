@@ -1,10 +1,10 @@
 /**
  * lib/native/haptics.ts
  *
- * Meaningful native haptic feedback for Zyx Academy (Capacitor Haptics),
+ * Native haptic feedback for Zyx Academy (Capacitor Haptics),
  * gated by a persisted user preference toggle (enabled by default).
- * Reserve haptics for key confirmations (flashcard rating, discussion post,
- * quiz submission, bookmark/save), never generic taps or navigation.
+ * Covers navigation, selection controls, gestures, course/quiz entry,
+ * learning interactions, and action outcomes across student, tutor, and admin.
  */
 
 import { getCapacitor } from "./runtime";
@@ -15,8 +15,22 @@ export const DEFAULT_HAPTICS_ENABLED = true;
 export type HapticImpactStyle = "LIGHT" | "MEDIUM" | "HEAVY";
 export type HapticNotificationType = "SUCCESS" | "WARNING" | "ERROR";
 
+const HAPTIC_DEDUP_WINDOW_MS = 80;
+
 const subscribers = new Set<() => void>();
 let cachedEnabled: boolean | undefined;
+let lastHapticKey: string | null = null;
+let lastHapticTimestamp = 0;
+
+function shouldSuppressDuplicate(key: string): boolean {
+  const now = Date.now();
+  if (lastHapticKey === key && now - lastHapticTimestamp < HAPTIC_DEDUP_WINDOW_MS) {
+    return true;
+  }
+  lastHapticKey = key;
+  lastHapticTimestamp = now;
+  return false;
+}
 
 export function parseHapticsPreference(serialized: string | null): boolean {
   if (serialized === null || serialized === "") return DEFAULT_HAPTICS_ENABLED;
@@ -73,9 +87,11 @@ export function setHapticsEnabled(enabled: boolean): void {
   notifySubscribers();
 }
 
-/** Reset module cache (used in unit tests). */
+/** Reset module cache and dedup window (used in unit tests). */
 export function resetHapticsPreferenceCache(): void {
   cachedEnabled = undefined;
+  lastHapticKey = null;
+  lastHapticTimestamp = 0;
 }
 
 export function subscribeHapticsPreference(listener: () => void): () => void {
@@ -100,6 +116,7 @@ export async function triggerHapticImpact(style: HapticImpactStyle = "LIGHT"): P
   if (!getHapticsEnabled()) return false;
   const plugin = getCapacitor()?.Plugins?.Haptics;
   if (!plugin?.impact) return false;
+  if (shouldSuppressDuplicate(`impact:${style}`)) return false;
   try {
     await plugin.impact({ style });
     return true;
@@ -114,6 +131,7 @@ export async function triggerHapticNotification(
   if (!getHapticsEnabled()) return false;
   const plugin = getCapacitor()?.Plugins?.Haptics;
   if (!plugin) return false;
+  if (shouldSuppressDuplicate(`notification:${type}`)) return false;
   try {
     if (plugin.notification) {
       await plugin.notification({ type });
@@ -133,6 +151,7 @@ export async function triggerHapticSelection(): Promise<boolean> {
   if (!getHapticsEnabled()) return false;
   const plugin = getCapacitor()?.Plugins?.Haptics;
   if (!plugin) return false;
+  if (shouldSuppressDuplicate("selection")) return false;
   try {
     if (plugin.selectionChanged) {
       await plugin.selectionChanged();
@@ -148,12 +167,37 @@ export async function triggerHapticSelection(): Promise<boolean> {
   }
 }
 
-/** Subtle confirmation haptic for key completions (quiz submit, flashcard grade, discussion post). */
+/** Crisp light tap for secondary actions, navigation back, card flips, and drawer gestures. */
+export function hapticLight(): Promise<boolean> {
+  return triggerHapticImpact("LIGHT");
+}
+
+/** Distinct medium tap for entering courses/quizzes, swipe-to-reply, long-press, and live actions. */
+export function hapticMedium(): Promise<boolean> {
+  return triggerHapticImpact("MEDIUM");
+}
+
+/** Strong impact for destructive confirmations and ending live sessions. */
+export function hapticHeavy(): Promise<boolean> {
+  return triggerHapticImpact("HEAVY");
+}
+
+/** Positive confirmation haptic for completions (quiz start/submit, flashcard grade, discussion post, save). */
 export function hapticSuccess(): Promise<boolean> {
   return triggerHapticNotification("SUCCESS");
 }
 
-/** Subtle confirmation haptic for bookmark or preference toggles. */
+/** Caution haptic for destructive prompts, time warnings, or incorrect practice checks. */
+export function hapticWarning(): Promise<boolean> {
+  return triggerHapticNotification("WARNING");
+}
+
+/** Failure haptic for validation or request errors. */
+export function hapticError(): Promise<boolean> {
+  return triggerHapticNotification("ERROR");
+}
+
+/** Subtle tick for tab switches, option picks, toggles, checkboxes, and pull-to-refresh threshold. */
 export function hapticSelection(): Promise<boolean> {
   return triggerHapticSelection();
 }

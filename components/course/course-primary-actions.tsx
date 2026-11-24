@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BookOpen, CalendarRange, ChevronRight, ListChecks } from "lucide-react";
 import type { CourseOverviewActionCard } from "@/types/course-learning";
 import { cn } from "@/lib/utils";
+import { hapticLight } from "@/lib/native/haptics";
 import { useTranslations } from "@/lib/i18n/client";
 
 interface CoursePrimaryActionsProps {
@@ -26,6 +27,7 @@ function ActionTile({ card, labels }: { card: CourseOverviewActionCard; labels: 
   return (
     <Link
       href={card.href}
+      onClick={() => void hapticLight()}
       className="group flex min-w-0 items-center gap-3 rounded-xl border border-border/60 bg-card/70 px-3.5 py-3 transition-colors hover:border-border hover:bg-muted/40 active:bg-muted/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
     >
       <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground ring-1 ring-inset ring-border/60 transition-colors group-hover:bg-primary/10 group-hover:text-primary group-hover:ring-primary/20">
