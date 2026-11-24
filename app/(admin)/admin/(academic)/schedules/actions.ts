@@ -39,6 +39,10 @@ import {
   ensureGoogleMeetForBooking,
 } from "@/lib/schedule-lock";
 import {
+  triggerGoogleCalendarSyncForBookingId,
+  triggerGoogleCalendarSyncForScheduleChange,
+} from "@/lib/google-calendar/trigger";
+import {
   addTutorialDays,
   getTutorialWeekRange,
 } from "@/lib/schedule/week-policy";
@@ -867,15 +871,33 @@ export async function adminCreateTutorAvailability(input: AdminAvailabilityInput
 }
 
 export async function adminAssignTutorialSession(input: AdminAssignTutorialSessionInput) {
-  return executeAdminAssignTutorialSession(input);
+  const result = await executeAdminAssignTutorialSession(input);
+  if (result.success && "bookingId" in result && result.bookingId) {
+    await triggerGoogleCalendarSyncForBookingId(result.bookingId);
+  }
+  return result;
 }
 
 export async function adminMoveTutorialSession(input: AdminMoveTutorialSessionInput) {
-  return executeAdminMoveTutorialSession(input);
+  const [previous] = await db
+    .select({ tutorId: tutorSlots.tutorId })
+    .from(bookings)
+    .leftJoin(tutorSlots, eq(bookings.slotId, tutorSlots.id))
+    .where(eq(bookings.id, input.bookingId))
+    .limit(1);
+  const result = await executeAdminMoveTutorialSession(input);
+  if (result.success) {
+    await triggerGoogleCalendarSyncForBookingId(input.bookingId, [previous?.tutorId]);
+  }
+  return result;
 }
 
 export async function adminCancelTutorialSession(input: { bookingId: string; reason: string }) {
-  return executeAdminCancelTutorialSession(input);
+  const result = await executeAdminCancelTutorialSession(input);
+  if (result.success) {
+    await triggerGoogleCalendarSyncForBookingId(input.bookingId);
+  }
+  return result;
 }
 
 /**
@@ -963,6 +985,8 @@ export async function createAcademicSchedule(data: {
 
     revalidatePath("/admin/schedules");
     revalidatePath("/dashboard/schedule");
+    // Central calendar syncs immediately; personal calendars pick up academic schedule changes in the daily cron to avoid unbounded fan-out.
+    await triggerGoogleCalendarSyncForScheduleChange({ includeCentral: true });
     return { success: true, id };
   } catch (err: any) {
     console.error("Create academic schedule error:", err);
@@ -1003,6 +1027,7 @@ export async function updateAcademicSchedule(
 
     revalidatePath("/admin/schedules");
     revalidatePath("/dashboard/schedule");
+    await triggerGoogleCalendarSyncForScheduleChange({ includeCentral: true });
     return { success: true };
   } catch (err: any) {
     console.error("Update academic schedule error:", err);
@@ -1017,6 +1042,7 @@ export async function deleteAcademicSchedule(id: string) {
     await db.delete(academicSchedules).where(eq(academicSchedules.id, id));
     revalidatePath("/admin/schedules");
     revalidatePath("/dashboard/schedule");
+    await triggerGoogleCalendarSyncForScheduleChange({ includeCentral: true });
     return { success: true };
   } catch (err: any) {
     console.error("Delete academic schedule error:", err);

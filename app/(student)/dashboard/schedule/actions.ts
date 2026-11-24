@@ -67,6 +67,11 @@ import {
   tutorTicketMessagePayload,
   tutorTicketSubmittedPayload,
 } from "@/lib/notifications/templates";
+import {
+  triggerGoogleCalendarSyncForBookingId,
+  triggerGoogleCalendarSyncForRescheduleTicketId,
+  triggerGoogleCalendarSyncForScheduleChange,
+} from "@/lib/google-calendar/trigger";
 import { sendOptionalEmail } from "@/lib/email-preferences/send";
 import { renderScheduleEventEmail } from "@/lib/notifications/email-templates";
 import type { NotificationPayload } from "@/lib/notifications/types";
@@ -560,6 +565,7 @@ export async function collaborativeBookSlot(
         return {
           success: false,
           error: "Tutor ini tidak bersertifikasi untuk mata kuliah ini",
+          reason: "TUTOR_NOT_ASSIGNED",
         };
       }
 
@@ -637,6 +643,7 @@ export async function collaborativeBookSlot(
         return {
           success: false,
           error: "Kuota total sesi kelompok telah tercapai.",
+          reason: "GROUP_QUOTA_EXHAUSTED",
         };
       }
 
@@ -750,10 +757,18 @@ export async function collaborativeBookSlot(
           },
         };
       }
-      return { success: true, bookingId, notification };
+      return { success: true, bookingId, notification, calendarSync: { tutorId: slot.tutorId, groupId } };
     });
     if (notification) await notifyTutorScheduleEventBestEffort(notification);
-    return result;
+    if (result.success && !options?.executor && result.calendarSync) {
+      await triggerGoogleCalendarSyncForScheduleChange({
+        userIds: [result.calendarSync.tutorId],
+        groupIds: [result.calendarSync.groupId],
+        includeCentral: true,
+      });
+    }
+    const { calendarSync: _calendarSync, ...publicResult } = result;
+    return publicResult;
   } catch (err: any) {
     if (err?.message === "WEEKLY_QUOTA_EXCEEDED") {
       return {
@@ -1025,10 +1040,25 @@ export async function collaborativeMoveSlot(
           },
         };
       }
-      return { success: true, notification };
+      return {
+        success: true,
+        notification,
+        calendarSync: {
+          userIds: [booking.slot?.tutorId, newSlot.tutorId],
+          groupId: booking.groupId,
+        },
+      };
     });
     if (notification) await notifyTutorScheduleEventBestEffort(notification);
-    return result;
+    if (result.success && !options?.executor && result.calendarSync) {
+      await triggerGoogleCalendarSyncForScheduleChange({
+        userIds: result.calendarSync.userIds,
+        groupIds: [result.calendarSync.groupId],
+        includeCentral: true,
+      });
+    }
+    const { calendarSync: _calendarSync, ...publicResult } = result;
+    return publicResult;
   } catch (err: any) {
     if (err?.message === "WEEKLY_QUOTA_EXCEEDED") {
       return {
@@ -1204,10 +1234,25 @@ export async function collaborativeCancelSlot(bookingId: string) {
           },
         };
       }
-      return { success: true, notification };
+      return {
+        success: true,
+        notification,
+        calendarSync: {
+          tutorId: booking.slot?.tutorId,
+          groupId: booking.groupId,
+        },
+      };
     });
     if (notification) await notifyTutorScheduleEventBestEffort(notification);
-    return result;
+    if (result.success && result.calendarSync) {
+      await triggerGoogleCalendarSyncForScheduleChange({
+        userIds: [result.calendarSync.tutorId],
+        groupIds: [result.calendarSync.groupId],
+        includeCentral: true,
+      });
+    }
+    const { calendarSync: _calendarSync, ...publicResult } = result;
+    return publicResult;
   } catch (err: any) {
     console.error("Collaborative cancel slot error:", err);
     return { success: false, error: err?.message || "Gagal membatalkan jadwal" };
@@ -1283,6 +1328,7 @@ export async function updatePreSessionContextAction(
 
     revalidatePath("/dashboard/schedule");
     revalidatePath("/tutor/schedule");
+    await triggerGoogleCalendarSyncForBookingId(targetBookingId);
     return { success: true };
   } catch (error) {
     console.error("Update pre-session context error:", error);
@@ -1688,6 +1734,9 @@ export async function tutorDecideTicket(
   });
   if (res.success) {
     revalidatePath("/dashboard/schedule");
+    if (decision === "approved") {
+      await triggerGoogleCalendarSyncForRescheduleTicketId(ticketId);
+    }
   }
   return res;
 }

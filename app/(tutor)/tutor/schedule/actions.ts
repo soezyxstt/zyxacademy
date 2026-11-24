@@ -32,6 +32,7 @@ import {
 } from "@/lib/audit/mutasi";
 import { getIsoWeekRange } from "@/lib/schedule-lock";
 import { getJakartaCalendarDate } from "@/lib/date-utils";
+import { triggerGoogleCalendarSyncForBookingId, triggerGoogleCalendarSyncForRescheduleTicketId } from "@/lib/google-calendar/trigger";
 import {
   addTutorialDays,
   getTutorialWeekRange,
@@ -2096,7 +2097,11 @@ export async function executeMoveTutorSession(
 }
 
 export async function moveTutorSessionAction(input: MoveTutorSessionInput) {
-  return executeMoveTutorSession(input);
+  const result = await executeMoveTutorSession(input);
+  if (result.success) {
+    await triggerGoogleCalendarSyncForBookingId(input.bookingId);
+  }
+  return result;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -2900,7 +2905,11 @@ export async function executeDecideTutorRescheduleTicket(
 export async function decideTutorRescheduleTicketAction(
   input: DecideTutorRescheduleTicketInput,
 ) {
-  return executeDecideTutorRescheduleTicket(input);
+  const result = await executeDecideTutorRescheduleTicket(input);
+  if (result.success && input.decision === "approved") {
+    await triggerGoogleCalendarSyncForRescheduleTicketId(input.ticketId);
+  }
+  return result;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
