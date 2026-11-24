@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, Bot, ChevronsUpDown } from "lucide-react";
+import { ArrowLeft, SquareTerminal, ChevronsUpDown } from "lucide-react";
 import {
   MobileTopNavActionButton,
   MobileTopNavSearchTrigger,
@@ -272,7 +272,7 @@ function AdminMobileTopNavContent({
         aria-controls="ops-ai-panel"
         onClick={handleToggleOpsAi}
       >
-        <Bot className="size-4 text-primary" aria-hidden="true" />
+        <SquareTerminal className="size-4 text-primary" aria-hidden="true" />
       </MobileTopNavActionButton>
 
       <MobileTopNavSearchTrigger label={tAdmin("mobile.search")} />

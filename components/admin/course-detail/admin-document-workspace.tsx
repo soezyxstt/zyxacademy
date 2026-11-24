@@ -16,7 +16,7 @@ import {
   PanelRightClose,
   Pencil,
   Save,
-  Bot,
+  FilePen,
   Trash2,
   ExternalLink,
 } from "lucide-react";
@@ -624,7 +624,7 @@ export function AdminDocumentWorkspace({
                           {formattingPdfAi ? (
                             <Loader2 className="size-3 animate-spin" />
                           ) : (
-                            <Bot className="size-3" />
+                            <FilePen className="size-3" />
                           )}
                           <span>{formattingPdfAi ? t("documents.analyzing") : t("documents.formatWithAi")}</span>
                         </Button>
@@ -832,7 +832,7 @@ export function AdminDocumentWorkspace({
                           {formattingArticleAi ? (
                             <Loader2 className="size-3 animate-spin" />
                           ) : (
-                            <Bot className="size-3" />
+                            <FilePen className="size-3" />
                           )}
                           <span>{formattingArticleAi ? t("documents.analyzing") : t("documents.formatWithAi")}</span>
                         </Button>
