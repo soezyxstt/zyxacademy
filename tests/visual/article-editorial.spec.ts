@@ -53,8 +53,8 @@ test("editorial reader preserves answers across disclosure and reading focus", a
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     if (name !== "editorial-context") {
       await page.evaluate(() => window.scrollTo(0, 0));
-      await expect(page.locator("header").first()).toContainText("Bilangan dan fungsi");
-      await expect(page.locator("header").first()).not.toContainText("01 Bilangan real");
+      await expect(page.locator("header:visible").first()).toContainText("Bilangan dan fungsi");
+      await expect(page.locator("header:visible").first()).not.toContainText("01 Bilangan real");
     }
     await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     await page.screenshot({ path: info.outputPath(`screenshots/${name}.png`), fullPage: name !== "editorial-context", animations: "disabled" });
@@ -63,7 +63,7 @@ test("editorial reader preserves answers across disclosure and reading focus", a
   expect(proseFont).toMatch(/sans-serif/i);
   expect(proseFont).not.toMatch(/(?<!-)serif|\btimes\b|katex/i);
   if (page.viewportSize()!.width >= 1024) {
-    const navTitle = await page.locator("header h1").first().boundingBox();
+    const navTitle = await page.locator("header:visible h1").first().boundingBox();
     const content = await page.locator("#article-reading-content").boundingBox();
     expect(Math.abs(navTitle!.x - content!.x)).toBeLessThanOrEqual(2);
   }
@@ -113,7 +113,7 @@ test("editorial reader preserves answers across disclosure and reading focus", a
   await check.getByRole("button", { name: "Kerjakan" }).focus();
   await page.keyboard.press("Enter");
   await check.getByRole("textbox").fill("Rasional dan irasional");
-  await expect(page.locator("header").first()).toContainText("01 Bilangan real");
+  await expect(page.locator("header:visible").first()).toContainText("01 Bilangan real");
   await capture("editorial-open");
   const extra = page.getByRole("button", { name: /(?:Lihat|Sembunyikan) contoh tambahan/ });
   await extra.click();
@@ -193,9 +193,9 @@ test("editorial reader preserves answers across disclosure and reading focus", a
   await capture("editorial-completed");
   await page.locator("#section-functions").evaluate(element => element.scrollIntoView({ block: "start" }));
   await page.locator("#section-functions h2").evaluate(el => window.scrollBy(0, el.getBoundingClientRect().bottom));
-  const passedSection2 = await page.locator("#section-functions h2").evaluate(el => el.getBoundingClientRect().bottom <= (document.querySelector("header")?.getBoundingClientRect().bottom ?? 52));
-  if (passedSection2) await expect(page.locator("header").first()).toContainText("02 Fungsi dan domain");
-  else await expect(page.locator("header").first()).toContainText("Bilangan dan fungsi");
+  const passedSection2 = await page.locator("#section-functions h2").evaluate(el => el.getBoundingClientRect().bottom <= (document.querySelector("header:not([data-mobile-navbar])")?.getBoundingClientRect().bottom ?? 52));
+  if (passedSection2) await expect(page.locator("header:visible").first()).toContainText("02 Fungsi dan domain");
+  else await expect(page.locator("header:visible").first()).toContainText("Bilangan dan fungsi");
 
   await expect(page.locator("aside").getByRole("button", { name: "Menyederhanakan pecahan", exact: true })).toHaveCount(0);
   await expect.poll(async () => Number(await page.getByRole("progressbar", { name: "Posisi baca" }).getAttribute("aria-valuenow"))).toBeGreaterThan(0);

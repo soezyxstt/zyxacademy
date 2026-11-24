@@ -43,7 +43,7 @@ test("production Math 1 chapter renders all sections locally",async({page},info)
  const positions=await pair.evaluate(el=>Array.from(el.children).map(child=>child.getBoundingClientRect().x));
  if(page.viewportSize()!.width < 640) expect(positions[1]).toBe(positions[0]);
  else expect(positions[1]).toBeGreaterThan(positions[0]);
- await expect(page.locator("header").first().getByText("0%",{exact:true})).toHaveCount(0);
+ await expect(page.locator("header:visible").first().getByText("0%",{exact:true})).toHaveCount(0);
  const observations=[];
  for(let i=0;i<16;i++){
 
@@ -51,8 +51,8 @@ test("production Math 1 chapter renders all sections locally",async({page},info)
   await section.evaluate(el=>el.scrollIntoView({block:"start"}));
   await expect(section).toBeVisible();
   const title=(await section.locator("h2").first().innerText()).trim();
-  const headingVisible = await section.locator("h2").first().evaluate(el => el.getBoundingClientRect().bottom > (document.querySelector("header")?.getBoundingClientRect().bottom ?? 52));
-  if (headingVisible) await expect(page.locator("header").first()).not.toContainText(title);
+  const headingVisible = await section.locator("h2").first().evaluate(el => el.getBoundingClientRect().bottom > (document.querySelector("header:not([data-mobile-navbar])")?.getBoundingClientRect().bottom ?? 52));
+  if (headingVisible) await expect(page.locator("header:visible").first()).not.toContainText(title);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   if(i===2) await expect(section.locator('[data-block-type="worked_example"]').first().getByRole("heading",{name:"Contoh",exact:true})).toHaveCount(1);
   observations.push(await section.evaluate(el=>({id:el.id,height:el.scrollHeight,width:el.scrollWidth})));
@@ -80,8 +80,8 @@ test("production Math 1 chapter renders all sections locally",async({page},info)
    await expect(symbolToggle).toHaveAttribute("aria-expanded","false");
   }
   await section.locator("h2").first().evaluate(el=>window.scrollBy(0,el.getBoundingClientRect().bottom));
-  const passedHeading = await section.locator("h2").first().evaluate(el => el.getBoundingClientRect().bottom <= (document.querySelector("header")?.getBoundingClientRect().bottom ?? 52));
-  if (passedHeading) await expect(page.locator("header").first()).toContainText(title);
+  const passedHeading = await section.locator("h2").first().evaluate(el => el.getBoundingClientRect().bottom <= (document.querySelector("header:not([data-mobile-navbar])")?.getBoundingClientRect().bottom ?? 52));
+  if (passedHeading) await expect(page.locator("header:visible").first()).toContainText(title);
   if([4,5,12].includes(i)) {
    await page.screenshot({path:info.outputPath(`screenshots/math1-context-${i+1}.png`),animations:"disabled"});
    const visual=section.locator('[data-part-kind="visual_ref"]').first();

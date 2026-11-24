@@ -44,7 +44,7 @@ for (const source of ["layout", "bundle"]) test(`Diktat editorial ${source} pres
   expect(proseFont).toMatch(/sans-serif/i);
   expect(proseFont).not.toMatch(/(?<!-)serif|\btimes\b|katex/i);
   if (page.viewportSize()!.width >= 1024) {
-    const navTitle = await page.locator("header h1").first().boundingBox();
+    const navTitle = await page.locator("header:visible h1").first().boundingBox();
     const docTitle = await paper.locator("h1").first().boundingBox();
     expect(Math.abs(navTitle!.x - docTitle!.x)).toBeLessThanOrEqual(2);
   }
@@ -67,8 +67,8 @@ for (const source of ["layout", "bundle"]) test(`Diktat editorial ${source} pres
   if(source==="layout") {
     const heading=paper.locator("[data-section-idx]").last().locator("h2");
     const passed=await heading.evaluate(el=>el.getBoundingClientRect().bottom <= document.getElementById("article-paper-content")!.getBoundingClientRect().top);
-    if(passed) await expect(page.locator("header").first()).toContainText("14. Ringkasan bab");
-    else await expect(page.locator("header").first()).not.toContainText("14. Ringkasan bab");
+    if(passed) await expect(page.locator("header:visible").first()).toContainText("14. Ringkasan bab");
+    else await expect(page.locator("header:visible").first()).not.toContainText("14. Ringkasan bab");
   }
   await expect(paper.getByRole("link",{name:"Jelajahi materi berikutnya"})).toHaveAttribute("href","/courses/math/material");
   await expect(paper.getByRole("heading",{name:"Akhir bab",exact:true})).toBeVisible();
