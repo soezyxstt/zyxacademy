@@ -34,11 +34,21 @@ import { cn } from "@/lib/utils";
 type Refresh = () => Promise<void> | void;
 const RefreshContext = createContext<((refresh: Refresh) => () => void) | null>(null);
 
+export interface PullToRefreshLabels {
+  pull: string;
+  release: string;
+  refreshing: string;
+  failed: string;
+  retry: string;
+  dismiss: string;
+}
+
 export interface PullToRefreshContextValue {
   status: PullToRefreshStatus;
+  labels: PullToRefreshLabels;
   retry: () => void;
   dismissError: () => void;
-  registerNavbarHost: () => () => void;
+  registerNavbarHost: (element: HTMLElement | null) => () => void;
 }
 
 const PullToRefreshContext = createContext<PullToRefreshContextValue | null>(null);
@@ -61,6 +71,7 @@ export interface PullToRefreshProps {
   children: ReactNode;
   onRefresh?: () => Promise<void> | void;
   disabled?: boolean;
+  expectNavbarHost?: boolean;
   className?: string;
 }
 
@@ -68,24 +79,35 @@ export function PullToRefresh({
   children,
   onRefresh,
   disabled = false,
+  expectNavbarHost = false,
   className,
 }: PullToRefreshProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const indicatorRef = useRef<HTMLDivElement>(null);
+  const navbarHostRef = useRef<HTMLElement | null>(null);
   const scopedRefresh = useRef<Refresh | null>(null);
   const [navbarHostCount, setNavbarHostCount] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   const register = useCallback((refresh: Refresh) => {
     scopedRefresh.current = refresh;
     return () => { if (scopedRefresh.current === refresh) scopedRefresh.current = null; };
   }, []);
 
-  const registerNavbarHost = useCallback(() => {
+  const registerNavbarHost = useCallback((element: HTMLElement | null) => {
     let active = true;
+    navbarHostRef.current = element;
     setNavbarHostCount((count) => count + 1);
     return () => {
       if (!active) return;
       active = false;
+      if (navbarHostRef.current === element) {
+        navbarHostRef.current = null;
+      }
       setNavbarHostCount((count) => Math.max(0, count - 1));
     };
   }, []);
@@ -94,6 +116,18 @@ export function PullToRefresh({
   const queryClient = useQueryClient();
   const reducedMotion = useAppReducedMotion();
   const t = useTranslations("common");
+
+  const labels = useMemo<PullToRefreshLabels>(
+    () => ({
+      pull: t("pullToRefresh.pull"),
+      release: t("pullToRefresh.release"),
+      refreshing: t("pullToRefresh.refreshing"),
+      failed: t("pullToRefresh.failed"),
+      retry: t("pullToRefresh.retry"),
+      dismiss: t("pullToRefresh.dismiss"),
+    }),
+    [t],
+  );
 
   const handleDefaultRefresh = useCallback(async () => {
     await queryClient.refetchQueries({ type: "active" }, { throwOnError: true });
@@ -111,19 +145,21 @@ export function PullToRefresh({
     threshold: PULL_THRESHOLD_PX,
     containerRef,
     indicatorRef,
+    hostRef: navbarHostRef,
   });
 
   const contextValue = useMemo<PullToRefreshContextValue>(
     () => ({
       status,
+      labels,
       retry,
       dismissError,
       registerNavbarHost,
     }),
-    [status, retry, dismissError, registerNavbarHost],
+    [status, labels, retry, dismissError, registerNavbarHost],
   );
 
-  const hasNavbarHost = navbarHostCount > 0;
+  const hasNavbarHost = navbarHostCount > 0 || (expectNavbarHost && !hydrated);
   const dragging = status === "pulling" || status === "ready";
   const isIndicatorVisible = dragging || status === "refreshing";
   const distance = isIndicatorVisible
@@ -132,11 +168,11 @@ export function PullToRefresh({
 
   const statusText =
     status === "refreshing"
-      ? t("pullToRefresh.refreshing")
+      ? labels.refreshing
       : status === "ready"
-        ? t("pullToRefresh.release")
+        ? labels.release
         : status === "pulling"
-          ? t("pullToRefresh.pull")
+          ? labels.pull
           : "";
 
   return (
@@ -180,18 +216,18 @@ export function PullToRefresh({
             >
               <span className="inline-flex min-w-0 items-center gap-1.5">
                 <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
-                <span className="truncate">{t("pullToRefresh.failed")}</span>
+                <span className="truncate">{labels.failed}</span>
               </span>
               <div className="flex shrink-0 items-center gap-1">
                 <Button type="button" variant="outline" size="sm" className="h-7 px-2" onClick={retry}>
-                  {t("pullToRefresh.retry")}
+                  {labels.retry}
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
                   className="size-7 text-destructive hover:text-destructive"
-                  aria-label={t("pullToRefresh.dismiss")}
+                  aria-label={labels.dismiss}
                   onClick={dismissError}
                 >
                   <X className="size-3.5" aria-hidden="true" />

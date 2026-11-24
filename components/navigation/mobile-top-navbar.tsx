@@ -30,7 +30,6 @@ import { Button } from "@/components/ui/button";
 import { useAppReducedMotion } from "@/components/appearance-preferences";
 import { useMobileChrome } from "@/components/navigation/mobile-chrome-context";
 import { usePullToRefreshContext } from "@/components/pull-to-refresh";
-import { useTranslations } from "@/lib/i18n/client";
 
 const PTR_RING_RADIUS = 8;
 const PTR_RING_CIRCUMFERENCE = 2 * Math.PI * PTR_RING_RADIUS;
@@ -178,10 +177,13 @@ export function MobileTopNavbar({
   const { topNav, pageSearch } = useMobileChrome();
   const pull = usePullToRefreshContext();
   const reducedMotion = useAppReducedMotion();
-  const tCommon = useTranslations("common");
   const pathname = usePathname();
 
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [lastActivePullStatus, setLastActivePullStatus] = useState<
+    "pulling" | "ready" | "refreshing"
+  >("pulling");
+  const headerRef = useRef<HTMLElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -190,21 +192,37 @@ export function MobileTopNavbar({
 
   useEffect(() => {
     if (!registerNavbarHost || isHiddenTopNav) return;
-    return registerNavbarHost();
+    return registerNavbarHost(headerRef.current);
   }, [isHiddenTopNav, registerNavbarHost]);
 
   const pullStatus = pull?.status ?? "idle";
   const isPullDragging = pullStatus === "pulling" || pullStatus === "ready";
   const isPullActive = pullStatus !== "idle";
   const isPullStripVisible = isPullDragging || pullStatus === "refreshing";
-  const pullStatusText =
-    pullStatus === "refreshing"
-      ? tCommon("pullToRefresh.refreshing")
-      : pullStatus === "ready"
-        ? tCommon("pullToRefresh.release")
-        : pullStatus === "pulling"
-          ? tCommon("pullToRefresh.pull")
-          : "";
+
+  useEffect(() => {
+    if (
+      pullStatus === "pulling" ||
+      pullStatus === "ready" ||
+      pullStatus === "refreshing"
+    ) {
+      setLastActivePullStatus(pullStatus);
+    }
+  }, [pullStatus]);
+
+  const displayPullStatus = isPullStripVisible
+    ? pullStatus
+    : lastActivePullStatus;
+  const pullLabels = pull?.labels;
+  const pullDisplayText = pullLabels
+    ? displayPullStatus === "refreshing"
+      ? pullLabels.refreshing
+      : displayPullStatus === "ready"
+        ? pullLabels.release
+        : pullLabels.pull
+    : "";
+  const pullLiveAnnouncement =
+    pullLabels && isPullStripVisible ? pullDisplayText : "";
 
   const labels = {
     placeholder: searchLabels?.placeholder ?? DEFAULT_SEARCH_LABELS.placeholder,
@@ -392,6 +410,7 @@ export function MobileTopNavbar({
   return (
     <MobileTopNavSearchControlContext.Provider value={searchControlValue}>
       <header
+        ref={headerRef}
         data-mobile-navbar=""
         data-mobile-search-expanded={activeSearchExpanded ? "true" : undefined}
         data-pull-state={isPullActive ? pullStatus : undefined}
@@ -579,12 +598,14 @@ export function MobileTopNavbar({
           </div>
         </div>
         {/* Integrated Pull-to-Refresh Expansion inside Navbar */}
-        {pull ? (
+        {pull && pullLabels ? (
           <>
+            <span className="sr-only" role="status" aria-live="polite">
+              {pullLiveAnnouncement}
+            </span>
             <div
               data-pull-indicator=""
-              role="status"
-              aria-live="polite"
+              aria-hidden="true"
               className="pointer-events-none flex w-full items-center justify-center overflow-hidden px-3 sm:px-4"
               style={{
                 height: isPullStripVisible
@@ -605,12 +626,12 @@ export function MobileTopNavbar({
               <span
                 className={cn(
                   "inline-flex items-center gap-2 text-body-xs transition-colors duration-150 motion-reduce:transition-none",
-                  pullStatus === "ready"
+                  displayPullStatus === "ready"
                     ? "font-semibold text-primary"
                     : "font-medium text-muted-foreground"
                 )}
               >
-                {pullStatus === "refreshing" ? (
+                {displayPullStatus === "refreshing" ? (
                   <Loader2
                     className={cn(
                       "size-3.5 shrink-0 text-primary",
@@ -622,7 +643,7 @@ export function MobileTopNavbar({
                   <span
                     className={cn(
                       "relative inline-flex size-5 shrink-0 items-center justify-center",
-                      pullStatus === "ready" &&
+                      displayPullStatus === "ready" &&
                         !reducedMotion &&
                         "animate-[ptr-ready-pop_260ms_cubic-bezier(0.34,1.56,0.64,1)]"
                     )}
@@ -651,13 +672,13 @@ export function MobileTopNavbar({
                         strokeDasharray={PTR_RING_CIRCUMFERENCE}
                         className={cn(
                           "transition-colors duration-150 motion-reduce:transition-none",
-                          pullStatus === "ready"
+                          displayPullStatus === "ready"
                             ? "text-primary"
                             : "text-muted-foreground/75"
                         )}
                         style={{
                           strokeDashoffset:
-                            pullStatus === "ready"
+                            displayPullStatus === "ready"
                               ? 0
                               : reducedMotion
                                 ? PTR_RING_CIRCUMFERENCE * 0.5
@@ -668,13 +689,13 @@ export function MobileTopNavbar({
                     <ArrowDown
                       className={cn(
                         "absolute size-2.5 transition-colors duration-150 motion-reduce:transition-none",
-                        pullStatus === "ready"
+                        displayPullStatus === "ready"
                           ? "text-primary"
                           : "text-muted-foreground"
                       )}
                       style={{
                         transform: reducedMotion
-                          ? pullStatus === "ready"
+                          ? displayPullStatus === "ready"
                             ? "rotate(180deg)"
                             : undefined
                           : "rotate(var(--pull-turn, 0deg))",
@@ -682,7 +703,7 @@ export function MobileTopNavbar({
                     />
                   </span>
                 )}
-                <span>{pullStatusText}</span>
+                <span>{pullDisplayText}</span>
               </span>
             </div>
 
@@ -693,24 +714,24 @@ export function MobileTopNavbar({
               >
                 <span className="inline-flex min-w-0 items-center gap-1.5">
                   <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{tCommon("pullToRefresh.failed")}</span>
+                  <span className="truncate">{pullLabels.failed}</span>
                 </span>
                 <div className="flex shrink-0 items-center gap-1">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-7 px-2"
+                    className="relative h-7 px-2 after:absolute after:-inset-1.5 after:content-['']"
                     onClick={pull.retry}
                   >
-                    {tCommon("pullToRefresh.retry")}
+                    {pullLabels.retry}
                   </Button>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    className="size-7 text-destructive hover:text-destructive"
-                    aria-label={tCommon("pullToRefresh.dismiss")}
+                    className="relative size-7 text-destructive hover:text-destructive after:absolute after:-inset-1.5 after:content-['']"
+                    aria-label={pullLabels.dismiss}
                     onClick={pull.dismissError}
                   >
                     <X className="size-3.5" aria-hidden="true" />
@@ -719,40 +740,49 @@ export function MobileTopNavbar({
               </div>
             ) : null}
 
-            {isPullStripVisible ? (
-              <div
-                aria-hidden="true"
-                data-pull-progress-bar=""
-                className="pointer-events-none relative h-0.5 w-full overflow-hidden bg-border/40"
-              >
-                {pullStatus === "refreshing" ? (
-                  <div
-                    className={cn(
-                      "h-full w-1/2 rounded-full bg-primary",
-                      !reducedMotion &&
-                        "animate-[ptr-indeterminate_1.1s_ease-in-out_infinite]"
-                    )}
-                  />
-                ) : (
-                  <div
-                    className={cn(
-                      "h-full w-full origin-center transition-colors duration-150 motion-reduce:transition-none",
-                      pullStatus === "ready"
-                        ? "bg-primary"
-                        : "bg-muted-foreground/45"
-                    )}
-                    style={{
-                      transform:
-                        pullStatus === "ready"
-                          ? "scaleX(1)"
-                          : reducedMotion
-                            ? "scaleX(0.5)"
-                            : "scaleX(var(--pull-progress, 0))",
-                    }}
-                  />
-                )}
-              </div>
-            ) : null}
+            <div
+              aria-hidden="true"
+              data-pull-progress-bar=""
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 w-full overflow-hidden bg-border/40"
+              style={{
+                opacity:
+                  isPullDragging && !reducedMotion
+                    ? "var(--pull-opacity, 0)"
+                    : Number(isPullStripVisible),
+                transition:
+                  reducedMotion || isPullDragging
+                    ? "none"
+                    : "opacity 180ms ease-out",
+              }}
+            >
+              {displayPullStatus === "refreshing" ? (
+                <div
+                  className={cn(
+                    "h-full rounded-full",
+                    reducedMotion
+                      ? "w-full bg-primary/60"
+                      : "w-1/2 bg-primary animate-[ptr-indeterminate_1.1s_ease-in-out_infinite]"
+                  )}
+                />
+              ) : (
+                <div
+                  className={cn(
+                    "h-full w-full origin-center transition-colors duration-150 motion-reduce:transition-none",
+                    displayPullStatus === "ready"
+                      ? "bg-primary"
+                      : "bg-muted-foreground/45"
+                  )}
+                  style={{
+                    transform:
+                      displayPullStatus === "ready"
+                        ? "scaleX(1)"
+                        : reducedMotion
+                          ? "scaleX(0.5)"
+                          : "scaleX(var(--pull-progress, 0))",
+                  }}
+                />
+              )}
+            </div>
           </>
         ) : null}
       </header>

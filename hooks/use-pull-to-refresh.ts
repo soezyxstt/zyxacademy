@@ -84,6 +84,7 @@ export interface UsePullToRefreshOptions {
   threshold?: number;
   containerRef: RefObject<HTMLElement | null>;
   indicatorRef?: RefObject<HTMLElement | null>;
+  hostRef?: RefObject<HTMLElement | null>;
 }
 
 export interface UsePullToRefreshResult {
@@ -99,6 +100,7 @@ export function usePullToRefresh({
   threshold = PULL_THRESHOLD_PX,
   containerRef,
   indicatorRef,
+  hostRef,
 }: UsePullToRefreshOptions): UsePullToRefreshResult {
   const locked = useIsPullToRefreshLocked();
   const [status, setStatus] = useState<PullToRefreshStatus>("idle");
@@ -116,11 +118,10 @@ export function usePullToRefresh({
   }, [disabled]);
 
   const updateStatus = useCallback((next: PullToRefreshStatus) => {
-    const prev = statusRef.current;
-    if (prev === next) return;
+    if (statusRef.current === next) return;
     statusRef.current = next;
     setStatus(next);
-    if (prev === "pulling" && next === "ready") {
+    if (next === "ready") {
       void hapticSelection();
     }
   }, []);
@@ -129,16 +130,14 @@ export function usePullToRefresh({
     (distance: number, progress: number) => {
       const visualDistance = Math.min(distance, MAX_VISUAL_PULL_PX);
       const opacity = String(Math.min(1, distance / 24));
-      const targets = [containerRef.current, indicatorRef?.current];
-      for (const target of targets) {
-        if (!target) continue;
-        target.style.setProperty("--pull-distance", `${visualDistance}px`);
-        target.style.setProperty("--pull-progress", String(progress));
-        target.style.setProperty("--pull-turn", `${progress * 180}deg`);
-        target.style.setProperty("--pull-opacity", opacity);
-      }
+      const target = hostRef?.current ?? indicatorRef?.current;
+      if (!target) return;
+      target.style.setProperty("--pull-distance", `${visualDistance}px`);
+      target.style.setProperty("--pull-progress", String(progress));
+      target.style.setProperty("--pull-turn", `${progress * 180}deg`);
+      target.style.setProperty("--pull-opacity", opacity);
     },
-    [containerRef, indicatorRef],
+    [hostRef, indicatorRef],
   );
 
   const gestureRef = useRef<{
@@ -158,7 +157,6 @@ export function usePullToRefresh({
   const executeRefresh = useCallback(async () => {
     if (statusRef.current === "refreshing") return;
     if (disabledRef.current || isPullToRefreshLocked()) {
-      setPullVars(0, 0);
       updateStatus("idle");
       return;
     }
@@ -166,20 +164,17 @@ export function usePullToRefresh({
     updateStatus("refreshing");
     try {
       await onRefreshRef.current();
-      setPullVars(0, 0);
       updateStatus("idle");
     } catch {
-      setPullVars(0, 0);
       updateStatus("error");
     }
-  }, [setPullVars, updateStatus]);
+  }, [updateStatus]);
 
   const dismissError = useCallback(() => {
     if (statusRef.current === "error") {
-      setPullVars(0, 0);
       updateStatus("idle");
     }
-  }, [setPullVars, updateStatus]);
+  }, [updateStatus]);
 
   const retry = useCallback(() => {
     void executeRefresh();
@@ -191,12 +186,11 @@ export function usePullToRefresh({
       gestureRef.current.active = false;
       gestureRef.current.committed = false;
       gestureRef.current.distance = 0;
-      setPullVars(0, 0);
       if (statusRef.current === "pulling" || statusRef.current === "ready") {
         updateStatus("idle");
       }
     }
-  }, [disabled, locked, setPullVars, updateStatus]);
+  }, [disabled, locked, updateStatus]);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -215,7 +209,6 @@ export function usePullToRefresh({
       gestureRef.current.active = false;
       gestureRef.current.committed = false;
       gestureRef.current.distance = 0;
-      setPullVars(0, 0);
       if (statusRef.current === "pulling" || statusRef.current === "ready") updateStatus("idle");
     };
 

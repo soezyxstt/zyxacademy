@@ -1216,6 +1216,18 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
     --mobile-navbar-height: calc(5.25rem + env(safe-area-inset-top, 0px));
   }
 
+  body:has([data-mobile-navbar][data-pull-state="error"]) {
+    --mobile-navbar-height: calc(5.875rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-mobile-search-expanded="true"][data-pull-state="refreshing"]) {
+    --mobile-navbar-height: calc(8.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-mobile-search-expanded="true"][data-pull-state="error"]) {
+    --mobile-navbar-height: calc(8.875rem + env(safe-area-inset-top, 0px));
+  }
+
   body:has([data-mobile-bottom-nav]) {
     --mobile-bottom-nav-height: calc(3.75rem + env(safe-area-inset-bottom, 0px));
   }

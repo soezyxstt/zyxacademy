@@ -70,7 +70,10 @@ export function ApplicationShell({
         )}
         {resolvedSidebar}
         {resolvedMobileTopNav ? (
-          <PullToRefresh className="relative z-10 flex min-w-0 flex-1 flex-col overflow-x-clip">
+          <PullToRefresh
+            expectNavbarHost={Boolean(mobileTopNav)}
+            className="relative z-10 flex min-w-0 flex-1 flex-col overflow-x-clip"
+          >
             {contentColumn}
           </PullToRefresh>
         ) : (
