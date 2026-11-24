@@ -6,7 +6,7 @@ import { waitForVisualReadiness } from "./visual-readiness";
 const origin = "http://tutor-dense.invalid";
 let fixture: Awaited<ReturnType<typeof buildFixture>>;
 const fontStyles = fixtureFontStyles();
-test.use({ locale: "en-GB", reducedMotion: "reduce" });
+test.use({ locale: "en-GB", contextOptions: { reducedMotion: "reduce" } });
 test.setTimeout(120_000);
 
 test.beforeAll(async () => {

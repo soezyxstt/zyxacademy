@@ -446,7 +446,7 @@ export function StorageBrowser() {
 
   const headerActions = (
     <div className="flex w-full min-w-0 items-center justify-between gap-2 sm:w-auto">
-      <div className="group/storage-search flex min-w-0 flex-1 items-center gap-2 sm:flex-initial">
+      <div className="flex min-w-0 flex-1 items-center sm:flex-initial">
         <SearchBar
           collapsible
           size="sm"
@@ -455,8 +455,10 @@ export function StorageBrowser() {
           onClear={() => setQuery("")}
           placeholder={t("storage.search")}
         />
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
         {visibleItems.length > 0 && (
-          <label className="flex shrink-0 items-center gap-1.5 text-body-sm text-muted-foreground group-has-[[data-search-expanded=true]]/storage-search:hidden">
+          <label className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
             <Checkbox
               checked={allVisibleSelected}
               onCheckedChange={() => toggleSelectAll()}
@@ -465,10 +467,10 @@ export function StorageBrowser() {
             {t("storage.selectAllLabel")}
           </label>
         )}
+        <AdminIconAction label={t("storage.reload")} variant="outline" onClick={() => void load(folder)} isLoading={loading}>
+          <RefreshCw className="size-4" />
+        </AdminIconAction>
       </div>
-      <AdminIconAction label={t("storage.reload")} variant="outline" onClick={() => void load(folder)} isLoading={loading}>
-        <RefreshCw className="size-4" />
-      </AdminIconAction>
     </div>
   );
 

@@ -6,6 +6,8 @@ import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { CoursePolishFixture } from "../course-polish-fixture";
 import { CoursePolishShell } from "../course-polish-shell";
 
+const activityTimestamp = new Date(Date.now() - 90 * 60 * 1000).toISOString();
+
 export default async function Page({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
   if (process.env.NODE_ENV !== "development") notFound();
   const { section } = await searchParams;
@@ -23,6 +25,5 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
       </CoursePolishShell>
     );
   }
-  const activityTimestamp = new Date(Date.now() - 90 * 60 * 1000).toISOString();
   return <CoursePolishFixture section={section} activityTimestamp={activityTimestamp} />;
 }

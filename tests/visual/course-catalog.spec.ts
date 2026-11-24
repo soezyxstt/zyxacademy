@@ -3,7 +3,7 @@ import { waitForVisualReadiness } from "./visual-readiness";
 
 const fixture = "/visual-fixtures/course-catalog";
 
-test.use({ colorScheme: "dark", locale: "en-GB", reducedMotion: "reduce" });
+test.use({ colorScheme: "dark", locale: "en-GB", contextOptions: { reducedMotion: "reduce" } });
 test.setTimeout(120_000);
 
 test("course list presents access and available content with compact rows", async ({ page }, info) => {

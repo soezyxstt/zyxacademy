@@ -21,8 +21,7 @@ import { createMetadata } from "@/lib/site";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
 import { CalendarAgendaClient, type CalendarEventItem } from "./calendar-agenda-client";
 import { TranslatedText } from "@/components/i18n/translated-text";
-import { isCalendarDate, parseJakartaDatetimeLocal } from "@/lib/date-utils";
-import { compareAgendaEvents, getAgendaAssessment, getAgendaStatus } from "@/lib/student/agenda";
+import { compareAgendaEvents, getAgendaAssessment, getAgendaBookingTime, getAgendaStatus } from "@/lib/student/agenda";
 import { getTranslations } from "@/lib/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -160,15 +159,9 @@ export default async function CalendarPage() {
       .limit(15);
 
     for (const b of studentBookings) {
-      if (!b.sessionDate || !isCalendarDate(b.sessionDate)) continue;
-
-      const startTime = b.startTime.trim().slice(0, 5);
-      const endTime = b.endTime.trim().slice(0, 5);
-      const wallTime = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
-      if (!wallTime.test(startTime) || !wallTime.test(endTime)) continue;
-
-      const start = parseJakartaDatetimeLocal(`${b.sessionDate.trim()}T${startTime}`);
-      const end = parseJakartaDatetimeLocal(`${b.sessionDate.trim()}T${endTime}`);
+      const slot = getAgendaBookingTime(b.sessionDate, b.startTime, b.endTime);
+      if (!slot) continue;
+      const { start, end, scheduledRange } = slot;
       const cancelled = b.status === "cancelled";
       const past = b.status === "completed" || cancelled || end < now;
 
@@ -180,7 +173,7 @@ export default async function CalendarPage() {
         categoryLabel: "tutorialGroup",
         dateValue: start.toISOString(),
         timeKind: "range",
-        scheduledRange: `${startTime} - ${endTime}`,
+        scheduledRange,
         tutorialTopic: b.topic,
         tutorName: b.tutorName,
         actionUrl: "/dashboard/schedule",

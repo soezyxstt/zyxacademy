@@ -47,10 +47,12 @@ for (const mode of ["rejected", "exception", "custom-timeout"] as const) {
     await page.addScriptTag({ content: fixture.script });
 
     await page.getByRole("radio", { name: "Dua" }).check();
-    await expect(page.getByRole("button", { name: /kumpulkan/i })).toHaveCount(0);
     const footer = page.locator("[data-tryout-mobile-bottombar]");
     if (info.project.name === "mobile-380") {
+      await expect(page.getByRole("button", { name: /kumpulkan/i })).toHaveCount(0);
       await expect(footer.getByRole("button")).toHaveCount(2);
+    } else {
+      await expect(page.getByRole("button", { name: "Kumpulkan ujian", exact: true })).toBeVisible();
     }
     await page.getByRole("button", { name: "Lanjut", exact: true }).click();
     const essay = page.locator("textarea");

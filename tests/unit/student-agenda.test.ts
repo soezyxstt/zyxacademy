@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { compareAgendaEvents, getAgendaAssessment, getAgendaStatus } from "@/lib/student/agenda";
+import { compareAgendaEvents, getAgendaAssessment, getAgendaBookingTime, getAgendaStatus } from "@/lib/student/agenda";
 
 const now = new Date("2030-01-01T17:30:00Z");
 
@@ -35,6 +35,21 @@ describe("student agenda", () => {
     expect(getAgendaAssessment({ openAt: null, closeAt, manualStatus: "open" }, now)?.status).toBe("today");
     expect(getAgendaAssessment({ openAt, closeAt: null, manualStatus: "closed" }, now)?.status).toBe("past");
     expect(getAgendaAssessment({ openAt: null, closeAt: null }, now)).toBeNull();
+  });
+
+  test("keeps yesterday's opening and deadline in history even when an assessment is playable", () => {
+    const yesterday = new Date("2030-01-01T16:45:00Z");
+    expect(getAgendaAssessment({ openAt: yesterday, closeAt: null }, now)?.status).toBe("past");
+    expect(getAgendaAssessment({ openAt: null, closeAt: yesterday, manualStatus: "open" }, now)?.status).toBe("past");
+  });
+
+  test("accepts stored tutorial times with one-digit hours or seconds", () => {
+    expect(getAgendaBookingTime("2030-01-02", "9:00", "10:30:00")).toEqual({
+      start: new Date("2030-01-02T02:00:00Z"),
+      end: new Date("2030-01-02T03:30:00Z"),
+      scheduledRange: "09:00 - 10:30",
+    });
+    expect(getAgendaBookingTime("2030-01-02", "24:00", "10:30")).toBeNull();
   });
 
   test("orders active dates first and history from newest to oldest", () => {

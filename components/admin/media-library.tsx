@@ -23,7 +23,6 @@ import {
   MoreVertical,
   Music,
   Pencil,
-  Plus,
   RefreshCw,
   Trash2,
   UploadCloud,
@@ -773,7 +772,7 @@ export function MediaLibrary() {
 
   const headerActions = (
     <div data-media-toolbar="" className="flex w-full min-w-0 items-center justify-between gap-2 sm:w-auto">
-      <div className="group/media-search flex min-w-0 flex-1 items-center gap-1.5 sm:flex-initial">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:flex-initial">
         <SearchBar
           collapsible
           value={query}
@@ -782,7 +781,7 @@ export function MediaLibrary() {
           placeholder={t("media.search")}
           size="sm"
         />
-        <div className="flex shrink-0 items-center gap-0.5 rounded-md bg-muted/30 group-has-[[data-search-expanded=true]]/media-search:hidden">
+        <div className="flex shrink-0 items-center gap-0.5 rounded-md bg-muted/30">
           <AdminIconAction
             variant="ghost"
             className="aria-pressed:bg-foreground/10 aria-pressed:text-foreground"

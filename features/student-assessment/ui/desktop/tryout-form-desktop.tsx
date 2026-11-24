@@ -125,6 +125,17 @@ export function TryoutFormDesktop({
 
         <TooltipProvider>
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {index < sorted.length - 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="mr-auto"
+                disabled={isSubmitting}
+                onClick={() => setShowConfirmModal(true)}
+              >
+                {t("tryout.submitExam")}
+              </Button>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

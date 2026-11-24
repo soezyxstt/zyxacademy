@@ -1,11 +1,12 @@
 import { expect, test, type Page, type Route, type TestInfo } from "@playwright/test";
 import { buildFixture } from "./fixtures/interactive-document-build";
+import type { QuizFixtureConfig } from "./fixtures/quiz-query";
 
 const origin = "http://quiz-query.invalid";
 let fixture: Awaited<ReturnType<typeof buildFixture>>;
 test.beforeAll(async () => { fixture = await buildFixture("tests/visual/fixtures/quiz-query.tsx"); });
 
-async function boot(page: Page, config: Window["quizFixture"], respond?: (route: Route) => Promise<void>) {
+async function boot(page: Page, config: QuizFixtureConfig, respond?: (route: Route) => Promise<void>) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
@@ -21,7 +22,7 @@ async function boot(page: Page, config: Window["quizFixture"], respond?: (route:
   });
   await page.goto(origin);
   await page.addStyleTag({ content: fixture.styles });
-  await page.evaluate((value) => { window.quizFixture = value; }, config);
+  await page.evaluate((value) => { Object.assign(window, { quizFixture: value }); }, config);
   await page.addScriptTag({ content: fixture.script });
   return errors;
 }
@@ -56,6 +57,13 @@ test("quiz keeps recovery after an invalid acknowledgement, then clears it after
       const row = button.parentElement!;
       return Math.abs(row.getBoundingClientRect().right - button.getBoundingClientRect().right);
     })).toBeLessThanOrEqual(1);
+  } else {
+    const earlySubmit = page.getByRole("button", { name: "Kumpulkan kuis", exact: true });
+    await earlySubmit.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("button", { name: "Cek kembali", exact: true }).click();
+    await expect(earlySubmit).toBeFocused();
+    expect(posts).toHaveLength(0);
   }
   await capture(page, info, "quiz-empty", errors);
   await page.getByRole("checkbox", { name: /Dua/ }).click();

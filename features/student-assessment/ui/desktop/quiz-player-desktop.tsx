@@ -159,7 +159,15 @@ export function QuizPlayerDesktop({
 
         <TooltipProvider>
           <div className="flex items-center justify-end gap-2">
-            {canGoBack ? (
+            <div className="mr-auto flex min-w-0 flex-wrap items-center gap-x-2">
+              {index < sorted.length - 1 && (
+                <Button type="button" variant="ghost" disabled={locked} onClick={handleRequestSubmit}>
+                  {t("quiz.submitQuiz")}
+                </Button>
+              )}
+              {!canGoBack && <span className="text-body-xs text-muted-foreground">{t("quiz.linearMode")}</span>}
+            </div>
+            {canGoBack && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -177,10 +185,6 @@ export function QuizPlayerDesktop({
                 </TooltipTrigger>
                 <TooltipContent>{t("quiz.previous")}</TooltipContent>
               </Tooltip>
-            ) : (
-              <span className="mr-auto text-body-xs text-muted-foreground">
-                {t("quiz.linearMode")}
-              </span>
             )}
 
             <div className="flex gap-2">

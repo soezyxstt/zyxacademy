@@ -12,7 +12,6 @@ import {
   ExternalLink,
   FileText,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminTable } from "@/components/admin/table";

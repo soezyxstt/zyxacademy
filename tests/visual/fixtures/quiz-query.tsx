@@ -9,21 +9,17 @@ import { QuizPlayer } from "@/components/course/quiz-player";
 import { AttemptReview } from "@/components/course/attempt-review";
 import { Toaster } from "@/components/ui/toast";
 
-declare global {
-  interface Window {
-    quizFixture: {
-      mode: "player" | "review" | "demo";
-      seconds?: number | null;
-      closeAtMs?: number;
-      perQuestionSeconds?: number;
-      expectedUserId?: string;
-    };
-  }
-}
+export type QuizFixtureConfig = {
+  mode: "player" | "review" | "demo";
+  seconds?: number | null;
+  closeAtMs?: number;
+  perQuestionSeconds?: number;
+  expectedUserId?: string;
+};
 
 function App() {
   const [demoSubmitted, setDemoSubmitted] = useState(false);
-  const config = window.quizFixture;
+  const config = (window as Window & { quizFixture: QuizFixtureConfig }).quizFixture;
   return <main className="mx-auto max-w-5xl p-4 text-foreground">
     {config.mode === "review" ? <AttemptReview attemptId="fixture-attempt" /> : <QuizPlayer
       courseId="fixture-course" attemptId="fixture-attempt"

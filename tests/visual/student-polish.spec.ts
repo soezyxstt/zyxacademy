@@ -3,7 +3,7 @@ import { stubVisualTelemetry } from "./telemetry-stubs";
 import { waitForVisualReadiness } from "./visual-readiness";
 
 const fixture = "/visual-fixtures/student-polish";
-test.use({ locale: "en-GB", colorScheme: "dark", reducedMotion: "reduce" });
+test.use({ locale: "en-GB", colorScheme: "dark", contextOptions: { reducedMotion: "reduce" } });
 test.setTimeout(180_000);
 
 async function prepare(page: Page) {
@@ -47,8 +47,10 @@ test("quiz keeps focus, selections, flags, progress and submit confirmation", as
     expect(await quizNavigation.evaluate(element => {
       return Math.abs(element.getBoundingClientRect().bottom - window.innerHeight);
     })).toBeLessThanOrEqual(1);
+    await expect(page.getByRole("button", { name: /submit/i })).toHaveCount(0);
+  } else {
+    await expect(page.getByRole("button", { name: "Submit quiz", exact: true })).toBeVisible();
   }
-  await expect(page.getByRole("button", { name: /submit/i })).toHaveCount(0);
   await expect(page.getByRole("timer")).toHaveCount(2);
   const progress = page.getByRole("progressbar");
   await expect(progress).toHaveAttribute("aria-valuenow", "0");

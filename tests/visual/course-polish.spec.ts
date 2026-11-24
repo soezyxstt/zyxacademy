@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { waitForVisualReadiness } from "./visual-readiness";
 
 const fixture = "/visual-fixtures/course-polish";
-test.use({ colorScheme: "dark", locale: "en-GB", reducedMotion: "reduce" });
+test.use({ colorScheme: "dark", locale: "en-GB", contextOptions: { reducedMotion: "reduce" } });
 test.setTimeout(150_000);
 
 for (const [section, text] of [
