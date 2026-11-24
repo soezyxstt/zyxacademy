@@ -25,7 +25,9 @@ function MathValue({ value, display = false }: { value: string; display?: boolea
 type MentionRenderer = (handle: string) => ReactNode;
 
 const INLINE_PATTERN =
-  /!\[([^\]\n]{0,500})\]\([^\n)]{0,2048}\)|\[([^\]\n]{1,500})\]\(([^\s()]{1,2048})\)|\*\*((?:\$[^$\n]+\$|\\\((?:\\.|[^\\\n])+?\\\)|[^*$\n])+)\*\*|\*((?:\$[^$\n]+\$|\\\((?:\\.|[^\\\n])+?\\\)|[^*$\n])+)\*|`([^`\n]+)`|\$([^$\n]+)\$|\\\(((?:\\.|[^\\\n])+?)\\\)|(?<![\p{L}\p{N}_@])@([\p{L}\p{N}_](?:[\p{L}\p{N}_.-]*[\p{L}\p{N}_])?)/gu;
+  /!\[([^\]\n]{0,500})\]\([^\n)]{0,2048}\)|\[([^\]\n]{1,500})\]\(([^\s()]{1,2048})\)|\*\*((?:\$[^$\n]+\$|\\\((?:\\(?!\))|[^\\\n])+\\\)|\\(?!\()|[^*$\\\n])+)\*\*|\*((?:\$[^$\n]+\$|\\\((?:\\(?!\))|[^\\\n])+\\\)|\\(?!\()|[^*$\\\n])+)\*|`([^`\n]+)`|\$([^$\n]+)\$|\\\(((?:\\(?!\))|[^\\\n])+)\\\)|(?<![\p{L}\p{N}_@])@([\p{L}\p{N}_](?:[\p{L}\p{N}_.-]*[\p{L}\p{N}_])?)/gu;
+
+const HEADING_LINE = /^#{1,3}\s+(\S.*)$/;
 
 function inline(text: string, mathBudget: { remaining: number; renderMention?: MentionRenderer }, depth = 0): ReactNode[] {
   if (depth >= 4) return [text];
@@ -86,7 +88,7 @@ function renderParagraphSegment(paragraph: string, keyPrefix: string, mathBudget
       continue;
     }
 
-    const headingMatch = line.match(/^#{1,3}\s+(.+)$/);
+    const headingMatch = line.match(HEADING_LINE);
     if (headingMatch) {
       elements.push(
         <p key={`${keyPrefix}-h-${i}`} className="font-heading font-semibold text-foreground">
@@ -102,7 +104,7 @@ function renderParagraphSegment(paragraph: string, keyPrefix: string, mathBudget
       i < lines.length &&
       !/^\s*[-*] /.test(lines[i]) &&
       !/^\s*\d+\. /.test(lines[i]) &&
-      !/^#{1,3}\s+/.test(lines[i])
+      !HEADING_LINE.test(lines[i])
     ) {
       proseLines.push(lines[i]);
       i++;

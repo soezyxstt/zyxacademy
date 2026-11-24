@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { Check, ChevronDown, Flag, Forward, MessageSquareReply, Pencil, Plus, Trash2 } from "lucide-react";
 import { ZyraBubbleSkin } from "@/components/gamification/zyra-bubble-skin";
+import { getZyraChatSkin } from "@/lib/gamification/zyra-cosmetics";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -360,6 +361,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
             : "role_unknown"
   );
   const showRoleBadge = message.author.name.trim().toLowerCase() !== roleLabel.trim().toLowerCase();
+  const hasBubbleSkin = Boolean(getZyraChatSkin(message.skinId));
 
   return <div data-message-id={message.id} data-own-message={isOwn ? "true" : undefined} data-discussion-target={targeted || undefined} tabIndex={targeted ? -1 : undefined} className={cn("min-w-0 touch-pan-y", targeted && "rounded-lg ring-2 ring-primary")} onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={(event) => endGesture(event, true)}>
     <div className={cn("flex min-w-0 items-start gap-2 md:gap-2.5", isOwn && "flex-row-reverse")}>
@@ -374,7 +376,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
           role={message.author.role === "zyra" ? "assistant" : "user"}
           className={cn(
             "min-w-0 w-fit max-w-full md:max-w-[85%]",
-            message.skinId
+            hasBubbleSkin
               ? undefined
               : cn(
                   "rounded-2xl border px-3.5 py-2.5",

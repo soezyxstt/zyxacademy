@@ -95,4 +95,22 @@ describe("discussion Markdown safety", () => {
     expect(html).toContain("Cek diskriminan");
     expect(html).toContain("Substitusi");
   });
+
+  test("handles bare heading prefix lines without looping", () => {
+    for (const content of ["# ", "## ", "###   ", "# \nParagraf biasa"]) {
+      const html = renderToStaticMarkup(<DiscussionMarkdown content={content} />);
+      expect(html).toContain("<div");
+    }
+  });
+
+  test("avoids catastrophic backtracking on unclosed emphasis with repeated \\(...\\)", () => {
+    const start = performance.now();
+    for (const prefix of ["**", "*"]) {
+      const html = renderToStaticMarkup(
+        <DiscussionMarkdown content={prefix + "\\(a\\)".repeat(30)} />
+      );
+      expect(html).toContain("katex");
+    }
+    expect(performance.now() - start).toBeLessThan(1000);
+  });
 });
