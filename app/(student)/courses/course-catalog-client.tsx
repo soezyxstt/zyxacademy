@@ -8,6 +8,7 @@ import { LockKeyhole } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { cn } from "@/lib/utils";
+import { hapticMedium, hapticWarning } from "@/lib/native/haptics";
 import { useTranslations } from "@/lib/i18n/client";
 
 export interface CatalogCourseItem {
@@ -111,6 +112,10 @@ export function CourseCatalogClient({
       <Link
         key={c.id}
         href={courseHref(c.id)}
+        onClick={() => {
+          if (locked) void hapticWarning();
+          else void hapticMedium();
+        }}
         className="flex items-start gap-3 rounded-lg py-(--row-padding) transition-colors hover:bg-muted/40 active:bg-muted/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       >
         <span aria-hidden className={cn("mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg text-body-xs font-semibold tracking-tight ring-1 ring-inset", !hasContent && "opacity-75", badge.color)}>

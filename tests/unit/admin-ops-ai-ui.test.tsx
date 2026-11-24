@@ -277,8 +277,8 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain("h-[var(--panel-visible-height,100dvh)]");
       expect(html).toContain("lg:shrink-0");
 
-      // Mobile overlay fallback classes
-      expect(html).toContain("fixed inset-y-0 right-0 left-4 z-50");
+      // Mobile overlay full-width classes
+      expect(html).toContain("fixed inset-y-0 left-0 right-0 z-50 w-full");
     });
 
     it("renders the resize separator handle with ARIA attributes on desktop", () => {
@@ -813,16 +813,19 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
   // Suite 10: Correction Pass (Visual Defect & Hydration Verifications)
   // ==========================================================================
   describe("Suite 10: Correction Pass (Visual Defect & Hydration Verifications)", () => {
-    it("pins the mobile sheet above the backdrop and leaves an outside tap area", () => {
+    it("pins the mobile sheet full-width above the backdrop and keeps tablet width at sm", () => {
       const html = renderToStaticMarkup(
         <OpsAiProvider initialOpen={true} initialWidth={480}>
           <OpsAiPanel />
         </OpsAiProvider>
       );
 
-      expect(html).toContain("fixed inset-y-0 right-0 left-4 z-50");
+      expect(html).toContain("fixed inset-y-0 left-0 right-0 z-50 w-full");
       expect(html).toContain("sm:left-auto sm:w-[480px]");
       expect(html).toContain("lg:sticky lg:self-start lg:shrink-0");
+      expect(html).toContain('data-full-width="false"');
+      expect(html).toContain('aria-label="Perbesar ke layar penuh"');
+      expect(html).toContain('aria-pressed="false"');
 
       // Verify backdrop has z-40 and panel has z-50
       expect(html).toContain("fixed inset-0 z-40 bg-black/50");
@@ -1126,6 +1129,62 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain('placeholder="Ketik sendiri..."');
       // Verify raw code block is NOT rendered in chat text
       expect(html).not.toContain("&lt;code&gt;[&quot;Ya&quot;");
+    });
+  });
+
+  // ==========================================================================
+  // Suite 15: Interactive Presets, Capability Overview & Mode Toggle
+  // ==========================================================================
+  describe("Suite 15: Interactive Presets, Capability Overview & Mode Toggle", () => {
+    it("renders featured capability overview preset, category filter, mode toggle, and help trigger in empty state", () => {
+      const html = renderToStaticMarkup(
+        <OpsAiProvider initialOpen={true}>
+          <OpsAiPanel />
+        </OpsAiProvider>
+      );
+
+      expect(html).toContain("Apa saja yang bisa dibantu Ops AI?");
+      expect(html).toContain('aria-label="Filter kategori preset"');
+      expect(html).toContain("Semua");
+      expect(html).toContain("Tanya");
+      expect(html).toContain("Aksi");
+      expect(html).toContain('aria-label="Mode percakapan"');
+      expect(html).toContain('aria-label="Bantuan Zyx Ops AI"');
+      expect(html).toContain("Buat token aktivasi kelompok");
+    });
+
+    it("renders mid-chat preset launcher when conversation has messages", () => {
+      const html = renderToStaticMarkup(
+        <OpsAiProvider initialOpen={true}>
+          <OpsAiPanel
+            initialMessages={[
+              { id: "u1", role: "user", content: "Halo", createdAt: 1000 },
+              { id: "a1", role: "assistant", content: "Halo admin.", createdAt: 2000 },
+            ]}
+          />
+        </OpsAiProvider>
+      );
+
+      expect(html).toContain('aria-label="Buka daftar preset pertanyaan dan aksi"');
+      expect(html).toContain("Preset");
+    });
+
+    it("returns route-specific presets for admin sub-pages", async () => {
+      const { getAdminRouteContext, CAPABILITY_OVERVIEW_PRESET, OPS_AI_PRESETS } = await import(
+        "@/components/admin/ops-ai/ops-ai-presets"
+      );
+
+      expect(CAPABILITY_OVERVIEW_PRESET.label).toBe("Apa saja yang bisa dibantu Ops AI?");
+      expect(OPS_AI_PRESETS.some((p) => p.category === "action")).toBe(true);
+      expect(OPS_AI_PRESETS.some((p) => p.category === "ask")).toBe(true);
+
+      const coursesCtx = getAdminRouteContext("/admin/courses/math-1");
+      expect(coursesCtx.pageLabel).toBe("Mata Kuliah");
+      expect(coursesCtx.routePreset?.id).toBe("route-courses");
+
+      const formsCtx = getAdminRouteContext("/admin/forms");
+      expect(formsCtx.pageLabel).toBe("Formulir");
+      expect(formsCtx.routePreset?.id).toBe("route-forms");
     });
   });
 });

@@ -120,6 +120,7 @@ export function TutorMobileCourseTabNav({
       label={tMobile("courseTabsLabel")}
       variant="page"
       flush={true}
+      primaryMobileNav
       className="mx-0 w-full px-1 md:hidden"
     />
   );

@@ -66,9 +66,7 @@ test("the schedule action scopes queries to the resolved course and the current 
       return {
         where: (predicate: any) => sourceTable.name === "mataKuliah"
           ? Promise.resolve(mappedCourses.filter((row) => evalWhere(predicate, row)))
-          : sourceTable.name === "tutorSlotNotes"
-            ? Promise.resolve([])
-            : ({ rows: (sourceTable.name === "groupCourses" ? courses : sourceTable.name === "tutorCourses" ? assignments : canonicalAssignments).filter((row) => evalWhere(predicate, row)).map((row: any) => row[fields.id.key]) }),
+          : ({ rows: (sourceTable.name === "groupCourses" ? courses : sourceTable.name === "tutorCourses" ? assignments : canonicalAssignments).filter((row) => evalWhere(predicate, row)).map((row: any) => row[fields.id.key]) }),
         innerJoin: () => joined,
       };
     } }),
@@ -83,7 +81,7 @@ test("the schedule action scopes queries to the resolved course and the current 
   const module = { exports: {} as any };
   const predicate = (op: string) => (...args: any[]) => ({ op, args });
   runInNewContext(transformSync(section, { loader: "ts", format: "cjs" }).code, {
-    module, exports: module.exports, db, groupMembers, groupCourses, tutorSlots, tutorSlotNotes: table("tutorSlotNotes"), tutorCourses, penugasanTutor, mataKuliah: table("mataKuliah"), pengguna, penggunaPeran, peran, bookings, academicSchedules,
+    module, exports: module.exports, db, groupMembers, groupCourses, tutorSlots, tutorCourses, penugasanTutor, mataKuliah: table("mataKuliah"), pengguna, penggunaPeran, peran, bookings, academicSchedules,
     user: table("user"), bookingAuditLogs: table("bookingAuditLogs"), bookingRescheduleTickets: table("bookingRescheduleTickets"), bookingTicketMessages: table("bookingTicketMessages"),
     eq: (column: any, value: any) => ({ op: "eq", column, value }), inArray: (column: any, values: any) => ({ op: "in", column, values }), notInArray: (column: any, values: any) => ({ op: "notIn", column, values }), and: predicate("and"), or: predicate("or"),
     gte: () => ({}), lte: () => ({}), isNull: () => ({}), isNotNull: () => ({}), desc: () => ({}),

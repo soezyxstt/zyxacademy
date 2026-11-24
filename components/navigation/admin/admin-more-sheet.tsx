@@ -52,6 +52,7 @@ import { LanguageMenu } from "@/components/language-menu";
 import { useSession } from "@/lib/auth-client";
 import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
+import { hapticLight, hapticSelection } from "@/lib/native/haptics";
 import {
   ADMIN_MORE_CATEGORIES,
   ADMIN_PINNED_SYNC_EVENT,
@@ -128,6 +129,7 @@ export function AdminMoreSheet({ open, onOpenChange }: AdminMoreSheetProps) {
       return;
     }
     event.preventDefault();
+    void hapticLight();
     closeDialogsThen(() => onOpenChange(false), () => router.push(href));
   };
 
@@ -160,6 +162,7 @@ export function AdminMoreSheet({ open, onOpenChange }: AdminMoreSheetProps) {
   };
 
   const togglePin = (id: string) => {
+    void hapticSelection();
     const next = pinnedIds.includes(id)
       ? pinnedIds.filter((entry) => entry !== id)
       : [...pinnedIds, id];

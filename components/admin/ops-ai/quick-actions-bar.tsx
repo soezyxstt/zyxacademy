@@ -65,7 +65,7 @@ export function extractQuickActions(content: string): {
     const lines = listMatch[1]
       .split(/\r?\n/)
       .map((l) => l.replace(/^(?:\d+\.|\-|\*)\s+/, "").trim())
-      .filter((l) => l.length > 0 && l.length <= 40);
+      .filter((l) => l.length > 0 && l.length <= 60);
     if (lines.length >= 2 && lines.length <= 4) {
       return {
         cleanedContent: content,
@@ -105,7 +105,7 @@ export function QuickActionsBar({
     <div
       role="group"
       aria-label="Pilihan aksi cepat"
-      className="flex flex-wrap items-center gap-1.5 pt-2 select-none"
+      className="flex flex-wrap items-center gap-1.5 pt-2.5 select-none"
     >
       {/* Option Buttons */}
       {options.map((opt, idx) => {
@@ -122,18 +122,18 @@ export function QuickActionsBar({
             onClick={() => onSelect(opt)}
             aria-label={`Pilih opsi ${opt}`}
             className={cn(
-              "h-auto min-h-7 max-w-full whitespace-normal text-left",
+              "h-auto min-h-7 max-w-full rounded-lg px-2.5 py-1.5 text-body-sm font-medium whitespace-normal text-left transition-colors cursor-pointer",
               isYes &&
                 "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60",
               isNo &&
-                "border-border/80 bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted",
+                "border-border bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted",
               !isYes &&
                 !isNo &&
-                "border-border bg-background text-foreground hover:border-primary/50 hover:bg-primary/5"
+                "border-border bg-card text-foreground hover:border-primary/50 hover:bg-primary/5"
             )}
           >
-            {isYes && <Check className="size-3 shrink-0" />}
-            {isNo && <X className="size-3 shrink-0" />}
+            {isYes && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
+            {isNo && <X className="size-3.5 shrink-0" aria-hidden="true" />}
             <span className="break-words">{opt}</span>
           </Button>
         );
@@ -142,7 +142,7 @@ export function QuickActionsBar({
       {/* Inline Custom Response Field */}
       <form
         onSubmit={handleSubmitCustom}
-        className="inline-flex items-center min-w-[140px] max-w-[220px] flex-1 sm:flex-initial"
+        className="inline-flex items-center min-w-[150px] max-w-[240px] flex-1 sm:flex-initial"
       >
         <div className="relative w-full flex items-center">
           <Input
@@ -152,7 +152,7 @@ export function QuickActionsBar({
             disabled={disabled}
             placeholder="Ketik sendiri..."
             aria-label="Ketik sendiri respon Anda"
-            className="h-8 pr-9"
+            className="h-8 rounded-lg pr-9 text-body-sm"
           />
           {customText.trim() && (
             <Button
@@ -160,9 +160,9 @@ export function QuickActionsBar({
               type="submit"
               disabled={disabled}
               aria-label="Kirim respon kustom"
-              className="absolute right-0.5"
+              className="absolute right-0.5 size-7 rounded-md"
             >
-              <ArrowUp className="size-3" />
+              <ArrowUp className="size-3.5" aria-hidden="true" />
             </Button>
           )}
         </div>

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { hasPeran } from "@/lib/auth/authorization";
 import { z } from "zod";
 import { proposalStore } from "@/lib/admin-ops-ai/proposal-store";
+import { isSameOriginAdminRequest } from "@/lib/admin-ops-ai/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -44,9 +45,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const fetchSite = req.headers.get("sec-fetch-site");
-    const origin = req.headers.get("origin");
-    if ((fetchSite && fetchSite !== "same-origin") || (origin && origin !== new URL(req.url).origin)) {
+    if (!isSameOriginAdminRequest(req, h)) {
       return NextResponse.json({ error: "Persetujuan harus diberikan dari halaman admin Zyx." }, { status: 403 });
     }
     const body = await req.json().catch(() => null);

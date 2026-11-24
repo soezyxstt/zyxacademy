@@ -36,22 +36,6 @@ function TabStrip({ width = "w-64" }: { width?: string }) {
   return <Skeleton className={cn("h-9 max-w-full", width)} />;
 }
 
-function Stats({ count = 4 }: { count?: number }) {
-  return (
-    <div className={cn(
-      "grid grid-cols-2 gap-x-(--related-gap) gap-y-(--compact-gap) border-b border-border/55 pb-(--compact-gap)",
-      count === 3 ? "sm:grid-cols-3" : "sm:grid-cols-4",
-    )}>
-      {Array.from({ length: count }, (_, index) => (
-        <div key={index} className="min-w-0 space-y-1.5">
-          <Skeleton className="h-4 w-24 max-w-full" />
-          <Skeleton className="h-6 w-12" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function Shell({ children }: { children: ReactNode }) {
   return (
     <ApplicationPage role="status">
@@ -111,7 +95,6 @@ export function TutorCourseLoading() {
 export function TutorParticipantsLoading() {
   return (
     <Shell>
-      <Stats />
       <TabStrip />
       <Toolbar><Skeleton className="size-9" /><Skeleton className="h-9 w-24" /></Toolbar>
       <Rows count={5} />

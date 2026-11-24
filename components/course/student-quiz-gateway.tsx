@@ -38,20 +38,20 @@ export function StudentQuizGateway({ href = (path: string) => path,  id, courseT
           <div className="min-w-0 space-y-(--related-gap) lg:col-span-8">
             <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.instructionsTitle" /></h2>
 
-            <dl className="grid grid-cols-2 gap-(--compact-gap) border-y border-border/55 py-(--row-padding) sm:grid-cols-3">
-              <div>
+            <dl className="flex flex-col divide-y divide-border/40 border-y border-border/55 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-6 sm:gap-y-1.5 sm:divide-y-0 sm:py-2">
+              <div className="flex items-baseline justify-between gap-3 py-1.5 sm:inline-flex sm:justify-start sm:gap-1.5 sm:py-0">
                 <dt className="text-body-xs text-muted-foreground"><TranslatedText namespace="learning" messageKey="quizTake.questionCount" /></dt>
                 <dd className="text-body-sm font-semibold tabular-nums">{template.selectionRules?.count ?? 10}</dd>
               </div>
 
-              <div>
+              <div className="flex items-baseline justify-between gap-3 py-1.5 sm:inline-flex sm:justify-start sm:gap-1.5 sm:py-0">
                 <dt className="text-body-xs text-muted-foreground"><TranslatedText namespace="learning" messageKey="quizTake.duration" /></dt>
                 <dd className="text-body-sm font-semibold tabular-nums">
                   {template.timeLimitSeconds ? <TranslatedText namespace="learning" messageKey="quizList.minutes" values={{ count: Math.round(template.timeLimitSeconds / 60) }} /> : <TranslatedText namespace="learning" messageKey="quizList.noLimit" />}
                 </dd>
               </div>
 
-              <div className="col-span-2 sm:col-span-1">
+              <div className="flex items-baseline justify-between gap-3 py-1.5 sm:inline-flex sm:justify-start sm:gap-1.5 sm:py-0">
                 <dt className="text-body-xs text-muted-foreground"><TranslatedText namespace="learning" messageKey="quizTake.attemptsRemaining" /></dt>
                 <dd className="text-body-sm font-semibold tabular-nums">
                   {template.maxAttempts ? <TranslatedText namespace="learning" messageKey="quizTake.attemptsLeft" values={{ remaining: attemptsLeft ?? 0, total: template.maxAttempts }} /> : <TranslatedText namespace="learning" messageKey="quizTake.unlimitedAttempts" />}

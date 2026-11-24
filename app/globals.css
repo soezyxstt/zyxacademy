@@ -1212,6 +1212,22 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
     --mobile-navbar-height: calc(6.25rem + env(safe-area-inset-top, 0px));
   }
 
+  body:has([data-mobile-navbar][data-pull-state="refreshing"]) {
+    --mobile-navbar-height: calc(5.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-pull-state="error"]) {
+    --mobile-navbar-height: calc(5.875rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-mobile-search-expanded="true"][data-pull-state="refreshing"]) {
+    --mobile-navbar-height: calc(8.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-mobile-search-expanded="true"][data-pull-state="error"]) {
+    --mobile-navbar-height: calc(8.875rem + env(safe-area-inset-top, 0px));
+  }
+
   body:has([data-mobile-bottom-nav]) {
     --mobile-bottom-nav-height: calc(3.75rem + env(safe-area-inset-bottom, 0px));
   }
@@ -1231,9 +1247,49 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
   background-color: color-mix(in oklab, var(--background) 95%, transparent);
 }
 
+@keyframes ptr-ready-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes ptr-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
 /* Flush sticky page tab bar attaches directly under the navbar without top page padding. */
 [data-application-page]:has([data-sticky-tabs-bar="flush"]) {
   padding-top: 0;
+}
+
+/* When a primary mobile tab nav is present, secondary page tab bars stay full-width
+   and flush when requested, but do not double-stack as sticky bars on mobile. */
+@media (max-width: 767.98px) {
+  main:has([data-primary-mobile-tabs]) [data-application-page] [data-sticky-tabs-bar] {
+    position: relative;
+    top: auto;
+    z-index: 0;
+    isolation: isolate;
+  }
+}
+
+/* Nested page tab bars inside another tabpanel remain full-width without competing for sticky. */
+[role="tabpanel"] [data-sticky-tabs-bar] {
+  position: relative;
+  top: auto;
+  z-index: 0;
+  isolation: isolate;
 }
 
 /* Mobile assessments supply the spacing around their toolbar and fixed footer. */

@@ -10,6 +10,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { hapticLight, hapticMedium } from "@/lib/native/haptics";
 import { closeDialogsThen } from "@/hooks/use-dialog-history";
 import type { StudentCourseSummary } from "./student-nav-model";
 
@@ -57,6 +58,7 @@ export function StudentMobileCourseSheet({
                   key={course.id}
                   type="button"
                   onClick={() => {
+                    void hapticMedium();
                     closeDialogsThen(
                       () => onOpenChange(false),
                       () => onSelectCourse(course.id)
@@ -108,6 +110,7 @@ export function StudentMobileCourseSheet({
                     return;
                   }
                   event.preventDefault();
+                  void hapticLight();
                   closeDialogsThen(
                     () => onOpenChange(false),
                     () => router.push(exploreHref)

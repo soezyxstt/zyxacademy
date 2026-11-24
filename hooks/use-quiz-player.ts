@@ -8,12 +8,18 @@ import { useTranslations } from "@/lib/i18n/client";
 import { emitActivityUpdated } from "@/lib/activity-signal";
 import { uploadQuizAttachment, removeQuizAttachment } from "@/lib/quiz/client";
 import { ApiError } from "@/lib/query/http";
-import { hapticSuccess } from "@/lib/native/haptics";
+import {
+  hapticLight,
+  hapticMedium,
+  hapticSelection,
+  hapticSuccess,
+  hapticWarning,
+} from "@/lib/native/haptics";
 import { usePullToRefreshLock } from "@/hooks/use-pull-to-refresh-lock";
 import { closeDialogsThen } from "@/hooks/use-dialog-history";
 import {
   asEssayAnswer, createQuizStorage, createQuizSubmissionGate, formatQuizAnswers,
-  isQuizAnswerComplete, quizStorageKeys, readQuizAnswers, readQuizFlags,
+  isQuizAnswerComplete, quizStorageKeys, readQuizAnswers, readQuizFlags, readQuizIndex,
   remainingQuizSeconds, resolveQuizDeadline, resolveQuizDuration, selectQuizOption, waitForQuizUploads,
   type QuizAnswer, type QuizAnswers, type QuizPlayerProps, type QuizSubmission,
 } from "@/lib/quiz/player-state";
@@ -34,6 +40,7 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
   const deadlineRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
   const expiryHandled = useRef(false);
+  const lowTimeWarned = useRef(false);
   const durationSeconds = resolveQuizDuration(exam.settings);
   const canGoBack = exam.settings?.canGoBack ?? true;
   const requireAllAnswered = exam.settings?.requireAllAnswered ?? false;
@@ -73,6 +80,7 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
     answersRef.current = recovered;
     setAnswers(recovered);
     setFlags(readQuizFlags(storage.getItem(keys.flags), exam.questions));
+    setIndex(readQuizIndex(storage.getItem(keys.index), sorted.length));
     const now = Date.now();
     const deadline = resolveQuizDeadline({ stored: storage.getItem(keys.deadline), startedAtMs, closeAtMs, durationSeconds, now });
     deadlineRef.current = deadline;
@@ -87,6 +95,11 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
     // New server props must never overwrite a student's current local answers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keys, storage]);
+
+  useEffect(() => {
+    if (!ready || isSubmitted) return;
+    storage.setItem(keys.index, String(index));
+  }, [index, isSubmitted, keys.index, ready, storage]);
 
   const saveAnswers = useCallback((next: QuizAnswers) => {
     // Update the ref before the render, including the last input before a timeout.
@@ -107,11 +120,14 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
   }
 
   function selectOption(questionId: string, optionIndex: number, isMultiple: boolean) {
+    if (!ready || gate.phase !== "idle") return;
+    void hapticSelection();
     setAnswer(questionId, selectQuizOption(answersRef.current[questionId], optionIndex, isMultiple));
   }
 
   function toggleFlag(questionId: string) {
     if (!ready || gate.phase !== "idle") return;
+    void hapticLight();
     setFlags((current) => {
       const next = { ...current, [questionId]: !current[questionId] };
       storage.setItem(keys.flags, JSON.stringify(next));
@@ -192,6 +208,7 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
       const missing = sorted.findIndex((question) => !isQuizAnswerComplete(answersRef.current[question.id]));
       if (missing !== -1) { toast.error(t("quiz.answerAll")); setIndex(missing); return; }
     }
+    void hapticMedium();
     setShowConfirmModal(true);
   }, [gate, ready, requireAllAnswered, sorted, t]);
 
@@ -229,6 +246,7 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
           storage.removeItem(keys.deadline);
           storage.removeItem(keys.answers);
           storage.removeItem(keys.flags);
+          storage.removeItem(keys.index);
           if (!alive.current) return;
           void hapticSuccess();
           if (transport) {
@@ -270,6 +288,10 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
       if (deadlineRef.current === null) return;
       const remaining = remainingQuizSeconds(deadlineRef.current, Date.now());
       setTimeLeft(remaining);
+      if (remaining > 0 && remaining <= 60 && !lowTimeWarned.current) {
+        lowTimeWarned.current = true;
+        void hapticWarning();
+      }
       if (remaining === 0 && !expiryHandled.current && gate.phase === "idle") {
         expiryHandled.current = true;
         notifyExpired.current();
@@ -319,9 +341,17 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
     };
   }, [ready, perQuestionTimerEnabled, currentQuestionDuration, index, sorted.length, submitting, isSubmitted, t]);
 
+  const navigateToIndex = useCallback((next: number | ((current: number) => number)) => {
+    setIndex((current) => {
+      const resolved = typeof next === "function" ? next(current) : next;
+      if (resolved !== current) void hapticLight();
+      return resolved;
+    });
+  }, []);
+
   const answeredCount = sorted.filter((question) => isQuizAnswerComplete(answers[question.id])).length;
   return {
-    t, answers, flags, sorted, index, setIndex, timeLeft, questionTimeLeft,
+    t, answers, flags, sorted, index, setIndex: navigateToIndex, timeLeft, questionTimeLeft,
     submitting: submitting || !ready, isSubmitted, canGoBack, perQuestionTimerEnabled,
     showConfirmModal, setShowConfirmModal, uploadingFile, uploadProgress,
     answeredCount, unansweredCount: sorted.length - answeredCount,
@@ -329,7 +359,7 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
     progress: sorted.length ? answeredCount / sorted.length * 100 : 0,
     isQuestionAnswered, setAnswerText, selectOption, toggleFlag,
     handleFileChange, handleRemoveFile, handleRequestSubmit, handleSubmit,
-    goNext: () => { if (index < sorted.length - 1) setIndex((current) => current + 1); },
-    goPrev: () => { if (index > 0) setIndex((current) => current - 1); },
+    goNext: () => { if (index < sorted.length - 1) { void hapticLight(); setIndex((current) => current + 1); } },
+    goPrev: () => { if (index > 0) { void hapticLight(); setIndex((current) => current - 1); } },
   };
 }

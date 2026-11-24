@@ -31,7 +31,7 @@ import {
 } from "@/lib/audit/mutasi";
 import { getIsoWeekRange } from "@/lib/schedule-lock";
 import { getJakartaCalendarDate } from "@/lib/date-utils";
-import { triggerGoogleCalendarSyncForBookingId } from "@/lib/google-calendar/trigger";
+import { triggerGoogleCalendarSyncForBookingId, triggerGoogleCalendarSyncForRescheduleTicketId } from "@/lib/google-calendar/trigger";
 import {
   addTutorialDays,
   getTutorialWeekRange,
@@ -2487,14 +2487,7 @@ export async function decideTutorRescheduleTicketAction(
 ) {
   const result = await executeDecideTutorRescheduleTicket(input);
   if (result.success && input.decision === "approved") {
-    const [ticket] = await db
-      .select({ bookingId: bookingRescheduleTickets.bookingId })
-      .from(bookingRescheduleTickets)
-      .where(eq(bookingRescheduleTickets.id, input.ticketId))
-      .limit(1);
-    if (ticket?.bookingId) {
-      await triggerGoogleCalendarSyncForBookingId(ticket.bookingId);
-    }
+    await triggerGoogleCalendarSyncForRescheduleTicketId(input.ticketId);
   }
   return result;
 }

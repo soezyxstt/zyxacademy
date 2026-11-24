@@ -2316,76 +2316,78 @@ function ProductBundleMetadataPanel({
           <p className="text-body-xs text-muted-foreground mt-0.5">{t("materials.bundleMetadata.description")}</p>
         </div>
 
-        <div className="grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
-          <div className="min-w-0 space-y-1 bg-card px-3 py-2">
-            <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.bundleId")}</span>
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-body-xs font-semibold text-foreground truncate">{payload.bundle.id}</span>
+        <dl className="divide-y divide-border/40 border-y border-border/40">
+          <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+            <dt className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.bundleId")}</dt>
+            <dd className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate font-mono text-body-xs font-semibold text-foreground">{payload.bundle.id}</span>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0 shrink-0"
+                className="h-6 w-6 shrink-0 p-0"
                 onClick={() => void copyToClipboard(payload.bundle.id, "bundle-id")}
                 aria-label={t("materials.bundleMetadata.copyBundleId")}
               >
                 {copiedKey === "bundle-id" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
               </Button>
-            </div>
+            </dd>
           </div>
 
-          <div className="min-w-0 space-y-1 bg-card px-3 py-2">
-            <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.course")}</span>
-            <p className="font-medium text-body-xs text-foreground truncate">
-              {payload.bundle.courseId ? courseLabels[payload.bundle.courseId] ?? payload.bundle.courseId : t("materials.bundleMetadata.courseUnmapped")}
-            </p>
-            {payload.bundle.courseId && (
-              <span className="font-mono text-body-2xs text-muted-foreground block truncate">{payload.bundle.courseId}</span>
-            )}
+          <div className="flex flex-wrap items-baseline justify-between gap-2 py-2">
+            <dt className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.course")}</dt>
+            <dd className="min-w-0 text-right">
+              <span className="text-body-xs font-medium text-foreground">
+                {payload.bundle.courseId ? courseLabels[payload.bundle.courseId] ?? payload.bundle.courseId : t("materials.bundleMetadata.courseUnmapped")}
+              </span>
+              {payload.bundle.courseId && (
+                <span className="ml-2 font-mono text-body-2xs text-muted-foreground">{payload.bundle.courseId}</span>
+              )}
+            </dd>
           </div>
 
-          <div className="min-w-0 space-y-1 bg-card px-3 py-2">
-            <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.checksum")}</span>
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-body-xs text-foreground truncate">{payload.bundle.checksum}</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+            <dt className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.checksum")}</dt>
+            <dd className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate font-mono text-body-xs text-foreground">{payload.bundle.checksum}</span>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0 shrink-0"
+                className="h-6 w-6 shrink-0 p-0"
                 onClick={() => void copyToClipboard(payload.bundle.checksum, "checksum")}
                 aria-label={t("materials.bundleMetadata.copyChecksum")}
               >
                 {copiedKey === "checksum" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
               </Button>
-            </div>
+            </dd>
           </div>
 
-          <div className="min-w-0 space-y-1 bg-card px-3 py-2">
-            <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.statusAndRevision")}</span>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+            <dt className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.statusAndRevision")}</dt>
+            <dd className="flex items-center gap-2">
               <DetailStatus status={payload.bundle.status} />
               {payload.revisionFreshness?.policyVersion && (
                 <Badge variant="outline" className="text-body-2xs font-mono">{payload.revisionFreshness.policyVersion}</Badge>
               )}
-            </div>
+            </dd>
           </div>
 
-          <div className="min-w-0 space-y-1 bg-card px-3 py-2">
-            <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.createdAt")}</span>
-            <p className="text-body-xs font-medium text-foreground">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 py-2">
+            <dt className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.createdAt")}</dt>
+            <dd className="text-body-xs font-medium text-foreground">
               <FormattedDate date={payload.bundle.createdAt} />
-            </p>
+            </dd>
           </div>
 
-          <div className="min-w-0 space-y-1 bg-card px-3 py-2">
-            <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.pdfStatus")}</span>
-            <p className="text-body-xs font-medium text-foreground">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 py-2">
+            <dt className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.pdfStatus")}</dt>
+            <dd className="text-body-xs font-medium text-foreground">
               {payload.pdfStatus?.status ? `${t("materials.bundleMetadata.status")}: ${t(`materials.readiness.pdfStatus.${payload.pdfStatus.status}`)}` : t("materials.bundleMetadata.noPdfEvidence")}
               {payload.pdfStatus?.pageCount ? ` (${t("materials.readiness.pageCount", { count: payload.pdfStatus.pageCount })})` : ""}
-            </p>
+            </dd>
           </div>
-        </div>
+        </dl>
       </div>
 
       {/* Products Table with technical IDs */}

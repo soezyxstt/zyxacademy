@@ -1,6 +1,6 @@
-import { and, eq, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { account, bookings, googleCalendarSync, groupMembers, tutorSlots } from "@/db/schema";
+import { account, bookingRescheduleTickets, bookings, googleCalendarSync, groupMembers, tutorSlots } from "@/db/schema";
 import { inngest } from "@/jobs/client";
 import { minutesFrom } from "@/lib/date-utils";
 import { centralCalendarConfigured } from "./central";
@@ -12,30 +12,22 @@ async function enqueueSingleTarget(target: string, userId: string | null): Promi
     .values({ target, userId })
     .onConflictDoNothing();
 
-  const requestedAt = new Date();
-  const claimed = await db
-    .update(googleCalendarSync)
-    .set({ requestedAt, error: null })
-    .where(
-      and(
-        eq(googleCalendarSync.target, target),
-        or(
-          isNull(googleCalendarSync.requestedAt),
-          lt(googleCalendarSync.requestedAt, minutesFrom(-15)),
-        ),
-      ),
-    )
-    .returning({ target: googleCalendarSync.target });
-
-  if (!claimed.length) {
-    // A sync is already pending or in flight. Bump requestedAt so an in-flight
-    // worker sees requestedAt > syncStartedAt and schedules one follow-up pass.
-    await db
+  const { requestedAt, shouldEnqueue } = await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({ requestedAt: googleCalendarSync.requestedAt })
+      .from(googleCalendarSync)
+      .where(eq(googleCalendarSync.target, target))
+      .for("update");
+    const requestedAt = new Date();
+    const shouldEnqueue = !current?.requestedAt || current.requestedAt < minutesFrom(-15);
+    await tx
       .update(googleCalendarSync)
-      .set({ requestedAt })
+      .set({ requestedAt, ...(shouldEnqueue ? { error: null } : {}) })
       .where(eq(googleCalendarSync.target, target));
-    return false;
-  }
+    return { requestedAt, shouldEnqueue };
+  });
+
+  if (!shouldEnqueue) return false;
 
   try {
     await inngest.send({
@@ -173,6 +165,20 @@ export async function triggerGoogleCalendarSyncForBookingId(
     });
   } catch (error) {
     console.error("[GOOGLE_CALENDAR_TRIGGER] Failed booking lookup for sync:", id, error);
+    return [];
+  }
+}
+
+export async function triggerGoogleCalendarSyncForRescheduleTicketId(ticketId: string) {
+  try {
+    const [ticket] = await db
+      .select({ bookingId: bookingRescheduleTickets.bookingId })
+      .from(bookingRescheduleTickets)
+      .where(eq(bookingRescheduleTickets.id, ticketId))
+      .limit(1);
+    return triggerGoogleCalendarSyncForBookingId(ticket?.bookingId);
+  } catch (error) {
+    console.error("[GOOGLE_CALENDAR_TRIGGER] Failed ticket lookup for sync:", ticketId, error);
     return [];
   }
 }

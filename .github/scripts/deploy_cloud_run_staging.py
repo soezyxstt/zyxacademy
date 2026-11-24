@@ -257,10 +257,18 @@ def smoke(url, refs):
     request("/cloud-run-smoke-missing-page", 404, headers)
 
 
-def registry_digest(tag):
-    digest = gcloud("artifacts", "docker", "images", "describe", tag, "--format=value(image_summary.digest)")
-    require(DIGEST.fullmatch(digest), "Artifact Registry did not return an immutable SHA-256 digest.")
-    return f"{IMAGE}@{digest}"
+def pushed_image(tagged_image, push_output):
+    repository, separator, tag = tagged_image.rpartition(":")
+    require(repository == IMAGE and separator and tag, "Invalid Cloud Run image push target.")
+    digests = re.findall(rf"^{re.escape(tag)}: digest: ({DIGEST.pattern}) size: [0-9]+$", push_output, re.MULTILINE)
+    require(len(digests) == 1, "Artifact Registry push did not publish exactly one digest for the release tag.")
+    return f"{repository}@{digests[0]}"
+
+
+def candidate_tag(run_id, attempt):
+    tag = f"c-{run_id}-{attempt}"
+    require(len(tag) + len(SERVICE) <= 46, "Cloud Run traffic tag and service name exceed 46 characters.")
+    return tag
 
 
 def candidate(config, before):
@@ -268,15 +276,15 @@ def candidate(config, before):
     run_id, attempt = os.environ["GITHUB_RUN_ID"], os.environ["GITHUB_RUN_ATTEMPT"]
     revision = f"{SERVICE}-r{run_id}a{attempt}"
     require(REVISION.fullmatch(revision), "Invalid GitHub run identity.")
-    tag = f"candidate-{run_id}-{attempt}"
+    tag = candidate_tag(run_id, attempt)
     repository = json.loads(gcloud("artifacts", "repositories", "describe", REPOSITORY,
                                    "--location", REGION, "--format=json"))
     require(repository["format"] == "DOCKER", "Cloud Run staging requires a Docker repository.")
     gcloud("auth", "configure-docker", REGISTRY)
     tagged_image = f"{IMAGE}:{sha}-{run_id}-{attempt}"
     command(["docker", "tag", f"zyx-staging-web:{sha}", tagged_image], "Tag staging image")
-    command(["docker", "push", tagged_image], "Push staging image", capture=False)
-    image = registry_digest(tagged_image)
+    push_output = command(["docker", "push", tagged_image], "Push staging image")
+    image = pushed_image(tagged_image, push_output)
     provider = os.environ.get("QUEUE_PROVIDER", "inngest")
     require(provider in ("inngest", "cloud-tasks"), "Invalid candidate queue provider.")
     run("deploy", SERVICE, "--image", image, "--update-env-vars", f"QUEUE_PROVIDER={provider}", "--no-traffic", "--tag", tag, "--revision-suffix", f"r{run_id}a{attempt}",
@@ -310,7 +318,7 @@ def change_traffic(config, before, operation):
     revision = os.environ["CLOUD_RUN_REVISION"]
     identity = REVISION.fullmatch(revision)
     run_id, attempt = identity.groups()
-    tag = f"candidate-{run_id}-{attempt}" if operation == "promote" else "rollback"
+    tag = candidate_tag(run_id, attempt) if operation == "promote" else "rollback"
     data, image = check_revision(revision)
     if operation == "promote":
         require(data["metadata"]["labels"][SOURCE_LABEL] == os.environ["GITHUB_SHA"],

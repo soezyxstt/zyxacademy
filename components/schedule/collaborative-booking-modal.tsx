@@ -12,7 +12,6 @@ import {
   FileText,
   Loader2,
   MapPin,
-  StickyNote,
   Upload,
   Video,
   X,
@@ -143,8 +142,6 @@ export function CollaborativeBookingModal({
   );
   const optionalMaterialsCount =
     (note.trim() ? 1 : 0) + parsedLinks.length + selectedFiles.length;
-  const tutorSlotNote =
-    typeof selectedSlot?.notes === "string" ? selectedSlot.notes.trim() : "";
 
   const handleGroupChange = (nextGroupId: string) => {
     setSelectedGroupId(nextGroupId);
@@ -357,15 +354,6 @@ export function CollaborativeBookingModal({
                   {selectedSlot.startTime} - {selectedSlot.endTime} WIB ({t("booking.durationMinutes", { count: durationMinutes })})
                 </span>
               </div>
-              {tutorSlotNote ? (
-                <div className="flex items-start gap-2 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-body-xs text-muted-foreground">
-                  <StickyNote className="mt-0.5 size-3.5 shrink-0 text-brand-primary" aria-hidden />
-                  <p className="min-w-0 whitespace-pre-wrap break-words">
-                    <span className="font-semibold text-foreground">{t("booking.tutorNote")}: </span>
-                    {tutorSlotNote}
-                  </p>
-                </div>
-              ) : null}
             </section>
 
             <div className="space-y-1.5">

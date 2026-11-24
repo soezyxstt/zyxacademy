@@ -18,6 +18,11 @@ import {
   setComposerReplyTarget,
   type ComposerDraft,
 } from "@/components/discussions/composer";
+import {
+  loadPersistedDiscussionDrafts,
+  mergePersistedDiscussionDrafts,
+  savePersistedDiscussionDrafts,
+} from "@/lib/discussions/draft-persistence";
 import type {
   DiscussionChannel,
   DiscussionForwardDraft,
@@ -94,6 +99,47 @@ export function useDiscussionWorkspace(
   useEffect(() => {
     draftsRef.current = drafts;
   }, [drafts]);
+
+  const draftsHydratedForRef = useRef<string | null>(null);
+  const viewerId = props.viewer.id;
+
+  useEffect(() => {
+    if (!viewerId) return;
+    if (draftsHydratedForRef.current === viewerId) return;
+    draftsHydratedForRef.current = viewerId;
+    const saved = loadPersistedDiscussionDrafts(viewerId);
+    if (!saved) return;
+    setDrafts((current) =>
+      mergePersistedDiscussionDrafts(current, saved, emptyComposerDraft),
+    );
+  }, [viewerId, setDrafts]);
+
+  useEffect(() => {
+    if (!viewerId || draftsHydratedForRef.current !== viewerId) return;
+    const timer = window.setTimeout(() => {
+      savePersistedDiscussionDrafts(viewerId, draftsRef.current);
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [viewerId, drafts]);
+
+  useEffect(() => {
+    if (!viewerId) return;
+    const flush = () => {
+      if (draftsHydratedForRef.current === viewerId) {
+        savePersistedDiscussionDrafts(viewerId, draftsRef.current);
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      flush();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [viewerId]);
 
   const localNewOpen = useState(false);
   const localNewChannel = useState<DiscussionChannel | null>(null);

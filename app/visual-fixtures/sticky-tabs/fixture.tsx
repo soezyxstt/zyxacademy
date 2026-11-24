@@ -15,7 +15,14 @@ import { ApplicationPage } from "@/components/application-page";
 import { MobileNavbar } from "@/components/mobile-navbar";
 import { CommandMenuProvider } from "@/components/command-menu";
 import { PageHeader } from "@/components/page-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabNav, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const PRIMARY_MOBILE_TABS = [
+  { href: "/visual-fixtures/sticky-tabs?mode=dual", label: "Overview", active: false },
+  { href: "/visual-fixtures/sticky-tabs?mode=dual#documents", label: "Documents", active: true },
+  { href: "/visual-fixtures/sticky-tabs?mode=dual#quizzes", label: "Quizzes", active: false },
+  { href: "/visual-fixtures/sticky-tabs?mode=dual#discussions", label: "Discussions", active: false },
+];
 
 const TABS = [
   { value: "editor", label: "Question Editor", icon: FileText },
@@ -27,8 +34,13 @@ const TABS = [
   { value: "advanced", label: "Advanced", icon: Settings },
 ] as const;
 
-export function StickyTabsFixture() {
+export function StickyTabsFixture({
+  mode = "single",
+}: {
+  mode?: "single" | "dual" | "midpage";
+}) {
   const [active, setActive] = useState<string>("editor");
+  const hasPrimaryMobileNav = mode === "dual" || mode === "midpage";
 
   return (
     <CommandMenuProvider>
@@ -42,10 +54,38 @@ export function StickyTabsFixture() {
           </aside>
         }
       >
+        {hasPrimaryMobileNav && (
+          <TabNav
+            tabs={PRIMARY_MOBILE_TABS}
+            label="Primary course sections"
+            variant="page"
+            flush
+            primaryMobileNav
+            className="mx-0 w-full px-1 md:hidden"
+          />
+        )}
         <ApplicationPage className="flex flex-col items-start">
           <PageHeader title="Form Studio" />
+          {mode === "midpage" && (
+            <section
+              data-testid="midpage-summary"
+              className="grid w-full grid-cols-2 gap-3 border-b border-border/60 pb-4"
+            >
+              <div>
+                <p className="text-body-xs text-muted-foreground">Total participants</p>
+                <p className="font-heading text-h5 font-bold tabular-nums">3</p>
+              </div>
+              <div>
+                <p className="text-body-xs text-muted-foreground">Direct enrollments</p>
+                <p className="font-heading text-h5 font-bold tabular-nums">3</p>
+              </div>
+            </section>
+          )}
           <Tabs value={active} onValueChange={setActive} syncUrl={false}>
-            <TabsList aria-label="Form studio sections">
+            <TabsList
+              aria-label="Form studio sections"
+              flush={mode !== "midpage"}
+            >
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 return (

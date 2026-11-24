@@ -1347,11 +1347,12 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                   </div>
 
                   {/* Coverage stats */}
-                  <div className="flex items-center justify-around border-l border-border pl-6 flex-wrap gap-4 text-center">
-                    <div>
-                      <p
+                  <dl className="flex flex-col divide-y divide-border/40 border-t border-border/40 pt-2 md:border-l md:border-t-0 md:pl-6 md:pt-0">
+                    <div className="flex items-baseline justify-between gap-4 py-1">
+                      <dt className="text-body-xs text-muted-foreground">Parsed Successfully</dt>
+                      <dd
                         className={cn(
-                          "text-h4 font-heading font-bold transition-colors duration-500",
+                          "text-body-sm font-semibold tabular-nums transition-colors duration-500",
                           parsedSuccessfully < 70
                             ? "text-status-error"
                             : parsedSuccessfully < 90
@@ -1360,15 +1361,13 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                         )}
                       >
                         {parsedSuccessfully}%
-                      </p>
-                      <p className="text-body-xs text-muted-foreground uppercase tracking-wider">
-                        Parsed Successfully
-                      </p>
+                      </dd>
                     </div>
-                    <div>
-                      <p
+                    <div className="flex items-baseline justify-between gap-4 py-1">
+                      <dt className="text-body-xs text-muted-foreground">Unrecognized</dt>
+                      <dd
                         className={cn(
-                          "text-h4 font-heading font-bold transition-colors duration-500",
+                          "text-body-sm font-semibold tabular-nums transition-colors duration-500",
                           unrecognized > 15
                             ? "text-status-error"
                             : unrecognized > 5
@@ -1377,18 +1376,15 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                         )}
                       >
                         {unrecognized}%
-                      </p>
-                      <p className="text-body-xs text-muted-foreground uppercase tracking-wider">
-                        Unrecognized
-                      </p>
+                      </dd>
                     </div>
-                    <div>
-                      <p className="text-h4 font-heading font-bold text-muted-foreground">
+                    <div className="flex items-baseline justify-between gap-4 py-1">
+                      <dt className="text-body-xs text-muted-foreground">Ignored</dt>
+                      <dd className="text-body-sm font-semibold tabular-nums text-muted-foreground">
                         {ignored}%
-                      </p>
-                      <p className="text-body-xs text-muted-foreground uppercase tracking-wider">Ignored</p>
+                      </dd>
                     </div>
-                  </div>
+                  </dl>
                 </div>
               </div>
 

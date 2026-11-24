@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { hasAnyPeran } from "@/lib/auth/request-cache";
-import { Calendar, Clock, Bot, BookOpen, FileText, CreditCard, Target } from "lucide-react";
+import { Calendar, Clock, MessageCircle, BookOpen, FileText, CreditCard, Target } from "lucide-react";
 import { MarketingPageHero } from "@/components/marketing-page-hero";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -35,7 +35,7 @@ const APP_FEATURES = [
   {
     titleKey: "zyraTitle",
     descKey: "zyraDescription",
-    icon: Bot,
+    icon: MessageCircle,
     bg: "bg-primary/10 text-primary border-primary/20",
   },
   {

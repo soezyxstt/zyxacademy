@@ -64,7 +64,7 @@ export function ZyraOpsPanel() {
           </ul>
         </section>
       )}
-      <AdminStatStrip className="sm:grid-cols-2 lg:grid-cols-4">
+      <AdminStatStrip>
         <AdminStatStripItem label={t("analyticsUI.fallbackRecovered")} value={metrics.events.find(event => event.eventType === "provider_attempt" && event.resultCode === "PROVIDER_FALLBACK_SUCCESS")?.count ?? 0} />
         <AdminStatStripItem label={t("zyraOps.provider")} value={metrics.ledger.committedProviderTurns} />
         <AdminStatStripItem label={t("zyraOps.reservations")} value={metrics.ledger.activeReservations} />

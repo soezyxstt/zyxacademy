@@ -58,7 +58,7 @@ export function StudentQuizReview({ href = (path: string) => path,  id, visualCo
         <Reveal>
           <div className="space-y-4 font-sans">
             {targetAttempt && (
-              <AdminStatStrip className="sm:grid-cols-3">
+              <AdminStatStrip>
                 <AdminStatStripItem icon={Award} label={<TranslatedText namespace="learning" messageKey="quizTake.finalScore" />} value={targetAttempt.score == null ? "-" : `${targetAttempt.score}%`} tone="brand" />
                 <AdminStatStripItem icon={Clock} label={<TranslatedText namespace="learning" messageKey="quizTake.duration" />} value={formatDuration(targetAttempt.durationSeconds)} tone="info" />
                 <AdminStatStripItem

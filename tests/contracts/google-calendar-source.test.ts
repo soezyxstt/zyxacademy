@@ -51,10 +51,10 @@ test("masked Better Auth FAILED_TO_GET_ACCESS_TOKEN probes Google OAuth and mark
   process.env.GOOGLE_CLIENT_SECRET = "fixture-client-secret";
   try {
     tokenError = { body: { code: "FAILED_TO_GET_ACCESS_TOKEN" } };
-    globalThis.fetch = (() =>
+    globalThis.fetch = Object.assign(() =>
       Promise.resolve(
         Response.json({ error: "invalid_grant", error_description: "Token has been expired or revoked." }, { status: 400 }),
-      )) as typeof fetch;
+      ), { preconnect: originalFetch.preconnect });
 
     await syncGoogleCalendar("user:fixture-tutor");
     const rows = await testDb.select().from(schema.googleCalendarSync);

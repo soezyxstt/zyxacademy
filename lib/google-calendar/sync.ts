@@ -127,7 +127,7 @@ export async function syncGoogleCalendar(target: string) {
       .set({
         lastSyncedAt: new Date(),
         error: null,
-        requestedAt: sql`CASE WHEN ${googleCalendarSync.requestedAt} > ${syncStartedAt} THEN ${googleCalendarSync.requestedAt} ELSE NULL END`,
+        requestedAt: sql`CASE WHEN ${googleCalendarSync.requestedAt} > ${sql.param(syncStartedAt, googleCalendarSync.requestedAt)} THEN ${googleCalendarSync.requestedAt} ELSE NULL END`,
       })
       .where(eq(googleCalendarSync.target, target))
       .returning({ requestedAt: googleCalendarSync.requestedAt });

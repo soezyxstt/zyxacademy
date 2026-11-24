@@ -67,9 +67,9 @@ import {
   tutorTicketMessagePayload,
   tutorTicketSubmittedPayload,
 } from "@/lib/notifications/templates";
-import { tutorSlotNotes } from "@/db/schedule-extras";
 import {
   triggerGoogleCalendarSyncForBookingId,
+  triggerGoogleCalendarSyncForRescheduleTicketId,
   triggerGoogleCalendarSyncForScheduleChange,
 } from "@/lib/google-calendar/trigger";
 import { sendOptionalEmail } from "@/lib/email-preferences/send";
@@ -390,15 +390,6 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
       })
     : [];
 
-  const slotIds = allTutorSlots.map((slot) => slot.id);
-  const slotNoteRows = slotIds.length
-    ? await db
-        .select({ slotId: tutorSlotNotes.slotId, notes: tutorSlotNotes.notes })
-        .from(tutorSlotNotes)
-        .where(inArray(tutorSlotNotes.slotId, slotIds))
-    : [];
-  const slotNotesById = new Map(slotNoteRows.map((row) => [row.slotId, row.notes]));
-
   // A student only needs booking occupancy to hide claimed slots. Keep the
   // booking details in the group-scoped read above so another group's topic,
   // notes, resources, audit entries, and ticket thread are never exposed as
@@ -425,7 +416,7 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
       coursesByTutor.set(slot.tutorId, [...new Set([...compatible, ...legacy, ...(adminTutorIds.has(slot.tutorId) ? adminCourseIds : [])])]);
     }
     const matchedCourseIds = courseIds ?? coursesByTutor.get(slot.tutorId) ?? [];
-    return matchedCourseIds.length ? [{ ...slot, notes: slotNotesById.get(slot.id) ?? null, matchedCourseIds, booking: occupants[0] ?? null }] : [];
+    return matchedCourseIds.length ? [{ ...slot, matchedCourseIds, booking: occupants[0] ?? null }] : [];
   });
 
   return {
@@ -1744,14 +1735,7 @@ export async function tutorDecideTicket(
   if (res.success) {
     revalidatePath("/dashboard/schedule");
     if (decision === "approved") {
-      const [ticket] = await db
-        .select({ bookingId: bookingRescheduleTickets.bookingId })
-        .from(bookingRescheduleTickets)
-        .where(eq(bookingRescheduleTickets.id, ticketId))
-        .limit(1);
-      if (ticket?.bookingId) {
-        await triggerGoogleCalendarSyncForBookingId(ticket.bookingId);
-      }
+      await triggerGoogleCalendarSyncForRescheduleTicketId(ticketId);
     }
   }
   return res;

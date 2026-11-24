@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+import android.webkit.CookieManager;
 import android.webkit.WebView;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -61,6 +62,26 @@ public class MainActivity extends BridgeActivity {
         WebView webView = getBridge() != null ? getBridge().getWebView() : null;
         if (webView != null) {
             ViewCompat.requestApplyInsets(webView);
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        flushWebViewCookies();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        flushWebViewCookies();
+    }
+
+    private void flushWebViewCookies() {
+        try {
+            CookieManager.getInstance().flush();
+        } catch (Throwable ignored) {
+            // Ignore devices where WebView provider is unavailable.
         }
     }
 

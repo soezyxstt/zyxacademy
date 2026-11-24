@@ -7,7 +7,6 @@ import {
   BellRing,
   BellOff,
   Users,
-  GraduationCap,
   CalendarDays,
   ExternalLink,
   FileText,
@@ -15,7 +14,6 @@ import {
 import { SearchBar } from "@/components/ui/search-bar";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminTable } from "@/components/admin/table";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import {
   Dialog,
   DialogContent,
@@ -137,9 +135,6 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
     },
   });
 
-  const optedIn = registrations.filter((r) => r.receiveAnnouncements).length;
-  const facultyCount = new Set(registrations.map((r) => r.faculty.trim().toLowerCase())).size;
-
   const handleExportGoogleSheets = () => {
     const headersRow = [
       t("pkaRegistrationUI.fullName"),
@@ -177,13 +172,6 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
 
   return (
     <div className="space-y-(--related-gap)">
-      {/* Compact summary strip */}
-      <AdminStatStrip className="sm:grid-cols-3">
-        <AdminStatStripItem icon={Users} value={registrations.length} label={t("pkaRegistrationUI.total")} />
-        <AdminStatStripItem icon={BellRing} value={optedIn} label={t("pkaRegistrationUI.subscribed")} />
-        <AdminStatStripItem icon={GraduationCap} value={facultyCount} label={t("pkaRegistrationUI.facultyCount")} />
-      </AdminStatStrip>
-
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-2 [&>[data-search-expanded=true]]:min-w-36">
         <SearchBar

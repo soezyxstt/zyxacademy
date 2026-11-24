@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
+import { hapticMedium, hapticSuccess } from "@/lib/native/haptics";
 import { Button } from "@/components/ui/button";
 import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,7 +29,11 @@ export function QuizStartButton({ courseId, templateId, label, className, getRed
   const [loading, setLoading] = useState(false);
 
   const handleStart = async () => {
-    if (experience.mode === "demo") { router.push(`${experience.route("quiz", courseId)}&attempt=${crypto.randomUUID()}`); return; }
+    if (experience.mode === "demo") {
+      void hapticMedium();
+      router.push(`${experience.route("quiz", courseId)}&attempt=${crypto.randomUUID()}`);
+      return;
+    }
     try {
       setLoading(true);
       const res = await fetch("/api/quiz/attempts", {
@@ -63,6 +68,7 @@ export function QuizStartButton({ courseId, templateId, label, className, getRed
       if (!data?.attemptId) {
         throw new Error(t("quizStart.incompleteResponse"));
       }
+      void hapticSuccess();
       toast.success(t("quizStart.started"));
       const path = getRedirectPath
         ? getRedirectPath(data.attemptId)

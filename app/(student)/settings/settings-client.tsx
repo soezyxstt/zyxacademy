@@ -19,7 +19,6 @@ import { toast } from "@/components/ui/toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
-import { hapticSelection } from "@/lib/native/haptics";
 import { isNativeApp } from "@/lib/native/runtime";
 import { Download } from "lucide-react";
 import { useHapticsPreference } from "@/hooks/use-haptics-preference";
@@ -192,10 +191,7 @@ function DisplayPreferences() {
         <PreferenceSwitch
           label={t("preferences.haptics")}
           checked={hapticsEnabled}
-          onCheckedChange={(checked) => {
-            setHapticsEnabled(checked);
-            if (checked) void hapticSelection();
-          }}
+          onCheckedChange={setHapticsEnabled}
         />
         <PreferenceChoice
           label={t("preferences.toastPosition")}

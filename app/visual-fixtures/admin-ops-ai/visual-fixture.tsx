@@ -207,7 +207,7 @@ function FixtureContent({ state }: { state: string }) {
         </div>
 
         {/* Mock KPI Stat Strip */}
-        <AdminStatStrip className="sm:grid-cols-2 xl:grid-cols-4">
+        <AdminStatStrip>
           <AdminStatStripItem label="Total pengguna" value="1.420" caption="+12% minggu ini" />
           <AdminStatStripItem label="Mata kuliah aktif" value="18" caption="4 semester berjalan" />
           <AdminStatStripItem label="Token digunakan" value="342 / 500" caption="68.4% rasio aktivasi" />

@@ -90,7 +90,7 @@ export function WorkTraceView({ steps, defaultExpanded }: WorkTraceViewProps) {
         <span className="font-sans text-body-sm font-medium text-foreground block leading-snug break-words">
           <span>Jejak Kerja Audit ({steps.length} langkah)</span>
           {isRunning && runningStep && (
-            <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] text-primary font-normal font-sans">
+            <span className="ml-1.5 inline-flex items-center gap-1 text-body-2xs text-primary font-normal font-sans">
               <Loader2 className="size-2.5 animate-spin" />
               <span>{runningStep.title}</span>
             </span>
@@ -123,7 +123,7 @@ export function WorkTraceView({ steps, defaultExpanded }: WorkTraceViewProps) {
 
                     <span
                       className={cn(
-                        "inline-flex items-center rounded-sm border px-1 py-0.2 text-[9px] font-semibold leading-tight font-sans",
+                        "inline-flex items-center rounded-sm border px-1.5 py-0.5 text-body-2xs font-semibold leading-tight font-sans",
                         badge.badgeClass
                       )}
                     >
@@ -131,7 +131,7 @@ export function WorkTraceView({ steps, defaultExpanded }: WorkTraceViewProps) {
                     </span>
 
                     {duration && (
-                      <span className="text-[10px] text-muted-foreground shrink-0">
+                      <span className="text-body-2xs text-muted-foreground shrink-0">
                         ({duration})
                       </span>
                     )}

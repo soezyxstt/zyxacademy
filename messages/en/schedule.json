@@ -175,7 +175,6 @@
     "groupInactiveDescription": "This group is inactive and cannot book sessions.",
     "noCourses": "No courses are linked to this group.",
     "noMatchingCourses": "None of this group's courses match this tutor.",
-    "tutorNote": "Tutor note",
     "optionalMaterials": "Add note, links, or files",
     "selected": "Selected",
     "topicLabel": "Topic",
