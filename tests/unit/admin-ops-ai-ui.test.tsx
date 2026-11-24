@@ -277,8 +277,8 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain("h-[var(--panel-visible-height,100dvh)]");
       expect(html).toContain("lg:shrink-0");
 
-      // Mobile overlay fallback classes
-      expect(html).toContain("fixed inset-y-0 right-0 left-4 z-50");
+      // Mobile overlay full-width classes
+      expect(html).toContain("fixed inset-y-0 left-0 right-0 z-50 w-full");
     });
 
     it("renders the resize separator handle with ARIA attributes on desktop", () => {
@@ -813,16 +813,19 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
   // Suite 10: Correction Pass (Visual Defect & Hydration Verifications)
   // ==========================================================================
   describe("Suite 10: Correction Pass (Visual Defect & Hydration Verifications)", () => {
-    it("pins the mobile sheet above the backdrop and leaves an outside tap area", () => {
+    it("pins the mobile sheet full-width above the backdrop and keeps tablet width at sm", () => {
       const html = renderToStaticMarkup(
         <OpsAiProvider initialOpen={true} initialWidth={480}>
           <OpsAiPanel />
         </OpsAiProvider>
       );
 
-      expect(html).toContain("fixed inset-y-0 right-0 left-4 z-50");
+      expect(html).toContain("fixed inset-y-0 left-0 right-0 z-50 w-full");
       expect(html).toContain("sm:left-auto sm:w-[480px]");
       expect(html).toContain("lg:sticky lg:self-start lg:shrink-0");
+      expect(html).toContain('data-full-width="false"');
+      expect(html).toContain('aria-label="Perbesar ke layar penuh"');
+      expect(html).toContain('aria-pressed="false"');
 
       // Verify backdrop has z-40 and panel has z-50
       expect(html).toContain("fixed inset-0 z-40 bg-black/50");

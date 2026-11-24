@@ -81,6 +81,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isVisible, setIsVisible] = useState(typeof window === "undefined" ? isOpen : false);
+  const [isFullWidth, setIsFullWidth] = useState(false);
   const [showSessionsDropdown, setShowSessionsDropdown] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -230,10 +231,20 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
     }
   }, [isOpen, showSessionsDropdown]);
 
-  // Mobile focus trap
+  // Lock background page scroll when desktop panel is expanded to full width
+  useEffect(() => {
+    if (typeof document === "undefined" || !isOpen || !isDesktop || !isFullWidth) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, isDesktop, isFullWidth]);
+
+  // Mobile and full-width focus trap
   const handleKeyDownTrap = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key !== "Tab" || isDesktop) return;
+      if (e.key !== "Tab" || (isDesktop && !isFullWidth)) return;
 
       const container = panelRef.current;
       if (!container) return;
@@ -261,7 +272,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
         }
       }
     },
-    [isDesktop]
+    [isDesktop, isFullWidth]
   );
 
   // Keyboard resize for accessibility (separator role)
@@ -464,11 +475,7 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
   };
 
   const handleToggleExpandWidth = () => {
-    if (width >= maxWidth - 20) {
-      setWidth(OPS_AI_DEFAULT_WIDTH);
-    } else {
-      setWidth(maxWidth);
-    }
+    setIsFullWidth((prev) => !prev);
   };
 
   const handleCopyMessage = (id: string, text: string) => {
@@ -541,27 +548,29 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
         role="complementary"
         aria-label="Zyx Ops AI Assistant"
         data-state={isVisible ? "open" : "closed"}
+        data-full-width={isFullWidth ? "true" : "false"}
         suppressHydrationWarning
         onKeyDown={handleKeyDownTrap}
         style={{
           "--ops-ai-width": `${width}px`,
-          width: mounted && isDesktop ? (isVisible ? `${width}px` : "0px") : undefined,
+          width: mounted && isDesktop && !isFullWidth ? (isVisible ? `${width}px` : "0px") : undefined,
         } as React.CSSProperties}
         className={cn(
-          "flex flex-col overflow-hidden border-l border-border bg-background select-text relative min-w-0",
+          "flex flex-col overflow-hidden border-border bg-background select-text relative min-w-0",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           "transition-[transform,width,opacity,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-          "fixed inset-y-0 right-0 left-4 z-50 sm:left-auto sm:w-[480px] shadow-2xl top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
-          "lg:sticky lg:self-start lg:shrink-0 lg:z-40 lg:shadow-none",
+          "fixed inset-y-0 left-0 right-0 z-50 w-full top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
+          !isFullWidth && "sm:border-l sm:left-auto sm:w-[480px] sm:shadow-2xl lg:sticky lg:self-start lg:shrink-0 lg:z-40 lg:shadow-none",
           isVisible
             ? "translate-x-0 opacity-100"
-            : "translate-x-full opacity-0 pointer-events-none lg:translate-x-0 lg:border-l-transparent"
+            : cn("translate-x-full opacity-0 pointer-events-none", !isFullWidth && "lg:translate-x-0 lg:border-l-transparent")
         )}
       >
         <div
           className={cn(
-            "relative flex h-full min-h-0 w-full flex-col lg:min-w-[var(--ops-ai-width)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-            isVisible ? "lg:translate-x-0" : "lg:translate-x-4"
+            "relative flex h-full min-h-0 w-full flex-col transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+            !isFullWidth && "lg:min-w-[var(--ops-ai-width)]",
+            !isFullWidth && (isVisible ? "lg:translate-x-0" : "lg:translate-x-4")
           )}
         >
         {/* Resize Handle: Desktop & Tablet with wide 24px hit area */}
@@ -574,10 +583,14 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
           aria-valuemin={OPS_AI_MIN_WIDTH}
           aria-valuemax={maxWidth}
           suppressHydrationWarning
+          onDoubleClick={handleToggleExpandWidth}
           onKeyDown={handleKeyDownResize}
           onPointerDown={handlePointerDownResize}
           style={{ touchAction: "none" }}
-          className="flex absolute left-0 inset-y-0 w-3.5 cursor-col-resize items-center justify-center group select-none z-50 hover:bg-primary/5 active:bg-primary/10 transition-colors"
+          className={cn(
+            "hidden sm:flex absolute left-0 inset-y-0 w-3.5 cursor-col-resize items-center justify-center group select-none z-50 hover:bg-primary/5 active:bg-primary/10 transition-colors",
+            isFullWidth && "lg:hidden"
+          )}
         >
           <div
             className="w-1 h-16 rounded-full bg-border/90 transition-all duration-150 flex items-center justify-center group-hover:bg-primary group-hover:w-1.5 group-focus-visible:bg-primary group-focus-visible:w-1.5 active:bg-primary active:w-1.5"
@@ -698,11 +711,12 @@ export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: O
             <button
               type="button"
               onClick={handleToggleExpandWidth}
-              aria-label="Ubah lebar panel"
-              title="Ubah lebar panel"
+              aria-label={isFullWidth ? "Kembalikan lebar panel" : "Perbesar ke layar penuh"}
+              aria-pressed={isFullWidth}
+              title={isFullWidth ? "Kembalikan lebar panel" : "Perbesar ke layar penuh"}
               className="hidden lg:inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
-              {width >= maxWidth - 20 ? (
+              {isFullWidth ? (
                 <Minimize2 className="size-3.5" />
               ) : (
                 <Maximize2 className="size-3.5" />
