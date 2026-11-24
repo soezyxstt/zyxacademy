@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   });
 });
 
-async function gotoFixture(page: Page, view: string, state?: "empty" | "loading") {
+async function gotoFixture(page: Page, view: string, state?: "empty" | "loading" | "uncalculated") {
   const url = `${origin}/?view=${view}${state ? `&state=${state}` : ""}`;
   const response = await page.goto(url, { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
@@ -26,7 +26,7 @@ async function gotoFixture(page: Page, view: string, state?: "empty" | "loading"
   await page.addScriptTag({ content: fixture.script });
 }
 
-async function visit(page: Page, view: string, colorScheme: "light" | "dark", state?: "empty" | "loading") {
+async function visit(page: Page, view: string, colorScheme: "light" | "dark", state?: "empty" | "loading" | "uncalculated") {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
@@ -70,6 +70,13 @@ for (const theme of ["light", "dark"] as const) {
     const main = page.getByRole("main");
     await expect(main.getByRole("heading", { name: "Priority concepts" })).toBeVisible();
     await expect(main.locator(".katex").first()).toBeVisible();
+    if (info.project.name === "mobile-380") {
+      const [watchlist, misconceptions] = await Promise.all([
+        main.getByRole("heading", { name: "Needs attention" }).boundingBox(),
+        main.getByRole("heading", { name: "Common misconceptions" }).boundingBox(),
+      ]);
+      expect(watchlist!.y).toBeLessThan(misconceptions!.y);
+    }
     await expect(main.getByText("Trend increasing", { exact: true })).toBeAttached();
     const refresh = page.getByRole("button", { name: "Refresh", exact: true });
     await expect(refresh).toHaveCount(1);
@@ -95,24 +102,34 @@ for (const theme of ["light", "dark"] as const) {
     await expect(drill).toBeFocused();
     expect(errors).toEqual([]);
   });
+  test(`tutor analytics explains missing data in ${theme} mode`, async ({ page }, info) => {
+    const errors = await visit(page, "analytics", theme, "empty");
+    await expect(page.getByText("Not enough student data to rank concepts yet.")).toBeVisible();
+    await expect(page.getByText("No students flagged for follow-up.")).toBeVisible();
+    await capture(page, info, "analytics-empty");
+
+    await gotoFixture(page, "analytics", "uncalculated");
+    await expect(page.getByText("Refresh analytics to see which students need attention.")).toBeVisible();
+    await expect(page.getByText("No students flagged for follow-up.")).toHaveCount(0);
+    await capture(page, info, "analytics-uncalculated");
+
+    await gotoFixture(page, "analytics", "loading");
+    await expect(page.getByRole("status")).toBeAttached();
+    await capture(page, info, "analytics-loading");
+    expect(errors).toEqual([]);
+  });
+
 }
 
-test("tutor dashboard and analytics retain empty and loading recovery", async ({ page }, info) => {
+test("tutor dashboard retains empty and loading recovery", async ({ page }, info) => {
   const errors = await visit(page, "dashboard", "dark", "empty");
   await expect(page.getByText("No upcoming sessions")).toBeVisible();
   await expect(page.getByRole("link", { name: "Add a slot" })).toHaveAttribute("href", "/tutor/schedule");
   await expect(page.getByText("No pending tickets")).toBeVisible();
   await capture(page, info, "dashboard-empty");
 
-  await gotoFixture(page, "analytics", "empty");
-  await expect(page.getByText("No quiz results yet.")).toHaveCount(1);
-  await expect(page.getByText("No students need attention")).toBeVisible();
-  await capture(page, info, "analytics-empty");
-
-  for (const view of ["dashboard", "analytics"]) {
-    await gotoFixture(page, view, "loading");
-    await expect(page.getByRole("status")).toBeAttached();
-    await capture(page, info, `${view}-loading`);
-  }
+  await gotoFixture(page, "dashboard", "loading");
+  await expect(page.getByRole("status")).toBeAttached();
+  await capture(page, info, "dashboard-loading");
   expect(errors).toEqual([]);
 });

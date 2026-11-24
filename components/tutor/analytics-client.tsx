@@ -3,7 +3,6 @@
 import { useCallback, useId, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  BarChart3,
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
@@ -17,7 +16,6 @@ import {
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
-import { AdminEmptyState } from "@/components/admin/state-panels";
 import { MathText } from "@/components/course/math-text";
 import { useMobilePageActions } from "@/components/navigation/mobile-chrome-context";
 import { MobileTopNavActionButton } from "@/components/navigation/mobile-top-navbar";
@@ -46,6 +44,8 @@ interface Props {
 const sectionTitle = "flex min-w-0 items-center gap-2 font-heading text-body-base font-bold text-foreground";
 const headingIcon = "size-4 shrink-0 text-muted-foreground";
 const metadata = "text-body-xs tabular-nums text-muted-foreground";
+const section = "min-w-0 space-y-2 border-t border-border pt-4";
+const emptyMessage = "text-body-sm text-muted-foreground";
 
 export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
   const router = useRouter();
@@ -121,129 +121,136 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
       </div>
 
       <Reveal>
-        <div className="grid items-start gap-y-(--major-gap) xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:gap-x-10">
-          <section className="min-w-0 space-y-2 xl:row-span-3" aria-labelledby="weak-heading">
-            <h2 id="weak-heading" className={sectionTitle}>
-              <Target className={headingIcon} aria-hidden />
-              {t("priorityConcepts")}
-            </h2>
-            {analytics.weakConcepts.length === 0 ? (
-              <AdminEmptyState icon={BarChart3} title={t("noQuizResults")} className="py-(--related-gap)" />
-            ) : (
-              <ul className="divide-y divide-border/30">
-                {analytics.weakConcepts.map((concept, index) => {
-                  const trends = analytics.conceptTrends[concept.conceptName] ?? [];
-                  const first = trends[0];
-                  const last = trends.at(-1);
-                  const change = first && last && trends.length > 1 ? last.avgMastery - first.avgMastery : null;
-                  const TrendIcon = change === null ? null : change > 0 ? TrendingUp : change < 0 ? TrendingDown : Minus;
-                  const labelId = `${conceptLabelPrefix}-${index}`;
-                  return (
-                    <li key={concept.conceptName} className="grid min-h-11 min-w-0 grid-cols-[minmax(0,1fr)_3.5rem_auto] items-center gap-x-2 py-(--row-padding)">
-                      <div className="min-w-0">
-                        <div id={labelId} className="wrap-anywhere text-body-sm font-medium text-foreground">
-                          <MathText>{concept.conceptName}</MathText>
+        <div className="grid items-start gap-y-(--section-gap) xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:gap-x-10">
+          <div className="contents xl:block xl:min-w-0 xl:space-y-(--section-gap)">
+            <section className={section} aria-labelledby="weak-heading">
+              <h2 id="weak-heading" className={sectionTitle}>
+                <Target className={headingIcon} aria-hidden />
+                {t("priorityConcepts")}
+              </h2>
+              {analytics.weakConcepts.length === 0 ? (
+                <p className={emptyMessage}>{t("insufficientConceptData")}</p>
+              ) : (
+                <ul className="divide-y divide-border/30">
+                  {analytics.weakConcepts.map((concept, index) => {
+                    const trends = analytics.conceptTrends[concept.conceptName] ?? [];
+                    const first = trends[0];
+                    const last = trends.at(-1);
+                    const change = first && last && trends.length > 1 ? last.avgMastery - first.avgMastery : null;
+                    const TrendIcon = change === null ? null : change > 0 ? TrendingUp : change < 0 ? TrendingDown : Minus;
+                    const labelId = `${conceptLabelPrefix}-${index}`;
+                    return (
+                      <li key={concept.conceptName} className="grid min-h-11 min-w-0 grid-cols-[minmax(0,1fr)_3.5rem_auto] items-center gap-x-2 py-(--row-padding)">
+                        <div className="min-w-0">
+                          <div id={labelId} className="wrap-anywhere text-body-sm font-medium text-foreground">
+                            <MathText>{concept.conceptName}</MathText>
+                          </div>
+                          <span className={metadata}>{t("students", { count: concept.studentCount })}</span>
                         </div>
-                        <span className={metadata}>{t("students", { count: concept.studentCount })}</span>
-                      </div>
-                      <div className="space-y-1 tabular-nums text-foreground">
-                        <span className="flex items-center justify-end gap-1.5 text-body-sm">
-                          <span className="sr-only">{t("averageMastery")}: </span>{concept.avgMastery}
-                          {TrendIcon && change !== null && (
-                            <>
-                              <TrendIcon className={change > 0 ? "size-4 text-status-success" : change < 0 ? "size-4 text-status-warning" : "size-4 text-muted-foreground"} aria-hidden />
-                              <span className="sr-only">
-                                {change > 0 ? t("trendIncreasing") : change < 0 ? t("trendDecreasing") : t("trendStable")}
-                              </span>
-                            </>
-                          )}
+                        <div className="space-y-1 tabular-nums text-foreground">
+                          <span className="flex items-center justify-end gap-1.5 text-body-sm">
+                            <span className="sr-only">{t("averageMastery")}: </span>{concept.avgMastery}
+                            {TrendIcon && change !== null && (
+                              <>
+                                <TrendIcon className={change > 0 ? "size-4 text-status-success" : change < 0 ? "size-4 text-status-warning" : "size-4 text-muted-foreground"} aria-hidden />
+                                <span className="sr-only">
+                                  {change > 0 ? t("trendIncreasing") : change < 0 ? t("trendDecreasing") : t("trendStable")}
+                                </span>
+                              </>
+                            )}
+                          </span>
+                          <DistributionBar low={concept.bucketLow} mid={concept.bucketMid} high={concept.bucketHigh} total={concept.studentCount} className="w-full" />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-lg"
+                          aria-haspopup="dialog"
+                          aria-labelledby={`${labelId}-action ${labelId}`}
+                          onClick={(event) => {
+                            drillTrigger.current = event.currentTarget;
+                            setDrillConcept(concept);
+                          }}
+                        >
+                          <span id={`${labelId}-action`} className="sr-only">{t("viewConcept")}</span>
+                          <ChevronRight className="text-muted-foreground" aria-hidden />
+                        </Button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {otherConcepts.length > 0 && (
+                <Collapsible className="border-t border-border/30">
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" className="group h-auto min-h-11 w-full justify-between whitespace-normal px-0 text-left">
+                      {t("moreConcepts", { count: otherConcepts.length })}
+                      <ChevronDown className="size-4 shrink-0 text-muted-foreground group-data-[state=open]:rotate-180" aria-hidden />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <ConceptRanking concepts={otherConcepts} />
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </section>
+
+            <section className={`max-xl:order-3 ${section}`} aria-labelledby="misconceptions-heading">
+              <h2 id="misconceptions-heading" className={sectionTitle}>
+                <ScanSearch className={headingIcon} aria-hidden />
+                {t("commonMisconceptions")}
+              </h2>
+              {analytics.topMisconceptions.length === 0 ? (
+                <p className={emptyMessage}>{t(updatedAt ? "noMisconceptions" : "notCalculated")}</p>
+              ) : (
+                <ul className="divide-y divide-border/30">
+                  {analytics.topMisconceptions.slice(0, 10).map((item) => (
+                    <li key={item.misconceptionKoId} className="flex items-start justify-between gap-(--compact-gap) py-(--row-padding)">
+                      <div className="min-w-0">
+                        <MathText className="block wrap-anywhere text-body-sm font-medium text-foreground" as="span">{item.label}</MathText>
+                        <span className={`block wrap-anywhere ${metadata}`}>
+                          <MathText as="span">{item.conceptName}</MathText> &middot; {t("attempts", { count: item.sampleSize })}
                         </span>
-                        <DistributionBar low={concept.bucketLow} mid={concept.bucketMid} high={concept.bucketHigh} total={concept.studentCount} className="w-full" />
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-lg"
-                        aria-haspopup="dialog"
-                        aria-labelledby={`${labelId}-action ${labelId}`}
-                        onClick={(event) => {
-                          drillTrigger.current = event.currentTarget;
-                          setDrillConcept(concept);
-                        }}
-                      >
-                        <span id={`${labelId}-action`} className="sr-only">{t("viewConcept")}</span>
-                        <ChevronRight className="text-muted-foreground" aria-hidden />
-                      </Button>
+                      <span className="shrink-0 text-body-sm tabular-nums text-foreground">{item.pctSelected}%</span>
                     </li>
-                  );
-                })}
-              </ul>
-            )}
-            {otherConcepts.length > 0 && (
-              <Collapsible className="border-t border-border/30">
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" className="group h-auto min-h-11 w-full justify-between whitespace-normal px-0 text-left">
-                    {t("moreConcepts", { count: otherConcepts.length })}
-                    <ChevronDown className="size-4 shrink-0 text-muted-foreground group-data-[state=open]:rotate-180" aria-hidden />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <ConceptRanking concepts={otherConcepts} />
-                </CollapsibleContent>
-              </Collapsible>
-            )}
-          </section>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+          <div className="contents xl:block xl:min-w-0 xl:space-y-(--section-gap)">
+            <section className={`max-xl:order-1 ${section}`} aria-labelledby="watchlist-heading">
+              <h2 id="watchlist-heading" className={sectionTitle}>
+                <Users className={headingIcon} aria-hidden />
+                {t("needsAttention")}
+              </h2>
+              {!updatedAt && analytics.watchlist.length === 0 ? (
+                <p className={emptyMessage}>{t("watchlistNotCalculated")}</p>
+              ) : (
+                <WatchlistTable students={analytics.watchlist} />
+              )}
+            </section>
 
-          <section className="min-w-0 space-y-2 xl:col-start-2" aria-labelledby="watchlist-heading">
-            <h2 id="watchlist-heading" className={sectionTitle}>
-              <Users className={headingIcon} aria-hidden />
-              {t("needsAttention")}
-            </h2>
-            <WatchlistTable students={analytics.watchlist} />
-          </section>
-
-          <section className="min-w-0 space-y-2 xl:col-start-2" aria-labelledby="misconceptions-heading">
-            <h2 id="misconceptions-heading" className={sectionTitle}>
-              <ScanSearch className={headingIcon} aria-hidden />
-              {t("commonMisconceptions")}
-            </h2>
-            {analytics.topMisconceptions.length === 0 ? (
-              <AdminEmptyState icon={BarChart3} title={t("noMisconceptions")} className="py-(--related-gap)" />
-            ) : (
-              <ul className="divide-y divide-border/30">
-                {analytics.topMisconceptions.slice(0, 10).map((item) => (
-                  <li key={item.misconceptionKoId} className="flex items-start justify-between gap-(--compact-gap) py-(--row-padding)">
-                    <div className="min-w-0">
-                      <MathText className="block wrap-anywhere text-body-sm font-medium text-foreground" as="span">{item.label}</MathText>
-                      <span className={`block wrap-anywhere ${metadata}`}>
-                        <MathText as="span">{item.conceptName}</MathText> &middot; {t("attempts", { count: item.sampleSize })}
-                      </span>
-                    </div>
-                    <span className="shrink-0 text-body-sm tabular-nums text-foreground">{item.pctSelected}%</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="min-w-0 space-y-2 xl:col-start-2" aria-labelledby="interventions-heading">
-            <h2 id="interventions-heading" className={sectionTitle}>
-              <ClipboardCheck className={headingIcon} aria-hidden />
-              {t("activeInterventions")}
-            </h2>
-            {analytics.interventionCounts.length === 0 ? (
-              <AdminEmptyState icon={RefreshCw} title={t("noInterventions")} className="py-(--related-gap)" />
-            ) : (
-              <ul className="divide-y divide-border/30">
-                {analytics.interventionCounts.map((item) => (
-                  <li key={item.conceptName} className="flex items-start justify-between gap-(--compact-gap) py-(--row-padding)">
-                    <MathText className="min-w-0 wrap-anywhere text-body-sm text-foreground" as="span">{item.conceptName}</MathText>
-                    <span className="shrink-0 text-body-sm tabular-nums text-foreground">{item.count}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+            <section className={`max-xl:order-2 ${section}`} aria-labelledby="interventions-heading">
+              <h2 id="interventions-heading" className={sectionTitle}>
+                <ClipboardCheck className={headingIcon} aria-hidden />
+                {t("activeInterventions")}
+              </h2>
+              {analytics.interventionCounts.length === 0 ? (
+                <p className={emptyMessage}>{t("noInterventions")}</p>
+              ) : (
+                <ul className="divide-y divide-border/30">
+                  {analytics.interventionCounts.map((item) => (
+                    <li key={item.conceptName} className="flex items-start justify-between gap-(--compact-gap) py-(--row-padding)">
+                      <MathText className="min-w-0 wrap-anywhere text-body-sm text-foreground" as="span">{item.conceptName}</MathText>
+                      <span className="shrink-0 text-body-sm tabular-nums text-foreground">{item.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
         </div>
       </Reveal>
 
