@@ -83,15 +83,15 @@ export function Navbar() {
   );
 
   return (
-    <header ref={header} className="fixed inset-x-0 top-0 z-50 border-b border-border/70 bg-background/95 backdrop-blur-md">
+    <header ref={header} className="fixed inset-x-0 top-0 z-50 h-(--marketing-navbar-height) border-b border-border/70 bg-background/95 backdrop-blur-md">
       {open && <div aria-hidden="true" className="fixed inset-x-0 top-full -z-10 h-dvh bg-black/25 lg:hidden" onClick={() => { setOpen(false); toggle.current?.focus(); }} />}
-      <nav aria-label={t("nav.primary")} className="marketing-container flex min-h-14 items-center justify-between gap-2 md:min-h-16 lg:justify-start lg:gap-0">
+      <nav aria-label={t("nav.primary")} className="marketing-container flex h-full items-center justify-between gap-2 lg:justify-start lg:gap-0">
         <Link href={hrefFor("/")} onClick={() => setOpen(false)} aria-label={t("nav.homeBrand")} className="flex min-h-10 shrink-0 items-center">
           <Logo className="[--logo-height:0.95rem] sm:[--logo-height:1.15rem]" />
         </Link>
         <div id="mobile-navigation" ref={panel} className={cn(
           "flex-col lg:contents",
-          "max-lg:absolute max-lg:inset-x-0 max-lg:top-full max-lg:max-h-[calc(100dvh-4rem)] max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:border-b max-lg:border-border max-lg:bg-background max-lg:px-5 max-lg:pb-4 max-lg:shadow-lg",
+          "max-lg:absolute max-lg:inset-x-0 max-lg:top-full max-lg:max-h-[calc(100dvh-var(--marketing-navbar-height))] max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:border-b max-lg:border-border max-lg:bg-background max-lg:px-5 max-lg:pb-4 max-lg:shadow-lg",
           open ? "flex" : "max-lg:hidden",
         )}>
           <ul className="flex flex-col lg:mx-auto lg:flex-row lg:items-center lg:gap-5 xl:gap-6">

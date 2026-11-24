@@ -960,7 +960,7 @@ function StructuredArticleReaderContent({
               className={cn(
                 "article-editorial max-w-[66ch]",
                 (isFocusMode || !isTocOpen) && "mx-auto",
-                isV4 && isFocusMode && "[&_[data-article-exercise]]:hidden [&_[data-part-kind=coding_exercise]]:hidden",
+                isV4 && isFocusMode && String.raw`[&_[data-article-exercise]]:hidden [&_[data-part-kind=coding\_exercise]]:hidden`,
                 temporaryHighlight && "ring-2 ring-status-warning/60 ring-offset-4 ring-offset-background",
               )}
             >
