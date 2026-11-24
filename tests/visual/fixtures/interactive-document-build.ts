@@ -36,5 +36,5 @@ export async function buildFixture(entry = "tests/visual/fixtures/interactive-do
   const styles = (await postcss([tailwind()]).process(readFileSync(stylesheet), { from: stylesheet })).css;
   const boundary = createBoundary(overrides);
   const bundle = await build({ entryPoints: [entry], bundle: true, write: false, format: "iife", outdir: "fixture-output", loader: { ".woff2": "dataurl", ".woff": "dataurl", ".ttf": "dataurl" }, minify: true, define: { "process.env.NODE_ENV": '"production"', "process.env.NEXT_PUBLIC_V4_WEB_RUNTIME": JSON.stringify(runtime), "process.env": "{}" }, plugins: entry === "artifacts/visual-quality/article-mockup/article.tsx" ? [boundary, articleServerBoundary] : [boundary] });
-  return { styles: styles + ":root{--font-inter:ui-sans-serif;--font-lexend:ui-sans-serif}" + (bundle.outputFiles.find(file => file.path.endsWith(".css"))?.text ?? ""), script: bundle.outputFiles.find(file => file.path.endsWith(".js"))!.text };
+  return { styles: styles + ':root{--font-inter:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;--font-lexend:"Segoe UI",system-ui,-apple-system,Arial,sans-serif}' + (bundle.outputFiles.find(file => file.path.endsWith(".css"))?.text ?? ""), script: bundle.outputFiles.find(file => file.path.endsWith(".js"))!.text };
 }

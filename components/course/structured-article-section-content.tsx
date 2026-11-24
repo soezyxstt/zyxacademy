@@ -1,7 +1,9 @@
 "use client";
 
 import type React from "react";
-import { AlignLeft, AlertTriangle, Award, BookmarkCheck, BookOpen, BookOpenCheck, Brain, Calculator, CheckCircle2, Clock, FileText, HelpCircle, Layers, Sigma } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
+import { AlignLeft, AlertTriangle, Award, BookmarkCheck, BookOpen, BookOpenCheck, Brain, Calculator, CheckCircle2, Clock, ChevronRight, FileText, HelpCircle, Layers, Sigma } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 import type { PublicSectionReadModel } from "@/lib/articles/structured-read-model";
@@ -12,7 +14,7 @@ import { ArticleParts } from "@/components/course/article-parts";
 import { MathText } from "@/components/course/math-text";
 import { ProductLearningVisual } from "@/components/course/product-learning-visual";
 import { InteractiveDocumentArticleLocation } from "@/components/course/interactive-document-context";
-import { ProductWorkedExample, ProductFormativeCheck, ProductLearningTimeBadge } from "@/components/course/product-learning-blocks";
+import { ProductWorkedExample, ProductFormativeCheck } from "@/components/course/product-learning-blocks";
 
 interface BlockMetadata {
   label: string;
@@ -27,14 +29,14 @@ function getBlockMetadata(blockType: string, t: ReturnType<typeof useTranslation
       return {
         label: t("articleReader.blockTypes.problemIntroduction"),
         icon: HelpCircle,
-        containerClass: "border-l-4 border-l-status-warning border-t border-r border-b border-border/60 bg-status-warning/[0.03]",
-        badgeClass: "text-status-warning bg-status-warning/10",
+        containerClass: "border-l-2 border-primary/40",
+        badgeClass: "text-primary",
       };
     case "prior_knowledge_activation":
       return {
         label: t("articleReader.blockTypes.priorKnowledge"),
         icon: BookOpenCheck,
-        containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/60 bg-primary/[0.03]",
+        containerClass: "border-l-2 border-primary/40",
         badgeClass: "text-primary bg-primary/10",
       };
     case "verbal_representation":
@@ -49,63 +51,63 @@ function getBlockMetadata(blockType: string, t: ReturnType<typeof useTranslation
         label: t("articleReader.blockTypes.mathematicalRepresentation"),
         icon: Calculator,
         containerClass: "",
-        badgeClass: "text-status-success bg-status-success/10",
+        badgeClass: "text-primary",
       };
     case "analogy":
       return {
         label: t("articleReader.blockTypes.analogy"),
         icon: Sigma,
-        containerClass: "border-l-4 border-l-status-warning/70 border-t border-r border-b border-border/70 bg-card",
-        badgeClass: "text-status-warning bg-status-warning/10",
+        containerClass: "border-l-2 border-primary/40",
+        badgeClass: "text-primary",
       };
     case "worked_example":
       return {
         label: t("articleReader.blockTypes.workedExample"),
         icon: BookOpen,
-        containerClass: "border-l-4 border-l-status-success border-t border-r border-b border-border/70 bg-card",
-        badgeClass: "text-status-success bg-status-success/10",
+        containerClass: "border-l-2 border-primary/40",
+        badgeClass: "text-primary",
       };
     case "misconception":
       return {
         label: t("articleReader.blockTypes.misconception"),
         icon: AlertTriangle,
-        containerClass: "border-l-4 border-l-status-error border-t border-r border-b border-border/70 bg-card",
-        badgeClass: "text-status-error bg-status-error/10",
+        containerClass: "border-l-2 border-status-warning/70",
+        badgeClass: "text-status-warning",
       };
     case "application":
       return {
         label: t("articleReader.blockTypes.application"),
         icon: FileText,
-        containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/70 bg-card",
+        containerClass: "border-l-2 border-primary/40",
         badgeClass: "text-primary bg-primary/10",
       };
     case "retrieval_prompt":
       return {
         label: t("articleReader.blockTypes.retrievalPrompt"),
         icon: Brain,
-        containerClass: "border-l-4 border-l-status-warning border-t border-r border-b border-border/70 bg-card",
-        badgeClass: "text-status-warning bg-status-warning/10",
+        containerClass: "border-l-2 border-primary/40",
+        badgeClass: "text-primary",
       };
     case "cross_idea_synthesis":
       return {
         label: t("articleReader.blockTypes.synthesis"),
         icon: Layers,
-        containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/70 bg-card",
+        containerClass: "border-l-2 border-primary/40",
         badgeClass: "text-primary bg-primary/10",
       };
     case "summary":
       return {
         label: t("articleReader.blockTypes.summary"),
         icon: BookmarkCheck,
-        containerClass: "border-l-4 border-l-border border-t border-r border-b border-border/70 bg-muted/25",
+        containerClass: "border-l-2 border-primary/40",
         badgeClass: "text-muted-foreground bg-muted",
       };
     case "retrieval_close":
       return {
         label: t("articleReader.blockTypes.reflection"),
         icon: Award,
-        containerClass: "border-l-4 border-l-status-success border-t border-r border-b border-border/70 bg-card",
-        badgeClass: "text-status-success bg-status-success/10",
+        containerClass: "border-l-2 border-primary/40",
+        badgeClass: "text-primary",
       };
     case "explanation":
     default:
@@ -143,6 +145,8 @@ export function StructuredArticleSectionContent({
   completed = false,
   showProgress = true,
   interactiveChecks = true,
+  collapsedChecks = false,
+  onCheckpointChange,
 }: {
   section: PublicSectionReadModel;
   articleId: string;
@@ -150,21 +154,21 @@ export function StructuredArticleSectionContent({
   completed?: boolean;
   showProgress?: boolean;
   interactiveChecks?: boolean;
+  collapsedChecks?: boolean;
+  onCheckpointChange?: (blockId: string, correct: boolean) => void;
 }) {
   const t = useTranslations("studentCourse");
   return (
     <>
-      <header className="space-y-2 border-b border-border/80 pb-3">
+      <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2 text-body-xs font-semibold text-muted-foreground">
-          <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-primary">
-            {section.sectionNumber}
+          <span className="font-mono text-primary">
+            {section.sectionNumber.padStart(2, "0")}
           </span>
-          {!section.learningTimeEstimate ? (
-            <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1">
               <Clock className="size-3.5" />
               {t("articleReader.readingMinutes", { count: section.estimatedReadingMinutes })}
-            </span>
-          ) : null}
+          </span>
           {showProgress && completed ? (
             <span className="flex items-center gap-1 text-status-success">
               <CheckCircle2 className="size-3.5" />
@@ -176,16 +180,8 @@ export function StructuredArticleSectionContent({
           <MathText className="normal-case">{section.title}</MathText>
         </h2>
 
-        {/* Learning Time Estimate Heuristics */}
-        {section.learningTimeEstimate ? (
-          <ProductLearningTimeBadge
-            timeEstimate={section.learningTimeEstimate}
-            className="w-fit"
-          />
-        ) : null}
-
         {section.learningObjective ? (
-          <div className="border-l-2 border-primary/60 pl-3">
+          <div>
             <p className="text-body-base text-muted-foreground">
               <MathText className="normal-case">{section.learningObjective}</MathText>
             </p>
@@ -202,14 +198,15 @@ export function StructuredArticleSectionContent({
         </div>
       ) : null}
 
-      <div className="space-y-(--related-gap)">
+      <div className="space-y-4">
         {section.blocks.map((block, blockIndex) => {
           const renderBlock = () => {
           if (block.blockType === "worked_example" && block.workedExample) {
-            return (
+            const additional = collapsedChecks && section.blocks.slice(0, blockIndex).some(previous => previous.blockType === "worked_example");
+            const exampleContent = (
               <div
                 key={block.id || blockIndex}
-                id={block.id ? `block-${block.id}` : undefined}
+                id={block.id && !additional ? `block-${block.id}` : undefined}
                 data-block-type="worked_example"
                 data-block-title={block.title || t("articleReader.blockTypes.workedExample")}
                 className="scroll-mt-24"
@@ -223,6 +220,10 @@ export function StructuredArticleSectionContent({
                 {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
               </div>
             );
+            return additional ? <Collapsible id={`block-${block.id}`} className="space-y-3 scroll-mt-24">
+              <CollapsibleTrigger asChild><Button variant="ghost" className="group h-auto max-w-full justify-start gap-2 whitespace-normal border-0 px-3 py-2 text-left shadow-none hover:bg-muted/20 dark:hover:bg-muted/20 aria-expanded:bg-muted/20 [&>span]:justify-start"><ChevronRight aria-hidden="true" className="size-4 shrink-0 transition-transform group-data-[state=open]:rotate-90 motion-reduce:transition-none" /><span><span className="group-data-[state=open]:hidden">{t("articleReader.additionalExample")}</span><span className="hidden group-data-[state=open]:inline">{t("articleReader.hideAdditionalExample")}</span>{block.title && !["contoh tambahan", "additional example"].includes(block.title.trim().toLowerCase()) ? <>: <MathText>{block.title}</MathText></> : null}</span></Button></CollapsibleTrigger>
+              <CollapsibleContent className="ml-1 pl-4">{exampleContent}</CollapsibleContent>
+            </Collapsible> : exampleContent;
           }
 
           if (
@@ -234,10 +235,13 @@ export function StructuredArticleSectionContent({
                 key={block.id || blockIndex}
                 id={block.id ? `block-${block.id}` : undefined}
                 data-block-type={block.blockType}
+                data-article-exercise
                 data-block-title={block.title || t("articleReader.blockTypes.retrievalPrompt")}
                 className="scroll-mt-24"
               >
                 <ProductFormativeCheck
+                  collapsedByDefault={collapsedChecks}
+                  onResultChange={(correct) => onCheckpointChange?.(block.id, correct)}
                   title={block.title}
                   content={block.content}
                   contentNode={block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : undefined}
@@ -257,6 +261,7 @@ export function StructuredArticleSectionContent({
           const meta = getBlockMetadata(block.blockType, t);
           const Icon = meta.icon;
           const displayTitle = getBlockTitle(block, section.title, t);
+          const titleInContent = block.parts?.some(part => part.kind === "worked_example" && part.title.trim().toLocaleLowerCase() === displayTitle?.trim().toLocaleLowerCase());
 
           const isCoreDocument =
             block.blockType === "explanation" ||
@@ -294,11 +299,12 @@ export function StructuredArticleSectionContent({
               data-block-type={block.blockType}
               data-block-title={displayTitle || meta.label}
               className={cn(
-                "rounded-r-lg p-3 sm:p-(--panel-padding) space-y-3 shadow-xs scroll-mt-24",
-                meta.containerClass,
+                "space-y-3 scroll-mt-24",
+                block.parts?.some(part => part.kind === "worked_example") ? "" : cn("pl-4", meta.containerClass),
               )}
             >
-              <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
+              {!titleInContent && (
+              <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
                   <span
                     className={cn(
@@ -313,8 +319,9 @@ export function StructuredArticleSectionContent({
                   </h3>
                 </div>
               </div>
+              )}
               <div className="text-body-base text-foreground">
-                {block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : <MarkdownRenderer content={block.content} density="compact" />}
+                {block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : <MarkdownRenderer content={block.content} density="default" />}
               </div>
               {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
             </div>
