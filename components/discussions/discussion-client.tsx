@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "@/lib/i18n/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { hapticHeavy, hapticLight, hapticSelection, hapticSuccess } from "@/lib/native/haptics";
+import { hapticLight, hapticSelection, hapticSuccess } from "@/lib/native/haptics";
 import { usePullToRefreshHandler } from "@/components/pull-to-refresh";
 import { useSession } from "@/lib/auth-client";
 import * as actions from "@/lib/discussions/actions";
@@ -766,7 +766,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
         if (!response.ok) { const payload = await response.json().catch(() => null); return { ok: false, error: discussionUploadError(payload?.code ?? payload?.error) }; }
         return { ok: true, attachment: await response.json() }; }}
       onEditMessage={async ({ questionId, messageId, body, revision }) => { try { await actions.edit(messageId, body, revision); } catch (error) { await refreshMessage(questionId, messageId, true); throw error; } await refreshMessage(questionId, messageId); }}
-      onDeleteMessage={async ({ questionId, messageId }) => { await actions.deleteMessage(messageId); void hapticHeavy(); await refreshMessage(questionId, messageId); }}
+      onDeleteMessage={async ({ questionId, messageId }) => { await actions.deleteMessage(messageId); await refreshMessage(questionId, messageId); }}
       onToggleReaction={async ({ questionId, messageId, emoji, selected }) => { void hapticSelection(); await actions.setReaction(messageId, emoji, selected); await refreshMessage(questionId, messageId); }}
       onForwardMessage={async ({ questionId, messageId, targetQuestionId, requestId }) => { try { const result = await actions.forward(messageId, targetQuestionId, requestId); if (!result.ok) return result.error === "replay_unverified" ? { error: result.error, target: result.value } : result.error; await refreshMessage(questionId, messageId); } catch { return "unknown"; } }}
       onReportMessage={async ({ messageId, reason }) => { await actions.report(messageId, reason); }}

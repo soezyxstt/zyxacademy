@@ -164,7 +164,10 @@ export function DailyQuizPopup({
                     >
                       <button
                         type="button"
-                        onClick={() => setSelectedIdx(idx)}
+                        onClick={() => {
+                          void hapticSelection();
+                          setSelectedIdx(idx);
+                        }}
                         aria-pressed={selected}
                         aria-labelledby={`daily-quiz-letter-${idx} daily-quiz-option-${idx}`}
                         className={cn(

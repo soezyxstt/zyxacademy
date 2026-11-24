@@ -19,9 +19,9 @@ function ToggleGroup({
   );
   return (
     <ToggleGroupPrimitive.Root
+      {...(props as React.ComponentProps<typeof ToggleGroupPrimitive.Root>)}
       className={cn("flex items-center gap-2", className)}
       onValueChange={handleValueChange}
-      {...(props as React.ComponentProps<typeof ToggleGroupPrimitive.Root>)}
     />
   );
 }

@@ -90,7 +90,6 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
     else if (deadline !== null) storage.setItem(keys.deadline, String(deadline));
     setTimeLeft(deadline === null ? null : remainingQuizSeconds(deadline, now));
     setReady(true);
-    void hapticMedium();
     // The component is keyed by account and attempt, so these are mount snapshots.
     // New server props must never overwrite a student's current local answers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -115,6 +114,7 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
   }
 
   function selectOption(questionId: string, optionIndex: number, isMultiple: boolean) {
+    if (!ready || gate.phase !== "idle") return;
     void hapticSelection();
     setAnswer(questionId, selectQuizOption(answersRef.current[questionId], optionIndex, isMultiple));
   }
@@ -335,8 +335,11 @@ export function useQuizPlayer(props: QuizPlayerProps, submit: (payload: QuizSubm
   }, [ready, perQuestionTimerEnabled, currentQuestionDuration, index, sorted.length, submitting, isSubmitted, t]);
 
   const navigateToIndex = useCallback((next: number | ((current: number) => number)) => {
-    void hapticLight();
-    setIndex(next);
+    setIndex((current) => {
+      const resolved = typeof next === "function" ? next(current) : next;
+      if (resolved !== current) void hapticLight();
+      return resolved;
+    });
   }, []);
 
   const answeredCount = sorted.filter((question) => isQuizAnswerComplete(answers[question.id])).length;

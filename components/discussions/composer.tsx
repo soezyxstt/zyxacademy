@@ -404,6 +404,8 @@ export function DiscussionComposer({ draft, update, channelId, questionId, zyraU
         draft.images.forEach((image) => URL.revokeObjectURL(image.previewUrl));
         void hapticSuccess();
         onSuccess?.();
+      } else {
+        void hapticError();
       }
     } finally {
       inFlight.current.delete(lane);

@@ -268,7 +268,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             <AdminIconAction
               label={t("courses.cardView")}
               variant={viewMode === "grid" ? "secondary" : "ghost"}
-              onClick={() => { void hapticSelection(); setViewMode("grid"); }}
+              onClick={() => { if (viewMode !== "grid") { void hapticSelection(); setViewMode("grid"); } }}
               aria-pressed={viewMode === "grid"}
             >
               <LayoutGrid className="size-4" />
@@ -276,7 +276,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             <AdminIconAction
               label={t("courses.tableView")}
               variant={viewMode === "table" ? "secondary" : "ghost"}
-              onClick={() => { void hapticSelection(); setViewMode("table"); }}
+              onClick={() => { if (viewMode !== "table") { void hapticSelection(); setViewMode("table"); } }}
               aria-pressed={viewMode === "table"}
             >
               <List className="size-4" />
