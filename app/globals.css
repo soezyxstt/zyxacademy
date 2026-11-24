@@ -1170,3 +1170,117 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
 [data-application-page]:has([data-sticky-tabs-bar="flush"]) {
   padding-top: 0;
 }
+
+/* Editorial reading surfaces retain authored content and semantic callout accents. */
+.article-editorial {
+  font-family: var(--font-sans);
+}
+.article-editorial p.text-body-base {
+  line-height: 1.75;
+}
+.article-editorial [data-article-callout] {
+  border-width: 0 0 0 2px;
+  border-color: var(--color-primary);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0 0 0 1rem;
+}
+.article-editorial [data-article-callout] > svg,
+.article-editorial [data-article-callout] .font-heading {
+  color: var(--color-primary);
+}
+.article-editorial [data-article-callout="warning"],
+.article-editorial [data-article-callout="caution"],
+.article-editorial [data-article-callout="important"] {
+  border-color: var(--color-status-warning);
+}
+.article-editorial [data-article-callout="warning"] > svg,
+.article-editorial [data-article-callout="caution"] > svg,
+.article-editorial [data-article-callout="important"] > svg,
+.article-editorial [data-article-callout="warning"] .font-heading,
+.article-editorial [data-article-callout="caution"] .font-heading,
+.article-editorial [data-article-callout="important"] .font-heading {
+  color: var(--color-status-warning);
+}
+
+.article-editorial .formula-focus,
+.article-editorial [data-article-surface="plain"],
+.article-editorial .article-definition {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+.article-editorial blockquote {
+  border-left-width: 2px;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0 0 1rem;
+}
+
+
+.article-editorial [data-math-layout="comparison"] .katex-display,
+.article-editorial [data-math-layout="comparison"] .katex-display > .katex,
+.article-editorial [data-block-type="worked_example"] .katex-display,
+.article-editorial [data-block-type="worked_example"] .katex-display > .katex,
+.article-editorial [data-part-kind="worked_example"] .katex-display,
+.article-editorial [data-part-kind="worked_example"] .katex-display > .katex,
+.article-editorial .article-formula-row .katex-display,
+.article-editorial .article-formula-row .katex-display > .katex {
+  text-align: left;
+}
+.article-editorial [data-article-exercise] :is(input, textarea):focus-visible {
+  border-color: color-mix(in oklab, var(--primary) 60%, transparent);
+  --tw-ring-color: color-mix(in oklab, var(--primary) 40%, transparent);
+  --tw-ring-offset-width: 0px;
+}
+
+/* Keep short authored statements beside their explanation, including legacy bundles. */
+.article-editorial [data-math-pair="compact"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0.5rem 1rem;
+}
+.article-editorial [data-math-pair="compact"] > * { margin-block: 0; }
+.article-editorial [data-math-pair="compact"] > [data-math-symbols],
+.article-editorial [data-math-pair="compact"] > [data-math-symbols-disclosure],
+.article-editorial [data-math-pair="compact"] > [data-math-conditions] { grid-column: 1 / -1; }
+.article-editorial .katex-display,
+.article-editorial .katex-display > .katex { text-align: left; }
+.article-editorial .katex-display { margin-block: 0; padding-block: 0.125rem; }
+.article-editorial [data-math-pair="compact"] .katex-display { margin-block: 0; }
+@media (min-width: 640px) {
+  .article-editorial [data-math-pair="compact"] { grid-template-columns: minmax(130px, 220px) minmax(0, 1fr); }
+}
+.article-editorial .markdown-article > p + p { margin-top: var(--paragraph-gap); }
+
+.article-editorial [data-part-kind="math_unit"] + [data-part-kind="math_unit"] {
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+.article-editorial .katex-display > .katex { width: max-content; min-width: 100%; max-width: none; }
+.article-editorial .katex-html { overflow: visible; }
+.article-editorial [data-part-kind="worked_example"] [data-step-id] > div:first-child .markdown-article { font-weight: 500; }
+
+.article-editorial [data-part-kind="math_unit"] + [data-part-kind="math_unit"] { margin-top: 1.5rem; }
+.article-editorial [data-part-kind="math_unit"] .katex-display { margin-block: 0; padding-block: 0; }
+.article-editorial [data-symbol-id] .markdown-article > p { margin-block: 0; }
+.article-editorial [data-part-kind="worked_example"] [data-math-scroll] { padding-right: 1rem; }
+
+.article-editorial [data-math-symbols] .markdown-article :is(p, li) { font-size: var(--text-body-sm); }
+.article-editorial [data-math-overflow-right="true"] {
+  mask-image: linear-gradient(to right, black calc(100% - 16px), transparent);
+}
+@media (max-width: 639px) {
+  .article-editorial .markdown-article,
+  .article-editorial .markdown-article :is(p, li),
+  .article-editorial p.text-body-base {
+    font-size: calc(0.9375rem * var(--user-font-scale, 1));
+  }
+  .article-editorial [data-math-scroll] .katex-display { font-size: 0.9rem; }
+}
+
+.article-editorial [data-math-symbols] dd .markdown-article :is(p, li) { color: var(--muted-foreground); }

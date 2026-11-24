@@ -14,6 +14,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkdownRenderer, type MarkdownDensity } from "@/components/course/markdown-renderer";
@@ -28,6 +29,7 @@ import type {
 } from "@/lib/articles/structured-read-model";
 import type { FormativeLearnerResponse } from "@/lib/materials/formative-evaluation";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export interface ProductWorkedExampleProps {
   title?: string | null;
@@ -57,8 +59,8 @@ export function ProductWorkedExample({
       className={cn("space-y-4", className)}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-status-success/15 text-status-success">
+      <div className="flex items-center gap-2">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
           <BookOpen className="size-3.5" />
         </span>
         <h3 className="font-heading text-body-base font-bold text-foreground">
@@ -68,7 +70,7 @@ export function ProductWorkedExample({
 
       {/* Problem Prompt */}
       {contentNode || content ? (
-        <div className="rounded-lg border border-border/60 bg-muted/20 p-3.5 text-body-base leading-relaxed text-foreground">
+        <div className="text-body-base leading-relaxed text-foreground">
           {contentNode ?? <ArticleMarkdownScope id="content"><MarkdownRenderer content={content} density={density} /></ArticleMarkdownScope>}
         </div>
       ) : null}
@@ -99,25 +101,27 @@ export function ProductWorkedExample({
             </div>
           </li>
         ))}
-      </ol>
 
       {/* Solution Verification */}
       {workedExample.verification ? (
-        <div className="flex items-start gap-2.5 rounded-lg border border-status-success/30 bg-status-success/5 p-3.5 text-body-sm">
-          <CheckCircle2 className="size-4 shrink-0 text-status-success mt-0.5" />
+        <li className="relative text-body-base">
+          <span className="absolute -left-[35px] top-0 flex size-5.5 items-center justify-center rounded-full border-2 border-primary/70 bg-background font-mono text-body-2xs font-bold text-primary">{workedExample.steps.length + 1}</span>
           <div className="min-w-0 leading-relaxed text-foreground">
-            <span className="mb-0.5 block text-body-xs font-semibold text-status-success">
+            <span className="mb-0.5 block text-body-sm font-semibold text-primary">
               Kesimpulan dan Verifikasi
             </span>
             <ArticleMarkdownScope id="verification"><MarkdownRenderer content={workedExample.verification} density={density} /></ArticleMarkdownScope>
           </div>
-        </div>
+        </li>
       ) : null}
+      </ol>
     </section>
   );
 }
 
 export interface ProductFormativeCheckProps {
+  collapsedByDefault?: boolean;
+  onResultChange?: (correct: boolean) => void;
   density?: MarkdownDensity;
   title?: string | null;
   content: string;
@@ -187,6 +191,8 @@ const verdictClasses: Record<FormativeCheckResult["verdict"], string> = {
 import { useStudentExperience } from "@/components/student-experience-provider";
 
 export function ProductFormativeCheck({
+  collapsedByDefault = false,
+  onResultChange,
   density: _density = "default",
   title,
   content,
@@ -195,6 +201,8 @@ export function ProductFormativeCheck({
   locator,
   className,
 }: ProductFormativeCheckProps) {
+  const t = useTranslations("studentCourse");
+  const [open, setOpen] = useState(!collapsedByDefault);
   const endpointBase = useFormativeCheckEndpointBase();
   const experience = useStudentExperience();
   const optionIdPrefix = React.useId();
@@ -257,6 +265,7 @@ export function ProductFormativeCheck({
         throw new Error(typeof body?.error === "string" ? body.error : "Cek pemahaman tidak dapat diproses.");
       }
       setResult(body.result);
+      onResultChange?.(body.result.verdict === "correct");
       setReveal(null);
       setUiState("evaluated");
     } catch (submissionError) {
@@ -284,9 +293,9 @@ export function ProductFormativeCheck({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(locator),
       });
-      const body = (await serverResponse.json().catch(() => null)) as FormativeCheckReveal & { error?: unknown };
-      if (!serverResponse.ok || typeof body.answer !== "string" || typeof body.explanation !== "string") {
-        throw new Error(typeof body.error === "string" ? body.error : "Pembahasan tidak dapat dibuka.");
+      const body = (await serverResponse.json().catch(() => null)) as (FormativeCheckReveal & { error?: unknown }) | null;
+      if (!serverResponse.ok || !body || typeof body.answer !== "string" || typeof body.explanation !== "string") {
+        throw new Error(typeof body?.error === "string" ? body.error : "Pembahasan tidak dapat dibuka.");
       }
       setReveal({ answer: body.answer, explanation: body.explanation, visualAccess: body.visualAccess });
       setUiState("revealed");
@@ -302,6 +311,7 @@ export function ProductFormativeCheck({
   };
 
   const retry = () => {
+    onResultChange?.(false);
     setResult(null);
     setReveal(null);
     setError(null);
@@ -318,24 +328,28 @@ export function ProductFormativeCheck({
     : null;
 
   return (
-    <div
+    <Collapsible open={open} onOpenChange={setOpen}
       className={cn(
-        "rounded-r-lg border-l-4 border-l-status-warning border-t border-r border-b border-border/70 bg-card p-3 sm:p-(--panel-padding) space-y-4 shadow-xs",
+        "rounded-lg border border-border/70 bg-card p-3",
         className,
       )}
     >
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-status-warning/15 text-status-warning">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
             <HelpCircle className="size-3.5" />
           </span>
           <h3 className="font-heading text-body-sm font-bold text-foreground">
             <MathText className="normal-case">{title || "Cek pemahaman"}</MathText>
           </h3>
         </div>
+        <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+          {!open && result?.verdict === "correct" ? <span className="flex items-center gap-1 text-body-xs text-status-success"><CheckCircle2 className="size-4" />{t("articleReader.correctCheck")}</span> : null}
+          <CollapsibleTrigger asChild><Button variant="ghost" size="sm" disabled={isSubmitting || isRevealing}>{open ? t("articleReader.closeCheck") : result ? t("articleReader.viewCheckResult") : t("articleReader.startCheck")}{open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}</Button></CollapsibleTrigger>
+        </div>
       </div>
-
+      <CollapsibleContent forceMount hidden={!open} className="mt-4 space-y-4">
       {/* Question prompt */}
       {contentNode || content ? (
         <div className="text-body-base leading-relaxed text-foreground">
@@ -420,8 +434,16 @@ export function ProductFormativeCheck({
           </div>
         ) : null}
 
+      {result ? (
+        <div role="status" aria-live="polite" className={cn("space-y-2 rounded-lg border p-3.5 text-body-sm", verdictClasses[result.verdict])}>
+          <p className="font-semibold">Hasil: {verdictLabels[result.verdict]}</p>
+          <p className="leading-relaxed">{result.feedback}</p>
+          {criteriaSummary ? <p className="text-body-xs">{criteriaSummary}</p> : null}
+        </div>
+      ) : null}
+
         <div className="flex flex-wrap items-center gap-2 pt-1">
-          {!isLegacy ? (
+          {!isLegacy && !isEvaluated ? (
             <Button
               type="submit"
               size="sm"
@@ -446,7 +468,7 @@ export function ProductFormativeCheck({
           ) : null}
 
           {result?.canRetry ? (
-            <Button type="button" variant="ghost" size="sm" onClick={retry} className="gap-1.5 text-body-sm">
+            <Button type="button" variant="ghost" size="sm" disabled={isRevealing} onClick={retry} className="gap-1.5 text-body-sm">
               <RotateCcw className="size-3.5" />
               Coba lagi
             </Button>
@@ -456,13 +478,7 @@ export function ProductFormativeCheck({
 
       {error ? <p role="alert" className="rounded-lg border border-status-error/40 bg-status-error/10 px-3 py-2 text-body-sm text-status-error">{error}</p> : null}
 
-      {result ? (
-        <div role="status" aria-live="polite" className={cn("space-y-2 rounded-lg border p-3.5 text-body-sm", verdictClasses[result.verdict])}>
-          <p className="font-semibold">Hasil: {verdictLabels[result.verdict]}</p>
-          <p className="leading-relaxed">{result.feedback}</p>
-          {criteriaSummary ? <p className="text-body-xs">{criteriaSummary}</p> : null}
-        </div>
-      ) : null}
+
 
       {result && hints.length > 0 && hintIndex < hints.length ? (
         <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3.5">
@@ -479,7 +495,8 @@ export function ProductFormativeCheck({
       ) : null}
 
       {reveal ? <ProductFormativeReveal reveal={reveal} /> : null}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -495,7 +512,7 @@ export function ProductLearningTimeBadge({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-1.5 text-body-xs",
+        "flex flex-wrap items-center gap-2 text-body-xs",
         className,
       )}
       aria-label="Estimasi waktu belajar bagian"
