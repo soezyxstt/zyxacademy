@@ -56,6 +56,7 @@ mock.module("@/app/(tutor)/tutor/schedule/slot-note-actions", () => ({
   addTutorSlotWithNotesAction: async () => ({ success: true }),
   updateTutorSlotWithNotesAction: async () => ({ success: true }),
   getTutorSlotNotesAction: async () => ({}),
+  getTutorSlotCoursesAction: async () => ({}),
 }));
 
 mock.module("@/app/(tutor)/tutor/schedule/actions", () => ({

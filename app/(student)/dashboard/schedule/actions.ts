@@ -226,6 +226,10 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
             },
           },
           tokens: {
+            columns: {
+              id: true,
+              createdAt: true,
+            },
             with: {
               tokenCourses: {
                 where: courseIds ? inArray(enrollmentTokenCourses.courseId, courseIds) : undefined,
@@ -269,7 +273,9 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
           });
         }
       }
-      return { ...g, courses: mergedCourses };
+      const { tokens: _tokens, ...groupWithoutTokens } = g;
+      void _tokens;
+      return { ...groupWithoutTokens, courses: mergedCourses };
     });
   const myGroupIds = myGroups.map((g) => g.id);
 
@@ -390,13 +396,10 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
       }
     }
   }
-  const adminCourseIds = [
-    ...mappedCourses.flatMap((row) => {
-      const ids = row.legacyCourseId ? [row.id, row.legacyCourseId] : [row.id];
-      return row.status === "active" && ids.some((id) => filterCourseIds.has(id)) && ids.every((id) => activeCoursesByAlias.get(id)?.length === 1) ? ids : [];
-    }),
-    ...Array.from(filterCourseIds).filter((id) => !coursesByAlias.has(id)),
-  ];
+  const adminCourseIds = mappedCourses.flatMap((row) => {
+    const ids = row.legacyCourseId ? [row.id, row.legacyCourseId] : [row.id];
+    return row.status === "active" && ids.some((id) => filterCourseIds.has(id)) && ids.every((id) => activeCoursesByAlias.get(id)?.length === 1) ? ids : [];
+  });
   const assignmentsByTutor = new Map<string, typeof canonicalAssignments>();
   for (const row of canonicalAssignments) {
     const assignments = assignmentsByTutor.get(row.tutorId) ?? [];
@@ -477,13 +480,32 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
     }
   }
 
-  const expandCourseAliases = (id: string): string[] => {
-    const out = [id];
-    for (const row of activeCoursesByAlias.get(id) ?? []) {
-      out.push(row.id);
-      if (row.legacyCourseId) out.push(row.legacyCourseId);
+  const assignmentAliases = new Map<string, Set<string>>();
+  for (const row of canonicalAssignments) {
+    if (row.courseStatus !== "active") continue;
+    const ids = row.legacyCourseId ? [row.courseId, row.legacyCourseId] : [row.courseId];
+    for (const id of ids) {
+      const key = id.toLowerCase();
+      const set = assignmentAliases.get(key) ?? new Set<string>();
+      for (const alias of ids) set.add(alias);
+      assignmentAliases.set(key, set);
     }
-    return out;
+  }
+
+  const expandCourseAliases = (id: string): string[] => {
+    const out = new Set<string>([id]);
+    const lower = id.toLowerCase();
+    if (courseIds?.some((cid) => cid.toLowerCase() === lower)) {
+      for (const cid of courseIds) out.add(cid);
+    }
+    for (const row of activeCoursesByAlias.get(id) ?? []) {
+      out.add(row.id);
+      if (row.legacyCourseId) out.add(row.legacyCourseId);
+    }
+    for (const alias of assignmentAliases.get(lower) ?? []) {
+      out.add(alias);
+    }
+    return Array.from(out);
   };
 
   // A student only needs booking occupancy to hide claimed slots. Keep the
@@ -594,6 +616,19 @@ export async function collaborativeBookSlot(
   }
 
   try {
+    let slotRestrictedCourseIds: string[] = [];
+    try {
+      const slotCourseRows = await client
+        .select({ courseId: tutorSlotCourses.courseId })
+        .from(tutorSlotCourses)
+        .where(eq(tutorSlotCourses.slotId, slotId));
+      slotRestrictedCourseIds = slotCourseRows.map((row) => row.courseId);
+    } catch (error) {
+      if (!isMissingTutorSlotCoursesTable(error)) {
+        throw error;
+      }
+    }
+
     const { notification, ...result } = await client.transaction(async (tx) => {
       // 1. Verify student membership in group inside transaction (TOCTOU guard)
       const membership = await tx.query.groupMembers.findFirst({
@@ -673,19 +708,6 @@ export async function collaborativeBookSlot(
       }
 
       // 6b. Verify optional per-slot course restriction chosen by tutor
-      let slotRestrictedCourseIds: string[] = [];
-      try {
-        const slotCourseRows = await tx
-          .select({ courseId: tutorSlotCourses.courseId })
-          .from(tutorSlotCourses)
-          .where(eq(tutorSlotCourses.slotId, slotId));
-        slotRestrictedCourseIds = slotCourseRows.map((row) => row.courseId);
-      } catch (error) {
-        if (!isMissingTutorSlotCoursesTable(error)) {
-          throw error;
-        }
-      }
-
       if (
         !isCourseAllowedForSlot(
           [courseId, tutorAssignment.courseId, tutorAssignment.legacyCourseId],

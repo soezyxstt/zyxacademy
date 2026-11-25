@@ -63,23 +63,25 @@ function isMissingTutorSlotNotesTable(error: unknown): boolean {
 }
 
 async function replaceTutorSlotCourses(slotId: string, courseIds: readonly string[]) {
-  const normalized = normalizeSlotCourseIds(courseIds);
-  await db.delete(tutorSlotCourses).where(eq(tutorSlotCourses.slotId, slotId));
-  if (normalized.length > 0) {
-    await db.insert(tutorSlotCourses).values(
-      normalized.map((courseId) => ({
-        slotId,
-        courseId,
-      })),
-    );
-  }
+  const normalized = normalizeSlotCourseIds(courseIds).slice(0, 50);
+  await db.transaction(async (tx) => {
+    await tx.delete(tutorSlotCourses).where(eq(tutorSlotCourses.slotId, slotId));
+    if (normalized.length > 0) {
+      await tx.insert(tutorSlotCourses).values(
+        normalized.map((courseId) => ({
+          slotId,
+          courseId,
+        })),
+      );
+    }
+  });
 }
 
 export async function addTutorSlotWithNotesAction(
   input: AddTutorSlotWithNotesInput,
 ) {
   const notes = input.notes?.trim() ?? "";
-  const courseIds = normalizeSlotCourseIds(input.courseIds);
+  const courseIds = normalizeSlotCourseIds(input.courseIds).slice(0, 50);
   const result = await addTutorSlotAction({
     dayOfWeek: input.dayOfWeek,
     startTime: input.startTime,
@@ -122,16 +124,17 @@ export async function addTutorSlotWithNotesAction(
     try {
       await replaceTutorSlotCourses(result.slotId, courseIds);
     } catch (error) {
-      if (!isMissingTutorSlotCoursesTable(error)) {
-        console.error("Failed to persist tutor slot courses", error);
-        await deleteTutorSlotAction({ slotId: result.slotId }).catch(() => undefined);
-        return {
-          success: false as const,
-          error: "Slot tidak disimpan karena pilihan mata kuliah gagal disimpan. Coba lagi.",
-          reason: "SLOT_COURSES_PERSIST_FAILED",
-        };
-      }
-      console.error("Schedule schema is missing tutor_slot_courses; skipping course restrictions until migration is applied.");
+      console.error("Failed to persist tutor slot courses", error);
+      await deleteTutorSlotAction({ slotId: result.slotId }).catch(() => undefined);
+      return {
+        success: false as const,
+        error: isMissingTutorSlotCoursesTable(error)
+          ? "Schema pilihan mata kuliah slot belum tersedia pada database. Slot dibatalkan agar pembatasan tidak terlewat."
+          : "Slot tidak disimpan karena pilihan mata kuliah gagal disimpan. Coba lagi.",
+        reason: isMissingTutorSlotCoursesTable(error)
+          ? "SCHEDULE_SCHEMA_NOT_READY"
+          : "SLOT_COURSES_PERSIST_FAILED",
+      };
     }
   }
 
@@ -151,20 +154,25 @@ export async function updateTutorSlotWithNotesAction(
   if (!result.success) return result;
 
   if (Array.isArray(courseIds)) {
+    const normalized = normalizeSlotCourseIds(courseIds).slice(0, 50);
     try {
-      await replaceTutorSlotCourses(slot.slotId, courseIds);
+      await replaceTutorSlotCourses(slot.slotId, normalized);
       revalidatePath("/tutor/schedule");
       revalidatePath("/dashboard/schedule");
     } catch (error) {
-      if (!isMissingTutorSlotCoursesTable(error)) {
-        console.error("Failed to update tutor slot courses", error);
-        return {
-          success: false as const,
-          error: "Pilihan mata kuliah slot gagal diperbarui. Coba lagi.",
-          reason: "SLOT_COURSES_PERSIST_FAILED",
-        };
+      if (normalized.length === 0 && isMissingTutorSlotCoursesTable(error)) {
+        return result;
       }
-      console.error("Schedule schema is missing tutor_slot_courses; skipping course restrictions until migration is applied.");
+      console.error("Failed to update tutor slot courses", error);
+      return {
+        success: false as const,
+        error: isMissingTutorSlotCoursesTable(error)
+          ? "Schema pilihan mata kuliah slot belum tersedia pada database."
+          : "Pilihan mata kuliah slot gagal diperbarui. Coba lagi.",
+        reason: isMissingTutorSlotCoursesTable(error)
+          ? "SCHEDULE_SCHEMA_NOT_READY"
+          : "SLOT_COURSES_PERSIST_FAILED",
+      };
     }
   }
 
