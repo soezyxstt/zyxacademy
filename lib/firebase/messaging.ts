@@ -13,12 +13,13 @@
  * }
  */
 
-import { getMessaging, getToken, onMessage, type Messaging } from "firebase/messaging";
+import { deleteToken, getMessaging, getToken, onMessage, type Messaging } from "firebase/messaging";
 import { getFirebaseApp } from "@/lib/firebase/client";
 import { canUseBrowserPush } from "@/lib/native/runtime";
 import { notificationMatchesVisibleDiscussion } from "@/lib/notifications/quiet-hours";
 import {
  clearRegisteredPushTokenIdentity,
+ getPersistedRegisteredPushToken,
  markPushTokenRegistered,
  shouldRegisterPushToken,
 } from "@/lib/notifications/transport";
@@ -28,6 +29,34 @@ export {
  markPushTokenRegistered,
  shouldRegisterPushToken,
 };
+
+const WEB_PUSH_PAUSE_KEY = "zyx_web_push_paused_v1";
+export function isBrowserPushPaused(): boolean {
+ try { return canUseBrowserPush() && window.localStorage.getItem(WEB_PUSH_PAUSE_KEY) === "true"; } catch { return false; }
+}
+export function resumeBrowserPush(): void {
+ if (!canUseBrowserPush()) return;
+ try { window.localStorage.removeItem(WEB_PUSH_PAUSE_KEY); } catch { /* browser storage unavailable */ }
+}
+
+/** Explicit action in the original browser only. Never reads another device's token.
+ * Retire both the FCM registration and the PushSubscription, leaving offline caching intact. */
+export async function pauseBrowserPush(): Promise<void> {
+ if (!canUseBrowserPush()) throw Error("BROWSER_REQUIRED");
+ window.localStorage.setItem(WEB_PUSH_PAUSE_KEY, "true");
+ const token = getPersistedRegisteredPushToken();
+ const messaging = getMessagingInstance();
+ if (messaging) await deleteToken(messaging).catch(() => {});
+ if ("serviceWorker" in navigator) {
+  const registration = await navigator.serviceWorker.getRegistration("/firebase-cloud-messaging-push-scope");
+  if (registration && new URL(registration.scope).pathname.replace(/\/$/,"") === "/firebase-cloud-messaging-push-scope") {
+   const subscription = await registration.pushManager.getSubscription();
+   if (subscription && !await subscription.unsubscribe()) throw Error("PUSH_UNSUBSCRIBE_FAILED");
+  }
+ }
+ if (token) await fetch("/api/notifications/register-token", { method:"DELETE", credentials:"include", headers:{"Content-Type":"application/json"}, body:JSON.stringify({token}) }).catch(() => {});
+ clearRegisteredPushTokenIdentity();
+}
 
 // Internal helpers
 
@@ -84,6 +113,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
  return "denied";
  }
 
+ resumeBrowserPush();
  if (Notification.permission !== "default") {
  return Notification.permission;
  }
@@ -99,6 +129,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
  * Generate it at: Firebase Console → Project Settings → Cloud Messaging → Web Push certificates.
  */
 export async function getFCMToken(): Promise<string | null> {
+ if (isBrowserPushPaused()) return null;
  const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim();
  if (!vapidKey || !isFirebaseMessagingConfigured()) {
  return null;
@@ -146,7 +177,7 @@ export async function registerTokenToServer(
  userId?: string,
  isCurrent: () => boolean = () => true
 ): Promise<boolean> {
- if (!canUseBrowserPush() || !isCurrent()) return false;
+ if (!canUseBrowserPush() || isBrowserPushPaused() || !isCurrent()) return false;
  if (userId && !shouldRegisterPushToken({ userId, token })) {
  return true;
  }
@@ -188,6 +219,7 @@ export async function registerTokenToServer(
 export function onForegroundMessage(
  handler: (payload: { notification?: { title?: string; body?: string }; data?: Record<string, string> }) => void
 ): () => void {
+ if (isBrowserPushPaused()) return () => {};
  const messaging = getMessagingInstance();
  if (!messaging) return () => {};
 
@@ -206,7 +238,7 @@ export async function showForegroundWebNotification(
   input: { title: string; body?: string; url: string; notificationId?: string },
   isCurrent: () => boolean = () => true,
 ): Promise<void> {
-  if (!canUseBrowserPush() || !isCurrent() ||
+  if (!canUseBrowserPush() || isBrowserPushPaused() || !isCurrent() ||
       typeof window.Notification !== "function" || window.Notification.permission !== "granted" ||
       !("serviceWorker" in navigator) || notificationMatchesVisibleDiscussion(input.url, window.location, document.visibilityState === "visible")) return;
   try {

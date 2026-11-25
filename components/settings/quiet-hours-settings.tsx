@@ -70,6 +70,7 @@ export function QuietHoursSettings() {
      </div>
      <label className="block text-body-xs font-medium space-y-1">{en ? "Time zone" : "Zona waktu"}<select className="w-full rounded-md border border-input bg-background p-2 text-body-sm" value={settings.timeZone} disabled={pending} onChange={e => setSettings(v => v && ({...v,timeZone:e.target.value}))}>{zones.map(zone => <option key={zone} value={zone}>{zone.replaceAll("_"," ")}</option>)}</select></label>
      {!valid && <p role="alert" className="text-body-xs text-destructive">{en ? "Choose different start and end times." : "Jam mulai dan selesai harus berbeda."}</p>}
+     <p className="text-body-xs text-muted-foreground">{en ? "Email is not delayed. Offline local reminders follow the latest schedule synced on the device." : "Email tidak ditunda. Pengingat lokal saat offline mengikuti jadwal terakhir yang tersimpan di perangkat."}</p>
      {settings.startMinute > settings.endMinute && <p className="text-body-xs text-muted-foreground">{en ? "Ends the next morning." : "Berakhir keesokan harinya."}</p>}
     </div>}
     <div className="flex justify-end"><Button size="sm" disabled={!valid || !dirty || pending} onClick={() => void save()}>{pending ? (en ? "Saving…" : "Menyimpan…") : (en ? "Save quiet hours" : "Simpan jam tenang")}</Button></div>

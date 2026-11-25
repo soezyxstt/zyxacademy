@@ -98,6 +98,7 @@ function harness(count: number, tokenFor: (index: number) => boolean = () => tru
   "./apns": { sendApnsNotifications: async () => ({ succeeded: 0, failedTokens: [], errors: [] }) },
   "./dispatch": { dispatchTokensByTransport },
   "./templates": { renderNotificationPayload },
+  "./quiet-delivery": { deferQuietPushes: async () => new Set(), deferredSendResult: () => ({ attempted:0,succeeded:0,failedTokens:[],errors:[] }) },
   "@/lib/discussions/access": {}, "@/lib/discussions/policy": { validDiscussionId },
   "@/lib/discussions/recipient-access": { getDiscussionRecipientAccess: async (_channel: string, recipients: string[]) => {
    queries += 2;

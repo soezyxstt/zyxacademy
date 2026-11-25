@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { userPushTokens } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { z } from "zod";
@@ -114,6 +114,9 @@ export async function POST(req: NextRequest) {
     // Only retire web tokens with a proven shared authenticated session. Different
     // browser profiles/devices must never be inferred from their user agents.
     if (transport === "fcm" || transport === "apns") {
+      // A rotated native token replaces the previous token for the same session.
+      await db.delete(userPushTokens).where(and(eq(userPushTokens.userId,userId),
+        eq(userPushTokens.sessionId,session.session.id),eq(userPushTokens.transport,transport),ne(userPushTokens.token,token)));
       await db.delete(userPushTokens).where(and(
         eq(userPushTokens.userId, userId), eq(userPushTokens.sessionId, session.session.id),
         eq(userPushTokens.transport, "webpush"),

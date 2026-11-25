@@ -143,7 +143,7 @@ async function sendMulticast(
  },
  },
  android: {
- priority: payload.type === "tutor_reminder" || payload.type === "tutor_booking" ? "high" : "normal",
+ priority: payload.type === "discussion" || payload.type === "tutor_reminder" || payload.type === "tutor_booking" ? "high" : "normal",
  notification: {
  channelId: androidNotificationChannel(payload.type),
  tag: getPushGroupKey(payload),

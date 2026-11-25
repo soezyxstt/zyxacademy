@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
 
   try {
     if (searchParams.get("delivery") === "desktop" && targetUserId === session.user.id && quietHoursEnd(await getQuietHours(targetUserId))) {
-      return NextResponse.json({ notifications: [], quietActive: true, unreadCount: 0, page, limit }, { headers: cacheHeaders });
+      return NextResponse.json({ notifications: [], quietActive: true, serverTime: new Date().toISOString(), unreadCount: 0, page, limit }, { headers: cacheHeaders });
     }
     const visibility = await notificationVisibility(targetUserId, session.user.id, { unreadOnly: countOnly });
     const unreadQuery = db

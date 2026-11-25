@@ -26,6 +26,8 @@ import {
   type StudyReminderConfig,
 } from "@/lib/native/local-reminders";
 import { cn } from "@/lib/utils";
+import { getCapacitor } from "@/lib/native/runtime";
+import { isBrowserPushPaused } from "@/lib/firebase/messaging";
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 const TUTOR_LEAD_OPTIONS = [15, 30, 60] as const;
@@ -189,7 +191,7 @@ export function DeviceNotificationSettings() {
     !isDemo &&
     status !== null &&
     (status.deliveryReadiness === "permission_required" ||
-      status.deliveryReadiness === "unregistered");
+      status.deliveryReadiness === "unregistered" || (status.platform === "web" && isBrowserPushPaused()));
 
   const enableReminderId = `${baseId}-local-reminder-enabled`;
   const timeInputId = `${baseId}-local-reminder-time`;
@@ -267,6 +269,19 @@ export function DeviceNotificationSettings() {
             </div>
           </div>
         </div>
+        {!isDemo && status?.platform === "android" && status.deliveryReadiness === "ready" && (
+          <div className="space-y-2 px-3 py-3 border-t border-border/30">
+            <p className="text-body-sm font-medium">{locale === "en" ? "Already receiving Chrome notifications?" : "Masih menerima notifikasi Chrome?"}</p>
+            <p className="text-body-xs text-muted-foreground">{locale === "en" ? "If you enabled push in Chrome before installing the app, stop the old browser subscription here without affecting other devices." : "Jika Anda pernah mengaktifkan notifikasi Chrome sebelum memasang aplikasi, hentikan notifikasi lama di browser tanpa memengaruhi perangkat lain."}</p>
+            <Button type="button" variant="outline" size="sm" className="h-auto min-h-9 whitespace-normal text-left" onClick={async () => {
+              try {
+                const browser = getCapacitor()?.Plugins?.Browser;
+                if (!browser) throw Error("BROWSER_UNAVAILABLE");
+                await browser.open({url: new URL("/settings/notifications/browser", window.location.origin).href});
+              } catch { toast.error(locale === "en" ? "Could not open the browser" : "Browser belum berhasil dibuka"); }
+            }}>{locale === "en" ? "Stop Chrome notifications" : "Hentikan notifikasi Chrome"}</Button>
+          </div>
+        )}
       </section>
 
       <section aria-labelledby={`${baseId}-local-heading`}>

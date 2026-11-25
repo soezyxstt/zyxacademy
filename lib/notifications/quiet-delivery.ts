@@ -6,6 +6,7 @@ import { enqueueTask } from "@/lib/queue/cloud-tasks";
 import { DEFAULT_QUIET_HOURS, quietHoursEnd, type QuietHours } from "./quiet-hours";
 import { getUserLocalePreference } from "@/lib/i18n/preferences";
 import { notificationVisibility } from "./discussion-history";
+import { getDefaultHomeLinkForRole } from "./catalog";
 import type { NotificationPayload } from "./types";
 
 const noDelivery = { attempted: 0, succeeded: 0, failedTokens: [], errors: [] };
@@ -107,7 +108,7 @@ export async function flushQuietUser(userId: string): Promise<{ count: number; r
     title: en ? `${count} new notification${count === 1 ? "" : "s"}` : `${count} notifikasi baru`,
     body: en ? "Open Zyx Academy to see your updates." : "Buka Zyx Academy untuk melihat kabar terbaru.",
     type: "announcement",
-    link: account?.role === "admin" ? "/admin" : account?.role === "teacher" ? "/tutor" : "/dashboard",
+    link: getDefaultHomeLinkForRole(account?.role === "teacher" ? "tutor" : account?.role),
     metadata: { quietDigest: "true", groupKey: "quiet-digest" },
    };
    const { sendPushToUserNow } = await import("./send");
