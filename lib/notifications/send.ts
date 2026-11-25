@@ -29,6 +29,7 @@ import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import type { NotificationPayload, NotificationType, SendResult } from "./types";
 import { sendApnsNotifications } from "./apns";
 import { dispatchTokensByTransport, type PushTokenTarget } from "./dispatch";
+import { deferQuietPushes, deferredSendResult } from "./quiet-delivery";
 import {
  quizPublishedPayload,
  adminBroadcastPayload,
@@ -89,6 +90,17 @@ async function persistNotification(
 
 // ─── Internal: send FCM multicast to a list of tokens ────────────────────────
 
+export function getPushGroupKey(payload: NotificationPayload): string | undefined {
+ if (payload.metadata?.groupKey === "quiet-digest") return "zyx:quiet-digest";
+ if (payload.type === "discussion" && payload.metadata?.threadId) return `zyx:discussion:${payload.metadata.threadId}`;
+ return payload.notificationId ? `zyx:${payload.notificationId}` : undefined;
+}
+function androidNotificationChannel(type: NotificationType): string {
+ if (type === "discussion") return "zyx_discussions";
+ if (type === "tutor_reminder" || type === "tutor_booking") return "zyx_schedule";
+ if (["quiz_published", "quiz_graded", "flashcard_reminder", "weekly_progress", "study_reengagement", "tutor_digest"].includes(type)) return "zyx_learning";
+ return "zyx_updates";
+}
 async function sendMulticast(
  tokens: string[],
  payload: NotificationPayload,
@@ -126,12 +138,15 @@ async function sendMulticast(
  notification: {
           icon: "/brand/zyx-app-192.png",
           badge: "/brand/zyx-logo-symbol-black@2x.png",
+          tag: getPushGroupKey(payload),
+          renotify: false,
  },
  },
  android: {
- priority: "high",
+ priority: payload.type === "tutor_reminder" || payload.type === "tutor_booking" ? "high" : "normal",
  notification: {
- channelId: "zyx_default",
+ channelId: androidNotificationChannel(payload.type),
+ tag: getPushGroupKey(payload),
  sound: "default",
  },
  },
@@ -152,7 +167,7 @@ async function sendMulticast(
  if (INVALID_TOKEN_CODES.has(code)) {
  failedTokens.push(batch[idx]);
  } else {
- errors.push(`Token ${batch[idx]}: ${code}`);
+ errors.push(`Push delivery: ${code}`);
  }
  }
  });
@@ -228,6 +243,13 @@ async function sendToTargets(
 
 /** Sends an already rendered payload without creating an inbox row. */
 export async function sendPushToUser(userId: string, renderedPayload: NotificationPayload): Promise<SendResult> {
+ const deferred = await deferQuietPushes([{ userId, payload: renderedPayload }]);
+ if (deferred.has(userId)) return deferredSendResult();
+ return sendPushToUserNow(userId, renderedPayload);
+}
+
+/** Internal immediate transport used by the quiet-hour worker after rechecking the schedule. */
+export async function sendPushToUserNow(userId: string, renderedPayload: NotificationPayload): Promise<SendResult> {
  const hasTransportColumn = Boolean((userPushTokens as unknown as Record<string, unknown>).transport);
  const rows: PushTokenTarget[] = hasTransportColumn
   ? await db
@@ -250,6 +272,10 @@ export async function sendPushToUsers(items: { userId: string; payload: Notifica
  if (!items.length) return results;
  const ids = items.map(item => item.userId);
  if (items.length > 10 || new Set(ids).size !== ids.length) throw new Error("INVALID_PUSH_RECIPIENT_BATCH");
+ const deferred = await deferQuietPushes(items);
+ for (const id of deferred) results.set(id, deferredSendResult());
+ items = items.filter(item => !deferred.has(item.userId));
+ if (!items.length) return results;
  const hasTransportColumn = Boolean((userPushTokens as unknown as Record<string, unknown>).transport);
  const rows = (await db.execute<{ id: string; userId: string; token: string; transport?: string }>(
   hasTransportColumn

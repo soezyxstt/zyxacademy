@@ -18,6 +18,8 @@ import { notifications } from "@/db/schema";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { notificationVisibility } from "@/lib/notifications/discussion-history";
 import { discussionNotificationLink } from "@/lib/notifications/templates";
+import { getQuietHours } from "@/lib/notifications/quiet-delivery";
+import { quietHoursEnd } from "@/lib/notifications/quiet-hours";
 
 export async function GET(req: NextRequest) {
   const reqHeaders = await headers();
@@ -61,6 +63,9 @@ export async function GET(req: NextRequest) {
   };
 
   try {
+    if (searchParams.get("delivery") === "desktop" && targetUserId === session.user.id && quietHoursEnd(await getQuietHours(targetUserId))) {
+      return NextResponse.json({ notifications: [], quietActive: true, unreadCount: 0, page, limit }, { headers: cacheHeaders });
+    }
     const visibility = await notificationVisibility(targetUserId, session.user.id, { unreadOnly: countOnly });
     const unreadQuery = db
       .select({ count: sql<number>`count(*)` })

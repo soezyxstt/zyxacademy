@@ -576,7 +576,7 @@ export function startDesktopNotificationBridge(
     try {
       // Read state belongs to the account, not to a particular device. Reading
       // on Android must not suppress an already queued desktop notification.
-      const query = new URLSearchParams({ limit: String(DESKTOP_PAGE_SIZE) });
+      const query = new URLSearchParams({ limit: String(DESKTOP_PAGE_SIZE), delivery: "desktop" });
       if (initialized && lastCursorIso) query.set("since", lastCursorIso);
 
       const rows: DesktopInboxRow[] = [];
@@ -587,7 +587,7 @@ export function startDesktopNotificationBridge(
         const controller = new AbortController();
         activeRequest = controller;
         const timeout = setTimeout(() => controller.abort(), options?.requestTimeoutMs ?? DESKTOP_REQUEST_TIMEOUT_MS);
-        let data: { notifications?: DesktopInboxRow[] };
+        let data: { notifications?: DesktopInboxRow[]; quietActive?: boolean };
         try {
           const res = await fetchFn(`/api/notifications/history?${query.toString()}`, {
             credentials: "include",
@@ -597,12 +597,14 @@ export function startDesktopNotificationBridge(
           // A transient expired session or failed network request must not
           // permanently disable delivery; the account runtime disposes on logout.
           if (disposed || !isCurrent() || !res.ok) return;
-          data = await res.json() as { notifications?: DesktopInboxRow[] };
+          data = await res.json() as { notifications?: DesktopInboxRow[]; quietActive?: boolean };
         } finally {
           clearTimeout(timeout);
           if (activeRequest === controller) activeRequest = null;
         }
         if (disposed || !isCurrent()) return;
+        // Keep the cursor unchanged during quiet hours so the backlog is available on release.
+        if (data.quietActive) return;
         const batch = Array.isArray(data.notifications) ? data.notifications : [];
         // The session cookie can change before the client auth observer settles.
         // Never display a row from another account after a reconnect or switch.

@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { DeviceNotificationSettings } from "@/components/notifications/device-notification-settings";
+import { QuietHoursSettings } from "@/components/settings/quiet-hours-settings";
 import { cn } from "@/lib/utils";
 
 const INITIAL_ACTION_STATE: NotificationPreferencesActionState = {
@@ -74,6 +75,7 @@ export function NotificationPreferencesForm({
   return (
     <div className="w-full space-y-6">
       <DeviceNotificationSettings />
+      <QuietHoursSettings />
       <form action={formAction} className="w-full space-y-6">
       {Object.entries(preferences).map(([key, value]) => (
         <input key={key} type="hidden" name={key} value={String(value)} />

@@ -277,7 +277,7 @@ async function pushBatch(event: Event, rows: InboxRow[], seq: number, excludedId
    const payload = renderNotificationPayload(discussionPayload({
     role: actor.role, channelId: event.channelId, threadId: event.threadId, messageId: event.messageId, seq, report: event.kind === "report",
    }), state!.locales.get(row.userId) ?? DEFAULT_LOCALE);
-   return { userId: row.userId, payload, ...(typeof metadata.pushCursor === "string" ? { after: metadata.pushCursor } : {}) };
+   return { userId: row.userId, payload: { ...payload, notificationId: row.id }, ...(typeof metadata.pushCursor === "string" ? { after: metadata.pushCursor } : {}) };
   });
   const results = await sendPushToUsers(items);
   await writePushOutcomes(eligible.map(row => ({ id: row.id, result: results.get(row.userId)! })));

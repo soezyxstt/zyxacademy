@@ -16,6 +16,7 @@
 import { getMessaging, getToken, onMessage, type Messaging } from "firebase/messaging";
 import { getFirebaseApp } from "@/lib/firebase/client";
 import { canUseBrowserPush } from "@/lib/native/runtime";
+import { notificationMatchesVisibleDiscussion } from "@/lib/notifications/quiet-hours";
 import {
  clearRegisteredPushTokenIdentity,
  markPushTokenRegistered,
@@ -207,7 +208,7 @@ export async function showForegroundWebNotification(
 ): Promise<void> {
   if (!canUseBrowserPush() || !isCurrent() ||
       typeof window.Notification !== "function" || window.Notification.permission !== "granted" ||
-      !("serviceWorker" in navigator)) return;
+      !("serviceWorker" in navigator) || notificationMatchesVisibleDiscussion(input.url, window.location, document.visibilityState === "visible")) return;
   try {
     const registration = await navigator.serviceWorker.getRegistration("/firebase-cloud-messaging-push-scope");
     if (!registration || new URL(registration.scope).pathname.replace(/\/$/, "") !== "/firebase-cloud-messaging-push-scope" ||
