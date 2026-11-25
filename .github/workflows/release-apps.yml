@@ -496,21 +496,40 @@ jobs:
           sdk=${ANDROID_SDK_ROOT:-$ANDROID_HOME}
           apksigner=$(find "$sdk/build-tools" -type f -name apksigner | sort -V | tail -n 1)
           test -x "$apksigner"
-          report=$("$apksigner" verify --verbose --print-certs "$apk")
-          # Require precisely one current signer and compare without printing the configured set.
-          export APKSIGNER_REPORT="$report"
+          apksig_jar="$(dirname "$apksigner")/lib/apksigner.jar"
+          test -f "$apksig_jar"
+          # Read the verified signer from Android's verifier API, not CLI display formatting.
+          cat > "$RUNNER_TEMP/VerifyStableSigner.java" <<'JAVAVERIFY'
+          import com.android.apksig.ApkVerifier;
+          import java.io.File;
+          import java.security.MessageDigest;
+          import java.security.cert.X509Certificate;
+          import java.util.HexFormat;
+          import java.util.List;
+
+          public class VerifyStableSigner {
+              public static void main(String[] args) throws Exception {
+                  ApkVerifier.Result result = new ApkVerifier.Builder(new File(args[0])).build().verify();
+                  if (!result.isVerified()) {
+                      throw new IllegalStateException("APK cryptographic signature did not verify.");
+                  }
+                  List<X509Certificate> signers = result.getSignerCertificates();
+                  if (signers.size() != 1) {
+                      throw new IllegalStateException("Expected exactly one verified APK signer.");
+                  }
+                  byte[] cert = signers.get(0).getEncoded();
+                  System.out.print(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(cert)));
+              }
+          }
+          JAVAVERIFY
+          actual=$(java -cp "$apksig_jar" "$RUNNER_TEMP/VerifyStableSigner.java" "$apk")
+          export APK_CERT_SHA256="$actual"
           export APP_LINKS_FILE="$RUNNER_TEMP/zyx-stable-app-links.json"
           curl --fail --silent --show-error --max-time 25 \
             https://www.zyxacademy.com/.well-known/assetlinks.json -o "$APP_LINKS_FILE"
           python3 - <<'PYVERIFY'
           import json, os, re, sys
-          matches = re.findall(
-              r"^\s*Signer\s+#\s*\d+\s+certificate\s+SHA-256\s+digest\s*:\s*"
-              r"([0-9A-Fa-f:]+)[ \t\r]*$",
-              os.environ.get("APKSIGNER_REPORT", ""),
-              flags=re.IGNORECASE | re.MULTILINE,
-          )
-          actual = matches[0].lower().replace(":", "") if len(matches) == 1 else ""
+          actual = os.environ.get("APK_CERT_SHA256", "").strip().lower()
           with open(os.environ["APP_LINKS_FILE"], encoding="utf-8") as f:
               links = json.load(f)
           known = {
