@@ -1130,6 +1130,7 @@ export function issueMcpConnectionToken(input: {
   clientId: string;
   resource: string;
   scopes: readonly string[];
+  ttlSeconds?: number;
 }) {
   return issueToken({
     kind: "connection",
@@ -1138,7 +1139,7 @@ export function issueMcpConnectionToken(input: {
     clientId: input.clientId,
     resource: input.resource,
     scopes: [...input.scopes],
-    ttlMs: MCP_CONNECTION_TOKEN_TTL_SECONDS * 1000,
+    ttlMs: (input.ttlSeconds ?? MCP_CONNECTION_TOKEN_TTL_SECONDS) * 1000,
   });
 }
 

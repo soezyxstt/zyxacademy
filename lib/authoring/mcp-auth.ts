@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { session as authSession } from "@/db/schema";
 import { hasPeran } from "@/lib/auth/authorization";
 import { readMcpConnectionToken, type McpConnectionTokenPayload } from "@/lib/authoring/mcp-workflows";
-import { hasMcpOAuthConsent } from "@/lib/authoring/mcp-oauth";
+import { hasMcpOAuthConsent, isMcpOAuthGrantSessionId } from "@/lib/authoring/mcp-oauth";
 
 export const MCP_MANUAL_CLIENT_ID = "zyx-admin-connection";
 
@@ -33,8 +33,15 @@ export async function resolveMcpAdmin(input: {
   sessionId: string;
   scopes: readonly string[];
   authMethod: McpPrincipal["authMethod"];
+  clientId?: string;
+  resource?: string;
 }): Promise<McpPrincipal> {
-  if (!(await liveSession(input.userId, input.sessionId))) throw new Error("AUTHORING_MCP_SESSION_INVALID");
+  if (isMcpOAuthGrantSessionId(input.sessionId)) {
+    if (input.authMethod !== "oauth" || !input.clientId || !input.resource || input.clientId === MCP_MANUAL_CLIENT_ID
+      || !(await hasMcpOAuthConsent({ userId: input.userId, sessionId: input.sessionId, clientId: input.clientId, resource: input.resource, scope: input.scopes }))) {
+      throw new Error("AUTHORING_MCP_CONSENT_REQUIRED");
+    }
+  } else if (!(await liveSession(input.userId, input.sessionId))) throw new Error("AUTHORING_MCP_SESSION_INVALID");
   if (!(await hasPeran(input.userId, "admin"))) throw new Error("AUTHORING_MCP_ADMIN_REQUIRED");
   return {
     userId: input.userId,
@@ -42,6 +49,8 @@ export async function resolveMcpAdmin(input: {
     sessionId: input.sessionId,
     scopes: [...input.scopes],
     authMethod: input.authMethod,
+    clientId: input.clientId,
+    resource: input.resource,
   };
 }
 
@@ -53,8 +62,10 @@ export async function principalFromConnectionToken(token: string, expectedResour
     sessionId: payload.sessionId,
     scopes: payload.scopes,
     authMethod: "oauth",
+    clientId: payload.clientId,
+    resource: expectedResource,
   });
-  if (payload.clientId !== MCP_MANUAL_CLIENT_ID) {
+  if (!isMcpOAuthGrantSessionId(payload.sessionId) && payload.clientId !== MCP_MANUAL_CLIENT_ID) {
     const approved = await hasMcpOAuthConsent({
       userId: payload.userId,
       sessionId: payload.sessionId,
