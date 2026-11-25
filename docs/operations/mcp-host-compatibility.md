@@ -2,7 +2,7 @@
 
 Status: `ACTIVE`
 
-This contract covers the HTTP MCP endpoint, initial OAuth consent, tool names, and the 0.5.3 plugin package. Repository checks establish local behavior. A merged change, deployed endpoint, and installed host package are separate release targets.
+This contract covers the HTTP MCP endpoint, initial OAuth consent, tool schemas and names, and the 0.5.4 plugin package. Repository checks establish local behavior. A merged change, deployed endpoint, and installed host package are separate release targets.
 
 ## Initial OAuth permissions
 
@@ -46,9 +46,29 @@ Upgrading the server does not rename an installed plugin. Update the package thr
 
 OAuth remains direct HTTP. A renamed host installation may register a new OAuth client and need consent again. The resource URL stays fixed. A manual-bearer stdio proxy is not equivalent: manual connections cannot delegate the admin/provider jobs that require persisted OAuth consent.
 
+## JSON Schema compatibility
+
+Every advertised tool input schema must validate against both Draft-07 and Draft 2020-12 meta-schemas. Any advertised output schema receives the same check. The current catalog contains 194 input schemas and no output schemas. A catalog regression test uses the real HTTP `tools/list` response and an invalid legacy tuple as a negative control.
+
+`source_extract_figure.crop` is a homogeneous array of exactly four finite numbers between 0 and 1, with `items` as a schema object and `minItems`/`maxItems` equal to 4. Runtime validation also requires `x1 > x0` and `y1 > y0`. This preserves crop geometry and prevents Draft-07 tuple syntax (`items: [...]`) from disabling the tool in strict 2020-12 hosts. Invalid crops fail SDK validation before source access.
+
+## Skill identities across environments
+
+The package renderer gives every staging skill directory, frontmatter name, cross-skill link and host invocation prompt exactly one `-stg` suffix. Production keeps the canonical skill names. For example, staging installs `zyx-product-bundle-mcp-stg`, while production installs `zyx-product-bundle-mcp`. The compact MCP router is `zyx-authoring-stg` on staging and `zyx-authoring` on production; their resource paths and ZIP roots are distinct too.
+
+The explicit `skill` argument in `workflow_get_playbook` remains a canonical bootstrap role, such as `zyx-product-bundle-mcp`. It is not the installed host skill name. Generated examples preserve those six protocol role IDs. Tool names and dotted operation arguments follow their separate rules above.
+
+`Sync Zyx Authoring MCP Plugin` builds both environments and verifies that their skill names do not overlap before publishing the selected target. It compares published files against the remote baseline and keeps production publication restricted to `main`. The renderer removes obsolete generated paths only in an owned output tree. The host doctor reports old unsuffixed staging installations; updating a host package and refreshing its installed skill list remains a host action.
+
+## Job and OAuth recovery
+
+Skills use the server's existing job and receipt tools. Cloud Tasks and Scheduler manage delivery through the shared queue adapter; retained Inngest symbols do not identify the active provider. Keep job IDs, verification attempt IDs, operation receipts and bootstrap tokens in their own fields. Respect returned retry times, inspect uncertain outcomes before repeating a mutation, and retain trusted verification and publication checks.
+
+OAuth access refresh belongs to the configured host connection. Waiting for a job does not require reconnecting. If the server reports missing consent, revoked refresh authorization or an expired plan, apply that specific remedy and recheck the same target before resuming.
+
 ## Verification boundaries
 
-Focused tests cover the real MCP HTTP catalog, portable and legacy calls on fresh servers, SDK validation, alias collision and length guards, exact consent selections, narrower requests, and refusal to widen grants silently. Discovery tests preserve canonical receipt identity. Package tests render both environments and check all 12 skills, host prompts, namespace budgets, migration diagnostics, and deterministic releases.
+Focused tests cover the real MCP HTTP catalog, both JSON Schema dialects, portable and legacy calls on fresh servers, SDK crop validation, alias collision and length guards, exact consent selections, narrower requests, and refusal to widen grants silently. Discovery tests preserve canonical receipt identity. Package tests render both environments and check all 12 skills, host prompts, disjoint skill names, canonical bootstrap arguments, namespace budgets, migration diagnostics, and deterministic releases. Catalog tests verify that both environment routers keep valid references and distinct resource identities.
 
 The local consent fixture exercises all 46 options, four selected defaults, an added admin selection, no selection, keyboard focus, and an explicit narrow request at 380 by 844 and 1536 by 864 in both themes. It uses synthetic identities and does not authorize a real account. Installed Antigravity/ChatGPT acceptance and live OAuth remain separate checks. Public endpoint probes from this workspace encountered Cloudflare error 1010; no bypass was attempted.
 

@@ -6,14 +6,16 @@ description: Menyusun Artikel/Diktat V4 dari JSON bertipe, memeriksa preview lok
 # Zyx Product Bundle MCP
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.3"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.4"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 
 Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
 
+Jika akses kedaluwarsa atau izin kurang, ikuti [pemulihan koneksi](../zyx-operation-recovery/SKILL.md#koneksi-oauth) pada environment yang sama. Refresh OAuth tidak memperbarui bootstrap atau run authoring.
+
 ## Mulai dari kontrak aktif
 
-1. Panggil `workflow.get_playbook` pada awal tahap dan saat melanjutkan sesi: `skill: "zyx-product-bundle-mcp"`, `stage: "product"`, `bootstrapProtocol: 1`, `pluginVersion: "0.5.3"`. Isi `clientCapabilities.independentSubagents`, `localArtifactFiles` dan `pdfRendering` sesuai kemampuan nyata. Tahap Product memerlukan subagent independen; jangan menyatakan kemampuan yang tidak ada.
+1. Panggil `workflow.get_playbook` pada awal tahap dan saat melanjutkan sesi: `skill: "zyx-product-bundle-mcp"`, `stage: "product"`, `bootstrapProtocol: 1`, `pluginVersion: "0.5.4"`. Isi `clientCapabilities.independentSubagents`, `localArtifactFiles` dan `pdfRendering` sesuai kemampuan nyata. Tahap Product memerlukan subagent independen; jangan menyatakan kemampuan yang tidak ada.
 2. Baca modul `common/execution`, `product/workflow`, `product/editorial`, `product/quality-rubric`, `product/flashcards` dan `product/derivation-audit` yang dikembalikan. Jika bootstrap gagal atau `compatibility.status` adalah `incompatible`, hentikan authoring dan laporkan `remediation`; jangan menggantinya dengan panduan lokal lama.
 3. Untuk produk baru, pilih scope lewat katalog, lalu mulai atau lanjutkan `idea_product` dengan Source Pack valid dan `bootstrapToken`. Ambil `workflow.get_contract` dengan `runToken` dan bootstrap yang sama. Baca Idea dan learning section published serta sumber/kutipan aktif untuk scope tersebut; cek draft yang ada sebelum membuat yang baru.
 4. Gunakan `productBundle.initialDraft` hanya bila tool itu benar-benar tersedia pada koneksi. Ambil schema `productDraftInput` dari `productBundle.schemaDocuments`: GET `path` pada origin MCP yang sama, cocokkan SHA-256 byte respons dengan `sha256`, lalu simpan untuk revisi kontrak itu. Ambil schema lain hanya saat jenis isi memerlukannya. HTTP 409 atau drift mewajibkan playbook/kontrak segar dan validasi ulang. Katalog tool yang ringkas tidak menggantikan schema isi lengkap.
@@ -64,9 +66,17 @@ Ikuti `category`, `diagnostics` dan `nextAction`: perbaiki field pada error isi;
 
 Flashcard berfokus pada satu Idea published untuk recall. Pembahasan V5 mencatat provenance soal dan solusi secara terpisah, hak/rilis yang jelas, alasan dan verifikasi jawaban; `hintMarkdown` opsional harus singkat tanpa bocoran jawaban. Jangan merilis soal/jawaban asesmen terlindungi lewat Product. Entity `question`, `solution` dan `assessment_blueprint` tetap di workflow asesmen. V5 tidak masuk pencarian publik, kuis atau Zyra.
 
+## Source figure dari PDF
+
+Gunakan `source.list_figures` untuk mencari figure yang masih cocok dengan versi sumber, lalu `source.get_figure` untuk manifest dan varian. Untuk figure baru, ikat `source.extract_figure` ke `fileKey`, Source Pack tersimpan (`sourcePackImportId` dan `sourcePackChecksum`), `sourceDocumentId`, `sourceVisualId`, halaman, atribusi dan izin. `sourceVisualId` harus menunjuk blok `:::visual-explanation` tepat pada halaman itu. Sertakan run/bootstrap dan `stage: "product"` saat bekerja pada tahap Product.
+
+Isi `crop` dengan tepat empat angka `[x0, y0, x1, y1]` dalam rentang 0 sampai 1 pada citra halaman: kiri, atas, kanan, bawah; `x1 > x0` dan `y1 > y0`. Ukur dari citra sumber, bukan dari ukuran piksel atau pasangan lebar/tinggi. Setelah request, pantau `source.get_figure_job` dengan `fileKey` dan `assetId` yang sama. Saat complete, baca `source.get_figure`, periksa varian preview/cetak, checksum serta `publicationAllowed`. Izin unknown tetap menghalangi publikasi. Gunakan `retry: true` hanya untuk extraction yang failed setelah memeriksa sebabnya. Agent tidak perlu membuat task Google Cloud Tasks sendiri.
+
 ## Bukti, review dan publikasi
 
 Ambil `authoring.get_product_review_context` pada run, bootstrap, import dan checksum tepat. V4 memerlukan verifier tepercaya, receipt, review rubrik dan keputusan `semanticHash` untuk tiap section Artikel; bundle tanpa Artikel memakai anchor dokumen tanpa section palsu. Ikuti `productBundle.verification.localOperator`, temukan pin lewat `--capabilities`, lalu periksa setiap state browser wajib dan setiap halaman PDF. Operator privat saat ini mengunci target production; jangan menjalankannya sebagai bukti staging atau mengganti target tanpa dukungan resmi. Jika verifier untuk target tidak tersedia, pertahankan draft dan laporkan blocker.
+
+Pantau verifikasi melalui `authoring.get_verification` dengan import/run serta `planHash` dari plan yang sama. Job figure, job PDF sumber, job admin dan receipt verifikasi bukan identitas yang dapat ditukar; ikuti [panduan status job](../zyx-operation-recovery/SKILL.md#antrean-dan-status-job).
 
 Verifikasi ulang bila isi, sumber, dependensi atau runtime berubah. Cache batch hanya berlaku untuk plan/staging audit yang sama dengan metadata bertanda tangan dan byte yang lolos pemeriksaan ulang. Render yang terblokir adalah `NOT_TESTED`; satu render PDF dapat memberi PDF beserta semua gambar halaman tanpa mengurangi pemeriksaan. Screenshot lokal atau pernyataan agent tidak menggantikan receipt. Untuk V3, ikuti `legacyLocalOperator` dan PDF tiap Diktat terkait atau Artikel tanpa Diktat; pilih tepat satu `diktatId` atau `articleId` jika perlu.
 

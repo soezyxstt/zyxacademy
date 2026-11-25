@@ -52,6 +52,10 @@ jobs:
             --environment production \
             --output-dir /tmp/zyx-plugin-validate/production \
             --json > /tmp/zyx-plugin-validate/production-meta.json
+          python3 plugins/zyx-authoring-mcp/scripts/configure_environment.py verify-coexistence \
+            --staging-dir /tmp/zyx-plugin-validate/staging \
+            --production-dir /tmp/zyx-plugin-validate/production \
+            --json > /tmp/zyx-plugin-validate/coexistence.json
 
       - name: Upload Validated Build Artifacts
         if: github.event_name == 'workflow_dispatch'

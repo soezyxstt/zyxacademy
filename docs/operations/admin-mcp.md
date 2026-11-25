@@ -13,7 +13,7 @@ The existing `/api/mcp/authoring` endpoint now registers admin domain tools alon
 
 ## Agent-first content and recovery
 
-See [agent-first content operations](agent-first-content.md) for registered capability discovery, structured scope recovery, own-operation receipts, shared blog revision checks and public media resolution. Repository plugin 0.5.0 adds five focused skills without changing environment identity or automatically granting scopes.
+See [agent-first content operations](agent-first-content.md) for registered capability discovery, structured scope recovery, own-operation receipts, shared blog revision checks and public media resolution. Repository plugin 0.5.4 updates all 12 workflows and gives staging skills a `-stg` suffix. Bootstrap role arguments remain canonical, and package updates do not grant scopes.
 
 ## Browser Ops AI compatibility
 
@@ -21,9 +21,13 @@ Ops AI and the MCP endpoint use the same tool registration function. The browser
 
 ## External effects
 
-`admin_operation_jobs` is the durable outbox. The existing Deno Inngest registry runs `admin-operations-outbox` every minute, processes at most 25 queued jobs and allows only one function instance at a time. Jobs bind the originating live admin session, OAuth client, resource, required scopes and environment. Enqueue and execution both check persisted OAuth consent, including secondary response-read permission for exports. Revoked or narrowed consent prevents queued provider effects. Manual/session connections cannot delegate these admin provider operations; legacy jobs without client/resource binding fail closed. No bearer token is stored. Missing provider configuration fails before an effect.
+`admin_operation_jobs` is the durable outbox. The shared `admin-operations-outbox` job processes at most 25 queued jobs per batch and schedules a continuation when the batch is full. With `QUEUE_PROVIDER=cloud-tasks`, authenticated Cloud Tasks deliveries execute the shared job, persist step checkpoints and use the configured queue/job retry budgets. Cloud Scheduler supplies bounded dispatch windows; the legacy Inngest cron declaration is not the active Cloud Tasks schedule. The compatibility adapter retains support for environments that still select Inngest. Agents use MCP job/receipt tools and never enqueue provider tasks directly.
+
+Jobs bind the originating admin authority, OAuth connection, client, resource, required scopes and environment. Durable OAuth grants retain their own refresh lifecycle after normal browser-session expiry. Enqueue and execution both check persisted OAuth consent, including secondary response-read permission for exports. Revoked or narrowed consent prevents queued provider effects. Manual/session connections cannot delegate these admin provider operations; legacy jobs without client/resource binding fail closed. No bearer token is stored. Provider checks follow the selected adapter; generation requires an Inngest event key only when that provider is selected.
 
 A claim commits before provider work. A provider timeout or crash is marked `unknown`; claims older than 15 minutes become `unknown`. These attempts are never replayed automatically. Use `adminjobs.get`, inspect the provider, then use `adminjobs.reconcile` with a reason and evidence reference. This records an operator assertion, not automated provider verification. Only queued jobs can be cancelled. A queued tool result is not delivery or provider success.
+
+`generation.start` returns an admin dispatch job. After it succeeds, use its `result.jobId` with `jobs.get` to inspect the generation job itself. Its `completed` status can include partial failures. `targetCount` counts knowledge objects, while `generatedCount` counts inserted questions, so comparing those counters does not prove complete coverage. Inspect the resulting questions and review state before reporting a complete or publishable result.
 
 Google Sheets exports use the existing entity spreadsheet, owned A1 block, fingerprint and conflict checks. Read `forms.responses.sheet_state` first. A changed data or sheet snapshot is rejected. Manual edits require the operator to type `TIMPA <form-slug>`; the skill forbids inventing that consent. Deleted linked spreadsheets are not automatically recreated by this MCP workflow. Google API writes and a database receipt cannot share a transaction, so uncertain provider outcomes require reconciliation.
 
@@ -175,7 +179,7 @@ PKA is explicitly excluded from this expansion by product decision. No PKA tools
 
 ## Local verification
 
-PostgreSQL integration adaptation covers real transactions, canonical projections, replay protection, revision conflicts, scope denial, role escalation, group capacity, token redaction, simulation side effects, response export and outbox claims. MCP transport tests cover the real catalog and resource handlers after skill registration. Provider tests use mocks; they do not certify Google, FCM, R2 or a deployed Inngest runner.
+PostgreSQL integration adaptation covers real transactions, canonical projections, replay protection, revision conflicts, scope denial, role escalation, group capacity, token redaction, simulation side effects, response export and outbox claims. MCP transport tests cover the real catalog and resource handlers after skill registration. Provider tests use mocks; they do not certify Google, FCM, private storage or deployed queue delivery.
 
 Account-switch follow-up: the standalone `tests/integration/authoring-oauth-consent.ts` process passed locally, including changed-account, changed-session and missing-binding denial with no consent/code writes, and retention of an existing token's original actor after the browser changes accounts. The focused consent rendering contract also passed. These are local PostgreSQL and component checks; they do not establish a live MCP host or Google OAuth flow.
 

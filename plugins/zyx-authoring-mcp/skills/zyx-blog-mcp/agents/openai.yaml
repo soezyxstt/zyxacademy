@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Blog MCP"
   short_description: "Draft and revise blogs with exact publication control"
-  default_prompt: "Use $zyx-blog-mcp to draft or edit the requested blog on the confirmed Zyx environment, inspect its exact revision and public impact, and publish only when requested. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."
+  default_prompt: "Use $zyx-blog-mcp to draft or edit the requested blog on the confirmed environment, inspect its exact revision and public impact, await any media job before using its served URL, and publish only when requested. Recover OAuth and uncertain writes without changing the original request identity. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

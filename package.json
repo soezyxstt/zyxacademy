@@ -204,6 +204,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.184.1",
+    "ajv": "8.18.0",
     "drizzle-kit": "^0.31.10",
     "esbuild": "0.28.1",
     "eslint": "^9.39.4",

@@ -6,10 +6,12 @@ description: Membuat, menyunting, memvalidasi dan menerbitkan blog publik Zyx me
 # Blog Zyx melalui MCP
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.3"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.4"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 
 Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
+
+Jika akses kedaluwarsa atau izin kurang, ikuti [pemulihan koneksi](../zyx-operation-recovery/SKILL.md#koneksi-oauth) pada environment yang sama. Refresh OAuth tidak memperbarui bootstrap atau run authoring.
 
 ## Temukan target dan kontrak
 
@@ -21,7 +23,7 @@ Cari metadata lewat `blog.search` dengan filter dan pagination; baca isi serta r
 
 - Untuk baru, kirim `article` ke `blog.validate`; untuk edit, kirim `id`, `expectedRevision` dan `changes`. Jangan mencampur kedua bentuk. Validasi memeriksa proyeksi, diagnosis dan dampak publik tanpa menyimpan, mengambil aset, merender browser atau memakai AI; hasilnya tidak mencadangkan slug.
 - Buat draft lewat `blog.create`; edit melalui `blog.update` dengan revision terakhir. Server menghitung waktu baca dan dapat mengisi slug/ringkasan kosong tanpa panggilan model. Judul baru tidak mengubah URL kecuali slug dikirim secara eksplisit.
-- Untuk thumbnail, gunakan [skill media](../zyx-media-mcp/SKILL.md) dan `publicPath` dari `media.get` setelah unggahan berhasil. Jangan memakai raw key atau URL bertoken. Validasi URL dan keberadaan objek tidak membuktikan byte/gambar sudah diperiksa.
+- Untuk thumbnail, gunakan [skill media](../zyx-media-mcp/SKILL.md) dan `publicPath` dari `media.get`. Bila perlu unggahan baru, tunggu job upload selesai lewat `adminjobs.get` sebelum memasang URL. Jangan memakai raw key atau URL bertoken. Validasi URL dan keberadaan objek tidak membuktikan byte/gambar sudah diperiksa.
 - Untuk setiap mutasi yang sudah diizinkan, kirim `dryRun: true` dengan satu `requestKey`, periksa dampak, lalu jalankan payload/key yang sama dengan `dryRun: false` dan `confirmationToken`. Rencana bertanda tangan bukan alasan meminta izin ulang untuk langkah draft yang sudah termasuk tugas.
 
 ## Publikasi dan pemulihan

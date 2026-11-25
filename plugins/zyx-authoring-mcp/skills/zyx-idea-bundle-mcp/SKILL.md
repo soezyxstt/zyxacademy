@@ -8,14 +8,16 @@ description: Menyusun Idea Bundle V3 dari Source Pack tervalidasi dengan satu po
 Utamakan isi dan bukti sumber melalui input langsung yang server dukung. Untuk mengubah Idea tersimpan, gunakan [zyx-content-revisions](../zyx-content-revisions/SKILL.md) tanpa membangun ulang Source Pack.
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.3"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.4"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 
 Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
 
+Jika akses kedaluwarsa atau izin kurang, ikuti [pemulihan koneksi](../zyx-operation-recovery/SKILL.md#koneksi-oauth) pada environment yang sama. Refresh OAuth tidak memperbarui bootstrap atau run authoring.
+
 ## Bootstrap dan sumber
 
-1. Panggil `workflow.get_playbook` pada awal atau saat lanjut, dengan identitas `{"skill": "zyx-idea-bundle-mcp", "stage": "idea", "bootstrapProtocol": 1, "pluginVersion": "0.5.3"}` dan `clientCapabilities` nyata. Baca `common/execution`, `idea/workflow`, serta `idea/decomposition`. Jika gagal atau tidak kompatibel, hentikan tahap dan sampaikan `remediation`.
+1. Panggil `workflow.get_playbook` pada awal atau saat lanjut, dengan identitas `{"skill": "zyx-idea-bundle-mcp", "stage": "idea", "bootstrapProtocol": 1, "pluginVersion": "0.5.4"}` dan `clientCapabilities` nyata. Baca `common/execution`, `idea/workflow`, serta `idea/decomposition`. Jika gagal atau tidak kompatibel, hentikan tahap dan sampaikan `remediation`.
 2. Untuk draft baru, temukan course dan bab lewat katalog. Pilih Source Pack tervalidasi dengan `source.list_packs` serta `source.get_pack`, atau jalankan [zyx-source-pack-mcp](../zyx-source-pack-mcp/SKILL.md).
 3. Mulai `workflow.start` dengan `workflow: "idea_product"`, scope katalog, bootstrap, dan `sourcePackImportId` atau `sourcePackToken` yang tepat. Ambil `workflow.get_contract`. Baca seluruh dokumen melalui `source.get_pack` dengan `packId`, `runToken`, dan `documentId` per dokumen.
 4. Periksa `knowledge.search_course_ideas`, `knowledge.search_ideas`, serta `authoring.list_imports` untuk mencegah duplikasi. Gunakan versi sumber yang terikat run, bukan pack terbaru yang namanya sama.
@@ -25,7 +27,7 @@ Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke opera
 1. Baca `ideaBundle.initialDraft`. Jika tool tersedia dalam katalog live, ambil `ideaDraftInput` dari `ideaBundle.schemaDocuments` sesuai SHA-256 descriptor. Muat schema lain hanya saat perlu; segarkan kontrak pada HTTP 409. Versi plugin tidak membuktikan fitur sudah terpasang di server.
 2. Ikuti `idea/decomposition`: satu pokok ajar per Idea, syarat lengkap, penjelasan singkat, tujuan bagian belajar, dan relasi beralasan. Gunakan key lokal stabil serta enum dari schema aktif.
 3. Isi `sourceRefs` dengan `documentId`, `unit`, dan `quote` tepat yang mendukung pernyataan beserta syaratnya. Untuk kutipan berulang, pilih kutipan unik yang lebih panjang atau ukur `startOffset` pada teks berbaris LF. Offset memakai UTF-16 JavaScript; hash memakai byte UTF-8. Jangan menebak posisi.
-4. Panggil `authoring.create_idea_draft` dengan `runToken`, `bootstrapToken`, `draftKey`, dan `draft`. Server membangun span, ID, metadata, hash, serta ZIP dan menjalankan validasi sebelum staging. Retry respons hilang harus memakai key, run, dan isi yang sama; edit berikutnya memakai import serta checksum hasil.
+4. Panggil `authoring.create_idea_draft` dengan `runToken`, `bootstrapToken`, `draftKey`, dan `draft`. Server membangun span, ID, metadata, hash, serta ZIP dan menjalankan validasi sebelum mengembalikan hasil staging. Gunakan import/checksum dari respons itu; tidak ada job antrean yang perlu dibuat agent untuk draft langsung. Retry respons hilang harus memakai key, run, dan isi yang sama; edit berikutnya memakai import serta checksum hasil.
 5. Jika tool atau descriptor belum tersedia, atau batas input langsung tidak mencakup kebutuhan, pakai arsip sesuai kontrak live: schema kanonis, `authoring.validate_idea_bundle`, lalu `authoring.submit_idea_bundle`. Arsip memakai `$UPLOADER`; input langsung memakai aktor server. Jangan menghapus sumber atau menurunkan schema untuk menghindari batas.
 
 ## Edit dan review

@@ -47,6 +47,11 @@ export function buildSkillArtifact(source: string, output: string, provenance: S
   const names = readdirSync(sourceRoot).sort();
   const release = JSON.parse(readFileSync(resolve(source, "release.json"), "utf8"));
   if (JSON.stringify([...release.skills].sort()) !== JSON.stringify(names)) throw new Error("Release skill inventory mismatch");
+  const routerName = provenance.environment === "staging" ? "zyx-authoring-stg" : "zyx-authoring";
+  const pipelineName = provenance.environment === "staging" && names.includes("zyx-authoring-pipeline-stg")
+    ? "zyx-authoring-pipeline-stg"
+    : "zyx-authoring-pipeline";
+  if (!names.includes(pipelineName)) throw new Error(`Missing ${provenance.environment} environment authoring pipeline skill: ${pipelineName}`);
   for (const name of names) {
     const root = safeSkillPath(sourceRoot, name);
     const paths = filesUnder(root);
@@ -70,17 +75,17 @@ export function buildSkillArtifact(source: string, output: string, provenance: S
   }
   const description = "Author and revise Zyx learning content, manage blog drafts, forms and media through MCP, and recover existing operations. Choose the focused workflow for the requested task.";
   const callNameGuidance = `Call the advertised name from tools/list. Dotted references here and in nextActions are canonical operation IDs: ${MCP_TOOL_NAMING.rule}; fixed aliases: ${JSON.stringify(MCP_TOOL_NAMING.aliases)}. Keep dotted IDs inside operation arguments, confirmation tokens, receipts and retry records.`;
-  const router = `---\nname: zyx-authoring\ndescription: ${description}\n---\n\n# Zyx authoring\n\nUse only the ${provenance.environment} MCP connection. Read the matching workflow file before reading source documents, drafting, or mutating data. Follow its environment identity, skill ID, bootstrap, capabilities, and publication gates exactly. For authoring workflows, call workflow.get_playbook before each stage and when resuming. For admin workflows, call admin.environment, use admin.capabilities for the relevant domain, and follow the matching focused skill, scopes, signed mutation plan and job contracts. Recover lost responses using the original operation and request key. Existing task authorization remains valid; these skills do not authorize unrelated publication or external messages. Never use this router name as a bootstrap skill ID.\n\n${callNameGuidance}\n\nFor initial academic authoring or its checkpoint resume, read references/zyx-authoring-pipeline/SKILL.md first. Prefer direct Idea/Product drafts only when the selected server advertises them, cache schema bytes by checksum, and use compact target reads while editing. Local Product preview is separate from trusted verification; final review needs full current context. For an existing-content edit, blog, form, media task or operation recovery, read its focused workflow below. Never start a new Source Pack merely to edit stored content or to manage a blog. Relative links between workflow directories remain valid.\n\n${all.map((entry) => `- [${entry.frontmatter.name}](references/${entry.frontmatter.name}/SKILL.md): ${entry.frontmatter.description}`).join("\n")}\n`;
+  const router = `---\nname: ${routerName}\ndescription: ${description}\n---\n\n# Zyx authoring\n\nUse only the ${provenance.environment} MCP connection. Read the matching workflow file before reading source documents, drafting, or mutating data. Follow its environment identity, skill ID, bootstrap, capabilities, and publication gates exactly. For authoring workflows, call workflow.get_playbook before each stage and when resuming. For admin workflows, call admin.environment, use admin.capabilities for the relevant domain, and follow the matching focused skill, scopes, signed mutation plan and job contracts. Recover lost responses using the original operation and request key. Existing task authorization remains valid; these skills do not authorize unrelated publication or external messages. Staging host skill names end in -stg; the explicit skill argument in each workflow remains its canonical bootstrap role ID. Never use this router name as a bootstrap skill ID.\n\n${callNameGuidance}\n\nFor initial academic authoring or its checkpoint resume, read references/${pipelineName}/SKILL.md first. Prefer direct Idea/Product drafts only when the selected server advertises them, cache schema bytes by checksum, and use compact target reads while editing. Local Product preview is separate from trusted verification; final review needs full current context. For an existing-content edit, blog, form, media task or operation recovery, read its focused workflow below. Never start a new Source Pack merely to edit stored content or to manage a blog. Relative links between workflow directories remain valid.\n\n${all.map((entry) => `- [${entry.frontmatter.name}](references/${entry.frontmatter.name}/SKILL.md): ${entry.frontmatter.description}`).join("\n")}\n`;
   compactFiles["SKILL.md"] = Buffer.from(router);
   const resources = Object.entries(compactFiles).sort(([a], [b]) => a.localeCompare(b)).map(([path, bytes]) => {
-    const target = `chatgpt/zyx-authoring/${path}`;
+    const target = `chatgpt/${routerName}/${path}`;
     mkdirSync(resolve(safeSkillPath(output, target), ".."), { recursive: true });
     writeFileSync(safeSkillPath(output, target), bytes);
     return { uri: skillUri(target), digest: skillDigest(bytes), size: bytes.length };
   });
-  const compact = { uri: skillUri("chatgpt/zyx-authoring/SKILL.md"), frontmatter: parseSkillFrontmatter(Buffer.from(router)), resources };
+  const compact = { uri: skillUri(`chatgpt/${routerName}/SKILL.md`), frontmatter: parseSkillFrontmatter(Buffer.from(router)), resources };
   validateSkillEntry(compact);
-  const archive = zipSync(Object.fromEntries(Object.entries(compactFiles).map(([path, bytes]) => [`zyx-authoring/${path}`, bytes])), { level: 6, mtime: new Date(1980, 0, 1) });
+  const archive = zipSync(Object.fromEntries(Object.entries(compactFiles).map(([path, bytes]) => [`${routerName}/${path}`, bytes])), { level: 6, mtime: new Date(1980, 0, 1) });
   if (archive.length > 8 * 1024 * 1024) throw new Error("Scan archive exceeds 8 MiB");
   writeFileSync(resolve(output, "chatgpt-skills.zip"), archive);
   const manifest: SkillManifest = { schemaVersion: 1, source: provenance, catalogs: { all, chatgpt: [compact] } };
