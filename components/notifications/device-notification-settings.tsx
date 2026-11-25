@@ -202,7 +202,7 @@ export function DeviceNotificationSettings() {
         <header className="border-b border-border/40 pb-2">
           <h2
             id={`${baseId}-device-heading`}
-            className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            className="font-heading text-body-base font-bold text-foreground"
           >
             {t("notificationPreferences.deviceSectionTitle")}
           </h2>
@@ -273,7 +273,7 @@ export function DeviceNotificationSettings() {
         <header className="border-b border-border/40 pb-2">
           <h2
             id={`${baseId}-local-heading`}
-            className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            className="font-heading text-body-base font-bold text-foreground"
           >
             {t("notificationPreferences.localRemindersTitle")}
           </h2>

@@ -73,6 +73,7 @@ export function NotificationPreferencesForm({
 
   return (
     <div className="w-full space-y-6">
+      <DeviceNotificationSettings />
       <form action={formAction} className="w-full space-y-6">
       {Object.entries(preferences).map(([key, value]) => (
         <input key={key} type="hidden" name={key} value={String(value)} />
@@ -82,9 +83,9 @@ export function NotificationPreferencesForm({
         <header className="space-y-1 border-b border-border/40 pb-3">
           <h2
             id="notification-preferences-heading"
-            className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            className="font-heading text-body-base font-bold text-foreground"
           >
-            {t("notificationPreferences.title")}
+            {t("notificationPreferences.emailSectionTitle")}
           </h2>
           <p className="text-body-xs text-muted-foreground">
             {t("notificationPreferences.optionalDescription", { email: accountEmail })}
@@ -171,9 +172,6 @@ export function NotificationPreferencesForm({
         </Button>
       </div>
       </form>
-      <div className="border-t border-border/40 pt-6">
-        <DeviceNotificationSettings />
-      </div>
     </div>
   );
 }

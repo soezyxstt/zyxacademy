@@ -414,20 +414,32 @@ This is a local implementation. The Android picker requires a new APK and the [G
 
 ### Account preferences
 
-The account menu opens `/settings` for students, tutors, and admins. The Appearance tab groups color mode, background, interface language, spacing, font size, animation, and on-screen alert position. Language follows the signed-in account. Display choices are saved in the current browser. Spacing and font size apply on the Student and Tutor surfaces, including the public student demo. Reduced-motion system preferences still apply.
+The account menu opens `/settings` for students, tutors, and admins. General is the default tab and holds account language, device vibration, saved-reading access and the web app-download link. Vibration is disabled with an explanation on devices without native haptics. Language follows the signed-in account; device choices remain local.
 
-On-screen alerts default to the top right. Existing saved positions are respected.
+Appearance contains color mode, background ornaments, animations, spacing, font size and the reading preview. Restore display defaults resets only these display choices, including system color mode. It preserves account language, vibration, alert position and notification delivery preferences. Spacing and font size apply on Student and Tutor surfaces, including the public student demo. Reduced-motion system preferences still apply.
+
+Notifications groups on-screen alerts, device delivery status, mobile study reminders and optional email. The current device controls come before the optional-email form. Existing `?tab=email` links open Notifications; `?tab=appearance`, `?tab=profile` and `/settings/notifications` remain valid.
+
+On-screen alerts default to the top right. Desktop screens respect the saved position. Below 768 px, alerts remain at the top right below the mobile navbar; the position control explains this existing mobile rule.
 
 The Profile tab reuses the authenticated profile editor, including student-only privacy and cosmetics where eligible. `/profile` opens the profile view. Existing links to `/profile/edit` also open the editor.
 
 ### Email Notification Preferences
-- Authenticated users manage optional email at `/settings?tab=email` using their Google account email. `/settings/notifications` remains available for direct links.
+- Authenticated users manage optional email at `/settings?tab=notifications` using their Google account email. Legacy `?tab=email` links and `/settings/notifications` remain available.
 - One master control covers four global categories: course updates, events and schedules, learning reminders, and news and offers.
 - Essential account, security, payment, and enrollment emails remain mandatory and are outside the optional preference system.
 - Optional email delivery always uses one shared sender and fails closed if preferences cannot be loaded.
 - Every optional email includes a visible category unsubscribe link plus RFC 8058 one-click headers. Signed links expire after 30 days.
 - A browser visit shows a confirmation page and does not mutate preferences. Gmail and compatible clients unsubscribe the linked category through POST.
 - Tutorial PKA email uses the central preferences. The legacy PKA opt-in remains only as the initial fallback for existing rows; push preferences are unchanged.
+
+### Student feedback
+
+The `/feedback` form keeps Send available while idle. Empty, short or whitespace-only messages show an inline error and focus the message field. Submission reads the form fields directly, so a browser-restored draft does not depend on a React change event or disappear when the category changes. Both client and server require at least five characters after trimming. Only an in-flight request disables Send; a failed request retains the draft and offers another attempt. Demo feedback explains that sign-in is required and makes no write.
+
+### Desktop launch and offline recovery
+
+The bundled desktop page starts with a neutral Connecting state while checking the configured Zyx origin through a fresh static HEAD request. The check does not load an account session. A disconnected device opens its saved readings; a failed server check shows a separate recovery message. Reconnect requires a successful fresh check, ignores results from a prior connection and never leaves a reading automatically after the user has chosen saved content. This behavior ships inside the desktop installer: merging the web branch alone does not update an installed app. The Nightly release workflow must run from staging, followed by installation of that build.
 
 ### Learning Outcomes & Career Paths
 - CPL/CPMK/Sub-CPMK hierarchy mapped to concepts

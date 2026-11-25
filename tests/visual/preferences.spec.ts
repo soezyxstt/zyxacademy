@@ -19,14 +19,19 @@ test("student demo preferences update the interface and survive reload", async (
   const response = await page.goto("/en/demo/settings?course=fictional-berpikir");
   expect(response?.status()).toBe(200);
   await expect(page).toHaveURL(/\/en\/demo\/settings(?:\?|$)/);
+  await expect(page.getByRole("tab", { name: "General", selected: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Language", exact: true })).toBeVisible();
+  await expect(page.getByRole("switch", { name: "Vibration", exact: true })).toBeDisabled();
+  await page.screenshot({ path: info.outputPath("general-preferences.png"), fullPage: true, animations: "disabled" });
+  await page.getByRole("tab", { name: "Appearance", exact: true }).click();
   const spacing = page.getByRole("combobox", { name: "Spacing", exact: true });
   await expect(spacing).toHaveText("Normal");
   const readingPreview = page.locator("figure").filter({ hasText: "Reading preview" });
   const sample = readingPreview.locator("p").first();
   const getFontSize = (element: Element) => parseFloat(getComputedStyle(element).fontSize);
-  const getPadding = (element: Element) => parseFloat(getComputedStyle(element).paddingTop);
+  const getGap = (element: Element) => parseFloat(getComputedStyle(element).rowGap);
   const sampleFontSize = await sample.evaluate(getFontSize);
-  const samplePadding = await readingPreview.evaluate(getPadding);
+  const sampleGap = await readingPreview.locator("div").evaluate(getGap);
   const initialSpacing = await spacing.evaluate((element) => getComputedStyle(element).getPropertyValue("--row-padding"));
   const initialFont = await spacing.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
 
@@ -41,15 +46,12 @@ test("student demo preferences update the interface and survive reload", async (
   await choose(page, "Spacing", "Tightest");
   await choose(page, "Font size", "Large");
   expect(await sample.evaluate(getFontSize)).toBeGreaterThan(sampleFontSize);
-  expect(await readingPreview.evaluate(getPadding)).toBeLessThan(samplePadding);
+  expect(await readingPreview.locator("div").evaluate(getGap)).toBeLessThan(sampleGap);
   await choose(page, "Color mode", "Dark");
   const ornaments = page.getByRole("switch", { name: "Background ornaments" });
   await expect(ornaments).toBeChecked();
   await ornaments.click();
   await expect(ornaments).not.toBeChecked();
-  await choose(page, "On-screen alert position", "Top left");
-  const previewToast = page.locator('[data-sonner-toast][data-x-position="left"][data-y-position="top"]');
-  await expect(previewToast.getByText("Notifications will appear here")).toBeVisible();
   await page.getByRole("switch", { name: "Animations" }).click();
 
   const html = page.locator("html");
@@ -76,13 +78,16 @@ test("student demo preferences update the interface and survive reload", async (
 
   await page.getByRole("tab", { name: "Profile", exact: true }).click();
   await expect(page).toHaveURL(/tab=profile/);
-  await expect(page.getByRole("link", { name: "View profile" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Edit profile", exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath("demo-profile-settings.png"), fullPage: true, animations: "disabled" });
 
-  await page.getByRole("tab", { name: "Email notifications", exact: true }).click();
-  await expect(page).toHaveURL(/tab=email/);
+  await page.getByRole("tab", { name: "Notifications", exact: true }).click();
+  await expect(page).toHaveURL(/tab=notifications/);
+  await choose(page, "On-screen alert position", "Top left");
+  const previewToast = page.locator('[data-sonner-toast][data-x-position="left"][data-y-position="top"]');
+  await expect(previewToast.getByText("Notifications will appear here")).toBeVisible();
   await expect(page.getByRole("link", { name: "Manage notifications" })).toBeVisible();
-  await page.screenshot({ path: info.outputPath("demo-email-settings.png"), fullPage: true, animations: "disabled" });
+  await page.screenshot({ path: info.outputPath("demo-notification-settings.png"), fullPage: true, animations: "disabled" });
   await page.getByRole("link", { name: "Manage notifications" }).click();
   await page.getByRole("button", { name: "Save preferences", exact: true }).click();
   const toaster = page.locator('[data-sonner-toaster][data-x-position="left"][data-y-position="top"]');

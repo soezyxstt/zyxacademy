@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getProfileEditorData, ProfileEditor } from "../profile/edit/profile-editor";
 import { NotificationPreferencesForm } from "./notifications/notification-preferences-form";
 import { SettingsClient } from "./settings-client";
+import { resolveSettingsTab } from "@/lib/settings-tabs";
 
 export async function generateMetadata(): Promise<Metadata> {
   const [common, student] = await Promise.all([getTranslations("common"), getTranslations("student")]);
@@ -21,9 +22,9 @@ export default async function SettingsPage({
   searchParams: Promise<{ tab?: string | string[] }>;
 }) {
   const [account, query] = await Promise.all([getAuthUser(), searchParams]);
-  const initialTab = query.tab === "profile" || query.tab === "email" ? query.tab : "appearance";
+  const initialTab = resolveSettingsTab(query.tab);
   if (!account?.id) {
-    const next = initialTab === "appearance" ? "/settings" : `/settings?tab=${initialTab}`;
+    const next = initialTab === "general" ? "/settings" : `/settings?tab=${initialTab}`;
     redirect(`/sign-in?next=${encodeURIComponent(next)}`);
   }
 
