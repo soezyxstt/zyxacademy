@@ -1,6 +1,7 @@
 import { expect, mock, test } from "bun:test";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { FORMS_PREVIEW_URI, FORMS_SUMMARY_URI } from "@/lib/admin-mcp/forms-ui";
+import { MCP_SERVER_IDS } from "@/lib/authoring/mcp-tool-names";
 mock.module("server-only", () => ({}));
 const { createAuthoringMcpServer } = await import("@/lib/authoring/mcp-server");
 const principal = { userId: "fixture", actorId: "fixture", sessionId: "fixture", authMethod: "oauth" as const, scopes: ["authoring:read"] };
@@ -18,21 +19,26 @@ test("tool catalog publishes mutation schemas and UI binding; original tools coe
   expect(response.error).toBeUndefined();
   const tools = response.result.tools;
   expect(new Set(tools.map((tool: any) => tool.name)).size).toBe(tools.length);
-  expect(tools.some((tool: any) => tool.name.startsWith("pka."))).toBe(false);
-  const adminTools = tools.filter((tool: any) => /^(forms|shortlinks|courses|chapters|materials|videos|groups|tokens|users|links|blog|schedules|tutorial|enrollments|notifications|media|analytics|settings|adminjobs|jobs|meet|generation)\./.test(tool.name));
+  expect(tools.some((tool: any) => tool.name.startsWith("pka_"))).toBe(false);
+  for (const tool of tools) {
+    expect(tool.name).toMatch(/^[a-zA-Z0-9_-]{1,40}$/);
+    for (const id of Object.values(MCP_SERVER_IDS)) expect(`mcp_${id}_${id}_${tool.name}`).toMatch(/^[a-zA-Z0-9_-]{1,64}$/);
+  }
+  const adminTools = tools.filter((tool: any) => /^(forms|shortlinks|courses|chapters|materials|videos|groups|tokens|users|links|blog|schedules|tutorial|enrollments|notifications|media|analytics|settings|adminjobs|jobs|meet|generation)_/.test(tool.name));
   expect(adminTools.length).toBeGreaterThan(100);
   for (const tool of adminTools) {
     expect(tool.inputSchema.required).toContain("expectedEnvironment");
     expect(tool.inputSchema.required).toContain("expectedOrigin");
   }
-  const create = tools.find((tool: any) => tool.name === "forms.create");
+  const create = tools.find((tool: any) => tool.name === "forms_create");
   expect(create.annotations.readOnlyHint).toBe(false);
   expect(create.inputSchema.required).toContain("requestKey");
   expect(create.inputSchema.required).toContain("expectedEnvironment");
   expect(create.inputSchema.required).toContain("expectedOrigin");
-  expect(tools.some((tool: any) => tool.name === "admin.environment")).toBe(true);
-  expect(tools.find((tool: any) => tool.name === "forms.preview")._meta.ui.resourceUri).toBe(FORMS_PREVIEW_URI);
-  expect(tools.some((tool: any) => tool.name === "workflow.get_playbook")).toBe(true);
+  expect(tools.some((tool: any) => tool.name === "admin_environment")).toBe(true);
+  expect(tools.find((tool: any) => tool.name === "forms_preview")._meta.ui.resourceUri).toBe(FORMS_PREVIEW_URI);
+  expect(tools.some((tool: any) => tool.name === "workflow_get_playbook")).toBe(true);
+  expect(tools.some((tool: any) => tool.name === "authoring_solution_review_context")).toBe(true);
 });
 test("UI resources remain readable after skills registration, even with no skill artifact", async () => {
   for (const uri of [FORMS_PREVIEW_URI, FORMS_SUMMARY_URI]) {
@@ -45,7 +51,9 @@ test("UI resources remain readable after skills registration, even with no skill
   expect(listed.result.resources.map((resource: any) => resource.uri)).toContain(FORMS_PREVIEW_URI);
 });
 test("original authoring grant cannot execute a new admin mutation", async () => {
-  const response = await rpc("tools/call", { name: "forms.create", arguments: { expectedEnvironment: "local", expectedOrigin: "http://localhost:3000", requestKey: "fixture-create", definition: { title: "Fixture", slug: "fixture", questions: [{ title: "Name", type: "TEXT" }] } } });
-  expect(response.result.isError).toBe(true);
-  expect(response.result.structuredContent.error).toBe("AUTHORING_MCP_SCOPE_REQUIRED");
+  for (const name of ["forms_create", "forms.create"]) {
+    const response = await rpc("tools/call", { name, arguments: { expectedEnvironment: "local", expectedOrigin: "http://localhost:3000", requestKey: "fixture-create", definition: { title: "Fixture", slug: "fixture", questions: [{ title: "Name", type: "TEXT" }] } } });
+    expect(response.result.isError).toBe(true);
+    expect(response.result.structuredContent.error).toBe("AUTHORING_MCP_SCOPE_REQUIRED");
+  }
 });

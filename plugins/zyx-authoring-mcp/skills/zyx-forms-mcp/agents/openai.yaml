@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Forms MCP"
   short_description: "Edit forms, test answers and export authorized responses"
-  default_prompt: "Use $zyx-forms-mcp to update the requested form on the confirmed environment, test it without real submissions, and export only authorized responses with the current spreadsheet snapshot."
+  default_prompt: "Use $zyx-forms-mcp to update the requested form on the confirmed environment, test it without real submissions, and export only authorized responses with the current spreadsheet snapshot. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

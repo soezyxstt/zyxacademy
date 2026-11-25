@@ -6,7 +6,7 @@ The existing `/api/mcp/authoring` endpoint now registers admin domain tools alon
 
 ## Access and mutation contract
 
-- New admin permissions require an explicit OAuth request and consent. Existing bearer, cookie and compatibility connections keep their old authoring grants. Resource audience, live session, active admin status, and per-tool scope are checked. No new feature flag was added.
+- Fresh URL-based OAuth connections offer all 46 supported permissions, with only the existing four authoring defaults selected. Explicit narrower requests remain exact; tokens contain only selected requested permissions. Existing bearer, cookie and compatibility connections keep their old authoring grants. Resource audience, live session, active admin status, and per-tool scope are checked. See [MCP host compatibility](mcp-host-compatibility.md). No new feature flag was added.
 - Read the target and use its current revision. All new writes default to `dryRun: true`. Inspect the returned impact, then send the identical input, request key and confirmation token with `dryRun: false`. Confirmation expires after 10 minutes and binds actor, session, environment, operation and payload.
 - Keep one request key per intended change. Business changes and the success/idempotency receipt commit in the same PostgreSQL transaction. Changed payloads under a prior key fail. Stale revisions require rereading and a new plan.
 - API credentials and provider errors are never returned. Response data, user email, activation-token values and related operations have separate scopes. Legacy group labels containing activation tokens are redacted. Inputs and results are capped at 1 MB; list pagination is bounded.
@@ -40,6 +40,8 @@ The MCP Apps UI has no network or upload access and uses text nodes for supplied
 Media listing uses bounded provider pagination. Small media uploads support at most 512 KiB, use the shared key builder, check the allowed type signature, create a new object, and clear stored upload bytes after success. Larger files retain the existing upload UI. No arbitrary path, SQL, HTTP or shell tool is exposed.
 
 ## Exact additional tool catalog
+
+The table uses canonical operation IDs. The public catalog replaces dots with underscores, for example `forms_responses_list`. Discovery returns each operation's `callName`. Keep canonical IDs inside operation arguments, signed plans and receipts; the [host compatibility contract](mcp-host-compatibility.md#portable-call-names) records the complete mapping rule.
 
 | Tool | Scope |
 | --- | --- |

@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { NextRequest } from "next/server";
 import { GET as getMetadata } from "@/app/.well-known/oauth-authorization-server/route";
 import { GET as getAuthorizeRoute } from "@/app/api/mcp/oauth/authorize/route";
-import { issueClientRegistration } from "@/lib/authoring/mcp-oauth";
+import { issueClientRegistration, MCP_OAUTH_INITIAL_SCOPES } from "@/lib/authoring/mcp-oauth";
 
 describe("MCP OAuth Authorization Page and Endpoints", () => {
   it("advertises /mcp/authorize in well-known metadata", async () => {
@@ -11,6 +11,7 @@ describe("MCP OAuth Authorization Page and Endpoints", () => {
     expect(response.status).toBe(200);
     const json = (await response.json()) as { authorization_endpoint: string; scopes_supported: string[] };
     expect(json.authorization_endpoint).toBe("http://localhost:3000/mcp/authorize");
+    expect(json.scopes_supported).toEqual([...MCP_OAUTH_INITIAL_SCOPES]);
     expect(json.scopes_supported).toContain("authoring:read");
     expect(json.scopes_supported).toContain("authoring:stage");
     expect(json.scopes_supported).toContain("authoring:review");

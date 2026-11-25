@@ -23,7 +23,9 @@ import { sourcePageMetadata } from "@/lib/authoring/source-page-metadata";
 import { readSourceFileMetadata } from "@/lib/authoring/source-file-metadata";
 import { resolveStoredSourceFile } from "@/lib/authoring/mcp-source-files";
 import { isSourceReadTimeout, timePdfStage } from "@/lib/compute/pdf-read-options";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { PortableMcpServer } from "./mcp-portable-server";
+import { MCP_SERVER_IDS } from "./mcp-tool-names";
 import { registerAuthoringSkills } from "./mcp-skills";
 import { registerProductV4Tools } from "./mcp-v4-tools";
 import { registerRevisionTools } from "./revision-mcp";
@@ -4604,12 +4606,13 @@ export function registerAuthoringMcpTools(server: McpServer, principal: McpPrinc
 
 export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: string, skillsProfile: SkillCatalogProfile = "chatgpt"): McpServer {
   const identity = mcpEnvironmentIdentity();
-  const server = new McpServer(
-    { name: `zyx-authoring-${identity.environment}`, version: "1.1.0" },
+  const server = new PortableMcpServer(
+    { name: MCP_SERVER_IDS[identity.environment], version: "1.2.0" },
     {
       capabilities: { tools: {} },
       instructions:
         `Koneksi ini adalah ${identity.environment} di ${identity.origin}. ` +
+        "Panggil nama tool dari tools/list: titik menjadi garis bawah, kecuali authoring.get_solution_collection_review_context menjadi authoring_solution_review_context. ID operasi pada parameter operation, receipt, dan token konfirmasi tetap memakai titik. Nama panggilan lama tetap diterima. " +
         "Sebelum operasi admin, panggil admin.environment dan cocokkan dengan target yang diminta pengguna. Jika target belum disebutkan, pastikan target dahulu; jangan memilih production secara default. Jangan substitusi staging dan production. Operasi data wajib menyebut expectedEnvironment dan expectedOrigin. Baca admin.capabilities untuk menemukan operasi dan scope yang tersedia. Periksa admin.operation_receipt atau status job jika hasil operasi belum pasti. Untuk revisi konten tersimpan, gunakan alur authoring.get_edit_context. Operasi admin memakai scope eksplisit; baca revisi target dan siapkan dryRun sebelum mutasi. Untuk authoring, panggil workflow.get_playbook sebelum memulai authoring, setiap berpindah tahap, dan saat melanjutkan run untuk mengambil playbook terbaru serta bootstrapToken bertanda tangan.",
     },
   );

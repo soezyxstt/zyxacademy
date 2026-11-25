@@ -6,12 +6,14 @@ description: Menyusun Artikel/Diktat V4 dari JSON bertipe, memeriksa preview lok
 # Zyx Product Bundle MCP
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.2"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.3"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+
+Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
 
 ## Mulai dari kontrak aktif
 
-1. Panggil `workflow.get_playbook` pada awal tahap dan saat melanjutkan sesi: `skill: "zyx-product-bundle-mcp"`, `stage: "product"`, `bootstrapProtocol: 1`, `pluginVersion: "0.5.2"`. Isi `clientCapabilities.independentSubagents`, `localArtifactFiles` dan `pdfRendering` sesuai kemampuan nyata. Tahap Product memerlukan subagent independen; jangan menyatakan kemampuan yang tidak ada.
+1. Panggil `workflow.get_playbook` pada awal tahap dan saat melanjutkan sesi: `skill: "zyx-product-bundle-mcp"`, `stage: "product"`, `bootstrapProtocol: 1`, `pluginVersion: "0.5.3"`. Isi `clientCapabilities.independentSubagents`, `localArtifactFiles` dan `pdfRendering` sesuai kemampuan nyata. Tahap Product memerlukan subagent independen; jangan menyatakan kemampuan yang tidak ada.
 2. Baca modul `common/execution`, `product/workflow`, `product/editorial`, `product/quality-rubric`, `product/flashcards` dan `product/derivation-audit` yang dikembalikan. Jika bootstrap gagal atau `compatibility.status` adalah `incompatible`, hentikan authoring dan laporkan `remediation`; jangan menggantinya dengan panduan lokal lama.
 3. Untuk produk baru, pilih scope lewat katalog, lalu mulai atau lanjutkan `idea_product` dengan Source Pack valid dan `bootstrapToken`. Ambil `workflow.get_contract` dengan `runToken` dan bootstrap yang sama. Baca Idea dan learning section published serta sumber/kutipan aktif untuk scope tersebut; cek draft yang ada sebelum membuat yang baru.
 4. Gunakan `productBundle.initialDraft` hanya bila tool itu benar-benar tersedia pada koneksi. Ambil schema `productDraftInput` dari `productBundle.schemaDocuments`: GET `path` pada origin MCP yang sama, cocokkan SHA-256 byte respons dengan `sha256`, lalu simpan untuk revisi kontrak itu. Ambil schema lain hanya saat jenis isi memerlukannya. HTTP 409 atau drift mewajibkan playbook/kontrak segar dan validasi ulang. Katalog tool yang ringkas tidak menggantikan schema isi lengkap.

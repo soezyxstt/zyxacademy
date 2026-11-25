@@ -1,4 +1,4 @@
 interface:
   display_name: "Historical Reference Question Ingest"
   short_description: "Import historical questions with exact source evidence"
-  default_prompt: "Use $reference-question-ingest to preserve the stored PDF wording, verify source locators and published Idea links, keep essays ineligible for quizzes, and submit only when direct publication is authorized."
+  default_prompt: "Use $reference-question-ingest to preserve the stored PDF wording, verify source locators and published Idea links, keep essays ineligible for quizzes, and submit only when direct publication is authorized. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

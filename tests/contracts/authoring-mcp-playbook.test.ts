@@ -263,6 +263,11 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
     });
     expect(contract.contractRevision).toBe(playbook.contractRevision);
     expect(contract.contractChecksum).toBe(playbook.contractChecksum);
+    expect(contract.toolNaming).toEqual(playbook.toolNaming);
+    expect(contract.toolNaming).toEqual(authoringContractSnapshot().toolNaming);
+    expect(contract.toolNaming).toMatchObject({ canonicalOperationIdsPreserved: true, legacyCallsAccepted: true });
+    expect(playbook.instructionsMarkdown).toContain("authoring_solution_review_context");
+    expect(contract.outputs.ideaBundle?.initialDraft.tool).toBe("authoring.create_idea_draft");
     expect(contract.compatibility.mode).toBe("verified");
     expect(contract.compatibility.status).toBe("compatible");
   });

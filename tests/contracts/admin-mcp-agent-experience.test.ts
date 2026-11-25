@@ -66,7 +66,9 @@ test("capabilities derive actual registrations, schemas, permissions, pagination
   const listed = await main.call("admin.capabilities", { domain: "blog", limit: 1 });
   expect(listed.data.operations).toHaveLength(1);
   expect(listed.data.pagination).toMatchObject({ limit: 1, offset: 0, total: 2, nextOffset: 1 });
-  expect(listed.data.operations[0]).toMatchObject({ name: "blog.create", requiredScopes: ["blog:write"], available: true, risk: "reversible_write", annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } });
+  expect(listed.data.operations[0]).toMatchObject({ name: "blog.create", callName: "blog_create", requiredScopes: ["blog:write"], available: true, risk: "reversible_write", annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } });
+  expect(listed.data.toolNaming).toMatchObject({ canonicalOperationIdsPreserved: true, legacyCallsAccepted: true });
+  expect(listed.data.workflows[0]).toMatchObject({ tools: ["blog.validate", "blog.create"], callNames: ["blog_validate", "blog_create"] });
   expect(listed.data.operations[0].requiredInputs).toContain("title");
   expect(listed.data.operations[0].requiredInputs).toContain("expectedOrigin");
   expect(JSON.stringify(listed)).not.toContain("never-return-via-receipt");
@@ -95,6 +97,7 @@ test("shared registrar, forms and actual revision registrations supply exact sco
   expect(revision.operations).toHaveLength(9);
   expect(revision.operations.find((item: any) => item.name === "authoring.publish_release")).toMatchObject({ requiredScopes: ["authoring:read", "authoring:publish"], protocol: "authoring-revision", retry: { strategy: "exact_revision" } });
   expect(revision.workflows[0].tools).toContain("authoring.get_edit_context");
+  expect(revision.workflows[0].callNames).toContain("authoring_get_edit_context");
   expect(registeredOperation(noScopes.server, "forms.responses.export")?.requiredScopes).toEqual(["forms:responses:export", "forms:responses:read"]);
 });
 
@@ -133,7 +136,7 @@ test("unknown outcomes preserve the same key; original scopes and original resul
 test("queued receipts attest database commit only and job reconciliation never discloses stored provider results", async () => {
   await commit("notifications.send", { title: "Class", requestKey: "queued-operation-key" });
   const queued = await main.call("admin.operation_receipt", { operation: "notifications.send", requestKey: "queued-operation-key", includeResult: true });
-  expect(queued.data).toMatchObject({ state: "committed", providerOutcome: "not_attested", result: { id: "job-fixture", status: "queued" }, nextActions: [{ tool: "adminjobs.get", arguments: { id: "job-fixture" }, requiredScopes: ["jobs:read", "notifications:send"] }] });
+  expect(queued.data).toMatchObject({ state: "committed", providerOutcome: "not_attested", result: { id: "job-fixture", status: "queued" }, nextActions: [{ tool: "adminjobs.get", callName: "adminjobs_get", arguments: { id: "job-fixture" }, requiredScopes: ["jobs:read", "notifications:send"] }] });
   await commit("adminjobs.reconcile", { id: "provider-job", requestKey: "provider-reconcile-key" });
   const metadata = await main.call("admin.operation_receipt", { operation: "adminjobs.reconcile", requestKey: "provider-reconcile-key", includeResult: true });
   expect(metadata.data.state).toBe("committed");

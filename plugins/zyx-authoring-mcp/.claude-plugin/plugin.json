@@ -1,6 +1,6 @@
 {
-  "name": "zyx-authoring-mcp-staging",
-  "version": "0.5.2",
+  "name": "zyx-stg",
+  "version": "0.5.3",
   "description": "Zyx staging content and ops",
   "author": {
     "name": "Zyx Academy"

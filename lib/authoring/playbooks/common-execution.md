@@ -2,6 +2,8 @@
 
 ## 1. Bootstrap and Revision Discipline
 
+Tool references in these rules, workflow contracts, and `nextActions` use canonical operation IDs. Call the portable name returned by `tools/list`: replace dots with underscores, except `authoring.get_solution_collection_review_context`, which uses `authoring_solution_review_context`. The response's `toolNaming` records this rule. Keep dotted IDs inside `operation` arguments, confirmation tokens, receipts, and retry records. Legacy dotted calls remain accepted. Refresh the host catalog after upgrading the short-ID plugin package; do not add both old and new tool lists.
+
 1. Call `workflow.get_playbook` at the start of every authoring stage and whenever resuming an existing run.
 2. Check `compatibility.status` in the response:
    - `compatible`: Proceed using the returned `bootstrapToken` and active playbook modules.

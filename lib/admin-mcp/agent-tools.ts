@@ -3,6 +3,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { assertMcpTarget, mcpEnvironmentIdentity } from "@/lib/authoring/mcp-environment";
 import { requireMcpScope, resolveMcpAdmin, type McpPrincipal } from "@/lib/authoring/mcp-auth";
+import { MCP_TOOL_NAMING, portableMcpToolName } from "@/lib/authoring/mcp-tool-names";
 import { AdminMcpError, readAdminMutationReceipt } from "./mutations";
 import { adminMcpFailure } from "./errors";
 import { registerOperationDescriptor, registeredOperation, registeredOperations, sanitizeAdminOperationResult, type AdminOperationDescriptor } from "./operation-contracts";
@@ -19,11 +20,14 @@ const guides = [
 
 function workflows(server: McpServer, domain?: string) {
   const names = new Set(registeredOperations(server).map(operation => operation.name));
-  return guides.filter(guide => (!domain || domain === guide.domain) && guide.tools.some(name => names.has(name))).map(guide => ({ ...guide, tools: guide.tools.filter(name => names.has(name)) }));
+  return guides.filter(guide => (!domain || domain === guide.domain) && guide.tools.some(name => names.has(name))).map(guide => {
+    const tools = guide.tools.filter(name => names.has(name));
+    return { ...guide, tools, callNames: tools.map(portableMcpToolName) };
+  });
 }
 function availability(descriptor: AdminOperationDescriptor, principal: McpPrincipal) {
   const missingScopes = descriptor.requiredScopes.filter(scope => !principal.scopes.includes(scope));
-  return { ...descriptor, requiredScope: descriptor.requiredScopes[0] ?? null, available: missingScopes.length === 0, missingScopes };
+  return { ...descriptor, callName: portableMcpToolName(descriptor.name), requiredScope: descriptor.requiredScopes[0] ?? null, available: missingScopes.length === 0, missingScopes };
 }
 function success(data: unknown): CallToolResult {
   return { content: [{ type: "text", text: JSON.stringify({ ok: true, data }) }], structuredContent: { ok: true, data } };
@@ -47,10 +51,10 @@ export function registerAgentTools(server: McpServer, principal: McpPrincipal): 
   register("admin.capabilities", z.object({ ...target, domain: z.string().regex(/^[a-z][a-z0-9_]*$/).max(80).optional(), availableOnly: z.boolean().default(false), limit: z.number().int().min(1).max(50).default(25), offset: z.number().int().min(0).max(10000).default(0) }), "Discover registered operations, granted permissions, bounded workflows, confirmation and retry requirements. Metadata only; no business records are returned.", async input => {
     const all = registeredOperations(server).filter(operation => !input.domain || operation.domain === input.domain).map(operation => availability(operation, principal)).filter(operation => !input.availableOnly || operation.available);
     const page = all.slice(input.offset, input.offset + input.limit);
-    return { ...mcpEnvironmentIdentity(), domains: [...new Set(registeredOperations(server).map(operation => operation.domain))], operations: page, pagination: { limit: input.limit, offset: input.offset, total: all.length, nextOffset: input.offset + page.length < all.length ? input.offset + page.length : null }, workflows: workflows(server, input.domain), boundaries: {
+    return { ...mcpEnvironmentIdentity(), toolNaming: MCP_TOOL_NAMING, domains: [...new Set(registeredOperations(server).map(operation => operation.domain))], operations: page, pagination: { limit: input.limit, offset: input.offset, total: all.length, nextOffset: input.offset + page.length < all.length ? input.offset + page.length : null }, workflows: workflows(server, input.domain), boundaries: {
       activeAdminRequired: true,
       annotationsGrantAuthorization: false,
-      mutationProtocol: { defaultDryRun: true, confirmationSeconds: 600, preserveRequestKeyOnRetry: true, receiptTool: "admin.operation_receipt" },
+      mutationProtocol: { defaultDryRun: true, confirmationSeconds: 600, preserveRequestKeyOnRetry: true, receiptTool: "admin.operation_receipt", receiptCallName: portableMcpToolName("admin.operation_receipt") },
       websiteRequiredForAdvertisedOperations: false,
       sensitiveActions: "Role/status changes, credential disclosure, access revocation, broadcasts and reconciliation require explicit user authorization. Existing authorized tools retain their checks; the Admin surface remains an option for simple sensitive actions.",
       notAddedByThisExpansion: ["provider credential management", "OAuth account connection approval", "billing and pricing", "production deployment", "destructive bulk data contraction", "PKA"],
@@ -67,6 +71,6 @@ export function registerAgentTools(server: McpServer, principal: McpPrincipal): 
     const include = input.includeResult && !input.operation.startsWith("adminjobs.");
     const result = receipt.afterSnapshot?.result;
     const queuedJobId = result && typeof result === "object" && "status" in result && result.status === "queued" && "id" in result && typeof result.id === "string" ? result.id : null;
-    return { ...common, state: "committed", databaseOutcome: "committed", targetId: receipt.entityId, completedAt: receipt.createdAt, ...(include ? { result: sanitizeAdminOperationResult(input.operation, result, principal), resultIsHistorical: true } : {}), ...(input.includeResult && !include ? { resultOmitted: "Job receipt results are metadata-only. Use adminjobs.get with its current job permissions." } : {}), ...(queuedJobId ? { providerOutcome: "not_attested", nextActions: [{ tool: "adminjobs.get", arguments: { id: queuedJobId }, requiredScopes: ["jobs:read", ...descriptor.requiredScopes] }] } : {}) };
+    return { ...common, state: "committed", databaseOutcome: "committed", targetId: receipt.entityId, completedAt: receipt.createdAt, ...(include ? { result: sanitizeAdminOperationResult(input.operation, result, principal), resultIsHistorical: true } : {}), ...(input.includeResult && !include ? { resultOmitted: "Job receipt results are metadata-only. Use adminjobs.get with its current job permissions." } : {}), ...(queuedJobId ? { providerOutcome: "not_attested", nextActions: [{ tool: "adminjobs.get", callName: portableMcpToolName("adminjobs.get"), arguments: { id: queuedJobId }, requiredScopes: ["jobs:read", ...descriptor.requiredScopes] }] } : {}) };
   });
 }
