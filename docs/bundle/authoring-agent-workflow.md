@@ -52,7 +52,7 @@ Repository plugin edits are candidate sources only. The hosted skill build still
 
 ## Verification record
 
-The local verification record contains 236 passing tests across 25 focused files, including the actual pinned staging skill build and repository candidate package checks. Focused TypeScript checking includes the 35 changed TypeScript source/test files and their imports. ESLint reports no source errors; the repository configuration excludes test files. `git diff --check` passes. The PR description records reproducible commands and any later changes to those results.
+The local verification record contains 265 passing tests across 27 focused files, including the actual pinned staging skill build and repository candidate package checks. Focused TypeScript checking includes the original 35 changed TypeScript source/test files and their imports. ESLint reports no source errors; the repository configuration excludes test files. Initial CI also passed static checks and identified two older test fixtures that needed the new tool name and production-compatible missing-object errors; both affected contracts now pass locally. `git diff --check` passes. The PR description records reproducible commands and any later changes to those results.
 
 Tests exercise typed packaging, database source/Idea binding, internal staging delegation, compact projections, exact selectors, immutable revision replay, diagnostic redaction, cheap-check scheduling, single-PDF capture and signed-checkpoint retry/isolation. The web retry fixture includes the renderer's full output of multiple PNGs plus JSON observations, as well as paginated output.
 

@@ -503,6 +503,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
 
       // Tool sequence
       expect(pbContract.toolSequence).toEqual([
+        "authoring.create_product_draft",
         "authoring.validate_product_bundle",
         "authoring.submit_product_bundle",
         "authoring.restage_product_bundle",
