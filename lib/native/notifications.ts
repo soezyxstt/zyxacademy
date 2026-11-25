@@ -50,6 +50,7 @@ export interface UnifiedNotificationDeliveryStatus {
 const DESKTOP_TOKEN_STORAGE_KEY = "zyx_desktop_push_token_v1";
 const DESKTOP_POLL_INTERVAL_MS = 15_000;
 const DESKTOP_PAGE_SIZE = 100;
+const DESKTOP_REQUEST_TIMEOUT_MS = 10_000;
 let _memoryDesktopToken: string | null = null;
 
 async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
@@ -203,19 +204,18 @@ export async function getUnifiedNotificationPermission(): Promise<UnifiedNotific
   if (runtime === "tauri") {
     const notif = getTauri()?.notification;
     try {
-      if (notif?.isPermissionGranted) {
-        const granted = await notif.isPermissionGranted();
-        return granted ? "granted" : "default";
-      }
-      // Tauri v2 installs its Notification implementation into the WebView.
-      // The official guest bindings use this API rather than mobile-only IPC.
-      if (typeof window.Notification === "function") {
-        return window.Notification.permission;
-      }
+      // On desktop the plugin's native permission state is authoritative.
+      // Its injected Web Notification shim may report denied/default during
+      // initialization, notably on Windows. The OS still controls actual display.
       const granted = await invokeTauri<boolean>("plugin:notification|is_permission_granted");
       if (granted === true) return "granted";
-      if (granted === false) return "default";
-      return "unsupported";
+      if (granted === false) return "denied";
+      if (typeof window.Notification === "function" && window.Notification.permission === "denied") {
+        return "denied";
+      }
+      if (notif?.isPermissionGranted && await notif.isPermissionGranted()) return "granted";
+      if (typeof window.Notification === "function") return window.Notification.permission;
+      return notif?.isPermissionGranted ? "default" : "unsupported";
     } catch {
       return "unsupported";
     }
@@ -258,15 +258,10 @@ export async function requestUnifiedNotificationPermission(): Promise<UnifiedNot
   if (runtime === "tauri") {
     const notif = getTauri()?.notification;
     try {
-      if (notif?.requestPermission) {
-        return await notif.requestPermission();
-      }
-      if (typeof window.Notification === "function") {
-        return await window.Notification.requestPermission();
-      }
       const result = await invokeTauri<string>("plugin:notification|request_permission");
-      if (result === "granted") return "granted";
-      if (result === "denied") return "denied";
+      if (result === "granted" || result === "denied") return result;
+      if (notif?.requestPermission) return await notif.requestPermission();
+      if (typeof window.Notification === "function") return await window.Notification.requestPermission();
       return "default";
     } catch {
       return "denied";
@@ -459,32 +454,50 @@ export async function getUnifiedNotificationDeliveryStatus(): Promise<UnifiedNot
   };
 }
 
+/** Native handoff only; true does not prove that the OS displayed a banner. */
 export async function sendDesktopNativeNotification(
   title: string,
   body?: string,
   isCurrent: () => boolean = () => true,
-): Promise<void> {
-  if (getNativeRuntime() !== "tauri" || !isCurrent()) return;
+): Promise<boolean> {
+  if (getNativeRuntime() !== "tauri" || !isCurrent()) return false;
   const permission = await getUnifiedNotificationPermission();
-  if (permission !== "granted" || !isCurrent()) return;
+  if (permission !== "granted" || !isCurrent()) return false;
 
   const tauri = getTauri();
+  const unavailable = (error: unknown) => /not found|unknown command|not allowed|not registered|command .* denied/i.test(String(error));
   try {
+    const invoke = tauri?.core?.invoke;
+    if (invoke) {
+      try {
+        const accepted = await invoke<boolean>("show_desktop_notification", { title, body: body ?? null });
+        return accepted === true;
+      } catch (error) {
+        // An old wrapper has no custom command. Do not retry a real OS
+        // delivery error through another sender (that can duplicate alerts).
+        if (!unavailable(error)) throw error;
+      }
+      if (!isCurrent()) return false;
+      try {
+        await invoke("plugin:notification|notify", { options: { title, body } });
+        return true;
+      } catch (error) {
+        if (!unavailable(error)) throw error;
+      }
+    }
+    if (!isCurrent()) return false;
     if (tauri?.notification?.sendNotification) {
       await tauri.notification.sendNotification({ title, body });
-      return;
+      return true;
     }
-    // The Tauri notification plugin supplies this constructor on desktop.
     if (typeof window.Notification === "function") {
       new window.Notification(title, { body });
-      return;
+      return true;
     }
-    if (!tauri?.core?.invoke) throw new Error("Native notification bridge unavailable");
-    await tauri.core.invoke("plugin:notification|notify", { options: { title, body } });
   } catch {
-    // Keep the in-app toast available and report failures without exposing content.
     console.warn("[notifications] Desktop system notification failed");
   }
+  return false;
 }
 
 interface DesktopInboxRow {
@@ -504,8 +517,9 @@ export function startDesktopNotificationBridge(
   options?: {
     pollIntervalMs?: number;
     fetchImpl?: typeof fetch;
-    sendNative?: (title: string, body?: string) => Promise<void>;
+    sendNative?: (title: string, body?: string) => Promise<void | boolean>;
     isCurrent?: () => boolean;
+    requestTimeoutMs?: number;
   },
 ): () => void {
   const pollIntervalMs = options?.pollIntervalMs ?? DESKTOP_POLL_INTERVAL_MS;
@@ -530,13 +544,16 @@ export function startDesktopNotificationBridge(
   };
 
   let intervalId: ReturnType<typeof setInterval> | null = null;
-  const onFocus = () => {
-    void pollOnce();
+  let activeRequest: AbortController | null = null;
+  const onFocus = () => { void pollOnce(); };
+  const onVisibility = () => {
+    if (typeof document !== "undefined" && document.visibilityState === "visible") void pollOnce();
   };
 
   const stopBridge = () => {
     if (disposed) return;
     disposed = true;
+    activeRequest?.abort();
     if (intervalId !== null) {
       clearInterval(intervalId);
       intervalId = null;
@@ -545,6 +562,7 @@ export function startDesktopNotificationBridge(
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("online", onFocus);
     }
+    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility);
   };
 
   const pollOnce = async () => {
@@ -561,17 +579,24 @@ export function startDesktopNotificationBridge(
       // seeds only the newest page, so old notifications are not replayed.
       for (let page = 1; ; page += 1) {
         query.set("page", String(page));
-        const res = await fetchFn(`/api/notifications/history?${query.toString()}`, {
-          credentials: "include",
-          cache: "no-store",
-        });
-        if (disposed || !isCurrent()) return;
-        if (res.status === 401) {
-          stopBridge();
-          return;
+        const controller = new AbortController();
+        activeRequest = controller;
+        const timeout = setTimeout(() => controller.abort(), options?.requestTimeoutMs ?? DESKTOP_REQUEST_TIMEOUT_MS);
+        let data: { notifications?: DesktopInboxRow[] };
+        try {
+          const res = await fetchFn(`/api/notifications/history?${query.toString()}`, {
+            credentials: "include",
+            cache: "no-store",
+            signal: controller.signal,
+          });
+          // A transient expired session or failed network request must not
+          // permanently disable delivery; the account runtime disposes on logout.
+          if (disposed || !isCurrent() || !res.ok) return;
+          data = await res.json() as { notifications?: DesktopInboxRow[] };
+        } finally {
+          clearTimeout(timeout);
+          if (activeRequest === controller) activeRequest = null;
         }
-        if (!res.ok) return;
-        const data = (await res.json()) as { notifications?: DesktopInboxRow[] };
         if (disposed || !isCurrent()) return;
         const batch = Array.isArray(data.notifications) ? data.notifications : [];
         rows.push(...batch);
@@ -581,9 +606,8 @@ export function startDesktopNotificationBridge(
       if (!initialized) {
         // Seed existing history on startup without replaying old notifications.
         for (const row of rows) rememberRow(row);
-        if (!lastCursorIso) {
-          lastCursorIso = new Date().toISOString();
-        }
+        // Empty inbox: do not seed a cursor from the local device clock.
+        // A fast or misconfigured clock can otherwise suppress real arrivals.
         initialized = true;
         return;
       }
@@ -598,9 +622,15 @@ export function startDesktopNotificationBridge(
         if (!row.createdAt || (lastCursorIso && row.createdAt < lastCursorIso) || seenIds.has(row.id)) continue;
         rememberRow(row);
         const url = typeof row.metadata?.url === "string" ? row.metadata.url : undefined;
-        handlers.onForeground({ notificationId: row.id, title: row.title, body: row.body, url });
+        try {
+          handlers.onForeground({ notificationId: row.id, title: row.title, body: row.body, url });
+        } catch {
+          // A failing UI consumer must not prevent native delivery.
+        }
         if (row.title && isCurrent()) {
-          await sendNative(row.title, row.body);
+          try { await sendNative(row.title, row.body); } catch {
+            console.warn("[notifications] Desktop notification handoff failed");
+          }
           if (disposed || !isCurrent()) break;
         }
       }
@@ -620,6 +650,7 @@ export function startDesktopNotificationBridge(
     window.addEventListener("focus", onFocus);
     window.addEventListener("online", onFocus);
   }
+  if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibility);
 
   return stopBridge;
 }
