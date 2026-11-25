@@ -5,16 +5,26 @@ let answers: unknown[][] = [];
 const query = () => ({
   rows: answers.shift() ?? [],
   from() { return this; },
+  innerJoin() { return this; },
   where(value: unknown) { predicates.push(...(Array.isArray(value) ? value : [value])); return this; },
   groupBy() { return this; },
   then(resolve: (rows: unknown[]) => unknown) { return Promise.resolve(resolve(this.rows)); },
 });
 mock.module("@/db", () => ({ db: { select: query, selectDistinct: query } }));
 mock.module("@/db/schema", () => ({
-  chatSessions: {}, flashcardReviews: {}, liveQuizResults: {},
-  studentMaterialProgress: {}, studentQuizAttempts: {}, tutorChatMessages: {},
+  bookings: {}, chatSessions: {}, discussionMessages: {}, discussionThreads: {},
+  flashcardReviews: {}, kemajuanBacaArtikel: {}, kemajuanFlashcardMurid: {},
+  liveQuizResults: {}, reviewFlashcard: {}, studentMaterialProgress: {},
+  studentQuizAttempts: {}, submissions: {}, tutorChatMessages: {},
 }));
-mock.module("drizzle-orm", () => ({ and: (...values: unknown[]) => values, eq: () => {}, sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }) }));
+mock.module("drizzle-orm", () => ({
+  and: (...values: unknown[]) => values,
+  eq: () => {},
+  isNotNull: () => {},
+  isNull: () => {},
+  ne: () => {},
+  sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }),
+}));
 mock.module("@/lib/date-utils", () => ({
   elapsedDaysAgo: (days: number, date: Date) => new Date(date.getTime() - days * 86_400_000),
   formatIsoDateUtc: (date: Date) => date.toISOString().slice(0, 10),
@@ -34,13 +44,13 @@ test("totals, daily counts and unique users share a bounded window that excludes
   const before = Date.now() / 1000;
   await getFeatureUsageMetrics(7);
   const windows = predicates.filter(value => value?.strings?.join("").includes("to_timestamp"));
-  expect(windows).toHaveLength(21);
+  expect(windows).toHaveLength(42);
   const newestEnd = Math.max(...windows.map(value => value.values[3]));
   const sharedBoundary = newestEnd - 7 * 86400;
   expect(newestEnd).toBeGreaterThanOrEqual(before);
   expect(newestEnd).toBeLessThanOrEqual(Date.now() / 1000);
-  expect(windows.filter(value => value.values[3] === newestEnd)).toHaveLength(16);
-  expect(windows.filter(value => value.values[3] === sharedBoundary)).toHaveLength(5);
+  expect(windows.filter(value => value.values[3] === newestEnd)).toHaveLength(32);
+  expect(windows.filter(value => value.values[3] === sharedBoundary)).toHaveLength(10);
   for (const { strings, values } of windows) {
     expect(strings.join("")).toContain("< to_timestamp");
     expect(values[3] - values[1]).toBeCloseTo(7 * 86400, 4);

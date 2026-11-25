@@ -4,7 +4,7 @@ import {
   FEATURE_USAGE_KEYS,
   type FeatureSourceSnapshot,
   type FeatureUsageKey,
-} from "@/lib/feature-usage-metrics";
+} from "@/lib/feature-usage-engine";
 
 const emptySnap = (): FeatureSourceSnapshot => ({
   events: 0,

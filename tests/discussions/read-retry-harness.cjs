@@ -41,6 +41,7 @@ function createReadHarness(page, markRead) {
  const calls = [];
  let latestRequest;
  const context = { exports: {}, document, window, IntersectionObserver, MutationObserver, Event: class {}, setTimeout: setTimer, clearTimeout: clearTimer,
+  viewer: { id: "viewer" },
   selectedThread: page.thread.id, thread: page.thread, activeTab: "questions", renderedThreadState: "ready", messagePages: [page.messages],
   messages: page.messages.items, messagePagesRef: { current: [page.messages] }, threadVersion: { current: 1 }, selectionVersion: { current: 1 }, currentThread: { current: page.thread.id },
   observation, observedMessages, acknowledgedThrough: { current: 0 }, acknowledgedSnapshot: { current: null }, readInFlight: { current: null },
