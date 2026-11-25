@@ -56,7 +56,7 @@ export type DiscussionAttachment = {
   height?: number;
   previewAvailable?: boolean;
 };
-export type DiscussionUploadError = "pixels" | "size" | "format" | "rate_limited" | "login" | "access" | "expired" | "unknown";
+export type DiscussionUploadError = "pixels" | "size" | "format" | "origin" | "rate_limited" | "login" | "access" | "expired" | "unknown";
 export type DiscussionUploadResult = { ok: true; attachment: DiscussionAttachment } | { ok: false; error: DiscussionUploadError };
 
 export type DiscussionReaction = {
