@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { userPushTokens } from "@/db/schema";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { z } from "zod";
@@ -35,6 +35,7 @@ const registerSchema = z.object({
 
 const unregisterSchema = z.object({
   token: z.string().min(16).max(4096),
+  browserOnly: z.boolean().default(false),
 });
 
 function isTransportActiveOnServer(transport: PushTransport): boolean {
@@ -161,6 +162,9 @@ export async function DELETE(req: NextRequest) {
         and(
           eq(userPushTokens.userId, session.user.id),
           eq(userPushTokens.token, parsed.data.token),
+          parsed.data.browserOnly
+            ? and(eq(userPushTokens.platform, "web"), inArray(userPushTokens.transport, ["webpush", "fcm"]))
+            : or(isNull(userPushTokens.sessionId), eq(userPushTokens.sessionId, session.session.id)),
         ),
       );
     return NextResponse.json({ success: true });
