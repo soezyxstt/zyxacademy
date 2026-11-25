@@ -502,6 +502,7 @@ export async function sendDesktopNativeNotification(
 
 interface DesktopInboxRow {
   id: string;
+  userId?: string;
   title: string;
   body?: string;
   read?: boolean;
@@ -520,6 +521,7 @@ export function startDesktopNotificationBridge(
     sendNative?: (title: string, body?: string) => Promise<void | boolean>;
     isCurrent?: () => boolean;
     requestTimeoutMs?: number;
+    userId?: string;
   },
 ): () => void {
   const pollIntervalMs = options?.pollIntervalMs ?? DESKTOP_POLL_INTERVAL_MS;
@@ -599,6 +601,9 @@ export function startDesktopNotificationBridge(
         }
         if (disposed || !isCurrent()) return;
         const batch = Array.isArray(data.notifications) ? data.notifications : [];
+        // The session cookie can change before the client auth observer settles.
+        // Never display a row from another account after a reconnect or switch.
+        if (options?.userId && batch.some(row => row.userId !== options.userId)) return;
         rows.push(...batch);
         if (!initialized || batch.length < DESKTOP_PAGE_SIZE) break;
       }
@@ -668,6 +673,7 @@ export async function subscribeNativeNotifications(handlers: {
   onNavigate?: (url: string, notificationId?: string) => void;
   defaultUrl?: string;
   isCurrent?: () => boolean;
+  userId?: string;
 }): Promise<() => void> {
   const runtime = getNativeRuntime();
   const fallbackUrl = sanitizeNotificationUrl(handlers.defaultUrl, "/dashboard");
@@ -744,7 +750,7 @@ export async function subscribeNativeNotifications(handlers: {
   }
 
   if (runtime === "tauri") {
-    return startDesktopNotificationBridge(handlers, { isCurrent });
+    return startDesktopNotificationBridge(handlers, { isCurrent, userId: handlers.userId });
   }
 
   const { onForegroundMessage, showForegroundWebNotification } = await import("@/lib/firebase/messaging");

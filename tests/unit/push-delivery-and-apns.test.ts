@@ -452,6 +452,30 @@ describe("iOS registration, desktop notification bridge, and honest client readi
     expect(calls.filter(command => command === "show_desktop_notification")).toHaveLength(2);
   });
 
+  test("never displays a different account's inbox after session recovery", async () => {
+    let attempts = 0;
+    const displayed: string[] = [];
+    const stop = startDesktopNotificationBridge({ onForeground: event => {
+      if (event.notificationId) displayed.push(event.notificationId);
+    } }, {
+      pollIntervalMs: 15,
+      userId: "current-user",
+      fetchImpl: (async () => {
+        attempts += 1;
+        const notifications = attempts === 1 ? [] : attempts === 2 ? [
+          { id: "other", userId: "other-user", title: "Other account", createdAt: "2026-11-21T11:00:00.000Z" },
+        ] : [
+          { id: "own", userId: "current-user", title: "Own account", createdAt: "2026-11-21T10:00:00.000Z" },
+        ];
+        return new Response(JSON.stringify({ notifications }), { status: 200 });
+      }) as typeof fetch,
+      sendNative: async () => {},
+    });
+    await new Promise(resolve => setTimeout(resolve, 90));
+    stop();
+    expect(displayed).toEqual(["own"]);
+  });
+
   test("recovers when a desktop inbox request stalls", async () => {
     let attempts = 0;
     let aborted = false;
