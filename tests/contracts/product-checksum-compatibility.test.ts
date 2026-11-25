@@ -22,8 +22,9 @@ function fixture(schemaVersion: Profile, format: "legacy" | "current" = "legacy"
     sourceRefs: [{ sourceId: "source-limit", version: 1, checksum: "b".repeat(64), excerptIds: ["excerpt-limit"] }],
     schemaVersion: "1.0", sourceHash: "b".repeat(64), generationHash: "a".repeat(64), creatorId: "creator-legacy-checksum",
   };
+  const flashcardSet = { ...common, id: "legacy-set", productType: "flashcard_set", title: "Limit", cards: ["legacy-card"] };
   const products = [
-    { ...common, id: "legacy-set", productType: "flashcard_set", title: "Limit", cards: ["legacy-card"] },
+    flashcardSet,
     { ...common, id: "legacy-card", productType: "flashcard", front: "Apa syarat limit dua sisi ada?", back: "Limit kiri dan kanan harus ada dan bernilai sama.", atomic: true },
   ];
   const files = new Map([
@@ -39,7 +40,7 @@ function fixture(schemaVersion: Profile, format: "legacy" | "current" = "legacy"
     creatorId: common.creatorId, createdAt: "2026-08-31T00:00:00.000Z", conflicts: [], bundleChecksum: checksums[schemaVersion][format],
   };
   files.set("manifest.json", encode(manifest));
-  return { files, manifest, products };
+  return { files, manifest, products, flashcardSet };
 }
 
 function validate(files: Map<string, Uint8Array>) {
@@ -67,15 +68,15 @@ describe("historical Product Bundle checksums", () => {
     });
 
     test(`${profile} rejects changed entity bytes before checksum compatibility`, () => {
-      const { files, products } = fixture(profile);
-      products[0].title = "Isi berubah";
+      const { files, products, flashcardSet } = fixture(profile);
+      flashcardSet.title = "Isi berubah";
       files.set("entities/products.json", encode(products));
       expectFailure(files, "PRODUCT_ENTITY_CHECKSUM_MISMATCH");
     });
 
     test(`${profile} rejects changed content even if its declared file hash is refreshed`, () => {
-      const { files, manifest, products } = fixture(profile);
-      products[0].title = "Isi berubah";
+      const { files, manifest, products, flashcardSet } = fixture(profile);
+      flashcardSet.title = "Isi berubah";
       const bytes = encode(products);
       files.set("entities/products.json", bytes);
       manifest.entityFiles[0].checksum = sha(bytes);
