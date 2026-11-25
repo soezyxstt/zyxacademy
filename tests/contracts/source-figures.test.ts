@@ -15,8 +15,11 @@ function syntheticPdf(rotation: number) {
 }
 
 describe("source figure geometry", () => {
-  test("rejects invalid bounds and rounds outward", () => {
-    for (const crop of [[0, 0, 0, 1], [-0.1, 0, 1, 1], [0, 0, Infinity, 1]]) expect(normalizedCropSchema.safeParse(crop).success).toBe(false);
+  test("requires four finite normalized coordinates in order and rounds outward", () => {
+    for (const crop of [[], [0, 0, 1], [0, 0, 1, 1, 1], [0, 0, "1", 1], [0, 0, 0, 1], [0, 1, 1, 0], [-0.1, 0, 1, 1], [0, 0, 1.1, 1], [0, 0, Infinity, 1], [0, 0, NaN, 1]]) {
+      expect(normalizedCropSchema.safeParse(crop).success).toBe(false);
+    }
+    expect(normalizedCropSchema.parse([0, 0, 0.5, 1])).toEqual([0, 0, 0.5, 1]);
     expect(figurePixelCrop([0.101, 0.201, 0.809, 0.909], 100, 100)).toEqual({ left: 10, top: 20, width: 71, height: 71 });
   });
   for (const rotation of [0, 90, 180, 270]) test(`renders real PDF with offset CropBox and rotation ${rotation}`, async () => {

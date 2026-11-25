@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Product Bundle MCP"
   short_description: "Draft V4 products, preview and review exact revisions"
-  default_prompt: "Use $zyx-product-bundle-mcp with the live contract, preview the same typed Article/Diktat JSON before staging when supported, use scoped reads for edits, and complete independent review and exact-revision evidence before authorized publication. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."
+  default_prompt: "Use $zyx-product-bundle-mcp with the live contract, preview the same typed Article/Diktat JSON, and use scoped edits. For source figures, retain exact Source Pack provenance, normalized four-coordinate crops and the figure job identity. Complete independent review and exact-revision verification before authorized publication; polling does not run a local verifier. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

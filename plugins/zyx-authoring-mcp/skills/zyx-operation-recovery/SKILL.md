@@ -1,15 +1,23 @@
 ---
 name: zyx-operation-recovery
-description: Memulihkan respons operasi Zyx MCP yang hilang, token plan kedaluwarsa, konflik revision atau job provider yang belum pasti. Gunakan untuk melanjutkan operasi dengan identitas asli dan mencegah efek ganda, bukan membuat perubahan pengganti.
+description: Memulihkan koneksi OAuth, izin kurang, respons operasi Zyx MCP yang hilang, token plan kedaluwarsa, konflik revision atau job provider yang belum pasti. Gunakan untuk melanjutkan operasi dengan identitas asli dan mencegah efek ganda.
 ---
 
 # Pemulihan operasi Zyx MCP
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.3"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.4"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 
 Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
+
+## Koneksi OAuth
+
+Biarkan host menangani refresh OAuth melalui metadata server. Access token baru berlaku paling lama satu jam dan refresh token berotasi; host harus menyimpan pasangan terbaru. Kedaluwarsa sesi browser biasa tidak berarti koneksi OAuth baru harus dibuat ulang. Jangan meminta atau menyalin refresh token ke percakapan, bundle maupun checkpoint.
+
+Pada HTTP 401, gunakan refresh host terlebih dahulu. Pada `invalid_grant`, grant dicabut, atau koneksi lama tanpa refresh token, ikuti alur hubungkan ulang pada environment yang sama. Pada HTTP 403, periksa hak admin; refresh tidak menambah hak. Pada HTTP 503, ikuti `Retry-After` dan periksa layanan; jangan menghapus koneksi untuk gangguan sementara.
+
+Jika scope kurang, minta consent untuk gabungan izin lama yang masih diperlukan dan izin baru. Refresh tidak dapat menambah scope; consent baru mengganti pilihan lama. Setelah reautentikasi, periksa identitas dan hasil operasi sebelum mengirim write lagi. Token OAuth, bootstrap dan run authoring punya masa berlaku serta ikatan sendiri; ikuti `remediation` untuk memperbarui konteks yang tepat.
 
 ## Tetapkan operasi yang dipulihkan
 
@@ -30,6 +38,20 @@ Panggil `admin.operation_receipt` dengan `operation`, `requestKey` dan `includeR
 | Scope atau sesi ditolak | Pulihkan autentikasi/consent yang benar; jangan memperlebar izin atau mengubah akun secara diam-diam. |
 
 Jika hasil lama belum jelas, jangan mengganti isi atau `requestKey`. Sesudah hasilnya diketahui, perubahan yang memang berbeda memerlukan intent/key dan plan sendiri. Receipt ini hanya mendukung mutasi `admin-plan`; jangan pakai untuk submission assessment atau revisi bundle.
+
+## Antrean dan status job
+
+Google Cloud Tasks mengantar pekerjaan melalui adapter server. Nama `inngest` dan bentuk event lama dapat tetap muncul sebagai lapisan kompatibilitas di kode; itu bukan instruksi untuk menyiapkan akun Inngest, memanggil `/api/inngest` atau membuat task Google langsung. Gunakan tool domain dan ID aplikasi yang dikembalikan. Receipt antrean hanya membuktikan permintaan tersimpan; hasil backend tetap perlu diperiksa.
+
+| Pekerjaan | Status dan tindakan berikutnya |
+| --- | --- |
+| Halaman PDF dari `source.read_file` | Panggil `source.get_read_job` dengan `fileKey`/`jobId` asal setelah `pollAfterMs`. `retryFailed: true` hanya untuk halaman failed; pertahankan hasil complete. |
+| Figure dari `source.extract_figure` | Panggil `source.get_figure_job` dengan `fileKey`/`assetId`, run/bootstrap dan stage asal. Saat complete, baca `source.get_figure` dan periksa varian serta hak publikasi. |
+| Upload media, ekspor Sheets, Meet, notifikasi | Panggil `adminjobs.get` dengan ID job admin, `jobs:read` dan izin operasi asal. Periksa hasil bisnis selain status succeeded. |
+| `generation.start` | Selesaikan job pengantar melalui `adminjobs.get`, lalu pantau `jobs.get` dengan `result.jobId`; keduanya bukan job yang sama. |
+| Verifikasi Product V4 | Panggil `authoring.get_verification` dengan import/run dan `planHash` tepat; periksa `evaluation.ready` serta receipt. Profil `local_playwright` perlu eksekusi operator; polling tidak mengeksekusinya. |
+
+Pertahankan actor dan koneksi asal saat polling. Pada batas sesi atau versi sumber, baca error dan pulihkan scope yang tepat; jangan mengganti ID job atau memakai antrean lain. Jangan menyamakan status `complete` milik sumber, `succeeded` milik job admin dan `evaluation.ready` milik verifikasi.
 
 ## Job provider
 

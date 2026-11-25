@@ -6,10 +6,12 @@ description: Membuat dan mengelola formulir Zyx, menguji perilakunya tanpa respo
 # Formulir Zyx melalui MCP
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.3"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.4"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 
 Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
+
+Jika akses kedaluwarsa atau izin kurang, ikuti [pemulihan koneksi](../zyx-operation-recovery/SKILL.md#koneksi-oauth) pada environment yang sama. Refresh OAuth tidak memperbarui bootstrap atau run authoring.
 
 ## Temukan kontrak dan formulir
 
@@ -30,6 +32,6 @@ Utamakan `forms.responses.summarize` untuk angka tanpa identitas atau jawaban be
 
 Sebelum `forms.responses.export_sheet`, baca `forms.responses.sheet_state`. Gunakan snapshot data, spreadsheet dan fingerprint yang dikembalikan; pertahankan spreadsheet entitas serta blok yang dimiliki aplikasi. Konflik edit manual memerlukan frasa `TIMPA <slug>` dari pengguna sendiri. Jangan mengarang frasa, mengganti spreadsheet atau membuat file pengganti untuk melewati konflik.
 
-Ekspor Sheets mengembalikan job antrean. Pantau `adminjobs.get` dengan izin job dan operasi asal; queued bukan bukti Google selesai. Bahkan saat `status: "succeeded"`, periksa `result.needsConfirmation` dan `conflicts`: konflik yang meminta konfirmasi belum berarti data tersinkron. Minta frasa `TIMPA <slug>` dari pengguna sebelum overwrite, lalu baca snapshot/fingerprint baru untuk operasi yang telah diizinkan. Jika respons mutasi hilang, gunakan `admin.operation_receipt` dengan operasi/key asli. Status provider `unknown` memerlukan [pemulihan operasi](../zyx-operation-recovery/SKILL.md), bukan kirim ulang dengan key baru.
+Ekspor Sheets mengembalikan job admin yang server kirim lewat Google Cloud Tasks. Gunakan ID hasil operasi pada `adminjobs.get`, bukan ID task Google. Eksekusi job memerlukan consent OAuth untuk `forms:responses:read` dan `forms:responses:export` yang masih berlaku; polling memerlukan `jobs:read` serta `forms:responses:export`. Queued bukan bukti Google Sheets selesai. Bahkan saat `status: "succeeded"`, periksa `result.needsConfirmation` dan `conflicts`: konflik yang meminta konfirmasi belum berarti data tersinkron. Minta frasa `TIMPA <slug>` dari pengguna sebelum overwrite, lalu baca snapshot/fingerprint baru untuk operasi yang telah diizinkan. Jika respons mutasi hilang, gunakan `admin.operation_receipt` dengan operasi/key asli. Status provider `unknown` memerlukan [pemulihan operasi](../zyx-operation-recovery/SKILL.md), bukan kirim ulang dengan key baru.
 
 Laporkan target, revision, status penerimaan atau hasil job yang nyata. Jangan mencantumkan token maupun identitas pengisi pada ringkasan yang tidak memerlukannya.

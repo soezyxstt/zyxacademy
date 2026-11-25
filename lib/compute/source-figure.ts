@@ -7,9 +7,10 @@ import { getPdfWorkerSrc } from "./pdf-worker";
 
 export const SOURCE_FIGURE_RENDERER = "pdfjs-5.4.296-pdf-parse-2.4.5-figure-v2";
 export const LEGACY_SOURCE_FIGURE_RENDERER = "pdfjs-5.4.296-pdf-parse-worker-2.4.5-napi-canvas-0.1.80-figure-v1";
-export const normalizedCropSchema = z.tuple([z.number().finite().min(0).max(1), z.number().finite().min(0).max(1), z.number().finite().min(0).max(1), z.number().finite().min(0).max(1)])
-  .refine(([x0, y0, x1, y1]) => x1 > x0 && y1 > y0, "SOURCE_FIGURE_CROP_INVALID");
-export type NormalizedCrop = z.infer<typeof normalizedCropSchema>;
+export type NormalizedCrop = [number, number, number, number];
+// Zod keeps array inference as number[]; length(4) guarantees the tuple without a transform or tuple JSON Schema.
+export const normalizedCropSchema = z.array(z.number().finite().min(0).max(1)).length(4)
+  .refine(([x0, y0, x1, y1]) => x1 > x0 && y1 > y0, "SOURCE_FIGURE_CROP_INVALID") as unknown as z.ZodType<NormalizedCrop, NormalizedCrop>;
 export const figureChecksum = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
 
 export function figurePixelCrop(crop: NormalizedCrop, width: number, height: number) {

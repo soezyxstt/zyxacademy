@@ -6,10 +6,12 @@ description: Mencari media Zyx yang sudah ada, mengunggah berkas kecil lewat job
 # Media Zyx melalui MCP
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.3"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.4"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 
 Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
+
+Jika akses kedaluwarsa atau izin kurang, ikuti [pemulihan koneksi](../zyx-operation-recovery/SKILL.md#koneksi-oauth) pada environment yang sama. Refresh OAuth tidak memperbarui bootstrap atau run authoring.
 
 ## Target dan izin
 
@@ -29,7 +31,7 @@ Panggil `media.get` dengan key yang ditemukan untuk memperoleh `publicPath`, `pu
 
 1. Baca batas live. Saat ini `media.upload` menerima `folderPath`, `filename`, `mimeType`, `dataBase64` untuk paling banyak 512 KiB byte, dengan MIME PNG, JPEG, WebP, PDF, teks atau Markdown. Ukur byte sebelum encoding dan cocokkan MIME sebenarnya. Berkas lebih besar memakai jalur unggahan yang tersedia; jangan memotong, memalsukan tipe atau membagi byte untuk melewati batas.
 2. Untuk unggahan yang sudah diizinkan, buat `requestKey` stabil dan panggil `dryRun: true`. Periksa target, nama, ukuran dan dampak, lalu kirim payload/key yang sama dengan `dryRun: false` serta `confirmationToken` dari plan. Ini langkah protokol, bukan permintaan izin ulang untuk tindakan yang sudah tercakup.
-3. Simpan ID job hasilnya. Pantau `adminjobs.get`; `queued` atau `running` belum berarti objek tersedia. Saat `succeeded` dan `result.key` ada, baca key itu melalui `media.get` dan periksa aset sebelum memasang URL. Rekonsiliasi manual tidak mengisi key yang hilang; temukan aset melalui pencarian media atau bukti provider yang sah, lalu verifikasi. Jangan menebak key/URL. Pada `failed`, baca `errorCode` dan perbaiki sebabnya. Pada `unknown`, periksa provider melalui alur pemulihan operasi; jangan replay otomatis.
+3. Simpan ID job aplikasi hasilnya. Google Cloud Tasks mengantar pekerjaan backend; agent tidak perlu ID task atau API antrean. Pantau `adminjobs.get`; `queued` atau `running` belum berarti objek tersedia. Saat `succeeded` dan `result.key` ada, baca key itu melalui `media.get` dan periksa aset sebelum memasang URL. Rekonsiliasi manual tidak mengisi key yang hilang; temukan aset melalui pencarian media atau bukti provider yang sah, lalu verifikasi. Jangan menebak key/URL. Pada `failed`, baca `errorCode` dan perbaiki sebabnya. Pada `unknown`, periksa provider melalui alur pemulihan operasi; jangan replay otomatis.
 
 Jika respons upload hilang, panggil `admin.operation_receipt` dengan `operation: "media.upload"` dan `requestKey` asli. `committed` hanya membuktikan transaksi antrean tersimpan, bukan unggahan provider selesai; lanjutkan ke job yang ditunjuk. `not_recorded` masih bisa berarti operasi berjalan. Periksa lagi atau replay operasi, payload dan key yang sama; bila token plan kedaluwarsa, buat plan baru dengan identitas yang sama. Jangan membuat key baru karena hasil belum jelas. Payload berbeda menjadi operasi baru hanya setelah hasil operasi lama diketahui.
 
