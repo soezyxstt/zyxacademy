@@ -65,6 +65,18 @@ export const emailNotificationPreferences = pgTable("email_notification_preferen
   .notNull(),
 });
 
+/** Account-wide quiet hours with an explicit time zone. */
+export const notificationQuietPreferences = pgTable("notification_quiet_preferences", {
+ userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
+ enabled: boolean("enabled").notNull().default(false),
+ startMinute: integer("start_minute").notNull().default(1320),
+ endMinute: integer("end_minute").notNull().default(420),
+ timeZone: text("time_zone").notNull().default("Asia/Jakarta"),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+ check("notification_quiet_minutes_check", sql`${table.startMinute} between 0 and 1439 and ${table.endMinute} between 0 and 1439 and ${table.startMinute} <> ${table.endMinute}`),
+]);
+
 /** Account presentation preference, kept separate from authorization and learning settings. */
 export const accountLocalePreferences = pgTable(
  "account_locale_preferences",
@@ -4404,6 +4416,8 @@ export const userPushTokens = pgTable(
  userId: text("user_id")
  .notNull()
  .references(() => user.id, { onDelete: "cascade" }),
+ /** Authenticated session owning this registration. Legacy tokens rebind on registration. */
+ sessionId: text("session_id").references(() => session.id, { onDelete: "cascade" }),
  /** Raw push registration token (FCM, APNs hex device token, or desktop client ID). */
  token: text("token").notNull().unique(),
  /** Human-readable device label (e.g. userAgent substring or "capacitor-ios"). */
@@ -4429,6 +4443,7 @@ export const userPushTokens = pgTable(
  index("idx_push_tokens_user_id").on(table.userId, table.id),
  index("idx_push_tokens_token").on(table.token),
  index("idx_push_tokens_user_transport").on(table.userId, table.transport),
+ index("idx_push_tokens_session").on(table.sessionId),
  ]
 );
 
@@ -4484,6 +4499,19 @@ export const notifications = pgTable(
   .where(sql`${table.type} = 'discussion' and ${table.metadata}->>'pushState' = 'pending'`),
  ]
 );
+
+/** Durable quiet-hour push queue. Inbox rows remain immediately visible. */
+export const deferredNotificationPushes = pgTable("deferred_notification_pushes", {
+ notificationId: text("notification_id").primaryKey().references(() => notifications.id, { onDelete: "cascade" }),
+ userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+ deliverAfter: timestamp("deliver_after", { withTimezone: true }).notNull(),
+ claimId: text("claim_id"),
+ leaseUntil: timestamp("lease_until", { withTimezone: true }),
+}, table => [
+ index("deferred_notification_pushes_due_idx").on(table.deliverAfter, table.userId),
+ index("deferred_notification_pushes_user_idx").on(table.userId, table.deliverAfter),
+]);
+
 
 // ─── P1A: Mastery Foundation ──────────────────────────────────────────────────
 

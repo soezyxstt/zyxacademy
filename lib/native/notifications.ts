@@ -7,6 +7,7 @@
  */
 
 import {
+  canUseBrowserPush,
   getCapacitor,
   getNativeDeviceLabel,
   getNativeRuntime,
@@ -170,7 +171,7 @@ export function isNotificationBridgeSupported(): boolean {
   if (runtime === "tauri") {
     return Boolean(getTauri()?.notification || getTauri()?.core?.invoke || typeof window.Notification === "function");
   }
-  return "Notification" in window && "serviceWorker" in navigator;
+  return canUseBrowserPush() && "Notification" in window && "serviceWorker" in navigator;
 }
 
 export async function getUnifiedNotificationPermission(): Promise<UnifiedNotificationPermission> {
@@ -221,7 +222,7 @@ export async function getUnifiedNotificationPermission(): Promise<UnifiedNotific
     }
   }
 
-  if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+  if (!canUseBrowserPush() || !("Notification" in window) || !("serviceWorker" in navigator)) {
     return "unsupported";
   }
   return Notification.permission;
@@ -268,6 +269,7 @@ export async function requestUnifiedNotificationPermission(): Promise<UnifiedNot
     }
   }
 
+  if (!canUseBrowserPush()) return "unsupported";
   const { requestNotificationPermission } = await import("@/lib/firebase/messaging");
   return requestNotificationPermission();
 }
@@ -394,6 +396,7 @@ export async function registerUnifiedPushToken(
     return ok;
   }
 
+  if (!canUseBrowserPush()) return false;
   const { getFCMToken, registerTokenToServer } = await import(
     "@/lib/firebase/messaging"
   );
@@ -753,6 +756,7 @@ export async function subscribeNativeNotifications(handlers: {
     return startDesktopNotificationBridge(handlers, { isCurrent, userId: handlers.userId });
   }
 
+  if (!canUseBrowserPush()) return () => {};
   const { onForegroundMessage, showForegroundWebNotification } = await import("@/lib/firebase/messaging");
   return onForegroundMessage((payload) => {
     if (!isCurrent()) return;

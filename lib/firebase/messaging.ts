@@ -15,6 +15,7 @@
 
 import { getMessaging, getToken, onMessage, type Messaging } from "firebase/messaging";
 import { getFirebaseApp } from "@/lib/firebase/client";
+import { canUseBrowserPush } from "@/lib/native/runtime";
 import {
  clearRegisteredPushTokenIdentity,
  markPushTokenRegistered,
@@ -52,7 +53,7 @@ export function isFirebaseMessagingConfigured(): boolean {
 
 function getMessagingInstance(): Messaging | null {
  // Messaging is only available in browser environments with service worker support
- if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+ if (!canUseBrowserPush() || !("serviceWorker" in navigator)) {
   return null;
  }
  if (!isFirebaseMessagingConfigured()) {
@@ -77,7 +78,7 @@ function getMessagingInstance(): Messaging | null {
  * Returns the resulting permission state.
  */
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
- if (typeof window === "undefined" || !("Notification" in window)) {
+ if (!canUseBrowserPush() || !("Notification" in window)) {
  console.warn("[FCM] Notifications not supported in this environment.");
  return "denied";
  }
@@ -144,7 +145,7 @@ export async function registerTokenToServer(
  userId?: string,
  isCurrent: () => boolean = () => true
 ): Promise<boolean> {
- if (typeof window === "undefined" || !isCurrent()) return false;
+ if (!canUseBrowserPush() || !isCurrent()) return false;
  if (userId && !shouldRegisterPushToken({ userId, token })) {
  return true;
  }
@@ -204,7 +205,7 @@ export async function showForegroundWebNotification(
   input: { title: string; body?: string; url: string; notificationId?: string },
   isCurrent: () => boolean = () => true,
 ): Promise<void> {
-  if (typeof window === "undefined" || !isCurrent() ||
+  if (!canUseBrowserPush() || !isCurrent() ||
       typeof window.Notification !== "function" || window.Notification.permission !== "granted" ||
       !("serviceWorker" in navigator)) return;
   try {

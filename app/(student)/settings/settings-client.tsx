@@ -25,6 +25,7 @@ import { isHapticsSupported } from "@/lib/native/haptics";
 import { resolveSettingsTab, type SettingsTab } from "@/lib/settings-tabs";
 import { ArrowRight, Download, HardDriveDownload, RotateCcw } from "lucide-react";
 import { useHapticsPreference } from "@/hooks/use-haptics-preference";
+import { AccountSessions } from "@/components/settings/account-sessions";
 
 const THEMES = ["light", "dark", "system"] as const;
 const LANGUAGES = ["id", "en"] as const;
@@ -142,6 +143,7 @@ function GeneralPreferences() {
           }}
         />
       </PreferenceGroup>
+      <AccountSessions />
       <PreferenceGroup title={t("preferences.device")} description={t("preferences.deviceScope")}>
         <PreferenceSwitch
           label={t("preferences.haptics")}
