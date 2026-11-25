@@ -1,13 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { db } from "@/db";
-import { courses, imporBundle } from "@/db/schema";
-import { getProductV4VerificationReadiness, requestProductV4Verification } from "@/lib/bundle/product-v4-verification-service";
-import { parseStagedProductBundle } from "@/lib/bundle/product-staging";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
-import { storage } from "@/lib/storage";
 import { normalizeDate, toIsoTimestamp } from "@/lib/date-utils";
+import { assertV4OperationTarget } from "./v4-operation-target";
 
 async function inspectRunTrace(planHash: string, attemptId: string, createdAt: Date) {
   const signingKey = process.env.INNGEST_SIGNING_KEY, apiKey = process.env.INNGEST_API_KEY;
@@ -29,7 +25,7 @@ async function inspectRunTrace(planHash: string, attemptId: string, createdAt: D
   const trace = await get(`/v2/runs/${encodeURIComponent(run.run_id)}/trace?include=output&includeOutput=true`, apiKey);
   const sanitize = (value: string) => {
     let result = value;
-    for (const secret of [signingKey, apiKey, process.env.BETTER_AUTH_SECRET, process.env.TURSO_AUTH_TOKEN, process.env.R2_SECRET_ACCESS_KEY, process.env.STEEL_API_KEY, process.env.CF_API_TOKEN]) if (secret) result = result.replaceAll(secret, "[redacted]");
+    for (const secret of [signingKey, apiKey, process.env.BETTER_AUTH_SECRET, process.env.TURSO_AUTH_TOKEN, process.env.R2_SECRET_ACCESS_KEY, process.env.DATABASE_URL, process.env.AWS_ACCESS_KEY_ID, process.env.AWS_SECRET_ACCESS_KEY, process.env.STEEL_API_KEY, process.env.CF_API_TOKEN]) if (secret) result = result.replaceAll(secret, "[redacted]");
     return result.replace(/(?:https?|wss?):\/\/[^\s"<>]+/g, "[url]").replace(/[a-f0-9]{32,}/gi, "[hash]").replace(/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}/gi, "[id]").slice(0, 1500);
   };
   const errors = (output: unknown, depth = 0): string[] => {
@@ -54,12 +50,15 @@ async function main() {
   const action = process.env.V4_OPERATION;
   const revision = process.env.V4_REVISION ?? "";
   if (!["inspect", "retry", "evidence", "cancel"].includes(action ?? "")) throw new Error("V4_OPERATION_INVALID");
-  const environment = process.env.ZYX_ENVIRONMENT;
-  const expectedOrigin = environment === "production" ? "https://www.zyxacademy.com" : environment === "staging" ? "https://staging.zyxacademy.com" : null;
-  if (!expectedOrigin || process.env.NEXT_PUBLIC_APP_URL !== expectedOrigin) throw new Error("V4_OPERATION_ENVIRONMENT_INVALID");
-  const databaseUrl = process.env.TURSO_CONNECTION_URL || process.env.DATABASE_URL;
-  if (!databaseUrl || !/^(?:libsql|https):\/\//.test(databaseUrl)) throw new Error("V4_OPERATION_REMOTE_DATABASE_REQUIRED");
-  console.log(JSON.stringify({ environment, origin: expectedOrigin, databaseHost: new URL(databaseUrl).hostname, action }));
+  const target = assertV4OperationTarget(process.env);
+  console.log(JSON.stringify({ ...target, action }));
+  const [{ db }, { courses, imporBundle }, { getProductV4VerificationReadiness, requestProductV4Verification }, { parseStagedProductBundle }, { storage }] = await Promise.all([
+    import("@/db"),
+    import("@/db/schema"),
+    import("@/lib/bundle/product-v4-verification-service"),
+    import("@/lib/bundle/product-staging"),
+    import("@/lib/storage"),
+  ]);
   const rows = await db.select({ row: imporBundle, course: courses.title }).from(imporBundle).leftJoin(courses, eq(courses.id, imporBundle.courseId)).where(and(eq(imporBundle.bundleType, "product"), eq(imporBundle.version, 4), eq(imporBundle.status, "draft")));
   if (action === "inspect" && !revision) {
     for (const { row, course } of rows) console.log(JSON.stringify({ course, title: row.validationReport.bundleTitle, revision: row.checksum, status: row.status, hasVerification: Boolean(row.validationReport.productV4Verification) }));
