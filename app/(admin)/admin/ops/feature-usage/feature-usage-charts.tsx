@@ -14,7 +14,7 @@ import {
   FEATURE_USAGE_KEYS,
   type FeatureUsageDailyPoint,
   type FeatureUsageKey,
-} from "@/lib/feature-usage-metrics";
+} from "@/lib/feature-usage-engine";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { AdminEmptyState } from "@/components/admin/state-panels";
