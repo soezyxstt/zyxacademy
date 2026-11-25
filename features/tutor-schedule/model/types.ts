@@ -91,6 +91,7 @@ export interface TutorScheduleSurfaceProps {
   filteredBookings: OwnedBookingItem[];
   filteredTickets: OwnedTicketItem[];
   slotNotes: Record<string, string>;
+  slotCourses: Record<string, string[]>;
   slotsWithHistory: Set<string>;
   openedSlotCount: number;
   filledSlotCount: number;
@@ -111,6 +112,9 @@ export interface TutorScheduleSurfaceProps {
   setNewSlotLocation: (loc: string) => void;
   newSlotNotes: string;
   setNewSlotNotes: (notes: string) => void;
+  newSlotCourseIds: string[];
+  onToggleSlotCourse: (courseId: string) => void;
+  onSelectAllSlotCourses: () => void;
   repeatWeeks: number;
   setRepeatWeeks: (weeks: number) => void;
   canSaveSlot: boolean;

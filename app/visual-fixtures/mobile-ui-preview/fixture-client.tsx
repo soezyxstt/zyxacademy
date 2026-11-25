@@ -1009,6 +1009,7 @@ function TutorScheduleFixtureView() {
         filteredBookings={scheduleData.ownedBookings}
         filteredTickets={scheduleData.ownedTickets}
         slotNotes={{ "tsl-2": "Sesi klinik soal Bab 2" }}
+        slotCourses={{}}
         slotsWithHistory={new Set()}
         openedSlotCount={3}
         filledSlotCount={1}
@@ -1028,6 +1029,9 @@ function TutorScheduleFixtureView() {
         setNewSlotLocation={setNewSlotLocation}
         newSlotNotes={newSlotNotes}
         setNewSlotNotes={setNewSlotNotes}
+        newSlotCourseIds={[]}
+        onToggleSlotCourse={() => undefined}
+        onSelectAllSlotCourses={() => undefined}
         repeatWeeks={1}
         setRepeatWeeks={() => undefined}
         canSaveSlot={true}

@@ -148,6 +148,8 @@
     "online": "Online",
     "inPerson": "In person",
     "date": "Date",
+    "slotCourses": "Courses for this slot",
+    "allAssignedCourses": "All assigned courses",
     "tutorNotes": "Tutor notes",
     "topic": "Topic",
     "noSpecificTopic": "No specific topic yet",

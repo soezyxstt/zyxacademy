@@ -42,9 +42,11 @@ import type {
 import { addTutorialDays } from "@/lib/schedule/week-policy";
 import {
   addTutorSlotWithNotesAction,
+  getTutorSlotCoursesAction,
   getTutorSlotNotesAction,
   updateTutorSlotWithNotesAction,
 } from "@/app/(tutor)/tutor/schedule/slot-note-actions";
+import { toggleSlotCourseSelection } from "@/lib/schedule/slot-courses";
 import {
   copyTutorAvailabilityAction,
   decideTutorRescheduleTicketAction,
@@ -84,6 +86,7 @@ export function TutorScheduleView({
 
   const [scheduleData, setScheduleData] = useState(initialData);
   const [slotNotes, setSlotNotes] = useState<Record<string, string>>({});
+  const [slotCourses, setSlotCourses] = useState<Record<string, string[]>>({});
   const [activeSessionBookingId, setActiveSessionBookingId] = useState<string | null>(null);
   const [slotPendingDelete, setSlotPendingDelete] = useState<string | null>(null);
 
@@ -96,16 +99,19 @@ export function TutorScheduleView({
     const ids = scheduleData.ownedSlots.map((slot) => slot.id);
     if (ids.length === 0) {
       setSlotNotes({});
+      setSlotCourses({});
       return;
     }
     let cancelled = false;
-    void getTutorSlotNotesAction(ids)
-      .then((notes) => {
-        if (!cancelled) setSlotNotes(notes);
-      })
-      .catch(() => {
-        if (!cancelled) setSlotNotes({});
-      });
+    void Promise.all([
+      getTutorSlotNotesAction(ids).catch(() => ({} as Record<string, string>)),
+      getTutorSlotCoursesAction(ids).catch(() => ({} as Record<string, string[]>)),
+    ]).then(([notes, courses]) => {
+      if (!cancelled) {
+        setSlotNotes(notes);
+        setSlotCourses(courses);
+      }
+    });
     return () => {
       cancelled = true;
     };
@@ -156,6 +162,7 @@ export function TutorScheduleView({
   const [newSlotMode, setNewSlotMode] = useState<"online" | "offline">("online");
   const [newSlotLocation, setNewSlotLocation] = useState("");
   const [newSlotNotes, setNewSlotNotes] = useState("");
+  const [newSlotCourseIds, setNewSlotCourseIds] = useState<string[]>([]);
   const [repeatWeeks, setRepeatWeeks] = useState(1);
 
   const derivedWeekday = useMemo(
@@ -243,6 +250,7 @@ export function TutorScheduleView({
           location: newSlotMode === "offline" ? newSlotLocation.trim() : undefined,
           sessionDate: newSlotDate || undefined,
           notes: newSlotNotes,
+          courseIds: newSlotCourseIds,
         });
 
         if (res.success) {
@@ -253,9 +261,16 @@ export function TutorScheduleView({
             else delete next[editingSlotId];
             return next;
           });
+          setSlotCourses((current) => {
+            const next = { ...current };
+            if (newSlotCourseIds.length > 0) next[editingSlotId] = [...newSlotCourseIds];
+            else delete next[editingSlotId];
+            return next;
+          });
           setIsAddSlotOpen(false);
           setEditingSlotId(null);
           setNewSlotNotes("");
+          setNewSlotCourseIds([]);
           toast.success(t("slotUpdated"));
           router.refresh();
         } else {
@@ -274,11 +289,13 @@ export function TutorScheduleView({
           location: newSlotMode === "offline" ? newSlotLocation.trim() : undefined,
           sessionDate: newSlotDate || undefined,
           notes: newSlotNotes,
+          courseIds: newSlotCourseIds,
         });
 
         if (res.success) {
           setIsAddSlotOpen(false);
           setNewSlotNotes("");
+          setNewSlotCourseIds([]);
           setRepeatWeeks(1);
           toast.success(t("slotAdded"));
           router.refresh();
@@ -302,6 +319,7 @@ export function TutorScheduleView({
           location: newSlotMode === "offline" ? newSlotLocation.trim() : undefined,
           sessionDate: targetDate,
           notes: newSlotNotes,
+          courseIds: newSlotCourseIds,
         });
         if (res.success) {
           createdCount += 1;
@@ -314,6 +332,7 @@ export function TutorScheduleView({
       if (createdCount > 0) {
         setIsAddSlotOpen(false);
         setNewSlotNotes("");
+        setNewSlotCourseIds([]);
         setRepeatWeeks(1);
         const conflictSuffix =
           skippedCount > 0 ? t("slotConflicts", { count: skippedCount }) : "";
@@ -347,6 +366,7 @@ export function TutorScheduleView({
     setNewSlotMode("online");
     setNewSlotLocation("");
     setNewSlotNotes("");
+    setNewSlotCourseIds([]);
     setRepeatWeeks(1);
     const start = startTimeStr || "09:00";
     setNewSlotStart(start);
@@ -362,6 +382,7 @@ export function TutorScheduleView({
     setNewSlotMode(slot.mode);
     setNewSlotLocation(slot.location ?? "");
     setNewSlotNotes(slotNotes[slot.id] ?? "");
+    setNewSlotCourseIds(slotCourses[slot.id] ?? []);
     setRepeatWeeks(1);
     setIsAddSlotOpen(true);
   };
@@ -522,9 +543,15 @@ export function TutorScheduleView({
     setNewSlotMode("online");
     setNewSlotLocation("");
     setNewSlotNotes("");
+    setNewSlotCourseIds([]);
     setRepeatWeeks(1);
     setIsAddSlotOpen(true);
   };
+
+  const assignedCourseIds = useMemo(
+    () => scheduleData.assignedActiveCourses.map((course) => course.courseId),
+    [scheduleData.assignedActiveCourses],
+  );
 
   const surfaceProps: TutorScheduleSurfaceProps = {
     initialData,
@@ -552,6 +579,7 @@ export function TutorScheduleView({
     filteredBookings,
     filteredTickets,
     slotNotes,
+    slotCourses,
     slotsWithHistory,
     openedSlotCount,
     filledSlotCount,
@@ -577,6 +605,12 @@ export function TutorScheduleView({
     setNewSlotLocation,
     newSlotNotes,
     setNewSlotNotes,
+    newSlotCourseIds,
+    onToggleSlotCourse: (courseId) =>
+      setNewSlotCourseIds((current) =>
+        toggleSlotCourseSelection(current, courseId, assignedCourseIds),
+      ),
+    onSelectAllSlotCourses: () => setNewSlotCourseIds([]),
     repeatWeeks,
     setRepeatWeeks,
     canSaveSlot,

@@ -204,6 +204,7 @@
       "noQuota": "Kelompok ini tidak memiliki kuota pertemuan tutorial.",
       "groupInactive": "Kelompok belajar ini tidak aktif.",
       "tutorNotAssigned": "Tutor ini tidak ditugaskan untuk mata kuliah yang dipilih.",
+      "slotCourseNotAllowed": "Slot ini tidak dibuka untuk mata kuliah yang dipilih.",
       "groupCourseNotEnrolled": "Kelompok ini belum terdaftar pada mata kuliah yang dipilih.",
       "book": "Slot gagal dipesan.",
       "saveLink": "Link gagal disimpan.",

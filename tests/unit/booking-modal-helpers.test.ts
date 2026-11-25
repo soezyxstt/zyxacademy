@@ -103,6 +103,18 @@ describe("booking-modal-helpers", () => {
       courseId: "phys",
     });
     expect(demoMatched.eligibleCourses).toEqual([{ id: "phys", title: "Fisika Dasar IA" }]);
+
+    const caseMatched = getEligibleCoursesForGroupAndSlot(
+      {
+        id: "g-upper",
+        courses: [{ courseId: "MA1101", course: { id: "MA1101", title: "Matematika IA" } }],
+      },
+      {
+        id: "slot-lower",
+        matchedCourseIds: ["ma1101"],
+      },
+    );
+    expect(caseMatched.eligibleCourses).toEqual([{ id: "MA1101", title: "Matematika IA" }]);
   });
 
   test("picks an eligible group with remaining quota and matching course first", () => {

@@ -3,6 +3,7 @@
 import {
   BookOpen,
   CalendarDays,
+  Check,
   Clock,
   ExternalLink,
   MapPin,
@@ -110,6 +111,9 @@ export function TutorScheduleDesktop({
   setNewSlotLocation,
   newSlotNotes,
   setNewSlotNotes,
+  newSlotCourseIds,
+  onToggleSlotCourse,
+  onSelectAllSlotCourses,
   repeatWeeks,
   setRepeatWeeks,
   canSaveSlot,
@@ -934,6 +938,51 @@ export function TutorScheduleDesktop({
                       <SelectItem value="4">{t("repeatWeeksOption", { count: 4 })}</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              )}
+              {scheduleData.assignedActiveCourses.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-body-sm font-semibold">{t("slotCourses")}</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      aria-pressed={newSlotCourseIds.length === 0}
+                      onClick={onSelectAllSlotCourses}
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-body-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        newSlotCourseIds.length === 0
+                          ? "border-brand-primary bg-brand-primary/10 text-foreground"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted/40"
+                      }`}
+                    >
+                      {newSlotCourseIds.length === 0 && (
+                        <Check className="size-3.5 shrink-0 text-brand-primary" aria-hidden />
+                      )}
+                      <span>{t("allAssignedCourses")}</span>
+                    </button>
+                    {scheduleData.assignedActiveCourses.map((course) => {
+                      const selected = newSlotCourseIds.some(
+                        (id) => id.toLowerCase() === course.courseId.toLowerCase(),
+                      );
+                      return (
+                        <button
+                          key={course.courseId}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => onToggleSlotCourse(course.courseId)}
+                          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-body-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                            selected
+                              ? "border-brand-primary bg-brand-primary/10 text-foreground"
+                              : "border-border bg-card text-muted-foreground hover:bg-muted/40"
+                          }`}
+                        >
+                          {selected && (
+                            <Check className="size-3.5 shrink-0 text-brand-primary" aria-hidden />
+                          )}
+                          <span className="break-words text-left">{course.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               <div className="space-y-1">
