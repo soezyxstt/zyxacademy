@@ -26,7 +26,7 @@ export function shortNotificationText(value: string | null | undefined, limit: n
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/<[^>]+>/g, "")
-    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .split("").map(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127 ? " " : char).join("")
     .replace(/\s+/g, " ").trim();
   const chars = Array.from(plain);
   return chars.length > limit ? chars.slice(0, limit - 1).join("") + "…" : plain;
@@ -301,7 +301,7 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
             : "declined";
       return {
         ...payload,
-        title: interpolate(template.title, { ticketType: typeLabel, decision: decisionLabel }),
+        title: shortNotificationText(interpolate(payload.systemTemplate.params.courseTitle ? template.titleWithCourse : template.title, { ticketType: typeLabel, decision: decisionLabel, courseTitle: payload.systemTemplate.params.courseTitle ?? "" }), 65),
         body: payload.systemTemplate.params.notes ?? interpolate(template.body, { ticketType: typeLabel }),
         metadata: withLocale,
       };
@@ -310,8 +310,8 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
     case "tutor_ticket_message":
       return {
         ...payload,
-        title: pushMessages.tutorTicketMessage.title,
-        body: payload.systemTemplate.params.body,
+        title: payload.systemTemplate.params.courseTitle ? shortNotificationText(interpolate(pushMessages.tutorTicketMessage.titleWithCourse, { courseTitle: payload.systemTemplate.params.courseTitle }), 65) : pushMessages.tutorTicketMessage.title,
+        body: shortNotificationText([payload.systemTemplate.params.senderName, payload.systemTemplate.params.body].filter(Boolean).join(": "), 180),
         metadata: withLocale,
       };
 
@@ -596,6 +596,7 @@ export function tutorTicketDecisionPayload(input: {
   ticketType: "reschedule" | "cancellation";
   decision: "approved" | "rejected";
   notes: string | null;
+  courseTitle?: string;
 }): NotificationPayload {
   return {
     title: "Pembaruan tiket jadwal",
@@ -607,14 +608,14 @@ export function tutorTicketDecisionPayload(input: {
   };
 }
 
-export function tutorTicketMessagePayload(body: string, link = "/dashboard/schedule"): NotificationPayload {
+export function tutorTicketMessagePayload(body: string, link = "/dashboard/schedule", context: { courseTitle?: string; senderName?: string } = {}): NotificationPayload {
   return {
     title: "Balasan baru pada diskusi jadwal",
     body,
     type: "tutor_reminder",
     link,
     metadata: { url: link },
-    systemTemplate: { key: "tutor_ticket_message", params: { body } },
+    systemTemplate: { key: "tutor_ticket_message", params: { body, ...context } },
   };
 }
 

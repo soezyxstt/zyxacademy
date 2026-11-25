@@ -142,6 +142,7 @@ test("notification activity preferences and permission dialog review", async ({ 
   await discussions.click();
   await expect(discussions).not.toBeChecked();
   await expect(flashcards).toBeChecked();
+  await expect(discussions).toBeEnabled();
   await discussions.click();
   await expect(discussions).toBeChecked();
   await page.goto(`${origin}/settings?locale=id&tab=notifications&permissionPrompt=default`);

@@ -102,3 +102,11 @@ test("contextual discussion notification uses the title, bounded plain preview a
   expect(report.title).toBe("Discussion update");
   expect(report.body).not.toContain("Secret");
 });
+
+test("schedule message shows the course and sender, retaining the target link", () => {
+  const payload = tutorTicketMessagePayload("Can we move the meeting?", "/tutor/schedule", {courseTitle: "Physics I", senderName: "Student"});
+  const rendered = renderNotificationPayload(payload, "en");
+  expect(rendered.title).toBe("Schedule reply: Physics I");
+  expect(rendered.body).toBe("Student: Can we move the meeting?");
+  expect(rendered.link).toBe("/tutor/schedule");
+});

@@ -36,8 +36,8 @@ export type SystemNotificationTemplate =
   | { key: "pka_schedule"; params: { scheduleTitle: string; sessionAt: string } }
   | { key: "pka_schedule_update"; params: { scheduleTitle: string; sessionAt: string } }
   | { key: "tutor_schedule_moved"; params: { dayOfWeek: string; sessionDate: string; startTime: string; endTime: string; courseTitle?: string } }
-  | { key: "tutor_ticket_decision"; params: { ticketType: "reschedule" | "cancellation"; decision: "approved" | "rejected"; notes: string | null } }
-  | { key: "tutor_ticket_message"; params: { body: string } }
+  | { key: "tutor_ticket_decision"; params: { ticketType: "reschedule" | "cancellation"; decision: "approved" | "rejected"; notes: string | null; courseTitle?: string } }
+  | { key: "tutor_ticket_message"; params: { body: string; courseTitle?: string; senderName?: string } }
   | { key: "tutor_booking_created"; params: { studentName: string; courseTitle: string; sessionDate: string; startTime: string } }
   | { key: "tutor_booking_moved"; params: { studentName: string; courseTitle: string; sessionDate: string; startTime: string } }
   | { key: "tutor_booking_cancelled"; params: { studentName: string; courseTitle: string; sessionDate: string; startTime: string } }
