@@ -9,7 +9,7 @@
  *
  * - Clicking a notification marks it read and navigates to its deep link.
  * - "Tandai semua dibaca" clears the unread badge.
- * - Foreground FCM messages refresh the list and surface a toast.
+ * - The notification runtime publishes inbox refresh events.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -36,13 +36,12 @@ import {
 import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { toast } from "@/components/ui/toast";
+import { NotificationRuntimeForAccount, ZYX_NOTIFICATIONS_CHANGED } from "./notification-runtime";
 import { cn } from "@/lib/utils";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 import { getDefaultHomeLinkForRole } from "@/lib/notifications/catalog";
 
-export const ZYX_NOTIFICATIONS_CHANGED = "zyx:notifications-changed";
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export { ZYX_NOTIFICATIONS_CHANGED } from "./notification-runtime";
 
 interface NotificationRow {
   id: string;
@@ -122,7 +121,11 @@ interface NotificationBellProps {
 }
 
 export function NotificationBell(props: NotificationBellProps) {
-  return <StudentAccountBoundary>{state => <NotificationBellContent key={state.data?.user?.id ?? "anonymous"} {...props} account={state} />}</StudentAccountBoundary>;
+  const experience = useStudentExperience();
+  return <StudentAccountBoundary>{state => <>
+    {props.variant === "navbar" && experience.mode !== "demo" && <NotificationRuntimeForAccount account={state} />}
+    <NotificationBellContent key={state.data?.user?.id ?? "anonymous"} {...props} account={state} />
+  </>}</StudentAccountBoundary>;
 }
 
 function NotificationBellContent({ variant = "sidebar", account }: NotificationBellProps & { account: StudentAccountState }) {
@@ -199,63 +202,6 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
     if (demo || !session?.user) return;
     void fetchUnreadCount();
   }, [session?.user, fetchUnreadCount, demo]);
-
-  const openRef = useRef(open);
-  openRef.current = open;
-
-  // Foreground push messages (Web FCM, Capacitor Push, Tauri OS) refresh the inbox and show a toast.
-  useEffect(() => {
-    if (demo || !session?.user) return;
-    let unsubscribe: (() => void) | undefined;
-    let disposed = false;
-    (async () => {
-      const { subscribeNativeNotifications } = await import("@/lib/native/notifications");
-      if (disposed) return;
-      const unsub = await subscribeNativeNotifications({
-        defaultUrl: fallbackUrl,
-        onForeground: ({ title, body }) => {
-          if (title) {
-            toast(title, { description: body ?? undefined });
-          }
-          if (openRef.current) {
-            void fetchHistory();
-          } else {
-            void fetchUnreadCount();
-          }
-        },
-        onNavigate: (url, notificationId) => {
-          if (notificationId && UUID_PATTERN.test(notificationId)) {
-            void fetch("/api/notifications/read", {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ ids: [notificationId] }),
-            })
-              .then((res) => {
-                if (res.ok && typeof window !== "undefined") {
-                  window.dispatchEvent(new CustomEvent(ZYX_NOTIFICATIONS_CHANGED));
-                }
-              })
-              .catch(() => {});
-          }
-          const safeUrl =
-            url.startsWith("/") && !url.startsWith("//") && !url.startsWith("/\\")
-              ? url
-              : fallbackUrl;
-          router.push(safeUrl);
-        },
-      });
-      if (disposed) {
-        unsub();
-        return;
-      }
-      unsubscribe = unsub;
-    })();
-    return () => {
-      disposed = true;
-      unsubscribe?.();
-    };
-  }, [session?.user, fetchHistory, fetchUnreadCount, demo, router, fallbackUrl]);
 
   if (isPending || !session?.user) return null;
 

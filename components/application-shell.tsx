@@ -5,6 +5,7 @@ import { PageTransition } from "@/components/ui/page-transition";
 import { MobileSidebarController } from "@/components/mobile-sidebar-controller";
 import { MobileChromeProvider } from "@/components/navigation/mobile-chrome-context";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { NotificationRuntime } from "@/components/notifications/notification-runtime";
 
 export interface ApplicationShellProps {
   sidebar?: ReactNode;
@@ -82,6 +83,7 @@ export function ApplicationShell({
           </div>
         )}
         {mobileBottomNav}
+        <NotificationRuntime />
         {overlays}
       </div>
     </MobileChromeProvider>

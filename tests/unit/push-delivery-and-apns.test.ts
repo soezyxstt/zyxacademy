@@ -20,6 +20,8 @@ import {
   getUnifiedNotificationDeliveryStatus,
   registerUnifiedPushToken,
   startDesktopNotificationBridge,
+  getUnifiedNotificationPermission,
+  sendDesktopNativeNotification,
   unregisterCurrentPushToken,
 } from "@/lib/native/notifications";
 
@@ -401,6 +403,24 @@ describe("iOS registration, desktop notification bridge, and honest client readi
     });
   });
 
+  test("uses the Tauri-injected desktop Notification API without mobile IPC", async () => {
+    const sent: Array<{ title: string; body?: string }> = [];
+    class DesktopNotification {
+      static permission = "granted";
+      constructor(title: string, options: { body?: string }) {
+        sent.push({ title, body: options.body });
+      }
+    }
+    (globalThis as unknown as { window: Record<string, unknown> }).window = {
+      __TAURI__: { core: { invoke: async () => { throw new Error("Unexpected IPC"); } } },
+      Notification: DesktopNotification,
+    };
+    expect(await getUnifiedNotificationPermission()).toBe("granted");
+    await sendDesktopNativeNotification("Desktop alert", "Delivered");
+    await sendDesktopNativeNotification("Stale account", "Must not show", () => false);
+    expect(sent).toEqual([{ title: "Desktop alert", body: "Delivered" }]);
+  });
+
   test("registers Tauri desktop token and delivers new inbox notifications to native OS", async () => {
     const postedBodies: Record<string, unknown>[] = [];
 
@@ -442,8 +462,11 @@ describe("iOS registration, desktop notification bridge, and honest client readi
     const nativeCalls: Array<{ title: string; body?: string }> = [];
     const foregroundCalls: Array<{ notificationId?: string; title?: string; body?: string; url?: string }> = [];
     let pollCount = 0;
+    const queries: URLSearchParams[] = [];
 
-    const fakeFetch = (async () => {
+    const fakeFetch = (async (url: unknown) => {
+      const query = new URL(String(url), "https://example.test").searchParams;
+      queries.push(query);
       pollCount += 1;
       if (pollCount === 1) {
         return new Response(
@@ -467,6 +490,7 @@ describe("iOS registration, desktop notification bridge, and honest client readi
               id: "new-2",
               title: "New quiz",
               body: "Calculus quiz is open",
+              read: true,
               createdAt: "2026-11-21T10:05:00.000Z",
               metadata: { url: "/courses/calc" },
             },
@@ -493,6 +517,7 @@ describe("iOS registration, desktop notification bridge, and honest client readi
     stop();
 
     expect(pollCount).toBeGreaterThanOrEqual(2);
+    expect(queries.every(query => !query.has("unreadOnly"))).toBe(true);
     expect(foregroundCalls).toEqual([
       { notificationId: "new-2", title: "New quiz", body: "Calculus quiz is open", url: "/courses/calc" },
     ]);
