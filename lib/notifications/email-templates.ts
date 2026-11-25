@@ -9,15 +9,7 @@
 import type { Locale } from "@/lib/i18n/locale";
 import { getPublicAppUrl } from "@/lib/public-app-url";
 
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  })[char]!);
-}
+import { emailStyles, escapeEmailHtml as escapeHtml, renderEmailButton, renderEmailDetails, renderEmailLayout } from "./email-layout";
 
 function resolveAppUrl(path: string): string {
   const base = getPublicAppUrl().replace(/\/+$/, "");
@@ -25,16 +17,20 @@ function resolveAppUrl(path: string): string {
   return `${base}${normalized}`;
 }
 
-function wrapEmailLayout(locale: Locale, heading: string, bodyHtml: string, cta?: { label: string; path: string }): string {
-  const ctaHtml = cta
-    ? `<p style="margin: 24px 0 0;"><a href="${escapeHtml(resolveAppUrl(cta.path))}" style="display: inline-block; padding: 10px 18px; background: #0f172a; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600;">${escapeHtml(cta.label)}</a></p>`
-    : "";
-  return `<!DOCTYPE html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Zyx Academy</title></head>
-<body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #0f172a;">
-  <h1 style="font-size: 20px; margin: 0 0 12px;">${escapeHtml(heading)}</h1>
-  ${bodyHtml}
-  ${ctaHtml}
-</body></html>`;
+function wrapEmailLayout(
+  locale: Locale,
+  title: string,
+  greeting: string,
+  bodyHtml: string,
+  cta?: { label: string; path: string },
+): string {
+  return renderEmailLayout({
+    locale,
+    bodyHtml: `<h1 style="${emailStyles.heading}">${escapeHtml(title)}</h1>
+      <p style="${emailStyles.paragraph}">${escapeHtml(greeting)}</p>
+      ${bodyHtml}
+      ${cta ? renderEmailButton(cta.label, resolveAppUrl(cta.path)) : ""}`,
+  });
 }
 
 export function renderPaymentSuccessEmail(input: {
@@ -58,8 +54,9 @@ export function renderPaymentSuccessEmail(input: {
     subject,
     html: wrapEmailLayout(
       input.locale,
+      subject,
       heading,
-      `<p style="font-size: 15px; line-height: 1.6; color: #334155;">${paragraph}</p>`,
+      `<p style="${emailStyles.paragraph}">${paragraph}</p>`,
       { label: ctaLabel, path: input.link ?? "/dashboard" },
     ),
   };
@@ -74,12 +71,6 @@ export function renderScheduleEventEmail(input: {
   link: string;
 }): { subject: string; html: string } {
   const isEn = input.locale === "en";
-  const listItems = input.details
-    .map(
-      (item) =>
-        `<li style="margin: 4px 0;"><strong>${escapeHtml(item.label)}:</strong> ${escapeHtml(item.value)}</li>`,
-    )
-    .join("");
   const greeting = isEn ? `Hello ${input.recipientName},` : `Halo ${input.recipientName},`;
   const ctaLabel = isEn ? "Open schedule" : "Buka jadwal";
 
@@ -87,9 +78,10 @@ export function renderScheduleEventEmail(input: {
     subject: input.title,
     html: wrapEmailLayout(
       input.locale,
+      input.title,
       greeting,
-      `<p style="font-size: 15px; line-height: 1.6; color: #334155;">${escapeHtml(input.summary)}</p>
-       <ul style="margin: 16px 0; padding: 14px 18px; background: #f8fafc; border-radius: 8px; list-style: none; font-size: 14px; color: #0f172a;">${listItems}</ul>`,
+      `<p style="${emailStyles.paragraph}">${escapeHtml(input.summary)}</p>
+       ${renderEmailDetails(input.details)}`,
       { label: ctaLabel, path: input.link },
     ),
   };
@@ -124,9 +116,10 @@ export function renderStudyReengagementEmail(input: {
     subject,
     html: wrapEmailLayout(
       input.locale,
+      subject,
       heading,
-      `<p style="font-size: 15px; line-height: 1.6; color: #334155;">${intro}</p>
-       <p style="font-size: 15px; line-height: 1.6; color: #334155;">${recommendation}</p>`,
+      `<p style="${emailStyles.paragraph}">${intro}</p>
+       <p style="${emailStyles.paragraph}">${recommendation}</p>`,
       { label: ctaLabel, path: input.link },
     ),
   };
