@@ -205,12 +205,12 @@ export async function showForegroundWebNotification(
   isCurrent: () => boolean = () => true,
 ): Promise<void> {
   if (typeof window === "undefined" || !isCurrent() ||
-      !("Notification" in window) || Notification.permission !== "granted" ||
+      typeof window.Notification !== "function" || window.Notification.permission !== "granted" ||
       !("serviceWorker" in navigator)) return;
   try {
     const registration = await navigator.serviceWorker.getRegistration("/firebase-cloud-messaging-push-scope");
     if (!registration || new URL(registration.scope).pathname.replace(/\/$/, "") !== "/firebase-cloud-messaging-push-scope" ||
-        !isCurrent() || Notification.permission !== "granted") return;
+        !isCurrent() || window.Notification.permission !== "granted") return;
     await registration.showNotification(input.title, {
       body: input.body,
       icon: "/brand/zyx-app-192.png",

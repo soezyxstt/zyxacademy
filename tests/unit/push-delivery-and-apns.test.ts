@@ -462,10 +462,11 @@ describe("iOS registration, desktop notification bridge, and honest client readi
     const nativeCalls: Array<{ title: string; body?: string }> = [];
     const foregroundCalls: Array<{ notificationId?: string; title?: string; body?: string; url?: string }> = [];
     let pollCount = 0;
+    const queries: URLSearchParams[] = [];
 
     const fakeFetch = (async (url: unknown) => {
       const query = new URL(String(url), "https://example.test").searchParams;
-      expect(query.has("unreadOnly")).toBe(false);
+      queries.push(query);
       pollCount += 1;
       if (pollCount === 1) {
         return new Response(
@@ -516,6 +517,7 @@ describe("iOS registration, desktop notification bridge, and honest client readi
     stop();
 
     expect(pollCount).toBeGreaterThanOrEqual(2);
+    expect(queries.every(query => !query.has("unreadOnly"))).toBe(true);
     expect(foregroundCalls).toEqual([
       { notificationId: "new-2", title: "New quiz", body: "Calculus quiz is open", url: "/courses/calc" },
     ]);

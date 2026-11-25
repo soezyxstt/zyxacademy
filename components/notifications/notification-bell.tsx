@@ -9,7 +9,7 @@
  *
  * - Clicking a notification marks it read and navigates to its deep link.
  * - "Tandai semua dibaca" clears the unread badge.
- * - Foreground FCM messages refresh the list and surface a toast.
+ * - The notification runtime publishes inbox refresh events.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -121,8 +121,9 @@ interface NotificationBellProps {
 }
 
 export function NotificationBell(props: NotificationBellProps) {
+  const experience = useStudentExperience();
   return <StudentAccountBoundary>{state => <>
-    {props.variant === "navbar" && state.data?.user?.id !== "fictional-demo-student" && <NotificationRuntimeForAccount account={state} />}
+    {props.variant === "navbar" && experience.mode !== "demo" && <NotificationRuntimeForAccount account={state} />}
     <NotificationBellContent key={state.data?.user?.id ?? "anonymous"} {...props} account={state} />
   </>}</StudentAccountBoundary>;
 }

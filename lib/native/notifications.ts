@@ -50,7 +50,6 @@ export interface UnifiedNotificationDeliveryStatus {
 const DESKTOP_TOKEN_STORAGE_KEY = "zyx_desktop_push_token_v1";
 const DESKTOP_POLL_INTERVAL_MS = 15_000;
 const DESKTOP_PAGE_SIZE = 100;
-const DESKTOP_SEEN_IDS_LIMIT = 500;
 let _memoryDesktopToken: string | null = null;
 
 async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
@@ -512,22 +511,22 @@ export function startDesktopNotificationBridge(
   const pollIntervalMs = options?.pollIntervalMs ?? DESKTOP_POLL_INTERVAL_MS;
   const fetchFn = options?.fetchImpl ?? fetch;
   const isCurrent = options?.isCurrent ?? (() => true);
-  const sendNative = options?.sendNative ?? ((title, body) => sendDesktopNativeNotification(title, body, () => !disposed && isCurrent()));
-
   let disposed = false;
+  const sendNative = options?.sendNative ?? ((title: string, body?: string) => sendDesktopNativeNotification(title, body, () => !disposed && isCurrent()));
   let initialized = false;
   let inFlight = false;
   let lastCursorIso: string | null = null;
+  // Since the server query is inclusive, only IDs at the cursor timestamp
+  // need to be retained across polls. This also handles same-timestamp bursts.
   const seenIds = new Set<string>();
 
-  const rememberSeenId = (id: string) => {
-    seenIds.add(id);
-    if (seenIds.size > DESKTOP_SEEN_IDS_LIMIT) {
-      for (const oldest of seenIds) {
-        seenIds.delete(oldest);
-        if (seenIds.size <= DESKTOP_SEEN_IDS_LIMIT) break;
-      }
+  const rememberRow = (row: DesktopInboxRow) => {
+    if (!row.createdAt) return;
+    if (!lastCursorIso || row.createdAt > lastCursorIso) {
+      lastCursorIso = row.createdAt;
+      seenIds.clear();
     }
+    if (row.createdAt === lastCursorIso) seenIds.add(row.id);
   };
 
   let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -580,13 +579,8 @@ export function startDesktopNotificationBridge(
       }
 
       if (!initialized) {
-        // Seed existing unread IDs on startup so we only dispatch OS notifications for new arrivals.
-        for (const row of rows) {
-          rememberSeenId(row.id);
-          if (row.createdAt && (!lastCursorIso || row.createdAt > lastCursorIso)) {
-            lastCursorIso = row.createdAt;
-          }
-        }
+        // Seed existing history on startup without replaying old notifications.
+        for (const row of rows) rememberRow(row);
         if (!lastCursorIso) {
           lastCursorIso = new Date().toISOString();
         }
@@ -596,16 +590,13 @@ export function startDesktopNotificationBridge(
 
       // Process oldest-first so OS notifications appear in chronological order.
       const freshRows = rows
-        .filter((row) => !seenIds.has(row.id))
+        .filter((row) => row.createdAt && (!lastCursorIso || row.createdAt >= lastCursorIso) && !seenIds.has(row.id))
         .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
 
       for (const row of freshRows) {
         if (disposed || !isCurrent()) break;
-        if (seenIds.has(row.id)) continue;
-        rememberSeenId(row.id);
-        if (row.createdAt && (!lastCursorIso || row.createdAt > lastCursorIso)) {
-          lastCursorIso = row.createdAt;
-        }
+        if (!row.createdAt || (lastCursorIso && row.createdAt < lastCursorIso) || seenIds.has(row.id)) continue;
+        rememberRow(row);
         const url = typeof row.metadata?.url === "string" ? row.metadata.url : undefined;
         handlers.onForeground({ notificationId: row.id, title: row.title, body: row.body, url });
         if (row.title && isCurrent()) {
@@ -728,8 +719,8 @@ export async function subscribeNativeNotifications(handlers: {
   const { onForegroundMessage, showForegroundWebNotification } = await import("@/lib/firebase/messaging");
   return onForegroundMessage((payload) => {
     if (!isCurrent()) return;
-    const title = payload.notification?.title;
-    const body = payload.notification?.body;
+    const title = payload.notification?.title ?? payload.data?.title;
+    const body = payload.notification?.body ?? payload.data?.body;
     const url = typeof payload.data?.url === "string" ? payload.data.url : undefined;
     const notificationId = typeof payload.data?.notificationId === "string" ? payload.data.notificationId : undefined;
     handlers.onForeground({ notificationId, title, body, url });

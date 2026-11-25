@@ -28,13 +28,17 @@ test("worker initializes with deployed public config and handles background push
     let initialized: unknown;
     let background: (payload: unknown) => Promise<void>;
     const notifications: unknown[] = [];
+    const calls: string[] = [];
     const context = {
       self: {
         __FIREBASE_CONFIG__: undefined,
-        addEventListener() {},
+        addEventListener(event: string) { calls.push(event); },
         registration: { showNotification: async (...args: unknown[]) => { notifications.push(args); } },
       },
-      importScripts(url: string) { if (url === "/firebase-config.js") runInNewContext(configScript, context); },
+      importScripts(url: string) {
+        calls.push(url);
+        if (url === "/firebase-config.js") runInNewContext(configScript, context);
+      },
       firebase: {
         initializeApp(config: unknown) { initialized = config; },
         messaging: () => ({ onBackgroundMessage(handler: typeof background) { background = handler; } }),
@@ -42,8 +46,11 @@ test("worker initializes with deployed public config and handles background push
     };
     runInNewContext(readFileSync(new URL("../public/firebase-messaging-sw.js", import.meta.url), "utf8"), context);
     expect(initialized).toMatchObject({ projectId: project, appId: "web-app-id" });
-    await background!({ notification: { title: "Staging push", body: "Delivery check" }, data: { url: "/calendar" } });
-    expect(notifications).toMatchObject([["Staging push", { body: "Delivery check", data: { zyx: true, url: "/calendar" } }]]);
+    expect(calls[0]).toBe("notificationclick");
+    await background!({ notification: { title: "FCM auto display", body: "Delivery check" }, data: { url: "/calendar" } });
+    expect(notifications).toHaveLength(0);
+    await background!({ data: { title: "Staging push", body: "Delivery check", url: "/calendar", notificationId: "notification-1" } });
+    expect(notifications).toMatchObject([["Staging push", { body: "Delivery check", tag: "zyx:notification-1", data: { zyx: true, url: "/calendar" } }]]);
   }
 });
 
