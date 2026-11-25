@@ -32,7 +32,9 @@ Lanjutkan dengan import ID dan checksum penerus dari setiap patch. Untuk V4 yang
 
 Periksa dampak pada review, provenance, dependensi, Diktat dan PDF. Pertahankan hanya keputusan yang masih dinyatakan berlaku oleh server. Review isi yang berubah secara independen dan lengkapi gate yang diminta. Susun rilis dari revisi Idea/Product yang perlu berubah bersama. Publikasi memerlukan keputusan eksplisit, `authoring:publish`, checksum setiap entry dan hash plan terbaru. Pemulihan tidak pernah mempublikasikan otomatis. Tidak perlu membuka web Admin.
 
-Gunakan instruksi pembuatan Source Pack serta ZIP di bawah untuk authoring awal. Jika server belum mengiklankan tool revisi, laporkan kapabilitas yang belum tersedia; jangan mengklaim jalur baru sudah terpasang.
+Saat menulis, gunakan `responseMode: "compact"` dan `target` sesuai kontrak runtime untuk membaca unit yang perlu diubah. Respons ringkas belum menilai review atau kesiapan publikasi. Ambil konteks penuh saat meninjau isi dan menyiapkan rilis. Bedakan kegagalan isi, konflik revisi, izin dan runtime dari `category`, `diagnostics` serta `nextAction`; jangan mengubah isi untuk mengatasi error browser atau menebak checksum baru.
+
+Untuk Artikel/Diktat baru, prioritaskan `authoring.create_product_draft` bila kontrak mengiklankannya. Kirim isi bertipe, ID Idea dan ID sumber/kutipan; server mengisi metadata, hash dan ZIP. Ikuti batas `productBundle.initialDraft`, gunakan kunci dan payload yang sama saat memulihkan respons hilang, lalu pakai tool revisi untuk perubahan berikutnya. Produk/aset yang belum didukung tetap memakai jalur ZIP. Jika server belum menyediakan tool baru, ikuti kontrak yang tersedia dan laporkan batasnya.
 
 ## Langkah bootstrap wajib (fail-closed)
 
@@ -54,7 +56,7 @@ Gunakan instruksi pembuatan Source Pack serta ZIP di bawah untuk authoring awal.
 2. Jika `workflow.get_playbook` gagal atau mengembalikan `compatibility.status: "incompatible"`, **hentikan authoring segera** dan sampaikan `remediation` kepada operator. Jangan menulis Product Bundle menggunakan panduan lokal lama.
 3. Baca keenam modul wajib yang dikembalikan server (`common/execution`, `product/workflow`, `product/editorial`, `product/quality-rubric`, `product/flashcards`, `product/derivation-audit`).
 4. Mulai atau lanjutkan run `idea_product` dengan `workflow.start` (sertakan `bootstrapToken`), lalu ambil kontrak aktif melalui `workflow.get_contract`.
-5. Sertakan `runToken` dan `bootstrapToken` pada `authoring.validate_product_bundle`, `authoring.submit_product_bundle`, `authoring.restage_product_bundle`, dan `authoring.review_product_bundle`. Bila terjadi drift revisi di tengah run, ambil ulang playbook dan contract terbaru, pastikan review mencakup aturan baru, dan validasi ulang sebelum staging.
+5. Sertakan `runToken` dan `bootstrapToken` pada `authoring.create_product_draft`, `authoring.validate_product_bundle`, `authoring.submit_product_bundle`, `authoring.restage_product_bundle`, dan `authoring.review_product_bundle`. Bila terjadi drift revisi di tengah run, ambil ulang playbook dan contract terbaru, pastikan review mencakup aturan baru, dan validasi ulang sebelum staging.
 
 ## Pemilihan versi dan verifikasi representasi
 

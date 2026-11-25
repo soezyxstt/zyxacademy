@@ -18,10 +18,11 @@ import { questionBankDraftSchema } from "@/lib/authoring/question-bank-draft";
 import { referenceQuestionDraftSchema } from "@/lib/authoring/reference-question-draft";
 import { pedagogicReviewDecisionSchema, QUALITY_POLICY_VERSION } from "@/lib/materials/quality-policy";
 import { pdfArtifactEvidenceSchema } from "@/lib/materials/pdf-artifact-contract";
+import { productDraftInputSchema } from "./product-draft-builder";
 
 export const PRODUCT_V4_SCHEMA_NAMES = [
   "productBundleManifest", "product", "dependency", "articleParts", "diktatUnits",
-  "visual", "pedagogicReview", "v4ReviewContext", "pdfEvidence",
+  "visual", "pedagogicReview", "v4ReviewContext", "pdfEvidence", "productDraftInput",
 ] as const;
 
 export function productV4SchemaDocuments() {
@@ -60,6 +61,7 @@ export function authoringValidationSnapshot() {
     sourceChunk: sourceChunkSchema,
     productBundleManifest: productBundleManifestSchema,
     product: productEntitySchema,
+    productDraftInput: productDraftInputSchema,
     dependency: productDependencySchema,
     article: articleDocumentSchema,
     quizDraft: questionBankDraftSchema,

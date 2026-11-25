@@ -17,6 +17,8 @@ Untuk konten yang sudah ada, gunakan revisi sebelum mempertimbangkan upload ZIP 
 
 Baca `authoring.get_edit_context` dengan import ID dan checksum yang terakhir diamati. `authoring.create_revision` membuat draft dari versi live atau draft yang bisa diedit; versi live tetap tersedia. Ubah bagian, blok, langkah Pembahasan, Idea, relasi atau provenance melalui `authoring.patch_revision` dengan ID stabil. Jangan memakai posisi array atau mengubah identitas, hash dan scope yang dikelola server. Setiap patch bermakna mengembalikan import ID dan revision penerus; gunakan identitas yang dikembalikan untuk langkah berikutnya.
 
+Bila kontrak menyediakan `responseMode: "compact"`, pakai mode itu selama menulis dan gunakan `target` untuk membaca satu unit. Ambil konteks penuh sebelum review atau rilis; respons ringkas belum menilai kesiapan tersebut. Ikuti `category`, `diagnostics` dan `nextAction` saat gagal. Error runtime tidak meminta penulisan ulang isi, dan konflik tidak mengizinkan penggantian checksum otomatis.
+
 Untuk memperbarui satu produk dalam bundle, baca ID stabil produk dari konteks lalu kirim `entityIds: [productId]` ke `authoring.create_revision`. Targetkan hanya ID itu pada `authoring.patch_revision`. Periksa dampak dependensi, versi dan bukti PDF sebelum review dan rilis. Publikasi menggunakan checksum bundle penerus.
 
 `authoring.plan_release` membaca entry Idea/Product yang tepat, unit berubah, review yang masih berlaku, dependensi dan blocker. Gunakan review ulang untuk isi, alasan, provenance atau struktur yang berubah. `authoring.review_revision` dapat memakai `reuseUnchanged: true` hanya dengan `reuseToken` server yang masih berlaku dan keputusan eksplisit reviewer. Reuse bukan izin menyetujui konten yang belum diperiksa.

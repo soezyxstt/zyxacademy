@@ -13,7 +13,10 @@ test("MCP links complete validator schemas with exact-byte integrity", async () 
   expect(contract.schemaVersion).toBe("product-bundle.v4");
   expect(contract.articleSchemaVersion).toBe("article.v4");
   expect(contract.diktatSchemaVersion).toBe("diktat.v4");
-  expect(contract.schemaDocuments).toHaveLength(9);
+  expect(contract.schemaDocuments).toHaveLength(10);
+  expect(contract.initialDraft.tool).toBe("authoring.create_product_draft");
+  expect(contract.initialDraft.scope).toBe("authoring:stage");
+  expect(contract.revisions.responseModes.default).toBe("full");
   expect(contract.typedVisuals.supportedKinds).toEqual(Object.keys(contract.capabilities));
   expect(contract.pilot.schemaDocuments).toEqual(contract.schemaDocuments);
   expect(contract.pilot.semanticRules).toEqual(contract.semanticRules);
@@ -45,7 +48,7 @@ test("MCP links complete validator schemas with exact-byte integrity", async () 
 
 test("schema retrieval rejects unknown names and stale pins without returning other data", async () => {
   const index = await GET(new Request("https://contract.test/api/authoring/contracts/product-v4"));
-  expect((await index.json()).documents).toHaveLength(9);
+  expect((await index.json()).documents).toHaveLength(10);
   const unknown = await GET(new Request("https://contract.test/api/authoring/contracts/product-v4?schema=../../.env.prod"));
   expect(unknown.status).toBe(404);
   expect(await unknown.json()).toEqual({ error: "SCHEMA_NOT_FOUND" });

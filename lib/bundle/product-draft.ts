@@ -213,7 +213,14 @@ export function finalizeProductBundleDraft(original: ValidProductBundle, draft: 
   const entries = Object.fromEntries([...files.entries()].sort(([left], [right]) => left.localeCompare(right)));
   const bytes = zipSync(entries, { level: 6 });
   const validation = parseProductBundle(files);
-  if (!validation.success) throw new Error(`${validation.issues[0]?.code ?? "PRODUCT_DRAFT_INVALID"}:${validation.issues[0]?.message ?? "Draft tidak valid"}`);
+  if (!validation.success) {
+    // Keep the legacy first code for callers while exposing all independent
+    // findings to authoring diagnostics in one response.
+    throw Object.assign(new Error(`${validation.issues[0]?.code ?? "PRODUCT_DRAFT_INVALID"}:${validation.issues[0]?.message ?? "Draft tidak valid"}`), {
+      code: "PRODUCT_DRAFT_INVALID",
+      issues: validation.issues,
+    });
+  }
   return { bytes, bundle: validation.data };
 }
 

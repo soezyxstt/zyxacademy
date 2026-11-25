@@ -36,6 +36,10 @@ Existing review evidence can be reused only when the reviewed unit, applicable p
 
 ## MCP lifecycle
 
+The [draft agent workflow update](authoring-agent-workflow.md) adds optional `responseMode: "compact"` for context, create, patch and restore, plus exact `target` selectors on context reads. Compact/target replies retain identity, bounded impact and current execution tokens while marking review/readiness as not evaluated. They skip those review queries but still admit the stored artifact and check its exact scope. Full stays the default. Use full context and the release planner before approval; never infer readiness from a compact edit response.
+
+An injected-transport client carries successor identity after successful calls and refuses overlapping edits. It does not replace stale checksums or retry writes. Additive diagnostics distinguish content, conflict, permission and runtime failures while preserving existing error codes and OAuth challenges.
+
 The common tools are `authoring.get_edit_context`, `authoring.create_revision`, `authoring.patch_revision`, `authoring.prepare_revision_verification`, `authoring.plan_release`, `authoring.review_revision`, `authoring.publish_release`, `authoring.list_revisions` and `authoring.restore_revision`. Runtime discovery supplies their schemas, requirements and bounded inputs.
 
 Every meaningful content patch creates an immutable successor draft with a new import ID and checksum. An unchanged patch retains the current draft. The previous unpublished draft becomes superseded; its artifact and reviews remain historical records. Continue with the returned identity. A repeated identical patch against its superseded predecessor resolves to the existing successor instead of creating duplicate work.

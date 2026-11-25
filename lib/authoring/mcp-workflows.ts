@@ -1057,7 +1057,7 @@ export async function startAuthoringWorkflow(input: {
       contractChecksum: bootstrapCheck.bootstrap?.contractChecksum ?? computeAuthoringContractDigest().contractChecksum,
     },
     next: workflow.key === "idea_product"
-      ? ["authoring.validate_idea_bundle", "authoring.submit_idea_bundle", "authoring.validate_product_bundle", "authoring.submit_product_bundle"]
+      ? ["authoring.validate_idea_bundle", "authoring.submit_idea_bundle", "authoring.create_product_draft", "authoring.validate_product_bundle", "authoring.submit_product_bundle"]
       : [
         "assessment.list_ideas",
         "assessment.get_idea",
@@ -1284,6 +1284,13 @@ export function flexibleRevisionContract(kind?: "idea" | "product") {
     publication: "An explicit authorized admin release rechecks the observed plan, revisions, dependencies, own review, trusted V4 verification and V5 item decisions in one transaction. Any blocker preserves the previous live content.",
     restore: "Read history and the current live context, then supply historicalImportId/expectedRevision and currentImportId/currentRevision. Restoration creates a new reviewable draft, never rewrites history or implicitly publishes.",
     immutableDrafts: "Each accepted patch returns a successor importId and revision. Continue with that returned identity; earlier draft snapshots and their review audit remain immutable.",
+    responseModes: {
+      default: "full", supported: ["full", "compact"],
+      tools: ["authoring.get_edit_context", "authoring.create_revision", "authoring.patch_revision", "authoring.restore_revision"],
+      compact: "Returns identity, execution token and bounded impact without the bundle. Review and publication readiness are explicitly not evaluated. Request full context and plan_release at the review/release boundary.",
+      target: "get_edit_context accepts target={entityType,entityId,sectionId?,blockId?,itemId?} to read exactly one stable unit. Parent IDs must match. A targeted read also defers full review/readiness, regardless of responseMode.",
+    },
+    failureDiagnostics: "Additive category, retryable, nextAction and bounded diagnostics distinguish content, conflict, runtime and permission failures. Existing error codes and OAuth challenges remain. A retryable runtime failure requires checking operation status before retrying the same identity; never replace the revision or rewrite content automatically.",
     recovery: "Read returned current revision, blockers and nextActions after conflicts. Resume durable drafts with a fresh session-bound bootstrap, without run adoption or a replacement Source Pack.",
     websiteRequired: false,
   };
@@ -1373,6 +1380,7 @@ export function productBundleV3Contract() {
     },
     assessmentWorkflowBoundary: "Questions and their historical references belong to reference_question_ingest or quiz_bank, never a new Product Bundle submission.",
     toolSequence: [
+      "authoring.create_product_draft",
       "authoring.validate_product_bundle",
       "authoring.submit_product_bundle",
       "authoring.restage_product_bundle",
@@ -1383,6 +1391,15 @@ export function productBundleV3Contract() {
       "authoring.publish_product_bundle",
     ],
     validationTool: "authoring.validate_product_bundle",
+    initialDraft: {
+      tool: "authoring.create_product_draft", scope: "authoring:stage",
+      requiredInputs: ["runToken", "bootstrapToken", "draftKey", "draft"],
+      schemaDocument: "productDraftInput", products: ["article.v4", "diktat.v4"],
+      limits: { products: 16, requestBytes: 524288, ideas: 256, sources: 256, excerpts: 2048 },
+      content: "Author titles, ordered parts/units, published Idea IDs and active source/excerpt IDs. The server owns creator, course/chapter, versions, hashes, generated IDs, Markdown projections, dependencies and ZIP bytes. Canonical semantic validation and staging policy still run.",
+      retry: "Keep the same draftKey, run token and unchanged input for a lost-response retry. After staging, edit the exact returned revision with the revision tools. Reusing a key with changed content or refreshed run metadata cannot overwrite a draft; inspect its current context.",
+      boundary: "Initial Article/Diktat only. A derived Diktat can refer to an Article in the same request. Flashcards, V5, interactive-document binary assets and external Article lineage retain the archive workflow. This tool stages only; trusted verification, independent review and explicit publication remain required.",
+    },
     legacyV2ValidationRecovery: { optionalInputs: ["replaceImportId", "expectedRevision"], boundary: "Pass the exact existing V2 learning-only draft and caller-observed checksum with its verified run/bootstrap when validating a restage under the structured-reader flag. New V2 submissions remain blocked." },
     submitTool: "authoring.submit_product_bundle",
     restageTool: "authoring.restage_product_bundle",

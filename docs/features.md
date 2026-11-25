@@ -247,6 +247,8 @@ The web Diktat/Markdown reader shares the editorial typography and surfaces, num
 
 ### Flexible existing-content revisions
 
+`OPEN / IN PROGRESS`: the [agent workflow draft](bundle/authoring-agent-workflow.md) adds typed initial Article/Diktat creation, compact edit responses, exact unit reads and actionable failures. Verification checks structure/model issues before browser work, captures PDF/page images once and reuses only authenticated successful batches from the unchanged plan. Full review and publication gates remain. Hosted acceptance, a standalone offline preview and cost benchmarks are still open.
+
 The [revision contract](bundle/authoring-revisions.md) describes MCP editing for Idea V3 and learning Product V3/V4/V5. Agents fork a stored artifact into a separate draft, edit entities and reading units by stable ID, inspect affected reviews and dependencies, and explicitly publish a reference-based release. A release can replace related Idea and Product revisions atomically while keeping the old content live until it succeeds. History and restoration use immutable artifacts; restoration creates a new draft. Existing-content edits use stored source context and a fresh bound bootstrap, without a replacement Source Pack or expired original run. Unchanged review evidence requires server-proven applicability and explicit reviewer consent. Profile-specific correctness, release, source, PDF and trusted-verification gates remain in place. No Admin website visit is mandatory. Implemented with focused local verification; remote migrations, deployment and live-service acceptance remain pending.
 
 ### Idea Bundle Workflow
