@@ -1,8 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useId, useRef, useState } from "react";
-import { Bell, BookOpen, CalendarDays, Newspaper, ShieldCheck, BookmarkCheck } from "lucide-react";
-import { updateNotificationPreferencesAction, type NotificationPreferencesActionState } from "./actions";
+import { Bell, BookOpen, CalendarDays, Newspaper, ShieldCheck, BookmarkCheck, MessagesSquare, Layers } from "lucide-react";
+import { updateNotificationPreferencesAction, updateActivityNotificationPreferenceAction, type NotificationPreferencesActionState } from "./actions";
+import { DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES, type ActivityNotificationPreferences, type ActivityNotificationPreferenceKey } from "@/lib/notifications/types";
 import type { EmailNotificationPreferences } from "@/lib/email-preferences/contracts";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -48,15 +49,39 @@ const CATEGORY_ROWS = [
 export function NotificationPreferencesForm({
   accountEmail,
   initialPreferences,
+  initialActivityPreferences = DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES,
 }: {
   accountEmail: string;
   initialPreferences: EmailNotificationPreferences;
+  initialActivityPreferences?: ActivityNotificationPreferences;
 }) {
   const t = useTranslations("student");
   const experience = useStudentExperience();
   const baseId = useId();
   const shownSubmission = useRef(0);
   const [preferences, setPreferences] = useState(initialPreferences);
+  const [activity, setActivity] = useState(initialActivityPreferences);
+  const [activityPending, setActivityPending] = useState(false);
+  const activityLock = useRef(false);
+  useEffect(() => { setActivity(initialActivityPreferences); }, [initialActivityPreferences]);
+  const toggleActivity = async (key: ActivityNotificationPreferenceKey, enabled: boolean) => {
+    if (activityLock.current) return;
+    activityLock.current = true;
+    setActivityPending(true);
+    const previous = activity[key];
+    setActivity(current => ({ ...current, [key]: enabled }));
+    try {
+      const result = experience?.mode === "demo" ? { success: true } : await updateActivityNotificationPreferenceAction(key, enabled);
+      if (!result.success) throw new Error("SAVE_FAILED");
+      toast.success(t("notificationPreferences.saved"));
+    } catch {
+      setActivity(current => ({ ...current, [key]: previous }));
+      toast.error(t("notificationPreferences.saveFailed"));
+    } finally {
+      activityLock.current = false;
+      setActivityPending(false);
+    }
+  };
   const [state, formAction, pending] = useActionState(async (previous: NotificationPreferencesActionState, form: FormData) => {
     if (experience?.mode === "demo") return { success: true, message: "", submittedAt: Date.now() };
     return updateNotificationPreferencesAction(previous, form);
@@ -73,6 +98,29 @@ export function NotificationPreferencesForm({
 
   return (
     <div className="w-full space-y-6">
+      <section aria-labelledby={`${baseId}-activity-heading`}>
+        <header className="space-y-1 border-b border-border/40 pb-3">
+          <h2 id={`${baseId}-activity-heading`} className="font-heading text-body-base font-bold text-foreground">{t("notificationPreferences.activitySectionTitle")}</h2>
+          <p className="text-body-xs text-muted-foreground">{t("notificationPreferences.activitySectionDescription")}</p>
+        </header>
+        <div className="divide-y divide-border/25">
+          {([
+            { key: "discussionsEnabled", label: "activityDiscussions", description: "activityDiscussionsDescription", Icon: MessagesSquare },
+            { key: "flashcardsEnabled", label: "activityFlashcards", description: "activityFlashcardsDescription", Icon: Layers },
+          ] as const).map(({ key, label, description, Icon }) => (
+            <div key={key} className="flex items-center justify-between gap-4 rounded-lg px-3 py-(--row-padding) transition-colors hover:bg-muted/30">
+              <label htmlFor={`${baseId}-${key}`} className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+                <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="min-w-0">
+                  <span className="block text-body-sm font-medium text-foreground">{t(`notificationPreferences.${label}`)}</span>
+                  <span className="mt-0.5 block text-body-xs text-muted-foreground">{t(`notificationPreferences.${description}`)}</span>
+                </span>
+              </label>
+              <Switch id={`${baseId}-${key}`} checked={activity[key]} disabled={activityPending} onCheckedChange={checked => void toggleActivity(key, checked)} aria-label={t(`notificationPreferences.${label}`)} />
+            </div>
+          ))}
+        </div>
+      </section>
       <DeviceNotificationSettings />
       <form action={formAction} className="w-full space-y-6">
       {Object.entries(preferences).map(([key, value]) => (

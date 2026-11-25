@@ -12,7 +12,7 @@ test.beforeAll(async () => {
   fonts = fixtureFontStyles();
 });
 
-async function openPreferences(page: Page, theme: "light" | "dark", locale = "id", tab?: string) {
+async function openPreferences(page: Page, theme: "light" | "dark", locale = "id", tab?: string, prompt?: string) {
   const failures: string[] = [];
   page.on("pageerror", error => failures.push(error.message));
   page.on("console", message => { if (message.type() === "error") failures.push(message.text()); });
@@ -32,10 +32,10 @@ async function openPreferences(page: Page, theme: "light" | "dark", locale = "id
     failures.push(`Unexpected ${route.request().method()} ${url.href}`);
     return route.abort();
   });
-  const url = `${origin}/settings?locale=${locale}${tab ? `&tab=${tab}` : ""}`;
+  const url = `${origin}/settings?locale=${locale}${tab ? `&tab=${tab}` : ""}${prompt ? `&permissionPrompt=${prompt}` : ""}`;
   expect((await page.goto(url))?.status()).toBe(200);
   expect(page.url()).toBe(url);
-  await expect(page.getByRole("main").getByRole("tablist")).toBeVisible();
+  if (!prompt) await expect(page.getByRole("main").getByRole("tablist")).toBeVisible();
   return failures;
 }
 
@@ -129,4 +129,31 @@ test("settings source fixture keeps English deep links and applies language chan
   await expect(page).toHaveURL(/tab=profile/);
   await expect(main.getByRole("link", { name: "Edit profil", exact: true })).toHaveAttribute("href", "/profile/edit");
   expect(failures).toEqual([]);
+});
+
+test("notification activity preferences and permission dialog review", async ({ page }, info) => {
+  const failures = await openPreferences(page, "light", "id", "notifications");
+  const main = page.getByRole("main");
+  const discussions = main.getByRole("switch", { name: "Diskusi", exact: true });
+  const flashcards = main.getByRole("switch", { name: "Pengingat flashcard", exact: true });
+  await expect(discussions).toBeChecked();
+  await expect(flashcards).toBeChecked();
+  await capture(page, info, "notification-preferences", failures, true);
+  await discussions.click();
+  await expect(discussions).not.toBeChecked();
+  await expect(flashcards).toBeChecked();
+  await discussions.click();
+  await expect(discussions).toBeChecked();
+  await page.goto(`${origin}/settings?locale=id&tab=notifications&permissionPrompt=default`);
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", {name: "Aktifkan notifikasi"})).toBeVisible();
+  await expect(dialog.getByRole("button", {name: "Ingatkan saya nanti"})).toBeVisible();
+  await expect(dialog.getByRole("button", {name: "Jangan tampilkan lagi"})).toBeVisible();
+  await capture(page, info, "notification-permission-dialog", failures, false);
+  await dialog.getByRole("button", {name: "Ingatkan saya nanti"}).click();
+  await expect(dialog).not.toBeVisible();
+  await page.goto(`${origin}/settings?locale=en&tab=notifications&permissionPrompt=blocked`);
+  await expect(dialog.getByRole("button", {name: "Open preferences"})).toBeVisible();
+  await expect(dialog.getByRole("button", {name: "Don't show again"})).toBeVisible();
+  await capture(page, info, "notification-permission-blocked-en", failures, false);
 });
