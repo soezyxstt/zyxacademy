@@ -24,7 +24,7 @@ export function installFixtureApi() {
     seedState: (state, role = fixture.role) => localStorage.setItem(key(role), JSON.stringify(state)),
     failNextSave: false,
   };
-  window.fetch = async (input, init) => {
+  const fixtureFetch = async (input: Parameters<typeof window.fetch>[0], init?: Parameters<typeof window.fetch>[1]) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url, window.location.origin);
     if (url.pathname === "/api/onboarding/tour") {
       const role: TourRole = url.searchParams.get("role") === "tutor" ? "tutor" : fixture.role;
@@ -51,4 +51,5 @@ export function installFixtureApi() {
     if (url.pathname.startsWith("/api/")) return Response.json({ items: [], data: [], success: true });
     return originalFetch(input, init);
   };
+  window.fetch = Object.assign(fixtureFetch, window.fetch);
 }

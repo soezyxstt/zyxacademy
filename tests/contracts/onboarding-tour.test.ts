@@ -48,7 +48,7 @@ describe("tour state", () => {
   });
 
   test("validates versions, roles, step bounds and course metadata without trusting client user IDs", () => {
-    const base = { role: "student", version: 1, generation: 0, action: "start" };
+    const base = { role: "student", version: 1, generation: 0, action: "start" } as const;
     expect(parseTourMutation(base)).toEqual({ ...base, courseId: null });
     expect(parseTourMutation({ ...base, role: "tutor", courseId: "course/a" })).toMatchObject({ courseId: "course/a" });
     for (const invalid of [
@@ -71,7 +71,7 @@ describe("tour state", () => {
   });
 });
 
-function fixture(options: { id?: string | null; roles?: string[]; legacyRole?: string; fail?: boolean; current?: TourState | null; selectedCourse?: string | null; selectionFails?: boolean } = {}) {
+function fixture(options: { id?: string | null; roles?: readonly string[]; legacyRole?: string; fail?: boolean; current?: TourState | null; selectedCourse?: string | null; selectionFails?: boolean } = {}) {
   const reads: unknown[][] = [];
   const writes: unknown[][] = [];
   const selections: unknown[][] = [];
@@ -118,7 +118,7 @@ describe("tour API account boundary", () => {
       [{ id: null }, 401], [{ roles: [] }, 403], [{ roles: ["tutor"] }, 403],
       [{ roles: ["murid", "admin"] }, 403], [{ roles: ["murid"], legacyRole: "admin" }, 403],
     ] as const) {
-      const { api, reads, writes } = fixture({ ...options, ...("roles" in options ? { roles: [...options.roles] } : {}) });
+      const { api, reads, writes } = fixture(options);
       expect((await api.GET(request())).status).toBe(status);
       expect((await api.PUT(request(body))).status).toBe(status);
       expect(reads).toHaveLength(0);
