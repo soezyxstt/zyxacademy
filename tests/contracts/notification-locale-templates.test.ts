@@ -30,12 +30,12 @@ describe("recipient-localized notification templates", () => {
     const payload = quizPublishedPayload("$& {courseTitle}", "Kalkulus I", "/courses/c1/quiz/q1");
 
     const english = renderNotificationPayload(payload, "en");
-    expect(english.title).toBe("New quiz: expect(english.title).toBe("📝 New quiz available"); {courseTitle}");
+    expect(english.title).toBe("New quiz: $& {courseTitle}");
     expect(english.body).toContain("Kalkulus I");
     expect(english.metadata?.locale).toBe("en");
 
     const indonesian = renderNotificationPayload(payload, "id");
-    expect(indonesian.title).toBe("Kuis baru: expect(indonesian.title).toBe("📝 Kuis Baru Tersedia"); {courseTitle}");
+    expect(indonesian.title).toBe("Kuis baru: $& {courseTitle}");
     expect(indonesian.body).toContain("Kalkulus I");
     expect(indonesian.metadata?.locale).toBe("id");
   });

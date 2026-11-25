@@ -1808,7 +1808,7 @@ export async function sendTicketMessage(ticketId: string, message: string) {
 
     const booking = await db.query.bookings.findFirst({
       where: eq(bookings.id, ticket.bookingId),
-      columns: { groupId: true },
+      columns: { groupId: true, courseId: true },
       with: { slot: { columns: { tutorId: true } } },
     });
 

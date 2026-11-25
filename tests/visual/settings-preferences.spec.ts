@@ -139,6 +139,7 @@ test("notification activity preferences and permission dialog review", async ({ 
   await expect(discussions).toBeChecked();
   await expect(flashcards).toBeChecked();
   await capture(page, info, "notification-preferences", failures, true);
+  await capture(page, info, "notification-preferences-viewport", failures, false);
   await discussions.click();
   await expect(discussions).not.toBeChecked();
   await expect(flashcards).toBeChecked();

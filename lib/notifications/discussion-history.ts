@@ -23,7 +23,7 @@ export async function notificationVisibility(userId: string, viewerId: string, o
   eq(discussionChannels.id, sql<string>`${notifications.metadata}->>'channelId'`), owner.predicate, viewer?.predicate,
  )));
  // Suppress historic unsolicited staff notifications as well as new fanout.
- const participantActivity = sql`coalesce(${notifications.metadata}->>'staffOnly', 'false') <> 'true' or ${notifications.metadata}->>'eventKind' = 'report'`;
+ const participantActivity = sql`(coalesce(${notifications.metadata}->>'staffOnly', 'false') <> 'true' or ${notifications.metadata}->>'eventKind' = 'report')`;
  const visibleReport = owner.admin && (!viewer || viewer.admin)
   ? undefined : sql`coalesce(${notifications.metadata}->>'eventKind', '') <> 'report'`;
  return or(ne(notifications.type, "discussion"), and(visibleChannel, visibleReport, participantActivity))!;
