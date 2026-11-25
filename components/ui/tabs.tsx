@@ -1,5 +1,7 @@
 "use client";
 
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
+
 import * as React from "react";
 import { Tabs as TabsPrimitive } from "radix-ui";
 import Link from "next/link";
@@ -179,6 +181,7 @@ type ExtractedTabMeta = {
   label: React.ReactNode;
   disabled?: boolean;
   href?: string;
+  tourTarget?: string;
 };
 
 function extractTextSignature(node: React.ReactNode): string {
@@ -199,6 +202,7 @@ function extractTabMeta(node: React.ReactNode): ExtractedTabMeta | null {
     children?: React.ReactNode;
     disabled?: boolean;
     "aria-label"?: string;
+    "data-tour"?: string;
     asChild?: boolean;
   };
 
@@ -216,6 +220,7 @@ function extractTabMeta(node: React.ReactNode): ExtractedTabMeta | null {
       value: props.value,
       label: label ?? props["aria-label"] ?? props.value,
       disabled: props.disabled,
+      tourTarget: props["data-tour"],
       href,
     };
   }
@@ -433,6 +438,12 @@ function TabsList({
   const { activeValue, selectTab, rootRef } = React.useContext(TabsContext);
   const moreLabel = useMoreLabel(moreLabelProp);
   const [moreOpen, setMoreOpen] = React.useState(false);
+  const tour = useOnboardingTour();
+  React.useEffect(() => {
+    const closeForTourNavigation = () => setMoreOpen(false);
+    document.addEventListener("zyx:tour-navigate", closeForTourNavigation);
+    return () => document.removeEventListener("zyx:tour-navigate", closeForTourNavigation);
+  }, []);
 
   const barRef = React.useRef<HTMLDivElement>(null);
   const itemRefs = React.useRef<Array<HTMLElement | null>>([]);
@@ -575,7 +586,7 @@ function TabsList({
           {hasOverflow && (
             <div ref={moreRef} className="flex shrink-0 items-center">
               <span aria-hidden className="my-2.5 h-4 w-px shrink-0 bg-border/70" />
-              <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
+              <DropdownMenu modal={!tour.active} open={moreOpen} onOpenChange={setMoreOpen}>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
@@ -597,6 +608,7 @@ function TabsList({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
+                  onInteractOutside={event => { if (tour.active) event.preventDefault(); }}
                   align="end"
                   sideOffset={6}
                   className="w-56 rounded-xl border border-border bg-popover p-1.5 shadow-lg"
@@ -628,6 +640,7 @@ function TabsList({
                       <DropdownMenuItem
                         key={meta.value}
                         disabled={meta.disabled}
+                        data-tour={meta.tourTarget}
                         aria-current={isActive ? "true" : undefined}
                         onSelect={() => {
                           selectTab?.(meta.value);
@@ -721,6 +734,12 @@ function TabNav({
   const t = useTranslations("ui");
   const moreLabel = moreLabelProp ?? t("moreTabs");
   const [moreOpen, setMoreOpen] = React.useState(false);
+  const tour = useOnboardingTour();
+  React.useEffect(() => {
+    const closeForTourNavigation = () => setMoreOpen(false);
+    document.addEventListener("zyx:tour-navigate", closeForTourNavigation);
+    return () => document.removeEventListener("zyx:tour-navigate", closeForTourNavigation);
+  }, []);
 
   const navRef = React.useRef<HTMLDivElement>(null);
   const itemRefs = React.useRef<Array<HTMLElement | null>>([]);
@@ -851,7 +870,7 @@ function TabNav({
           {hasOverflow && (
             <div ref={moreRef} className="flex shrink-0 items-center">
               <span aria-hidden className="my-2.5 h-4 w-px shrink-0 bg-border/70" />
-              <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
+              <DropdownMenu modal={!tour.active} open={moreOpen} onOpenChange={setMoreOpen}>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
@@ -873,6 +892,7 @@ function TabNav({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
+                  onInteractOutside={event => { if (tour.active) event.preventDefault(); }}
                   align="end"
                   sideOffset={6}
                   className="w-56 rounded-xl border border-border bg-popover p-1.5 shadow-lg"

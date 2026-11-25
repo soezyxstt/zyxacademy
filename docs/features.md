@@ -883,3 +883,22 @@ Rewards and the Pet studio share 15 purchasable mascot suits, priced from 400 to
 Student names on supported social, group and leaderboard rows share framed avatars and subtle ranks. Owner profiles and authorized profile dialogs display the equipped Zyra mascot; repeated identity rows remain lightweight. Member-visible, unblocked profiles open a profile dialog with badges, follow controls and counts. Zyx AI search also returns eligible public student identities through deterministic name lookup. Base XP in the public dialog requires participation leaderboard consent. See the [gamification contract](gamification.md#student-achievements-and-social-presentation) for visibility, filtering and verification limits.
 
 Zyra chat reports the material lookup, provider dispatch, receipt of visible response data and final answer checks over its existing event stream. Structured answers are rendered after validation and sanitization.
+
+
+## First-use student and tutor tours
+
+Status: ACTIVE source contract. Deployment and authenticated staging acceptance remain separate.
+
+Students and tutors receive a one-time invitation on their dashboard to start or skip a nine-step tour. Existing accounts also receive the invitation until they make a choice. A guided step highlights the actual control with a dimmed page, and advances only after its click or keyboard activation. A mobile overflow menu is a preparatory phase within the same numbered step. The guide respects reduced motion, blocks unrelated actions, supports keyboard focus and Escape, and always permits local exit, including when a save fails. A failed save remains visible as a nonblocking notice rather than claiming durable success.
+
+Student accounts with an enrolled non-PKA course see Documents, Quizzes, Flashcards, opening and closing Zyra, Schedule, Discussions, Account and Preferences. Accounts without such a course see Courses, Schedule, the following week, Discussions, opening and closing Search, Account, Preferences and Language. The tour never submits a question, quiz answer, purchase or enrollment, nor does it change the user's language.
+
+Tutors assigned to an eligible non-PKA course see their course, Documents, Quizzes, Quiz grading, Schedule, Tickets, Discussions, Account and Preferences. Tutors without such an assignment see Schedule, opening and cancelling an availability form, Sessions, Tickets, Discussions, Documentation, Account and Preferences. Opening the slot form does not save availability.
+
+The server selects an eligible course at start or restart from the account's current enrollments or assignments. It checks route identity and access, excludes PKA, and skips stale or ambiguous entries; a client hint only changes the candidate order. The selected course stays with the saved tour run. Existing course access checks and package limits still apply. The tutor document step opens a reading view and does not grant editing rights. On mobile, Search may first expand the page search control before opening global Search. Account and schedule navigation may also require a reveal click within the same numbered step.
+
+`onboarding_tours` stores version 1, run generation, chosen course context, step and terminal choice separately for each account and role. `GET` and `PUT /api/onboarding/tour` derive identity from the session, require an exact account header and canonical active membership, exclude admins and prevent stale writes from overwriting skipped, completed or restarted runs. The Replay tour control in the General tab of Preferences (Umum in Preferensi) restarts the tour. The UI carries the active role across shared profile and preference routes, pauses during account changes, and offers recovery when a saved course or control is unavailable. Course-discovery errors offer retry without saving a fallback plan.
+
+Tour invitation/loading and active guidance defer the profile reminder, notification consent prompt and app-download prompt. Already-granted notification registration remains independent. Public demo surfaces and admin accounts do not run the tour. Indonesian and English catalogs share the same keys and behavior. This is intentionally a browser workflow with no added MCP tool or permission.
+
+The additive migration `0043_onboarding_tours.sql` is a deployment prerequisite. It creates only the tour ledger and its account foreign key. The migration snapshot also carries the already-shipped 0042 tutor-slot table metadata; unrelated historical schema drift remains outside this change.

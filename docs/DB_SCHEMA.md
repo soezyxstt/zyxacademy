@@ -1,5 +1,13 @@
 # Zyx Database Schema Reference
 
+## First-use tours
+
+Generated migration `0043_onboarding_tours` adds `onboarding_tours`. The composite primary key `(user_id, role)` stores each account's student and tutor choices separately. Deleting the auth account cascades to its tour state. Version 1 has 9 steps, indexed from 0 to 8, and a status of `in_progress`, `completed`, or `skipped`. Completed rows must point to step 8. `course_id` is nullable navigation context, limited to 128 characters; it grants no course access and deliberately has no course foreign key. Course pages retain their existing access checks.
+
+The API derives the account from the session, requires a matching `x-user-id`, checks active canonical membership, and excludes admin accounts. Transactions lock the account/role row, keep progress monotonic, and preserve completed or skipped choices when stale requests arrive. Each row has a positive `generation`, starting at 1 and incrementing only on an explicit restart. Writes name the generation the user saw, or 0 when no row exists; delayed progress, skip, completion, or restart requests from an earlier generation return the current state without changing it. Only an explicit restart of the current generation can reset a terminal choice. The feature does not write learning progress, enrollments, or tutor assignments.
+
+The SQL was generated with Drizzle Kit's `generateDrizzleJson` and `generateMigration` APIs from the prior snapshot plus the new table. The resulting snapshot includes the already-shipped `0042_tutor_slot_courses` table, whose migration had no snapshot, while preserving unrelated outstanding index drift. Migration 0043 contains only the new table and its user foreign key. Local PostgreSQL-compatible tests apply the generated migration; no staging or production database migration was performed for this change.
+
 ## Google Calendar sync status
 
 Migration `0040_google_calendar_sync` adds `google_calendar_sync`. The primary key `target` identifies `central` or `user:<id>`. Personal rows reference the account owner with cascading deletion. `requested_at`, `last_synced_at` and sanitized `error` track asynchronous sync; OAuth credentials remain in the existing Better Auth account table or the shared host environment. This additive migration is prepared locally and has not been applied to staging or production.

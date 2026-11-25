@@ -83,6 +83,26 @@ export const accountLocalePreferences = pgTable(
  ],
 );
 
+/** Account-bound first-use tours, separate from learning progress and browser preferences. */
+export const onboardingTours = pgTable("onboarding_tours", {
+ userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+ role: text("role").$type<"student" | "tutor">().notNull(),
+ version: integer("version").notNull().default(1),
+ generation: integer("generation").notNull().default(1),
+ status: text("status").$type<"in_progress" | "completed" | "skipped">().notNull(),
+ stepIndex: integer("step_index").notNull().default(0),
+ courseId: text("course_id"),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+ primaryKey({ columns: [table.userId, table.role] }),
+ check("onboarding_tours_role_check", sql`${table.role} in ('student', 'tutor')`),
+ check("onboarding_tours_version_check", sql`${table.version} = 1`),
+ check("onboarding_tours_generation_check", sql`${table.generation} >= 1`),
+ check("onboarding_tours_status_check", sql`${table.status} in ('in_progress', 'completed', 'skipped')`),
+ check("onboarding_tours_step_check", sql`${table.stepIndex} between 0 and 8 and (${table.status} <> 'completed' or ${table.stepIndex} = 8)`),
+ check("onboarding_tours_course_check", sql`${table.courseId} is null or char_length(${table.courseId}) between 1 and 128`),
+]);
+
 /** Canonical domain identity for a Better Auth user. */
 export const pengguna = pgTable(
  "pengguna",

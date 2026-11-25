@@ -11,6 +11,7 @@ const catalogLoaders: Record<Locale, Record<string, CatalogLoader>> = {
     common: () => import("../../messages/id/common.json"),
     auth: () => import("../../messages/id/auth.json"),
     student: () => import("../../messages/id/student.json"),
+    onboarding: () => import("../../messages/id/onboarding.json"),
     studentCourse: () => import("../../messages/id/studentCourse.json"),
     studentExtras: () => import("../../messages/id/studentExtras.json"),
     learning: () => import("../../messages/id/learning.json"),
@@ -37,6 +38,7 @@ const catalogLoaders: Record<Locale, Record<string, CatalogLoader>> = {
     common: () => import("../../messages/en/common.json"),
     auth: () => import("../../messages/en/auth.json"),
     student: () => import("../../messages/en/student.json"),
+    onboarding: () => import("../../messages/en/onboarding.json"),
     studentCourse: () => import("../../messages/en/studentCourse.json"),
     studentExtras: () => import("../../messages/en/studentExtras.json"),
     learning: () => import("../../messages/en/learning.json"),
@@ -64,7 +66,7 @@ export const DEFAULT_NAMESPACES = [
   "core", "common", "auth", "student", "studentCourse", "studentExtras",
   "learning", "zyra", "admin", "adminAcademic", "adminReviewProduct", "adminOps", "adminEval",
   "adminForms", "adminMedia", "tutor", "consent", "notifications", "discussions", "search",
-  "publicForms", "marketing", "schedule", "ui",
+  "publicForms", "marketing", "schedule", "ui", "onboarding",
 ] as const;
 
 export async function loadCatalog(locale: Locale, namespace: string): Promise<MessageCatalog> {

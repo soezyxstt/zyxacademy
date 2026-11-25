@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { closeDialogsThen } from "@/hooks/use-dialog-history";
@@ -22,6 +23,7 @@ export function AppDownloadReminder({ channel }: { channel: AppUpdateChannel }) 
 }
 
 function DashboardReminder({ user, channel }: { user: NonNullable<StudentAccountState["data"]>["user"]; channel: AppUpdateChannel }) {
+  const tour = useOnboardingTour();
   const roles = [user.role, ...(user.roles ?? [])];
   const eligible = !roles.includes("admin") && roles.some(role => ["murid", "student", "tutor", "teacher"].includes(role ?? ""));
   const userId = eligible ? user.id : undefined;
@@ -30,7 +32,7 @@ function DashboardReminder({ user, channel }: { user: NonNullable<StudentAccount
   const t = useTranslations("student.preferences");
 
   useEffect(() => {
-    if (!userId || isNativeApp()) return;
+    if (!userId || isNativeApp() || tour.blocking) return;
     const ua = navigator.userAgent;
     const platform = /Android/i.test(ua) ? "android" : /Windows/i.test(ua) ? "windows" : /Linux/i.test(ua) ? "linux" : null;
     if (!platform) return;
@@ -51,9 +53,9 @@ function DashboardReminder({ user, channel }: { user: NonNullable<StudentAccount
       }
     }, 30_000);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [channel, userId]);
+  }, [channel, userId, tour.blocking]);
 
-  if (!userId || openFor !== userId) return null;
+  if (!userId || openFor !== userId || tour.blocking) return null;
   return (
     <Dialog open onOpenChange={open => { if (!open) setOpenFor(null); }}>
       <DialogContent>

@@ -1,0 +1,269 @@
+{
+  "invitation": {
+    "student": {
+      "title": "Get to know Zyx Academy",
+      "description": "Take {count} steps to explore learning features, schedules, and account settings."
+    },
+    "tutor": {
+      "title": "Get to know your tutor workspace",
+      "description": "Take {count} steps to explore teaching tools, schedules, and account settings."
+    },
+    "choiceHint": "You can skip the tour at any time and replay it from the General tab in Preferences."
+  },
+  "completion": {
+    "title": "Tour complete",
+    "description": "To replay the tour, open Preferences, then General."
+  },
+  "resume": {
+    "title": "Continue your tour?",
+    "description": "You stopped at step {current} of {total}. Continue here or skip the tour."
+  },
+  "error": {
+    "loadTitle": "The tour could not load",
+    "loadDescription": "Try loading it again. You can still use Zyx without taking the tour.",
+    "saveTitle": "Could not save your tour",
+    "saveDescription": "Try again to save your latest step or choice.",
+    "exitDescription": "The tour is closed, but your choice could not be saved. Try again from the General tab in Preferences."
+  },
+  "recovery": {
+    "title": "This part is not available yet",
+    "description": "This part is not available. Retry or end the tour. You can replay it from the General tab in Preferences."
+  },
+  "progress": "Step {current} of {total}",
+  "loading": "Preparing the next step…",
+  "actions": {
+    "start": "Start tour",
+    "skip": "Skip tour",
+    "end": "End tour",
+    "back": "Back",
+    "retry": "Try again",
+    "resume": "Continue tour",
+    "restart": "Start again",
+    "skipStep": "Skip step",
+    "replay": "Replay tour",
+    "done": "Done"
+  },
+  "more": {
+    "title": "Open more options",
+    "description": "Some options move into More when the screen is narrow.",
+    "instruction": "Open More to find the next menu item."
+  },
+  "viewMenu": {
+    "title": "Choose a schedule view",
+    "description": "The view menu contains your calendar, sessions, and tickets.",
+    "instruction": "Open the schedule view options."
+  },
+  "student": {
+    "course": {
+      "documents": {
+        "title": "Learning materials",
+        "description": "Read articles and notes by topic.",
+        "instruction": "Open Documents."
+      },
+      "quiz": {
+        "title": "Practice questions",
+        "description": "Check your understanding with quizzes and review your results.",
+        "instruction": "Open Quizzes."
+      },
+      "flashcards": {
+        "title": "Review key concepts",
+        "description": "Use question-and-answer cards to review concepts and terms.",
+        "instruction": "Open Flashcards."
+      },
+      "zyra": {
+        "title": "Ask Zyra",
+        "description": "Zyra can help explain course material you are unsure about.",
+        "instruction": "Select Zyra to open the chat."
+      },
+      "zyraClose": {
+        "title": "A place for questions",
+        "description": "Here, you can ask about course topics and how to solve a problem.",
+        "instruction": "Close Zyra to continue the tour."
+      },
+      "schedule": {
+        "title": "Your study schedule",
+        "description": "Find tutorials, quizzes, and exams in one place.",
+        "instruction": "Open Schedule."
+      },
+      "discussions": {
+        "title": "Course discussions",
+        "description": "Follow questions and answers in your courses.",
+        "instruction": "Open the discussion page."
+      },
+      "account": {
+        "title": "Your account",
+        "description": "The account menu contains account options and app settings.",
+        "instruction": "Select your account icon."
+      },
+      "preferences": {
+        "title": "App preferences",
+        "description": "Choose your language, appearance, and notifications.",
+        "instruction": "Open Preferences."
+      }
+    },
+    "general": {
+      "courses": {
+        "title": "Explore courses",
+        "description": "Discover the materials and practice available in Zyx.",
+        "instruction": "Open the course list."
+      },
+      "schedule": {
+        "title": "Your study schedule",
+        "description": "Tutorials, quizzes, and exams appear here.",
+        "instruction": "Open Schedule."
+      },
+      "nextWeek": {
+        "title": "Look ahead",
+        "description": "Move between weeks to check upcoming activities.",
+        "instruction": "Select the right arrow."
+      },
+      "discussions": {
+        "title": "Course discussions",
+        "description": "Course questions and answers are available based on your access.",
+        "instruction": "Open the discussion page."
+      },
+      "search": {
+        "title": "Search in one place",
+        "description": "Find pages and content you can access.",
+        "instruction": "Open Search."
+      },
+      "searchClose": {
+        "title": "Return to the page",
+        "description": "You can reopen Search from the magnifying glass icon.",
+        "instruction": "Close Search to continue the tour."
+      },
+      "account": {
+        "title": "Your account",
+        "description": "The account menu contains account options and app settings.",
+        "instruction": "Select your account icon."
+      },
+      "preferences": {
+        "title": "App preferences",
+        "description": "Manage your language, appearance, and notifications here.",
+        "instruction": "Open Preferences."
+      },
+      "language": {
+        "title": "Choose a language",
+        "description": "The app interface supports Indonesian and English.",
+        "instruction": "Open the Language options."
+      }
+    }
+  },
+  "tutor": {
+    "course": {
+      "course": {
+        "title": "Your teaching courses",
+        "description": "Each course contains materials, participants, and assessments.",
+        "instruction": "Open the highlighted course."
+      },
+      "documents": {
+        "title": "Teaching materials",
+        "description": "Read course documents to prepare your teaching materials.",
+        "instruction": "Open the highlighted course materials."
+      },
+      "quizzes": {
+        "title": "Course quizzes",
+        "description": "View course quizzes and students' attempts.",
+        "instruction": "Open Quizzes."
+      },
+      "grading": {
+        "title": "Review student answers",
+        "description": "Review essay answers that need grading.",
+        "instruction": "Open Quiz grading."
+      },
+      "schedule": {
+        "title": "Your teaching schedule",
+        "description": "Manage your availability and tutorial sessions.",
+        "instruction": "Open Schedule."
+      },
+      "tickets": {
+        "title": "Schedule change requests",
+        "description": "Reschedule and cancellation requests appear in Tickets.",
+        "instruction": "Select Tickets."
+      },
+      "discussions": {
+        "title": "Student discussions",
+        "description": "Follow questions from the courses you teach.",
+        "instruction": "Open the discussion page."
+      },
+      "account": {
+        "title": "Your tutor account",
+        "description": "The account menu contains account options and app settings.",
+        "instruction": "Select your account icon."
+      },
+      "preferences": {
+        "title": "Set your preferences",
+        "description": "Choose your language, appearance, and notifications.",
+        "instruction": "Open Preferences."
+      }
+    },
+    "general": {
+      "schedule": {
+        "title": "Your teaching schedule",
+        "description": "Manage your availability and tutorial sessions.",
+        "instruction": "Open Schedule."
+      },
+      "addSlot": {
+        "title": "Set your availability",
+        "description": "Slots show when you are available for tutorials.",
+        "instruction": "Open Add a slot to see the form."
+      },
+      "cancelSlot": {
+        "title": "Slot details",
+        "description": "This form has fields for the date, time, and meeting format.",
+        "instruction": "Select Cancel to continue the tour."
+      },
+      "sessions": {
+        "title": "Tutorial sessions",
+        "description": "Scheduled tutorials and their details appear here.",
+        "instruction": "Select Sessions."
+      },
+      "tickets": {
+        "title": "Schedule change requests",
+        "description": "Reschedule and cancellation requests appear in Tickets.",
+        "instruction": "Select Tickets."
+      },
+      "discussions": {
+        "title": "Student discussions",
+        "description": "Course discussions become available after an admin assigns a course.",
+        "instruction": "Open the discussion page."
+      },
+      "docs": {
+        "title": "Teaching guides",
+        "description": "Find help with schedules, materials, and grading in Documentation.",
+        "instruction": "Open the highlighted guide."
+      },
+      "account": {
+        "title": "Your tutor account",
+        "description": "The account menu contains account options and app settings.",
+        "instruction": "Select your account icon."
+      },
+      "preferences": {
+        "title": "Set your preferences",
+        "description": "Choose your language, appearance, and notifications.",
+        "instruction": "Open Preferences."
+      }
+    }
+  },
+  "accountMenu": {
+    "instruction": "Open the account menu to find Preferences."
+  },
+  "zyraMenu": {
+    "instruction": "Open Zyra to see the conversation panel."
+  },
+  "searchMenu": {
+    "instruction": "Open Search to continue the tour."
+  },
+  "slotMenu": {
+    "instruction": "Open Add a slot to see the schedule fields."
+  },
+  "profileMenu": {
+    "instruction": "Open Me to find the account menu."
+  },
+  "homeMenu": {
+    "instruction": "Return to the dashboard to open Schedule."
+  },
+  "generalMenu": {
+    "instruction": "Open the General tab."
+  }
+}

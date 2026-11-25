@@ -1,5 +1,6 @@
 "use client";
 
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GraduationCap, ArrowRight } from "lucide-react";
@@ -35,12 +36,13 @@ export function CompleteProfileDialog({
   isProfileIncomplete,
   missingFields,
 }: CompleteProfileDialogProps) {
+  const tour = useOnboardingTour();
   const t = useTranslations("student");
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!isProfileIncomplete) return;
+    if (!isProfileIncomplete || tour.blocking) return;
     try {
       const isDismissed = sessionStorage.getItem(STORAGE_KEY);
       if (!isDismissed) {
@@ -49,7 +51,7 @@ export function CompleteProfileDialog({
     } catch {
       setOpen(true);
     }
-  }, [isProfileIncomplete]);
+  }, [isProfileIncomplete, tour.blocking]);
 
   const handleDismiss = () => {
     try {
@@ -64,7 +66,7 @@ export function CompleteProfileDialog({
     closeDialogsThen(() => setOpen(false), () => router.push("/profile/edit"));
   };
 
-  if (!isProfileIncomplete) return null;
+  if (!isProfileIncomplete || tour.blocking) return null;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {

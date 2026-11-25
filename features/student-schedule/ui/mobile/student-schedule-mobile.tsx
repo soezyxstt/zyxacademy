@@ -217,6 +217,7 @@ export function StudentScheduleMobile({
               size="icon"
               className="size-9 shrink-0"
               onClick={() => onWeekChange(weekOffset + 1)}
+              data-tour="schedule-next"
               aria-label={t("calendar.nextRange")}
             >
               <ChevronRight className="size-4" aria-hidden />
