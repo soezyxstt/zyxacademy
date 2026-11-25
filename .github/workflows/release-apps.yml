@@ -594,12 +594,32 @@ jobs:
           image="system-images;android-35;google_apis;x86_64"
           "$tools/sdkmanager" --sdk_root="$sdk" --install emulator platform-tools "$image"
           export PATH="$sdk/platform-tools:$PATH"
-          "$sdk/emulator/emulator" -accel-check
-          "$tools/avdmanager" create avd --force --name zyx-stable-smoke --package "$image" <<< no
+          emulator="$sdk/emulator/emulator"
+          "$emulator" -accel-check
+
+          # Use the same isolated AVD registration directory for the SDK tools and emulator.
+          avd=zyx-stable-smoke
+          export ANDROID_USER_HOME="$RUNNER_TEMP/zyx-android"
+          export ANDROID_EMULATOR_HOME="$ANDROID_USER_HOME"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          avd_path="$ANDROID_AVD_HOME/$avd.avd"
+          if ! "$tools/avdmanager" create avd -f -n "$avd" -k "$image" -p "$avd_path" <<< 'no'; then
+            echo "::error::SDK failed to create the $avd virtual device."
+            exit 1
+          fi
+          avds=$("$emulator" -list-avds)
+          if [[ ! -s "$ANDROID_AVD_HOME/$avd.ini" || ! -s "$avd_path/config.ini" ]] || ! grep -Fxq "$avd" <<< "$avds"; then
+            echo "::error::SDK did not register $avd in the emulator's AVD directory."
+            ls -la "$ANDROID_AVD_HOME" "$avd_path" || true
+            printf 'Emulator AVD list:\n%s\n' "$avds"
+            exit 1
+          fi
+          echo "Emulator can discover $avd."
           export ANDROID_SERIAL=emulator-5554
           adb start-server
           emulator_log="$RUNNER_TEMP/zyx-emulator.log"
-          "$sdk/emulator/emulator" -avd zyx-stable-smoke -no-window -noaudio -no-boot-anim \
+          "$emulator" -avd "$avd" -no-window -noaudio -no-boot-anim \
             -gpu software -no-snapshot -camera-back none -port 5554 > "$emulator_log" 2>&1 &
           emulator_pid=$!
           cleanup() {
