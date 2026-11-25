@@ -43,7 +43,7 @@ test("worker initializes with deployed public config and handles background push
     runInNewContext(readFileSync(new URL("../public/firebase-messaging-sw.js", import.meta.url), "utf8"), context);
     expect(initialized).toMatchObject({ projectId: project, appId: "web-app-id" });
     await background!({ notification: { title: "Staging push", body: "Delivery check" }, data: { url: "/calendar" } });
-    expect(notifications).toMatchObject([["Staging push", { body: "Delivery check", data: { url: "/calendar" } }]]);
+    expect(notifications).toMatchObject([["Staging push", { body: "Delivery check", data: { zyx: true, url: "/calendar" } }]]);
   }
 });
 

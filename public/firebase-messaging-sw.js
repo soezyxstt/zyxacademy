@@ -5,7 +5,29 @@
  * Handles BACKGROUND push notifications (when the browser tab is not focused).
  * Foreground notifications are handled by onMessage() in the client.
  *
- * IMPORTANT: This file uses the Firebase Compat CDN build via importScripts().
+ * IMPORTANT: This file uses the Firebase Compat CDN build via // Install custom click handling before importing FCM. Leave Firebase's own
+// automatically displayed notifications to its own click handler.
+self.addEventListener("notificationclick", (event) => {
+  const data = event.notification.data;
+  if (!data?.zyx) return;
+  event.stopImmediatePropagation();
+  event.notification.close();
+
+  const rawUrl = data.url;
+  const target = typeof rawUrl === "string" && rawUrl.startsWith("/") &&
+    !rawUrl.startsWith("//") && !rawUrl.startsWith("/\\")
+    ? new URL(rawUrl, self.location.origin).href
+    : new URL("/dashboard", self.location.origin).href;
+
+  event.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (windows) => {
+    for (const client of windows) {
+      if (client.url === target && "focus" in client) return client.focus();
+    }
+    if (clients.openWindow) return clients.openWindow(target);
+  }));
+});
+
+importScripts().
  * Service workers run outside the webpack bundle and cannot use ES module imports.
  * The compat scripts are loaded from Google's CDN for reliability and caching.
  *
@@ -40,42 +62,14 @@ messaging.onBackgroundMessage((payload) => {
  badge: "/brand/zyx-logo-symbol-black@2x.png",
  // Store data so the notificationclick handler can use it
  data: {
+ zyx: true,
  url: data.url || "/dashboard",
  type: data.type || "admin_broadcast",
  },
  // Collapse notifications of the same type to avoid spam
- tag: data.type || "general",
+ tag: data.notificationId ? `zyx:${data.notificationId}` : undefined,
  renotify: false,
  };
 
  return self.registration.showNotification(notificationTitle, notificationOptions);
 });
-
-/**
- * Opens the target page when a user clicks a notification.
- * Falls back to /dashboard if no URL is specified in the payload.
- */
-self.addEventListener("notificationclick", (event) => {
- event.notification.close();
-
- const targetUrl = event.notification.data?.url || "/dashboard";
-
- event.waitUntil(
- clients
- .matchAll({ type: "window", includeUncontrolled: true })
- .then((clientList) => {
- // If a window with the target URL is already open, focus it
- for (const client of clientList) {
- if (client.url === targetUrl && "focus" in client) {
- return client.focus();
- }
- }
- // Otherwise open a new window
- if (clients.openWindow) {
- return clients.openWindow(targetUrl);
- }
- })
- );
-});
-
-
