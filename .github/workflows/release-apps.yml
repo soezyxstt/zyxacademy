@@ -560,64 +560,50 @@ jobs:
   smoke-stable-android:
     if: needs.prepare.outputs.channel == 'stable' && inputs.stable_operation == 'candidate'
     needs: [prepare, build-android]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: mobile-android
           path: release-artifacts
-      - name: Install exact stable Android APK and launch on emulator
+      - name: Prepare the exact APK smoke test and enable KVM
         shell: bash
-        env:
-          FILE_PREFIX: ${{ needs.prepare.outputs.file_prefix }}
         run: |
           set -euo pipefail
+          test -c /dev/kvm
+          sudo chmod a+rw /dev/kvm
+          cat > "$RUNNER_TEMP/zyx-android-smoke.sh" <<'TESTAPK'
+          set -euo pipefail
+          adb="${ANDROID_HOME}/platform-tools/adb"
+          export ANDROID_SERIAL="emulator-${EMULATOR_PORT:-5554}"
           apk="release-artifacts/$FILE_PREFIX-android.apk"
           sha256sum "$apk"
-          test -e /dev/kvm || { echo "::error::The runner does not expose KVM."; exit 1; }
-          sudo chmod a+rw /dev/kvm
-          sdk=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}
-          export ANDROID_HOME="$sdk" ANDROID_SDK_ROOT="$sdk"
-          tools="$sdk/cmdline-tools/latest/bin"
-          if [[ ! -x "$tools/sdkmanager" || ! -x "$tools/avdmanager" ]]; then
-            if [[ -d "$sdk/cmdline-tools" ]]; then
-              while IFS= read -r path; do
-                if [[ -x "$path" && -x "${path%/*}/avdmanager" ]]; then
-                  tools=${path%/*}
-                  break
-                fi
-              done < <(find "$sdk/cmdline-tools" -name sdkmanager -path '*/bin/sdkmanager' | sort -Vr)
-            fi
-          fi
-          [[ -x "$tools/sdkmanager" && -x "$tools/avdmanager" ]] || { echo "::error::Android SDK command-line tools are missing under the configured Android SDK root."; exit 1; }
-          image="system-images;android-35;google_apis;x86_64"
-          "$tools/sdkmanager" --sdk_root="$sdk" --install emulator platform-tools "$image"
-          export PATH="$sdk/platform-tools:$PATH"
-          "$sdk/emulator/emulator" -accel-check
-          "$tools/avdmanager" create avd --force --name zyx-stable-smoke --package "$image" <<< no
-          "$sdk/emulator/emulator" -avd zyx-stable-smoke -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -port 5554 > "$RUNNER_TEMP/zyx-emulator.log" 2>&1 &
-          emulator_pid=$!
-          trap 'adb -s emulator-5554 emu kill >/dev/null 2>&1 || true; kill "$emulator_pid" 2>/dev/null || true' EXIT
-          export ANDROID_SERIAL=emulator-5554
-          timeout 150 adb wait-for-device
-          deadline=$((SECONDS+180))
-          until [[ "$(adb shell getprop sys.boot_completed | tr -d '\r')" == 1 ]]; do
-            kill -0 "$emulator_pid" || { echo "::error::Android emulator exited before boot."; exit 1; }
-            (( SECONDS < deadline )) || { echo "::error::Android emulator boot timed out."; exit 1; }
-            sleep 3
-          done
-          adb shell input keyevent 82
-          adb install "$apk"
+          "$adb" install "$apk"
           package=com.zyx.academy
-          launch=$(adb shell am start -W -n "$package/.MainActivity")
+          launch=$("$adb" shell am start -W -n "$package/.MainActivity")
           printf '%s\n' "$launch"
           grep -Fq 'Status: ok' <<< "$launch"
           sleep 5
-          test -n "$(adb shell pidof "$package")"
-          resumed=$(adb shell dumpsys activity activities)
+          test -n "$("$adb" shell pidof "$package")"
+          resumed=$("$adb" shell dumpsys activity activities)
           grep -E 'mResumedActivity|topResumedActivity' <<< "$resumed" | grep -F "$package/"
           echo "Stable Android APK installed and MainActivity resumed."
+          TESTAPK
+          bash -n "$RUNNER_TEMP/zyx-android-smoke.sh"
+      - name: Install and launch exact stable APK on Android 35
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        env:
+          FILE_PREFIX: ${{ needs.prepare.outputs.file_prefix }}
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-boot-timeout: 420
+          disable-linux-hw-accel: false
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -camera-back none -gpu swiftshader_indirect
+          script: bash "$RUNNER_TEMP/zyx-android-smoke.sh"
 
   publish-release:
     if: needs.prepare.outputs.channel == 'nightly' && inputs.android_candidate != true
