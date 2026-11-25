@@ -2,7 +2,7 @@
   "permission": [
     {
       "identifier": "allow-native-bridge",
-      "description": "Allow the Zyx main window to use the existing update and offline-reading commands.",
+      "description": "Allow the Zyx main window to use update, notification and offline-reading commands.",
       "commands": {
         "allow": [
           "get_app_update_info",
@@ -10,6 +10,7 @@
           "install_native_update",
           "download_and_launch_update",
           "get_desktop_server_origin",
+          "show_desktop_notification",
           "save_offline_reading",
           "save_offline_reading_position",
           "list_offline_readings",

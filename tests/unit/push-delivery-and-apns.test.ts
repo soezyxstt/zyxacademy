@@ -412,13 +412,91 @@ describe("iOS registration, desktop notification bridge, and honest client readi
       }
     }
     (globalThis as unknown as { window: Record<string, unknown> }).window = {
-      __TAURI__: { core: { invoke: async () => { throw new Error("Unexpected IPC"); } } },
+      __TAURI__: { core: { invoke: async (command: string) => { throw new Error(`Command ${command} not found`); } } },
       Notification: DesktopNotification,
     };
     expect(await getUnifiedNotificationPermission()).toBe("granted");
-    await sendDesktopNativeNotification("Desktop alert", "Delivered");
-    await sendDesktopNativeNotification("Stale account", "Must not show", () => false);
+    expect(await sendDesktopNativeNotification("Desktop alert", "Delivered")).toBe(true);
+    expect(await sendDesktopNativeNotification("Stale account", "Must not show", () => false)).toBe(false);
     expect(sent).toEqual([{ title: "Desktop alert", body: "Delivered" }]);
+  });
+
+  test("trusts native permission instead of the Windows WebView shim and awaits native delivery", async () => {
+    const calls: string[] = [];
+    let nativeAllowed = true;
+    let osFails = false;
+    class DeniedNotification {
+      static permission = "denied";
+      constructor() { throw new Error("WebView fallback must not run"); }
+    }
+    (globalThis as unknown as { window: Record<string, unknown> }).window = {
+      __TAURI__: { core: { invoke: async (command: string) => {
+        calls.push(command);
+        if (command === "plugin:notification|is_permission_granted") return nativeAllowed;
+        if (command === "show_desktop_notification") {
+          if (osFails) throw new Error("DESKTOP_NOTIFICATION_OS_ERROR");
+          return true;
+        }
+        throw new Error("Unexpected fallback");
+      } } },
+      Notification: DeniedNotification,
+    };
+    expect(await getUnifiedNotificationPermission()).toBe("granted");
+    expect(await sendDesktopNativeNotification("Native test", "Body")).toBe(true);
+    osFails = true;
+    expect(await sendDesktopNativeNotification("Native error", "Body")).toBe(false);
+    expect(calls.filter(command => command === "show_desktop_notification")).toHaveLength(2);
+    expect(calls).not.toContain("plugin:notification|notify");
+    nativeAllowed = false;
+    expect(await sendDesktopNativeNotification("Permission denied")).toBe(false);
+    expect(calls.filter(command => command === "show_desktop_notification")).toHaveLength(2);
+  });
+
+  test("never displays a different account's inbox after session recovery", async () => {
+    let attempts = 0;
+    const displayed: string[] = [];
+    const stop = startDesktopNotificationBridge({ onForeground: event => {
+      if (event.notificationId) displayed.push(event.notificationId);
+    } }, {
+      pollIntervalMs: 15,
+      userId: "current-user",
+      fetchImpl: (async () => {
+        attempts += 1;
+        const notifications = attempts === 1 ? [] : attempts === 2 ? [
+          { id: "other", userId: "other-user", title: "Other account", createdAt: "2026-11-21T11:00:00.000Z" },
+        ] : [
+          { id: "own", userId: "current-user", title: "Own account", createdAt: "2026-11-21T10:00:00.000Z" },
+        ];
+        return new Response(JSON.stringify({ notifications }), { status: 200 });
+      }) as unknown as typeof fetch,
+      sendNative: async () => {},
+    });
+    await new Promise(resolve => setTimeout(resolve, 90));
+    stop();
+    expect(displayed).toEqual(["own"]);
+  });
+
+  test("recovers when a desktop inbox request stalls", async () => {
+    let attempts = 0;
+    let aborted = false;
+    const stop = startDesktopNotificationBridge({ onForeground: () => {} }, {
+      pollIntervalMs: 15,
+      requestTimeoutMs: 10,
+      fetchImpl: (async (_url: unknown, init?: RequestInit) => {
+        attempts += 1;
+        if (attempts === 1) return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            aborted = true;
+            reject(new Error("Request aborted"));
+          }, { once: true });
+        });
+        return new Response(JSON.stringify({ notifications: [] }), { status: 200 });
+      }) as unknown as typeof fetch,
+    });
+    await new Promise(resolve => setTimeout(resolve, 80));
+    stop();
+    expect(aborted).toBe(true);
+    expect(attempts).toBeGreaterThanOrEqual(2);
   });
 
   test("registers Tauri desktop token and delivers new inbox notifications to native OS", async () => {
@@ -523,20 +601,27 @@ describe("iOS registration, desktop notification bridge, and honest client readi
     ]);
     expect(nativeCalls).toEqual([{ title: "New quiz", body: "Calculus quiz is open" }]);
 
-    // Verify 401 stops polling immediately
+    // An expired session is retried without replaying old inbox history or
+    // relying on the local clock when the first successful inbox is empty.
     let unauthPolls = 0;
+    const recovered: string[] = [];
     const stopUnauth = startDesktopNotificationBridge(
-      { onForeground: () => {} },
+      { onForeground: event => { if (event.notificationId) recovered.push(event.notificationId); } },
       {
         pollIntervalMs: 15,
         fetchImpl: (async () => {
           unauthPolls += 1;
-          return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+          if (unauthPolls === 1) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+          return new Response(JSON.stringify({ notifications: unauthPolls === 2 ? [] : [
+            { id: "recovered", title: "Recovered", createdAt: "2026-11-21T10:00:00.000Z" },
+          ] }), { status: 200 });
         }) as unknown as typeof fetch,
+        sendNative: async () => {},
       },
     );
-    await new Promise((resolve) => setTimeout(resolve, 60));
+    await new Promise((resolve) => setTimeout(resolve, 90));
     stopUnauth();
-    expect(unauthPolls).toBe(1);
+    expect(unauthPolls).toBeGreaterThanOrEqual(3);
+    expect(recovered).toEqual(["recovered"]);
   });
 });

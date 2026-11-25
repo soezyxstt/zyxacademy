@@ -477,6 +477,9 @@ describe("desktop Tauri configuration invariants", () => {
     expect(permissions.permission).toHaveLength(1);
     expect(permissions.permission[0].identifier).toBe("allow-native-bridge");
     expect(permissions.permission[0].commands.allow.toSorted()).toEqual(commands.toSorted());
+    expect(commands).toContain("show_desktop_notification");
+    expect(libRs).toContain("notification.app_id(&app_id)");
+    expect(libRs).toContain("DESKTOP_NOTIFICATION_OS_ERROR");
     expect(capability.permissions).toContain("allow-native-bridge");
     expect(capability.windows).toEqual(["main"]);
     expect(capability.remote.urls).toEqual(["https://www.zyxacademy.com/*", "https://staging.zyxacademy.com/*"]);

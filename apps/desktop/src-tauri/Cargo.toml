@@ -27,5 +27,10 @@ sha2 = "0.10"
 flate2 = "1"
 tempfile = "3"
 
+# Already resolved through tauri-plugin-notification; used directly on Windows
+# to propagate notification API errors instead of dropping them in a task.
+[target.'cfg(target_os = "windows")'.dependencies]
+notify-rust = "=4.19.0"
+
 [target.'cfg(target_os = "linux")'.dependencies]
 semver = "1"

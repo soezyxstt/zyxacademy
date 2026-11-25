@@ -39,6 +39,7 @@ export function NotificationRuntimeForAccount({ account }: { account: StudentAcc
       if (!isCurrent()) return;
       const stop = await subscribeNativeNotifications({
         defaultUrl: latest.current.fallbackUrl,
+        userId,
         isCurrent,
         onForeground: ({ title, body }) => {
           if (!isCurrent()) return;
