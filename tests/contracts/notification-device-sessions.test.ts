@@ -1,0 +1,155 @@
+import { afterAll, beforeAll, beforeEach, expect, mock, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { eq } from "drizzle-orm";
+import { NextRequest } from "next/server";
+import { session, userPushTokens } from "@/db/schema";
+
+const token = (id: string) => id.padEnd(80, "_");
+const payload = { title: "Notice", body: "Update", type: "announcement" as const };
+let client: PGlite;
+let testDb: ReturnType<typeof drizzle>;
+let registration: typeof import("@/app/api/notifications/register-token/route");
+let sessions: typeof import("@/app/api/account/sessions/route");
+let sender: typeof import("@/lib/notifications/send");
+let active = { user: { id: "owner" }, session: { id: "phone" } };
+const deliveries: string[] = [];
+const revoked: string[] = [];
+
+function req(path: string, method = "GET", body?: object) {
+  return new NextRequest("https://staging.zyxacademy.com" + path, {
+    method, headers: { "Content-Type": "application/json", cookie: "session=fake" },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+}
+async function add(id: string, sessionId: string | null, platform: "web" | "android" = "android", userId = "owner") {
+  await testDb.insert(userPushTokens).values({
+    id, userId, sessionId, token: token(id), platform,
+    transport: platform === "web" ? "webpush" : "fcm",
+  });
+}
+
+beforeAll(async () => {
+  client = await PGlite.create();
+  await client.exec(`
+    create table "user" (id text primary key);
+    create table "session" (id text primary key, token text not null unique, user_id text not null references "user"(id),
+      expires_at timestamptz not null, created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
+      ip_address text, user_agent text);
+    create table user_push_tokens (id text primary key, user_id text not null references "user"(id), token text not null unique,
+      device text not null default 'unknown', platform text not null default 'web', transport text not null default 'fcm',
+      created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+    create table notifications (id text primary key);
+    insert into "user" values ('owner'), ('other');
+  `);
+  await client.exec(readFileSync("drizzle-postgres/0044_native_notification_delivery.sql", "utf8"));
+  testDb = drizzle(client);
+  mock.module("@/db", () => ({ db: testDb }));
+  mock.module("@/lib/auth", () => ({
+    auth: { api: {
+      getSession: async () => active,
+      revokeSession: async ({ body }: { body: { token: string } }) => {
+        revoked.push(body.token);
+        await testDb.delete(session).where(eq(session.token, body.token));
+        return { status: true };
+      },
+    } },
+  }));
+  mock.module("next/headers", () => ({ headers: async () => new Headers({ cookie: "session=fake" }) }));
+  mock.module("@/lib/firebase/admin", () => ({
+    isFirebaseAdminConfigured: () => true,
+    adminMessaging: () => ({ sendEachForMulticast: async ({ tokens }: { tokens: string[] }) => {
+      deliveries.push(...tokens);
+      return { responses: tokens.map(() => ({ success: true })) };
+    } }),
+  }));
+  mock.module("@/lib/notifications/apns", () => ({
+    isApnsConfigured: () => true,
+    sendApnsNotifications: async () => ({ succeeded: 0, failedTokens: [], errors: [] }),
+  }));
+  mock.module("@/lib/i18n/preferences", () => ({ getUserLocalePreference: async () => "en" }));
+  mock.module("@/lib/notifications/quiet-delivery", () => ({
+    deferQuietPushes: async () => new Set<string>(),
+    deferredSendResult: () => ({ attempted: 0, succeeded: 0, failedTokens: [], errors: [] }),
+  }));
+  registration = await import("@/app/api/notifications/register-token/route");
+  sessions = await import("@/app/api/account/sessions/route");
+  sender = await import("@/lib/notifications/send");
+});
+beforeEach(async () => {
+  await client.exec(`truncate user_push_tokens, "session";
+    insert into "session" (id,token,user_id,expires_at) values
+    ('phone','phone-session-secret','owner',now()+interval '1 day'),
+    ('laptop','laptop-session-secret','owner',now()+interval '1 day'),
+    ('expired','expired-session-secret','owner',now()-interval '1 day'),
+    ('foreign','foreign-session-secret','other',now()+interval '1 day');`);
+  active = { user: { id: "owner" }, session: { id: "phone" } };
+  deliveries.length = 0; revoked.length = 0;
+});
+afterAll(async () => { await client?.close(); });
+
+test("native registration replaces only its own session's stale native and browser tokens", async () => {
+  await add("old-native", "phone");
+  await add("same-session-web", "phone", "web");
+  await add("other-device-web", "laptop", "web");
+  await add("legacy-web", null, "web");
+  const response = await registration.POST(req("/api/notifications/register-token", "POST", {
+    token: token("new-native"), device: "capacitor-android", platform: "android", transport: "fcm",
+  }));
+  expect(response.status).toBe(200);
+  const tokens = await testDb.select().from(userPushTokens);
+  expect(tokens.map(row => row.token).sort()).toEqual(["new-native", "other-device-web", "legacy-web"].map(token).sort());
+  expect(tokens.find(row => row.token === token("new-native"))?.sessionId).toBe("phone");
+});
+
+test("browser cleanup and stale native unregister do not delete another device's native token", async () => {
+  await add("phone-native", "phone");
+  await add("laptop-native", "laptop");
+  await add("browser", "laptop", "web");
+  await add("legacy-browser", null, "web");
+  await add("foreign-browser", "foreign", "web", "other");
+  async function remove(id: string, browserOnly = false) {
+    const result = await registration.DELETE(req("/api/notifications/register-token", "DELETE", { token: token(id), browserOnly }));
+    expect(result.status).toBe(200);
+  }
+  await remove("laptop-native");
+  await remove("phone-native", true);
+  await remove("foreign-browser", true);
+  await remove("browser", true);
+  await remove("legacy-browser", true);
+  expect((await testDb.select().from(userPushTokens)).map(row => row.id).sort()).toEqual(["foreign-browser", "laptop-native", "phone-native"]);
+});
+
+test("session listing and revocation are owner-scoped; only the revoked session's tokens cascade", async () => {
+  await add("phone-token", "phone"); await add("laptop-token", "laptop");
+  await add("legacy-token", null); await add("foreign-token", "foreign", "android", "other");
+  const listing = await sessions.GET(req("/api/account/sessions"));
+  const raw = await listing.text();
+  expect(raw).not.toContain("session-secret");
+  const rows = JSON.parse(raw).sessions;
+  expect(rows.map((row: { id: string }) => row.id).sort()).toEqual(["laptop", "phone"]);
+  expect(rows.find((row: { id: string }) => row.id === "phone").current).toBe(true);
+  async function revoke(id: string) {
+    return sessions.DELETE(req("/api/account/sessions", "DELETE", { id }));
+  }
+  expect((await revoke("phone")).status).toBe(409);
+  expect((await revoke("foreign")).status).toBe(404);
+  expect((await revoke("laptop")).status).toBe(200);
+  expect(revoked).toEqual(["laptop-session-secret"]);
+  expect((await testDb.select().from(userPushTokens)).map(row => row.id).sort()).toEqual(["foreign-token", "legacy-token", "phone-token"]);
+});
+
+test("single and batched push skip expired or mismatched sessions while preserving legacy registrations", async () => {
+  await add("active-token", "phone");
+  await add("expired-token", "expired");
+  await add("mismatched-token", "foreign");
+  await add("legacy-token", null);
+  expect(await sender.sendPushToUserNow("owner", payload)).toMatchObject({ attempted: 2, succeeded: 2 });
+  expect(deliveries.sort()).toEqual(["active-token", "legacy-token"].map(token).sort());
+  deliveries.length = 0;
+  const result = await sender.sendPushToUsers([{ userId: "owner", payload }]);
+  expect(result.get("owner")).toMatchObject({ attempted: 2, succeeded: 2 });
+  expect(deliveries.sort()).toEqual(["active-token", "legacy-token"].map(token).sort());
+  expect(await testDb.select().from(userPushTokens)).toHaveLength(4);
+});
