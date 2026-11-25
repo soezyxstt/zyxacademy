@@ -477,8 +477,7 @@ jobs:
   verify-stable-android-signing:
     if: needs.prepare.outputs.channel == 'stable' && inputs.stable_operation == 'candidate'
     needs: [prepare, build-android]
-    # Match the existing approved production App Links signer set. No deploy credentials or production writes.
-    environment: production
+    # Match the live Digital Asset Links trust used by Android. No production credentials or writes.
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -491,7 +490,6 @@ jobs:
         env:
           FILE_PREFIX: ${{ needs.prepare.outputs.file_prefix }}
           APP_VERSION: ${{ needs.prepare.outputs.version }}
-          APP_LINKS_CERTS: ${{ secrets.ANDROID_APP_LINKS_SHA256_FINGERPRINTS }}
         run: |
           set -euo pipefail
           apk="release-artifacts/$FILE_PREFIX-android.apk"
@@ -500,18 +498,37 @@ jobs:
           test -x "$apksigner"
           report=$("$apksigner" verify --verbose --print-certs "$apk")
           # Require precisely one current signer and compare without printing the configured set.
-          actual=$(sed -nE 's/^Signer #[0-9]+ certificate SHA-256 digest: //p' <<< "$report")
-          export APK_CERT_SHA256="$actual"
+          export APKSIGNER_REPORT="$report"
+          export APP_LINKS_FILE="$RUNNER_TEMP/zyx-stable-app-links.json"
+          curl --fail --silent --show-error --max-time 25 \
+            https://www.zyxacademy.com/.well-known/assetlinks.json -o "$APP_LINKS_FILE"
           python3 - <<'PYVERIFY'
-          import os, re, sys
-          actual = os.environ.get("APK_CERT_SHA256", "").strip().lower()
+          import json, os, re, sys
+          matches = re.findall(
+              r"^\s*Signer\s+#\s*\d+\s+certificate\s+SHA-256\s+digest\s*:\s*"
+              r"([0-9A-Fa-f:]+)[ \t\r]*$",
+              os.environ.get("APKSIGNER_REPORT", ""),
+              flags=re.IGNORECASE | re.MULTILINE,
+          )
+          actual = matches[0].lower().replace(":", "") if len(matches) == 1 else ""
+          with open(os.environ["APP_LINKS_FILE"], encoding="utf-8") as f:
+              links = json.load(f)
           known = {
-              value.strip().lower().replace(":", "")
-              for value in os.environ.get("APP_LINKS_CERTS", "").split(",")
-              if re.fullmatch(r"[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){31}", value.strip())
+              value.lower().replace(":", "")
+              for entry in links
+              if entry.get("target", {}).get("namespace") == "android_app"
+              and entry["target"].get("package_name") == "com.zyx.academy"
+              and "delegate_permission/common.handle_all_urls" in entry.get("relation", [])
+              for value in entry["target"].get("sha256_cert_fingerprints", [])
+              if re.fullmatch(r"[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){31}", value)
           }
-          if not re.fullmatch(r"[0-9a-f]{64}", actual) or actual not in known:
+          if not known:
+              sys.exit("Production Digital Asset Links publishes no valid stable Android fingerprints.")
+          if not re.fullmatch(r"[0-9a-f]{64}", actual):
+              sys.exit("Expected exactly one valid APK signing certificate SHA-256 digest.")
+          if actual not in known:
               sys.exit("Stable APK signer did not match the configured production App Links set.")
+          print("Stable APK signing certificate matches the approved production App Links set.")
           PYVERIFY
           badging=$("$(dirname "$apksigner")/aapt" dump badging "$apk")
           grep -F "package: name='com.zyx.academy' " <<< "$badging" | grep -F "versionName='$APP_VERSION'"
@@ -541,11 +558,25 @@ jobs:
           sha256sum "$apk"
           test -e /dev/kvm || { echo "::error::The runner does not expose KVM."; exit 1; }
           sudo chmod a+rw /dev/kvm
-          sdk=${ANDROID_SDK_ROOT:-$ANDROID_HOME}
+          sdk=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}
+          export ANDROID_HOME="$sdk" ANDROID_SDK_ROOT="$sdk"
+          tools="$sdk/cmdline-tools/latest/bin"
+          if [[ ! -x "$tools/sdkmanager" || ! -x "$tools/avdmanager" ]]; then
+            if [[ -d "$sdk/cmdline-tools" ]]; then
+              while IFS= read -r path; do
+                if [[ -x "$path" && -x "${path%/*}/avdmanager" ]]; then
+                  tools=${path%/*}
+                  break
+                fi
+              done < <(find "$sdk/cmdline-tools" -name sdkmanager -path '*/bin/sdkmanager' | sort -Vr)
+            fi
+          fi
+          [[ -x "$tools/sdkmanager" && -x "$tools/avdmanager" ]] || { echo "::error::Android SDK command-line tools are missing under the configured Android SDK root."; exit 1; }
           image="system-images;android-35;google_apis;x86_64"
-          sdkmanager --install emulator platform-tools "$image"
+          "$tools/sdkmanager" --sdk_root="$sdk" --install emulator platform-tools "$image"
+          export PATH="$sdk/platform-tools:$PATH"
           "$sdk/emulator/emulator" -accel-check
-          printf 'no\n' | avdmanager create avd --force --name zyx-stable-smoke --package "$image"
+          "$tools/avdmanager" create avd --force --name zyx-stable-smoke --package "$image" <<< no
           "$sdk/emulator/emulator" -avd zyx-stable-smoke -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -port 5554 > "$RUNNER_TEMP/zyx-emulator.log" 2>&1 &
           emulator_pid=$!
           trap 'adb -s emulator-5554 emu kill >/dev/null 2>&1 || true; kill "$emulator_pid" 2>/dev/null || true' EXIT
