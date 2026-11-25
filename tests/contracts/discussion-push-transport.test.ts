@@ -34,6 +34,11 @@ beforeAll(async () => {
  mock.module("@/db", () => ({ db: testDb }));
  mock.module("@/db/schema", () => ({ userPushTokens, notifications, enrollments, courses, user, notificationQuietPreferences }));
  mock.module("@/lib/i18n/preferences", () => ({ getUserLocalePreference: async () => "en" }));
+ // Quiet-hour persistence and release have their own real SQL contract.
+ mock.module("@/lib/notifications/quiet-delivery", () => ({
+  deferQuietPushes: async () => new Set<string>(),
+  deferredSendResult: () => ({ attempted: 0, succeeded: 0, failedTokens: [], errors: [] }),
+ }));
  mock.module("@/lib/firebase/admin", () => ({ adminMessaging: () => ({ sendEachForMulticast: async (payload: any) => {
   multicast = payload;
   if (payload.data.notificationId) {
