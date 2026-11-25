@@ -4,7 +4,7 @@ Status: `ACTIVE`
 
 The server serves a build-time snapshot of the separate `soezyxstt/zyx-authoring-mcp` repository. `authoring-skills.lock.json` pins a full Git commit for each environment. Builds fetch that commit once, reject dirty checkouts, verify environment-specific connection instructions, and write `dist/skills/manifest.json`, resource files, and `chatgpt-skills.zip`. No request fetches GitHub. The existing plugin mirror still publishes from this repository; updating the mirror does not update the server pin automatically.
 
-The repository candidate now includes seven existing skills and five focused agent-first skills for blog, content revisions, forms, media and operation recovery. See [agent-first content operations](agent-first-content.md). Mirroring remains manually dispatched; pinned server artifacts and installed clients are separate release targets.
+The staging lock now selects all 12 skills at release 0.5.2, commit `dcb6098002e4e730f7da610d6c13417388cd45fc`, through reviewed [package PR #3](https://github.com/soezyxstt/zyx-authoring-mcp/pull/3). This replaces staging's older six-skill 0.4.1 snapshot. The production lock is unchanged. See [agent-first content operations](agent-first-content.md). Automated mirroring remains manually dispatched; this package was released through a separate PR on the owning repository. Pinned server artifacts, deployed endpoints and installed clients are separate release targets.
 
 ## Catalogs and more than five skills
 
@@ -42,9 +42,11 @@ For an existing source checkout, add `--source <checkout>`; HEAD must match the 
 
 To update, inspect the external commit, update its matching lock entry, and review the CI artifact. `.github/workflows/authoring-skills.yml` builds and tests both environments. Rollback restores the previous lock and server revision together. Package SemVer, skills SHA, playbook revision, and server revision are distinct.
 
-## Local V4 candidate packages
+## Version 0.5.2 workflow packages
 
-The workspace mirror `plugins/zyx-authoring-mcp` contains a local `0.5.1` candidate, bootstrap protocol 1. Product V4 is the default for new Article/Diktat authoring. Existing V3 revisions retain their version unless the operator requests a reviewed conversion. The primary runtime contract exposes V4 schemas and verification; the pilot descriptor remains a compatibility alias. Product/Pipeline skills require runtime contracts, ordered mathematical representations, traced Diktat, independent review roles and trusted renderer evidence. Runtime playbooks remain authoritative.
+The workspace source `plugins/zyx-authoring-mcp` contains version `0.5.2`, bootstrap protocol 1. All 12 workflows and host prompts have been revised together. The source/Idea playbooks now use the actual manifest fields, unit markers, coverage evidence and classification enums. Initial authoring prefers advertised direct drafts and checksum-bound schemas. Revisions use compact target reads while final review uses full current context. Product preview consumes the same draft JSON and never replaces trusted verification or independent review. Admin workflows keep domain discovery, signed plans, request identity and receipt/job recovery separate from authoring revisions.
+
+Product V4 is the default for new Article/Diktat authoring. Existing V3 revisions retain their version unless the operator requests a reviewed conversion. Flashcards, V5, binary assets and unsupported external lineage keep their archive path. A package update is not evidence that a connected server already exposes a newer tool. Skills must discover its live contracts and use the supported fallback without switching environments. Runtime playbooks remain authoritative.
 
 Render each environment package before building its MCP catalog:
 
@@ -53,7 +55,7 @@ python plugins/zyx-authoring-mcp/scripts/configure_environment.py build --enviro
 bun scripts/build-authoring-skills.ts --local-candidate --environment staging --source artifacts/authoring-plugin/v4-staging --output artifacts/authoring-plugin/v4-skills-staging
 ```
 
-Use matching `production` arguments for a separate production-identity candidate. This only writes local artifacts. The manifest records `kind: local-candidate`, workspace source, base commit and source digest instead of claiming an upstream commit contains uncommitted edits. Candidate builds require explicit source/output, reject CI/deployment execution and cannot replace `dist/skills`. A deployed server rejects candidate catalogs; local verification may serve them with environment `local`. Normal build behavior and external lock entries remain unchanged.
+Use matching `production` arguments for a separate production-identity candidate. This only writes local artifacts. The manifest records `kind: local-candidate`, workspace source, base commit and source digest instead of claiming an upstream commit contains uncommitted edits. Candidate builds require explicit source/output, reject CI/deployment execution and cannot replace `dist/skills`. A deployed server rejects candidate catalogs; local verification may serve them with environment `local`. Candidate builds never update the external lock entries; normal builds still require the clean locked source.
 
 The generated native package keeps 12 skills; each MCP compact ZIP imports one router containing all 12 workflows. Archive receipts and local logs live under ignored `artifacts/authoring-plugin/`. Updating source or creating these artifacts does not install a host package or publish an external Git commit.
 
@@ -101,7 +103,7 @@ The focused suite exercises initialization, both catalogs, 21 independent fixtur
 
 Local verification on 2026-10-21 additionally exercised the real six-skill V4 candidate through MCP HTTP transport, checked every resource digest, confirmed plugin `0.4.0` bootstrap compatibility and rejected candidate serving in deployed environments. The distribution suite passed 11 tests with one Windows symlink skip; Python packaging passed 11 tests for both environment identities. Runtime-binding tests reject live dependency drift, course/excerpt swaps, changed asset bytes, unknown figure permission and newer plans presented to an older embedded renderer. Primary-agent browser/PDF verification is recorded separately.
 
-Run `bun test ./tests/contracts/product-v4-publication-integration.test.ts` in its own process. It migrates an in-memory SQLite database and exercises the real publication and quality gates: a current signed fixture receipt, explicit section/rubric approval and PDF evidence permit publication; stale or forged receipt, incomplete review, stale PDF, changed source and missing section approval reject atomically. Its fixture executor tests gate wiring; it does not substitute for actual browser/PDF execution.
+Run `bun scripts/test-contracts.ts tests/contracts/product-v4-publication-integration.test.ts` in its own process. Its isolated PostgreSQL-compatible fixture exercises the real publication and quality gates: a current signed fixture receipt, explicit section/rubric approval and PDF evidence permit publication; stale or forged receipt, incomplete review, stale PDF, changed source and missing section approval reject atomically. Its fixture executor tests gate wiring; it does not substitute for actual browser/PDF execution.
 
 A read-only host doctor observed an existing Antigravity staging package at `0.2.0` with legacy connection identity and checksum drift; its production package was absent. No package was installed or reloaded by these checks. Codex/ChatGPT active imports, OAuth sessions, external pinned-source updates and deployed MCP endpoints require their own observed acceptance and are not certified by local package tests.
 
@@ -129,4 +131,4 @@ The staging job uses the existing staging guard, checks all identity references 
 
 The existing endpoint also accepts explicit admin scopes for supported tools. OAuth consent grants only selected requested scopes; legacy session and compatibility tokens retain the authoring scopes. Reauthorize to add permissions. Verify the tool catalog and scope grants in the target environment before use. Local implementation does not verify deployment or external client behavior.
 
-The local native package now includes `zyx-admin-operations` as its seventh workflow. Admin operations use explicit scopes, signed plans and outbox receipts rather than authoring bootstrap stages. The locked deployed skill source remains separate; local package contents do not prove that an MCP host can discover this workflow. See [Admin MCP operations](admin-mcp.md).
+The native package includes `zyx-admin-operations` and five focused workflows for blog, content revisions, forms, media and recovery alongside the six academic authoring skills. Admin operations use explicit scopes, signed plans and outbox receipts rather than authoring bootstrap stages. The locked server snapshot remains separate; package contents alone do not prove that an installed MCP host can discover these workflows. See [Admin MCP operations](admin-mcp.md).

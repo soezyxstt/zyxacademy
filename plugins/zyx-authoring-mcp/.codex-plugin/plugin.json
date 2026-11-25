@@ -1,6 +1,6 @@
 {
   "name": "zyx-authoring-mcp-staging",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Zyx staging content and ops",
   "author": {
     "name": "Zyx Academy"
@@ -41,8 +41,9 @@
       "Inspect admin.environment and admin.capabilities before managing content, forms, or other admin operations.",
       "Run or resume the end-to-end authoring pipeline from course sources through validated Idea and Product Bundles.",
       "Build a Source Pack from stored course PDFs and validate it through Zyx MCP.",
-      "Author an Idea Bundle from a validated Source Pack.",
-      "Author a Product Bundle from published Ideas.",
+      "Create an Idea draft from a validated Source Pack using the connected server's advertised draft contract and exact source quotes.",
+      "Create an Article or Diktat from published Ideas, preview the same draft JSON when a checkout is available, and keep trusted verification and independent review separate.",
+      "Revise one stored Idea or Product target using current revision identity and compact reads, then inspect full release context before review or publication.",
       "Author an Idea-linked Question Bank draft for admin review.",
       "Ingest stored historical question and solution PDFs into immutable attributed reference records."
     ],

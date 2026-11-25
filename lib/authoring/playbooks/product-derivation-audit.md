@@ -8,7 +8,7 @@ Every derivation, proof, worked example, and numerical calculation in an Article
 
 1. **No Unjustified Algebraic Leaps:**
    - Do not combine more than two non-trivial algebraic or calculus operations in a single transition without showing the intermediate expression.
-   - In `worked_example` blocks, each step in `workedExamplePayload.steps` must isolate one logical move, state the transformation in `explanation`, and state the mathematical justification (theorem, identity, or domain condition) in `reason`.
+   - In V4 `worked_example` parts, each step isolates one logical move in `operationMarkdown`, states its theorem, identity or domain reason in `reasonMarkdown`, and supplies the relevant leaf parts and `sourceElementRefs`. Only explicit V3 revisions use `workedExamplePayload.steps` with `explanation` and `reason`.
 
 2. **Explicit Domain and Inequality Tracking:**
    - Whenever dividing by an expression $g(x)$, state explicitly why $g(x) \neq 0$ on the active domain (for example, "karena $0 < |x - c| < \delta$, maka $x \neq c$ sehingga $x - c \neq 0$").
@@ -21,7 +21,7 @@ Every derivation, proof, worked example, and numerical calculation in an Article
    - For physics, chemistry, and engineering courses, verify dimensional homogeneity on both sides of every equation and include SI units in numerical substitutions and final answers.
 
 4. **Independent Numerical and Symbolic Verification:**
-   - Substitute the final answer or an independent test value back into the original problem statement (and record this check in `workedExamplePayload.verification`).
+   - Substitute the final answer or an independent test value back into the original problem statement. Record this in V4 `verificationMarkdown`; explicit V3 revisions use `workedExamplePayload.verification`.
    - For multiple-choice formative checks, verify that:
      - Exactly one option evaluates to the true result.
      - No distractor becomes accidentally equivalent to the correct answer under an alternate algebraic simplification.

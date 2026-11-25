@@ -6,6 +6,10 @@ New learning Product authoring uses `product-bundle.v4`, `article.v4` and `dikta
 
 ## Machine-readable schema delivery
 
+The [draft agent workflow update](authoring-agent-workflow.md) adds `productDraftInput` and `authoring.create_product_draft` for initial typed Article/Diktat authoring. The server builds the existing canonical archive from authored content and current source/Idea references. Its scope and limits are in `productBundle.initialDraft`; archive submission remains available. Full canonical admission and release gates apply to both paths.
+
+Verification now schedules all structure/model checks before web/print, leaves blocked requirements `NOT_TESTED`, and captures PDF plus every page from a single render. Private signed checkpoints allow successful batches from the exact same plan and staging audit to survive a failed attempt. Byte/hash checks, current attempt identity, the full requirement matrix, final signed receipt and PDF evidence attachment remain required. Changed plans cannot reuse these checkpoints. These are local implementation claims pending hosted and visual acceptance.
+
 `workflow.get_contract` exposes primary `productBundle.schemaDocuments` and retains `productBundle.pilot.schemaDocuments` as a compatibility alias, with exact same-origin GET paths, SHA-256 checksums and byte lengths. `/api/authoring/contracts/product-v4` lists those documents. Each `?schema=<name>` returns the full JSON Schema generated from the running Zod validator, including Product envelopes, dependencies, ordered parts, Diktat units, visual controls and bindings, review context and PDF evidence. The public endpoint contains type definitions only; it does not return any run or course data and requires no credential.
 
 Use the checksum-pinned path returned by MCP and verify the response bytes. A stale pin returns HTTP 409; refresh the playbook and contract before continuing. `product` is the shared structural schema, so apply the explicit V4 `semanticRules` as well. JSON Schema cannot encode every cross-reference, lineage, security, model or readiness refinement. Complete validation still uses `authoring.validate_product_bundle`; validation success alone does not establish visual quality or publication readiness.
@@ -125,3 +129,7 @@ Idempotent staging retries return success only after locking and rereading the r
 ## Flexible revision workflow
 
 The [flexible revision contract](authoring-revisions.md) defines stable-ID MCP edits, persistent drafts separate from live content, release-impact planning, explicit affected review, mixed reference manifests and atomic replacement for Idea V3 and learning Product V3/V4/V5. The original profile-specific schema, source and publication gates remain required. Restoration creates a new draft rather than mutating history. The implementation is in progress; remote deployment acceptance is separate.
+
+## Local draft preview and authored priorities
+
+The typed draft input can preserve explicit `ideaLinks` weights/roles for exactly its `ideaIds`; versions/hashes remain server-bound. `productBundle.localPreview` advertises `bun run authoring:preview` for the same raw input, plus watch and structure-only modes. Preview uses shared learner/print components and exports screenshots, outline, diagnostics and Diktat pages. It never checks live sources or grants a receipt, review or publication readiness. Targeted Diktat-unit edits rebuild projections and invalidate affected evidence. See [the agent workflow](authoring-agent-workflow.md) for boundaries and repeatable synthetic measurements.

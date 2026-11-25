@@ -61,6 +61,8 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "scripts/authoring/verify-product-v4-local.ts", "scripts/authoring/run-product-v4-local.mjs", "lib/compute/product-v4-local-operator.ts", "scripts/neon/validate-production-target.ts", "scripts/neon/import-core.ts",
   "lib/compute/runtime.ts", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
   "lib/compute/browser-pdf.ts", "lib/compute/pdf-inspection.ts", "scripts/neon/build-worker.mjs",
+  "lib/compute/product-v4-print-artifacts.ts", "lib/bundle/product-v4-verification-checkpoint.ts",
+  "lib/authoring/product-draft-builder.ts",
   "app/globals.css", "app/layout.tsx", "app/authoring-verification/page.tsx",
   "components/providers/telemetry-boundary.tsx", "components/providers/posthog-provider.tsx", "lib/env.ts",
   "components/coding/article-coding.tsx", "components/coding/coding-workspace.tsx", "components/coding/coding-help.tsx", "components/coding/python-editor.tsx", "components/coding/use-coding-draft.ts",

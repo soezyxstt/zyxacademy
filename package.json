@@ -9,6 +9,7 @@
     "cs:dev": "rm -rf .next node_modules && bun install && next dev --turbo",
     "build": "bun run build:authoring-skills && bun scripts/authoring/prepare-web-verification.ts && next build",
     "build:authoring-skills": "bun scripts/build-authoring-skills.ts",
+    "authoring:preview": "bun scripts/authoring/preview-product-draft.ts",
     "worker:deno:audit": "bun scripts/audit-worker-dependencies.ts",
     "audit:web-boundaries": "bun scripts/audit-web-boundaries.ts",
     "audit:ui-separation": "bun scripts/audit-ui-separation.ts",

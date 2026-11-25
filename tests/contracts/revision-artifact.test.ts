@@ -82,6 +82,52 @@ test("metadata-only forks preserve all entity bytes, versions and hashes", () =>
   expect(result.impact.changed).toBe(false);
 });
 
+test("Diktat unit patches rebuild projections and invalidate evidence for the changed unit", () => {
+  const original = buildLocalVerificationFixture().bundle;
+  const diktat = original.products.find(product => product.productType === "diktat")!;
+  if (diktat.productType !== "diktat" || !diktat.units) throw new Error("FIXTURE_DIKTAT_REQUIRED");
+  const unit = diktat.units[0];
+  const part = unit.parts.find(part => part.kind === "markdown")!;
+  const target = { entityType: "diktat", entityId: diktat.id, unitId: unit.id };
+  const markdown = "## Menentukan toleransi input untuk limit linear";
+  const result = buildRevisionArtifact({ kind: "product", original, bundleId: "unit-edit", operations: [
+    { op: "set", target, field: `parts[${part.id}].markdown`, value: markdown },
+  ] });
+  const revised = (result.bundle as ValidRevisionProductBundle).products.find(product => product.id === diktat.id)!;
+  if (revised.productType !== "diktat") throw new Error("FIXTURE_DIKTAT_REQUIRED");
+  expect(revised.contentMarkdown).toContain(markdown);
+  expect(revised.version).toBe(diktat.version + 1);
+  expect(revised.generationHash).not.toBe(diktat.generationHash);
+  expect(diktat.contentMarkdown).not.toContain(markdown);
+  expect(result.impact.changedUnits).toContainEqual({ entityId: diktat.id, unitType: "unit", unitId: unit.id, change: "changed" });
+  expect(result.impact.evidenceInvalidations).toContainEqual({ entityId: diktat.id, reason: "PRINT_SOURCE_CHANGED" });
+  expect((result.bundle as ValidRevisionProductBundle).products.find(product => product.productType === "article")).toEqual(original.products.find(product => product.productType === "article"));
+  for (const invalid of [
+    { ...target, unitId: "missing" }, { ...target, sectionId: "section-a" },
+    { ...target, itemId: "item-a" }, { ...target, entityId: original.products.find(product => product.productType === "article")!.id, entityType: "article" },
+  ]) expect(() => buildRevisionArtifact({ kind: "product", original, bundleId: "invalid-unit", operations: [
+    { op: "set", target: invalid, field: `parts[${part.id}].markdown`, value: markdown },
+  ] })).toThrow();
+});
+
+test("Diktat unit add, reorder and remove use stable IDs and retain canonical validation", () => {
+  const original = buildLocalVerificationFixture().bundle;
+  const diktat = original.products.find(product => product.productType === "diktat")!;
+  if (diktat.productType !== "diktat" || !diktat.units) throw new Error("FIXTURE_DIKTAT_REQUIRED");
+  const target = { entityType: "diktat", entityId: diktat.id, unitId: "extra-unit" };
+  const result = buildRevisionArtifact({ kind: "product", original, bundleId: "unit-add", operations: [
+    { op: "add", target, value: { id: "extra-unit", ideaIds: diktat.units[0].ideaIds, sourceElementRefs: diktat.units[0].sourceElementRefs, parts: diktat.units[0].parts.map(part => ({ ...part, id: `extra-${part.id}` })) } },
+    { op: "move", target, beforeId: diktat.units[0].id },
+  ] });
+  const revised = (result.bundle as ValidRevisionProductBundle).products.find(product => product.id === diktat.id)!;
+  if (revised.productType !== "diktat") throw new Error("FIXTURE_DIKTAT_REQUIRED");
+  expect(revised.units?.[0].id).toBe("extra-unit");
+  expect(result.impact.structureChanged).toBe(true);
+  const removed = buildRevisionArtifact({ kind: "product", original: result.bundle, bundleId: "unit-remove", operations: [{ op: "remove", target }] });
+  expect((removed.bundle as ValidRevisionProductBundle).products.find(product => product.id === diktat.id)).toHaveProperty("units", diktat.units);
+  expect(() => buildRevisionArtifact({ kind: "product", original, bundleId: "empty-units", operations: [{ op: "remove", target: { ...target, unitId: diktat.units![0].id } }] })).toThrow();
+});
+
 test("an exact semantic no-op retains the existing checksum and version", () => {
   const original = cards();
   const result = buildRevisionArtifact({ kind: "product", original, bundleId: original.manifest.bundleId, operations: [{ op: "set", target: { entityType: "flashcard", entityId: "card" }, field: "front", value: "Satu" }] });

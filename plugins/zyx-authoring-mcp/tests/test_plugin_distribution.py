@@ -39,7 +39,7 @@ class PluginDistributionTest(unittest.TestCase):
         release = ce.load_release_metadata(self.source_copy)
         self.assertEqual(tuple(release["skills"]), original + focused)
         self.assertEqual(ce.EXPECTED_SKILLS, original + focused)
-        self.assertEqual(release["version"], "0.5.1")
+        self.assertEqual(release["version"], "0.5.2")
         self.assertEqual(release["bootstrapProtocol"], 1)
         self.assertEqual(release["minCompatibleVersion"], "0.2.0")
         server_source = (self.repo_plugin_root.parent.parent / "lib/authoring/mcp-playbook.ts").read_text(encoding="utf-8")
@@ -56,12 +56,14 @@ class PluginDistributionTest(unittest.TestCase):
                 self.assertEqual(codex["version"], release["version"])
                 self.assertEqual(claude["version"], release["version"])
                 self.assertLessEqual(len(codex["interface"]["shortDescription"]), 30)
-                for skill in focused:
+                for skill in original + focused:
                     text = (target / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
                     self.assertRegex(text, rf"(?m)^name: {re.escape(skill)}$")
-                    self.assertIn("admin.environment", text)
-                    self.assertIn("admin.capabilities", text)
-                    self.assertIn(f'"pluginVersion": "{release["version"]}"', text)
+                    if skill in ce.ADMIN_IDENTITY_SKILLS:
+                        self.assertIn("admin.environment", text)
+                        self.assertIn("admin.capabilities", text)
+                    declared_versions = re.findall(r'(?:"pluginVersion"|pluginVersion):\s*"([^"]+)"', text)
+                    self.assertEqual(set(declared_versions), {release["version"]})
                     self.assertEqual(text.count("<!-- BEGIN:environment-connection -->"), 1)
                     yaml_text = (target / "skills" / skill / "agents/openai.yaml").read_text(encoding="utf-8")
                     fields = {
@@ -147,11 +149,12 @@ class PluginDistributionTest(unittest.TestCase):
             summary_a = ce.configure_plugin(self.source_copy, env_name, output_dir=out_a)
             summary_b = ce.configure_plugin(self.source_copy, env_name, output_dir=out_b)
             self.assertEqual(summary_a["payloadHash"], summary_b["payloadHash"])
-            self.assertEqual(summary_a["version"], "0.5.1")
+            self.assertEqual(summary_a["version"], "0.5.2")
             self.assertEqual(summary_a["bootstrapProtocol"], 1)
             for skill in ce.EXPECTED_SKILLS:
                 content = (out_a / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
-                self.assertIn('"pluginVersion": "0.5.1"', content)
+                declared_versions = re.findall(r'(?:"pluginVersion"|pluginVersion):\s*"([^"]+)"', content)
+                self.assertEqual(set(declared_versions), {"0.5.2"})
                 self.assertNotIn('"pluginVersion": "0.4.1"', content)
 
             cfg = ce.ENVIRONMENTS[env_name]
@@ -175,6 +178,17 @@ class PluginDistributionTest(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             ce.configure_plugin(self.repo_plugin_root, "staging")
         self.assertIn("Refusing to mutate repository source plugin directory", str(ctx.exception))
+
+    def test_version_bump_updates_json_and_prose_bootstrap_literals_for_every_skill(self) -> None:
+        release = ce.load_release_metadata(self.source_copy)
+        release["version"] = "0.5.3"
+        ce.write_json(self.source_copy / "release.json", release)
+        target = self.temp_dir / "next-version"
+        ce.configure_plugin(self.source_copy, "staging", output_dir=target)
+        for skill in ce.EXPECTED_SKILLS:
+            text = (target / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
+            versions = re.findall(r'(?:"pluginVersion"|pluginVersion):\s*"([^"]+)"', text)
+            self.assertEqual(set(versions), {"0.5.3"}, skill)
 
     def test_packaging_rejects_zip_env_references_and_unknown_files(self) -> None:
         bad_zip = self.source_copy / "skills" / "rogue.zip"

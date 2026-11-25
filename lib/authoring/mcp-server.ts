@@ -27,6 +27,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAuthoringSkills } from "./mcp-skills";
 import { registerProductV4Tools } from "./mcp-v4-tools";
 import { registerRevisionTools } from "./revision-mcp";
+import { createProductDraft, createProductDraftToolSchema } from "./product-draft-service";
+import { loadProductDraftContext } from "./product-draft-context";
+import { createIdeaDraft, createIdeaDraftToolSchema } from "./idea-draft-service";
+import { loadIdeaDraftContext } from "./idea-draft-context";
+import { authoringFailureDiagnostics } from "./diagnostics";
 import { computeProductV4VerificationContentHash, getProductV4VerificationReceiptSignature } from "@/lib/bundle/product-v4-verification";
 import { computeProductV4SectionSemanticHash, productV4ReviewContextShape, sectionDecisionsSchema } from "@/lib/bundle/product-v4-review";
 import type { SkillCatalogProfile } from "./skill-catalog";
@@ -193,18 +198,19 @@ function toolError(error: unknown) {
   const code = redactSensitiveDetails(rawCode.slice(0, 120)).trim();
   const rawDetail = details.join(":").slice(0, 600);
   const detail = rawDetail ? redactSensitiveDetails(rawDetail).trim() : undefined;
+  const diagnostics = authoringFailureDiagnostics(error, { code });
   if (code === "AUTHORING_MCP_SCOPE_REQUIRED" && detail) {
     const challenge = insufficientScopeChallenge(detail);
     return {
       ...toolResult({
-        ok: false, error: code, detail, requiredScope: detail,
+        ok: false, error: code, detail, requiredScope: detail, ...diagnostics,
         remediation: "Reauthorize this OAuth client with the union of its current scopes and the required scope, then approve consent and retry with the new token.",
       }, true),
       _meta: { "mcp/www_authenticate": [challenge] },
     };
   }
   if (["IDEA_BUNDLE_REVIEW_RESET_REQUIRED", "IDEA_BUNDLE_REVIEW_RESET_STALE"].includes(code)) {
-    return toolResult({ ok: false, error: code, remediation: "Read authoring.get_import for the current Idea revision and reviewReset counts and fingerprint. Explicitly acknowledge the reset, then retry restaging with that fingerprint and revision." }, true);
+    return toolResult({ ok: false, error: code, ...diagnostics, remediation: "Read authoring.get_import for the current Idea revision and reviewReset counts and fingerprint. Explicitly acknowledge the reset, then retry restaging with that fingerprint and revision." }, true);
   }
   const issues = (error as any)?.issues;
   const safeIssues = Array.isArray(issues) ? issues.map((iss: any) => ({
@@ -217,7 +223,7 @@ function toolError(error: unknown) {
     reason: redactSensitiveDetails(String(iss.reason ?? "")),
     remediation: redactSensitiveDetails(String(iss.remediation ?? "")),
   })) : undefined;
-  return toolResult({ ok: false, error: code, detail: detail || undefined, ...(safeIssues ? { issues: safeIssues } : {}) }, true);
+  return toolResult({ ok: false, error: code, detail: detail || undefined, ...(safeIssues ? { issues: safeIssues } : {}), ...diagnostics }, true);
 }
 
 export async function formatSourceFileReadResult(
@@ -2107,6 +2113,15 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     };
   }));
 
+  (server as any).registerTool("authoring.create_idea_draft", {
+    title: "Create Idea draft",
+    description: "Create an initial Idea V3 draft from atomic Ideas, teaching sections, explained relations and exact source quotes. Fetch the pinned ideaDraftInput schema from workflow.get_contract on demand. The server reads the bound validated Source Pack, resolves provenance and stable IDs, builds hashes and ZIP, then applies the existing coverage, admission and staging gates. Reuse draftKey only for the same unchanged request/run token. No review or publication.",
+    inputSchema: createIdeaDraftToolSchema.shape,
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (input: z.infer<typeof createIdeaDraftToolSchema>) => safeTool(() => createIdeaDraft(input, principal, {
+    loadContext: loadIdeaDraftContext, stage: stageIdeaArtifact,
+  })));
+
   (server as any).registerTool("authoring.submit_idea_bundle", {
     title: "Submit Idea Bundle for review",
     description: "Memvalidasi lalu menaruh Idea Bundle sebagai import tervalidasi untuk review admin. Tool ini tidak dapat mempublikasikan bundle.",
@@ -2239,6 +2254,15 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       next: valid ? (publicationReady ? "ready_for_publication" : "submit_for_review") : "agent_revision",
     };
   }));
+
+  (server as any).registerTool("authoring.create_product_draft", {
+    title: "Create Article or Diktat draft",
+    description: "Create initial V4 Article/Diktat drafts from typed content and published Idea/source IDs. Fetch the pinned productDraftInput schema from workflow.get_contract on demand; this small catalog envelope does not replace strict validation. The server binds versions, IDs, projections, dependencies and ZIP, then applies existing admission and staging gates. Reuse draftKey only for an unchanged request/run token; use revisions for edits. No review or publication.",
+    inputSchema: createProductDraftToolSchema.shape,
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (input: z.infer<typeof createProductDraftToolSchema>) => safeTool(() => createProductDraft(input, principal, {
+    loadContext: loadProductDraftContext, stage: stageProductArtifact,
+  })));
 
   (server as any).registerTool("authoring.submit_product_bundle", {
     title: "Submit Product Bundle for review",

@@ -754,3 +754,9 @@ Local implementation, not deployed or verified against live OAuth/Calendar yet.
 7. After the calendar-sync code and migration are deployed, open Admin schedules, choose **Google Calendar Zyx**, then **Sinkronkan sekarang**. Check the recorded sync status, inspect the intended account's primary Google Calendar, and smoke-check existing Meet, Forms and Sheets flows. Token presence alone does not verify scopes, account identity or remote API availability. Remove only the Playground redirect URI afterwards if it is no longer needed; retain every app callback.
 
 For an external OAuth app in **Testing**, Google normally expires refresh tokens with these non-basic scopes after 7 days. Use the appropriate published/internal setup for unattended daily operation and complete verification if Google requires it. See [Google's refresh-token expiration rules](https://developers.google.com/identity/protocols/oauth2#expiration).
+
+## Offline authoring preview
+
+Status: `ACTIVE` in source. Use `bun run authoring:preview --input draft.json --out artifacts/authoring-preview` after installing dependencies and Chromium. Add `--watch` to retain the local server, compiled assets and browser across edits, or `--check` for structure and outline only. The input is the raw `productDraftInput` JSON; no credentials or staging connection are needed. Explicit browser binaries use `--executable-path /path/to/chromium` and are reported without claiming trusted runtime identity.
+
+See [the agent workflow](bundle/authoring-agent-workflow.md) for outputs, supported products, unverified boundaries and `bun scripts/authoring/benchmark-agent-workflow.ts`. Local screenshots do not replace trusted release verification.

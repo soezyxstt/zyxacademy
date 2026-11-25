@@ -267,6 +267,11 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     const names = tools.map((tool) => tool.name);
     expect(names).toContain("authoring.submit_idea_bundle");
     expect(names).toContain("authoring.submit_product_bundle");
+    expect(names).toContain("authoring.create_product_draft");
+    expect(Buffer.byteLength(JSON.stringify(tools.find(tool => tool.name === "authoring.create_product_draft")!.inputSchema))).toBeLessThan(4000);
+    expect(names).toContain("authoring.create_idea_draft");
+    expect(Buffer.byteLength(JSON.stringify(tools.find(tool => tool.name === "authoring.create_idea_draft")!.inputSchema))).toBeLessThan(4000);
+    expect(tools.find(tool => tool.name === "authoring.create_idea_draft")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false });
     expect(names).toContain("assessment.list_ideas");
     expect(names).toContain("assessment.get_idea");
     expect(names).toContain("assessment.validate_quiz_draft");
