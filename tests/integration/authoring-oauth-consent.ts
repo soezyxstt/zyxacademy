@@ -70,10 +70,11 @@ try {
   const { GET: authorize } = await import("@/app/api/mcp/oauth/authorize/route");
   const { POST: exchange } = await import("@/app/api/mcp/oauth/token/route");
   const { submitMcpAuthorization } = await import("@/app/mcp/authorize/actions");
-  const { issueClientRegistration, MCP_OAUTH_INITIAL_SCOPES } = await import("@/lib/authoring/mcp-oauth");
+  const { issueClientRegistration, MCP_OAUTH_INITIAL_SCOPES, listOAuthConnections, revokeOAuthConnection } = await import("@/lib/authoring/mcp-oauth");
   const { issueMcpConnectionToken, readMcpConnectionToken, MCP_AUTHORING_DEFAULT_SCOPES, MCP_AUTHORING_SCOPES } = await import("@/lib/authoring/mcp-workflows");
   const { principalFromConnectionToken } = await import("@/lib/authoring/mcp-auth");
   const { POST: revoke } = await import("@/app/api/mcp/oauth/revoke/route");
+  const { assertAdminMutationAuthority } = await import("@/lib/admin-mcp/mutations");
   const clientId = issueClientRegistration({ clientName: "First", redirectUris: [callback] });
   const otherClient = issueClientRegistration({ clientName: "Second", redirectUris: [callback] });
   const params = { client_id: clientId, redirect_uri: callback, resource, scope: read, state: "opaque",
@@ -258,8 +259,28 @@ try {
   expect((await silent()).get("error")).toBe("consent_required");
   await expect(principalFromConnectionToken(subset.access_token, resource)).rejects.toThrow("AUTHORING_MCP_CONSENT_REQUIRED");
 
+  // User-controlled disconnect must revoke consent, and must not affect another user.
+  const disconnectApproval = await consent("approve", [read]);
+  const disconnected = await redeem(disconnectApproval.searchParams.get("code")!);
+  const disconnectId = readMcpConnectionToken(disconnected.access_token).sessionId;
+  expect((await listOAuthConnections("ada")).map(item => item.id)).toContain(disconnectId);
+  expect(await listOAuthConnections("ben")).toEqual([]);
+  await revokeOAuthConnection("ben", disconnectId);
+  expect((await principalFromConnectionToken(disconnected.access_token, resource)).userId).toBe("ada");
+  await revokeOAuthConnection("ada", disconnectId);
+  expect((await silent()).get("error")).toBe("consent_required");
+  expect((await refresh(disconnected.refresh_token)).error).toBe("invalid_grant");
+
   const durableApproval = await consent("approve", [read]);
   const durable = await redeem(durableApproval.searchParams.get("code")!);
+  // Independent families must survive revocation of another provider credential.
+  const replayFamily = await redeem((await silent()).get("code")!);
+  const replayGrantId = readMcpConnectionToken(replayFamily.access_token).sessionId;
+  const expiredFamily = await redeem((await silent()).get("code")!);
+  const expiredGrantId = readMcpConnectionToken(expiredFamily.access_token).sessionId;
+  await db.update(verification).set({ expiresAt: new Date(0) }).where(eq(verification.id, expiredGrantId));
+  expect((await refresh(expiredFamily.refresh_token)).error).toBe("invalid_grant");
+  await expect(principalFromConnectionToken(expiredFamily.access_token, resource)).rejects.toThrow("AUTHORING_MCP_CONSENT_REQUIRED");
   expect(durable.expires_in).toBeGreaterThan(0);
   expect(durable.expires_in).toBeLessThanOrEqual(3600);
   expect(typeof durable.refresh_token).toBe("string");
@@ -271,8 +292,19 @@ try {
   await db.delete(session).where(eq(session.id, sessionId));
   expect((await silent()).get("error")).toBe("login_required");
   await expect(principalFromConnectionToken(manual, resource)).rejects.toThrow("AUTHORING_MCP_SESSION_INVALID");
-  expect((await principalFromConnectionToken(durable.access_token, resource)).userId).toBe(userId);
-  const rotated = await refresh(durable.refresh_token);
+  const durablePrincipal = await principalFromConnectionToken(durable.access_token, resource);
+  expect(durablePrincipal.userId).toBe(userId);
+  await db.transaction(tx => assertAdminMutationAuthority(tx, durablePrincipal, "admin.operation_receipt", null));
+  const replayed = await refresh(replayFamily.refresh_token);
+  const [replayGrant] = await db.select({ value: verification.value }).from(verification).where(eq(verification.id, replayGrantId));
+  const replayData = JSON.parse(replayGrant.value);
+  await db.update(verification).set({ value: JSON.stringify({ ...replayData, rotatedAt: Date.now() - 20_000 }) }).where(eq(verification.id, replayGrantId));
+  expect((await refresh(replayFamily.refresh_token)).error).toBe("invalid_grant");
+  expect((await refresh(replayed.refresh_token)).error).toBe("invalid_grant");
+  await expect(principalFromConnectionToken(replayed.access_token, resource)).rejects.toThrow("AUTHORING_MCP_CONSENT_REQUIRED");
+
+  const [rotated, parallel] = await Promise.all([refresh(durable.refresh_token), refresh(durable.refresh_token)]);
+  expect(parallel.refresh_token).toBe(rotated.refresh_token);
   expect(rotated.refresh_token).not.toBe(durable.refresh_token);
   expect(readMcpConnectionToken(rotated.access_token).sessionId).toBe(grantId);
   const retried = await refresh(durable.refresh_token);
@@ -283,13 +315,14 @@ try {
   await expect(principalFromConnectionToken(rotated.access_token, resource)).rejects.toThrow("AUTHORING_MCP_ADMIN_REQUIRED");
   await db.update(pengguna).set({ status: "active" }).where(eq(pengguna.id, userId));
   const response = await revoke(new NextRequest(`${internalOrigin}/api/mcp/oauth/revoke`, {
-    method: "POST", body: new URLSearchParams({ client_id: clientId, token: rotated.refresh_token }),
+    method: "POST", body: new URLSearchParams({ client_id: clientId, token: rotated.access_token }),
   }));
   expect(response.status).toBe(200);
   expect((await refresh(rotated.refresh_token)).error).toBe("invalid_grant");
   const revoked = await callAuthoring(rotated.access_token);
   expect(revoked.status).toBe(401);
   expect(revoked.headers.get("www-authenticate")).toContain('error="invalid_token"');
+  await expect(db.transaction(tx => assertAdminMutationAuthority(tx, durablePrincipal, "admin.operation_receipt", null))).rejects.toThrow("OAUTH_CONSENT_REQUIRED");
 } finally {
   await client.close();
 }

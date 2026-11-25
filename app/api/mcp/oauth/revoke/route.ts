@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readClientRegistration, revokeOAuthRefreshToken } from "@/lib/authoring/mcp-oauth";
+import { readClientRegistration, revokeOAuthToken } from "@/lib/authoring/mcp-oauth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   if (!token || !clientId) return NextResponse.json({ error: "invalid_request" }, { status: 400, headers });
   try { readClientRegistration(clientId); } catch { return NextResponse.json({ error: "invalid_client" }, { status: 400, headers }); }
   try {
-    await revokeOAuthRefreshToken(token, clientId);
+    await revokeOAuthToken(token, clientId);
     return new NextResponse(null, { status: 200, headers });
   } catch {
     return NextResponse.json({ error: "temporarily_unavailable" }, { status: 503, headers });

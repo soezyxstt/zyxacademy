@@ -13,6 +13,7 @@ import {
   issueMcpClientId,
   issueMcpConnectionToken,
   readMcpClientId,
+  readMcpConnectionToken,
   type McpClientPayload,
 } from "@/lib/authoring/mcp-workflows";
 
@@ -323,32 +324,61 @@ export async function refreshOAuthTokenPair(input: { token: string; clientId: st
   return pair;
 }
 
-/** Revocation is idempotent; a valid refresh credential from this client revokes its entire family. */
-export async function revokeOAuthRefreshToken(token: string, clientId: string): Promise<void> {
+/** RFC 7009: either credential revokes its family, not other clients' connections. */
+export async function revokeOAuthToken(token: string, clientId: string): Promise<void> {
   const credential = readRefreshToken(token);
-  if (!credential) return;
-  const row = await readGrant(credential.id);
+  let id = credential?.id;
+  if (!id) {
+    try {
+      const access = readMcpConnectionToken(token);
+      if (access.clientId === clientId && access.resource === resourceUrl() && isMcpOAuthGrantSessionId(access.sessionId)) id = access.sessionId;
+    } catch (error) {
+      if (error instanceof Error && ["AUTHORING_MCP_TOKEN_INVALID", "AUTHORING_MCP_TOKEN_EXPIRED"].includes(error.message)) return;
+      throw error;
+    }
+  }
+  if (!id) return;
+  const row = await readGrant(id);
   if (row?.grant.clientId === clientId && row.grant.resource === resourceUrl()) {
-    await db.delete(verification).where(eq(verification.id, credential.id));
+    await db.delete(verification).where(eq(verification.id, id));
   }
 }
 
 export async function listOAuthConnections(userId: string) {
   const rows = await db.select({ id: verification.id, value: verification.value, expiresAt: verification.expiresAt })
     .from(verification).where(and(like(verification.identifier, GRANT_PREFIX + hash(userId) + ":%"), gt(verification.expiresAt, new Date())));
-  return rows.flatMap(row => {
+  const connections = new Map<string, { id: string; name: string; scopes: string[]; expiresAt: Date }>();
+  for (const row of rows) {
     const grant = parseGrant(row.value);
-    if (grant.userId !== userId || grant.resource !== resourceUrl() || grant.absoluteExpiry <= Date.now()) return [];
+    if (grant.userId !== userId || grant.resource !== resourceUrl() || grant.absoluteExpiry <= Date.now()) continue;
+    const consent = await readConsent(binding(grant), db);
+    if (!consent || !grant.scope.every(scope => consent.scopes.includes(scope))) continue;
+    const key = consentId(binding(grant));
+    const existing = connections.get(key);
+    if (existing) {
+      existing.scopes = [...new Set([...existing.scopes, ...grant.scope])];
+      if (row.expiresAt > existing.expiresAt) {
+        existing.id = row.id;
+        existing.expiresAt = row.expiresAt;
+      }
+      continue;
+    }
     let name = "MCP client";
     try { name = readClientRegistration(grant.clientId).clientName; } catch { /* Expired registration can still be revoked. */ }
-    return [{ id: row.id, name, scopes: grant.scope, expiresAt: row.expiresAt }];
-  });
+    connections.set(key, { id: row.id, name, scopes: grant.scope, expiresAt: row.expiresAt });
+  }
+  return [...connections.values()];
 }
 
 export async function revokeOAuthConnection(userId: string, id: string): Promise<void> {
   if (!isMcpOAuthGrantSessionId(id)) return;
   const row = await readGrant(id);
   if (row?.grant.userId === userId && row.grant.resource === resourceUrl()) {
-    await db.delete(verification).where(eq(verification.id, id));
+    const consent = binding(row.grant);
+    // Delete consent first so a provider cannot silently reauthorize after user revocation.
+    await db.transaction(async tx => {
+      await tx.delete(verification).where(eq(verification.id, consentId(consent)));
+      await tx.delete(verification).where(like(verification.identifier, grantIdentifierPrefix(consent) + "%"));
+    });
   }
 }
