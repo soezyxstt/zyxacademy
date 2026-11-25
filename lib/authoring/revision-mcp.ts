@@ -15,7 +15,7 @@ const kind = z.enum(["idea", "product"]);
 const bootstrap = z.string().min(1).max(32_768);
 const identity = { kind, bootstrapToken: bootstrap, importId: identifier, expectedRevision: revision };
 const responseMode = z.enum(["full", "compact"]).optional();
-export const revisionReadTargetSchema = z.object({ entityType: identifier, entityId: identifier, sectionId: identifier.optional(), blockId: identifier.optional(), itemId: identifier.optional() }).strict().refine(target => !(target.blockId && !target.sectionId) && !(target.itemId && (target.sectionId || target.blockId)), "A block needs its section ID; an item cannot also select a section or block");
+export const revisionReadTargetSchema = z.object({ entityType: identifier, entityId: identifier, sectionId: identifier.optional(), blockId: identifier.optional(), unitId: identifier.optional(), itemId: identifier.optional() }).strict().refine(target => !(target.blockId && !target.sectionId) && !(target.itemId && (target.sectionId || target.blockId || target.unitId)) && !(target.unitId && (target.sectionId || target.blockId)), "A block needs its section ID; an item or Diktat unit must be selected without a section or block");
 const field = z.string().max(256).refine(value => {
   const segments = value.split(".");
   if (!value || segments.length > 8) return false;
@@ -27,7 +27,7 @@ const field = z.string().max(256).refine(value => {
 }, "Use stable-ID object fields, never numeric array positions or prototype paths");
 export const revisionPatchOperationSchema = z.object({
   op: z.enum(["set", "add", "remove", "move"]),
-  target: z.object({ entityType: identifier, entityId: identifier, sectionId: identifier.optional(), blockId: identifier.optional(), itemId: identifier.optional() }).strict(),
+  target: revisionReadTargetSchema,
   field: field.optional(), value: z.unknown().optional(), beforeId: identifier.nullable().optional(),
 }).strict();
 const entry = z.object({ kind, importId: identifier, expectedRevision: revision }).strict();
@@ -134,7 +134,7 @@ export function registerRevisionTools(server: McpServer, principal: McpPrincipal
       } catch (error) { return failure(error); }
     });
   }
-  register("authoring.get_edit_context", z.object({ ...identity, responseMode, target: revisionReadTargetSchema.optional() }), "read", "Read an exact V3+ Idea/Product revision. Default full includes review context. Use responseMode compact for identity and impact, or target for one stable entity, section, block or collection item; compact and targeted reads defer review/readiness. No Source Pack or authoring run is required.", async input => {
+  register("authoring.get_edit_context", z.object({ ...identity, responseMode, target: revisionReadTargetSchema.optional() }), "read", "Read an exact V3+ Idea/Product revision. Default full includes review context. Use responseMode compact for identity and impact, or target for one stable entity, section, block, Diktat unit or collection item; compact and targeted reads defer review/readiness. No Source Pack or authoring run is required.", async input => {
     verify(input.kind, input.bootstrapToken);
     return projectRevisionResponse(withExecution(await readContext(input), input.kind, input.bootstrapToken), input);
   });
@@ -143,7 +143,7 @@ export function registerRevisionTools(server: McpServer, principal: McpPrincipal
     await readContext({ kind: input.kind, importId: input.baseImportId, expectedRevision: input.expectedRevision, responseMode: "compact" });
     return draftResult("createRevisionDraft", { actorId, ...input }, input.kind, bootstrapToken);
   });
-  register("authoring.patch_revision", z.object({ ...identity, operations: z.array(revisionPatchOperationSchema).min(1).max(REVISION_MCP_LIMITS.operations), responseMode }), "stage", "Patch a draft by stable entity, section, block or item IDs. Supports set/add/remove/move. Exact revision protects other edits; the server rebuilds hashes and returns a successor importId/revision plus impact. Use the returned identity on every next call. Optional responseMode compact omits the full bundle and defers review/readiness.", async ({ bootstrapToken, ...input }) => {
+  register("authoring.patch_revision", z.object({ ...identity, operations: z.array(revisionPatchOperationSchema).min(1).max(REVISION_MCP_LIMITS.operations), responseMode }), "stage", "Patch a draft by stable entity, section, block, Diktat unit or item IDs. Supports set/add/remove/move. Exact revision protects other edits; the server rebuilds hashes and returns a successor importId/revision plus impact. Use the returned identity on every next call. Optional responseMode compact omits the full bundle and defers review/readiness.", async ({ bootstrapToken, ...input }) => {
     verify(input.kind, bootstrapToken);
     await readContext({ ...input, responseMode: "compact" });
     return draftResult("patchRevisionDraft", { actorId, ...input }, input.kind, bootstrapToken);

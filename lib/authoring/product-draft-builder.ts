@@ -8,6 +8,7 @@ import {
   productArticleV3BlockSchema,
   productArticleV3SectionSchema,
   productEntitySchema,
+  productIdeaLinkSchema,
   productSourceRefSchema,
   type ProductBundleValidation,
   type ProductDependency,
@@ -25,6 +26,7 @@ const ids = z.array(identifier).min(1).max(256).refine(value => new Set(value).s
 const hashSchema = z.string().regex(/^[a-f0-9]{64}$/);
 const sourceSelectionSchema = z.object({ sourceId: identifier, excerptIds: ids }).strict();
 const sources = z.array(sourceSelectionSchema).min(1).max(256);
+const ideaLinkSelectionSchema = productIdeaLinkSchema.omit({ version: true, semanticHash: true }).extend({ id: identifier });
 
 // Only mechanical IDs differ from the canonical part schemas. Their content
 // refinements still run, and the complete canonical validator runs after assembly.
@@ -61,6 +63,8 @@ const authorSection = productArticleV3SectionSchema.omit({ id: true, slug: true,
 const commonInput = {
   id: identifier.optional(), title: z.string().trim().min(1).max(1000),
   ideaIds: ids, sourceRefs: sources,
+  // Optional teaching priorities. Identity and revision still come from the server.
+  ideaLinks: z.array(ideaLinkSelectionSchema).min(1).max(256).optional(),
   ai: z.object({ provider: identifier, model: identifier, promptVersion: identifier }).strict().optional(),
   visuals: z.array(visualSpecSchema).max(64).optional(),
 };
@@ -143,10 +147,16 @@ export function buildProductDraft(rawInput: unknown, rawContext: ProductDraftCon
   }
   function common(product: z.infer<typeof articleInput> | z.infer<typeof diktatInput>, index: number) {
     const sourceRefs = bindSources(product.sourceRefs, `products.${index}.sourceRefs`);
+    const priorities = new Map(product.ideaLinks?.map(link => [link.id, link]));
+    if (product.ideaLinks) {
+      if (priorities.size !== product.ideaLinks.length) issues.push({ code: "PRODUCT_DRAFT_IDEA_LINK_DUPLICATE", path: `products.${index}.ideaLinks`, message: "Supply each Idea priority once" });
+      if (priorities.size !== product.ideaIds.length || product.ideaIds.some(id => !priorities.has(id))) issues.push({ code: "PRODUCT_DRAFT_IDEA_LINK_SELECTION_MISMATCH", path: `products.${index}.ideaLinks`, message: "Idea priorities must describe exactly the selected ideaIds" });
+    }
     const ideaLinks = product.ideaIds.flatMap((ideaId, ideaIndex) => {
       const known = ideas.get(ideaId);
       if (!known) { issues.push({ code: "PRODUCT_DRAFT_IDEA_OUT_OF_SCOPE", path: `products.${index}.ideaIds.${ideaIndex}`, message: "Use only published Idea IDs from the bound authoring context" }); return []; }
-      return [{ ...known, weight: 1 / product.ideaIds.length, role: "supporting" as const }];
+      const priority = priorities.get(ideaId);
+      return [{ ...known, weight: priority?.weight ?? 1 / product.ideaIds.length, role: priority?.role ?? "supporting" as const }];
     });
     if (product.visuals?.some(item => item.kind === "interactive_document")) issues.push({ code: "PRODUCT_DRAFT_ASSET_ARCHIVE_REQUIRED", path: `products.${index}.visuals`, message: "Interactive documents require their admitted binary assets; use the existing archive workflow" });
     return {

@@ -70,6 +70,50 @@ describe("initial Product authoring builder", () => {
     if (!result.success) expect(result.issues.map(issue => issue.code)).toEqual(["PRODUCT_DRAFT_SOURCE_OUT_OF_SCOPE", "PRODUCT_DRAFT_IDEA_OUT_OF_SCOPE"]);
   });
 
+  test("preserves explicit teaching priorities while binding Idea revisions on the server", () => {
+    const input = simpleDiktat();
+    input.products[0].ideaIds = ["idea", "required-idea"];
+    if (input.products[0].productType !== "diktat") throw new Error("Expected Diktat");
+    input.products[0].units[0].ideaIds = ["idea", "required-idea"];
+    input.products[0].ideaLinks = [
+      { id: "required-idea", weight: 0.2, role: "required" },
+      { id: "idea", weight: 0.8, role: "primary" },
+    ];
+    const bound = { ...context, ideas: [...context.ideas, { id: "required-idea", version: 7, semanticHash: "c".repeat(64) }] };
+    const built = buildProductDraft(input, bound);
+    if (!built.success) throw new Error(JSON.stringify(built.issues));
+    expect(built.bundle.products[0].ideaLinks).toEqual([
+      { ...context.ideas[0], weight: 0.8, role: "primary" },
+      { ...bound.ideas[1], weight: 0.2, role: "required" },
+    ]);
+    expect(built.bundle.dependencies.find(edge => edge.upstreamEntityId === "required-idea")).toMatchObject({ upstreamVersion: 7, upstreamHash: "c".repeat(64) });
+    input.products[0].ideaLinks.reverse();
+    const reordered = buildProductDraft(input, bound);
+    expect(reordered.success && reordered.bundle.checksum).toBe(built.bundle.checksum);
+  });
+
+  test("rejects duplicate, partial, unknown, forged and unbalanced Idea priorities", () => {
+    const known = { id: "idea", weight: 1, role: "primary" as const };
+    for (const priorities of [
+      [known, known],
+      [{ ...known, id: "unselected" }],
+      [known, { ...known, id: "unselected" }],
+      [{ ...known, version: 99 }],
+      [{ ...known, semanticHash: "d".repeat(64) }],
+      [{ ...known, weight: 0.5 }],
+    ]) {
+      const input = simpleDiktat();
+      const result = buildProductDraft({ products: [{ ...input.products[0], ideaLinks: priorities }] }, context);
+      expect(result.success).toBe(false);
+    }
+    const input = simpleDiktat();
+    input.products[0].ideaIds = ["idea", "second"];
+    input.products[0].ideaLinks = [known];
+    const result = buildProductDraft(input, { ...context, ideas: [...context.ideas, { id: "second", version: 1, semanticHash: "e".repeat(64) }] });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.issues.some(issue => issue.code === "PRODUCT_DRAFT_IDEA_LINK_SELECTION_MISMATCH")).toBe(true);
+  });
+
   test("reports invalid author refs when scoped lookups return no matches", () => {
     const absent = buildProductDraft(simpleDiktat(), { ...context, ideas: [], sources: [] });
     expect(absent.success).toBe(false);

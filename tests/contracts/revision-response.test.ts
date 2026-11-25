@@ -9,6 +9,8 @@ const bundle = { products: [
     { id: "section-b", title: "Second", blocks: [{ id: "block-b", parts: [] }] },
   ] },
   { id: "article-2", productType: "article", sections: [{ id: "section-c", blocks: [{ id: "block-c" }] }] },
+  { id: "diktat-1", productType: "diktat", units: [{ id: "unit-a", parts: [{ id: "summary-a", kind: "markdown", markdown: "First summary" }] }, { id: "unit-b", parts: [] }] },
+  { id: "diktat-2", productType: "diktat", units: [{ id: "unit-c", parts: [] }] },
 ] , dependencies: [] } as unknown as ValidRevisionProductBundle;
 
 test("targeted reads use exact parent IDs and never search across siblings", () => {
@@ -21,6 +23,21 @@ test("targeted reads use exact parent IDs and never search across siblings", () 
     { ...target, itemId: "item-a" }, { ...target, entityId: "constructor" },
   ]) expect(() => selectRevisionContent(bundle, invalid)).toThrow();
   expect(() => selectRevisionContent({ ...bundle, products: [...bundle.products, bundle.products[0]] }, target)).toThrow("REVISION_TARGET_NOT_FOUND");
+});
+
+test("Diktat unit reads remain scoped to the exact product and never return sibling content", () => {
+  const target = { entityType: "diktat", entityId: "diktat-1", unitId: "unit-a" };
+  const selection = selectRevisionContent(bundle, target);
+  expect(selection.content).toMatchObject({ id: "unit-a" });
+  const projected = projectRevisionResponse({ kind: "product", importId: "draft", revision: "a".repeat(64), selection, bundle }, { responseMode: "compact", target });
+  expect(projected).toHaveProperty("selection.content.id", "unit-a");
+  expect(JSON.stringify(projected)).not.toContain("unit-b");
+  for (const invalid of [
+    { ...target, unitId: "unit-c" }, { ...target, entityType: "article" },
+    { ...target, sectionId: "section-a" }, { ...target, blockId: "block-a" },
+    { ...target, itemId: "item-a" }, { ...target, entityId: "article-1" },
+  ]) expect(() => selectRevisionContent(bundle, invalid)).toThrow();
+  expect(() => projectRevisionResponse({ selection }, { target: { ...target, unitId: "unit-b" } })).toThrow("REVISION_TARGET_NOT_FOUND");
 });
 
 test("compact projection keeps successor execution and explicit deferred status, never approval or full content", () => {

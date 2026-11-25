@@ -129,3 +129,7 @@ Idempotent staging retries return success only after locking and rereading the r
 ## Flexible revision workflow
 
 The [flexible revision contract](authoring-revisions.md) defines stable-ID MCP edits, persistent drafts separate from live content, release-impact planning, explicit affected review, mixed reference manifests and atomic replacement for Idea V3 and learning Product V3/V4/V5. The original profile-specific schema, source and publication gates remain required. Restoration creates a new draft rather than mutating history. The implementation is in progress; remote deployment acceptance is separate.
+
+## Local draft preview and authored priorities
+
+The typed draft input can preserve explicit `ideaLinks` weights/roles for exactly its `ideaIds`; versions/hashes remain server-bound. `productBundle.localPreview` advertises `bun run authoring:preview` for the same raw input, plus watch and structure-only modes. Preview uses shared learner/print components and exports screenshots, outline, diagnostics and Diktat pages. It never checks live sources or grants a receipt, review or publication readiness. Targeted Diktat-unit edits rebuild projections and invalidate affected evidence. See [the agent workflow](authoring-agent-workflow.md) for boundaries and repeatable synthetic measurements.

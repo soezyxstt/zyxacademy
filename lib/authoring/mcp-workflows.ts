@@ -7,7 +7,7 @@ import { validateSourcePack, type ValidatedSourcePack } from "@/lib/authoring/so
 import { evaluateSourcePackQuality, type SourcePackQualityReport } from "@/lib/authoring/quality/source-pack";
 import { ZipSecurityError } from "@/lib/bundle/zip-reader";
 import { resolveAuthSecret } from "@/lib/auth-secret";
-import { authoringValidationSnapshot, productV4SchemaDocuments, productV5SchemaDocuments } from "@/lib/authoring/mcp-contract-revision";
+import { authoringValidationSnapshot, ideaV3SchemaDocuments, productV4SchemaDocuments, productV5SchemaDocuments } from "@/lib/authoring/mcp-contract-revision";
 import { interactiveVisualGuidance } from "@/lib/authoring/interactive-visual-guidance";
 import {
   AUTHORING_MCP_BOOTSTRAP_PROTOCOL,
@@ -569,6 +569,16 @@ function workflowStaticDefinition(workflowKey: AuthoringWorkflow) {
       ideaBundle: {
         schemaVersion: "idea-bundle.v3",
         revisions: flexibleRevisionContract("idea"),
+        schemaDocuments: ideaV3SchemaDocuments().map(({ body: _body, ...document }) => document),
+        initialDraft: {
+          tool: "authoring.create_idea_draft", scope: "authoring:stage",
+          requiredInputs: ["runToken", "bootstrapToken", "draftKey", "draft"],
+          schemaDocument: "ideaDraftInput",
+          limits: { ideas: 256, sections: 128, relations: 1024, sourceRefs: 2048, documents: 128, units: 2048, requestBytes: 524288, sourceBytes: 16777216 },
+          content: "Author atomic Ideas with stable local keys, pedagogical sections, explained relations and exact quotes from the bound Source Pack (documentId and source-unit number). The server resolves source spans, stable IDs, attribution, versions, hashes and ZIP. All source units remain visible to the coverage check. Use a longer unique quote or an explicit startOffset into the LF-normalized source text for repeated quotes.",
+          retry: "Keep draftKey, run token and content unchanged for a lost-response retry. Use the exact returned import and revision for later edits; this tool cannot overwrite a staged draft.",
+          boundary: "Requires a validated stored Source Pack bound to this course, chapter and run. Existing atomicity, coverage, provenance, relation, admission and review gates still apply. Archive input remains supported. This tool never reviews or publishes.",
+        },
         compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3"],
         validationTool: "authoring.validate_idea_bundle",
         reviewContextTool: "authoring.get_idea_review_context",
@@ -581,7 +591,7 @@ function workflowStaticDefinition(workflowKey: AuthoringWorkflow) {
         reviewRequired: true,
         restageReviewReset: { readTool: "authoring.get_import", readField: "import.reviewReset", acknowledgmentInput: "reviewResetFingerprint", revisionInput: "expectedRevision", retryErrors: ["IDEA_BUNDLE_REVIEW_RESET_REQUIRED", "IDEA_BUNDLE_REVIEW_RESET_STALE"], guidance: "For changed content, read counts and fingerprint for all saved reviews, explicitly acknowledge their deletion, then pass the current fingerprint. Reload and decide again if stale. An unchanged submission does not reset reviews." },
         attribution: { creatorId: "$UPLOADER", curatorId: "$APPROVING_REVIEWER" },
-        creatorRule: "Generator Idea Bundle wajib selalu menghasilkan creatorId: '$UPLOADER', bukan ID placeholder eksternal.",
+        creatorRule: "Archive input uses creatorId: '$UPLOADER', never an invented actor ID. The typed initialDraft input omits creatorId; the server derives the authenticated creator.",
       },
       productBundle: productBundleV3Contract(),
     }
@@ -1057,7 +1067,7 @@ export async function startAuthoringWorkflow(input: {
       contractChecksum: bootstrapCheck.bootstrap?.contractChecksum ?? computeAuthoringContractDigest().contractChecksum,
     },
     next: workflow.key === "idea_product"
-      ? ["authoring.validate_idea_bundle", "authoring.submit_idea_bundle", "authoring.create_product_draft", "authoring.validate_product_bundle", "authoring.submit_product_bundle"]
+      ? ["authoring.create_idea_draft", "authoring.validate_idea_bundle", "authoring.submit_idea_bundle", "authoring.create_product_draft", "authoring.validate_product_bundle", "authoring.submit_product_bundle"]
       : [
         "assessment.list_ideas",
         "assessment.get_idea",
@@ -1273,7 +1283,7 @@ export function flexibleRevisionContract(kind?: "idea" | "product") {
     prospectiveVerification: "When a mixed release changes Idea references needed by V4 verification, call authoring.prepare_revision_verification explicitly with stage scope and exact entries. Its server attestation binds those immutable candidates; authoring.plan_release does not write attestations. Then use the returned context execution runToken for trusted verification and inspect its actual evidence before review.",
     toolSequence: ["authoring.get_edit_context", "authoring.create_revision", "authoring.patch_revision", "authoring.plan_release", "authoring.review_revision", "authoring.plan_release", "authoring.publish_release"],
     scopes: { read: "authoring:read", edit: "authoring:stage", review: "authoring:review", publish: "authoring:publish" },
-    patch: { operations: ["set", "add", "remove", "move"], target: ["entityType", "entityId", "sectionId", "blockId", "itemId"], stableIdsOnly: true, numericArrayPaths: false, nestedSelectors: "steps[step-id].reasonMarkdown selects a stable nested item; selectors are never numeric offsets. Nested IDs use letters, digits, underscore, colon or hyphen. Replace the enclosing typed array for other valid IDs.", identityAndHashes: "Server managed. Actor IDs, scope, checksum and generation hashes cannot be supplied as edits." },
+    patch: { operations: ["set", "add", "remove", "move"], target: ["entityType", "entityId", "sectionId", "blockId", "itemId", "unitId"], stableIdsOnly: true, numericArrayPaths: false, nestedSelectors: "steps[step-id].reasonMarkdown selects a stable nested item; selectors are never numeric offsets. Nested IDs use letters, digits, underscore, colon or hyphen. Replace the enclosing typed array for other valid IDs.", identityAndHashes: "Server managed. Actor IDs, scope, checksum and generation hashes cannot be supplied as edits." },
     limits: { operations: 128, releaseEntries: 16, entityIds: 256, requestBytes: 524288 },
     createRequiredInputs: ["kind", "baseImportId", "expectedRevision", "bootstrapToken"],
     patchRequiredInputs: ["kind", "importId", "expectedRevision", "bootstrapToken", "operations"],
@@ -1288,7 +1298,7 @@ export function flexibleRevisionContract(kind?: "idea" | "product") {
       default: "full", supported: ["full", "compact"],
       tools: ["authoring.get_edit_context", "authoring.create_revision", "authoring.patch_revision", "authoring.restore_revision"],
       compact: "Returns identity, execution token and bounded impact without the bundle. Review and publication readiness are explicitly not evaluated. Request full context and plan_release at the review/release boundary.",
-      target: "get_edit_context accepts target={entityType,entityId,sectionId?,blockId?,itemId?} to read exactly one stable unit. Parent IDs must match. A targeted read also defers full review/readiness, regardless of responseMode.",
+      target: "get_edit_context accepts target={entityType,entityId,sectionId?,blockId?,itemId?,unitId?} to read exactly one stable unit. Parent IDs must match. Use unitId for a Diktat unit, without sectionId, blockId or itemId. Patch its parts with stable selectors such as parts[part-id].markdown. A targeted read also defers full review/readiness, regardless of responseMode.",
     },
     failureDiagnostics: "Additive category, retryable, nextAction and bounded diagnostics distinguish content, conflict, runtime and permission failures. Existing error codes and OAuth challenges remain. A retryable runtime failure requires checking operation status before retrying the same identity; never replace the revision or rewrite content automatically.",
     recovery: "Read returned current revision, blockers and nextActions after conflicts. Resume durable drafts with a fresh session-bound bootstrap, without run adoption or a replacement Source Pack.",
@@ -1396,9 +1406,19 @@ export function productBundleV3Contract() {
       requiredInputs: ["runToken", "bootstrapToken", "draftKey", "draft"],
       schemaDocument: "productDraftInput", products: ["article.v4", "diktat.v4"],
       limits: { products: 16, requestBytes: 524288, ideas: 256, sources: 256, excerpts: 2048 },
-      content: "Author titles, ordered parts/units, published Idea IDs and active source/excerpt IDs. The server owns creator, course/chapter, versions, hashes, generated IDs, Markdown projections, dependencies and ZIP bytes. Canonical semantic validation and staging policy still run.",
+      content: "Author titles, ordered parts/units, published Idea IDs and active source/excerpt IDs. Optional ideaLinks assigns weights and roles for exactly those ideaIds. The server owns creator, course/chapter, versions, hashes, generated IDs, Markdown projections, dependencies and ZIP bytes. Canonical semantic validation and staging policy still run.",
       retry: "Keep the same draftKey, run token and unchanged input for a lost-response retry. After staging, edit the exact returned revision with the revision tools. Reusing a key with changed content or refreshed run metadata cannot overwrite a draft; inspect its current context.",
       boundary: "Initial Article/Diktat only. A derived Diktat can refer to an Article in the same request. Flashcards, V5, interactive-document binary assets and external Article lineage retain the archive workflow. This tool stages only; trusted verification, independent review and explicit publication remain required.",
+    },
+    localPreview: {
+      command: "bun run authoring:preview --input <draft-json> --out <preview-directory>",
+      watchCommand: "bun run authoring:preview --input <draft-json> --out <preview-directory> --watch",
+      preflightCommand: "bun run authoring:preview --input <draft-json> --check",
+      examples: ["bun run authoring:preview --example short", "bun run authoring:preview --example long"],
+      inputSchemaDocument: "productDraftInput", report: "preview-report.json", outline: "outline.json",
+      viewports: [380, 1536], themes: ["light", "dark"],
+      outputs: ["Article screenshots", "Diktat PDF and page images", "outline", "bounded diagnostics", "input hash"],
+      boundary: "Requires a local repository checkout and Chromium. Uses shared learner/print renderers without login, database or network. Watch keeps the browser and compiled assets alive. It does not check live references, grade answers, execute coding exercises, persist progress, issue trusted verification or grant publication readiness. Binary source figures and HTML documents require the existing admitted-asset verifier. An explicit local Chromium executable may be selected for preview; trusted runtime pins are unchanged.",
     },
     legacyV2ValidationRecovery: { optionalInputs: ["replaceImportId", "expectedRevision"], boundary: "Pass the exact existing V2 learning-only draft and caller-observed checksum with its verified run/bootstrap when validating a restage under the structured-reader flag. New V2 submissions remain blocked." },
     submitTool: "authoring.submit_product_bundle",

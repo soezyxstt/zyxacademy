@@ -30,8 +30,8 @@ Execute the pipeline in strict checkpoint order. Never skip a gate or start a do
    - Start or verify an `idea_product` run via `workflow.start` using `courseKey`, `chapterKey`, `sourcePackId` (or `sourcePackToken`), and `bootstrapToken`.
    - Call `workflow.get_contract` to confirm `idea-bundle.v3` requirements.
    - Decompose the Source Pack into pedagogical `learningSections`, atomic `ideas`, complete `provenance`, and an acyclic `relations` DAG.
-   - Validate with `authoring.validate_idea_bundle` until `ok: true` and `valid: true` with zero blocking issues.
-   - Stage with `authoring.submit_idea_bundle` (or `authoring.restage_idea_bundle` with the last-read checksum as `expectedRevision` when updating an existing unapproved import).
+   - Prefer advertised `authoring.create_idea_draft` with atomic content, local keys and exact source quotes. Fetch its pinned schema only when needed. The server assembles and validates the package before staging; preserve independent atomicity and source-completeness review. Edit the returned revision with compact targeted tools.
+   - For archive input, validate with `authoring.validate_idea_bundle` until `ok: true` and `valid: true`, then stage with `authoring.submit_idea_bundle` (or `authoring.restage_idea_bundle` with the last-read checksum as `expectedRevision` when updating an existing unapproved import).
 
 4. **Checkpoint 3 (Revision-bound Idea Review and Publication)**
    - Product authoring requires referenced Ideas and `learningSections` to be published. After staging, obtain the current checksum from `authoring.get_import`.
@@ -45,6 +45,7 @@ Execute the pipeline in strict checkpoint order. Never skip a gate or start a do
    - Start or resume the `idea_product` run and verify published Ideas via `knowledge.search_ideas` / `analysis.get_coverage`.
    - Fetch the primary V4 schemaDocuments. Draft the requested learning products using the V4 contract, with exact Article lineage only for explicitly derived Diktat; keep existing V3 bundles in V3 unless a reviewed conversion was requested. Use the Product playbook for complete representation rules and optional flashcards.
    - For standalone Pembahasan soal, fetch the V5 solutionCollection schemas instead and author only that product. Preserve separate problem and solution provenance and review release eligibility for every example. Never disclose protected assessment answers or index these examples in public search, quiz or Zyra.
+   - When a checkout is available, run the advertised local preview against the same draft JSON. Inspect screenshots, outline and diagnostics; watch mode reuses the browser. This does not grant trusted verification or publication readiness.
    - Run the independent Critic and Student POV subagent reviews against the draft files and incorporate all required revisions.
    - Prefer `authoring.create_product_draft` for supported new Article/Diktat when advertised by `productBundle.initialDraft`. Send typed content and source/Idea IDs; the server constructs and validates the package before staging. Use compact revision responses and targeted reads during edits, then full context for final review.
    - For archive-only products/assets, validate with `authoring.validate_product_bundle` until `ok: true` and `valid: true`, then stage with `authoring.submit_product_bundle`. Replacement requires `authoring.restage_product_bundle` and the last-read checksum as `expectedRevision`. Neither route establishes publication readiness; trusted verification, pedagogic review and applicable PDF evidence remain required.

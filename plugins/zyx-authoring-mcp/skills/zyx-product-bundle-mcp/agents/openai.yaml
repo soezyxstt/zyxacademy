@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Product Bundle MCP"
   short_description: "Author V4 learning products or V5 solution collections"
-  default_prompt: "Use $zyx-product-bundle-mcp and call workflow.get_playbook first. Prefer the advertised typed draft tool for supported new Articles and Diktats, and compact responses with targeted reads while editing. Use full context for final review. Create only requested products and follow the current contract, independent review and publication gates."
+  default_prompt: "Use $zyx-product-bundle-mcp and call workflow.get_playbook first. Prefer the advertised typed draft tool for supported new Articles and Diktats, preview the same JSON locally, and use compact responses with targeted reads while editing. Use full context for final review. Create only requested products and follow the current contract, independent review and publication gates."

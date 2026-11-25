@@ -29,6 +29,8 @@ import { registerProductV4Tools } from "./mcp-v4-tools";
 import { registerRevisionTools } from "./revision-mcp";
 import { createProductDraft, createProductDraftToolSchema } from "./product-draft-service";
 import { loadProductDraftContext } from "./product-draft-context";
+import { createIdeaDraft, createIdeaDraftToolSchema } from "./idea-draft-service";
+import { loadIdeaDraftContext } from "./idea-draft-context";
 import { authoringFailureDiagnostics } from "./diagnostics";
 import { computeProductV4VerificationContentHash, getProductV4VerificationReceiptSignature } from "@/lib/bundle/product-v4-verification";
 import { computeProductV4SectionSemanticHash, productV4ReviewContextShape, sectionDecisionsSchema } from "@/lib/bundle/product-v4-review";
@@ -2110,6 +2112,15 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       next: "admin_review",
     };
   }));
+
+  (server as any).registerTool("authoring.create_idea_draft", {
+    title: "Create Idea draft",
+    description: "Create an initial Idea V3 draft from atomic Ideas, teaching sections, explained relations and exact source quotes. Fetch the pinned ideaDraftInput schema from workflow.get_contract on demand. The server reads the bound validated Source Pack, resolves provenance and stable IDs, builds hashes and ZIP, then applies the existing coverage, admission and staging gates. Reuse draftKey only for the same unchanged request/run token. No review or publication.",
+    inputSchema: createIdeaDraftToolSchema.shape,
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (input: z.infer<typeof createIdeaDraftToolSchema>) => safeTool(() => createIdeaDraft(input, principal, {
+    loadContext: loadIdeaDraftContext, stage: stageIdeaArtifact,
+  })));
 
   (server as any).registerTool("authoring.submit_idea_bundle", {
     title: "Submit Idea Bundle for review",

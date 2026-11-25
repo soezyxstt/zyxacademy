@@ -117,6 +117,21 @@ test("numeric and prototype paths, forged reviewer identities and oversized requ
   expect(h.calls).toHaveLength(0);
 });
 
+test("Diktat unit selectors pass through MCP and reject mixed parent selectors before I/O", async () => {
+  const target = { entityType: "diktat", entityId: "diktat", unitId: "summary-unit" };
+  const patch = { op: "set", target, field: "parts[summary-part].markdown", value: "Ringkasan baru." };
+  const h = harness();
+  expect((await h.call("patch_revision", { ...input(), operations: [patch], responseMode: "compact" })).isError).not.toBe(true);
+  expect(h.calls.find(call => call.method === "patchRevisionDraft")?.input.operations).toEqual([patch]);
+  for (const mixed of [{ ...target, sectionId: "section" }, { ...target, blockId: "block" }, { ...target, itemId: "item" }]) {
+    const denied = harness();
+    expect(data(await denied.call("patch_revision", { ...input(), operations: [{ ...patch, target: mixed }] })).error).toBe("REVISION_INPUT_INVALID");
+    expect(denied.calls).toHaveLength(0);
+    expect(data(await denied.call("get_edit_context", { ...input(), target: mixed })).error).toBe("REVISION_INPUT_INVALID");
+    expect(denied.calls).toHaveLength(0);
+  }
+});
+
 test("mixed release verifies both kind bootstraps and forwards only exact manifest entries and plan hash", async () => {
   const entries = [{ kind: "idea", importId: "idea", expectedRevision: hash }, { kind: "product", importId: "product", expectedRevision: nextHash }];
   const h = harness();

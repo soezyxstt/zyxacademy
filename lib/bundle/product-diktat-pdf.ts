@@ -54,11 +54,11 @@ function getKatexCss(): string {
 }
 
 type ArticleProduct = Extract<ProductEntity, { productType: "article" }>;
-type DiktatProduct = Extract<ProductEntity, { productType: "diktat" }>;
-
 export interface ProductDiktatRenderSource {
-  article?: ArticleProduct;
-  diktat: DiktatProduct;
+  // Rendering needs content and local lineage, not authenticated source records.
+  // Admission remains the caller's responsibility, including for offline previews.
+  article?: NonNullable<Parameters<typeof validateAuthoredDiktat>[0]> & { schemaVersion: string };
+  diktat: Parameters<typeof validateAuthoredDiktat>[1] & { title: string; contentMarkdown: string };
   staticFigureAssets?: DiktatSourceFigureAssets;
 }
 

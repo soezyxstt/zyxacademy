@@ -25,6 +25,10 @@ The ZIP, strict unknown field, deterministic checksum, source grounding, provena
 
 Admin draft editing accepts only safe textual and ordering fields with `expectedRevision`. Stable IDs, Idea membership, provenance, and lineage cannot be edited. The server rebuilds checksums after an accepted edit. Admin and headless approval require explicit decisions for every Idea, bound to the exact revision and item hashes. The publishing admin must be the reviewer who recorded the complete approval.
 
+## Typed initial drafts
+
+`authoring.create_idea_draft` accepts atomic content, pedagogical sections, explained relations and exact Source Pack quotes. Read `ideaBundle.initialDraft` and the checksum-pinned `ideaDraftInput` descriptor through `workflow.get_contract`. The server binds the exact validated source revision and scope, derives spans and IDs, constructs V3, and invokes the original validators, quality checks and staging service. Full source-unit coverage remains visible; reviewers still decide semantic completeness. Compact envelopes do not weaken the strict server schema. Archive input remains supported, and neither creation path reviews or publishes automatically. See [the agent workflow](authoring-agent-workflow.md).
+
 ## MCP transition
 
 `workflow.get_contract`, validation, submission, Context Pack, and Job Pack advertise V3. Readers accept V2 and V3. When `FEATURE_STRUCTURED_ARTICLE_READER_V1=1`, new Idea Bundle submission must use V3. Disabling the flag restores V2 submission without deleting V3 artifacts.

@@ -9,7 +9,9 @@ Untuk memperbarui Idea V3 atau Product belajar V3/V4/V5 yang sudah ada, ikuti ja
 
 Untuk Artikel/Diktat baru, gunakan Product V4 sesuai kontrak utama `workflow.get_contract`. Pertahankan V3 pada revisi bundle lama kecuali pengguna meminta konversi V4 yang direview ulang. Teruskan versi yang tepat ke tahap Product dan ikuti schema, capabilities, serta gate bukti kontrak. Gunakan skill Product untuk urutan representasi matematika, lineage Diktat, dan verifikasi renderer; gate publikasi mengikuti hasil server.
 
-Bila `productBundle.initialDraft` mengiklankan `authoring.create_product_draft`, gunakan input isi dan referensi untuk produk yang didukung. Server membuat metadata dan ZIP. Saat mengedit, gunakan respons `compact` dan baca unit dengan `target`; ambil konteks penuh untuk review. Teruskan ID/checksum penerus, bedakan error isi dari error runtime, dan ikuti hasil pemeriksaan serta bukti tepercaya terbaru.
+Bila `ideaBundle.initialDraft` mengiklankan `authoring.create_idea_draft`, tulis isi, hubungan dan kutipan sumber sesuai schema ringkasnya; server menyusun paket. Tinjau atomisitas dan kelengkapan makna, bukan hanya angka cakupan unit.
+
+Bila `productBundle.initialDraft` mengiklankan `authoring.create_product_draft`, gunakan input isi dan referensi untuk produk yang didukung. Server membuat metadata dan ZIP. Bila tersedia checkout, gunakan preview lokal dari kontrak dengan JSON draft yang sama; inspeksi hasilnya tanpa menganggap preview sebagai receipt tepercaya. Saat mengedit, gunakan respons `compact` dan baca unit dengan `target`; ambil konteks penuh untuk review. Teruskan ID/checksum penerus, bedakan error isi dari error runtime, dan ikuti hasil pemeriksaan serta bukti tepercaya terbaru.
 
 Untuk Pembahasan soal mandiri, gunakan Product V5 `solution_collection` sesuai kontrak runtime dan skill Product. Pisahkan provenance soal dan solusi, review kebenaran, penalaran, provenance serta kelayakan rilis setiap contoh pada checksum terbaru, dan jangan merilis jawaban asesmen terlindungi secara implisit. Jangan indeks ke pencarian publik, kuis, atau Zyra. Admin dapat mempublikasikan lewat tool MCP berscope setelah seluruh gate lulus.
 

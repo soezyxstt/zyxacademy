@@ -36,6 +36,8 @@ Saat menulis, gunakan `responseMode: "compact"` dan `target` sesuai kontrak runt
 
 Untuk Artikel/Diktat baru, prioritaskan `authoring.create_product_draft` bila kontrak mengiklankannya. Kirim isi bertipe, ID Idea dan ID sumber/kutipan; server mengisi metadata, hash dan ZIP. Ikuti batas `productBundle.initialDraft`, gunakan kunci dan payload yang sama saat memulihkan respons hilang, lalu pakai tool revisi untuk perubahan berikutnya. Produk/aset yang belum didukung tetap memakai jalur ZIP. Jika server belum menyediakan tool baru, ikuti kontrak yang tersedia dan laporkan batasnya.
 
+Gunakan preview lokal yang diiklankan kontrak dengan JSON draft yang sama sebelum staging. Jalankan `--watch` saat menulis agar browser tetap hidup. Inspeksi screenshot, outline, diagnostik dan PDF; preview tidak memeriksa referensi live atau mengganti receipt tepercaya. Untuk edit Diktat kecil, pilih `target.unitId`. Pertahankan peran/bobot Idea melalui `ideaLinks` bila diperlukan; hash dan versi tetap milik server.
+
 ## Langkah bootstrap wajib (fail-closed)
 
 1. Sebelum menyusun atau merevisi Product Bundle V3, V4, atau V5, panggil `workflow.get_playbook`:

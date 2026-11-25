@@ -20,11 +20,11 @@ function unique<T extends { id: string }>(items: readonly T[], id: string): T {
 
 /** Select only within the admitted artifact and the exact supplied parent IDs. */
 export function selectRevisionContent(bundle: ValidatedIdeaBundle | ValidRevisionProductBundle, target: RevisionReadTarget) {
-  if (Object.keys(target).some(key => !["entityType", "entityId", "sectionId", "blockId", "itemId"].includes(key))) throw new Error("REVISION_TARGET_INVALID");
-  for (const value of [target.entityType, target.entityId, ...[target.sectionId, target.blockId, target.itemId].filter(value => value !== undefined)]) {
+  if (Object.keys(target).some(key => !["entityType", "entityId", "sectionId", "blockId", "itemId", "unitId"].includes(key))) throw new Error("REVISION_TARGET_INVALID");
+  for (const value of [target.entityType, target.entityId, ...[target.sectionId, target.blockId, target.itemId, target.unitId].filter(value => value !== undefined)]) {
     if (typeof value !== "string" || !value.trim() || value.length > 256 || /[\u0000-\u001f]/.test(value) || forbiddenIds.has(value)) throw new Error("REVISION_TARGET_INVALID");
   }
-  const nested = Boolean(target.sectionId || target.blockId || target.itemId);
+  const nested = Boolean(target.sectionId || target.blockId || target.itemId || target.unitId);
   let content: unknown;
   if ("entities" in bundle) {
     if (nested || !Object.prototype.hasOwnProperty.call(ideaCollections, target.entityType)) throw new Error("REVISION_TARGET_INVALID");
@@ -36,7 +36,10 @@ export function selectRevisionContent(bundle: ValidatedIdeaBundle | ValidRevisio
   } else {
     const product = unique(bundle.products, target.entityId);
     if (target.entityType !== "product" && target.entityType !== product.productType) throw new Error("REVISION_TARGET_INVALID");
-    if (target.itemId) {
+    if (target.unitId) {
+      if (target.sectionId || target.blockId || target.itemId || product.productType !== "diktat" || !product.units) throw new Error("REVISION_TARGET_INVALID");
+      content = unique(product.units, target.unitId);
+    } else if (target.itemId) {
       if (target.sectionId || target.blockId || product.productType !== "solution_collection") throw new Error("REVISION_TARGET_INVALID");
       content = unique(product.collection.items, target.itemId);
     } else if (target.sectionId || target.blockId) {
@@ -87,7 +90,7 @@ export function projectRevisionResponse(value: unknown, options: RevisionContext
   const selection = object(context.selection);
   if (options.target) {
     const selectedTarget = object(selection?.target);
-    if (!selectedTarget || !selection || !Object.prototype.hasOwnProperty.call(selection, "content") || ["entityType", "entityId", "sectionId", "blockId", "itemId"].some(key => selectedTarget[key] !== options.target![key as keyof RevisionReadTarget])) throw new Error("REVISION_TARGET_NOT_FOUND");
+    if (!selectedTarget || !selection || !Object.prototype.hasOwnProperty.call(selection, "content") || ["entityType", "entityId", "sectionId", "blockId", "itemId", "unitId"].some(key => selectedTarget[key] !== options.target![key as keyof RevisionReadTarget])) throw new Error("REVISION_TARGET_NOT_FOUND");
   }
   return {
     ...identity,
