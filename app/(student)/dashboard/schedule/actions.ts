@@ -885,7 +885,7 @@ export async function collaborativeBookSlot(
       let notification: TutorScheduleNotification | undefined;
       if (!options?.executor && slot.tutorId) {
         const studentName = currentUser.name || "Siswa";
-        const courseTitle = (await resolveCourseIdentity(resolvedCourseId).catch(() => null))?.title ?? resolvedCourseId;
+        const courseTitle = (await resolveCourseIdentity(resolvedCourseId, tx))?.title ?? resolvedCourseId;
         notification = {
           tutorId: slot.tutorId,
           payload: tutorBookingCreatedPayload({
@@ -1168,7 +1168,7 @@ export async function collaborativeMoveSlot(
       let notification: TutorScheduleNotification | undefined;
       if (!options?.executor && newSlot.tutorId) {
         const studentName = currentUser.name || "Siswa";
-        const courseTitle = (await resolveCourseIdentity(booking.courseId).catch(() => null))?.title ?? booking.courseId;
+        const courseTitle = (await resolveCourseIdentity(booking.courseId, tx))?.title ?? booking.courseId;
         notification = {
           tutorId: newSlot.tutorId,
           payload: tutorBookingMovedPayload({
@@ -1360,7 +1360,7 @@ export async function collaborativeCancelSlot(bookingId: string) {
       let notification: TutorScheduleNotification | undefined;
       if (booking.slot?.tutorId) {
         const studentName = currentUser.name || "Siswa";
-        const courseTitle = booking.course?.title || (await resolveCourseIdentity(booking.courseId).catch(() => null))?.title || booking.courseId;
+        const courseTitle = booking.course?.title || (await resolveCourseIdentity(booking.courseId, tx))?.title || booking.courseId;
         const sessionDate = booking.sessionDate ?? "-";
         const startTime = booking.slot.startTime ?? "-";
         notification = {
@@ -1762,7 +1762,7 @@ export async function submitRescheduleTicket(
       let notification: TutorScheduleNotification | undefined;
       if (booking.slot?.tutorId) {
         const studentName = currentUser.name || "Siswa";
-        const courseTitle = (await resolveCourseIdentity(booking.courseId).catch(() => null))?.title ?? booking.courseId;
+        const courseTitle = (await resolveCourseIdentity(booking.courseId, tx))?.title ?? booking.courseId;
         notification = {
           tutorId: booking.slot.tutorId,
           payload: tutorTicketSubmittedPayload({
