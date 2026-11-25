@@ -27,7 +27,7 @@ mock.module("@/lib/bundle/publication", () => ({
 }));
 const { createAuthoringMcpServer } = await import("@/lib/authoring/mcp-server");
 const { issueMcpBootstrapToken, issueMcpRunToken } = await import("@/lib/authoring/mcp-workflows");
-const { requestedScopes, approvedScopes } = await import("@/lib/authoring/mcp-oauth");
+const { requestedScopes, approvedScopes, defaultConsentScopes } = await import("@/lib/authoring/mcp-oauth");
 
 const principal = { userId: "admin", actorId: "admin", sessionId: "session", scopes: ["authoring:read", "authoring:review", "authoring:publish"], authMethod: "oauth" as const };
 const clientCapabilities = { independentSubagents: true, localArtifactFiles: true, pdfRendering: false };
@@ -95,15 +95,19 @@ test("Idea withdrawal recovers an exact old import without a run or Source Pack"
 
 test("scope, run, bootstrap, revision and chapter gates fail before publication", async () => {
   calls.length = 0;
-  const denied = await invoke("authoring.publish_idea_bundle", args, ["authoring:read", "authoring:review"]);
+  const offered = requestedScopes(null);
+  const defaultGrant = approvedScopes(null, defaultConsentScopes(offered));
+  const denied = await invoke("authoring.publish_idea_bundle", args, defaultGrant);
   expect(denied.isError).toBe(true);
   expect(denied.structuredContent).toMatchObject({ error: "AUTHORING_MCP_SCOPE_REQUIRED", requiredScope: "authoring:publish" });
   expect(denied._meta["mcp/www_authenticate"][0]).toContain('error="insufficient_scope"');
   expect(denied._meta["mcp/www_authenticate"][0]).toContain('scope="authoring:publish"');
-  expect(requestedScopes(null)).not.toContain("authoring:publish");
+  expect(offered).toContain("authoring:publish");
+  expect(defaultGrant).not.toContain("authoring:publish");
   const expanded = "authoring:read authoring:review authoring:publish";
   expect(approvedScopes(expanded, requestedScopes(expanded))).toContain("authoring:publish");
-  expect(() => approvedScopes(null, ["authoring:publish"])).toThrow("invalid_scope");
+  expect(approvedScopes(null, ["authoring:publish"])).toEqual(["authoring:publish"]);
+  expect(() => approvedScopes("authoring:read authoring:review", ["authoring:publish"])).toThrow("invalid_scope");
   expect((await invoke("authoring.publish_idea_bundle", { ...args, bootstrapToken: issueMcpBootstrapToken({ actorId: "other", sessionId: "session", stage: "idea", clientCapabilities }) })).structuredContent.error).toBe("AUTHORING_MCP_BOOTSTRAP_PRINCIPAL_MISMATCH");
   expect((await invoke("authoring.publish_idea_bundle", { ...args, runToken: boundRun({ workflow: "quiz_bank", courseId: "course", chapterId: "chapter" }) })).structuredContent.error).toBe("AUTHORING_MCP_WORKFLOW_MISMATCH");
   expect((await invoke("authoring.publish_idea_bundle", { ...args, expectedRevision: "c".repeat(64) })).structuredContent.error).toBe("IDEA_BUNDLE_STALE_CONTEXT");
