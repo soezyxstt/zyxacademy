@@ -248,6 +248,18 @@ export async function sendPushToUser(userId: string, renderedPayload: Notificati
  return sendPushToUserNow(userId, renderedPayload);
 }
 
+// Keep pre-migration registrations until they can rebind; a bound token is
+// deliverable only while its owning account session remains active.
+function activePushSessionPredicate() {
+ if (!userPushTokens.sessionId) return sql`true`;
+ return sql`(${userPushTokens.sessionId} is null or exists (
+  select 1 from "session" push_session
+  where push_session.id = ${userPushTokens.sessionId}
+   and push_session.user_id = ${userPushTokens.userId}
+   and push_session.expires_at > now()
+ ))`;
+}
+
 /** Internal immediate transport used by the quiet-hour worker after rechecking the schedule. */
 export async function sendPushToUserNow(userId: string, renderedPayload: NotificationPayload): Promise<SendResult> {
  const hasTransportColumn = Boolean((userPushTokens as unknown as Record<string, unknown>).transport);
@@ -255,7 +267,7 @@ export async function sendPushToUserNow(userId: string, renderedPayload: Notific
   ? await db
     .select({ token: userPushTokens.token, transport: userPushTokens.transport })
     .from(userPushTokens)
-    .where(eq(userPushTokens.userId, userId))
+    .where(and(eq(userPushTokens.userId, userId), activePushSessionPredicate()))
   : await db
     .select({ token: userPushTokens.token })
     .from(userPushTokens)
@@ -284,6 +296,7 @@ export async function sendPushToUsers(items: { userId: string; payload: Notifica
     from jsonb_to_recordset(${JSON.stringify(items.map(item => ({ user_id: item.userId, after_id: item.after ?? null })))}::jsonb) as recipient(user_id text, after_id text)
     cross join lateral (
      select id, token, transport from ${userPushTokens} where user_id = recipient.user_id
+      and ${activePushSessionPredicate()}
       and (user_id, id) >= (recipient.user_id, coalesce(recipient.after_id, ''))
       and (recipient.after_id is null or id > recipient.after_id) order by user_id, id limit 101
     ) registry
@@ -293,6 +306,7 @@ export async function sendPushToUsers(items: { userId: string; payload: Notifica
     from jsonb_to_recordset(${JSON.stringify(items.map(item => ({ user_id: item.userId, after_id: item.after ?? null })))}::jsonb) as recipient(user_id text, after_id text)
     cross join lateral (
      select id, token from ${userPushTokens} where user_id = recipient.user_id
+      and ${activePushSessionPredicate()}
       and (user_id, id) >= (recipient.user_id, coalesce(recipient.after_id, ''))
       and (recipient.after_id is null or id > recipient.after_id) order by user_id, id limit 101
     ) registry
