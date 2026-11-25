@@ -353,7 +353,8 @@ export function McpAuthorizeView({
 
           {/* Footnote */}
           <p className="text-body-xs leading-normal text-muted-foreground">
-            {t("revoke")}
+            {t("revoke")}{" "}
+            <Link href="/mcp/connections" className="font-medium underline underline-offset-4">{t("manageConnections")}</Link>
           </p>
         </div>
       )}

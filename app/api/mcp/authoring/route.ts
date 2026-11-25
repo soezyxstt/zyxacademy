@@ -10,17 +10,26 @@ import { timePdfStage } from "@/lib/compute/pdf-read-options";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function unauthorized(message: string): NextResponse {
+function unauthorized(message: string, invalidToken = false): NextResponse {
   const resourceMetadata = `${publicMcpOrigin()}/.well-known/oauth-protected-resource/api/mcp/authoring`;
   return NextResponse.json(
     { error: message },
     {
       status: 401,
       headers: {
-        "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadata}", scope="${MCP_OAUTH_INITIAL_SCOPES.join(" ")}"`,
+        "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadata}", scope="${MCP_OAUTH_INITIAL_SCOPES.join(" ")}"${invalidToken ? ', error="invalid_token"' : ""}`,
+        "Cache-Control": "no-store",
       },
     },
   );
+}
+
+const credentialErrors = new Set(["AUTHORING_MCP_TOKEN_INVALID", "AUTHORING_MCP_TOKEN_EXPIRED", "AUTHORING_MCP_INVALID_RESOURCE", "AUTHORING_MCP_SESSION_INVALID", "AUTHORING_MCP_CONSENT_REQUIRED", "AUTHORING_MCP_AUTH_INVALID"]);
+function authFailure(error: unknown, bearer: boolean): NextResponse {
+  if (isForbidden(error)) return NextResponse.json({ error: "AUTHORING_MCP_ADMIN_REQUIRED" }, { status: 403 });
+  const code = error instanceof Error ? error.message.split(":")[0] : "";
+  if (credentialErrors.has(code)) return unauthorized(code, bearer);
+  return NextResponse.json({ error: "AUTHORING_MCP_AUTH_UNAVAILABLE" }, { status: 503, headers: { "Retry-After": "5", "Cache-Control": "no-store" } });
 }
 
 function isForbidden(error: unknown): boolean {
@@ -31,12 +40,12 @@ function isForbidden(error: unknown): boolean {
 async function authenticate(request: NextRequest): Promise<McpPrincipal | NextResponse> {
   const authorization = request.headers.get("authorization");
   if (authorization) {
-    if (!authorization.startsWith("Bearer ")) return unauthorized("AUTHORING_MCP_AUTH_REQUIRED");
+    const bearer = /^Bearer\s+(\S+)$/i.exec(authorization);
+    if (!bearer) return unauthorized("AUTHORING_MCP_AUTH_REQUIRED", true);
     try {
-      return await principalFromConnectionToken(authorization.slice("Bearer ".length), resourceUrl());
+      return await principalFromConnectionToken(bearer[1], resourceUrl());
     } catch (error) {
-      if (isForbidden(error)) return NextResponse.json({ error: "AUTHORING_MCP_ADMIN_REQUIRED" }, { status: 403 });
-      return unauthorized(error instanceof Error ? error.message.split(":")[0] : "AUTHORING_MCP_AUTH_INVALID");
+      return authFailure(error, true);
     }
   }
 
@@ -53,8 +62,7 @@ async function authenticate(request: NextRequest): Promise<McpPrincipal | NextRe
       authMethod: "session",
     });
   } catch (error) {
-    if (isForbidden(error)) return NextResponse.json({ error: "AUTHORING_MCP_ADMIN_REQUIRED" }, { status: 403 });
-    return unauthorized(error instanceof Error ? error.message.split(":")[0] : "AUTHORING_MCP_AUTH_INVALID");
+    return authFailure(error, false);
   }
 }
 

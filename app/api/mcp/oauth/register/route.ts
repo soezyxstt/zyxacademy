@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     client_id: clientId,
     client_name: parsed.data.client_name ?? "MCP client",
     redirect_uris: parsed.data.redirect_uris,
-    grant_types: ["authorization_code"],
+    grant_types: ["authorization_code", "refresh_token"],
     response_types: ["code"],
     token_endpoint_auth_method: "none",
   }, { status: 201 });

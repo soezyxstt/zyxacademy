@@ -4,7 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { auditMutasi, session, user } from "@/db/schema";
 import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
-import { hasMcpOAuthConsent } from "@/lib/authoring/mcp-oauth";
+import { hasMcpOAuthConsent, isMcpOAuthGrantSessionId } from "@/lib/authoring/mcp-oauth";
 import { MCP_MANUAL_CLIENT_ID } from "@/lib/authoring/mcp-auth";
 import type { McpPrincipal } from "@/lib/authoring/mcp-auth";
 
@@ -47,8 +47,12 @@ export async function assertAdminMutationAuthority(tx: AdminTransaction, princip
     for (const id of [...new Set([principal.actorId, input.id])].sort()) await tx.select({ id: user.id }).from(user).where(eq(user.id, id)).limit(1).for("update");
   }
   await assertAuthoringActor(tx, principal.actorId, { roles: ["admin"], error: "AUTHORING_MCP_ADMIN_REQUIRED", lock: true });
-  const [active] = await tx.select({ expiresAt: session.expiresAt }).from(session).where(and(eq(session.id, principal.sessionId), eq(session.userId, principal.userId))).limit(1).for("share");
-  if (!active || active.expiresAt.getTime() <= Date.now()) throw new AdminMcpError("AUTHORING_MCP_SESSION_INVALID");
+  if (isMcpOAuthGrantSessionId(principal.sessionId)) {
+    if (principal.authMethod !== "oauth" || !principal.clientId || principal.clientId === MCP_MANUAL_CLIENT_ID) throw new AdminMcpError("AUTHORING_MCP_SESSION_INVALID");
+  } else {
+    const [active] = await tx.select({ expiresAt: session.expiresAt }).from(session).where(and(eq(session.id, principal.sessionId), eq(session.userId, principal.userId))).limit(1).for("share");
+    if (!active || active.expiresAt.getTime() <= Date.now()) throw new AdminMcpError("AUTHORING_MCP_SESSION_INVALID");
+  }
   if (principal.authMethod === "oauth" && principal.clientId !== MCP_MANUAL_CLIENT_ID) {
     if (!principal.clientId || principal.resource !== mcpEnvironmentIdentity().resource || !await hasMcpOAuthConsent({ userId: principal.userId, sessionId: principal.sessionId, clientId: principal.clientId, resource: principal.resource, scope: principal.scopes }, tx, { lock: true })) throw new AdminMcpError("OAUTH_CONSENT_REQUIRED");
   }
