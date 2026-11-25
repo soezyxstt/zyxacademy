@@ -27,6 +27,23 @@ ZYX_DESKTOP_SERVER_URL=https://staging.zyxacademy.com npm run dev
 
 Only `http` and `https` origins are accepted. Invalid values fall back to `https://www.zyxacademy.com`.
 
+## Startup and offline fallback
+
+The bundled shell starts with a neutral connecting state, then opens the configured
+origin after a fresh static `HEAD /favicon.ico` probe. It does not call the session
+endpoint or wait for database work to establish reachability. The probe omits
+credentials and bypasses the HTTP cache; the offline service worker does not
+handle `HEAD` requests.
+
+An unavailable origin shows retry and saved readings. The shell labels the device
+offline only when the browser reports that its connection is down. Opening saved
+readings during startup keeps the reader open, and a confirmed reconnection offers
+a return button without navigating away from the reader.
+
+This shell ships inside the desktop installer. Merging a web change does not
+replace it in an installed app. Run **Release Apps (Desktop & Mobile)** manually
+from `staging` with the `nightly` channel and install that build to use the fix.
+
 ## Deep links and single instance
 
 The app registers the `zyxacademy` URL scheme (`zyxacademy-nightly` for nightly builds). Opening a URL such as `zyxacademy://courses/123` or an OAuth callback routes the main window to that path on the configured origin.

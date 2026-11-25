@@ -1,6 +1,27 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/(student)/feedback/feedback-form.tsx",
+    "actions": ["handleSubmit"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Signed-in learner feedback uses the existing server action. Browser form validation and restored-draft recovery do not add admin MCP access or change authorization, scopes, consent, discovery, playbooks, packaged skills or host prompts."
+  },
+  {
+    "source": "apps/desktop/dist/index.html",
+    "actions": ["probeServerReachable", "handleReturnOnline"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Installed-device launch and offline reading use the existing native origin and reading commands. Connection state and retry behavior do not change MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
+  },
+  {
+    "source": "app/(student)/settings/settings-client.tsx",
+    "actions": ["setLocale", "setPreference", "setHapticsEnabled", "restoreDisplayDefaults"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Personal interface language and device display, vibration and alert choices require the signed-in UI or local device. Preference grouping and reset do not change MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
+  },
+  {
     "source": "components/native/app-update-control.tsx",
     "actions": ["checkForUpdates", "triggerInstall"],
     "tools": [],

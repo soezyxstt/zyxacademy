@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import {
   DENSITY_OPTIONS,
+  DEFAULT_APPEARANCE_PREFERENCES,
   FONT_SIZE_OPTIONS,
   TOAST_POSITION_OPTIONS,
   useAppearancePreferences,
@@ -20,7 +21,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { isNativeApp } from "@/lib/native/runtime";
-import { Download } from "lucide-react";
+import { isHapticsSupported } from "@/lib/native/haptics";
+import { resolveSettingsTab, type SettingsTab } from "@/lib/settings-tabs";
+import { ArrowRight, Download, HardDriveDownload, RotateCcw } from "lucide-react";
 import { useHapticsPreference } from "@/hooks/use-haptics-preference";
 
 const THEMES = ["light", "dark", "system"] as const;
@@ -72,16 +75,24 @@ function PreferenceSwitch({
   label,
   checked,
   onCheckedChange,
+  description,
+  disabled,
 }: {
   label: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
+  description?: string;
+  disabled?: boolean;
 }) {
   const id = useId();
   return (
     <div className="flex min-h-11 items-center justify-between gap-3 py-1.5">
-      <label htmlFor={id} className="text-body-sm font-medium text-foreground">{label}</label>
-      <Switch id={id} className="shrink-0" checked={checked} onCheckedChange={onCheckedChange} />
+      <div className="min-w-0">
+        <label htmlFor={id} className="text-body-sm font-medium text-foreground">{label}</label>
+        {description && <p id={`${id}-description`} className="mt-0.5 text-body-xs text-muted-foreground">{description}</p>}
+      </div>
+      <Switch id={id} className="shrink-0" checked={checked} disabled={disabled}
+        aria-describedby={description ? `${id}-description` : undefined} onCheckedChange={onCheckedChange} />
     </div>
   );
 }
@@ -105,27 +116,84 @@ function PreferenceGroup({
   );
 }
 
-function DisplayPreferences() {
+function GeneralPreferences() {
   const t = useTranslations("student");
   const common = useTranslations("common");
   const experience = useStudentExperience();
   const { locale, setLocale, isPending, error } = useAppLocale();
+  const { enabled: hapticsEnabled, setEnabled: setHapticsEnabled } = useHapticsPreference();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const hapticsSupported = mounted && isHapticsSupported();
+
+  return (
+    <div className="max-w-3xl space-y-(--section-gap)">
+      <PreferenceGroup title={t("preferences.account")} description={t("preferences.languageScope")}>
+        <PreferenceChoice
+          label={common("language.label")}
+          options={LANGUAGES}
+          optionLabel={(value) => common(value === "id" ? "language.indonesian" : "language.english")}
+          value={locale}
+          disabled={isPending}
+          error={error}
+          onChange={(value) => {
+            if (experience.mode === "demo") experience.changeLocale?.(value);
+            else void setLocale(value);
+          }}
+        />
+      </PreferenceGroup>
+      <PreferenceGroup title={t("preferences.device")} description={t("preferences.deviceScope")}>
+        <PreferenceSwitch
+          label={t("preferences.haptics")}
+          description={!hapticsSupported ? t("preferences.hapticsUnavailable") : undefined}
+          disabled={!hapticsSupported}
+          checked={hapticsEnabled}
+          onCheckedChange={setHapticsEnabled}
+        />
+        {experience.mode !== "demo" && (
+          <div className="flex flex-col items-start gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-body-sm font-medium">{t("preferences.offlineReadings")}</p>
+              <p className="mt-0.5 text-body-xs text-muted-foreground">{t("preferences.offlineReadingsDescription")}</p>
+            </div>
+            <Button asChild variant="outline" className="min-h-9">
+              <Link href="/offline"><HardDriveDownload aria-hidden="true" />{t("preferences.manageReadings")}</Link>
+            </Button>
+          </div>
+        )}
+        {mounted && experience.mode !== "demo" && !isNativeApp() && (
+          <div className="py-3">
+            <Button asChild variant="outline" className="min-h-9">
+              <Link href="/download"><Download aria-hidden="true" />{t("preferences.downloadApp")}<ArrowRight aria-hidden="true" /></Link>
+            </Button>
+          </div>
+        )}
+      </PreferenceGroup>
+    </div>
+  );
+}
+
+function DisplayPreferences() {
+  const t = useTranslations("student");
+  const common = useTranslations("common");
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { preferences, setPreference } = useAppearancePreferences();
-  const { enabled: hapticsEnabled, setEnabled: setHapticsEnabled } = useHapticsPreference();
 
   useEffect(() => setMounted(true), []);
 
   const activeTheme = mounted ? THEMES.find((option) => option === theme) ?? "system" : "system";
+  const restoreDisplayDefaults = () => {
+    setTheme("system");
+    setPreference("background", DEFAULT_APPEARANCE_PREFERENCES.background);
+    setPreference("animations", DEFAULT_APPEARANCE_PREFERENCES.animations);
+    setPreference("density", DEFAULT_APPEARANCE_PREFERENCES.density);
+    setPreference("fontSize", DEFAULT_APPEARANCE_PREFERENCES.fontSize);
+    toast.success(t("preferences.displayRestored"));
+  };
 
   return (
-    <div className="space-y-(--section-gap)">
-      {mounted && experience.mode !== "demo" && !isNativeApp() && (
-        <Button asChild variant="outline">
-          <Link href="/download"><Download aria-hidden="true" />{t("preferences.downloadApp")}</Link>
-        </Button>
-      )}
+    <div className="max-w-3xl space-y-(--section-gap)">
       <PreferenceGroup title={t("preferences.interface")} description={t("preferences.browserSettings")}>
         <PreferenceChoice
           label={t("preferences.theme")}
@@ -140,17 +208,10 @@ function DisplayPreferences() {
           checked={preferences.background === "default"}
           onCheckedChange={(checked) => setPreference("background", checked ? "default" : "solid")}
         />
-        <PreferenceChoice
-          label={common("language.label")}
-          options={LANGUAGES}
-          optionLabel={(value) => common(value === "id" ? "language.indonesian" : "language.english")}
-          value={locale}
-          disabled={isPending}
-          error={error}
-          onChange={(value) => {
-            if (experience.mode === "demo") experience.changeLocale?.(value);
-            else void setLocale(value);
-          }}
+        <PreferenceSwitch
+          label={t("preferences.animations")}
+          checked={preferences.animations}
+          onCheckedChange={(checked) => setPreference("animations", checked)}
         />
       </PreferenceGroup>
 
@@ -182,58 +243,62 @@ function DisplayPreferences() {
         </div>
       </PreferenceGroup>
 
-      <PreferenceGroup title={t("preferences.motionAndMessages")}>
-        <PreferenceSwitch
-          label={t("preferences.animations")}
-          checked={preferences.animations}
-          onCheckedChange={(checked) => setPreference("animations", checked)}
-        />
-        <PreferenceSwitch
-          label={t("preferences.haptics")}
-          checked={hapticsEnabled}
-          onCheckedChange={setHapticsEnabled}
-        />
-        <PreferenceChoice
-          label={t("preferences.toastPosition")}
-          options={TOAST_POSITION_OPTIONS}
-          optionLabel={(option) => t(`preferences.toastOptions.${option}`)}
-          value={preferences.toastPosition}
-          onChange={(position) => {
-            if (position === preferences.toastPosition) return;
-            setPreference("toastPosition", position);
-            toast(t("preferences.toastPreview"), { id: "toast-position-preview", position });
-          }}
-        />
-      </PreferenceGroup>
+      <div className="border-t border-border/40 pt-3">
+        <Button type="button" variant="outline" className="min-h-9" disabled={!mounted} onClick={restoreDisplayDefaults}>
+          <RotateCcw aria-hidden="true" />{t("preferences.restoreDisplay")}
+        </Button>
+      </div>
     </div>
+  );
+}
+
+function OnScreenAlertPreferences() {
+  const t = useTranslations("student");
+  const { preferences, setPreference } = useAppearancePreferences();
+  return (
+    <PreferenceGroup title={t("preferences.onScreenAlerts")} description={t("preferences.alertPositionScope")}>
+      <PreferenceChoice
+        label={t("preferences.toastPosition")}
+        options={TOAST_POSITION_OPTIONS}
+        optionLabel={(option) => t(`preferences.toastOptions.${option}`)}
+        value={preferences.toastPosition}
+        onChange={(position) => {
+          if (position === preferences.toastPosition) return;
+          setPreference("toastPosition", position);
+          toast(t("preferences.toastPreview"), { id: "toast-position-preview", position });
+        }}
+      />
+    </PreferenceGroup>
   );
 }
 
 export function SettingsClient({
   profile,
   email,
-  initialTab = "appearance",
+  initialTab = "general",
 }: {
   profile?: ReactNode;
   email?: ReactNode;
-  initialTab?: "appearance" | "profile" | "email";
+  initialTab?: SettingsTab | "email";
 }) {
   const t = useTranslations("student");
   const common = useTranslations("common");
   const experience = useStudentExperience();
   const href = (path: string) => experience.href?.(path) ?? path;
-  const [tab, setTab] = useUrlTab("tab", "appearance", initialTab);
-  const activeTab = tab === "profile" || tab === "email" ? tab : "appearance";
+  const [tab, setTab] = useUrlTab("tab", "general", resolveSettingsTab(initialTab));
+  const activeTab = resolveSettingsTab(tab);
 
   return (
     <ApplicationPage>
       <PageHeader title={common("preferences")} />
       <Tabs value={activeTab} onValueChange={setTab}>
         <TabsList aria-label={common("preferences")}>
+          <TabsTrigger value="general">{t("preferences.general")}</TabsTrigger>
           <TabsTrigger value="appearance">{t("preferences.appearance")}</TabsTrigger>
+          <TabsTrigger value="notifications">{t("preferences.notifications")}</TabsTrigger>
           <TabsTrigger value="profile">{t("settings.profile")}</TabsTrigger>
-          <TabsTrigger value="email">{t("preferences.email")}</TabsTrigger>
         </TabsList>
+        <TabsContent value="general" className="mt-3 sm:mt-6"><GeneralPreferences /></TabsContent>
         <TabsContent value="appearance" className="mt-3 sm:mt-6"><DisplayPreferences /></TabsContent>
         <TabsContent value="profile" forceMount className="mt-3 space-y-4 data-[state=inactive]:hidden sm:mt-6">
           {profile ? (
@@ -251,7 +316,8 @@ export function SettingsClient({
             </Button>
           )}
         </TabsContent>
-        <TabsContent value="email" forceMount className="mt-3 data-[state=inactive]:hidden sm:mt-6">
+        <TabsContent value="notifications" forceMount className="mt-3 max-w-3xl space-y-(--section-gap) data-[state=inactive]:hidden sm:mt-6">
+          <OnScreenAlertPreferences />
           {email ?? (
             <Button asChild variant="outline" size="sm">
               <Link href={href("/settings/notifications")}>{t("settings.manageNotifications")}</Link>
