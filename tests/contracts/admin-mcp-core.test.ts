@@ -2,13 +2,17 @@ import { describe, expect, it } from "bun:test";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerOperationsTools } from "@/lib/admin-mcp/operations-tools";
 import { MCP_AUTHORING_DEFAULT_SCOPES } from "@/lib/authoring/mcp-workflows";
-import { approvedScopes, requestedScopes } from "@/lib/authoring/mcp-oauth";
+import { MCP_OAUTH_INITIAL_SCOPES, approvedScopes, defaultConsentScopes, requestedScopes } from "@/lib/authoring/mcp-oauth";
 
 const principal = { userId: "admin", actorId: "admin", sessionId: "session", authMethod: "oauth" as const, scopes: [...MCP_AUTHORING_DEFAULT_SCOPES] };
 
 describe("admin MCP scope isolation", () => {
-  it("requires explicit OAuth request and consent", () => {
-    expect(requestedScopes(null)).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
+  it("offers all initial scopes but grants admin access only when selected", () => {
+    const offered = requestedScopes(null);
+    expect(offered).toEqual([...MCP_OAUTH_INITIAL_SCOPES]);
+    expect(defaultConsentScopes(offered)).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
+    expect(approvedScopes(null, defaultConsentScopes(offered))).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
+    expect(approvedScopes(null, ["courses:read"])).toEqual(["courses:read"]);
     expect(approvedScopes("forms:read courses:read", ["courses:read"])).toEqual(["courses:read"]);
     expect(() => approvedScopes("authoring:read", ["courses:read"])).toThrow("invalid_scope");
   });

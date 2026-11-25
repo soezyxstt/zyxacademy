@@ -60,8 +60,7 @@ describe("Admin Course Workspace Flashcards & Review Katalog Removal Contract", 
       expect(existsSync(flashcardsTabComponentPath)).toBe(true);
 
       const component = source(flashcardsTabComponentPath);
-      expect(component).toContain("AdminStatStrip");
-      expect(component).toContain("AdminStatStripItem");
+      expect(component).not.toContain("AdminStatStrip");
       expect(component).toContain("AdminConfirmDialog");
       expect(component).toContain("StatusBadge");
       expect(component).toContain("AdminEmptyState");

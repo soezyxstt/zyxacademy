@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useHideMobileBottomNav } from "@/components/navigation";
 import { readPlaygroundHandoff } from "@/lib/coding/playground-handoff";
 import { CodingWorkspace } from "./coding-workspace";
 
 export function Playground({ courseId, learnerId }: { courseId: string; learnerId: string }) {
+  useHideMobileBottomNav(true);
   const params = useSearchParams(), handoff = params.get("handoff");
   const [restored, setRestored] = useState<{ learnerId: string; courseId: string; handoff: string | null; code: string; stdin: string } | null>(null);
   useEffect(() => {

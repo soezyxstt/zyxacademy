@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { MobileChromeProvider } from "@/components/navigation/mobile-chrome-context";
+import { MobileTopNavbar } from "@/components/navigation/mobile-top-navbar";
 import { DocsShell } from "@/components/docs/docs-shell";
 import { DocsIndexView } from "@/components/docs/docs-index-view";
 import { DocsArticleView } from "@/components/docs/docs-article-view";
@@ -26,38 +28,31 @@ export default async function DocsShowcaseFixture({
   const docs = surface === "tutor" ? getTutorDocs(locale) : getAdminDocs(locale);
   const targetSlug = slug?.[0];
 
-  if (!targetSlug) {
-    return (
+  const doc = docs.find((item) => item.slug === targetSlug);
+  if (targetSlug && !doc) notFound();
+
+  return (
+    <MobileChromeProvider>
+      <MobileTopNavbar title={t("title")} />
       <main className="min-h-screen bg-background px-6 py-8 text-foreground">
         <div className="mx-auto max-w-6xl">
           <DocsShell surface={surface} basePath={basePath}>
-            <DocsIndexView surface={surface} basePath={basePath} />
+            {doc ? (
+              <DocsArticleView
+                doc={doc}
+                docs={docs}
+                surface={surface}
+                basePath={basePath}
+                locale={locale}
+                allDocsLabel={t("allDocs")}
+                previousLabel={t("previous")}
+                nextLabel={t("next")}
+                quickLinksLabel={t("quickLinks")}
+              />
+            ) : <DocsIndexView surface={surface} basePath={basePath} />}
           </DocsShell>
         </div>
       </main>
-    );
-  }
-
-  const doc = docs.find((item) => item.slug === targetSlug);
-  if (!doc) notFound();
-
-  return (
-    <main className="min-h-screen bg-background px-6 py-8 text-foreground">
-      <div className="mx-auto max-w-6xl">
-        <DocsShell surface={surface} basePath={basePath}>
-          <DocsArticleView
-            doc={doc}
-            docs={docs}
-            surface={surface}
-            basePath={basePath}
-            locale={locale}
-            allDocsLabel={t("allDocs")}
-            previousLabel={t("previous")}
-            nextLabel={t("next")}
-            quickLinksLabel={t("quickLinks")}
-          />
-        </DocsShell>
-      </div>
-    </main>
+    </MobileChromeProvider>
   );
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/client";
+import { useHideMobileBottomNav } from "@/components/navigation";
 import {
   BookOpenCheck,
   Eye,
@@ -15,7 +16,7 @@ import {
   PanelRightClose,
   Pencil,
   Save,
-  Bot,
+  FilePen,
   Trash2,
   ExternalLink,
 } from "lucide-react";
@@ -34,6 +35,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { AdminIconAction } from "@/components/admin/icon-action";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaterialViewer } from "@/components/course/material-viewer";
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import {
@@ -89,6 +92,7 @@ export function AdminDocumentWorkspace({
 }: Props) {
   const t = useTranslations("adminAcademic");
   const router = useRouter();
+  useHideMobileBottomNav(true);
   const [activeMode, setActiveMode] = useState<"preview" | "edit">(initialMode);
   const [status, setStatus] = useState<"draft" | "published">(
     material.status === "draft" ? "draft" : "published"
@@ -388,12 +392,12 @@ export function AdminDocumentWorkspace({
   const displayTitle = isPdf ? pdfTitle : articleTitle;
 
   return (
-    <div className="-mt-8 -mb-8 -mx-4 sm:-mx-6 lg:-mx-8 flex flex-col min-h-[calc(100vh+4rem)] bg-background font-sans">
+    <Tabs value={activeMode} onValueChange={(mode) => handleModeChange(mode === "edit" ? "edit" : "preview")} syncUrl={false} className="flex min-h-dvh flex-col">
       {/* Top Workspace Bar */}
-      <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-2.5">
-        <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <div className="min-w-0 flex items-center gap-2">
-            <h1 className="min-w-0 break-words font-heading text-body-sm font-semibold text-foreground">
+      <header className="sticky top-(--mobile-navbar-height,0px) z-30 flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-background pb-2 md:top-0">
+        <div className="min-w-0 flex-1 basis-44">
+          <div className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-1">
+            <h1 className="min-w-0 wrap-anywhere font-heading text-body-sm font-semibold text-foreground">
               {displayTitle}
             </h1>
             {isArticleOrDiktat ? (
@@ -412,7 +416,7 @@ export function AdminDocumentWorkspace({
           </div>
         </div>
 
-        <div className="flex max-w-full flex-wrap items-center gap-2">
+        <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1.5">
           {/* Status Toggle Button (for articles and diktats) */}
           {isArticleOrDiktat ? (
             <Button
@@ -468,61 +472,37 @@ export function AdminDocumentWorkspace({
           {/* TOC Toggles in Header (for preview mode) */}
           {activeMode === "preview" && (isArticleOrDiktat || article) ? (
             <>
-              <Button
+              <AdminIconAction
                 type="button"
-                variant="outline"
-                size="sm"
+                variant="ghost"
                 onClick={() => setIsMobileSheetOpen(true)}
-                className="h-8 gap-1 rounded-lg text-body-sm font-medium md:hidden"
-                title={t("documents.tableOfContents")}
+                className="md:hidden"
+                label={t("documents.tableOfContents")}
               >
-                <Menu className="size-3.5" />
-                <span>{t("documents.tableOfContents")}</span>
-              </Button>
-              <Button
+                <Menu className="size-4" aria-hidden />
+              </AdminIconAction>
+              <AdminIconAction
                 type="button"
-                variant="outline"
-                size="sm"
+                variant="ghost"
                 onClick={() => setIsTocOpen((prev) => !prev)}
-                className="h-8 gap-1.5 rounded-lg text-body-sm font-medium hidden md:inline-flex"
+                className="hidden md:inline-flex"
                 aria-pressed={isTocOpen}
-                title={isTocOpen ? t("documents.hideMenu") : t("documents.openMenu")}
+                label={isTocOpen ? t("documents.hideMenu") : t("documents.openMenu")}
               >
                 {isTocOpen ? (
-                  <PanelRightClose className="size-3.5" />
+                  <PanelRightClose className="size-4" aria-hidden />
                 ) : (
-                  <PanelRight className="size-3.5" />
+                  <PanelRight className="size-4" aria-hidden />
                 )}
-                <span>{isTocOpen ? t("documents.hideMenu") : t("documents.openMenu")}</span>
-              </Button>
+              </AdminIconAction>
             </>
           ) : null}
 
           {/* Mode Switcher: Pratinjau vs Edit */}
-          <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
-            <Button
-              type="button"
-              variant={activeMode === "preview" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => handleModeChange("preview")}
-              aria-pressed={activeMode === "preview"}
-              className="h-7 gap-1 px-2.5 rounded-md text-body-sm font-medium"
-            >
-              <Eye className="size-3.5" />
-              <span>{t("documents.preview")}</span>
-            </Button>
-            <Button
-              type="button"
-              variant={activeMode === "edit" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => handleModeChange("edit")}
-              aria-pressed={activeMode === "edit"}
-              className="h-7 gap-1 px-2.5 rounded-md text-body-sm font-medium"
-            >
-              <Pencil className="size-3.5" />
-              <span>{t("documents.edit")}</span>
-            </Button>
-          </div>
+          <TabsList variant="inline" className="w-auto">
+            <TabsTrigger value="preview"><Eye className="size-3.5" aria-hidden />{t("documents.preview")}</TabsTrigger>
+            <TabsTrigger value="edit"><Pencil className="size-3.5" aria-hidden />{t("documents.edit")}</TabsTrigger>
+          </TabsList>
 
           {/* Quick Save Button in Header (for articles and diktats in edit mode) */}
           {activeMode === "edit" && !isPdf ? (
@@ -555,7 +535,7 @@ export function AdminDocumentWorkspace({
       </header>
 
       {/* Main Workspace Body */}
-      <main className="flex-1 min-h-0">
+      <TabsContent value={activeMode} className="mt-0 min-h-0 flex-1">
         {activeMode === "preview" ? (
           /* Preview Mode */
           article ? (
@@ -585,9 +565,9 @@ export function AdminDocumentWorkspace({
           /* Edit Mode */
           isPdf ? (
             /* Split Edit Layout for PDF Documents */
-            <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[calc(100vh-53px)]">
+            <div className="grid min-h-[calc(100dvh-53px)] grid-cols-1 lg:grid-cols-12">
               {/* Left Panel: Full PDF Preview */}
-              <div className="order-2 lg:order-1 lg:col-span-7 xl:col-span-8 bg-muted/20 border-r border-border min-h-[500px] lg:min-h-full flex flex-col">
+              <div className="order-2 flex min-h-64 min-w-0 flex-col border-t border-border/60 bg-muted/20 lg:order-1 lg:col-span-7 lg:min-h-full lg:border-t-0 lg:border-r xl:col-span-8">
                 <div className="flex items-center justify-between border-b border-border/70 bg-card/60 px-4 py-2 text-body-xs text-muted-foreground">
                   <span className="font-medium">{t("documents.pdfPreview")}</span>
                   {material.url ? (
@@ -610,8 +590,8 @@ export function AdminDocumentWorkspace({
                       className="size-full border-0 min-h-[600px] lg:min-h-full"
                     />
                   ) : (
-                    <div className="flex size-full flex-col items-center justify-center p-8 text-center text-muted-foreground">
-                      <FileText className="size-10 opacity-40 mb-2" />
+                    <div className="flex items-center justify-center gap-2 p-(--related-gap) text-center text-muted-foreground">
+                      <FileText className="size-4 shrink-0" aria-hidden />
                       <p className="text-body-sm font-medium">{t("documents.pdfUnavailable")}</p>
                     </div>
                   )}
@@ -619,7 +599,7 @@ export function AdminDocumentWorkspace({
               </div>
 
               {/* Right Panel: Metadata Form */}
-              <div className="order-1 lg:order-2 lg:col-span-5 xl:col-span-4 p-4 overflow-y-auto space-y-4 bg-card">
+              <div className="order-1 min-w-0 space-y-(--related-gap) py-(--related-gap) lg:order-2 lg:col-span-5 lg:pl-(--related-gap) xl:col-span-4">
                 <div>
                   <h2 className="font-heading text-body-base font-bold text-foreground">
                     {t("documents.settings")}
@@ -644,7 +624,7 @@ export function AdminDocumentWorkspace({
                           {formattingPdfAi ? (
                             <Loader2 className="size-3 animate-spin" />
                           ) : (
-                            <Bot className="size-3" />
+                            <FilePen className="size-3" />
                           )}
                           <span>{formattingPdfAi ? t("documents.analyzing") : t("documents.formatWithAi")}</span>
                         </Button>
@@ -677,7 +657,7 @@ export function AdminDocumentWorkspace({
                         }}
                         disabled={saving}
                       >
-                        <SelectTrigger id="workspace-pdf-category" className="h-9 text-body-sm rounded-lg">
+                        <SelectTrigger id="workspace-pdf-category" className="h-9 bg-muted/35">
                           <SelectValue placeholder={t("documents.selectCategory")}>
                             {LEVEL1_CATEGORIES.find((category) => category.value === pdfType)?.label}
                           </SelectValue>
@@ -701,7 +681,7 @@ export function AdminDocumentWorkspace({
                         onValueChange={(v: CourseMaterialSubcategory) => setPdfSubcategory(v)}
                         disabled={saving}
                       >
-                        <SelectTrigger id="workspace-pdf-subcategory" className="h-9 text-body-sm rounded-lg">
+                        <SelectTrigger id="workspace-pdf-subcategory" className="h-9 bg-muted/35">
                           <SelectValue placeholder={t("documents.selectSubcategory")}>
                             {availablePdfSubcategories.find((subcategory) => subcategory.value === pdfSubcategory)?.label}
                           </SelectValue>
@@ -752,23 +732,23 @@ export function AdminDocumentWorkspace({
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 gap-1.5 max-h-52 overflow-y-auto pr-1">
+                    <div className="max-h-52 divide-y divide-border/60 overflow-y-auto pr-1">
                       {chapters.map((ch) => {
                         const isChecked = selectedChapters.has(ch.id);
                         return (
                           <label
                             key={ch.id}
-                            className={`flex items-center gap-2 p-2 rounded-lg border text-body-sm cursor-pointer select-none transition-colors ${
+                            className={`flex min-h-9 cursor-pointer select-none items-start gap-2 py-2 text-body-sm transition-colors ${
                               isChecked
-                                ? "border-primary bg-primary/10 text-foreground"
-                                : "border-border/60 hover:bg-muted/30 text-muted-foreground"
+                                ? "text-foreground"
+                                : "text-muted-foreground hover:bg-muted/30"
                             }`}
                           >
                             <Checkbox
                               checked={isChecked}
                               onCheckedChange={() => toggleChapter(ch.id)}
                               disabled={saving}
-                              className="rounded border-border"
+                              className="mt-0.5"
                             />
                             <span className="min-w-0 break-words">
                               {t("documents.chapterWithNumber", { number: ch.orderIndex })}: {ch.title}
@@ -804,7 +784,7 @@ export function AdminDocumentWorkspace({
             </div>
           ) : (
             /* Wide Editor Layout for Artikel / Diktat */
-            <div className="max-w-5xl mx-auto p-4 space-y-4">
+            <div className="mx-auto max-w-5xl space-y-(--related-gap) py-(--related-gap)">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="font-heading text-body-base font-bold text-foreground">
@@ -852,7 +832,7 @@ export function AdminDocumentWorkspace({
                           {formattingArticleAi ? (
                             <Loader2 className="size-3 animate-spin" />
                           ) : (
-                            <Bot className="size-3" />
+                            <FilePen className="size-3" />
                           )}
                           <span>{formattingArticleAi ? t("documents.analyzing") : t("documents.formatWithAi")}</span>
                         </Button>
@@ -878,7 +858,7 @@ export function AdminDocumentWorkspace({
                       onValueChange={setArticleBabId}
                       disabled={saving}
                     >
-                      <SelectTrigger id="workspace-article-chapter" className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="workspace-article-chapter" className="h-9 bg-muted/35">
                         <SelectValue placeholder={t("documents.selectChapter")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -914,7 +894,7 @@ export function AdminDocumentWorkspace({
             </div>
           )
         )}
-      </main>
+      </TabsContent>
 
       <AdminConfirmDialog
         open={deleteConfirmOpen}
@@ -925,6 +905,6 @@ export function AdminDocumentWorkspace({
         loading={deleting}
         onConfirm={handleDelete}
       />
-    </div>
+    </Tabs>
   );
 }

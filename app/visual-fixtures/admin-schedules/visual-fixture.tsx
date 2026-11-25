@@ -18,6 +18,17 @@ import { AcademicSchedulesDashboard } from "@/components/admin/academic-schedule
 import { NavCollapsible, NavItem } from "@/components/sidebar-shell";
 import { Logo } from "@/components/logo";
 
+const calculus = { id: "ma1101", title: "Matematika I", category: "tpb" };
+const physics = { id: "fi1101", title: "Fisika Dasar I", category: "tpb" };
+const tutor = {
+  id: "t-1",
+  name: "Adi Haditya Nursyam",
+  email: "adi@zyx.id",
+  tutorCourses: [{ courseId: calculus.id, course: calculus }],
+};
+const group = { id: "g-1", name: "TPB-A1", packageName: "TPB Premium", remainingQuota: 4 };
+const bookingContext = { group, course: calculus };
+
 export function AdminSchedulesVisualFixture() {
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -48,35 +59,79 @@ export function AdminSchedulesVisualFixture() {
           <PageHeader title="Jadwal bersama" />
           <AcademicSchedulesDashboard
             initialData={{
-              courses: [
-                { id: "ma1101", title: "Matematika I", category: "tpb" },
-                { id: "fi1101", title: "Fisika Dasar I", category: "tpb" },
-              ],
+              courses: [calculus, physics],
               tutors: [
-                { id: "t-1", name: "Adi Haditya Nursyam", email: "adi@zyx.id" },
+                tutor,
                 { id: "t-2", name: "Heidi Schan Andriana", email: "heidi@zyx.id" },
               ],
-              groups: [
-                { id: "g-1", name: "TPB-A1", packageName: "TPB Premium", remainingQuota: 4 },
-              ],
+              groups: [group],
               slots: [],
               bookings: [],
-              tickets: [],
-              auditLogs: [],
+              tickets: [
+                {
+                  id: "req-1",
+                  type: "reschedule",
+                  status: "pending",
+                  reason: "Sebagian anggota kelompok mengikuti praktikum pada waktu yang sama.",
+                  createdAt: "2026-11-23T11:00:00+07:00",
+                  booking: bookingContext,
+                  tutor,
+                },
+                {
+                  id: "req-2",
+                  type: "cancellation",
+                  status: "approved",
+                  reason: "Sesi digabung dengan kelas latihan pekan ini.",
+                  createdAt: "2026-11-23T09:00:00+07:00",
+                  booking: bookingContext,
+                  tutor,
+                },
+              ],
+              auditLogs: [
+                {
+                  id: "log-1",
+                  summary: "Jadwal tutorial dipindahkan ke Rabu pukul 13.00 WIB.",
+                  createdAt: "2026-11-23T12:00:00+07:00",
+                  booking: bookingContext,
+                  actor: { name: "Admin Demo" },
+                },
+                {
+                  id: "log-2",
+                  summary: "Undangan tutorial dikirim ke peserta.",
+                  createdAt: "2026-11-23T12:30:00+07:00",
+                  booking: bookingContext,
+                  actor: null,
+                },
+              ],
               academicSchedules: [
                 {
                   id: "ac-1",
                   title: "UTS Matematika I",
-                  category: "uts",
-                  courseId: "ma1101",
-                  startAt: "2026-11-18T09:00:00+07:00",
-                  endAt: "2026-11-18T11:00:00+07:00",
+                  type: "official_exam",
+                  status: "published",
+                  courseId: calculus.id,
+                  course: calculus,
+                  startDate: "2026-11-24T09:00:00+07:00",
+                  endDate: "2026-11-24T11:00:00+07:00",
                   location: "Sabuga",
                   description: null,
                   createdBy: "admin",
                 },
+                {
+                  id: "ac-2",
+                  title: "Tryout Fisika Dasar I dan pembahasan soal",
+                  type: "tryout",
+                  status: "published",
+                  courseId: physics.id,
+                  course: physics,
+                  startDate: "2026-11-24T13:00:00+07:00",
+                  endDate: null,
+                  location: "Ruang 203",
+                  description: "Bawa alat tulis untuk mengerjakan latihan dan mencatat pembahasan.",
+                  createdBy: "admin",
+                },
               ],
-              weekRange: { startIso: "2026-11-16", endIso: "2026-11-22" },
+              weekRange: { startIso: "2026-11-23", endIso: "2026-11-29" },
               legacyNullDateSlotCount: 0,
               coverage: [
                 { tutorId: "t-1", tutorName: "Adi Haditya Nursyam", available: 0 },

@@ -1,8 +1,10 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
 export default function TutorDocLoading() {
   return (
-    <div role="status" aria-label="Memuat" className="max-w-3xl space-y-8">
+    <div role="status" className="max-w-3xl space-y-(--reading-section-gap)">
+      <TranslatedText namespace="tutor.quizForm" messageKey="loading" className="sr-only" />
       <div className="space-y-3">
         <Skeleton className="h-4 w-40" />
         <Skeleton className="h-7 w-80 max-w-full" />

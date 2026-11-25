@@ -32,6 +32,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SearchBar } from "@/components/ui/search-bar";
+import {
+  useMobileChrome,
+  useMobileTopNavSearch,
+} from "@/components/navigation/mobile-chrome-context";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -53,6 +58,7 @@ import { cn } from "@/lib/utils";
 import type { CourseMaterial, DocCategory } from "@/lib/student-course-fixtures";
 import { getSubcategoryLabel, type CourseMaterialSubcategory } from "@/lib/course-materials";
 import { materialMatchesDocumentFilters, type DocumentFilterState } from "@/lib/document-filters";
+import { saveAuthorizedFile } from "@/lib/native/files";
 import { useTranslations } from "@/lib/i18n/client";
 
 type Chapter = {
@@ -450,6 +456,7 @@ export function DocumentListClient({
   tabsSlot,
 }: DocumentListClientProps) {
   const t = useTranslations("learning");
+  const common = useTranslations("common");
   const tSearch = useTranslations("search");
   const router = useRouter();
   const initialDefaultTab = normalizeTabKey(defaultTab);
@@ -462,12 +469,45 @@ export function DocumentListClient({
   const [searchExpanded, setSearchExpanded] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
-  const isSearchOpen = searchExpanded || searchQuery.length > 0;
+  const viewportMode = useViewportMode();
+  const { isTopNavActive } = useMobileChrome();
+  const delegateSearchToTopNav = viewportMode === "mobile" && isTopNavActive;
+  const isSearchOpen = !delegateSearchToTopNav && (searchExpanded || searchQuery.length > 0);
+
+  useMobileTopNavSearch(
+    delegateSearchToTopNav
+      ? {
+          value: searchQuery,
+          onChange: setSearchQuery,
+          onClear: () => setSearchQuery(""),
+          placeholder: searchLabel,
+          ariaLabel: searchLabel,
+        }
+      : null
+  );
   const [filters, setFilters] = useState<DocumentFilterState>(emptyFilters);
   const [selectedPdf, setSelectedPdf] = useState<CourseMaterial | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CourseMaterial | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [downloadingMaterialId, setDownloadingMaterialId] = useState<string | null>(null);
+
+  const handleDownloadMaterial = async (material: CourseMaterial) => {
+    if (!material.url || downloadingMaterialId) return;
+    setDownloadingMaterialId(material.id);
+    try {
+      const result = await saveAuthorizedFile({
+        url: material.url,
+        fileName: `${material.title}.pdf`,
+        title: material.title,
+      });
+      if (!result.ok && !result.cancelled) {
+        toast.error(common(result.error === "unauthorized" ? "files.unauthorized" : "files.saveFailed"));
+      }
+    } finally {
+      setDownloadingMaterialId(null);
+    }
+  };
 
   useEffect(() => {
     if (searchExpanded) {
@@ -599,12 +639,13 @@ export function DocumentListClient({
       <div className="group/document-toolbar flex flex-wrap items-center justify-end gap-2">
 
         <div className="flex min-w-fit flex-1 items-center justify-end gap-1 group-has-[[data-search-expanded=true]]/document-toolbar:min-w-44">
-          {isSearchOpen ? (
+          {delegateSearchToTopNav ? null : isSearchOpen ? (
             <div data-search-expanded="true" className="min-w-0 flex-1 max-w-sm">
               <SearchBar
                 ref={searchInputRef}
                 size="sm"
                 variant="bordered"
+                mobileTopNav={false}
                 value={searchQuery}
                 onSearch={setSearchQuery}
                 onClear={() => closeSearch(true)}
@@ -922,13 +963,12 @@ export function DocumentListClient({
                           variant="ghost"
                           size="icon"
                           className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
-                          asChild
                           title={t("documents.downloadPdf")}
                           aria-label={`${t("documents.downloadPdf")} ${material.title}`}
+                          disabled={downloadingMaterialId === material.id}
+                          onClick={() => void handleDownloadMaterial(material)}
                         >
-                          <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                            <Download className="size-3.5" />
-                          </a>
+                          <Download className="size-3.5" aria-hidden />
                         </Button>
                       ) : (
                         !material.completed && !material.locked && (
@@ -1113,13 +1153,12 @@ export function DocumentListClient({
                               variant="ghost"
                               size="icon"
                               className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
-                              asChild
                               title={t("documents.downloadPdf")}
                               aria-label={`${t("documents.downloadPdf")} ${material.title}`}
+                              disabled={downloadingMaterialId === material.id}
+                              onClick={() => void handleDownloadMaterial(material)}
                             >
-                              <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                                <Download className="size-3.5" />
-                              </a>
+                              <Download className="size-3.5" aria-hidden />
                             </Button>
                           ) : null}
                         </span>

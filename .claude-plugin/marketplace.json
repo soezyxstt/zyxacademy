@@ -8,9 +8,9 @@
   },
   "plugins": [
     {
-      "name": "zyx-authoring-mcp",
-      "version": "0.1.0",
-      "description": "Author Zyx content through the Authoring MCP.",
+      "name": "zyx-stg",
+      "version": "0.5.3",
+      "description": "Author and revise Zyx staging content through MCP.",
       "author": {
         "name": "Zyx Academy"
       },

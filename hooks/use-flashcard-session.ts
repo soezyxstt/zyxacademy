@@ -13,7 +13,13 @@ import { queryKeys } from "@/lib/query/keys";
 import { isQueryAccountCurrent } from "@/lib/query/client";
 import { ApiError } from "@/lib/query/http";
 import { invalidateLearningQueries } from "@/lib/query/invalidation";
-import { hapticSuccess } from "@/lib/native/haptics";
+import {
+  hapticLight,
+  hapticMedium,
+  hapticSelection,
+  hapticSuccess,
+  hapticWarning,
+} from "@/lib/native/haptics";
 
 export function useFlashcardSession({ courseId, initialQueue, studentId, adapter }: FlashcardSessionProps) {
   const t = useTranslations("learning");
@@ -77,6 +83,7 @@ export function useFlashcardSession({ courseId, initialQueue, studentId, adapter
       toast.warning(t("flashcards.checkBeforeFlip"));
       return;
     }
+    void hapticLight();
     setIsFlipped(!isFlipped);
   };
 
@@ -90,7 +97,10 @@ export function useFlashcardSession({ courseId, initialQueue, studentId, adapter
     const normalize = (text: string) => text.toLowerCase().trim().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
     const user = normalize(typedAnswer);
     const correct = normalize(currentItem.card.back);
-    setPassedExam(Boolean(user && correct && (correct.includes(user) || user.includes(correct))));
+    const passed = Boolean(user && correct && (correct.includes(user) || user.includes(correct)));
+    if (passed) void hapticSuccess();
+    else void hapticWarning();
+    setPassedExam(passed);
     setIsChecked(true);
     setIsFlipped(true);
   };
@@ -128,15 +138,18 @@ export function useFlashcardSession({ courseId, initialQueue, studentId, adapter
 
   const handleSkip = () => {
     if (!currentItem || queue.length - (batchOffset + currentIndex) <= 1 || pendingGrade.current) return;
+    void hapticSelection();
     setQueue((current) => skipFlashcardInSession(current, batchOffset + currentIndex));
     resetCard();
   };
   const changeMode = (value: string) => {
     if (pendingGrade.current || (value !== "standard" && value !== "exam")) return;
+    void hapticSelection();
     setMode(value);
     resetCard();
   };
   const startNextBatch = () => {
+    void hapticMedium();
     setBatchOffset((previous) => previous + FLASHCARD_BATCH_SIZE);
     setCurrentIndex(0);
     resetCard();

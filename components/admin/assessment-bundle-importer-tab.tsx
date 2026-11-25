@@ -342,7 +342,7 @@ export function AssessmentBundleImporterTab() {
 
       {result && !loading && result.success && result.stats && (
         <div className="space-y-4">
-          <AdminStatStrip className="grid-cols-2 md:grid-cols-3">
+          <AdminStatStrip>
             {[
               { label: "Mata Kuliah ID", value: result.stats.courseId, icon: BookOpen },
               { label: "Sumber Ujian", value: result.stats.asCount, icon: HelpCircle },

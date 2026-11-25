@@ -12,6 +12,7 @@ import { getProductBundleImport, parseStagedProductBundle } from "@/lib/bundle/p
 import { getProductV4Verification, getProductV4VerificationReadiness, requestProductV4Verification } from "@/lib/bundle/product-v4-verification-service";
 
 import { insufficientScopeChallenge } from "./mcp-oauth";
+import { authoringFailureDiagnostics } from "./diagnostics";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const context = { runToken: z.string().min(1), bootstrapToken: z.string().min(1) };
@@ -62,9 +63,9 @@ export function registerProductV4Tools(server: McpServer, principal: McpPrincipa
         console.error("[authoring-v4]", { operation: name, code });
         if (code === "AUTHORING_MCP_SCOPE_REQUIRED") {
           const requiredScope = error instanceof Error ? error.message.split(":").slice(1).join(":") : undefined;
-          if (requiredScope) return { ...result({ ok: false, error: code, requiredScope, remediation: "Reauthorize with the union of current scopes and the required scope, then retry with the new token." }, true), _meta: { "mcp/www_authenticate": [insufficientScopeChallenge(requiredScope)] } };
+          if (requiredScope) return { ...result({ ok: false, error: code, ...authoringFailureDiagnostics(error, { code }), requiredScope, remediation: "Reauthorize with the union of current scopes and the required scope, then retry with the new token." }, true), _meta: { "mcp/www_authenticate": [insufficientScopeChallenge(requiredScope)] } };
         }
-        return result({ ok: false, error: code }, true);
+        return result({ ok: false, error: code, ...authoringFailureDiagnostics(error, { code }) }, true);
       }
     });
   }

@@ -1,6 +1,6 @@
 import { and, eq, inArray, or, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { academicSchedules, bookings, tutorSlots, groupMembers, quizTemplates, exams, pkaSchedules, pkaRegistrations, courses, groups } from "@/db/schema";
+import { academicSchedules, bookings, tutorSlots, groupCourses, groupMembers, mataKuliah, quizTemplates, exams, pkaSchedules, pkaRegistrations, courses, groups } from "@/db/schema";
 import { listTutorAccessibleCourses } from "@/lib/auth/tutor-access";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
 import { calendarDateToJakartaInstant, minutesFrom } from "@/lib/date-utils";
@@ -8,6 +8,7 @@ import type { CalendarEntry } from "./transport";
 
 export async function calendarSource(userId?: string): Promise<CalendarEntry[]> {
   const courseIds = new Set<string>();
+  const membership = db.select({ id: groupMembers.groupId }).from(groupMembers).where(eq(groupMembers.userId, userId ?? ""));
   if (userId) {
     for (const course of await listStudentEnrollments(userId)) {
       for (const id of [course.id, course.canonicalId, course.legacyId]) if (id) courseIds.add(id);
@@ -16,20 +17,47 @@ export async function calendarSource(userId?: string): Promise<CalendarEntry[]> 
       courseIds.add(course.courseId);
       if (course.legacyCourseId) courseIds.add(course.legacyCourseId);
     }
+    const groupLinkedCourses = await db
+      .select({ courseId: groupCourses.courseId })
+      .from(groupCourses)
+      .where(inArray(groupCourses.groupId, membership));
+    const unresolvedGroupCourseIds: string[] = [];
+    for (const row of groupLinkedCourses) {
+      if (row.courseId) {
+        if (!courseIds.has(row.courseId)) unresolvedGroupCourseIds.push(row.courseId);
+        courseIds.add(row.courseId);
+      }
+    }
+    if (unresolvedGroupCourseIds.length > 0) {
+      const mapped = await db
+        .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId })
+        .from(mataKuliah)
+        .where(
+          or(
+            inArray(mataKuliah.id, unresolvedGroupCourseIds),
+            inArray(mataKuliah.legacyCourseId, unresolvedGroupCourseIds),
+          ),
+        );
+      for (const row of mapped) {
+        if (row.id) courseIds.add(row.id);
+        if (row.legacyCourseId) courseIds.add(row.legacyCourseId);
+      }
+    }
   }
   const ids = [...courseIds];
-  const membership = db.select({ id: groupMembers.groupId }).from(groupMembers).where(eq(groupMembers.userId, userId ?? ""));
   const sessions = await db.select({ booking: bookings, slot: tutorSlots, courseTitle: courses.title, groupName: groups.name }).from(bookings)
     .innerJoin(tutorSlots, eq(bookings.slotId, tutorSlots.id))
     .innerJoin(courses, eq(bookings.courseId, courses.id)).innerJoin(groups, eq(bookings.groupId, groups.id))
     .where(and(inArray(bookings.status, ["scheduled", "rescheduled"]), userId ? or(eq(tutorSlots.tutorId, userId), inArray(bookings.groupId, membership)) : undefined));
   const result: CalendarEntry[] = [];
   for (const { booking, slot, courseTitle, groupName } of sessions) {
-    const date = slot.sessionDate ?? booking.sessionDate;
-    if (!date) continue; // Undated legacy availability is not a concrete appointment.
-    const start = calendarDateToJakartaInstant(date, slot.startTime);
-    const end = calendarDateToJakartaInstant(date, slot.endTime);
-    if (end <= start) throw new Error("Invalid tutorial duration");
+    const date = booking.sessionDate ?? slot.sessionDate;
+    const startTime = booking.startTime ?? slot.startTime;
+    const endTime = booking.endTime ?? slot.endTime;
+    if (!date || !startTime || !endTime) continue; // Undated legacy availability is not a concrete appointment.
+    const start = calendarDateToJakartaInstant(date, startTime);
+    const end = calendarDateToJakartaInstant(date, endTime);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) continue;
     result.push({ key: `booking:${booking.id}`, summary: `Tutorial ${courseTitle}`,
       description: [groupName, booking.topic, booking.googleMeetUrl, "Zyx Academy"].filter(Boolean).join("\n"),
       location: booking.mode === "online" ? booking.googleMeetUrl ?? undefined : booking.location ?? slot.location ?? undefined, start, end });
@@ -51,7 +79,7 @@ export async function calendarSource(userId?: string): Promise<CalendarEntry[]> 
       }
     }
   }
-  if (!userId || (process.env.FEATURE_PKA === "1" && (await db.select({ id: pkaRegistrations.id }).from(pkaRegistrations).where(eq(pkaRegistrations.userId, userId)).limit(1)).length)) {
+  if (!userId || (await db.select({ id: pkaRegistrations.id }).from(pkaRegistrations).where(eq(pkaRegistrations.userId, userId)).limit(1)).length) {
     for (const event of await db.select().from(pkaSchedules)) result.push({ key: `pka:${event.id}`, summary: event.title,
       description: "Tutorial PKA Zyx", location: event.meetLink ?? undefined, start: event.sessionAt, end: minutesFrom(90, event.sessionAt) });
   }

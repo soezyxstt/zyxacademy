@@ -9,10 +9,12 @@ test("quiz diagnosis shows supplied observations without inventing empty-section
   const source = readFileSync("components/course/quiz-analytics-view.tsx", "utf8");
   const jsx = (type: unknown, props: unknown): unknown => typeof type === "function" ? type(props) : ({ type, props });
   const dependencies: Record<string, unknown> = {
-    react: { useState: (value: unknown) => [value, () => {}], useEffect: () => {}, useCallback: (fn: unknown) => fn },
+    react: { useMemo: (fn: () => unknown) => fn() },
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "@/lib/i18n/client": { useTranslations: () => (key: string) => key },
     "@/components/student-experience-provider": { useStudentExperience: () => ({ href: (path: string) => path }) },
+    "@/components/navigation/mobile-chrome-context": { useMobilePageActions: () => false },
+    "@/lib/utils": { cn: (...values: unknown[]) => values.filter(Boolean).join(" ") },
   };
   const module = { exports: {} as any };
   runInNewContext(transformSync(source, { loader: "tsx", jsx: "automatic", format: "cjs" }).code, {

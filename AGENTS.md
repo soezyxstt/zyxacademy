@@ -33,7 +33,7 @@ Every feature change must check the affected workflow against MCP tools, scopes,
 2. For Next.js APIs, routing, or framework behavior, read the relevant guide in `node_modules/next/dist/docs/` first. This project uses Next.js 16.3 and its APIs may differ from older examples.
 3. Search for an existing route, server action, helper, component, feature flag, and test before creating a new one.
 4. Read the relevant document in `docs/` before changing a documented contract.
-5. If a new user-facing capability or material behavior change could be always-on or flag-gated, ask before implementing it. A flag needs a key, rationale, default, scope, rollback path, owner, and removal condition. Do not add or remove a `FEATURE_*` flag silently.
+5. Foundational capabilities are always-on by default. If a new capability or material change could be always-on or flag-gated, ask before implementing it. A flag needs a key, rationale, default, scope, rollback path, owner, and removal condition. Check `lib/feature-flags.ts` for existing operational gates and obtain approval before adding or removing a flag.
 
 ## Source of truth map
 
@@ -56,16 +56,27 @@ Every feature change must check the affected workflow against MCP tools, scopes,
 
 ## Repository invariants
 
-- The application uses Next.js, React, Bun scripts, Drizzle, Better Auth, Inngest, and Gemini provider adapters. Follow the existing adapter and environment boundaries.
+- The application uses Next.js, React, Bun scripts, Drizzle, Better Auth, the shared job/queue adapter, and multi-provider AI adapters via Cloudflare AI Gateway. Cloud Tasks handles environments configured with `QUEUE_PROVIDER=cloud-tasks`; retained Inngest names and adapters are compatibility paths, not evidence of the active provider. Follow the existing adapter and environment boundaries.
+- Desktop sidebars (`StudentSidebar`, `TutorSidebar`, `AdminSidebar`) use a unified context-switching layout on `DesktopSidebarShell`: clean top chrome without browser Back/Forward buttons, `SidebarBackLink` plus a unified course switcher in course mode, semantic `NavGroup` sections, and `SquareTerminal` for Admin Ops AI. Mobile navigation uses its own components.
+- Admin monitoring and analytics prioritize `Web Analytics` first on both desktop and mobile. Retired V1, V2, and V3 assessments are excluded from feature usage metrics, and AI telemetry relies on AI Gateway analytics rather than static per-model RPD limit tables.
 - Staging and production use separate Neon PostgreSQL branches. The adapter requires PostgreSQL, including local development and CI; it never falls back to SQLite or Turso. Verify the exact branch and environment before any database action.
 - Staging and production explicitly use separate private Neon object-storage buckets with `STORAGE_PROVIDER_MODE=neon`. R2 remains the adapter default when no mode is set, not the serving production configuration. UploadThing remains only where its compatibility call paths still exist. Preserve source Turso/R2 and the rollback units in `docs/operations/neon-migration.md` and `docs/operations/neon-production-cutover.md`.
 - Canonical retrieval uses the current Vectorize adapter and namespace. Do not delete legacy vector resources or change the retrieval cutover as part of an unrelated task.
-- Long-running ingestion, generation, synchronization, and recomputation work should use the existing job or Inngest path rather than blocking a request.
+- Long-running ingestion, generation, synchronization, and recomputation work should use the existing job/queue path rather than blocking a request. Keep Cloud Tasks delivery, Scheduler dispatch, checkpoints and retries behind that adapter; do not make agents enqueue provider tasks directly.
 - Reuse established KO extraction, RAG sync, question generation, quiz attempts, SM-2 flashcards, diktat, website-material, and admin AI flows unless the task explicitly changes one of them.
 
 ## UI and design system
 
 Use the tokens and components already defined in `app/globals.css`. Prefer semantic utilities over hard-coded colors, arbitrary font stacks, and one-off styles.
+
+### Dense application pages
+
+- Review dense layouts with Web Design Guidelines (bundled reference) and Spacing System. Use the Student dashboard redesign in PR #451 as a reference for task order, readable metadata, and spacing between sections.
+- Show each metric at its point of use. Keep distinct counts and their scope visible. Use muted tabular metadata for neutral counts and categories, with readable status text plus optional semantic dots, bars, or trend icons.
+- Use the existing spacing tokens for related rows and section separation. Group repeated records with light dividers and use open sections for narrative or metrics. Keep independent boundaries where they support selection, comparison, or interaction.
+- Use small muted icons on section headings when they help distinguish groups of text. Leave headings plain when rows already use icons for navigation or status.
+- Put the next actionable section ahead of long diagnostic detail on mobile. On wide layouts, pair information that needs room, such as formulas and tables, with a narrower list or summary when both belong in the same view. Let long labels wrap and keep action widths proportional to their context.
+- Check relevant empty, populated, and long-content states at 380 and 1536 px in both themes with the application fonts. Keep authored text and formulas readable, and verify keyboard focus, status names, and control contrast where the changes affect them.
 
 ### Component reuse and layout efficiency
 

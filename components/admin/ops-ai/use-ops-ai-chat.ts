@@ -1,4 +1,6 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { OPS_AI_POLICY_BOUNDS } from "@/lib/admin-ops-ai/contracts";
+import { validateOpsFollowups, type OpsFollowup } from "@/lib/admin-ops-ai/followups";
 import type {
   OpsAiWorkStep,
   OpsAiCitation,
@@ -16,6 +18,8 @@ export type OpsAiStreamPart =
   | { type: "data-work-step"; id: string; data: OpsAiWorkStep }
   | { type: "data-citation"; id: string; data: OpsAiCitation }
   | { type: "data-proposal"; id: string; data: OpsAiActionProposalV2 }
+  | { type: "data-followups"; followups: OpsFollowup[] }
+  | { type: "data-session-title"; sessionId?: string; title: string }
   | { type: "data-error"; id: string; data: OpsAiErrorData }
   | { type: "tool-call"; toolCallId: string; toolName: string; input: unknown }
   | { type: "tool-result"; toolCallId: string; toolName: string; output: unknown }
@@ -29,12 +33,21 @@ export interface UseOpsAiChatOptions {
     queryParams?: Record<string, string>;
     mode?: "ask" | "edit";
   };
+  needsTitle?: boolean;
   onFinish?: (message: OpsAiMessageV2) => void;
   onError?: (error: Error) => void;
   onWorkStep?: (step: OpsAiWorkStep) => void;
   onCitation?: (citation: OpsAiCitation) => void;
   onProposal?: (proposal: OpsAiActionProposalV2) => void;
+  onSessionTitle?: (title: string, sessionId?: string) => void;
 }
+
+type ChatRequestOptions = {
+  chatId: string;
+  grantIds: string[];
+  mode?: "ask" | "edit";
+  needsTitle?: boolean;
+};
 
 export interface UseOpsAiChatReturn {
   messages: OpsAiMessageV2[];
@@ -42,7 +55,7 @@ export interface UseOpsAiChatReturn {
   input: string;
   setInput: React.Dispatch<React.SetStateAction<string>>;
   isStreaming: boolean;
-  sendMessage: (customPrompt?: string) => Promise<void>;
+  sendMessage: (customPrompt?: string, chat?: ChatRequestOptions) => Promise<void>;
   stop: () => void;
 }
 
@@ -52,12 +65,12 @@ export interface UseOpsAiChatReturn {
 
 /**
  * Consumes a ReadableStream of SSE events and yields typed OpsAiStreamPart items.
- * Replaces manual reader and string splitting in UI components.
+ * Re-validates data-followups payloads using validateOpsFollowups.
  */
 export async function* consumeOpsAiStream(
   body: ReadableStream<Uint8Array>,
-  signal?: AbortSignal
-): AsyncGenerator<OpsAiStreamPart, void, unknown> {
+  signal?: AbortSignal,
+): AsyncGenerator<OpsAiStreamPart> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -65,6 +78,7 @@ export async function* consumeOpsAiStream(
   try {
     while (true) {
       if (signal?.aborted) break;
+
       const { done, value } = await reader.read();
       if (done) break;
 
@@ -85,11 +99,38 @@ export async function* consumeOpsAiStream(
         try {
           const parsed = JSON.parse(dataStr);
           if (parsed && typeof parsed.type === "string") {
-            yield parsed as OpsAiStreamPart;
-            if (signal?.aborted) return;
+            if (parsed.type === "data-followups") {
+              const followups = validateOpsFollowups(parsed.followups ?? parsed.data);
+              if (followups.length > 0) {
+                yield { type: "data-followups", followups };
+              }
+            } else if (parsed.type === "data-session-title") {
+              const rawTitle =
+                typeof parsed.title === "string"
+                  ? parsed.title
+                  : typeof parsed.data?.title === "string"
+                    ? parsed.data.title
+                    : "";
+              const cleanedTitle = rawTitle.trim();
+              if (cleanedTitle) {
+                const sessionId =
+                  typeof parsed.sessionId === "string"
+                    ? parsed.sessionId
+                    : typeof parsed.data?.sessionId === "string"
+                      ? parsed.data.sessionId
+                      : undefined;
+                yield {
+                  type: "data-session-title",
+                  ...(sessionId ? { sessionId } : {}),
+                  title: cleanedTitle,
+                };
+              }
+            } else {
+              yield parsed as OpsAiStreamPart;
+            }
           }
         } catch {
-          // Ignore parse errors on individual stream chunks
+          // Ignore malformed JSON chunks
         }
       }
     }
@@ -110,16 +151,20 @@ export function useOpsAiChat({
   api = "/api/admin/ops-ai",
   initialMessages = [],
   context,
+  needsTitle,
   onFinish,
   onError,
   onWorkStep,
   onCitation,
   onProposal,
+  onSessionTitle,
 }: UseOpsAiChatOptions = {}): UseOpsAiChatReturn {
   const [messages, setMessages] = useState<OpsAiMessageV2[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => abortControllerRef.current?.abort(), []);
 
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
@@ -130,9 +175,9 @@ export function useOpsAiChat({
   }, []);
 
   const sendMessage = useCallback(
-    async (customPrompt?: string) => {
+    async (customPrompt?: string, chat?: ChatRequestOptions) => {
       const promptToSend = (customPrompt ?? input).trim();
-      if (!promptToSend || isStreaming) return;
+      if (!promptToSend || promptToSend.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength || abortControllerRef.current) return;
 
       const userMsgId = `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const assistantMsgId = `asst-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -154,7 +199,10 @@ export function useOpsAiChat({
         proposals: [],
       };
 
-      const nextMessages = [...messages, userMsg, assistantMsg];
+      const clearedMessages = messages.map((m) =>
+        m.followups ? { ...m, followups: undefined } : m
+      );
+      const nextMessages = [...clearedMessages, userMsg, assistantMsg];
       setMessages(nextMessages);
       setInput("");
       setIsStreaming(true);
@@ -163,18 +211,33 @@ export function useOpsAiChat({
       abortControllerRef.current = abortController;
 
       try {
+        const history: Array<{ role: "user" | "assistant"; content: string }> = [];
+        let remaining = OPS_AI_POLICY_BOUNDS.maxTotalPromptChars;
+        for (const message of [...messages, userMsg].reverse()) {
+          if (message.role === "system") continue;
+          const approved = message.role === "assistant" && chat
+            ? (message.proposals ?? []).filter(proposal => proposal.type === "admin_operation").slice(-8).map(proposal => proposal.id)
+            : [];
+          const reference = approved.length ? `\n\nID persetujuan dalam chat ini: ${approved.join(", ")}` : "";
+          if (!message.content && !reference) continue;
+          const content = message.content.slice(0, Math.max(0, OPS_AI_POLICY_BOUNDS.maxMessageCharLength - reference.length)) + reference;
+          if (history.length >= OPS_AI_POLICY_BOUNDS.maxMessagesHistory || content.length > remaining) break;
+          history.unshift({ role: message.role, content });
+          remaining -= content.length;
+        }
+        const requestContext = chat?.mode
+          ? { ...context, mode: chat.mode }
+          : context;
+        const effectiveNeedsTitle = chat?.needsTitle ?? needsTitle;
         const res = await fetch(api, {
           method: "POST",
           signal: abortController.signal,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            messages: nextMessages
-              .filter((m) => m.role === "user" || (m.role === "assistant" && m.content.length > 0))
-              .map((m) => ({
-                role: m.role === "user" ? "user" : "assistant",
-                content: m.content,
-              })),
-            context,
+            messages: history,
+            context: requestContext,
+            ...(chat ? { chatId: chat.chatId, grantIds: chat.grantIds } : {}),
+            ...(effectiveNeedsTitle !== undefined ? { needsTitle: effectiveNeedsTitle } : {}),
           }),
         });
 
@@ -193,8 +256,11 @@ export function useOpsAiChat({
           throw new Error("Respons stream tidak tersedia.");
         }
 
+        let completed = false;
         for await (const part of consumeOpsAiStream(res.body, abortController.signal)) {
-          if (part.type === "text-delta") {
+          if (part.type === "done") {
+            completed = true;
+          } else if (part.type === "text-delta") {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantMsgId
@@ -239,9 +305,22 @@ export function useOpsAiChat({
                 if (m.id !== assistantMsgId) return m;
                 const existing = m.proposals || [];
                 if (existing.some((p: OpsAiActionProposalV2) => p.id === proposal.id)) return m;
-                return { ...m, proposals: [...existing, proposal] };
+                return { ...m, proposals: [...existing, proposal], followups: undefined };
               })
             );
+          } else if (part.type === "data-followups") {
+            const followups = validateOpsFollowups(part.followups);
+            if (followups.length > 0) {
+              setMessages((prev: OpsAiMessageV2[]) =>
+                prev.map((m: OpsAiMessageV2) =>
+                  m.id === assistantMsgId && !m.error && !m.proposals?.length
+                    ? { ...m, followups }
+                    : m
+                )
+              );
+            }
+          } else if (part.type === "data-session-title") {
+            onSessionTitle?.(part.title, part.sessionId ?? chat?.chatId);
           } else if (part.type === "data-error") {
             const errData = part.data;
             setMessages((prev: OpsAiMessageV2[]) =>
@@ -250,6 +329,7 @@ export function useOpsAiChat({
                   ? {
                       ...m,
                       error: errData,
+                      followups: undefined,
                       content: m.content || `Terjadi kendala: ${errData.message}`,
                     }
                   : m
@@ -257,6 +337,9 @@ export function useOpsAiChat({
             );
           }
         }
+
+        if (abortController.signal.aborted) throw new Error("Permintaan dihentikan.");
+        if (!completed && chat) throw new Error("Koneksi terputus saat menerima respons.");
 
         setMessages((prev: OpsAiMessageV2[]) => {
           const finalAssistantMsg = prev.find((m: OpsAiMessageV2) => m.id === assistantMsgId);
@@ -276,6 +359,7 @@ export function useOpsAiChat({
               return {
                 ...m,
                 workSteps: updatedSteps,
+                followups: undefined,
                 content: m.content || "Permintaan dibatalkan.",
               };
             })
@@ -288,18 +372,33 @@ export function useOpsAiChat({
               m.id === assistantMsgId
                 ? {
                     ...m,
-                    content: m.content || `Terjadi kendala: ${errorObj.message}`,
+                    followups: undefined,
+                    content: m.content ? `${m.content}\n\n${errorObj.message}` : errorObj.message,
                   }
                 : m
             )
           );
         }
       } finally {
-        setIsStreaming(false);
-        abortControllerRef.current = null;
+        if (abortControllerRef.current === abortController) {
+          setIsStreaming(false);
+          abortControllerRef.current = null;
+        }
       }
     },
-    [api, context, input, isStreaming, messages, onError, onFinish, onProposal, onCitation, onWorkStep]
+    [
+      api,
+      context,
+      needsTitle,
+      input,
+      messages,
+      onError,
+      onFinish,
+      onProposal,
+      onCitation,
+      onWorkStep,
+      onSessionTitle,
+    ]
   );
 
   return {

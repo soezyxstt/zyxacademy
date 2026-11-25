@@ -77,6 +77,18 @@ export { discussionAiCron } from "./discussion-ai";
 export { discussionNotificationsWorker } from "./discussion-notifications";
 export { discussionImageSweepCron } from "./discussion-image-sweep";
 export { discussionThreadTitleWorker } from "./discussion-title";
+import {
+  studyReengagementCron,
+  flashcardReminderCron,
+  upcomingSessionReminderCron,
+  tutorDailyDigestCron,
+} from "./notification-intervals";
+export {
+  studyReengagementCron,
+  flashcardReminderCron,
+  upcomingSessionReminderCron,
+  tutorDailyDigestCron,
+} from "./notification-intervals";
 
 /**
  * All background functions for Deno/compute Inngest execution.
@@ -105,6 +117,10 @@ export const computeFunctions = [
   courseAnalyticsSnapshotCron,
   publicPageAnalyticsCron,
   weeklyReflectionCron,
+  studyReengagementCron,
+  flashcardReminderCron,
+  upcomingSessionReminderCron,
+  tutorDailyDigestCron,
   masterySnapshotCron,
   assessmentIngestWorker,
   contentQualityAuditCron,

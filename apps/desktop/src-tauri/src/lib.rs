@@ -146,6 +146,52 @@ fn get_desktop_server_origin() -> String {
     configured_origin().as_str().trim_end_matches('/').to_string()
 }
 
+fn desktop_notification_text(value: &str, max_chars: usize) -> String {
+    value.trim().chars().take(max_chars).collect()
+}
+
+#[tauri::command]
+async fn show_desktop_notification(
+    app: AppHandle,
+    title: String,
+    body: Option<String>,
+) -> Result<bool, String> {
+    let title = desktop_notification_text(&title, 160);
+    if title.is_empty() {
+        return Err("DESKTOP_NOTIFICATION_INVALID_TITLE".to_string());
+    }
+    let body = desktop_notification_text(body.as_deref().unwrap_or(""), 1000);
+
+    // Windows uses the installed bundle's AppUserModelID (stable and nightly
+    // have different identifiers). The plugin otherwise spawns a detached
+    // task and drops errors from the native show call.
+    #[cfg(target_os = "windows")]
+    {
+        let app_id = app.config().identifier.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            let mut notification = notify_rust::Notification::new();
+            notification.app_id(&app_id).summary(&title).body(&body);
+            notification
+                .show()
+                .map(|_| true)
+                .map_err(|_| "DESKTOP_NOTIFICATION_OS_ERROR".to_string())
+        })
+        .await
+        .map_err(|_| "DESKTOP_NOTIFICATION_TASK_ERROR".to_string())?
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        use tauri_plugin_notification::NotificationExt;
+        app.notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .show()
+            .map(|_| true)
+            .map_err(|_| "DESKTOP_NOTIFICATION_OS_ERROR".to_string())
+    }
+}
+
 #[tauri::command]
 async fn save_offline_reading(
     app: AppHandle,
@@ -1083,6 +1129,7 @@ pub fn run() {
             install_native_update,
             download_and_launch_update,
             get_desktop_server_origin,
+            show_desktop_notification,
             save_offline_reading,
             save_offline_reading_position,
             list_offline_readings,
@@ -1123,6 +1170,13 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bounds_desktop_notification_text_without_breaking_unicode() {
+        assert_eq!(desktop_notification_text("  ", 160), "");
+        assert_eq!(desktop_notification_text("  é試験  ", 2), "é試");
+        assert_eq!(desktop_notification_text(&"a".repeat(1001), 1000).len(), 1000);
+    }
 
     #[test]
     fn resolves_deep_link_with_host_path_query_and_fragment() {

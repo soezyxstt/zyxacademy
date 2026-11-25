@@ -36,6 +36,7 @@ import {
   FolderOpen,
   Search,
 } from "lucide-react";
+import { SearchBar } from "@/components/ui/search-bar";
 import type { FormDisplayMode } from "@/lib/forms/presentation";
 import { formatDatetimeLocal } from "@/lib/date-utils";
 import {
@@ -717,7 +718,7 @@ export default function AdminFormsBuilder({
 
   return (
     <TooltipProvider>
-      <div className="space-y-4">
+      <div className="min-w-0">
         <Tabs
           value={activeTab}
           onValueChange={(v) => {
@@ -749,7 +750,7 @@ export default function AdminFormsBuilder({
           {errorMsg && (
             <div
               role="alert"
-              className="mx-auto mt-4 flex max-w-3xl items-center gap-3 rounded-xl border border-status-error/30 bg-status-error/10 p-3.5 text-body-sm text-status-error"
+              className="mx-auto mt-(--compact-gap) flex max-w-3xl items-start gap-2 border-b border-status-error/30 pb-(--compact-gap) text-body-sm text-status-error"
             >
               <AlertCircle className="size-4 shrink-0" />
               <p className="flex-1">{errorMsg}</p>
@@ -757,8 +758,8 @@ export default function AdminFormsBuilder({
           )}
 
           {/* TAB 1: GOOGLE FORMS-INSPIRED BUILDER */}
-          <TabsContent value="builder" className="pt-4">
-            <div className="mx-auto max-w-3xl space-y-4">
+          <TabsContent value="builder">
+            <div className="mx-auto max-w-3xl space-y-(--related-gap)">
               {/* Top Studio Action Bar */}
               <div className="flex flex-wrap items-center justify-between gap-2 md:pr-14">
                 <span className="text-body-xs text-muted-foreground">
@@ -856,7 +857,7 @@ export default function AdminFormsBuilder({
                 {/* Main Form Column */}
                 <div className="w-full min-w-0 flex-1" ref={builderListRef}>
                   {/* Borderless Form Header with Top Accent Line */}
-                  <section className="border-t-2 border-t-primary border-b border-border pt-4 pb-5 space-y-3">
+                  <section className="space-y-(--compact-gap) border-y border-border/60 py-(--row-padding)">
                     <Input
                       type="text"
                       aria-label={t("ui.formTitle")}
@@ -878,7 +879,7 @@ export default function AdminFormsBuilder({
                     {/* Compact Category & Short Link Row */}
                     <div className="flex flex-col gap-2.5 pt-1 sm:flex-row sm:items-center">
                       <Select value={category} onValueChange={(val: any) => setCategory(val)}>
-                        <SelectTrigger aria-label={t("ui.category")} className="h-9 w-full sm:w-44 shrink-0 text-body-sm">
+                        <SelectTrigger variant="inline" aria-label={t("ui.category")} className="shrink-0 sm:w-44">
                           <SelectValue placeholder={t("ui.chooseCategory")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -905,7 +906,7 @@ export default function AdminFormsBuilder({
                   </section>
 
                   {/* Question List (Divided Rows; Only Active Item Lifts into Card) */}
-                  <div className="divide-y divide-border border-b border-border">
+                  <div className="divide-y divide-border/60 border-b border-border/60">
                     {questions.map((q, qIdx) => (
                       <QuestionCard
                         key={qIdx}
@@ -1093,7 +1094,7 @@ export default function AdminFormsBuilder({
           </TabsContent>
 
           {/* TAB 2: PREVIEW */}
-          <TabsContent value="preview" className="pt-4">
+          <TabsContent value="preview">
             <div className="mx-auto max-w-3xl overflow-hidden">
               <PublicFormViewer
                 key={settings.displayMode}
@@ -1112,7 +1113,7 @@ export default function AdminFormsBuilder({
           </TabsContent>
 
           {/* TAB 3: SETTINGS (CLEAN CENTERED GOOGLE FORMS STYLE) */}
-          <TabsContent value="settings" className="pt-4">
+          <TabsContent value="settings">
             <div className="mx-auto max-w-3xl space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-heading text-body-base font-bold text-foreground">
@@ -1352,20 +1353,18 @@ export default function AdminFormsBuilder({
           </TabsContent>
 
           {/* TAB 4: PUBLISHED FORMS */}
-          <TabsContent value="forms" className="pt-4">
+          <TabsContent value="forms">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="relative min-w-[140px] flex-1 sm:max-w-xs">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    aria-label="Cari formulir"
-                    placeholder="Cari formulir..."
-                    value={formsQuery}
-                    onChange={(e) => setFormsQuery(e.target.value)}
-                    className="h-9 pl-9 text-body-sm"
-                  />
-                </div>
+                <SearchBar
+                  size="sm"
+                  expandable={false}
+                  aria-label="Cari formulir"
+                  placeholder="Cari formulir..."
+                  value={formsQuery}
+                  onSearch={setFormsQuery}
+                  containerClassName="min-w-[140px] flex-1 sm:max-w-xs"
+                />
 
                 <Tooltip>
                   <TooltipTrigger asChild>

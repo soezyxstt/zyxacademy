@@ -93,24 +93,24 @@ export default function NativeAuthFinishPage() {
   }, []);
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background px-6 text-foreground">
-      <div className="w-full max-w-sm space-y-4 text-center">
+    <main className="flex min-h-dvh items-center justify-center bg-background px-(--page-gutter) py-(--section-gap) text-foreground">
+      <div className="w-full max-w-sm space-y-(--compact-gap) text-center">
         {!error ? (
           <>
-            <Loader2 className="mx-auto size-6 animate-spin text-primary" />
-            <h1 className="font-heading text-body-base font-bold">
+            <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" aria-hidden />
+            <h1 className="font-heading text-h5 font-bold">
               {tr("finishing")}
             </h1>
-            <p className="text-body-xs text-muted-foreground">
+            <p className="text-body-sm text-muted-foreground">
               {tr("preparing")}
             </p>
           </>
         ) : (
           <>
-            <h1 className="font-heading text-body-base font-bold">
+            <h1 className="font-heading text-h5 font-bold">
               {tr("failed")}
             </h1>
-            <p className="text-body-xs text-muted-foreground">{error === "invalidSession" ? tr("expired") : accounts(error, { count: MAX_SAVED_ACCOUNTS })}</p>
+            <p className="text-body-sm text-muted-foreground">{error === "invalidSession" ? tr("expired") : accounts(error, { count: MAX_SAVED_ACCOUNTS })}</p>
             <Button asChild size="sm">
               <Link href="/sign-in">{tr("back")}</Link>
             </Button>

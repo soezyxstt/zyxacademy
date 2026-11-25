@@ -6,20 +6,9 @@ import {
   resolveFeatureUsageRange,
 } from "@/lib/feature-usage-metrics";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { AdminSectionTitle } from "@/components/admin/section-title";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
-import { AdminTable, AdminTableHead } from "@/components/admin/table";
-import { FormattedDate } from "@/components/ui/formatted-date";
 import { UsageRangeSelect } from "./usage-range-select";
-import { FeatureRankChart, FeatureDailyChart } from "./feature-usage-charts";
-import {
-  Activity,
-  Info,
-  MousePointerClick,
-  TrendingUp,
-  Trophy,
-  Users,
-} from "lucide-react";
+import { FeatureUsageOverview } from "./feature-usage-overview";
+import { MousePointerClick } from "lucide-react";
 import { getTranslations } from "@/lib/i18n/server";
 import { TranslatedText } from "@/components/i18n/translated-text";
 
@@ -36,162 +25,32 @@ type Props = {
 
 export default async function FeatureUsagePage({ searchParams }: Props) {
   const t = await getTranslations("adminOps");
-  const coverageItems = t.raw("featureUsageUI.coverageItems") as string[];
   await assertTutorOrAdmin();
 
   const { range } = await searchParams;
   const rangeDays = resolveFeatureUsageRange(range);
   const metrics = await getFeatureUsageMetrics(rangeDays);
 
-  const avgPerUser =
-    metrics.totals.activeUsers > 0
-      ? metrics.totals.events / metrics.totals.activeUsers
-      : 0;
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 md:space-y-10">
       <AdminPageHeader
         icon={MousePointerClick}
         title={<TranslatedText namespace="adminOps" messageKey="featureUsage.title" />}
         actions={<UsageRangeSelect current={rangeDays} />}
       />
 
-      <p className="max-w-3xl text-body-sm text-muted-foreground">
-        {t("featureUsageUI.summary", { days: rangeDays })}
+      <FeatureUsageOverview metrics={metrics} />
+
+      <p className="text-body-xs text-muted-foreground">
+        {t("featureUsageUI.publicVisits")}{" "}
+        <Link href="/admin/ops/web-analytics" className="font-medium text-brand-primary hover:underline">
+          Web Analytics
+        </Link>{" "}
+        ·{" "}
+        <Link href="/admin/ops/analytics" className="font-medium text-brand-primary hover:underline">
+          Analitik Zyra
+        </Link>
       </p>
-
-      <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
-        <AdminStatStripItem
-          label={t("featureUsageUI.total")}
-          value={metrics.totals.events.toLocaleString("id-ID")}
-          icon={Activity}
-        />
-        <AdminStatStripItem
-          label={t("featureUsageUI.activeUsers")}
-          value={metrics.totals.activeUsers.toLocaleString("id-ID")}
-          caption={t("featureUsageUI.touchesFeature")}
-          icon={Users}
-        />
-        <AdminStatStripItem
-          label={t("featureUsageUI.average")}
-          value={avgPerUser.toLocaleString("id-ID", {
-            maximumFractionDigits: 1,
-          })}
-          caption={t("featureUsageUI.perUser")}
-          icon={TrendingUp}
-        />
-        <AdminStatStripItem
-          label={t("featureUsageUI.topFeature")}
-          value={metrics.totals.topFeatureLabel ? t(`featureUsageUI.featureLabels.${metrics.rows[0].key}`) : "-"}
-          caption={
-            metrics.totals.topFeatureSharePercent !== null
-              ? t("featureUsageUI.topShare", { percent: metrics.totals.topFeatureSharePercent })
-              : t("featureUsageUI.noActivity")
-          }
-          icon={Trophy}
-        />
-      </AdminStatStrip>
-
-      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
-        <section className="border-t border-border pt-3">
-          <AdminSectionTitle
-            title={t("featureUsageUI.rank")}
-            icon={Trophy}
-            border
-            className="mb-4"
-          />
-          <FeatureRankChart rows={metrics.rows} />
-        </section>
-
-        <section className="border-t border-border pt-3">
-          <AdminSectionTitle
-            title={t("featureUsageUI.daily")}
-            icon={Activity}
-            border
-            className="mb-4"
-          />
-          <FeatureDailyChart daily={metrics.daily} />
-        </section>
-      </div>
-
-      <section className="space-y-3">
-        <AdminSectionTitle
-          title={t("featureUsageUI.details")}
-          icon={MousePointerClick}
-        />
-        <AdminTable>
-          <table className="w-full text-body-sm">
-            <AdminTableHead>
-              <tr>
-                <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">#</th>
-                <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">{t("featureUsageUI.feature")}</th>
-                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">{t("featureUsageUI.activity")}</th>
-                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">{t("featureUsageUI.students")}</th>
-                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">{t("featureUsageUI.contribution")}</th>
-                <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">{t("featureUsageUI.lastUsed")}</th>
-              </tr>
-            </AdminTableHead>
-            <tbody>
-              {metrics.rows.map((row, index) => {
-                const share =
-                  metrics.totals.events > 0
-                    ? Math.round((row.events / metrics.totals.events) * 100)
-                    : 0;
-                return (
-                  <tr key={row.key} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
-                    <td className="px-4 py-3">
-                      <span className="font-semibold text-foreground">{t(`featureUsageUI.featureLabels.${row.key}`)}</span>
-                      <span className="block text-body-xs text-muted-foreground">{t(`featureUsageUI.featureDetails.${row.key}`, { count: row.detailCount ?? 0 })}</span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-foreground">
-                      {row.events.toLocaleString("id-ID")}
-                    </td>
-                    <td className="px-4 py-3 text-right text-foreground">
-                      {row.users.toLocaleString("id-ID")}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="inline-flex min-w-12 justify-end font-medium text-foreground">{share}%</span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {row.lastUsedAt ? (
-                        <FormattedDate date={row.lastUsedAt} options={{ dateStyle: "medium" }} />
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </AdminTable>
-      </section>
-
-      <section className="border-t border-border pt-3">
-        <div className="flex items-start gap-3">
-          <Info className="mt-0.5 size-5 shrink-0 text-status-info" aria-hidden />
-          <div className="space-y-2 text-body-sm">
-            <p className="font-heading text-body-base font-bold text-foreground">{t("featureUsageUI.coverage")}</p>
-            <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
-              {coverageItems.map((item) => <li key={item}>{item}</li>)}
-              <li>{t("featureUsageUI.materialCoverage")}</li>
-              <li>{t("featureUsageUI.rollingCoverage")}</li>
-              <li>
-                {t("featureUsageUI.publicVisits")}{" "}
-                <Link href="/admin/ops/web-analytics" className="font-medium text-brand-primary hover:underline">
-                  Web Analytics
-                </Link>
-                ; token dan kuota AI lewat{" "}
-                <Link href="/admin/ops/analytics" className="font-medium text-brand-primary hover:underline">
-                  Analitik Zyra
-                </Link>
-                .
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

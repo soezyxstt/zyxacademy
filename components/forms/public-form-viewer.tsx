@@ -14,8 +14,6 @@ import {
   ZoomIn,
   ArrowRight,
   ArrowLeft,
-  ChevronUp,
-  ChevronDown,
   FileCheck2,
   Layers,
   Tag,
@@ -40,7 +38,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { buildFormSteps, formFileSizeLimitMb, isEmptyFormAnswer, type FormStep, type FormDisplayMode } from "@/lib/forms/presentation";
@@ -83,6 +80,13 @@ interface FormPayload {
     requireLogin?: boolean;
     displayMode?: FormDisplayMode;
   };
+}
+
+function formChoiceRowClass(selected: boolean) {
+  return cn(
+    "flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 px-2 py-2 text-left text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+    selected ? "bg-muted/60" : "hover:bg-muted/40",
+  );
 }
 
 const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P"];
@@ -698,10 +702,10 @@ export function PublicFormViewer({
 
   if (loginRequired) {
     return (
-      <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
+      <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-background px-(--page-gutter) py-(--section-gap)">
         <PageOrnaments variant="plans" />
-        <div className="relative z-10 mx-auto w-full max-w-md space-y-(--group-gap) text-center">
-          <div className="size-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
+        <div className="relative z-10 mx-auto w-full max-w-md space-y-(--related-gap) text-center">
+          <div className="mx-auto flex size-10 items-center justify-center text-primary">
             <AlertCircle className="size-6" />
           </div>
           <div className="space-y-1.5">
@@ -720,10 +724,10 @@ export function PublicFormViewer({
 
   if (errorMsg && !form) {
     return (
-      <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
+      <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-background px-(--page-gutter) py-(--section-gap)">
         <PageOrnaments variant="plans" />
-        <div className="relative z-10 mx-auto w-full max-w-md space-y-(--group-gap) text-center">
-          <div className="size-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+        <div className="relative z-10 mx-auto w-full max-w-md space-y-(--related-gap) text-center">
+          <div className="mx-auto flex size-10 items-center justify-center text-destructive">
             <AlertCircle className="size-6" />
           </div>
           <div className="space-y-1.5">
@@ -748,9 +752,9 @@ export function PublicFormViewer({
         ? t("publicForm.endedAt", { date: dateLabel(closure.endedAt) })
         : (!closure && closedReason) || t("publicForm.closedDescription"));
     return (
-      <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
+      <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-background px-(--page-gutter) py-(--section-gap)">
         <PageOrnaments variant="plans" />
-        <div className="relative z-10 mx-auto w-full max-w-lg space-y-(--group-gap) text-center">
+        <div className="relative z-10 mx-auto w-full max-w-lg space-y-(--related-gap) text-center">
           <span className="inline-block rounded-md bg-status-warning/10 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-status-warning">
             {t("publicForm.closed")}
           </span>
@@ -770,8 +774,8 @@ export function PublicFormViewer({
     return (
       <div
         className={cn(
-          "relative flex items-center justify-center p-4 overflow-hidden bg-background",
-          isPreview ? "min-h-[500px] rounded-xl border border-border" : "h-screen h-[100dvh]"
+          "relative flex items-center justify-center overflow-hidden bg-background px-(--page-gutter) py-(--section-gap)",
+          isPreview ? "min-h-[500px] rounded-xl border border-border" : "min-h-dvh"
         )}
       >
         <PageOrnaments variant="testimonial" />
@@ -779,10 +783,10 @@ export function PublicFormViewer({
           initial={reducedMotion ? false : { opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: reducedMotion ? 0 : 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-10 mx-auto w-full max-w-lg space-y-(--section-gap) text-center"
+          className="relative z-10 mx-auto w-full max-w-lg space-y-(--related-gap) text-center"
         >
-          <div className="size-16 rounded-2xl bg-status-success/15 text-status-success flex items-center justify-center mx-auto shadow-inner">
-            <Check className="size-8 stroke-[2.5]" />
+          <div className="mx-auto flex size-10 items-center justify-center text-status-success">
+            <Check className="size-6" aria-hidden />
           </div>
           <div className="space-y-2">
             <h1 className="font-heading text-h5 font-bold text-foreground">{t("publicForm.thankYou")}</h1>
@@ -790,19 +794,19 @@ export function PublicFormViewer({
               {submittedMessage}
             </p>
           </div>
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <Button
               onClick={() => {
                 setSubmittedMessage(null);
                 setCurrentStepIndex(0);
               }}
               variant="outline"
-              className="w-full sm:w-auto font-medium"
+              className="font-medium"
             >
               {isPreview ? t("publicForm.previewAgain") : t("publicForm.fillAgain")}
             </Button>
             {!isPreview && (
-              <Button asChild className="w-full sm:w-auto font-semibold">
+              <Button asChild className="font-semibold">
                 <Link href="/">{t("publicForm.done")}</Link>
               </Button>
             )}
@@ -835,7 +839,7 @@ export function PublicFormViewer({
             transition={{ duration: reducedMotion ? 0 : 0.3, ease: "easeOut" }}
           />
         </div>
-        <div className="mx-auto max-w-4xl px-(--page-gutter) h-12 flex items-center justify-between gap-3 text-body-xs font-semibold text-muted-foreground">
+        <div className="mx-auto flex min-h-11 max-w-2xl items-center justify-between gap-3 px-(--page-gutter) text-body-xs font-semibold text-muted-foreground">
           <span className="min-w-0 flex-1 truncate font-medium text-foreground">
             {form.title}
           </span>
@@ -854,10 +858,10 @@ export function PublicFormViewer({
       </header>
 
       {/* Main Interactive Screen Area */}
-      <main ref={mainScrollRef} className="relative z-10 flex-1 min-h-0 overflow-y-auto px-(--page-gutter) py-(--group-gap) flex flex-col">
-        <div className="w-full max-w-2xl mx-auto shrink-0">
+      <main ref={mainScrollRef} className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="mx-auto w-full min-w-0 max-w-2xl shrink-0 px-(--page-gutter) py-(--page-top)">
           <AnimatePresence mode="wait" custom={direction}>
-            <motion.div key={`${isFlowing ? "section" : "step"}-${stepIndex}`} className={isFlowing ? "divide-y divide-border/70 [&>div]:py-4 [&>div:first-child]:pt-0" : ""}>
+            <motion.div key={`${isFlowing ? "section" : "step"}-${stepIndex}`} className={isFlowing ? "divide-y divide-border/70 [&>div]:py-(--group-gap) [&>div:first-child]:pt-0" : ""}>
             {visibleSteps.map((currentStep, visibleIndex) => (
               <div key={visibleIndex}>
             {/* 1. COVER / WELCOME SCREEN */}
@@ -872,7 +876,7 @@ export function PublicFormViewer({
                 onAnimationComplete={focusActiveElement}
                 className="space-y-(--related-gap) text-left"
               >
-                <div className={cn("inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-primary", isFlowing && "hidden")}>
+                <div className={cn("inline-flex items-center gap-1.5 text-body-xs font-medium text-muted-foreground", isFlowing && "hidden")}>
                   <Tag className="size-3.5" />
                   {form.category}
                 </div>
@@ -887,21 +891,21 @@ export function PublicFormViewer({
                   </div>
                 )}
 
-                <div className={cn("flex flex-wrap items-center gap-4 text-body-xs text-muted-foreground font-medium pt-2", isFlowing && "hidden")}>
+                <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground", isFlowing && "hidden")}>
                   <span>{t("publicForm.estimatedMinutes", { count: Math.max(1, Math.round(totalQuestions * 0.5)) })}</span>
                   <span>•</span>
                   <span>{t("publicForm.questionCount", { count: totalQuestions })}</span>
                 </div>
 
-                <div className={cn("pt-2 flex items-center gap-3", isFlowing && "hidden")}>
+                <div className={cn("flex items-center gap-3", isFlowing && "hidden")}>
                   <Button
                     ref={setFocusableRef as any}
                     size="lg"
                     onClick={goToNextStep}
-                    className="h-12 px-7 text-body-sm font-bold shadow-sm inline-flex items-center gap-2 group cursor-pointer"
+                    className="gap-2"
                   >
                     <span>{t("publicForm.start")}</span>
-                    <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+                    <ArrowRight className="size-4" />
                   </Button>
                   <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
                     {t("publicForm.keyboardEnter")}
@@ -957,11 +961,11 @@ export function PublicFormViewer({
                   )}
                 </div>
 
-                <div className={cn("pt-2 flex items-center gap-3", isFlowing && "hidden")}>
+                <div className={cn("flex items-center gap-3", isFlowing && "hidden")}>
                   <Button
                     size="lg"
                     onClick={goToNextStep}
-                    className="h-11 px-6 text-body-sm font-bold shadow-sm cursor-pointer"
+                    className="gap-2"
                   >
                     <span>{isLastStep ? t("publicForm.submit") : t("publicForm.next")}</span>
                     <Check className="size-4 ml-1.5" />
@@ -993,7 +997,7 @@ export function PublicFormViewer({
                   onAnimationComplete={focusActiveElement}
                   className="space-y-(--related-gap) text-left"
                 >
-                  <div className={cn("inline-flex items-center gap-2 rounded-md bg-brand-secondary/15 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-secondary", isFlowing && "hidden")}>
+                  <div className={cn("inline-flex items-center gap-1.5 text-body-xs font-medium text-muted-foreground", isFlowing && "hidden")}>
                     <Layers className="size-3.5" />
                     {hasUpcomingQuestions ? t("publicForm.newSection") : t("publicForm.closing")}
                   </div>
@@ -1028,12 +1032,12 @@ export function PublicFormViewer({
                     </div>
                   )}
 
-                  <div className={cn("pt-2 flex items-center gap-3", isFlowing && "hidden")}>
+                  <div className={cn("flex items-center gap-3", isFlowing && "hidden")}>
                     <Button
                       ref={setFocusableRef as any}
                       size="lg"
                       onClick={goToNextStep}
-                      className="h-12 px-7 text-body-sm font-bold shadow-sm inline-flex items-center gap-2 bg-brand-primary text-white cursor-pointer"
+                      className="gap-2"
                     >
                       <span>{isLastStep ? t("publicForm.submit") : t("publicForm.next")}</span>
                       <ArrowRight className="size-4" />
@@ -1062,7 +1066,7 @@ export function PublicFormViewer({
                   onAnimationComplete={focusActiveElement}
                   className="space-y-(--related-gap) text-left"
                 >
-                  <div className="inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-primary">
+                  <div className="inline-flex items-center gap-1.5 text-body-xs font-medium text-muted-foreground">
                     <Info className="size-3.5" />
                     {t("publicForm.information")}
                   </div>
@@ -1099,12 +1103,12 @@ export function PublicFormViewer({
                     </div>
                   )}
 
-                  <div className={cn("pt-2 flex items-center gap-3", isFlowing && "hidden")}>
+                  <div className={cn("flex items-center gap-3", isFlowing && "hidden")}>
                     <Button
                       ref={setFocusableRef as any}
                       size="lg"
                       onClick={goToNextStep}
-                      className="h-12 px-7 text-body-sm font-bold shadow-sm inline-flex items-center gap-2 bg-brand-primary text-white cursor-pointer"
+                      className="gap-2"
                     >
                       <span>{isLastStep ? t("publicForm.submit") : t("publicForm.next")}</span>
                       <ArrowRight className="size-4" />
@@ -1150,7 +1154,7 @@ export function PublicFormViewer({
                   <div className="space-y-2">
                     <div className="flex items-start gap-2">
                       <span className="shrink-0 text-brand-primary font-mono text-body-sm pt-0.5">{qNumber}.</span>
-                      <h2 className="min-w-0 flex-1 font-heading text-body-base font-semibold text-foreground leading-snug">
+                      <h2 className="min-w-0 flex-1 wrap-anywhere font-heading text-body-base font-semibold leading-snug text-foreground">
                         <MathText as="span">{q.title}</MathText>
                         {q.required && <span className="ml-1 text-destructive">*</span>}
                       </h2>
@@ -1185,7 +1189,7 @@ export function PublicFormViewer({
                   )}
 
                   {/* Question Input Types */}
-                  <div className="pt-2">
+                  <div>
                     {/* 1. TEXT */}
                     {q.type === "TEXT" && (
                       <div className="space-y-3">
@@ -1213,7 +1217,7 @@ export function PublicFormViewer({
                           value={answerVal || ""}
                           onChange={(e) => handleAnswerChange(qIdx, e.target.value)}
                           placeholder={t("publicForm.paragraphPlaceholder")}
-                          className="w-full rounded-xl border border-input bg-card/60 p-4 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground/40 resize-y leading-relaxed"
+                          className="w-full rounded-md border border-input bg-background p-3 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground/40 resize-y leading-relaxed"
                         />
                         <p className="text-body-xs text-muted-foreground">
                           {t("publicForm.newLineHelp")}
@@ -1221,9 +1225,9 @@ export function PublicFormViewer({
                       </div>
                     )}
 
-                    {/* 3. RADIO (Multiple Choice Cards) */}
+                    {/* 3. RADIO */}
                     {q.type === "RADIO" && (
-                      <div className="space-y-1.5">
+                      <div className="divide-y divide-border/60 border-y border-border/60">
                         {(q.options || []).map((opt, oIdx) => {
                           const isSelected = answerVal === opt;
                           const letter = OPTION_LETTERS[oIdx] || String(oIdx + 1);
@@ -1237,57 +1241,43 @@ export function PublicFormViewer({
                                 handleAnswerChange(qIdx, opt);
                                 advanceAfterChoice();
                               }}
-                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md border text-left transition-all cursor-pointer group ${
-                                isSelected
-                                  ? "border-brand-primary bg-brand-primary/10 ring-1 ring-brand-primary text-foreground"
-                                  : "border-border bg-card hover:border-brand-primary/50 hover:bg-muted/40 text-foreground"
-                              }`}
+                              aria-pressed={isSelected}
+                              className={formChoiceRowClass(isSelected)}
                             >
-                              <div className="flex items-center gap-2.5">
+                              <div className="flex min-w-0 items-start gap-2.5">
                                 <span
-                                  className={`size-6 rounded-md text-body-xs font-mono font-bold flex items-center justify-center shrink-0 transition-colors ${
-                                    isSelected
-                                      ? "bg-brand-primary text-white"
-                                      : "bg-muted text-muted-foreground group-hover:bg-brand-primary/20 group-hover:text-brand-primary"
-                                  }`}
+                                  className="w-5 shrink-0 text-center font-mono text-body-xs font-semibold text-muted-foreground"
                                 >
                                   {letter}
                                 </span>
-                                <span className="text-body-sm font-medium">
+                                <span className="min-w-0 wrap-anywhere text-body-sm font-medium">
                                   <MathText as="span">{opt}</MathText>
                                 </span>
                               </div>
-                              {isSelected && <Check className="size-5 text-brand-primary shrink-0" />}
+                              {isSelected && <Check className="size-4 shrink-0 text-foreground" aria-hidden />}
                             </button>
                           );
                         })}
 
                         {q.otherOption?.enabled && (
-                          <div className="space-y-3">
+                          <div className="space-y-2">
                             <button
                               type="button"
                               onClick={() => handleAnswerChange(qIdx, OTHER_OPTION_MARKER)}
-                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md border text-left transition-all cursor-pointer group ${
-                                answerVal === OTHER_OPTION_MARKER
-                                  ? "border-brand-primary bg-brand-primary/10 ring-1 ring-brand-primary text-foreground"
-                                  : "border-border bg-card hover:border-brand-primary/50 hover:bg-muted/40 text-foreground"
-                              }`}
+                              aria-pressed={answerVal === OTHER_OPTION_MARKER}
+                              className={formChoiceRowClass(answerVal === OTHER_OPTION_MARKER)}
                             >
-                              <div className="flex items-center gap-2.5">
+                              <div className="flex min-w-0 items-start gap-2.5">
                                 <span
-                                  className={`size-6 rounded-md text-body-xs font-mono font-bold flex items-center justify-center shrink-0 transition-colors ${
-                                    answerVal === OTHER_OPTION_MARKER
-                                      ? "bg-brand-primary text-white"
-                                      : "bg-muted text-muted-foreground group-hover:bg-brand-primary/20 group-hover:text-brand-primary"
-                                  }`}
+                                  className="w-5 shrink-0 text-center font-mono text-body-xs font-semibold text-muted-foreground"
                                 >
                                   {OPTION_LETTERS[q.options?.length || 0] || "•"}
                                 </span>
-                                <span className="text-body-sm font-medium">
+                                <span className="min-w-0 wrap-anywhere text-body-sm font-medium">
                                   <MathText as="span">{q.otherOption.label || t("publicForm.other")}</MathText>
                                 </span>
                               </div>
-                              {answerVal === OTHER_OPTION_MARKER && <Check className="size-5 text-brand-primary shrink-0" />}
+                              {answerVal === OTHER_OPTION_MARKER && <Check className="size-4 shrink-0 text-foreground" aria-hidden />}
                             </button>
 
                             {answerVal === OTHER_OPTION_MARKER && (
@@ -1309,126 +1299,114 @@ export function PublicFormViewer({
                       </div>
                     )}
 
-                    {/* 4. CHECKBOX (Multi-Select Cards) */}
+                    {/* 4. CHECKBOX */}
                     {q.type === "CHECKBOX" && (
-                      <div className="space-y-3">
-                        <p className="text-body-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                      <div className="space-y-2">
+                        <p className="text-body-xs font-medium text-muted-foreground">
                           {t("publicForm.chooseAnswers")}
                         </p>
-                        {(q.options || []).map((opt, oIdx) => {
-                          const selectedList: string[] = Array.isArray(answerVal) ? answerVal : [];
-                          const isSelected = selectedList.includes(opt);
-                          const letter = OPTION_LETTERS[oIdx] || String(oIdx + 1);
+                        <div className="divide-y divide-border/60 border-y border-border/60">
+                          {(q.options || []).map((opt, oIdx) => {
+                            const selectedList: string[] = Array.isArray(answerVal) ? answerVal : [];
+                            const isSelected = selectedList.includes(opt);
+                            const letter = OPTION_LETTERS[oIdx] || String(oIdx + 1);
 
-                          return (
-                            <button
-                              key={oIdx}
-                              ref={oIdx === 0 && !selectedList.includes(OTHER_OPTION_MARKER) ? (setFocusableRef as any) : undefined}
-                              type="button"
-                              onClick={() => handleCheckboxToggle(qIdx, opt)}
-                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md border text-left transition-all cursor-pointer group ${
-                                isSelected
-                                  ? "border-brand-primary bg-brand-primary/10 ring-1 ring-brand-primary text-foreground"
-                                  : "border-border bg-card hover:border-brand-primary/50 hover:bg-muted/40 text-foreground"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5">
-                                <span
-                                  className={`size-6 rounded-md text-body-xs font-mono font-bold flex items-center justify-center shrink-0 transition-colors ${
+                            return (
+                              <button
+                                key={oIdx}
+                                ref={oIdx === 0 && !selectedList.includes(OTHER_OPTION_MARKER) ? (setFocusableRef as any) : undefined}
+                                type="button"
+                                onClick={() => handleCheckboxToggle(qIdx, opt)}
+                                aria-pressed={isSelected}
+                                className={formChoiceRowClass(isSelected)}
+                              >
+                                <div className="flex min-w-0 items-start gap-2.5">
+                                  <span
+                                    className="w-5 shrink-0 text-center font-mono text-body-xs font-semibold text-muted-foreground"
+                                  >
+                                    {letter}
+                                  </span>
+                                  <span className="min-w-0 wrap-anywhere text-body-sm font-medium">
+                                    <MathText as="span">{opt}</MathText>
+                                  </span>
+                                </div>
+                                <div
+                                  className={`size-4 shrink-0 rounded-sm border flex items-center justify-center transition-colors ${
                                     isSelected
-                                      ? "bg-brand-primary text-white"
-                                      : "bg-muted text-muted-foreground group-hover:bg-brand-primary/20 group-hover:text-brand-primary"
+                                      ? "bg-primary border-primary text-primary-foreground"
+                                      : "border-input bg-background"
                                   }`}
                                 >
-                                  {letter}
-                                </span>
-                                <span className="text-body-sm font-medium">
-                                  <MathText as="span">{opt}</MathText>
-                                </span>
-                              </div>
-                              <div
-                                className={`size-5 rounded-md border flex items-center justify-center transition-colors ${
-                                  isSelected
-                                    ? "bg-brand-primary border-brand-primary text-white"
-                                    : "border-input bg-background"
-                                }`}
-                              >
-                                {isSelected && <Check className="size-3.5 stroke-[3]" />}
-                              </div>
-                            </button>
-                          );
-                        })}
+                                  {isSelected && <Check className="size-3" aria-hidden />}
+                                </div>
+                              </button>
+                            );
+                          })}
 
-                        {q.otherOption?.enabled && (
-                          <div className="space-y-3">
-                            {(() => {
-                              const selectedList: string[] = Array.isArray(answerVal) ? answerVal : [];
-                              const isSelected = selectedList.includes(OTHER_OPTION_MARKER);
+                          {q.otherOption?.enabled && (
+                            <div className="space-y-3">
+                              {(() => {
+                                const selectedList: string[] = Array.isArray(answerVal) ? answerVal : [];
+                                const isSelected = selectedList.includes(OTHER_OPTION_MARKER);
 
-                              return (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const currentList: string[] = Array.isArray(answersRef.current[qIdx])
-                                        ? answersRef.current[qIdx]
-                                        : [];
-                                      const updated = currentList.includes(OTHER_OPTION_MARKER)
-                                        ? currentList.filter((item) => item !== OTHER_OPTION_MARKER)
-                                        : [...currentList, OTHER_OPTION_MARKER];
-                                      answersRef.current[qIdx] = updated;
-                                      setAnswers((prev) => ({ ...prev, [qIdx]: updated }));
-                                    }}
-                                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md border text-left transition-all cursor-pointer group ${
-                                      isSelected
-                                        ? "border-brand-primary bg-brand-primary/10 ring-1 ring-brand-primary text-foreground"
-                                        : "border-border bg-card hover:border-brand-primary/50 hover:bg-muted/40 text-foreground"
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2.5">
-                                      <span
-                                        className={`size-6 rounded-md text-body-xs font-mono font-bold flex items-center justify-center shrink-0 transition-colors ${
+                                return (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const currentList: string[] = Array.isArray(answersRef.current[qIdx])
+                                          ? answersRef.current[qIdx]
+                                          : [];
+                                        const updated = currentList.includes(OTHER_OPTION_MARKER)
+                                          ? currentList.filter((item) => item !== OTHER_OPTION_MARKER)
+                                          : [...currentList, OTHER_OPTION_MARKER];
+                                        answersRef.current[qIdx] = updated;
+                                        setAnswers((prev) => ({ ...prev, [qIdx]: updated }));
+                                      }}
+                                      aria-pressed={isSelected}
+                                      className={formChoiceRowClass(isSelected)}
+                                    >
+                                      <div className="flex min-w-0 items-start gap-2.5">
+                                        <span
+                                          className="w-5 shrink-0 text-center font-mono text-body-xs font-semibold text-muted-foreground"
+                                        >
+                                          {OPTION_LETTERS[q.options?.length || 0] || "•"}
+                                        </span>
+                                        <span className="min-w-0 wrap-anywhere text-body-sm font-medium">
+                                          <MathText as="span">{q.otherOption?.label || t("publicForm.other")}</MathText>
+                                        </span>
+                                      </div>
+                                      <div
+                                        className={`size-4 shrink-0 rounded-sm border flex items-center justify-center transition-colors ${
                                           isSelected
-                                            ? "bg-brand-primary text-white"
-                                            : "bg-muted text-muted-foreground group-hover:bg-brand-primary/20 group-hover:text-brand-primary"
+                                            ? "bg-primary border-primary text-primary-foreground"
+                                            : "border-input bg-background"
                                         }`}
                                       >
-                                        {OPTION_LETTERS[q.options?.length || 0] || "•"}
-                                      </span>
-                                      <span className="text-body-sm font-medium">
-                                        <MathText as="span">{q.otherOption?.label || t("publicForm.other")}</MathText>
-                                      </span>
-                                    </div>
-                                    <div
-                                      className={`size-5 rounded-md border flex items-center justify-center transition-colors ${
-                                        isSelected
-                                          ? "bg-brand-primary border-brand-primary text-white"
-                                          : "border-input bg-background"
-                                      }`}
-                                    >
-                                      {isSelected && <Check className="size-3.5 stroke-[3]" />}
-                                    </div>
-                                  </button>
+                                        {isSelected && <Check className="size-3" aria-hidden />}
+                                      </div>
+                                    </button>
 
-                                  {isSelected && (
-                                    <input
-                                      ref={setFocusableRef as any}
-                                      type="text"
-                                      autoFocus
-                                      value={otherTexts[qIdx] || ""}
-                                      onChange={(e) => {
-                                        otherTextsRef.current[qIdx] = e.target.value;
-                                        setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }));
-                                      }}
-                                      placeholder={t("publicForm.otherDetailPlaceholder")}
-                                      className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-body-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
-                                    />
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </div>
-                        )}
+                                    {isSelected && (
+                                      <input
+                                        ref={setFocusableRef as any}
+                                        type="text"
+                                        autoFocus
+                                        value={otherTexts[qIdx] || ""}
+                                        onChange={(e) => {
+                                          otherTextsRef.current[qIdx] = e.target.value;
+                                          setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }));
+                                        }}
+                                        placeholder={t("publicForm.otherDetailPlaceholder")}
+                                        className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-body-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
+                                      />
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -1445,6 +1423,7 @@ export function PublicFormViewer({
                           }}
                         >
                           <SelectTrigger
+                            variant="outline"
                             aria-label={q.title}
                             ref={answerVal !== OTHER_OPTION_MARKER ? (setFocusableRef as any) : undefined}
                             className="w-full h-10 text-body-sm font-medium rounded-md"
@@ -1487,7 +1466,7 @@ export function PublicFormViewer({
                       <div className="space-y-2">
                         <p className="text-body-xs text-muted-foreground">Maksimal {formFileSizeLimitMb(q.maxFileSizeMb)} MB per berkas</p>
                         {!answerVal ? (
-                          <label className="flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-brand-primary/60 bg-card hover:bg-muted/30 focus-within:ring-2 focus-within:ring-ring rounded-xl p-4 transition-colors cursor-pointer text-center group">
+                          <label className="flex min-h-12 cursor-pointer items-center justify-center rounded-lg border border-dashed border-input p-(--compact-gap) text-center transition-colors hover:bg-muted/40 focus-within:ring-2 focus-within:ring-ring">
                             <input
                               type="file"
                               accept={formFileAccept(q.allowedFileTypes)}
@@ -1500,17 +1479,15 @@ export function PublicFormViewer({
                               }}
                             />
                             {uploadingQIdx === qIdx ? (
-                              <div className="space-y-3">
-                                <RefreshCw className="size-8 animate-spin text-brand-primary mx-auto" />
+                              <div className="flex min-w-0 items-center gap-2">
+                                <RefreshCw className="size-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
                                 <p className="text-body-sm font-semibold text-foreground">
                                   {t("publicForm.uploadingFile", { progress: uploadProgress })}
                                 </p>
                               </div>
                             ) : (
-                              <div className="space-y-2">
-                                <div className="size-12 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
-                                  <UploadCloud className="size-6" />
-                                </div>
+                              <div className="flex min-w-0 items-center gap-2">
+                                <UploadCloud className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                                 <p className="text-body-sm font-semibold text-foreground">
                                   {t("publicForm.chooseFile")}
                                 </p>
@@ -1519,11 +1496,11 @@ export function PublicFormViewer({
                             )}
                           </label>
                         ) : (
-                          <div className="rounded-lg border border-status-success/40 bg-status-success/10 p-(--compact-gap) flex items-center justify-between gap-(--related-gap)">
-                            <div className="flex min-w-0 items-center gap-3">
-                              <FileCheck2 className="size-7 text-status-success shrink-0" />
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-y border-border/60 py-(--row-padding)">
+                            <div className="flex min-w-0 flex-1 basis-44 items-start gap-2">
+                              <FileCheck2 className="mt-0.5 size-5 shrink-0 text-status-success" aria-hidden />
                               <div className="min-w-0">
-                                <p className="text-body-sm font-bold text-foreground">
+                                <p className="text-body-sm font-semibold text-foreground">
                                   {t(isPreview ? "publicForm.fileSelected" : "publicForm.uploadedFile")}
                                 </p>
                                 <a
@@ -1531,7 +1508,7 @@ export function PublicFormViewer({
                                   download={uploadPreviews.current[qIdx]?.name}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="block wrap-anywhere font-mono text-body-xs text-brand-primary hover:underline"
+                                  className="block wrap-anywhere text-body-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
                                 >
                                   {uploadPreviews.current[qIdx]?.name ?? String(answerVal)}
                                 </a>
@@ -1539,10 +1516,8 @@ export function PublicFormViewer({
                             </div>
                             <Button
                               type="button"
-                              variant="outline"
-                              size="sm"
+                              variant="ghost"
                               onClick={() => handleClearAnswer(qIdx)}
-                              className="shrink-0 text-body-xs"
                             >
                               {t("publicForm.replaceFile")}
                             </Button>
@@ -1553,31 +1528,29 @@ export function PublicFormViewer({
 
                     {/* 7. SCALE (Linear Scale 1-5) */}
                     {q.type === "SCALE" && (
-                      <div className="space-y-4">
+                      <div className="max-w-lg space-y-2">
                         <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs text-muted-foreground">
                           <span className="font-semibold">{q.scaleLowLabel || t("publicForm.scaleLow")}</span>
                           <span className="font-semibold">{q.scaleHighLabel || t("publicForm.scaleHigh")}</span>
                         </div>
 
-                        <div className="grid grid-cols-5 gap-2.5 sm:gap-4 max-w-lg">
+                        <div className="grid grid-cols-5 divide-x divide-border/60 border-y border-border/60">
                           {[1, 2, 3, 4, 5].map((num) => {
                             const isSelected = answerVal === num.toString();
                             return (
-                              <button
+                              <Button
                                 key={num}
                                 type="button"
+                                variant="ghost"
+                                aria-pressed={isSelected}
                                 onClick={() => {
                                   handleAnswerChange(qIdx, num.toString());
                                   advanceAfterChoice();
                                 }}
-                                className={`h-14 rounded-xl border font-heading text-body-sm font-bold transition-all cursor-pointer flex items-center justify-center ${
-                                  isSelected
-                                    ? "border-brand-primary bg-brand-primary text-white shadow-sm scale-105"
-                                    : "border-border bg-card hover:border-brand-primary/60 hover:bg-muted text-foreground"
-                                }`}
+                                className="min-h-11 rounded-none focus-visible:outline-offset-[-3px] aria-pressed:bg-foreground aria-pressed:text-background"
                               >
                                 {num}
-                              </button>
+                              </Button>
                             );
                           })}
                         </div>
@@ -1589,29 +1562,34 @@ export function PublicFormViewer({
 
                     {/* 8. RATING (Stars) */}
                     {q.type === "RATING" && (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-1">
                           {[1, 2, 3, 4, 5].map((starIdx) => {
                             const currentRating = parseInt(answerVal || "0", 10);
                             const isFilled = starIdx <= currentRating;
                             return (
-                              <button
+                              <Button
                                 key={starIdx}
                                 type="button"
+                                size="icon-lg"
+                                variant="ghost"
+                                aria-label={t("publicForm.starRating", { rating: starIdx })}
+                                aria-pressed={starIdx === currentRating}
                                 onClick={() => {
                                   handleAnswerChange(qIdx, starIdx.toString());
                                   advanceAfterChoice();
                                 }}
-                                className="p-1 cursor-pointer transition-transform hover:scale-125 focus:outline-none"
+                                className="size-11"
                               >
                                 <Star
-                                  className={`size-10 ${
+                                  className={`size-6 ${
                                     isFilled
-                                      ? "fill-status-warning text-status-warning drop-shadow-sm"
-                                      : "text-muted-foreground/30 hover:text-status-warning/60"
-                                  } transition-colors`}
+                                      ? "fill-status-warning text-status-warning"
+                                      : "text-muted-foreground"
+                                  }`}
+                                  aria-hidden
                                 />
-                              </button>
+                              </Button>
                             );
                           })}
                         </div>
@@ -1629,9 +1607,9 @@ export function PublicFormViewer({
                         <table className="w-full text-left text-body-xs">
                           <thead>
                             <tr className="border-b border-border text-muted-foreground font-semibold">
-                              <th className="p-3 w-1/3">{t("publicForm.gridCriteria")}</th>
+                              <th scope="col" className="w-1/3 px-2 py-2">{t("publicForm.gridCriteria")}</th>
                               {(q.gridColumns || []).map((col, cIdx) => (
-                                <th key={cIdx} className="p-3 text-center text-foreground font-bold">
+                                <th scope="col" key={cIdx} className="px-2 py-2 text-center font-semibold text-foreground">
                                   {col}
                                 </th>
                               ))}
@@ -1644,25 +1622,25 @@ export function PublicFormViewer({
 
                               return (
                                 <tr key={rIdx} className="hover:bg-muted/20">
-                                  <td className="p-3 font-semibold text-foreground">{rowName}</td>
+                                  <th scope="row" className="px-2 py-2 font-semibold text-foreground">{rowName}</th>
                                   {(q.gridColumns || []).map((colName, cIdx) => {
                                     const isChecked = q.type === "GRID_CHECKBOX"
                                       ? Array.isArray(rowAns) && rowAns.includes(colName)
                                       : rowAns === colName;
 
                                     return (
-                                      <td key={cIdx} className="p-3 text-center">
-                                        <button
+                                      <td key={cIdx} className="px-2 py-1 text-center">
+                                        <Button
                                           type="button"
+                                          variant="outline"
+                                          size="icon-sm"
+                                          aria-label={`${rowName}, ${colName}`}
+                                          aria-pressed={isChecked}
                                           onClick={() => handleGridChoice(qIdx, rowName, colName, q.type === "GRID_CHECKBOX")}
-                                          className={`size-6 mx-auto rounded-md border flex items-center justify-center transition-colors cursor-pointer ${
-                                            isChecked
-                                              ? "bg-brand-primary border-brand-primary text-white"
-                                              : "border-input bg-background hover:border-brand-primary"
-                                          }`}
+                                          className="mx-auto aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background"
                                         >
-                                          {isChecked && <Check className="size-3.5 stroke-[3]" />}
-                                        </button>
+                                          {isChecked && <Check className="size-3.5" aria-hidden />}
+                                        </Button>
                                       </td>
                                     );
                                   })}
@@ -1707,20 +1685,6 @@ export function PublicFormViewer({
                     )}
                   </div>
 
-                  {/* Primary OK / Lanjut Button */}
-                  <div className={cn("pt-2 flex items-center gap-3", isFlowing && "hidden")}>
-                    <Button
-                      size="lg"
-                      onClick={goToNextStep}
-                      className="h-11 px-6 text-body-sm font-bold shadow-sm cursor-pointer inline-flex items-center gap-2"
-                    >
-                      <span>{isLastStep ? t("publicForm.submit") : t("publicForm.next")}</span>
-                      <Check className="size-4" />
-                    </Button>
-                    <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
-                      {t("publicForm.keyboardEnter")}
-                    </span>
-                  </div>
                 </motion.div>
               );
             })()}
@@ -1730,7 +1694,7 @@ export function PublicFormViewer({
             </motion.div>
           </AnimatePresence>
           {isFlowing && (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 mt-4">
+            <div className="mt-(--related-gap) flex flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-(--compact-gap)">
               <Button variant="outline" onClick={goToPrevStep} disabled={stepIndex === 0 || uploadingQIdx !== null}>{t("publicForm.back")}</Button>
               <Button onClick={goToNextStep} disabled={uploadingQIdx !== null || submitting}>
                 {isLastStep ? t("publicForm.submit") : t("publicForm.next")}
@@ -1741,55 +1705,32 @@ export function PublicFormViewer({
         </div>
       </main>
 
-      {/* Floating Bottom Navigation Dock (Fixed to viewport bottom edge) */}
-      {!isFlowing && <div className="relative z-30 shrink-0 w-full px-(--page-gutter) py-(--row-padding) flex items-center justify-between border-t border-border/60">
-        <div className="pointer-events-auto">
-          {currentStepIndex > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToPrevStep}
-              className="rounded-lg shadow-md font-medium text-body-xs inline-flex items-center gap-1 bg-background/95 backdrop-blur-md"
-            >
-              <ArrowLeft className="size-3.5" />
-              <span>{t("publicForm.back")}</span>
+      {!isFlowing && (currentStepIndex > 0 || currentStep?.kind === "question") && (
+        <div className="z-30 shrink-0 border-t border-border/60 bg-background pb-[env(safe-area-inset-bottom)]">
+          <div className="mx-auto flex max-w-2xl items-center justify-end gap-2 px-(--page-gutter) py-2">
+            <Button variant="ghost" size="lg" onClick={goToPrevStep} disabled={currentStepIndex === 0 || uploadingQIdx !== null || submitting}>
+              <ArrowLeft className="size-4" aria-hidden />
+              {t("publicForm.back")}
             </Button>
-          )}
+            {currentStep?.kind === "question" && (
+              <Button type="button" size="lg" onClick={goToNextStep} disabled={uploadingQIdx !== null || submitting}>
+                {isLastStep ? t("publicForm.submit") : t("publicForm.next")}
+                {isLastStep ? <Send className="size-4" aria-hidden /> : <ArrowRight className="size-4" aria-hidden />}
+              </Button>
+            )}
+          </div>
         </div>
-
-        <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-border/80 bg-background/95 backdrop-blur-md p-1 shadow-md">
-          <button
-            type="button"
-            disabled={currentStepIndex === 0}
-            onClick={goToPrevStep}
-            title={t("publicForm.previousQuestion")}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 cursor-pointer transition-colors"
-          >
-            <ChevronUp className="size-4" />
-          </button>
-          <div className="h-4 w-px bg-border" />
-          <button
-            type="button"
-            disabled={isLastStep || uploadingQIdx !== null}
-            onClick={goToNextStep}
-            title={t("publicForm.nextQuestion")}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 cursor-pointer transition-colors"
-          >
-            <ChevronDown className="size-4" />
-          </button>
-        </div>
-      </div>}
+      )}
 
       <Dialog open={confirmSubmitOpen} onOpenChange={(open) => { if (!submitting) setConfirmSubmitOpen(open); }}>
-        <DialogContent showCloseButton={!submitting}>
-          <DialogHeader>
+        <DialogContent showCloseButton={false} className="max-w-sm" aria-describedby={undefined}>
+          <DialogHeader className="pr-0">
             <DialogTitle>{t("publicForm.confirmTitle")}</DialogTitle>
-            <DialogDescription>{t("publicForm.confirmBody")}</DialogDescription>
           </DialogHeader>
           {errorMsg && <p role="alert" className="text-body-xs text-destructive">{errorMsg}</p>}
-          <DialogFooter>
-            <Button variant="outline" disabled={submitting} onClick={() => setConfirmSubmitOpen(false)}>{t("publicForm.keepEditing")}</Button>
-            <Button disabled={submitting} onClick={() => void handleSubmit(true)}>
+          <DialogFooter className="flex-row flex-wrap items-center justify-end border-t border-border/55 pt-(--row-padding)">
+            <Button variant="ghost" className="h-10" disabled={submitting} onClick={() => setConfirmSubmitOpen(false)}>{t("publicForm.keepEditing")}</Button>
+            <Button className="h-10" disabled={submitting} onClick={() => void handleSubmit(true)}>
               {submitting ? <RefreshCw className="size-4 animate-spin" /> : <Send className="size-4" />}
               {submitting ? t("publicForm.submitting") : t("publicForm.submit")}
             </Button>

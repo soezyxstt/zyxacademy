@@ -10,6 +10,8 @@ import {
   getSafeEntryReturnPath,
   isAppEntryVisitedPath,
   isDocumentGetNavigation,
+  isNativeMarketingRedirectPath,
+  isNativeUserAgent,
 } from "@/lib/auth/dashboard-entry";
 
 export function proxy(request: NextRequest) {
@@ -27,6 +29,24 @@ export function proxy(request: NextRequest) {
 
   const explicitPublicLocale = stripPublicLocalePrefix(pathname);
   const isMarketingRoot = pathname === "/" || explicitPublicLocale?.path === "/";
+
+  // Native app shells (mobile & desktop) should never land on marketing pages.
+  // Authenticated users go directly to their role dashboard; unauthenticated
+  // users go directly to /sign-in.
+  if (
+    isNativeUserAgent(request.headers.get("user-agent")) &&
+    isNativeMarketingRedirectPath(pathname) &&
+    isDocumentGetNavigation(request)
+  ) {
+    if (sessionToken) {
+      const destination = new URL(request.url);
+      destination.pathname = ENTRY_REDIRECT_ROUTE;
+      destination.search = "";
+      destination.searchParams.set("native", "1");
+      return NextResponse.rewrite(destination, { request: { headers: requestHeaders } });
+    }
+    return NextResponse.redirect(new URL("/sign-in", request.url));
+  }
 
   // First visit in a while with an active session: rewrite to the server entry
   // redirect handler so the user lands directly on their role dashboard

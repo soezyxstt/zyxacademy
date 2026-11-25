@@ -139,6 +139,24 @@ async function inspectCompletedSchema(client: SqlClient, newTables: string[]) {
   and exists (select 1 from pg_constraint where conrelid=to_regclass('public.google_calendar_sync')
    and conname='google_calendar_sync_user_id_user_id_fk' and convalidated
    and pg_get_constraintdef(oid)='FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE')
+  and (select count(*)=3 and count(*) filter (where is_nullable='NO' and
+   ((column_name in ('slot_id','course_id') and data_type='text' and column_default is null) or
+    (column_name='created_at' and data_type='timestamp with time zone' and column_default='now()')))=3
+   from information_schema.columns where table_schema='public' and table_name='tutor_slot_courses')
+  and exists (select 1 from pg_constraint where conrelid=to_regclass('public.tutor_slot_courses')
+   and conname='tutor_slot_courses_slot_id_tutor_slots_id_fk' and convalidated
+   and pg_get_constraintdef(oid)='FOREIGN KEY (slot_id) REFERENCES tutor_slots(id) ON DELETE CASCADE')
+  and exists (select 1 from pg_constraint where conrelid=to_regclass('public.tutor_slot_courses')
+   and conname='tutor_slot_courses_slot_id_course_id_pk' and convalidated
+   and pg_get_constraintdef(oid)='PRIMARY KEY (slot_id, course_id)')
+  and exists (select 1 from pg_index where indexrelid=to_regclass('public.tutor_slot_courses_slot_idx')
+   and indisvalid and indisready and indrelid='public.tutor_slot_courses'::regclass
+   and pg_get_indexdef(indexrelid)='CREATE INDEX tutor_slot_courses_slot_idx ON public.tutor_slot_courses USING btree (slot_id)')
+  and (select count(*)=2 from pg_index where indisvalid and indisready and
+   ((indexrelid=to_regclass('public.discussion_messages_body_tsv_idx') and indrelid='public.discussion_messages'::regclass
+     and pg_get_indexdef(indexrelid)='CREATE INDEX discussion_messages_body_tsv_idx ON public.discussion_messages USING gin (to_tsvector(''simple''::regconfig, body)) WHERE (deleted_at IS NULL)')
+    or (indexrelid=to_regclass('public.discussion_threads_title_tsv_idx') and indrelid='public.discussion_threads'::regclass
+     and pg_get_indexdef(indexrelid)='CREATE INDEX discussion_threads_title_tsv_idx ON public.discussion_threads USING gin (to_tsvector(''simple''::regconfig, title))')))
   as valid`, [newTables.map(table => `public.${table}`)]);
  if (schema.rows[0]?.valid !== true) throw new Error('COMPLETED_SCHEMA_INVALID');
 }
@@ -159,7 +177,7 @@ export async function runMigration(client: SqlClient, mode: Mode, migrations: Mi
  assertFiles(migrations.map((m, idx) => ({ idx, when: m.when, tag: m.tag, version: '7', breakpoints: true })),
   migrations.map(m => sha256(m.sql)), migrations.map(m => `${m.tag}.sql`));
  if (migrations.some((m, i) => m.hash !== FILES[i][2])) throw new Error('UNEXPECTED_LOCAL_MIGRATION_CHAIN');
- const newTables = migrations.slice(9).flatMap(m => [...m.sql.matchAll(/CREATE TABLE "([a-z_]+)"/g)].map(match => match[1]));
+ const newTables = migrations.slice(9).flatMap(m => [...m.sql.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?"([a-z_]+)"/g)].map(match => match[1]));
  const journal = async () => (await client.query('select id, created_at, hash from drizzle.__drizzle_migrations order by created_at, id')).rows;
  let commitAttempted = false;
  await client.query(mode === 'check' ? 'begin isolation level repeatable read read only' : 'begin');

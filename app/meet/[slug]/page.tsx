@@ -61,21 +61,19 @@ export default async function MeetSlugPage({
   }
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md text-center">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
-          <Video className="size-6" aria-hidden />
-        </div>
-        <h1 className="mt-4 font-heading text-h5 font-semibold text-foreground">
+    <main className="mx-auto flex min-h-[60vh] max-w-lg items-center justify-center px-(--page-gutter) py-(--section-gap)">
+      <div className="space-y-(--compact-gap) text-center">
+        <Video className="mx-auto size-5 text-muted-foreground" aria-hidden />
+        <h1 className="font-heading text-h5 font-bold text-foreground">
           {t("public.meetNotFound")}
         </h1>
-        <p className="mt-2 text-body-sm text-muted-foreground">
+        <p className="text-body-sm text-muted-foreground">
           {t("public.meetUnavailable")}
         </p>
-        <Button asChild className="mt-6">
+        <Button asChild>
           <Link href="/">{t("public.home")}</Link>
         </Button>
       </div>
-    </div>
+    </main>
   );
 }

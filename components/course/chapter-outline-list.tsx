@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Lock } from "lucide-react";
+import { CheckCircle2, ChevronRight, Lock } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
+import { courseListRowClass } from "./course-surfaces";
 
 export type ChapterOutlineRow = {
   id: string;
@@ -35,7 +36,7 @@ export function ChapterOutlineList({ chapters, showCount = true }: { chapters: C
 
   return (
     <section className="mt-8">
-      <div className="mb-1.5 flex items-center justify-between gap-4 border-b border-border/40 pb-2">
+      <div className="mb-2 flex items-center justify-between gap-4 border-b border-border/40 pb-2">
         <h2 className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t("course.chapterOutline.title")}
         </h2>
@@ -48,9 +49,11 @@ export function ChapterOutlineList({ chapters, showCount = true }: { chapters: C
           </span>
         )}
       </div>
-      <ul className="divide-y divide-border/30 zebra-no-rows">
+      <ul className="zebra-no-rows divide-y divide-border/30">
         {chapters.map((chapter) => {
           const isUnavailable = !chapter.hasMaterial;
+          const isInProgress = chapter.hasMaterial && !chapter.completed && chapter.completionPercent > 0;
+          const clampedPercent = Math.min(100, Math.max(0, chapter.completionPercent));
           const status =
             chapter.statusLabel ??
             (chapter.hasMaterial
@@ -62,60 +65,71 @@ export function ChapterOutlineList({ chapters, showCount = true }: { chapters: C
               : t("course.chapterOutline.unavailable"));
 
           const row = (
-            <div className="flex items-center justify-between gap-3 py-3">
-              <div className="flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3 py-(--row-padding)">
+              <span
+                className={cn(
+                  "flex size-7 shrink-0 items-center justify-center rounded-lg text-body-xs font-bold tabular-nums",
+                  chapter.completed
+                    ? "bg-status-success/15 text-status-success"
+                    : isUnavailable
+                      ? "bg-muted/60 text-muted-foreground"
+                      : "bg-muted text-foreground",
+                )}
+              >
+                {chapter.completed ? (
+                  <CheckCircle2 className="size-4" aria-hidden />
+                ) : isUnavailable ? (
+                  <Lock className="size-3.5" aria-hidden />
+                ) : (
+                  chapter.number
+                )}
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span
                   className={cn(
-                    "flex size-7 shrink-0 items-center justify-center rounded-lg text-body-xs font-bold tabular-nums",
-                    chapter.completed
-                      ? "bg-status-success/15 text-status-success"
-                      : isUnavailable
-                        ? "bg-muted/60 text-muted-foreground"
-                        : "bg-muted text-foreground",
+                    "break-words text-body-sm font-semibold leading-snug",
+                    isUnavailable
+                      ? "text-muted-foreground"
+                      : "text-foreground",
                   )}
                 >
-                  {chapter.completed ? (
-                    <CheckCircle2 className="size-4" aria-hidden />
-                  ) : isUnavailable ? (
-                    <Lock className="size-3.5" aria-hidden />
-                  ) : (
-                    chapter.number
-                  )}
+                  {chapter.title}
                 </span>
-                <div className="flex min-w-0 flex-col gap-0.5">
+                <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={cn(
-                      "break-words text-body-sm font-semibold leading-snug",
-                      isUnavailable
-                        ? "text-muted-foreground"
-                        : "text-foreground transition-colors group-hover:text-brand-primary",
-                    )}
-                  >
-                    {chapter.title}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-body-xs leading-snug",
+                      "text-body-xs leading-snug tabular-nums",
                       chapter.completed ? "font-medium text-status-success" : "text-muted-foreground",
                     )}
                   >
                     {status}
                   </span>
+                  {isInProgress && (
+                    <span
+                      aria-hidden="true"
+                      className="inline-block h-1 w-14 overflow-hidden rounded-sm bg-muted"
+                    >
+                      <span
+                        className="block h-full bg-primary transition-[width]"
+                        style={{ width: `${clampedPercent}%` }}
+                      />
+                    </span>
+                  )}
                 </div>
               </div>
               {chapter.href && (
-                <ArrowRight
-                  className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
-                  aria-hidden
+                <ChevronRight
+                  className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+                  aria-hidden="true"
                 />
               )}
             </div>
           );
 
           return (
-            <li key={chapter.id} className={isUnavailable && !chapter.href ? "opacity-45" : undefined}>
+            <li key={chapter.id}>
               {chapter.href ? (
-                <Link href={chapter.href} className="group -mx-2.5 block rounded-lg px-2.5 transition-colors hover:bg-muted/40">
+                <Link href={chapter.href} className={courseListRowClass("-mx-2.5 block px-2.5 py-0")}>
                   {row}
                 </Link>
               ) : (

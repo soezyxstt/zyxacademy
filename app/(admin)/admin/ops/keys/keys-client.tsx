@@ -31,19 +31,6 @@ function circuitColor(state: string): string {
   }
 }
 
-function ProgressBar({ current, max }: { current: number; max: number }) {
-  const pct = Math.min(100, max > 0 ? (current / max) * 100 : 0);
-  const color =
-    pct >= 90 ? "bg-status-error" :
-    pct >= 70 ? "bg-status-warning" :
-    "bg-status-success";
-  return (
-    <div className="h-1.5 w-full overflow-hidden rounded-md bg-muted">
-      <div className={`h-full rounded-md transition-[width] duration-500 ease-out ${color}`} style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
-
 export function KeysClient() {
   const t = useTranslations("adminOps");
   const userId = useQueryAccountId();
@@ -72,7 +59,7 @@ export function KeysClient() {
   }).sort((a, b) => Number(a.healthy) - Number(b.healthy));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-(--section-gap)">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-body-sm text-muted-foreground">
           {t("keysUI.checked", { time: relativeTime(data.checkedAt, t), count: data.totalRequestsToday })}
@@ -97,8 +84,8 @@ export function KeysClient() {
         </section>
       ))}
       {keyHealth.map(({ keyId, healthy, totalToday, entries }) => (
-        <div key={keyId} className="border-y border-border">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/50 px-4 py-3">
+        <div key={keyId} className="border-b border-border/60">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 py-(--row-padding)">
             <div className="flex flex-wrap items-center gap-3">
               <span className={`size-2.5 rounded-full ${healthy ? "bg-status-success" : "bg-status-error"}`} />
               <h2 className="font-heading text-body-base font-semibold text-foreground">{keyId}</h2>
@@ -109,14 +96,12 @@ export function KeysClient() {
             <span className="text-body-sm text-muted-foreground">{totalToday} {t("keysUI.requestsToday")}</span>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-body-sm">
               <thead>
                 <tr className="border-b border-border text-muted-foreground">
                   <th className="px-5 py-2.5 font-medium">{t("keysUI.model")}</th>
-                  <th className="px-3 py-2.5 font-medium">{t("keysUI.todayRpd")}</th>
-                  <th className="px-3 py-2.5 font-medium">{t("keysUI.util")}</th>
-                  <th className="px-3 py-2.5 font-medium">{t("keysUI.rpm")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("keysUI.requestsToday")}</th>
                   <th className="px-3 py-2.5 font-medium">{t("keysUI.circuit")}</th>
                   <th className="px-3 py-2.5 font-medium">{t("keysUI.successFailure")}</th>
                   <th className="px-3 py-2.5 font-medium">{t("keysUI.cooldown")}</th>
@@ -124,68 +109,61 @@ export function KeysClient() {
                 </tr>
               </thead>
               <tbody>
-                {entries.map((d) => {
-                  const rpd = data.rpdLimits[d.modelId];
-                  return (
-                    <tr key={`${d.keyId}:${d.modelId}`} className="border-b border-border last:border-0 hover:bg-muted/30">
-                      <td className="px-5 py-2.5 font-medium text-foreground">{d.modelId}</td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <span className="tabular-nums font-semibold text-foreground">{d.requestsToday}</span>
-                          <span className="text-muted-foreground">/ {rpd ?? "N/A"}</span>
-                        </div>
-                        {rpd > 0 && <ProgressBar current={d.requestsToday} max={rpd} />}
-                      </td>
-                      <td className={`px-3 py-2.5 tabular-nums font-medium ${d.utilizationPercent >= 90 ? "text-status-error" : d.utilizationPercent >= 70 ? "text-status-warning" : ""}`}>
-                        {rpd > 0 ? `${d.utilizationPercent.toFixed(0)}%` : "N/A"}
-                      </td>
-                      <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
-                        {d.requestsMinute} / {d.estimatedRpmLimit}
-                      </td>
-                      <td className={`px-3 py-2.5 tabular-nums font-medium ${circuitColor(d.circuitState)}`}>
-                        {d.circuitState}
-                      </td>
-                      <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
-                        {d.successes}/{d.failures}
-                      </td>
-                      <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
-                        {d.cooldownRemainingMs > 0 ? `${(d.cooldownRemainingMs / 1000).toFixed(0)}s` : "-"}
-                      </td>
-                      <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
-                        {d.activeRequestsCount}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {entries.map((d) => (
+                  <tr key={`${d.keyId}:${d.modelId}`} className="border-b border-border last:border-0 hover:bg-muted/30">
+                    <td className="px-5 py-2.5 font-medium text-foreground">{d.modelId}</td>
+                    <td className="px-3 py-2.5 tabular-nums font-semibold text-foreground">{d.requestsToday}</td>
+                    <td className={`px-3 py-2.5 tabular-nums font-medium ${circuitColor(d.circuitState)}`}>
+                      {d.circuitState}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
+                      {d.successes}/{d.failures}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
+                      {d.cooldownRemainingMs > 0 ? `${(d.cooldownRemainingMs / 1000).toFixed(0)}s` : "-"}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
+                      {d.activeRequestsCount}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
+
+          <ul className="divide-y divide-border/60 md:hidden">
+            {entries.map((d) => (
+              <li key={`${d.keyId}:${d.modelId}`} className="space-y-1.5 py-(--row-padding)">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="min-w-0 break-all text-body-sm font-medium text-foreground">
+                    {d.modelId}
+                  </span>
+                  <span className={`shrink-0 text-body-xs font-medium ${circuitColor(d.circuitState)}`}>
+                    {d.circuitState}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-body-xs tabular-nums text-muted-foreground">
+                  <span>
+                    {d.requestsToday} {t("keysUI.requestsToday")}
+                  </span>
+                  <span>
+                    {t("keysUI.successFailure")}: {d.successes}/{d.failures}
+                  </span>
+                  <span>
+                    {t("keysUI.active")}: {d.activeRequestsCount}
+                  </span>
+                  {d.cooldownRemainingMs > 0 && (
+                    <span>
+                      {t("keysUI.cooldown")}: {(d.cooldownRemainingMs / 1000).toFixed(0)}s
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       ))}
-
-      <div className="border-y border-border">
-        <div className="border-b border-border bg-muted/50 px-5 py-3">
-          <h2 className="font-heading text-body-base font-semibold text-foreground">{t("keysUI.rpdLimits")}</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-body-sm">
-            <thead>
-              <tr className="border-b border-border text-muted-foreground">
-                <th className="px-5 py-2.5 font-medium">{t("keysUI.model")}</th>
-                <th className="px-3 py-2.5 font-medium">{t("keysUI.rpdLimit")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(data.rpdLimits).map(([model, limit]) => (
-                <tr key={model} className="border-b border-border last:border-0 hover:bg-muted/30">
-                  <td className="px-5 py-2.5 font-medium text-foreground">{model}</td>
-                  <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{limit}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 }

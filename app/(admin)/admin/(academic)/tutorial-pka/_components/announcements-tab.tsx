@@ -45,6 +45,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
   const router = useRouter();
 
   const handleToggleArchive = (id: string, archive: boolean) => {
@@ -124,24 +125,24 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
   };
 
   return (
-    <div className="space-y-4">
-      <div className={cn("grid items-start gap-4", (title || body) && "lg:grid-cols-2")}>
+    <div className="space-y-(--section-gap)">
+      <div className={cn("grid min-w-0 items-start gap-(--related-gap)", (title || body) && "lg:grid-cols-2")}>
         {/* Compose */}
-        <div className="border-y border-border">
-          <div className="flex items-center justify-between border-b border-border py-3">
+        <section className="min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2">
             <div className="flex items-center gap-2">
-              {editingId ? <Edit2 className="size-4 text-brand-primary" aria-hidden /> : <Megaphone className="size-4 text-brand-primary" aria-hidden />}
-              <h3 className="font-heading text-body-sm font-semibold text-foreground">
+              {editingId ? <Edit2 className="size-4 text-muted-foreground" aria-hidden /> : <Megaphone className="size-4 text-muted-foreground" aria-hidden />}
+              <h2 className="font-heading text-body-base font-bold text-foreground">
                 {editingId ? t("pkaAnnouncementUI.edit") : t("pkaAnnouncementUI.create")}
-              </h3>
+              </h2>
             </div>
             {editingId && (
-              <Button type="button" variant="ghost" size="sm" onClick={handleCancelEdit} className="h-7 text-body-xs">
+              <Button type="button" variant="ghost" onClick={handleCancelEdit}>
                 {t("pkaAnnouncementUI.cancelEdit")}
               </Button>
             )}
           </div>
-          <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <form onSubmit={handleSubmit} className="space-y-(--compact-gap) pt-(--compact-gap)">
             <div className="space-y-1.5">
               <Label htmlFor="pka-ann-title" className="text-body-sm font-medium text-foreground">
                 {t("pkaAnnouncementUI.title")} {" "}
@@ -172,143 +173,137 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                 onChange={(e) => setBody(e.target.value.slice(0, BODY_MAX))}
                 placeholder={t("pkaAnnouncementUI.bodyPlaceholder")}
                 required
-                className="min-h-[160px] rounded-md font-mono text-body-sm"
+                rows={4}
+                className="rounded-md font-mono"
               />
             </div>
 
-            <Button type="submit" disabled={!title.trim() || !body.trim()} isLoading={isPending} className="gap-2 rounded-lg">
-              <Send className="size-4" />
-              {editingId ? t("pkaAnnouncementUI.save") : t("pkaAnnouncementUI.send")}
-            </Button>
             {!editingId && (
-              <p className="text-body-xs text-muted-foreground">
+              <p id="pka-ann-delivery" className="text-body-xs text-muted-foreground">
                 {t("pkaAnnouncementUI.deliveryNote")}
               </p>
             )}
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {(title || body) && (
+                <Button type="button" variant="ghost" onClick={() => setShowPreview((visible) => !visible)} aria-expanded={showPreview} aria-controls="pka-ann-preview" className="lg:hidden">
+                  {t("pkaAnnouncementUI.preview")}
+                </Button>
+              )}
+              <Button type="submit" disabled={!title.trim() || !body.trim()} isLoading={isPending} aria-describedby={editingId ? undefined : "pka-ann-delivery"}>
+                <Send className="size-4" aria-hidden />
+                {editingId ? t("pkaAnnouncementUI.save") : t("pkaAnnouncementUI.send")}
+              </Button>
+            </div>
           </form>
-        </div>
+        </section>
 
         {/* Live preview */}
-        {(title || body) && <div className="min-w-0 border-t border-border pt-3 lg:sticky lg:top-6">
-          <div className="mb-3">
-            <h3 className="font-heading text-body-sm font-semibold text-foreground">{t("pkaAnnouncementUI.preview")}</h3>
-          </div>
-          <div>
-            {title || body ? (
-              <div className="space-y-3">
-                <h4 className="font-heading text-body-base text-foreground">{title || t("pkaAnnouncementUI.announcementTitlePlaceholder")}</h4>
-                {body ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <MarkdownRenderer content={body} />
-                  </div>
-                ) : (
-                  <p className="text-body-sm italic text-muted-foreground/60">{t("pkaAnnouncementUI.noMessage")}</p>
-                )}
-              </div>
-            ) : (
-              <div className="py-10 text-center">
-                <p className="text-body-sm text-muted-foreground">
-                  {t("pkaAnnouncementUI.noContent")}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>}
+        {(title || body) && (
+          <section id="pka-ann-preview" className={cn("min-w-0 space-y-2 border-t border-border/60 pt-2 lg:sticky lg:top-6 lg:block", !showPreview && "hidden")}>
+            <h2 className="font-heading text-body-sm font-semibold text-muted-foreground">{t("pkaAnnouncementUI.preview")}</h2>
+            {title && <h3 className="wrap-anywhere font-heading text-body-base font-bold text-foreground">{title}</h3>}
+            {body && <MarkdownRenderer content={body} />}
+          </section>
+        )}
       </div>
 
       {/* History */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 border-b border-border pb-2">
+      <section className="space-y-(--compact-gap)">
+        <div className="flex items-center gap-2 border-b border-border/60 pb-2">
           <History className="size-4 text-muted-foreground" aria-hidden />
-          <h3 className="font-heading text-body-base font-semibold text-foreground">{t("pkaAnnouncementUI.history")}</h3>
+          <h2 className="font-heading text-body-base font-bold text-foreground">{t("pkaAnnouncementUI.history")}</h2>
         </div>
 
         {history.length === 0 ? (
-          <AdminEmptyState icon={Megaphone} title={t("pkaAnnouncementUI.empty")} />
+          <AdminEmptyState compact icon={Megaphone} title={t("pkaAnnouncementUI.empty")} />
         ) : (
-          <AdminTable>
-            <div className="hidden md:grid grid-cols-[1fr_120px_100px_120px_100px] gap-4 border-b border-border py-3">
-              <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.announcement")}</span>
-              <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.status")}</span>
-              <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.recipients")}</span>
-              <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.time")}</span>
-              <span className="text-body-xs font-semibold text-muted-foreground text-right">{t("pkaAnnouncementUI.actions")}</span>
-            </div>
-            <ul className="divide-y divide-border/60">
+          <>
+            {/* Mobile stacked rows */}
+            <ul className="divide-y divide-border/60 border-y border-border md:hidden">
               {history.map((row) => (
                 <li
                   key={row.id}
                   className={cn(
-                    "grid grid-cols-1 gap-2 px-5 py-3.5 transition-colors hover:bg-muted/20 md:grid-cols-[1fr_120px_100px_120px_100px] md:items-center md:gap-4",
-                    row.isArchived && "opacity-60 bg-muted/5"
+                    "space-y-2 py-3",
+                    row.isArchived && "opacity-60"
                   )}
                 >
-                  <div className="min-w-0">
-                    <p className="truncate text-body-sm font-medium text-foreground">
-                      {row.title}
-                      {row.isPinned && (
-                        <span className="ml-2 rounded-md bg-brand-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand-primary uppercase">
-                          {t("pkaAnnouncementUI.pinned")}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="break-words text-body-sm font-medium text-foreground">
+                          {row.title}
+                        </p>
+                        {row.isPinned && (
+                          <span className="rounded-md bg-brand-primary/10 px-1.5 py-0.5 text-body-2xs font-semibold uppercase text-brand-primary">
+                            {t("pkaAnnouncementUI.pinned")}
+                          </span>
+                        )}
+                        {row.isArchived && (
+                          <span className="rounded-md bg-muted px-1.5 py-0.5 text-body-2xs font-semibold uppercase text-muted-foreground">
+                            {t("pkaAnnouncementUI.archived")}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 line-clamp-2 text-body-xs text-muted-foreground">
+                        {row.body}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 rounded-md"
+                        disabled={isPending}
+                        onClick={() => handleTogglePin(row.id, !row.isPinned)}
+                        aria-label={row.isPinned ? t("pkaAnnouncementUI.unpin") : t("pkaAnnouncementUI.pin")}
+                        title={row.isPinned ? t("pkaAnnouncementUI.unpin") : t("pkaAnnouncementUI.pin")}
+                      >
+                        <Pin className={cn("size-3.5", row.isPinned && "fill-current text-brand-primary")} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 rounded-md"
+                        disabled={isPending}
+                        onClick={() => handleEditClick(row)}
+                        aria-label={t("pkaAnnouncementUI.editAnnouncement")}
+                        title={t("pkaAnnouncementUI.editAnnouncement")}
+                      >
+                        <Edit2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs">
+                    <div className="flex flex-wrap items-center gap-3">
+                      {row.sentAt ? (
+                        <span className="flex items-center gap-1 text-status-success">
+                          <CheckCircle2 className="size-3.5" />
+                          {t("pkaAnnouncementUI.sent")}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-status-error">
+                          <XCircle className="size-3.5" />
+                          {t("pkaAnnouncementUI.failed")}
                         </span>
                       )}
-                      {row.isArchived && (
-                        <span className="ml-2 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase">
-                          {t("pkaAnnouncementUI.archived")}
-                        </span>
-                      )}
-                    </p>
-                    <p className="mt-0.5 truncate text-body-xs text-muted-foreground">{row.body}</p>
-                  </div>
-                  <div className="flex items-center">
-                    {row.sentAt ? (
-                      <span className="flex items-center gap-1 text-body-xs text-status-success">
-                        <CheckCircle2 className="size-3.5" />
-                        {t("pkaAnnouncementUI.sent")}
+                      <span className="flex items-center gap-1 tabular-nums text-muted-foreground">
+                        <Users className="size-3.5" />
+                        {row.recipientCount ?? 0}
                       </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-body-xs text-status-error">
-                        <XCircle className="size-3.5" />
-                        {t("pkaAnnouncementUI.failed")}
+                      <span
+                        className="text-muted-foreground"
+                        title={normalizeDate(row.createdAt).toLocaleString("id-ID")}
+                      >
+                        {formatRelative(row.createdAt, t)}
                       </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 text-body-xs text-muted-foreground">
-                    <Users className="size-3.5" />
-                    {row.recipientCount ?? 0}
-                  </div>
-                  <div className="flex items-center">
-                    <span
-                      className="text-body-xs text-muted-foreground"
-                      title={normalizeDate(row.createdAt).toLocaleString("id-ID")}
-                    >
-                      {formatRelative(row.createdAt, t)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-end gap-1.5">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 rounded-md"
-                      disabled={isPending}
-                      onClick={() => handleTogglePin(row.id, !row.isPinned)}
-                      title={row.isPinned ? t("pkaAnnouncementUI.unpin") : t("pkaAnnouncementUI.pin")}
-                    >
-                      <Pin className={cn("size-3.5", row.isPinned && "fill-current text-brand-primary")} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 rounded-md"
-                      disabled={isPending}
-                      onClick={() => handleEditClick(row)}
-                      title={t("pkaAnnouncementUI.editAnnouncement")}
-                    >
-                      <Edit2 className="size-3.5" />
-                    </Button>
+                    </div>
+
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 text-body-xs font-semibold rounded-md"
+                      className="h-7 rounded-md px-2 text-body-xs font-semibold"
                       disabled={isPending}
                       onClick={() => handleToggleArchive(row.id, !row.isArchived)}
                     >
@@ -318,7 +313,102 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                 </li>
               ))}
             </ul>
-          </AdminTable>
+
+            {/* Desktop table */}
+            <AdminTable className="hidden md:block">
+              <div className="grid grid-cols-[1fr_120px_100px_120px_100px] gap-4 border-b border-border py-3">
+                <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.announcement")}</span>
+                <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.status")}</span>
+                <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.recipients")}</span>
+                <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.time")}</span>
+                <span className="text-body-xs font-semibold text-muted-foreground text-right">{t("pkaAnnouncementUI.actions")}</span>
+              </div>
+              <ul className="divide-y divide-border/60">
+                {history.map((row) => (
+                  <li
+                    key={row.id}
+                    className={cn(
+                      "grid grid-cols-[1fr_120px_100px_120px_100px] items-center gap-4 px-5 py-3.5 transition-colors hover:bg-muted/20",
+                      row.isArchived && "opacity-60 bg-muted/5"
+                    )}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-body-sm font-medium text-foreground">
+                        {row.title}
+                        {row.isPinned && (
+                          <span className="ml-2 rounded-md bg-brand-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand-primary uppercase">
+                            {t("pkaAnnouncementUI.pinned")}
+                          </span>
+                        )}
+                        {row.isArchived && (
+                          <span className="ml-2 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase">
+                            {t("pkaAnnouncementUI.archived")}
+                          </span>
+                        )}
+                      </p>
+                      <p className="mt-0.5 truncate text-body-xs text-muted-foreground">{row.body}</p>
+                    </div>
+                    <div className="flex items-center">
+                      {row.sentAt ? (
+                        <span className="flex items-center gap-1 text-body-xs text-status-success">
+                          <CheckCircle2 className="size-3.5" />
+                          {t("pkaAnnouncementUI.sent")}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-body-xs text-status-error">
+                          <XCircle className="size-3.5" />
+                          {t("pkaAnnouncementUI.failed")}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 text-body-xs text-muted-foreground">
+                      <Users className="size-3.5" />
+                      {row.recipientCount ?? 0}
+                    </div>
+                    <div className="flex items-center">
+                      <span
+                        className="text-body-xs text-muted-foreground"
+                        title={normalizeDate(row.createdAt).toLocaleString("id-ID")}
+                      >
+                        {formatRelative(row.createdAt, t)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 rounded-md"
+                        disabled={isPending}
+                        onClick={() => handleTogglePin(row.id, !row.isPinned)}
+                        title={row.isPinned ? t("pkaAnnouncementUI.unpin") : t("pkaAnnouncementUI.pin")}
+                      >
+                        <Pin className={cn("size-3.5", row.isPinned && "fill-current text-brand-primary")} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 rounded-md"
+                        disabled={isPending}
+                        onClick={() => handleEditClick(row)}
+                        title={t("pkaAnnouncementUI.editAnnouncement")}
+                      >
+                        <Edit2 className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-body-xs font-semibold rounded-md"
+                        disabled={isPending}
+                        onClick={() => handleToggleArchive(row.id, !row.isArchived)}
+                      >
+                        {row.isArchived ? t("pkaAnnouncementUI.unarchive") : t("pkaAnnouncementUI.archive")}
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </AdminTable>
+          </>
         )}
       </section>
     </div>

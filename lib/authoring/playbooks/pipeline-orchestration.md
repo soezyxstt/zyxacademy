@@ -13,7 +13,7 @@ For changes to existing Idea V3 or learning Product V3/V4/V5, prefer the flexibl
 Execute the pipeline in strict checkpoint order. Never skip a gate or start a downstream stage before its upstream dependency satisfies the required state:
 
 1. **Checkpoint 0 (Bootstrap and Scope Discovery)**
-   - Call `workflow.get_playbook` with `skill: "zyx-authoring-pipeline"` (or the active stage skill) and `stage: "pipeline"`.
+   - Call `workflow.get_playbook` with `skill: "zyx-authoring-pipeline"` and `stage: "pipeline"`. For a focused resume, use that stage's matching skill and stage instead; do not combine an Idea/Product skill with the pipeline stage.
    - Call `catalog.list_courses` and `catalog.list_chapters` to lock the target `courseKey` and `chapterKey`.
    - Inspect existing checkpoints before creating duplicate artifacts:
      - Call `source.list_packs` with `courseKey` and `chapterKey` to check whether a validated Source Pack already exists.
@@ -22,16 +22,16 @@ Execute the pipeline in strict checkpoint order. Never skip a gate or start a do
 2. **Checkpoint 1 (Source Pack Stage: `source`)**
    - Fetch stage modules via `workflow.get_playbook` with `stage: "source"` if not already loaded.
    - If a valid, up-to-date Source Pack already exists in `source.list_packs` for the target chapter and documents, reuse its `packId` / `importId` / `sourcePackToken`.
-   - Otherwise, list stored PDFs via `source.list_files`, read all pages via `source.read_file` (poll `source.get_read_job` when pending; request images for visual evidence), reconcile multi-document coverage, build the `source-pack.v1` archive, and call `source.ingest` with `storedOriginals` (or `originals` for local files) and `bootstrapToken`.
+   - Otherwise, list stored PDFs via `source.list_files`, read all pages via `source.read_file` (poll `source.get_read_job` when pending; request images for visual evidence), reconcile multi-document coverage, build the `zyx-source-pack.v1` archive using the current source contract, and call `source.ingest` with `storedOriginals` (or `originals` for local files) and `bootstrapToken`.
    - Gate: `source.ingest` must return `ok: true` and `persisted.importId`.
 
 3. **Checkpoint 2 (Idea Bundle V3 Stage: `idea`)**
    - Fetch stage modules via `workflow.get_playbook` with `stage: "idea"`.
    - Start or verify an `idea_product` run via `workflow.start` using `courseKey`, `chapterKey`, `sourcePackId` (or `sourcePackToken`), and `bootstrapToken`.
    - Call `workflow.get_contract` to confirm `idea-bundle.v3` requirements.
-   - Decompose the Source Pack into pedagogical `learningSections`, atomic `ideas`, complete `provenance`, and an acyclic `relations` DAG.
-   - Validate with `authoring.validate_idea_bundle` until `ok: true` and `valid: true` with zero blocking issues.
-   - Stage with `authoring.submit_idea_bundle` (or `authoring.restage_idea_bundle` with the last-read checksum as `expectedRevision` when updating an existing unapproved import).
+   - Decompose the Source Pack into pedagogical `learningSections`, atomic `ideas`, complete `provenance`, and justified `relations`. Active prerequisite edges must form an acyclic graph; other relation types follow their own schema and meaning.
+   - Prefer advertised `authoring.create_idea_draft` with atomic content, local keys and exact source quotes. Fetch its pinned schema only when needed. The server assembles and validates the package before staging; preserve independent atomicity and source-completeness review. Edit the returned revision with compact targeted tools.
+   - For archive input, validate with `authoring.validate_idea_bundle` until `ok: true` and `valid: true`, then stage with `authoring.submit_idea_bundle` (or `authoring.restage_idea_bundle` with the last-read checksum as `expectedRevision` when updating an existing unapproved import).
 
 4. **Checkpoint 3 (Revision-bound Idea Review and Publication)**
    - Product authoring requires referenced Ideas and `learningSections` to be published. After staging, obtain the current checksum from `authoring.get_import`.
@@ -45,9 +45,10 @@ Execute the pipeline in strict checkpoint order. Never skip a gate or start a do
    - Start or resume the `idea_product` run and verify published Ideas via `knowledge.search_ideas` / `analysis.get_coverage`.
    - Fetch the primary V4 schemaDocuments. Draft the requested learning products using the V4 contract, with exact Article lineage only for explicitly derived Diktat; keep existing V3 bundles in V3 unless a reviewed conversion was requested. Use the Product playbook for complete representation rules and optional flashcards.
    - For standalone Pembahasan soal, fetch the V5 solutionCollection schemas instead and author only that product. Preserve separate problem and solution provenance and review release eligibility for every example. Never disclose protected assessment answers or index these examples in public search, quiz or Zyra.
+   - When a checkout is available, run the advertised local preview against the same draft JSON. Inspect screenshots, outline and diagnostics; watch mode reuses the browser. This does not grant trusted verification or publication readiness.
    - Run the independent Critic and Student POV subagent reviews against the draft files and incorporate all required revisions.
-   - Validate with `authoring.validate_product_bundle` until `ok: true` and `valid: true` (deterministic content validity). Note that `publicationReady` will remain `false` until trusted verification and pedagogic review are complete, including PDF evidence for each Diktat present.
-   - Stage with `authoring.submit_product_bundle` for a new bundle. Replacement requires `authoring.restage_product_bundle` and the caller's last-read checksum as `expectedRevision`.
+   - Prefer `authoring.create_product_draft` for supported new Article/Diktat when advertised by `productBundle.initialDraft`. Send typed content and source/Idea IDs; the server constructs and validates the package before staging. Use compact revision responses and targeted reads during edits, then full context for final review.
+   - For archive-only products/assets, validate with `authoring.validate_product_bundle` until `ok: true` and `valid: true`, then stage with `authoring.submit_product_bundle`. Replacement requires `authoring.restage_product_bundle` and the last-read checksum as `expectedRevision`. Neither route establishes publication readiness; trusted verification, pedagogic review and applicable PDF evidence remain required.
    - For V4 with `local_playwright`, run the Product playbook's local operator `node scripts/authoring/run-product-v4-local.mjs --input /absolute/path/input.json` for the exact draft checksum and original staging run. The operator requests and executes the attempt locally, including applicable browser and PDF work, then exports the signed receipt and read-back artifacts. No hosted worker is enqueued; polling alone cannot complete a pending local attempt. Read `authoring.get_verification` after local execution for the current content and plan. Inspect required states and PDF pages. When review is authorized, use fresh authoring.get_import context to record all eight criteria, exact revision/fingerprint, current plan/receipt, and explicit semantic decisions for every included Article section. For V5, inspect every item and use its current checksum-bound correctness, reasoning, provenance and release decisions; V4 PDF evidence is not its gate.
    - For a V2/V3 learning-only Article and Diktat draft, discover `productBundle.legacyLocalOperator`, verify the deployed source SHA from the authorized deployment record and run its private local command for the exact checksum, original staging run and active admin. Inspect the read-back PDF and each page before the existing exact-revision review and publication gates. Assessment products and V4/V5 are excluded from this operator.
 

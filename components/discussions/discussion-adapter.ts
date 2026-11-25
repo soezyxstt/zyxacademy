@@ -1,7 +1,34 @@
-import type { DiscussionChannel, DiscussionMessage, DiscussionThread } from "@/lib/discussions/contracts";
+import type { DiscussionChannel, DiscussionChannelMetadata, DiscussionPage, DiscussionMessage, DiscussionThread } from "@/lib/discussions/contracts";
 import type { DiscussionChannel as UiChannel, DiscussionQuestion, DiscussionUploadError, DiscussionWorkspaceProps } from "./view-model";
 
 type Actions = typeof import("@/lib/discussions/actions");
+
+type ChannelReads = {
+  getChannelsByIds: (...args: Parameters<Actions["getChannelsByIds"]>) => Promise<DiscussionChannelMetadata[]>;
+  listChannelsPage: (...args: Parameters<Actions["listChannelsPage"]>) => Promise<DiscussionPage<DiscussionChannelMetadata> & { repairedAliases?: true }>;
+};
+
+export function discussionWorkspaceReads(viewerId: string): ChannelReads & Pick<Actions, "getThread" | "listThreadsAcrossChannels"> {
+  async function read<T>(view: string, input: Record<string, string | string[] | undefined>, method = "GET"): Promise<T> {
+    const params = new URLSearchParams({ view });
+    for (const [key, value] of Object.entries(input)) {
+      if (Array.isArray(value)) value.forEach(item => params.append(key, item));
+      else if (value !== undefined) params.set(key, value);
+    }
+    const response = await fetch(`/api/discussions/workspace?${params}`, {
+      method, cache: "no-store", headers: { "x-student-id": viewerId },
+    });
+    if (!response.ok) throw new Error("Discussion workspace request failed");
+    return response.json();
+  }
+  return {
+    getThread: (threadId, cursor, messageId) => read("thread", { threadId, cursor, messageId }, "POST"),
+    getChannelsByIds: (channelId) => read("channels", { channelId }),
+    listChannelsPage: ({ courseId, cursor, search, kind, kinds } = {}) =>
+      read("catalog", { courseId, cursor, search, kind, kindFilter: kinds?.join(",") }, "POST"),
+    listThreadsAcrossChannels: (input = {}) => read("threads", typeof input === "string" ? { cursor: input } : input),
+  };
+}
 
 export function discussionViewerState(viewerId: string, sessionId: string | null | undefined, pending: boolean) {
   if (sessionId === viewerId) return "ready";
@@ -21,11 +48,11 @@ export function channelIdBatches(ids: string[]) {
   return batches;
 }
 
-export async function loadDiscussionChannelMetadata(actions: Pick<Actions, "getChannelsByIds">, ids: string[]) {
+export async function loadDiscussionChannelMetadata<T extends DiscussionChannelMetadata>(actions: { getChannelsByIds: (ids: string[]) => Promise<T[]> }, ids: string[]) {
   return (await Promise.all(channelIdBatches(ids).map((batch) => actions.getChannelsByIds(batch)))).flat();
 }
 
-export async function searchDiscussionChannels(actions: Pick<Actions, "listChannelsPage">, input: Parameters<DiscussionWorkspaceProps["onSearchChannels"]>[0], fixedCourseId?: string) {
+export async function searchDiscussionChannels(actions: Pick<ChannelReads, "listChannelsPage">, input: Parameters<DiscussionWorkspaceProps["onSearchChannels"]>[0], fixedCourseId?: string) {
   const courseId = fixedCourseId ?? input.courseId;
   const kind = courseId ? "course" : input.kind;
   const page = await actions.listChannelsPage({ search: input.search || undefined, cursor: input.cursor, courseId, kind, ...(kind || !input.kinds ? {} : { kinds: input.kinds }), limit: 20 });
@@ -68,8 +95,8 @@ export function discussionUploadError(message: unknown): DiscussionUploadError {
   }
 }
 
-export function toUiChannel(channel: DiscussionChannel): UiChannel {
-  const common = { id: channel.id, name: channel.title, courseId: channel.courseId, courseTitle: channel.courseTitle, requesterName: channel.requesterName, isRequester: channel.isRequester, unreadCount: channel.unreadThreads, muted: channel.muted, canCreate: true };
+export function toUiChannel(channel: DiscussionChannelMetadata & Partial<Pick<DiscussionChannel, "unreadThreads">>): UiChannel {
+  const common = { id: channel.id, name: channel.title, courseId: channel.courseId, courseTitle: channel.courseTitle, requesterName: channel.requesterName, isRequester: channel.isRequester, ...(channel.unreadThreads !== undefined ? { unreadCount: channel.unreadThreads } : {}), muted: channel.muted, canCreate: true };
   return channel.kind === "academic" || channel.kind === "technical"
     ? { ...common, kind: "private", privateKind: channel.kind === "academic" ? "academic" : "bug",
       privacyLabel: channel.kind === "academic" ? (channel.courseId ? "Hanya Anda, tutor pengampu, dan admin." : "Hanya Anda, semua tutor, dan admin.") : "Hanya Anda dan admin." }
@@ -103,7 +130,7 @@ export function discussionVisibilityBlocked() {
 
 export function discussionStatusUncovered(status: HTMLElement) {
   const box = status.getBoundingClientRect();
-  if (!box.width || !box.height || box.left < 0 || box.top < 0 || box.right > window.innerWidth || box.bottom > window.innerHeight) return false;
+  if (!box.width || !box.height || box.left < -1 || box.top < -1 || box.right > window.innerWidth + 1 || box.bottom > window.innerHeight + 1) return false;
   return [[0.5, 0.25], [0.5, 0.5], [0.5, 0.75], [0.25, 0.5], [0.75, 0.5]].every(([x, y]) => {
     const top = document.elementFromPoint(box.left + box.width * x, box.top + box.height * y);
     return !!top && (top === status || status.contains(top));
@@ -250,7 +277,7 @@ export function replyQuote(reply: NonNullable<DiscussionMessage["replyTo"]>, ori
     ...(reply.excerptKind ? { excerptKind: reply.excerptKind } : {}) };
 }
 
-export function toQuestion(item: DiscussionThread, channels: DiscussionChannel[]): DiscussionQuestion {
+export function toQuestion(item: DiscussionThread, channels: DiscussionChannelMetadata[]): DiscussionQuestion {
   const source = channels.find((channel) => channel.id === item.channelId);
   const allowed = source?.kind === "global" ? channels.filter((channel) => channel.kind === "global" || channel.kind === "course")
     : source?.kind === "course" ? channels.filter((channel) => channel.kind === "course" && (channel.id === source.id || (source.courseId !== null && channel.courseId === source.courseId)))

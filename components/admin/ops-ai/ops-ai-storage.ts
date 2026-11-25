@@ -4,6 +4,7 @@ import type {
   OpsAiActionProposalV2,
   OpsAiErrorData,
 } from "@/lib/admin-ops-ai/contracts";
+import type { OpsFollowup } from "@/lib/admin-ops-ai/followups";
 
 export interface OpsAiMessageV2 {
   id: string;
@@ -13,6 +14,7 @@ export interface OpsAiMessageV2 {
   workSteps?: OpsAiWorkStep[];
   citations?: OpsAiCitation[];
   proposals?: OpsAiActionProposalV2[];
+  followups?: OpsFollowup[];
   error?: OpsAiErrorData;
 }
 
@@ -22,6 +24,7 @@ export interface OpsAiSession {
   createdAt: number;
   updatedAt: number;
   messages: OpsAiMessageV2[];
+  titleSource?: "default" | "ai" | "manual";
 }
 
 export const STORAGE_KEY_PANEL_OPEN_V2 = "zyx_ops_ai_panel_open_v2";
@@ -156,14 +159,18 @@ export function migrateChatHistoryV1ToV2(rawV1: string | null): OpsAiMessageV2[]
   }
 }
 
+function accountKey(key: string, accountId?: string): string {
+  return accountId ? `${key}:${accountId}` : key;
+}
+
 /**
  * Loads all conversation sessions with migration from legacy stores.
  */
-export function loadOpsAiSessions(): OpsAiSession[] {
+export function loadOpsAiSessions(accountId?: string): OpsAiSession[] {
   if (typeof localStorage === "undefined") return [];
 
   try {
-    const rawSessions = localStorage.getItem(STORAGE_KEY_SESSIONS_V2);
+    const rawSessions = localStorage.getItem(accountKey(STORAGE_KEY_SESSIONS_V2, accountId));
     if (rawSessions) {
       const parsed = JSON.parse(rawSessions);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -172,7 +179,7 @@ export function loadOpsAiSessions(): OpsAiSession[] {
     }
 
     // Check v2 flat messages for migration to session format
-    const v2Raw = localStorage.getItem(STORAGE_KEY_MESSAGES_V2);
+    const v2Raw = localStorage.getItem(accountKey(STORAGE_KEY_MESSAGES_V2, accountId));
     if (v2Raw) {
       const parsedV2 = JSON.parse(v2Raw);
       if (Array.isArray(parsedV2) && parsedV2.length > 0) {
@@ -186,18 +193,18 @@ export function loadOpsAiSessions(): OpsAiSession[] {
           messages: parsedV2,
         };
         const sessions = [session];
-        localStorage.setItem(STORAGE_KEY_SESSIONS_V2, JSON.stringify(sessions));
-        localStorage.setItem(STORAGE_KEY_ACTIVE_SESSION_ID, session.id);
+        localStorage.setItem(accountKey(STORAGE_KEY_SESSIONS_V2, accountId), JSON.stringify(sessions));
+        localStorage.setItem(accountKey(STORAGE_KEY_ACTIVE_SESSION_ID, accountId), session.id);
         return sessions;
       }
     }
 
     // Check v1 data for migration
-    const v1Raw = localStorage.getItem(STORAGE_KEY_MESSAGES_V1);
+    const v1Raw = localStorage.getItem(accountKey(STORAGE_KEY_MESSAGES_V1, accountId));
     if (v1Raw) {
       const migrated = migrateChatHistoryV1ToV2(v1Raw);
       // Remove v1 permanently to prevent resurrections
-      localStorage.removeItem(STORAGE_KEY_MESSAGES_V1);
+      localStorage.removeItem(accountKey(STORAGE_KEY_MESSAGES_V1, accountId));
 
       if (migrated.length > 0) {
         const firstUser = migrated.find((m) => m.role === "user");
@@ -210,9 +217,9 @@ export function loadOpsAiSessions(): OpsAiSession[] {
           messages: migrated,
         };
         const sessions = [session];
-        localStorage.setItem(STORAGE_KEY_SESSIONS_V2, JSON.stringify(sessions));
-        localStorage.setItem(STORAGE_KEY_ACTIVE_SESSION_ID, session.id);
-        localStorage.setItem(STORAGE_KEY_MESSAGES_V2, JSON.stringify(migrated));
+        localStorage.setItem(accountKey(STORAGE_KEY_SESSIONS_V2, accountId), JSON.stringify(sessions));
+        localStorage.setItem(accountKey(STORAGE_KEY_ACTIVE_SESSION_ID, accountId), session.id);
+        localStorage.setItem(accountKey(STORAGE_KEY_MESSAGES_V2, accountId), JSON.stringify(migrated));
         return sessions;
       }
     }
@@ -226,13 +233,13 @@ export function loadOpsAiSessions(): OpsAiSession[] {
 /**
  * Persists all sessions to storage.
  */
-export function saveOpsAiSessions(sessions: OpsAiSession[], skipEvent = false): void {
+export function saveOpsAiSessions(sessions: OpsAiSession[], skipEvent = false, accountId?: string): void {
   if (typeof localStorage === "undefined") return;
   try {
     if (sessions.length > 0) {
-      localStorage.setItem(STORAGE_KEY_SESSIONS_V2, JSON.stringify(sessions));
+      localStorage.setItem(accountKey(STORAGE_KEY_SESSIONS_V2, accountId), JSON.stringify(sessions));
     } else {
-      localStorage.removeItem(STORAGE_KEY_SESSIONS_V2);
+      localStorage.removeItem(accountKey(STORAGE_KEY_SESSIONS_V2, accountId));
     }
     if (!skipEvent && typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("zyx:ops-ai-sessions-updated"));
@@ -245,10 +252,10 @@ export function saveOpsAiSessions(sessions: OpsAiSession[], skipEvent = false): 
 /**
  * Loads the active session ID.
  */
-export function loadActiveSessionId(): string | null {
+export function loadActiveSessionId(accountId?: string): string | null {
   if (typeof localStorage === "undefined") return null;
   try {
-    return localStorage.getItem(STORAGE_KEY_ACTIVE_SESSION_ID);
+    return localStorage.getItem(accountKey(STORAGE_KEY_ACTIVE_SESSION_ID, accountId));
   } catch {
     return null;
   }
@@ -257,10 +264,10 @@ export function loadActiveSessionId(): string | null {
 /**
  * Saves the active session ID.
  */
-export function saveActiveSessionId(sessionId: string): void {
+export function saveActiveSessionId(sessionId: string, accountId?: string): void {
   if (typeof localStorage === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY_ACTIVE_SESSION_ID, sessionId);
+    localStorage.setItem(accountKey(STORAGE_KEY_ACTIVE_SESSION_ID, accountId), sessionId);
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("zyx:ops-ai-active-session-updated"));
     }
@@ -272,7 +279,7 @@ export function saveActiveSessionId(sessionId: string): void {
 /**
  * Creates a brand new conversation session and saves it.
  */
-export function createOpsAiSession(initialTitle = "Percakapan Baru"): OpsAiSession {
+export function createOpsAiSession(initialTitle = "Percakapan Baru", accountId?: string): OpsAiSession {
   const newSession: OpsAiSession = {
     id: `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     title: initialTitle,
@@ -282,10 +289,10 @@ export function createOpsAiSession(initialTitle = "Percakapan Baru"): OpsAiSessi
   };
 
   if (typeof localStorage !== "undefined") {
-    const existing = loadOpsAiSessions();
+    const existing = loadOpsAiSessions(accountId);
     const updated = [newSession, ...existing];
-    saveOpsAiSessions(updated);
-    saveActiveSessionId(newSession.id);
+    saveOpsAiSessions(updated, true, accountId);
+    saveActiveSessionId(newSession.id, accountId);
   }
 
   return newSession;
@@ -296,17 +303,20 @@ export function createOpsAiSession(initialTitle = "Percakapan Baru"): OpsAiSessi
  */
 export function updateOpsAiSessionMessages(
   sessionId: string,
-  messages: OpsAiMessageV2[]
+  messages: OpsAiMessageV2[],
+  accountId?: string,
 ): void {
   if (typeof localStorage === "undefined") return;
 
-  const sessions = loadOpsAiSessions();
+  const sessions = loadOpsAiSessions(accountId);
   const targetIndex = sessions.findIndex((s) => s.id === sessionId);
 
   if (targetIndex >= 0) {
     const target = sessions[targetIndex];
     let title = target.title;
     if (
+      target.titleSource !== "ai" &&
+      target.titleSource !== "manual" &&
       (!title || title === "Percakapan Baru" || title === "Sesi Percakapan") &&
       messages.length > 0
     ) {
@@ -322,7 +332,7 @@ export function updateOpsAiSessionMessages(
       updatedAt: Date.now(),
       messages,
     };
-    saveOpsAiSessions(sessions, true);
+    saveOpsAiSessions(sessions, true, accountId);
   } else {
     // Create new session if not found
     const firstUser = messages.find((m) => m.role === "user");
@@ -330,35 +340,71 @@ export function updateOpsAiSessionMessages(
     const session: OpsAiSession = {
       id: sessionId,
       title,
+      titleSource: "default",
       createdAt: Date.now(),
       updatedAt: Date.now(),
       messages,
     };
-    saveOpsAiSessions([session, ...sessions], true);
+    saveOpsAiSessions([session, ...sessions], true, accountId);
   }
 
   // Also sync active messages key for backwards compatibility
-  saveOpsAiMessages(messages, true);
+  saveOpsAiMessages(messages, true, accountId);
+}
+
+/**
+ * Renames a session with an AI-generated title and persists cleanly.
+ */
+export function renameOpsAiSession(
+  sessionId: string,
+  title: string,
+  accountId?: string | null,
+): OpsAiSession[] {
+  if (typeof localStorage === "undefined") return [];
+
+  const normalizedAccountId = accountId ?? undefined;
+  const cleanedTitle = title
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^["'`]+|["'`]+$/g, "")
+    .trim()
+    .slice(0, 80);
+
+  const sessions = loadOpsAiSessions(normalizedAccountId);
+  if (!cleanedTitle) return sessions;
+
+  const targetIndex = sessions.findIndex((s) => s.id === sessionId);
+  if (targetIndex < 0) return sessions;
+
+  const updated = [...sessions];
+  updated[targetIndex] = {
+    ...updated[targetIndex],
+    title: cleanedTitle,
+    titleSource: "ai",
+    updatedAt: Date.now(),
+  };
+  saveOpsAiSessions(updated, true, normalizedAccountId);
+  return updated;
 }
 
 /**
  * Deletes a single conversation session.
  */
-export function deleteOpsAiSession(sessionId: string): OpsAiSession[] {
+export function deleteOpsAiSession(sessionId: string, accountId?: string): OpsAiSession[] {
   if (typeof localStorage === "undefined") return [];
 
-  const sessions = loadOpsAiSessions();
+  const sessions = loadOpsAiSessions(accountId);
   const filtered = sessions.filter((s) => s.id !== sessionId);
-  saveOpsAiSessions(filtered);
+  saveOpsAiSessions(filtered, true, accountId);
 
-  const activeId = loadActiveSessionId();
+  const activeId = loadActiveSessionId(accountId);
   if (activeId === sessionId) {
     if (filtered.length > 0) {
-      saveActiveSessionId(filtered[0].id);
-      saveOpsAiMessages(filtered[0].messages);
+      saveActiveSessionId(filtered[0].id, accountId);
+      saveOpsAiMessages(filtered[0].messages, true, accountId);
     } else {
-      localStorage.removeItem(STORAGE_KEY_ACTIVE_SESSION_ID);
-      localStorage.removeItem(STORAGE_KEY_MESSAGES_V2);
+      localStorage.removeItem(accountKey(STORAGE_KEY_ACTIVE_SESSION_ID, accountId));
+      localStorage.removeItem(accountKey(STORAGE_KEY_MESSAGES_V2, accountId));
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("zyx:ops-ai-messages-updated"));
       }
@@ -371,13 +417,13 @@ export function deleteOpsAiSession(sessionId: string): OpsAiSession[] {
 /**
  * Clears ALL chat messages and sessions completely from storage.
  */
-export function clearAllOpsAiSessions(): void {
+export function clearAllOpsAiSessions(accountId?: string): void {
   if (typeof localStorage === "undefined") return;
   try {
-    localStorage.removeItem(STORAGE_KEY_SESSIONS_V2);
-    localStorage.removeItem(STORAGE_KEY_ACTIVE_SESSION_ID);
-    localStorage.removeItem(STORAGE_KEY_MESSAGES_V2);
-    localStorage.removeItem(STORAGE_KEY_MESSAGES_V1);
+    localStorage.removeItem(accountKey(STORAGE_KEY_SESSIONS_V2, accountId));
+    localStorage.removeItem(accountKey(STORAGE_KEY_ACTIVE_SESSION_ID, accountId));
+    localStorage.removeItem(accountKey(STORAGE_KEY_MESSAGES_V2, accountId));
+    localStorage.removeItem(accountKey(STORAGE_KEY_MESSAGES_V1, accountId));
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("zyx:ops-ai-sessions-updated"));
       window.dispatchEvent(new CustomEvent("zyx:ops-ai-messages-updated"));
@@ -390,31 +436,31 @@ export function clearAllOpsAiSessions(): void {
 /**
  * Loads messages with automatic v1 to v2 migration.
  */
-export function loadOpsAiMessages(): OpsAiMessageV2[] {
+export function loadOpsAiMessages(accountId?: string): OpsAiMessageV2[] {
   if (typeof localStorage === "undefined") return [];
 
   try {
-    const activeId = loadActiveSessionId();
+    const activeId = loadActiveSessionId(accountId);
     if (activeId) {
-      const sessions = loadOpsAiSessions();
+      const sessions = loadOpsAiSessions(accountId);
       const current = sessions.find((s) => s.id === activeId);
       if (current) return current.messages;
     }
 
-    const v2Raw = localStorage.getItem(STORAGE_KEY_MESSAGES_V2);
+    const v2Raw = localStorage.getItem(accountKey(STORAGE_KEY_MESSAGES_V2, accountId));
     if (v2Raw) {
       const parsed = JSON.parse(v2Raw);
       if (Array.isArray(parsed)) return parsed;
     }
 
     // Check v1 data for migration
-    const v1Raw = localStorage.getItem(STORAGE_KEY_MESSAGES_V1);
+    const v1Raw = localStorage.getItem(accountKey(STORAGE_KEY_MESSAGES_V1, accountId));
     if (v1Raw) {
       const migrated = migrateChatHistoryV1ToV2(v1Raw);
       // Remove v1 permanently
-      localStorage.removeItem(STORAGE_KEY_MESSAGES_V1);
+      localStorage.removeItem(accountKey(STORAGE_KEY_MESSAGES_V1, accountId));
       if (migrated.length > 0) {
-        localStorage.setItem(STORAGE_KEY_MESSAGES_V2, JSON.stringify(migrated));
+        localStorage.setItem(accountKey(STORAGE_KEY_MESSAGES_V2, accountId), JSON.stringify(migrated));
       }
       return migrated;
     }
@@ -428,13 +474,13 @@ export function loadOpsAiMessages(): OpsAiMessageV2[] {
 /**
  * Persists messages to v2 storage.
  */
-export function saveOpsAiMessages(messages: OpsAiMessageV2[], skipEvent = false): void {
+export function saveOpsAiMessages(messages: OpsAiMessageV2[], skipEvent = false, accountId?: string): void {
   if (typeof localStorage === "undefined") return;
   try {
     if (messages.length > 0) {
-      localStorage.setItem(STORAGE_KEY_MESSAGES_V2, JSON.stringify(messages));
+      localStorage.setItem(accountKey(STORAGE_KEY_MESSAGES_V2, accountId), JSON.stringify(messages));
     } else {
-      localStorage.removeItem(STORAGE_KEY_MESSAGES_V2);
+      localStorage.removeItem(accountKey(STORAGE_KEY_MESSAGES_V2, accountId));
     }
     if (!skipEvent && typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("zyx:ops-ai-messages-updated"));
@@ -447,14 +493,14 @@ export function saveOpsAiMessages(messages: OpsAiMessageV2[], skipEvent = false)
 /**
  * Clears chat messages from v2 storage.
  */
-export function clearOpsAiMessages(): void {
+export function clearOpsAiMessages(accountId?: string): void {
   if (typeof localStorage === "undefined") return;
   try {
-    localStorage.removeItem(STORAGE_KEY_MESSAGES_V2);
-    localStorage.removeItem(STORAGE_KEY_MESSAGES_V1);
-    const activeId = loadActiveSessionId();
+    localStorage.removeItem(accountKey(STORAGE_KEY_MESSAGES_V2, accountId));
+    localStorage.removeItem(accountKey(STORAGE_KEY_MESSAGES_V1, accountId));
+    const activeId = loadActiveSessionId(accountId);
     if (activeId) {
-      updateOpsAiSessionMessages(activeId, []);
+      updateOpsAiSessionMessages(activeId, [], accountId);
     }
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("zyx:ops-ai-messages-updated"));

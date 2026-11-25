@@ -396,10 +396,10 @@ export function AdminUploadDocumentDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-5 font-sans">
-          <DialogHeader className="space-y-1">
-            <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
-              <DialogTitle className="font-heading text-h5 text-foreground">
+        <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
+          <DialogHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <DialogTitle className="text-body-base text-foreground">
                 {t("documents.upload.title")}
               </DialogTitle>
               <Button
@@ -421,7 +421,7 @@ export function AdminUploadDocumentDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleUpload} className="space-y-3.5 pt-1">
+          <form onSubmit={handleUpload} className="space-y-(--compact-gap)">
             {/* File Dropzone */}
             {!selectedFile ? (
               <label
@@ -436,15 +436,13 @@ export function AdminUploadDocumentDialog({
                   const file = e.dataTransfer.files?.[0];
                   if (file) handleFile(file);
                 }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring ${
+                className={`flex min-h-12 cursor-pointer items-center gap-2.5 rounded-lg border border-dashed p-(--compact-gap) transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring ${
                   isDragOver
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-border/80 hover:bg-muted/20"
                 }`}
               >
-                <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  <Upload className="size-4" />
-                </div>
+                <Upload className="size-5 shrink-0 text-muted-foreground" aria-hidden />
                 <div>
                   <p className="text-body-sm font-semibold text-foreground">
                     {t("documents.upload.dropzone")}
@@ -462,13 +460,11 @@ export function AdminUploadDocumentDialog({
                 />
               </label>
             ) : (
-              <div className="flex items-center justify-between rounded-lg border border-border bg-card p-3 shadow-2xs">
+              <div className="flex items-center justify-between gap-2 border-y border-border/60 py-(--row-padding)">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-status-success/10 text-status-success">
-                    <FileText className="size-4" />
-                  </div>
+                  <FileText className="size-5 shrink-0 text-status-success" aria-hidden />
                   <div className="min-w-0">
-                    <p className="truncate text-body-sm font-semibold text-foreground" title={selectedFile.name}>
+                    <p className="wrap-anywhere text-body-sm font-semibold text-foreground">
                       {selectedFile.name}
                     </p>
                     <p className="text-body-xs text-muted-foreground">
@@ -497,7 +493,7 @@ export function AdminUploadDocumentDialog({
                 {t("documents.upload.documentType")}
               </Label>
               <Select value={intent} onValueChange={(value) => handleIntentChange(value as IntentType)} disabled={loading}>
-                <SelectTrigger id="upload-document-type" className="h-9 text-body-sm"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="upload-document-type" className="h-9 bg-muted/35"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="materi">{t("documents.upload.types.material")}</SelectItem>
                   <SelectItem value="scl">{t("documents.upload.types.scl")}</SelectItem>
@@ -510,7 +506,7 @@ export function AdminUploadDocumentDialog({
 
             {/* Dynamic Controls Per Intent */}
             {intent === "materi" && (
-              <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
+              <div className="space-y-(--compact-gap) border-t border-border/60 pt-(--compact-gap)">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="space-y-1">
                     <Label htmlFor="upload-chapter" className="text-body-sm font-semibold text-foreground">
@@ -524,7 +520,7 @@ export function AdminUploadDocumentDialog({
                       }}
                       disabled={loading}
                     >
-                      <SelectTrigger id="upload-chapter" className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-chapter" className="h-9 bg-muted/35">
                         <SelectValue placeholder={t("documents.upload.selectChapterLabel")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -546,7 +542,7 @@ export function AdminUploadDocumentDialog({
                       onValueChange={(val) => setQualifier(val as MaterialRoleQualifier)}
                       disabled={loading}
                     >
-                      <SelectTrigger id="upload-qualifier" className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-qualifier" className="h-9 bg-muted/35">
                         <SelectValue placeholder={t("documents.upload.selectQualifier")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -594,7 +590,7 @@ export function AdminUploadDocumentDialog({
             )}
 
             {intent === "scl" && (
-              <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
+              <div className="space-y-(--compact-gap) border-t border-border/60 pt-(--compact-gap)">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="space-y-1">
                     <Label htmlFor="upload-chapter" className="text-body-sm font-semibold text-foreground">
@@ -608,7 +604,7 @@ export function AdminUploadDocumentDialog({
                       }}
                       disabled={loading}
                     >
-                      <SelectTrigger id="upload-chapter" className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-chapter" className="h-9 bg-muted/35">
                         <SelectValue placeholder={t("documents.upload.selectChapterLabel")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -637,7 +633,7 @@ export function AdminUploadDocumentDialog({
             )}
 
             {intent === "ujian" && (
-              <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
+              <div className="space-y-(--compact-gap) border-t border-border/60 pt-(--compact-gap)">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div className="space-y-1">
                     <Label htmlFor="upload-exam" className="text-body-sm font-semibold text-foreground">
@@ -648,7 +644,7 @@ export function AdminUploadDocumentDialog({
                       onValueChange={(val) => setSubcategory(val as CourseMaterialSubcategory)}
                       disabled={loading}
                     >
-                      <SelectTrigger id="upload-exam" className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-exam" className="h-9 bg-muted/35">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -668,7 +664,7 @@ export function AdminUploadDocumentDialog({
                       onValueChange={(val) => handleDocRoleChange(val as "soal" | "pembahasan")}
                       disabled={loading}
                     >
-                      <SelectTrigger id="upload-role" className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-role" className="h-9 bg-muted/35">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -781,7 +777,7 @@ export function AdminUploadDocumentDialog({
             )}
 
             {intent === "latihan" && (
-              <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
+              <div className="space-y-(--compact-gap) border-t border-border/60 pt-(--compact-gap)">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div className="space-y-1">
                     <Label htmlFor="upload-subtype" className="text-body-sm font-semibold text-foreground">
@@ -792,7 +788,7 @@ export function AdminUploadDocumentDialog({
                       onValueChange={(val) => setSubcategory(val as CourseMaterialSubcategory)}
                       disabled={loading}
                     >
-                      <SelectTrigger id="upload-subtype" className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-subtype" className="h-9 bg-muted/35">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -815,7 +811,7 @@ export function AdminUploadDocumentDialog({
                       onValueChange={(val) => handleDocRoleChange(val as "soal" | "pembahasan")}
                       disabled={loading}
                     >
-                      <SelectTrigger id="upload-role" className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-role" className="h-9 bg-muted/35">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -910,7 +906,7 @@ export function AdminUploadDocumentDialog({
             )}
 
             {intent === "ebook" && (
-              <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
+              <div className="space-y-(--compact-gap) border-t border-border/60 pt-(--compact-gap)">
                 <div className="space-y-1">
                   <Label htmlFor="upload-book" className="text-body-sm font-semibold text-foreground">
                     {t("documents.upload.bookTitleOrAuthor")}
@@ -968,7 +964,7 @@ export function AdminUploadDocumentDialog({
               )}
             </div>
 
-            <DialogFooter className="gap-2 pt-2 sm:justify-end">
+            <DialogFooter className="flex-row flex-wrap justify-end gap-2 pt-2">
               <Button
                 type="button"
                 variant="outline"

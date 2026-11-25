@@ -1277,22 +1277,60 @@ test("own vs other chat bubbles and clickable author profile dialog", async ({ p
 });
 
 test("compact discussion status resolution, reopening and deep link", async ({ page }, info) => {
+  test.skip(Boolean(info.project.use.hasTouch), "Mobile status changes use row swipes");
   await open(page, "?question=function");
   await page.getByRole("button", { name: "Selesaikan", exact: true }).click();
   await expect(page.locator("[data-discussion-status]")).toHaveAccessibleDescription("Selesai");
   await capture(page, info, "resolved-selected");
-  if (page.viewportSize()!.width < 900) await page.getByRole("button", { name: "Kembali ke pertanyaan" }).click();
   await page.getByRole("button", { name: "Selesai", exact: true }).click();
   const moved = page.locator('[data-question-status="resolved"]').filter({ hasText: "Cara membaca domain" });
   await expect(moved).toBeVisible();
   await moved.click();
   await page.getByRole("button", { name: "Buka kembali", exact: true }).click();
   await expect(page.locator("[data-discussion-status]")).toHaveAccessibleDescription("Terbuka");
-  if (page.viewportSize()!.width < 900) await page.getByRole("button", { name: "Kembali ke pertanyaan" }).click();
   await expect(page.locator('[data-question-status="open"]').filter({ hasText: "Cara membaca domain" })).toBeVisible();
   await open(page, "?question=motion");
   await expect(page.locator("[data-discussion-status]")).toHaveAccessibleDescription("Selesai");
   await capture(page, info, "resolved-deep-link");
+});
+
+test("mobile swipe updates the list before confirmation and restores it on failure", async ({ page }, info) => {
+  test.skip(!info.project.use.hasTouch, "Mobile swipe gesture");
+  await open(page, "?question=none&fail=status");
+  await page.clock.install();
+  await page.getByRole("button", { name: "Selesai", exact: true }).click();
+
+  const title = "Cara membaca domain dari grafik fungsi";
+  const openRow = page.locator('[data-question-status="open"]').filter({ hasText: title });
+  const resolvedRow = page.locator('[data-question-status="resolved"]').filter({ hasText: title });
+  const swipe = async (row: Locator) => {
+    await row.locator("xpath=ancestor::*[@data-swipeable-discussion-row]").evaluate(element => {
+      for (const [type, x] of [["touchstart", 200], ["touchmove", 110], ["touchend", 110]] as const) {
+        const point = new Touch({ identifier: 1, target: element, clientX: x, clientY: 200 });
+        element.dispatchEvent(new TouchEvent(type, { bubbles: true, touches: type === "touchend" ? [] : [point], changedTouches: [point] }));
+      }
+    });
+  };
+
+  await swipe(openRow);
+  await expect(openRow).toHaveCount(0);
+  await capture(page, info, "swipe-resolve-pending");
+  await page.clock.runFor(1500);
+  await expect(openRow).toBeVisible();
+  await expect(page.getByText("Status gagal disimpan. Coba lagi.", { exact: true })).toBeVisible();
+  await capture(page, info, "swipe-resolve-restored");
+
+  await swipe(openRow);
+  await page.clock.runFor(1500);
+  await expect(openRow).toHaveCount(0);
+  await expect(resolvedRow).toBeVisible();
+  await expect(page.getByText("Status gagal disimpan. Coba lagi.", { exact: true })).toHaveCount(0);
+  await capture(page, info, "swipe-resolved");
+  await swipe(resolvedRow);
+  await expect(resolvedRow).toHaveCount(0);
+  await page.clock.runFor(1500);
+  await expect(openRow).toBeVisible();
+  await capture(page, info, "swipe-reopened");
 });
 
 test("question metadata separates channel and answer count", async ({ page }, info) => {
@@ -1412,4 +1450,76 @@ test("compact discussion live composer and four image recovery", async ({ page }
   await capture(page, info, "live-editor-uncertain-lock");
   await page.getByRole("button", { name: "Coba kirim lagi", exact: true }).click();
   await expect(page.locator('[data-message-id]').last().locator(".katex")).toHaveCount(1);
+});
+
+test("pull indicator tracks the gesture without moving discussion content", async ({ page }, info) => {
+  await open(page, "?question=none&state=pull-refresh");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  const wrapper = page.locator("[data-pull-to-refresh]");
+  const indicator = wrapper.locator("[data-pull-indicator]");
+  const content = page.locator("[data-fixture-refresh-attempts]");
+  const gesture = async (type: string, y: number) => {
+    return content.evaluate((element, { type, y }) => {
+      const touch = new Touch({ identifier: 1, target: element, clientX: 120, clientY: y });
+      const touches = type === "touchstart" || type === "touchmove" ? [touch] : [];
+      return element.dispatchEvent(new TouchEvent(type, { bubbles: true, cancelable: true, touches, changedTouches: [touch] }));
+    }, { type, y });
+  };
+
+  const { y } = (await content.boundingBox())!;
+  await gesture("touchstart", 100);
+  await gesture("touchmove", 150);
+
+  if (!info.project.use.hasTouch) {
+    await gesture("touchend", 150);
+    await expect(wrapper).toHaveAttribute("data-pull-to-refresh", "idle");
+    await expect(indicator).toBeHidden();
+    await expect(content).toHaveAttribute("data-fixture-refresh-attempts", "0");
+    await capture(page, info, "pull-desktop-idle");
+    return;
+  }
+
+  await expect(wrapper).toHaveAttribute("data-pull-to-refresh", "pulling");
+  await expect.poll(async () => (await indicator.boundingBox())!.y).toBeGreaterThan(y - 40);
+  const pullingY = (await indicator.boundingBox())!.y;
+  await capture(page, info, "pull-tracking");
+
+  await gesture("touchmove", 290);
+  await expect(wrapper).toHaveAttribute("data-pull-to-refresh", "ready");
+  await expect.poll(async () => (await indicator.boundingBox())!.y).toBeGreaterThan(pullingY);
+  expect((await content.boundingBox())!.y).toBe(y);
+  await capture(page, info, "pull-ready");
+  await gesture("touchcancel", 290);
+  await expect(wrapper).toHaveAttribute("data-pull-to-refresh", "idle");
+  await expect(content).toHaveAttribute("data-fixture-refresh-attempts", "0");
+
+  await gesture("touchstart", 100);
+  await gesture("touchmove", 290);
+  expect(await gesture("touchmove", 90)).toBe(true);
+  await gesture("touchend", 90);
+  await expect(wrapper).toHaveAttribute("data-pull-to-refresh", "idle");
+  await expect(content).toHaveAttribute("data-fixture-refresh-attempts", "0");
+
+  await page.clock.install();
+  await gesture("touchstart", 100);
+  await gesture("touchmove", 290);
+  await gesture("touchend", 290);
+  await expect(wrapper).toHaveAttribute("data-pull-to-refresh", "refreshing");
+  await expect(content).toHaveAttribute("data-fixture-refresh-attempts", "1");
+  await capture(page, info, "pull-refreshing");
+  await page.clock.runFor(1000);
+  await expect(wrapper).toHaveAttribute("data-pull-to-refresh", "error");
+  await capture(page, info, "pull-retry");
+  await wrapper.getByRole("button", { name: "Coba lagi", exact: true }).click();
+  await page.clock.runFor(1000);
+  await expect(content).toHaveAttribute("data-fixture-refresh-attempts", "2");
+  await expect(wrapper).toHaveAttribute("data-pull-to-refresh", "idle");
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await gesture("touchstart", 100);
+  await gesture("touchmove", 150);
+  await gesture("touchend", 150);
+  await expect(wrapper).toHaveAttribute("data-pull-to-refresh", "idle");
+  await expect.poll(() => indicator.evaluate(element => parseFloat(getComputedStyle(element).transitionDuration))).toBeLessThan(0.001);
+  await expect(content).toHaveAttribute("data-fixture-refresh-attempts", "2");
 });

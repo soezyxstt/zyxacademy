@@ -135,38 +135,27 @@ export function McpAuthorizeView({
   })();
 
   return (
-    <div className="w-full max-w-xl">
-      <div>
-        <h1 className="break-all font-heading text-h5 font-bold text-foreground">
-          {t("title", { client: client.clientName })}
-        </h1>
-      </div>
+    <div className="w-full space-y-(--related-gap)">
+      <h1 className="wrap-anywhere font-heading text-h5 font-bold text-foreground">
+        {t("title", { client: client.clientName })}
+      </h1>
 
-      {/* Account Info Pill */}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-y border-border py-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-body-sm font-semibold text-foreground truncate">
-                {user.name || user.email.split("@")[0]}
-              </p>
-              {isAdmin ? (
-                <Badge variant="default" className="text-body-2xs font-medium">
-                  {t("admin")}
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="text-body-2xs font-medium text-muted-foreground">
-                  {t("notAdmin")}
-                </Badge>
-              )}
-            </div>
-            <p className="text-body-xs text-muted-foreground truncate">{user.email}</p>
+      <div className="flex flex-wrap items-center justify-between gap-(--compact-gap) border-y border-border/60 py-(--row-padding)">
+        <div className="min-w-0 flex-1 basis-44">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="wrap-anywhere text-body-sm font-semibold text-foreground">
+              {user.name || user.email.split("@")[0]}
+            </p>
+            <Badge variant="secondary" className="text-body-2xs font-medium text-muted-foreground">
+              {t(isAdmin ? "admin" : "notAdmin")}
+            </Badge>
           </div>
+          <p className="wrap-anywhere text-body-xs text-muted-foreground">{user.email}</p>
         </div>
 
         <Link
           href={`/sign-in?next=${encodeURIComponent(currentPathWithSearch)}`}
-          className="text-body-xs font-medium text-primary hover:underline shrink-0"
+          className="shrink-0 text-body-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
           {t("switchAccount")}
         </Link>
@@ -174,40 +163,40 @@ export function McpAuthorizeView({
 
       {/* Non-Admin Block Warning */}
       {!isAdmin ? (
-        <div className="mt-5 space-y-4">
-          <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4">
+        <div className="space-y-(--related-gap)">
+          <div className="border-l-2 border-destructive/40 py-1 pl-(--compact-gap)">
             <div className="flex items-start gap-3">
               <AlertTriangle className="size-5 text-status-error shrink-0 mt-0.5" />
               <div>
                 <h2 className="text-body-sm font-semibold text-foreground">
                   {t("adminRequired")}
                 </h2>
-                <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
+                <p className="mt-1 wrap-anywhere text-body-xs leading-relaxed text-muted-foreground">
                   {t("adminRequiredDescription", { email: user.email })}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
-            <Button asChild className="h-10 w-full sm:flex-1">
-              <Link href={`/sign-in?next=${encodeURIComponent(currentPathWithSearch)}`}>
-                {t("signInAdmin")}
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-10 w-full sm:flex-1">
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button asChild variant="outline">
               <a href={cancelUrl}>
                 {t("cancelReturn")}
               </a>
+            </Button>
+            <Button asChild>
+              <Link href={`/sign-in?next=${encodeURIComponent(currentPathWithSearch)}`}>
+                {t("signInAdmin")}
+              </Link>
             </Button>
           </div>
         </div>
       ) : (
         /* Admin Interactive Consent Flow */
-        <div className="mt-4 space-y-3">
+        <div className="space-y-(--compact-gap)">
           {/* Permissions / Scopes list */}
           <div>
-            <div className="flex items-center justify-between mb-2.5">
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="text-body-sm font-semibold text-foreground">
                 {t("permissions")}
               </h2>
@@ -216,7 +205,7 @@ export function McpAuthorizeView({
               </span>
             </div>
 
-            <div className="divide-y divide-border border-y border-border">
+            <div className="divide-y divide-border/60 border-y border-border/60">
               {Array.from(groups, ([group, members]) => {
                 const count = members.filter(scope => selectedScopes.includes(scope)).length;
                 const name = t(`groups.${group}`);
@@ -231,16 +220,18 @@ export function McpAuthorizeView({
                         : current.filter(scope => !members.includes(scope)))}
                     />
                     <CollapsibleTrigger asChild>
-                      <Button type="button" variant="ghost" className="group min-h-9 flex-1 justify-between whitespace-normal text-body-sm">
-                        {name}
-                        <span className="flex items-center gap-2 text-body-xs text-muted-foreground">
-                          {count}/{members.length}
-                          <ChevronDown className="size-4 group-data-[state=open]:rotate-180" />
+                      <Button type="button" variant="ghost" className="group h-auto min-h-9 min-w-0 flex-1 whitespace-normal text-left [&>span]:w-full">
+                        <span className="flex w-full items-center justify-between gap-2">
+                          <span className="min-w-0 wrap-anywhere">{name}</span>
+                          <span className="flex shrink-0 items-center gap-2 text-body-xs text-muted-foreground">
+                            {count}/{members.length}
+                            <ChevronDown className="size-4 group-data-[state=open]:rotate-180" />
+                          </span>
                         </span>
                       </Button>
                     </CollapsibleTrigger>
                   </div>
-                  <CollapsibleContent className="pl-4">
+                  <CollapsibleContent className="ml-(--related-gap) divide-y divide-border/40">
                     {members.map((scope) => {
                       const detail = SCOPE_DETAILS[scope] ?? {
                         titleKey: "unknownScopeTitle",
@@ -253,12 +244,8 @@ export function McpAuthorizeView({
 
                       return (
                         <label key={scope} htmlFor={`scope-${scope}`} className="flex cursor-pointer items-start gap-3 py-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-body-sm font-medium text-foreground">
-                                {title}
-                              </p>
-                            </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="wrap-anywhere text-body-sm font-medium text-foreground">{title}</p>
                             {!adminDescription && <p className="mt-0.5 text-body-xs text-muted-foreground leading-normal">
                               {t(detail.descriptionKey)}
                             </p>}
@@ -285,31 +272,25 @@ export function McpAuthorizeView({
           {requestsAdminAccess && (selectedScopes.some(scope => ["forms:responses:read", "forms:responses:export", "users:pii:read"].includes(scope))) && (
             <p className="text-body-xs text-muted-foreground">{t("adminData")}</p>
           )}
-          <details className="border-b border-border pb-2">
+          <details className="border-b border-border/60 pb-2">
             <summary className="cursor-pointer text-body-sm font-medium">
               <ShieldCheck className="mr-2 inline size-4 text-status-success" />
               <span>{t("security")}</span>
             </summary>
-            <ul className="space-y-1.5 text-body-xs text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <span className="size-1 rounded-full bg-muted-foreground shrink-0" />
-                <span>{t("noPasswords")}</span>
-              </li>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-body-xs text-muted-foreground">
+              <li className="text-body-xs">{t("noPasswords")}</li>
               {!requestsAdminAccess && <li className="text-body-xs">{t("noStudentData")}</li>}
-              <li className="flex items-center gap-2">
-                <span className="size-1 rounded-full bg-muted-foreground shrink-0" />
-                <span>{t("scopeBoundary")}</span>
-              </li>
+              <li className="text-body-xs">{t("scopeBoundary")}</li>
             </ul>
           </details>
 
           {/* Host & Target metadata */}
-          <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-body-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-body-xs text-muted-foreground">
+            <div className="flex min-w-0 items-start gap-1.5">
               <Globe className="size-3.5 shrink-0" />
-              <span className="break-all">{t("target")}: <span className="font-mono text-foreground">{redirectHostname}</span></span>
+              <span className="wrap-anywhere">{t("target")}: <span className="font-mono text-foreground">{redirectHostname}</span></span>
             </div>
-            <span className="shrink-0 text-body-2xs font-medium">{t("sessionDuration")}</span>
+            <span>{t("sessionDuration")}</span>
           </div>
 
           {/* Actions Form */}
@@ -319,7 +300,7 @@ export function McpAuthorizeView({
                 await submitMcpAuthorization(formData);
               });
             }}
-            className="grid gap-2 sm:grid-cols-2"
+            className="flex flex-wrap items-center justify-end gap-2"
           >
             <input type="hidden" name="client_id" value={searchParams.clientId} />
             <input type="hidden" name="expected_user_id" value={user.id} />
@@ -337,9 +318,20 @@ export function McpAuthorizeView({
             <Button
               type="submit"
               name="decision"
+              value="deny"
+              variant="outline"
+              disabled={isPending}
+            >
+              <X className="size-4" />
+              {t("deny")}
+            </Button>
+
+            <Button
+              type="submit"
+              name="decision"
               value="approve"
               disabled={isPending || selectedScopes.length === 0}
-              className="h-auto min-h-10 min-w-0 w-full gap-2 whitespace-normal py-2 text-body-sm"
+              className="h-auto min-h-9 min-w-0 max-w-full whitespace-normal py-2"
             >
               {isPending ? (
                 <>
@@ -355,25 +347,14 @@ export function McpAuthorizeView({
             </Button>
 
             {selectedScopes.length === 0 && (
-              <p role="status" className="order-last text-body-xs text-destructive sm:col-span-2">{t("selectScope")}</p>
+              <p role="status" className="basis-full text-right text-body-xs text-destructive">{t("selectScope")}</p>
             )}
-
-            <Button
-              type="submit"
-              name="decision"
-              value="deny"
-              variant="outline"
-              disabled={isPending}
-              className="h-10 w-full gap-2 text-body-sm text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-4" />
-              {t("deny")}
-            </Button>
           </form>
 
           {/* Footnote */}
-          <p className="text-center text-body-xs text-muted-foreground leading-normal">
-            {t("revoke")}
+          <p className="text-body-xs leading-normal text-muted-foreground">
+            {t("revoke")}{" "}
+            <Link href="/mcp/connections" className="font-medium underline underline-offset-4">{t("manageConnections")}</Link>
           </p>
         </div>
       )}

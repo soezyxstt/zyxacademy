@@ -335,7 +335,7 @@ export default function AdminMeetPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-(--section-gap)">
       <AdminPageHeader
         icon={Video}
         title={t("meetMainUI.title")}
@@ -398,11 +398,11 @@ export default function AdminMeetPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-body-xs font-semibold text-foreground">
+              <label htmlFor="meet-access" className="mb-1 block text-body-sm font-semibold text-foreground">
                 {t("meetMainUI.accessLabel")}
               </label>
               <Select value={accessType} onValueChange={(v) => setAccessType(v as any)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="meet-access">
                   <SelectValue placeholder={t("meetMainUI.chooseAccess")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -430,7 +430,7 @@ export default function AdminMeetPage() {
                       </span>
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[400px]" align="start">
+                  <PopoverContent className="w-[25rem] max-w-[calc(100vw-2rem)]" align="start">
                     <div className="space-y-3">
                       <Input
                         type="text"
@@ -440,7 +440,7 @@ export default function AdminMeetPage() {
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <Select value={roleFilter} onValueChange={setRoleFilter}>
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger aria-label={t("meetMainUI.role")} className="h-9">
                             <SelectValue placeholder={t("meetMainUI.role")} />
                           </SelectTrigger>
                           <SelectContent>
@@ -451,7 +451,7 @@ export default function AdminMeetPage() {
                           </SelectContent>
                         </Select>
                         <Select value={courseFilter} onValueChange={setCourseFilter}>
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger aria-label={t("meetMainUI.course")} className="h-9">
                             <SelectValue placeholder={t("meetMainUI.course")} />
                           </SelectTrigger>
                           <SelectContent>
@@ -480,7 +480,7 @@ export default function AdminMeetPage() {
                           </Button>
                         )}
                       </div>
-                      <div className="max-h-64 overflow-y-auto rounded-xl border border-border bg-background">
+                      <div className="max-h-[min(16rem,40dvh)] overflow-y-auto border-y border-border/60">
                         {usersLoading ? (
                           <ParticipantPickerSkeleton label={t("meetMainUI.loadingParticipants")} />
                         ) : filteredUsers.length === 0 ? (
@@ -489,7 +489,7 @@ export default function AdminMeetPage() {
                           filteredUsers.map((u) => (
                             <label
                               key={u.id}
-                              className="flex items-start gap-2.5 border-b border-border p-3 transition-colors last:border-b-0 hover:bg-muted/40"
+                              className="flex items-start gap-2.5 border-b border-border/60 py-2 transition-colors last:border-b-0 hover:bg-muted/40"
                             >
                               <Checkbox
                                 checked={selectedEmails.includes(u.email)}
@@ -732,11 +732,11 @@ export default function AdminMeetPage() {
           </div>
 
           {activeSpace && (
-            <div className="mt-4 border-t border-border pt-4">
+            <div className="mt-(--related-gap) flex justify-end border-t border-border/60 pt-(--compact-gap)">
               <Button
                 type="button"
                 variant="destructive"
-                className="w-full"
+                className="min-h-9"
                 onClick={handleEndConference}
                 disabled={ending}
               >
@@ -780,8 +780,80 @@ export default function AdminMeetPage() {
             </p>
           </div>
         ) : (
-          <div className="border-y border-border">
-            <div className="overflow-x-auto">
+          <div className="border-y border-border/60">
+            {/* Mobile stacked rows */}
+            <div className="divide-y divide-border/60 md:hidden">
+              {records.map((rec) => {
+                const recordId = rec.name.replace(/^conferenceRecords\//, "");
+                const isDeleting = deletingId === recordId;
+                const peak = rec.peakConcurrentParticipants || rec.participantCount || 0;
+                const total = rec.participantCount || 0;
+
+                return (
+                  <div key={rec.name} className="space-y-1.5 py-(--row-padding)">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words text-body-sm font-bold text-foreground">
+                          {rec.title || t("meetMainUI.recordFallback", { id: recordId.slice(0, 8) })}
+                        </p>
+                        <p className="mt-0.5 text-body-xs text-muted-foreground">
+                          {new Date(rec.startTime).toLocaleDateString(locale === "id" ? "id-ID" : "en-US", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}{" "}
+                          · {formatTimeOnly(rec.startTime)} - {formatTimeOnly(rec.endTime)}
+                        </p>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Button variant="outline" size="sm" asChild className="h-8 px-2.5 text-body-sm">
+                          <Link href={`/admin/meet/${recordId}`}>
+                            <Users className="size-3.5" />
+                            <span>{t("meetMainUI.logDetails")}</span>
+                          </Link>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => setDeleteTarget({
+                            name: rec.name,
+                            title: rec.title || t("meetMainUI.recordFallback", { id: recordId.slice(0, 8) }),
+                          })}
+                          disabled={isDeleting}
+                          aria-label={t("meetMainUI.deleteLog")}
+                          title={t("meetMainUI.deleteLog")}
+                          className="size-8 border-status-error/30 bg-status-error/10 text-status-error hover:bg-status-error/20"
+                        >
+                          {isDeleting ? (
+                            <RefreshCw className="size-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-3.5" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs text-muted-foreground">
+                      <span className="font-medium">{calculateDuration(rec.startTime, rec.endTime)}</span>
+                      <div className="flex items-center gap-1.5 font-semibold text-foreground tabular-nums">
+                        <TrendingUp className="size-3.5 text-brand-primary" />
+                        <span>
+                          {t("meetMainUI.peakLabel")}: <strong className="text-brand-primary">{peak}</strong>
+                        </span>
+                        <span className="font-normal text-muted-foreground">
+                          ({t("meetMainUI.totalLabel")}: {total})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto md:block">
               <Table className="w-full text-left text-body-sm">
                 <TableHeader className="border-b border-border bg-muted/50 text-body-xs font-semibold text-muted-foreground">
                   <TableRow>

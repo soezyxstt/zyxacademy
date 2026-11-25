@@ -117,7 +117,7 @@ test("unprefixed requests ignore spoofed locale headers and prefixed private/API
   expect(plansResponse?.status()).toBe(200);
   await waitForVisualReadiness(page);
   await expect(page.locator("html")).toHaveAttribute("lang", "id");
-  await expect(page.getByRole("heading", { name: "Paket & layanan" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Paket belajar" })).toBeVisible();
 
   await page.setExtraHTTPHeaders({});
   const privatePath = "/en/admin";

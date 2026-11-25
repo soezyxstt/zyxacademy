@@ -116,72 +116,125 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
 
   return (
     <div className="space-y-3">
-      <AdminTable>
-        {/* Header */}
-        <div className="hidden md:grid grid-cols-[1.6fr_auto_auto_auto_auto] gap-4 px-5 py-3 border-b border-border bg-muted/30">
-          <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.message")}</span>
-          <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.type")}</span>
-          <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.status")}</span>
-          <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.read")}</span>
-          <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.time")}</span>
-        </div>
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <AdminTable>
+          {/* Header */}
+          <div className="grid grid-cols-[1.6fr_auto_auto_auto_auto] gap-4 px-5 py-3 border-b border-border bg-muted/30">
+            <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.message")}</span>
+            <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.type")}</span>
+            <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.status")}</span>
+            <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.read")}</span>
+            <span className="text-body-xs font-semibold text-muted-foreground">{t("notificationUI.time")}</span>
+          </div>
 
-        {/* Rows */}
-        <ul className="divide-y divide-border/60">
-          {history.map((row) => (
-            <li
-              key={row.id}
-              className="grid grid-cols-1 md:grid-cols-[1.6fr_auto_auto_auto_auto] gap-2 md:gap-4 px-5 py-3.5 hover:bg-muted/20 transition-colors"
-            >
-              {/* Message */}
-              <div className="min-w-0">
-                <p className="text-body-sm font-medium text-foreground truncate">{row.title}</p>
+          {/* Rows */}
+          <ul className="divide-y divide-border/60">
+            {history.map((row) => (
+              <li
+                key={row.id}
+                className="grid grid-cols-[1.6fr_auto_auto_auto_auto] gap-4 px-5 py-3.5 hover:bg-muted/20 transition-colors"
+              >
+                {/* Message */}
+                <div className="min-w-0">
+                  <p className="text-body-sm font-medium text-foreground truncate">{row.title}</p>
+                  {row.body ? (
+                    <p className="text-body-xs text-muted-foreground truncate mt-0.5">{row.body}</p>
+                  ) : null}
+                  <p className="text-body-xs text-muted-foreground truncate mt-1">
+                    {row.userName || row.userId}
+                  </p>
+                </div>
+
+                {/* Type badge */}
+                <div className="flex items-center">
+                  <TypeBadge type={row.type} label={t(`notificationUI.types.${row.type}`)} />
+                </div>
+
+                {/* Delivery status */}
+                <div className="flex items-center">
+                  <DeliveryStatus row={row} />
+                </div>
+
+                {/* Read status */}
+                <div className="flex items-center">
+                  {row.read ? (
+                    <span className="flex items-center gap-1 text-body-xs text-status-success">
+                      <CheckCircle2 className="size-3.5" />
+                      {t("notificationUI.read")}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
+                      <Circle className="size-3.5" />
+                      {t("notificationUI.unread")}
+                    </span>
+                  )}
+                </div>
+
+                {/* Timestamp */}
+                <div className="flex items-center">
+                  <span
+                    className="text-body-xs text-muted-foreground"
+                    title={new Date(row.createdAt).toLocaleString(locale === "en" ? "en-US" : "id-ID")}
+                  >
+                    {formatRelative(new Date(row.createdAt), t)}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </AdminTable>
+      </div>
+
+      {/* Mobile stacked rows */}
+      <ul className="divide-y divide-border/60 border-y border-border/60 md:hidden">
+        {history.map((row) => (
+          <li key={row.id} className="space-y-1.5 py-(--row-padding)">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-body-sm font-medium text-foreground break-words">{row.title}</p>
                 {row.body ? (
-                  <p className="text-body-xs text-muted-foreground truncate mt-0.5">{row.body}</p>
+                  <p className="text-body-xs text-muted-foreground line-clamp-2 mt-0.5">{row.body}</p>
                 ) : null}
-                <p className="text-body-xs text-muted-foreground truncate mt-1">
+                <p className="text-body-xs text-muted-foreground truncate mt-0.5">
                   {row.userName || row.userId}
                 </p>
               </div>
-
-              {/* Type badge */}
-              <div className="flex items-center">
-                <TypeBadge type={row.type} label={t(`notificationUI.types.${row.type}`)} />
-              </div>
-
-              {/* Delivery status */}
-              <div className="flex items-center">
-                <DeliveryStatus row={row} />
-              </div>
-
-              {/* Read status */}
-              <div className="flex items-center">
-                {row.read ? (
-                  <span className="flex items-center gap-1 text-body-xs text-status-success">
-                    <CheckCircle2 className="size-3.5" />
-                    {t("notificationUI.read")}
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
-                    <Circle className="size-3.5" />
-                    {t("notificationUI.unread")}
-                  </span>
-                )}
-              </div>
-
-              {/* Timestamp */}
-              <div className="flex items-center">
+              <div className="flex shrink-0 flex-col items-end gap-1">
                 <span
-                  className="text-body-xs text-muted-foreground"
+                  className="text-body-xs text-muted-foreground whitespace-nowrap"
                   title={new Date(row.createdAt).toLocaleString(locale === "en" ? "en-US" : "id-ID")}
                 >
                   {formatRelative(new Date(row.createdAt), t)}
                 </span>
+                <TypeBadge type={row.type} label={t(`notificationUI.types.${row.type}`)} />
               </div>
-            </li>
-          ))}
-        </ul>
-      </AdminTable>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <DeliveryStatus row={row} />
+                {row.attempted > 0 && (
+                  <span className="text-body-xs tabular-nums text-muted-foreground">
+                    ({row.succeeded}/{row.attempted})
+                  </span>
+                )}
+              </div>
+              {row.read ? (
+                <span className="flex items-center gap-1 text-body-xs text-status-success">
+                  <CheckCircle2 className="size-3.5" />
+                  {t("notificationUI.read")}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
+                  <Circle className="size-3.5" />
+                  {t("notificationUI.unread")}
+                </span>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
 
       {/* Pagination */}
       <div className="flex items-center justify-between gap-2">

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AlertCircle, BarChart3, TrendingUp } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/client";
 import {
   Sheet,
@@ -14,41 +15,52 @@ import { MathText } from "@/components/course/math-text";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import type { WeakConcept, ConceptTrend, MostMissedQuestion } from "@/lib/cohort-analytics";
 import { useSwipe } from "@/hooks/use-swipe";
+import { hapticLight } from "@/lib/native/haptics";
 
 interface Props {
   open: boolean;
   onClose: () => void;
+  onCloseAutoFocus?: (event: Event) => void;
   concept: WeakConcept | null;
   trends: ConceptTrend[];
   mostMissed: MostMissedQuestion[];
   courseId: string;
 }
 
-export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, courseId }: Props) {
+const subheadingClass =
+  "mb-2.5 flex items-center gap-2 border-b border-border/40 pb-1.5 font-heading text-body-sm font-bold text-foreground";
+
+export function ConceptDrilldown({ open, onClose, onCloseAutoFocus, concept, trends, mostMissed, courseId }: Props) {
   const t = useTranslations("tutor.analytics");
   useSwipe({
     onSwipeRight: () => {
-      if (open) onClose();
+      if (open) {
+        void hapticLight();
+        onClose();
+      }
     }
   });
 
   if (!concept) return null;
 
-  const remediationHref = `/admin/quizzes?courseId=${encodeURIComponent(courseId)}&tags=${encodeURIComponent(concept.conceptName)}`;
+  const remediationHref = `/tutor/${encodeURIComponent(courseId)}/quizzes?tags=${encodeURIComponent(concept.conceptName)}`;
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <SheetContent side="right" aria-describedby={undefined} className="sm:max-w-lg flex flex-col gap-0 p-0 overflow-y-auto">
-        <SheetHeader className="pl-5 pr-14 pt-5 pb-4 border-b border-border">
-          <SheetTitle className="text-body-base font-heading">
-            {concept.conceptName}
+      <SheetContent side="right" aria-describedby={undefined} onCloseAutoFocus={onCloseAutoFocus} className="flex flex-col gap-0 overflow-y-auto overscroll-contain p-0 sm:max-w-lg">
+        <SheetHeader className="border-b border-border/55 ps-(--panel-padding) pe-12 py-(--related-gap)">
+          <SheetTitle className="wrap-anywhere font-heading text-body-base">
+            <MathText>{concept.conceptName}</MathText>
           </SheetTitle>
         </SheetHeader>
 
-        <div className="flex flex-col gap-(--related-gap) px-5 py-4">
+        <div className="flex flex-col gap-6 px-(--panel-padding) py-(--related-gap)">
           {/* Distribution */}
           <section>
-            <p className="text-body-sm text-muted-foreground mb-2">{t("masteryDistribution")}</p>
+            <h3 className={subheadingClass}>
+              <BarChart3 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span>{t("masteryDistribution")}</span>
+            </h3>
             <DistributionBar
               low={concept.bucketLow}
               mid={concept.bucketMid}
@@ -56,17 +68,20 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
               total={concept.studentCount}
               className="w-full"
             />
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-body-xs text-muted-foreground">
-              <span><span className="text-status-error font-medium">{concept.bucketLow}</span> {t("low")}</span>
-              <span><span className="text-status-warning font-medium">{concept.bucketMid}</span> {t("mid")}</span>
-              <span><span className="text-primary font-medium">{concept.bucketHigh}</span> {t("high")}</span>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-body-xs tabular-nums text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-status-error" aria-hidden />{t("low")} <strong className="text-foreground">{concept.bucketLow}</strong></span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-status-warning" aria-hidden />{t("mid")} <strong className="text-foreground">{concept.bucketMid}</strong></span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-status-success" aria-hidden />{t("high")} <strong className="text-foreground">{concept.bucketHigh}</strong></span>
             </div>
           </section>
 
           {/* 4-week trend */}
           {trends.length >= 2 && (
             <section>
-              <p className="text-body-sm text-muted-foreground mb-2">{t("trendFourWeeks")}</p>
+              <h3 className={subheadingClass}>
+                <TrendingUp className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span>{t("trendFourWeeks")}</span>
+              </h3>
               <div className="h-24 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trends} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
@@ -89,6 +104,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
                       stroke="var(--color-primary)"
                       strokeWidth={2}
                       dot={false}
+                      isAnimationActive={false}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -97,7 +113,10 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
           )}
           {trends.length < 2 && (
             <section>
-              <p className="text-body-sm text-muted-foreground mb-2">{t("trendFourWeeks")}</p>
+              <h3 className={subheadingClass}>
+                <TrendingUp className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span>{t("trendFourWeeks")}</span>
+              </h3>
               <p className="text-body-sm text-muted-foreground italic">
                 {t("trendInsufficient")}
               </p>
@@ -107,12 +126,15 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
           {/* Most missed */}
           {mostMissed.length > 0 && (
             <section>
-              <p className="text-body-sm text-muted-foreground mb-2">{t("mostMissed")}</p>
-              <div className="divide-y divide-border">
+              <h3 className={subheadingClass}>
+                <AlertCircle className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span>{t("mostMissed")}</span>
+              </h3>
+              <div className="divide-y divide-border/30">
                 {mostMissed.map((q) => (
                   <div key={q.id} className="py-2.5 flex items-start justify-between gap-(--related-gap)">
                     <MathText className="text-body-sm min-w-0 break-words block" as="div">{q.prompt}</MathText>
-                    <span className="text-body-sm tabular-nums text-status-error shrink-0 font-medium">
+                    <span className="shrink-0 text-body-sm font-medium tabular-nums text-foreground">
                       {Math.round(q.correctRate * 100)}%
                     </span>
                   </div>
@@ -123,8 +145,8 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
         </div>
 
         {/* Footer action */}
-        <div className="mt-auto px-5 pb-5 pt-3 border-t border-border">
-          <Button variant="outline" size="sm" asChild>
+        <div className="mt-auto flex justify-end border-t border-border/55 px-(--panel-padding) py-(--related-gap)">
+          <Button variant="outline" size="sm" asChild className="h-auto min-h-9 whitespace-normal">
             <Link href={remediationHref}>{t("makeRemediationQuiz")}</Link>
           </Button>
         </div>

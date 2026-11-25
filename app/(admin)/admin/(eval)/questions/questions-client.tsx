@@ -610,7 +610,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
   };
 
   return (
-    <div className="w-full space-y-6 font-sans">
+    <div className="w-full min-w-0 space-y-(--related-gap)">
       {/* Search, filters, and actions */}
       <QuestionBankToolbar>
         <SearchBar
@@ -725,12 +725,12 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
         </TooltipProvider>
       </QuestionBankToolbar>
 
-      <div ref={tableRef} className="w-full space-y-6">
+      <div ref={tableRef} className="w-full space-y-(--compact-gap)">
         {/* Bulk actions - Floating Overlay */}
         {selected.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 rounded-xl border border-border/80 bg-background px-4 py-3 shadow-sm min-w-[320px] max-w-[90vw] animate-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-[calc(var(--mobile-bottom-nav-height,0px)+1rem)] left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center gap-3 rounded-xl border border-border/80 bg-background px-3.5 py-2.5 shadow-sm w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[320px] max-w-[90vw] md:bottom-6 md:gap-4 md:px-4 md:py-3 animate-in slide-in-from-bottom-4 duration-300">
               <span className="text-body-sm font-bold text-foreground shrink-0">{selected.size} {t("selectedCountLabel")}</span>
-          <div className="h-4 w-px bg-border/85 shrink-0" />
+          <div className="hidden h-4 w-px bg-border/85 shrink-0 sm:block" />
           <div className="flex gap-1.5 ml-auto flex-wrap">
             {(["reviewed", "published", "flagged", "retired"] as ReviewStatus[]).map((s) => (
               <Button
@@ -749,7 +749,99 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
         )}
 
       {/* Question list */}
-      <AdminTable className="w-full">
+      {/* Mobile stacked rows */}
+      <div className="border-y border-border md:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/40 px-2 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={toggleAll}
+              disabled={updating}
+              aria-label={allSelected ? t("clearAllSelection") : t("selectAllQuestions")}
+              className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {allSelected ? (
+                <CheckSquare className="size-4 text-brand-primary" />
+              ) : (
+                <Square className="size-4" />
+              )}
+            </button>
+            <span className="text-body-xs font-semibold text-muted-foreground">
+              Daftar soal ({total})
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Select
+              value={draft.pageSize}
+              onValueChange={(value) => {
+                setPageSize(Number(value));
+              }}
+            >
+              <SelectTrigger aria-label={t("pageSize")} className="h-7 w-[64px] rounded-md px-2 text-body-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="size-7 rounded-md p-0"
+                  disabled={safeCurrentPage <= 1}
+                  onClick={() => goToPage(safeCurrentPage - 1)}
+                  aria-label={t("previousPage")}
+                >
+                  <ChevronLeft className="size-3.5" />
+                </Button>
+                <span className="px-1 text-body-xs font-semibold tabular-nums text-muted-foreground">
+                  {safeCurrentPage}/{totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="size-7 rounded-md p-0"
+                  disabled={safeCurrentPage >= totalPages}
+                  onClick={() => goToPage(safeCurrentPage + 1)}
+                  aria-label={t("nextPage")}
+                >
+                  <ChevronRight className="size-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {total === 0 ? (
+          <AdminEmptyState icon={FileQuestion} title={t("empty")} className="py-6" />
+        ) : (
+          <div className="divide-y divide-border/60">
+            {paginatedQuestions.map((q) => (
+              <QuestionRow
+                key={q.id}
+                question={q}
+                courseMap={courseMap}
+                selected={selected.has(q.id)}
+                onToggle={() => toggleSelect(q.id)}
+                onEdit={handleStartEdit}
+                onDelete={handleStartDelete}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop list */}
+      <AdminTable className="hidden w-full md:block">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/50 px-4 py-3">
           <div className="flex items-center gap-3">
             <button
@@ -890,7 +982,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
                 <div className="space-y-1.5">
                   <label className="text-body-sm font-semibold text-foreground">{t("courseLabel")}</label>
                   <Select value={createCourseId} onValueChange={(value) => { setCreateCourseId(value); setCreateChapterId(""); setCreateIdeaLinks([]); }}>
-                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
+                    <SelectTrigger className="h-10 text-body-sm font-medium">
                       <SelectValue placeholder={t("chooseCourse")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -908,7 +1000,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
                 <div className="space-y-1.5">
                   <label className="text-body-sm font-semibold text-foreground">{t("typeLabel")}</label>
                   <Select value={createQuestionType} onValueChange={(val) => setCreateQuestionType(val as any)}>
-                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
+                    <SelectTrigger className="h-10 text-body-sm font-medium">
                       <SelectValue placeholder={t("selectType")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -923,7 +1015,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
                 <div className="space-y-1.5">
                   <label className="text-body-sm font-semibold text-foreground">{t("difficultyLabel")}</label>
                   <Select value={createDifficulty} onValueChange={(val) => setCreateDifficulty(val as any)}>
-                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
+                    <SelectTrigger className="h-10 text-body-sm font-medium">
                       <SelectValue placeholder={t("selectDifficulty")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -939,7 +1031,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
                 <div className="space-y-1.5">
                   <label className="text-body-sm font-semibold text-foreground">{t("cognitiveLevelLabel")}</label>
                   <Select value={createCognitiveLevel} onValueChange={(value) => setCreateCognitiveLevel(value as CognitiveLevel)}>
-                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10 text-body-sm font-medium"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {(["remember", "understand", "apply", "analyze", "evaluate", "create"] as CognitiveLevel[]).map((level) => <SelectItem key={level} value={level}>{t(`cognitive${level[0].toUpperCase()}${level.slice(1)}`)}</SelectItem>)}
                     </SelectContent>
@@ -1080,7 +1172,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
                   <div className="space-y-1.5">
                     <label className="text-body-sm font-semibold text-foreground">{t("courseLabel")}</label>
                     <Select value={editCourseId} onValueChange={(value) => { setEditCourseId(value); setEditChapterId(""); setEditIdeaLinks([]); }}>
-                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("chooseCourse")} /></SelectTrigger>
+                      <SelectTrigger className="h-10 text-body-sm font-medium"><SelectValue placeholder={t("chooseCourse")} /></SelectTrigger>
                       <SelectContent>
                         {authoringCourses.map((course) => <SelectItem key={course.id} value={course.id}>{course.code} · {course.title}</SelectItem>)}
                       </SelectContent>
@@ -1090,7 +1182,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
                   <div className="space-y-1.5">
                     <label className="text-body-sm font-semibold text-foreground">{t("typeLabel")}</label>
                     <Select value={editQuestionType} onValueChange={(val) => setEditQuestionType(val as any)}>
-                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
+                      <SelectTrigger className="h-10 text-body-sm font-medium">
                         <SelectValue placeholder={t("selectType")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -1105,7 +1197,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
                   <div className="space-y-1.5">
                     <label className="text-body-sm font-semibold text-foreground">{t("difficultyLabel")}</label>
                     <Select value={editDifficulty} onValueChange={(val) => setEditDifficulty(val as any)}>
-                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
+                      <SelectTrigger className="h-10 text-body-sm font-medium">
                         <SelectValue placeholder={t("selectDifficulty")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -1121,7 +1213,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
                   <div className="space-y-1.5">
                     <label className="text-body-sm font-semibold text-foreground">{t("cognitiveLevelLabel")}</label>
                     <Select value={editCognitiveLevel} onValueChange={(value) => setEditCognitiveLevel(value as CognitiveLevel)}>
-                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-10 text-body-sm font-medium"><SelectValue /></SelectTrigger>
                       <SelectContent>
                       {(["remember", "understand", "apply", "analyze", "evaluate", "create"] as CognitiveLevel[]).map((level) => <SelectItem key={level} value={level}>{t(`cognitive${level[0].toUpperCase()}${level.slice(1)}`)}</SelectItem>)}
                       </SelectContent>
@@ -1275,7 +1367,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
                 <div className="space-y-1.5">
                   <label className="text-body-sm font-semibold text-foreground">{t("courseLabel")}</label>
                   <Select value={bulkCourseId} onValueChange={(value) => { setBulkCourseId(value); setBulkChapterId(""); setBulkIdeaLinks([]); }}>
-                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("chooseCourse")} /></SelectTrigger>
+                    <SelectTrigger className="h-10 text-body-sm font-medium"><SelectValue placeholder={t("chooseCourse")} /></SelectTrigger>
                     <SelectContent>
                       {authoringCourses.map((course) => <SelectItem key={course.id} value={course.id}>{course.code} · {course.title}</SelectItem>)}
                     </SelectContent>
@@ -1365,7 +1457,7 @@ function AuthoringChapterSelect({ open, courseId, value, onChange }: {
     <div className="space-y-1.5" aria-busy={loading}>
       <label className="text-body-sm font-semibold text-foreground">{t("chapter")}</label>
       <Select value={value || "all"} onValueChange={(next) => onChange(next === "all" ? "" : next)} disabled={!courseId || loading || error}>
-        <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("allChaptersLabel")} /></SelectTrigger>
+        <SelectTrigger className="h-10 text-body-sm font-medium"><SelectValue placeholder={t("allChaptersLabel")} /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">{t("allChaptersLabel")}</SelectItem>
           {scoped?.chapters.map((chapter) => <SelectItem key={chapter.id} value={chapter.id}>{chapter.code} · {chapter.title}</SelectItem>)}
@@ -1500,7 +1592,7 @@ function IdeaAssignmentFields({
                     <div className="space-y-1">
                       <label htmlFor={`${idPrefix}-role-${idea.id}`} className="text-body-xs font-medium text-muted-foreground">{t("roleLabel")}</label>
                       <Select value={link.role} onValueChange={(role) => onChange(links.map((item) => item.ideaId === idea.id ? { ...item, role: role as IdeaRole } : item))}>
-                        <SelectTrigger id={`${idPrefix}-role-${idea.id}`} className="h-8 bg-background text-body-xs"><SelectValue /></SelectTrigger>
+                        <SelectTrigger id={`${idPrefix}-role-${idea.id}`} className="h-8 text-body-sm"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="primary">{t("rolePrimary")}</SelectItem>
                           <SelectItem value="supporting">{t("roleSupporting")}</SelectItem>
@@ -1557,7 +1649,7 @@ function QuestionRow({
     question.questionType === "multiple_choices" ? t("multipleChoices") : t("multipleChoice");
 
   return (
-    <Collapsible open={expanded} onOpenChange={setExpanded} className={cn("px-4 py-4 transition-colors", selected ? "bg-muted/15" : "hover:bg-muted/5")}>
+    <Collapsible open={expanded} onOpenChange={setExpanded} className={cn("px-2 py-3 transition-colors md:px-4 md:py-4", selected ? "bg-muted/15" : "hover:bg-muted/5")}>
       <div className="flex items-start gap-3">
         {isHistoricalReference ? (
           <StatusBadge tone="info" subtle className="mt-0.5 shrink-0">{t("reviewOnly")}</StatusBadge>
@@ -1635,7 +1727,7 @@ function QuestionRow({
       </div>
 
       <CollapsibleContent>
-        <div className="mt-4 ml-7.5 space-y-4 border-t border-border/40 pt-4 text-left">
+        <div className="mt-3 ml-0 space-y-4 border-t border-border/40 pt-3 text-left md:mt-4 md:ml-7.5 md:pt-4">
           {/* Multiple choice options */}
           {(question.questionType === "multiple_choice" || question.questionType === "multiple_choices" || (!question.questionType && options.length > 0)) && (
             <div className="grid gap-2 sm:grid-cols-2">

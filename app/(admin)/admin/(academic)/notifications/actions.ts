@@ -77,6 +77,10 @@ export async function sendBroadcastAction(
  }
 
  const result = await sendAdminBroadcast(title, body, link, resolvedTarget);
+ if (result.errors.length > 0) {
+  console.error("[sendBroadcastAction] Broadcast errors:", result.errors.length);
+  return { error: "Sebagian pengiriman bermasalah. Periksa riwayat pengiriman sebelum mencoba lagi." };
+ }
 
  return {
  success: true,

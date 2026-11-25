@@ -66,7 +66,7 @@ export function StudentPetStudio({ rewards, balance, onChangeReward }: { rewards
         {slots.map(slot => {
           const items = collection.filter(item => item.slot === slot);
           return <TabsContent key={slot} value={slot}>
-            {items.length === 0 ? <AdminEmptyState compact title={t("petStudio.unavailable")} /> : <ul className="divide-y divide-border">{items.map(item => {
+            {items.length === 0 ? <AdminEmptyState compact title={t("petStudio.unavailable")} /> : <ul className="divide-y divide-border/25">{items.map(item => {
           const free = item.id === DEFAULT_PET_ID;
           const owned = free || item.owned;
           const equipped = slot === "zyra_avatar" ? pet === item.id : item.equipped;

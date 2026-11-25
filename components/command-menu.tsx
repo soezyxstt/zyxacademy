@@ -18,6 +18,7 @@ export type { SearchItem };
 export type CommandMenuContextValue = {
   open?: boolean;
   setOpen: (open: boolean) => void;
+  openWithQuery: (query: string) => void;
 };
 
 const CommandMenuContext = createContext<CommandMenuContextValue | null>(null);
@@ -25,7 +26,7 @@ const CommandMenuContext = createContext<CommandMenuContextValue | null>(null);
 export function useCommandMenu() {
   const ctx = useContext(CommandMenuContext);
   if (!ctx) {
-    return { open: false, setOpen: () => {} };
+    return { open: false, setOpen: () => {}, openWithQuery: () => {} };
   }
   return ctx;
 }
@@ -44,10 +45,23 @@ export function CommandMenuProvider({
 }: {
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(false);
+  const [initialQuery, setInitialQuery] = useState("");
   const [studentId, setStudentId] = useState<string | null>(null);
   const pathname = usePathname();
   const studentSurface = !pathname?.startsWith("/admin") && !pathname?.startsWith("/tutor");
+
+  const setOpen = (next: boolean) => {
+    setOpenState(next);
+    if (!next) {
+      setInitialQuery("");
+    }
+  };
+
+  const openWithQuery = (query: string) => {
+    setInitialQuery(query);
+    setOpenState(true);
+  };
 
   // Global Ctrl+K / Cmd+K shortcut listener
   useEffect(() => {
@@ -56,17 +70,47 @@ export function CommandMenuProvider({
       const t = e.target as HTMLElement | null;
       if (t?.closest?.("[data-cmdk-ignore-shortcut]")) return;
       e.preventDefault();
-      setOpen((v) => !v);
+      setOpenState((v) => {
+        if (v) setInitialQuery("");
+        return !v;
+      });
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
   return (
-    <CommandMenuContext.Provider value={{ open, setOpen }}>
+    <CommandMenuContext.Provider value={{ open, setOpen, openWithQuery }}>
       {children}
-      {open && <CommandMenuDialog open={open} onOpenChange={setOpen} studentSurface={studentSurface} onSelectStudent={id => { if (studentSurface) { setOpen(false); setStudentId(id); } }} />}
-      {studentSurface && studentId && <StudentAccountBoundary>{account => isStudentSocialAccount(account) ? <StudentProfileDialog publicId={studentId} open onOpenChange={next => { if (!next) setStudentId(null); }} /> : null}</StudentAccountBoundary>}
+      {open && (
+        <CommandMenuDialog
+          open={open}
+          initialQuery={initialQuery}
+          onOpenChange={setOpen}
+          studentSurface={studentSurface}
+          onSelectStudent={(id) => {
+            if (studentSurface) {
+              setOpen(false);
+              setStudentId(id);
+            }
+          }}
+        />
+      )}
+      {studentSurface && studentId && (
+        <StudentAccountBoundary>
+          {(account) =>
+            isStudentSocialAccount(account) ? (
+              <StudentProfileDialog
+                publicId={studentId}
+                open
+                onOpenChange={(next) => {
+                  if (!next) setStudentId(null);
+                }}
+              />
+            ) : null
+          }
+        </StudentAccountBoundary>
+      )}
     </CommandMenuContext.Provider>
   );
 }

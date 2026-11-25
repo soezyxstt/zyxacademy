@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
@@ -66,12 +67,18 @@ function CodingWorkspaceContent({ account, courseId, draftKey, initialCode = "",
   const [waitingInput, setWaitingInput] = useState(false);
   const sendInput = useRef<((value: string) => void) | null>(null);
   const observedCode = useRef(draft.code), codeRevision = useRef(0);
-  if (observedCode.current !== draft.code) { observedCode.current = draft.code; codeRevision.current++; }
+  useEffect(() => {
+    if (observedCode.current !== draft.code) {
+      observedCode.current = draft.code;
+      codeRevision.current++;
+    }
+  }, [draft.code]);
   function setEditorCode(code: string) {
     if (observedCode.current !== code) { observedCode.current = code; codeRevision.current++; }
     draft.setCode(code);
   }
   const [terminalOpen, setTerminalOpen] = useState(false);
+  const [mobilePane, setMobilePane] = useState<"code" | "output">("code");
   const terminalRef = useRef<HTMLDivElement>(null);
   const [split, setSplit] = useState(50);
   const splitHost = useRef<HTMLDivElement>(null);
@@ -112,7 +119,7 @@ function CodingWorkspaceContent({ account, courseId, draftKey, initialCode = "",
     const controller = new AbortController(); active.current = controller;
     const code = draft.code; setExecutedCode(code); setExecutedInput(draft.stdin); setExecution(null); setError("");
     setTerminalOutput(""); setTerminalInput(""); setTerminalHistory([]); setWaitingInput(false);
-    if (interactive) { setTerminalOpen(true); requestAnimationFrame(() => terminalRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" })); }
+    if (interactive) { setTerminalOpen(true); setMobilePane("output"); requestAnimationFrame(() => terminalRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" })); }
     const callbacks = interactive ? {
       output: (text: string) => setTerminalOutput((value) => (value + text).slice(0, 8000)),
       input: (send: (value: string) => void) => { sendInput.current = send; setWaitingInput(true); },
@@ -148,7 +155,9 @@ function CodingWorkspaceContent({ account, courseId, draftKey, initialCode = "",
   }
   const help = problem && surface ? { kind: "exercise" as const, problem: { problemId: problem.problemId, version: problem.version }, code: draft.code, stdin: draft.stdin, intent: "hint" as const, surface, ...(attemptId ? { attemptId } : {}), ...(executedCode === draft.code && executedInput === draft.stdin && execution ? { execution } : {}) } : { kind: "playground" as const, code: draft.code, stdin: interactive ? terminalHistory.join("\n") : draft.stdin, execution: executedCode === draft.code && (interactive || executedInput === draft.stdin) ? execution : null, intent: "review" as const };
   const bridgeState = useRef({ help, setEditorCode });
-  bridgeState.current = { help, setEditorCode };
+  useEffect(() => {
+    bridgeState.current = { help, setEditorCode };
+  });
   useEffect(() => {
     if (!interactive || playgroundLink || !allowHelp || disabled || problem || surface) return;
     return registerPlaygroundBridge(courseId, () => {
@@ -156,16 +165,34 @@ function CodingWorkspaceContent({ account, courseId, draftKey, initialCode = "",
       return context.code === observedCode.current ? context : { ...context, code: observedCode.current, execution: null };
     }, () => codeRevision.current, (code) => bridgeState.current.setEditorCode(code));
   }, [interactive, playgroundLink, allowHelp, disabled, problem, surface, courseId, draftKey, owner]);
-  if (interactive) return <section className="@container/python w-full min-w-0 max-w-full space-y-(--related-gap)" aria-label="Playground Python">
+  const resetInteractive = () => {
+    setEditorCode(initialCode);
+    draft.setStdin("");
+    setExecution(null);
+    setExecutedCode(null);
+    setTerminalOutput("");
+    setTerminalHistory([]);
+    setWaitingInput(false);
+  };
+  if (interactive) return <section className="@container/python w-full min-w-0 max-w-full space-y-(--related-gap) pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:pb-0" aria-label="Playground Python">
+    {/* Mobile segmented Code | Output switcher */}
+    <div className="md:hidden">
+      <Tabs value={mobilePane} onValueChange={(value) => { const next = value as "code" | "output"; setMobilePane(next); if (next === "output") setTerminalOpen(true); }}>
+        <TabsList variant="inline" className="w-full">
+          <TabsTrigger value="code" className="flex-1">Kode</TabsTrigger>
+          <TabsTrigger value="output" className="flex-1">Output</TabsTrigger>
+        </TabsList>
+      </Tabs>
+    </div>
     <div ref={splitHost} style={{ "--split": `${split}%` } as CSSProperties} className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-background @min-[640px]/python:flex-row">
-      <div className={cn("flex min-w-0 flex-col", terminalOpen ? "@min-[640px]/python:w-(--split) @min-[640px]/python:shrink-0" : "flex-1")}>
+      <div className={cn("min-w-0 flex-col", mobilePane === "code" ? "flex" : "hidden md:flex", terminalOpen ? "@min-[640px]/python:w-(--split) @min-[640px]/python:shrink-0" : "flex-1")}>
         <div className="flex h-10 items-center justify-between gap-2 border-b border-border px-3">
           <div className="flex w-0 min-w-0 flex-1 items-baseline gap-2 overflow-hidden">
             <h2 className="shrink-0 font-mono text-body-xs font-semibold">main.py</h2>
             {draft.saved && !draft.conflicted ? <span role="status" className="truncate text-body-xs text-muted-foreground">{draft.saved}</span> : null}
           </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <TooltipProvider><Tooltip><TooltipTrigger asChild><Button size="icon-sm" variant="ghost" aria-label="Reset" disabled={phase !== "idle"} onClick={() => { setEditorCode(initialCode); draft.setStdin(""); setExecution(null); setExecutedCode(null); setTerminalOutput(""); setTerminalHistory([]); setWaitingInput(false); }}><RotateCcw className="size-3.5" /></Button></TooltipTrigger><TooltipContent>Reset</TooltipContent></Tooltip>
+          <div className="hidden shrink-0 items-center gap-1 md:flex">
+            <TooltipProvider><Tooltip><TooltipTrigger asChild><Button size="icon-sm" variant="ghost" aria-label="Reset" disabled={phase !== "idle"} onClick={resetInteractive}><RotateCcw className="size-3.5" /></Button></TooltipTrigger><TooltipContent>Reset</TooltipContent></Tooltip>
             {playgroundLink && !browserOnly ? <Tooltip><TooltipTrigger asChild><Button size="icon-sm" variant="ghost" aria-label="Playground" onClick={handoff}><ExternalLink className="size-3.5" /></Button></TooltipTrigger><TooltipContent>Playground</TooltipContent></Tooltip> : null}</TooltipProvider>
             <Button size="icon-sm" variant="ghost" aria-label={terminalOpen ? "Tutup terminal" : "Buka terminal"} aria-expanded={terminalOpen} aria-controls={inputId + "-terminal"} onClick={() => setTerminalOpen((open) => !open)}>{terminalOpen ? <PanelRightClose className="size-4" /> : <PanelRightOpen className="size-4" />}</Button>
             {phase === "idle" ? <Button size="sm" className="min-w-[84px] bg-brand-secondary text-body-sm text-white hover:bg-brand-secondary/90 hover:shadow-none" onClick={run} disabled={draft.code.length > 64000}><Play className="size-3.5 fill-current" />Jalankan</Button> : <Button size="sm" className="min-w-[84px] text-body-sm" variant="outline" onClick={() => active.current?.abort()}><Square className="size-3.5 fill-current" />Stop</Button>}
@@ -174,13 +201,38 @@ function CodingWorkspaceContent({ account, courseId, draftKey, initialCode = "",
         <PythonEditor value={draft.code} onChange={setEditorCode} onExplainSelection={allowHelp ? explainSelection : undefined} fillAvailableHeight={!playgroundLink} className="flex-1 rounded-none border-0 focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring" />
       </div>
       {terminalOpen ? <div role="separator" tabIndex={0} aria-orientation="vertical" aria-label="Ubah lebar panel" aria-valuemin={25} aria-valuemax={75} aria-valuenow={Math.round(split)} onPointerDown={dragSplit} onDoubleClick={() => setSplit(50)} onKeyDown={(event) => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); setSplit((value) => clampSplit(value + (event.key === "ArrowLeft" ? -5 : 5))); } }} className="relative hidden w-px shrink-0 cursor-col-resize touch-none bg-border transition-colors after:absolute after:inset-y-0 after:-inset-x-1.5 after:content-[''] hover:bg-ring focus-visible:bg-ring focus-visible:outline-none @min-[640px]/python:block" /> : null}
-      <div ref={terminalRef} id={inputId + "-terminal"} hidden={!terminalOpen} className={cn("min-w-0 flex-1 flex-col border-t border-border @min-[640px]/python:border-t-0", terminalOpen && "flex")}>
+      <div ref={terminalRef} id={inputId + "-terminal"} className={cn("min-w-0 flex-1 flex-col border-t border-border @min-[640px]/python:border-t-0", mobilePane === "output" ? "flex" : "hidden", terminalOpen ? "md:flex" : "md:hidden")}>
         <div className="flex h-10 items-center border-b border-border px-3"><h2 className="font-heading text-body-xs font-semibold">Terminal</h2></div>
         <div className="min-h-[220px] flex-1 bg-muted/30 p-3 font-mono text-code text-foreground">
           <div className="max-h-80 overflow-auto whitespace-pre-wrap break-words"><pre aria-live="polite" className="inline whitespace-pre-wrap break-words">{terminalOutput}</pre>{waitingInput ? <form className="inline" onSubmit={(event) => { event.preventDefault(); const value = terminalInput; sendInput.current?.(value); if (!useRemote) { sendInput.current = null; setWaitingInput(false); } setTerminalOutput((output) => (output + value + "\n").slice(0, 8000)); setTerminalHistory((history) => [...history, value]); setTerminalInput(""); }}><Input autoFocus aria-label="Input terminal" value={terminalInput} maxLength={Math.max(0, 8000 - terminalHistory.join("\n").length - (terminalHistory.length ? 1 : 0))} onChange={(event) => setTerminalInput(event.target.value)} autoComplete="off" autoCapitalize="off" spellCheck={false} style={{ width: `${Math.max(1, Array.from(terminalInput).length + 1)}ch` }} className="inline h-auto w-auto max-w-full min-w-0 rounded-none border-0 bg-transparent p-0 font-mono text-code shadow-none outline-none caret-foreground align-baseline focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0" /></form> : null}</div>
           {phase === "loading" ? <p role="status" className="flex items-center gap-1.5 font-sans text-body-xs text-foreground/80"><Loader2 className="size-3.5 animate-spin" aria-hidden="true" />Menyiapkan Python...</p> : null}
           {execution ? <p role="status" className={cn("mt-3 flex items-start gap-1.5 border-t border-border pt-2 font-sans text-body-xs", execution.status === "completed" ? "text-foreground/80" : "text-destructive")}>{execution.status === "completed" ? <CheckCircle2 className="mt-px size-3.5 shrink-0 text-status-success" aria-hidden="true" /> : <AlertCircle className="mt-px size-3.5 shrink-0" aria-hidden="true" />}<span>{statusLabels[execution.status]}{execution.stderr && !terminalOutput.includes(execution.stderr) && execution.stderr.replace(/[.!]+$/, "") !== statusLabels[execution.status].replace(/[.!]+$/, "") ? `: ${execution.stderr}` : ""}</span></p> : null}
         </div>
+      </div>
+    </div>
+    {/* Mobile sticky Run / Reset bar */}
+    <div data-playground-mobile-bar="" className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] backdrop-blur-md md:hidden">
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="outline" className="min-h-11 shrink-0 px-4 text-body-sm" disabled={phase !== "idle"} onClick={resetInteractive}>
+          <RotateCcw className="size-4" aria-hidden />
+          Reset
+        </Button>
+        {playgroundLink && !browserOnly ? (
+          <Button type="button" variant="outline" size="icon-lg" aria-label="Playground" onClick={handoff} className="min-h-11 min-w-11 shrink-0">
+            <ExternalLink className="size-4" aria-hidden />
+          </Button>
+        ) : null}
+        {phase === "idle" ? (
+          <Button type="button" className="min-h-11 flex-1 bg-brand-secondary text-body-sm font-semibold text-white hover:bg-brand-secondary/90 hover:shadow-none" onClick={run} disabled={draft.code.length > 64000}>
+            <Play className="size-4 fill-current" aria-hidden />
+            Jalankan
+          </Button>
+        ) : (
+          <Button type="button" variant="outline" className="min-h-11 flex-1 text-body-sm font-semibold" onClick={() => active.current?.abort()}>
+            <Square className="size-4 fill-current" aria-hidden />
+            Stop
+          </Button>
+        )}
       </div>
     </div>
     {!playgroundLink && allowHelp ? <PythonPresets code={draft.code} hasError={executedCode === draft.code && ["syntax_error", "runtime_error", "timeout"].includes(execution?.status ?? "")} disabled={phase !== "idle"} onSelect={preset => openChatWithQuestion(preset.message)} /> : null}

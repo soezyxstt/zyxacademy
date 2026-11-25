@@ -13,6 +13,18 @@ Authenticated accounts can open their basic profile and academic profile editor.
 
 The student profile groups learning statistics, enrolled courses, related activity links and a compact badge board. Its editor opens academic information first, with URL-addressable privacy and appearance tabs. Draft selections survive tab changes and failed academic saves. Long academic options wrap within the mobile viewport. A blank display name uses the Google account name; photos continue to come from Google. Privacy and appearance save separately, with pending, failure and success feedback. Cosmetic selectors show owned items and allow clearing each slot; the collection link opens the existing rewards shop. Private visibility and disabling followers retain their existing follow-removal rules, shown before saving. Component-fixture visual and interaction checks remain distinct from hosted persistence acceptance.
 
+Student, tutor, and admin workspaces use neutral active tabs and mobile navigation. Repeated profile, calendar, group, and preference rows use quiet separators. In active quizzes and tryouts, choices use a compact divided list. Progress and the current question use neutral emphasis. Flagged and answered questions retain distinct colors and accessible labels. Timer warning colors appear during the final minute overall and the final ten seconds of a timed quiz question. On mobile, assessment navigation replaces application navigation and aligns actions to the right. The next action becomes a submit action on the last question. Desktop assessments also offer a submit action before the last question. The confirmation shows answers completed out of the total, any warnings, and remaining time when applicable.
+
+Shared select triggers are borderless by default. Validation states and standalone public form answers use an outline to identify the field. The chevron, hover treatment, and keyboard focus indicator show where to interact.
+
+Tutor and Admin record lists use divided rows with compact filters and section spacing. On mobile, the Admin schedule stacks event details, tickets, audit entries, and tutor availability inside each row. Tutor grading actions align at the end of the form. Standalone sign-in, form, offline, and consent screens use the same spacing and show recovery and permission information next to the relevant controls. Public forms in one-question mode offer submission on the final question and open the confirmation before sending.
+
+Admin and Tutor documentation uses flat search results and a compact article index. The mobile navbar opens the documentation panel. Selecting a guide or section closes the panel before opening the destination.
+
+The Student dashboard groups active courses and mastery separately from daily actions. Mobile places available quizzes and tryouts before the mastery list. Daily flashcard targets and the due queue across courses are identified separately. Course Progress uses a compact metric comparison, and Course Mastery keeps long formulas readable with score and trend labels. The Tutorial PKA diagnostic distinguishes incomplete simulations from simulations that have yet to start.
+
+Quiz analysis puts the study plan before detailed diagnostics. Score, question counts, time, and score change are shown in compact rows. Concept mastery pairs readable status and trend text with semantic indicators. On mobile, refresh and regeneration actions sit in the navbar. PKA registration and upcoming sessions use the same compact spacing.
+
 Achievements and student public profiles share the student parent layout and transition classification. Navigation among student pages does not start the cross-surface logo overlay; reduced-motion preferences remain respected.
 
 Gamification routes, rewards and privacy settings are described in the [gamification contract](gamification.md). Confirmed badge and rank awards appear in student celebration notifications. The primary isolated component visual check passed 36 states. Full application runtime, font metrics and staging remain open. Students can buy owned photo frames, profile themes and titles, plus Zyra chat skins and wildlife characters with LP. Profile settings equip each slot independently and display the selected owned Zyra character as an interactive 3D model. The four studio mascots support drag and keyboard rotation. Small chat icons use posters. In course chat, only assistant messages receive the selected Zyra appearance; the student photo remains unchanged. Ten collection frames use distinct ornament choreography in large profile displays, including articulated wings, heads, petals, orbiting pieces and themed perimeter effects. Photos stay steady; lists remain static and reduced motion is respected. Component-fixture visuals passed; migration 0016 and expanded staging seeding remain pending.
@@ -27,6 +39,8 @@ Local performance follow-up keeps student material lists metadata-only, loads qu
 Pembahasan soal supports separately authored optional starting hints, independent of full solution strategy. Admin review displays publication blockers and recovery actions; static Python examples expose keyboard and button scrolling only when lines overflow.
 
 Course access categories are separate from academic disciplines. Admins can configure Free, Limited Time Free, or Premium. Limited offers use Jakarta wall time and include the start instant but exclude the end. Active free courses grant full learning content without creating an enrollment or changing AI quota; existing paid enrollment retains access after an offer ends. Student search checks current publication and chapter access, and flashcard recommendations use current course eligibility. Apply the additive PostgreSQL migration before deploying code that reads these columns.
+
+The student course list shows nonzero material, quiz, and tryout counts. A lock indicates limited course access or required Tutorial PKA registration. Limited Time Free courses show their offer status and dates in the row. Inside a course, active mobile navigation uses neutral emphasis. Overview, documents, videos, assessments, and progress use compact rows with access, completion, and assessment status visible where they affect the next action.
 
 The student sidebar opens the Pet studio at `/pet`. Zyra the cat is included. Students buy the tiger, rhino and crocodile with LP and can switch the active companion. Actions and suits have separate inventory entries. Profile and play viewers use the saved selections. The floating launcher uses the pet's head poster.
 
@@ -80,10 +94,18 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Creates and publishes course-scoped tryouts at `/admin/courses/[slug]/tryouts` from published question bank items; essay questions can accept typed responses and PDF or image attachments
 - Accesses Tutor Quiz Attempt Spreadsheet portal (`/tutor/[courseId]/quizzes/[templateId]/attempts`) for detailed student answer inspection and CSV exports
 - Monitors real-time tutor mutations, rejections, and failures with cursor pagination, stats aggregation, and sanitized snapshot inspection (`/admin/ops/tutor-activity`)
-- Monitors real-time statuses for the approved optional feature flags (`/admin/ops/flags`) with status badges, category filters, and env key helpers
+- Reads retained operational feature flag status through Admin Ops AI or the `settings.feature_flags` MCP tool
 - Configures live AI primary and two fallback models per feature (`/admin/ops/models`) across Zyra, Python Playground, Ops AI, and background learning or generation tasks, with optimistic concurrency checks, per-feature capability validation, and instant reset to built-in defaults
 - Manages course-scoped leaderboard (`/admin/courses/[slug]/leaderboard`) for per-student ranking within a single course, with backward compatibility redirects from `/admin/leaderboard`
 - Operates inside unified course workspaces (`/admin/courses/[slug]`) with contextual navigation across Bab, Dokumen, Kuis, Soal, Flashcard, Hasil, Papan Peringkat, Analitik, Review Materi, and Pengaturan
+
+
+### Zyx Ops AI
+
+- Ops AI shares Zyra's message layout, live editor, and incremental response reader. Its admin harness combines documentation, diagnosis, existing batch proposals, and the shared MCP tool catalog for admin operations and authoring.
+- Ops AI can inspect and prepare changes for blog, forms, links, academic metadata, schedules, groups, and access. The agent asks for approval in chat before changes. **Allow** approves the exact action shown. **Allow in chat** also authorizes updates to that same form preset or private blog draft for 10 minutes. End the permission from the composer. Publication, deletion, and role or access changes require a fresh **Allow** each time.
+- The catalog also covers Source Pack, Idea and Product Bundle workflows, revisions and releases, reference and original questions, and quiz assembly. Ops AI loads the MCP stage playbook and can continue after reading the result of an approved action. Admin access to the browser catalog is always on.
+- Chat history in this browser is scoped to the signed-in admin account. The earlier shared browser history is kept in its original storage keys.
 
 ## Plan pricing
 
@@ -93,7 +115,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Public plans, landing and student previews, onboarding, WhatsApp consultation messages, the Custom estimator, and tutor-fee estimates share the saved configuration. The public endpoint exposes only the two schedules, uses no-store responses, and clients refresh configuration every 30 seconds and on focus. Dates are checked every second. Unavailable configuration suppresses monetary quotes and consultation links rather than publishing a stale price.
 - Existing campaigns default to 40% for both components from 12 September through 31 October 2026. Outside a component's dates, its regular price applies. Group totals are authoritative; per-person amounts are rounded estimates.
 - Payment remains outside the website through the admin. WhatsApp includes the current semester total; the admin confirms the applicable price at payment time. The site does not collect payment.
-- Admin Custom estimates support positive multiples of five meetings. Active vouchers apply after the component discounts. Tutor estimates split the discounted tutorial pool 70% to the tutor and 30% to management, excluding the discounted platform component.
+- Admin Custom estimates support positive multiples of five meetings. Active vouchers apply after the component discounts. Tutor estimates split the discounted tutorial pool 70% to the tutor and 30% to management, excluding the discounted platform component. A manually entered package price is the total before discounts. The estimator allocates the regular platform cost first, up to the quoted total, and applies the two active component discounts before calculating the split.
 - The public landing page separates platform benefits, tutor evidence, and package questions. Its FAQ describes only the published Free, Minimal, Essential, Premium, payment, and activation behavior.
 
 ## Public demo and Free access
@@ -182,6 +204,18 @@ Zyra accepts an allowlisted response language, honors explicit English or Indone
 3. Mobile navbar displays matching Indonesian route titles dynamically without falling back to generic panel titles.
 4. Legacy course IDs and canonical slugs both resolve transparently through server-side `resolveCourseIdentity`.
 
+### Editorial Article reader
+
+The reader keeps a complete chapter in one scrollable document. At widths below 640px, Article and web Diktat prose uses a 15px base size with the existing reader font-scale preference and generous line height; controls, touch targets and desktop prose retain their sizes. Article and web Diktat toolbars show the chapter title while the active section heading remains visible, then show the active section context after its heading leaves the reading viewport. Article section context uses the section number and title without repeating the chapter prefix. Section headers retain a compact reading-time estimate without a separate activity breakdown; anchor offsets and section gaps keep the content close to the toolbar. Core prose and math use a plain surface; editorial notes and examples use left rails; interaction and dense reference tables retain containers. Comparison math pairs each relation with its meaning and conditions on wide screens and stacks the same pair on narrow screens. Short statement math from existing bundles also pairs the expression and explanation in two left-aligned columns on desktop and stacked rows on mobile; long expressions, text-bearing LaTeX and multiline math retain full width. Standalone formula paragraphs use horizontal math scrolling even when authored with inline delimiters and trailing punctuation. Article TOC numbers match the body numbering, including introductory and closing sections. The header keeps only the two-pixel scroll track; completion remains in the TOC. Derivations and cases retain their authored order. Generic theory labels and wrapper headings repeated by an embedded worked example are omitted without removing authored body content.
+
+Articles with V4 ordered parts start formative checks collapsed. Opening and closing a check preserves its answer and feedback. Additional worked-example blocks can be opened through a disclosure; the primary example stays visible. Correct feedback stays open until the learner closes it. Reading focus temporarily hides formative checks and coding exercises without unmounting them. The context header follows the active section; the TOC respects authored parent sections and expands only the active section, limited to worked examples and checkpoints. Section leads have no rail. Comparison and worked-step formulas align left. Function plots group legend, interaction and value-table controls above the plot, retaining authored reference values and live sampled values in one divided panel below the plot. Opening the panel leaves the plot position unchanged. Sampled values use rounded steps and right-aligned tabular numerals; table control labels stay constant across states. Additional-example disclosures announce their open state and mark their content boundary with a subtle background. Graph legends retain their series visibility toggle with a plain text treatment. The chapter close prioritizes the supplied next material or course material list over manual completion. A two-pixel position track remains visible in both mobile and desktop headers, separate from persisted completion. Quiz actions remain aligned to the right of wrapping titles. Product Bundle envelopes and ordered-part payloads need no migration. Renderer-bound verification receipts must be regenerated against this source revision before publication, as required by the existing V4 verification policy. Reading completion and session-only checkpoint correctness are separate indicators. Reloading clears checkpoint indicators; they are not a durable mastery record.
+
+Embedded function-plot parameter controls expand below the plot without moving it, beside the table-disclosure flow. Compact controls retain parameter symbols, use tinted active presets and a separate reset action for all parameters. Embedded worked-example connectors pass through numbered markers. Article and Diktat footers distinguish reaching the end from recorded completion. Graph navigation stays beside the plot even when parameter and value panels are open. Quiz retry is unavailable while a reveal request is pending, and invalid reveal responses show a recovery message. Formula blocks place the equation before meaning, domain conditions and compact symbol definitions. Only short, simple equations share a desktop row with their meaning; compound equations stack. Wide math uses a right-edge fade while more content remains to scroll, including after resizing.
+
+These are browser presentation actions, not new MCP tools. Authoring schemas, scopes, consent, capability discovery, playbooks, packaged skills, host prompts and environment bindings remain unchanged. Existing clients still supply ordered parts and parent section IDs. The operations coverage catalog records the UI-only actions. No publication or deployment is implied.
+
+The web Diktat/Markdown reader shares the editorial typography and surfaces, numbered sections, active-context header, two-pixel scroll track and course-material continuation. Decorative completion dividers and generic Diktat concept badges are omitted. Reading completion and download permissions retain their existing handlers. The PDF compiler, print layout, authored units and Article lineage are unchanged.
+
 ### Unified Reader Modes (Learner vs Admin Preview)
 
 1. The reading experience across `MaterialViewer` and `StructuredArticleReader` supports two explicit modes: `learner` and `admin-preview`.
@@ -212,6 +246,8 @@ Zyra accepts an allowlisted response language, honors explicit English or Indone
 3. Sidebar isolation guarantee: no old route can render an active global course workspace or reset the contextual sidebar back to global while viewing a course-owned resource.
 
 ### Flexible existing-content revisions
+
+`OPEN / IN PROGRESS`: the [agent workflow](bundle/authoring-agent-workflow.md) adds direct Idea/Article/Diktat drafts, authored Idea priorities, local raw-JSON preview, compact Diktat-unit reads/patches and shared revision helpers. Verification checks structure/model issues before browser work, captures PDF/page images once and reuses only authenticated successful batches from the unchanged plan. Repeatable synthetic measurements record response bytes and executor calls. Full review and publication gates remain. Hosted acceptance, real chapter cost/quality comparison and external skill distribution remain separate.
 
 The [revision contract](bundle/authoring-revisions.md) describes MCP editing for Idea V3 and learning Product V3/V4/V5. Agents fork a stored artifact into a separate draft, edit entities and reading units by stable ID, inspect affected reviews and dependencies, and explicitly publish a reference-based release. A release can replace related Idea and Product revisions atomically while keeping the old content live until it succeeds. History and restoration use immutable artifacts; restoration creates a new draft. Existing-content edits use stored source context and a fresh bound bootstrap, without a replacement Source Pack or expired original run. Unchanged review evidence requires server-proven applicability and explicit reviewer consent. Profile-specific correctness, release, source, PDF and trusted-verification gates remain in place. No Admin website visit is mandatory. Implemented with focused local verification; remote migrations, deployment and live-service acceptance remain pending.
 
@@ -404,7 +440,7 @@ The Profile tab reuses the authenticated profile editor, including student-only 
 
 ### Blog & Short Links
 - Multi-category blog (tips_kuliah, pojok_kampus, fakta_seru, kegiatan_zyx)
-- The public Blog route leads with its identity, category navigation, and latest articles. Feature promotion follows the article content and links to the general course catalog instead of presenting every feature as a detail page.
+- The public Blog leads with category navigation and the latest article, followed by recent articles and category previews. A single link to the course catalog follows the articles.
 - URL shortener (zyxacademy.com/s/[slug])
 
 ### Assessment Integrity & Assistance Policy
@@ -588,6 +624,8 @@ Zyra uses bounded, session-scoped conversation context to interpret follow-up qu
 
 ### Scheduling & Calendar System (Model Kelompok Belajar)
 
+The student Agenda (`/calendar`) groups dated assessments and personal tutorial bookings by Jakarta calendar day. It highlights assessment openings before they are available, deadlines after they open, and separates past events. Its category selector stays with the event list. On mobile, tutorial management and Calendar sync sit in the navbar. The Schedule workspace (`/dashboard/schedule`) shows weekly availability, group sessions, and academic events, with the existing booking controls.
+
 The canonical scheduling workflow uses concrete, date-specific 90-minute tutor slots. The route determines the perspective: `/dashboard/schedule` remains the global student calendar for every signed-in role, `/dashboard/schedule?course=<id>` shows only that course's slots, bookings, academic events and eligible groups, `/tutor/schedule` is the tutor workspace, and `/admin/schedules` is the administrative global calendar. Course scope accepts mapped canonical and legacy IDs. Student booking details remain limited to the account's memberships; visiting this route with an Admin role does not grant administrative calendar controls. The client loads weeks on demand and clears cached weeks after booking or session mutations, rejecting older responses. A visible booking action lists available slots for the loaded week and current course/tutor filters, then opens the existing booking form. Started slots remain unavailable. Authenticated runtime verification remains open.
 
 - Group Ownership & Collaborative Booking:
@@ -637,9 +675,9 @@ The canonical scheduling workflow uses concrete, date-specific 90-minute tutor s
 The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`) with its own navigation sidebar (`components/tutor/tutor-sidebar.tsx`) and course switcher (`components/tutor/tutor-course-switcher.tsx`). Tutors manage schedules and course activities directly within this shell without redirecting to student pages. The overhaul is always-on with no feature flag.
 
 - Subroute Structure:
-  - `/tutor`: Overview portal displaying assigned courses, high-level KPIs, and quick shortcuts.
+  - `/tutor`: Upcoming sessions, pending tickets, assigned courses, and study groups. Weekly and cross-course totals appear beside the lists they describe.
   - `/tutor/schedule`: Full schedule and availability manager (add concrete 90-minute slots, copy the previous week, view assigned bookings, delete unbooked slots, approve or reject reschedule tickets, and complete sessions). Tutors do not directly assign groups to slots from this surface. Each reschedule or cancellation ticket exposes its discussion thread; the assigned tutor can read all group messages and reply inline.
-  - `/tutor/[courseId]`: Course-level dashboard summarizing teaching metrics, active groups, and recent quizzes, with quick-action links to quiz management, live console, grading, and participants.
+  - `/tutor/[courseId]`: Course analytics with cohort metrics, concept distribution, priority concepts, interventions, students who need attention, and common misconceptions. Tutors can expand the concept list or open a concept to inspect its evidence.
   - `/tutor/[courseId]/participants`: Enrolled student roster and active study groups with member lists and deterministic representatives.
   - `/tutor/[courseId]/quizzes`: Full quiz template management (create, edit, delete, preview, toggle draft/published status) with creator attribution.
   - `/tutor/[courseId]/quizzes/grading`: Pending quiz review queue. Tutors score essays from 0 to 100, add optional notes, and may override short-answer scores. Every question has equal weight in the final total.
@@ -687,7 +725,7 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 
 ### Zyra tutor and admin copilots
 
-- `FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` are opt-out switches (enabled unless explicitly `0`) for scoped proposal-first workflows. They show evidence, preconditions, impact, warnings, and lifecycle state before any future mutation integration.
+- `FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` are opt-out switches (enabled unless explicitly `0`) for the scoped proposal API. Admin Ops provides a proposal panel. Tutor course Overview shows cohort analytics and follow-up signals. The former tutor proposal button recorded a read-only draft without generating a misconception report.
 - Proposals never auto-apply. The current mutation call fails closed until the accepted mutation boundary is available.
 
 ### Zyra operations
@@ -704,6 +742,7 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 - `/admin/ops/feature-usage` is a tutor/admin read model that ranks student feature activity (materials, flashcards, self quizzes, assessments v2, live quizzes, Zyra chat) over a 7/30/90-day window selector.
 - It aggregates existing domain tables only (`student_material_progress`, `flashcard_reviews`, `student_quiz_attempts`, `percobaan_asesmen`, `live_quiz_results`, `tutor_chat_messages`/`chat_sessions`); it writes no new events. Unique active students are the union of distinct student ids across those sources.
 - The page lists measurement gaps explicitly: daily pop-up quiz stays in localStorage, Cmd+K search records no server events, and diktat download counts are cumulative only. Page traffic remains in Web Analytics; AI token usage remains in Analitik Zyra.
+- Feature Usage shows daily activity, distinct usage highlights, and one feature ranking. Web Analytics pairs its traffic chart and page ranking on wide screens. Zyra Analytics uses compact model and request rows, with readable labels for request outcomes. Course-scoped quiz insights keep formulas readable and put answer distributions beside the relevant question. The performance analysis icon sits in the mobile navbar.
 
 ## Embedded learning visuals
 

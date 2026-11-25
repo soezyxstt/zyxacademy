@@ -96,6 +96,7 @@ export const OpsAiActionProposalTypeSchema = z.enum([
   "trigger_job",
   "batch_create_chapters",
   "bulk_update_materials",
+  "admin_operation",
 ]);
 export type OpsAiActionProposalType = z.infer<typeof OpsAiActionProposalTypeSchema>;
 
@@ -164,6 +165,7 @@ export const OpsAiActionProposalV2Schema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
   preview: OpsAiProposalPreviewSchema,
+  approval: z.enum(["once", "chat"]).optional(),
   status: OpsAiProposalStatusSchema,
   preconditions: OpsAiPreconditionSnapshotSchema.optional(),
   expiresAt: z.number().int().positive().optional(),
@@ -740,16 +742,7 @@ export const OPS_AI_DOMAIN_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecur
     requiredRole: "admin",
     requiresHumanConfirmation: false,
     allowsMutation: false,
-    description: "Melihat status semua feature flag pada platform.",
-  },
-  set_feature_flag: {
-    name: "set_feature_flag",
-    toolClass: "autonomous-mutation",
-    isModelCallable: false,
-    requiredRole: "admin",
-    requiresHumanConfirmation: true,
-    allowsMutation: true,
-    description: "Mengaktifkan atau mematikan status feature flag.",
+    description: "Melihat status feature flag operasional yang dipertahankan.",
   },
   create_short_link: {
     name: "create_short_link",

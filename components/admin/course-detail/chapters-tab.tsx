@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { AdminEmptyState } from "@/components/admin/state-panels";
+import { AdminIconAction } from "@/components/admin/icon-action";
 import {
   saveChapter,
   deleteChapter,
@@ -22,7 +25,6 @@ import {
   Trash2,
   ArrowUp,
   ArrowDown,
-  Loader2,
   BookOpen,
   FileText,
   Library,
@@ -187,190 +189,300 @@ export function ChaptersTab({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--related-gap)">
       {/* Add New Chapter Inline Form */}
       <form onSubmit={handleAddChapter} className="flex flex-wrap items-center gap-2">
         <Input
+          aria-label={t("courseDetail.chapters.newTitle")}
           placeholder={t("courseDetail.chapters.newTitle")}
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           disabled={addingChapter}
-          className="h-9 min-w-[140px] flex-1 rounded-lg text-body-sm sm:max-w-72"
+          className="h-9 min-w-32 flex-1 rounded-lg sm:max-w-72"
         />
         <Input
+          aria-label={t("courseDetail.chapters.descriptionOptional")}
           placeholder={t("courseDetail.chapters.descriptionOptional")}
           value={newDescription}
           onChange={(e) => setNewDescription(e.target.value)}
           disabled={addingChapter}
-          className="h-9 min-w-[140px] flex-1 rounded-lg text-body-sm"
+          className="h-9 min-w-32 flex-1 rounded-lg"
         />
-        <Button
+        <AdminIconAction
           type="submit"
-          size="sm"
+          label={t("courseDetail.chapters.add")}
           disabled={addingChapter || !newTitle.trim()}
-          className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"
+          isLoading={addingChapter}
+          className="ml-auto"
         >
-          {addingChapter ? (
-            <>
-              <Loader2 className="size-3.5 animate-spin" />
-              {t("courseDetail.chapters.adding")}
-            </>
-          ) : (
-            <>
-              <Plus className="size-3.5" />
-              {t("courseDetail.chapters.add")}
-            </>
-          )}
-        </Button>
+          <Plus className="size-4" aria-hidden />
+        </AdminIconAction>
       </form>
 
       {/* Chapters List */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <h3 className="font-heading text-body-sm font-semibold text-foreground flex items-center gap-2">
-            <Layers className="size-4 text-brand-primary" />
+          <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
+            <Layers className="size-4 text-muted-foreground" aria-hidden />
             {t("courseDetail.chapters.count", { count: chapters.length })}
-          </h3>
+          </h2>
         </div>
 
         {chapters.length === 0 ? (
-          <div className="text-center py-8 border border-dashed border-border rounded-xl bg-card">
-            <BookOpen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
-            <p className="text-body-xs font-medium text-foreground">{t("courseDetail.chapters.empty.title")}</p>
-            <p className="text-body-xs text-muted-foreground mt-0.5">
-              {t("courseDetail.chapters.empty.description")}
-            </p>
-          </div>
+          <AdminEmptyState compact icon={BookOpen} title={t("courseDetail.chapters.empty.title")} description={t("courseDetail.chapters.empty.description")} />
         ) : (
-          <AdminTable>
-            <table className="w-full text-left text-body-xs">
-              <AdminTableHead>
-                <tr>
-                  <th className="px-3.5 py-2 w-20 text-center">{t("courseDetail.chapters.order")}</th>
-                  <th className="px-3.5 py-2">{t("courseDetail.chapters.title")}</th>
-                  <th className="px-3.5 py-2 w-56">{t("courseDetail.chapters.relatedContent")}</th>
-                  <th className="px-3.5 py-2 w-24 text-center">{t("courseDetail.chapters.position")}</th>
-                  <th className="px-3.5 py-2 w-20 text-right">{t("courseDetail.chapters.actions")}</th>
-                </tr>
-              </AdminTableHead>
-              <tbody className="divide-y divide-border/50">
-                {chapters.map((ch, idx) => {
-                  const linkedMaterials = materials.filter((m) => {
-                    const ids = Array.isArray(m.chapterIds)
-                      ? m.chapterIds
-                      : typeof m.chapterIds === "string"
-                      ? JSON.parse(m.chapterIds || "[]")
-                      : [];
-                    return ids.includes(ch.id);
-                  }).length;
+          <>
+            {/* Mobile stacked rows */}
+            <div className="divide-y divide-border/60 border-y border-border/60 md:hidden">
+              {chapters.map((ch, idx) => {
+                const linkedMaterials = materials.filter((m) => {
+                  const ids = Array.isArray(m.chapterIds)
+                    ? m.chapterIds
+                    : typeof m.chapterIds === "string"
+                    ? JSON.parse(m.chapterIds || "[]")
+                    : [];
+                  return ids.includes(ch.id);
+                }).length;
 
-                  const linkedQuestions = questions.filter((q) => q.chapterId === ch.id).length;
+                const linkedQuestions = questions.filter((q) => q.chapterId === ch.id).length;
 
-                  return (
-                    <tr key={ch.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-3.5 py-2.5 text-center">
-                        <Badge
-                          variant="outline"
-                          className="font-mono font-bold text-body-xs px-2 py-0.5 rounded-md bg-muted/40"
-                        >
-                          {t("courseDetail.chapters.orderWithNumber", { number: ch.orderIndex })}
-                        </Badge>
-                      </td>
-                      <td className="px-3.5 py-2.5">
-                        <div className="space-y-0.5">
-                          <p className="font-semibold text-foreground text-body-sm">
+                return (
+                  <div key={ch.id} className="space-y-1 py-(--row-padding)">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-start gap-2">
+                          <Badge
+                            variant="outline"
+                            className="shrink-0 rounded-md bg-muted/40 px-1.5 py-0.5 font-mono text-body-xs font-bold"
+                          >
+                            {t("courseDetail.chapters.orderWithNumber", { number: ch.orderIndex })}
+                          </Badge>
+                          <p className="min-w-0 wrap-anywhere text-body-sm font-semibold text-foreground">
                             {ch.title}
                           </p>
-                          {ch.description && (
-                            <p className="text-body-xs text-muted-foreground line-clamp-1">
-                              {ch.description}
+                        </div>
+                        {ch.description && (
+                          <p className="line-clamp-2 text-body-xs text-muted-foreground">
+                            {ch.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-8 rounded-md"
+                          onClick={() => startEditChapter(ch)}
+                          aria-label={t("courseDetail.chapters.edit")}
+                          title={t("courseDetail.chapters.edit")}
+                        >
+                          <Edit2 className="size-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-8 rounded-md text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => setDeletingChapter(ch)}
+                          aria-label={t("courseDetail.chapters.delete")}
+                          title={t("courseDetail.chapters.delete")}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        {linkedMaterials > 0 && (
+                          <Badge
+                            variant="secondary"
+                            className="gap-1 rounded-md px-1.5 py-0.5 text-body-2xs font-medium"
+                          >
+                            <FileText className="size-3 text-brand-secondary" />
+                            <span>{t("courseDetail.chapters.documentsWithCount", { count: linkedMaterials })}</span>
+                          </Badge>
+                        )}
+                        {linkedQuestions > 0 && (
+                          <Badge
+                            variant="secondary"
+                            className="gap-1 rounded-md px-1.5 py-0.5 text-body-2xs font-medium"
+                          >
+                            <Library className="size-3 text-brand-primary" />
+                            <span>{t("courseDetail.chapters.questionsWithCount", { count: linkedQuestions })}</span>
+                          </Badge>
+                        )}
+                        {linkedMaterials === 0 && linkedQuestions === 0 && (
+                          <span className="text-body-xs text-muted-foreground/70">
+                            {t("courseDetail.chapters.noRelatedContent")}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="inline-flex shrink-0 items-center gap-0.5">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-7 rounded"
+                          disabled={idx === 0 || actionLoadingId === ch.id}
+                          onClick={() => handleMove(idx, "up")}
+                          aria-label={t("courseDetail.chapters.moveUp")}
+                          title={t("courseDetail.chapters.moveUp")}
+                        >
+                          <ArrowUp className="size-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-7 rounded"
+                          disabled={idx === chapters.length - 1 || actionLoadingId === ch.id}
+                          onClick={() => handleMove(idx, "down")}
+                          aria-label={t("courseDetail.chapters.moveDown")}
+                          title={t("courseDetail.chapters.moveDown")}
+                        >
+                          <ArrowDown className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <AdminTable className="hidden md:block">
+              <table className="w-full text-left text-body-xs">
+                <AdminTableHead>
+                  <tr>
+                    <th className="px-3.5 py-2 w-20 text-center">{t("courseDetail.chapters.order")}</th>
+                    <th className="px-3.5 py-2">{t("courseDetail.chapters.title")}</th>
+                    <th className="px-3.5 py-2 w-56">{t("courseDetail.chapters.relatedContent")}</th>
+                    <th className="px-3.5 py-2 w-24 text-center">{t("courseDetail.chapters.position")}</th>
+                    <th className="px-3.5 py-2 w-20 text-right">{t("courseDetail.chapters.actions")}</th>
+                  </tr>
+                </AdminTableHead>
+                <tbody className="divide-y divide-border/50">
+                  {chapters.map((ch, idx) => {
+                    const linkedMaterials = materials.filter((m) => {
+                      const ids = Array.isArray(m.chapterIds)
+                        ? m.chapterIds
+                        : typeof m.chapterIds === "string"
+                        ? JSON.parse(m.chapterIds || "[]")
+                        : [];
+                      return ids.includes(ch.id);
+                    }).length;
+
+                    const linkedQuestions = questions.filter((q) => q.chapterId === ch.id).length;
+
+                    return (
+                      <tr key={ch.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-3.5 py-2.5 text-center">
+                          <Badge
+                            variant="outline"
+                            className="font-mono font-bold text-body-xs px-2 py-0.5 rounded-md bg-muted/40"
+                          >
+                            {t("courseDetail.chapters.orderWithNumber", { number: ch.orderIndex })}
+                          </Badge>
+                        </td>
+                        <td className="px-3.5 py-2.5">
+                          <div className="space-y-0.5">
+                            <p className="font-semibold text-foreground text-body-sm">
+                              {ch.title}
                             </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3.5 py-2.5">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {linkedMaterials > 0 && (
-                            <Badge
-                              variant="secondary"
-                              className="text-[10px] gap-1 px-1.5 py-0.5 rounded-md font-medium"
+                            {ch.description && (
+                              <p className="text-body-xs text-muted-foreground line-clamp-1">
+                                {ch.description}
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3.5 py-2.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {linkedMaterials > 0 && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] gap-1 px-1.5 py-0.5 rounded-md font-medium"
+                              >
+                                <FileText className="size-3 text-brand-secondary" />
+                                <span>{t("courseDetail.chapters.documentsWithCount", { count: linkedMaterials })}</span>
+                              </Badge>
+                            )}
+                            {linkedQuestions > 0 && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] gap-1 px-1.5 py-0.5 rounded-md font-medium"
+                              >
+                                <Library className="size-3 text-brand-primary" />
+                                <span>{t("courseDetail.chapters.questionsWithCount", { count: linkedQuestions })}</span>
+                              </Badge>
+                            )}
+                            {linkedMaterials === 0 && linkedQuestions === 0 && (
+                              <span className="text-muted-foreground/60 text-body-xs">
+                                {t("courseDetail.chapters.noRelatedContent")}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3.5 py-2.5 text-center">
+                          <div className="inline-flex items-center gap-0.5 bg-muted/40 p-0.5 rounded-md border border-border/40">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="size-6 rounded"
+                              disabled={idx === 0 || actionLoadingId === ch.id}
+                              onClick={() => handleMove(idx, "up")}
+                              title={t("courseDetail.chapters.moveUp")}
                             >
-                              <FileText className="size-3 text-brand-secondary" />
-                              <span>{t("courseDetail.chapters.documentsWithCount", { count: linkedMaterials })}</span>
-                            </Badge>
-                          )}
-                          {linkedQuestions > 0 && (
-                            <Badge
-                              variant="secondary"
-                              className="text-[10px] gap-1 px-1.5 py-0.5 rounded-md font-medium"
+                              <ArrowUp className="size-3" />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="size-6 rounded"
+                              disabled={idx === chapters.length - 1 || actionLoadingId === ch.id}
+                              onClick={() => handleMove(idx, "down")}
+                              title={t("courseDetail.chapters.moveDown")}
                             >
-                              <Library className="size-3 text-brand-primary" />
-                              <span>{t("courseDetail.chapters.questionsWithCount", { count: linkedQuestions })}</span>
-                            </Badge>
-                          )}
-                          {linkedMaterials === 0 && linkedQuestions === 0 && (
-                            <span className="text-muted-foreground/60 text-body-xs">
-                              {t("courseDetail.chapters.noRelatedContent")}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3.5 py-2.5 text-center">
-                        <div className="inline-flex items-center gap-0.5 bg-muted/40 p-0.5 rounded-md border border-border/40">
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="size-6 rounded"
-                            disabled={idx === 0 || actionLoadingId === ch.id}
-                            onClick={() => handleMove(idx, "up")}
-                            title={t("courseDetail.chapters.moveUp")}
-                          >
-                            <ArrowUp className="size-3" />
-                          </Button>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="size-6 rounded"
-                            disabled={idx === chapters.length - 1 || actionLoadingId === ch.id}
-                            onClick={() => handleMove(idx, "down")}
-                            title={t("courseDetail.chapters.moveDown")}
-                          >
-                            <ArrowDown className="size-3" />
-                          </Button>
-                        </div>
-                      </td>
-                      <td className="px-3.5 py-2.5 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="size-7 rounded-md hover:bg-muted"
-                            onClick={() => startEditChapter(ch)}
-                            title={t("courseDetail.chapters.edit")}
-                          >
-                            <Edit2 className="size-3" />
-                          </Button>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => setDeletingChapter(ch)}
-                            title={t("courseDetail.chapters.delete")}
-                          >
-                            <Trash2 className="size-3" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </AdminTable>
+                              <ArrowDown className="size-3" />
+                            </Button>
+                          </div>
+                        </td>
+                        <td className="px-3.5 py-2.5 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="size-7 rounded-md hover:bg-muted"
+                              onClick={() => startEditChapter(ch)}
+                              title={t("courseDetail.chapters.edit")}
+                            >
+                              <Edit2 className="size-3" />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeletingChapter(ch)}
+                              title={t("courseDetail.chapters.delete")}
+                            >
+                              <Trash2 className="size-3" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </AdminTable>
+          </>
         )}
       </div>
 
@@ -415,7 +527,7 @@ export function ChaptersTab({
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-row flex-wrap justify-end">
             <DialogClose asChild>
               <Button variant="outline" size="sm" disabled={loading} className="rounded-lg">
                 {t("common.cancel")}
@@ -435,41 +547,19 @@ export function ChaptersTab({
       </Dialog>
 
       {/* Delete Chapter Dialog */}
-      <Dialog
+      <AdminConfirmDialog
         open={!!deletingChapter}
-        onOpenChange={(open) => {
-          if (!loading && !open) setDeletingChapter(null);
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("courseDetail.chapters.deleteTitle")}</DialogTitle>
-            <DialogDescription>
-              {t.rich("courseDetail.chapters.deleteDescription", {
-                title: deletingChapter?.title ?? "",
-                strong: (chunks) => <strong>{chunks}</strong>,
-              })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" size="sm" disabled={loading} className="rounded-lg">
-                {t("common.cancel")}
-              </Button>
-            </DialogClose>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDeleteChapter}
-              disabled={loading}
-              isLoading={loading}
-              className="rounded-lg"
-            >
-              {t("courseDetail.chapters.delete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={(open) => { if (!open) setDeletingChapter(null); }}
+        title={t("courseDetail.chapters.deleteTitle")}
+        description={t.rich("courseDetail.chapters.deleteDescription", {
+          title: deletingChapter?.title ?? "",
+          strong: (chunks) => <strong>{chunks}</strong>,
+        })}
+        confirmLabel={t("courseDetail.chapters.delete")}
+        cancelLabel={t("common.cancel")}
+        onConfirm={handleDeleteChapter}
+        loading={loading}
+      />
     </div>
   );
 }

@@ -2,11 +2,11 @@ import type { ElementType, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const sizeClasses = {
-  h5: "font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground",
-  h6: "font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground",
-  base: "font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground",
-  sm: "font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground",
-  lg: "font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground",
+  h5: "text-body-base",
+  h6: "text-body-sm",
+  base: "text-body-base",
+  sm: "text-body-sm",
+  lg: "text-body-base",
 } as const;
 
 export type AdminSectionTitleProps = {
@@ -41,10 +41,10 @@ export function AdminSectionTitle({
           {micro}
         </span>
       )}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <Tag className={cn("flex items-center gap-2", sizeClasses[size])}>
-          {Icon && <Icon className={cn("size-4 shrink-0", iconClassName ?? "text-muted-foreground")} aria-hidden />}
-          <span>{title}</span>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <Tag className={cn("flex min-w-0 items-start gap-2 font-heading font-bold text-foreground", sizeClasses[size])}>
+          {Icon && <Icon className={cn("mt-0.5 size-4 shrink-0", iconClassName ?? "text-muted-foreground")} aria-hidden />}
+          <span className="min-w-0 wrap-break-word">{title}</span>
         </Tag>
         {right}
       </div>

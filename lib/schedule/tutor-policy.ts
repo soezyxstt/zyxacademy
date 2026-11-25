@@ -6,6 +6,8 @@ import {
   bookingAuditLogs,
   bookings,
   courses,
+  enrollmentTokenCourses,
+  enrollmentTokens,
   groupCourses,
   groupMembers,
   groups,
@@ -1039,7 +1041,23 @@ export async function checkActiveGroupCourseEligibility(
     )
     .limit(1);
 
-  if (groupCourseRows.length === 0) {
+  let hasCourseEnrollment = groupCourseRows.length > 0;
+  if (!hasCourseEnrollment) {
+    const tokenCourseRows = await client
+      .select({ tokenId: enrollmentTokenCourses.tokenId })
+      .from(enrollmentTokenCourses)
+      .innerJoin(enrollmentTokens, eq(enrollmentTokenCourses.tokenId, enrollmentTokens.id))
+      .where(
+        and(
+          eq(enrollmentTokens.groupId, rawGroupId),
+          inArray(enrollmentTokenCourses.courseId, courseIdsToCheck),
+        ),
+      )
+      .limit(1);
+    hasCourseEnrollment = tokenCourseRows.length > 0;
+  }
+
+  if (!hasCourseEnrollment) {
     return {
       isEligible: false,
       groupId: group.id,

@@ -25,7 +25,7 @@ export function DistributionBar({ low, mid, high, total, className }: {
     >
       <div className="h-full bg-status-error" style={{ width: `${lowPct}%` }} />
       <div className="h-full bg-status-warning" style={{ width: `${midPct}%` }} />
-      <div className="h-full bg-primary" style={{ width: `${highPct}%` }} />
+      <div className="h-full bg-status-success" style={{ width: `${highPct}%` }} />
     </div>
   );
 }

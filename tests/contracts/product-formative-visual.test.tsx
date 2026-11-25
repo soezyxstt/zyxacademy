@@ -29,3 +29,11 @@ test("option click guard excludes scene descendants and interactive controls whi
   expect(isFormativeVisualInputEnter(" ", visualInput)).toBe(false);
   expect(isFormativeVisualInputEnter("Enter", { closest: () => null } as unknown as Element)).toBe(false);
 });
+
+test("collapsed checks retain their prompt and controls behind an accessible disclosure", () => {
+  const html = renderWithMessages(<ProductFormativeCheck collapsedByDefault content="Pertanyaan tetap tersedia" locator={{ articleId: "a", articleVersion: 1, sectionId: "s", blockId: "b" }} formativeCheck={{ checkKind: "short_answer", evaluationMode: "text_exact" }} />);
+  expect(html).toContain('aria-expanded="false"');
+  expect(html).toContain('hidden=""');
+  expect(html).toContain("Pertanyaan tetap tersedia");
+  expect(html).toContain("textarea");
+});

@@ -21,8 +21,8 @@ export async function DiscussionPage({ courseId, surface }: { courseId?: string;
   let actor;
   let courseKey: string | undefined;
   const pageClassName = surface === "admin"
-    ? "px-0 pb-2 pt-0 sm:px-0 sm:pb-2 sm:pt-0 lg:px-0"
-    : "pb-2 pt-2 sm:pb-3 sm:pt-3";
+    ? "-mx-(--page-gutter) w-auto max-w-none px-0 pb-2 pt-0 md:mx-auto md:w-full md:max-w-7xl md:px-0 md:pb-2 md:pt-0"
+    : "px-0 pb-2 pt-2 md:px-(--page-gutter) md:pb-3 md:pt-3";
   try {
     actor = await getSessionDiscussionActor();
     if ((surface === "admin" && actor.role !== "admin") || (surface === "tutor" && actor.role !== "tutor" && actor.role !== "admin")) throw new Error();
@@ -34,12 +34,12 @@ export async function DiscussionPage({ courseId, surface }: { courseId?: string;
       if (!courseKey) throw new Error();
     }
   } catch {
-    return <ApplicationPage data-discussion-page spacing="space-y-2" className={pageClassName}><PageHeader title={t("title")} /><AdminEmptyState icon={MessageSquareText} title={t("pageUnavailable")} description={t("accessChanged")} action={<Button asChild variant="outline"><Link href={surface === "student" ? "/dashboard" : surface === "tutor" ? "/tutor" : "/admin"}>{t("backDashboard")}</Link></Button>} /></ApplicationPage>;
+    return <ApplicationPage data-discussion-page spacing="space-y-(--compact-gap)" className={pageClassName}><PageHeader title={t("title")} /><AdminEmptyState icon={MessageSquareText} title={t("pageUnavailable")} description={t("accessChanged")} action={<Button asChild variant="outline"><Link href={surface === "student" ? "/dashboard" : surface === "tutor" ? "/tutor" : "/admin"}>{t("backDashboard")}</Link></Button>} /></ApplicationPage>;
   }
   const appearance = await getEquippedZyraAppearance(actor.id).catch(() => ({ skinId: null }));
   const backHref = courseId ? surface === "tutor" ? `/tutor/${encodeURIComponent(courseId)}` : `/courses/${encodeURIComponent(courseId)}` : undefined;
-  return <ApplicationPage data-discussion-page spacing="space-y-2" className={pageClassName}>
-    <PageHeader title={t("title")} backHref={backHref} className="mb-2" />
+  return <ApplicationPage data-discussion-page spacing="space-y-(--compact-gap)" className={pageClassName}>
+    <PageHeader title={t("title")} backHref={backHref} className={backHref ? "px-3 md:px-0" : undefined} />
     <Suspense fallback={<DiscussionWorkspaceSkeleton label={t("loadingThread")} />}>
       <DiscussionClient key={`${actor.id}:${courseKey ?? "all"}:${surface}`} viewer={{ id: actor.id, name: session.user.name || t("unknownUser"), role: actor.role, skinId: appearance.skinId }} courseId={courseKey} />
     </Suspense>

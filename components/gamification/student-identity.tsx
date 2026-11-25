@@ -95,24 +95,24 @@ export function StudentProfileDialog({ publicId, open, onOpenChange }: { publicI
         </div>
         {social.profileHref && <Button asChild variant="outline"><Link href={social.profileHref(publicId)} onClick={() => onOpenChange(false)}>{english ? "View profile" : "Lihat profil"}</Link></Button>}
         {message && <p role="alert" className="text-body-xs text-status-error">{message}</p>}
-        <dl className={`grid grid-cols-2 gap-x-4 gap-y-2 border-y border-border py-3 text-body-sm ${profile.baseXpMicro != null ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
+        <dl className="flex flex-wrap items-baseline gap-x-5 gap-y-1.5 border-y border-border/50 py-2 text-body-xs">
           {profile.baseXpMicro != null && (
-            <div>
-              <dt className="text-body-xs text-muted-foreground">XP</dt>
-              <dd className="font-semibold tabular-nums">{new Intl.NumberFormat(locale).format(profile.baseXpMicro / MICRO)}</dd>
+            <div className="inline-flex items-baseline gap-1.5">
+              <dt className="text-muted-foreground">XP</dt>
+              <dd className="text-body-sm font-semibold tabular-nums text-foreground">{new Intl.NumberFormat(locale).format(profile.baseXpMicro / MICRO)}</dd>
             </div>
           )}
-          <div>
-            <dt className="text-body-xs text-muted-foreground">{english ? "Followers" : "Pengikut"}</dt>
-            <dd className="font-semibold tabular-nums">{new Intl.NumberFormat(locale).format(profile.followerCount)}</dd>
+          <div className="inline-flex items-baseline gap-1.5">
+            <dt className="text-muted-foreground">{english ? "Followers" : "Pengikut"}</dt>
+            <dd className="text-body-sm font-semibold tabular-nums text-foreground">{new Intl.NumberFormat(locale).format(profile.followerCount)}</dd>
           </div>
-          <div>
-            <dt className="text-body-xs text-muted-foreground">{english ? "Following" : "Diikuti"}</dt>
-            <dd className="font-semibold tabular-nums">{new Intl.NumberFormat(locale).format(profile.followingCount)}</dd>
+          <div className="inline-flex items-baseline gap-1.5">
+            <dt className="text-muted-foreground">{english ? "Following" : "Diikuti"}</dt>
+            <dd className="text-body-sm font-semibold tabular-nums text-foreground">{new Intl.NumberFormat(locale).format(profile.followingCount)}</dd>
           </div>
-          <div>
-            <dt className="text-body-xs text-muted-foreground">{english ? "Badges" : "Lencana"}</dt>
-            <dd className="font-semibold tabular-nums">{profile.earnedBadges.length}</dd>
+          <div className="inline-flex items-baseline gap-1.5">
+            <dt className="text-muted-foreground">{english ? "Badges" : "Lencana"}</dt>
+            <dd className="text-body-sm font-semibold tabular-nums text-foreground">{profile.earnedBadges.length}</dd>
           </div>
         </dl>
         <AchievementBoard compact badges={profile.earnedBadges} featuredBadgeIds={profile.featuredBadgeIds} title={t("profileCustomization.badgeBoard")} familyLabels={familyLabels} lockedLabel={t("profileCustomization.locked")} tierLabel={tier => t("achievementPage.tier", { tier })} />

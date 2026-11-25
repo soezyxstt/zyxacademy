@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Authoring Pipeline"
-  short_description: "Coordinate Source, Idea and learning Product authoring"
-  default_prompt: "Use $zyx-authoring-pipeline and call workflow.get_playbook first. Fetch the current stage playbook when starting or resuming. Follow the requested V4 product selection or the standalone V5 solution workflow, including its review and publication gates."
+  short_description: "Atur alur Source, Idea, dan Product hingga rilis"
+  default_prompt: "Use $zyx-authoring-pipeline with the live contract. Resume from the last valid stage, prefer supported direct drafts and scoped edits, and distinguish source, admin, generation and verification jobs. Retain independent review, exact-revision evidence and publication authorization; let the host refresh OAuth. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

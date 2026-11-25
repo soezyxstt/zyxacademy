@@ -105,14 +105,14 @@ export function ZyraOpsSkeleton() {
         </div>
         <Skeleton className="h-9 w-24" />
       </div>
-      <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((item) => (
+      <div className="flex flex-col divide-y divide-border/40 border-y border-border/40 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-1.5 sm:divide-y-0 sm:py-2">
+        {[0, 1, 2, 3, 4].map((item) => (
           <div
             key={item}
-            className="flex min-h-14 items-center justify-between gap-3 bg-card px-4 py-3"
+            className="flex items-center justify-between gap-3 py-1.5 sm:inline-flex sm:justify-start sm:gap-2 sm:py-0"
           >
-            <Skeleton className="h-4 w-24 max-w-full" />
-            <Skeleton className="h-6 w-12 shrink-0" />
+            <Skeleton className="h-3.5 w-20 max-w-full" />
+            <Skeleton className="h-4 w-10 shrink-0" />
           </div>
         ))}
       </div>
@@ -270,27 +270,39 @@ export function AdminLoadingHeader({ back = false }: { back?: boolean }) {
 
 export function OpsMetricsSkeleton() {
   return (
-    <div role="status" aria-label="Memuat" className="space-y-5">
-      <div className="flex justify-end">
-        <Skeleton className="h-9 w-24" />
+    <div role="status" aria-label="Memuat" className="space-y-(--section-gap)">
+      <div className="flex items-center justify-between gap-2">
+        <Skeleton className="h-5 w-44 max-w-full" />
+        <Skeleton className="hidden size-9 md:block" />
       </div>
-      <div className="divide-y divide-border border-y border-border">
-        {[0, 1, 2, 3, 4, 5].map((row) => (
-          <div key={row} className="space-y-3 py-4">
-            <div className="flex justify-between gap-3">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-4 w-20" />
-            </div>
-            <div className="flex flex-wrap gap-6">
-              {[0, 1, 2].map((stat) => (
-                <div key={stat} className="space-y-2">
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="h-5 w-14" />
-                </div>
-              ))}
-            </div>
+      <div className="flex flex-col divide-y divide-border/40 border-y border-border/40 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-1.5 sm:divide-y-0 sm:py-2">
+        {[0, 1].map((stat) => (
+          <div key={stat} className="flex items-center justify-between gap-3 py-1.5 sm:inline-flex sm:justify-start sm:gap-2 sm:py-0">
+            <Skeleton className="h-3.5 w-20 max-w-full" />
+            <Skeleton className="h-4 w-10" />
           </div>
         ))}
+      </div>
+      <div className="space-y-1">
+        <Skeleton className="mb-2 h-4 w-36" />
+        <div className="divide-y divide-border/60 border-t border-border/60">
+          {[0, 1, 2].map((row) => (
+            <div key={row} className="flex justify-between gap-3 py-(--row-padding)">
+              <Skeleton className="h-4 w-40 max-w-full" />
+              <Skeleton className="h-4 w-20 shrink-0" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1">
+        <Skeleton className="mb-2 h-4 w-36" />
+        <div className="grid border-t border-border/60 sm:grid-cols-2 sm:gap-x-(--section-gap)">
+          {[0, 1, 2, 3].map((row) => (
+            <div key={row} className="border-b border-border/60 py-(--row-padding) last:border-b-0 sm:nth-last-2:border-b-0">
+              <Skeleton className="h-4 w-40 max-w-full" />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -309,14 +321,14 @@ export function FlagsSkeleton() {
           <Skeleton className="h-9 w-24" />
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
+      <div className="flex flex-col divide-y divide-border/40 border-y border-border/40 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-1.5 sm:divide-y-0 sm:py-2">
         {[0, 1, 2, 3].map((item) => (
           <div
             key={item}
-            className="flex min-h-14 items-center justify-between gap-3 bg-card px-4 py-3"
+            className="flex items-center justify-between gap-3 py-1.5 sm:inline-flex sm:justify-start sm:gap-2 sm:py-0"
           >
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-6 w-12" />
+            <Skeleton className="h-3.5 w-20" />
+            <Skeleton className="h-4 w-10" />
           </div>
         ))}
       </div>
@@ -346,14 +358,14 @@ export function AiAnalyticsSkeleton({ label = "Memuat" }: { label?: string }) {
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-8 w-24" />
       </div>
-      <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
+      <div className="flex flex-col divide-y divide-border/40 border-y border-border/40 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-1.5 sm:divide-y-0 sm:py-2">
         {[0, 1, 2, 3].map((item) => (
           <div
             key={item}
-            className="flex min-h-14 items-center justify-between gap-3 bg-card px-4 py-3"
+            className="flex items-center justify-between gap-3 py-1.5 sm:inline-flex sm:justify-start sm:gap-2 sm:py-0"
           >
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-6 w-16" />
+            <Skeleton className="h-3.5 w-20" />
+            <Skeleton className="h-4 w-12" />
           </div>
         ))}
       </div>
@@ -444,14 +456,14 @@ export function MeetDetailSkeleton({
   return (
     <div role="status" aria-label="Memuat" className="space-y-6">
       {showHeader && <AdminLoadingHeader back />}
-      <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-5">
+      <div className="flex flex-col divide-y divide-border/40 border-y border-border/40 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-1.5 sm:divide-y-0 sm:py-2">
         {[0, 1, 2, 3, 4].map((item) => (
           <div
             key={item}
-            className="flex min-h-14 items-center justify-between gap-3 bg-card px-4 py-3"
+            className="flex items-center justify-between gap-3 py-1.5 sm:inline-flex sm:justify-start sm:gap-2 sm:py-0"
           >
-            <Skeleton className="h-4 w-24 max-w-full" />
-            <Skeleton className="h-6 w-16 shrink-0" />
+            <Skeleton className="h-3.5 w-20 max-w-full" />
+            <Skeleton className="h-4 w-12 shrink-0" />
           </div>
         ))}
       </div>

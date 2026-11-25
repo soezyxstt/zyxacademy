@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MathText } from "@/components/course/math-text";
+import { TutorQuestionOptionPreview } from "@/components/tutor/question-option-preview";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
 import {
@@ -296,7 +297,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   }
 
   return (
-    <div className="space-y-(--major-gap)">
+    <div className="space-y-(--section-gap)">
       <Tabs defaultValue="templates" className="w-full">
         <TabsList>
           <TabsTrigger value="templates">
@@ -312,9 +313,12 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         {/* =====================================================================
             TAB 1: QUIZ
             ===================================================================== */}
-        <TabsContent value="templates" className="space-y-(--section-gap)">
+        <TabsContent value="templates" className="space-y-(--related-gap)">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-            <span className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{tr("quizCount", { count: initialTemplates.length })}</span>
+            <span className="inline-flex items-center gap-2 text-body-sm font-medium text-muted-foreground">
+              <ClipboardList className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span>{tr("quizCount", { count: initialTemplates.length })}</span>
+            </span>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -328,33 +332,81 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
           </div>
 
           {initialTemplates.length === 0 ? (
-            <AdminEmptyState icon={ClipboardList} title={tr("noQuizzes")} />
+            <AdminEmptyState compact icon={ClipboardList} title={tr("noQuizzes")} />
           ) : (
-            <div className="divide-y divide-border/30">
+            <div className="divide-y divide-border/55">
               {initialTemplates.map((t) => {
                 const rules = typeof t.selectionRules === "string" ? JSON.parse(t.selectionRules) : t.selectionRules;
                 const isSimulation = t.category === "simulation";
 
                 return (
-                  <div key={t.id} className="-mx-2 space-y-2.5 rounded-lg px-2 py-3 transition-colors hover:bg-muted/35">
+                  <div key={t.id} className="space-y-(--compact-gap) py-(--row-padding)">
                     <div className="space-y-1">
-                      <div className="flex justify-between items-start gap-2">
-                        <h3 className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</h3>
-                        <div className="flex gap-1.5 flex-wrap items-center">
-                          <Badge variant="secondary" className="text-body-2xs rounded-md px-2 py-0.5">
-                            {tr(quizCategoryLabelKey(t.category))}
-                          </Badge>
-                          <Badge variant={t.status === "published" ? "default" : "outline"}>
-                            {t.status === "published" ? tr("published") : tr("draft")}
-                          </Badge>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <h3 className="break-words font-heading text-body-base font-bold text-foreground">{t.title}</h3>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge variant="secondary" className="text-body-2xs rounded-md px-2 py-0.5">
+                              {tr(quizCategoryLabelKey(t.category))}
+                            </Badge>
+                            <Badge variant={t.status === "published" ? "default" : "outline"}>
+                              {t.status === "published" ? tr("published") : tr("draft")}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Button asChild variant="ghost" size="sm" className="min-h-9">
+                            <Link href={`/tutor/${courseId}/quizzes/${t.id}/attempts`}>
+                              <FileSpreadsheet className="size-4 text-muted-foreground" aria-hidden />
+                              {tr("results")}
+                            </Link>
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon-sm" aria-label={t.title} className="-me-1.5 size-9 sm:size-8">
+                                <MoreHorizontal className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-44">
+                              <DropdownMenuItem onSelect={() => handleOpenPreviewTpl(t)}>
+                                <Eye className="size-4 text-muted-foreground" />
+                                <span>{tr("preview")}</span>
+                              </DropdownMenuItem>
+                              {isSimulation ? (
+                                <DropdownMenuItem disabled>
+                                  <Edit2 className="size-4" />
+                                  <span>{tr("editAdmin")}</span>
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/tutor/${courseId}/quizzes/${t.id}/edit`}>
+                                    <Edit2 className="size-4 text-muted-foreground" />
+                                    <span>{tr("edit")}</span>
+                                  </Link>
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem disabled={isPending} onSelect={() => handleTogglePublishStatus(t.id, t.status)}>
+                                {t.status === "published" ? tr("moveToDraft") : tr("publishQuiz")}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                disabled={isSimulation}
+                                onSelect={() => setDeleteTplId(t.id)}
+                                className="text-status-error focus:text-status-error"
+                              >
+                                <Trash2 className="size-4" />
+                                <span>{tr("delete")}</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
 
                       {/* Creator attribution line */}
-                      <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground">
-                        <UserCheck className="size-3 text-brand-primary shrink-0" />
+                      <div className="flex flex-wrap items-center gap-1.5 text-body-xs text-muted-foreground">
+                        <UserCheck className="size-3 shrink-0" />
                         <span>{tr("creator")}</span>
-                        <span className="font-semibold text-foreground truncate">{t.creatorName || tr("system")}</span>
+                        <span className="min-w-0 break-words font-semibold text-foreground">{t.creatorName || tr("system")}</span>
                         {t.creatorRole && (
                           <Badge variant="outline" className="capitalize text-body-2xs rounded-md px-1.5 py-0">
                             {t.creatorRole}
@@ -387,8 +439,8 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
 
                       {/* Schedule & Manual Status Section */}
-                      <div className="pt-2 border-t border-border/40 space-y-1.5 text-body-xs text-muted-foreground">
-                        <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-semibold text-muted-foreground flex items-center gap-1">
                             <Clock className="size-3" />
                             {tr("access")}
@@ -406,15 +458,15 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         </div>
 
                         {t.manualStatus === "scheduled" && (t.openAt || t.closeAt) && (
-                          <div className="text-body-xs space-y-1 mt-1 text-foreground/80">
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-body-xs">
                             {t.openAt && (
-                              <div className="flex justify-between">
+                              <div className="flex flex-wrap gap-x-1.5">
                                 <span>{tr("opens")}</span>
                                 <span className="font-semibold">{new Date(t.openAt).toLocaleString(dateLocale, { dateStyle: "short", timeStyle: "short" })}</span>
                               </div>
                             )}
                             {t.closeAt && (
-                              <div className="flex justify-between">
+                              <div className="flex flex-wrap gap-x-1.5">
                                 <span>{tr("closes")}</span>
                                 <span className="font-semibold">{new Date(t.closeAt).toLocaleString(dateLocale, { dateStyle: "short", timeStyle: "short" })}</span>
                               </div>
@@ -446,53 +498,6 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         </Collapsible>
                       )}
                     </div>
-                    <div className="flex items-center justify-between gap-2 pt-1">
-                      <Button asChild variant="outline" size="sm" className="gap-1.5">
-                        <Link href={`/tutor/${courseId}/quizzes/${t.id}/attempts`}>
-                          <FileSpreadsheet className="size-3.5" />
-                          <span>{tr("results")}</span>
-                        </Link>
-                      </Button>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon-sm" aria-label={t.title} className="h-8 w-8 rounded-lg">
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44">
-                          <DropdownMenuItem onSelect={() => handleOpenPreviewTpl(t)}>
-                            <Eye className="size-4 text-muted-foreground" />
-                            <span>{tr("preview")}</span>
-                          </DropdownMenuItem>
-                          {isSimulation ? (
-                            <DropdownMenuItem disabled>
-                              <Edit2 className="size-4" />
-                              <span>{tr("editAdmin")}</span>
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem asChild>
-                              <Link href={`/tutor/${courseId}/quizzes/${t.id}/edit`}>
-                                <Edit2 className="size-4 text-muted-foreground" />
-                                <span>{tr("edit")}</span>
-                              </Link>
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem disabled={isPending} onSelect={() => handleTogglePublishStatus(t.id, t.status)}>
-                            {t.status === "published" ? tr("moveToDraft") : tr("publishQuiz")}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            disabled={isSimulation}
-                            onSelect={() => setDeleteTplId(t.id)}
-                            className="text-status-error focus:text-status-error"
-                          >
-                            <Trash2 className="size-4" />
-                            <span>{tr("delete")}</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
                   </div>
                 );
               })}
@@ -503,9 +508,12 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         {/* =====================================================================
             TAB 2: QUESTION BANK
             ===================================================================== */}
-        <TabsContent value="questionbank" className="space-y-(--section-gap)">
+        <TabsContent value="questionbank" className="space-y-(--related-gap)">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-            <span className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{tr("questionBankTitle", { count: initialQuestionBank.length })}</span>
+            <span className="inline-flex items-center gap-2 text-body-sm font-medium text-muted-foreground">
+              <HelpCircle className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span>{tr("questionBankTitle", { count: initialQuestionBank.length })}</span>
+            </span>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -519,10 +527,10 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
           </div>
 
           {initialQuestionBank.length === 0 ? (
-            <AdminEmptyState icon={HelpCircle} title={tr("emptyBank")} />
+            <AdminEmptyState compact icon={HelpCircle} title={tr("emptyBank")} />
           ) : (
             <>
-            <div className="divide-y divide-border/30">
+            <div className="divide-y divide-border/55">
               {initialQuestionBank.slice(questionOffset, questionOffset + QUESTION_PAGE_SIZE).map((q, idx) => {
                 const isImmutableReference = q.origin !== "zyx_original";
                 const tagsArr = typeof q.tags === "string" ? JSON.parse(q.tags) : q.tags;
@@ -530,7 +538,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 const correct = typeof q.correctIndices === "string" ? JSON.parse(q.correctIndices) : q.correctIndices;
 
                 return (
-                  <div key={q.id} className="relative -mx-2 rounded-lg px-2 py-(--row-padding) transition-colors hover:bg-muted/35">
+                  <div key={q.id} className="py-(--row-padding)">
                     <div className="flex items-start justify-between gap-(--related-gap)">
                       <div className="space-y-1.5 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -578,27 +586,10 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                     </div>
 
                     {/* Options list / Acceptable answers preview */}
-                    {(q.questionType === "multiple_choice" || q.questionType === "multiple_choices" || (!q.questionType && Array.isArray(opts) && opts.length > 0)) && (
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2 pl-2">
-                        {Array.isArray(opts) && opts.map((opt, i) => {
-                          const isCorrect = Array.isArray(correct) && correct.includes(i);
-                          return (
-                            <div key={i} className={`flex items-center gap-2 text-body-xs px-3 py-1.5 rounded-lg border ${
-                              isCorrect ? "bg-status-success/5 border-status-success/25 text-foreground" : "bg-muted/10 border-border/50 text-muted-foreground"
-                            }`}>
-                              <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-body-2xs font-bold ${
-                                isCorrect ? "bg-status-success/15 text-foreground" : "bg-muted text-muted-foreground"
-                              }`}>
-                                {String.fromCharCode(65 + i)}
-                              </span>
-                              <span className="min-w-0 break-words">
-                                <MathText className="leading-normal" as="span">{opt}</MathText>
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    {Array.isArray(opts) && opts.length > 0 &&
+                      (q.questionType === "multiple_choice" || q.questionType === "multiple_choices" || !q.questionType) && (
+                        <TutorQuestionOptionPreview options={opts} correctIndices={Array.isArray(correct) ? correct : []} />
+                      )}
 
                     {q.questionType === "short_answer" && (
                       <div className="mt-3 pl-2">
@@ -619,7 +610,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
                     {/* Tags */}
                     {Array.isArray(tagsArr) && tagsArr.length > 0 && (
-                      <div className="mt-4 pt-3 border-t border-border/40 flex flex-wrap gap-1">
+                      <div className="mt-(--compact-gap) flex flex-wrap gap-1">
                         {tagsArr.map((t: string) => (
                           <Badge key={t} variant="outline" className="text-body-2xs text-muted-foreground rounded-md">
                             {t}
@@ -690,7 +681,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                   setQType(val);
                   setQCorrectIndices([]);
                 }}>
-                  <SelectTrigger id="q-type" className="rounded-lg border-input bg-background">
+                  <SelectTrigger id="q-type">
                     <SelectValue placeholder={tr("chooseType")} />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
@@ -705,7 +696,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
               <div className="grid gap-2">
                 <Label htmlFor="q-diff" className="text-body-sm font-semibold">{tr("difficulty")}</Label>
                 <Select value={qDifficulty} onValueChange={(val: any) => setQDifficulty(val)}>
-                  <SelectTrigger id="q-diff" className="rounded-lg border-input bg-background">
+                  <SelectTrigger id="q-diff">
                     <SelectValue placeholder={tr("chooseDifficulty")} />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
@@ -828,7 +819,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
               {tr("deleteQuizDescription")}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 mt-4">
+          <DialogFooter className="flex-row flex-wrap justify-end gap-2">
             <Button variant="outline" onClick={() => setDeleteTplId(null)} disabled={isPending} className="rounded-md border-border/80">
               {tr("cancel")}
             </Button>
@@ -847,7 +838,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
               {tr("deleteQuestionDescription")}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 mt-4">
+          <DialogFooter className="flex-row flex-wrap justify-end gap-2">
             <Button variant="outline" onClick={() => setDeleteQId(null)} disabled={isPending} className="rounded-md border-border/80">
               {tr("cancel")}
             </Button>
@@ -860,19 +851,19 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
       {/* PREVIEW QUIZ DIALOG */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
-          <DialogHeader className="p-6 pb-4 border-b border-border/40 shrink-0">
+        <DialogContent className="flex max-h-[85dvh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="shrink-0 border-b border-border/55 px-4 py-3 sm:px-6">
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {tr("previewTitle", { title: previewTpl?.title ?? "" })}
             </DialogTitle>
             <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-(--compact-gap) flex-wrap items-center mt-1">
-              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">{tr("categoryLabel", { category: previewTpl ? tr(quizCategoryLabelKey(previewTpl.category)) : "" })}</span>
-              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">{tr("timeLimit", { duration: previewTpl?.timeLimitSeconds ? `${previewTpl.timeLimitSeconds / 60} min` : tr("free") })}</span>
-              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">{tr("attempts", { count: previewTpl?.maxAttempts ? `${previewTpl.maxAttempts}x` : tr("free") })}</span>
+              <span className="text-muted-foreground">{tr("categoryLabel", { category: previewTpl ? tr(quizCategoryLabelKey(previewTpl.category)) : "" })}</span>
+              <span className="text-muted-foreground">{tr("timeLimit", { duration: previewTpl?.timeLimitSeconds ? `${previewTpl.timeLimitSeconds / 60} min` : tr("free") })}</span>
+              <span className="text-muted-foreground">{tr("attempts", { count: previewTpl?.maxAttempts ? `${previewTpl.maxAttempts}x` : tr("free") })}</span>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 text-left">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 text-left sm:px-6">
             {loadingPreview ? (
               <div className="py-12 flex flex-col items-center justify-center gap-(--compact-gap)">
                 <Loader2 className="size-8 animate-spin text-brand-primary" />
@@ -883,16 +874,16 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 {tr("noPreviewQuestions")}
               </div>
             ) : (
-              <ol className="divide-y divide-border/30">
+              <ol className="divide-y divide-border/55">
                 {previewQuestions.map((q, idx) => (
                   <li key={q.id} className="space-y-(--compact-gap) py-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-body-sm font-bold text-foreground">{tr("questionNumberPreview", { number: idx + 1 })}</span>
                       <div className="flex items-center gap-2">
-                        <span className="capitalize text-body-2xs bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
+                        <span className="text-body-xs text-muted-foreground">
                           {tr(q.difficulty)}
                         </span>
-                        <span className="capitalize text-body-2xs bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
+                        <span className="text-body-xs text-muted-foreground">
                           {q.questionType === "multiple_choice"
                             ? tr("singleChoice")
                             : q.questionType === "multiple_choices"
@@ -906,36 +897,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
                     <MarkdownRenderer content={q.prompt} className="font-semibold text-foreground" />
 
-                    <div className="grid gap-2">
-                      {q.options.map((opt: string, optIdx: number) => {
-                        const isCorrect = q.correctIndices.includes(optIdx);
-                        return (
-                          <div
-                            key={optIdx}
-                            className={cn(
-                              "flex items-center gap-(--compact-gap) p-3 rounded-lg border text-body-sm transition-colors",
-                              isCorrect
-                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-medium"
-                                : "bg-background/50 border-border text-foreground/80"
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                "flex size-6 items-center justify-center rounded border text-body-xs font-bold shrink-0",
-                                isCorrect
-                                  ? "bg-emerald-500 border-emerald-600 text-white shadow-xs"
-                                  : "bg-muted border-border text-muted-foreground"
-                              )}
-                            >
-                              {String.fromCharCode(65 + optIdx)}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <MarkdownRenderer content={opt} density="compact" />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    {q.options.length > 0 && (
+                      <TutorQuestionOptionPreview options={q.options} correctIndices={q.correctIndices} format="markdown" />
+                    )}
 
                     {q.explanation && (
                       <div className="space-y-1 border-l-2 border-border pl-3 text-body-xs text-muted-foreground">

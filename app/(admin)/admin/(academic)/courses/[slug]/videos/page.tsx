@@ -32,7 +32,7 @@ export default async function AdminCourseVideosPage({ params }: Props) {
   if (!data) notFound();
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="min-w-0 space-y-(--compact-gap)">
       <CourseDetailHeader
         course={{
           id: data.course.id,

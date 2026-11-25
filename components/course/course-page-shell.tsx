@@ -44,7 +44,7 @@ export function CoursePageShell({
   }
 
   return (
-    <ApplicationPage maxWidth={maxWidth} spacing="space-y-(--compact-gap)" className={cn("relative pb-8", className)}>
+    <ApplicationPage maxWidth={maxWidth} spacing="space-y-(--compact-gap)" className={cn("relative", className)}>
       {!hideHeader && title && (
         <PageHeader
           title={title}
@@ -55,7 +55,7 @@ export function CoursePageShell({
           className={hideMobileTitle ? undefined : "mb-0"}
         />
       )}
-      <div>{children}</div>
+      <div className="min-w-0">{children}</div>
     </ApplicationPage>
   );
 }

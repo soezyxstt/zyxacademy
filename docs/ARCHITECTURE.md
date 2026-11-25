@@ -291,6 +291,8 @@ The Authoring Job Pack contract is documented in `docs/bundle/authoring-job-pack
 
 ### Provider-neutral Authoring MCP
 
+The [agent workflow draft](bundle/authoring-agent-workflow.md) adds typed Idea V3 and Product V4 creation adapters over the existing admission/staging services. Idea input binds a stored Source Pack and resolves exact quoted spans; Product input binds published Idea/source snapshots. An offline preview host bundles shared learner and print components for the same draft JSON, with loopback-only routes and no runtime reference admission. The server loads current references and derives archive metadata. Revision response projections separate fast authoring reads from full review/readiness computation. Verifier checkpoints use a distinct HMAC domain, exact plan/audit/check/batch scope and artifact-byte verification before copying evidence to the current attempt. No cross-revision cache or release shortcut is introduced. This source change awaits hosted acceptance.
+
 The first MCP boundary is a stateless Streamable HTTP adapter at `/api/mcp/authoring`. It creates a fresh MCP server per request and calls repository validators rather than duplicating bundle rules. Any MCP host can discover the same tools, including Gemini, Claude, and ChatGPT integrations.
 
 ```mermaid

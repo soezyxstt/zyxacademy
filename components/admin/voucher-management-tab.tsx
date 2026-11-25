@@ -8,6 +8,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
+  MoreVertical,
   Plus,
   Power,
   RefreshCw,
@@ -21,6 +22,12 @@ import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panel
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { AdminIconAction } from "@/components/admin/icon-action";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Input } from "@/components/ui/input";
@@ -153,15 +160,8 @@ export function VoucherManagementTab({
   const isExpired = (date: Date) => new Date(date).getTime() <= loadedAt;
 
   return (
-    <div className="space-y-6" data-voucher-management>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="font-heading text-body-base font-bold text-foreground">
-            {t("voucher.title")}
-          </h2>
-        </div>
-
-        <div className="flex items-center gap-2">
+    <section className="space-y-(--related-gap)" aria-label={t("voucher.title")} data-voucher-management>
+      <div className="flex flex-wrap items-center justify-end gap-2">
           <AdminIconAction label={t("voucher.refresh")}
             type="button"
             variant="outline"
@@ -179,12 +179,11 @@ export function VoucherManagementTab({
               setFormError(null);
               setFormSuccess(null);
             }}
-            className="gap-1.5"
+            className="min-h-9"
           >
             <Plus className="size-3.5" />
             {showForm ? t("voucher.closeForm") : t("voucher.create")}
           </Button>
-        </div>
       </div>
 
       {formSuccess && (
@@ -208,7 +207,7 @@ export function VoucherManagementTab({
             title={t("voucher.new")}
           />
 
-          <form onSubmit={handleCreateVoucher} className="mt-5 space-y-4">
+          <form onSubmit={handleCreateVoucher} className="mt-(--compact-gap) space-y-(--related-gap)">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-2">
                 <Label htmlFor="voucher-code">{t("voucher.code")}</Label>
@@ -330,77 +329,162 @@ export function VoucherManagementTab({
           }
         />
       ) : (
-        <AdminTable>
-          <table className="w-full text-left text-body-xs">
-            <AdminTableHead>
-              <tr>
-                <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.codeColumn")}</th>
-                <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.discountColumn")}</th>
-                <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.quotaColumn")}</th>
-                <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.activePeriod")}</th>
-                <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.status")}</th>
-                <th className="px-4 py-3 text-right font-semibold text-foreground">{t("voucher.actions")}</th>
-              </tr>
-            </AdminTableHead>
-            <tbody className="divide-y divide-border/60">
-              {vouchers.map((v) => {
-                const expired = isExpired(v.expiresAt);
-                const exhausted = v.usedQuota >= v.maxQuota;
+        <>
+          <div className="hidden md:block">
+            <AdminTable>
+              <table className="w-full text-left text-body-xs">
+                <AdminTableHead>
+                  <tr>
+                    <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.codeColumn")}</th>
+                    <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.discountColumn")}</th>
+                    <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.quotaColumn")}</th>
+                    <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.activePeriod")}</th>
+                    <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.status")}</th>
+                    <th className="px-4 py-3 text-right font-semibold text-foreground">{t("voucher.actions")}</th>
+                  </tr>
+                </AdminTableHead>
+                <tbody className="divide-y divide-border/60">
+                  {vouchers.map((v) => {
+                    const expired = isExpired(v.expiresAt);
+                    const exhausted = v.usedQuota >= v.maxQuota;
 
-                return (
-                  <tr key={v.id} className="transition-colors hover:bg-muted/30">
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col">
-                        <span className="font-mono text-body-sm font-bold text-foreground">
+                    return (
+                      <tr key={v.id} className="transition-colors hover:bg-muted/30">
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className="font-mono text-body-sm font-bold text-foreground">
+                              {v.code}
+                            </span>
+                            {v.description && (
+                              <span className="text-body-xs text-muted-foreground">
+                                {v.description}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <Badge
+                            variant="outline"
+                            className="border-[var(--zx-accent)]/30 bg-[var(--zx-accent)]/10 font-bold text-[var(--zx-accent)]"
+                          >
+                            {v.discountPercent}%
+                          </Badge>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`font-semibold ${
+                                exhausted ? "text-status-warning" : "text-foreground"
+                              }`}
+                            >
+                              {v.usedQuota} / {v.maxQuota}
+                            </span>
+                            <span className="text-body-xs text-muted-foreground">
+                              {t("voucher.remaining", { count: Math.max(0, v.maxQuota - v.usedQuota) })}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className={expired ? "font-semibold text-status-error" : "text-foreground"}>
+                              <FormattedDate
+                                date={v.expiresAt}
+                                options={{ dateStyle: "medium" }}
+                              />
+                            </span>
+                            {expired && (
+                              <span className="text-body-2xs text-status-error">{t("voucher.expired")}</span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          {expired ? (
+                            <Badge variant="outline" className="border-status-error/30 bg-status-error/10 text-status-error">
+                              {t("voucher.expired")}
+                            </Badge>
+                          ) : exhausted ? (
+                            <Badge variant="outline" className="border-status-warning/30 bg-status-warning/10 text-status-warning">
+                              {t("voucher.quotaUsed")}
+                            </Badge>
+                          ) : v.isActive ? (
+                            <Badge variant="outline" className="border-status-success/30 bg-status-success/10 text-status-success">
+                              {t("voucher.active")}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-border bg-muted text-muted-foreground">
+                              {t("voucher.inactive")}
+                            </Badge>
+                          )}
+                        </td>
+
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="xs"
+                              onClick={() => handleToggleStatus(v)}
+                              disabled={isPending}
+                              title={v.isActive ? t("voucher.disable") : t("voucher.enable")}
+                              className="h-7 px-2 text-body-2xs gap-1"
+                            >
+                              <Power className="size-3" />
+                              {v.isActive ? t("voucher.disableAction") : t("voucher.enableAction")}
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              onClick={() => setDeleteTarget(v)}
+                              disabled={isPending}
+                              title={t("voucher.delete")}
+                              className="text-status-error hover:bg-status-error/10"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </AdminTable>
+          </div>
+
+          <ul className="divide-y divide-border/40 border-y border-border md:hidden">
+            {vouchers.map((v) => {
+              const expired = isExpired(v.expiresAt);
+              const exhausted = v.usedQuota >= v.maxQuota;
+
+              return (
+                <li key={v.id} className="py-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-body-sm font-bold text-foreground break-all">
                           {v.code}
                         </span>
-                        {v.description && (
-                          <span className="text-body-xs text-muted-foreground">
-                            {v.description}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-3">
-                      <Badge
-                        variant="outline"
-                        className="border-[var(--zx-accent)]/30 bg-[var(--zx-accent)]/10 font-bold text-[var(--zx-accent)]"
-                      >
-                        {v.discountPercent}%
-                      </Badge>
-                    </td>
-
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`font-semibold ${
-                            exhausted ? "text-status-warning" : "text-foreground"
-                          }`}
+                        <Badge
+                          variant="outline"
+                          className="border-[var(--zx-accent)]/30 bg-[var(--zx-accent)]/10 font-bold text-[var(--zx-accent)]"
                         >
-                          {v.usedQuota} / {v.maxQuota}
-                        </span>
-                        <span className="text-body-xs text-muted-foreground">
-                          {t("voucher.remaining", { count: Math.max(0, v.maxQuota - v.usedQuota) })}
-                        </span>
+                          {v.discountPercent}%
+                        </Badge>
                       </div>
-                    </td>
+                      {v.description && (
+                        <p className="mt-0.5 text-body-xs text-muted-foreground break-words">
+                          {v.description}
+                        </p>
+                      )}
+                    </div>
 
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col">
-                        <span className={expired ? "font-semibold text-status-error" : "text-foreground"}>
-                          <FormattedDate
-                            date={v.expiresAt}
-                            options={{ dateStyle: "medium" }}
-                          />
-                        </span>
-                        {expired && (
-                          <span className="text-body-2xs text-status-error">{t("voucher.expired")}</span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-3">
+                    <div className="flex shrink-0 items-center gap-1.5">
                       {expired ? (
                         <Badge variant="outline" className="border-status-error/30 bg-status-error/10 text-status-error">
                           {t("voucher.expired")}
@@ -418,42 +502,61 @@ export function VoucherManagementTab({
                           {t("voucher.inactive")}
                         </Badge>
                       )}
-                    </td>
 
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => handleToggleStatus(v)}
-                          disabled={isPending}
-                          title={v.isActive ? t("voucher.disable") : t("voucher.enable")}
-                          className="h-7 px-2 text-body-2xs gap-1"
-                        >
-                          <Power className="size-3" />
-                          {v.isActive ? t("voucher.disableAction") : t("voucher.enableAction")}
-                        </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            disabled={isPending}
+                            aria-label={t("voucher.actions")}
+                          >
+                            <MoreVertical className="size-4" aria-hidden />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            disabled={isPending}
+                            onClick={() => handleToggleStatus(v)}
+                          >
+                            <Power className="size-3.5" aria-hidden />
+                            {v.isActive ? t("voucher.disableAction") : t("voucher.enableAction")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            disabled={isPending}
+                            onClick={() => setDeleteTarget(v)}
+                            className="text-status-error focus:text-status-error"
+                          >
+                            <Trash2 className="size-3.5" aria-hidden />
+                            {t("voucher.delete")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
 
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => setDeleteTarget(v)}
-                          disabled={isPending}
-                          title={t("voucher.delete")}
-                          className="text-status-error hover:bg-status-error/10"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </AdminTable>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5 tabular-nums">
+                      <span className={exhausted ? "font-semibold text-status-warning" : "font-semibold text-foreground"}>
+                        {v.usedQuota} / {v.maxQuota}
+                      </span>
+                      <span>
+                        {t("voucher.remaining", { count: Math.max(0, v.maxQuota - v.usedQuota) })}
+                      </span>
+                    </div>
+                    <span className={expired ? "font-semibold text-status-error" : "text-muted-foreground"}>
+                      <FormattedDate
+                        date={v.expiresAt}
+                        options={{ dateStyle: "medium" }}
+                      />
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
 
       <AdminConfirmDialog
@@ -487,6 +590,6 @@ export function VoucherManagementTab({
         loading={isDeleting}
         onConfirm={handleDeleteConfirm}
       />
-    </div>
+    </section>
   );
 }

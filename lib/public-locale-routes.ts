@@ -4,6 +4,7 @@ import type { Locale } from "@/lib/i18n/locale";
 export const PUBLIC_LOCALE_ROUTES = [
   "/",
   "/about",
+  "/download",
   "/plans",
   "/testimonial",
   "/blog",

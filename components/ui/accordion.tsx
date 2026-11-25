@@ -4,6 +4,7 @@ import * as React from "react";
 import { Accordion as AccordionPrimitive } from "radix-ui";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { hapticLight } from "@/lib/native/haptics";
 
 function Accordion({
   ...props
@@ -27,12 +28,17 @@ function AccordionItem({
 function AccordionTrigger({
   className,
   children,
+  onClick,
   ...props
 }: React.ComponentProps<typeof AccordionPrimitive.Trigger>) {
   return (
     <AccordionPrimitive.Header className="flex">
       <AccordionPrimitive.Trigger
         data-slot="accordion-trigger"
+        onClick={(event) => {
+          void hapticLight();
+          onClick?.(event);
+        }}
         className={cn(
           "flex flex-1 cursor-pointer items-center justify-between gap-4 py-4 text-left text-body-sm font-semibold text-foreground transition-colors outline-none hover:text-foreground/85 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180",
           className

@@ -12,7 +12,7 @@ export function TutorAssistantSurface({children}: {children: ReactNode}) {
  const appearance = useContext(TutorAppearanceContext);
  return <ZyraBubbleSkin skinId={appearance.skinId} role="assistant">{children}</ZyraBubbleSkin>;
 }
-export function TutorAssistantLabel() {
+export function TutorAssistantLabel({ label = "Zyra" }: { label?: string } = {}) {
   const appearance = useContext(TutorAppearanceContext);
-  return <div className="flex items-center gap-1.5"><ZyraCosmeticAvatar cosmeticId={appearance.avatarId} headOnly size={28} /><span className="font-heading text-body-xs font-bold text-brand-primary">Zyra</span></div>;
+  return <div className="flex items-center gap-1.5"><ZyraCosmeticAvatar cosmeticId={appearance.avatarId} headOnly size={28} /><span className="font-heading text-body-xs font-bold text-brand-primary">{label}</span></div>;
 }

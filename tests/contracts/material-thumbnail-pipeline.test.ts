@@ -11,7 +11,9 @@ describe("student sidebar course context", () => {
   test("route context switches the sidebar before course metadata resolves", () => {
     const sidebar = source("components/student-sidebar.tsx");
     const data = source("hooks/use-student-sidebar-data.ts");
-    expect(sidebar).toContain('const activeCourseId = courseIdFromPath ?? (pathname === "/dashboard/schedule" ? courseIdFromSchedule : undefined)');
+    expect(sidebar).toContain('const courseIdFromPath = pathname.startsWith("/courses/")');
+    expect(sidebar).toContain("const activeCourseId = courseIdFromPath;");
+    expect(sidebar).not.toContain("courseIdFromSchedule");
     expect(sidebar).toContain("if (activeCourseId)");
     expect(sidebar).toContain("useStudentSidebarData({ userId, activeCourseId, pathname, enabled: !demo })");
     expect(data).toContain('studentCourseQuery(userId ?? "", activeCourseId ?? "")');

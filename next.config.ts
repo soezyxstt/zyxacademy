@@ -36,6 +36,7 @@ const nextConfig: NextConfig = {
       "./node_modules/jsxgraph/distrib/**",
     ],
     "/api/mcp/authoring": ["./lib/authoring/playbooks/**/*", "./dist/skills/**/*"],
+    "/api/admin/ops-ai": ["./lib/authoring/playbooks/**/*", "./dist/skills/**/*", "./plugins/zyx-authoring-mcp/skills/**/*"],
   },
   typescript: {
     ignoreBuildErrors: true,

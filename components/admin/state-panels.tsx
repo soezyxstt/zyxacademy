@@ -19,18 +19,17 @@ export function AdminEmptyState({
   compact = false,
   className,
 }: AdminEmptyStateProps) {
-  if (compact) {
-    return (
-      <p className={cn("py-6 text-center text-body-sm text-muted-foreground", className)}>
-        {title ?? description}
-      </p>
-    );
-  }
   return (
-    <div className={cn("flex min-h-[40vh] flex-1 flex-col items-center justify-center gap-2.5 px-6 py-12 text-center", className)}>
-      {Icon && <Icon className="size-8 text-muted-foreground/60" aria-hidden />}
-      {title && <p className="font-semibold text-foreground">{title}</p>}
-      {description && <p className="max-w-sm text-body-sm text-muted-foreground">{description}</p>}
+    <div className={cn(
+      "flex gap-(--compact-gap)",
+      compact ? "items-start py-4" : "flex-col items-center px-4 py-8 text-center",
+      className,
+    )}>
+      <Icon className={cn("shrink-0 text-muted-foreground", compact ? "mt-0.5 size-4" : "size-6")} aria-hidden />
+      <div className="min-w-0 space-y-1">
+        {title && <p className="text-body-sm font-semibold text-foreground">{title}</p>}
+        {description && <p className="max-w-sm text-body-xs text-muted-foreground">{description}</p>}
+      </div>
       {action}
     </div>
   );

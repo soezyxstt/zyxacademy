@@ -11,7 +11,7 @@ describe("AdminSidebar hybrid grouping contract", () => {
     );
 
     const ids = tabMatches.map((m) => m[1]);
-    expect(ids.length).toBe(30);
+    expect(ids.length).toBe(29);
     expect(new Set(ids).size).toBe(ids.length);
 
     const byGroup = (group: string) =>
@@ -40,15 +40,14 @@ describe("AdminSidebar hybrid grouping contract", () => {
       "short-links",
     ]);
     expect(byGroup("analitik")).toEqual([
+      "web-analytics",
       "ops-monitor",
-      "tutor-activity",
       "ai-analytics",
       "feature-usage",
-      "web-analytics",
+      "tutor-activity",
     ]);
     expect(byGroup("sistem")).toEqual([
       "ai-models",
-      "feature-flags",
       "api-keys",
     ]);
     expect(byGroup("utilitas")).toEqual(["docs"]);

@@ -25,11 +25,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTranslations } from "@/lib/i18n/client";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 
 const USERS_PER_PAGE = 15;
 
 export function ZyraUsageCharts() {
   const t = useTranslations("admin.usageCharts");
+  const isMobile = useViewportMode() === "mobile";
   const [dateRange, setDateRange] = useState<UsageRangeDays>(30);
   const [userPage, setUserPage] = useState(1);
   const userId = useQueryAccountId();
@@ -38,7 +40,7 @@ export function ZyraUsageCharts() {
 
   if (error) {
     return (
-      <div className="mt-5 space-y-4">
+      <div className="space-y-(--compact-gap)">
         <AdminErrorState message={t("loadFailed")} onRetry={() => refetch()} />
       </div>
     );
@@ -80,7 +82,7 @@ export function ZyraUsageCharts() {
   };
 
   return (
-    <div className="mt-6 space-y-5 border-t border-border pt-5">
+    <section className="min-w-0 space-y-(--related-gap)">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-heading text-body-base font-semibold text-foreground">
@@ -94,7 +96,7 @@ export function ZyraUsageCharts() {
             setUserPage(1);
           }}
         >
-          <SelectTrigger className="h-9 w-[170px] rounded-lg text-body-sm">
+          <SelectTrigger aria-label={t("rangeLabel")} className="h-9 text-body-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -113,10 +115,17 @@ export function ZyraUsageCharts() {
             <h3 className="mb-4 text-body-sm font-semibold text-foreground">
               Tren Penggunaan Harian
             </h3>
-            <div className={daily.length ? "h-72 w-full" : "w-full"}>
+            <div className={daily.length ? "h-56 md:h-72 w-full" : "w-full"}>
               {daily.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={daily} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <BarChart
+                    data={daily}
+                    margin={
+                      isMobile
+                        ? { top: 8, right: 0, left: 0, bottom: 0 }
+                        : { top: 10, right: 10, left: 0, bottom: 0 }
+                    }
+                  >
                     <CartesianGrid
                       strokeDasharray="3 3"
                       vertical={false}
@@ -125,22 +134,25 @@ export function ZyraUsageCharts() {
                     />
                     <XAxis
                       dataKey="date"
-                      tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }}
-                      tickMargin={10}
+                      interval={isMobile ? "preserveStartEnd" : "preserveEnd"}
+                      tick={{ fontSize: isMobile ? 11 : 12, fill: "var(--color-muted-foreground)" }}
+                      tickMargin={isMobile ? 6 : 10}
                       tickFormatter={formatDateTick}
                       stroke="var(--color-border)"
                     />
                     <YAxis
                       yAxisId="left"
-                      tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }}
+                      width={isMobile ? 36 : undefined}
+                      tick={{ fontSize: isMobile ? 11 : 12, fill: "var(--color-muted-foreground)" }}
                       stroke="var(--color-border)"
                       tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
                     />
                     <YAxis
                       yAxisId="right"
                       orientation="right"
+                      width={isMobile ? 28 : undefined}
                       allowDecimals={false}
-                      tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }}
+                      tick={{ fontSize: isMobile ? 11 : 12, fill: "var(--color-muted-foreground)" }}
                       stroke="var(--color-border)"
                     />
                     <Tooltip
@@ -165,7 +177,7 @@ export function ZyraUsageCharts() {
                       cursor={{ fill: "var(--color-muted)", opacity: 0.3 }}
                     />
                     <Legend
-                      wrapperStyle={{ paddingTop: "16px", fontSize: "12px" }}
+                      wrapperStyle={{ paddingTop: isMobile ? "8px" : "16px", fontSize: isMobile ? "11px" : "12px" }}
                       formatter={(value) => (
                         <span className="text-body-xs font-medium text-foreground">{value}</span>
                       )}
@@ -176,7 +188,7 @@ export function ZyraUsageCharts() {
                       name="Input Tokens"
                       stackId="tokens"
                       fill="var(--color-brand-primary)"
-                      maxBarSize={32}
+                      maxBarSize={isMobile ? 22 : 32}
                     />
                     <Bar
                       yAxisId="left"
@@ -185,7 +197,7 @@ export function ZyraUsageCharts() {
                       stackId="tokens"
                       fill="var(--color-brand-secondary)"
                       radius={[4, 4, 0, 0]}
-                      maxBarSize={32}
+                      maxBarSize={isMobile ? 22 : 32}
                     />
                     <Bar
                       yAxisId="right"
@@ -193,7 +205,7 @@ export function ZyraUsageCharts() {
                       name="Total Request"
                       fill="var(--color-status-info)"
                       radius={[4, 4, 0, 0]}
-                      maxBarSize={32}
+                      maxBarSize={isMobile ? 22 : 32}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -207,66 +219,105 @@ export function ZyraUsageCharts() {
             <h3 className="font-heading text-body-base font-semibold text-foreground">
               Penggunaan per User
             </h3>
-            {users.length === 0 ? <AdminEmptyState title="Belum ada data penggunaan per pengguna" /> : <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full text-body-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th className="px-4 py-3 text-left font-semibold text-muted-foreground">
-                      Pengguna
-                    </th>
-                    <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
-                      Permintaan
-                    </th>
-                    <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
-                      Token input
-                    </th>
-                    <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
-                      Token output
-                    </th>
-                    <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
-                      Total token
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagedUsers.length > 0 ? (
-                    pagedUsers.map((u) => (
-                      <tr
-                        key={u.userId}
-                        className="border-b border-border last:border-0 transition-colors hover:bg-muted/20"
-                      >
-                        <td className="px-4 py-3 font-medium text-foreground">
-                          {u.name || "Unknown"}
-                          {u.email && (
-                            <span className="block text-body-xs font-normal text-muted-foreground">
-                              {u.email}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right text-foreground">
-                          {u.requests.toLocaleString("id-ID")}
-                        </td>
-                        <td className="px-4 py-3 text-right text-muted-foreground">
-                          {u.inputTokens.toLocaleString("id-ID")}
-                        </td>
-                        <td className="px-4 py-3 text-right text-muted-foreground">
-                          {u.outputTokens.toLocaleString("id-ID")}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-foreground">
-                          {u.totalTokens.toLocaleString("id-ID")}
-                        </td>
+            {users.length === 0 ? (
+              <AdminEmptyState title="Belum ada data penggunaan per pengguna" />
+            ) : (
+              <>
+                <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full text-body-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/40">
+                        <th className="px-4 py-3 text-left font-semibold text-muted-foreground">
+                          Pengguna
+                        </th>
+                        <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
+                          Permintaan
+                        </th>
+                        <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
+                          Token input
+                        </th>
+                        <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
+                          Token output
+                        </th>
+                        <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
+                          Total token
+                        </th>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                        Belum ada data penggunaan per pengguna.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>}
+                    </thead>
+                    <tbody>
+                      {pagedUsers.length > 0 ? (
+                        pagedUsers.map((u) => (
+                          <tr
+                            key={u.userId}
+                            className="border-b border-border last:border-0 transition-colors hover:bg-muted/20"
+                          >
+                            <td className="px-4 py-3 font-medium text-foreground">
+                              {u.name || "Unknown"}
+                              {u.email && (
+                                <span className="block text-body-xs font-normal text-muted-foreground">
+                                  {u.email}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right text-foreground">
+                              {u.requests.toLocaleString("id-ID")}
+                            </td>
+                            <td className="px-4 py-3 text-right text-muted-foreground">
+                              {u.inputTokens.toLocaleString("id-ID")}
+                            </td>
+                            <td className="px-4 py-3 text-right text-muted-foreground">
+                              {u.outputTokens.toLocaleString("id-ID")}
+                            </td>
+                            <td className="px-4 py-3 text-right font-medium text-foreground">
+                              {u.totalTokens.toLocaleString("id-ID")}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                            Belum ada data penggunaan per pengguna.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <ul className="divide-y divide-border/40 border-y border-border md:hidden">
+                  {pagedUsers.map((u) => (
+                    <li key={u.userId} className="py-3 space-y-1.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="m-0 wrap-anywhere text-body-sm font-medium text-foreground">
+                            {u.name || "Unknown"}
+                          </p>
+                          {u.email && (
+                            <p className="m-0 mt-1 wrap-anywhere text-body-xs text-muted-foreground">
+                              {u.email}
+                            </p>
+                          )}
+                        </div>
+                        <div className="shrink-0 text-right tabular-nums">
+                          <p className="m-0 text-body-sm font-semibold text-foreground">
+                            {u.totalTokens.toLocaleString("id-ID")}
+                          </p>
+                          <p className="m-0 mt-1 text-body-xs text-muted-foreground">
+                            Total token
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs tabular-nums text-muted-foreground">
+                        <span>{u.requests.toLocaleString("id-ID")} permintaan</span>
+                        <span>
+                          In {u.inputTokens.toLocaleString("id-ID")} / Out {u.outputTokens.toLocaleString("id-ID")}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
 
             {totalUsers > USERS_PER_PAGE && (
               <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs text-muted-foreground">
@@ -304,6 +355,6 @@ export function ZyraUsageCharts() {
           </div>
         </>
       )}
-    </div>
+    </section>
   );
 }

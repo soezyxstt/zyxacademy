@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { compileProductDiktatHtml } from "@/lib/bundle/product-diktat-pdf";
+import { compileProductDiktatHtml, PRODUCT_DIKTAT_FOOTER_TEMPLATE } from "@/lib/bundle/product-diktat-pdf";
 import { productEntitySchema } from "@/lib/bundle/product-validator";
 import { materializeArticleParts } from "@/lib/materials/article-parts";
 import { materializeAuthoredDiktat, authoredDiktatUnitsSchema } from "@/lib/materials/diktat-v4";
@@ -25,3 +25,4 @@ const html = compileProductDiktatHtml({ article, diktat });
 const folder = "artifacts/visual-quality/diktat-v4";
 await mkdir(folder, { recursive: true });
 await writeFile(`${folder}/diktat.html`, html);
+await writeFile(`${folder}/footer.html`, PRODUCT_DIKTAT_FOOTER_TEMPLATE);

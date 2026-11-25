@@ -72,6 +72,7 @@ export default async function TutorQuizGradingPage({ params }: Props) {
       <Reveal>
         <TutorQuizGradingClient
           courseId={courseId}
+          tutorId={session.user.id}
           pendingAttempts={pendingAttempts}
           queueHeader={
             <PageHeader

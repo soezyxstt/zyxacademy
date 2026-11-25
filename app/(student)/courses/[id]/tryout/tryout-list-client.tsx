@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useStudentExperience } from "@/components/student-experience-provider";
-import { ChevronRight, Lock, GraduationCap } from "lucide-react";
+import { Lock, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormattedDate } from "@/components/ui/formatted-date";
-import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 
 interface TryoutItem {
@@ -94,19 +93,12 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
 
           let isUpcoming = false;
           let isClosed = false;
-          let isOpen = true;
 
           if (closeDate && now > closeDate) {
             isClosed = true;
-            isOpen = false;
           } else if (openDate && now < openDate) {
             isUpcoming = true;
-            isOpen = false;
-          } else {
-            isOpen = true;
           }
-
-          const canStart = accessible && !isBlocked && isOpen;
 
           const buttonContent = (() => {
             if (!accessible) {
@@ -115,10 +107,10 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
                   asChild
                   variant="outline"
                   size="sm"
-                  className="interactive rounded-md md:justify-self-end border-dashed text-muted-foreground hover:text-foreground"
+                  className="justify-self-end text-muted-foreground hover:text-foreground"
                 >
                   <Link href={href(`/courses/${courseId}/tryout/${tryout.id}`)}>
-                    {t("quizList.open")} <Lock className="ml-1 size-3.5" />
+                    {t("quizList.open")} <Lock className="size-3.5" aria-hidden />
                   </Link>
                 </Button>
               );
@@ -129,7 +121,7 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
                   disabled
                   variant="outline"
                   size="sm"
-                  className="rounded-md md:justify-self-end border-dashed"
+                  className="justify-self-end"
                 >
                   {t("tryoutList.attemptLimitReached")}
                 </Button>
@@ -141,7 +133,7 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
                   disabled
                   variant="outline"
                   size="sm"
-                  className="rounded-md md:justify-self-end border-dashed"
+                  className="justify-self-end"
                 >
                   {t("quizList.closed")}
                 </Button>
@@ -153,7 +145,7 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
                   disabled
                   variant="outline"
                   size="sm"
-                  className="rounded-md md:justify-self-end border-dashed"
+                  className="justify-self-end"
                 >
                   {t("quizList.notOpen")}
                 </Button>
@@ -162,12 +154,12 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
             return (
               <Button
                 asChild
-                variant="default"
+                variant="ghost"
                 size="sm"
-                className="interactive rounded-md md:justify-self-end bg-brand-primary text-primary-foreground hover:bg-brand-primary/95"
+                className="justify-self-end border border-border/60 bg-muted/80 text-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
               >
                 <Link href={href(`/courses/${courseId}/tryout/${tryout.id}`)}>
-                  {t("tryoutList.start")} <ChevronRight className="ml-1 size-4 transition-transform group-hover:translate-x-0.5" />
+                  {t("tryoutList.start")}
                 </Link>
               </Button>
             );
@@ -176,31 +168,14 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
           return (
             <li key={tryout.id}>
               <div
-                className={cn(
-                  "group -mx-2.5 grid gap-3 rounded-lg px-2.5 py-3 transition-colors md:grid-cols-[minmax(0,1fr)_160px_180px] md:items-center",
-                  canStart ? "hover:bg-muted/40" : "text-muted-foreground",
-                )}
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 py-(--row-padding) md:grid-cols-[minmax(0,1fr)_auto_minmax(10rem,auto)]"
               >
-                <div className="min-w-0">
+                <div className="col-span-2 min-w-0 md:col-span-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="break-words font-heading text-body-sm font-semibold text-foreground">
                       {tryout.title}
                     </h3>
-                    {!accessible ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-body-xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
-                        <Lock className="size-3" />
-                        {t("quizList.locked")}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-xs font-semibold text-brand-primary ring-1 ring-brand-primary/20">
-                        {isFree ? t("quizList.free") : t("quizList.premium")}
-                      </span>
-                    )}
-                    {isBlocked ? (
-                      <span className="rounded-md bg-status-error/12 px-2 py-0.5 text-body-xs font-semibold text-status-error ring-1 ring-status-error/20">
-                        {t("tryoutList.attemptLimitReached")}
-                      </span>
-                    ) : null}
+                    {!accessible && <span className="text-body-xs text-muted-foreground">{t("quizList.locked")}</span>}
                     {isUpcoming && openDate ? (
                       <span className="rounded-md bg-status-warning/12 px-2 py-0.5 text-body-xs font-semibold text-status-warning ring-1 ring-status-warning/20">
                         {t("quizList.opensAt")} <FormattedDate date={openDate} options={{ dateStyle: "medium", timeStyle: "short" }} />
@@ -216,23 +191,13 @@ export function TryoutListClient({ courseId, hasFullContentAccess, tryouts }: Tr
                   </div>
                   <p className="mt-1 text-body-xs text-muted-foreground">
                     {t("quizList.questions", { count: tryout.questionCount })} · {t("quizList.minutes", { count: tryout.settings?.timeLimitMinutes ?? 90 })}
+                    {isFree && <> · {t("quizList.free")}</>}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 text-body-xs text-muted-foreground md:justify-center">
+                <div className="flex min-w-0 flex-wrap items-center gap-1 text-body-xs tabular-nums text-muted-foreground md:justify-center">
                   <span className="font-semibold text-foreground">{attemptCount}</span>
                   <span>/ {t("tryoutList.attempts", { count: maxAttempts })}</span>
-                  <div className="flex gap-1">
-                    {Array.from({ length: maxAttempts }).map((_, index) => (
-                      <span
-                        key={index}
-                        className={cn(
-                          "size-2 rounded-full border border-border/80",
-                          index < attemptCount ? "border-transparent bg-brand-secondary" : "bg-muted",
-                        )}
-                      />
-                    ))}
-                  </div>
                 </div>
 
                 {buttonContent}

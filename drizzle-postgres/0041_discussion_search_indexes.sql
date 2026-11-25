@@ -1,0 +1,2 @@
+CREATE INDEX "discussion_messages_body_tsv_idx" ON "discussion_messages" USING gin (to_tsvector('simple', "body")) WHERE "discussion_messages"."deleted_at" is null;--> statement-breakpoint
+CREATE INDEX "discussion_threads_title_tsv_idx" ON "discussion_threads" USING gin (to_tsvector('simple', "title"));

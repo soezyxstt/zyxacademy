@@ -41,7 +41,57 @@ export default async function AdminBlogDashboard() {
         }
       />
 
-      <AdminTable>
+      {/* Mobile stacked rows */}
+      <div className="divide-y divide-border/60 border-y border-border md:hidden">
+        {articles.length === 0 ? (
+          <p className="px-4 py-8 text-center text-body-sm text-muted-foreground">
+            {t("blogList.empty")}
+          </p>
+        ) : (
+          articles.map((article) => (
+            <div key={article.id} className="space-y-2 py-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <Link
+                    href={`/admin/blog/${article.id}/edit`}
+                    className="block break-words text-body-sm font-semibold text-foreground hover:text-primary"
+                  >
+                    {article.title}
+                  </Link>
+                  <p className="truncate text-body-xs text-muted-foreground">
+                    {article.author?.name || t("blogList.anonymous")}
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <BlogRowActions
+                    articleId={article.id}
+                    slug={article.slug}
+                    title={article.title}
+                    summary={article.summary || ""}
+                    labels={{
+                      actions: t("blogList.actions"),
+                      edit: t("blogList.edit"),
+                      view: t("blogList.view"),
+                      share: t("blogList.share"),
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <StatusBadge tone={article.status === "published" ? "success" : "muted"}>
+                  {t(`blogList.${article.status === "published" ? "published" : "draft"}`)}
+                </StatusBadge>
+                <Badge variant="outline" className="rounded-md capitalize">
+                  {t(`blogList.categories.${article.category}`)}
+                </Badge>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <AdminTable className="hidden md:block">
         <table className="w-full text-left text-body-sm">
           <AdminTableHead>
             <tr>

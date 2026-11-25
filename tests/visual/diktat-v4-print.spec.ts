@@ -8,6 +8,7 @@ test("authored V4 Diktat renders traced formulas and conditions at fixed print s
   execFileSync("bun", ["tests/fixtures/product-learning/generate-v4-print.ts"], { cwd: process.cwd() });
   const folder = "artifacts/visual-quality/diktat-v4";
   const html = await readFile(`${folder}/diktat.html`, "utf8");
+  const footerTemplate = await readFile(`${folder}/footer.html`, "utf8");
   const width = testInfo.project.use.viewport?.width ?? 1536;
       const failures: string[] = [];
       page.on("pageerror", error => failures.push(error.message));
@@ -19,6 +20,8 @@ test("authored V4 Diktat renders traced formulas and conditions at fixed print s
       expect(await page.locator(".diktat-static-visual svg").count()).toBe(1);
       expect(await page.locator(".katex-error").count()).toBe(0);
       expect(await page.locator(".diktat-unit").count()).toBe(1);
+      await expect(page.locator(".diktat-header")).toHaveText("Bab 2: Fungsi dan Limit");
+      await expect(page.locator(".diktat-running-header")).toHaveText("Zyx Academy");
       const readingOrder = await page.locator(".diktat-unit").evaluate(element => {
         const formula = element.querySelector(".formula-display")!.getBoundingClientRect();
         const explanation = element.querySelector("p")!.getBoundingClientRect();
@@ -28,7 +31,12 @@ test("authored V4 Diktat renders traced formulas and conditions at fixed print s
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
       await page.screenshot({ path: testInfo.outputPath(`screenshots/diktat-${width}.png`), fullPage: true });
       expect(failures).toEqual([]);
-      if (width === 1536) await page.pdf({ path: `${folder}/diktat.pdf`, format: "A4", preferCSSPageSize: true, printBackground: true });
+      if (width === 1536) {
+        await page.emulateMedia({ media: "print" });
+        await page.setViewportSize({ width: 794, height: 1123 });
+        expect(await page.evaluate(inspectDiktatPrintReadiness)).toEqual([]);
+        await page.pdf({ path: `${folder}/diktat.pdf`, format: "A4", preferCSSPageSize: true, printBackground: true, displayHeaderFooter: true, headerTemplate: "<span></span>", footerTemplate });
+      }
 });
 
 test("Diktat print rejects oversized content and invalid mathematics", async ({ page }) => {

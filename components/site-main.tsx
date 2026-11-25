@@ -9,7 +9,7 @@ export function SiteMain({ children }: SiteMainProps) {
     <main
       id="main-content"
       tabIndex={-1}
-      className="flex-1 outline-none pt-14 md:pt-16"
+      className="flex-1 pt-(--marketing-navbar-height) outline-none"
     >
       <PageTransition>{children}</PageTransition>
     </main>

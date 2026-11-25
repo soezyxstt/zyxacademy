@@ -15,13 +15,29 @@ on:
         description: "Optional version override (nightly auto-increments as 0.1.0-alpha.<run_number>; stable defaults to apps/desktop/package.json)"
         required: false
         type: string
+      stable_operation:
+        description: "Stable only: build a private candidate or publish a verified candidate"
+        required: true
+        type: choice
+        default: candidate
+        options: [candidate, publish]
+      stable_candidate_run_id:
+        description: "Stable publish only: successful candidate workflow run ID"
+        type: string
+      stable_candidate_checksums_sha256:
+        description: "Stable publish only: SHA-256 of the tested candidate SHA256SUMS.txt"
+        type: string
+      stable_runtime_smoke_passed:
+        description: "Stable publish only: exact candidate APK and EXE installed and launched successfully"
+        type: boolean
+        default: false
       android_candidate:
         description: "Build only an Android APK artifact without publishing a release"
         type: boolean
         default: false
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-apps-${{ github.ref }}-${{ inputs.channel || 'auto' }}
@@ -48,6 +64,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           INPUT_CHANNEL: ${{ inputs.channel }}
           INPUT_VERSION: ${{ inputs.version }}
+          STABLE_OPERATION: ${{ inputs.stable_operation }}
+          STABLE_CANDIDATE_RUN_ID: ${{ inputs.stable_candidate_run_id }}
+          STABLE_CANDIDATE_CHECKSUMS_SHA256: ${{ inputs.stable_candidate_checksums_sha256 }}
+          STABLE_RUNTIME_SMOKE_PASSED: ${{ inputs.stable_runtime_smoke_passed }}
+          ANDROID_CANDIDATE: ${{ inputs.android_candidate }}
         shell: bash
         run: |
           set -euo pipefail
@@ -85,6 +106,30 @@ jobs:
             exit 1
           fi
 
+          if [[ "$CHANNEL" == "stable" ]]; then
+            if [[ "$GITHUB_REF" != "refs/heads/main" || "$ANDROID_CANDIDATE" == "true" ]]; then
+              echo "::error::Stable releases must use the full candidate flow on main."
+              exit 1
+            fi
+            if [[ ! "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+              echo "::error::Stable requires a non-prerelease semantic version, e.g. 0.1.0."
+              exit 1
+            fi
+            if [[ "$STABLE_OPERATION" == "publish" ]]; then
+              if [[ "$STABLE_RUNTIME_SMOKE_PASSED" != "true" ]]; then
+                echo "::error::Confirm Android and Windows install/launch smoke on the exact candidate before publication."
+                exit 1
+              fi
+              if [[ ! "$STABLE_CANDIDATE_RUN_ID" =~ ^[1-9][0-9]*$ || ! "$STABLE_CANDIDATE_CHECKSUMS_SHA256" =~ ^[a-f0-9]{64}$ ]]; then
+                echo "::error::Publishing requires the candidate run ID and the tested candidate checksums file SHA-256."
+                exit 1
+              fi
+            elif [[ -n "$STABLE_CANDIDATE_RUN_ID" || -n "$STABLE_CANDIDATE_CHECKSUMS_SHA256" || "$STABLE_RUNTIME_SMOKE_PASSED" == "true" ]]; then
+              echo "::error::Candidate run ID, checksums digest and runtime smoke confirmation are publish-only inputs."
+              exit 1
+            fi
+          fi
+
           if [[ "$CHANNEL" == "nightly" ]]; then
             TAG="app-v${VERSION}-nightly.${DATE_STAMP}.${SHORT_SHA}"
             RELEASE_TITLE="Zyx Academy Nightly v${VERSION} (${DATE_STAMP})"
@@ -95,22 +140,14 @@ jobs:
           else
             BASE_TAG="app-v${VERSION}"
             if gh release view "$BASE_TAG" >/dev/null 2>&1; then
-              TAG="${BASE_TAG}-b${RUN_NUMBER}"
-              RELEASE_TITLE="Zyx Academy v${VERSION} (build ${RUN_NUMBER})"
-              FILE_PREFIX="zyx-academy-${VERSION}-b${RUN_NUMBER}"
-              BUILD_ID="b${RUN_NUMBER}"
-            else
-              TAG="${BASE_TAG}"
-              RELEASE_TITLE="Zyx Academy v${VERSION}"
-              FILE_PREFIX="zyx-academy-${VERSION}"
-              BUILD_ID="b0"
+              echo "::error::This stable version already has a release. Choose a higher version."
+              exit 1
             fi
-
-            if [[ "$VERSION" == *-* ]]; then
-              PRERELEASE="true"
-            else
-              PRERELEASE="false"
-            fi
+            TAG="$BASE_TAG"
+            RELEASE_TITLE="Zyx Academy v${VERSION}"
+            FILE_PREFIX="zyx-academy-${VERSION}"
+            BUILD_ID="b${RUN_NUMBER}"
+            PRERELEASE="false"
             DEFAULT_URL="https://www.zyxacademy.com"
           fi
 
@@ -128,7 +165,7 @@ jobs:
           echo "Resolved release: channel=${CHANNEL}, version=${VERSION}, tag=${TAG}, build_id=${BUILD_ID}, title=${RELEASE_TITLE}"
 
   build-desktop:
-    if: inputs.android_candidate != true
+    if: inputs.android_candidate != true && !(inputs.channel == 'stable' && inputs.stable_operation == 'publish')
     needs: prepare
     strategy:
       fail-fast: false
@@ -225,6 +262,28 @@ jobs:
 
           ls -lh release-artifacts
 
+      - name: Verify stable Windows installer signatures
+        if: matrix.platform == 'windows' && needs.prepare.outputs.channel == 'stable'
+        shell: pwsh
+        env:
+          FILE_PREFIX: ${{ needs.prepare.outputs.file_prefix }}
+          EXPECTED_SIGNER_THUMBPRINT: ${{ vars.WINDOWS_STABLE_SIGNER_THUMBPRINT }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expected = $env:EXPECTED_SIGNER_THUMBPRINT
+          if ($expected -notmatch '^[0-9a-fA-F]{40}$') {
+            throw 'Set the approved public Windows certificate thumbprint in WINDOWS_STABLE_SIGNER_THUMBPRINT.'
+          }
+          $installer = "release-artifacts/$($env:FILE_PREFIX)-windows-x64.exe"
+          $signature = Get-AuthenticodeSignature -FilePath $installer
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $expected) {
+            throw "Windows Authenticode verification failed: $($signature.Status)."
+          }
+          if (!(Test-Path "$installer.sig") -and !(Test-Path "release-artifacts/$($env:FILE_PREFIX)-windows-x64.nsis.zip.sig")) {
+            throw 'Missing detached Tauri updater signature for Windows.'
+          }
+          Get-FileHash -Algorithm SHA256 $installer
+
       - name: Bundle Windows patch target
         if: matrix.platform == 'windows' && needs.prepare.outputs.channel == 'nightly'
         continue-on-error: true
@@ -259,6 +318,7 @@ jobs:
           if-no-files-found: error
 
   build-android:
+    if: ${{ !(inputs.channel == 'stable' && inputs.stable_operation == 'publish') }}
     needs: prepare
     runs-on: ubuntu-latest
     steps:
@@ -308,13 +368,9 @@ jobs:
             printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '\r\n ' | base64 --decode > "$RUNNER_TEMP/zyx-release.jks"
             echo "signed=true" >> "$GITHUB_OUTPUT"
             echo "build_type=release" >> "$GITHUB_OUTPUT"
-          elif [[ "$APP_CHANNEL" == "nightly" ]]; then
-            echo "::error::Nightly Android updates require the existing release signing key."
-            exit 1
           else
-            echo "::notice::Android release signing secrets are not configured; building with ephemeral debug keystore. Configure the selected channel ANDROID_NIGHTLY_* or ANDROID_STABLE_* signing secrets to enable seamless in-place APK updates."
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "build_type=debug" >> "$GITHUB_OUTPUT"
+            echo "::error::Android release signing secrets are required for the selected channel. Debug signing is not allowed."
+            exit 1
           fi
 
       - name: Build Android APK (${{ needs.prepare.outputs.channel }})
@@ -328,18 +384,10 @@ jobs:
           ZYX_ANDROID_KEY_PASSWORD: ${{ secrets[format('ANDROID_{0}_KEY_PASSWORD', needs.prepare.outputs.channel == 'nightly' && 'NIGHTLY' || 'STABLE')] }}
         run: |
           chmod +x gradlew
-          if [[ "${{ steps.signing.outputs.signed }}" == "true" ]]; then
-            if [[ "${{ needs.prepare.outputs.channel }}" == "nightly" ]]; then
-              ./gradlew assembleNightlyRelease -PzyxVersionCode="${{ github.run_number }}" -PzyxVersionName="${{ needs.prepare.outputs.version }}"
-            else
-              ./gradlew assembleStableRelease -PzyxVersionCode="${{ github.run_number }}" -PzyxVersionName="${{ needs.prepare.outputs.version }}"
-            fi
+          if [[ "${{ needs.prepare.outputs.channel }}" == "nightly" ]]; then
+            ./gradlew assembleNightlyRelease -PzyxVersionCode="${{ github.run_number }}" -PzyxVersionName="${{ needs.prepare.outputs.version }}"
           else
-            if [[ "${{ needs.prepare.outputs.channel }}" == "nightly" ]]; then
-              ./gradlew assembleNightlyDebug -PzyxVersionCode="${{ github.run_number }}" -PzyxVersionName="${{ needs.prepare.outputs.version }}"
-            else
-              ./gradlew assembleStableDebug -PzyxVersionCode="${{ github.run_number }}" -PzyxVersionName="${{ needs.prepare.outputs.version }}"
-            fi
+            ./gradlew assembleStableRelease -PzyxVersionCode="${{ github.run_number }}" -PzyxVersionName="${{ needs.prepare.outputs.version }}"
           fi
 
       - name: Remove temporary Android keystore
@@ -363,6 +411,32 @@ jobs:
           cp "$APK" "$TARGET"
           ls -lh "$TARGET"
 
+      - name: Verify stable Android APK
+        if: needs.prepare.outputs.channel == 'stable'
+        shell: bash
+        env:
+          FILE_PREFIX: ${{ needs.prepare.outputs.file_prefix }}
+          APP_VERSION: ${{ needs.prepare.outputs.version }}
+          EXPECTED_CERT_SHA256: ${{ vars.ANDROID_STABLE_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          apk="release-artifacts/$FILE_PREFIX-android.apk"
+          sdk=${ANDROID_SDK_ROOT:-$ANDROID_HOME}
+          apksigner=$(find "$sdk/build-tools" -type f -name apksigner | sort -V | tail -n 1)
+          test -x "$apksigner"
+          expected=$(printf '%s' "$EXPECTED_CERT_SHA256" | tr -d ':' | tr '[:upper:]' '[:lower:]')
+          [[ "$expected" =~ ^[a-f0-9]{64}$ ]] || { echo "::error::Set approved Android public signing certificate SHA-256."; exit 1; }
+          report=$("$apksigner" verify --verbose --print-certs "$apk")
+          actual=$(printf '%s\n' "$report" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          [[ "$actual" == "$expected" ]] || { echo "::error::Unexpected stable Android signing certificate."; exit 1; }
+          badging=$("$(dirname "$apksigner")/aapt" dump badging "$apk")
+          grep -F "package: name='com.zyx.academy' " <<< "$badging" | grep -F "versionName='$APP_VERSION'"
+          if grep -Fx 'application-debuggable' <<< "$badging"; then
+            echo "::error::Stable Android APK is debuggable."
+            exit 1
+          fi
+          sha256sum "$apk"
+
       - uses: actions/upload-artifact@v4
         with:
           name: mobile-android
@@ -370,8 +444,10 @@ jobs:
           if-no-files-found: error
 
   publish-release:
-    if: inputs.android_candidate != true
+    if: needs.prepare.outputs.channel == 'nightly' && inputs.android_candidate != true
     needs: [prepare, build-desktop, build-android]
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -467,3 +543,106 @@ jobs:
             --target "$GITHUB_SHA" \
             --generate-notes \
             "${EXTRA_FLAGS[@]}"
+
+
+  package-stable-candidate:
+    if: needs.prepare.outputs.channel == 'stable' && inputs.stable_operation == 'candidate'
+    needs: [prepare, build-desktop, build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist-artifacts
+          pattern: "{desktop-*,mobile-android}"
+          merge-multiple: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Bind updater metadata and checksums to the candidate
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          TITLE: ${{ needs.prepare.outputs.release_title }}
+          FILE_PREFIX: ${{ needs.prepare.outputs.file_prefix }}
+        run: |
+          set -euo pipefail
+          node apps/desktop/scripts/generate-updater-manifest.mjs \
+            --dir dist-artifacts --channel stable --version "$VERSION" --tag "$TAG" --notes "$TITLE"
+          cd dist-artifacts
+          test -s "$FILE_PREFIX-android.apk"
+          test -s "$FILE_PREFIX-windows-x64.exe"
+          jq -e --arg version "$VERSION" '.version == $version and (.platforms["windows-x86_64"].signature | length > 0)' latest.json
+          jq -n --arg sha "$GITHUB_SHA" --arg version "$VERSION" --arg tag "$TAG" --arg run "$GITHUB_RUN_ID" --arg attempt "$GITHUB_RUN_ATTEMPT" \
+            '{sha:$sha, version:$version, tag:$tag, run:$run, attempt:$attempt}' > stable-candidate.json
+          sha256sum -- * > SHA256SUMS.txt
+          digest=$(sha256sum SHA256SUMS.txt | cut -d ' ' -f 1)
+          printf '### Stable release candidate (not published)\n\nCommit: `%s`\n\nRun: `%s`\n\nSHA256SUMS.txt SHA-256: `%s`\n' \
+            "$GITHUB_SHA" "$GITHUB_RUN_ID" "$digest" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stable-candidate-${{ github.run_attempt }}
+          path: dist-artifacts/*
+          if-no-files-found: error
+
+  publish-stable-candidate:
+    if: needs.prepare.outputs.channel == 'stable' && inputs.stable_operation == 'publish'
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Verify candidate workflow provenance
+        id: provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN: ${{ inputs.stable_candidate_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_RUN" =~ ^[1-9][0-9]*$ ]]
+          expected_workflow_id=$(gh api "/repos/$GITHUB_REPOSITORY/actions/workflows/release-apps.yml" --jq .id)
+          run=$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$CANDIDATE_RUN")
+          attempt=$(jq -er --arg sha "$GITHUB_SHA" --argjson workflow "$expected_workflow_id" '
+            select(.workflow_id == $workflow and .head_sha == $sha and .head_branch == "main"
+                   and .event == "workflow_dispatch" and .status == "completed" and .conclusion == "success")
+            | .run_attempt' <<< "$run")
+          [[ "$attempt" =~ ^[1-9][0-9]*$ ]]
+          echo "attempt=$attempt" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          name: stable-candidate-${{ steps.provenance.outputs.attempt }}
+          path: dist-artifacts
+          run-id: ${{ inputs.stable_candidate_run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify tested artifacts and publish without rebuilding
+        working-directory: dist-artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN: ${{ inputs.stable_candidate_run_id }}
+          CANDIDATE_ATTEMPT: ${{ steps.provenance.outputs.attempt }}
+          EXPECTED_CHECKSUMS_SHA256: ${{ inputs.stable_candidate_checksums_sha256 }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          TITLE: ${{ needs.prepare.outputs.release_title }}
+        run: |
+          set -euo pipefail
+          printf '%s  SHA256SUMS.txt\n' "$EXPECTED_CHECKSUMS_SHA256" | sha256sum --check --strict
+          sha256sum --check --strict SHA256SUMS.txt
+          # Ensure there are no extra files outside the candidate manifest before uploading.
+          diff -u <(LC_ALL=C sort <(cut -c 67- SHA256SUMS.txt)) <(printf '%s\n' * | grep -vx SHA256SUMS.txt | LC_ALL=C sort)
+          jq -e --arg sha "$GITHUB_SHA" --arg version "$VERSION" --arg tag "$TAG" --arg run "$CANDIDATE_RUN" --arg attempt "$CANDIDATE_ATTEMPT" \
+            '. == {sha:$sha, version:$version, tag:$tag, run:$run, attempt:$attempt}' stable-candidate.json
+          jq -e --arg version "$VERSION" '.version == $version and (.platforms["windows-x86_64"].signature | length > 0)' latest.json
+          # Create the release only for the exact main commit bound to the candidate.
+          # Refuse an existing tag so GitHub cannot reuse one pointing to another commit.
+          main_sha=$(gh api "/repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          [[ "$main_sha" == "$GITHUB_SHA" ]] || { echo "::error::Main moved; build and test a new candidate."; exit 1; }
+          existing_tags=$(gh api "/repos/$GITHUB_REPOSITORY/tags?per_page=100" --paginate --jq '.[].name')
+          if grep -Fxq "$TAG" <<< "$existing_tags"; then
+            echo "::error::Stable tag already exists."
+            exit 1
+          fi
+          gh release create "$TAG" * --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "$TITLE" --generate-notes \
+            --notes "Stable release built in verified candidate run $CANDIDATE_RUN. Default server: https://www.zyxacademy.com."

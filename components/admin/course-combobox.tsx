@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronsUpDown, Search, GraduationCap } from "lucide-react";
+import { Check, ChevronDown, Search, GraduationCap } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
@@ -56,7 +56,7 @@ export function CourseCombobox({
           aria-controls="course-combobox-list"
           aria-label={effectivePlaceholder}
           className={cn(
-            "flex h-9 w-[190px] sm:w-[220px] items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 py-1.5 text-body-sm font-medium text-foreground shadow-2xs hover:bg-muted/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none shrink-0 transition-colors text-left",
+            "flex h-9 w-[190px] shrink-0 items-center justify-between gap-2 rounded-md px-3 text-left text-body-sm font-medium text-foreground transition-colors hover:bg-muted data-[state=open]:bg-muted focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-[220px]",
             className
           )}
         >
@@ -64,7 +64,7 @@ export function CourseCombobox({
             <GraduationCap className="size-3.5 text-muted-foreground shrink-0" />
             <span className="truncate">{selectedTitle}</span>
           </div>
-          <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
         </button>
       </PopoverTrigger>
       <PopoverContent

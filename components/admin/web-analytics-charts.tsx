@@ -1,35 +1,32 @@
 "use client";
 
 import { useMemo } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, Tooltip, ResponsiveContainer } from "recharts";
 import type { AnalyticsDashboardData } from "@/lib/analytics-dashboard";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 
 export function WebAnalyticsCharts({ data }: { data: AnalyticsDashboardData["dailyData"] }) {
+  const t = useTranslations("adminOps.webAnalytics");
+  const { locale } = useAppLocale();
   const chartData = useMemo(() => {
-    // Optionally format date for display e.g. "24 Jul"
-    return data.map(d => {
-      const dateObj = new Date(d.date);
-      const formattedDate = dateObj.toLocaleDateString("id-ID", {
-        month: "short",
-        day: "numeric",
-      });
-      return {
-        ...d,
-        displayDate: formattedDate,
-      };
+    const date = new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
     });
-  }, [data]);
+    return data.map((point) => {
+      const day = new Date(point.date);
+      return { ...point, displayDate: Number.isNaN(day.valueOf()) ? point.date : date.format(day) };
+    });
+  }, [data, locale]);
 
   if (chartData.length === 0) {
-    return (
-      <div className="flex h-64 items-center justify-center rounded-xl border border-border bg-muted/20 text-body-sm text-muted-foreground">
-        Tidak ada data grafik tersedia
-      </div>
-    );
+    return <AdminEmptyState compact title={t("noChartData")} />;
   }
 
   return (
-    <div className="h-72 w-full">
+    <div className="h-56 w-full md:h-72">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.5} />
@@ -52,22 +49,26 @@ export function WebAnalyticsCharts({ data }: { data: AnalyticsDashboardData["dai
             itemStyle={{ color: "var(--color-foreground)", fontWeight: 500 }}
             cursor={{ stroke: "var(--color-border)", strokeWidth: 1, strokeDasharray: "4 4" }}
           />
-          <Line 
+          <Legend wrapperStyle={{ paddingTop: "8px" }} formatter={(label) => <span className="text-body-xs text-foreground">{label}</span>} />
+          <Line
             type="monotone" 
-            name="Page Views"
+            name={t("views")}
             dataKey="views" 
             stroke="var(--color-brand-primary)" 
             strokeWidth={3} 
             dot={false}
+            isAnimationActive={false}
             activeDot={{ r: 6, fill: "var(--color-brand-primary)", stroke: "var(--color-background)", strokeWidth: 2 }}
           />
-          <Line 
+          <Line
             type="monotone" 
-            name="Sessions"
+            name={t("chartSessions")}
             dataKey="sessions" 
             stroke="var(--color-tertiary-1)" 
             strokeWidth={3} 
+            strokeDasharray="4 4"
             dot={false}
+            isAnimationActive={false}
             activeDot={{ r: 6, fill: "var(--color-tertiary-1)", stroke: "var(--color-background)", strokeWidth: 2 }}
           />
         </LineChart>

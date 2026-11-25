@@ -1,5 +1,4 @@
 import { ApplicationPage } from "@/components/application-page";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   DashboardPrimaryLearningSkeleton,
   DashboardSectionSkeleton,
@@ -7,18 +6,13 @@ import {
 
 export default function DashboardLoading() {
   return (
-    <ApplicationPage className="pb-16">
-      <div className="mb-4 sm:mb-6 flex flex-wrap items-center justify-between gap-3" aria-hidden="true">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="hidden sm:block h-9 w-32 rounded-xl" />
-      </div>
-      <div className="grid gap-(--section-gap) lg:grid-cols-12 w-full min-w-0">
-        <div className="space-y-(--section-gap) lg:col-span-7 min-w-0">
+    <ApplicationPage role="status" aria-label="Memuat" className="pb-16">
+      <div className="grid w-full min-w-0 gap-5 md:gap-(--section-gap) lg:grid-cols-12" aria-hidden="true">
+        <div className="min-w-0 space-y-5 md:space-y-(--section-gap) lg:col-span-7">
           <DashboardPrimaryLearningSkeleton count={2} />
         </div>
-        <div className="space-y-(--section-gap) lg:col-span-5 min-w-0">
+        <div className="min-w-0 space-y-5 md:space-y-(--section-gap) lg:col-span-5">
           <DashboardSectionSkeleton rows={3} />
-          <DashboardSectionSkeleton rows={2} />
           <DashboardSectionSkeleton rows={2} />
         </div>
       </div>

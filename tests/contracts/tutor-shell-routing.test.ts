@@ -159,9 +159,11 @@ describe("Tutor shell routing and route containment", () => {
       React.createElement(TutorSidebar, { assignedCourses }),
     );
 
-    // Global navigation
-    expect(markup).toContain("Pengajaran");
-    expect(markup).toContain("Jadwal");
+    // Course context header (back link + active course title, no duplicated global schedule/discussions)
+    expect(markup).toContain("Kembali ke Pengajaran");
+    expect(markup).toContain("Kalkulus 1");
+    expect(markup).not.toContain('href="/tutor/schedule"');
+    expect(markup).not.toContain('href="/tutor/discussions"');
 
     // Allowed active course navigation
     expect(markup).toContain("Ringkasan");

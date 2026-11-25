@@ -23,10 +23,17 @@ import { sourcePageMetadata } from "@/lib/authoring/source-page-metadata";
 import { readSourceFileMetadata } from "@/lib/authoring/source-file-metadata";
 import { resolveStoredSourceFile } from "@/lib/authoring/mcp-source-files";
 import { isSourceReadTimeout, timePdfStage } from "@/lib/compute/pdf-read-options";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { PortableMcpServer } from "./mcp-portable-server";
+import { MCP_SERVER_IDS } from "./mcp-tool-names";
 import { registerAuthoringSkills } from "./mcp-skills";
 import { registerProductV4Tools } from "./mcp-v4-tools";
 import { registerRevisionTools } from "./revision-mcp";
+import { createProductDraft, createProductDraftToolSchema } from "./product-draft-service";
+import { loadProductDraftContext } from "./product-draft-context";
+import { createIdeaDraft, createIdeaDraftToolSchema } from "./idea-draft-service";
+import { loadIdeaDraftContext } from "./idea-draft-context";
+import { authoringFailureDiagnostics } from "./diagnostics";
 import { computeProductV4VerificationContentHash, getProductV4VerificationReceiptSignature } from "@/lib/bundle/product-v4-verification";
 import { computeProductV4SectionSemanticHash, productV4ReviewContextShape, sectionDecisionsSchema } from "@/lib/bundle/product-v4-review";
 import type { SkillCatalogProfile } from "./skill-catalog";
@@ -193,18 +200,19 @@ function toolError(error: unknown) {
   const code = redactSensitiveDetails(rawCode.slice(0, 120)).trim();
   const rawDetail = details.join(":").slice(0, 600);
   const detail = rawDetail ? redactSensitiveDetails(rawDetail).trim() : undefined;
+  const diagnostics = authoringFailureDiagnostics(error, { code });
   if (code === "AUTHORING_MCP_SCOPE_REQUIRED" && detail) {
     const challenge = insufficientScopeChallenge(detail);
     return {
       ...toolResult({
-        ok: false, error: code, detail, requiredScope: detail,
+        ok: false, error: code, detail, requiredScope: detail, ...diagnostics,
         remediation: "Reauthorize this OAuth client with the union of its current scopes and the required scope, then approve consent and retry with the new token.",
       }, true),
       _meta: { "mcp/www_authenticate": [challenge] },
     };
   }
   if (["IDEA_BUNDLE_REVIEW_RESET_REQUIRED", "IDEA_BUNDLE_REVIEW_RESET_STALE"].includes(code)) {
-    return toolResult({ ok: false, error: code, remediation: "Read authoring.get_import for the current Idea revision and reviewReset counts and fingerprint. Explicitly acknowledge the reset, then retry restaging with that fingerprint and revision." }, true);
+    return toolResult({ ok: false, error: code, ...diagnostics, remediation: "Read authoring.get_import for the current Idea revision and reviewReset counts and fingerprint. Explicitly acknowledge the reset, then retry restaging with that fingerprint and revision." }, true);
   }
   const issues = (error as any)?.issues;
   const safeIssues = Array.isArray(issues) ? issues.map((iss: any) => ({
@@ -217,7 +225,7 @@ function toolError(error: unknown) {
     reason: redactSensitiveDetails(String(iss.reason ?? "")),
     remediation: redactSensitiveDetails(String(iss.remediation ?? "")),
   })) : undefined;
-  return toolResult({ ok: false, error: code, detail: detail || undefined, ...(safeIssues ? { issues: safeIssues } : {}) }, true);
+  return toolResult({ ok: false, error: code, detail: detail || undefined, ...(safeIssues ? { issues: safeIssues } : {}), ...diagnostics }, true);
 }
 
 export async function formatSourceFileReadResult(
@@ -2107,6 +2115,15 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     };
   }));
 
+  (server as any).registerTool("authoring.create_idea_draft", {
+    title: "Create Idea draft",
+    description: "Create an initial Idea V3 draft from atomic Ideas, teaching sections, explained relations and exact source quotes. Fetch the pinned ideaDraftInput schema from workflow.get_contract on demand. The server reads the bound validated Source Pack, resolves provenance and stable IDs, builds hashes and ZIP, then applies the existing coverage, admission and staging gates. Reuse draftKey only for the same unchanged request/run token. No review or publication.",
+    inputSchema: createIdeaDraftToolSchema.shape,
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (input: z.infer<typeof createIdeaDraftToolSchema>) => safeTool(() => createIdeaDraft(input, principal, {
+    loadContext: loadIdeaDraftContext, stage: stageIdeaArtifact,
+  })));
+
   (server as any).registerTool("authoring.submit_idea_bundle", {
     title: "Submit Idea Bundle for review",
     description: "Memvalidasi lalu menaruh Idea Bundle sebagai import tervalidasi untuk review admin. Tool ini tidak dapat mempublikasikan bundle.",
@@ -2239,6 +2256,15 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       next: valid ? (publicationReady ? "ready_for_publication" : "submit_for_review") : "agent_revision",
     };
   }));
+
+  (server as any).registerTool("authoring.create_product_draft", {
+    title: "Create Article or Diktat draft",
+    description: "Create initial V4 Article/Diktat drafts from typed content and published Idea/source IDs. Fetch the pinned productDraftInput schema from workflow.get_contract on demand; this small catalog envelope does not replace strict validation. The server binds versions, IDs, projections, dependencies and ZIP, then applies existing admission and staging gates. Reuse draftKey only for an unchanged request/run token; use revisions for edits. No review or publication.",
+    inputSchema: createProductDraftToolSchema.shape,
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (input: z.infer<typeof createProductDraftToolSchema>) => safeTool(() => createProductDraft(input, principal, {
+    loadContext: loadProductDraftContext, stage: stageProductArtifact,
+  })));
 
   (server as any).registerTool("authoring.submit_product_bundle", {
     title: "Submit Product Bundle for review",
@@ -4539,17 +4565,8 @@ function registerQuizAssemblyTools(server: McpServer, principal: McpPrincipal): 
   }));
 }
 
-export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: string, skillsProfile: SkillCatalogProfile = "chatgpt"): McpServer {
-  const identity = mcpEnvironmentIdentity();
-  const server = new McpServer(
-    { name: `zyx-authoring-${identity.environment}`, version: "1.1.0" },
-    {
-      capabilities: { tools: {} },
-      instructions:
-        `Koneksi ini adalah ${identity.environment} di ${identity.origin}. ` +
-        "Sebelum operasi admin, panggil admin.environment dan cocokkan dengan target yang diminta pengguna. Jika target belum disebutkan, pastikan target dahulu; jangan memilih production secara default. Jangan substitusi staging dan production. Operasi data wajib menyebut expectedEnvironment dan expectedOrigin. Baca admin.capabilities untuk menemukan operasi dan scope yang tersedia. Periksa admin.operation_receipt atau status job jika hasil operasi belum pasti. Untuk revisi konten tersimpan, gunakan alur authoring.get_edit_context. Operasi admin memakai scope eksplisit; baca revisi target dan siapkan dryRun sebelum mutasi. Untuk authoring, panggil workflow.get_playbook sebelum memulai authoring, setiap berpindah tahap, dan saat melanjutkan run untuk mengambil playbook terbaru serta bootstrapToken bertanda tangan.",
-    },
-  );
+/** Register the common tool catalog for MCP transport and the browser harness. */
+export function registerAuthoringMcpTools(server: McpServer, principal: McpPrincipal, requestId?: string): void {
   server.registerTool("admin.environment", {
     description: "Baca identitas koneksi ini sebelum operasi. Cocokkan dengan target pengguna; jangan mengganti staging dengan production atau sebaliknya.",
     inputSchema: {}, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
@@ -4577,7 +4594,6 @@ export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: st
   registerWorkflowTools(server, principal, requestId);
   registerProductV4Tools(server, principal);
   registerRevisionTools(server, principal);
-  registerAuthoringSkills(server, skillsProfile, undefined, resolveAuthoringMcpEnvironment(), formsUiResources);
   registerValidationTools(server, principal);
   registerReferenceQuestionTools(server, principal);
   registerLifecycleTools(server, principal);
@@ -4586,5 +4602,21 @@ export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: st
   registerAssessmentAnalysisTools(server, principal);
   registerQuizAssemblyTools(server, principal);
   registerAgentTools(server, principal);
+}
+
+export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: string, skillsProfile: SkillCatalogProfile = "chatgpt"): McpServer {
+  const identity = mcpEnvironmentIdentity();
+  const server = new PortableMcpServer(
+    { name: MCP_SERVER_IDS[identity.environment], version: "1.2.0" },
+    {
+      capabilities: { tools: {} },
+      instructions:
+        `Koneksi ini adalah ${identity.environment} di ${identity.origin}. ` +
+        "Panggil nama tool dari tools/list: titik menjadi garis bawah, kecuali authoring.get_solution_collection_review_context menjadi authoring_solution_review_context. ID operasi pada parameter operation, receipt, dan token konfirmasi tetap memakai titik. Nama panggilan lama tetap diterima. " +
+        "Sebelum operasi admin, panggil admin.environment dan cocokkan dengan target yang diminta pengguna. Jika target belum disebutkan, pastikan target dahulu; jangan memilih production secara default. Jangan substitusi staging dan production. Operasi data wajib menyebut expectedEnvironment dan expectedOrigin. Baca admin.capabilities untuk menemukan operasi dan scope yang tersedia. Periksa admin.operation_receipt atau status job jika hasil operasi belum pasti. Untuk revisi konten tersimpan, gunakan alur authoring.get_edit_context. Operasi admin memakai scope eksplisit; baca revisi target dan siapkan dryRun sebelum mutasi. Untuk authoring, panggil workflow.get_playbook sebelum memulai authoring, setiap berpindah tahap, dan saat melanjutkan run untuk mengambil playbook terbaru serta bootstrapToken bertanda tangan.",
+    },
+  );
+  registerAuthoringMcpTools(server, principal, requestId);
+  registerAuthoringSkills(server, skillsProfile, undefined, resolveAuthoringMcpEnvironment(), formsUiResources);
   return server;
 }

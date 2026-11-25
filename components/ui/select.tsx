@@ -4,8 +4,22 @@ import * as React from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
+import { hapticSelection } from "@/lib/native/haptics";
 
-const Select = SelectPrimitive.Root;
+function Select({
+  onValueChange,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  return (
+    <SelectPrimitive.Root
+      onValueChange={(value) => {
+        void hapticSelection();
+        onValueChange?.(value);
+      }}
+      {...props}
+    />
+  );
+}
 const SelectValue = SelectPrimitive.Value;
 
 function SelectTrigger({
@@ -13,22 +27,22 @@ function SelectTrigger({
   children,
   variant = "field",
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Trigger> & { variant?: "field" | "inline" }) {
+}: React.ComponentProps<typeof SelectPrimitive.Trigger> & { variant?: "field" | "inline" | "outline" }) {
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        "flex min-w-0 cursor-pointer items-center justify-between gap-2 rounded-md text-body-sm disabled:cursor-not-allowed [&>span]:min-w-0 [&>span]:truncate",
+        "flex min-w-0 cursor-pointer items-center justify-between gap-2 rounded-md text-body-sm text-foreground enabled:hover:bg-muted data-[state=open]:bg-muted disabled:cursor-not-allowed disabled:opacity-50 [&>span]:min-w-0 [&>span]:truncate",
         "focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2",
-        variant === "inline"
-          ? "h-9 w-auto max-w-full border-0 bg-transparent px-2 text-foreground enabled:hover:bg-muted data-[state=open]:bg-muted disabled:opacity-50"
-          : "h-10 w-full border border-input bg-background px-3 py-2 focus-visible:border-primary",
+        "aria-invalid:border aria-invalid:border-status-error aria-invalid:focus-visible:border-status-error aria-invalid:focus-visible:ring-status-error/30",
+        variant === "inline" ? "h-9 w-auto max-w-full px-2" : "h-10 w-full px-3 py-2 text-left",
+        variant === "outline" ? "border border-input bg-background focus-visible:border-primary" : "border-0 bg-transparent",
         className
       )}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDown className={cn("size-4 shrink-0", variant === "inline" ? "text-muted-foreground" : "opacity-50")} />
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
@@ -51,7 +65,7 @@ function SelectContent({ className, children, position = "popper", ...props }: R
           className={cn(
             "p-1 max-h-[inherit] overflow-y-auto",
             position === "popper" &&
-              "w-full min-w-[var(--radix-select-trigger-width)]"
+              "w-full min-w-[min(var(--radix-select-trigger-width),var(--radix-select-content-available-width,100%))]"
           )}
         >
           {children}

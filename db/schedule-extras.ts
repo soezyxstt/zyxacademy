@@ -1,4 +1,4 @@
-import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { index, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 import { groups, tutorSlots, user } from "@/db/schema";
 
 /**
@@ -17,6 +17,26 @@ export const tutorSlotNotes = pgTable("tutor_slot_notes", {
     .$onUpdate(() => new Date())
     .notNull(),
 });
+
+/**
+ * Optional per-slot course restrictions selected by a tutor when opening or
+ * editing an availability slot. When no rows exist for a slot, all active
+ * courses assigned to that tutor are bookable on the slot.
+ */
+export const tutorSlotCourses = pgTable(
+  "tutor_slot_courses",
+  {
+    slotId: text("slot_id")
+      .notNull()
+      .references(() => tutorSlots.id, { onDelete: "cascade" }),
+    courseId: text("course_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.slotId, table.courseId] }),
+    index("tutor_slot_courses_slot_idx").on(table.slotId),
+  ],
+);
 
 /**
  * Immutable history used to enforce the 30-day student group-name cooldown.

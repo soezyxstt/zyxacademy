@@ -15,7 +15,6 @@ const denied = () => new Error("DISCUSSION_UNAVAILABLE");
 type CourseScope = { canonicalCourseId: string | null; legacyCourseId: string | null; courseTitle: string | null; hasFullContentAccess: boolean; reason?: string };
 
 async function pkaAllowed(actor: DiscussionActor, client: Connection) {
- if (process.env.FEATURE_PKA !== "1") return false;
  if (actor.role !== "student") return true;
  const [enrollment] = await client.select({ id: enrollments.id }).from(enrollments)
   .where(and(eq(enrollments.userId, actor.id), eq(enrollments.courseId, PKA_COURSE_ID))).limit(1);
@@ -105,7 +104,8 @@ export function discussionChannelCandidateScope(actor: DiscussionActor) {
 }
 
 export function discussionChannelsWithThreads() {
- return inArray(discussionChannels.id, db.select({ id: discussionThreads.channelId }).from(discussionThreads));
+ return sql`(select 1 from ${discussionThreads} where ${discussionThreads.channelId} = ${discussionChannels.id}
+  order by ${discussionThreads.lastActivityAt}, ${discussionThreads.id} limit 1) is not null`;
 }
 
 export function discussionChannelsWithPendingReports() {
@@ -235,7 +235,7 @@ export async function requireDiscussionChannelAccess(actor: DiscussionActor, cha
  return authorizeLoadedDiscussionChannel(current, channel, client);
 }
 
-export async function requireDiscussionThreadAccess(actor: DiscussionActor, threadId: string, tx?: DiscussionTransaction) {
+export async function requireDiscussionThreadAccess(actor: Pick<DiscussionActor, "id">, threadId: string, tx?: DiscussionTransaction) {
  if (!validDiscussionId(threadId)) throw denied();
  const client = tx ?? db;
  const loadRow = () => client.select({ thread: discussionThreads, channel: discussionChannels })
@@ -248,12 +248,12 @@ export async function requireDiscussionThreadAccess(actor: DiscussionActor, thre
   const [row] = await loadRow();
   if (!row) throw denied();
   const channel = await authorizeLoadedDiscussionChannel(current, row.channel, tx);
-  return { channel, thread: row.thread };
+  return { actor: current, channel, thread: row.thread };
  }
  const [current, [row]] = await Promise.all([getDiscussionActor(actor.id), loadRow()]);
  if (!row) throw denied();
  const channel = await authorizeLoadedDiscussionChannel(current, row.channel, client);
- return { channel, thread: row.thread };
+ return { actor: current, channel, thread: row.thread };
 }
 
 export async function requireDiscussionMessageAccess(actor: DiscussionActor, messageId: string, tx?: DiscussionTransaction) {

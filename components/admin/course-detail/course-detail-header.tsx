@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useTranslations } from "@/lib/i18n/client";
 import { ExternalLink, GraduationCap } from "lucide-react";
 import { AdminPageHeader, type BreadcrumbItem } from "@/components/admin/page-header";
-import { Badge } from "@/components/ui/badge";
 import { AdminIconAction } from "@/components/admin/icon-action";
 
 export type AdminCourseHeaderData = {
@@ -31,14 +30,11 @@ export function CourseDetailHeader({ course, breadcrumbs }: Props) {
       icon={GraduationCap}
       title={course.title}
       breadcrumbs={resolvedBreadcrumbs}
+      className="mb-0 border-b border-border/60 pb-1"
       actions={
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="rounded-md font-mono text-body-xs">
-            {course.id}
-          </Badge>
-          <Badge variant="secondary" className="rounded-md text-body-xs">
-            {course.category}
-          </Badge>
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 text-body-xs text-muted-foreground">
+          <span className="wrap-anywhere font-mono">{course.id}</span>
+          <span className="wrap-anywhere">{course.category}</span>
           <AdminIconAction asChild variant="ghost" label={t("courses.studentView")}>
             <Link href={`/courses/${course.id}`} target="_blank">
               <ExternalLink className="size-4" />

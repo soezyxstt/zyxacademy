@@ -63,6 +63,7 @@ export default async function TutorQuizAttemptsPage({ params }: Props) {
     : [null];
 
   const courseTitle = mk?.title ?? legacyCourse?.title ?? courseId;
+  const t = await getTranslations("tutor.routeTitles");
 
   return (
     <ApplicationPage>
@@ -71,12 +72,20 @@ export default async function TutorQuizAttemptsPage({ params }: Props) {
           icon={FileSpreadsheet}
           title={<><TranslatedText namespace="tutor" messageKey="routeTitles.studentAttempts" />: {template.title}</>}
           backHref={`/tutor/${courseId}/quizzes`}
-          backLabel={<><TranslatedText namespace="tutor" messageKey="routeTitles.backToQuizzes" /> ({courseTitle})</>}
+          backLabel={t("backToQuizzes")}
         />
       </Reveal>
 
       <Reveal>
-        <QuizAttemptsSpreadsheet templateId={templateId} quizTitle={template.title} translationNamespace="admin" />
+        <section aria-labelledby="tutor-attempts-quiz" className="space-y-(--compact-gap)">
+          <header className="min-w-0">
+            <h2 id="tutor-attempts-quiz" className="break-words font-heading text-body-base font-bold text-foreground">
+              {template.title}
+            </h2>
+            <p className="break-words text-body-xs text-muted-foreground">{courseTitle}</p>
+          </header>
+          <QuizAttemptsSpreadsheet templateId={templateId} quizTitle={template.title} translationNamespace="admin" />
+        </section>
       </Reveal>
     </ApplicationPage>
   );

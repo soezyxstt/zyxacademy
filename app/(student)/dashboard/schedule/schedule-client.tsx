@@ -12,8 +12,9 @@ import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { getScheduleData } from "./actions";
 import { scopeStudentSchedule } from "@/lib/schedule/student-schedule-scope";
-import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
-import calendarStyles from "@/components/schedule/schedule-calendar-readability.module.css";
+import { ViewportSwitch } from "@/components/navigation";
+import { StudentScheduleDesktop } from "@/features/student-schedule/ui/desktop/student-schedule-desktop";
+import { StudentScheduleMobile } from "@/features/student-schedule/ui/mobile/student-schedule-mobile";
 import { CollaborativeBookingModal } from "@/components/schedule/collaborative-booking-modal";
 import {
   AcademicScheduleDetailDialog,
@@ -32,43 +33,72 @@ import { daysFrom, getJakartaNow, getWeekScheduleDays } from "@/lib/date-utils";
 
 export function ScheduleCalendarSkeleton() {
   return (
-    <div data-testid="schedule-calendar-skeleton" className="space-y-(--related-gap)">
-      {/* Calendar toolbar skeleton */}
-      <div className="flex flex-wrap items-center justify-between gap-(--compact-gap) rounded-xl border border-border/70 bg-card p-3">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-8 w-8 rounded-lg" />
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-8 w-8 rounded-lg" />
+    <div data-testid="schedule-calendar-skeleton" className="space-y-(--related-gap)" aria-hidden="true">
+      {/* Mobile week-strip & daily agenda skeleton */}
+      <div className="space-y-3 md:hidden">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Skeleton className="size-8 rounded-lg" />
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="size-8 rounded-lg" />
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Skeleton className="size-10 rounded-xl" />
+            <Skeleton className="size-10 rounded-xl" />
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Skeleton className="h-8 w-32 rounded-lg" />
-          <Skeleton className="h-8 w-28 rounded-lg" />
-          <Skeleton className="h-8 w-24 rounded-lg" />
+        <div className="grid grid-cols-7 gap-1 border-b border-border/60 pb-3">
+          {[1, 2, 3, 4, 5, 6, 7].map((day) => (
+            <Skeleton key={day} className="h-14 w-full rounded-xl" />
+          ))}
+        </div>
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <Skeleton className="h-5 w-44" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        <div className="space-y-2.5">
+          <Skeleton className="h-24 w-full rounded-xl" />
+          <Skeleton className="h-24 w-full rounded-xl" />
         </div>
       </div>
 
-      {/* Weekly calendar grid skeleton */}
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
-        <div className="grid grid-cols-7 divide-x divide-border/60 border-b border-border/60 bg-muted/20">
-          {[1, 2, 3, 4, 5, 6, 7].map((day) => (
-            <div key={day} className="p-2.5 text-center space-y-1">
-              <Skeleton className="mx-auto h-3 w-8" />
-              <Skeleton className="mx-auto h-5 w-6 rounded-md" />
-            </div>
-          ))}
+      {/* Desktop weekly calendar grid skeleton */}
+      <div className="hidden space-y-(--related-gap) md:block">
+        <div className="flex flex-wrap items-center justify-between gap-(--compact-gap) rounded-xl border border-border/70 bg-card p-3">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-8 rounded-lg" />
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-8 w-8 rounded-lg" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Skeleton className="h-8 w-32 rounded-lg" />
+            <Skeleton className="h-8 w-28 rounded-lg" />
+            <Skeleton className="h-8 w-24 rounded-lg" />
+          </div>
         </div>
-        <div className="divide-y divide-border/40">
-          {[1, 2, 3, 4, 5].map((row) => (
-            <div key={row} className="grid grid-cols-7 divide-x divide-border/40 h-20">
-              {[1, 2, 3, 4, 5, 6, 7].map((col) => (
-                <div key={col} className="p-1.5">
-                  {(row + col) % 5 === 0 && (
-                    <Skeleton className="h-full w-full rounded-md" />
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
+
+        <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
+          <div className="grid grid-cols-7 divide-x divide-border/60 border-b border-border/60 bg-muted/20">
+            {[1, 2, 3, 4, 5, 6, 7].map((day) => (
+              <div key={day} className="space-y-1 p-2.5 text-center">
+                <Skeleton className="mx-auto h-3 w-8" />
+                <Skeleton className="mx-auto h-5 w-6 rounded-md" />
+              </div>
+            ))}
+          </div>
+          <div className="divide-y divide-border/25">
+            {[1, 2, 3, 4, 5].map((row) => (
+              <div key={row} className="grid h-20 grid-cols-7 divide-x divide-border/40">
+                {[1, 2, 3, 4, 5, 6, 7].map((col) => (
+                  <div key={col} className="p-1.5">
+                    {(row + col) % 5 === 0 && (
+                      <Skeleton className="h-full w-full rounded-md" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -263,33 +293,46 @@ export function StudentScheduleClient({ selectedCourse, initialData = null, fetc
     ? (activeData.groupBookings || []).find((booking: any) => booking.id === activeSessionBookingId) || null
     : null;
 
+  const scheduleViewProps = {
+    loading,
+    allowPastBooking: experience.mode === "demo",
+    currentUserId: userObj.id,
+    weekInfo: activeData.weekInfo,
+    isWeekLocked: activeData.isWeekLocked,
+    weekOffset,
+    onWeekChange: setWeekOffset,
+    coursesList,
+    tutorsList,
+    groupsList: activeData.groups || [],
+    initialCourseFilter,
+    compatibleCourseIds: courseIds,
+    slots: activeData.availableSlots || [],
+    bookings: activeData.groupBookings || [],
+    academicSchedules: activeData.academicSchedules || [],
+    toolbarControls:
+      experience.mode !== "demo" && ["student", "teacher"].includes(userObj.role) ? (
+        <GoogleCalendarControl />
+      ) : undefined,
+    onSelectSlotToBook: (slot: any, dateIso: string) => setBookingSlotData({ slot, dateIso }),
+    onOpenSessionDetail: (booking: any) => setActiveSessionBookingId(booking.id),
+    onEditSchedule: (schedule: any) => setSelectedAcademicSchedule(schedule),
+  };
+
   return (
     <ApplicationPage spacing="space-y-(--related-gap)">
       <PageHeader icon={CalendarDays} title={t("schedule.title")} />
 
-      <div className={calendarStyles.root} aria-busy={loading}>
-        <ScheduleCalendarView
-          role="student"
-          allowPastBooking={experience.mode === "demo"}
-          currentUserId={userObj.id}
-          weekInfo={activeData.weekInfo}
-          isWeekLocked={activeData.isWeekLocked}
-          weekOffset={weekOffset}
-          onWeekChange={setWeekOffset}
-          coursesList={coursesList}
-          tutorsList={tutorsList}
-          groupsList={activeData.groups || []}
-          initialCourseFilter={initialCourseFilter}
-          compatibleCourseIds={courseIds}
-          slots={activeData.availableSlots || []}
-          bookings={activeData.groupBookings || []}
-          academicSchedules={activeData.academicSchedules || []}
-          toolbarControls={experience.mode !== "demo" && ["student", "teacher"].includes(userObj.role) ? <GoogleCalendarControl /> : undefined}
-          onSelectSlotToBook={(slot, dateIso) => setBookingSlotData({ slot, dateIso })}
-          onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
-          onEditSchedule={(schedule) => setSelectedAcademicSchedule(schedule)}
-        />
-      </div>
+      <ViewportSwitch
+        desktop={() => (
+          <StudentScheduleDesktop
+            {...scheduleViewProps}
+            weekInfo={activeData.weekInfo}
+            isWeekLocked={activeData.isWeekLocked}
+          />
+        )}
+        mobile={() => <StudentScheduleMobile {...scheduleViewProps} />}
+        fallback={<StudentScheduleDesktop {...scheduleViewProps} />}
+      />
 
       {experience.mode === "demo" && community.error ? <p role="alert" className="text-body-xs text-destructive">{community.error}</p> : null}
       <CollaborativeBookingModal

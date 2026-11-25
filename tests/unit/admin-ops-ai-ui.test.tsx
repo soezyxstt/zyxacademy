@@ -8,6 +8,7 @@ import {
   loadOpsAiSessions,
   createOpsAiSession,
   updateOpsAiSessionMessages,
+  renameOpsAiSession,
   deleteOpsAiSession,
   clearAllOpsAiSessions,
   loadOpsAiMessages,
@@ -29,7 +30,7 @@ import {
 } from "@/components/admin/ops-ai/ops-ai-storage";
 import { WorkTraceView } from "@/components/admin/ops-ai/work-trace-view";
 import { CitationCards } from "@/components/admin/ops-ai/citation-cards";
-import { ActionProposalCard } from "@/components/admin/ops-ai/action-proposal-card";
+import { ActionProposalCard, extractReadableProposalSummary } from "@/components/admin/ops-ai/action-proposal-card";
 import { OpsAiTrigger } from "@/components/admin/ops-ai/ops-ai-trigger";
 import { OpsAiProvider } from "@/components/admin/ops-ai/ops-ai-context";
 import { QuickActionsBar, extractQuickActions } from "@/components/admin/ops-ai/quick-actions-bar";
@@ -211,6 +212,14 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(migrated[1].proposals?.[0].preview.fields).toBeDefined();
     });
 
+    it("isolates saved chats by admin account", () => {
+      const session = createOpsAiSession("Admin chat", "admin-a");
+      updateOpsAiSessionMessages(session.id, [{ id: "msg", role: "user", content: "Private chat", createdAt: 1000 }], "admin-a");
+      expect(loadOpsAiMessages("admin-a")[0]?.content).toBe("Private chat");
+      expect(loadOpsAiMessages("admin-b")).toEqual([]);
+      expect(loadOpsAiMessages()).toEqual([]);
+    });
+
     it("automatically reads v1 from localStorage and migrates to v2 on loadOpsAiMessages()", () => {
       mockStorage[STORAGE_KEY_MESSAGES_V1] = JSON.stringify([
         {
@@ -269,8 +278,8 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain("h-[var(--panel-visible-height,100dvh)]");
       expect(html).toContain("lg:shrink-0");
 
-      // Mobile overlay fallback classes
-      expect(html).toContain("fixed inset-y-0 right-0 left-4 z-50");
+      // Mobile overlay full-width classes
+      expect(html).toContain("fixed inset-y-0 left-0 right-0 z-50 w-full");
     });
 
     it("renders the resize separator handle with ARIA attributes on desktop", () => {
@@ -298,7 +307,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
       // Header is a distinct header element with border-b and shrink-0
       expect(html).toContain("<header");
-      expect(html).toContain("shrink-0 border-b");
+      expect(html.match(/<header[^>]*>/)?.[0]).toContain("border-b");
 
       // Footer is a distinct footer element with border-t and shrink-0
       expect(html).toContain("<footer");
@@ -499,7 +508,6 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       const html = renderToStaticMarkup(<ActionProposalCard proposal={sampleProposal} />);
 
       // Title and Description
-      expect(html).toContain("Proposal Aksi Admin");
       expect(html).toContain("Pembuatan Token Aktivasi");
       expect(html).toContain("Token untuk kelompok 5 orang mata kuliah kalkulus-1.");
 
@@ -507,18 +515,55 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain("Menunggu Konfirmasi");
 
       // Preview key-value fields
-      expect(html).toContain("Kapasitas:");
+      expect(html).toContain(">Kapasitas</dt>");
       expect(html).toContain("5");
-      expect(html).toContain("Mata Kuliah:");
+      expect(html).toContain(">Mata Kuliah</dt>");
       expect(html).toContain("kalkulus-1");
 
       // Action button
-      expect(html).toContain("Konfirmasi dan Eksekusi");
+      expect(html).toContain(">Izinkan<");
       expect(html).toContain('aria-label="Konfirmasi dan eksekusi aksi"');
 
       // Zero em-dashes
       expect(html).not.toContain("—");
       expect(html).not.toContain("–");
+    });
+
+    it("offers chat permission only when the server classifies the proposal as reversible", () => {
+      const proposal: OpsAiActionProposalV2 = {
+        id: "prop-approval",
+        runId: "run-approval",
+        stepId: "step-approval",
+        type: "admin_operation",
+        title: "Edit preset",
+        description: "Izinkan perubahan ini?",
+        preview: { summary: "forms.presets.update" },
+        status: "pending",
+        createdAt: 1000,
+        approval: "chat",
+      };
+      const chatApproval = renderToStaticMarkup(<ActionProposalCard proposal={proposal} chatId="session-approval" />);
+      const onceApproval = renderToStaticMarkup(<ActionProposalCard proposal={{ ...proposal, approval: "once" }} chatId="session-approval" />);
+      const expired = renderToStaticMarkup(<ActionProposalCard proposal={{ ...proposal, expiresAt: 1000 }} chatId="session-approval" />);
+      expect(chatApproval).toContain("Izinkan di chat");
+      expect(onceApproval).toContain(">Izinkan<");
+      expect(onceApproval).not.toContain("Izinkan di chat");
+      expect(expired).toContain("Kedaluwarsa");
+      expect(expired).not.toContain(">Izinkan<");
+    });
+
+    it("shows an accepted job as processing instead of completed", () => {
+      const proposal = {
+        id: "prop-queued", runId: "run", stepId: "step",
+        type: "admin_operation", status: "executed", approval: "once",
+        title: "Baca halaman PDF", description: "", preview: { summary: "Baca PDF" },
+        createdAt: 1000,
+        result: { jobId: "job-123", jobState: "pending", message: "Job sedang diproses (job-123)." },
+      } as const;
+      const html = renderToStaticMarkup(<ActionProposalCard proposal={proposal} />);
+      expect(html).toContain("Job diproses");
+      expect(html).toContain("job-123");
+      expect(html).not.toContain(">Selesai<");
     });
 
     it("renders executed result state with token string", () => {
@@ -663,7 +708,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(proposalHtml).not.toContain("rounded-full");
     });
 
-    it("uses standard typography classes: text-body-sm, text-body-xs, font-heading font-bold", () => {
+    it("uses semantic typography for the empty chat", () => {
       const panelHtml = renderToStaticMarkup(
         <OpsAiProvider initialOpen={true}>
           <OpsAiPanel />
@@ -672,7 +717,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
       expect(panelHtml).toContain("font-heading");
       expect(panelHtml).toContain("text-body-sm");
-      expect(panelHtml).toContain("text-body-xs");
+      expect(panelHtml).toContain("text-body-base");
     });
   });
 
@@ -715,7 +760,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
         // Render card
         const cardHtml = renderToStaticMarkup(<ActionProposalCard proposal={proposal} />);
-        expect(cardHtml).toContain("Konfirmasi dan Eksekusi");
+        expect(cardHtml).toContain(">Izinkan<");
 
         // Simulate execution call equivalent to ActionProposalCard.handleExecute
         const res = await fetch("/api/admin/ops-ai/execute", {
@@ -761,8 +806,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
       expect(html).toContain("Gagal");
       expect(html).toContain("Kapasitas kuota token tidak valid.");
-      // Failed proposals allow retry
-      expect(html).toContain("Konfirmasi dan Eksekusi");
+      expect(html).not.toContain(">Izinkan<");
     });
   });
 
@@ -770,16 +814,19 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
   // Suite 10: Correction Pass (Visual Defect & Hydration Verifications)
   // ==========================================================================
   describe("Suite 10: Correction Pass (Visual Defect & Hydration Verifications)", () => {
-    it("pins the mobile sheet above the backdrop and leaves an outside tap area", () => {
+    it("pins the mobile sheet full-width above the backdrop and keeps tablet width at sm", () => {
       const html = renderToStaticMarkup(
         <OpsAiProvider initialOpen={true} initialWidth={480}>
           <OpsAiPanel />
         </OpsAiProvider>
       );
 
-      expect(html).toContain("fixed inset-y-0 right-0 left-4 z-50");
+      expect(html).toContain("fixed inset-y-0 left-0 right-0 z-50 w-full");
       expect(html).toContain("sm:left-auto sm:w-[480px]");
       expect(html).toContain("lg:sticky lg:self-start lg:shrink-0");
+      expect(html).toContain('data-full-width="false"');
+      expect(html).toContain('aria-label="Perbesar ke layar penuh"');
+      expect(html).toContain('aria-pressed="false"');
 
       // Verify backdrop has z-40 and panel has z-50
       expect(html).toContain("fixed inset-0 z-40 bg-black/50");
@@ -958,17 +1005,16 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
     });
   });
 
-  describe("Suite 12: Mode Selector & Interaction Modes (Ask vs Edit)", () => {
-    it("renders the interactive Mode Selector button defaulting to Mode Tanya", () => {
+  describe("Shared Zyra composer", () => {
+    it("renders the live editor host and send button in one chat", () => {
       const html = renderToStaticMarkup(
         <OpsAiProvider initialOpen={true}>
           <OpsAiPanel />
         </OpsAiProvider>
       );
 
-      expect(html).toContain("Mode Tanya");
-      expect(html).toContain('title="Klik untuk beralih ke Mode Edit"');
-      expect(html).toContain("Tanyakan apa saja seputar operasional &amp; dokumentasi Zyx...");
+      expect(html).toContain('data-editor-disabled="false"');
+      expect(html).toContain('aria-label="Kirim pesan"');
     });
   });
 
@@ -1000,46 +1046,47 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
     });
   });
 
-  describe("Suite 14: Interactive Quick Actions & Entity Resolution UX", () => {
-    it("parses explicit quick-actions code blocks and strips them from cleanedContent", () => {
+  describe("Suite 14: Deterministic Follow-up Chips & Markup Stripping UX", () => {
+    it("strips legacy quick-actions code blocks and converts valid string items without heuristics", () => {
       const input =
-        "Berikut adalah proposal pembuatan bab baru 'Turunan'.\n\nApakah Anda ingin melanjutkan dengan proposal ini?\n\n```quick-actions\n[\"Ya\", \"Tidak\"]\n```";
+        "Berikut adalah ringkasan status token aktif.\n\n```quick-actions\n[\"Cek token hampir habis\", \"Buat token baru\"]\n```";
       const { cleanedContent, quickActions } = extractQuickActions(input);
 
-      expect(quickActions).toEqual(["Ya", "Tidak"]);
+      expect(quickActions).toEqual([
+        { label: "Cek token hampir habis", prompt: "Cek token hampir habis", icon: "arrow" },
+        { label: "Buat token baru", prompt: "Buat token baru", icon: "arrow" },
+      ]);
       expect(cleanedContent).not.toContain("```quick-actions");
-      expect(cleanedContent).toContain("Apakah Anda ingin melanjutkan dengan proposal ini?");
+      expect(cleanedContent).toContain("Berikut adalah ringkasan status token aktif.");
     });
 
-    it("parses multi-option disambiguation choices from quick-actions block", () => {
-      const input =
-        "Ditemukan bab 'Limit' pada 2 mata kuliah. Mana yang Anda maksud?\n\n```quick-actions\n[\"Matematika I\", \"Kalkulus Lanjut\"]\n```";
-      const { cleanedContent, quickActions } = extractQuickActions(input);
+    it("does not fabricate heuristic Ya/Tidak or bullet-list chips from plain text", () => {
+      const confirmationText =
+        "Apakah Anda ingin melanjutkan dengan proposal ini?";
+      expect(extractQuickActions(confirmationText).quickActions).toEqual([]);
 
-      expect(quickActions).toEqual(["Matematika I", "Kalkulus Lanjut"]);
-      expect(cleanedContent).not.toContain("```quick-actions");
-    });
-
-    it("provides heuristic fallback options ['Ya', 'Tidak'] for proposal confirmation question without block", () => {
-      const input =
-        "Action Proposal: Membuat Bab Baru\n- Mata Kuliah: Matematika I (mat-i)\n- Judul Bab: Turunan\n\nApakah Anda ingin melanjutkan dengan proposal ini?";
-      const { quickActions } = extractQuickActions(input);
-
-      expect(quickActions).toEqual(["Ya", "Tidak"]);
-    });
-
-    it("extracts disambiguation list items when text asks which one is meant without code block", () => {
-      const input =
+      const listText =
         "Mata kuliah mana yang Anda maksud?\n1. Matematika I\n2. Kalkulus Lanjut";
-      const { quickActions } = extractQuickActions(input);
-
-      expect(quickActions).toEqual(["Matematika I", "Kalkulus Lanjut"]);
+      expect(extractQuickActions(listText).quickActions).toEqual([]);
     });
 
-    it("renders QuickActionsBar component with option buttons and custom input field", () => {
+    it("renders QuickActionsBar pill chips without an inline custom input field", () => {
       const html = renderToStaticMarkup(
         <QuickActionsBar
-          options={["Ya", "Tidak"]}
+          followups={[
+            {
+              label: "Cek siswa pending",
+              prompt: "Tampilkan daftar siswa dengan status pending terbaru",
+              icon: "search",
+              mode: "ask",
+            },
+            {
+              label: "Buat token baru",
+              prompt: "Siapkan proposal pembuatan token baru",
+              icon: "arrow",
+              mode: "edit",
+            },
+          ]}
           onSelect={() => {}}
           disabled={false}
         />
@@ -1047,26 +1094,35 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
       expect(html).toContain('role="group"');
       expect(html).toContain('aria-label="Pilihan aksi cepat"');
-      expect(html).toContain("Ya");
-      expect(html).toContain("Tidak");
-      expect(html).toContain('placeholder="Ketik sendiri..."');
-      expect(html).toContain("h-7");
-      expect(html).toContain("text-body-sm");
+      expect(html).toContain("Cek siswa pending");
+      expect(html).toContain("Buat token baru");
+      expect(html).toContain("rounded-full");
+      expect(html).toContain("text-body-xs");
+      expect(html).not.toContain("Ketik sendiri");
+      expect(html).not.toContain("<input");
     });
 
-    it("renders QuickActionsBar under the latest assistant proposal message in OpsAiPanel", () => {
+    it("renders QuickActionsBar on latest assistant message from msg.followups and strips raw markup", () => {
       const testMessages = [
         {
           id: "msg-user-1",
           role: "user" as const,
-          content: "buat bab baru pada mata kuliah matematika i yaitu bab turunan",
+          content: "cek status formulir aktif",
           createdAt: Date.now() - 2000,
         },
         {
           id: "msg-asst-1",
           role: "assistant" as const,
           content:
-            "Berikut adalah proposal untuk membuat bab baru 'Turunan' pada mata kuliah Matematika I.\n\nApakah Anda ingin melanjutkan dengan proposal ini?\n\n```quick-actions\n[\"Ya\", \"Tidak\"]\n```",
+            "Ada 3 formulir aktif minggu ini.\n\n<ops-followups>[{\"label\":\"Ringkas respons terbaru\",\"prompt\":\"Ringkas respons formulir terbaru\",\"icon\":\"search\"}]</ops-followups>",
+          followups: [
+            {
+              label: "Ringkas respons terbaru",
+              prompt: "Ringkas respons formulir terbaru",
+              icon: "search" as const,
+              mode: "ask" as const,
+            },
+          ],
           createdAt: Date.now() - 1000,
         },
       ];
@@ -1077,13 +1133,240 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
         </OpsAiProvider>
       );
 
-      // Verify buttons are rendered
       expect(html).toContain('aria-label="Pilihan aksi cepat"');
-      expect(html).toContain("Ya");
-      expect(html).toContain("Tidak");
-      expect(html).toContain('placeholder="Ketik sendiri..."');
-      // Verify raw code block is NOT rendered in chat text
-      expect(html).not.toContain("&lt;code&gt;[&quot;Ya&quot;");
+      expect(html).toContain("Ringkas respons terbaru");
+      expect(html).not.toContain("Ketik sendiri");
+      expect(html).not.toContain("&lt;ops-followups&gt;");
+    });
+
+    it("hides QuickActionsBar when the assistant message already has an action proposal", () => {
+      const testMessages = [
+        {
+          id: "msg-user-1",
+          role: "user" as const,
+          content: "buat token baru",
+          createdAt: Date.now() - 2000,
+        },
+        {
+          id: "msg-asst-1",
+          role: "assistant" as const,
+          content: "Proposal token siap disetujui.",
+          followups: [
+            {
+              label: "Cek token lain",
+              prompt: "Cek sisa kuota token aktif",
+              icon: "search" as const,
+            },
+          ],
+          proposals: [
+            {
+              id: "prop-1",
+              runId: "run-1",
+              stepId: "step-1",
+              type: "create_token" as const,
+              title: "Buat Token",
+              description: "Buat token aktivasi baru",
+              preview: { summary: "Token baru", fields: [] },
+              status: "pending" as const,
+              createdAt: Date.now(),
+            },
+          ],
+          createdAt: Date.now() - 1000,
+        },
+      ];
+
+      const html = renderToStaticMarkup(
+        <OpsAiProvider initialOpen={true}>
+          <OpsAiPanel initialMessages={testMessages} />
+        </OpsAiProvider>
+      );
+
+      expect(html).not.toContain('aria-label="Pilihan aksi cepat"');
+      expect(html).not.toContain("Cek token lain");
+    });
+  });
+
+  // ==========================================================================
+  // Suite 15: Interactive Presets, Capability Overview & Mode Toggle
+  // ==========================================================================
+  describe("Suite 15: Interactive Presets, Capability Overview & Mode Toggle", () => {
+    it("renders featured capability overview preset, category filter, mode toggle, and help trigger in empty state", () => {
+      const html = renderToStaticMarkup(
+        <OpsAiProvider initialOpen={true}>
+          <OpsAiPanel />
+        </OpsAiProvider>
+      );
+
+      expect(html).toContain("Apa saja yang bisa dibantu Ops AI?");
+      expect(html).toContain('aria-label="Filter kategori preset"');
+      expect(html).toContain("Semua");
+      expect(html).toContain("Tanya");
+      expect(html).toContain("Aksi");
+      expect(html).toContain('aria-label="Mode percakapan"');
+      expect(html).toContain('aria-label="Bantuan Zyx Ops AI"');
+      expect(html).toContain("Buat token aktivasi kelompok");
+    });
+
+    it("renders mid-chat preset launcher when conversation has messages", () => {
+      const html = renderToStaticMarkup(
+        <OpsAiProvider initialOpen={true}>
+          <OpsAiPanel
+            initialMessages={[
+              { id: "u1", role: "user", content: "Halo", createdAt: 1000 },
+              { id: "a1", role: "assistant", content: "Halo admin.", createdAt: 2000 },
+            ]}
+          />
+        </OpsAiProvider>
+      );
+
+      expect(html).toContain('aria-label="Buka daftar preset pertanyaan dan aksi"');
+      expect(html).toContain("Preset");
+    });
+
+    it("returns route-specific presets for admin sub-pages", async () => {
+      const {
+        getAdminRouteContext,
+        resolveDynamicOpsPresets,
+        CAPABILITY_OVERVIEW_PRESET,
+        OPS_AI_PRESETS,
+      } = await import("@/components/admin/ops-ai/ops-ai-presets");
+
+      expect(CAPABILITY_OVERVIEW_PRESET.label).toBe("Apa saja yang bisa dibantu Ops AI?");
+      expect(OPS_AI_PRESETS.some((p) => p.category === "action")).toBe(true);
+      expect(OPS_AI_PRESETS.some((p) => p.category === "ask")).toBe(true);
+
+      const coursesCtx = getAdminRouteContext("/admin/courses/math-1");
+      expect(coursesCtx.pageLabel).toBe("Mata Kuliah math 1");
+      expect(coursesCtx.routePreset?.id).toContain("math-1");
+
+      const formsCtx = getAdminRouteContext("/admin/forms");
+      expect(formsCtx.pageLabel).toBe("Formulir");
+      expect(formsCtx.routePreset?.id).toBe("forms-edit-create");
+
+      const askForms = resolveDynamicOpsPresets({ pathname: "/admin/forms", mode: "ask" });
+      expect(askForms.presets.every((p) => p.category === "ask")).toBe(true);
+    });
+
+    it("persists AI session titles without overwriting on subsequent message updates", () => {
+      const sess = createOpsAiSession("Percakapan Baru", "admin-1");
+
+      const renamed = renameOpsAiSession(sess.id, "Audit formulir pendaftaran 2026", "admin-1");
+      const afterRename = renamed.find((s) => s.id === sess.id);
+      expect(afterRename?.title).toBe("Audit formulir pendaftaran 2026");
+      expect(afterRename?.titleSource).toBe("ai");
+
+      updateOpsAiSessionMessages(
+        sess.id,
+        [{ id: "m1", role: "user", content: "Pesan panjang pertama yang berbeda", createdAt: 1000 }],
+        "admin-1"
+      );
+      expect(loadOpsAiSessions("admin-1").find((s) => s.id === sess.id)?.title).toBe(
+        "Audit formulir pendaftaran 2026"
+      );
+    });
+  });
+
+  // ==========================================================================
+  // Suite 17: ActionProposalCard Readable Summary & Collapsible Raw JSON
+  // ==========================================================================
+  describe("Suite 17: ActionProposalCard Readable Summary & Collapsible Raw JSON", () => {
+    it("extracts readable key-value summary from JSON preview fields and collapses raw JSON by default", () => {
+      const detailJson = JSON.stringify(
+        {
+          title: "Survei Kepuasan Tutor",
+          slug: "survei-kepuasan-tutor",
+          category: "feedback",
+          settings: {
+            acceptingResponses: true,
+            requireLogin: false,
+          },
+          questions: [
+            { id: "q1" },
+            { id: "q2" },
+            { id: "q3" },
+            { id: "q4" },
+            { id: "q5" },
+            { id: "q6" },
+          ],
+          status: "draft",
+        },
+        null,
+        2
+      );
+
+      const parsed = extractReadableProposalSummary([
+        { label: "Environment", value: "staging (https://staging.zyxacademy.com)" },
+        { label: "Detail perubahan", value: detailJson },
+      ]);
+
+      expect(parsed.rawJsonBlocks).toHaveLength(1);
+      expect(parsed.summaryItems).toContainEqual({
+        label: "Lingkungan",
+        value: "Staging",
+      });
+      expect(parsed.summaryItems).toContainEqual({
+        label: "Judul",
+        value: "Survei Kepuasan Tutor",
+      });
+      expect(parsed.summaryItems).toContainEqual({
+        label: "Tautan",
+        value: "survei-kepuasan-tutor",
+      });
+      expect(parsed.summaryItems).toContainEqual({
+        label: "Pertanyaan",
+        value: "6 pertanyaan",
+      });
+      expect(parsed.summaryItems).toContainEqual({
+        label: "Terima respons",
+        value: "Ya",
+      });
+      expect(parsed.summaryItems).toContainEqual({
+        label: "Wajib masuk",
+        value: "Tidak",
+      });
+
+      const proposal: OpsAiActionProposalV2 = {
+        id: "prop-form-1",
+        runId: "run-form",
+        stepId: "step-form",
+        type: "admin_operation",
+        title: "Buat formulir baru",
+        description: "Izinkan perubahan ini?",
+        approval: "chat",
+        preview: {
+          summary: "forms.create",
+          fields: [
+            { label: "Environment", value: "staging (https://staging.zyxacademy.com)" },
+            { label: "Detail perubahan", value: detailJson },
+          ],
+        },
+        status: "pending",
+        createdAt: 1000,
+      };
+
+      const html = renderToStaticMarkup(
+        <ActionProposalCard proposal={proposal} chatId="session-form" />
+      );
+
+      // Human-readable Indonesian summary is visible immediately without raw code
+      expect(html).toContain(">Lingkungan</dt>");
+      expect(html).toContain(">Staging</dd>");
+      expect(html).toContain(">Judul</dt>");
+      expect(html).toContain("Survei Kepuasan Tutor");
+      expect(html).toContain(">Terima respons</dt>");
+      expect(html).toContain(">Ya</dd>");
+      expect(html).toContain(">Pertanyaan</dt>");
+      expect(html).toContain("6 pertanyaan");
+      expect(html).toContain("Izinkan di chat");
+      expect(html).toContain(">Izinkan<");
+
+      // Raw JSON is collapsed by default behind Detail teknis toggle
+      expect(html).toContain("Detail teknis");
+      expect(html).toContain('aria-expanded="false"');
+      expect(html).not.toContain("&quot;acceptingResponses&quot;");
+      expect(html).not.toContain("—");
+      expect(html).not.toContain("–");
+      expect(html).not.toContain("rounded-full");
     });
   });
 });

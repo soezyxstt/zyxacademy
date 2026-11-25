@@ -33,6 +33,7 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { AdminOptionLetter } from "@/components/admin/option-letter";
 import { DifficultyBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 
@@ -172,7 +173,7 @@ export function QuestionsTab({
   };
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="space-y-(--compact-gap)">
       {/* Origin Filter Tabs + Toolbar Controls */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Tabs value={originTab} onValueChange={handleTabChange} syncUrl={false} className="basis-64 grow">
@@ -227,7 +228,7 @@ export function QuestionsTab({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button asChild size="sm" variant="outline" className="size-9 rounded-lg p-0 shrink-0">
+                <Button asChild size="icon-lg" variant="ghost">
                   <Link href={`/admin/questions?courseId=${courseId}`} aria-label={t("courseDetail.questions.openBankStudio")}>
                     <ExternalLink className="size-4" aria-hidden />
                   </Link>
@@ -240,10 +241,10 @@ export function QuestionsTab({
       </div>
 
       {/* Questions Container */}
-      <div className="space-y-3 border-y border-border py-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-            <Library className="size-4 text-brand-primary" />
+      <section aria-labelledby="course-question-bank" className="space-y-(--compact-gap) border-y border-border/60 py-(--row-padding)">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="course-question-bank" className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
+            <Library className="size-4 text-muted-foreground" aria-hidden />
             {t("courseDetail.questions.questionBankCount", { count: totalItems })}
           </h2>
           <span className="text-body-xs text-muted-foreground">
@@ -252,15 +253,9 @@ export function QuestionsTab({
         </div>
 
         {paginatedQuestions.length === 0 ? (
-          <div className="py-5 text-center">
-            <HelpCircle className="size-8 text-muted-foreground/40 mx-auto mb-2" />
-            <p className="text-body-sm font-medium text-foreground">{t("courseDetail.questions.emptyTitle")}</p>
-            <p className="text-body-xs text-muted-foreground mt-0.5">
-              {t("courseDetail.questions.emptyDescription")}
-            </p>
-          </div>
+          <AdminEmptyState compact icon={HelpCircle} title={t("courseDetail.questions.emptyTitle")} description={t("courseDetail.questions.emptyDescription")} />
         ) : (
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border/60">
             {paginatedQuestions.map((q, idx) => {
               const questionIndex = (validPage - 1) * pageSize + idx + 1;
 
@@ -291,7 +286,7 @@ export function QuestionsTab({
               return (
                 <div
                   key={q.id}
-                  className="py-4 first:pt-1 last:pb-1 space-y-3"
+                  className="space-y-(--compact-gap) py-(--related-gap) first:pt-1 last:pb-1"
                 >
                   {/* Top Metadata Row */}
                   <div className="flex items-center justify-between gap-2">
@@ -340,24 +335,24 @@ export function QuestionsTab({
 
                   {/* Options */}
                   {optionsArr.length > 0 && (
-                    <div className="space-y-1.5 pt-1">
+                    <div className="divide-y divide-border/60 border-y border-border/60">
                       {optionsArr.map((opt, optIdx) => {
                         const isCorrect = corrects.includes(optIdx);
                         return (
                           <div
                             key={optIdx}
-                            className={`flex items-start gap-2 p-2.5 rounded-lg text-body-sm border ${
+                            className={`flex flex-wrap items-start gap-x-2 gap-y-1 py-2 text-body-sm ${
                               isCorrect
-                                ? "border-status-success/50 bg-status-success/10 text-foreground font-medium"
-                                : "border-border/60 text-muted-foreground"
+                                ? "text-foreground"
+                                : "text-muted-foreground"
                             }`}
                           >
                             <AdminOptionLetter index={optIdx} isCorrect={isCorrect} />
-                            <div className="flex-1 min-w-0">
+                            <div className="min-w-0 flex-1 basis-36">
                               <MarkdownRenderer content={opt} density="compact" />
                             </div>
                             {isCorrect && (
-                              <span className="text-body-xs font-bold text-status-success shrink-0">
+                              <span className="ml-auto shrink-0 text-body-xs font-semibold text-status-success">
                                 {t("courseDetail.questions.correct")}
                               </span>
                             )}
@@ -369,7 +364,7 @@ export function QuestionsTab({
 
                   {/* Explanation */}
                   {q.explanation && (
-                    <div className="p-3 rounded-lg bg-muted/20 border border-border/40 text-body-sm text-muted-foreground space-y-1">
+                    <div className="space-y-1 border-l-2 border-border/60 pl-3 text-body-sm text-muted-foreground">
                       <strong className="text-foreground text-body-xs block">{t("courseDetail.questions.explanation")}</strong>
                       <MarkdownRenderer content={q.explanation} density="compact" />
                     </div>
@@ -384,12 +379,12 @@ export function QuestionsTab({
         {totalPages > 1 && (
           <nav
             aria-label={t("courseDetail.questions.pagination")}
-            className="flex items-center justify-between pt-3 border-t border-border/60"
+            className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3"
           >
             <p className="text-body-xs text-muted-foreground">
               {t("courseDetail.questions.pageOf", { page: validPage, total: totalPages })}
             </p>
-            <div className="flex items-center gap-1.5">
+            <div className="ml-auto flex items-center gap-1.5">
               <Button
                 variant="outline"
                 size="sm"
@@ -442,7 +437,7 @@ export function QuestionsTab({
             </div>
           </nav>
         )}
-      </div>
+      </section>
 
       {/* Delete Confirmation Dialog */}
       <AdminConfirmDialog
