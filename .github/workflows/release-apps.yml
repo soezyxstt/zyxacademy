@@ -560,7 +560,7 @@ jobs:
   smoke-stable-android:
     if: needs.prepare.outputs.channel == 'stable' && inputs.stable_operation == 'candidate'
     needs: [prepare, build-android]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/download-artifact@v4
@@ -596,15 +596,26 @@ jobs:
           export PATH="$sdk/platform-tools:$PATH"
           "$sdk/emulator/emulator" -accel-check
           "$tools/avdmanager" create avd --force --name zyx-stable-smoke --package "$image" <<< no
-          "$sdk/emulator/emulator" -avd zyx-stable-smoke -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -port 5554 > "$RUNNER_TEMP/zyx-emulator.log" 2>&1 &
-          emulator_pid=$!
-          trap 'adb -s emulator-5554 emu kill >/dev/null 2>&1 || true; kill "$emulator_pid" 2>/dev/null || true' EXIT
           export ANDROID_SERIAL=emulator-5554
-          timeout 150 adb wait-for-device
-          deadline=$((SECONDS+180))
-          until [[ "$(adb shell getprop sys.boot_completed | tr -d '\r')" == 1 ]]; do
-            kill -0 "$emulator_pid" || { echo "::error::Android emulator exited before boot."; exit 1; }
-            (( SECONDS < deadline )) || { echo "::error::Android emulator boot timed out."; exit 1; }
+          adb start-server
+          emulator_log="$RUNNER_TEMP/zyx-emulator.log"
+          "$sdk/emulator/emulator" -avd zyx-stable-smoke -no-window -noaudio -no-boot-anim \
+            -gpu software -no-snapshot -camera-back none -port 5554 > "$emulator_log" 2>&1 &
+          emulator_pid=$!
+          cleanup() {
+            status=$?
+            if (( status != 0 )); then
+              tail -80 "$emulator_log" || true
+              adb devices || true
+            fi
+            adb -s emulator-5554 emu kill >/dev/null 2>&1 || true
+            kill "$emulator_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          deadline=$((SECONDS+420))
+          until [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" == 1 ]]; do
+            kill -0 "$emulator_pid" || { echo "::error::Android emulator process exited before boot."; exit 1; }
+            (( SECONDS < deadline )) || { echo "::error::Android emulator did not finish booting."; exit 1; }
             sleep 3
           done
           adb shell input keyevent 82
