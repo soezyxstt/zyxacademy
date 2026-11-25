@@ -32,10 +32,12 @@ for (const colorScheme of ["light", "dark"] as const) {
       });
     });
     await page.addInitScript(() => {
-      type FixtureWindow = Window & {
+      // This script runs in Chromium, not Bun or an installed Tauri shell.
+      type FixtureWindow = {
         __TAURI__: { core: { invoke: (command: string) => Promise<unknown> } };
         __desktopOnline: boolean;
         __desktopProbe: { resolve: () => void; reject: () => void } | null;
+        fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
       };
       const fixture = window as unknown as FixtureWindow;
       fixture.__desktopOnline = true;
@@ -45,7 +47,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         if (command === "get_desktop_server_origin") return "https://staging.zyxacademy.com";
         return { items: [], totalBytes: 0 };
       } } };
-      window.fetch = (_input, init) => new Promise((resolveProbe, rejectProbe) => {
+      fixture.fetch = (_input, init) => new Promise((resolveProbe, rejectProbe) => {
         fixture.__desktopProbe = {
           resolve: () => resolveProbe({ type: "opaque", ok: false } as Response),
           reject: () => rejectProbe(new TypeError("Fixture origin unavailable")),
