@@ -61,13 +61,13 @@ const MOCK_FEATURE_ROWS: FeatureUsageRow[] = [
 ];
 
 const MOCK_FEATURE_DAILY: FeatureUsageDailyPoint[] = [
-  { date: "2026-11-17", materi: 52, flashcard: 18, kuis: 25, kuisLive: 0, zyra: 34 },
-  { date: "2026-11-18", materi: 64, flashcard: 22, kuis: 31, kuisLive: 12, zyra: 41 },
-  { date: "2026-11-19", materi: 71, flashcard: 19, kuis: 28, kuisLive: 0, zyra: 48 },
-  { date: "2026-11-20", materi: 68, flashcard: 24, kuis: 34, kuisLive: 22, zyra: 52 },
-  { date: "2026-11-21", materi: 76, flashcard: 21, kuis: 30, kuisLive: 0, zyra: 45 },
-  { date: "2026-11-22", materi: 82, flashcard: 23, kuis: 36, kuisLive: 0, zyra: 51 },
-  { date: "2026-11-23", materi: 69, flashcard: 18, kuis: 30, kuisLive: 0, zyra: 47 },
+  { date: "2026-11-17", materi: 52, flashcard: 18, kuis: 25, tryout: 4, kuisLive: 0, zyra: 34, diskusi: 12, tutorial: 3 },
+  { date: "2026-11-18", materi: 64, flashcard: 22, kuis: 31, tryout: 6, kuisLive: 12, zyra: 41, diskusi: 15, tutorial: 5 },
+  { date: "2026-11-19", materi: 71, flashcard: 19, kuis: 28, tryout: 5, kuisLive: 0, zyra: 48, diskusi: 18, tutorial: 4 },
+  { date: "2026-11-20", materi: 68, flashcard: 24, kuis: 34, tryout: 8, kuisLive: 22, zyra: 52, diskusi: 14, tutorial: 6 },
+  { date: "2026-11-21", materi: 76, flashcard: 21, kuis: 30, tryout: 7, kuisLive: 0, zyra: 45, diskusi: 16, tutorial: 3 },
+  { date: "2026-11-22", materi: 82, flashcard: 23, kuis: 36, tryout: 9, kuisLive: 0, zyra: 51, diskusi: 20, tutorial: 4 },
+  { date: "2026-11-23", materi: 69, flashcard: 18, kuis: 30, tryout: 5, kuisLive: 0, zyra: 47, diskusi: 17, tutorial: 5 },
 ];
 
 export const MOCK_FEATURE_USAGE = {

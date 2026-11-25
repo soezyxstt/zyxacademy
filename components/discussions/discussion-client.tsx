@@ -546,7 +546,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
             acknowledgedSnapshot.current = snapshot.key;
             setReadError(false);
             signalCounts();
-            void refreshThreadPage(selectedThread, messagePagesRef.current.at(-1)?.cursor, { refreshMetadata: false }).catch(() => {});
+            void refreshThreadPage(selectedThread, messagePagesRef.current.at(-1)?.cursor).catch(() => {});
           }
         } catch { if (current()) setReadError(true); }
       }, 1500);
@@ -555,6 +555,11 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       statusVisible = ids !== null;
       visibleIds = new Set(ids ?? []);
       if (!current() || !ids) { if (timer) clearTimeout(timer); timer = undefined; pending = null; return; }
+      for (const message of messages) {
+        if (message.author?.id === viewer.id && message.seq > observation.current.through) {
+          observation.current.seen.add(message.seq);
+        }
+      }
       const visibleMessages = ids.flatMap(id => { const message = byId.get(id); return message ? [message] : []; });
       visibleMessages.forEach((message) => observedMessages.current.set(message.seq, {
         id: message.id, seq: message.seq, revision: message.revision, receipt: messagePages[0].observationReceipt,
@@ -566,7 +571,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       scheduleRead();
     });
     return () => { cancelled = true; stopObserving(); if (timer) clearTimeout(timer); };
-  }, [selectedThread, thread?.id, thread?.status, activeTab, renderedThreadState, messages, messagePages, refreshThreadPage, retryRead]);
+  }, [selectedThread, thread?.id, thread?.status, activeTab, renderedThreadState, messages, messagePages, refreshThreadPage, retryRead, viewer.id]);
 
   useEffect(() => {
     if (viewer.role !== "admin" || activeTab !== "reports") return;

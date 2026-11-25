@@ -3,10 +3,11 @@
 import * as React from "react";
 import { Tabs as TabsPrimitive } from "radix-ui";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { hapticSelection } from "@/lib/native/haptics";
+import { registerMobileTabSwipe } from "@/lib/navigation/mobile-tab-swipe";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { useTranslations } from "@/lib/i18n/client";
 import {
@@ -28,6 +29,7 @@ import {
 type TabsContextValue = {
   activeValue?: string;
   selectTab?: (value: string) => void;
+  rootRef?: React.RefObject<HTMLDivElement | null>;
 };
 
 const TabsContext = React.createContext<TabsContextValue>({});
@@ -49,6 +51,7 @@ function TabsInner({
   className,
   ...props
 }: TabsProps) {
+  const rootRef = React.useRef<HTMLDivElement>(null);
   const isControlled = value !== undefined;
   const [urlTab, setUrlTab] = useUrlTab(
     paramKey,
@@ -80,13 +83,15 @@ function TabsInner({
   );
 
   const ctxValue = React.useMemo(
-    () => ({ activeValue, selectTab: handleValueChange }),
+    () => ({ activeValue, selectTab: handleValueChange, rootRef }),
     [activeValue, handleValueChange]
   );
 
   return (
     <TabsContext.Provider value={ctxValue}>
       <TabsPrimitive.Root
+        ref={rootRef}
+        data-slot="tabs"
         value={activeValue}
         onValueChange={handleValueChange}
         defaultValue={activeValue !== undefined ? undefined : defaultValue}
@@ -104,6 +109,7 @@ function TabsStatic({
   className,
   ...props
 }: Omit<TabsProps, "paramKey" | "syncUrl">) {
+  const rootRef = React.useRef<HTMLDivElement>(null);
   const isControlled = value !== undefined;
   const [localTab, setLocalTab] = React.useState<string | undefined>(
     typeof defaultValue === "string" ? defaultValue : undefined
@@ -123,13 +129,15 @@ function TabsStatic({
   );
 
   const ctxValue = React.useMemo(
-    () => ({ activeValue, selectTab: handleValueChange }),
+    () => ({ activeValue, selectTab: handleValueChange, rootRef }),
     [activeValue, handleValueChange]
   );
 
   return (
     <TabsContext.Provider value={ctxValue}>
       <TabsPrimitive.Root
+        ref={rootRef}
+        data-slot="tabs"
         value={activeValue}
         onValueChange={handleValueChange}
         defaultValue={activeValue !== undefined ? undefined : defaultValue}
@@ -422,7 +430,7 @@ function TabsList({
   "aria-labelledby": ariaLabelledBy,
   ...props
 }: TabsListProps) {
-  const { activeValue, selectTab } = React.useContext(TabsContext);
+  const { activeValue, selectTab, rootRef } = React.useContext(TabsContext);
   const moreLabel = useMoreLabel(moreLabelProp);
   const [moreOpen, setMoreOpen] = React.useState(false);
 
@@ -433,6 +441,41 @@ function TabsList({
 
   const items = React.useMemo(() => flattenTabChildren(children), [children]);
   const itemMetas = React.useMemo(() => items.map((item) => extractTabMeta(item)), [items]);
+  const enabledValues = React.useMemo(
+    () => itemMetas.flatMap((meta) => (meta && !meta.disabled ? [meta.value] : [])),
+    [itemMetas]
+  );
+  const swipeStateRef = React.useRef({
+    values: enabledValues,
+    activeValue,
+    selectTab,
+  });
+  React.useEffect(() => {
+    swipeStateRef.current = { values: enabledValues, activeValue, selectTab };
+  }, [enabledValues, activeValue, selectTab]);
+
+  React.useEffect(() => {
+    return registerMobileTabSwipe({
+      getContainer: () => {
+        const root = rootRef?.current ?? barRef.current?.closest<HTMLElement>("[data-slot='tabs']") ?? null;
+        if (!root) return barRef.current?.parentElement ?? null;
+        return root.querySelector("[role='tabpanel']") ? root : root.parentElement ?? root;
+      },
+      getNavElement: () => barRef.current,
+      getState: () => {
+        const { values, activeValue: current } = swipeStateRef.current;
+        return {
+          count: values.length,
+          activeIndex: current !== undefined ? values.indexOf(current) : -1,
+        };
+      },
+      navigate: (nextIndex) => {
+        const { values, selectTab: select } = swipeStateRef.current;
+        const target = values[nextIndex];
+        if (target && select) select(target);
+      },
+    });
+  }, [rootRef]);
   const contentSignature = React.useMemo(
     () => items.map((item) => extractTextSignature(item)).join("||"),
     [items]
@@ -674,6 +717,7 @@ function TabNav({
   const activeTriggerClass = cn(tabTriggerActiveClassName, activeTone === "neutral" && "after:bg-foreground");
   const activeOverflowClass = cn(tabOverflowItemActiveClassName, activeTone === "neutral" && "before:bg-foreground");
   const pathname = usePathname();
+  const router = useRouter();
   const t = useTranslations("ui");
   const moreLabel = moreLabelProp ?? t("moreTabs");
   const [moreOpen, setMoreOpen] = React.useState(false);
@@ -717,6 +761,34 @@ function TabNav({
     });
     return tabs.map((tab, index) => ({ ...tab, isActive: index === bestIndex }));
   }, [tabs, pathname]);
+
+  const swipeTabsRef = React.useRef(resolvedTabs);
+  const routerRef = React.useRef(router);
+  React.useEffect(() => {
+    swipeTabsRef.current = resolvedTabs;
+    routerRef.current = router;
+  }, [resolvedTabs, router]);
+
+  React.useEffect(() => {
+    return registerMobileTabSwipe({
+      getContainer: () => navRef.current?.parentElement ?? null,
+      getNavElement: () => navRef.current,
+      getState: () => {
+        const current = swipeTabsRef.current;
+        return {
+          count: current.length,
+          activeIndex: current.findIndex((tab) => tab.isActive),
+        };
+      },
+      navigate: (nextIndex) => {
+        const target = swipeTabsRef.current[nextIndex];
+        if (target && !target.isActive) {
+          void hapticSelection();
+          routerRef.current?.push?.(target.href);
+        }
+      },
+    });
+  }, []);
 
   const overflowTabs =
     !disableOverflow && visibleCount < resolvedTabs.length

@@ -10,19 +10,24 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { FeatureUsageDailyPoint } from "@/lib/feature-usage-metrics";
+import {
+  FEATURE_USAGE_KEYS,
+  type FeatureUsageDailyPoint,
+  type FeatureUsageKey,
+} from "@/lib/feature-usage-metrics";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 
-const FEATURE_KEYS = ["materi", "flashcard", "kuis", "kuisLive", "zyra"] as const;
-
-const FEATURE_COLORS: Record<(typeof FEATURE_KEYS)[number], string> = {
+const FEATURE_COLORS: Record<FeatureUsageKey, string> = {
   materi: "var(--color-brand-primary)",
   flashcard: "var(--color-tertiary-1)",
   kuis: "var(--color-brand-secondary)",
+  tryout: "var(--color-status-info)",
   kuisLive: "var(--color-status-warning)",
   zyra: "var(--color-status-success)",
+  diskusi: "var(--color-chart-4, var(--color-primary))",
+  tutorial: "var(--color-chart-5, var(--color-muted-foreground))",
 };
 
 const tooltipStyle = {
@@ -37,11 +42,11 @@ export function FeatureDailyChart({ daily }: { daily: FeatureUsageDailyPoint[] }
   const t = useTranslations("adminOps");
   const { locale } = useAppLocale();
   const isMobile = useViewportMode() === "mobile";
-  const hasData = daily.some((point) =>
-    FEATURE_KEYS.some((key) => point[key] > 0)
+  const activeKeys = FEATURE_USAGE_KEYS.filter((key) =>
+    daily.some((point) => point[key] > 0)
   );
 
-  if (!hasData) return <AdminEmptyState compact title={t("featureUsageUI.noDailyData")} />;
+  if (activeKeys.length === 0) return <AdminEmptyState compact title={t("featureUsageUI.noDailyData")} />;
   const localeTag = locale === "id" ? "id-ID" : "en-US";
   const date = new Intl.DateTimeFormat(localeTag, { month: "short", day: "numeric", timeZone: "UTC" });
   const axisNumber = new Intl.NumberFormat(localeTag, { notation: "compact", maximumFractionDigits: 1 });
@@ -74,7 +79,7 @@ export function FeatureDailyChart({ daily }: { daily: FeatureUsageDailyPoint[] }
           />
           <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-muted)", opacity: 0.4 }} />
           <Legend wrapperStyle={{ paddingTop: isMobile ? "8px" : "12px" }} formatter={(label) => <span className="text-body-xs text-foreground">{label}</span>} />
-          {FEATURE_KEYS.map((key) => (
+          {activeKeys.map((key) => (
             <Bar
               key={key}
               dataKey={key}

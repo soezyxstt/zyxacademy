@@ -934,7 +934,7 @@ export async function ReviewQueueSection({
             {recentReviews.map((review) => (
               <li key={review.id} className="flex min-w-0 items-center justify-between gap-3 py-2">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-body-sm text-foreground">{review.front}</p>
+                  <MathText as="p" className="line-clamp-2 break-words text-body-sm text-foreground">{review.front}</MathText>
                   <p className="truncate text-body-xs text-muted-foreground">{review.courseTitle}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end">

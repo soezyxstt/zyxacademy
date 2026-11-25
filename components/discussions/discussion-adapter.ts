@@ -130,7 +130,7 @@ export function discussionVisibilityBlocked() {
 
 export function discussionStatusUncovered(status: HTMLElement) {
   const box = status.getBoundingClientRect();
-  if (!box.width || !box.height || box.left < 0 || box.top < 0 || box.right > window.innerWidth || box.bottom > window.innerHeight) return false;
+  if (!box.width || !box.height || box.left < -1 || box.top < -1 || box.right > window.innerWidth + 1 || box.bottom > window.innerHeight + 1) return false;
   return [[0.5, 0.25], [0.5, 0.5], [0.5, 0.75], [0.25, 0.5], [0.75, 0.5]].every(([x, y]) => {
     const top = document.elementFromPoint(box.left + box.width * x, box.top + box.height * y);
     return !!top && (top === status || status.contains(top));

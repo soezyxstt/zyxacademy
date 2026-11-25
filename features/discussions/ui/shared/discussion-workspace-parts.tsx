@@ -796,6 +796,8 @@ export function DiscussionThreadOrComposePane({
 
       <div
         data-discussion-messages
+        data-discussion-status={hideThreadHeader ? "" : undefined}
+        aria-describedby={hideThreadHeader ? "discussion-thread-status" : undefined}
         className={cn(
           "flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto",
           messagesPaddingClassName

@@ -152,6 +152,7 @@ export function SwipeableDiscussionRow({
   return (
     <div
       data-swipeable-discussion-row=""
+      data-swipe-lock=""
       className="relative overflow-hidden touch-pan-y"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}

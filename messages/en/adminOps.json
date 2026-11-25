@@ -217,18 +217,24 @@
       "materi": "Materials",
       "flashcard": "Flashcards",
       "kuis": "Self-study quizzes",
+      "tryout": "Tryouts",
       "kuisLive": "Live quizzes",
-      "zyra": "Zyra Chat"
+      "zyra": "Zyra Chat",
+      "diskusi": "Discussions",
+      "tutorial": "Tutorial sessions"
     },
-    "materialCoverage": "Materials count the latest progress per student and material, not every opening. Structured articles are not included.",
+    "materialCoverage": "Materials include both structured article reading progress and latest legacy document progress per student.",
     "rollingCoverage": "The range is measured back from the current time. The first and last UTC days may be partial.",
     "topShare": "{percent}% of total activity",
     "featureDetails": {
-      "materi": "Latest material progress",
-      "flashcard": "Flashcard reviews",
+      "materi": "{count} sections completed",
+      "flashcard": "Flashcard reviews (canonical & legacy)",
       "kuis": "{count} attempts completed",
+      "tryout": "{count} graded or completed",
       "kuisLive": "Completed live quiz results",
-      "zyra": "{count} new sessions"
+      "zyra": "{count} new sessions",
+      "diskusi": "{count} new questions",
+      "tutorial": "{count} sessions completed"
     }
   },
   "flags": {

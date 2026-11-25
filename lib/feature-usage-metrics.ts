@@ -1,18 +1,48 @@
 import { db } from "@/db";
 import {
+  bookings,
   chatSessions,
+  discussionMessages,
+  discussionThreads,
   flashcardReviews,
+  kemajuanBacaArtikel,
+  kemajuanFlashcardMurid,
   liveQuizResults,
+  reviewFlashcard,
   studentMaterialProgress,
   studentQuizAttempts,
+  submissions,
   tutorChatMessages,
 } from "@/db/schema";
-import { and, eq, sql, type AnyColumn } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, sql, type AnyColumn } from "drizzle-orm";
 import { elapsedDaysAgo, formatIsoDateUtc } from "@/lib/date-utils";
 
 export const FEATURE_USAGE_RANGES = [7, 30, 90] as const;
 export type FeatureUsageRange = (typeof FEATURE_USAGE_RANGES)[number];
 export const DEFAULT_FEATURE_USAGE_RANGE: FeatureUsageRange = 30;
+
+export const FEATURE_USAGE_KEYS = [
+  "materi",
+  "flashcard",
+  "kuis",
+  "tryout",
+  "kuisLive",
+  "zyra",
+  "diskusi",
+  "tutorial",
+] as const;
+export type FeatureUsageKey = (typeof FEATURE_USAGE_KEYS)[number];
+
+export const FEATURE_USAGE_LABELS: Record<FeatureUsageKey, string> = {
+  materi: "Materi & Dokumen",
+  flashcard: "Flashcard",
+  kuis: "Kuis Mandiri",
+  tryout: "Tryout",
+  kuisLive: "Kuis Live Kelas",
+  zyra: "Zyra Chat",
+  diskusi: "Diskusi",
+  tutorial: "Sesi Tutorial",
+};
 
 export function resolveFeatureUsageRange(value: string | undefined): FeatureUsageRange {
   const parsed = Number(value);
@@ -22,7 +52,7 @@ export function resolveFeatureUsageRange(value: string | undefined): FeatureUsag
 }
 
 export type FeatureUsageRow = {
-  key: "materi" | "flashcard" | "kuis" | "kuisLive" | "zyra";
+  key: FeatureUsageKey;
   label: string;
   events: number;
   previousEvents: number;
@@ -36,12 +66,7 @@ export type FeatureUsageRow = {
 
 export type FeatureUsageDailyPoint = {
   date: string;
-  materi: number;
-  flashcard: number;
-  kuis: number;
-  kuisLive: number;
-  zyra: number;
-};
+} & Record<FeatureUsageKey, number>;
 
 export type FeatureUsageMetrics = {
   rangeDays: FeatureUsageRange;
@@ -53,18 +78,28 @@ export type FeatureUsageMetrics = {
     previousEvents: number;
     trendPercent: number | null;
     activeUsers: number;
-    topFeatureKey: FeatureUsageRow["key"] | null;
+    topFeatureKey: FeatureUsageKey | null;
     topFeatureLabel: string | null;
     topFeatureSharePercent: number | null;
   };
   insights: {
-    fastestGrowing: { key: FeatureUsageRow["key"]; trendPercent: number } | null;
-    highestAdoption: { key: FeatureUsageRow["key"]; adoptionPercent: number } | null;
-    needsAttention: { key: FeatureUsageRow["key"]; adoptionPercent: number; events: number } | null;
+    fastestGrowing: { key: FeatureUsageKey; trendPercent: number } | null;
+    highestAdoption: { key: FeatureUsageKey; adoptionPercent: number } | null;
+    needsAttention: { key: FeatureUsageKey; adoptionPercent: number; events: number } | null;
   };
 };
 
+export type FeatureSourceSnapshot = {
+  events: number;
+  previousEvents: number;
+  userIds: string[];
+  lastUsedEpochSeconds: number;
+  daily: Array<{ date: string; count: number }>;
+  detailCount?: number;
+};
+
 const num = (value: unknown): number => Number(value ?? 0);
+
 const isoFromEpochSeconds = (value: unknown): string | null => {
   const seconds = Number(value ?? 0);
   return seconds > 0 ? new Date(seconds * 1000).toISOString() : null;
@@ -76,7 +111,7 @@ const calcTrendPercent = (current: number, previous: number): number | null => {
 };
 
 const withinWindow = (column: AnyColumn, startEpochSeconds: number, endEpochSeconds: number) =>
-  sql`${column} >= to_timestamp(${startEpochSeconds}) and ${column} < to_timestamp(${endEpochSeconds})`;
+  sql`${column} >= to_timestamp(${startEpochSeconds}) and ${column} <= to_timestamp(${endEpochSeconds})`;
 
 const maxEpochSeconds = (column: AnyColumn) =>
   sql<number>`extract(epoch from max(${column}))`;
@@ -86,258 +121,96 @@ const dayExpr = (column: AnyColumn) =>
 
 export function featureUsageDailyDates(rangeDays: FeatureUsageRange, now: Date): string[] {
   return Array.from({ length: rangeDays + 1 }, (_, i) =>
-    formatIsoDateUtc(elapsedDaysAgo(rangeDays - i, now)),
+    formatIsoDateUtc(elapsedDaysAgo(rangeDays - i, now))
   );
 }
 
 /**
- * Cross-feature student usage read model. Aggregates active learning domain
- * tables (excluding retired V1/V2/V3 assessments) with period-over-period
- * trends, student adoption rate, and per-user depth.
+ * Pure aggregation engine for cross-feature telemetry.
+ * Merges multiple canonical + legacy source snapshots per feature, deduplicates
+ * unique active students across all features, builds stacked UTC daily series,
+ * and computes period-over-period trends and adoption insights.
  */
-export async function getFeatureUsageMetrics(
-  rangeDays: FeatureUsageRange
-): Promise<FeatureUsageMetrics> {
-  const now = new Date();
-  const windowStart = elapsedDaysAgo(rangeDays, now);
-  const prevWindowStart = elapsedDaysAgo(rangeDays * 2, now);
-  const startEpochSeconds = windowStart.getTime() / 1000;
-  const endEpochSeconds = now.getTime() / 1000;
-  const prevStartEpochSeconds = prevWindowStart.getTime() / 1000;
-
-  const [
-    materiStats,
-    flashcardStats,
-    quizStats,
-    liveQuizStats,
-    zyraMessageStats,
-    zyraSessionStats,
-    prevMateriStats,
-    prevFlashcardStats,
-    prevQuizStats,
-    prevLiveQuizStats,
-    prevZyraStats,
-    materiDaily,
-    flashcardDaily,
-    quizDaily,
-    liveQuizDaily,
-    zyraDaily,
-    activeUserIds,
-  ] = await Promise.all([
-    db
-      .select({
-        events: sql<number>`count(*)`,
-        users: sql<number>`count(distinct ${studentMaterialProgress.studentId})`,
-        lastUsedAt: maxEpochSeconds(studentMaterialProgress.lastOpenedAt),
-      })
-      .from(studentMaterialProgress)
-      .where(withinWindow(studentMaterialProgress.lastOpenedAt, startEpochSeconds, endEpochSeconds)),
-
-    db
-      .select({
-        events: sql<number>`count(*)`,
-        users: sql<number>`count(distinct ${flashcardReviews.studentId})`,
-        lastUsedAt: maxEpochSeconds(flashcardReviews.reviewedAt),
-      })
-      .from(flashcardReviews)
-      .where(withinWindow(flashcardReviews.reviewedAt, startEpochSeconds, endEpochSeconds)),
-
-    db
-      .select({
-        events: sql<number>`count(*)`,
-        completed: sql<number>`sum(case when ${studentQuizAttempts.status} = 'completed' then 1 else 0 end)`,
-        users: sql<number>`count(distinct ${studentQuizAttempts.studentId})`,
-        lastUsedAt: maxEpochSeconds(studentQuizAttempts.startedAt),
-      })
-      .from(studentQuizAttempts)
-      .where(withinWindow(studentQuizAttempts.startedAt, startEpochSeconds, endEpochSeconds)),
-
-    db
-      .select({
-        events: sql<number>`count(*)`,
-        users: sql<number>`count(distinct ${liveQuizResults.studentId})`,
-        lastUsedAt: maxEpochSeconds(liveQuizResults.completedAt),
-      })
-      .from(liveQuizResults)
-      .where(withinWindow(liveQuizResults.completedAt, startEpochSeconds, endEpochSeconds)),
-
-    db
-      .select({
-        events: sql<number>`count(*)`,
-        users: sql<number>`count(distinct ${tutorChatMessages.studentId})`,
-        lastUsedAt: maxEpochSeconds(tutorChatMessages.createdAt),
-      })
-      .from(tutorChatMessages)
-      .where(
-        and(
-          eq(tutorChatMessages.role, "student"),
-          withinWindow(tutorChatMessages.createdAt, startEpochSeconds, endEpochSeconds)
-        )
-      ),
-
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(chatSessions)
-      .where(withinWindow(chatSessions.startedAt, startEpochSeconds, endEpochSeconds)),
-
-    // Previous period counts for trend calculation
-    db
-      .select({ events: sql<number>`count(*)` })
-      .from(studentMaterialProgress)
-      .where(withinWindow(studentMaterialProgress.lastOpenedAt, prevStartEpochSeconds, startEpochSeconds)),
-    db
-      .select({ events: sql<number>`count(*)` })
-      .from(flashcardReviews)
-      .where(withinWindow(flashcardReviews.reviewedAt, prevStartEpochSeconds, startEpochSeconds)),
-    db
-      .select({ events: sql<number>`count(*)` })
-      .from(studentQuizAttempts)
-      .where(withinWindow(studentQuizAttempts.startedAt, prevStartEpochSeconds, startEpochSeconds)),
-    db
-      .select({ events: sql<number>`count(*)` })
-      .from(liveQuizResults)
-      .where(withinWindow(liveQuizResults.completedAt, prevStartEpochSeconds, startEpochSeconds)),
-    db
-      .select({ events: sql<number>`count(*)` })
-      .from(tutorChatMessages)
-      .where(
-        and(
-          eq(tutorChatMessages.role, "student"),
-          withinWindow(tutorChatMessages.createdAt, prevStartEpochSeconds, startEpochSeconds)
-        )
-      ),
-
-    db
-      .select({ date: dayExpr(studentMaterialProgress.lastOpenedAt), count: sql<number>`count(*)` })
-      .from(studentMaterialProgress)
-      .where(withinWindow(studentMaterialProgress.lastOpenedAt, startEpochSeconds, endEpochSeconds))
-      .groupBy(dayExpr(studentMaterialProgress.lastOpenedAt)),
-
-    db
-      .select({ date: dayExpr(flashcardReviews.reviewedAt), count: sql<number>`count(*)` })
-      .from(flashcardReviews)
-      .where(withinWindow(flashcardReviews.reviewedAt, startEpochSeconds, endEpochSeconds))
-      .groupBy(dayExpr(flashcardReviews.reviewedAt)),
-
-    db
-      .select({ date: dayExpr(studentQuizAttempts.startedAt), count: sql<number>`count(*)` })
-      .from(studentQuizAttempts)
-      .where(withinWindow(studentQuizAttempts.startedAt, startEpochSeconds, endEpochSeconds))
-      .groupBy(dayExpr(studentQuizAttempts.startedAt)),
-
-    db
-      .select({ date: dayExpr(liveQuizResults.completedAt), count: sql<number>`count(*)` })
-      .from(liveQuizResults)
-      .where(withinWindow(liveQuizResults.completedAt, startEpochSeconds, endEpochSeconds))
-      .groupBy(dayExpr(liveQuizResults.completedAt)),
-
-    db
-      .select({ date: dayExpr(tutorChatMessages.createdAt), count: sql<number>`count(*)` })
-      .from(tutorChatMessages)
-      .where(
-        and(
-          eq(tutorChatMessages.role, "student"),
-          withinWindow(tutorChatMessages.createdAt, startEpochSeconds, endEpochSeconds)
-        )
-      )
-      .groupBy(dayExpr(tutorChatMessages.createdAt)),
-
-    Promise.all([
-      db
-        .selectDistinct({ id: studentMaterialProgress.studentId })
-        .from(studentMaterialProgress)
-        .where(withinWindow(studentMaterialProgress.lastOpenedAt, startEpochSeconds, endEpochSeconds)),
-      db
-        .selectDistinct({ id: flashcardReviews.studentId })
-        .from(flashcardReviews)
-        .where(withinWindow(flashcardReviews.reviewedAt, startEpochSeconds, endEpochSeconds)),
-      db
-        .selectDistinct({ id: studentQuizAttempts.studentId })
-        .from(studentQuizAttempts)
-        .where(withinWindow(studentQuizAttempts.startedAt, startEpochSeconds, endEpochSeconds)),
-      db
-        .selectDistinct({ id: liveQuizResults.studentId })
-        .from(liveQuizResults)
-        .where(withinWindow(liveQuizResults.completedAt, startEpochSeconds, endEpochSeconds)),
-      db
-        .selectDistinct({ id: tutorChatMessages.studentId })
-        .from(tutorChatMessages)
-        .where(
-          and(
-            eq(tutorChatMessages.role, "student"),
-            withinWindow(tutorChatMessages.createdAt, startEpochSeconds, endEpochSeconds)
-          )
-        ),
-    ]),
-  ]);
+export function aggregateFeatureUsage(input: {
+  rangeDays: FeatureUsageRange;
+  now: Date;
+  windowStart: Date;
+  sourcesByFeature: Record<FeatureUsageKey, FeatureSourceSnapshot[]>;
+}): FeatureUsageMetrics {
+  const { rangeDays, now, windowStart, sourcesByFeature } = input;
 
   const uniqueActiveUsers = new Set<string>();
-  for (const source of activeUserIds) {
-    for (const row of source) uniqueActiveUsers.add(row.id);
+  const mergedByFeature = {} as Record<
+    FeatureUsageKey,
+    {
+      events: number;
+      previousEvents: number;
+      users: Set<string>;
+      lastUsedEpochSeconds: number;
+      detailCount: number;
+      hasDetail: boolean;
+      daily: Array<{ date: string; count: number }>;
+    }
+  >;
+
+  for (const key of FEATURE_USAGE_KEYS) {
+    const snapshots = sourcesByFeature[key] ?? [];
+    const users = new Set<string>();
+    let events = 0;
+    let previousEvents = 0;
+    let lastUsedEpochSeconds = 0;
+    let detailCount = 0;
+    let hasDetail = false;
+    const daily: Array<{ date: string; count: number }> = [];
+
+    for (const snap of snapshots) {
+      events += num(snap.events);
+      previousEvents += num(snap.previousEvents);
+      lastUsedEpochSeconds = Math.max(lastUsedEpochSeconds, num(snap.lastUsedEpochSeconds));
+      if (snap.detailCount !== undefined) {
+        hasDetail = true;
+        detailCount += num(snap.detailCount);
+      }
+      for (const userId of snap.userIds) {
+        if (userId) {
+          users.add(userId);
+          uniqueActiveUsers.add(userId);
+        }
+      }
+      for (const point of snap.daily) {
+        daily.push(point);
+      }
+    }
+
+    mergedByFeature[key] = {
+      events,
+      previousEvents,
+      users,
+      lastUsedEpochSeconds,
+      detailCount,
+      hasDetail,
+      daily,
+    };
   }
+
   const activeUsersCount = uniqueActiveUsers.size;
 
-  const makeRow = (input: {
-    key: FeatureUsageRow["key"];
-    label: string;
-    events: number;
-    previousEvents: number;
-    users: number;
-    lastUsedAt: string | null;
-    detailCount?: number;
-  }): FeatureUsageRow => ({
-    ...input,
-    trendPercent: calcTrendPercent(input.events, input.previousEvents),
-    adoptionPercent: activeUsersCount > 0 ? Math.round((input.users / activeUsersCount) * 100) : 0,
-    eventsPerUser: input.users > 0 ? Number((input.events / input.users).toFixed(1)) : 0,
-  });
-
-  const newZyraSessions = num(zyraSessionStats[0]?.count);
-
-  const rows: FeatureUsageRow[] = [
-    makeRow({
-      key: "materi",
-      label: "Materi & Dokumen",
-      events: num(materiStats[0]?.events),
-      previousEvents: num(prevMateriStats[0]?.events),
-      users: num(materiStats[0]?.users),
-      lastUsedAt: isoFromEpochSeconds(materiStats[0]?.lastUsedAt),
-    }),
-    makeRow({
-      key: "flashcard",
-      label: "Flashcard",
-      events: num(flashcardStats[0]?.events),
-      previousEvents: num(prevFlashcardStats[0]?.events),
-      users: num(flashcardStats[0]?.users),
-      lastUsedAt: isoFromEpochSeconds(flashcardStats[0]?.lastUsedAt),
-    }),
-    makeRow({
-      key: "kuis",
-      label: "Kuis Mandiri",
-      events: num(quizStats[0]?.events),
-      previousEvents: num(prevQuizStats[0]?.events),
-      users: num(quizStats[0]?.users),
-      lastUsedAt: isoFromEpochSeconds(quizStats[0]?.lastUsedAt),
-      detailCount: num(quizStats[0]?.completed),
-    }),
-    makeRow({
-      key: "kuisLive",
-      label: "Kuis Live Kelas",
-      events: num(liveQuizStats[0]?.events),
-      previousEvents: num(prevLiveQuizStats[0]?.events),
-      users: num(liveQuizStats[0]?.users),
-      lastUsedAt: isoFromEpochSeconds(liveQuizStats[0]?.lastUsedAt),
-    }),
-    makeRow({
-      key: "zyra",
-      label: "Zyra Chat",
-      events: num(zyraMessageStats[0]?.events),
-      previousEvents: num(prevZyraStats[0]?.events),
-      users: num(zyraMessageStats[0]?.users),
-      lastUsedAt: isoFromEpochSeconds(zyraMessageStats[0]?.lastUsedAt),
-      detailCount: newZyraSessions,
-    }),
-  ].sort((a, b) => b.events - a.events || a.label.localeCompare(b.label));
+  const rows: FeatureUsageRow[] = FEATURE_USAGE_KEYS.map((key) => {
+    const agg = mergedByFeature[key];
+    const usersCount = agg.users.size;
+    return {
+      key,
+      label: FEATURE_USAGE_LABELS[key],
+      events: agg.events,
+      previousEvents: agg.previousEvents,
+      trendPercent: calcTrendPercent(agg.events, agg.previousEvents),
+      users: usersCount,
+      adoptionPercent: activeUsersCount > 0 ? Math.round((usersCount / activeUsersCount) * 100) : 0,
+      eventsPerUser: usersCount > 0 ? Number((agg.events / usersCount).toFixed(1)) : 0,
+      lastUsedAt: isoFromEpochSeconds(agg.lastUsedEpochSeconds),
+      ...(agg.hasDetail ? { detailCount: agg.detailCount } : {}),
+    };
+  }).sort((a, b) => b.events - a.events || a.label.localeCompare(b.label));
 
   const dailyByDate = new Map<string, FeatureUsageDailyPoint>();
   for (const date of featureUsageDailyDates(rangeDays, now)) {
@@ -346,26 +219,20 @@ export async function getFeatureUsageMetrics(
       materi: 0,
       flashcard: 0,
       kuis: 0,
+      tryout: 0,
       kuisLive: 0,
       zyra: 0,
+      diskusi: 0,
+      tutorial: 0,
     });
   }
 
-  const applyDaily = (
-    series: Array<{ date: string; count: number }>,
-    key: keyof Omit<FeatureUsageDailyPoint, "date">
-  ) => {
-    for (const point of series) {
+  for (const key of FEATURE_USAGE_KEYS) {
+    for (const point of mergedByFeature[key].daily) {
       const bucket = dailyByDate.get(point.date);
-      if (bucket) bucket[key] = num(point.count);
+      if (bucket) bucket[key] += num(point.count);
     }
-  };
-
-  applyDaily(materiDaily, "materi");
-  applyDaily(flashcardDaily, "flashcard");
-  applyDaily(quizDaily, "kuis");
-  applyDaily(liveQuizDaily, "kuisLive");
-  applyDaily(zyraDaily, "zyra");
+  }
 
   const totalEvents = rows.reduce((sum, row) => sum + row.events, 0);
   const totalPreviousEvents = rows.reduce((sum, row) => sum + row.previousEvents, 0);
@@ -417,4 +284,445 @@ export async function getFeatureUsageMetrics(
       needsAttention,
     },
   };
+}
+
+type QueryWindow = {
+  startEpochSeconds: number;
+  endEpochSeconds: number;
+  prevStartEpochSeconds: number;
+  prevEndEpochSeconds: number;
+};
+
+async function collectMateriLegacy(w: QueryWindow): Promise<FeatureSourceSnapshot> {
+  const [curr, prev, daily, users] = await Promise.all([
+    db
+      .select({
+        events: sql<number>`count(*)`,
+        completed: sql<number>`sum(case when ${studentMaterialProgress.completionPercent} >= 100 then 1 else 0 end)`,
+        lastUsedAt: maxEpochSeconds(studentMaterialProgress.lastOpenedAt),
+      })
+      .from(studentMaterialProgress)
+      .where(withinWindow(studentMaterialProgress.lastOpenedAt, w.startEpochSeconds, w.endEpochSeconds)),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(studentMaterialProgress)
+      .where(withinWindow(studentMaterialProgress.lastOpenedAt, w.prevStartEpochSeconds, w.prevEndEpochSeconds)),
+    db
+      .select({ date: dayExpr(studentMaterialProgress.lastOpenedAt), count: sql<number>`count(*)` })
+      .from(studentMaterialProgress)
+      .where(withinWindow(studentMaterialProgress.lastOpenedAt, w.startEpochSeconds, w.endEpochSeconds))
+      .groupBy(dayExpr(studentMaterialProgress.lastOpenedAt)),
+    db
+      .selectDistinct({ id: studentMaterialProgress.studentId })
+      .from(studentMaterialProgress)
+      .where(withinWindow(studentMaterialProgress.lastOpenedAt, w.startEpochSeconds, w.endEpochSeconds)),
+  ]);
+  return {
+    events: num(curr[0]?.events),
+    previousEvents: num(prev[0]?.events),
+    userIds: users.map((u) => u.id),
+    lastUsedEpochSeconds: num(curr[0]?.lastUsedAt),
+    daily: daily.map((d) => ({ date: d.date, count: num(d.count) })),
+    detailCount: num(curr[0]?.completed),
+  };
+}
+
+async function collectMateriCanonical(w: QueryWindow): Promise<FeatureSourceSnapshot> {
+  const [curr, prev, daily, users] = await Promise.all([
+    db
+      .select({
+        events: sql<number>`count(*)`,
+        completed: sql<number>`sum(case when ${kemajuanBacaArtikel.completedAt} is not null then 1 else 0 end)`,
+        lastUsedAt: maxEpochSeconds(kemajuanBacaArtikel.lastReadAt),
+      })
+      .from(kemajuanBacaArtikel)
+      .where(withinWindow(kemajuanBacaArtikel.lastReadAt, w.startEpochSeconds, w.endEpochSeconds)),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(kemajuanBacaArtikel)
+      .where(withinWindow(kemajuanBacaArtikel.lastReadAt, w.prevStartEpochSeconds, w.prevEndEpochSeconds)),
+    db
+      .select({ date: dayExpr(kemajuanBacaArtikel.lastReadAt), count: sql<number>`count(*)` })
+      .from(kemajuanBacaArtikel)
+      .where(withinWindow(kemajuanBacaArtikel.lastReadAt, w.startEpochSeconds, w.endEpochSeconds))
+      .groupBy(dayExpr(kemajuanBacaArtikel.lastReadAt)),
+    db
+      .selectDistinct({ id: kemajuanBacaArtikel.penggunaId })
+      .from(kemajuanBacaArtikel)
+      .where(withinWindow(kemajuanBacaArtikel.lastReadAt, w.startEpochSeconds, w.endEpochSeconds)),
+  ]);
+  return {
+    events: num(curr[0]?.events),
+    previousEvents: num(prev[0]?.events),
+    userIds: users.map((u) => u.id),
+    lastUsedEpochSeconds: num(curr[0]?.lastUsedAt),
+    daily: daily.map((d) => ({ date: d.date, count: num(d.count) })),
+    detailCount: num(curr[0]?.completed),
+  };
+}
+
+async function collectFlashcardLegacy(w: QueryWindow): Promise<FeatureSourceSnapshot> {
+  const [curr, prev, daily, users] = await Promise.all([
+    db
+      .select({
+        events: sql<number>`count(*)`,
+        lastUsedAt: maxEpochSeconds(flashcardReviews.reviewedAt),
+      })
+      .from(flashcardReviews)
+      .where(withinWindow(flashcardReviews.reviewedAt, w.startEpochSeconds, w.endEpochSeconds)),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(flashcardReviews)
+      .where(withinWindow(flashcardReviews.reviewedAt, w.prevStartEpochSeconds, w.prevEndEpochSeconds)),
+    db
+      .select({ date: dayExpr(flashcardReviews.reviewedAt), count: sql<number>`count(*)` })
+      .from(flashcardReviews)
+      .where(withinWindow(flashcardReviews.reviewedAt, w.startEpochSeconds, w.endEpochSeconds))
+      .groupBy(dayExpr(flashcardReviews.reviewedAt)),
+    db
+      .selectDistinct({ id: flashcardReviews.studentId })
+      .from(flashcardReviews)
+      .where(withinWindow(flashcardReviews.reviewedAt, w.startEpochSeconds, w.endEpochSeconds)),
+  ]);
+  return {
+    events: num(curr[0]?.events),
+    previousEvents: num(prev[0]?.events),
+    userIds: users.map((u) => u.id),
+    lastUsedEpochSeconds: num(curr[0]?.lastUsedAt),
+    daily: daily.map((d) => ({ date: d.date, count: num(d.count) })),
+  };
+}
+
+async function collectFlashcardCanonical(w: QueryWindow): Promise<FeatureSourceSnapshot> {
+  const [curr, prev, daily, users] = await Promise.all([
+    db
+      .select({
+        events: sql<number>`count(*)`,
+        lastUsedAt: maxEpochSeconds(reviewFlashcard.reviewedAt),
+      })
+      .from(reviewFlashcard)
+      .where(withinWindow(reviewFlashcard.reviewedAt, w.startEpochSeconds, w.endEpochSeconds)),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(reviewFlashcard)
+      .where(withinWindow(reviewFlashcard.reviewedAt, w.prevStartEpochSeconds, w.prevEndEpochSeconds)),
+    db
+      .select({ date: dayExpr(reviewFlashcard.reviewedAt), count: sql<number>`count(*)` })
+      .from(reviewFlashcard)
+      .where(withinWindow(reviewFlashcard.reviewedAt, w.startEpochSeconds, w.endEpochSeconds))
+      .groupBy(dayExpr(reviewFlashcard.reviewedAt)),
+    db
+      .selectDistinct({ id: kemajuanFlashcardMurid.penggunaId })
+      .from(reviewFlashcard)
+      .innerJoin(
+        kemajuanFlashcardMurid,
+        eq(reviewFlashcard.kemajuanFlashcardMuridId, kemajuanFlashcardMurid.id)
+      )
+      .where(withinWindow(reviewFlashcard.reviewedAt, w.startEpochSeconds, w.endEpochSeconds)),
+  ]);
+  return {
+    events: num(curr[0]?.events),
+    previousEvents: num(prev[0]?.events),
+    userIds: users.map((u) => u.id),
+    lastUsedEpochSeconds: num(curr[0]?.lastUsedAt),
+    daily: daily.map((d) => ({ date: d.date, count: num(d.count) })),
+  };
+}
+
+async function collectQuiz(w: QueryWindow): Promise<FeatureSourceSnapshot> {
+  const [curr, prev, daily, users] = await Promise.all([
+    db
+      .select({
+        events: sql<number>`count(*)`,
+        completed: sql<number>`sum(case when ${studentQuizAttempts.status} = 'completed' then 1 else 0 end)`,
+        lastUsedAt: maxEpochSeconds(studentQuizAttempts.startedAt),
+      })
+      .from(studentQuizAttempts)
+      .where(withinWindow(studentQuizAttempts.startedAt, w.startEpochSeconds, w.endEpochSeconds)),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(studentQuizAttempts)
+      .where(withinWindow(studentQuizAttempts.startedAt, w.prevStartEpochSeconds, w.prevEndEpochSeconds)),
+    db
+      .select({ date: dayExpr(studentQuizAttempts.startedAt), count: sql<number>`count(*)` })
+      .from(studentQuizAttempts)
+      .where(withinWindow(studentQuizAttempts.startedAt, w.startEpochSeconds, w.endEpochSeconds))
+      .groupBy(dayExpr(studentQuizAttempts.startedAt)),
+    db
+      .selectDistinct({ id: studentQuizAttempts.studentId })
+      .from(studentQuizAttempts)
+      .where(withinWindow(studentQuizAttempts.startedAt, w.startEpochSeconds, w.endEpochSeconds)),
+  ]);
+  return {
+    events: num(curr[0]?.events),
+    previousEvents: num(prev[0]?.events),
+    userIds: users.map((u) => u.id),
+    lastUsedEpochSeconds: num(curr[0]?.lastUsedAt),
+    daily: daily.map((d) => ({ date: d.date, count: num(d.count) })),
+    detailCount: num(curr[0]?.completed),
+  };
+}
+
+async function collectTryout(w: QueryWindow): Promise<FeatureSourceSnapshot> {
+  const [curr, prev, daily, users] = await Promise.all([
+    db
+      .select({
+        events: sql<number>`count(*)`,
+        graded: sql<number>`sum(case when ${submissions.status} in ('completed', 'graded') then 1 else 0 end)`,
+        lastUsedAt: maxEpochSeconds(submissions.submittedAt),
+      })
+      .from(submissions)
+      .where(and(isNotNull(submissions.submittedAt), withinWindow(submissions.submittedAt, w.startEpochSeconds, w.endEpochSeconds))),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(submissions)
+      .where(and(isNotNull(submissions.submittedAt), withinWindow(submissions.submittedAt, w.prevStartEpochSeconds, w.prevEndEpochSeconds))),
+    db
+      .select({ date: dayExpr(submissions.submittedAt), count: sql<number>`count(*)` })
+      .from(submissions)
+      .where(and(isNotNull(submissions.submittedAt), withinWindow(submissions.submittedAt, w.startEpochSeconds, w.endEpochSeconds)))
+      .groupBy(dayExpr(submissions.submittedAt)),
+    db
+      .selectDistinct({ id: submissions.userId })
+      .from(submissions)
+      .where(and(isNotNull(submissions.submittedAt), withinWindow(submissions.submittedAt, w.startEpochSeconds, w.endEpochSeconds))),
+  ]);
+  return {
+    events: num(curr[0]?.events),
+    previousEvents: num(prev[0]?.events),
+    userIds: users.map((u) => u.id),
+    lastUsedEpochSeconds: num(curr[0]?.lastUsedAt),
+    daily: daily.map((d) => ({ date: d.date, count: num(d.count) })),
+    detailCount: num(curr[0]?.graded),
+  };
+}
+
+async function collectLiveQuiz(w: QueryWindow): Promise<FeatureSourceSnapshot> {
+  const [curr, prev, daily, users] = await Promise.all([
+    db
+      .select({
+        events: sql<number>`count(*)`,
+        lastUsedAt: maxEpochSeconds(liveQuizResults.completedAt),
+      })
+      .from(liveQuizResults)
+      .where(withinWindow(liveQuizResults.completedAt, w.startEpochSeconds, w.endEpochSeconds)),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(liveQuizResults)
+      .where(withinWindow(liveQuizResults.completedAt, w.prevStartEpochSeconds, w.prevEndEpochSeconds)),
+    db
+      .select({ date: dayExpr(liveQuizResults.completedAt), count: sql<number>`count(*)` })
+      .from(liveQuizResults)
+      .where(withinWindow(liveQuizResults.completedAt, w.startEpochSeconds, w.endEpochSeconds))
+      .groupBy(dayExpr(liveQuizResults.completedAt)),
+    db
+      .selectDistinct({ id: liveQuizResults.studentId })
+      .from(liveQuizResults)
+      .where(withinWindow(liveQuizResults.completedAt, w.startEpochSeconds, w.endEpochSeconds)),
+  ]);
+  return {
+    events: num(curr[0]?.events),
+    previousEvents: num(prev[0]?.events),
+    userIds: users.map((u) => u.id),
+    lastUsedEpochSeconds: num(curr[0]?.lastUsedAt),
+    daily: daily.map((d) => ({ date: d.date, count: num(d.count) })),
+  };
+}
+
+async function collectZyraChat(w: QueryWindow): Promise<FeatureSourceSnapshot> {
+  const [curr, sessions, prev, daily, users] = await Promise.all([
+    db
+      .select({
+        events: sql<number>`count(*)`,
+        lastUsedAt: maxEpochSeconds(tutorChatMessages.createdAt),
+      })
+      .from(tutorChatMessages)
+      .where(
+        and(
+          eq(tutorChatMessages.role, "student"),
+          withinWindow(tutorChatMessages.createdAt, w.startEpochSeconds, w.endEpochSeconds)
+        )
+      ),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(chatSessions)
+      .where(withinWindow(chatSessions.startedAt, w.startEpochSeconds, w.endEpochSeconds)),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(tutorChatMessages)
+      .where(
+        and(
+          eq(tutorChatMessages.role, "student"),
+          withinWindow(tutorChatMessages.createdAt, w.prevStartEpochSeconds, w.prevEndEpochSeconds)
+        )
+      ),
+    db
+      .select({ date: dayExpr(tutorChatMessages.createdAt), count: sql<number>`count(*)` })
+      .from(tutorChatMessages)
+      .where(
+        and(
+          eq(tutorChatMessages.role, "student"),
+          withinWindow(tutorChatMessages.createdAt, w.startEpochSeconds, w.endEpochSeconds)
+        )
+      )
+      .groupBy(dayExpr(tutorChatMessages.createdAt)),
+    db
+      .selectDistinct({ id: tutorChatMessages.studentId })
+      .from(tutorChatMessages)
+      .where(
+        and(
+          eq(tutorChatMessages.role, "student"),
+          withinWindow(tutorChatMessages.createdAt, w.startEpochSeconds, w.endEpochSeconds)
+        )
+      ),
+  ]);
+  return {
+    events: num(curr[0]?.events),
+    previousEvents: num(prev[0]?.events),
+    userIds: users.map((u) => u.id),
+    lastUsedEpochSeconds: num(curr[0]?.lastUsedAt),
+    daily: daily.map((d) => ({ date: d.date, count: num(d.count) })),
+    detailCount: num(sessions[0]?.count),
+  };
+}
+
+async function collectDiscussions(w: QueryWindow): Promise<FeatureSourceSnapshot> {
+  const activeFilter = (start: number, end: number) =>
+    and(
+      eq(discussionMessages.kind, "human"),
+      isNull(discussionMessages.deletedAt),
+      isNotNull(discussionMessages.authorId),
+      withinWindow(discussionMessages.createdAt, start, end)
+    );
+
+  const [curr, threads, prev, daily, users] = await Promise.all([
+    db
+      .select({
+        events: sql<number>`count(*)`,
+        lastUsedAt: maxEpochSeconds(discussionMessages.createdAt),
+      })
+      .from(discussionMessages)
+      .where(activeFilter(w.startEpochSeconds, w.endEpochSeconds)),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(discussionThreads)
+      .where(withinWindow(discussionThreads.createdAt, w.startEpochSeconds, w.endEpochSeconds)),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(discussionMessages)
+      .where(activeFilter(w.prevStartEpochSeconds, w.prevEndEpochSeconds)),
+    db
+      .select({ date: dayExpr(discussionMessages.createdAt), count: sql<number>`count(*)` })
+      .from(discussionMessages)
+      .where(activeFilter(w.startEpochSeconds, w.endEpochSeconds))
+      .groupBy(dayExpr(discussionMessages.createdAt)),
+    db
+      .selectDistinct({ id: discussionMessages.authorId })
+      .from(discussionMessages)
+      .where(activeFilter(w.startEpochSeconds, w.endEpochSeconds)),
+  ]);
+  return {
+    events: num(curr[0]?.events),
+    previousEvents: num(prev[0]?.events),
+    userIds: users.flatMap((u) => (u.id ? [u.id] : [])),
+    lastUsedEpochSeconds: num(curr[0]?.lastUsedAt),
+    daily: daily.map((d) => ({ date: d.date, count: num(d.count) })),
+    detailCount: num(threads[0]?.count),
+  };
+}
+
+async function collectTutorials(w: QueryWindow): Promise<FeatureSourceSnapshot> {
+  const activeFilter = (start: number, end: number) =>
+    and(ne(bookings.status, "cancelled"), withinWindow(bookings.bookedAt, start, end));
+
+  const [curr, prev, daily, users] = await Promise.all([
+    db
+      .select({
+        events: sql<number>`count(*)`,
+        completed: sql<number>`sum(case when ${bookings.status} = 'completed' then 1 else 0 end)`,
+        lastUsedAt: maxEpochSeconds(bookings.bookedAt),
+      })
+      .from(bookings)
+      .where(activeFilter(w.startEpochSeconds, w.endEpochSeconds)),
+    db
+      .select({ events: sql<number>`count(*)` })
+      .from(bookings)
+      .where(activeFilter(w.prevStartEpochSeconds, w.prevEndEpochSeconds)),
+    db
+      .select({ date: dayExpr(bookings.bookedAt), count: sql<number>`count(*)` })
+      .from(bookings)
+      .where(activeFilter(w.startEpochSeconds, w.endEpochSeconds))
+      .groupBy(dayExpr(bookings.bookedAt)),
+    db
+      .selectDistinct({ id: bookings.studentId })
+      .from(bookings)
+      .where(activeFilter(w.startEpochSeconds, w.endEpochSeconds)),
+  ]);
+  return {
+    events: num(curr[0]?.events),
+    previousEvents: num(prev[0]?.events),
+    userIds: users.map((u) => u.id),
+    lastUsedEpochSeconds: num(curr[0]?.lastUsedAt),
+    daily: daily.map((d) => ({ date: d.date, count: num(d.count) })),
+    detailCount: num(curr[0]?.completed),
+  };
+}
+
+/**
+ * Cross-feature student usage read model. Aggregates active learning domain
+ * tables across canonical and legacy schemas (excluding retired V1/V2/V3
+ * assessments) with period-over-period trends, adoption rate, and per-user depth.
+ */
+export async function getFeatureUsageMetrics(
+  rangeDays: FeatureUsageRange
+): Promise<FeatureUsageMetrics> {
+  const now = new Date();
+  const windowStart = elapsedDaysAgo(rangeDays, now);
+  const prevWindowStart = elapsedDaysAgo(rangeDays * 2, now);
+  const w: QueryWindow = {
+    startEpochSeconds: windowStart.getTime() / 1000,
+    endEpochSeconds: now.getTime() / 1000,
+    prevStartEpochSeconds: prevWindowStart.getTime() / 1000,
+    prevEndEpochSeconds: windowStart.getTime() / 1000 - 0.001,
+  };
+
+  const [
+    materiLegacy,
+    materiCanonical,
+    flashcardLegacy,
+    flashcardCanonical,
+    kuis,
+    tryout,
+    kuisLive,
+    zyra,
+    diskusi,
+    tutorial,
+  ] = await Promise.all([
+    collectMateriLegacy(w),
+    collectMateriCanonical(w),
+    collectFlashcardLegacy(w),
+    collectFlashcardCanonical(w),
+    collectQuiz(w),
+    collectTryout(w),
+    collectLiveQuiz(w),
+    collectZyraChat(w),
+    collectDiscussions(w),
+    collectTutorials(w),
+  ]);
+
+  return aggregateFeatureUsage({
+    rangeDays,
+    now,
+    windowStart,
+    sourcesByFeature: {
+      materi: [materiLegacy, materiCanonical],
+      flashcard: [flashcardLegacy, flashcardCanonical],
+      kuis: [kuis],
+      tryout: [tryout],
+      kuisLive: [kuisLive],
+      zyra: [zyra],
+      diskusi: [diskusi],
+      tutorial: [tutorial],
+    },
+  });
 }
