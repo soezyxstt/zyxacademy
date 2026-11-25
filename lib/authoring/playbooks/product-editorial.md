@@ -4,6 +4,8 @@
 
 New Articles use `article.v4` inside `product-bundle.v4`: structured `sections`, empty top-level `blocks`, and ordered `parts` in every section block. Parts determine reading order; Markdown is a derived projection. V3 remains available only for explicit legacy revisions.
 
+This guide describes the canonical artifact. For the advertised typed initial draft, use `productDraftInput`: omit server-managed envelope, scope, versions, hashes, order indexes and Markdown projections. Optional mechanical IDs can be omitted unless another authored element references them. The server builds and validates the canonical fields below; this does not waive their content or reference rules.
+
 ### 1.1 Section Hierarchy (`sections`)
 
 - Each primary subtopic section uses `kind: "topic"` and binds `learningSectionId` to a published `bagian_pembelajaran` ID in the locked chapter.
@@ -46,7 +48,7 @@ Never embed executable JavaScript, raw HTML, raw `<svg>`, `<iframe>`, or remote 
 1. **`kind: "epsilon_delta_graph"`:**
    - Fields: `id`, `kind`, `label`, `description`, `bounds: { xMin, xMax, yMin, yMax }` (`xMin < xMax`, `yMin < yMax`), `limitPoint` (strictly inside `xMin..xMax`), `limitValue` (strictly inside `yMin..yMax`), `defaultEpsilon` (`> 0`, band inside `yMin..yMax`), `defaultDelta` (`> 0`, neighborhood inside `xMin..xMax`), `functionModel` (`constant`, `linear`, or `quadratic`), and `staticFallback` (`table` with `summary`, `headers`, `rows`, or `text` with `summary`, `content`).
 2. **`kind: "learning_canvas"`:**
-   - Bounded application-owned 2D `CanvasSpec` supporting function plots, data series, derivation diagrams, vector fields, or chemistry diagrams with explicit domain bounds, accessible `label` and `description`, and a required `staticFallback` whenever `interactive: true`.
+   - Use the current `CanvasSpec` schema for supported function/data plots, derivations, tables, flowcharts, concept maps, vector/free-body diagrams or chemistry reactions. Supply the exact type's bounds, labels and data; a required `staticFallback` accompanies `interactive: true`. Do not infer a vector-field capability from vector diagrams.
 3. **`kind: "interactive_scene"`:**
    - Read `typedVisuals.visualAuthoring` and the checksum-pinned visual schema from `workflow.get_contract`. Use typed line, circle, rectangle, polygon and text primitives, bounded parameter expressions, actions and optional time playback. Place the spec in `article.visuals` and reference its id with an ordered `visual_ref`. Diktat renders initial-state geometry and requires `staticMarkdown` and a current derived or pinned snapshot.
    - Translate legacy HTML into supported data and state. Raw HTML, JavaScript and SVG markup are not imported. Use `visual-teknik` to guide scientific model and FBD decisions; the author must verify equations, assumptions, state, units and the final representation. No renderer validates physical meaning automatically.

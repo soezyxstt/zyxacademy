@@ -75,7 +75,30 @@ Both creation tools use existing `authoring:stage` consent. No new OAuth scope, 
 
 Runtime discovery includes limits, compact response semantics and recovery fields. The MCP tool catalog carries small input envelopes; agents fetch full checksum-pinned `ideaDraftInput` and `productDraftInput` schemas on demand. Idea descriptors use `/api/authoring/contracts/idea-v3`. The server still parses the complete strict schema before loading references or staging. The Idea, Product and pipeline playbooks, repository plugin skill sources and their host prompts use the new path only when advertised by the connected server. Existing archive tools and full responses remain available. Initial authoring remains discoverable through `workflow.get_contract`; `admin.capabilities` continues to advertise its existing revision-only authoring surface.
 
-Repository plugin edits are candidate sources only. The hosted skill build still uses `authoring-skills.lock.json` pins in the separate `zyx-authoring-mcp` repository. Publishing that package, updating its reviewed pin and checking installed hosts remain follow-up work; this PR does not claim those clients have changed.
+The hosted skill build uses `authoring-skills.lock.json` pins in the separate `zyx-authoring-mcp` repository. [Package PR #3](https://github.com/soezyxstt/zyx-authoring-mcp/pull/3) released staging 0.5.2 after bot review completed without findings, advancing the older six-skill staging package to all 12 workflows. The staging lock now selects its merge commit `dcb6098002e4e730f7da610d6c13417388cd45fc`; the production lock is unchanged. Package source, external release, server build and installed-host refresh are distinct states; this PR does not claim installed clients or deployed servers have changed.
+
+## Twelve-skill refresh
+
+Release 0.5.2 updates every skill and its host prompt against the current runtime:
+
+| Skill | Main change |
+| --- | --- |
+| `zyx-authoring-pipeline` | Start at the needed stage, reuse valid context and choose the advertised draft path. |
+| `zyx-source-pack-mcp` | Use actual manifest fields, source-unit markers, original-byte hashes and complete coverage evidence; resume extraction without blind rework. |
+| `zyx-idea-bundle-mcp` | Author atomic Ideas and exact quotes while the server builds mechanical fields and archives. |
+| `zyx-product-bundle-mcp` | Preview the same Article/Diktat input, retain archive paths for unsupported content and review the final canonical artifact. |
+| `zyx-content-revisions` | Find stored imports without an old run, read one stable target, then review full current context and follow the profile's evidence requirements. |
+| `zyx-question-authoring-mcp` | Use the runtime draft example, published Idea links and actual bank gaps; original questions remain drafts. |
+| `reference-question-ingest` | Use legitimate private file-key arguments, strict payload fields and honest provenance; historical essays stay outside quiz assembly. |
+| `zyx-blog-mcp` | Search metadata first, validate actual create/edit shapes and distinguish draft creation from live published edits. |
+| `zyx-forms-mcp` | Preserve full definitions, simulate without submitting responses and inspect Sheets conflicts even when a job succeeds. |
+| `zyx-media-mcp` | Resolve public serving paths, respect the bounded upload job and verify assets after manual reconciliation. |
+| `zyx-admin-operations` | Discover only relevant domains and use the exact environment, scopes, signed plan and request identity. |
+| `zyx-operation-recovery` | Separate database receipts, provider outcomes and authoring revisions; preserve original operation identity before retry. |
+
+Runtime playbooks were corrected with the skills. The complete Source Pack example and historical-reference example now pass their actual validators. Product V4 examples use typed fields; obsolete provenance and assessment fields no longer cause preventable repair loops. Packaging tests cover all 12 host prompts and verify version substitution in both JSON-style and prose bootstrap instructions when the next release version changes.
+
+Compared with the previous PR head, Idea and Product skill files plus host prompts shrink from 21,151 to 17,467 UTF-8 bytes (17.4%). All 12 pairs total 70,458 bytes versus 70,978 previously, including added recovery and evidence rules. These are instruction-file measurements, not measured tokens, costs or teaching quality. Independent source review and six read-only workflow walkthroughs checked stage selection, standalone Diktat, existing-unit revisions, historical ingest and admin recovery. They do not replace a hosted run.
 
 ## Review requested
 
@@ -91,12 +114,14 @@ Repository plugin edits are candidate sources only. The hosted skill build still
 - Measure real short and long chapter authoring before claiming lower token cost or duration. The synthetic response/executor benchmark above does not measure model tokens, money, wall time or live storage. Compare quality with the same source and a blind rubric for correctness, coverage, teaching order and readability.
 - Decide whether binary-asset input and external Article lineage belong in the next typed-draft contract. Preserve reference and asset admission checks in each extension.
 - Design any reuse across revisions separately. Split content/runtime fingerprints only with dependency-specific invalidation tests. The exact-plan cache here deliberately does not claim that unrelated edits are safe to ignore.
-- Reconcile and publish the separate skill package after review, then test its pinned full/compact catalogs and real host/OAuth setup.
+- Check the refreshed package in installed hosts and their OAuth sessions. The reviewed external staging release and exact source pin are complete; a server build alone does not establish host acceptance.
 - Review CI and bot comments before marking the PR ready. Keep the draft status while the authenticated staging acceptance above is incomplete. Deployment and content publication require their own verified run.
 
 ## Verification record
 
 The initial PR recorded 265 passing tests across 27 focused files. The continuation adds direct Idea, descriptor, client, unit-edit, preview and measurement checks; the current PR verification record supersedes the initial counts. Pinned staging and repository-candidate skill builds remain distinct. Focused TypeScript checking includes changed TypeScript source/test files and their imports. The repository ESLint configuration excludes test files. Initial CI identified two older test fixtures that needed the new tool name and production-compatible missing-object errors; both affected contracts now pass. The PR description records reproducible commands, current test/type/visual results and the latest CI status.
+
+The subsequent 12-skill refresh passed 15 Python distribution tests and 69 tests across 10 focused Bun contract files, using the latest result for each file. Both environment packages built with 35 allowlisted files. The staging release check accepted the 0.4.1 to 0.5.2 advance. The new executable playbook examples cover original bytes, hashes, coverage and strict assessment eligibility. Final review corrected conditional V4 PDF evidence, the 100-import search limit, media lookup after reconciliation and Sheets confirmation after a successful job. Focused TypeScript checking, source lint and diff checks passed. After the external package merged, a normal locked staging build succeeded; a local MCP HTTP smoke read and hash-checked the full catalog (12 skills, 24 files) and compact catalog (one router, 25 files). This exercised the released commit with staging identity, not a workspace-candidate manifest or an installed host.
 
 Tests exercise typed packaging, database source/Idea binding, internal staging delegation, compact projections, exact selectors, immutable revision replay, diagnostic redaction, cheap-check scheduling, single-PDF capture and signed-checkpoint retry/isolation. The web retry fixture includes the renderer's full output of multiple PNGs plus JSON observations, as well as paginated output.
 

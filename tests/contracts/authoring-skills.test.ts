@@ -8,7 +8,7 @@ import { registerAuthoringSkills } from "../../lib/authoring/mcp-skills";
 import { loadSkillCatalog, safeSkillPath, skillDigest, validateSkillEntry, type SkillCatalogProfile } from "../../lib/authoring/skill-catalog";
 import { buildSkillArtifact, localSkillSourceDigest, parseSkillFrontmatter } from "../../scripts/build-authoring-skills";
 import { smokeAuthoringSkills } from "../../scripts/smoke-authoring-skills";
-import { evaluatePlaybookCompatibility } from "../../lib/authoring/mcp-playbook";
+import { buildPlaybookResponse, evaluatePlaybookCompatibility } from "../../lib/authoring/mcp-playbook";
 
 mkdirSync(resolve("artifacts/authoring-skills-tests"), { recursive: true });
 const temporary = mkdtempSync(resolve("artifacts/authoring-skills-tests", "run-"));
@@ -179,7 +179,9 @@ describe("authoring skills distribution", () => {
     expect(candidate.catalogs.all.some((entry) => entry.frontmatter.name === "zyx-admin-operations")).toBe(true);
     const product = loadSkillCatalog(candidateRoot, "all").resources.get("skill://zyx-authoring/all/zyx-product-bundle-mcp/SKILL.md")!.text!;
     const release = JSON.parse(readFileSync(resolve(candidateSource, "release.json"), "utf8"));
-    for (const required of ["product-bundle.v4", "math_unit", "visual_ref", "workflow.get_contract", "receipt tepercaya", release.version]) expect(product).toContain(required);
+    for (const required of ["productDraftInput", "authoring.create_product_draft", "authoring:preview", "workflow.get_contract", "productBundle.verification.localOperator", release.version]) expect(product).toContain(required);
+    const productPlaybook = buildPlaybookResponse({ skill: "zyx-product-bundle-mcp" }).instructionsMarkdown;
+    for (const required of ["product-bundle.v4", "math_unit", "visual_ref"]) expect(productPlaybook).toContain(required);
     expect(candidate.source).toHaveProperty("kind", "local-candidate");
     expect(evaluatePlaybookCompatibility({ bootstrapProtocol: release.bootstrapProtocol, pluginVersion: release.version, stage: "product", clientCapabilities: { independentSubagents: true, localArtifactFiles: true, pdfRendering: false } }).status).toBe("compatible");
     expect((await rpc("all", "skills/list", {}, candidateRoot, "staging")).error).toBeDefined();

@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Media MCP"
-  short_description: "Find, upload and attach scoped Zyx media assets"
-  default_prompt: "Use $zyx-media-mcp to find or upload the requested media on the intended environment, follow the actual job outcome, and return the serving URL rather than a guessed storage address."
+  short_description: "Reuse media or upload once and verify the job outcome"
+  default_prompt: "Use $zyx-media-mcp to find or upload the requested public media on the verified target, preserve the request identity through recovery, confirm the job result and use its served URL within the authorized content scope."

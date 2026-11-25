@@ -1,96 +1,47 @@
 # Zyx Question Authoring MCP: Workflow and Contract Playbook
 
-## 1. Stage Objective
+## 1. Scope and bootstrap
 
-Author high-quality Zyx-original assessment questions (`origin: "zyx_original"`) linked to published Ideas in a locked course and chapter (`question-bank-draft.v2`), validate and stage them via MCP, update draft questions when needed, and optionally assemble or update course/chapter quizzes (`quiz.*`).
+Author `zyx_original` questions for a locked course and chapter using `question-bank-draft.v2`. This workflow stages original questions for review; it does not publish them. Historical references are read-only inputs for analysis, and Idea/Product bundle revision tools do not edit assessment questions.
 
-## 2. Step-by-Step Tool Sequence
+1. Call `workflow.get_playbook` with `skill: "zyx-question-authoring-mcp"`, `stage: "quiz"`, current package metadata and truthful client capabilities. Read `common/execution`, this module and `quiz/quality`.
+2. Resolve human course/chapter names through `catalog.list_courses` and `catalog.list_chapters`. Call `workflow.start` with `workflow: "quiz_bank"`, the selected keys and `bootstrapToken`. A Source Pack is optional; do not create one merely to edit a stored question.
+3. Read `workflow.get_contract` with `runToken` and `bootstrapToken`. Use `outputs.quizDraft`, its `draftExample` and the registered tool schemas. Keep the returned run token. On playbook/contract drift, obtain a fresh bootstrap and call the contract tool with the existing run; use its replacement `runToken`, reconcile and validate again. Follow `common/execution` for expired or unbound legacy runs.
 
-1. **Bootstrap:** Call `workflow.get_playbook` with `skill: "zyx-question-authoring-mcp"`, `stage: "quiz"`, and client metadata. Save `bootstrapToken`.
-2. **Lock Scope and Start Run:**
-   - Call `catalog.list_courses` and `catalog.list_chapters` to obtain `courseKey` and `chapterKey`.
-   - Call `workflow.start` with `workflow: "quiz_bank"`, `courseKey`, `chapterKey`, optional `sourcePackId` / `sourcePackToken`, and `bootstrapToken`.
-   - Call `workflow.get_contract` with `runToken` and `bootstrapToken`.
-   - Read `outputs.quizDraft.visualAuthoring` and its checksum-pinned visual schema before writing a `zyx-visual` fence in a prompt, option, or explanation. Use the current typed scene examples and validator; do not put solution-only states or labels in prompts or options. Keep answers and solution visuals in their authorized assessment fields.
-3. **Inspect Published Ideas and Existing Question Bank:**
-   - Call `assessment.list_ideas` with `runToken` (supports `query`, `knowledgeKinds`, `instructionalRoles`, `difficultyLevels`, `limit`, `offset`) to load the published Idea catalog and facets.
-   - Call `assessment.get_idea` for specific Ideas to inspect incoming/outgoing prerequisite relations and provenance.
-   - Call `assessment.analyze_bank` and `assessment.list_questions` (`runToken`) to identify uncovered Ideas (`uncoveredIdeas`), difficulty/cognitive balance, and existing questions so you do not write duplicates.
-4. **Bounded Historical Reference Gap Analysis (Optional):**
-   - To see how historical exams tested a specific Idea, call `assessment.list_reference_questions` with `runToken`, `ideaId`, and `limit` up to `10` (maximum 10 per Idea).
-   - Call `assessment.get_reference_question` for at most `5` relevant reference questions per Idea.
-   - Use historical reference questions strictly for gap analysis and calibration. Never copy historical questions verbatim into `quiz_bank`. When a new Zyx-original question is inspired by or adapted from a historical question, record `referenceLinks` with `role: "inspired_by" | "adapted_from" | "derived_from"`.
-5. **Draft, Validate, and Submit `question-bank-draft.v2`:**
-   - Construct the `question-bank-draft.v2` JSON string following the schema below and the quality rules in `quiz/quality`.
-   - For `interactive_document`, keep only its metadata in a `zyx-visual` fence. Pass `visualAssets` separately to validation and submission, and to `assessment.update_question` for new or changed visuals: an array of `{ path, sha256, bytes, base64 }`, one entry per unique `visuals/<sha256>.html` and `visuals/<sha256>.png`. The base64 must encode the exact HTML or PNG bytes. An update retaining only previously bound specs can omit the envelope and reuse verified original assets. Otherwise supply all referenced assets, with no orphans; the format limit is eight visual specs and 16 MiB total, with at most 6 MiB per HTML and 2 MiB per PNG. Provider and MCP transport capacity is not established by these limits. Never share either asset hash between visible prompt/options and hidden explanation, including across questions in the batch. Keep solution content only in explanation assets.
-   - `scripts/authoring/package-interactive-document.ts` shows a runnable local command for a reviewed pair, including the metadata fence and `visualAssets`. Obtain the live contract and author the question separately; the script does not approve it.
-   - Call `assessment.validate_quiz_draft` with `runToken`, `draftJson`, and `bootstrapToken`.
-   - Fix all blocking issues and address coverage/explanation warnings until `ok: true` and `valid: true`.
-   - Call `assessment.submit_quiz_draft` with `runToken`, `draftJson`, and `bootstrapToken` (`authoring:stage`).
-6. **Editing Existing Draft Questions (`assessment.update_question`):**
-   - To revise an existing un-published Zyx-original question in the locked chapter, call `assessment.update_question` with `runToken`, `questionId`, `question`, `ideaLinks`, and `bootstrapToken`.
-   - Apply the same published Idea, locked scope, exactly one primary, uniqueness, and weight rules as draft submission.
-   - Only `zyx_original` questions in `draft` or `in_review` status can be updated (`reviewStatus` resets to `generated`). Historical reference questions, ITB examples, and `published` or `retired` questions are immutable in this tool.
-7. **Quiz Assembly (`quiz.*`, when requested by operator):**
-   - `quiz.list` (`courseKey`, optional `category`, `status`) and `quiz.get` (`quizId`) inspect existing quizzes.
-   - `quiz.create` (`courseKey`, `title`, `questionIds`, optional `chapterKey`, `category`, `timeLimitSeconds`, `maxAttempts`, `visibility`, `status: "draft" | "published"`, `manualStatus`, `passingScore`, `runToken`, `bootstrapToken`) creates a quiz and syncs `item_asesmen`.
-   - `quiz.update` and `quiz.set_questions` update quiz metadata or question lists (pass `bootstrapToken` when available).
+## 2. Choose the gap before writing
 
-## 3. `question-bank-draft.v2` JSON Contract
+- Use filtered, paginated `assessment.list_ideas`; read selected `assessment.get_idea` records for their meaning, prerequisite relations and provenance.
+- Use `assessment.analyze_bank` and `assessment.list_questions` to find uncovered Ideas, difficulty/cognitive gaps and duplicates. Read `assessment.get_question` before revising a stored question.
+- For historical calibration, use `assessment.list_reference_questions` with an Idea and at most 10 results, then at most 5 relevant `assessment.get_reference_question` details per Idea. Do not copy a historical prompt verbatim into this workflow. Record justified `referenceLinks` with `inspired_by`, `adapted_from` or `derived_from` when applicable.
+- Solve each new question and check assumptions, answer keys and distractor reasoning before server validation. `quiz/quality` remains authoritative for teaching quality; a schema pass is not a correctness review.
 
-```json
-{
-  "schemaVersion": "question-bank-draft.v2",
-  "draftId": "draft-ma1101-bab01-limit-01",
-  "questions": [
-    {
-      "id": "q-limit-001",
-      "questionType": "multiple_choice",
-      "difficulty": "medium",
-      "cognitiveLevel": "apply",
-      "reasoningPattern": "algebraic_factorization_and_domain_check",
-      "tags": ["limit-aljabar", "bentuk-tak-tentu"],
-      "prompt": "Hitung nilai dari $\\lim_{x \\to 3} \\frac{x^2 - 9}{x - 3}$.",
-      "options": [
-        "$0$",
-        "$3$",
-        "$6$",
-        "Tidak ada",
-        "$9$"
-      ],
-      "correctIndices": [2],
-      "acceptableAnswers": [],
-      "explanation": "Karena $x \\to 3$ berarti $x \\neq 3$, kita dapat memfaktorkan pembilang: $\\frac{(x - 3)(x + 3)}{x - 3} = x + 3$. Substitusi $x = 3$ menghasilkan $3 + 3 = 6$. Opsi A salah karena menganggap pembilang nol saja, dan opsi D salah karena mengira pembagian dengan nol di $x = 3$ menggagalkan limit.",
-      "ideaLinks": [
-        {
-          "ideaId": "<published-idea-id>",
-          "weight": 1,
-          "role": "primary"
-        }
-      ],
-      "referenceLinks": [
-        {
-          "referenceQuestionId": "<historical-reference-question-id>",
-          "role": "inspired_by"
-        }
-      ]
-    }
-  ]
-}
-```
+## 3. Draft and answer rules
 
-### 3.1 Field Rules and Invariants
+Send one `draftJson` string shaped as `question-bank-draft.v2`, with a stable `draftId` and stable IDs in `questions`. Use the current `outputs.quizDraft.draftExample`; do not reconstruct Product manifests, hashes, draftKey or admin mutation controls. The server accepts at most 500 questions per draft and 8 MiB of draft JSON. Use smaller focused batches when easier to review.
 
-- `questionType`: `"multiple_choice" | "multiple_choices" | "short_answer" | "essay"`
-  - `multiple_choice`: `options` must have at least 2 choices (standard 4 or 5) and `correctIndices` must have exactly 1 valid index.
-  - `multiple_choices`: `options` must have at least 2 choices and `correctIndices` must have 1 or more distinct valid indices.
-  - `short_answer`: `options` is `[]`, `correctIndices` is `[]`, and `acceptableAnswers` must contain at least 1 canonical answer string (include equivalent forms if applicable).
-  - `essay`: `options` is `[]`, `correctIndices` is `[]`, and `explanation` must provide the full grading rubric and step-by-step model solution.
-- `difficulty`: `"easy" | "medium" | "hard"`
-- `cognitiveLevel`: `"remember" | "understand" | "apply" | "analyze" | "evaluate" | "create"`
-- `ideaLinks`: Required non-empty array on every new or updated question. Empty or missing links are rejected; legacy V1 drafts must be migrated to V2 with explicit Idea links. Exactly one link must have `role: "primary"`:
-  - Every `ideaId` must be `published` and belong to the locked `courseId` and `chapterId`.
-  - No duplicate `ideaId` within the same question.
-  - Positive `weight` values (`0 < weight <= 1`) must sum to `1` (`Math.abs(sum - 1) <= 1e-6`).
-  - `role`: `"primary" | "supporting" | "required"`.
-- `referenceLinks`: Optional array of `{ referenceQuestionId, role: "inspired_by" | "adapted_from" | "derived_from" }`. Every target must be an existing `historical_reference` question in the same course.
+Every question requires published Ideas in the locked course and chapter, without duplicate IDs, exactly one `primary`, and positive weights summing to 1 within `1e-6`. Other link roles are `supporting` and `required`. The server checks live scope and publication state again; drafts or unpublished Idea replacements cannot satisfy the link.
+
+| `questionType` | Answer fields |
+| --- | --- |
+| `multiple_choice` | At least 2 options and exactly 1 valid zero-based `correctIndices` entry. |
+| `multiple_choices` | At least 2 options and one or more distinct valid zero-based indices. |
+| `short_answer` | Empty options/indices and at least 1 canonical `acceptableAnswers` value. |
+| `essay` | Empty options/indices and a complete model solution plus grading rubric in `explanation`. |
+
+Use the difficulty and cognitive-level enums from the active contract. Include a full explanation of the governing Idea, solution steps and relevant distractor errors. Keep internal IDs and source filenames out of learner-visible text. Reference links point only to same-course historical records.
+
+## 4. Visuals when needed
+
+Read `outputs.quizDraft.visualAuthoring` and its checksum-pinned visual schema. Use typed `zyx-visual` data, with solution-only labels and states confined to the explanation.
+
+For `interactive_document`, pass metadata in the fence and `visualAssets` separately to validation/submission or updates with new or changed visuals. Supply one `{ path, sha256, bytes, base64 }` entry per unique referenced HTML/PNG, with exact bytes and no orphan assets. The contract permits at most 8 specs and 16 MiB total, at most 6 MiB per HTML and 2 MiB per PNG; these limits do not establish host transport capacity. Never reuse an asset hash across visible prompt/options and hidden explanations, including across questions in the batch. An unchanged bound spec may reuse its verified original assets.
+
+`scripts/authoring/package-interactive-document.ts` can package a reviewed local pair; it does not author or approve the question.
+
+## 5. Validate, stage, edit and recover
+
+Call `assessment.validate_quiz_draft` with `runToken`, `draftJson`, `bootstrapToken` and assets when required. Resolve blocking issues and inspect relevant warnings, then call `assessment.submit_quiz_draft` with the same reviewed content under `authoring:stage` and the existing task authorization. Record returned question IDs and actual counts/status.
+
+Submission uses stable question identity within the run. If its response is lost, read the bank before replaying the unchanged run, IDs and content; never change IDs to bypass a conflict. For an intended edit, call `assessment.update_question` with `questionId`, `question`, `ideaLinks`, active tokens and assets when needed. Only `zyx_original` questions in `draft` or `in_review` may be updated; review resets to `generated`. Published, retired and historical records remain immutable in this tool. Do not invent `expectedRevision` or admin `requestKey` fields for it.
+
+Validation and staging do not authorize publication. Original questions require the available Admin review/publication path. If quiz assembly is separately requested, use `quiz.list`/`quiz.get` before `quiz.create`, `quiz.update` or `quiz.set_questions`, with their actual schemas and bootstrap requirements. Explicit container status `draft` or `published` must match user authorization and does not bypass question eligibility.

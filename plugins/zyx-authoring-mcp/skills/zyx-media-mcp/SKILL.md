@@ -1,26 +1,36 @@
 ---
 name: zyx-media-mcp
-description: Menemukan media Zyx, mengunggah berkas kecil melalui job MCP, dan mengambil URL penyajian untuk blog atau konten lain. Gunakan untuk media library, bukan mengakses objek privat sebarang.
+description: Mencari media Zyx yang sudah ada, mengunggah berkas kecil lewat job MCP, dan memakai URL penyajian resmi pada blog atau konten yang diminta. Gunakan untuk Media Library publik, bukan aset privat, admission sumber akademik atau publikasi konten.
 ---
 
 # Media Zyx melalui MCP
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.1"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain.
+Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.2"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 <!-- END:environment-connection -->
 
-Metadata paket: `{ "pluginVersion": "0.5.1", "bootstrapProtocol": 1 }`.
+## Target dan izin
 
-Panggil `admin.environment` pada koneksi tujuan dan cocokkan `environment` serta `origin` dengan target pengguna. Jika target belum jelas, pastikan target sebelum membaca data. Jangan mengganti staging dengan production atau sebaliknya. Kirim `expectedEnvironment` dan `expectedOrigin` pada setiap tool admin data. Baca `admin.capabilities` untuk domain yang relevan dan gunakan schema tool yang benar-benar tersedia. Izin yang kurang memerlukan consent OAuth yang sesuai; metadata discovery tidak memberikan izin baru.
+Panggil `admin.environment`, cocokkan target pengguna, lalu ambil `admin.capabilities` domain `media`. Sertakan `expectedEnvironment` dan `expectedOrigin` pada tool admin data. Gunakan schema dan tool yang benar-benar tersedia; jangan menganggap versi paket atau discovery sudah memberi hak akses. Jika koneksi tidak cocok, hentikan pada target itu tanpa beralih environment.
 
-Gunakan domain `media` pada discovery. `media.list` memakai `folderPath`, batas halaman dan cursor provider. Lanjutkan cursor untuk mencari aset yang sudah ada sebelum membuat duplikat. `media.get` menerima `key` pada domain `media/` yang diizinkan dan mengembalikan metadata, `publicPath`, `publicUrl`, `thumbnailCandidate` serta `byteContentVerified: false`. Pemeriksaan keberadaan tidak membuktikan isi byte atau render gambar. Jangan mengubah key menjadi URL dengan menebak hostname atau membuat signed URL sendiri.
+`media.list/get` memerlukan `media:read`; upload memerlukan `media:write` dan consent OAuth yang masih berlaku untuk job provider. `adminjobs.get` memerlukan `jobs:read` serta scope operasi asal, yaitu `media:write` untuk upload. Periksa izin yang dibutuhkan sebelum mengantrekan job. Sesi manual tidak menggantikan consent OAuth tersebut.
 
-Untuk unggahan, `media.upload` saat ini menerima berkas maksimal 512 KiB dengan `filename`, `mimeType`, `dataBase64` serta folder yang diizinkan. Periksa batas dan MIME yang diiklankan schema. Jangan memotong byte, memalsukan tipe, atau memecah satu berkas menjadi beberapa upload yang tidak dapat digabung hanya untuk melewati batas. Berkas lebih besar memakai alur unggahan yang memang tersedia; bila tidak ada jalur MCP yang mendukungnya, nyatakan batas itu tanpa mengklaim upload selesai.
+Pastikan permintaan mencakup unggahan ke Media Library publik. Aset privat, Source Pack, evidence, respons formulir dan credential memakai alur khususnya. Upload media tidak mengadmit sumber/visual Product dan tidak mempublikasikan blog atau bundle.
 
-Untuk mutasi yang sudah diizinkan pengguna, gunakan `dryRun: true` dan satu `requestKey`, periksa dampaknya, lalu jalankan payload dan key yang sama dengan `dryRun: false` serta `confirmationToken`. Perencanaan ini bukan permintaan izin ulang untuk setiap langkah draft yang sudah diizinkan. Publikasi, pengiriman ke orang lain, penghapusan, dan perubahan akses tetap harus sesuai cakupan instruksi pengguna. Pada konflik revisi, baca kembali target dan susun plan baru; jangan mengganti checksum diam-diam.
+## Temukan aset yang tepat
 
-Unggahan menghasilkan job. Simpan ID job dan pantau `adminjobs.get` dengan scope job serta media yang sesuai. Status `queued` bukan objek yang sudah tersedia. Setelah sukses, ambil key hasil melalui `media.get` dan gunakan `publicPath` untuk `thumbnailUrl` blog. `publicUrl` tersedia untuk kebutuhan URL absolut pada konteks yang mendukungnya. Raw key seperti `media/...` bukan URL thumbnail.
+Gunakan `media.list` pada `folderPath` terkait, dengan `limit` kecil dan `cursor` dari `nextCursor` saat perlu halaman lanjut. Cari aset yang sesuai sebelum mengunggah ulang; tidak perlu memuat seluruh library. Jangan menebak key atau memakai path privat di luar `media/`.
 
-Jika respons write hilang, gunakan `admin.operation_receipt` untuk `operation` dan `requestKey` yang sama. `not_recorded` belum membuktikan penolakan karena operasi bisa masih berjalan. Periksa lagi atau replay payload serta key asli, dengan plan baru bila token kedaluwarsa. Jangan membuat key baru hanya karena hasil belum diketahui. Untuk efek provider yang berstatus `unknown`, ikuti skill pemulihan operasi dan jangan replay otomatis.
+Panggil `media.get` dengan key yang ditemukan untuk memperoleh `publicPath`, `publicUrl` dan `thumbnailCandidate`. `byteContentVerified: false` berarti server memeriksa keberadaan, bukan isi byte atau mutu render. Periksa gambar/berkas yang sebenarnya sebelum menganggapnya tepat. Gunakan `publicPath` untuk `thumbnailUrl` blog atau `publicUrl` bila konteks meminta URL absolut; raw key, hostname tebakan dan signed URL buatan bukan penggantinya.
 
-Hasil provider `unknown` memerlukan pemeriksaan nyata sebelum rekonsiliasi; jangan membuat request key baru untuk mengulang upload yang mungkin sudah berhasil. Batas domain media tidak memberikan akses ke sumber kuliah, evidence, respons formulir, credential atau objek privat lain. Tidak ada izin implisit untuk menghapus atau memindahkan media; gunakan hanya tool yang tersedia dan tindakan yang diminta.
+## Unggah sekali, ikuti hasil job
+
+1. Baca batas live. Saat ini `media.upload` menerima `folderPath`, `filename`, `mimeType`, `dataBase64` untuk paling banyak 512 KiB byte, dengan MIME PNG, JPEG, WebP, PDF, teks atau Markdown. Ukur byte sebelum encoding dan cocokkan MIME sebenarnya. Berkas lebih besar memakai jalur unggahan yang tersedia; jangan memotong, memalsukan tipe atau membagi byte untuk melewati batas.
+2. Untuk unggahan yang sudah diizinkan, buat `requestKey` stabil dan panggil `dryRun: true`. Periksa target, nama, ukuran dan dampak, lalu kirim payload/key yang sama dengan `dryRun: false` serta `confirmationToken` dari plan. Ini langkah protokol, bukan permintaan izin ulang untuk tindakan yang sudah tercakup.
+3. Simpan ID job hasilnya. Pantau `adminjobs.get`; `queued` atau `running` belum berarti objek tersedia. Saat `succeeded` dan `result.key` ada, baca key itu melalui `media.get` dan periksa aset sebelum memasang URL. Rekonsiliasi manual tidak mengisi key yang hilang; temukan aset melalui pencarian media atau bukti provider yang sah, lalu verifikasi. Jangan menebak key/URL. Pada `failed`, baca `errorCode` dan perbaiki sebabnya. Pada `unknown`, periksa provider melalui alur pemulihan operasi; jangan replay otomatis.
+
+Jika respons upload hilang, panggil `admin.operation_receipt` dengan `operation: "media.upload"` dan `requestKey` asli. `committed` hanya membuktikan transaksi antrean tersimpan, bukan unggahan provider selesai; lanjutkan ke job yang ditunjuk. `not_recorded` masih bisa berarti operasi berjalan. Periksa lagi atau replay operasi, payload dan key yang sama; bila token plan kedaluwarsa, buat plan baru dengan identitas yang sama. Jangan membuat key baru karena hasil belum jelas. Payload berbeda menjadi operasi baru hanya setelah hasil operasi lama diketahui.
+
+## Pasang sesuai permintaan
+
+Gunakan URL hasil server pada tool konten yang diminta, lalu ikuti validasi, checksum dan aturan publikasi tool tersebut. Upload tidak memberi izin mengubah konten live, mengirim ke orang lain, menghapus, memindahkan atau mengubah akses media. Teruskan tindakan yang sudah diizinkan; pisahkan bukti upload, bukti pemasangan dan status publikasi saat melaporkan hasil. Jika tool, izin atau provider belum tersedia, laporkan batas tepat tanpa mengklaim sukses.

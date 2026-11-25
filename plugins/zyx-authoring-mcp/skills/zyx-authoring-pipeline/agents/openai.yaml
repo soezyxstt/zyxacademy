@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Authoring Pipeline"
-  short_description: "Coordinate Source, Idea and learning Product authoring"
-  default_prompt: "Use $zyx-authoring-pipeline and call workflow.get_playbook first. Fetch the current stage contract when starting or resuming. Prefer advertised typed Idea and Article/Diktat drafts with local preview and compact targeted editing. Follow the requested product scope, exact revision, review and publication gates."
+  short_description: "Atur alur Source, Idea, dan Product hingga rilis"
+  default_prompt: "Gunakan $zyx-authoring-pipeline dan kontrak server aktif. Lanjutkan dari tahap valid terakhir, pakai input langsung yang tersedia, preview lokal, dan edit terarah. Pertahankan review nyata, bukti tepercaya, revisi tepat, serta izin publikasi pada tiap tahap."

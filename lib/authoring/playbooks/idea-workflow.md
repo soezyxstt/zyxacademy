@@ -2,7 +2,7 @@
 
 ## 1. Stage Objective
 
-Transform a validated Source Pack into an `idea-bundle.v3` ZIP archive containing pedagogical `learningSections`, atomic `ideas`, exact UTF-16 source spans in `provenance` (`sourceMaterials`, `sourceChunks`, `ideaProvenance`), and an acyclic `relations` DAG, then validate, stage, review and publish the exact revision through authorized MCP tools.
+Transform a validated Source Pack into an `idea-bundle.v3` ZIP archive containing pedagogical `learningSections`, atomic `ideas`, exact UTF-16 source spans in `provenance` (`sourceMaterials`, `sourceChunks`, `ideaProvenance`), and justified `relations` whose active prerequisite graph is acyclic, then validate, stage, review and publish the exact revision through authorized MCP tools.
 
 
 ## Existing-content revisions, V3 and later

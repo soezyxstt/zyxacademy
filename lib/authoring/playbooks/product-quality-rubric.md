@@ -2,7 +2,7 @@
 
 ## 1. Eight-Criterion Pedagogic Rubric
 
-Use all eight criteria for independent editorial review. V4 approval requires the full rubric, the exact revision and content fingerprint, current verification plan/receipt, and an explicit current semantic decision for every section. Read the review context from authoring.get_import. Legacy V3 decisions retain their existing compatibility rules; they do not approve V4 content.
+Use all eight criteria for independent editorial review. V4 approval requires the full rubric, the exact revision and content fingerprint, current verification plan/receipt, and an explicit current semantic decision for every section. Read exact scoped context through `authoring.get_product_review_context`, or full `authoring.get_edit_context` for a revision; compact or targeted responses defer review/readiness. Legacy V3 decisions retain their existing compatibility rules; they do not approve V4 content.
 
 1. **`concept_accuracy` (Ketepatan Konsep dan Kebenaran Ilmiah)**
    - Definitions, theorems, formulas, and domain conditions are mathematically and scientifically exact.
@@ -24,7 +24,7 @@ Use all eight criteria for independent editorial review. V4 approval requires th
    - Every V4 worked_example part includes ordered steps with operationMarkdown, reasonMarkdown, sourceElementRefs and parts, plus a concrete verificationMarkdown sanity check. Legacy V3 workedExamplePayload is only for explicit V3 revisions.
 
 6. **`representation_or_visual` (Representasi Ganda atau Visual Terketik)**
-   - Abstract relationships are supported by either a valid typed visual (`epsilon_delta_graph` or `learning_canvas` with complete `staticFallback`) or an explicit, justified `visualRequirement: { status: "not_required", reason: "..." }`.
+   - Abstract relationships use an appropriate visual family supported by the active contract, with its required fallback, model/state and print checks, or an explicit, justified `visualRequirement: { status: "not_required", reason: "..." }`. Schema support alone does not prove scientific or visual quality.
 
 7. **`misconceptions_and_limits` (Miskonsepsi, Kasus Batas, dan Jebakan Umum)**
    - Explicitly contrasts valid applications with common student errors and boundary counterexamples (for example, why a converse does not hold or where a formula breaks down).
@@ -34,14 +34,14 @@ Use all eight criteria for independent editorial review. V4 approval requires th
 
 ## 2. Independent Critic and Student POV Verification Protocol
 
-Before calling `authoring.submit_product_bundle`, run two independent subagent passes:
+Before `authoring.create_product_draft` or archive submission, run two independent subagent passes on the authored input. After staging, inspect the exact server-generated revision before approval:
 
-These passes are part of a complete Creator, Critic, and Student POV revision loop. After the Creator revises the content, both reviewers must read the final merged artifact again. Findings are closed only with concrete locations, evidence, and the Creator's disposition. Record the checksum/version each reviewer read; the staged version must match their final reread. Repeat the loop for blocking issues and substantive warnings. Lane-level review does not replace review of the merged artifact.
+These passes are part of a complete Creator, Critic, and Student POV revision loop. After the Creator revises the content, both reviewers must read the final merged artifact again. Close findings with locations, evidence and the Creator's disposition. Record the typed input hash before creation, then the exact server import/checksum and version reviewed for approval; the draft hash is not the canonical checksum. Repeat for blocking issues and substantive warnings. Lane-level review does not replace review of the merged artifact.
 
 Keep review records outside the bundle ZIP with `PASS`, `FAIL`, `NOT_APPLICABLE`, or `NOT_TESTED`, evidence location, and reason. Unsupported human or platform tests must remain `NOT_TESTED`. Examples, misconceptions, and visuals are conditional pedagogic choices, not mandatory filler for every section; apply the decision rules in `product/editorial`.
 
 ### 2.1 Critic Subagent Pass
-- **Input:** Draft `entities/products.json`, `entities/dependencies.json`, bound Source Pack Markdown, and published Idea list.
+- **Input:** Typed draft JSON or canonical archive entity files, bound Source Pack content, published Ideas and relevant schema/playbook revisions; use the exact staged artifact for final approval.
 - **Task:**
   1. Audit all 8 criteria above with concrete block/section anchors (`targetType: "document" | "section" | "block" | "visual"`, `targetId`).
   2. Perform the full mathematical derivation audit (`product/derivation-audit`).

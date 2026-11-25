@@ -13,7 +13,7 @@ For changes to existing Idea V3 or learning Product V3/V4/V5, prefer the flexibl
 Execute the pipeline in strict checkpoint order. Never skip a gate or start a downstream stage before its upstream dependency satisfies the required state:
 
 1. **Checkpoint 0 (Bootstrap and Scope Discovery)**
-   - Call `workflow.get_playbook` with `skill: "zyx-authoring-pipeline"` (or the active stage skill) and `stage: "pipeline"`.
+   - Call `workflow.get_playbook` with `skill: "zyx-authoring-pipeline"` and `stage: "pipeline"`. For a focused resume, use that stage's matching skill and stage instead; do not combine an Idea/Product skill with the pipeline stage.
    - Call `catalog.list_courses` and `catalog.list_chapters` to lock the target `courseKey` and `chapterKey`.
    - Inspect existing checkpoints before creating duplicate artifacts:
      - Call `source.list_packs` with `courseKey` and `chapterKey` to check whether a validated Source Pack already exists.
@@ -22,14 +22,14 @@ Execute the pipeline in strict checkpoint order. Never skip a gate or start a do
 2. **Checkpoint 1 (Source Pack Stage: `source`)**
    - Fetch stage modules via `workflow.get_playbook` with `stage: "source"` if not already loaded.
    - If a valid, up-to-date Source Pack already exists in `source.list_packs` for the target chapter and documents, reuse its `packId` / `importId` / `sourcePackToken`.
-   - Otherwise, list stored PDFs via `source.list_files`, read all pages via `source.read_file` (poll `source.get_read_job` when pending; request images for visual evidence), reconcile multi-document coverage, build the `source-pack.v1` archive, and call `source.ingest` with `storedOriginals` (or `originals` for local files) and `bootstrapToken`.
+   - Otherwise, list stored PDFs via `source.list_files`, read all pages via `source.read_file` (poll `source.get_read_job` when pending; request images for visual evidence), reconcile multi-document coverage, build the `zyx-source-pack.v1` archive using the current source contract, and call `source.ingest` with `storedOriginals` (or `originals` for local files) and `bootstrapToken`.
    - Gate: `source.ingest` must return `ok: true` and `persisted.importId`.
 
 3. **Checkpoint 2 (Idea Bundle V3 Stage: `idea`)**
    - Fetch stage modules via `workflow.get_playbook` with `stage: "idea"`.
    - Start or verify an `idea_product` run via `workflow.start` using `courseKey`, `chapterKey`, `sourcePackId` (or `sourcePackToken`), and `bootstrapToken`.
    - Call `workflow.get_contract` to confirm `idea-bundle.v3` requirements.
-   - Decompose the Source Pack into pedagogical `learningSections`, atomic `ideas`, complete `provenance`, and an acyclic `relations` DAG.
+   - Decompose the Source Pack into pedagogical `learningSections`, atomic `ideas`, complete `provenance`, and justified `relations`. Active prerequisite edges must form an acyclic graph; other relation types follow their own schema and meaning.
    - Prefer advertised `authoring.create_idea_draft` with atomic content, local keys and exact source quotes. Fetch its pinned schema only when needed. The server assembles and validates the package before staging; preserve independent atomicity and source-completeness review. Edit the returned revision with compact targeted tools.
    - For archive input, validate with `authoring.validate_idea_bundle` until `ok: true` and `valid: true`, then stage with `authoring.submit_idea_bundle` (or `authoring.restage_idea_bundle` with the last-read checksum as `expectedRevision` when updating an existing unapproved import).
 

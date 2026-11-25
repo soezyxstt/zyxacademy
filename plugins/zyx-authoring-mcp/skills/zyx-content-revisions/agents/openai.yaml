@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Content Revisions"
-  short_description: "Revise and release existing Zyx learning content"
-  default_prompt: "Use $zyx-content-revisions to update the requested Idea or learning Product by stable ID. Prefer advertised compact responses and targeted reads while drafting, carry successor identities forward, then read full context and prepare an exact reviewed release."
+  short_description: "Edit stable units and release reviewed Zyx revisions"
+  default_prompt: "Use $zyx-content-revisions to edit the requested Idea or Product unit by stable ID, carry successful successor identities forward without duplicate writes, then read full context and satisfy exact review, evidence and authorized release gates."

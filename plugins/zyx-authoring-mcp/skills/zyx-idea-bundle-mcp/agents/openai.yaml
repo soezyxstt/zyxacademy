@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Idea Bundle MCP"
-  short_description: "Author source-grounded Ideas with strict split/merge rules"
-  default_prompt: "Use $zyx-idea-bundle-mcp and fetch the current playbook. Prefer the advertised typed draft tool with source quotes and stable keys, then compact targeted edits. Review atomicity, semantic coverage and provenance in full context before explicit publication."
+  short_description: "Susun Idea dengan bukti sumber dan revisi yang tepat"
+  default_prompt: "Gunakan $zyx-idea-bundle-mcp dan panduan server aktif. Pilih input draft langsung bila tersedia, dengan key stabil dan kutipan sumber tepat. Edit unit yang perlu saja, lalu baca konteks penuh untuk menilai atomisitas, cakupan makna, dan provenance sebelum review serta publikasi yang diizinkan."
