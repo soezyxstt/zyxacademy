@@ -35,7 +35,7 @@ export type SystemNotificationTemplate =
   | { key: "study_reengagement"; params: { inactiveDays: number; courseTitle: string; topicTitle?: string } }
   | { key: "pka_schedule"; params: { scheduleTitle: string; sessionAt: string } }
   | { key: "pka_schedule_update"; params: { scheduleTitle: string; sessionAt: string } }
-  | { key: "tutor_schedule_moved"; params: { dayOfWeek: string; sessionDate: string; startTime: string; endTime: string } }
+  | { key: "tutor_schedule_moved"; params: { dayOfWeek: string; sessionDate: string; startTime: string; endTime: string; courseTitle?: string } }
   | { key: "tutor_ticket_decision"; params: { ticketType: "reschedule" | "cancellation"; decision: "approved" | "rejected"; notes: string | null } }
   | { key: "tutor_ticket_message"; params: { body: string } }
   | { key: "tutor_booking_created"; params: { studentName: string; courseTitle: string; sessionDate: string; startTime: string } }
@@ -45,7 +45,19 @@ export type SystemNotificationTemplate =
   | { key: "upcoming_session_reminder"; params: { audience: "student" | "tutor"; window: "24h" | "1h"; courseTitle: string; sessionDate: string; startTime: string } }
   | { key: "tutor_daily_digest"; params: { pendingTickets: number; pendingGradings: number } }
   | { key: "admin_alert"; params: { title: string; body: string } }
-  | { key: "discussion"; params: Record<string, never> };
+  | { key: "discussion"; params: { threadTitle?: string; preview?: string; eventKind?: string } };
+
+export interface ActivityNotificationPreferences {
+  discussionsEnabled: boolean;
+  flashcardsEnabled: boolean;
+}
+
+export const DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES: ActivityNotificationPreferences = {
+  discussionsEnabled: true,
+  flashcardsEnabled: true,
+};
+
+export type ActivityNotificationPreferenceKey = keyof ActivityNotificationPreferences;
 
 export interface NotificationPayload {
   /** Short notification title (65 chars or fewer recommended). */

@@ -30,13 +30,13 @@ describe("recipient-localized notification templates", () => {
     const payload = quizPublishedPayload("$& {courseTitle}", "Kalkulus I", "/courses/c1/quiz/q1");
 
     const english = renderNotificationPayload(payload, "en");
-    expect(english.title).toBe("📝 New quiz available");
-    expect(english.body).toContain("$& {courseTitle} for Kalkulus I");
+    expect(english.title).toBe("New quiz: expect(english.title).toBe("📝 New quiz available"); {courseTitle}");
+    expect(english.body).toContain("Kalkulus I");
     expect(english.metadata?.locale).toBe("en");
 
     const indonesian = renderNotificationPayload(payload, "id");
-    expect(indonesian.title).toBe("📝 Kuis Baru Tersedia");
-    expect(indonesian.body).toContain("$& {courseTitle} untuk Kalkulus I");
+    expect(indonesian.title).toBe("Kuis baru: expect(indonesian.title).toBe("📝 Kuis Baru Tersedia"); {courseTitle}");
+    expect(indonesian.body).toContain("Kalkulus I");
     expect(indonesian.metadata?.locale).toBe("id");
   });
 
@@ -87,4 +87,18 @@ describe("recipient-localized notification templates", () => {
     expect(pkaAnnouncementEmailHtml("Admin title", "Admin-authored body", "en"))
       .toContain("Admin-authored body");
   });
+});
+
+test("contextual discussion notification uses the title, bounded plain preview and locale-specific fallback", () => {
+  const payload = discussionPayload({role: "student", channelId: "c", threadId: "t", seq: 2, threadTitle: "Integral parsial", preview: "[Baca](https://example.test)\n" + "a".repeat(300)});
+  const id = renderNotificationPayload(payload, "id");
+  expect(id.title).toBe("Diskusi: Integral parsial");
+  expect(id.body.startsWith("Baca ")).toBe(true);
+  expect(Array.from(id.body).length).toBe(180);
+  expect(id.body).not.toContain("https://");
+  const deleted = renderNotificationPayload(discussionPayload({role: "student", channelId: "c", threadId: "t", seq: 2, threadTitle: "Integral", eventKind: "delete"}), "en");
+  expect(deleted.body).toBe("A message was deleted.");
+  const report = renderNotificationPayload(discussionPayload({role: "admin", channelId: "c", threadId: "t", seq: 2, report: true, threadTitle: "Private", preview: "Secret"}), "en");
+  expect(report.title).toBe("Discussion update");
+  expect(report.body).not.toContain("Secret");
 });

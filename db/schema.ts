@@ -65,6 +65,14 @@ export const emailNotificationPreferences = pgTable("email_notification_preferen
   .notNull(),
 });
 
+/** Account-wide optional activity notifications, independent of email and device permissions. */
+export const activityNotificationPreferences = pgTable("activity_notification_preferences", {
+ userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
+ discussionsEnabled: boolean("discussions_enabled").notNull().default(true),
+ flashcardsEnabled: boolean("flashcards_enabled").notNull().default(true),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 /** Account presentation preference, kept separate from authorization and learning settings. */
 export const accountLocalePreferences = pgTable(
  "account_locale_preferences",
