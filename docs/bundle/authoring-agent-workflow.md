@@ -108,14 +108,14 @@ Compared with the previous PR head, Idea and Product skill files plus host promp
 4. **Print completeness:** Confirm one PDF yields every required page, preserves the page budget and overflow checks, and cannot approve an incomplete or failed capture. Inspect actual PDF and page images during hosted acceptance.
 5. **Agent usability:** Run one new Article, one standalone Diktat and one small edit with the advertised tools. Record tool calls, response bytes, render invocations, wall time and manual recovery steps.
 
-## Continue before making the PR ready
+## Remaining hosted acceptance
 
 - Complete authenticated staging acceptance with a synthetic authorized draft and real storage, including scope denial, concurrent edits, failed verification retry and final review. The current private local operator deliberately targets its configured production origin; do not relabel that as a staging run or use production data for this PR.
 - Measure real short and long chapter authoring before claiming lower token cost or duration. The synthetic response/executor benchmark above does not measure model tokens, money, wall time or live storage. Compare quality with the same source and a blind rubric for correctness, coverage, teaching order and readability.
 - Decide whether binary-asset input and external Article lineage belong in the next typed-draft contract. Preserve reference and asset admission checks in each extension.
 - Design any reuse across revisions separately. Split content/runtime fingerprints only with dependency-specific invalidation tests. The exact-plan cache here deliberately does not claim that unrelated edits are safe to ignore.
 - Check the refreshed package in installed hosts and their OAuth sessions. The reviewed external staging release and exact source pin are complete; a server build alone does not establish host acceptance.
-- Review CI and bot comments before marking the PR ready. Keep the draft status while the authenticated staging acceptance above is incomplete. Deployment and content publication require their own verified run.
+- Review CI and bot comments on the latest commit before merging to staging. The owner marked PR #480 ready for review on 2026-11-25 while the skill update was in progress. A code merge does not run the authenticated checks above or deploy the application; deployment and content publication retain their own verification.
 
 ## Verification record
 
