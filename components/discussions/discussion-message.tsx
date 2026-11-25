@@ -380,7 +380,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
   const showRoleBadge = message.author.name.trim().toLowerCase() !== roleLabel.trim().toLowerCase();
   const hasBubbleSkin = Boolean(getZyraChatSkin(message.skinId));
 
-  return <div data-message-id={message.id} data-own-message={isOwn ? "true" : undefined} data-discussion-target={targeted || undefined} tabIndex={targeted ? -1 : undefined} className={cn("min-w-0 touch-pan-y", targeted && "rounded-lg ring-2 ring-primary")} onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={(event) => endGesture(event, true)}>
+  return <div data-message-id={message.id} data-own-message={isOwn ? "true" : undefined} data-discussion-target={targeted || undefined} data-swipe-lock="" tabIndex={targeted ? -1 : undefined} className={cn("min-w-0 touch-pan-y", targeted && "rounded-lg ring-2 ring-primary")} onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={(event) => endGesture(event, true)}>
     <div className={cn("flex min-w-0 items-start gap-2 md:gap-2.5", isOwn && "flex-row-reverse")}>
       {!isOwn ? (
         canViewAuthorProfile ? (

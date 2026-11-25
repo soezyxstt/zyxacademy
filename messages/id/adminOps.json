@@ -217,18 +217,24 @@
       "materi": "Materi",
       "flashcard": "Flashcard",
       "kuis": "Kuis mandiri",
+      "tryout": "Tryout",
       "kuisLive": "Kuis live",
-      "zyra": "Zyra Chat"
+      "zyra": "Zyra Chat",
+      "diskusi": "Diskusi",
+      "tutorial": "Sesi tutorial"
     },
-    "materialCoverage": "Materi dihitung dari progres terakhir per murid dan materi, bukan jumlah pembukaan. Artikel terstruktur belum tercakup.",
+    "materialCoverage": "Materi mencakup progres baca artikel terstruktur dan dokumen materi terbaru per murid.",
     "rollingCoverage": "Rentang dihitung mundur dari waktu saat ini. Hari pertama dan terakhir dapat mencakup sebagian hari UTC.",
     "topShare": "{percent}% dari total aktivitas",
     "featureDetails": {
-      "materi": "Progres materi terakhir",
-      "flashcard": "Ulasan kartu belajar",
+      "materi": "{count} bagian selesai",
+      "flashcard": "Ulasan kartu belajar (kanonik & legacy)",
       "kuis": "{count} percobaan selesai",
+      "tryout": "{count} dinilai atau selesai",
       "kuisLive": "Hasil kuis live yang selesai",
-      "zyra": "{count} sesi baru"
+      "zyra": "{count} sesi baru",
+      "diskusi": "{count} pertanyaan baru",
+      "tutorial": "{count} sesi selesai"
     }
   },
   "flags": {

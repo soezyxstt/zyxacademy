@@ -850,7 +850,7 @@ export async function markRead(actorId: string, threadId: string, throughSeq: nu
    const [missing] = await tx.select({ id: discussionMessages.id }).from(discussionMessages)
     .leftJoin(discussionMessageObservations, and(eq(discussionMessageObservations.messageId, discussionMessages.id), eq(discussionMessageObservations.userId, current.id)))
     .where(and(eq(discussionMessages.threadId, threadId), gt(discussionMessages.seq, observed?.throughSeq ?? 0),
-     lte(discussionMessages.seq, throughSeq), isNull(discussionMessageObservations.messageId))).limit(1);
+     lte(discussionMessages.seq, throughSeq), sql`${discussionMessages.authorId} is distinct from ${current.id}`, isNull(discussionMessageObservations.messageId))).limit(1);
    if (missing) throw invalid();
   }
   const [read] = await tx.insert(discussionThreadReads).values({ userId: current.id, threadId, throughSeq, observedSeq: observed?.seq ?? 0, seenStatusRevision: receipt.statusRevision }).onConflictDoUpdate({

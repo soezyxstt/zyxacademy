@@ -15,6 +15,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { DashboardWeakConcepts } from "@/components/course/dashboard-weak-concepts";
+import { MathText } from "@/components/course/math-text";
 import { StudentCourseProgressRow } from "@/components/dashboard/student-course-progress-row";
 import { StudentDashboardSection } from "@/components/dashboard/student-dashboard-section";
 import { TranslatedText } from "@/components/i18n/translated-text";
@@ -336,9 +337,9 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
                           <FormattedDate date={review.reviewedAt} options={{ dateStyle: "medium" }} />
                         </span>
                       </div>
-                      <p className="mt-1 truncate text-body-xs font-medium text-foreground">
+                      <MathText as="p" className="mt-1 line-clamp-2 break-words text-body-xs font-medium text-foreground">
                         {review.front}
-                      </p>
+                      </MathText>
                       <p className="mt-0.5 truncate text-body-xs text-muted-foreground">
                         {review.courseTitle}
                       </p>
