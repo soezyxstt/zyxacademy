@@ -8,6 +8,8 @@ export type OnboardingTourContextValue = {
   active: boolean;
   available: boolean;
   restart: () => void;
+  /** The permission control waits for the device result before offering Done. */
+  notificationStep?: { complete: () => void };
 };
 
 export const OnboardingTourContext = createContext<OnboardingTourContextValue>({

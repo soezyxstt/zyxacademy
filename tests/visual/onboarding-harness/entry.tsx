@@ -10,6 +10,8 @@ import { loadMessages } from "@/lib/i18n/catalogs";
 import { useTranslations } from "@/lib/i18n/client";
 import { ApplicationShell } from "@/components/application-shell";
 import { ApplicationPage } from "@/components/application-page";
+import { PageHeader } from "@/components/page-header";
+import { DeviceNotificationSettings } from "@/components/notifications/device-notification-settings";
 import { StudentSidebar } from "@/components/student-sidebar";
 import { TutorSidebar } from "@/components/tutor/tutor-sidebar";
 import { StudentMobileTopNav, StudentMobileBottomNav } from "@/components/navigation/student";
@@ -51,6 +53,7 @@ function RouteContent() {
   const t = useTranslations("tutor.navigation");
   const coursePath = fixture.role === "tutor" ? `/tutor/${fixture.courseId}` : `/courses/${fixture.courseId}`;
   if (pathname === "/settings") return <SettingsClient />;
+  if (pathname === "/settings/notifications") return <ApplicationPage><PageHeader title={fixture.locale === "en" ? "Notifications" : "Notifikasi"} /><DeviceNotificationSettings /></ApplicationPage>;
   if (pathname.endsWith("/schedule")) return <ApplicationPage><FixtureSchedule /></ApplicationPage>;
   if (pathname.endsWith("/discussions")) return <FixtureDiscussions />;
   if (pathname === "/profile") return <ApplicationPage><div className="space-y-5 py-6"><div className="flex items-center gap-4"><div className="flex size-16 items-center justify-center rounded-full bg-muted font-heading text-h5">N</div><div><h1 className="font-heading text-h5">Nadia Pratama</h1><p className="text-body-sm text-muted-foreground">nadia@example.test</p></div></div><div className="border-t border-border pt-5"><h2 className="font-heading text-body-base font-semibold">{words.progress}</h2><p className="mt-2 text-body-sm text-muted-foreground">Matematika 1 · 3 / 12</p></div></div></ApplicationPage>;

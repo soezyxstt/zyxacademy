@@ -1,10 +1,10 @@
-import { canUseTour, isTourRole, parseTourMutation, type TourWriteAction, type TourRole, type TourState } from "./tour-state";
+import { canUseTour, isTourRole, parseTourMutation, type TourWriteAction, type TourRole, type TourState, type TourMutationResult } from "./tour-state";
 
 type TourApiDependencies = {
   getSession: () => Promise<{ user: { id: string; role?: string | null } } | null>;
   getRoles: (userId: string) => Promise<readonly string[]>;
   get: (userId: string, role: TourRole) => Promise<TourState | null>;
-  mutate: (userId: string, role: TourRole, action: TourWriteAction) => Promise<TourState | null>;
+  mutate: (userId: string, role: TourRole, action: TourWriteAction) => Promise<TourMutationResult>;
   selectCourse: (userId: string, role: TourRole, hint: string | null) => Promise<string | null>;
 };
 
@@ -50,11 +50,11 @@ export function createTourApi(dependencies: TourApiDependencies) {
           const current = await dependencies.get(userId, input.role);
           // Resume and stale retries keep their saved plan without a catalog lookup.
           if ((input.action === "start" && current) || input.generation !== (current?.generation ?? 0)) {
-            return Response.json({ state: current }, { headers });
+            return Response.json({ state: current, applied: false }, { headers });
           }
           action = { ...input, courseId: await dependencies.selectCourse(userId, input.role, input.courseId ?? null) };
         }
-        return Response.json({ state: await dependencies.mutate(userId, input.role, action) }, { headers });
+        return Response.json(await dependencies.mutate(userId, input.role, action), { headers });
       } catch {
         return failure(500, "Unable to save tour progress");
       }

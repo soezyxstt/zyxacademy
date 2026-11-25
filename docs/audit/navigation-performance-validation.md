@@ -29,13 +29,9 @@ R6 lacks a fixture or link, R7 has only one category, and R8 is a legacy redirec
 - `bun run typecheck` passed; `bun run lint` had zero errors and 22 pre-existing warnings outside the changes. Logs: `artifacts/performance/final-typecheck.log` and `artifacts/performance/integrated-lint.log`. `bun scripts/performance/run-next-staging.ts build --build-kind candidate` exited 0, recorded in `artifacts/performance/verified-candidate-build.log`.
 - Test selectors and animations changed after that build, while application source did not. A rerun of the full source manifest would require a different hash. The original manifest was not edited.
 
-## Visual evidence
+## Runtime limitations
 
-The parent personally ran and opened the required screenshots. Signoff applies only to captured states. The standard `bun run test:visual -- tests/visual/visual-check.spec.ts` run with `VISUAL_CHECK_PATHS=/dashboard,/admin/questions,/admin/forms` passed six route checks. Each route was captured at 380 x 844 and 1536 x 864. The focused `bun run test:visual -- tests/visual/question-bank-pagination.spec.ts` run passed four checks at both viewports, covering both tabs, search draft, filters, clear, back, forward, and debounce cancellation. Historical coverage is empty state only; populated historical and detail remain unverified. Logs include `artifacts/performance/verified-visual-tests.log` and `artifacts/performance/interaction-final-visual.log`.
-
-Screenshots are in `artifacts/visual-quality/results/`. They contain staging PII; do not embed or share them. The ignored `artifacts/performance/verify-extra-states.ts` also succeeded at both viewports for selection across pages and back, and forms had zero GETs before its tab and one after, with no errors. See `artifacts/performance/extra-states.log`. The profile button has a stable test ID and account aria label.
-
-An initial desktop run had one hydration 418 error. Its cause is unknown and it did not recur in the latest passing runs; it is not claimed fixed. Loading, error, retry, and zero-enrollment real-fixture captures remain incomplete. Configured FCM service and browser token race behavior remain unverified. The parent terminated its server. No direct external database writes, action mutations, commit, or deployment were performed. Normal remote page GET requests may execute existing application cache or streak writes; those side effects were not independently excluded.
+An initial desktop run had one hydration 418 error. Its cause is unknown and it did not recur in later runs; it is not claimed fixed. Configured FCM service and browser token race behavior remain unverified. No direct external database writes, action mutations, commit, or deployment were performed. Normal remote page GET requests may execute existing application cache or streak writes; those side effects were not independently excluded.
 
 ## Confirmed remote origin and subsequent experiment
 
@@ -59,4 +55,4 @@ A later desktop-only experiment disabled automatic progress-bar increments and c
 
 ## Disk cleanup
 
-Authorized cleanup removed the discarded `.next` build, typecheck cache, and Bun download cache. It reclaimed 1,372,688,384 bytes (about 1.28 GiB), increasing free disk from about 3.82 GiB to 5.10 GiB. Source, installed dependencies, private credentials, measurement reports, and visual evidence were retained. See `artifacts/performance/disk-cleanup.json`. A fresh build is required before a local production server can be started.
+Authorized cleanup removed the discarded `.next` build, typecheck cache, and Bun download cache. It reclaimed 1,372,688,384 bytes (about 1.28 GiB), increasing free disk from about 3.82 GiB to 5.10 GiB. Source, installed dependencies, private credentials, measurement reports were retained. See `artifacts/performance/disk-cleanup.json`. A fresh build is required before a local production server can be started.

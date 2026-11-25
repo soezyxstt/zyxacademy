@@ -22,11 +22,13 @@ describe("tour state", () => {
 
   test("completion requires the final step and cannot override a skip", () => {
     expect(applyTourAction(running, { action: "complete", generation: 1 }, now)).toBe(running);
+    const penultimate = { ...running, stepIndex: 8 };
+    expect(applyTourAction(penultimate, { action: "complete", generation: 1 }, now)).toBe(penultimate);
     const finalStep = { ...running, stepIndex: TOUR_STEP_COUNT - 1 };
     expect(applyTourAction(finalStep, { action: "complete", generation: 1 }, now)?.status).toBe("completed");
     for (const status of ["completed", "skipped"] as const) {
       const terminal = { ...finalStep, status };
-      for (const action of [{ action: "start", generation: 1 }, { action: "progress", generation: 1, stepIndex: 8 }, { action: "complete", generation: 1 }, { action: "skip", generation: 1 }] as const) {
+      for (const action of [{ action: "start", generation: 1 }, { action: "progress", generation: 1, stepIndex: 9 }, { action: "complete", generation: 1 }, { action: "skip", generation: 1 }] as const) {
         expect(applyTourAction(terminal, action, now)).toBe(terminal);
       }
       expect(applyTourAction(terminal, { action: "restart", generation: 1 }, now)).toMatchObject({ status: "in_progress", stepIndex: 0, courseId: null });
@@ -37,7 +39,7 @@ describe("tour state", () => {
     const restarted = applyTourAction(running, { action: "restart", generation: 1, courseId: "course-b" }, now)!;
     expect(restarted).toMatchObject({ generation: 2, status: "in_progress", stepIndex: 0, courseId: "course-b" });
     for (const action of [
-      { action: "progress", stepIndex: 8, generation: 1 },
+      { action: "progress", stepIndex: 9, generation: 1 },
       { action: "complete", generation: 1 },
       { action: "skip", generation: 1 },
       { action: "restart", generation: 1, courseId: "wrong-course" },
@@ -51,11 +53,12 @@ describe("tour state", () => {
     const base = { role: "student", version: 1, generation: 0, action: "start" } as const;
     expect(parseTourMutation(base)).toEqual({ ...base, courseId: null });
     expect(parseTourMutation({ ...base, role: "tutor", courseId: "course/a" })).toMatchObject({ courseId: "course/a" });
+    expect(parseTourMutation({ ...base, action: "progress", stepIndex: 9 })).toMatchObject({ action: "progress", stepIndex: 9 });
     for (const invalid of [
       { ...base, userId: "victim" }, { ...base, role: "admin" }, { ...base, version: 2 },
       { ...base, generation: undefined }, { ...base, generation: -1 }, { ...base, generation: 0.5 }, { ...base, generation: 2_147_483_648 },
       { ...base, courseId: "x".repeat(129) }, { ...base, courseId: " " }, { ...base, courseId: "a\nb" },
-      { ...base, action: "progress", stepIndex: 9 }, { ...base, action: "progress", stepIndex: 0.5 },
+      { ...base, action: "progress", stepIndex: 10 }, { ...base, action: "progress", stepIndex: 0.5 },
       { ...base, action: "progress" }, { ...base, action: "progress", stepIndex: 3, courseId: null },
       { ...base, action: "skip", stepIndex: 0 }, { ...base, action: "complete", courseId: "course-a" },
     ]) expect(parseTourMutation(invalid)).toBeNull();
@@ -71,7 +74,7 @@ describe("tour state", () => {
   });
 });
 
-function fixture(options: { id?: string | null; roles?: readonly string[]; legacyRole?: string; fail?: boolean; current?: TourState | null; selectedCourse?: string | null; selectionFails?: boolean } = {}) {
+function fixture(options: { id?: string | null; roles?: readonly string[]; legacyRole?: string; fail?: boolean; current?: TourState | null; selectedCourse?: string | null; selectionFails?: boolean; applied?: boolean } = {}) {
   const reads: unknown[][] = [];
   const writes: unknown[][] = [];
   const selections: unknown[][] = [];
@@ -79,7 +82,7 @@ function fixture(options: { id?: string | null; roles?: readonly string[]; legac
     getSession: async () => options.id === null ? null : { user: { id: options.id ?? "account-a", role: options.legacyRole ?? "student" } },
     getRoles: async () => options.roles ?? ["murid"],
     get: async (...args) => { reads.push(args); if (options.fail) throw new Error("private database credentials"); return options.current === undefined ? running : options.current; },
-    mutate: async (...args) => { writes.push(args); if (options.fail) throw new Error("private database credentials"); return running; },
+    mutate: async (...args) => { writes.push(args); if (options.fail) throw new Error("private database credentials"); return { state: running, applied: options.applied ?? true }; },
     selectCourse: async (...args) => { selections.push(args); if (options.selectionFails) throw new Error("private catalog credentials"); return options.selectedCourse === undefined ? args[2] : options.selectedCourse; },
   });
   return { api, reads, writes, selections };
@@ -131,6 +134,7 @@ describe("tour API account boundary", () => {
     const body = { role: "tutor", version: 1, generation: 1, action: "restart", courseId: "course-a" };
     const response = await api.PUT(request(body));
     expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ state: running, applied: true });
     expect(writes).toEqual([["account-a", "tutor", body]]);
   });
 
@@ -153,10 +157,18 @@ describe("tour API account boundary", () => {
       const { api, writes, selections } = fixture({ selectionFails: true });
       const response = await api.PUT(request({ role: "student", version: 1, generation: 0, action, courseId: "different-course" }));
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ state: running });
+      expect(await response.json()).toEqual({ state: running, applied: false });
       expect(selections).toHaveLength(0);
       expect(writes).toHaveLength(0);
     }
+  });
+
+  test("preserves the locked no-op receipt when another tab wins after preflight", async () => {
+    const { api, writes } = fixture({ current: null, applied: false });
+    const response = await api.PUT(request({ role: "student", version: 1, generation: 0, action: "start" }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ state: running, applied: false });
+    expect(writes).toHaveLength(1);
   });
 
   test("progress and exit do not recalculate course context", async () => {

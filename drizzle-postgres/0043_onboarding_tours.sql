@@ -12,7 +12,7 @@ CREATE TABLE "onboarding_tours" (
 	CONSTRAINT "onboarding_tours_version_check" CHECK ("onboarding_tours"."version" = 1),
 	CONSTRAINT "onboarding_tours_generation_check" CHECK ("onboarding_tours"."generation" >= 1),
 	CONSTRAINT "onboarding_tours_status_check" CHECK ("onboarding_tours"."status" in ('in_progress', 'completed', 'skipped')),
-	CONSTRAINT "onboarding_tours_step_check" CHECK ("onboarding_tours"."step_index" between 0 and 8 and ("onboarding_tours"."status" <> 'completed' or "onboarding_tours"."step_index" = 8)),
+	CONSTRAINT "onboarding_tours_step_check" CHECK ("onboarding_tours"."step_index" between 0 and 9 and ("onboarding_tours"."status" <> 'completed' or "onboarding_tours"."step_index" = 9)),
 	CONSTRAINT "onboarding_tours_course_check" CHECK ("onboarding_tours"."course_id" is null or char_length("onboarding_tours"."course_id") between 1 and 128)
 );
 

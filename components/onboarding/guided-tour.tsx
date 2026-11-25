@@ -10,7 +10,9 @@ import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { useTranslations } from "@/lib/i18n/client";
 import { isAccountTransitionPending, subscribeAccountTransition } from "@/lib/auth/account-transition-state";
 import { acquirePullToRefreshLock } from "@/lib/pull-to-refresh-lock";
-import { TOUR_STEP_COUNT, TOUR_VERSION, type TourAction, type TourRole, type TourState } from "@/lib/onboarding/tour-state";
+import { TOUR_STEP_COUNT, TOUR_VERSION, type TourAction, type TourRole, type TourState, type TourMutationResult } from "@/lib/onboarding/tour-state";
+import { resolveTourExitGeneration } from "@/lib/onboarding/tour-exit";
+import { deferTourNotifications } from "@/lib/onboarding/tour-notifications";
 import { findVisibleTourTarget, getTourSteps } from "@/lib/onboarding/tour-steps";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,6 +22,11 @@ import { TourSpotlight } from "./tour-spotlight";
 
 type Props = { children: ReactNode; role: TourRole; courseId?: string | null };
 type Phase = "loading" | "idle" | "invitation" | "active";
+type PendingMutation = {
+  action: TourAction["action"];
+  generation: number;
+  settled: Promise<TourMutationResult | undefined>;
+};
 
 /** Only nonsecret UI continuity survives a route-group remount. The server owns progress. */
 const runningTours = new Set<string>();
@@ -102,6 +109,8 @@ export function GuidedTourFlow({ children, role, userId, candidateCourseId = nul
   const [targetAttempt, setTargetAttempt] = useState(0);
   const mounted = useRef(true);
   const writing = useRef(false);
+  const pendingMutation = useRef<PendingMutation | null>(null);
+  const exitIntent = useRef<{ generation: number } | null>(null);
   const currentState = useRef(state);
   currentState.current = state;
   const replay = useRef(false);
@@ -112,7 +121,7 @@ export function GuidedTourFlow({ children, role, userId, candidateCourseId = nul
   const steps = useMemo(() => getTourSteps(role, state?.courseId ?? null, mobile), [role, state?.courseId, mobile]);
   const stepIndex = state?.stepIndex ?? 0;
   const step = steps[stepIndex];
-  const stepKey = `${role}.${state?.courseId ? "course" : "general"}.${step.id}`;
+  const stepKey = step.id === "notifications" ? "notifications" : `${role}.${state?.courseId ? "course" : "general"}.${step.id}`;
 
   useEffect(() => {
     mounted.current = true;
@@ -155,9 +164,13 @@ export function GuidedTourFlow({ children, role, userId, candidateCourseId = nul
     if (phase === "idle" && (!state || state.status === "in_progress") && !error && !dismissedTours.has(identity) && !runningTours.has(identity) && canOfferTour(pathname, role, state)) setPhase("invitation");
   }, [phase, state, error, identity, pathname, role]);
 
-  const mutate = useCallback(async (action: TourAction, generation: number): Promise<TourState | null | undefined> => {
+  const mutate = useCallback(async (action: TourAction, generation: number): Promise<TourMutationResult | undefined> => {
     if (writing.current || isAccountTransitionPending()) return undefined;
     writing.current = true;
+    let settle: (result: TourMutationResult | undefined) => void = () => {};
+    const pending: PendingMutation = { action: action.action, generation, settled: new Promise(resolve => { settle = resolve; }) };
+    pendingMutation.current = pending;
+    let receipt: TourMutationResult | undefined;
     setBusy(true);
     try {
       const response = await fetch("/api/onboarding/tour", {
@@ -167,31 +180,35 @@ export function GuidedTourFlow({ children, role, userId, candidateCourseId = nul
         signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok) throw new Error("tour-save");
-      const result = await response.json() as { state: TourState | null };
+      const result = await response.json() as TourMutationResult;
       if (!mounted.current || isAccountTransitionPending()) return undefined;
+      receipt = result;
       currentState.current = result.state;
       setState(result.state);
-      if ((action.action === "progress" || action.action === "complete") && result.state?.generation !== generation) {
+      if (!dismissedTours.has(identity) && (action.action === "progress" || action.action === "complete") && result.state?.generation !== generation) {
         runningTours.delete(identity);
         setPhase(result.state?.status === "in_progress" ? "invitation" : "idle");
       }
       setError(null);
       pendingRetry.current = null;
-      return result.state;
+      return result;
     } catch {
       if (mounted.current) setError("save");
       return undefined;
     } finally {
       writing.current = false;
+      pendingMutation.current = null;
       if (mounted.current) setBusy(false);
+      settle(receipt);
     }
   }, [identity, role, userId]);
 
   const start = async () => {
+    exitIntent.current = null;
     dismissedTours.delete(identity);
     const action: TourAction = { action: replay.current ? "restart" : "start", courseId: candidateCourseId };
     pendingRetry.current = () => void start();
-    const saved = await mutate(action, state?.generation ?? 0);
+    const saved = (await mutate(action, state?.generation ?? 0))?.state;
     if (!saved || dismissedTours.has(identity)) return;
     replay.current = false;
     if (saved.status === "in_progress") {
@@ -203,26 +220,31 @@ export function GuidedTourFlow({ children, role, userId, candidateCourseId = nul
   };
 
   const skip = async () => {
+    if (exitIntent.current) return;
+    if (step.id === "notifications") deferTourNotifications();
+    const pending = pendingMutation.current;
+    const intent = { generation: pending?.generation ?? currentState.current?.generation ?? 0 };
+    exitIntent.current = intent;
     // Exiting is always available, including offline and during a pending save.
     dismissedTours.add(identity);
     runningTours.delete(identity);
+    replay.current = false;
+    pendingRetry.current = null;
     setPhase("idle");
-    if (writing.current) {
-      // Serialize a skip behind the already-started write without blocking exit.
-      const waitForWrite = window.setInterval(() => {
-        if (!mounted.current || !writing.current) { clearInterval(waitForWrite); if (mounted.current) void skip(); }
-      }, 100);
-      return;
-    }
-    const saved = await mutate({ action: "skip" }, currentState.current?.generation ?? 0);
-    if (saved === undefined && mounted.current) toast.error(t("error.saveTitle"), { description: t("error.exitDescription") });
+    // Keep the dismissed run fixed while the earlier write finishes. A new run
+    // belongs to this exit only when that write's receipt proves it created it.
+    const receipt = pending ? await pending.settled : undefined;
+    if (!mounted.current || exitIntent.current !== intent || isAccountTransitionPending()) return;
+    const generation = resolveTourExitGeneration(intent.generation, pending, receipt);
+    const saved = await mutate({ action: "skip" }, generation);
+    if (saved === undefined && mounted.current && exitIntent.current === intent) toast.error(t("error.saveTitle"), { description: t("error.exitDescription") });
   };
 
   const advance = async (href?: string) => {
     const nextAction: TourAction = stepIndex === TOUR_STEP_COUNT - 1 ? { action: "complete" } : { action: "progress", stepIndex: stepIndex + 1 };
     pendingRetry.current = () => void advance(href);
     const generation = state?.generation ?? 0;
-    const saved = await mutate(nextAction, generation);
+    const saved = (await mutate(nextAction, generation))?.state;
     if (!saved || dismissedTours.has(identity)) return;
     // An older tab must not navigate or complete a newer tour run.
     if (saved.generation !== generation) return;
@@ -279,7 +301,8 @@ export function GuidedTourFlow({ children, role, userId, candidateCourseId = nul
   }, [active, step, pathname, targetAttempt]);
 
   const restart = () => {
-    if (busy || active) return;
+    if (busy || writing.current || active) return;
+    exitIntent.current = null;
     replay.current = true;
     dismissedTours.delete(identity);
     setError(null);
@@ -294,7 +317,7 @@ export function GuidedTourFlow({ children, role, userId, candidateCourseId = nul
   const inviteTitle = error ? t(`error.${error}Title`) : state?.status === "in_progress" && !replay.current ? t("resume.title") : t(`invitation.${role}.title`);
   const inviteDescription = error ? t(`error.${error}Description`) : state?.status === "in_progress" && !replay.current ? t("resume.description", { current: stepIndex + 1, total: TOUR_STEP_COUNT }) : t(`invitation.${role}.description`, { count: TOUR_STEP_COUNT });
 
-  return <OnboardingTourContext.Provider value={{ active, blocking: phase !== "idle", available: true, restart }}>
+  return <OnboardingTourContext.Provider value={{ active, blocking: phase !== "idle", available: true, restart, notificationStep: active && step.id === "notifications" ? { complete: () => void advance() } : undefined }}>
     {children}
     <Dialog open={phase === "invitation"} onOpenChange={open => { if (!open) void skip(); }}>
       <DialogContent className="max-w-md" onPointerDownOutside={event => event.preventDefault()}>
@@ -326,7 +349,12 @@ export function GuidedTourFlow({ children, role, userId, candidateCourseId = nul
       busy={busy}
       onSkip={() => void skip()}
       onRetry={retry}
+      onSkipStep={step.id === "notifications" ? () => { deferTourNotifications(); void advance(); } : undefined}
+      skipStepLabel={t("actions.skipStep")}
       onTargetActivate={event => {
+        // Permission requests must stay inside the real control's user gesture.
+        // It offers Done only after the permission/registration result is known.
+        if (step.id === "notifications") return false;
         if (revealCopy) return;
         if (step.href) {
           event.preventDefault();

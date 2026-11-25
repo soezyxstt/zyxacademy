@@ -21,6 +21,7 @@ export function getTourSteps(role: TourRole, courseId: string | null, mobile: bo
   const profileReveal = { selector: link("/profile"), copy: "profileMenu" as const };
   const account: TourStep = { id: "account", selector: anchor("account"), reveal: role === "student" && mobile ? [profileReveal] : undefined };
   const preferences: TourStep = { id: "preferences", selector: link("/settings"), href: "/settings", reveal: [accountReveal, ...(role === "student" && mobile ? [profileReveal] : [])] };
+  const notifications: TourStep = { id: "notifications", path: "/settings/notifications", selector: anchor("notification-permission") };
   if (role === "student") {
     if (courseId) {
       const course = `/courses/${encodeURIComponent(courseId)}`;
@@ -34,6 +35,7 @@ export function getTourSteps(role: TourRole, courseId: string | null, mobile: bo
         { id: "discussions", path: "/dashboard/schedule", selector: navigationLink("/dashboard/discussions"), href: "/dashboard/discussions" },
         account,
         preferences,
+        notifications,
       ];
     }
     return [
@@ -46,6 +48,7 @@ export function getTourSteps(role: TourRole, courseId: string | null, mobile: bo
       account,
       preferences,
       { id: "language", path: "/settings", selector: anchor("language"), reveal: [{ selector: anchor("settings-general"), copy: "generalMenu" }, more] },
+      notifications,
     ];
   }
 
@@ -68,6 +71,7 @@ export function getTourSteps(role: TourRole, courseId: string | null, mobile: bo
       { id: "discussions", path: schedule, selector: navigationLink("/tutor/discussions"), href: "/tutor/discussions" },
       account,
       preferences,
+      notifications,
     ];
   }
   return [
@@ -80,6 +84,7 @@ export function getTourSteps(role: TourRole, courseId: string | null, mobile: bo
     { id: "docs", path: "/tutor/docs", selector: link("/tutor/docs/ruang-kerja-tutor"), href: "/tutor/docs/ruang-kerja-tutor" },
     account,
     preferences,
+    notifications,
   ];
 }
 

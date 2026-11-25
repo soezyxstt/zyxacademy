@@ -1,5 +1,5 @@
 {
-  "id": "0ce68e20-16e2-4ed5-bd04-f1233d0bf34c",
+  "id": "cc052ed3-edef-49c5-bd2a-7d8da6ac1a1a",
   "prevId": "819aa2e2-e716-4aab-926d-d083b28353e5",
   "version": "7",
   "dialect": "postgresql",
@@ -33581,7 +33581,7 @@
         },
         "onboarding_tours_step_check": {
           "name": "onboarding_tours_step_check",
-          "value": "\"onboarding_tours\".\"step_index\" between 0 and 8 and (\"onboarding_tours\".\"status\" <> 'completed' or \"onboarding_tours\".\"step_index\" = 8)"
+          "value": "\"onboarding_tours\".\"step_index\" between 0 and 9 and (\"onboarding_tours\".\"status\" <> 'completed' or \"onboarding_tours\".\"step_index\" = 9)"
         },
         "onboarding_tours_course_check": {
           "name": "onboarding_tours_course_check",

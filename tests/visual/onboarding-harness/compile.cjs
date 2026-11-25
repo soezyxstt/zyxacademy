@@ -19,6 +19,7 @@ const aliases = {
   "@/lib/auth/account-switch": "data.ts",
   "@/lib/native/auth": "data.ts",
   "@/lib/native/haptics": "data.ts",
+  "@/lib/native/notifications": "notifications.ts",
   "@/lib/gamification/social-actions": "data.ts",
   "@/app/(student)/dashboard/search-actions": "data.ts",
   "@/app/(student)/profile/edit/zyra-appearance-action": "data.ts",

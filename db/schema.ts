@@ -99,7 +99,7 @@ export const onboardingTours = pgTable("onboarding_tours", {
  check("onboarding_tours_version_check", sql`${table.version} = 1`),
  check("onboarding_tours_generation_check", sql`${table.generation} >= 1`),
  check("onboarding_tours_status_check", sql`${table.status} in ('in_progress', 'completed', 'skipped')`),
- check("onboarding_tours_step_check", sql`${table.stepIndex} between 0 and 8 and (${table.status} <> 'completed' or ${table.stepIndex} = 8)`),
+ check("onboarding_tours_step_check", sql`${table.stepIndex} between 0 and 9 and (${table.status} <> 'completed' or ${table.stepIndex} = 9)`),
  check("onboarding_tours_course_check", sql`${table.courseId} is null or char_length(${table.courseId}) between 1 and 128`),
 ]);
 

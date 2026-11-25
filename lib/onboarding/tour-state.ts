@@ -1,5 +1,5 @@
 export const TOUR_VERSION = 1 as const;
-export const TOUR_STEP_COUNT = 9;
+export const TOUR_STEP_COUNT = 10;
 
 export type TourRole = "student" | "tutor";
 export type TourStatus = "in_progress" | "completed" | "skipped";
@@ -13,6 +13,8 @@ export type TourState = {
   courseId: string | null;
   updatedAt: string;
 };
+/** True only when this request created or changed the locked account/role row. */
+export type TourMutationResult = { state: TourState | null; applied: boolean };
 export type TourAction =
   | { action: "start" | "restart"; courseId?: string | null }
   | { action: "complete" | "skip" }

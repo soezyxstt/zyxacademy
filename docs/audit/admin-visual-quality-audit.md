@@ -2,39 +2,16 @@
 
 Tanggal: 2026-08-24. Sifat: read-only. Tidak ada mutasi kode atau data dalam audit ini.
 
-## Ringkasan Eksekutif
-
-| Kriteria | Status | Catatan |
-|---|---|---|
-| Overflow horizontal 380px | Lolos | 0 dari 150 muatan halaman mengalami horizontal overflow |
-| PageHeader dan judul 24px | Lolos dengan catatan | H1 hilang pada state loading/error 2 halaman detail |
-| Tipografi kontrol state-invariant | Lolos | Tidak ada `text-sm`/`text-xs` mentah di `app/(admin)` |
-| Token warna semantik | Pelanggaran minor | 4 berkas memakai palet Tailwind mentah |
-| `rounded-full` | Lolos | Semua pemakaian adalah lingkaran sejati (avatar, dot status) |
-| Gradien | Pelanggaran minor | 1 aksen gradien di `quizzes-client.tsx` |
-| Em dash dan en dash di copy UI | Lolos | Bebas dari em dash dan en dash |
-| Mode gelap | Lolos | Token semantik terpakai konsisten pada sampel yang ditinjau |
-| Dialog global dan permission modal | Pelanggaran berat | Dialog push notifikasi murid memblokir seluruh halaman admin |
-| Penanganan tanggal | Pelanggaran berat | Bug tahun 58604 pada kartu kuis akibat manipulasi tanggal manual |
-| Media dan penyimpanan | Defect sedang | Gambar bukti transfer PKA 500 dan thumbnail blog tanpa fallback |
-| Penanganan error UI | Defect sedang | String JSON mentah dan kode enum internal diekspos ke antarmuka |
-| Standarisasi empty state | Defect minor | Teks polos melayang tanpa `AdminEmptyState` di halaman job dan analitik |
-| Kerapian header tabel | Pelanggaran minor | Huruf kapital penuh (ALL-CAPS) pada tabel token dan kelompok |
-
-Total cakupan runtime: 52 rute unik x 3 varian (desktop 1440px terang, desktop 1440px gelap, mobile 380px terang) = 153 screenshot tersimpan di `artifacts/manual/2026-08-24/admin-visual-audit/`.
-
 ## Metode
 
 1. Audit statis atas 97 berkas `.ts`/`.tsx` di bawah `app/(admin)` terhadap regulasi UI di `AGENTS.md`.
 2. Crawl berbasis Puppeteer terhadap build produksi lokal yang terhubung ke database staging melalui `.env.staging` (SELECT sesi aktif, cookie ditandatangani HMAC lokal, tanpa mutasi database).
-3. Pemeriksaan visual mendalam berkas per berkas atas 153 screenshot di direktori `artifacts/manual/2026-08-24/admin-visual-audit/`.
-4. Evaluasi terhadap konsistensi komponen, hierarki informasi, handling error, fallback media, dan kelayakan responsif.
+3. Evaluasi terhadap konsistensi komponen, hierarki informasi, handling error, fallback media, dan kelayakan responsif.
 
 ## Batasan
 
 - `assessment_sources` kosong di staging sehingga `/admin/assessments/[id]` tidak memiliki data untuk diaudit runtime.
 - Error konsol 404 pada `/_vercel/insights` dan CORS pada `get-session` saat build lokal adalah artefak lingkungan, bukan defect produk.
-- Screenshot berisi data staging asli dan berada di folder yang diabaikan git (`artifacts/`).
 
 ## Temuan Audit Mendalam
 
@@ -109,66 +86,3 @@ Terdapat 30+ penggunaan `text-[10px]` di 14 berkas admin.
 2. **Prioritas 2 (Fungsional & Error)**: F3 (Fallback gambar rusak), F4 (Sanitasi dan pemformatan pesan error), F5 (Perbaiki scroll/viewport form kuis), F6 (Pastikan H1 di semua state).
 3. **Prioritas 3 (Konsistensi Desain & Konten)**: F7 (Terapkan `AdminEmptyState`), F8 (Normalisasi header tabel ke sentence-case), F10 (Perbaiki pemotongan label sidebar), F11 & F14 (Token warna semantik dan token micro UI `text-body-2xs`).
 4. **Prioritas 4 (Optimasi Tampilan)**: F9 (Paginasi bank soal), F12 (Perbaiki glyph notifikasi), F13 (Styling input berkas).
-
-## Cakupan per Rute
-
-Semua varian: T = desktop terang, G = desktop gelap, M = mobile 380px. Overflow: tidak ada di semua sel. H1: ada kecuali yang diberi catatan.
-
-| Rute | T | G | M | Catatan |
-|---|---|---|---|---|
-| /admin | ya | ya | ya | F1 |
-| /admin/blog | ya | ya | ya | |
-| /admin/blog/new | ya | ya | ya | |
-| /admin/blog/[id]/edit | ya | ya | ya | F3 |
-| /admin/courses | ya | ya | ya | F1 |
-| /admin/courses/[id] | ya | ya | ya | |
-| /admin/courses/[id]/quizzes/new | ya | ya | ya | F5 |
-| /admin/courses/[id]/quizzes/[id]/edit | ya | ya | ya | F5 |
-| /admin/schedules | ya | ya | ya | F5 |
-| /admin/groups | ya | ya | ya | F8 |
-| /admin/materials | ya | ya | ya | |
-| /admin/materials/manual | ya | ya | ya | |
-| /admin/materials/review | ya | ya | ya | |
-| /admin/materials/review/idea/[id] | ya | ya | ya | |
-| /admin/materials/review/product/[id] | ya | ya | ya | F4 |
-| /admin/authoring-context | ya | ya | ya | F13 |
-| /admin/tutorial-pka | ya | ya | ya | |
-| /admin/tutorial-pka/schedules | ya | ya | ya | |
-| /admin/tutorial-pka/registrations | ya | ya | ya | F1, F3 |
-| /admin/tutorial-pka/announcements | ya | ya | ya | |
-| /admin/bundles/idea | ya | ya | ya | |
-| /admin/bundles/product | ya | ya | ya | |
-| /admin/tokens | ya | ya | ya | F8 |
-| /admin/notifications | ya | ya | ya | F12 |
-| /admin/diktats | ya | ya | ya | |
-| /admin/assessments | ya | ya | ya | |
-| /admin/assessments/[id] | tidak diaudit | | | Tabel sumber kosong di staging |
-| /admin/ast-inspector | ya | ya | ya | F11 |
-| /admin/media | ya | ya | ya | F4 |
-| /admin/questions | ya | ya | ya | F9 |
-| /admin/quizzes | ya | ya | ya | F2, F11 |
-| /admin/quizzes/new | ya | ya | ya | F5, F11 |
-| /admin/quizzes/[id]/edit | ya | ya | ya | F5, F11 |
-| /admin/quiz-insights | ya | ya | ya | |
-| /admin/quiz-insights/[id] | ya | ya | ya | F6 |
-| /admin/jobs | ya | ya | ya | F7 |
-| /admin/distractors | ya | ya | ya | |
-| /admin/leaderboard | ya | ya | ya | F7 |
-| /admin/forms | ya | ya | ya | |
-| /admin/forms/[id] | ya | ya | ya | F6 |
-| /admin/meet | ya | ya | ya | |
-| /admin/meet/[id] | ya | ya | ya | F4 |
-| /admin/tautan | ya | ya | ya | |
-| /admin/ops | ya | ya | ya | |
-| /admin/ops/analytics | ya | ya | ya | F7 |
-| /admin/ops/web-analytics | ya | ya | ya | |
-| /admin/ops/feature-usage | ya | ya | ya | |
-| /admin/ops/tutor-activity | ya | ya | ya | |
-| /admin/ops/keys | ya | ya | ya | |
-| /admin/ops/flags | ya | ya | ya | |
-| /admin/ops/short-links | ya | ya | ya | |
-
-## Lampiran: Artefak dan Reproduksi
-
-- Screenshot: `artifacts/manual/2026-08-24/admin-visual-audit/{route-slug}/{desktop-light,desktop-dark,mobile-light}.png` (diabaikan git).
-- Reproduksi: build produksi lokal dengan env staging (`next build` lalu `next start` dengan `DATABASE/TURSO_*` dari `.env.staging`), kemudian crawl dengan cookie sesi yang ditandatangani lokal mengikuti pola `scripts/staging/smoke-auth.ts`.

@@ -265,5 +265,28 @@
   },
   "generalMenu": {
     "instruction": "Open the General tab."
+  },
+  "notifications": {
+    "title": "Set up notifications",
+    "description": "Get notifications about schedules and activity in Zyx.",
+    "instruction": "Set your notification preference, then finish the tour.",
+    "statusLabel": "Notification status",
+    "requesting": "Waiting for notification permission…",
+    "registering": "Setting up notifications for this device…",
+    "checking": "Checking notifications…",
+    "ready": "Notifications are on for this device.",
+    "deniedBrowser": "Your browser has blocked notifications. Allow them in the site settings, then check again.",
+    "deniedDevice": "Your device has blocked notifications. Allow notifications for Zyx in your device settings, then check again.",
+    "unsupported": "Notifications are unavailable in this browser or on this device. You can still finish the tour.",
+    "registrationFailed": "Permission is granted, but Zyx could not set up notifications. Try again.",
+    "transportInactive": "Permission is granted, but the notification service is not active yet. Check again or finish the tour.",
+    "requestFailed": "The permission request did not succeed. Try again.",
+    "enable": "Enable notifications",
+    "enableAgain": "Request permission again",
+    "retryRegistration": "Try enabling again",
+    "recheck": "Check again",
+    "done": "Done",
+    "permissionRequiredBrowser": "Select Enable notifications, then allow them when your browser asks.",
+    "permissionRequiredDevice": "Select Enable notifications, then allow them on your device."
   }
 }

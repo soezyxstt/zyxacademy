@@ -19,9 +19,12 @@ export interface TourSpotlightProps {
   loadingLabel: string;
   unavailableLabel: string;
   retryLabel: string;
-  onTargetActivate: (event: MouseEvent) => void;
+  /** Returning false leaves a stateful control available for its next action. */
+  onTargetActivate: (event: MouseEvent) => void | false;
   onSkip: () => void;
   onRetry: () => void;
+  onSkipStep?: () => void;
+  skipStepLabel?: string;
   unavailable?: boolean;
   busy?: boolean;
 }
@@ -148,6 +151,8 @@ export function TourSpotlight({
   onTargetActivate,
   onSkip,
   onRetry,
+  onSkipStep,
+  skipStepLabel,
   unavailable = false,
   busy = false,
 }: TourSpotlightProps) {
@@ -291,7 +296,7 @@ export function TourSpotlight({
       activationRef.current = true;
       // A route step may persist its state before navigating. Native controls
       // retain their own action unless the owner explicitly cancels this event.
-      onTargetActivate(event);
+      if (onTargetActivate(event) === false) activationRef.current = false;
     };
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -415,6 +420,7 @@ export function TourSpotlight({
           <p id={descriptionId} className="text-body-sm leading-relaxed text-muted-foreground">{description}</p>
         </motion.div>
         <div className="border-t border-border px-4 py-3">
+          {onSkipStep && <Button type="button" variant="outline" className="mb-3 w-full" disabled={busy} onClick={onSkipStep}>{skipStepLabel}</Button>}
           <p id={instructionId} className="flex items-start gap-2 text-body-xs font-medium leading-relaxed">
             {waiting && !unavailable ? <LoaderCircle className="mt-0.5 size-3.5 shrink-0 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <MousePointer2 className="mt-0.5 size-3.5 shrink-0 text-zx-accent" aria-hidden="true" />}
             <span>{unavailable ? unavailableLabel : waiting ? loadingLabel : instruction}</span>

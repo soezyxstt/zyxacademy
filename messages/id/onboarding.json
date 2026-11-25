@@ -265,5 +265,28 @@
   },
   "generalMenu": {
     "instruction": "Buka tab Umum."
+  },
+  "notifications": {
+    "title": "Atur notifikasi",
+    "description": "Terima kabar jadwal dan aktivitas di Zyx lewat notifikasi.",
+    "instruction": "Atur izin notifikasi, lalu selesaikan tur.",
+    "statusLabel": "Status notifikasi",
+    "requesting": "Menunggu izin notifikasi…",
+    "registering": "Menyiapkan notifikasi untuk perangkat ini…",
+    "checking": "Memeriksa notifikasi…",
+    "ready": "Notifikasi aktif di perangkat ini.",
+    "deniedBrowser": "Browser memblokir notifikasi. Izinkan di pengaturan situs, lalu periksa lagi.",
+    "deniedDevice": "Perangkat memblokir notifikasi. Izinkan notifikasi untuk Zyx di pengaturan perangkat, lalu periksa lagi.",
+    "unsupported": "Notifikasi tidak tersedia di browser atau perangkat ini. Kamu tetap bisa menyelesaikan tur.",
+    "registrationFailed": "Izin sudah diberikan, tetapi Zyx belum bisa menyiapkan notifikasi. Coba lagi.",
+    "transportInactive": "Izin sudah diberikan, tetapi layanan notifikasi belum aktif. Periksa lagi atau selesaikan tur.",
+    "requestFailed": "Permintaan izin belum berhasil. Coba lagi.",
+    "enable": "Aktifkan notifikasi",
+    "enableAgain": "Coba beri izin lagi",
+    "retryRegistration": "Coba aktifkan lagi",
+    "recheck": "Periksa lagi",
+    "done": "Selesai",
+    "permissionRequiredBrowser": "Pilih Aktifkan notifikasi, lalu izinkan saat browser meminta.",
+    "permissionRequiredDevice": "Pilih Aktifkan notifikasi, lalu izinkan di perangkatmu."
   }
 }
