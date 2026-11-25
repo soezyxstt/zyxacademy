@@ -4,6 +4,11 @@ import {
   DASHBOARD_ENTRY_COOKIE_NAME,
   type RoleDashboardPath,
 } from "@/lib/auth/dashboard-entry";
+import {
+  NATIVE_LAST_ROUTE_COOKIE_NAME,
+  NATIVE_LAST_ROUTE_MAX_AGE_MS,
+  serializeNativeLastRoute,
+} from "@/lib/native/route-persistence";
 
 let mockSession: { user?: { id: string } } | null = null;
 let mockSessionError: Error | null = null;
@@ -96,5 +101,87 @@ describe("GET /api/entry-redirect", () => {
     expect((await GET(request())).headers.get("location")).toBe(`${mockBaseUrl}/en`);
     mockSessionError = new Error("DB_UNAVAILABLE");
     expect((await GET(request())).headers.get("location")).toBe(`${mockBaseUrl}/en`);
+  });
+
+  test("redirects unauthenticated native=1 requests to /sign-in without setting stale cooldown", async () => {
+    mockSession = null;
+    const response = await GET(
+      new NextRequest("https://www.zyxacademy.com/api/entry-redirect?native=1"),
+    );
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://www.zyxacademy.com/sign-in");
+    expect(response.cookies.get(DASHBOARD_ENTRY_COOKIE_NAME)).toBeUndefined();
+  });
+
+  test("restores the user's last active in-app route for native=1 requests", async () => {
+    mockSession = { user: { id: "student-1" } };
+    mockDestination = "/dashboard";
+    const saved = serializeNativeLastRoute({
+      userId: "student-1",
+      path: "/courses/calc-1/quiz/q-1?attemptId=att-42",
+    });
+
+    const response = await GET(
+      new NextRequest("https://www.zyxacademy.com/api/entry-redirect?native=1", {
+        headers: {
+          cookie: `${NATIVE_LAST_ROUTE_COOKIE_NAME}=${saved}`,
+        },
+      }),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://www.zyxacademy.com/courses/calc-1/quiz/q-1?attemptId=att-42",
+    );
+  });
+
+  test("ignores last route cookie for another user, expired timestamps, disallowed roles, or non-native web visits", async () => {
+    mockSession = { user: { id: "student-1" } };
+    mockDestination = "/dashboard";
+
+    const otherUserCookie = serializeNativeLastRoute({
+      userId: "student-2",
+      path: "/courses/calc-1/quiz/q-1?attemptId=att-42",
+    });
+    const otherUserRes = await GET(
+      new NextRequest("https://www.zyxacademy.com/api/entry-redirect?native=1", {
+        headers: { cookie: `${NATIVE_LAST_ROUTE_COOKIE_NAME}=${otherUserCookie}` },
+      }),
+    );
+    expect(otherUserRes.headers.get("location")).toBe("https://www.zyxacademy.com/dashboard");
+
+    const expiredCookie = serializeNativeLastRoute({
+      userId: "student-1",
+      path: "/courses/calc-1/quiz/q-1",
+      updatedAt: Date.now() - NATIVE_LAST_ROUTE_MAX_AGE_MS - 5_000,
+    });
+    const expiredRes = await GET(
+      new NextRequest("https://www.zyxacademy.com/api/entry-redirect?native=1", {
+        headers: { cookie: `${NATIVE_LAST_ROUTE_COOKIE_NAME}=${expiredCookie}` },
+      }),
+    );
+    expect(expiredRes.headers.get("location")).toBe("https://www.zyxacademy.com/dashboard");
+
+    const adminCookie = serializeNativeLastRoute({
+      userId: "student-1",
+      path: "/admin/quizzes",
+    });
+    const adminRes = await GET(
+      new NextRequest("https://www.zyxacademy.com/api/entry-redirect?native=1", {
+        headers: { cookie: `${NATIVE_LAST_ROUTE_COOKIE_NAME}=${adminCookie}` },
+      }),
+    );
+    expect(adminRes.headers.get("location")).toBe("https://www.zyxacademy.com/dashboard");
+
+    const validCookie = serializeNativeLastRoute({
+      userId: "student-1",
+      path: "/courses/calc-1/quiz/q-1",
+    });
+    const webRes = await GET(
+      new NextRequest("https://www.zyxacademy.com/api/entry-redirect?returnTo=%2F", {
+        headers: { cookie: `${NATIVE_LAST_ROUTE_COOKIE_NAME}=${validCookie}` },
+      }),
+    );
+    expect(webRes.headers.get("location")).toBe("https://www.zyxacademy.com/dashboard");
   });
 });

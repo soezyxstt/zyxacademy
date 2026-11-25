@@ -69,7 +69,7 @@ export default async function DistractorAnalyticsPage() {
       {ordered.length === 0 ? (
         <AdminEmptyState icon={Target} title={<TranslatedText namespace="adminEval" messageKey="distractors.emptyTitle" />} description={<TranslatedText namespace="adminEval" messageKey="distractors.emptyDescription" />} />
       ) : (
-        <div className="space-y-5">
+        <div className="divide-y divide-border/60 border-y border-border/60">
           {ordered.map(({ id, agg }) => {
             const q = questionMap.get(id)!;
             const options = (q.options as string[]) ?? [];
@@ -77,14 +77,14 @@ export default async function DistractorAnalyticsPage() {
             const dmap = (q.distractorMap as DistractorEntry[] | null) ?? [];
             const labelByIndex = new Map(dmap.map((d) => [d.optionIndex, d]));
             return (
-              <div key={id} className="space-y-3 border-b border-border pb-4">
+              <section key={id} className="space-y-(--compact-gap) py-(--related-gap)">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <MathText className="text-body-base font-semibold text-foreground block" as="div">{q.prompt}</MathText>
+                  <MathText className="block min-w-0 wrap-break-word text-body-base font-semibold text-foreground" as="div">{q.prompt}</MathText>
                   <span className="shrink-0 text-body-sm text-muted-foreground">
                     {agg.total} <TranslatedText namespace="adminEval" messageKey="distractors.answers" />
                   </span>
                 </div>
-                <p className="text-body-sm text-muted-foreground">{courseMap[q.courseId] ?? q.courseId}</p>
+                <p className="text-body-xs text-muted-foreground">{courseMap[q.courseId] ?? q.courseId}</p>
                 <div className="space-y-2">
                   {options.map((opt, idx) => {
                     const count = agg.counts.get(idx) ?? 0;
@@ -112,7 +112,7 @@ export default async function DistractorAnalyticsPage() {
                     );
                   })}
                 </div>
-              </div>
+              </section>
             );
           })}
         </div>

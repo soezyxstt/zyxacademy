@@ -4,7 +4,6 @@ import * as schema from "@/db/schema";
 import { createDiscussionTestDb } from "./local-postgres";
 
 const { client, testDb: db } = await createDiscussionTestDb();
-const oldPka = process.env.FEATURE_PKA;
 mock.module("server-only", () => ({}));
 mock.module("@/db", () => ({ db }));
 mock.module("@/lib/db", () => ({ db }));
@@ -15,8 +14,6 @@ mock.module("@/lib/discussions/rewards", () => ({ enqueueDiscussionReward: async
 const { searchChannelMentions } = await import("@/lib/discussions/service");
 
 afterAll(async () => {
- if (oldPka === undefined) delete process.env.FEATURE_PKA;
- else process.env.FEATURE_PKA = oldPka;
  await client.close();
 });
 
@@ -113,8 +110,7 @@ describe("mention search", () => {
   expect(await searchChannelMentions("solo", "global", "Solo")).toEqual([{ id: "solo", name: "Solo Person", role: "student" }]);
  });
 
- test("PKA registration only applies to canonical students, with live staff assignments and feature gate", async () => {
-  process.env.FEATURE_PKA = "1";
+ test("PKA registration applies to canonical students and staff access follows current assignments", async () => {
   const result = await searchChannelMentions("staff-admin", "pka", "PKA");
   expect(Object.fromEntries(result.map(person => [person.id, person.role]))).toEqual({
    assigned: "tutor", "staff-admin": "admin", "mixed-admin": "admin", "mixed-assigned": "tutor", registered: "student",
@@ -124,7 +120,5 @@ describe("mention search", () => {
   try {
    expect((await searchChannelMentions("staff-admin", "pka", "PKA")).some(person => person.id === "assigned")).toBe(false);
   } finally { await db.update(schema.penugasanTutor).set({ status: "active" }).where(eq(schema.penugasanTutor.id, "assigned-pka")); }
-  process.env.FEATURE_PKA = "0";
-  await expect(searchChannelMentions("staff-admin", "pka", "PKA")).rejects.toThrow("DISCUSSION_UNAVAILABLE");
  }, 120_000);
 });

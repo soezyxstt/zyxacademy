@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { and, count, eq, desc, inArray } from "drizzle-orm";
-import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { hasAnyPeran } from "@/lib/auth/request-cache";
-import { Calendar, Clock, Bot, BookOpen, FileText, CreditCard, Target } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { MarketingPageHero } from "@/components/marketing-page-hero";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { createLocalizedMetadata } from "@/lib/site-metadata";
 import { getTranslations } from "@/lib/i18n/server";
 import { LocalizedPublicLink } from "@/components/localized-public-link";
+import { BlogThumbnail } from "@/components/blog/blog-thumbnail";
 import { storage } from "@/lib/storage";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -31,38 +32,10 @@ const CATEGORIES = [
   { id: "kegiatan_zyx", key: "zyxActivities", value: "kegiatan_zyx" },
 ] as const;
 
-const APP_FEATURES = [
-  {
-    titleKey: "zyraTitle",
-    descKey: "zyraDescription",
-    icon: Bot,
-    bg: "bg-primary/10 text-primary border-primary/20",
-  },
-  {
-    titleKey: "handoutsTitle",
-    descKey: "handoutsDescription",
-    icon: BookOpen,
-    bg: "bg-[var(--zx-accent)]/10 text-[var(--zx-accent)] border-[var(--zx-accent)]/20",
-  },
-  {
-    titleKey: "examsTitle",
-    descKey: "examsDescription",
-    icon: FileText,
-    bg: "bg-status-error/10 text-status-error border-status-error/20",
-  },
-  {
-    titleKey: "flashcardsTitle",
-    descKey: "flashcardsDescription",
-    icon: CreditCard,
-    bg: "bg-status-success/10 text-status-success border-status-success/20",
-  },
-  {
-    titleKey: "studyPathTitle",
-    descKey: "studyPathDescription",
-    icon: Target,
-    bg: "bg-tertiary-1/10 text-tertiary-1 border-tertiary-1/20",
-  },
-];
+type ArticlePreview = Pick<
+  typeof blogArticles.$inferSelect,
+  "id" | "slug" | "title" | "summary" | "status" | "category" | "thumbnailUrl" | "publishedAt" | "readMinutes"
+>;
 
 interface BlogPageProps {
   searchParams: Promise<{ category?: string; page?: string }>;
@@ -104,40 +77,45 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
     activeCategory ? [] : Promise.all(CATEGORIES.filter(category => category.value !== null).map(category => cards(category.value, 6))),
   ]);
   const total = countRows[0]?.total ?? 0;
+  const [leadArticle, ...recentArticles] = articles;
+  const featuredIds = new Set(articles.map((article) => article.id));
   const categoryPreviews = previews.flat();
-  const featuredArticles = articles;
-  const featuredIds = new Set(featuredArticles.map((article) => article.id));
+  const categorySections = CATEGORIES.flatMap((category) => {
+    const entries = categoryPreviews
+      .filter((article) => article.category === category.value && !featuredIds.has(article.id))
+      .slice(0, 3);
+    return entries.length ? [{ category, entries }] : [];
+  });
   const activeCategoryData = CATEGORIES.find((category) => category.value === activeCategory);
   const activeCategoryName = activeCategoryData ? t(`blog.categories.${activeCategoryData.key}`) : null;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
+    <div className="relative overflow-hidden bg-background">
       <PageOrnaments variant="about" />
 
-      <main className="relative z-10">
-        <Reveal>
-          <MarketingPageHero
-            sectionId="blog"
-            title={t("blog.heroTitle")}
-            description={t("blog.heroDescription")}
-          />
-        </Reveal>
+      <div className="relative z-10">
+        <MarketingPageHero
+          sectionId="blog"
+          title={t("blog.heroTitle")}
+          description={t("blog.heroDescription")}
+          className="py-8 text-left md:py-12 [&_h1]:mx-0 [&_p]:mx-0"
+        />
 
-        <div className="mx-auto max-w-7xl space-y-(--reading-section-gap) px-(--page-gutter) py-10 lg:py-14">
-          <nav aria-label={t("blog.categoryNav")} className="flex flex-wrap gap-2">
+        <div className="marketing-container space-y-8 pb-10 lg:space-y-12 lg:pb-14">
+          <nav aria-label={t("blog.categoryNav")} className="flex flex-wrap gap-x-5 gap-y-1 border-b border-border py-2">
             {CATEGORIES.map((category) => {
               const href = category.value ? `/blog?category=${category.value}` : "/blog";
-              const isActive = category.value === activeCategory || (category.value === null && activeCategory === null);
+              const isActive = category.value === activeCategory;
               return (
                 <LocalizedPublicLink
                   key={category.id}
                   href={href}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "rounded-md border px-3 py-1.5 text-body-sm font-semibold transition-colors",
+                    "flex min-h-10 items-center border-b-2 text-body-sm font-semibold transition-colors hover:text-primary",
                     isActive
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                      ? "border-primary text-primary"
+                      : "border-transparent text-foreground",
                   )}
                 >
                   {t(`blog.categories.${category.key}`)}
@@ -147,14 +125,10 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
           </nav>
 
           {activeCategory ? (
-            <section aria-labelledby="blog-category-heading" className="@container/blog space-y-6">
-              <div className="space-y-2">
-                <SectionHeading as="h2" id="blog-category-heading" tier="secondary" className="text-foreground">
-                  {activeCategoryName}
-                </SectionHeading>
-                <p className="text-body-base text-muted-foreground">
-                  {t("blog.categoryCount", { count: total })}
-                </p>
+            <section aria-labelledby="blog-category-heading" className="max-w-4xl space-y-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <SectionHeading id="blog-category-heading" tier="secondary">{activeCategoryName}</SectionHeading>
+                {total > 0 && <span className="text-body-xs text-muted-foreground">{t("blog.available", { count: total })}</span>}
               </div>
 
               {articles.length > 0 ? (
@@ -164,7 +138,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                   ))}
                 </div>
               ) : (
-                <BlogEmptyState title={t("blog.emptyTitle")} description={t("blog.emptyCategory")} />
+                <BlogEmptyState title={t("blog.emptyTitle")} />
               )}
               {(page > 1 || page * pageSize < total) && (
                 <nav className="flex gap-4 text-body-sm text-primary" aria-label={t("blog.pagination")}>
@@ -175,160 +149,124 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
             </section>
           ) : (
             <>
-              <section aria-labelledby="blog-latest-heading" className="@container/blog space-y-6">
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                  <SectionHeading as="h2" id="blog-latest-heading" tier="secondary" className="text-foreground">
-                    {t("blog.latest")}
-                  </SectionHeading>
-                  {total > 0 ? (
-                    <span className="text-body-xs text-muted-foreground">{t("blog.available", { count: total })}</span>
-                  ) : null}
-                </div>
+              <section aria-labelledby="blog-latest-heading" className="space-y-4">
+                <SectionHeading id="blog-latest-heading" tier="secondary">{t("blog.latest")}</SectionHeading>
 
-                {featuredArticles.length > 0 ? (
-                  <div className="grid gap-6 @2xl/blog:grid-cols-2 @4xl/blog:grid-cols-3">
-                    {featuredArticles.map((article) => (
-                      <ArticleEntry key={article.id} article={article} t={t} featured />
-                    ))}
+                {leadArticle ? (
+                  <div className="grid items-start gap-4 lg:grid-cols-5 lg:gap-6">
+                    <ArticleEntry article={leadArticle} t={t} featured />
+                    {recentArticles.length > 0 && (
+                      <div className="min-w-0 divide-y divide-border border-y border-border lg:col-span-2">
+                        {recentArticles.map((article) => (
+                          <ArticleEntry key={article.id} article={article} t={t} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <BlogEmptyState title={t("blog.emptyTitle")} description={t("blog.emptyLatest")} />
+                  <BlogEmptyState title={t("blog.emptyTitle")} />
                 )}
               </section>
 
-              {CATEGORIES.filter((category) => category.value !== null).map((category) => {
-                const remainingArticles = categoryPreviews
-                  .filter((article) => article.category === category.value && !featuredIds.has(article.id))
-                  .slice(0, 3);
-                if (remainingArticles.length === 0) return null;
+              {categorySections.length > 0 && (
+                <Reveal>
+                  <div className="space-y-6 gap-8 lg:columns-2">
+                    {categorySections.map(({ category, entries }) => {
+                      const headingId = `blog-${category.id}-heading`;
+                      const linkId = `blog-${category.id}-link`;
+                      return (
+                        <section key={category.id} aria-labelledby={headingId} className="min-w-0" style={{ breakInside: "avoid-column" }}>
+                          <div className="flex flex-wrap items-center justify-between gap-x-4 border-b border-border">
+                            <h2 id={headingId} className="font-heading text-body-base font-bold">
+                              {t(`blog.categories.${category.key}`)}
+                            </h2>
+                            <LocalizedPublicLink
+                              id={linkId}
+                              aria-labelledby={`${linkId} ${headingId}`}
+                              href={`/blog?category=${category.value}`}
+                              className="inline-flex min-h-10 items-center text-body-sm font-semibold text-primary hover:underline"
+                            >
+                              {t("blog.viewAll")}
+                            </LocalizedPublicLink>
+                          </div>
+                          <div className="divide-y divide-border border-b border-border">
+                            {entries.map((article) => <ArticleEntry key={article.id} article={article} t={t} />)}
+                          </div>
+                        </section>
+                      );
+                    })}
+                  </div>
+                </Reveal>
+              )}
 
-                return (
-                  <section key={category.id} aria-labelledby={`blog-${category.id}-heading`} className="@container/blog space-y-6">
-                    <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-3">
-                      <SectionHeading as="h3" id={`blog-${category.id}-heading`} tier="secondary" className="text-foreground">
-                        {t(`blog.categories.${category.key}`)}
-                      </SectionHeading>
-                      <LocalizedPublicLink
-                        href={`/blog?category=${category.value}`}
-                        className="inline-flex items-center text-body-sm font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
-                      >
-                        {t("blog.viewAll")}
-                      </LocalizedPublicLink>
-                    </div>
-                    <div className="divide-y divide-border border-b border-border">
-                      {remainingArticles.map((article) => (
-                        <ArticleEntry key={article.id} article={article} t={t} />
-                      ))}
-                    </div>
-                  </section>
-                );
-              })}
-
-              <section aria-labelledby="blog-features-heading" className="space-y-(--section-gap) border-t border-border pt-8">
-                <div className="max-w-2xl space-y-2">
-                    <SectionHeading as="h2" id="blog-features-heading" tier="secondary" className="text-foreground">
-                    {t("blog.featuresTitle")}
-                  </SectionHeading>
-                  <p className="text-body-base text-muted-foreground">
-                    {t("blog.featuresDescription")}
-                  </p>
-                </div>
-                <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-5">
-                  {APP_FEATURES.map((feature) => {
-                    const Icon = feature.icon;
-                    return (
-                      <div key={feature.titleKey} className="flex flex-col gap-3 border-t border-border py-4">
-                        <div className={cn("w-fit rounded-lg border p-2.5", feature.bg)}>
-                          <Icon className="size-5" aria-hidden="true" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <h3 className="font-heading text-body-base font-semibold text-foreground">{t(`blog.${feature.titleKey}`)}</h3>
-                          <p className="text-body-sm leading-relaxed text-muted-foreground">{t(`blog.${feature.descKey}`)}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <LocalizedPublicLink
-                  href="/courses"
-                  className="inline-flex items-center rounded-md border border-primary px-4 py-2 text-body-sm font-semibold text-primary transition-colors hover:bg-primary/10"
-                >
-                  {t("blog.courses")}
-                </LocalizedPublicLink>
-              </section>
+              <Reveal>
+                <section aria-labelledby="blog-courses-heading" className="flex flex-wrap items-center justify-between gap-3 border-y border-border bg-card px-4 py-4 sm:px-6">
+                  <h2 id="blog-courses-heading" className="font-heading text-body-base font-bold">{t("blog.coursesTitle")}</h2>
+                  <Button asChild size="marketing" variant="outline">
+                    <LocalizedPublicLink href="/courses">
+                      {t("blog.courses")}
+                      <ArrowRight aria-hidden="true" />
+                    </LocalizedPublicLink>
+                  </Button>
+                </section>
+              </Reveal>
             </>
           )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }
 
-function BlogEmptyState({ title, description }: { title: string; description: string }) {
+function BlogEmptyState({ title }: { title: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 border-y border-border px-6 py-10 text-center">
-      <FileText className="size-8 text-muted-foreground" aria-hidden="true" />
-      <h3 className="font-heading text-h5 font-semibold text-foreground">{title}</h3>
-      <p className="max-w-md text-body-base text-muted-foreground">{description}</p>
-    </div>
+    <h3 className="border-y border-border py-6 font-heading text-body-base font-semibold">{title}</h3>
   );
 }
 
-function ArticleEntry({ article, t, featured = false }: { article: any; t: Awaited<ReturnType<typeof getTranslations>>; featured?: boolean }) {
-  const isDraft = article.status === "draft";
+function ArticleEntry({ article, t, featured = false }: {
+  article: ArticlePreview;
+  t: Awaited<ReturnType<typeof getTranslations>>;
+  featured?: boolean;
+}) {
+  const { publishedAt, thumbnailUrl } = article;
   return (
     <LocalizedPublicLink
       href={`/blog/${article.slug}`}
       className={cn(
-        "group relative min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        "group flex min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         featured
-          ? "flex h-full flex-col gap-3 border-t border-border pt-3"
-          : "grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-3 py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-5",
+          ? "flex-col rounded-xl border border-border-strong bg-card lg:col-span-3"
+          : "items-start gap-3 py-4 sm:gap-4",
       )}
     >
-      {isDraft && (
-        <Badge className={cn("absolute left-1 z-20 rounded-md bg-status-warning text-status-warning-foreground hover:bg-status-warning/90", featured ? "top-1" : "top-5")}>
-          {t("blog.draft")}
-        </Badge>
+      {thumbnailUrl && (
+        <BlogThumbnail
+          src={thumbnailUrl.startsWith("http") ? storage.getUrl(thumbnailUrl) : thumbnailUrl}
+          sizes={featured ? "(max-width: 1023px) 100vw, 768px" : "(max-width: 639px) 80px, 112px"}
+          className={featured ? "photo-card aspect-video w-full rounded-b-none rounded-t-xl" : "photo-card order-last w-20 shrink-0 rounded-md sm:w-28"}
+        />
       )}
-      <div className={cn("relative aspect-[4/3] w-full overflow-hidden bg-muted", featured ? "rounded-lg" : "rounded-md")}>
-        {article.thumbnailUrl ? (
-          <Image
-            src={article.thumbnailUrl.startsWith("http") ? storage.getUrl(article.thumbnailUrl) : article.thumbnailUrl}
-            alt={article.title}
-            fill
-            sizes={featured ? "(max-width: 768px) 100vw, (max-width: 1280px) 33vw, 400px" : "(max-width: 640px) 80px, 144px"}
-            className="object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-            <FileText className="size-5" aria-hidden="true" />
-          </div>
+      <div className={cn("min-w-0 flex-1 space-y-1.5", featured && "p-4 sm:p-6")}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
+          {article.status === "draft" && (
+            <Badge className="rounded-md bg-status-warning text-status-warning-foreground">{t("blog.draft")}</Badge>
+          )}
+          {publishedAt && (
+            <time dateTime={publishedAt.toISOString()}>
+              {new Intl.DateTimeFormat(t("blog.dateLocale"), { month: "short", day: "numeric", year: "numeric" }).format(publishedAt)}
+            </time>
+          )}
+          <span>{t("blog.minutes", { count: article.readMinutes })}</span>
+        </div>
+        <h3 className={cn("wrap-anywhere font-heading font-bold leading-snug text-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary", featured ? "text-h5" : "text-body-base")}>
+          {article.title}
+        </h3>
+        {article.summary && (
+          <p className={cn("wrap-anywhere text-muted-foreground", featured ? "line-clamp-3 text-body-base" : "line-clamp-2 text-body-sm")}>
+            {article.summary}
+          </p>
         )}
-      </div>
-
-      <div className="flex min-w-0 flex-1 flex-col justify-between">
-        <div className="space-y-2">
-          <h3 className="wrap-anywhere font-heading text-body-base font-bold leading-snug text-foreground transition-colors group-hover:text-primary">
-            {article.title}
-          </h3>
-          <p className="line-clamp-3 text-body-sm text-muted-foreground">{article.summary}</p>
-        </div>
-
-        <div className={cn("mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-body-xs text-muted-foreground", featured && "border-t border-border/50 pt-3")}>
-          {article.publishedAt ? (
-            <span className="flex items-center">
-              <Calendar className="mr-1.5 size-3.5" aria-hidden="true" />
-              {new Intl.DateTimeFormat(t("blog.dateLocale"), { month: "short", day: "numeric", year: "numeric" }).format(
-                new Date(article.publishedAt),
-              )}
-            </span>
-          ) : null}
-          <span className="flex items-center">
-            <Clock className="mr-1.5 size-3.5" aria-hidden="true" />
-            {t("blog.minutes", { count: article.readMinutes })}
-          </span>
-        </div>
       </div>
     </LocalizedPublicLink>
   );

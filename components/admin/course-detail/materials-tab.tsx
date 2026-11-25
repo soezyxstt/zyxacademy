@@ -576,7 +576,7 @@ export function MaterialsTab({
       </div>
 
       {/* Materials List */}
-      {showList && <div className="overflow-x-auto border-y border-border py-3">
+      {showList && <div className="border-y border-border py-3">
         <h3 className="font-heading text-body-sm font-bold text-foreground mb-3 flex items-center gap-2">
           <FileText className="size-4 text-brand-primary" />
           Daftar PDF Terunggah ({materials.length})
@@ -591,19 +591,9 @@ export function MaterialsTab({
             </p>
           </div>
         ) : (
-          <table className="w-full min-w-[760px] text-left text-body-xs">
-            <thead className="bg-muted text-body-xs font-semibold text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2">Judul Dokumen</th>
-                <th className="px-3 py-2">Kategori</th>
-                <th className="px-3 py-2">Sub-kategori</th>
-                <th className="px-3 py-2">Tahun</th>
-                <th className="px-3 py-2">Kaitan Bab</th>
-                <th className="px-3 py-2">Diunggah</th>
-                <th className="px-3 py-2 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
+          <>
+            {/* Mobile stacked rows */}
+            <div className="divide-y divide-border/50 md:hidden">
               {materials.map((m) => {
                 const fileUrl = m.fileUrl.startsWith("http")
                   ? m.fileUrl
@@ -611,75 +601,166 @@ export function MaterialsTab({
 
                 const categoryLabel = LEVEL1_LABELS[m.type] || m.type;
                 const subcategoryLabel = getSubcategoryLabel(m.subcategory);
+                const chapterLabels = getChapterLabels(m.chapterIds);
 
                 return (
-                  <tr key={m.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-3 py-2.5 font-semibold text-foreground max-w-xs">
-                      <span className="truncate block" title={m.title}>
-                        {m.title}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <Badge
-                        variant={m.type === "soal" || m.type === "contoh_soal" ? "secondary" : m.type === "pembahasan_soal" ? "outline" : "default"}
-                        className="rounded-md text-[10px] px-1.5 py-0.5"
-                      >
-                        {categoryLabel}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {subcategoryLabel ? (
-                        <span className="font-medium text-foreground bg-muted/60 px-1.5 py-0.5 rounded-md text-[10px]">
-                          {subcategoryLabel}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap text-body-xs font-mono">
-                      {m.year ? m.year : "-"}
-                    </td>
-                    <td className="px-3 py-2.5 text-muted-foreground max-w-xs truncate" title={getChapterLabels(m.chapterIds)}>
-                      {getChapterLabels(m.chapterIds)}
-                    </td>
-                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap text-body-xs">
-                      <FormattedDate date={m.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
-                    </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                  <div key={m.id} className="space-y-2 py-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="break-words text-body-sm font-semibold text-foreground">
+                          {m.title}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge
+                            variant={m.type === "soal" || m.type === "contoh_soal" ? "secondary" : m.type === "pembahasan_soal" ? "outline" : "default"}
+                            className="rounded-md px-1.5 py-0.5 text-body-2xs"
+                          >
+                            {categoryLabel}
+                          </Badge>
+                          {subcategoryLabel && (
+                            <span className="rounded-md bg-muted/60 px-1.5 py-0.5 text-body-2xs font-medium text-foreground">
+                              {subcategoryLabel}
+                            </span>
+                          )}
+                          {m.year && (
+                            <span className="font-mono text-body-xs text-muted-foreground">
+                              {m.year}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
                         <a
                           href={fileUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-muted/40 hover:bg-muted text-body-sm font-medium text-foreground transition-colors"
+                          className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-muted/40 px-2 text-body-sm font-medium text-foreground transition-colors hover:bg-muted"
                         >
-                          <ExternalLink className="size-3" />
+                          <ExternalLink className="size-3.5" />
                           <span>PDF</span>
                         </a>
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
+                          className="size-8 rounded-md text-destructive hover:bg-destructive/10 hover:text-destructive"
                           onClick={event => {
                             deleteTrigger.current = event.currentTarget;
                             setDeleteTarget(m);
                           }}
                           disabled={deleteLoadingId === m.id}
+                          aria-label="Hapus Dokumen"
                           title="Hapus Dokumen"
                         >
                           {deleteLoadingId === m.id ? (
-                            <Loader2 className="size-3 animate-spin" />
+                            <Loader2 className="size-3.5 animate-spin" />
                           ) : (
-                            <Trash2 className="size-3" />
+                            <Trash2 className="size-3.5" />
                           )}
                         </Button>
                       </div>
-                    </td>
-                  </tr>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 text-body-xs text-muted-foreground">
+                      <span className="min-w-0 truncate">{chapterLabels || "-"}</span>
+                      <span className="shrink-0 tabular-nums">
+                        <FormattedDate date={m.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
+                      </span>
+                    </div>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[760px] text-left text-body-xs">
+                <thead className="bg-muted text-body-xs font-semibold text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2">Judul Dokumen</th>
+                    <th className="px-3 py-2">Kategori</th>
+                    <th className="px-3 py-2">Sub-kategori</th>
+                    <th className="px-3 py-2">Tahun</th>
+                    <th className="px-3 py-2">Kaitan Bab</th>
+                    <th className="px-3 py-2">Diunggah</th>
+                    <th className="px-3 py-2 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {materials.map((m) => {
+                    const fileUrl = m.fileUrl.startsWith("http")
+                      ? m.fileUrl
+                      : `/api/storage/file/${m.fileUrl}`;
+
+                    const categoryLabel = LEVEL1_LABELS[m.type] || m.type;
+                    const subcategoryLabel = getSubcategoryLabel(m.subcategory);
+
+                    return (
+                      <tr key={m.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-3 py-2.5 font-semibold text-foreground max-w-xs">
+                          <span className="truncate block" title={m.title}>
+                            {m.title}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <Badge
+                            variant={m.type === "soal" || m.type === "contoh_soal" ? "secondary" : m.type === "pembahasan_soal" ? "outline" : "default"}
+                            className="rounded-md text-[10px] px-1.5 py-0.5"
+                          >
+                            {categoryLabel}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {subcategoryLabel ? (
+                            <span className="font-medium text-foreground bg-muted/60 px-1.5 py-0.5 rounded-md text-[10px]">
+                              {subcategoryLabel}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap text-body-xs font-mono">
+                          {m.year ? m.year : "-"}
+                        </td>
+                        <td className="px-3 py-2.5 text-muted-foreground max-w-xs truncate" title={getChapterLabels(m.chapterIds)}>
+                          {getChapterLabels(m.chapterIds)}
+                        </td>
+                        <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap text-body-xs">
+                          <FormattedDate date={m.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <a
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-muted/40 hover:bg-muted text-body-sm font-medium text-foreground transition-colors"
+                            >
+                              <ExternalLink className="size-3" />
+                              <span>PDF</span>
+                            </a>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDelete(m.id)}
+                              disabled={deleteLoadingId === m.id}
+                              title="Hapus Dokumen"
+                            >
+                              {deleteLoadingId === m.id ? (
+                                <Loader2 className="size-3 animate-spin" />
+                              ) : (
+                                <Trash2 className="size-3" />
+                              )}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>}
 

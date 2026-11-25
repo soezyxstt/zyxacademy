@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { learningEvents, weeklyReflections, user } from "@/db/schema";
 import { computeWeeklyReflection, getPreviousWeekRange, formatDateStr } from "@/lib/reflection-service";
 import { sendOptionalEmail } from "@/lib/email-preferences/send";
+import { hasRecentNotificationByDedupeKey, sendToUser } from "@/lib/notifications/send";
+import { weeklyProgressPayload } from "@/lib/notifications/templates";
 import { mapConcurrent } from "./vector-sync";
 import { gte, lte, and, eq } from "drizzle-orm";
 import { getUserLocalePreference } from "@/lib/i18n/preferences";
@@ -13,7 +15,7 @@ export const weeklyReflectionCron = defineJob(
   {
     id: "weekly-reflection-cron",
     name: "Weekly Reflection Cron",
-    triggers: [{ cron: "0 6 * * 1" }], // Monday 06:00 UTC
+    triggers: [{ cron: "0 6 * * 1" }], // Monday 06:00 UTC (13:00 WIB)
   },
   async ({ step }) => {
     const now = new Date();
@@ -27,8 +29,8 @@ export const weeklyReflectionCron = defineJob(
         .where(
           and(
             gte(learningEvents.createdAt, monday),
-            lte(learningEvents.createdAt, sunday)
-          )
+            lte(learningEvents.createdAt, sunday),
+          ),
         );
       return rows.map((r) => r.studentId);
     });
@@ -49,20 +51,22 @@ export const weeklyReflectionCron = defineJob(
     });
 
     const isEmailEnabled = process.env.FEATURE_REFLECTION_EMAIL === "1";
-    if (isEmailEnabled && activeStudentIds.length > 0) {
+    if (activeStudentIds.length > 0) {
       const deliveryLocales = await step.run("resolve-reflection-email-locales", async () => {
-        const entries = await Promise.all(activeStudentIds.map(async (studentId) => [
-          studentId,
-          (await getUserLocalePreference(studentId)) ?? DEFAULT_LOCALE,
-        ] as const));
+        const entries = await Promise.all(
+          activeStudentIds.map(async (studentId) => [
+            studentId,
+            (await getUserLocalePreference(studentId)) ?? DEFAULT_LOCALE,
+          ] as const),
+        );
         return Object.fromEntries(entries) as Record<string, Locale>;
       });
-      await step.run("send-reflection-emails-batch", async () => {
+
+      await step.run("send-reflection-notifications-and-emails-batch", async () => {
         const weekStartStr = formatDateStr(monday);
-        // Process in bounded waves to respect email throughput without arbitrary <=90 cutoff
+        const dedupeKey = `weekly_progress:${weekStartStr}`;
         await mapConcurrent(activeStudentIds, 5, async (studentId) => {
           try {
-            // 1. Fetch student details
             const [student] = await db
               .select({ name: user.name })
               .from(user)
@@ -74,15 +78,14 @@ export const weeklyReflectionCron = defineJob(
               return;
             }
 
-            // 2. Fetch weekly reflection row
             const [reflection] = await db
               .select()
               .from(weeklyReflections)
               .where(
                 and(
                   eq(weeklyReflections.studentId, studentId),
-                  eq(weeklyReflections.weekStart, weekStartStr)
-                )
+                  eq(weeklyReflections.weekStart, weekStartStr),
+                ),
               )
               .limit(1);
 
@@ -96,23 +99,46 @@ export const weeklyReflectionCron = defineJob(
             const streak = payload.streak;
             const locale = deliveryLocales[studentId] ?? DEFAULT_LOCALE;
 
-            await sendOptionalEmail({
+            const alreadyNotified = await hasRecentNotificationByDedupeKey({
               userId: studentId,
-              category: "learning_reminders",
-              locale,
-              render: (resolvedLocale) => renderReflectionEmail({
-                locale: resolvedLocale,
-                name: student.name,
-                weekStart: weekStartStr,
-                completed,
-                masteryGrowth: payload.masteryGrowth,
-                mostImproved: payload.mostImproved,
-                currentStreak: streak.currentStreak,
-                longestStreak: streak.longestStreak,
-              }),
+              type: "weekly_progress",
+              dedupeKey,
             });
+            if (!alreadyNotified) {
+              await sendToUser(
+                studentId,
+                weeklyProgressPayload({
+                  quizzes: completed.quizzes,
+                  flashcards: completed.flashcards,
+                  modules: completed.modules,
+                  currentStreak: streak.currentStreak,
+                  weekStart: weekStartStr,
+                  link: "/dashboard",
+                }),
+                locale,
+              );
+            }
+
+            if (isEmailEnabled && !alreadyNotified) {
+              await sendOptionalEmail({
+                userId: studentId,
+                category: "learning_reminders",
+                locale,
+                render: (resolvedLocale) =>
+                  renderReflectionEmail({
+                    locale: resolvedLocale,
+                    name: student.name,
+                    weekStart: weekStartStr,
+                    completed,
+                    masteryGrowth: payload.masteryGrowth,
+                    mostImproved: payload.mostImproved,
+                    currentStreak: streak.currentStreak,
+                    longestStreak: streak.longestStreak,
+                  }),
+              });
+            }
           } catch (err) {
-            console.error(`Failed to send reflection email to student ${studentId}:`, err);
+            console.error(`Failed to deliver weekly reflection to student ${studentId}:`, err);
           }
         });
       });
@@ -123,5 +149,5 @@ export const weeklyReflectionCron = defineJob(
       processed,
       failed,
     };
-  }
+  },
 );

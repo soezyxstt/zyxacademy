@@ -20,6 +20,7 @@ import { acquireConfiguredVerificationBrowser, type VerificationBrowserSession }
 import { assertProductV4RuntimeFingerprint, expectedChromiumRuntime, resolveProductV4LoadedRuntime, type ProductV4RuntimeFingerprint } from "./product-v4-runtime-binding";
 import { interactiveDocumentResponse, verifyAdmittedInteractiveDocumentAsset } from "@/lib/materials/interactive-document-verified";
 import { productV4DocumentPairKey } from "./product-v4-document-wire";
+import { renderProductV4PrintArtifacts } from "./product-v4-print-artifacts";
 
 declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint; chromium: { browserVersion: string; revision: string } } | undefined;
 
@@ -537,17 +538,14 @@ export async function executeBrowserProductV4Check(input: {
       await page.setContent(compileProductDiktatHtml({ article: article?.productType === "article" ? article : undefined, diktat, staticFigureAssets: input.staticFigureAssets }), { waitUntil: "networkidle" });
       const failures = await page.evaluate(inspectDiktatPrintReadiness);
       if (failures.length || errors.length) throw new Error([...failures, ...errors].join(","));
-      const pdf = await page.pdf({ format: "A4", printBackground: true, displayHeaderFooter: true, headerTemplate: "<span></span>", footerTemplate: PRODUCT_DIKTAT_FOOTER_TEMPLATE, preferCSSPageSize: true });
-        const info = await parseStoredPdfPages(new Uint8Array(pdf), [], { representation: "text" });
-        const pageCount = info.totalPages;
-        if (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 4) throw new Error("VERIFICATION_PRINT_PAGE_COUNT_INVALID");
-        result.pageCount = pageCount;
-        if (requirement.artifactType === "application/pdf") result.artifacts = [{ id: "diktat.pdf", mediaType: "application/pdf", bytes: pdf }];
-        else {
-          const pages = await parseStoredPdfPages(new Uint8Array(pdf), Array.from({ length: pageCount }, (_, index) => index + 1), { representation: "image", imageWidth: 1280 });
-          if (pages.pages.length !== pageCount) throw new Error("VERIFICATION_PRINT_CAPTURE_MISSING");
-          result.artifacts = pages.pages.map(page => ({ id: `page-${page.pageNumber}.png`, mediaType: "image/png" as const, pageNumber: page.pageNumber, bytes: page.png }));
-        }
+      const print = await renderProductV4PrintArtifacts({
+        renderPdf: () => page.pdf({ format: "A4", printBackground: true, displayHeaderFooter: true, headerTemplate: "<span></span>", footerTemplate: PRODUCT_DIKTAT_FOOTER_TEMPLATE, preferCSSPageSize: true }),
+        pageCount: async pdf => (await parseStoredPdfPages(pdf, [], { representation: "text" })).totalPages,
+        capturePages: async (pdf, pageNumbers) => (await parseStoredPdfPages(pdf, pageNumbers, { representation: "image", imageWidth: 1280 })).pages,
+      });
+      result.pageCount = print.pageCount;
+      // The coordinator persists these bytes once and reuses the PNG descriptors for the paired check.
+      result.artifacts = requirement.artifactType === "application/pdf" ? print.artifacts : print.artifacts.filter(artifact => artifact.mediaType === "image/png");
     }
     return { ...result, status: "PASS", observed: "The exact bundle state rendered without runtime, math, image, HTTP or overflow errors. Artifacts record machine output; visual review remains separate." };
   } catch (error) {

@@ -12,6 +12,12 @@ import { ArticleParts } from "@/components/course/article-parts";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { PageHeader } from "@/components/page-header";
+import {
+  MobileTopNavActionButton,
+  useHideMobileBottomNav,
+  useMobileTopNav,
+} from "@/components/navigation";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -298,9 +304,9 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
           <div className="mt-3 space-y-3"><Provenance label={t("question")} provenance={item.provenance.problem} /><Provenance label={t("solution")} provenance={item.provenance.solution} /></div>
         </CollapsibleContent>
       </Collapsible>
-      {revealed && onCompleteItem ? <Button type="button" variant="outline" onClick={onCompleteItem} disabled={itemCompleted}>{itemCompleted ? "Selesai dibaca" : "Tandai selesai dibaca"}</Button> : null}
+      {revealed && onCompleteItem ? <Button type="button" variant="outline" className="hidden md:inline-flex" onClick={onCompleteItem} disabled={itemCompleted}>{itemCompleted ? "Selesai dibaca" : "Tandai selesai dibaca"}</Button> : null}
       {renderItemReview?.(item)}
-      <nav aria-label={t("navigation")} className="flex items-center justify-between gap-2 border-t border-border pt-2">
+      <nav aria-label={t("navigation")} className="sticky bottom-0 z-20 -mx-4 flex items-center justify-between gap-2 border-t border-border bg-background/95 px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] backdrop-blur-md md:static md:mx-0 md:bg-transparent md:px-0 md:pb-0 md:pt-2 md:backdrop-blur-none">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -308,6 +314,11 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
             </TooltipTrigger>
             <TooltipContent>{t("previous")}</TooltipContent>
           </Tooltip>
+          {revealed && onCompleteItem ? (
+            <Button type="button" variant="outline" size="sm" className="min-h-10 text-body-sm md:hidden" onClick={onCompleteItem} disabled={itemCompleted}>
+              {itemCompleted ? "Selesai dibaca" : "Tandai selesai dibaca"}
+            </Button>
+          ) : null}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button type="button" variant="outline" size="icon-lg" aria-label={t("next")} onClick={onNext} disabled={index === total - 1}><ChevronRight aria-hidden /></Button>
@@ -323,6 +334,9 @@ function ActiveItem({ item, index, total, onPrevious, onNext, headingRef, initia
 function ReaderContent({ collection, courseHref, backHref, initialRevealed, renderItemReview, embedded = false, itemReviewStatus, completion }: SolutionCollectionReaderProps) {
   const t = useTranslations("learning.solutionCollection");
   const searchParams = useSearchParams();
+  const viewportMode = useViewportMode();
+  const isMobile = viewportMode === "mobile";
+  useHideMobileBottomNav(!embedded);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [completedItems, setCompletedItems] = useState<string[]>([]);
   const [completionState, setCompletionState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -330,6 +344,23 @@ function ReaderContent({ collection, courseHref, backHref, initialRevealed, rend
   const requestedIndex = collection.items.findIndex((item) => item.id === requestedId);
   const activeIndex = requestedIndex < 0 ? 0 : requestedIndex;
   const active = collection.items[activeIndex];
+  const mobileTopNavConfig = useMemo(() => {
+    if (embedded || !isMobile) return null;
+    return {
+      title: collection.title,
+      backHref: backHref ?? courseHref,
+      backLabel: t("back"),
+      rightActions: active ? (
+        <MobileTopNavActionButton
+          label={t("itemList")}
+          onClick={() => setSheetOpen(true)}
+        >
+          <List className="size-4" aria-hidden="true" />
+        </MobileTopNavActionButton>
+      ) : undefined,
+    };
+  }, [active, backHref, collection.title, courseHref, embedded, isMobile, t]);
+  useMobileTopNav(mobileTopNavConfig);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const previousId = useRef(active?.id);
   const selectingFromSheet = useRef(false);
@@ -346,7 +377,7 @@ function ReaderContent({ collection, courseHref, backHref, initialRevealed, rend
     }
     setSheetOpen(false);
   };
-  return <div className={embedded ? "w-full space-y-(--section-gap)" : "mx-auto w-full max-w-7xl space-y-(--section-gap) px-(--page-gutter) py-(--section-gap)"}>
+  return <div className={embedded ? "w-full space-y-(--section-gap)" : "mx-auto w-full max-w-7xl space-y-(--section-gap) px-4 py-(--section-gap) md:px-(--page-gutter)"}>
     {active ? <Button variant="outline" className="sr-only text-body-sm focus:not-sr-only" onClick={() => headingRef.current?.focus()}>{t("skipToQuestion")}</Button> : null}
     {!embedded ? <PageHeader title={collection.title} backHref={backHref ?? courseHref} backLabel={t("back")} /> : null}
     <div className="flex items-center justify-between gap-2 border-b border-border pb-2 text-body-sm text-muted-foreground">
@@ -356,13 +387,13 @@ function ReaderContent({ collection, courseHref, backHref, initialRevealed, rend
           <Tooltip>
             <TooltipTrigger asChild>
               <SheetTrigger asChild>
-                <Button variant="outline" size="icon-lg" className="shrink-0 lg:hidden" aria-label={t("itemList")}><List aria-hidden /></Button>
+                <Button variant="outline" size="icon-lg" className={embedded ? "shrink-0 lg:hidden" : "hidden shrink-0 md:inline-flex lg:hidden"} aria-label={t("itemList")}><List aria-hidden /></Button>
               </SheetTrigger>
             </TooltipTrigger>
             <TooltipContent>{t("itemList")}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        <SheetContent side="left" className="w-[min(85vw,24rem)] gap-0" aria-describedby={undefined} onCloseAutoFocus={(event) => {
+        <SheetContent side={isMobile ? "bottom" : "left"} className={isMobile ? "max-h-[80dvh] rounded-t-2xl gap-0 pb-[env(safe-area-inset-bottom)]" : "w-[min(85vw,24rem)] gap-0"} aria-describedby={undefined} onCloseAutoFocus={(event) => {
           if (selectingFromSheet.current) {
             event.preventDefault();
             headingRef.current?.focus();
@@ -375,7 +406,7 @@ function ReaderContent({ collection, courseHref, backHref, initialRevealed, rend
       </Sheet> : null}
     </div>
     {active ? <div className="grid min-w-0 gap-8 lg:grid-cols-[16rem_minmax(0,1fr)] xl:gap-12">
-      <aside className="hidden min-w-0 lg:block"><div className="sticky top-6 space-y-3"><h2 className="font-heading text-body-base font-bold">{t("itemList")}</h2><ItemList collection={collection} activeId={active.id} onSelect={selectItem} itemReviewStatus={itemReviewStatus} /></div></aside>
+      {!isMobile ? <aside className="hidden min-w-0 lg:block"><div className="sticky top-6 space-y-3"><h2 className="font-heading text-body-base font-bold">{t("itemList")}</h2><ItemList collection={collection} activeId={active.id} onSelect={selectItem} itemReviewStatus={itemReviewStatus} /></div></aside> : null}
       <div className="min-w-0 max-w-3xl">
         {requestedId && requestedIndex < 0 ? <p role="status" className="mb-5 rounded-lg border border-border p-3 text-body-sm text-muted-foreground">{t("invalidItem")}</p> : null}
         <ActiveItem key={active.id} itemCompleted={completedItems.includes(active.id)} onCompleteItem={completion ? () => setCompletedItems(ids => ids.includes(active.id) ? ids : [...ids, active.id]) : undefined} initialRevealed={initialRevealed} renderItemReview={renderItemReview} item={active} index={activeIndex} total={collection.items.length} headingRef={headingRef} onPrevious={() => selectItem(collection.items[activeIndex - 1].id)} onNext={() => selectItem(collection.items[activeIndex + 1].id)} />

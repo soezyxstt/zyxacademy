@@ -4,7 +4,7 @@
 
 Flashcards in Zyx use spaced repetition (SM-2) to reinforce long-term retention of atomic concepts, definitions, conditions, and misconception traps.
 
-In `product-bundle.v4`, a standalone card omits `setId` and uses the default course/chapter collection when published. A standalone set uses `cards: []`. When authoring an explicit grouping, list the included cards in the set and reference that set from each card. Existing V3 revisions use their legacy membership contract.
+In `product-bundle.v4`, a standalone card omits `setId` and uses the default course/chapter collection when published. A standalone set uses `cards: []`. When authoring an explicit grouping, list the included cards in the set and reference that set from each card. Existing V3 revisions use their legacy membership contract. Typed Article/Diktat creation does not accept flashcards; use the advertised archive schema and validation/staging tools.
 
 ## 2. Hard Invariants for Flashcards
 
@@ -25,7 +25,7 @@ In `product-bundle.v4`, a standalone card omits `setId` and uses the default cou
 2. **Minimum Information Principle (Atomicity):**
    - Each card tests exactly one cognitive target: a definition condition, a theorem hypothesis, a formula component, a geometric interpretation, or a single misconception contrast.
    - Never write multi-part essay questions or long multi-step calculations on a flashcard.
-3. **Self-Contained Front (`front` / `prompt`) and Concise Back (`back` / `answer`):**
+3. **Self-Contained `front` and Concise `back`:**
    - The front must specify enough context (domain, variable meanings, function assumptions) that there is one unambiguous answer.
    - Avoid vague fronts like "Apa bunyi teorema limit?" when there are five limit theorems. Instead, ask specifically: "Syarat apa yang harus dipenuhi oleh $\lim_{x \to c} g(x)$ agar aturan limit hasil bagi $\lim_{x \to c} \frac{f(x)}{g(x)} = \frac{\lim_{x \to c} f(x)}{\lim_{x \to c} g(x)}$ berlaku?"
    - Keep the back concise (1 to 3 sentences + clean LaTeX formula) so a student can self-grade recall in under 15 seconds.

@@ -10,6 +10,7 @@
     ]
   },
   "permissions": [
+    "allow-native-bridge",
     "core:default",
     "notification:default",
     "opener:default",

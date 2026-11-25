@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -88,14 +89,6 @@ const EMPTY_FORM: LinkForm = {
 function displayUrl(url: string): string {
   return url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
 }
-
-const chipClasses = (active: boolean) =>
-  cn(
-    "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-body-sm font-medium transition-colors cursor-pointer",
-    active
-      ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
-      : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-  );
 
 export function LinksManager() {
   const t = useTranslations("admin.linksManager");
@@ -448,29 +441,25 @@ export function LinksManager() {
   );
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            className={chipClasses(filterCategory === null)}
-            onClick={() => setFilterCategory(null)}
-          >
-            {t("all", { count: links.length })}
-          </button>
-          {categories.map((category) => (
-            <button
-              key={category}
-              type="button"
-              className={chipClasses(filterCategory === category)}
-              onClick={() =>
-                setFilterCategory(filterCategory === category ? null : category)
-              }
-            >
-              {getCategoryLabel(category)} ({links.filter((l) => l.category === category).length})
-            </button>
-          ))}
-        </div>
+    <div className="flex min-w-0 flex-col gap-(--related-gap)">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Select
+          value={filterCategory ? `category:${filterCategory}` : "all"}
+          onValueChange={(value) => setFilterCategory(value === "all" ? null : value.slice("category:".length))}
+        >
+          <SelectTrigger variant="inline" aria-label={t("category")} className="max-w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("all", { count: links.length })}</SelectItem>
+            {filterCategory && !categories.includes(filterCategory) && (
+              <SelectItem value={`category:${filterCategory}`}>{getCategoryLabel(filterCategory)}</SelectItem>
+            )}
+            {categories.map((category) => (
+              <SelectItem key={category} value={`category:${category}`}>{getCategoryLabel(category)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <AdminIconAction label={t("addLink")} onClick={openCreate}>
           <Plus className="size-4" />
         </AdminIconAction>
@@ -509,7 +498,7 @@ export function LinksManager() {
           }
         }}
       >
-        <DialogContent aria-describedby={undefined} className="max-w-lg rounded-xl border border-border p-6 shadow-lg text-left">
+        <DialogContent aria-describedby={undefined} className="max-w-lg max-h-[85dvh] overflow-y-auto text-left">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold">
               {editing ? t("editLink") : t("addLink")}
@@ -700,17 +689,17 @@ export function LinksManager() {
             </div>
           </div>
 
-          <DialogFooter className="mt-2 flex items-center justify-end gap-2.5">
+          <DialogFooter className="flex-row flex-wrap items-center justify-end">
             <Button
-              variant="outline"
-              className="rounded-lg cursor-pointer font-bold"
+              variant="ghost"
+              className="min-h-9"
               onClick={() => setDialogOpen(false)}
               disabled={saving}
             >
               {t("cancel")}
             </Button>
             <Button
-              className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
+              className="min-h-9"
               onClick={handleSave}
               disabled={saving}
               isLoading={saving}

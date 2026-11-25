@@ -28,12 +28,15 @@ import {
 import { ADMIN_GROUP_MESSAGE_KEYS, ALL_ADMIN_TABS, ADMIN_TAB_MESSAGE_KEYS, DEFAULT_ARCHIVED, type AdminTabDef, type AdminTabGroup } from "@/lib/admin-navigation";
 export { ALL_ADMIN_TABS, type AdminTabDef, type AdminTabGroup } from "@/lib/admin-navigation";
 import {
-  SidebarShell,
   NavItem,
   NavGroup,
   NavCollapsible,
+  SidebarBackLink,
   SidebarTooltip,
 } from "@/components/sidebar-shell";
+import { DesktopSidebarShell } from "@/components/navigation/desktop-sidebar-shell";
+import { ADMIN_PINNED_SYNC_EVENT } from "@/components/navigation/admin/admin-nav-model";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -96,11 +99,23 @@ const getArchivedStorageKey = (userId?: string | null) =>
 const getPinnedStorageKey = (userId?: string | null) =>
   userId ? `${PINNED_STORAGE_KEY}_${userId}` : PINNED_STORAGE_KEY;
 
-function AdminSidebarInner() {
+export interface AdminSidebarProps {
+  pathnameOverride?: string;
+  initialCourseTitle?: string;
+  defaultCollapsed?: boolean;
+}
+
+function AdminSidebarInner({
+  pathnameOverride,
+  initialCourseTitle,
+  defaultCollapsed = false,
+}: AdminSidebarProps) {
   const t = useTranslations("admin.navigation");
   const tDiscussion = useTranslations("tutor.schedule");
-  const pathname = usePathname();
+  const actualPathname = usePathname();
+  const pathname = pathnameOverride ?? actualPathname;
   const router = useRouter();
+  const viewportMode = useViewportMode();
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
@@ -110,13 +125,23 @@ function AdminSidebarInner() {
     data: { slug: string; title: string; category: string } | null;
     isLoading: boolean;
     isNotFound: boolean;
-  } | null>(null);
+  } | null>(() =>
+    courseSlug && initialCourseTitle
+      ? {
+          slug: courseSlug,
+          data: { slug: courseSlug, title: initialCourseTitle, category: "" },
+          isLoading: false,
+          isNotFound: false,
+        }
+      : null
+  );
 
   const [adminCourses, setAdminCourses] = useState<Array<{ id: string; title: string }>>([]);
   const [courseFilter, setCourseFilter] = useState("");
+  const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
 
   useEffect(() => {
-    if (!courseSlug) return;
+    if (viewportMode !== "desktop" || !courseDropdownOpen || !courseSlug) return;
     let cancelled = false;
     getCourses()
       .then((res) => {
@@ -128,7 +153,7 @@ function AdminSidebarInner() {
     return () => {
       cancelled = true;
     };
-  }, [courseSlug]);
+  }, [courseDropdownOpen, courseSlug, viewportMode]);
 
   const filteredAdminCourses = useMemo(() => {
     const list: Array<{ id: string; title: string }> = [];
@@ -186,8 +211,18 @@ function AdminSidebarInner() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    if (viewportMode !== "desktop") return;
     if (!courseSlug) {
       setCourseNav(null);
+      return;
+    }
+    if (initialCourseTitle) {
+      setCourseNav({
+        slug: courseSlug,
+        data: { slug: courseSlug, title: initialCourseTitle, category: "" },
+        isLoading: false,
+        isNotFound: false,
+      });
       return;
     }
     let cancelled = false;
@@ -232,7 +267,7 @@ function AdminSidebarInner() {
     return () => {
       cancelled = true;
     };
-  }, [courseSlug]);
+  }, [courseSlug, initialCourseTitle, viewportMode]);
 
   useEffect(() => {
     setMounted(true);
@@ -283,6 +318,7 @@ function AdminSidebarInner() {
   const savePinned = (tabs: string[]) => {
     setPinnedTabs(tabs);
     localStorage.setItem(getPinnedStorageKey(userId), JSON.stringify(tabs));
+    window.dispatchEvent(new CustomEvent(ADMIN_PINNED_SYNC_EVENT));
   };
 
   const togglePinTab = (id: string, name: string, e?: React.MouseEvent) => {
@@ -360,18 +396,42 @@ function AdminSidebarInner() {
   const navContent = (c: boolean) => {
     if (courseSlug) {
       const courseItems = getAdminCourseNavItems(courseSlug);
+      const courseGroups = [
+        {
+          key: "content",
+          label: t("courseGroupContent"),
+          ids: new Set(["bab", "documents", "videos"]),
+        },
+        {
+          key: "evaluation",
+          label: t("courseGroupEvaluation"),
+          ids: new Set(["quizzes", "tryouts", "questions", "flashcards", "results"]),
+        },
+        {
+          key: "manage",
+          label: t("courseGroupManage"),
+          ids: new Set(["leaderboard", "analytics", "review", "settings"]),
+        },
+      ];
+
       return (
         <nav
           className={cn(
-            "flex flex-1 flex-col gap-1 py-3 font-sans text-left",
+            "flex flex-1 flex-col gap-0.5 py-2.5 font-sans text-left",
             c
               ? "min-h-0 px-1 items-center overflow-y-auto overflow-x-hidden sidebar-scroll-hidden"
               : "min-h-0 px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
           )}
         >
-          {c ? (
-            <div className="mb-2 flex w-full justify-center">
-              <DropdownMenu>
+          <div className={cn("flex flex-col gap-1.5 pb-2 border-b border-border/60", c && "w-full items-center")}>
+            <SidebarBackLink
+              href="/admin/courses"
+              label={t("backToCourses")}
+              collapsed={c}
+            />
+
+            {c ? (
+              <DropdownMenu onOpenChange={setCourseDropdownOpen}>
                 <SidebarTooltip
                   label={`Pilih mata kuliah: ${courseNav?.data?.title || courseSlug}`}
                   collapsed={c}
@@ -380,7 +440,7 @@ function AdminSidebarInner() {
                     <button
                       type="button"
                       aria-label={`Pilih mata kuliah: ${courseNav?.data?.title || courseSlug}`}
-                      className="flex size-10 items-center justify-center rounded-xl text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                      className="flex size-10 items-center justify-center rounded-lg border border-border/70 bg-muted/30 text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                     >
                       <GraduationCap className="size-4" />
                     </button>
@@ -419,7 +479,7 @@ function AdminSidebarInner() {
                             onSelect={() => switchAdminCourse(course.id)}
                             className={cn(
                               "flex items-center justify-between gap-2 cursor-pointer text-body-sm",
-                              isCurrent && "font-semibold bg-brand-primary/10 text-brand-primary"
+                              isCurrent && "bg-brand-primary/10 text-brand-primary"
                             )}
                           >
                             <span className="truncate">{course.title}</span>
@@ -431,34 +491,35 @@ function AdminSidebarInner() {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
-          ) : courseNav?.isLoading ? (
-            <div className="flex w-full items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5 mb-3">
-              <div className="h-3.5 w-32 animate-pulse rounded bg-muted-foreground/20" />
-              <ChevronDown className="size-4 shrink-0 text-muted-foreground/40" />
-            </div>
-          ) : courseNav?.isNotFound ? (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 mb-3 text-left">
-              <p className="truncate text-body-xs font-bold text-destructive font-heading leading-tight">
-                {t("courseMissing")}
-              </p>
-              <p className="truncate text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">
-                {courseSlug}
-              </p>
-            </div>
-          ) : (
-            <div className="mb-3">
-              <DropdownMenu>
+            ) : courseNav?.isLoading ? (
+              <div className="flex w-full items-center justify-between gap-2 rounded-lg border border-border/70 bg-muted/30 px-2.5 py-2">
+                <div className="h-3.5 w-32 animate-pulse rounded bg-muted-foreground/20" />
+                <ChevronDown className="size-3.5 shrink-0 text-muted-foreground/40" />
+              </div>
+            ) : courseNav?.isNotFound ? (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-2.5 text-left">
+                <p className="truncate text-body-xs font-bold text-destructive font-heading leading-tight">
+                  {t("courseMissing")}
+                </p>
+                <p className="truncate text-body-2xs text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">
+                  {courseSlug}
+                </p>
+              </div>
+            ) : (
+              <DropdownMenu onOpenChange={setCourseDropdownOpen}>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
                     aria-label={`Pilih mata kuliah: ${courseNav?.data?.title || courseSlug}`}
-                    className="group flex w-full items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left transition-colors hover:bg-muted/60 hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                    className="group flex w-full items-center justify-between gap-2 rounded-lg border border-border/70 bg-muted/30 px-2.5 py-2 text-left transition-colors hover:bg-muted/60 hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                   >
-                    <span className="truncate text-body-sm font-semibold text-foreground font-heading leading-tight">
-                      {courseNav?.data?.title || courseSlug}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <BookOpen className="size-4 shrink-0 text-brand-primary" />
+                      <span className="truncate text-body-sm font-semibold text-foreground font-heading leading-tight">
+                        {courseNav?.data?.title || courseSlug}
+                      </span>
                     </span>
-                    <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                    <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" sideOffset={4} className="w-64 min-w-56 p-1">
@@ -494,7 +555,7 @@ function AdminSidebarInner() {
                             onSelect={() => switchAdminCourse(course.id)}
                             className={cn(
                               "flex items-center justify-between gap-2 cursor-pointer text-body-sm",
-                              isCurrent && "font-semibold bg-brand-primary/10 text-brand-primary"
+                              isCurrent && "bg-brand-primary/10 text-brand-primary"
                             )}
                           >
                             <span className="truncate">{course.title}</span>
@@ -506,31 +567,46 @@ function AdminSidebarInner() {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* 9 Course navigation items */}
-          <div className={cn("space-y-0.5", c && "w-full flex flex-col items-center")}>
-            {courseItems.map((item) => {
-              const active = item.exact
-                ? pathname === item.href
-                : pathname === item.href || pathname.startsWith(item.href + "/");
-
+          <div className={cn("flex flex-col gap-0.5 pt-1", c && "w-full items-center")}>
+            {courseGroups.map((group, idx) => {
+              const items = courseItems.filter((item) => group.ids.has(item.id));
               return (
-                <NavItem
-                  key={item.id}
-                  href={item.href}
-                  icon={item.icon}
-                  label={t(item.id === "review" ? "materialReview" : item.id)}
-                  active={active}
-                  collapsed={c}
-                />
+                <div key={group.key} className={cn("flex flex-col gap-0.5 w-full", c && "items-center")}>
+                  {idx === 0 && !c ? (
+                    <div className="px-2.5 pt-1.5 pb-1">
+                      <p className="text-body-2xs font-semibold tracking-wider text-muted-foreground/80 uppercase font-sans truncate">
+                        {group.label}
+                      </p>
+                    </div>
+                  ) : (
+                    <NavGroup label={group.label} collapsed={c} />
+                  )}
+                  {items.map((item) => {
+                    const active = item.exact
+                      ? pathname === item.href
+                      : pathname === item.href || pathname.startsWith(item.href + "/");
+
+                    return (
+                      <NavItem
+                        key={item.id}
+                        href={item.href}
+                        icon={item.icon}
+                        label={t(item.id === "review" ? "materialReview" : item.id)}
+                        active={active}
+                        collapsed={c}
+                      />
+                    );
+                  })}
+                </div>
               );
             })}
           </div>
 
-          <NavItem href="/admin/docs" icon={BookOpen} label={t("docs")} active={false} collapsed={c} />
           <div className="flex-1" />
+          <NavItem href="/admin/docs" icon={BookOpen} label={t("docs")} active={false} collapsed={c} />
         </nav>
       );
     }
@@ -742,7 +818,7 @@ function AdminSidebarInner() {
   };
 
   return (
-    <SidebarShell
+    <DesktopSidebarShell
       collapsedKey="admin-sidebar-collapsed"
       logoHref="/admin"
       logoLabel="Panel Admin Zyx Academy"
@@ -750,14 +826,21 @@ function AdminSidebarInner() {
         <OpsAiTrigger variant="sidebar" collapsed={collapsed} />
       )}
       nav={navContent}
+      defaultCollapsed={defaultCollapsed}
     />
   );
 }
 
-export function AdminSidebar() {
+export function AdminSidebar(props: AdminSidebarProps = {}) {
+  const viewportMode = useViewportMode();
+
+  if (viewportMode === "mobile") {
+    return null;
+  }
+
   return (
-    <Suspense fallback={<div className="w-64 bg-card border-r border-border" />}>
-      <AdminSidebarInner />
+    <Suspense fallback={<div className="hidden md:block w-64 bg-card border-r border-border" />}>
+      <AdminSidebarInner {...props} />
     </Suspense>
   );
 }

@@ -7,7 +7,6 @@ import FormDetailLoading from "@/app/(admin)/admin/forms/[id]/loading";
 import MeetLoading from "@/app/(admin)/admin/meet/loading";
 import MeetDetailLoading from "@/app/(admin)/admin/meet/[id]/loading";
 import OpsLoading from "@/app/(admin)/admin/ops/loading";
-import FlagsLoading from "@/app/(admin)/admin/ops/flags/loading";
 import AnalyticsLoading from "@/app/(admin)/admin/ops/analytics/loading";
 import KeysLoading from "@/app/(admin)/admin/ops/keys/loading";
 import ShortLinksLoading from "@/app/(admin)/admin/ops/short-links/loading";
@@ -42,7 +41,6 @@ export default async function AdminSkeletonFixture({
     "route-meet": <MeetLoading />,
     "route-meet-detail": <MeetDetailLoading />,
     "route-ops": <OpsLoading />,
-    "route-flags": <FlagsLoading />,
     "route-analytics": <AnalyticsLoading />,
     "route-keys": <KeysLoading />,
     "route-short-links": <ShortLinksLoading />,

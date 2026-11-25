@@ -44,7 +44,7 @@ export default async function AdminCourseLeaderboardPage({ params }: Props) {
   const compatibleCourseIds = courseIdentity ? courseIdentity.allIds : [data.course.id];
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="min-w-0 space-y-(--compact-gap)">
       <CourseDetailHeader course={data.course} />
       <AdminLeaderboardClient
         lockedCourse={{

@@ -44,7 +44,7 @@ export default async function TutorActivityPage() {
       />
 
       {/* KPI Stats Strip */}
-      <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
+      <AdminStatStrip>
         <AdminStatStripItem
           label={t("tutorActivityStats.total")}
           value={stats.total.toLocaleString(locale === "id" ? "id-ID" : "en-US")}

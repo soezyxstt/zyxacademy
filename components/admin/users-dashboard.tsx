@@ -4,19 +4,12 @@ import Image from "next/image";
 
 import { useState, useEffect, useRef, useTransition } from "react";
 import {
-  Users,
   ShieldCheck,
-  GraduationCap,
-  BookOpen,
   RotateCcw,
   UserCog,
   ShieldAlert,
   MoreHorizontal,
 } from "lucide-react";
-import {
-  AdminStatStrip,
-  AdminStatStripItem,
-} from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
@@ -47,7 +40,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import {
@@ -99,13 +92,11 @@ function UserAvatar({ name, image }: { name: string; image: string | null }) {
 
 export function UsersDashboard({
   initialUsers,
-  initialStats,
   initialTotal,
   currentUserId,
 }: UsersDashboardProps) {
   const t = useTranslations("adminOps");
   const [users, setUsers] = useState<AdminUserItem[]>(initialUsers);
-  const [stats, setStats] = useState<AdminUserStats>(initialStats);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -131,7 +122,6 @@ export function UsersDashboard({
             return;
           }
           setUsers(result.users);
-          setStats(result.stats);
           setTotal(result.total);
           setLoadedKey(requestKey);
         },
@@ -218,40 +208,6 @@ export function UsersDashboard({
 
   return (
     <div className="space-y-4 font-sans text-left">
-      {/* Grouped KPI Strip */}
-      <AdminStatStrip className="grid-cols-2 md:grid-cols-5">
-        <AdminStatStripItem
-          label={t("usersUI.total")}
-          value={stats.totalUsers}
-          icon={Users}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={t("usersUI.admins")}
-          value={stats.adminCount}
-          icon={ShieldCheck}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={t("usersUI.tutors")}
-          value={stats.tutorCount}
-          icon={GraduationCap}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={t("usersUI.students")}
-          value={stats.muridCount}
-          icon={BookOpen}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label={t("usersUI.suspended")}
-          value={stats.suspendedCount}
-          icon={ShieldAlert}
-          tone={stats.suspendedCount > 0 ? "warning" : "default"}
-        />
-      </AdminStatStrip>
-
       {/* Inline Responsive Filter Toolbar */}
       <div className="flex flex-wrap items-center gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true])]:hidden">
         <SearchBar
@@ -320,7 +276,7 @@ export function UsersDashboard({
         />
       ) : (
         <AdminTable className={stale ? "opacity-60" : undefined}>
-          <div className="md:hidden divide-y divide-border">
+          <div className="divide-y divide-border/60 md:hidden">
             {filteredUsers.map((userItem) => {
               const isSelf = userItem.id === currentUserId;
               const isSuspended = userItem.status === "suspended";
@@ -329,7 +285,7 @@ export function UsersDashboard({
               return (
                 <div
                   key={userItem.id}
-                  className={`flex items-start justify-between gap-2.5 px-3.5 py-3 ${isSuspended ? "bg-muted/20 opacity-75" : ""}`}
+                  className={`flex items-start justify-between gap-2.5 py-(--row-padding) ${isSuspended ? "bg-muted/20 opacity-75" : ""}`}
                 >
                   <div className="flex min-w-0 flex-1 items-start gap-2.5">
                     <UserAvatar name={userItem.name} image={userItem.image ?? null} />
@@ -557,7 +513,7 @@ export function UsersDashboard({
           if (!isSavingRoles && !open) setEditingUser(null);
         }}
       >
-        <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-xl text-left">
+        <DialogContent className="max-w-md text-left">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
               <UserCog className="size-5 text-brand-primary" />
@@ -568,19 +524,18 @@ export function UsersDashboard({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="divide-y divide-border my-2">
+          <div className="divide-y divide-border/60">
             {ROLE_OPTIONS.map((opt) => {
               const checked = selectedRoles.includes(opt.code);
               const isSelfAdmin =
                 editingUser?.id === currentUserId && opt.code === "admin";
 
               return (
-                <div
+                <label
                   key={opt.code}
-                  onClick={() => !isSelfAdmin && handleToggleRole(opt.code)}
-                  className={`flex items-start gap-3 px-2 py-3 transition-colors cursor-pointer ${
+                  className={`flex cursor-pointer items-start gap-3 rounded-md px-2 py-(--row-padding) transition-colors ${
                     checked
-                      ? "bg-primary/5"
+                      ? "bg-muted/50"
                       : "hover:bg-muted/30"
                   } ${isSelfAdmin ? "cursor-not-allowed opacity-80" : ""}`}
                 >
@@ -590,27 +545,25 @@ export function UsersDashboard({
                     onCheckedChange={() => !isSelfAdmin && handleToggleRole(opt.code)}
                     className="mt-0.5 rounded-md"
                   />
-                  <div className="space-y-0.5 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-body-sm font-semibold text-foreground">
-                        {opt.code === "murid" ? t("usersUI.student") : t(`usersUI.${opt.code}`)}
-                      </span>
-                    </div>
-                    <p className="text-body-xs text-muted-foreground">
+                  <span className="min-w-0 space-y-0.5">
+                    <span className="block text-body-sm font-semibold text-foreground">
+                      {opt.code === "murid" ? t("usersUI.student") : t(`usersUI.${opt.code}`)}
+                    </span>
+                    <span className="block text-body-xs text-muted-foreground">
                       {t(`usersUI.${opt.code === "murid" ? "studentRoleDesc" : `${opt.code}RoleDesc`}`)}
-                    </p>
+                    </span>
                     {isSelfAdmin && (
-                      <p className="text-body-xs text-status-warning font-medium">
+                      <span className="block text-body-xs font-medium text-status-warning">
                         {t("usersUI.selfAdminRequired")}
-                      </p>
+                      </span>
                     )}
-                  </div>
-                </div>
+                  </span>
+                </label>
               );
             })}
           </div>
 
-          <DialogFooter className="flex items-center justify-end gap-2 mt-2">
+          <DialogFooter className="flex-row flex-wrap items-center justify-end">
             <Button
               variant="outline"
               size="sm"

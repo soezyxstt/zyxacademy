@@ -29,8 +29,10 @@ interface JoinResponse {
 type ViewPhase = "join" | "live";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { useHideMobileBottomNav } from "@/components/navigation";
 
 export default function LiveStudentPage() {
+  useHideMobileBottomNav(true);
   const experience = useStudentExperience();
   const t = useTranslations("studentExtras.live");
   const { id } = useParams<{ id: string }>();
@@ -103,8 +105,8 @@ export default function LiveStudentPage() {
   if (!process.env.NEXT_PUBLIC_REALTIME_URL) {
     return (
       <CoursePageShell title={title} icon={Play}>
-        <div className="mx-auto max-w-md px-4 py-5 text-center">
-          <Play className="mx-auto mb-3 size-10 text-muted-foreground/40" />
+        <div className="max-w-md border-t border-border/55 py-(--group-gap)">
+          <Play className="mb-2 size-5 text-muted-foreground" aria-hidden />
           <h3 className="font-heading text-body-base font-bold text-foreground">
             {t("noSessionTitle")}
           </h3>
@@ -119,26 +121,28 @@ export default function LiveStudentPage() {
   if (phase === "join") {
     return (
       <CoursePageShell title={title} icon={Play}>
-        <div className="mx-auto flex max-w-xs flex-col items-center gap-(--section-gap) px-4 py-20">
-          <h1 className="font-heading text-h5 font-semibold text-foreground">{t("joinTitle")}</h1>
-          <Input
-            className="rounded-lg text-center font-sans text-body-sm tracking-widest uppercase"
-            aria-label={t("sessionCode")}
-            placeholder={t("sessionCodePlaceholder")}
-            maxLength={6}
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-            autoFocus
-          />
-          <Button
-            onClick={handleJoin}
-            disabled={code.trim().length === 0}
-            isLoading={joining}
-            className="w-full rounded-lg"
-          >
-            {t("join")}
-          </Button>
+        <div className="max-w-md space-y-(--related-gap) py-(--group-gap)">
+          <h2 className="font-heading text-body-base font-semibold text-foreground">{t("joinTitle")}</h2>
+          <div className="flex items-center gap-2">
+            <Input
+              className="min-w-0 flex-1 font-mono text-body-sm tracking-widest uppercase"
+              aria-label={t("sessionCode")}
+              placeholder={t("sessionCodePlaceholder")}
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+              autoFocus
+            />
+            <Button
+              onClick={handleJoin}
+              disabled={code.trim().length === 0}
+              isLoading={joining}
+              className="h-9 shrink-0"
+            >
+              {t("join")}
+            </Button>
+          </div>
         </div>
       </CoursePageShell>
     );
@@ -197,9 +201,9 @@ function LiveView({ state, sendAnswer, courseId, sessionId }: LiveViewProps) {
   );
 
   return (
-    <div className="relative min-h-[70vh] space-y-(--section-gap) px-4 py-(--reading-section-gap)">
+    <div className="mx-auto max-w-xl space-y-(--related-gap) py-(--compact-gap)">
       {/* Connection dot */}
-      <div className="absolute right-4 top-4 flex items-center gap-2" role="status">
+      <div className="flex items-center justify-end gap-2 border-b border-border/55 pb-(--compact-gap)" role="status">
         <span className="text-body-xs text-muted-foreground">{connectionLabel}</span>
         <span
           className={cn(
@@ -208,13 +212,13 @@ function LiveView({ state, sendAnswer, courseId, sessionId }: LiveViewProps) {
               ? "bg-status-success"
               : "animate-pulse bg-status-warning"
           )}
-          aria-label={connectionLabel}
+          aria-hidden
         />
       </div>
 
       {/* Lobby wait */}
       {sessionState === "lobby" && (
-        <div className="flex flex-col items-center gap-3 pt-16">
+        <div className="flex flex-col items-center gap-2 py-(--section-gap)">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
           <p className="text-body-base font-medium text-foreground">{t("waitingLobby")}</p>
           <p className="text-body-sm text-muted-foreground tabular-nums">

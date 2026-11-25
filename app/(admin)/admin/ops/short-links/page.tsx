@@ -152,9 +152,7 @@ export default function ShortLinksPage() {
           ) : loadError ? (
             <AdminErrorState message={<span className="text-foreground">{t("shortLinksUI.loadFailed")}</span>} onRetry={() => void fetchLinks()} />
           ) : links.length === 0 ? (
-            <div className="p-4">
-              <AdminEmptyState compact title={t("shortLinksUI.empty")} />
-            </div>
+            <AdminEmptyState compact title={t("shortLinksUI.empty")} />
           ) : (
             <div className="divide-y divide-border">
               {links.map((link) => (
@@ -214,8 +212,8 @@ export default function ShortLinksPage() {
                         <DialogHeader>
                           <DialogTitle>{t("shortLinksUI.qrFor", { slug: link.slug })}</DialogTitle>
                         </DialogHeader>
-                        <div className="flex flex-col items-center justify-center p-6 space-y-4">
-                          <div className="bg-white p-4 rounded-xl border border-border shadow-sm">
+                        <div className="flex flex-col items-center gap-(--related-gap)">
+                          <div className="rounded-md bg-white p-1">
                             <QRCodeSVG
                               id={`qr-${link.slug}`}
                               value={getFullUrl(link.slug)}
@@ -226,7 +224,7 @@ export default function ShortLinksPage() {
                           </div>
                           <Button
                             variant="secondary"
-                            className="w-full text-body-sm"
+                            className="min-h-9 self-end"
                             onClick={() => {
                               const svg = document.getElementById(`qr-${link.slug}`);
                               if (!svg) return;

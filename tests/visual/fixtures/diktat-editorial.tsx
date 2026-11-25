@@ -1,0 +1,16 @@
+import {MobileChromeProvider} from "@/components/navigation/mobile-chrome-context";
+import {MobileTopNavbar} from "@/components/navigation/mobile-top-navbar";
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { NextIntlClientProvider } from "next-intl";
+import { MaterialViewer } from "@/components/course/material-viewer";
+import learning from "@/messages/id/learning.json";
+import studentCourse from "@/messages/id/studentCourse.json";
+import ui from "@/messages/id/ui.json";
+import common from "@/messages/id/common.json";
+import core from "@/messages/id/core.json";
+import { bundleBody } from "@/tests/fixtures/product-learning/diktat-editorial-data";
+import "katex/dist/katex.min.css";
+const body = "# Bab 2: Fungsi dan Limit\n\n" + Array.from({length:14}, (_, index) => `## ${index === 0 ? "Makna dan syarat limit" : index === 13 ? "Ringkasan bab" : `Penerapan ${index + 1}`}\n\nLimit menjelaskan perilaku fungsi ketika masukan mendekati suatu titik. Periksa syarat domain sebelum menggunakan rumus.\n\n$$f(x)=2x+1$$\n\nUntuk fungsi linear ini, perubahan keluaran adalah dua kali perubahan masukan.\n\n> Nilai pada titik pusat tidak menentukan keberadaan limit.\n\n| Masukan | Keluaran |\n| --- | --- |\n| 0 | 1 |\n| 1 | 3 |`).join("\n\n");
+const source = location.pathname === "/bundle" ? bundleBody : body;
+createRoot(document.getElementById("root")!).render(<MobileChromeProvider><div className="md:hidden"><MobileTopNavbar /></div><NextIntlClientProvider locale="id" timeZone="Asia/Jakarta" messages={{learning, studentCourse, ui, common, core}}><main style={{height:"100dvh"}}><MaterialViewer material={{id:"diktat-fixture",courseId:"math",title:"Bab 2: Fungsi dan Limit",kind:"article",docCategory:"diktat",body:source,completed:false}} course={{title:"Matematika"}} canDownload={false} backHref="/courses/math/material" /></main></NextIntlClientProvider></MobileChromeProvider>);

@@ -28,12 +28,12 @@ describe('production baseline and checked-in bytes', () => {
   expect(BASELINE[3][1]).toBe('b3fb00e1bae1ba8c2ab0257df60bd68651917283f4dc6cc05ff3257ff497c263');
   expect(classifyJournal(rows())).toBe('pending');
   expect(classifyJournal(rows(true))).toBe('complete');
-  for (const invalid of [rows().slice(0, 8), rows(true).slice(0, 11), rows(true).slice(0, 36), rows(true).slice(0, 37), rows(true).slice(0, 38), [...rows(true), rows()[0]],
+  for (const invalid of [rows().slice(0, 8), rows(true).slice(0, 11), rows(true).slice(0, 36), rows(true).slice(0, 37), rows(true).slice(0, 38), rows(true).slice(0, 41), rows(true).slice(0, 42), [...rows(true), rows()[0]],
    rows().reverse(), rows().map((row, i) => i === 3 ? { ...row, hash: EXPECTED_JOURNAL[3][1] } : row),
    rows().map((row, i) => i === 4 ? rows()[3] : row)]) expect(() => classifyJournal(invalid)).toThrow('UNEXPECTED_MIGRATION_HISTORY');
  });
- test('pins all 41 Git SQL blobs and timestamps, independent of checkout line endings', () => {
-  expect(migrations).toHaveLength(41);
+ test('pins all 43 Git SQL blobs and timestamps, independent of checkout line endings', () => {
+  expect(migrations).toHaveLength(43);
   expect(migrations.slice(9).map(m => m.tag)).toEqual(FILES.slice(9).map(([, tag]) => tag));
   expect(migrations[35].sql).toContain('CREATE TABLE "queue_task_checkpoints"');
   expect(migrations[36].sql).toContain('"equipped_pet_suit_id"');

@@ -49,6 +49,8 @@ export const FILES: ReadonlyArray<readonly [number, string, string]> = [
  [1795160115877, '0038_discussion_mention_handles', '969b249e8a666b72ce6cff55a6f3d06fecc08959664645eb9cd1c529b609d097'],
  [1795200000000, '0039_push_token_transport', 'cde8febb5a0144bdcb580261ee9d1a7f0a27d742e2621fb6291abb4933914d44'],
  [1795276800000, '0040_google_calendar_sync', '41ab1dfef0a5877bb03b4b4dd506e86ecb7b4ae8c02d6312803e9fd5e2c6017c'],
+ [1795425908526, '0041_discussion_search_indexes', '8ff947d226653c5c2c98eeb07e9efddb68a66561b2cbbdf7523d259745b6b1ae'],
+ [1795460000000, '0042_tutor_slot_courses', '8ef6b7cc7312bec77fef6961ae25ab69024cb19114eccd4de160091c920c4fd5'],
 ];
 
 export const BASELINE: ReadonlyArray<readonly [number, string]> = [

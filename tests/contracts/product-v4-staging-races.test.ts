@@ -35,7 +35,7 @@ mock.module("@/lib/storage", () => ({ storage: {
   download: async (key: string) => {
     if (key.endsWith(".pdf") && beforePdfRead) { const hook = beforePdfRead; beforePdfRead = undefined; await hook(); }
     const bytes = objects.get(key);
-    if (!bytes) throw new Error("FIXTURE_OBJECT_MISSING");
+    if (!bytes) throw new Error("FIXTURE_OBJECT_MISSING", { cause: { name: "NoSuchKey", $metadata: { httpStatusCode: 404 } } });
     return bytes;
   },
 } }));

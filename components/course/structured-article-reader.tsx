@@ -13,11 +13,19 @@ import {
   PanelRight,
   X,
   Award,
+  List,
   Menu,
   Maximize2,
   Minimize2,
   MessageSquareText,
+  Search,
 } from "lucide-react";
+import {
+  MobileTopNavActionButton,
+  useHideMobileBottomNav,
+  useMobileTopNav,
+} from "@/components/navigation";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
 import {
@@ -100,6 +108,7 @@ function StructuredArticleReaderContent({
   course,
   mode = "learner",
   pythonBrowserOnly = false,
+  backHref,
   prevMaterial,
   nextMaterial,
   isTocOpen: controlledTocOpen,
@@ -109,7 +118,13 @@ function StructuredArticleReaderContent({
   adapter,
 }: StructuredArticleReaderProps) {
   const t = useTranslations("studentCourse");
+  const tSearch = useTranslations("search");
   const learnerMode = isLearnerReaderMode(mode);
+  const isV4 = article.sections.some(section => section.blocks.some(block => block.parts?.length));
+  const [readingPosition, setReadingPosition] = useState(0);
+  const [showSectionContext, setShowSectionContext] = useState(false);
+  const headerRef = useRef<HTMLElement | null>(null);
+  const [checkpointResults, setCheckpointResults] = useState<Record<string, boolean>>({});
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -160,9 +175,60 @@ function StructuredArticleReaderContent({
     controlledMobileSheetOpen !== undefined ? controlledMobileSheetOpen : internalMobileSheetOpen;
   const setIsMobileSheetOpen = controlledToggleMobileSheet ?? setInternalMobileSheetOpen;
 
+  const viewportMode = useViewportMode();
+  const isMobile = viewportMode === "mobile";
+  useHideMobileBottomNav(learnerMode);
+
+  const mobileTopNavConfig = useMemo(() => {
+    if (!learnerMode || !isMobile) return null;
+    const fallbackCourseId = course?.id ?? article.courseId;
+    const resolvedBackHref =
+      backHref ??
+      (fallbackCourseId
+        ? `/courses/${encodeURIComponent(fallbackCourseId)}/material`
+        : undefined);
+    return {
+      hideTopNav: true,
+      title: article.title,
+      backHref: resolvedBackHref,
+      rightActions: (
+        <MobileTopNavActionButton
+          label={t("articleReader.openContents")}
+          onClick={() => setIsMobileSheetOpen(true)}
+        >
+          <List className="size-4" aria-hidden="true" />
+        </MobileTopNavActionButton>
+      ),
+    };
+  }, [article.courseId, article.title, backHref, course?.id, isMobile, learnerMode, setIsMobileSheetOpen, t]);
+  useMobileTopNav(mobileTopNavConfig);
+
   const [searchQuery, setSearchQuery] = useState("");
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null);
+  const mobileSearchTriggerRef = useRef<HTMLButtonElement>(null);
   const [temporaryHighlight, setTemporaryHighlight] = useState<string | null>(null);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isMobileSearchOpen) {
+      mobileSearchInputRef.current?.focus();
+    }
+  }, [isMobileSearchOpen]);
+
+  useEffect(() => {
+    if (!isMobile && isMobileSearchOpen) {
+      setIsMobileSearchOpen(false);
+    }
+  }, [isMobile, isMobileSearchOpen]);
+
+  const closeMobileSearch = useCallback((restoreFocus = false) => {
+    setIsMobileSearchOpen(false);
+    setSearchQuery("");
+    if (restoreFocus) {
+      requestAnimationFrame(() => mobileSearchTriggerRef.current?.focus());
+    }
+  }, []);
 
   // Focus mode state & refs
   const [isFocusMode, setIsFocusMode] = useState(false);
@@ -410,46 +476,45 @@ function StructuredArticleReaderContent({
     };
   }, [offlineReadingKey, requestedSlug, article.sections, article.progress?.lastSectionSlug, contentContainerRef]);
 
-  // Scroll spy IntersectionObserver for location awareness in continuous reading
+  // Track the section at the reading line, including inside very tall sections.
   useEffect(() => {
-    if (!article.sections.length) return;
-    const sectionElements = article.sections
-      .map((s) => document.getElementById(`section-${s.slug}`))
-      .filter(Boolean) as HTMLElement[];
-
-    if (!sectionElements.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const intersecting = entries.filter((e) => e.isIntersecting);
-        if (intersecting.length > 0) {
-          const sorted = intersecting.sort((a, b) => {
-            return Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top);
-          });
-          const currentSlug = sorted[0].target.getAttribute("data-section-slug");
-          if (currentSlug && currentSlug !== activeSectionSlugRef.current) {
-            activeSectionSlugRef.current = currentSlug;
-            setActiveSectionSlug(currentSlug);
-            try {
-              const url = new URL(window.location.href);
-              url.searchParams.set("section", currentSlug);
-              window.history.replaceState(null, "", url.toString());
-            } catch {}
-          }
-        }
-      },
-      {
-        root: null,
-        rootMargin: "-15% 0px -60% 0px",
-        threshold: [0, 0.1, 0.25, 0.5, 0.75],
-      },
-    );
-
-    for (const el of sectionElements) {
-      observer.observe(el);
-    }
-
-    return () => observer.disconnect();
+    const sections = article.sections.map(section => document.getElementById(`section-${section.slug}`)).filter((element): element is HTMLElement => Boolean(element));
+    if (!sections.length) return;
+    let frame = 0;
+    const update = () => {
+      setReadingPosition(Math.round(computeScrollRatio(window.scrollY, document.documentElement.scrollHeight, window.innerHeight) * 100));
+      let current = sections[0];
+      for (const section of sections) {
+        // Allow two pixels of rounding around the 64px section scroll margin.
+        if (section.getBoundingClientRect().top <= 66) current = section;
+        else break;
+      }
+      if (window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) current = sections[sections.length - 1];
+      const headerBottom = headerRef.current?.getBoundingClientRect().bottom ?? 52;
+      const heading = current.querySelector("h2");
+      setShowSectionContext(Boolean(heading && heading.getBoundingClientRect().bottom <= headerBottom));
+      const slug = current.dataset.sectionSlug;
+      if (!slug || slug === activeSectionSlugRef.current) return;
+      activeSectionSlugRef.current = slug;
+      setActiveSectionSlug(slug);
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("section", slug);
+        window.history.replaceState(null, "", url.toString());
+      } catch {}
+    };
+    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update); };
+    window.addEventListener("scroll", schedule, { passive: true, capture: true });
+    window.addEventListener("resize", schedule);
+    const observer = new ResizeObserver(schedule);
+    sections.forEach(section => observer.observe(section));
+    schedule();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("scroll", schedule, true);
+      window.removeEventListener("resize", schedule);
+    };
   }, [article.sections]);
 
   const openSearchResult = useCallback(
@@ -703,22 +768,24 @@ function StructuredArticleReaderContent({
                 const isCurrent = activeSectionSlug === section.slug;
                 const prog = sectionProgressMap[section.id];
                 const isDone = adapter ? adapter.completed : prog?.completed || (prog?.maxReadPercent ?? 0) >= 90;
-                const subheadings = section.blocks.map(block => ({ block, title: getBlockTitle(block, section.title, t) })).filter(item => item.title);
+                const checks = section.blocks.filter(block => block.formativeCheck);
+                const checkpointsDone = checks.length > 0 && checks.every(block => checkpointResults[block.id]);
+                const subheadings = section.blocks.filter(block => block.blockType === "worked_example" || block.formativeCheck || block.parts?.some(part => part.kind === "worked_example" || part.kind === "coding_exercise")).map(block => ({ block, title: getBlockTitle(block, section.title, t) })).filter(item => item.title);
 
                 return (
-                  <div key={section.id} className="space-y-0.5">
+                  <div key={section.id} className={cn("space-y-0.5", section.parentSectionId && "ml-4 border-l border-border/60 pl-2")}>
                     <button
                       type="button"
                       onClick={() => navigateToSection(section)}
                       aria-current={isCurrent ? "location" : undefined}
                       className={cn(
-                        "w-full text-left px-2.5 py-2 rounded-lg transition-colors flex items-start gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                        "w-full text-left border-l-2 border-transparent px-2.5 py-2 transition-colors flex items-start gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                         isCurrent
-                          ? "bg-primary/10 text-primary border-l-2 border-primary"
+                          ? "bg-primary/10 text-primary border-primary"
                           : "hover:bg-muted/60 text-foreground",
                       )}
                     >
-                      <div className="mt-0.5 shrink-0">
+                      <TooltipProvider><Tooltip><TooltipTrigger asChild><span aria-label={t("articleReader.readingCompletion")} className="mt-0.5 shrink-0">
                         {isDone ? (
                           <CheckCircle2 className="size-4 text-status-success" />
                         ) : isCurrent ? (
@@ -726,12 +793,13 @@ function StructuredArticleReaderContent({
                         ) : (
                           <Circle className="size-4 text-muted-foreground/50" />
                         )}
-                      </div>
+                      </span></TooltipTrigger><TooltipContent>{t("articleReader.readingCompletion")}</TooltipContent></Tooltip></TooltipProvider>
                       <div className="min-w-0 flex-1 py-0.5">
                         <p className="text-body-sm font-semibold break-words leading-snug">
-                          <MathText className="normal-case">{formatReaderTocTitle(section.title)}</MathText>
+                          <span className="mr-2 font-mono text-body-xs text-muted-foreground">{section.sectionNumber.padStart(2, "0")}</span><MathText className="normal-case">{formatReaderTocTitle(section.title)}</MathText>
                         </p>
                       </div>
+                      {checks.length > 0 ? <TooltipProvider><Tooltip><TooltipTrigger asChild><span aria-label={checkpointsDone ? t("articleReader.checkpointDone") : t("articleReader.checkpointPending")} className={cn("mt-1.5 size-2 shrink-0 rounded-full", checkpointsDone ? "bg-status-success" : "bg-muted-foreground/40")} /></TooltipTrigger><TooltipContent>{checkpointsDone ? t("articleReader.checkpointDone") : t("articleReader.checkpointPending")}</TooltipContent></Tooltip></TooltipProvider> : null}
                     </button>
 
                     {/* Subheadings / Key blocks expanded only for active section */}
@@ -766,15 +834,14 @@ function StructuredArticleReaderContent({
       {/* Sticky Reader Header / Focus Header - only rendered in learner mode */}
       {learnerMode &&
         (isFocusMode ? (
-          <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-sm">
-            <div className="flex items-center justify-between px-4 py-2 gap-3 max-w-4xl mx-auto w-full">
+          <header ref={headerRef} className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-sm">
+            <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className="rounded-md bg-primary/10 px-2 py-0.5 text-body-2xs font-semibold text-primary uppercase tracking-wider shrink-0">
-                  {t("articleReader.focusMode")}
+                  {t(isV4 ? "articleReader.readingFocus" : "articleReader.focusMode")}
                 </span>
                 <h1 className="text-body-sm font-bold text-foreground truncate font-heading leading-tight">
-                  {article.chapterNumber ? `${t("articleReader.chapter")} ${article.chapterNumber}: ` : ""}
-                  <MathText className="normal-case">{article.title}</MathText>
+                  <MathText className="normal-case">{showSectionContext && activeSection ? `${activeSection.sectionNumber.padStart(2, "0")} ${formatReaderTocTitle(activeSection.title)}` : article.title || courseTitle}</MathText>
                 </h1>
               </div>
               <Button
@@ -792,42 +859,102 @@ function StructuredArticleReaderContent({
                 </kbd>
               </Button>
             </div>
+            <div className="h-0.5 bg-border/40" role="progressbar" aria-label={t("articleReader.readingPosition")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={readingPosition}><div className="h-full bg-primary" style={{ width: `${readingPosition}%` }} /></div>
           </header>
         ) : (
-          <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-sm">
+          <header ref={headerRef} className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-sm">
+            {isMobileSearchOpen && isMobile ? (
+              <div className="md:hidden">
+                <div className="mx-auto flex w-full max-w-6xl items-center gap-1.5 px-3 py-1.5 sm:px-6">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => closeMobileSearch(true)}
+                    className="shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+                    aria-label={tSearch("closeSearch")}
+                  >
+                    <ChevronLeft className="size-4" aria-hidden />
+                  </Button>
+                  <SearchBar
+                    ref={mobileSearchInputRef}
+                    expandable={false}
+                    mobileTopNav={false}
+                    size="sm"
+                    variant="bordered"
+                    value={searchQuery}
+                    onSearch={setSearchQuery}
+                    onClear={() => setSearchQuery("")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape" && !event.defaultPrevented && !event.nativeEvent.isComposing) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        closeMobileSearch(true);
+                      }
+                    }}
+                    aria-label={t("articleReader.searchArticle")}
+                    placeholder={t("articleReader.searchArticle")}
+                    containerClassName="min-w-0 flex-1"
+                  />
+                </div>
+                {searchQuery.trim().length >= 2 ? (
+                  <div className="max-h-[55dvh] overflow-y-auto border-t border-border/60 bg-background px-4 py-2 shadow-sm">
+                    <p className="px-1 py-1 text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {t("articleReader.searchResults", { count: searchResults.length })}
+                    </p>
+                    {searchResults.length === 0 ? (
+                      <p className="px-1 py-3 text-center text-body-xs text-muted-foreground">
+                        {t("articleReader.noSearchResults", { query: searchQuery })}
+                      </p>
+                    ) : (
+                      <div className="mt-1 space-y-1.5">
+                        {searchResults.map((res, idx) => {
+                          const targetSec = article.sections.find((s) => s.id === res.sectionId);
+                          const isCurrent = activeSection?.id === res.sectionId;
+                          return (
+                            <button
+                              key={`${res.sectionId}-${idx}`}
+                              type="button"
+                              onClick={() => {
+                                if (!targetSec) return;
+                                openSearchResult(targetSec, searchQuery, undefined, res.elementId);
+                                closeMobileSearch(false);
+                              }}
+                              className={cn(
+                                "w-full rounded-lg border p-2.5 text-left text-body-xs transition-colors",
+                                isCurrent
+                                  ? "border-primary/40 bg-primary/10 font-medium text-primary"
+                                  : "border-border/60 text-foreground hover:bg-muted/60",
+                              )}
+                            >
+                              <p className="line-clamp-1 font-semibold">
+                                <MathText className="normal-case">{formatReaderTocTitle(res.sectionTitle)}</MathText>
+                              </p>
+                              <p className="mt-0.5 line-clamp-2 text-body-xs font-normal text-muted-foreground">
+                                {res.snippet}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
             <TooltipProvider delayDuration={150}>
-              <div className="flex items-center justify-between px-4 py-2 gap-3 max-w-7xl mx-auto w-full">
-                {/* Left: Chapter Title */}
+              <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
+                {/* Left: Chapter Title or Sticky Section Context */}
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="min-w-0">
-                    <p className="truncate text-body-2xs font-medium text-muted-foreground uppercase tracking-wider">
-                      <MathText className="normal-case">{courseTitle}</MathText>
-                    </p>
                     <h1 className="text-body-sm font-bold text-foreground truncate font-heading leading-tight">
-                      {article.chapterNumber ? `${t("articleReader.chapter")} ${article.chapterNumber}: ` : ""}
-                      <MathText className="normal-case">{article.title}</MathText>
+                      <MathText className="normal-case">{showSectionContext && activeSection ? `${activeSection.sectionNumber.padStart(2, "0")} ${formatReaderTocTitle(activeSection.title)}` : article.title || courseTitle}</MathText>
                     </h1>
                   </div>
                 </div>
 
                 {/* Right: Progress + Action controls */}
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* Reading Progress indicator */}
-                  <div
-                    className="hidden sm:flex items-center gap-2 text-body-xs text-muted-foreground pr-1"
-                    title={t("articleReader.readingProgress", { percent: overallPercent })}
-                  >
-                    <div className="w-20 h-1.5 rounded-full bg-muted/80 overflow-hidden">
-                      <div
-                        className="h-full bg-primary transition-all duration-300 rounded-full"
-                        style={{ width: `${overallPercent}%` }}
-                      />
-                    </div>
-                    <span className="font-mono text-body-2xs font-semibold text-foreground">{overallPercent}%</span>
-                  </div>
-
-                  <div className="hidden sm:block h-4 w-px bg-border/70 mx-1" />
-
                   <ShareLinkButton
                     title={article.title}
                     variant="ghost"
@@ -835,7 +962,21 @@ function StructuredArticleReaderContent({
                     className="text-muted-foreground hover:text-foreground rounded-lg"
                   />
 
-                  {/* Focus Mode Trigger (icon only with tooltip) */}
+                  {/* Mobile inline Search Trigger */}
+                  <Button
+                    ref={mobileSearchTriggerRef}
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setIsMobileSearchOpen(true)}
+                    className="md:hidden text-muted-foreground hover:text-foreground rounded-lg"
+                    aria-label={t("articleReader.searchArticle")}
+                    aria-expanded={false}
+                  >
+                    <Search className="size-4" aria-hidden />
+                  </Button>
+
+                  {/* Focus Mode Trigger (desktop only, icon with tooltip) */}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -843,27 +984,29 @@ function StructuredArticleReaderContent({
                         variant="ghost"
                         size="icon-sm"
                         onClick={enterFocusMode}
-                        className="text-muted-foreground hover:text-foreground rounded-lg"
-                        aria-label={t("articleReader.enterFocusMode")}
+                        className="hidden md:inline-flex text-muted-foreground hover:text-foreground rounded-lg"
+                        aria-label={t(isV4 ? "articleReader.readingFocus" : "articleReader.enterFocusMode")}
                       >
                         <Maximize2 className="size-4" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      <span>{t("articleReader.focusMode")}</span>
+                      <span>{t(isV4 ? "articleReader.readingFocus" : "articleReader.focusMode")}</span>
                     </TooltipContent>
                   </Tooltip>
 
-                  {/* Mobile Sheet Trigger */}
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setIsMobileSheetOpen(true)}
-                    className="md:hidden text-muted-foreground hover:text-foreground rounded-lg"
-                    aria-label={t("articleReader.openContents")}
-                  >
-                    <Menu className="size-4" />
-                  </Button>
+                  {/* Mobile Sheet Trigger (fallback when not using MobileTopNavbar) */}
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => setIsMobileSheetOpen(true)}
+                      className="md:hidden text-muted-foreground hover:text-foreground rounded-lg"
+                      aria-label={t("articleReader.openContents")}
+                    >
+                      <Menu className="size-4" />
+                    </Button>
+                  </>
 
                   {/* Desktop TOC Toggle (icon only with tooltip) */}
                   <Tooltip>
@@ -894,12 +1037,13 @@ function StructuredArticleReaderContent({
                 </div>
               </div>
             </TooltipProvider>
+            )}
 
             {/* Bottom progress track */}
-            <div className="w-full h-[2px] bg-border/40">
+            <div className="w-full h-0.5 bg-border/40" role="progressbar" aria-label={t("articleReader.readingPosition")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={readingPosition}>
               <div
-                className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${overallPercent}%` }}
+                className="h-full bg-primary transition-all duration-300 motion-reduce:transition-none"
+                style={{ width: `${readingPosition}%` }}
               />
             </div>
           </header>
@@ -907,7 +1051,15 @@ function StructuredArticleReaderContent({
 
       {/* Mobile Sheet for TOC & Search */}
       <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
-        <SheetContent side="right" className="gap-0" aria-describedby={undefined}>
+        <SheetContent
+          side={isMobile ? "bottom" : "right"}
+          className={
+            isMobile
+              ? "max-h-[80dvh] rounded-t-2xl gap-0 pb-[env(safe-area-inset-bottom)]"
+              : "gap-0"
+          }
+          aria-describedby={undefined}
+        >
           <SheetHeader className="group/toc min-h-14 flex-row items-center gap-2 border-b border-border/80 py-2 pl-3 pr-14">
             <SheetTitle className="min-w-0 flex-1 text-body-sm group-has-[[data-search-expanded=true]]/toc:sr-only">{t("articleReader.thisChapter")}</SheetTitle>
             {tocSearch}
@@ -917,15 +1069,17 @@ function StructuredArticleReaderContent({
       </Sheet>
 
       {/* Main Layout Body */}
-      <div className={cn("flex-1 flex w-full", isFocusMode && "max-w-4xl mx-auto")}>
-        {/* Main Content Area (75 character measure) */}
-        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 pb-32">
+      <div className={cn("mx-auto flex w-full flex-1", isFocusMode ? "max-w-3xl" : "max-w-6xl")}>
+        {/* Main reading content */}
+        <main className="flex-1 min-w-0 px-3.5 sm:px-6 lg:px-8 pt-3.5 sm:pt-6 pb-28 sm:pb-32">
           {article.sections.length > 0 ? (
             <div
               ref={contentContainerRef}
               id="article-reading-content"
               className={cn(
-                "max-w-[75ch] mx-auto",
+                "article-editorial max-w-[66ch]",
+                (isFocusMode || !isTocOpen) && "mx-auto",
+                isV4 && isFocusMode && String.raw`[&_[data-article-exercise]]:hidden [&_[data-part-kind=coding\_exercise]]:hidden`,
                 temporaryHighlight && "ring-2 ring-status-warning/60 ring-offset-4 ring-offset-background",
               )}
             >
@@ -945,7 +1099,7 @@ function StructuredArticleReaderContent({
                     key={sec.id}
                     id={`section-${sec.slug}`}
                     data-section-slug={sec.slug}
-                    className="scroll-mt-20 space-y-(--related-gap) [&+article]:mt-[calc(var(--reading-section-gap)*0.5)] [&+article]:border-t [&+article]:border-border/80 [&+article]:pt-[calc(var(--reading-section-gap)*0.5)] lg:[&+article]:mt-[calc(var(--reading-section-gap)*0.75)] lg:[&+article]:pt-[calc(var(--reading-section-gap)*0.75)]"
+                    className="scroll-mt-16 space-y-3.5 sm:space-y-6 [&+article]:mt-7 [&+article]:border-t [&+article]:border-border/40 [&+article]:pt-4 md:[&+article]:mt-14 md:[&+article]:pt-5"
                   >
                     <StructuredArticleSectionContent
                       section={sec}
@@ -953,6 +1107,8 @@ function StructuredArticleReaderContent({
                       articleVersion={article.version}
                       completed={adapter ? adapter.completed : isSecDone}
                       interactiveChecks
+                      collapsedChecks={isV4}
+                      onCheckpointChange={(blockId, correct) => setCheckpointResults(previous => ({ ...previous, [blockId]: correct }))}
                     />
                   </article>
                 );
@@ -960,16 +1116,13 @@ function StructuredArticleReaderContent({
 
               {/* End of chapter card */}
               <div className="mt-(--reading-section-gap) rounded-xl border border-border bg-card p-(--panel-padding) sm:p-(--section-gap) text-center space-y-(--related-gap) shadow-sm">
-                <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-status-success/15 text-status-success">
+                <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Award className="size-6" />
                 </div>
                 <div className="space-y-1">
                   <h2 className="font-heading text-h5 font-bold text-foreground">
-                    {t("articleReader.chapterComplete")}
+                    {t((adapter ? adapter.completed : overallPercent >= 100) ? "articleReader.chapterComplete" : "articleReader.chapterEnd")}
                   </h2>
-                  <p className="text-body-sm text-muted-foreground max-w-md mx-auto">
-                    {t("articleReader.chapterCompleteDescription")} <MathText className="normal-case">{article.title}</MathText>.
-                  </p>
                   {nextMaterial && (
                     <p className="text-body-xs text-muted-foreground pt-1">
                       {t("articleReader.nextMaterialLabel")} <span className="font-semibold text-foreground"><MathText className="normal-case">{nextMaterial.title}</MathText></span>
@@ -996,26 +1149,29 @@ function StructuredArticleReaderContent({
                       onClick={handleNextMaterial}
                       className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold gap-1.5"
                     >
-                      <span>{t("articleReader.nextMaterial")}</span>
+                      <span>{t("articleReader.nextMaterial")}: <MathText>{nextMaterial.title}</MathText></span>
                       <ChevronRight className="size-4" />
                     </Button>
                   ) : (
                     <Button
-                      variant="default"
+                      variant={learnerMode && (backHref || course?.id) ? "outline" : "default"}
                       size="default"
                       onClick={handleFinishArticle}
                       disabled={adapter ? (!adapter.ready || adapter.completed) : overallPercent >= 100}
-                      className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold gap-1.5"
+                      className="rounded-lg font-semibold gap-1.5"
                     >
                       <CheckCircle2 className="size-4" />
-                      <span>{t("articleReader.readComplete")}</span>
+                      <span>{t((adapter ? adapter.completed : overallPercent >= 100) ? "articleReader.readComplete" : "articleReader.markComplete")}</span>
                     </Button>
                   )}
+                  {!nextMaterial && learnerMode && (backHref || course?.id) ? (
+                    <Button variant="default" asChild><a href={backHref || `/courses/${course!.id}/material`}>{t("articleReader.browseMaterials")}<ChevronRight className="size-4" /></a></Button>
+                  ) : null}
                 </div>
               </div>
             </div>
           ) : (
-            <div className="max-w-[75ch] mx-auto text-center py-16 space-y-4">
+            <div className="max-w-[68ch] mx-auto text-center py-16 space-y-4">
               <BookOpen className="size-12 text-muted-foreground mx-auto" />
               <h2 className="text-body-lg font-bold">{t("articleReader.noSectionContent")}</h2>
               <p className="text-body-sm text-muted-foreground">
@@ -1026,9 +1182,9 @@ function StructuredArticleReaderContent({
         </main>
 
         {/* Desktop Collapsible Table of Contents */}
-        {!isFocusMode && isTocOpen && (
-          <aside className="hidden md:flex flex-col w-72 lg:w-80 shrink-0 border-l border-border/80 h-[calc(100vh-53px)] sticky top-[53px] overflow-hidden bg-card/40">
-            <div className="group/toc flex items-center gap-2 border-b border-border/70 px-3 py-1">
+        {!isFocusMode && isTocOpen && !isMobile && (
+          <aside className="hidden md:flex flex-col w-64 lg:w-68 shrink-0 border-l border-border/60 h-[calc(100vh-49px)] sticky top-[49px] overflow-hidden">
+            <div className="group/toc flex items-center gap-2 border-b border-border/60 px-3 py-1.5">
               <h2 className="min-w-0 flex-1 text-body-sm font-semibold group-has-[[data-search-expanded=true]]/toc:sr-only">{t("articleReader.thisChapter")}</h2>
               {tocSearch}
             </div>
@@ -1036,6 +1192,54 @@ function StructuredArticleReaderContent({
           </aside>
         )}
       </div>
+
+      {/* Mobile docked Prev / Next / Complete action bar */}
+      {learnerMode && isMobile && !isFocusMode && article.sections.length > 0 && (
+        <nav
+          aria-label={t("articleReader.thisChapter")}
+          className="sticky bottom-0 z-20 flex items-center justify-between gap-2 border-t border-border/80 bg-background/95 px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] backdrop-blur-md md:hidden"
+        >
+          {prevMaterial ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handlePrevMaterial}
+              className="min-h-10 gap-1 rounded-lg text-body-sm font-semibold"
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+              <span>{t("articleReader.previousMaterial")}</span>
+            </Button>
+          ) : (
+            <span />
+          )}
+
+          {nextMaterial ? (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={handleNextMaterial}
+              className="min-h-10 gap-1 rounded-lg text-body-sm font-semibold"
+            >
+              <span>{t("articleReader.nextMaterial")}</span>
+              <ChevronRight className="size-4" aria-hidden />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={handleFinishArticle}
+              disabled={adapter ? !adapter.ready || adapter.completed : overallPercent >= 100}
+              className="min-h-10 gap-1.5 rounded-lg text-body-sm font-semibold"
+            >
+              <CheckCircle2 className="size-4" aria-hidden />
+              <span>{t("articleReader.readComplete")}</span>
+            </Button>
+          )}
+        </nav>
+      )}
 
       {/* Floating Selection-to-Zyra toolbar using Shadcn Popover with Progressive Disclosure */}
       {learnerMode && selectionAskEnabled && isMobileSelection && !isTutorOpen && isSelectionToolbarOpen && selectionContext && (

@@ -10,7 +10,7 @@ export function AdminTable({ children, className }: AdminTableProps) {
   return (
     <div
       className={cn(
-        "admin-table overflow-x-auto border-y border-border/40 divide-border/30 [&_table]:w-full [&_tbody]:divide-y [&_tbody]:divide-border/30 [&_tbody_tr]:border-border/30 [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-muted/35",
+        "admin-table min-w-0 overflow-x-auto border-y border-border/60 [&_table]:w-full [&_tbody]:divide-y [&_tbody]:divide-border/60 [&_tbody_tr]:border-border/60 [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-muted/25",
         className,
       )}
     >
@@ -18,7 +18,6 @@ export function AdminTable({ children, className }: AdminTableProps) {
     </div>
   );
 }
-
 
 export type AdminTableHeadProps = {
   children: ReactNode;
@@ -29,7 +28,7 @@ export function AdminTableHead({ children, className }: AdminTableHeadProps) {
   return (
     <thead
       className={cn(
-        "border-b border-border/40 bg-muted/30 [&_th]:text-body-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-muted-foreground",
+        "border-b border-border/60 [&_th]:text-body-xs [&_th]:font-semibold [&_th]:text-muted-foreground",
         className,
       )}
     >

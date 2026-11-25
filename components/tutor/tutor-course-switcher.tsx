@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { BookOpen, ChevronsUpDown, Check } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { cn } from "@/lib/utils";
+import { hapticMedium } from "@/lib/native/haptics";
 import { SidebarTooltip } from "@/components/sidebar-shell";
 
 export interface AssignedTutorCourse {
@@ -41,6 +42,7 @@ export function TutorCourseSwitcher({
   ) ?? (activeCourseId ? { courseId: activeCourseId, title: "Kelas", code: null } : courses[0]);
 
   const handleSelectCourse = (targetCourseId: string) => {
+    void hapticMedium();
     if (!activeCourseId) {
       router.push(`/tutor/${targetCourseId}`);
       return;

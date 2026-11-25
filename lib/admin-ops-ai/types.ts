@@ -55,6 +55,7 @@ export interface OpsAiChatRequest {
     content: string;
   }>;
   context?: OpsAiContextPayload;
+  needsTitle?: boolean;
 }
 
 // ============================================================================

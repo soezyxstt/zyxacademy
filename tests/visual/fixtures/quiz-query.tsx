@@ -9,15 +9,17 @@ import { QuizPlayer } from "@/components/course/quiz-player";
 import { AttemptReview } from "@/components/course/attempt-review";
 import { Toaster } from "@/components/ui/toast";
 
+export type QuizFixtureConfig = {
+  mode: "player" | "review" | "demo";
+  seconds?: number | null;
+  closeAtMs?: number;
+  perQuestionSeconds?: number;
+  expectedUserId?: string;
+};
+
 declare global {
   interface Window {
-    quizFixture: {
-      mode: "player" | "review" | "demo";
-      seconds?: number | null;
-      closeAtMs?: number;
-      perQuestionSeconds?: number;
-      expectedUserId?: string;
-    };
+    quizFixture: QuizFixtureConfig;
   }
 }
 

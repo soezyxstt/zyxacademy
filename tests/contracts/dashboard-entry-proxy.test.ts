@@ -88,4 +88,37 @@ describe("proxy first-visit role dashboard redirect", () => {
       expect(response.cookies.get(DASHBOARD_ENTRY_COOKIE_NAME)?.value).toBe("1");
     }
   });
+
+  test("bypasses marketing pages for native app User-Agent even when cooldown cookie is set", () => {
+    const mobileAuthed = proxy(
+      new NextRequest("https://www.zyxacademy.com/plans", {
+        headers: {
+          "user-agent": "Mozilla/5.0 ZyxMobileApp/0.1.0 (Capacitor; nightly; build=abc1234)",
+          cookie: `better-auth.session_token=active-token; ${DASHBOARD_ENTRY_COOKIE_NAME}=1`,
+        },
+      }),
+    );
+    expect(mobileAuthed.headers.get("x-middleware-rewrite")).toBe(
+      `https://www.zyxacademy.com${ENTRY_REDIRECT_ROUTE}?native=1`,
+    );
+
+    const mobileAnon = proxy(
+      new NextRequest("https://www.zyxacademy.com/", {
+        headers: {
+          "user-agent": "Mozilla/5.0 ZyxMobileApp/0.1.0 (Capacitor; stable; build=abc1234)",
+        },
+      }),
+    );
+    expect(mobileAnon.headers.get("location")).toBe("https://www.zyxacademy.com/sign-in");
+
+    const nativeSignIn = proxy(
+      new NextRequest("https://www.zyxacademy.com/sign-in", {
+        headers: {
+          "user-agent": "Mozilla/5.0 ZyxMobileApp/0.1.0 (Capacitor; stable; build=abc1234)",
+        },
+      }),
+    );
+    expect(nativeSignIn.headers.get("location")).toBeNull();
+    expect(nativeSignIn.headers.get("x-middleware-rewrite")).toBeNull();
+  });
 });

@@ -3,9 +3,13 @@
     "unavailable": "Pricing is unavailable. Try again.",
     "platform": "Platform",
     "tutorial": "Tutorial",
+    "platformOffer": "{percent}% off platform",
+    "tutorialOffer": "{percent}% off tutorials",
+    "period": "{start} to {end} WIB",
     "schedule": "{component}: {percent}% off, {start} through {end} WIB."
   },
   "nav": {
+    "download": "Download",
     "plans": "Plans",
     "about": "About us",
     "testimonials": "Testimonials",
@@ -32,11 +36,19 @@
     "signInGoogle": "Sign in with Google",
     "signIn": "Sign in"
   },
+  "download": {
+    "verb": "Download",
+    "platforms": "Choose your platform",
+    "title": "Download Zyx Academy",
+    "description": "Install Zyx Academy on your computer or phone.",
+    "unavailable": "Unavailable",
+    "error": "Could not load the release. Reload the page to try again.",
+    "empty": "No {channel} release is available yet."
+  },
   "footer": {
-    "description": "Zyx Academy helps first- and second-year ITB undergraduate students master their courses with campus-aligned modules, focused practice, and tutorials with ITB tutors.",
-    "tagline": "Built by ITB students. Learn with a clearer direction.",
-    "companyLinks": "Company links",
-    "company": "Company",
+    "description": "Built by ITB students for first- and second-year ITB undergraduates. Study first-year and major courses with modules, practice questions, and tutorials from ITB tutors.",
+    "companyLinks": "About Zyx Academy",
+    "company": "Zyx Academy",
     "plans": "Plans",
     "legalLinks": "Legal links",
     "legal": "Legal",
@@ -782,8 +794,8 @@
     "sectionTitle": "Help the class see which concepts need discussion."
   },
   "plans": {
-    "title": "Plans and services",
-    "description": "Payment takes place outside the site. An administrator activates access for the selected plan.",
+    "title": "Study plans",
+    "description": "Compare plans for independent study or learning with a tutor. Pay outside the site, then an administrator activates your plan.",
     "priceConfiguration": "Price configuration: {people} people and {courses} courses.",
     "peopleLabel": "Group size",
     "group": "Group",
@@ -800,13 +812,14 @@
     "decreaseOtherCourse": "Remove other course",
     "increaseOtherCourse": "Add other course",
     "close": "Close",
-    "startWithFree": "Start with Free",
+    "startWithFree": "Sign up for free",
     "free": "Free",
     "contactAdmin": "Contact admin",
     "contactUnavailable": "Contact details are unavailable"
   },
   "pricing": {
     "loading": "Loading price...",
+    "discount": "{percent, number}% off",
     "regularPriceLabel": "Regular price from {date}: {price} {unit}",
     "regularPriceDate": "November 1, 2026",
     "perPerson": "per person",
@@ -825,7 +838,7 @@
     "tiers": {
       "minimal": {
         "name": "Minimal",
-        "note": "A complete self-paced learning platform.",
+        "note": "Study at your own pace with course materials and practice questions.",
         "features": [
           "Materials and question bank",
           "Worked solutions",
@@ -836,7 +849,7 @@
       },
       "essential": {
         "name": "Essential",
-        "note": "In-person tutorials and video explanations.",
+        "note": "Work through problems on video and study in person with a tutor.",
         "features": [
           "Everything in Minimal",
           "Access to video-based question explanations",
@@ -845,7 +858,7 @@
       },
       "premium": {
         "name": "Premium",
-        "note": "On-demand consultation and more support.",
+        "note": "Get more tutorial sessions and access to assignment consultations.",
         "features": [
           "Everything in Essential",
           "On-demand assignment consultations",
@@ -854,7 +867,7 @@
       },
       "free": {
         "name": "Free",
-        "note": "Basic material access at no cost.",
+        "note": "Try the materials in the first chapter.",
         "features": [
           "The first chapter of every course",
           "Related articles, Diktat materials, quizzes, and flashcards",
@@ -865,7 +878,7 @@
       },
       "custom": {
         "name": "Custom",
-        "note": "Tailor the group, tutor, and curriculum.",
+        "note": "Choose a group, tutor, and study topics that suit you.",
         "features": [
           "Have a specific need outside these plans? For example, a group of more than 5, targeted preparation, or curriculum adjustments."
         ]
@@ -877,7 +890,7 @@
     "previous": "Previous",
     "next": "Next",
     "heroTitle": "Blog",
-    "heroDescription": "Articles to help you study, understand campus life, and learn about Zyx activities.",
+    "heroDescription": "Find study tips, campus stories, fun facts, and updates from Zyx.",
     "categories": {
       "all": "All",
       "studyTips": "Study Tips",
@@ -886,27 +899,12 @@
       "zyxActivities": "Zyx Activities"
     },
     "categoryNav": "Blog categories",
-    "categoryCount": "{count} articles in this category.",
     "latest": "Latest articles",
-    "latestDescription": "Read the latest articles before exploring study features.",
     "available": "{count} articles available",
     "emptyTitle": "No articles yet",
-    "emptyCategory": "Articles in this category will be here soon.",
-    "emptyLatest": "New articles will appear here after they are published.",
     "viewAll": "View all",
-    "featuresTitle": "Features to support your studies",
-    "featuresDescription": "After reading, explore the study space and courses available at Zyx.",
-    "zyraTitle": "Zyra",
-    "zyraDescription": "An AI study companion to help you understand course material.",
-    "handoutsTitle": "Diktat materials",
-    "handoutsDescription": "Diktat materials to support your learning.",
-    "examsTitle": "Exam practice",
-    "examsDescription": "Practice with questions to check your understanding.",
-    "flashcardsTitle": "Flashcards",
-    "flashcardsDescription": "Study cards to help you remember key concepts.",
-    "studyPathTitle": "Study path",
-    "studyPathDescription": "A study plan that helps you make progress.",
-    "courses": "Open course catalog",
+    "coursesTitle": "Course materials and practice",
+    "courses": "Explore courses",
     "draft": "Draft",
     "blogName": "Zyx Blog",
     "minutes": "{count} min read",

@@ -155,7 +155,8 @@ describe("Admin Ops Knowledge Pipeline - Curated Source Registry & Security Guar
     const routesDoc = generateAdminRoutesCatalog();
     expect(routesDoc).toContain("/admin");
     expect(routesDoc).toContain("/admin/tokens");
-    expect(routesDoc).toContain("/admin/ops/flags");
+    expect(routesDoc).toContain("/admin/ops");
+    expect(routesDoc).not.toContain("/admin/ops/flags");
 
     const toolsDoc = generateOpsAiToolsCatalog();
     expect(toolsDoc).toContain("search_users");

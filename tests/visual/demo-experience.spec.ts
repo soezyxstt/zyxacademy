@@ -102,7 +102,7 @@ test("four-question student quiz grades the signed three-question and one-questi
    if (index < 3) await page.getByRole("button", { name: /^Lanjut$/ }).click();
  }
  await capture(page, info, "quiz-final-question");
- await page.getByRole("button", { name: /^Kumpulkan kuis$/i }).click();
+ await page.getByRole("button", { name: /^Kirim jawaban$/i }).click();
  await capture(page, info, "quiz-confirm");
  await page.getByRole("dialog").getByRole("button", { name: "Ya, kumpulkan", exact: true }).click();
  await expect(page.getByText(/Gagal mengumpulkan kuis/).first()).toBeVisible();

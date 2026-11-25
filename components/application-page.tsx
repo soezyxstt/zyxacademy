@@ -17,7 +17,7 @@ export function ApplicationPage({
     <div
       data-application-page=""
       className={cn(
-        "w-full min-w-0 max-w-full px-(--page-gutter) pb-(--page-bottom) pt-(--page-top)",
+        "w-full min-w-0 max-w-full px-(--page-gutter) pb-[calc(var(--page-bottom)+var(--mobile-bottom-nav-height,0px))] pt-(--page-top)",
         maxWidth === "7xl" && "mx-auto max-w-7xl",
         spacing,
         className

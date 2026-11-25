@@ -89,79 +89,90 @@ export function ActivityTable({
               </tr>
             </AdminTableHead>
             <tbody className="divide-y divide-border/60">
-              {items.map((item) => (
-                <tr
-                  key={item.id}
-                  className="hover:bg-muted/20 transition-colors"
-                >
-                  {/* Timestamp */}
-                  <td className="px-4 py-3 text-body-xs text-muted-foreground whitespace-nowrap">
-                    <FormattedDate
-                      date={item.createdAt}
-                      options={{ dateStyle: "medium", timeStyle: "short" }}
-                    />
-                  </td>
+              {items.map((item) => {
+                const courseLabel =
+                  item.courseTitle ||
+                  (item.courseId && item.courseId.toLowerCase() !== "global"
+                    ? item.courseId
+                    : t("tutorActivityUI.crossCourse"));
 
-                  {/* Tutor / Actor */}
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 max-w-[200px]">
-                      <div className="size-6 rounded bg-brand-primary/10 text-brand-primary flex items-center justify-center text-body-xs font-bold shrink-0">
-                        {item.actorName ? item.actorName.charAt(0).toUpperCase() : <User className="size-3.5" />}
+                return (
+                  <tr
+                    key={item.id}
+                    className="hover:bg-muted/20 transition-colors"
+                  >
+                    {/* Timestamp */}
+                    <td className="px-4 py-3 text-body-xs tabular-nums text-muted-foreground whitespace-nowrap">
+                      <FormattedDate
+                        date={item.createdAt}
+                        options={{ dateStyle: "medium", timeStyle: "short" }}
+                      />
+                    </td>
+
+                    {/* Tutor / Actor */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5 max-w-[220px]">
+                        <div className="size-6 rounded-md bg-brand-primary/10 text-brand-primary flex items-center justify-center text-body-xs font-semibold shrink-0">
+                          {item.actorName ? item.actorName.charAt(0).toUpperCase() : <User className="size-3.5" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-body-sm font-medium text-foreground truncate leading-snug">
+                            {item.actorName || t("tutorActivityUI.systemAnonymous")}
+                          </p>
+                          {item.actorEmail && (
+                            <p className="text-body-xs text-muted-foreground truncate leading-snug">
+                              {item.actorEmail}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground truncate">{item.actorName || t("tutorActivityUI.systemAnonymous")}</p>
-                        {item.actorEmail && (
-                          <p className="text-body-xs text-muted-foreground font-mono break-all">{item.actorEmail}</p>
-                        )}
+                    </td>
+
+                    {/* Course */}
+                    <td className="px-4 py-3 max-w-[200px]">
+                      <p className="text-body-sm font-medium text-foreground truncate leading-snug" title={courseLabel}>
+                        {courseLabel}
+                      </p>
+                      {item.courseCode && (
+                        <p className="text-body-2xs font-mono text-muted-foreground leading-snug">
+                          {item.courseCode}
+                        </p>
+                      )}
+                    </td>
+
+                    {/* Entity & Action (no raw UUID clutter; IDs live in Detail dialog) */}
+                    <td className="px-4 py-3 max-w-[260px]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="inline-flex rounded-md bg-muted px-1.5 py-0.5 text-body-2xs font-semibold uppercase tracking-wide text-muted-foreground shrink-0">
+                          {activityLabel(item.entityType, t)}
+                        </span>
+                        <p className="text-body-sm font-medium text-foreground truncate leading-snug" title={item.action}>
+                          {activityLabel(item.action, t)}
+                        </p>
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
-                  {/* Course */}
-                  <td className="px-4 py-3 max-w-[180px]">
-                    <p className="font-medium text-foreground truncate" title={item.courseTitle || item.courseId || ""}>
-                      {item.courseTitle || item.courseId || t("tutorActivityUI.crossCourse")}
-                    </p>
-                    {item.courseCode && (
-                      <span className="text-[10px] font-mono text-muted-foreground">{item.courseCode}</span>
-                    )}
-                  </td>
+                    {/* Outcome Status */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {getOutcomeBadge(item.outcome)}
+                    </td>
 
-                  {/* Entity & Action */}
-                  <td className="px-4 py-3 max-w-[220px]">
-                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                      <span className="inline-flex rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground shrink-0">
-                        {activityLabel(item.entityType, t)}
-                      </span>
-                      <span className="text-body-xs font-mono text-muted-foreground truncate max-w-[120px]" title={item.entityId}>
-                        {item.entityId}
-                      </span>
-                    </div>
-                    <p className="text-body-xs font-mono text-foreground truncate mt-0.5" title={item.action}>
-                      {activityLabel(item.action, t)}
-                    </p>
-                  </td>
-
-                  {/* Outcome Status */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {getOutcomeBadge(item.outcome)}
-                  </td>
-
-                  {/* Action / Detail */}
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleOpenDetail(item)}
-                      className="h-8 gap-1 text-body-sm font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      <Eye className="size-3.5" aria-hidden />
-                      <span>{t("tutorActivityUI.view")}</span>
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+                    {/* Action / Detail */}
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenDetail(item)}
+                        className="h-8 gap-1 text-body-sm font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        <Eye className="size-3.5" aria-hidden />
+                        <span>{t("tutorActivityUI.view")}</span>
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </AdminTable>
@@ -169,60 +180,67 @@ export function ActivityTable({
 
       {/* Mobile Stacked Rows View (shown only on small screens / 380px safe) */}
       <div className="md:hidden divide-y divide-border border-y border-border">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="p-3.5 space-y-2 min-w-0 overflow-hidden"
-          >
-            <div className="flex items-start justify-between gap-2 min-w-0">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <div className="size-6 rounded bg-brand-primary/10 text-brand-primary flex items-center justify-center text-body-xs font-bold shrink-0">
-                  {item.actorName ? item.actorName.charAt(0).toUpperCase() : <User className="size-3.5" />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-body-sm text-foreground truncate">{item.actorName || t("tutorActivityUI.systemAnonymous")}</p>
-                  <p className="text-body-xs text-muted-foreground">
-                    <FormattedDate date={item.createdAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
-                  </p>
-                </div>
-              </div>
-              <div className="shrink-0">{getOutcomeBadge(item.outcome)}</div>
-            </div>
+        {items.map((item) => {
+          const courseLabel =
+            item.courseTitle ||
+            (item.courseId && item.courseId.toLowerCase() !== "global"
+              ? item.courseId
+              : t("tutorActivityUI.crossCourse"));
 
-            <div className="space-y-1.5 text-body-xs border-t border-border/60 pt-2 min-w-0">
-              <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="text-muted-foreground shrink-0">{t("tutorActivityUI.course")}:</span>
-                <span className="font-medium text-foreground truncate text-right min-w-0" title={item.courseTitle || item.courseId || ""}>
-                  {item.courseTitle || item.courseId || t("tutorActivityUI.crossCourse")}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="text-muted-foreground shrink-0">{t("tutorActivityUI.entity")}:</span>
-                <span className="font-mono text-foreground truncate text-right min-w-0" title={`${item.entityType} (${item.entityId})`}>
-                  <span className="font-semibold">{activityLabel(item.entityType, t)}</span>{" "}
-                  <span className="text-muted-foreground">({item.entityId})</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="text-muted-foreground shrink-0">{t("tutorActivityUI.action")}:</span>
-                <span className="font-mono text-foreground truncate text-right min-w-0" title={item.action}>
-                  {activityLabel(item.action, t)}
-                </span>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleOpenDetail(item)}
-              className="w-full h-8 gap-1 text-body-sm font-medium"
+          return (
+            <div
+              key={item.id}
+              className="p-3.5 space-y-2 min-w-0 overflow-hidden"
             >
-              <Eye className="size-3.5" aria-hidden />
-              <span>{t("tutorActivityUI.detail")}</span>
-            </Button>
-          </div>
-        ))}
+              <div className="flex items-start justify-between gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="size-6 rounded-md bg-brand-primary/10 text-brand-primary flex items-center justify-center text-body-xs font-semibold shrink-0">
+                    {item.actorName ? item.actorName.charAt(0).toUpperCase() : <User className="size-3.5" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-body-sm text-foreground truncate">{item.actorName || t("tutorActivityUI.systemAnonymous")}</p>
+                    <p className="text-body-xs text-muted-foreground">
+                      <FormattedDate date={item.createdAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
+                    </p>
+                  </div>
+                </div>
+                <div className="shrink-0">{getOutcomeBadge(item.outcome)}</div>
+              </div>
+
+              <div className="space-y-1.5 text-body-xs border-t border-border/60 pt-2 min-w-0">
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <span className="text-muted-foreground shrink-0">{t("tutorActivityUI.course")}:</span>
+                  <span className="font-medium text-foreground truncate text-right min-w-0" title={courseLabel}>
+                    {courseLabel}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <span className="text-muted-foreground shrink-0">{t("tutorActivityUI.entity")}:</span>
+                  <span className="font-medium text-foreground truncate text-right min-w-0">
+                    {activityLabel(item.entityType, t)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <span className="text-muted-foreground shrink-0">{t("tutorActivityUI.action")}:</span>
+                  <span className="font-medium text-foreground truncate text-right min-w-0" title={item.action}>
+                    {activityLabel(item.action, t)}
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleOpenDetail(item)}
+                className="w-full h-8 gap-1 text-body-sm font-medium"
+              >
+                <Eye className="size-3.5" aria-hidden />
+                <span>{t("tutorActivityUI.detail")}</span>
+              </Button>
+            </div>
+          );
+        })}
       </div>
 
       {/* Pagination Bar */}

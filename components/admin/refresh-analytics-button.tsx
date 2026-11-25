@@ -5,14 +5,22 @@ import { useRouter } from "next/navigation";
 import { AdminIconAction } from "@/components/admin/icon-action";
 import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
+import { hapticLight } from "@/lib/native/haptics";
 import { RefreshCcw } from "lucide-react";
 
-export function RefreshAnalyticsButton() {
+export function RefreshAnalyticsButton({
+  variant = "ghost",
+  className,
+}: {
+  variant?: "ghost" | "outline";
+  className?: string;
+} = {}) {
   const t = useTranslations("adminOps");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleRefresh = async () => {
+    void hapticLight();
     setLoading(true);
     try {
       const response = await fetch("/api/admin/analytics/sync", {
@@ -34,9 +42,10 @@ export function RefreshAnalyticsButton() {
   return (
     <AdminIconAction
       label={t("opsUI.refresh")}
-      variant="ghost"
+      variant={variant}
       onClick={handleRefresh}
       isLoading={loading}
+      className={className}
     >
       <RefreshCcw className="size-4" />
     </AdminIconAction>

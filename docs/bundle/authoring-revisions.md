@@ -24,7 +24,7 @@ Publication validates the release manifest and repeats its snapshot and dependen
 
 For a single-product correction, call `authoring.create_revision` with `entityIds: [productId]` from the observed edit context. Direct patches must target that ID. Check the reported derived-product and print evidence changes before approving the successor bundle.
 
-Operations address entities, sections, blocks and collection items by stable ID. Array offsets are not stable identities. Scope, stored identity, lineage and computed hashes are server-controlled. Structural edits and explicit provenance changes must pass the complete original validators, including graph and source references. A source change cannot be justified by copying the previous provenance.
+Operations address entities, sections, blocks, Diktat units and collection items by stable ID. Diktat reads and patches use `unitId` with the exact product parent, without section/block/item selectors. Stable part selectors such as `parts[part-id].markdown` support a small edit; the server refreshes projections and invalidates affected evidence. Array offsets are not stable identities. Scope, stored identity, lineage and computed hashes are server-controlled. Structural edits and explicit provenance changes must pass the complete original validators, including graph and source references. A source change cannot be justified by copying the previous provenance.
 
 The source documents and excerpt archives themselves remain immutable in this editing workflow. Provenance changes must reference admitted active sources. Ingesting a new source follows the source-grounded authoring workflow. Existing V3 rules for unique section and block IDs within an artifact remain enforced; the review persistence also records the owning Product ID.
 
@@ -35,6 +35,10 @@ A Diktat's published PDF key is immutable for its canonical version. A meaningfu
 Existing review evidence can be reused only when the reviewed unit, applicable parent and source context, reviewer and decision still match. A release decision remains explicit. Changes to structure, prerequisites or provenance can require broader review than a single text field. Reuse is auditable and never amounts to automatic mathematical approval.
 
 ## MCP lifecycle
+
+The [draft agent workflow update](authoring-agent-workflow.md) adds optional `responseMode: "compact"` for context, create, patch and restore, plus exact `target` selectors on context reads. Compact/target replies retain identity, bounded impact and current execution tokens while marking review/readiness as not evaluated. They skip those review queries but still admit the stored artifact and check its exact scope. Full stays the default. Use full context and the release planner before approval; never infer readiness from a compact edit response.
+
+The Idea and Product injected-transport clients carry successor identity after successful calls and refuse overlapping edits. They reject mismatched exact reads, expose `readFull()` for review, and never replace stale checksums or retry writes. Additive diagnostics distinguish content, conflict, permission and runtime failures while preserving existing error codes and OAuth challenges.
 
 The common tools are `authoring.get_edit_context`, `authoring.create_revision`, `authoring.patch_revision`, `authoring.prepare_revision_verification`, `authoring.plan_release`, `authoring.review_revision`, `authoring.publish_release`, `authoring.list_revisions` and `authoring.restore_revision`. Runtime discovery supplies their schemas, requirements and bounded inputs.
 

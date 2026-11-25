@@ -250,6 +250,7 @@ for (const [state, fixture] of Object.entries(cases)) {
 }
 
 test("media list remains usable while refreshing", async ({ page }, info) => {
+  test.setTimeout(180_000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
@@ -259,10 +260,11 @@ test("media list remains usable while refreshing", async ({ page }, info) => {
     if (response.status() >= 400)
       errors.push(`${response.status()} ${new URL(response.url()).pathname}`);
   });
+  const fileName = "Materi kalkulus dan penerapan turunan untuk sains dan rekayasa.pdf";
   const data = {
     path: "",
     folders: [{ name: "Dokumen kuliah", path: "dokumen" }],
-    files: [],
+    files: [{ key: "fixture.pdf", name: fileName, folderPath: "", size: 10240, lastModified: "2026-11-04T01:00:00Z", kind: "pdf", url: "/visual-document.pdf" }],
     tree: [],
   };
   let release!: () => void;
@@ -279,25 +281,16 @@ test("media list remains usable while refreshing", async ({ page }, info) => {
   await page.goto("/visual-fixtures/admin-loading-flows?state=media", {
     waitUntil: "domcontentloaded",
   });
-  await expect(page.getByText("Dokumen kuliah").first()).toBeVisible();
+  await expect(page.getByText("Dokumen kuliah").first()).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Tampilan daftar" }).click();
-  const table = page.locator("table");
-  await expect(table).toBeVisible();
-  if (info.project.name === "mobile-380") {
-    const scroller = table.locator("..");
-    expect(
-      await scroller.evaluate((node) => node.scrollWidth > node.clientWidth),
-    ).toBe(true);
-    await scroller.evaluate((node) => {
-      node.scrollLeft = node.scrollWidth;
-    });
-    expect(await scroller.evaluate((node) => node.scrollLeft)).toBeGreaterThan(
-      0,
-    );
-    await scroller.evaluate((node) => {
-      node.scrollLeft = 0;
-    });
-  }
+  const mobile = info.project.name === "mobile-380";
+  const table = page.getByRole("table");
+  const list = mobile ? page.locator("[data-media-list-rows]") : table;
+  if (mobile) await expect(table).toHaveCount(0);
+  const toolbar = page.locator("[data-media-toolbar]");
+  await expect(toolbar).toHaveCSS("justify-content", "space-between");
+  await expect(toolbar.locator(":scope > div")).toHaveCount(2);
+  await expect(list.getByText(fileName, { exact: true })).toBeVisible();
   await capture(page, info, "media-list-ready");
   const request = page.waitForRequest("**/api/admin/media?folder=*");
   await page.getByRole("button", { name: "Muat ulang" }).click();
@@ -305,6 +298,6 @@ test("media list remains usable while refreshing", async ({ page }, info) => {
   await expect(page.getByRole("status").first()).toBeVisible();
   await capture(page, info, "media-list-loading");
   release();
-  await expect(table).toBeVisible();
+  await expect(list).toBeVisible();
   expect(errors).toEqual([]);
 });

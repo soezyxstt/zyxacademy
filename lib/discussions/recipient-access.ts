@@ -58,7 +58,6 @@ export async function getDiscussionRecipientAccess(channelId: string, userIds: r
     : !old || channel.courseId !== null || old.id !== channel.legacyCourseId)) return new Map();
  }
  if (aliases.includes(PKA_COURSE_ID)) {
-  if (process.env.FEATURE_PKA !== "1") return new Map();
   const registered = await client.select({ id: enrollments.userId }).from(enrollments).where(and(
    inArray(enrollments.userId, [...actors.keys()]), eq(enrollments.courseId, PKA_COURSE_ID),
   ));

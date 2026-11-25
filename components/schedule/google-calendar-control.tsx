@@ -8,15 +8,18 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { connectGoogleCalendar, getGoogleCalendarStatus, requestGoogleCalendarSync } from "@/app/actions/google-calendar";
 import type { CalendarSyncStatus } from "@/lib/google-calendar/shared";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import { useStudentExperience } from "@/components/student-experience-provider";
+import { cn } from "@/lib/utils";
 import {
   getNativeAuthScheme,
   isNativeSystemBrowserSupported,
   openNativeSystemBrowser,
 } from "@/lib/native/auth";
 
-export function GoogleCalendarControl({ central = false }: { central?: boolean }) {
+export function GoogleCalendarControl({ central = false, className }: { central?: boolean; className?: string }) {
   const t = useTranslations("schedule");
   const { locale } = useAppLocale();
+  const isDemo = useStudentExperience().mode === "demo";
   const mountedRef = useRef(true);
   const [status, setStatus] = useState<CalendarSyncStatus | null>(null);
   const [open, setOpen] = useState(false);
@@ -30,6 +33,7 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
   const hasStatus = status !== null;
   const syncPending = status?.pending === true;
   useEffect(() => {
+    if (isDemo) return;
     let active = true;
     let running = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -55,7 +59,7 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [central, open, busy, hasStatus, syncPending]);
+  }, [central, isDemo, open, busy, hasStatus, syncPending]);
   useEffect(() => {
     if (central) return;
     const url = new URL(window.location.href);
@@ -111,7 +115,7 @@ export function GoogleCalendarControl({ central = false }: { central?: boolean }
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label={title}>
+              <Button type="button" variant="ghost" size="icon" className={cn("h-9 w-9 shrink-0", className)} aria-label={title}>
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <CalendarSync className="size-4" />}
               </Button>
             </PopoverTrigger>

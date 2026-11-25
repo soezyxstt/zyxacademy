@@ -127,6 +127,7 @@ export function getProductV4VerificationReceiptSignature(value: unknown): string
   return parsed.success ? parsed.data.signature : null;
 }
 export type ProductV4VerificationResult = z.infer<typeof resultSchema> & { captureTotal?: number };
+export function parseProductV4VerificationResult(value: unknown): ProductV4VerificationResult { return resultSchema.parse(value); }
 export interface ProductV4ObservedArtifact { id: string; mediaType: z.infer<typeof artifactSchema>["mediaType"]; bytes: Uint8Array; pageNumber?: number }
 export interface ProductV4ObservedCheck {
   checkId: string;
@@ -152,38 +153,78 @@ export function authenticProductV4VerificationReceipt(value: unknown, authority:
   return timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(sign(body, authority), "hex")) ? parsed.data : null;
 }
 
+function normalizeVerificationResult({ captureTotal: _captureTotal, ...check }: ProductV4ObservedCheck | ProductV4VerificationResult): ProductV4VerificationResult {
+  return resultSchema.parse({ ...check, artifacts: check.artifacts.map(artifact => {
+    if (!("bytes" in artifact)) return artifactSchema.parse(artifact);
+    const { id, mediaType, bytes, pageNumber } = artifact;
+    if (bytes.length === 0 || bytes.length > 50 * 1024 * 1024) throw new Error("PRODUCT_V4_VERIFICATION_ARTIFACT_INVALID");
+    if (mediaType === "image/png" && !Buffer.from(bytes.subarray(0, 8)).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error("PRODUCT_V4_VERIFICATION_ARTIFACT_INVALID");
+    if (mediaType === "application/pdf" && Buffer.from(bytes.subarray(0, 5)).toString() !== "%PDF-") throw new Error("PRODUCT_V4_VERIFICATION_ARTIFACT_INVALID");
+    if (mediaType === "application/json") {
+      try { JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)); }
+      catch { throw new Error("PRODUCT_V4_VERIFICATION_ARTIFACT_INVALID"); }
+    }
+    return { id, mediaType, byteLength: bytes.length, checksum: createHash("sha256").update(bytes).digest("hex"), ...(pageNumber === undefined ? {} : { pageNumber }) };
+  }) });
+}
+
 function issue(plan: ProductV4VerificationPlan, checks: readonly (ProductV4ObservedCheck | ProductV4VerificationResult)[], origin: ProductV4VerificationReceipt["origin"], authority: ProductV4VerificationAuthority): ProductV4VerificationReceipt {
   assertPlanIntegrity(plan);
   const ids = new Set<string>();
-  const results = checks.map(({ captureTotal: _captureTotal, ...check }) => {
+  const results = checks.map(check => {
     if (ids.has(check.checkId) || !plan.requirements.some((required) => required.id === check.checkId)) throw new Error("PRODUCT_V4_VERIFICATION_CHECK_INVALID");
     ids.add(check.checkId);
-    return { ...check, artifacts: check.artifacts.map(artifact => {
-      if (!("bytes" in artifact)) return artifactSchema.parse(artifact);
-      const { id, mediaType, bytes, pageNumber } = artifact;
-      if (bytes.length === 0 || bytes.length > 50 * 1024 * 1024) throw new Error("PRODUCT_V4_VERIFICATION_ARTIFACT_INVALID");
-      if (mediaType === "image/png" && !Buffer.from(bytes.subarray(0, 8)).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error("PRODUCT_V4_VERIFICATION_ARTIFACT_INVALID");
-      if (mediaType === "application/pdf" && Buffer.from(bytes.subarray(0, 5)).toString() !== "%PDF-") throw new Error("PRODUCT_V4_VERIFICATION_ARTIFACT_INVALID");
-      if (mediaType === "application/json") {
-        try { JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)); }
-        catch { throw new Error("PRODUCT_V4_VERIFICATION_ARTIFACT_INVALID"); }
-      }
-      return { id, mediaType, byteLength: bytes.length, checksum: createHash("sha256").update(bytes).digest("hex"), ...(pageNumber === undefined ? {} : { pageNumber }) };
-    }) };
+    return normalizeVerificationResult(check);
   });
   const body = receiptBodySchema.parse({ schemaVersion: "product-v4-verification-receipt.v1", planHash: plan.planHash, executorId: authority.executorId, origin, results });
   return { ...body, signature: sign(body, authority) };
 }
 
+/** Reuse only page captures produced alongside this plan's successful PDF check. */
+function capturedPrintPages(requirement: ProductV4VerificationRequirement, pdf: ProductV4VerificationResult | undefined): ProductV4VerificationResult | null {
+  if (!pdf || pdf.status !== "PASS" || !pdf.pageCount || pdf.artifacts.filter(artifact => artifact.mediaType === "application/pdf").length !== 1) return null;
+  const pages = pdf.artifacts.filter(artifact => artifact.mediaType === "image/png");
+  if (pages.length !== pdf.pageCount || !Array.from({ length: pdf.pageCount }, (_, index) => index + 1).every(page => pages.some(artifact => artifact.pageNumber === page))) return null;
+  return { checkId: requirement.id, status: "PASS", expected: `${requirement.layer}:${requirement.state}`,
+    observed: "Every page was captured from the exact PDF bytes produced by this plan's successful print check. Visual review remains separate.",
+    pageCount: pdf.pageCount, artifacts: pages };
+}
+
 /** The executor is application-owned. No MCP input may supply this callback or authority. */
 export async function runProductV4Verification(plan: ProductV4VerificationPlan, authority: ProductV4VerificationAuthority, execute: (requirement: ProductV4VerificationRequirement) => Promise<ProductV4ObservedCheck | ProductV4VerificationResult>): Promise<ProductV4VerificationReceipt> {
-  const checks: (ProductV4ObservedCheck | ProductV4VerificationResult)[] = [];
-  for (const requirement of plan.requirements) {
+  assertPlanIntegrity(plan);
+  const checks = new Map<string, ProductV4VerificationResult>();
+  const observe = async (requirement: ProductV4VerificationRequirement) => {
     const observed = await execute(requirement);
     if (observed.checkId !== requirement.id) throw new Error("PRODUCT_V4_VERIFICATION_CHECK_INVALID");
-    checks.push(observed);
+    checks.set(requirement.id, normalizeVerificationResult(observed));
+  };
+  const isPreflight = (requirement: ProductV4VerificationRequirement) => requirement.layer === "structure" || requirement.layer === "model";
+  const preflight = plan.requirements.filter(isPreflight);
+  // Collect all independent findings before paying for browser sessions or PDF rendering.
+  for (const requirement of preflight) await observe(requirement);
+  const blocked = preflight.some(requirement => {
+    const result = checks.get(requirement.id)!;
+    return result.status !== "PASS" || !result.artifacts.some(artifact => artifact.mediaType === requirement.artifactType);
+  });
+  for (const requirement of plan.requirements.filter(requirement => !isPreflight(requirement))) {
+    if (blocked) {
+      checks.set(requirement.id, { checkId: requirement.id, status: "NOT_TESTED", expected: `${requirement.layer}:${requirement.state}`,
+        observed: "Rendering was not started because structure or model checks did not pass with complete evidence. Fix the preflight findings first.", artifacts: [] });
+      continue;
+    }
+    if (requirement.layer === "print" && requirement.state === "every-page-rendering-and-overflow") {
+      const pdfRequirement = plan.requirements.find(candidate => candidate.layer === "print" && candidate.target === requirement.target && candidate.artifactType === "application/pdf");
+      const captured = capturedPrintPages(requirement, pdfRequirement ? checks.get(pdfRequirement.id) : undefined);
+      if (captured) {
+        checks.set(requirement.id, captured);
+        continue;
+      }
+    }
+    await observe(requirement);
   }
-  return issue(plan, checks, "server_observed", authority);
+  // Preserve the declared matrix and result order, even though execution starts with preflight.
+  return issue(plan, plan.requirements.map(requirement => checks.get(requirement.id)!), "server_observed", authority);
 }
 
 /** Uploaded reports remain reported evidence even if their bytes and hashes are verified. */

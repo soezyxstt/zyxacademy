@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Question Authoring MCP"
-  short_description: "Author high-quality Idea-linked original questions"
-  default_prompt: "Use $zyx-question-authoring-mcp and call workflow.get_playbook first to fetch the active quiz authoring and quality playbooks. Inspect published Ideas, existing Zyx questions, and bounded historical references first; author only zyx_original questions for real gaps with required Idea links and one primary target per question."
+  short_description: "Draft verified questions from published Ideas"
+  default_prompt: "Use $zyx-question-authoring-mcp to fill the requested bank gap with original questions grounded in published Ideas and verified answers. Follow the live quiz playbook, keep assessment review gates, and distinguish direct draft submission from any separately requested server generation job. Recover OAuth through the host. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

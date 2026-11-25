@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { Label } from "@/components/ui/label";
@@ -43,6 +43,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminSectionTitle } from "@/components/admin/section-title";
 import { MathText } from "@/components/course/math-text";
 import { useSpreadsheetExport } from "@/components/admin/spreadsheet-export";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
@@ -472,7 +473,7 @@ export default function DetailedFormAnalyticsPage({
           onValueChange={(val) => setResponseTab(val as any)}
           className="w-full"
         >
-          <TabsList>
+          <TabsList flush={false}>
             <TabsTrigger value="summary">
               <PieIcon className="size-4 text-primary" />
               {t("formDetailsUI.summaryTab")}
@@ -490,25 +491,26 @@ export default function DetailedFormAnalyticsPage({
               {t("formDetailsUI.settingsTab")}
             </TabsTrigger>
           </TabsList>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="mt-(--compact-gap) flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
               <p className="shrink-0 text-body-sm font-semibold">
                 {t("formDetailsUI.responsesCount", { count: responses.length })}
               </p>
               <Link
                 href={`/f/${form.slug}`}
                 target="_blank"
-                className="inline-flex items-center gap-1 text-body-xs font-semibold text-primary hover:underline"
+                className="inline-flex min-w-0 items-center gap-1 text-body-xs text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
               >
-                /f/{form.slug} <ExternalLink className="size-3.5" />
+                <span className="wrap-break-word">/f/{form.slug}</span>
+                <ExternalLink className="size-3.5 shrink-0" aria-hidden />
               </Link>
             </div>
-            <div className="inline-flex shrink-0 items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <Link
                 href={`/admin/forms?edit=${form.id}`}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-body-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
               >
-                <Edit3 className="size-3.5 text-primary" />
+                <Edit3 className="size-4 text-muted-foreground" aria-hidden />
                 {t("formDetailsUI.editForm")}
               </Link>
               {sheetControls(handleExportGoogleSheets, !responses.length)}
@@ -665,22 +667,13 @@ export default function DetailedFormAnalyticsPage({
                         <SimpleSvgPieChart slices={chartItems} />
                       )
                     ) : q.type === "GRID_RADIO" || q.type === "GRID_CHECKBOX" ? (
-                      <div className="overflow-x-auto rounded-lg border border-border bg-card p-4">
-                        <table className="w-full text-left text-body-xs">
-                          <thead>
-                            <tr className="border-b border-border bg-muted/40">
-                              <th className="p-2.5 font-bold text-foreground">{t("formDetailsUI.rowColumn")}</th>
-                              {(q.gridColumns || []).map((col: string, cIdx: number) => (
-                                <th key={cIdx} className="p-2.5 font-bold text-foreground text-center">
-                                  {col}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border/60">
-                            {(q.gridRows || []).map((rowName: string, rIdx: number) => (
-                              <tr key={rIdx} className="hover:bg-muted/20">
-                                <td className="p-2.5 font-semibold text-foreground">{rowName}</td>
+                      <>
+                        {/* Mobile stacked grid summary */}
+                        <div className="divide-y divide-border/60 rounded-lg border border-border bg-card md:hidden">
+                          {(q.gridRows || []).map((rowName: string, rIdx: number) => (
+                            <div key={rIdx} className="space-y-2 p-3">
+                              <p className="text-body-sm font-semibold text-foreground">{rowName}</p>
+                              <div className="flex flex-wrap gap-1.5">
                                 {(q.gridColumns || []).map((colName: string, cIdx: number) => {
                                   let matchCount = 0;
                                   allAnswers.forEach((ansObj: any) => {
@@ -696,21 +689,72 @@ export default function DetailedFormAnalyticsPage({
                                   const pct = allAnswers.length > 0 ? Math.round((matchCount / allAnswers.length) * 100) : 0;
 
                                   return (
-                                    <td key={cIdx} className="p-2.5 text-center">
-                                      <Badge
-                                        variant="secondary"
-                                        className={matchCount > 0 ? "bg-primary/15 text-primary" : "text-muted-foreground bg-muted/30"}
-                                      >
-                                        {matchCount} ({pct}%)
-                                      </Badge>
-                                    </td>
+                                    <Badge
+                                      key={cIdx}
+                                      variant="secondary"
+                                      className={
+                                        matchCount > 0
+                                          ? "bg-primary/15 text-primary"
+                                          : "bg-muted/30 text-muted-foreground"
+                                      }
+                                    >
+                                      {colName}: {matchCount} ({pct}%)
+                                    </Badge>
                                   );
                                 })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Desktop grid table */}
+                        <div className="hidden overflow-x-auto rounded-lg border border-border bg-card p-4 md:block">
+                          <table className="w-full text-left text-body-xs">
+                            <thead>
+                              <tr className="border-b border-border bg-muted/40">
+                                <th className="p-2.5 font-bold text-foreground">{t("formDetailsUI.rowColumn")}</th>
+                                {(q.gridColumns || []).map((col: string, cIdx: number) => (
+                                  <th key={cIdx} className="p-2.5 font-bold text-foreground text-center">
+                                    {col}
+                                  </th>
+                                ))}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody className="divide-y divide-border/60">
+                              {(q.gridRows || []).map((rowName: string, rIdx: number) => (
+                                <tr key={rIdx} className="hover:bg-muted/20">
+                                  <td className="p-2.5 font-semibold text-foreground">{rowName}</td>
+                                  {(q.gridColumns || []).map((colName: string, cIdx: number) => {
+                                    let matchCount = 0;
+                                    allAnswers.forEach((ansObj: any) => {
+                                      if (ansObj && typeof ansObj === "object") {
+                                        const userCol = ansObj[rowName];
+                                        if (Array.isArray(userCol)) {
+                                          if (userCol.includes(colName)) matchCount++;
+                                        } else if (userCol === colName) {
+                                          matchCount++;
+                                        }
+                                      }
+                                    });
+                                    const pct = allAnswers.length > 0 ? Math.round((matchCount / allAnswers.length) * 100) : 0;
+
+                                    return (
+                                      <td key={cIdx} className="p-2.5 text-center">
+                                        <Badge
+                                          variant="secondary"
+                                          className={matchCount > 0 ? "bg-primary/15 text-primary" : "text-muted-foreground bg-muted/30"}
+                                        >
+                                          {matchCount} ({pct}%)
+                                        </Badge>
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
                     ) : q.type === "FILE_UPLOAD" ? (
                       <div className="space-y-2">
                         {allAnswers.map((fileUrl: unknown, fIdx: number) => (
@@ -878,37 +922,26 @@ export default function DetailedFormAnalyticsPage({
           </TabsContent>
 
           {/* TAB 4: SETTINGS */}
-          <TabsContent value="settings" className="w-full space-y-6">
-            {/* Header / Save Action Bar */}
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <CardTitle className="text-body-base font-heading">
-                    {t("formDetailsUI.responseAccessSettings")}
-                  </CardTitle>
-                </div>
-
+          <TabsContent value="settings" className="w-full space-y-(--section-gap)">
+            <AdminSectionTitle
+              as="h2"
+              title={t("formDetailsUI.responseAccessSettings")}
+              right={
                 <Button
                   onClick={handleSaveSettings}
                   disabled={savingSettings}
                   isLoading={savingSettings}
-                  size="sm"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                  className="min-h-9"
                 >
                   {savingSettings ? t("formDetailsUI.saving") : t("formDetailsUI.saveSettings")}
                 </Button>
-              </CardHeader>
-            </Card>
+              }
+            />
 
-            {/* 1. Status & Schedule */}
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="font-heading text-body-sm font-bold uppercase text-primary tracking-wider">
-                  {t("formDetailsUI.statusAndSchedule")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between py-2 gap-4">
+            <section className="space-y-(--related-gap)">
+              <AdminSectionTitle title={t("formDetailsUI.statusAndSchedule")} border />
+              <div className="space-y-(--related-gap)">
+                <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
                     <Label htmlFor="accepting-responses" className="text-body-sm font-semibold cursor-pointer">
                       {t("formDetailsUI.acceptResponses")}
@@ -922,7 +955,7 @@ export default function DetailedFormAnalyticsPage({
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="open-at" className="text-body-sm font-semibold">
                       {t("formDetailsUI.openSchedule")}
                     </Label>
@@ -936,7 +969,7 @@ export default function DetailedFormAnalyticsPage({
                     <p className="text-body-xs text-muted-foreground">{t("formDetailsUI.leaveBlankToAlwaysOpen")}</p>
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="close-at" className="text-body-sm font-semibold">
                       {t("formDetailsUI.closeSchedule")}
                     </Label>
@@ -964,27 +997,22 @@ export default function DetailedFormAnalyticsPage({
                     className="text-body-sm resize-y"
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </section>
 
-            {/* 2. Authentication & Response Rules */}
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="font-heading text-body-sm font-bold uppercase text-primary tracking-wider">
-                  {t("formDetailsUI.emailAndAuthentication")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <section className="space-y-(--related-gap)">
+              <AdminSectionTitle title={t("formDetailsUI.emailAndAuthentication")} border />
+              <div className="space-y-(--related-gap)">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label className="text-body-sm font-semibold">
+                    <Label htmlFor="collect-email" className="text-body-sm font-semibold">
                       {t("formDetailsUI.collectEmailAddress")}
                     </Label>
                     <Select
                       value={formSettings.collectEmail || "none"}
                       onValueChange={(val: any) => setFormSettings({ ...formSettings, collectEmail: val })}
                     >
-                      <SelectTrigger className="w-full text-body-sm">
+                      <SelectTrigger id="collect-email">
                         <SelectValue placeholder={t("formDetailsUI.chooseEmailCollection")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -996,14 +1024,14 @@ export default function DetailedFormAnalyticsPage({
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-body-sm font-semibold">
+                    <Label htmlFor="send-response-copy" className="text-body-sm font-semibold">
                       {t("formDetailsUI.sendResponseCopy")}
                     </Label>
                     <Select
                       value={formSettings.sendResponseCopy || "off"}
                       onValueChange={(val: any) => setFormSettings({ ...formSettings, sendResponseCopy: val })}
                     >
-                      <SelectTrigger className="w-full text-body-sm">
+                      <SelectTrigger id="send-response-copy">
                         <SelectValue placeholder={t("formDetailsUI.chooseResponseCopy")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -1015,7 +1043,7 @@ export default function DetailedFormAnalyticsPage({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between py-2 gap-4">
+                <div className="flex items-center justify-between gap-4 border-t border-border/60 pt-(--row-padding)">
                   <div className="space-y-0.5">
                     <Label htmlFor="allow-editing" className="text-body-sm font-semibold cursor-pointer">
                       {t("formDetailsUI.allowEditing")}
@@ -1031,7 +1059,7 @@ export default function DetailedFormAnalyticsPage({
                   />
                 </div>
 
-                <div className="flex items-center justify-between py-2 gap-4">
+                <div className="flex items-center justify-between gap-4 border-t border-border/60 pt-(--row-padding)">
                   <div className="space-y-0.5">
                     <Label htmlFor="limit-one" className="text-body-sm font-semibold cursor-pointer">
                       {t("formDetailsUI.limitOneResponse")}
@@ -1046,26 +1074,21 @@ export default function DetailedFormAnalyticsPage({
                     onCheckedChange={(checked) => setFormSettings({ ...formSettings, limitToOneResponse: checked })}
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </section>
 
-            {/* 3. Storage & Presentation */}
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="font-heading text-body-sm font-bold uppercase text-primary tracking-wider">
-                  {t("formDetailsUI.fileSizeAndDisplay")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <section className="space-y-(--related-gap)">
+              <AdminSectionTitle title={t("formDetailsUI.fileSizeAndDisplay")} border />
+              <div className="space-y-(--related-gap)">
                 <div className="space-y-1.5">
-                  <Label className="text-body-sm font-semibold">
+                  <Label htmlFor="total-file-size" className="text-body-sm font-semibold">
                     {t("formDetailsUI.totalFileSizeLimit")}
                   </Label>
                   <Select
                     value={formSettings.maxFileSizeLimit || "1GB"}
                     onValueChange={(val: any) => setFormSettings({ ...formSettings, maxFileSizeLimit: val })}
                   >
-                    <SelectTrigger className="w-full sm:w-1/2 text-body-sm">
+                    <SelectTrigger id="total-file-size" className="sm:w-1/2">
                       <SelectValue placeholder={t("formDetailsUI.fileSizeLimit")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -1089,8 +1112,8 @@ export default function DetailedFormAnalyticsPage({
                     className="text-body-sm"
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           </TabsContent>
         </Tabs>
       )}

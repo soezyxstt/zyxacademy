@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import {
   deleteQuizTemplateAction,
   getQuizTemplatePreviewAction,
@@ -167,7 +168,7 @@ export function QuizzesTab({
 
   return (
     <TooltipProvider>
-      <div className="space-y-4">
+      <div className="space-y-(--compact-gap)">
         {/* Header Controls & Create Button */}
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -191,7 +192,7 @@ export function QuizzesTab({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button asChild size="icon" className="size-9 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-semibold shadow-2xs">
+              <Button asChild size="icon-lg">
                 <Link href={createQuizHref} aria-label={t("courseDetail.quizzes.create")}>
                   <Plus className="size-4" />
                 </Link>
@@ -202,21 +203,9 @@ export function QuizzesTab({
         </div>
 
         {/* Quizzes List */}
-        <div className="border-y border-border">
+        <div className="border-y border-border/60">
           {filteredQuizzes.length === 0 ? (
-            <div className="text-center py-8 px-4">
-              <NotebookPen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
-              <p className="text-body-xs font-medium text-foreground">{t("courseDetail.quizzes.emptyTitle")}</p>
-              <p className="text-body-xs text-muted-foreground mt-0.5">
-                {t("courseDetail.quizzes.emptyDescription")}
-              </p>
-              <Button asChild size="sm" className="mt-3 gap-1.5 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-semibold h-8 text-body-xs">
-                <Link href={createQuizHref}>
-                  <Plus className="size-3.5" />
-                  {t("courseDetail.quizzes.createNow")}
-                </Link>
-              </Button>
-            </div>
+            <AdminEmptyState compact icon={NotebookPen} title={t("courseDetail.quizzes.emptyTitle")} description={t("courseDetail.quizzes.emptyDescription")} />
           ) : (
             <div className="divide-y divide-border/50">
               {filteredQuizzes.map((quiz) => {
@@ -227,11 +216,11 @@ export function QuizzesTab({
                 return (
                   <div
                     key={quiz.id}
-                    className="p-3 sm:px-4 sm:py-3 flex items-center justify-between gap-3 hover:bg-muted/10 transition-colors"
+                    className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 py-(--row-padding) transition-colors hover:bg-muted/25"
                   >
-                    <div className="space-y-1 min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 basis-48 space-y-1">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <p className="font-heading text-body-sm font-semibold text-foreground">
+                        <p className="wrap-anywhere font-heading text-body-sm font-semibold text-foreground">
                           {quiz.title}
                         </p>
                         <Badge
@@ -297,7 +286,7 @@ export function QuizzesTab({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="ml-auto flex shrink-0 items-center gap-1">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -388,40 +377,38 @@ export function QuizzesTab({
 
       {/* Preview Quiz Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
-          <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
+        <DialogContent className="flex max-h-[85dvh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="shrink-0 border-b border-border/60 py-(--compact-gap) pr-12 pl-(--panel-padding)">
+            <DialogTitle className="wrap-anywhere text-body-base">
               {t("courseDetail.quizzes.previewTitle", { title: previewQuiz?.title ?? "" })}
             </DialogTitle>
-            <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-3 flex-wrap items-center mt-1">
-              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">
+            <DialogDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs">
+              <span>
                 {t("courseDetail.quizzes.categoryLabel")}: {previewQuiz ? t(`courseDetail.quizzes.categories.${previewQuiz.category}`) : ""}
               </span>
-              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">
+              <span>
                 {t("courseDetail.quizzes.timeLimit")}: {previewQuiz?.timeLimitSeconds ? t("courseDetail.quizzes.minutes", { count: previewQuiz.timeLimitSeconds / 60 }) : t("courseDetail.quizzes.unlimited")}
               </span>
-              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">
+              <span>
                 {t("courseDetail.quizzes.attemptsLabel")}: {previewQuiz?.maxAttempts ?? t("courseDetail.quizzes.unlimited")}
               </span>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
+          <div className="min-h-0 flex-1 overflow-y-auto px-(--panel-padding) text-left">
             {previewLoading ? (
               <QuizPreviewSkeleton label={t("courseDetail.quizzes.loadingPreview")} />
             ) : previewQuestions.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground text-body-sm">
-                {t("courseDetail.quizzes.noQuestions")}
-              </div>
+              <AdminEmptyState compact icon={NotebookPen} title={t("courseDetail.quizzes.noQuestions")} />
             ) : (
-              <div className="space-y-6">
+              <div className="divide-y divide-border/60">
                 {previewQuestions.map((q, idx) => (
-                  <div key={q.id} className="py-4 border-b border-border last:border-0 space-y-3">
-                    <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+                  <div key={q.id} className="space-y-(--compact-gap) py-(--related-gap)">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-body-sm font-bold text-foreground">{t("courseDetail.quizzes.questionNumber", { number: idx + 1 })}</span>
                       <div className="flex items-center gap-2">
                         <DifficultyBadge difficulty={q.difficulty} />
-                        <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
+                        <span className="text-body-xs text-muted-foreground">
                           {q.questionType === "multiple_choice" ? t("courseDetail.quizzes.singleChoice") : t("courseDetail.quizzes.multipleChoice")}
                         </span>
                       </div>
@@ -431,30 +418,30 @@ export function QuizzesTab({
                       {q.prompt}
                     </MathText>
 
-                    <div className="grid gap-2">
+                    <div className="divide-y divide-border/60 border-y border-border/60">
                       {q.options.map((opt: string, optIdx: number) => {
                         const isCorrect = q.correctIndices.includes(optIdx);
                         return (
                           <div
                             key={optIdx}
                             className={cn(
-                              "flex items-center gap-3 p-3 rounded-lg border text-body-sm transition-colors",
+                              "flex min-w-0 items-start gap-2 py-2 text-body-sm",
                               isCorrect
-                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-medium"
-                                : "bg-background/50 border-border text-foreground/80"
+                                ? "text-foreground"
+                                : "text-muted-foreground"
                             )}
                           >
                             <AdminOptionLetter index={optIdx} isCorrect={isCorrect} />
-                            <MathText className="leading-normal" as="span">{opt}</MathText>
-                            {isCorrect && <Check className="size-4 text-emerald-600 dark:text-emerald-400 ml-auto shrink-0" />}
+                            <MathText className="min-w-0 flex-1 leading-normal" as="span">{opt}</MathText>
+                            {isCorrect && <Check className="mt-0.5 size-4 shrink-0 text-status-success" aria-label={t("courseDetail.questions.correct")} />}
                           </div>
                         );
                       })}
                     </div>
 
                     {q.explanation && (
-                      <div className="bg-brand-primary/5 border border-brand-primary/10 rounded-lg p-3.5 space-y-1.5 text-body-sm">
-                        <span className="font-bold text-brand-primary block text-body-xs uppercase tracking-wider">
+                      <div className="space-y-1 border-l-2 border-border/60 pl-3 text-body-sm">
+                        <span className="block text-body-xs font-semibold text-foreground">
                           {t("courseDetail.quizzes.answerExplanation")}
                         </span>
                         <MathText className="text-muted-foreground leading-relaxed whitespace-pre-wrap" as="p">

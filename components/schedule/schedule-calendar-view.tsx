@@ -92,6 +92,7 @@ export type ScheduleCalendarProps = {
   onEditSchedule?: (schedule: any) => void;
   onDeleteSchedule?: (schedule: any) => void;
   onMoveSession?: (booking: any) => void;
+  onEditSlot?: (slot: any) => void;
   onDeleteSlot?: (slotId: string) => void;
   onAssignTutorialSlot?: (slot: any) => void;
   onOpenSessionDetail?: (booking: any) => void;
@@ -423,6 +424,7 @@ export function ScheduleCalendarView({
   onOpenPreSession,
   onOpenPostSession,
   onEditSchedule,
+  onEditSlot,
   onDeleteSlot,
   onAssignTutorialSlot,
   onOpenSessionDetail,
@@ -649,6 +651,8 @@ export function ScheduleCalendarView({
         onSelectSlotToBook?.(event.source, event.dateIso);
       } else if (role === "admin") {
         onAssignTutorialSlot?.(event.source);
+      } else if (role === "teacher" && onEditSlot && !event.locked && !event.hasBookingHistory) {
+        onEditSlot(event.source);
       }
       return;
     }
@@ -662,7 +666,12 @@ export function ScheduleCalendarView({
   };
 
   const eventHandler = (event: CalendarEvent) => {
-    if (event.kind === "availability" && role !== "admin" && (role !== "student" || event.locked)) {
+    if (event.kind === "availability") {
+      if (role === "admin") return () => openEvent(event);
+      if (role === "student" && !event.locked) return () => openEvent(event);
+      if (role === "teacher" && onEditSlot && !event.locked && !event.hasBookingHistory) {
+        return () => openEvent(event);
+      }
       return undefined;
     }
     return () => openEvent(event);

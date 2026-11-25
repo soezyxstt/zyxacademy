@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { MobileSearchInlineProvider } from "@/components/navigation/mobile-chrome-context";
 import { useDialogOpenState } from "@/hooks/use-dialog-history";
 
 function Dialog({ open, defaultOpen, onOpenChange, ...props }: React.ComponentProps<typeof DialogNs.Root>) {
@@ -71,7 +72,7 @@ function DialogContent({
           )}
           {...props}
         >
-          {children}
+          <MobileSearchInlineProvider>{children}</MobileSearchInlineProvider>
           {showCloseButton && (
             <DialogNs.Close data-slot="dialog-close" asChild>
               <Button

@@ -37,8 +37,43 @@ describe("Feature Flags Registry Contract", () => {
     }
   });
 
-  test("Feature flags count is reduced to fewer than 10 vital flags", () => {
-    expect(KNOWN_FEATURE_FLAGS.length).toBeLessThan(10);
-    expect(KNOWN_FEATURE_FLAGS.length).toBe(8);
+  test("the registry retains the runtime gates and excludes the retired campaign flag", () => {
+    expect(KNOWN_FEATURE_FLAGS.map(({ key }) => key)).toEqual([
+      "FEATURE_REFLECTION_EMAIL",
+      "FEATURE_LIVE",
+      "FEATURE_DIKTAT_AI",
+      "FEATURE_ZYRA_IMAGE_INPUT_V1",
+      "FEATURE_ZYRA_SEMANTIC_CACHE_V1",
+      "FEATURE_DRIVE_EDITOR_SYNC",
+      "FEATURE_STRUCTURED_ARTICLE_READER_V1",
+    ]);
+  });
+
+  test("status uses the runtime activation rules for image input and opt-in flags", () => {
+    const keys = [
+      "FEATURE_ZYRA_IMAGE_INPUT_V1",
+      "FEATURE_ZYRA_SEMANTIC_CACHE_V1",
+      "FEATURE_STRUCTURED_ARTICLE_READER_V1",
+    ] as const;
+    const previous = keys.map(key => process.env[key]);
+    const status = (key: typeof keys[number]) => getAllFeatureFlagsStatus().find(flag => flag.key === key)?.enabled;
+    try {
+      delete process.env.FEATURE_ZYRA_IMAGE_INPUT_V1;
+      process.env.FEATURE_ZYRA_SEMANTIC_CACHE_V1 = "true";
+      process.env.FEATURE_STRUCTURED_ARTICLE_READER_V1 = "true";
+      expect(status("FEATURE_ZYRA_IMAGE_INPUT_V1")).toBe(true);
+      expect(status("FEATURE_ZYRA_SEMANTIC_CACHE_V1")).toBe(false);
+      expect(status("FEATURE_STRUCTURED_ARTICLE_READER_V1")).toBe(true);
+      process.env.FEATURE_ZYRA_IMAGE_INPUT_V1 = "0";
+      process.env.FEATURE_ZYRA_SEMANTIC_CACHE_V1 = "1";
+      expect(status("FEATURE_ZYRA_IMAGE_INPUT_V1")).toBe(false);
+      expect(status("FEATURE_ZYRA_SEMANTIC_CACHE_V1")).toBe(true);
+    } finally {
+      for (const [index, key] of keys.entries()) {
+        const value = previous[index];
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
   });
 });

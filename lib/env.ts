@@ -101,8 +101,6 @@ export const env = createEnv({
   LIVE_HMAC_SECRET: z.string().optional(),
   /** Email pengingat dan ringkasan refleksi mingguan. */
   FEATURE_REFLECTION_EMAIL: z.string().optional(),
-  /** Tutorial PKA campaign: free multi-stage PKA simulation course + auto-enroll link + admin announcements. "1" enables. */
-  FEATURE_PKA: z.string().optional(),
   /** Profile-free exact and semantic cache. "1" enables the semantic gate. */
   FEATURE_ZYRA_SEMANTIC_CACHE_V1: z.string().optional(),
   /** Authenticated private learner image input for Zyra. "1" enables the multimodal path. */
@@ -247,7 +245,6 @@ export const env = createEnv({
   FEATURE_LIVE: process.env.FEATURE_LIVE,
   LIVE_HMAC_SECRET: process.env.LIVE_HMAC_SECRET,
   FEATURE_REFLECTION_EMAIL: process.env.FEATURE_REFLECTION_EMAIL,
-  FEATURE_PKA: process.env.FEATURE_PKA,
   FEATURE_ZYRA_SEMANTIC_CACHE_V1: process.env.FEATURE_ZYRA_SEMANTIC_CACHE_V1,
   FEATURE_ZYRA_IMAGE_INPUT_V1: process.env.FEATURE_ZYRA_IMAGE_INPUT_V1,
   STAGING_ZYRA_PEDAGOGY_USER_ID: process.env.STAGING_ZYRA_PEDAGOGY_USER_ID,

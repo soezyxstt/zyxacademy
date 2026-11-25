@@ -1,29 +1,70 @@
 ---
 name: zyx-operation-recovery
-description: Memulihkan operasi Zyx MCP yang responsnya hilang, token plannya kedaluwarsa, revisinya konflik, atau job providernya belum pasti. Gunakan untuk melanjutkan operasi yang sudah ada, bukan membuat perubahan baru.
+description: Memulihkan koneksi OAuth, izin kurang, respons operasi Zyx MCP yang hilang, token plan kedaluwarsa, konflik revision atau job provider yang belum pasti. Gunakan untuk melanjutkan operasi dengan identitas asli dan mencegah efek ganda.
 ---
 
 # Pemulihan operasi Zyx MCP
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.1"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.4"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+
+Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
 
-Metadata paket: `{ "pluginVersion": "0.5.1", "bootstrapProtocol": 1 }`.
+## Koneksi OAuth
 
-Panggil `admin.environment` pada koneksi tujuan dan cocokkan `environment` serta `origin` dengan target pengguna. Jika target belum jelas, pastikan target sebelum membaca data. Jangan mengganti staging dengan production atau sebaliknya. Kirim `expectedEnvironment` dan `expectedOrigin` pada setiap tool admin data. Baca `admin.capabilities` untuk domain yang relevan dan gunakan schema tool yang benar-benar tersedia. Izin yang kurang memerlukan consent OAuth yang sesuai; metadata discovery tidak memberikan izin baru.
+Biarkan host menangani refresh OAuth melalui metadata server. Access token baru berlaku paling lama satu jam dan refresh token berotasi; host harus menyimpan pasangan terbaru. Kedaluwarsa sesi browser biasa tidak berarti koneksi OAuth baru harus dibuat ulang. Jangan meminta atau menyalin refresh token ke percakapan, bundle maupun checkpoint.
 
-Mulai dari nama operasi, request key asli, target, environment dan hasil terakhir yang diketahui. Jika salah satu identitas penting tidak tersedia, cari dari konteks tugas yang sah; jangan menebak target atau membuat operasi pengganti. Discovery menjelaskan izin yang masih kurang dan batas recovery. Izin tugas yang sudah diberikan tetap berlaku, tetapi tidak mencakup perubahan payload atau target baru.
+Pada HTTP 401, gunakan refresh host terlebih dahulu. Pada `invalid_grant`, grant dicabut, atau koneksi lama tanpa refresh token, ikuti alur hubungkan ulang pada environment yang sama. Pada HTTP 403, periksa hak admin; refresh tidak menambah hak. Pada HTTP 503, ikuti `Retry-After` dan periksa layanan; jangan menghapus koneksi untuk gangguan sementara.
 
-Untuk respons mutasi yang hilang, panggil `admin.operation_receipt` dengan `operation`, `requestKey`, target environment/origin dan `includeResult: false`. Default hanya metadata commit, target dan waktu. Bila hasil bisnis dibutuhkan, gunakan `includeResult: true` hanya dengan izin operasi asal yang masih berlaku. Receipt job admin tetap metadata saja jika hasilnya memerlukan izin tambahan. Jangan meminta raw audit snapshot atau credential.
+Jika scope kurang, minta consent untuk gabungan izin lama yang masih diperlukan dan izin baru. Refresh tidak dapat menambah scope; consent baru mengganti pilihan lama. Setelah reautentikasi, periksa identitas dan hasil operasi sebelum mengirim write lagi. Token OAuth, bootstrap dan run authoring punya masa berlaku serta ikatan sendiri; ikuti `remediation` untuk memperbarui konteks yang tepat.
 
-- `committed` membuktikan transaksi database dan receipt sudah commit, bukan keberhasilan provider. Gunakan hasil atau baca target kembali; jangan mengulangi perubahan dengan key baru. Untuk operasi antrean, pantau job sebelum menyatakan delivery atau upload selesai.
-- `not_recorded` belum membuktikan penolakan. Permintaan awal bisa masih berjalan. Periksa lagi atau replay operasi dan payload yang sama dengan key asli. Jika token konfirmasi kedaluwarsa, siapkan plan baru untuk payload dan key yang sama.
-- `REVISION_CONFLICT` memerlukan pembacaan target terbaru dan rekonsiliasi. Jangan mengganti revision untuk memaksa payload lama.
-- Error scope atau sesi memerlukan autentikasi/consent yang tepat. Jangan beralih ke koneksi atau akun lain untuk melewati penolakan.
+## Tetapkan operasi yang dipulihkan
 
-Untuk job eksternal, gunakan `adminjobs.get`; receipt antrean bukan bukti provider selesai. `unknown` berarti provider mungkin telah melakukan efeknya. Periksa provider melalui akses yang sah, lalu gunakan `adminjobs.reconcile` hanya dengan outcome, alasan dan referensi bukti nyata. Rekonsiliasi adalah pernyataan operator, bukan verifikasi otomatis. Jangan mengarang bukti atau mengulang provider secara otomatis. Hanya job yang masih queued dapat dibatalkan jika pengguna mengizinkannya.
+Panggil `admin.environment`; cocokkan environment/origin dengan target pengguna dan koneksi asal. Gunakan `expectedEnvironment` dan `expectedOrigin` pada tool admin data. Baca `admin.capabilities` pada domain operasi asal serta `adminjobs` bila terkait provider; periksa pagination, scope, `protocol` dan aturan retry. Jangan beralih akun atau environment untuk melewati penolakan.
 
-Untuk authoring/revisi akademik, read-after-conflict memakai `authoring.get_edit_context` atau konteks profile yang tepat dan checksum terakhir. Gunakan skill revisi konten untuk melanjutkan release; jangan menyamakan plan/review authoring dengan token mutasi admin. Restore membuat draft baru, bukan menghapus riwayat atau memberikan izin publikasi.
+Cari operasi, target, payload, `requestKey` atau identitas revisi asli dari konteks tugas yang sah. Jika identitas penting hilang, periksa dahulu; jangan menebaknya. Izin tugas yang sudah ada tetap berlaku pada tindakan yang sama, tetapi tidak mengizinkan target, isi atau efek baru.
 
-Laporkan apa yang commit, apa yang hanya queued, apa yang belum diketahui, dan aksi pemulihan yang benar-benar dilakukan. Aksi sensitif seperti credential, pengaturan deployment atau penanganan bukti provider tetap mengikuti jalur otorisasi yang tersedia; tidak ada tool generik SQL, HTTP atau shell untuk melewati batas MCP.
+## Mutasi dengan protocol admin-plan
+
+Panggil `admin.operation_receipt` dengan `operation`, `requestKey` dan `includeResult: false` pada actor/origin asli. Jika hasil bisnis diperlukan, `includeResult: true` tetap memerlukan izin operasi asal; receipt operasi job tetap hanya metadata. Jangan meminta raw audit snapshot atau credential.
+
+| Hasil | Tindakan |
+| --- | --- |
+| `committed` | Gunakan hasil historis atau baca target untuk keadaan kini. Jangan ulangi dengan key baru. Commit DB tidak membuktikan keberhasilan provider. |
+| `not_recorded` | Hasil DB belum diketahui dan permintaan bisa masih berjalan. Baca lagi atau replay hanya operasi, payload dan key asli. |
+| Token konfirmasi kedaluwarsa | Buat dry-run baru untuk payload/key yang sama, periksa dampak, lalu jalankan dengan token baru. |
+| `REVISION_CONFLICT` | Baca target terkini dan rekonsiliasi; jangan mengganti revision agar payload lama dipaksa masuk. |
+| Scope atau sesi ditolak | Pulihkan autentikasi/consent yang benar; jangan memperlebar izin atau mengubah akun secara diam-diam. |
+
+Jika hasil lama belum jelas, jangan mengganti isi atau `requestKey`. Sesudah hasilnya diketahui, perubahan yang memang berbeda memerlukan intent/key dan plan sendiri. Receipt ini hanya mendukung mutasi `admin-plan`; jangan pakai untuk submission assessment atau revisi bundle.
+
+## Antrean dan status job
+
+Google Cloud Tasks mengantar pekerjaan melalui adapter server. Nama `inngest` dan bentuk event lama dapat tetap muncul sebagai lapisan kompatibilitas di kode; itu bukan instruksi untuk menyiapkan akun Inngest, memanggil `/api/inngest` atau membuat task Google langsung. Gunakan tool domain dan ID aplikasi yang dikembalikan. Receipt antrean hanya membuktikan permintaan tersimpan; hasil backend tetap perlu diperiksa.
+
+| Pekerjaan | Status dan tindakan berikutnya |
+| --- | --- |
+| Halaman PDF dari `source.read_file` | Panggil `source.get_read_job` dengan `fileKey`/`jobId` asal setelah `pollAfterMs`. `retryFailed: true` hanya untuk halaman failed; pertahankan hasil complete. |
+| Figure dari `source.extract_figure` | Panggil `source.get_figure_job` dengan `fileKey`/`assetId`, run/bootstrap dan stage asal. Saat complete, baca `source.get_figure` dan periksa varian serta hak publikasi. |
+| Upload media, ekspor Sheets, Meet, notifikasi | Panggil `adminjobs.get` dengan ID job admin, `jobs:read` dan izin operasi asal. Periksa hasil bisnis selain status succeeded. |
+| `generation.start` | Selesaikan job pengantar melalui `adminjobs.get`, lalu pantau `jobs.get` dengan `result.jobId`; keduanya bukan job yang sama. |
+| Verifikasi Product V4 | Panggil `authoring.get_verification` dengan import/run dan `planHash` tepat; periksa `evaluation.ready` serta receipt. Profil `local_playwright` perlu eksekusi operator; polling tidak mengeksekusinya. |
+
+Pertahankan actor dan koneksi asal saat polling. Pada batas sesi atau versi sumber, baca error dan pulihkan scope yang tepat; jangan mengganti ID job atau memakai antrean lain. Jangan menyamakan status `complete` milik sumber, `succeeded` milik job admin dan `evaluation.ready` milik verifikasi.
+
+## Job provider
+
+Gunakan `adminjobs.get` dengan izin job dan operasi asal. Queued/running belum berarti selesai. Status `unknown` berarti provider mungkin sudah menulis; jangan enqueue ulang otomatis. Periksa provider melalui akses yang sah, lalu panggil `adminjobs.reconcile` hanya bila pengguna mengizinkan, dengan revision terbaru, `reportedOutcome`, alasan dan referensi bukti nyata. Tool mencatat pernyataan operator, tidak memeriksa bukti atau mengulang efeknya.
+
+`adminjobs.cancel` hanya menerima job yang masih queued dan memerlukan izin pembatalan. Reconcile/cancel memakai plan mutasi sendiri; receipt keduanya tidak mengubah sejarah operasi asal.
+
+Untuk konflik Sheets, baca ulang `forms.responses.sheet_state`, pertahankan spreadsheet entitas dan blok data aplikasi. Frasa `TIMPA <slug>` harus datang dari pengguna, bukan hasil yang dikarang agent.
+
+## Authoring dan revisi akademik
+
+Ikuti [zyx-content-revisions](../zyx-content-revisions/SKILL.md) untuk Idea/Product V3+ tersimpan. Baca `authoring.get_edit_context` pada import dan checksum yang diamati; pakai compact/target saat mengedit dan konteks penuh sebelum review. Setelah write sukses, lanjutkan dengan identitas penerus yang dikembalikan. Jangan membuat Source Pack, mengganti checksum, atau retry write secara buta untuk memperbaiki konflik.
+
+Untuk respons `authoring.create_idea_draft` atau `authoring.create_product_draft` yang hilang, periksa import yang ada dan ikuti `initialDraft.retry`: pertahankan draftKey, run token dan payload asli. Refresh bootstrap/kontrak menurut playbook; jangan menyamakan token admin dengan bootstrap authoring. `authoring.restore_revision` membuat draft baru, bukan menghapus riwayat atau memberi izin publikasi.
+
+Laporkan commit DB, keadaan target kini, hasil provider dan aksi pemulihan secara terpisah sesuai bukti. Jangan menyebut data sudah terkirim atau published hanya karena enqueue, validasi atau receipt berhasil.

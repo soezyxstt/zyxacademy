@@ -47,7 +47,7 @@ export default async function AdminCourseFlashcardsPage({ params }: Props) {
   }
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="min-w-0 space-y-(--compact-gap)">
       <CourseDetailHeader course={courseData.course} />
       <FlashcardsTab
         courseId={flashcardData.course.id}

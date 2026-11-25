@@ -52,6 +52,10 @@ jobs:
             --environment production \
             --output-dir /tmp/zyx-plugin-validate/production \
             --json > /tmp/zyx-plugin-validate/production-meta.json
+          python3 plugins/zyx-authoring-mcp/scripts/configure_environment.py verify-coexistence \
+            --staging-dir /tmp/zyx-plugin-validate/staging \
+            --production-dir /tmp/zyx-plugin-validate/production \
+            --json > /tmp/zyx-plugin-validate/coexistence.json
 
       - name: Upload Validated Build Artifacts
         if: github.event_name == 'workflow_dispatch'
@@ -144,7 +148,11 @@ jobs:
           fi
 
           REPO_URL="https://x-access-token:${PLUGIN_SYNC_TOKEN}@github.com/soezyxstt/zyx-authoring-mcp.git"
-          CLONE_DIR=$(mktemp -d)
+          MIRROR_WORK_DIR=$(mktemp -d)
+          trap 'rm -rf -- "$MIRROR_WORK_DIR"' EXIT
+          CLONE_DIR="$MIRROR_WORK_DIR/checkout"
+          BASELINE_DIR="$MIRROR_WORK_DIR/baseline"
+          mkdir -p "$CLONE_DIR" "$BASELINE_DIR"
 
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -161,11 +169,21 @@ jobs:
 
           if [ -n "$LS_OUTPUT" ]; then
             git clone --depth 1 --branch "$TARGET_BRANCH" "$REPO_URL" "$CLONE_DIR"
-            VERDICT_JSON=$(python3 plugins/zyx-authoring-mcp/scripts/configure_environment.py verify-release \
+            # Compare the published files, not Git's checkout metadata.
+            git -C "$CLONE_DIR" archive HEAD | tar -x -C "$BASELINE_DIR"
+            if VERDICT_JSON=$(python3 plugins/zyx-authoring-mcp/scripts/configure_environment.py verify-release \
               --candidate-dir build-plugin \
-              --baseline-dir "$CLONE_DIR" \
-              --json)
-            echo "$VERDICT_JSON"
+              --baseline-dir "$BASELINE_DIR" \
+              --json); then
+              printf '%s\n' "$VERDICT_JSON"
+            else
+              VERIFY_STATUS=$?
+              if [ -n "$VERDICT_JSON" ]; then
+                printf '%s\n' "$VERDICT_JSON"
+              fi
+              echo "::error::Plugin release verification failed. See the validator output above."
+              exit "$VERIFY_STATUS"
+            fi
             STATUS=$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["status"])' <<< "$VERDICT_JSON")
             if [ "$STATUS" = "noop" ]; then
               echo "Version and payload hash match baseline on $TARGET_BRANCH; skipping push."

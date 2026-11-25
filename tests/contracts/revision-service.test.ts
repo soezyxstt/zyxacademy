@@ -15,6 +15,7 @@ import { createPostgresTestDb } from "../helpers/postgres";
 const { client, testDb } = await createPostgresTestDb();
 const objects = new Map<string, Uint8Array>();
 let failRelease = false;
+let artifactDownloads = 0;
 const originalDb = { ...await import("@/db") };
 const originalStorage = { ...await import("@/lib/storage") };
 const originalDispatch = { ...await import("@/lib/vector-sync-dispatch") };
@@ -35,7 +36,7 @@ const wrapped = new Proxy(testDb, { get(target, key) {
 } });
 mock.module("@/db", () => ({ db: wrapped }));
 mock.module("@/lib/storage", () => ({ ...originalStorage, storage: {
-  download: async (key: string) => { const bytes = objects.get(key); if (!bytes) throw new Error("FIXTURE_OBJECT_MISSING"); return bytes; },
+  download: async (key: string) => { artifactDownloads++; const bytes = objects.get(key); if (!bytes) throw new Error("FIXTURE_OBJECT_MISSING"); return bytes; },
   upload: async (bytes: Uint8Array, _name: string, _mime: string, options: { key: string }) => { objects.set(options.key, bytes); return { key: options.key }; },
 } }));
 mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: async () => undefined }));
@@ -99,6 +100,7 @@ async function approveCollection(importId: string, revision: string) {
 }
 beforeEach(async () => {
   failRelease = false;
+  artifactDownloads = 0;
   objects.clear();
   await testDb.delete(schema.ketergantunganProduk);
   await client.exec('TRUNCATE TABLE "user", courses, mata_kuliah, peran CASCADE');
@@ -113,6 +115,34 @@ beforeEach(async () => {
   await testDb.insert(schema.imporBundle).values({ id: "idea-live", bundleId: idea.data.manifest.bundleId, bundleType: "idea", version: 3, checksum: idea.data.canonicalChecksum, courseId: "legacy-physics", sourceUriOrKey: "idea.zip", status: "validated", requestedBy: "admin", validationReport: { valid: true } });
   await approveIdea("idea-live", idea.data.canonicalChecksum);
   await publishIdeaBundle({ importId: "idea-live", publishedBy: "admin", expectedRevision: idea.data.canonicalChecksum });
+});
+
+test("compact and targeted reads retain exact guards but skip review artifact work, including patch replay", async () => {
+  const fork = await service.createRevisionDraft({ actorId: "admin", kind: "idea", baseImportId: "idea-live", expectedRevision: idea.data.canonicalChecksum, responseMode: "compact" });
+  expect(fork.reviewContext).toBeNull();
+  expect(fork.reviewReuse).toBeNull();
+  const selector = { actorId: "admin", kind: "idea" as const, importId: fork.importId, expectedRevision: fork.revision };
+  artifactDownloads = 0;
+  const compact = await service.getRevisionContext({ ...selector, responseMode: "compact" });
+  expect(artifactDownloads).toBe(1);
+  expect(compact.reviewContext).toBeNull();
+  const first = idea.data.entities.ideas[0];
+  artifactDownloads = 0;
+  const selected = await service.getRevisionContext({ ...selector, target: { entityType: "idea", entityId: first.id } });
+  expect(artifactDownloads).toBe(1);
+  expect(selected.selection?.content).toMatchObject({ id: first.id });
+  expect(selected.reviewContext).toBeNull();
+  const full = await service.getRevisionContext(selector);
+  expect(full.reviewContext).not.toBeNull();
+  expect(full.reviewReuse).not.toBeNull();
+  const patch = { ...selector, responseMode: "compact" as const, operations: [{ op: "set" as const, target: { entityType: "idea", entityId: first.id }, field: "conciseExplanation", value: "Penjelasan singkat dengan syarat yang jelas." }] };
+  const successor = await service.patchRevisionDraft(patch);
+  const replay = await service.patchRevisionDraft(patch);
+  expect(replay.importId).toBe(successor.importId);
+  expect(replay.revision).toBe(successor.revision);
+  expect(replay.reviewContext).toBeNull();
+  await expect(service.getRevisionContext({ ...selector, expectedRevision: "f".repeat(64), responseMode: "compact" })).rejects.toThrow("REVISION_STALE_CONTEXT");
+  await expect(service.getRevisionContext({ ...selector, target: { entityType: "idea", entityId: "missing" } })).rejects.toThrow("REVISION_TARGET_NOT_FOUND");
 });
 
 test("Idea forks and stable-ID patches retain live content and immutable history, with exact CAS and explicit approval", async () => {

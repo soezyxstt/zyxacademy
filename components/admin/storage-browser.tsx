@@ -414,7 +414,7 @@ export function StorageBrowser() {
   );
 
   const selectionActions = selected.length > 0 && (
-    <div className="border-border bg-background/90 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 shadow-sm">
+    <div className="flex flex-wrap items-center gap-2 border-y border-border/60 py-2">
       <div>
         <p className="text-body-sm font-medium text-foreground">
           {t("storage.selectedSummary", { count: selected.length, files: selectedFileCount, folders: selectedFolderCount })}
@@ -445,33 +445,37 @@ export function StorageBrowser() {
   );
 
   const headerActions = (
-    <div className="flex flex-wrap items-center gap-2">
-      <SearchBar
-        collapsible
-        size="sm"
-        value={query}
-        onSearch={setQuery}
-        onClear={() => setQuery("")}
-        placeholder={t("storage.search")}
-      />
-      {visibleItems.length > 0 && (
-        <label className="text-body-sm flex items-center gap-1.5 text-muted-foreground">
-          <Checkbox
-            checked={allVisibleSelected}
-            onCheckedChange={() => toggleSelectAll()}
-            aria-label={t("storage.selectAll")}
-          />
-          {t("storage.selectAllLabel")}
-        </label>
-      )}
-      <AdminIconAction label={t("storage.reload")} variant="outline" onClick={() => void load(folder)} isLoading={loading}>
-        <RefreshCw className="size-4" />
-      </AdminIconAction>
+    <div className="flex w-full min-w-0 items-center justify-between gap-2 sm:w-auto">
+      <div className="flex min-w-0 flex-1 items-center sm:flex-initial">
+        <SearchBar
+          collapsible
+          size="sm"
+          value={query}
+          onSearch={setQuery}
+          onClear={() => setQuery("")}
+          placeholder={t("storage.search")}
+        />
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {visibleItems.length > 0 && (
+          <label className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
+            <Checkbox
+              checked={allVisibleSelected}
+              onCheckedChange={() => toggleSelectAll()}
+              aria-label={t("storage.selectAll")}
+            />
+            {t("storage.selectAllLabel")}
+          </label>
+        )}
+        <AdminIconAction label={t("storage.reload")} variant="outline" onClick={() => void load(folder)} isLoading={loading}>
+          <RefreshCw className="size-4" />
+        </AdminIconAction>
+      </div>
     </div>
   );
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-(--compact-gap)">
       {selectionActions}
 
       <div className="flex flex-wrap items-center gap-3">
@@ -481,7 +485,7 @@ export function StorageBrowser() {
 
       <div className="flex flex-col gap-4 lg:flex-row">
         <aside className="hidden w-48 shrink-0 self-start border-r border-border pr-3 lg:block">
-          <p className="text-body-xs text-muted-foreground px-2 pt-1 pb-2 font-semibold uppercase tracking-wide">
+          <p className="px-2 pb-2 text-body-sm font-semibold text-foreground">
             {t("media.folder")}
           </p>
           <button

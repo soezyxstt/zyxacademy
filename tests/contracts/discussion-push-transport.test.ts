@@ -13,11 +13,13 @@ const notifications = pgTable("notifications", {
 });
 const enrollments = pgTable("enrollments", { userId: text("user_id"), courseId: text("course_id") });
 const courses = pgTable("courses", { id: text("id") });
+const user = pgTable("user", { id: text("id") });
 let client: PGlite;
 let testDb: ReturnType<typeof drizzle>;
 let sendPushToUser: typeof import("@/lib/notifications/send").sendPushToUser;
 let sendToUser: typeof import("@/lib/notifications/send").sendToUser;
 let multicast: any;
+let rowPresentAtPush = false;
 
 beforeAll(async () => {
  client = await PGlite.create();
@@ -28,10 +30,13 @@ beforeAll(async () => {
  `);
  testDb = drizzle(client);
  mock.module("@/db", () => ({ db: testDb }));
- mock.module("@/db/schema", () => ({ userPushTokens, notifications, enrollments, courses }));
+ mock.module("@/db/schema", () => ({ userPushTokens, notifications, enrollments, courses, user }));
  mock.module("@/lib/i18n/preferences", () => ({ getUserLocalePreference: async () => "en" }));
  mock.module("@/lib/firebase/admin", () => ({ adminMessaging: () => ({ sendEachForMulticast: async (payload: any) => {
   multicast = payload;
+  if (payload.data.notificationId) {
+   rowPresentAtPush = (await testDb.select().from(notifications)).some(row => row.id === payload.data.notificationId);
+  }
   return { responses: [{ success: true }] };
  } }) }));
  ({ sendPushToUser, sendToUser } = await import("@/lib/notifications/send"));
@@ -53,6 +58,8 @@ describe("discussion push transport", () => {
   await sendToUser("recipient", payload);
   const rows = await testDb.select().from(notifications);
   expect(rows).toHaveLength(1);
+  expect(rowPresentAtPush).toBe(true);
+  expect(multicast.data.notificationId).toBe(rows[0].id);
   expect(rows[0]).toMatchObject({ title: "Discussion update", attempted: 1, succeeded: 1 });
  });
 });

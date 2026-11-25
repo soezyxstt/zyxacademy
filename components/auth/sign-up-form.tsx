@@ -26,18 +26,18 @@ export function SignUpForm({ callbackURL, urlErrorCode, requestedLocale }: SignU
       description={t("signUpDescription")}
       urlErrorMessage={urlErrorCode ? t(`oauthErrors.${urlErrorCode}`) : null}
       footer={
-        <p className="mt-6 text-center text-body-sm text-muted-foreground">
+        <p className="mt-(--related-gap) text-center text-body-sm text-muted-foreground">
           {t("alreadyHaveAccount")}{" "}
           <Link
             href={signInHref}
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            className="font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
           >
             {t("signIn")}
           </Link>
         </p>
       }
     >
-      <div className="mt-8 flex flex-col gap-3">
+      <div className="mt-(--section-gap) flex flex-col gap-(--compact-gap)">
         <GoogleSignInButton
           label={t("signUpWithGoogle")}
           callbackURL={callbackURL}

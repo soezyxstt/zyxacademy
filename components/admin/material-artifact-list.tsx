@@ -192,11 +192,9 @@ export function MaterialArtifactList({
         </TooltipProvider>
       </div>
 
-      <AdminTable className="divide-y divide-border">
+      <AdminTable className="divide-y divide-border/60">
         {visibleRows.length === 0 ? (
-          <div className="p-4">
-            <AdminEmptyState compact title={rows.length === 0 ? t("materials.emptyTitle", { label }) : t("materials.noMatchingResults")} description={rows.length === 0 ? t("materials.emptyDescription") : t("materials.filteredDescription")} />
-          </div>
+          <AdminEmptyState compact title={rows.length === 0 ? t("materials.emptyTitle", { label }) : t("materials.noMatchingResults")} description={rows.length === 0 ? t("materials.emptyDescription") : t("materials.filteredDescription")} />
         ) : visibleRows.map((item) => (
           <MaterialArtifactCard
             key={item.id}

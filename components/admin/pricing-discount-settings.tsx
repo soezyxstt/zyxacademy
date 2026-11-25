@@ -22,7 +22,7 @@ export function PricingDiscountSettings({ initialSettings, save = savePricingDis
   const queryClient = useQueryClient();
 
   return (
-    <form className="space-y-4" onSubmit={async (event) => {
+    <form className="space-y-(--related-gap)" onSubmit={async (event) => {
       event.preventDefault();
       setMessage("");
       setFailed(false);
@@ -44,13 +44,13 @@ export function PricingDiscountSettings({ initialSettings, save = savePricingDis
       });
     }}>
       <p className="text-body-xs text-muted-foreground">{t("discountSettings.scheduleHelp")}</p>
-      <div className="divide-y divide-border border-y border-border">
+      <div className="divide-y divide-border/60 border-y border-border/60">
         {(["platform", "tutorial"] as const).map((component) => (
-          <fieldset key={component} disabled={busy} className="grid gap-3 py-4 sm:grid-cols-2 sm:items-end lg:grid-cols-[1fr_100px_1fr_1fr]">
+          <fieldset key={component} disabled={busy} className="grid min-w-0 grid-cols-2 items-end gap-(--compact-gap) py-(--row-padding) lg:grid-cols-[1fr_100px_1fr_1fr]">
             <legend className="sr-only">{component === "platform" ? t("discountSettings.platform") : t("discountSettings.tutorial")}</legend>
-            <p className="font-heading text-body-sm font-bold sm:col-span-2 lg:col-span-1">{component === "platform" ? t("discountSettings.platform") : t("discountSettings.tutorial")}</p>
+            <p className="self-center font-heading text-body-sm font-bold">{component === "platform" ? t("discountSettings.platform") : t("discountSettings.tutorial")}</p>
             {(["percent", "startsOn", "endsOn"] as const).map((field) => (
-              <div key={field} className={`space-y-2 min-w-0 ${field === "percent" ? "sm:col-span-2 lg:col-span-1" : ""}`}>
+              <div key={field} className="min-w-0 space-y-1.5">
                 <Label htmlFor={`${component}-${field}`}>{field === "percent" ? t("discountSettings.percent") : field === "startsOn" ? t("discountSettings.startsOn") : t("discountSettings.endsOn")}</Label>
                 <Input id={`${component}-${field}`} type={field === "percent" ? "number" : "date"}
                   className="min-w-0 text-body-sm" required min={field === "percent" ? 0 : undefined}
@@ -66,7 +66,7 @@ export function PricingDiscountSettings({ initialSettings, save = savePricingDis
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled={busy}>{busy ? t("discountSettings.saving") : t("discountSettings.save")}</Button>
+        <Button type="submit" className="min-h-9" disabled={busy}>{busy ? t("discountSettings.saving") : t("discountSettings.save")}</Button>
         {message && <p role={failed ? "alert" : "status"} className={`text-body-xs ${failed ? "text-destructive" : "text-status-success"}`}>{message}</p>}
       </div>
     </form>

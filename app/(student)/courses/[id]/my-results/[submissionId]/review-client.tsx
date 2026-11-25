@@ -49,23 +49,22 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
     <div className="space-y-(--section-gap) font-sans">
 
       {/* Overview stats */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-        <div>
-          <span className="text-body-xs font-semibold text-muted-foreground uppercase">{t("review.status")}</span>
-          <h2 className="font-heading text-body-base font-bold text-foreground mt-0.5">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/55 pb-(--row-padding)">
+        <div className="min-w-0">
+          <h2 className="wrap-anywhere font-heading text-body-base font-bold text-foreground">
             {review.examTitle}
           </h2>
         </div>
-        <div className="flex items-center gap-(--section-gap)">
+        <div className="flex flex-wrap items-start gap-(--related-gap)">
           <div className="text-left md:text-right">
-            <span className="text-body-xs font-semibold text-muted-foreground uppercase">{t("review.finalScore")}</span>
-            <p className="font-heading text-h5 font-bold text-foreground">
+            <span className="text-body-xs text-muted-foreground">{t("review.finalScore")}</span>
+            <p className="text-body-sm font-semibold tabular-nums text-foreground">
               {listItem.score != null ? `${listItem.score}%` : t("review.pending")}
             </p>
           </div>
           <div className="text-left md:text-right">
-            <span className="text-body-xs font-semibold text-muted-foreground uppercase">{t("review.activePlan")}</span>
-            <p className="text-body-xs font-bold text-brand-primary uppercase mt-1">
+            <span className="text-body-xs text-muted-foreground">{t("review.activePlan")}</span>
+            <p className="text-body-sm font-medium capitalize text-foreground">
               {userPlan}
             </p>
           </div>
@@ -79,7 +78,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
           return (
             <li
               key={item.questionId}
-              className="p-(--panel-padding) sm:p-(--group-gap)"
+              className="py-(--group-gap) first:pt-0"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 flex-1 text-body-base font-medium text-foreground leading-snug">
@@ -89,22 +88,22 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
 
                 {/* Answer Correctness Badges */}
                 {item.correct === true ? (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-status-success/12 px-2.5 py-0.5 text-body-xs font-semibold text-status-success ring-1 ring-status-success/20">
+                  <span className="inline-flex items-center gap-1 text-body-xs font-semibold text-status-success">
                     <Check className="size-3.5" aria-hidden /> {t("review.correct")}
                   </span>
                 ) : item.correct === false ? (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-status-error/12 px-2.5 py-0.5 text-body-xs font-semibold text-status-error ring-1 ring-status-error/20">
+                  <span className="inline-flex items-center gap-1 text-body-xs font-semibold text-status-error">
                     <X className="size-3.5" aria-hidden /> {t("review.incorrect")}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-status-warning/12 px-2.5 py-0.5 text-body-xs font-semibold text-status-warning ring-1 ring-status-warning/20">
+                  <span className="inline-flex items-center gap-1 text-body-xs font-semibold text-status-warning">
                     <HelpCircle className="size-3.5" aria-hidden /> {t("review.pendingReview")}
                   </span>
                 )}
               </div>
 
               {/* User answer and key details */}
-              <div className="mt-5 space-y-2 text-body-sm border-l-2 border-muted pl-4">
+              <div className="mt-(--related-gap) space-y-1.5 border-l-2 border-border/60 pl-3 text-body-sm">
                 <p>
                   <span className="font-semibold text-muted-foreground">{t("review.yourAnswer")} </span>
                   <MathText className="text-foreground font-medium">{item.userAnswer || "-"}</MathText>
@@ -137,7 +136,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
 
               {/* Zyra-Generated Discussion and Explanation Section */}
               {hasExplanation && (
-                <div className="mt-(--section-gap) border-t border-border/80 pt-(--section-gap) space-y-(--related-gap)">
+                <div className="mt-(--related-gap) space-y-(--related-gap) border-t border-border/55 pt-(--related-gap)">
                   <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">{t("review.explanation")}</h4>
 
                   {/* Text-based explanation */}

@@ -140,37 +140,36 @@ export default async function PkaCourseHomePage() {
               <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="nextSession" /></h2>
               <Link
                 href="/courses/tutorial-pka/jadwal"
-                className="flex items-center gap-1 text-body-sm font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-primary/80"
+                className="flex items-center gap-1 text-body-sm font-medium text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
               >
                 <TranslatedText namespace="studentExtras.pka" messageKey="allSchedules" />
                 <ArrowRight className="size-3.5" />
               </Link>
             </div>
             {nextSession ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
-                <div className="min-w-0">
+              <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 pb-2">
+                <div className="min-w-0 flex-1 basis-48">
                   <span className="block break-words text-body-base font-semibold text-foreground">
                     {nextSession.title}
                   </span>
-                  <span className="mt-0.5 flex items-center gap-1.5 text-body-sm text-muted-foreground">
-                    <CalendarDays className="size-3.5" />
+                  <span className="mt-0.5 flex items-start gap-1.5 text-body-xs text-muted-foreground">
+                    <CalendarDays className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                     <FormattedDate date={nextSession.sessionAt} options={{ dateStyle: "full", timeStyle: "short" }} />
                   </span>
                 </div>
                 {nextSession.meetLink ? (
-                  <Button asChild size="sm">
-                  <a
-                    href={nextSession.meetLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex shrink-0 items-center gap-1.5 rounded-md bg-brand-primary px-3 py-1.5 text-body-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-brand-primary/90"
-                  >
-                    <Video className="size-4" />
-                    <TranslatedText namespace="studentExtras.pka" messageKey="joinMeet" />
-                  </a>
+                  <Button asChild size="sm" variant="secondary" className="ml-auto min-h-8">
+                    <a
+                      href={nextSession.meetLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Video className="size-4" aria-hidden />
+                      <TranslatedText namespace="studentExtras.pka" messageKey="joinMeet" />
+                    </a>
                   </Button>
                 ) : (
-                  <span className="flex shrink-0 items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 text-body-sm font-semibold text-muted-foreground">
+                  <span className="ml-auto text-body-xs text-muted-foreground">
                     <TranslatedText namespace="studentExtras.pka" messageKey="meetLinkUnavailable" />
                   </span>
                 )}

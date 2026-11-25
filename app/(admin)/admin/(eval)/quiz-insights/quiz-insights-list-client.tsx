@@ -172,7 +172,7 @@ export function QuizInsightsListClient({
       )}
 
       {/* KPI Strip */}
-      <AdminStatStrip className="lg:grid-cols-4">
+      <AdminStatStrip>
         <AdminStatStripItem
           label={tx("totalQuizzes")}
           value={totalQuizzes}

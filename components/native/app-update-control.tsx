@@ -50,6 +50,7 @@ interface AppUpdateState {
   progress: number | null;
   error: string | null;
   permissionHint: boolean;
+  manualUpdateRequired: boolean;
 }
 
 let state: AppUpdateState = {
@@ -65,6 +66,7 @@ let state: AppUpdateState = {
   progress: null,
   error: null,
   permissionHint: false,
+  manualUpdateRequired: false,
 };
 
 let initialized = false;
@@ -98,6 +100,7 @@ async function triggerInstall() {
     progress: 0,
     error: null,
     permissionHint: false,
+    manualUpdateRequired: false,
   });
   const outcome = await installAppUpdate(
     state.meta,
@@ -137,11 +140,21 @@ async function triggerInstall() {
     return;
   }
 
+  if (outcome.status === "manual_update_required") {
+    setState({
+      downloading: false,
+      progress: null,
+      manualUpdateRequired: true,
+      error: "Versi ini memerlukan pembaruan manual. Unduh dan jalankan installer terbaru.",
+    });
+    return;
+  }
+
   if (outcome.status === "error") {
     setState({
       downloading: false,
       progress: null,
-      error: "Gagal mengunduh pembaruan. Coba lagi saat koneksi stabil.",
+      error: "Pembaruan gagal. Coba lagi.",
     });
     return;
   }
@@ -154,7 +167,7 @@ async function checkForUpdates(options?: { manual?: boolean }) {
   if (checkPromise) return checkPromise;
 
   checkPromise = (async () => {
-    setState({ checking: true, checkStatus: "checking", error: null });
+    setState({ checking: true, checkStatus: "checking", error: null, manualUpdateRequired: false });
     try {
       const meta = state.meta ?? (await getInstalledAppMeta());
       if (!meta) {
@@ -332,7 +345,7 @@ export function AppUpdateControl({ variant }: AppUpdateControlProps) {
   // On mobile top navbar, stay completely invisible unless an update is ready.
   if (variant === "mobile" && !snapshot.updateAvailable) return null;
 
-  const currentLabel = snapshot.meta?.version ?? "";
+  const currentLabel = snapshot.meta?.version || "Versi tidak diketahui";
   const latestLabel = snapshot.latest?.version ?? "";
 
   const statusHeading = (() => {
@@ -466,7 +479,11 @@ export function AppUpdateControl({ variant }: AppUpdateControlProps) {
             <RefreshCw className={cn("size-3.5", snapshot.checking && "animate-spin")} />
             {snapshot.checkStatus === "error" ? "Coba lagi" : "Periksa"}
           </Button>
-          {snapshot.updateAvailable && (
+          {snapshot.manualUpdateRequired ? (
+            <Button asChild size="sm">
+              <a href="/download" target="_blank" rel="noopener noreferrer">Unduh installer</a>
+            </Button>
+          ) : snapshot.updateAvailable && (
             <Button
               type="button"
               size="sm"

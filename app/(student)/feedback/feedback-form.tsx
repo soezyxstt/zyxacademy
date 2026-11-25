@@ -110,7 +110,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
               className={cn(
                 "rounded-lg px-3.5 py-1.5 text-body-sm font-medium transition-all cursor-pointer border",
                 category === cat.id
-                  ? "border-brand-primary bg-brand-primary/10 text-brand-primary ring-1 ring-brand-primary/25"
+                  ? "border-foreground/30 bg-foreground/10 text-foreground"
                   : "border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >

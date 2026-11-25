@@ -197,3 +197,28 @@ export function onForegroundMessage(
  return () => {};
  }
 }
+
+/** Show a system notification for a foreground Web FCM message, using its
+ * dedicated worker (never the offline root worker). The inbox toast is kept. */
+export async function showForegroundWebNotification(
+  input: { title: string; body?: string; url: string; notificationId?: string },
+  isCurrent: () => boolean = () => true,
+): Promise<void> {
+  if (typeof window === "undefined" || !isCurrent() ||
+      typeof window.Notification !== "function" || window.Notification.permission !== "granted" ||
+      !("serviceWorker" in navigator)) return;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration("/firebase-cloud-messaging-push-scope");
+    if (!registration || new URL(registration.scope).pathname.replace(/\/$/, "") !== "/firebase-cloud-messaging-push-scope" ||
+        !isCurrent() || window.Notification.permission !== "granted") return;
+    await registration.showNotification(input.title, {
+      body: input.body,
+      icon: "/brand/zyx-app-192.png",
+      badge: "/brand/zyx-logo-symbol-black@2x.png",
+      tag: input.notificationId ? `zyx:${input.notificationId}` : undefined,
+      data: { zyx: true, url: input.url, notificationId: input.notificationId },
+    });
+  } catch {
+    console.warn("[notifications] Browser system notification failed");
+  }
+}

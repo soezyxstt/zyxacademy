@@ -48,10 +48,22 @@ export async function signOut(...args: Parameters<typeof authClient.signOut>) {
     }
     syncQueryAccount(getQueryClient(), null);
     if (typeof window !== "undefined") {
-      const [{ clearAllOfflineReadings }, { clearAllLocalRemindersOnLogout }] = await Promise.all([
+      const [
+        { clearAllOfflineReadings },
+        { clearAllLocalRemindersOnLogout },
+        { clearNativeLastRoute },
+        { clearPersistedZyraDrawerOpenFlags },
+        { clearPersistedVideoState },
+      ] = await Promise.all([
         import("@/lib/offline/reading-cache"),
         import("@/lib/native/local-reminders"),
+        import("@/lib/native/route-persistence"),
+        import("@/lib/zyra/drawer-persistence"),
+        import("@/lib/video/playback-persistence"),
       ]);
+      clearNativeLastRoute();
+      clearPersistedZyraDrawerOpenFlags();
+      clearPersistedVideoState();
       await Promise.all([
         clearAllOfflineReadings().catch(() => {}),
         clearAllLocalRemindersOnLogout().catch(() => {}),

@@ -211,6 +211,7 @@
       "status": {
         "published": "Diterbitkan",
         "draft": "Draf",
+        "in_review": "Dalam peninjauan",
         "retired": "Diarsipkan"
       },
       "search": "Cari konsep, soal, atau penjelasan...",

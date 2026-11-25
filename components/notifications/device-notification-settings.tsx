@@ -14,6 +14,7 @@ import {
   getUnifiedNotificationDeliveryStatus,
   registerUnifiedPushToken,
   requestUnifiedNotificationPermission,
+  sendDesktopNativeNotification,
   type UnifiedNotificationDeliveryStatus,
 } from "@/lib/native/notifications";
 import {
@@ -44,6 +45,7 @@ export function DeviceNotificationSettings() {
   const baseId = useId();
   const [status, setStatus] = useState<UnifiedNotificationDeliveryStatus | null>(null);
   const [enablingPush, setEnablingPush] = useState(false);
+  const [testingDesktop, setTestingDesktop] = useState(false);
 
   const [localSupported, setLocalSupported] = useState(false);
   const [reminderConfig, setReminderConfig] = useState<StudyReminderConfig>(
@@ -84,6 +86,22 @@ export function DeviceNotificationSettings() {
       await refreshStatus();
     } finally {
       setEnablingPush(false);
+    }
+  };
+
+  const handleDesktopTest = async () => {
+    if (isDemo || !userId || testingDesktop) return;
+    setTestingDesktop(true);
+    try {
+      const accepted = await sendDesktopNativeNotification(
+        t("notificationPreferences.desktopTestTitle"),
+        t("notificationPreferences.desktopTestBody"),
+      );
+      if (accepted) toast(t("notificationPreferences.desktopTestRequested"));
+      else toast.error(t("notificationPreferences.desktopTestFailed"));
+      await refreshStatus();
+    } finally {
+      setTestingDesktop(false);
     }
   };
 
@@ -238,6 +256,12 @@ export function DeviceNotificationSettings() {
                   onClick={() => void handleEnablePush()}
                 >
                   {t("notificationPreferences.enablePush")}
+                </Button>
+              ) : null}
+              {!isDemo && status?.platform === "desktop" && status.osPermission === "granted" ? (
+                <Button type="button" size="sm" variant="outline"
+                  disabled={testingDesktop} onClick={() => void handleDesktopTest()}>
+                  {t("notificationPreferences.desktopTest")}
                 </Button>
               ) : null}
             </div>

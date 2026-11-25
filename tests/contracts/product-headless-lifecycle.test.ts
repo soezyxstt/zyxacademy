@@ -64,6 +64,7 @@ async function stage(value: ReturnType<typeof fixture>, previous?: string) {
   return stageProductBundle({ bundle: value.data, bytes: value.bytes, runId: "local-fixture", bundleId: value.data.manifest.bundleId, courseId: "course", checksum: value.data.checksum, requestedBy: "admin", expectedPreviousChecksum: previous });
 }
 
+// Both database-backed lifecycles share CI workers, so use the contract runner's 60-second budget.
 test("scoped learning reviews and publication bind V2 and V3 to the exact staged revision", async () => {
   await testDb.insert(schema.courses).values({ id: "course", title: "Course", category: "Matematika" as const });
   await testDb.insert(schema.mataKuliah).values({ id: "course", code: "C", title: "Course", status: "active", legacyCourseId: "course" });
@@ -219,4 +220,4 @@ test("scoped learning reviews and publication bind V2 and V3 to the exact staged
   const args = { runToken, bootstrapToken, importId: stagedAssessment.importId, expectedRevision: legacyAssessment.data.checksum };
   expect((await invoke("authoring.publish_product_bundle", args)).structuredContent.error).toBe("PRODUCT_BUNDLE_ASSESSMENT_FORBIDDEN");
   expect((await invoke("authoring.review_product_bundle", { ...args, decision: "approved" })).structuredContent.error).toBe("PRODUCT_BUNDLE_ASSESSMENT_FORBIDDEN");
-}, 30_000);
+}, 60_000);

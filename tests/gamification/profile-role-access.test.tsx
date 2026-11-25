@@ -86,6 +86,7 @@ function pageFixture(student: boolean) {
   "@/components/gamification/profile-hero": { ProfileHero },
   "@/components/gamification/achievement-board": { profileBadgeFamilies: [] },
   "@/components/student-profile-view": { StudentProfileView: ({ zyraAvatarId }: { zyraAvatarId?: string }) => <div data-mascot={zyraAvatarId}>Student profile</div> },
+  "@/features/student-profile/ui/student-profile-container": { StudentProfileContainer: ({ desktopView }: { desktopView: React.ReactNode }) => <>{desktopView}</> },
   "@/components/gamification/profile-follow-list": { ProfileFollowList: () => null },
   "@/components/gamification/profile-settings": { ProfileSettings: ({ academicForm }: { academicForm?: React.ReactNode }) => <div>Student customization{academicForm}</div> },
   "./profile-edit-form": { ProfileEditForm: () => <form>Academic profile</form> },

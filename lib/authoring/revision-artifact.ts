@@ -8,14 +8,14 @@ import { computeProductBundleChecksum, parseProductBundle, productEntitySchema, 
 export type RevisionKind = "idea" | "product";
 export type RevisionPatchOperation = {
   op: "set" | "add" | "remove" | "move";
-  target: { entityType: string; entityId: string; sectionId?: string; blockId?: string; itemId?: string };
+  target: { entityType: string; entityId: string; sectionId?: string; blockId?: string; itemId?: string; unitId?: string };
   field?: string;
   value?: unknown;
   beforeId?: string | null;
 };
 export type ValidRevisionProductBundle = Extract<ProductBundleValidation, { success: true }>["data"];
 export type RevisionEntityChange = { entityType: string; entityId: string; previousVersion?: number; version?: number; previousHash?: string; hash?: string };
-export type RevisionUnitChange = { entityId: string; unitType: "section" | "block" | "item"; unitId: string; change: "added" | "removed" | "changed" | "moved" };
+export type RevisionUnitChange = { entityId: string; unitType: "section" | "block" | "item" | "unit"; unitId: string; change: "added" | "removed" | "changed" | "moved" };
 export type RevisionArtifactImpact = {
   changed: boolean;
   changedEntities: RevisionEntityChange[];
@@ -147,14 +147,14 @@ function editField(target: Node, operation: RevisionPatchOperation): void {
 
 function mutate(collections: Record<string, Node[]>, kind: RevisionKind, operation: RevisionPatchOperation): void {
   const { target } = operation;
-  if (!target || Object.keys(target).some(key => !["entityType", "entityId", "sectionId", "blockId", "itemId"].includes(key))) throw new Error("REVISION_TARGET_INVALID");
-  for (const id of [target.entityType, target.entityId, target.sectionId, target.blockId, target.itemId].filter(value => value !== undefined)) {
+  if (!target || Object.keys(target).some(key => !["entityType", "entityId", "sectionId", "blockId", "itemId", "unitId"].includes(key))) throw new Error("REVISION_TARGET_INVALID");
+  for (const id of [target.entityType, target.entityId, target.sectionId, target.blockId, target.itemId, target.unitId].filter(value => value !== undefined)) {
     if (typeof id !== "string" || !id.trim() || id.length > 256 || forbidden.has(id)) throw new Error("REVISION_TARGET_INVALID");
   }
   const collection = kind === "idea" ? ideaAliases[target.entityType] : target.entityType === "dependency" ? "dependencies" : "products";
   if (!collection || !own(collections, collection)) throw new Error("REVISION_ENTITY_TYPE_UNSUPPORTED");
   const items = collections[collection];
-  const nested = Boolean(target.sectionId || target.blockId || target.itemId);
+  const nested = Boolean(target.sectionId || target.blockId || target.itemId || target.unitId);
   if (kind === "idea" && nested) throw new Error("REVISION_TARGET_INVALID");
   if (kind === "product" && collection === "products") {
     const product = operation.op === "add" && !nested && !operation.field ? node(operation.value) : find(items, target.entityId);
@@ -166,6 +166,13 @@ function mutate(collections: Record<string, Node[]>, kind: RevisionKind, operati
     return;
   }
   const entity = find(items, target.entityId);
+  if (target.unitId) {
+    if (target.sectionId || target.blockId || target.itemId || entity.productType !== "diktat") throw new Error("REVISION_TARGET_INVALID");
+    const children = list(entity.units);
+    if (operation.field) editField(find(children, target.unitId), operation); else editList(children, target.unitId, operation);
+    entity.units = children;
+    return;
+  }
   if (target.itemId) {
     if (target.sectionId || target.blockId || entity.productType !== "solution_collection") throw new Error("REVISION_TARGET_INVALID");
     const children = list(node(entity.collection).items);
@@ -211,6 +218,7 @@ function units(value: Node): Map<string, { kind: RevisionUnitChange["unitType"];
     result.set(String(section.id), { kind: "section", value: section, position: sectionIndex });
     list(section.blocks).forEach((block, blockIndex) => result.set(String(block.id), { kind: "block", value: block, position: blockIndex }));
   });
+  if (value.productType === "diktat" && value.units) list(value.units).forEach((unit, index) => result.set(String(unit.id), { kind: "unit", value: unit, position: index }));
   if (value.productType === "solution_collection") list(node(value.collection).items).forEach((item, index) => result.set(String(item.id), { kind: "item", value: item, position: index }));
   return result;
 }

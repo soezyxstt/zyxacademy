@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Bot } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useAppReducedMotion } from "@/components/appearance-preferences";
 import { getZyraAvatar } from "@/lib/gamification/zyra-cosmetics";
@@ -48,6 +48,6 @@ export function ZyraCosmeticAvatar({ cosmeticId, size = 40, animated = false, na
   }, [animated, hasArt, interactive, reducedMotion]);
   if (interactive && extent >= 128 && avatar) return <Suspense fallback={<ZyraCosmeticAvatar cosmeticId={cosmeticId} size={extent} name={name} />}><InteractiveMascot cosmeticId={cosmeticId} size={extent} animated={animated && !reducedMotion} /></Suspense>;
   return <span ref={ref} role="img" aria-label={name} className="zyra-cosmetic-avatar" data-running={animated && !reducedMotion && running && hasArt} style={{ width: extent, height: extent }}>
-    {hasArt ? <Image src={source} alt="" width={extent} height={extent} sizes={`${extent}px`} draggable={false} onError={() => setFailedSrc(source)} className="zyra-cosmetic-avatar__art" /> : <Bot aria-hidden="true" className="size-3/4 text-primary" />}
+    {hasArt ? <Image src={source} alt="" width={extent} height={extent} sizes={`${extent}px`} draggable={false} onError={() => setFailedSrc(source)} className="zyra-cosmetic-avatar__art" /> : <MessageCircle aria-hidden="true" className="size-3/4 text-primary" />}
   </span>;
 }

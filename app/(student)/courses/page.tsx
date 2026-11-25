@@ -1,7 +1,5 @@
 import { StudentCourseCatalogView } from "@/components/course/student-course-catalog-view";
 import type { Metadata } from "next";
-import { PKA_COURSE_ID } from "@/lib/pka-config";
-import { env } from "@/lib/env";
 import { createMetadata} from "@/lib/site";
 import { getAuthSession } from "@/lib/auth-session";
 import { db } from "@/db";
@@ -14,6 +12,9 @@ import {
 } from "@/lib/student/itb-academic-data";
 import { attachCourseCatalogStats } from "@/lib/student/course-catalog-stats";
 import { listStudentCourses } from "@/lib/student/course-catalog";
+import { resolveCourseEntitlementsBatch } from "@/lib/student/course-access";
+import { PKA_COURSE_ID } from "@/lib/pka-config";
+import { isPkaEnrolled } from "@/lib/pka-enrollment";
 import { getWhatsAppAdminChatHref } from "@/lib/whatsapp-admin";
 import { type CourseGroup } from "./course-catalog-client";
 import { getTranslations } from "@/lib/i18n/server";
@@ -75,16 +76,29 @@ export default async function CoursesPage() {
     "graph-test-course",
   ]);
   const courses = dbCourses.filter(
-    (c) => !TEST_COURSE_IDS.has(c.id) && (c.id !== PKA_COURSE_ID || env.FEATURE_PKA === "1")
+    (c) => !TEST_COURSE_IDS.has(c.id)
   );
 
-  const coursesWithStats = await attachCourseCatalogStats(courses);
+  const studentId = session?.user?.id;
+  const standardCourseIds = courses.filter((course) => course.id !== PKA_COURSE_ID).map((course) => course.id);
+  const [coursesWithStats, entitlements, pkaAccess] = await Promise.all([
+    attachCourseCatalogStats(courses),
+    studentId ? resolveCourseEntitlementsBatch(studentId, standardCourseIds) : undefined,
+    studentId && courses.some((course) => course.id === PKA_COURSE_ID)
+      ? isPkaEnrolled(studentId)
+      : undefined,
+  ]);
 
-  const groupsMap = new Map<string, typeof coursesWithStats>();
+  const groupsMap = new Map<string, CourseGroup["courses"]>();
   for (const course of coursesWithStats) {
     const formatted = formatCategoryName(course.category);
     const existing = groupsMap.get(formatted) ?? [];
-    existing.push(course);
+    existing.push({
+      ...course,
+      hasFullContentAccess: course.id === PKA_COURSE_ID
+        ? pkaAccess
+        : entitlements?.get(course.id)?.hasFullContentAccess,
+    });
     groupsMap.set(formatted, existing);
   }
 

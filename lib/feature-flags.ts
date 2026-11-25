@@ -1,4 +1,3 @@
-
 export type FeatureCategory =
   | "academic_student"
   | "ai_v2_architecture"
@@ -45,7 +44,6 @@ function flag(
  * Stable foundational behavior is always-on.
  */
 export const KNOWN_FEATURE_FLAGS: FeatureFlagMeta[] = [
-  flag("FEATURE_PKA", "Tutorial PKA Campaign", "academic_student", "Kampanye gratis Tutorial PKA, simulasi kuis bertahap, dan pengumuman admin."),
   flag("FEATURE_REFLECTION_EMAIL", "Email Refleksi", "academic_student", "Pengiriman email pengingat dan ringkasan refleksi mingguan."),
   flag("FEATURE_LIVE", "Real-time Live Classroom", "quiz_live", "Kuis interaktif langsung berbasis Worker real-time."),
   flag("FEATURE_DIKTAT_AI", "Diktat AI Audit Suggestions", "ai_v2_architecture", "Saran audit berbantuan AI untuk penyusunan dan pemeriksaan Diktat."),
@@ -67,10 +65,9 @@ export function getAllFeatureFlagsStatus(): FeatureFlagStatus[] {
   const envObj = (typeof process !== "undefined" ? process.env : {}) as Record<string, string | undefined>;
   return KNOWN_FEATURE_FLAGS.map((meta) => {
     const rawValue = envObj[meta.key];
-    return {
-      ...meta,
-      rawValue,
-      enabled: isFeatureFlagActive(rawValue),
-    };
+    let enabled = rawValue === "1";
+    if (meta.key === "FEATURE_STRUCTURED_ARTICLE_READER_V1") enabled = isFeatureFlagActive(rawValue);
+    if (meta.key === "FEATURE_ZYRA_IMAGE_INPUT_V1") enabled = rawValue !== "0";
+    return { ...meta, rawValue, enabled };
   });
 }

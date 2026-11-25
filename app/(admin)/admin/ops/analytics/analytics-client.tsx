@@ -1,53 +1,54 @@
 "use client";
 
-import { modelDisplayName } from "@/lib/ai/provider/recent-models";
-
-import { AdminIconAction } from "@/components/admin/icon-action";
-
-import { AiAnalyticsSkeleton } from "@/components/admin/content-loading-skeletons";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
+import { Activity, CheckCircle2, Clock, Cpu, Globe, RefreshCw } from "lucide-react";
+import { modelDisplayName } from "@/lib/ai/provider/recent-models";
+import { AdminIconAction } from "@/components/admin/icon-action";
+import { AiAnalyticsSkeleton } from "@/components/admin/content-loading-skeletons";
 import { adminAnalyticsQuery, type AiRequestLog } from "@/lib/admin/ops-query";
 import { useQueryAccountId } from "@/hooks/use-query-account";
 import { ZyraUsageCharts } from "@/components/admin/zyra-usage-charts";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
+import { AdminSectionTitle } from "@/components/admin/section-title";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { Button } from "@/components/ui/button";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 
 const LOGS_PER_PAGE = 15;
 
-function Badge({ via, label }: { via: boolean; label: string }) {
+type LogFilter = "all" | "failed" | "gateway";
+
+function formatLatency(ms: number) {
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms)}ms`;
+}
+
+function ModelSuccessRate({ value, label }: { value: number; label?: string }) {
+  const tone = value >= 95 ? "bg-status-success" : value >= 80 ? "bg-status-warning" : "bg-status-error";
   return (
-    <span
-      className={`inline-block rounded-md px-2 py-0.5 text-body-xs font-medium ${
-        via
-          ? "bg-brand-primary/10 text-brand-primary"
-          : "bg-muted text-muted-foreground"
-      }`}
-    >
-      {label}
+    <span className="inline-flex shrink-0 items-center gap-1.5 text-body-xs font-medium tabular-nums text-foreground">
+      <span className={`size-1.5 rounded-full ${tone}`} aria-hidden />
+      {label && <span className="sr-only">{label} </span>}
+      {value}%
     </span>
   );
 }
 
-function StatusDot({ ok }: { ok: boolean }) {
+function RequestOutcome({ success, label }: { success: boolean; label: string }) {
   return (
-    <span
-      className={`inline-block h-2 w-2 rounded-full ${ok ? "bg-status-success" : "bg-status-error"}`}
-    />
+    <span className="inline-flex shrink-0 items-center gap-1.5 text-body-xs font-medium text-foreground">
+      <span className={`size-1.5 rounded-full ${success ? "bg-status-success" : "bg-status-error"}`} aria-hidden />
+      {label}
+    </span>
   );
-}
-
-function formatLatency(ms: number) {
-  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
 }
 
 export function AiAnalyticsClient() {
   const t = useTranslations("adminOps");
   const { locale } = useAppLocale();
   const [logPage, setLogPage] = useState(1);
+  const [logFilter, setLogFilter] = useState<LogFilter>("all");
   const userId = useQueryAccountId();
 
   const {
@@ -58,6 +59,39 @@ export function AiAnalyticsClient() {
     error,
     refetch,
   } = useQuery(adminAnalyticsQuery(userId ?? ""));
+
+  const recentLogs = stats?.recentLogs;
+  const modelBreakdown = useMemo(() => {
+    if (!recentLogs?.length) return [];
+    const map = new Map<
+      string,
+      { model: string; count: number; successes: number; totalLatencyMs: number }
+    >();
+    for (const log of recentLogs) {
+      const key = log.model || "unknown";
+      const entry = map.get(key) ?? { model: key, count: 0, successes: 0, totalLatencyMs: 0 };
+      entry.count += 1;
+      if (log.success) entry.successes += 1;
+      entry.totalLatencyMs += log.latencyMs;
+      map.set(key, entry);
+    }
+    const total = recentLogs.length;
+    return [...map.values()]
+      .sort((a, b) => b.count - a.count)
+      .map((item) => ({
+        ...item,
+        sharePct: Math.round((item.count / total) * 100),
+        successRatePct: Math.round((item.successes / item.count) * 100),
+        avgLatencyMs: item.totalLatencyMs / item.count,
+      }));
+  }, [recentLogs]);
+
+  const filteredLogs = useMemo(() => {
+    if (!recentLogs) return [];
+    if (logFilter === "failed") return recentLogs.filter((l) => !l.success);
+    if (logFilter === "gateway") return recentLogs.filter((l) => l.viaGateway);
+    return recentLogs;
+  }, [recentLogs, logFilter]);
 
   if (isPending || !userId) return <AiAnalyticsSkeleton label={t("analyticsUI.loading")} />;
 
@@ -72,7 +106,7 @@ export function AiAnalyticsClient() {
 
   if (!stats || stats.totalRequests === 0) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-8 md:space-y-10">
         <AdminEmptyState
           title={t("analyticsUI.emptyTitle")}
           description={t("analyticsUI.emptyDescription")}
@@ -82,12 +116,15 @@ export function AiAnalyticsClient() {
     );
   }
 
-  const totalLogs = stats.recentLogs.length;
+  const successRatePct = ((stats.successfulRequests / stats.totalRequests) * 100).toFixed(1);
+  const gatewaySharePct = Math.round((stats.gatewayRequests / stats.totalRequests) * 100);
+
+  const totalLogs = filteredLogs.length;
   const totalPages = Math.max(1, Math.ceil(totalLogs / LOGS_PER_PAGE));
   const safePage = Math.min(logPage, totalPages);
   const startIndex = (safePage - 1) * LOGS_PER_PAGE;
   const endIndex = Math.min(startIndex + LOGS_PER_PAGE, totalLogs);
-  const pagedLogs = stats.recentLogs.slice(startIndex, endIndex);
+  const pagedLogs = filteredLogs.slice(startIndex, endIndex);
 
   const refreshedLabel =
     dataUpdatedAt > 0
@@ -97,170 +134,278 @@ export function AiAnalyticsClient() {
       : null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8 md:space-y-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-body-xs text-muted-foreground">{t("analyticsUI.sampleScope")}</p>
         <div className="flex flex-wrap items-center gap-3">
           {refreshedLabel && (
-            <span className="text-body-sm text-muted-foreground">
+            <span className="text-body-xs text-muted-foreground">
               {t("analyticsUI.refreshed", { time: refreshedLabel })}
             </span>
           )}
-          <AdminIconAction id="ai-analytics-refresh" variant="outline" label={t("analyticsUI.refresh")} onClick={() => void refetch()} disabled={isFetching}>
-            <RefreshCw aria-hidden className={isFetching ? "size-4 animate-spin" : "size-4"} />
+          <AdminIconAction
+            id="ai-analytics-refresh"
+            variant="outline"
+            label={t("analyticsUI.refresh")}
+            onClick={() => void refetch()}
+            disabled={isFetching}
+          >
+            <RefreshCw aria-hidden className={isFetching ? "size-4 motion-safe:animate-spin" : "size-4"} />
           </AdminIconAction>
         </div>
       </div>
 
-      <AdminStatStrip className="lg:grid-cols-3">
+      <AdminStatStrip>
         <AdminStatStripItem
           label={t("analyticsUI.totalRequests")}
-          value={stats.totalRequests}
+          value={stats.totalRequests.toLocaleString(locale === "id" ? "id-ID" : "en-US")}
+          caption={
+            stats.failedRequests > 0
+              ? `${stats.failedRequests} ${t("analyticsUI.failed").toLowerCase()}`
+              : undefined
+          }
+          icon={Activity}
         />
         <AdminStatStripItem
-          label={t("analyticsUI.successful")}
-          value={stats.successfulRequests}
-          caption={`${((stats.successfulRequests / stats.totalRequests) * 100).toFixed(1)}%`}
-        />
-        <AdminStatStripItem
-          label={t("analyticsUI.failed")}
-          value={stats.failedRequests}
-          tone={stats.failedRequests > 0 ? "error" : "default"}
+          label={t("analyticsUI.successRate")}
+          value={`${successRatePct}%`}
+          caption={`${stats.successfulRequests} / ${stats.totalRequests}`}
+          icon={CheckCircle2}
+          iconClassName={stats.failedRequests > 0 ? "text-status-warning" : undefined}
         />
         <AdminStatStripItem
           label={t("analyticsUI.avgLatency")}
           value={formatLatency(stats.averageLatencyMs)}
+          icon={Clock}
         />
         <AdminStatStripItem
-          label="Cloudflare AI Gateway"
-          value={stats.gatewayRequests}
-          caption={stats.gatewayRequests > 0 ? `${t("analyticsUI.successRate")}: ${stats.gatewaySuccessRate}%` : undefined}
-        />
-        <AdminStatStripItem
-          label="Direct API"
-          value={stats.directRequests}
-          caption={stats.directRequests > 0 ? `${t("analyticsUI.successRate")}: ${stats.directSuccessRate}%` : undefined}
+          label="AI Gateway"
+          value={`${gatewaySharePct}%`}
+          caption={`${stats.gatewayRequests} ${t("analyticsUI.gateway").toLowerCase()} / ${stats.directRequests} ${t("analyticsUI.direct").toLowerCase()}`}
+          icon={Globe}
         />
       </AdminStatStrip>
 
-      <div className="space-y-3">
-        <h2 className="font-heading text-body-base font-semibold text-foreground">
-          {t("analyticsUI.recentRequests")}
-        </h2>
-        <div className="relative overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[640px] text-body-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40">
-                <th className="px-4 py-3 text-left font-semibold text-muted-foreground">
-                  {t("analyticsUI.time")}
-                </th>
-                <th className="px-4 py-3 text-left font-semibold text-muted-foreground">
-                  {t("analyticsUI.operation")}
-                </th>
-                <th className="px-4 py-3 text-left font-semibold text-muted-foreground">
-                  {t("analyticsUI.model")}
-                </th>
-                <th className="px-4 py-3 text-left font-semibold text-muted-foreground">
-                  {t("analyticsUI.via")}
-                </th>
-                <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
-                  {t("analyticsUI.latency")}
-                </th>
-                <th className="px-4 py-3 text-center font-semibold text-muted-foreground">
-                  {t("analyticsUI.status")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {pagedLogs.map((log: AiRequestLog, index: number) => (
-                <tr
-                  key={`${log.timestamp}-${log.operation}-${log.model}-${startIndex + index}`}
-                  className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors"
-                >
-                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                    {new Date(log.timestamp).toLocaleTimeString(
-                      locale === "id" ? "id-ID" : "en-US",
-                    )}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-foreground">
-                    {log.operation}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                    {modelDisplayName(log.model)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge
-                      via={log.viaGateway}
-                      label={
-                        log.viaGateway
-                          ? t("analyticsUI.gateway")
-                          : t("analyticsUI.direct")
-                      }
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-right text-foreground">
-                    {formatLatency(log.latencyMs)}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <StatusDot ok={log.success} />
-                      <span className="sr-only">
-                        {log.success
-                          ? t("analyticsUI.successful")
-                          : t("analyticsUI.failed")}
-                      </span>
-                      {!log.success && log.error && (
-                        <span
-                          className="max-w-[140px] truncate text-body-sm text-status-error"
-                          title={t("analyticsUI.failed")}
-                        >
-                          {t("analyticsUI.failed")}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {totalLogs > LOGS_PER_PAGE && (
-          <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs text-muted-foreground">
-            <span>
-              {t("analyticsUI.logPageSummary", {
-                start: startIndex + 1,
-                end: endIndex,
-                total: totalLogs,
-              })}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={safePage <= 1}
-                onClick={() => setLogPage((prev) => Math.max(1, prev - 1))}
-              >
-                {t("analyticsUI.previous")}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={safePage >= totalPages}
-                onClick={() =>
-                  setLogPage((prev) => Math.min(totalPages, prev + 1))
-                }
-              >
-                {t("analyticsUI.next")}
-              </Button>
-            </div>
+      {modelBreakdown.length > 0 && (
+        <section className="space-y-3">
+          <AdminSectionTitle as="h2" title={t("analyticsUI.activeModels")} icon={Cpu} />
+          <div className="hidden md:block">
+            <AdminTable>
+              <table className="w-full text-left text-body-sm">
+                <AdminTableHead>
+                  <tr>
+                    <th className="px-4 py-2.5 font-semibold text-muted-foreground">{t("analyticsUI.model")}</th>
+                    <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">{t("analyticsUI.totalRequests")}</th>
+                    <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">{t("analyticsUI.successRate")}</th>
+                    <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">{t("analyticsUI.avgLatency")}</th>
+                  </tr>
+                </AdminTableHead>
+                <tbody className="divide-y divide-border/60">
+                  {modelBreakdown.map((item) => (
+                    <tr key={item.model} className="hover:bg-muted/20 transition-colors">
+                      <td className="wrap-anywhere px-4 py-2.5 font-medium text-foreground">
+                        {modelDisplayName(item.model)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-foreground">
+                        {item.count}{" "}
+                        <span className="text-body-xs text-muted-foreground">({item.sharePct}%)</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">
+                        <ModelSuccessRate value={item.successRatePct} />
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                        {formatLatency(item.avgLatencyMs)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </AdminTable>
           </div>
-        )}
-      </div>
+          <ul className="divide-y divide-border/30 md:hidden">
+            {modelBreakdown.map((item) => (
+              <li key={item.model} className="flex items-center justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="m-0 wrap-anywhere text-body-sm font-medium text-foreground">
+                    {modelDisplayName(item.model)}
+                  </p>
+                  <p className="m-0 mt-1 text-body-xs tabular-nums text-muted-foreground">
+                    {item.count} ({item.sharePct}%) · {formatLatency(item.avgLatencyMs)}
+                  </p>
+                </div>
+                <ModelSuccessRate value={item.successRatePct} label={t("analyticsUI.successRate")} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <ZyraUsageCharts />
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <AdminSectionTitle as="h2" title={t("analyticsUI.recentRequests")} />
+          <div className="flex flex-wrap items-center gap-1">
+            {(
+              [
+                { id: "all", label: t("analyticsUI.filterAll") },
+                { id: "gateway", label: t("analyticsUI.gateway") },
+                { id: "failed", label: t("analyticsUI.failed") },
+              ] as const
+            ).map((opt) => (
+              <Button
+                key={opt.id}
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="min-h-9 px-2.5 aria-pressed:bg-muted aria-pressed:text-foreground"
+                aria-pressed={logFilter === opt.id}
+                onClick={() => {
+                  setLogFilter(opt.id);
+                  setLogPage(1);
+                }}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {pagedLogs.length === 0 ? (
+          <AdminEmptyState compact title={t("analyticsUI.emptyTitle")} />
+        ) : (
+          <>
+            <div className="hidden md:block">
+              <AdminTable>
+                <table className="w-full min-w-[640px] text-body-sm">
+                  <AdminTableHead>
+                    <tr>
+                      <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">
+                        {t("analyticsUI.time")}
+                      </th>
+                      <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">
+                        {t("analyticsUI.operation")}
+                      </th>
+                      <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">
+                        {t("analyticsUI.model")}
+                      </th>
+                      <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">
+                        {t("analyticsUI.via")}
+                      </th>
+                      <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">
+                        {t("analyticsUI.latency")}
+                      </th>
+                      <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">
+                        {t("analyticsUI.status")}
+                      </th>
+                    </tr>
+                  </AdminTableHead>
+                  <tbody className="divide-y divide-border/60">
+                    {pagedLogs.map((log: AiRequestLog, index: number) => (
+                      <tr
+                        key={`${log.timestamp}-${log.operation}-${log.model}-${startIndex + index}`}
+                        className="hover:bg-muted/20 transition-colors"
+                      >
+                        <td className="px-4 py-2.5 text-body-xs tabular-nums text-muted-foreground whitespace-nowrap">
+                          {new Date(log.timestamp).toLocaleTimeString(
+                            locale === "id" ? "id-ID" : "en-US",
+                          )}
+                        </td>
+                        <td className="wrap-anywhere px-4 py-2.5 font-medium text-foreground">
+                          {log.operation}
+                        </td>
+                        <td className="wrap-anywhere px-4 py-2.5 text-muted-foreground">
+                          {modelDisplayName(log.model)}
+                        </td>
+                        <td className="px-4 py-2.5 text-body-xs text-muted-foreground">
+                          {log.viaGateway ? t("analyticsUI.gateway") : t("analyticsUI.direct")}
+                        </td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-foreground">
+                          {formatLatency(log.latencyMs)}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <RequestOutcome success={log.success} label={log.success ? t("analyticsUI.successful") : t("analyticsUI.failed")} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </AdminTable>
+            </div>
+
+            <ul className="divide-y divide-border/30 md:hidden">
+              {pagedLogs.map((log: AiRequestLog, index: number) => (
+                <li
+                  key={`${log.timestamp}-${log.operation}-${log.model}-${startIndex + index}`}
+                  className="space-y-1 py-(--row-padding)"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="wrap-anywhere text-body-sm font-medium text-foreground">
+                        {log.operation}
+                      </p>
+                      <p className="mt-0.5 wrap-anywhere text-body-xs text-muted-foreground">
+                        {modelDisplayName(log.model)}
+                      </p>
+                    </div>
+                    <RequestOutcome success={log.success} label={log.success ? t("analyticsUI.successful") : t("analyticsUI.failed")} />
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">
+                        {log.viaGateway ? t("analyticsUI.gateway") : t("analyticsUI.direct")}
+                      </span>
+                      <span className="tabular-nums text-foreground">
+                        {formatLatency(log.latencyMs)}
+                      </span>
+                    </div>
+                    <span className="tabular-nums text-muted-foreground">
+                      {new Date(log.timestamp).toLocaleTimeString(
+                        locale === "id" ? "id-ID" : "en-US",
+                      )}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {totalLogs > LOGS_PER_PAGE && (
+              <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs text-muted-foreground">
+                <span>
+                  {t("analyticsUI.logPageSummary", {
+                    start: startIndex + 1,
+                    end: endIndex,
+                    total: totalLogs,
+                  })}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={safePage <= 1}
+                    onClick={() => setLogPage((prev) => Math.max(1, prev - 1))}
+                  >
+                    {t("analyticsUI.previous")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={safePage >= totalPages}
+                    onClick={() =>
+                      setLogPage((prev) => Math.min(totalPages, prev + 1))
+                    }
+                  >
+                    {t("analyticsUI.next")}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }

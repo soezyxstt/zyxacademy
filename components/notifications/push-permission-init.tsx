@@ -64,7 +64,7 @@ export function PushPermissionInit() {
   const userRole = (session?.user as { role?: string } | undefined)?.role;
   const isAdminSurface = pathname.startsWith("/admin") || userRole === "admin";
   const activeIdentityRef = useRef({ userId: null as string | null });
-  const eligibleUserId = !isPending && !isAdminSurface ? userId : null;
+  const eligibleUserId = !isPending ? userId : null;
   if (activeIdentityRef.current.userId !== eligibleUserId) {
     activeIdentityRef.current = { userId: eligibleUserId };
   }
@@ -101,7 +101,7 @@ export function PushPermissionInit() {
 
         await registerUnifiedPushToken(activeUserId, isCurrent);
 
-        if (!isCurrent()) return;
+        if (!isCurrent() || isAdminSurface) return;
         const {
           isLocalReminderSchedulingSupported,
           loadStudyReminderConfig,
@@ -126,10 +126,10 @@ export function PushPermissionInit() {
         }
       }
     },
-    []
+    [isAdminSurface]
   );
 
-  // 1. Granted token registration effect: depends on session identity & admin gating, NOT pathname.
+  // 1. Granted token registration effect: runs for all authenticated roles (student, tutor, admin).
   useEffect(() => {
     if (isPending) return;
 
@@ -146,7 +146,7 @@ export function PushPermissionInit() {
       return;
     }
 
-    if (isAdminSurface || !isPushEnvironmentSupported()) {
+    if (!isPushEnvironmentSupported()) {
       return;
     }
 
@@ -161,11 +161,11 @@ export function PushPermissionInit() {
     return () => {
       cancelled = true;
     };
-  }, [isPending, userId, isAdminSurface, syncGrantedTokenForUser]);
+  }, [isPending, userId, syncGrantedTokenForUser]);
 
   // 2. Permission prompt scheduling effect: route-aware delay for "default" permission only.
   useEffect(() => {
-    if (isPending || !userId || isAdminSurface) {
+    if (isPending || !userId) {
       setShowPrompt(false);
       return;
     }

@@ -1,87 +1,62 @@
 # Zyx Historical Reference Question Ingest: Workflow and Contract Playbook
 
-## 1. Stage Objective and Publication Semantics
+## 1. Scope and direct publication
 
-Extract historical exam, quiz, tutorial, or homework questions (`origin: "historical_reference"`) from stored course PDFs into `reference-question-draft.v1`, link each question to published Ideas in the same course, validate fidelity and provenance, and submit via `assessment.submit_reference_draft`.
+Import verbatim historical questions from stored course PDFs through `reference_question_ingest` using `reference-question-draft.v1`. `assessment.submit_reference_draft` directly writes immutable `historical_reference` records with `status: "published"`, `reviewRequired: false` and `publicationTarget: "reference_question_bank"`. Items with `quizEligible: true` become available for quiz assembly. Submit only within explicit authorization to store/publish those historical questions, never as a smoke test.
 
-**Important Publication Rule:** Unlike `idea_product` and `quiz_bank`, `assessment.submit_reference_draft` writes validated historical reference questions directly with `status: "published"` (`reviewRequired: false`, `publicationTarget: "reference_question_bank"`). Any question with `quizEligible: true` becomes immediately eligible for quiz assembly. Therefore, verbatim source fidelity and provenance accuracy are mandatory before calling submit.
+## 2. Read and prepare
 
-## 2. Step-by-Step Tool Sequence
+1. Call `workflow.get_playbook` with `skill: "reference-question-ingest"`, `stage: "reference"`, current package metadata and real client capabilities. Read `common/execution`, this module and `reference/payload-preflight`.
+2. Resolve `courseKey` through `catalog.list_courses`. Start `workflow: "reference_question_ingest"` with the key and `bootstrapToken`. This is course-only: omit `chapterKey`, `sourcePackId`, `sourcePackImportId` and `sourcePackToken`. Read `workflow.get_contract` with the run/bootstrap and use its returned `runToken`. On drift, refresh bootstrap and contract with the existing run, then revalidate.
+3. Use `source.list_reference_files` for stored `soal` and `pembahasan_soal` PDFs. Read every page of the selected question and paired solution PDFs with `source.read_file`, at most 4 pages per call. Use `representation: "both"` for formulas, diagrams, scans or layout. Poll `source.get_read_job` when pending; retry only failed pages with `retryFailed: true`. The download mode is optional for hosts that can read the temporary binary URL.
+4. Use the returned opaque file keys in `source.sourceFileKey` and optional `source.solutionFileKey`; do not use raw storage paths or temporary URLs. Copy the exact catalog title. Keys belong in the private tool payload, not the learner content or public report.
+5. Find published Ideas using `knowledge.search_course_ideas` and verify selected records with `knowledge.get_idea`. Same-course Ideas across chapters are allowed. Each row needs nonempty links, positive weights summing to 1 within `1e-6` and no duplicate Idea ID.
+6. Check `assessment.list_reference_questions` for existing source/locator records. Preserve verbatim text, subpart labels and shared context. Use a unique `localId` and `(questionNumber, part)` per row; `page` is the starting PDF page, numbered from 1. Inspect continuation pages before completing a row.
 
-1. **Bootstrap:** Call `workflow.get_playbook` with `skill: "reference-question-ingest"`, `stage: "reference"`, and client metadata. Save `bootstrapToken`.
-2. **Lock Course Scope (Course-Only Workflow):**
-   - Call `catalog.list_courses` to obtain `courseKey`.
-   - Call `workflow.start` with `workflow: "reference_question_ingest"`, `courseKey`, and `bootstrapToken`.
-   - **Do NOT pass `chapterKey` or `sourcePackToken`:** `reference_question_ingest` runs at course scope across all chapters and rejects chapter/Source Pack parameters (`WORKFLOW_SCOPE_INVALID`).
-   - Call `workflow.get_contract` with `runToken` and `bootstrapToken`.
-3. **List and Read Stored Historical PDFs:**
-   - Call `source.list_reference_files` with `runToken` and optional `categories: ["soal", "pembahasan_soal"]`.
-   - Read every page of the target question PDF (`sourceFileKey`) and, when available, the matching solution PDF (`solutionFileKey`) using `source.read_file` (`mode: "pages"`, up to 4 pages per call). Poll `source.get_read_job` with `fileKey` and `jobId` when pending; retry only failed pages with `retryFailed: true`. Request `representation: "both"` for formulas, diagrams, scans, or layout, with optional `imageWidth` (320 to 2048 px). Use `mode: "download"` for a temporary binary URL with HTTP Range when the client can download files.
-4. **Search Published Course Ideas Across Chapters:**
-   - Call `knowledge.search_course_ideas` with `runToken` and `query` to find published Ideas across all chapters of the locked course.
-   - Call `knowledge.get_idea` with `runToken` and `ideaId` to verify the exact Idea statement and chapter context before linking.
-   - Every historical question requires at least one published Idea link from the same course (`ideaLinksRequired: true`, `sameCourseAcrossChaptersAllowed: true`), with positive weights summing to `1`.
-5. **Inspect Existing Historical Questions (Avoid Duplicates):**
-   - Call `assessment.list_reference_questions` with `runToken` (filtered by `year`, `assessmentType`, `institution`, or `query`) to check what has already been ingested.
-6. **Build, Validate, and Submit `reference-question-draft.v1`:**
-   - Construct `draftJson` following the schema below and the preflight checklist in `reference/payload-preflight`.
-   - Call `assessment.validate_reference_draft` with `runToken`, `draftJson`, and `bootstrapToken`.
-   - Resolve every blocking issue until `ok: true` and `valid: true`.
-   - Call `assessment.submit_reference_draft` with `runToken`, `draftJson`, and `bootstrapToken` (`authoring:stage`).
+## 3. Minimal JSON example
 
-## 3. `reference-question-draft.v1` JSON Contract
+This example illustrates structure only. Its opaque keys and Idea ID are synthetic and do not pass source authorization. Replace them, the source metadata and the prompt/answer with observed records and verbatim evidence before validation.
 
 ```json
 {
   "schemaVersion": "reference-question-draft.v1",
   "source": {
-    "sourceFileKey": "<encrypted-fileKey-from-source.list_reference_files>",
-    "solutionFileKey": "<optional-encrypted-fileKey-for-pembahasan_soal>",
-    "title": "UTS I MA1101 Matematika IA 2023/2024",
-    "institution": "ITB",
-    "assessmentType": "uts",
-    "year": 2023,
-    "academicYearLabel": "2023/2024",
-    "term": "ganjil"
+    "sourceFileKey": "synthetic-question-file-key",
+    "institution": "Synthetic course",
+    "assessmentType": "exercise",
+    "title": "Synthetic source title"
   },
   "questions": [
     {
-      "localId": "uts-2023-q1a",
+      "localId": "q1",
       "questionNumber": "1",
-      "part": "a",
       "page": 1,
-      "questionType": "essay",
-      "difficulty": "medium",
+      "prompt": "Tentukan nilai x yang memenuhi 2x + 1 = 7.",
+      "questionType": "short_answer",
+      "difficulty": "easy",
       "cognitiveLevel": "apply",
-      "prompt": "Tentukan nilai $\\lim_{x \\to 0} \\frac{\\sin(3x)}{x}$.",
-      "options": [],
-      "correctIndices": [],
       "acceptableAnswers": ["3"],
-      "answerProvenance": "source_solution",
-      "solutionProvenance": "source_solution",
-      "solutionMarkdown": "Menggunakan sifat limit trigonometri dasar, $\\lim_{x \\to 0} \\frac{\\sin(3x)}{3x} \\cdot 3 = 1 \\cdot 3 = 3$.",
+      "answerProvenance": "official",
+      "solutionProvenance": "unavailable",
       "quizEligible": true,
-      "ideaLinks": [
-        {
-          "ideaId": "<published-idea-id-in-same-course>",
-          "weight": 1,
-          "role": "primary"
-        }
-      ],
-      "tags": ["uts-2023", "limit-trigonometri"]
+      "ideaLinks": [{ "ideaId": "synthetic-published-idea", "weight": 1, "role": "primary" }]
     }
   ]
 }
 ```
 
-### 3.1 Provenance and `quizEligible` Rules
+The strict schema accepts only its declared fields. In particular, this payload has no `solutionMarkdown`, `explanation` or `tags`. The source may also declare `solutionFileKey`, `year`, `academicYearLabel` and `term`; the question may declare `part`, `options` and `correctIndices`. Use the current validator for exact types/defaults. Limit each draft to 500 rows and 8 MiB of JSON.
 
-- `assessmentType`: `"uts" | "uas" | "quiz" | "tutorial" | "homework" | "exercise" | "other"`
-- `answerProvenance` and `solutionProvenance`:
-  - `"official"`: Answer key or rubric is printed directly in the official exam/question document (`sourceFileKey`).
-  - `"source_solution"`: Answer or solution comes from a paired stored solution document (`solutionFileKey` must be provided and match the numbered solution span).
-  - `"zyx_generated"`: The source PDF has no official answer/solution, and the answer/solution was derived and verified by Zyx authoring.
-  - `"unavailable"`: No answer or solution is provided.
-- `quizEligible` Gate:
-  - Set `quizEligible: true` only when the question has a verified answer (`correctIndices` for MC/multi-MC, `acceptableAnswers` for short answer, or complete verified solution/answer for essay according to validator rules) and `answerProvenance !== "unavailable"`.
-  - If `answerProvenance === "unavailable"`, `quizEligible` must be `false`.
+## 4. Provenance and stored solutions
+
+`answerProvenance` and `solutionProvenance` independently use `official`, `source_solution`, `zyx_generated` or `unavailable`. Match the actual origin: printed question-document evidence, the paired solution PDF, independently derived/checked work, or missing evidence. `source_solution` requires the paired stored file. Never relabel evidence merely to pass validation.
+
+The current submission path derives stored explanation text only from the matching numbered span of the paired PDF when `solutionProvenance` is `source_solution`. It does not accept agent-authored solution text in this JSON. Missing or unreadable numbered spans produce no stored explanation; do not paste the full PDF, pretend the extraction succeeded, or switch provenance to hide that limit. Report it and keep unsupported work separate.
+
+Set `quizEligible: true` only for a gradable non-essay question with complete verified answer fields and answer provenance other than `unavailable`. **Every essay must use `quizEligible: false`**, even if its answer or solution is known. Use false for incomplete or unavailable answers. A provenance label or successful schema parse does not verify fidelity or correctness.
+
+## 5. Validate, submit and resume
+
+Complete `reference/payload-preflight`, then call `assessment.validate_reference_draft` with `runToken`, `draftJson` and `bootstrapToken`. Resolve every blocker. Call `assessment.submit_reference_draft` only for the exact reviewed batch covered by the user authorization. Record returned IDs, `unchanged`, publication state and eligibility.
+
+After a lost response, inspect the same source and question locators before replaying unchanged content. A source or question conflict requires reading the existing record; do not change IDs or locators to create a duplicate. Historical records cannot be edited with `assessment.update_question` or Idea/Product revision tools. Admin mutation receipts are not available for this submission protocol.

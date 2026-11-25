@@ -49,7 +49,7 @@ mock.module("@/lib/discussions/access", () => ({
  discussionChannelCandidateScope: () => undefined, getDiscussionChannelVisibility: async () => ({}), resolveDiscussionCourses: async () => new Map(),
  getDiscussionActor: async (id: string) => ({ id, role: "student" }), getAccessibleDiscussionChannels: async () => [global],
  requireDiscussionChannelAccess: async () => ({}), requireDiscussionCourse: async () => ({}), requireDiscussionMessageAccess: async () => ({}),
- requireDiscussionThreadAccess: async () => ({ channel, thread }),
+ requireDiscussionThreadAccess: async ({ id }: { id: string }) => ({ actor: { id, role: "student" }, channel, thread }),
 }));
 const { getThread } = await import("@/lib/discussions/service");
 

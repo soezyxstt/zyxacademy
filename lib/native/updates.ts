@@ -289,7 +289,7 @@ export function parseInstalledAppMetaFromUa(input: {
   return {
     runtime: input.runtime,
     channel: isNightly ? "nightly" : "stable",
-    version: versionMatch?.[1] ?? "0.1.0-alpha.1",
+    version: versionMatch?.[1] ?? "",
     buildId: buildMatch?.[1]?.toLowerCase() ?? null,
     platform,
   };
@@ -322,18 +322,27 @@ export async function getInstalledAppMeta(): Promise<InstalledAppMeta | null> {
           };
         }
       } catch {
-        // Fall through to UA-based metadata
+        // Older binaries deny custom remote commands but still expose core app metadata.
       }
     }
   }
 
   const cap = getCapacitor();
-  return parseInstalledAppMetaFromUa({
+  const meta = parseInstalledAppMetaFromUa({
     runtime,
     userAgent: navigator.userAgent,
     hostname: window.location.hostname,
     capacitorPlatform: typeof cap?.getPlatform === "function" ? cap.getPlatform() : undefined,
   });
+  if (runtime === "tauri") {
+    try {
+      const version = await getTauri()?.core?.invoke?.<string>("plugin:app|version");
+      if (version) meta.version = version;
+    } catch {
+      // Keep the UA version, or leave it unknown rather than invent an installed version.
+    }
+  }
+  return meta;
 }
 
 export function selectDownloadUrlForPlatform(
@@ -524,6 +533,7 @@ export function resolveUpdateCheckOutcome(
 
 export type InstallUpdateOutcome =
   | { status: "started" }
+  | { status: "manual_update_required" }
   | { status: "restarting" }
   | { status: "permission_required" }
   | { status: "manual_appimage_replace"; path: string }
@@ -604,9 +614,7 @@ export async function installAppUpdate(
               msg.includes("NATIVE_UPDATER_UNCONFIGURED") ||
               msg.includes("NO_UPDATE_AVAILABLE") ||
               /not found|unknown command/i.test(msg);
-            if (!isFallback) {
-              return { status: "error", message: msg };
-            }
+            if (!isFallback) throw err;
           }
         }
 
@@ -622,6 +630,7 @@ export async function installAppUpdate(
         if (msg.startsWith(manualPrefix)) {
           return { status: "manual_appimage_replace", path: msg.slice(manualPrefix.length) };
         }
+        if (/not allowed by ACL/i.test(msg)) return { status: "manual_update_required" };
         return { status: "error", message: msg };
       } finally {
         unlisten?.();

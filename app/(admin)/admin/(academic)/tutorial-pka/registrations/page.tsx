@@ -1,7 +1,5 @@
-import { notFound } from "next/navigation";
 import { UserCheck } from "lucide-react";
 import { pageTitle } from "@/lib/site";
-import { env } from "@/lib/env";
 import { getPkaRegistrationsAction } from "../actions";
 import { RegistrationsTab } from "../_components/registrations-tab";
 import { AdminPageHeader } from "@/components/admin/page-header";
@@ -18,12 +16,11 @@ export async function generateMetadata() {
 
 export default async function TutorialPkaRegistrationsPage() {
   const t = await getTranslations("adminOps");
-  if (env.FEATURE_PKA !== "1") notFound();
 
   const registrations = await getPkaRegistrationsAction();
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-(--related-gap)">
       <AdminPageHeader
         icon={UserCheck}
         title={<TranslatedText namespace="adminOps" messageKey="pka.registrations" />}
@@ -36,9 +33,7 @@ export default async function TutorialPkaRegistrationsPage() {
         ]}
       />
 
-      <div>
-        <RegistrationsTab registrations={registrations} />
-      </div>
+      <RegistrationsTab registrations={registrations} />
     </div>
   );
 }

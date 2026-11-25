@@ -21,6 +21,7 @@ import {
   setDemoCourse,
 } from "@/app/(admin)/admin/(academic)/courses/actions";
 import { CoursePricingFields, pricingFields, pricingFromFields } from "@/components/admin/course-pricing-fields";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import type { CoursePricing } from "@/lib/student/course-pricing";
 import { allowedCategories } from "@/app/(admin)/admin/(academic)/courses/constants";
 import {
@@ -34,15 +35,6 @@ import {
   Eye,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
 
 type Course = {
   id: string;
@@ -140,16 +132,16 @@ export function SettingsTab({ course }: Props) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-4xl space-y-(--section-gap)">
       {/* Edit Course Form */}
-      <div className="border-b border-border pb-4">
-        <h3 className="font-heading text-body-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-          <Settings className="size-4 text-brand-primary" />
+      <section className="border-b border-border/60 pb-(--section-gap)">
+        <h2 className="mb-(--compact-gap) flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
+          <Settings className="size-4 text-muted-foreground" aria-hidden />
           {t("courseDetail.settings.title")}
-        </h3>
+        </h2>
 
-        <form onSubmit={handleSave} className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <form onSubmit={handleSave} className="space-y-(--compact-gap)">
+          <div className="grid gap-(--compact-gap) sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="course-settings-id" className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.permanentId")}</Label>
               <Input id="course-settings-id"
@@ -173,8 +165,8 @@ export function SettingsTab({ course }: Props) {
           <div className="space-y-1">
             <Label htmlFor="course-settings-category" className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.category")}</Label>
             <Select value={category} onValueChange={setCategory} disabled={loading}>
-              <SelectTrigger id="course-settings-category" className="rounded-lg h-9">
-              <SelectValue placeholder={t("courseDetail.settings.selectCategory")} />
+              <SelectTrigger id="course-settings-category" className="h-9 bg-muted/35">
+                <SelectValue placeholder={t("courseDetail.settings.selectCategory")} />
               </SelectTrigger>
               <SelectContent>
                 {allowedCategories.map((opt) => (
@@ -188,8 +180,9 @@ export function SettingsTab({ course }: Props) {
 
           <CoursePricingFields id="settings" value={pricing} onChange={setPricing} disabled={loading} />
           <div className="space-y-1">
-            <Label className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.description")}</Label>
+            <Label htmlFor="course-settings-description" className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.description")}</Label>
             <Textarea
+              id="course-settings-description"
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -199,7 +192,7 @@ export function SettingsTab({ course }: Props) {
             />
           </div>
 
-          <div className="pt-1">
+          <div className="flex justify-end">
             <Button
               type="submit"
               size="sm"
@@ -220,27 +213,27 @@ export function SettingsTab({ course }: Props) {
             </Button>
           </div>
         </form>
-      </div>
+      </section>
 
       {/* Public demo selection */}
-      <div className="border-b border-border pb-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <section className="space-y-(--compact-gap) border-b border-border/60 pb-(--section-gap)">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex items-start gap-2.5">
-            <Eye className="mt-0.5 size-4 shrink-0 text-brand-primary" aria-hidden="true" />
+            <Eye className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div>
-              <h3 className="font-heading text-body-sm font-semibold text-foreground">{t("courseDetail.settings.publicDemo")}</h3>
+              <h2 className="font-heading text-body-base font-bold text-foreground">{t("courseDetail.settings.publicDemo")}</h2>
               <p className="mt-1 max-w-2xl text-body-xs leading-relaxed text-muted-foreground">
                 {t("courseDetail.settings.publicDemoDescription")}
               </p>
             </div>
           </div>
-          <Badge variant="outline" className={course.isDemo ? "border-brand-primary/40 text-brand-primary" : "text-muted-foreground"}>
+          <Badge variant="secondary" className={course.isDemo ? "text-status-success" : "text-muted-foreground"}>
             {course.isDemo ? t("courseDetail.settings.selected") : t("courseDetail.settings.notSelected")}
           </Badge>
         </div>
 
         {course.demoEligibility ? (
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-x-(--related-gap) sm:grid-cols-2">
             {course.demoEligibility.checks.map((check) => (
               <div key={check.key} className="flex items-start gap-2 border-b border-border/60 py-2">
                 {check.ready ? (
@@ -248,9 +241,9 @@ export function SettingsTab({ course }: Props) {
                 ) : (
                   <CircleAlert className="mt-0.5 size-4 shrink-0 text-status-error" aria-hidden="true" />
                 )}
-                <div className="min-w-0">
-                  <p className="text-body-xs font-semibold text-foreground">{check.label}</p>
-                  <p className="mt-0.5 text-body-xs text-muted-foreground">{t("courseDetail.settings.availableCount", { count: check.count })}</p>
+                <div className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-2">
+                  <p className="text-body-sm font-medium text-foreground">{check.label}</p>
+                  <p className="text-body-xs tabular-nums text-muted-foreground">{t("courseDetail.settings.availableCount", { count: check.count })}</p>
                 </div>
               </div>
             ))}
@@ -258,12 +251,12 @@ export function SettingsTab({ course }: Props) {
         ) : null}
 
         {course.demoEligibility && !course.demoEligibility.eligible ? (
-          <p className="mt-3 text-body-xs text-status-error">
+          <p className="text-body-xs text-status-error">
             {t("courseDetail.settings.demoEligibilityHint")}
           </p>
         ) : null}
 
-        <div className="mt-4">
+        <div className="flex justify-end">
           <Button
             type="button"
             size="sm"
@@ -277,16 +270,16 @@ export function SettingsTab({ course }: Props) {
             {course.isDemo ? t("courseDetail.settings.removeFromDemo") : t("courseDetail.settings.makePublicDemo")}
           </Button>
         </div>
-      </div>
+      </section>
 
       {/* Danger Zone */}
-      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+      <section className="flex flex-wrap items-start justify-between gap-(--compact-gap)">
         <div className="flex items-start gap-2.5">
           <AlertTriangle className="size-4 text-destructive shrink-0 mt-0.5" />
           <div className="space-y-0.5">
-            <h4 className="font-heading text-body-sm font-bold text-destructive">
+            <h2 className="font-heading text-body-base font-bold text-destructive">
               {t("courseDetail.settings.dangerZone")}
-            </h4>
+            </h2>
             <p className="text-body-xs text-muted-foreground">
               {t("courseDetail.settings.dangerDescription")}
             </p>
@@ -299,46 +292,24 @@ export function SettingsTab({ course }: Props) {
           size="sm"
           onClick={() => setDeleteModalOpen(true)}
           disabled={loading}
-          className="gap-1.5 rounded-lg h-8 font-semibold"
+          className="ml-auto"
         >
           <Trash2 className="size-3.5" />
           {t("courseDetail.settings.deleteCourse")}
         </Button>
-      </div>
+      </section>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
+      <AdminConfirmDialog
         open={deleteModalOpen}
-        onOpenChange={(open) => {
-          if (!loading) setDeleteModalOpen(open);
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("courseDetail.settings.deleteTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("courseDetail.settings.deleteDescription", { title: course.title, id: course.id })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" size="sm" disabled={loading} className="rounded-lg">
-                {t("common.cancel")}
-              </Button>
-            </DialogClose>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDeleteConfirm}
-              disabled={loading}
-              isLoading={loading}
-              className="rounded-lg"
-            >
-              {t("courseDetail.settings.confirmDelete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setDeleteModalOpen}
+        title={t("courseDetail.settings.deleteTitle")}
+        description={t("courseDetail.settings.deleteDescription", { title: course.title, id: course.id })}
+        cancelLabel={t("common.cancel")}
+        confirmLabel={t("courseDetail.settings.confirmDelete")}
+        onConfirm={handleDeleteConfirm}
+        loading={loading}
+      />
     </div>
   );
 }

@@ -45,7 +45,7 @@ import {
   List,
   Loader2,
   Plus,
-  Bot,
+  FilePen,
   Trash2,
   Upload,
   X,
@@ -1224,7 +1224,7 @@ export function BatchUploadDialog({
                         {isBatchFormattingAi ? (
                           <Loader2 className="size-3.5 animate-spin" />
                         ) : (
-                          <Bot className="size-3.5" />
+                          <FilePen className="size-3.5" />
                         )}
                         <span>{isBatchFormattingAi ? t("documents.batch.formattingAi") : t("documents.batch.formatWithAi")}</span>
                       </Button>
@@ -1386,7 +1386,7 @@ export function BatchUploadDialog({
                       {isBatchFormattingAi ? (
                         <Loader2 className="size-3.5 animate-spin" />
                       ) : (
-                        <Bot className="size-3.5" />
+                        <FilePen className="size-3.5" />
                       )}
                       <span>{isBatchFormattingAi ? t("documents.batch.formattingAi") : t("documents.batch.formatWithAi")}</span>
                     </Button>
@@ -1820,7 +1820,7 @@ function StagedCard({
           disabled={disabled || doc.status === "hashing"}
           onValueChange={(v) => onMetaChange(doc.id, { subcategory: v as CourseMaterialSubcategory })}
         >
-          <SelectTrigger aria-label={t("documents.batch.subcategory")} className="h-8 min-w-0 flex-1 rounded-lg text-body-sm bg-background border-border/80">
+          <SelectTrigger aria-label={t("documents.batch.subcategory")} className="h-8 min-w-0 flex-1 rounded-lg text-body-sm">
             <SelectValue placeholder={t("documents.batch.subcategory")} />
           </SelectTrigger>
           <SelectContent>
@@ -1886,7 +1886,7 @@ function StagedCard({
             disabled={disabled}
             onValueChange={(v) => onDuplicateAction(v as DuplicateAction)}
           >
-            <SelectTrigger aria-label={`${t("documents.batch.actions")}: ${doc.originalName}`} className="h-8 w-full rounded-md text-body-sm bg-background">
+            <SelectTrigger aria-label={`${t("documents.batch.actions")}: ${doc.originalName}`} className="h-8 w-full rounded-md text-body-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -2367,7 +2367,7 @@ function BulkActionBar({
         </span>
 
         <Select value={moveTarget} onValueChange={(v) => setMoveTarget(v as MaterialLevel1Category)}>
-          <SelectTrigger aria-label={t("documents.batch.applyCategory")} className="h-8 w-40 rounded-lg text-body-sm bg-background">
+          <SelectTrigger aria-label={t("documents.batch.applyCategory")} className="h-8 w-40 rounded-lg text-body-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -2415,7 +2415,7 @@ function BulkActionBar({
           value={bulkSubcategory}
           onValueChange={(v) => setBulkSubcategory(v as CourseMaterialSubcategory)}
         >
-          <SelectTrigger aria-label={t("documents.batch.bulkSubcategory")} className="h-8 w-44 rounded-lg text-body-sm bg-background">
+          <SelectTrigger aria-label={t("documents.batch.bulkSubcategory")} className="h-8 w-44 rounded-lg text-body-sm">
             <SelectValue placeholder={t("documents.batch.bulkSubcategory")} />
           </SelectTrigger>
           <SelectContent>
@@ -2486,7 +2486,7 @@ function ChapterBulkActionBar({
         </span>
 
         <Select value={selectedTargetChapter} onValueChange={setSelectedTargetChapter}>
-          <SelectTrigger aria-label={t("documents.batch.targetChapter")} className="h-8 w-44 rounded-lg text-body-sm bg-background">
+          <SelectTrigger aria-label={t("documents.batch.targetChapter")} className="h-8 w-44 rounded-lg text-body-sm">
             <SelectValue placeholder={t("documents.batch.targetChapter")} />
           </SelectTrigger>
           <SelectContent>

@@ -43,6 +43,11 @@
   min-width: 0;
   padding: 12px;
 }
+@media (max-width: 767.98px) {
+  .zyra-bubble-skin__content {
+    padding: 8px 10px;
+  }
+}
 .zyra-bubble-skin__trim {
   position: absolute;
   inset: 0;

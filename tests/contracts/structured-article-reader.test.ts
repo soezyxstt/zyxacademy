@@ -366,3 +366,34 @@ describe("Structured Article Reader Contracts", () => {
     });
   });
 });
+
+
+it("keeps validated Product Bundle V4 parts, visuals and public checkpoints compatible with the reader", async () => {
+  const { buildLocalVerificationFixture } = await import("../../scripts/authoring/local-verification-fixture");
+  const { bundle } = buildLocalVerificationFixture();
+  const source = bundle.products.find(product => product.productType === "article");
+  if (source?.productType !== "article" || !source.sections) throw new Error("V4_ARTICLE_REQUIRED");
+  const reader = buildPublicArticleReadModel(
+    { ...source, visuals: source.visuals },
+    source.sections.map(section => ({ ...section, artikelId: source.id })),
+    source.sections.flatMap(section => section.blocks.map(block => ({
+      ...block, bagianArtikelId: section.id, content: block.contentMarkdown,
+    }))),
+  );
+  expect(reader.sections.map(section => section.id)).toEqual(source.sections.map(section => section.id));
+  for (const section of source.sections) {
+    const renderedSection = reader.sections.find(candidate => candidate.id === section.id)!;
+    expect(renderedSection.blocks.map(block => block.id)).toEqual(section.blocks.map(block => block.id));
+    for (const block of section.blocks) {
+      const renderedBlock = renderedSection.blocks.find(candidate => candidate.id === block.id)!;
+      expect(renderedBlock.parts).toEqual(block.parts);
+      if (block.formativeCheckPayload) {
+        expect(renderedBlock.formativeCheck?.checkKind).toBe(block.formativeCheckPayload.checkKind);
+        expect(renderedBlock.formativeCheck).not.toHaveProperty("answerKey");
+      }
+      for (const part of block.parts ?? []) {
+        if (part.kind === "visual_ref") expect(renderedBlock.visuals?.some(visual => visual.id === part.visualId)).toBe(true);
+      }
+    }
+  }
+});

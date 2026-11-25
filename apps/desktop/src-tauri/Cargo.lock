@@ -6028,6 +6028,7 @@ version = "0.1.0-alpha.1"
 dependencies = [
  "flate2",
  "futures-util",
+ "notify-rust",
  "reqwest 0.12.28",
  "semver",
  "serde",

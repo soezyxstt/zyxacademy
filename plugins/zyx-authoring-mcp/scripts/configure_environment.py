@@ -18,9 +18,9 @@ from urllib.parse import urlsplit, urlunsplit
 ENVIRONMENTS: dict[str, dict[str, str]] = {
     "production": {
         "environment": "production",
-        "plugin_id": "zyx-authoring-mcp",
+        "plugin_id": "zyx-prd",
         "display_name": "Zyx Academy",
-        "server_id": "zyx-authoring-production",
+        "server_id": "zyx-prd",
         "endpoint": "https://www.zyxacademy.com/api/mcp/authoring",
         "homepage": "https://www.zyxacademy.com/",
         "brand_color": "#2563EB",
@@ -28,9 +28,9 @@ ENVIRONMENTS: dict[str, dict[str, str]] = {
     },
     "staging": {
         "environment": "staging",
-        "plugin_id": "zyx-authoring-mcp-staging",
+        "plugin_id": "zyx-stg",
         "display_name": "Zyx Academy (Staging)",
-        "server_id": "zyx-authoring-staging",
+        "server_id": "zyx-stg",
         "endpoint": "https://staging.zyxacademy.com/api/mcp/authoring",
         "homepage": "https://staging.zyxacademy.com/",
         "brand_color": "#F59E0B",
@@ -38,8 +38,69 @@ ENVIRONMENTS: dict[str, dict[str, str]] = {
     },
 }
 
-LEGACY_SERVER_IDS = {"zyx-authoring", "zyx-mcp"}
+AMBIGUOUS_LEGACY_SERVER_IDS = {"zyx-authoring", "zyx-mcp"}
+LEGACY_ENVIRONMENT_SERVER_IDS = {
+    "production": "zyx-authoring-production",
+    "staging": "zyx-authoring-staging",
+}
+LEGACY_PLUGIN_IDS = {
+    "production": "zyx-authoring-mcp",
+    "staging": "zyx-authoring-mcp-staging",
+}
+LEGACY_SERVER_IDS = AMBIGUOUS_LEGACY_SERVER_IDS | set(LEGACY_ENVIRONMENT_SERVER_IDS.values())
 KNOWN_ZYX_SERVER_IDS = {cfg["server_id"] for cfg in ENVIRONMENTS.values()} | LEGACY_SERVER_IDS
+PUBLIC_TOOL_NAME_MAX_LENGTH = 40
+HOST_TOOL_NAME_MAX_LENGTH = 64
+HOST_TOOL_GUIDANCE = (
+    "Use advertised tool names from tools/list; dotted names in the skills identify operations. "
+    "Keep dotted operation argument values unchanged."
+)
+SKILL_HOST_PROMPT_SUFFIX = (
+    "Use only the {server_id} MCP connection; use advertised tool names "
+    "and keep dotted operation arguments unchanged."
+)
+
+
+def legacy_server_ids_for(environment: str) -> set[str]:
+    """Keep migration checks scoped to the intended environment."""
+    return AMBIGUOUS_LEGACY_SERVER_IDS | {LEGACY_ENVIRONMENT_SERVER_IDS[environment]}
+
+
+def validate_host_namespace(config: dict[str, str]) -> None:
+    """Reserve room for every portable tool name after host namespacing."""
+    for key in ("plugin_id", "server_id"):
+        if not re.fullmatch(r"[a-z][a-z0-9-]*", config[key]):
+            raise ValueError(f"Invalid portable {key}: {config[key]!r}")
+    prefix = f"mcp_{config['plugin_id']}_{config['server_id']}_"
+    if len(prefix) + PUBLIC_TOOL_NAME_MAX_LENGTH > HOST_TOOL_NAME_MAX_LENGTH:
+        raise ValueError("Plugin and server IDs exceed the host tool-name budget")
+
+
+def render_skill_host_prompt(yaml_text: str, environment: str) -> str:
+    """Render host identities and one environment-bound prompt suffix."""
+    server_id = ENVIRONMENTS[environment]["server_id"]
+    pattern = r'(?m)^  (display_name|short_description|default_prompt): ("(?:[^"\\]|\\.)*")$'
+
+    def replace_prompt(match: re.Match[str]) -> str:
+        field, raw = match.groups()
+        value = render_skill_references(json.loads(raw), environment)
+        if field == "display_name":
+            value = value.removesuffix(" (Staging)")
+            if environment == "staging":
+                value += " (Staging)"
+        if field == "default_prompt":
+            for known_id in KNOWN_ZYX_SERVER_IDS:
+                suffix = " " + SKILL_HOST_PROMPT_SUFFIX.format(server_id=known_id)
+                if value.endswith(suffix):
+                    value = value[:-len(suffix)]
+                    break
+            value += " " + SKILL_HOST_PROMPT_SUFFIX.format(server_id=server_id)
+        return f"  {field}: " + json.dumps(value, ensure_ascii=False)
+
+    rendered, count = re.subn(pattern, replace_prompt, yaml_text)
+    if count != 3:
+        raise ValueError("Skill host metadata must contain three quoted interface fields")
+    return rendered
 
 EXPECTED_SKILLS = (
     "zyx-authoring-pipeline",
@@ -55,6 +116,46 @@ EXPECTED_SKILLS = (
     "zyx-media-mcp",
     "zyx-operation-recovery",
 )
+
+STAGING_SKILL_SUFFIX = "-stg"
+BOOTSTRAP_ROLE_IDS = frozenset(EXPECTED_SKILLS[:6])
+SKILL_ID_PATTERN = "(?:" + "|".join(re.escape(skill) for skill in EXPECTED_SKILLS) + ")"
+SKILL_REFERENCE_RE = re.compile(
+    rf'(?P<argument>(?:"skill"|(?<![\w-])skill)\s*:\s*")(?P<role>{SKILL_ID_PATTERN})(?:-stg)*"'
+    rf'|(?<![\w-])(?P<reference>{SKILL_ID_PATTERN})(?:-stg)*(?![\w-])'
+)
+BOOTSTRAP_ARGUMENT_RE = re.compile(r'(?:"skill"|(?<![\w-])skill)\s*:\s*"([^"]+)"')
+
+
+def rendered_skill_ids(environment: str) -> tuple[str, ...]:
+    """Return host-facing IDs; MCP bootstrap role IDs remain canonical."""
+    if environment not in ENVIRONMENTS:
+        raise ValueError(f"Unknown environment {environment!r}")
+    suffix = STAGING_SKILL_SUFFIX if environment == "staging" else ""
+    return tuple(f"{skill}{suffix}" for skill in EXPECTED_SKILLS)
+
+
+def render_skill_references(text: str, environment: str) -> str:
+    """Rewrite exact host IDs while preserving the protocol's explicit skill argument."""
+    suffix = STAGING_SKILL_SUFFIX if environment == "staging" else ""
+
+    def replace(match: re.Match[str]) -> str:
+        if match.group("argument"):
+            return f'{match.group("argument")}{match.group("role")}"'
+        return f'{match.group("reference")}{suffix}'
+
+    return SKILL_REFERENCE_RE.sub(replace, text)
+
+
+def render_manifest_skill_references(value: Any, environment: str) -> Any:
+    """Rewrite references in manifest text, including future host prompts or skill paths."""
+    if isinstance(value, str):
+        return render_skill_references(value, environment)
+    if isinstance(value, list):
+        return [render_manifest_skill_references(item, environment) for item in value]
+    if isinstance(value, dict):
+        return {key: render_manifest_skill_references(item, environment) for key, item in value.items()}
+    return value
 
 AUTHORING_BOOTSTRAP_SKILLS = frozenset({
     "zyx-authoring-pipeline", "zyx-source-pack-mcp", "zyx-idea-bundle-mcp",
@@ -195,12 +296,12 @@ def load_release_metadata(plugin_root: Path) -> dict[str, Any]:
     if not isinstance(protocol, int) or isinstance(protocol, bool) or protocol < 1:
         raise ValueError("release.json bootstrapProtocol must be a positive integer")
     skills = release.get("skills")
-    if not isinstance(skills, list) or tuple(skills) != EXPECTED_SKILLS:
-        raise ValueError(f"release.json skills must match canonical skill list: {list(EXPECTED_SKILLS)}")
+    if not isinstance(skills, list) or tuple(skills) not in (EXPECTED_SKILLS, rendered_skill_ids("staging")):
+        raise ValueError("release.json skills must match the complete canonical or staging skill list")
     return release
 
 
-def inspect_source_tree(plugin_root: Path) -> list[str]:
+def inspect_source_tree(plugin_root: Path, *, allow_source_only: bool = True) -> list[str]:
     """Validate the source plugin tree against the strict allowlist and return allowed relative paths."""
     if not plugin_root.is_dir():
         raise ValueError(f"Plugin root does not exist: {plugin_root}")
@@ -209,6 +310,7 @@ def inspect_source_tree(plugin_root: Path) -> list[str]:
 
     release = load_release_metadata(plugin_root)
     allowed = allowed_package_files(tuple(release["skills"]))
+    allowed_dirs = {parent.as_posix() for rel_path in allowed for parent in Path(rel_path).parents if parent != Path(".")}
     discovered_allowed: set[str] = set()
 
     for root, dirs, files in os.walk(plugin_root, topdown=True, followlinks=False):
@@ -218,11 +320,13 @@ def inspect_source_tree(plugin_root: Path) -> list[str]:
             rel_dir = dir_path.relative_to(plugin_root).as_posix()
             if is_symlink_or_reparse(dir_path):
                 raise ValueError(f"Disallowed symlink or reparse directory in plugin tree: {rel_dir}")
-            if is_ignored_source_only_path(rel_dir):
+            if allow_source_only and is_ignored_source_only_path(rel_dir):
                 dirs.remove(d)
                 continue
             if d.startswith(".git") or d == "references":
                 raise ValueError(f"Disallowed directory in plugin tree: {rel_dir}")
+            if rel_dir not in allowed_dirs:
+                raise ValueError(f"Disallowed directory outside package allowlist: {rel_dir}")
 
         for f in files:
             file_path = root_path / f
@@ -231,7 +335,7 @@ def inspect_source_tree(plugin_root: Path) -> list[str]:
                 raise ValueError(f"Disallowed symlink or reparse file in plugin tree: {rel_file}")
             if rel_file == OWNERSHIP_MARKER_FILENAME:
                 continue
-            if is_ignored_source_only_path(rel_file):
+            if allow_source_only and is_ignored_source_only_path(rel_file):
                 continue
             if f.endswith(".zip") or f.startswith(".env"):
                 raise ValueError(f"Disallowed archive or secret file in plugin tree: {rel_file}")
@@ -286,9 +390,14 @@ def copy_allowlisted_tree(plugin_root: Path, output_dir: Path) -> list[str]:
             marker = output_dir / OWNERSHIP_MARKER_FILENAME
             if not marker.is_file() or read_json(marker).get("managedBy") != "zyx-authoring-mcp-build":
                 raise ValueError("Refusing to overwrite unmanaged non-empty output directory")
-            existing_files = inspect_source_tree(output_dir)
+            existing_files = inspect_source_tree(output_dir, allow_source_only=False)
             for rel_posix in existing_files:
                 (output_dir / rel_posix).unlink()
+            # Only prune empty parents of the validated package files. This also
+            # removes a previous render's skill names without touching user files.
+            old_dirs = {parent for rel_path in existing_files for parent in Path(rel_path).parents if parent != Path(".")}
+            for relative in sorted(old_dirs, key=lambda path: len(path.parts), reverse=True):
+                (output_dir / relative).rmdir()
     output_dir.mkdir(parents=True, exist_ok=True)
 
     for rel_posix in allowed_files:
@@ -345,11 +454,15 @@ def validate_rendered_package(target_root: Path, environment: str) -> dict[str, 
     if environment not in ENVIRONMENTS:
         raise ValueError(f"Unsupported environment: {environment!r}")
     config = ENVIRONMENTS[environment]
+    validate_host_namespace(config)
     other_env = "production" if environment == "staging" else "staging"
     other_config = ENVIRONMENTS[other_env]
 
     allowed_files = inspect_source_tree(target_root)
     release = load_release_metadata(target_root)
+    skill_ids = rendered_skill_ids(environment)
+    if tuple(release["skills"]) != skill_ids:
+        raise ValueError(f"release.json skill IDs do not match {environment}")
     version = str(release["version"])
     protocol = int(release["bootstrapProtocol"])
 
@@ -404,19 +517,48 @@ def validate_rendered_package(target_root: Path, environment: str) -> dict[str, 
             if forbidden_key in entry:
                 raise ValueError(f"{rel_path} must not contain credential field {forbidden_key!r}")
 
-    for skill in EXPECTED_SKILLS:
+    for canonical_skill, skill in zip(EXPECTED_SKILLS, skill_ids):
         skill_path = target_root / "skills" / skill / "SKILL.md"
         skill_text = skill_path.read_text(encoding="utf-8")
+        names = re.findall(r"(?m)^name: ([a-z0-9-]+)$", skill_text)
+        if names != [skill]:
+            raise ValueError(f"skills/{skill}/SKILL.md must declare its rendered name")
+        if render_skill_references(skill_text, environment) != skill_text:
+            raise ValueError(f"skills/{skill}/SKILL.md contains a wrong-environment skill reference")
+        for link in re.findall(r"\]\((\.\./[^)#]+/SKILL\.md)(?:#[^)]*)?\)", skill_text):
+            linked = (skill_path.parent / link).resolve()
+            if linked.parent.parent != (target_root / "skills").resolve() or not linked.is_file():
+                raise ValueError(f"skills/{skill}/SKILL.md contains an unresolved skill link: {link}")
+        roles = BOOTSTRAP_ARGUMENT_RE.findall(skill_text)
+        if any(role not in BOOTSTRAP_ROLE_IDS for role in roles):
+            raise ValueError(f"skills/{skill}/SKILL.md must use canonical bootstrap role IDs")
         if f"`{config['server_id']}`" not in skill_text or config["endpoint"] not in skill_text:
             raise ValueError(f"skills/{skill}/SKILL.md is missing active environment connection block")
         if other_config["endpoint"] in skill_text or f"`{other_config['server_id']}`" in skill_text:
             raise ValueError(f"skills/{skill}/SKILL.md contains cross-environment endpoint or server ID")
-        if skill in AUTHORING_BOOTSTRAP_SKILLS and "workflow.get_playbook" not in skill_text:
+        if canonical_skill in AUTHORING_BOOTSTRAP_SKILLS and ("workflow.get_playbook" not in skill_text or not roles):
             raise ValueError(f"skills/{skill}/SKILL.md must require workflow.get_playbook bootstrap")
-        if skill in ADMIN_IDENTITY_SKILLS and "admin.environment" not in skill_text:
+        if canonical_skill in ADMIN_IDENTITY_SKILLS and "admin.environment" not in skill_text:
             raise ValueError(f"skills/{skill}/SKILL.md must require admin.environment identity discovery")
         if "references/" in skill_text:
             raise ValueError(f"skills/{skill}/SKILL.md must not reference deleted local references/*.md")
+        if "`tools/list`" not in skill_text or "argumen `operation`" not in skill_text:
+            raise ValueError(f"skills/{skill}/SKILL.md must distinguish tool names from operation IDs")
+        host_text = (target_root / "skills" / skill / "agents/openai.yaml").read_text(encoding="utf-8")
+        host_fields = re.findall(r'(?m)^  (display_name|short_description|default_prompt): ("(?:[^"\\]|\\.)*")$', host_text)
+        if len(host_fields) != 3 or {field for field, _ in host_fields} != {"display_name", "short_description", "default_prompt"}:
+            raise ValueError(f"skills/{skill}/agents/openai.yaml must contain the three quoted interface fields")
+        host_values = {field: json.loads(value) for field, value in host_fields}
+        if not re.search(rf"\${re.escape(skill)}(?![\w-])", host_values["default_prompt"]):
+            raise ValueError(f"skills/{skill}/agents/openai.yaml must invoke its rendered skill name")
+        if any(render_skill_references(value, environment) != value for value in host_values.values()):
+            raise ValueError(f"skills/{skill}/agents/openai.yaml contains a wrong-environment skill reference")
+        if host_values["display_name"].endswith(" (Staging)") != (environment == "staging"):
+            raise ValueError(f"skills/{skill}/agents/openai.yaml display name must identify its environment")
+        if SKILL_HOST_PROMPT_SUFFIX.format(server_id=config["server_id"]) not in host_text:
+            raise ValueError(f"skills/{skill}/agents/openai.yaml must bind the current connection and tool names")
+        if SKILL_HOST_PROMPT_SUFFIX.format(server_id=other_config["server_id"]) in host_text:
+            raise ValueError(f"skills/{skill}/agents/openai.yaml contains a cross-environment connection")
 
     payload_hash, file_hashes = compute_package_payload_hash(target_root, allowed_files)
     return {
@@ -426,6 +568,9 @@ def validate_rendered_package(target_root: Path, environment: str) -> dict[str, 
         "endpoint": config["endpoint"],
         "version": version,
         "bootstrapProtocol": protocol,
+        "skills": list(skill_ids),
+        "canonicalSkills": list(EXPECTED_SKILLS),
+        "skillSuffix": STAGING_SKILL_SUFFIX if environment == "staging" else "",
         "payloadHash": payload_hash,
         "fileCount": len(allowed_files),
         "fileHashes": file_hashes,
@@ -450,6 +595,16 @@ def compute_package_payload_hash(
     return overall.hexdigest(), file_hashes
 
 
+def verify_environment_coexistence(staging_dir: Path, production_dir: Path) -> dict[str, Any]:
+    """Check both full packages before publishing either environment's skill inventory."""
+    staging = validate_rendered_package(staging_dir, "staging")
+    production = validate_rendered_package(production_dir, "production")
+    if set(staging["skills"]) & set(production["skills"]):
+        raise ValueError("Staging and production skill IDs must be disjoint")
+    return {"ok": True, "skillCount": len(staging["skills"]) + len(production["skills"]),
+            "staging": staging["skills"], "production": production["skills"]}
+
+
 def configure_plugin(
     plugin_root: Path,
     environment: str,
@@ -459,6 +614,7 @@ def configure_plugin(
     """Configure the plugin package for a target environment (into output_dir or build tree)."""
     if environment not in ENVIRONMENTS:
         raise ValueError(f"Unknown environment {environment!r}. Expected one of: {', '.join(ENVIRONMENTS)}")
+    validate_host_namespace(ENVIRONMENTS[environment])
 
     target_root = plugin_root.resolve()
     if output_dir is not None:
@@ -477,6 +633,15 @@ def configure_plugin(
     version = str(release["version"])
     protocol = int(release["bootstrapProtocol"])
     config = ENVIRONMENTS[environment]
+    skill_ids = rendered_skill_ids(environment)
+    moves = [(target_root / "skills" / old, target_root / "skills" / new)
+             for old, new in zip(release["skills"], skill_ids) if old != new]
+    if any(destination.exists() for _, destination in moves):
+        raise ValueError("Refusing to overwrite an existing skill directory during environment rendering")
+    for source, destination in moves:
+        source.rename(destination)
+    release["skills"] = list(skill_ids)
+    write_json(target_root / "release.json", release)
 
     render_mcp_configs(target_root, config)
 
@@ -490,7 +655,7 @@ def configure_plugin(
             "description": config["short_description"],
         }
     )
-    write_json(claude_manifest_path, claude_manifest)
+    write_json(claude_manifest_path, render_manifest_skill_references(claude_manifest, environment))
 
     codex_manifest_path = target_root / ".codex-plugin" / "plugin.json"
     codex_manifest = read_json(codex_manifest_path)
@@ -521,13 +686,15 @@ def configure_plugin(
             prompts = [prompts]
         interface["defaultPrompt"] = [
             guard_prompt,
+            HOST_TOOL_GUIDANCE,
             *[
                 prompt
                 for prompt in prompts
-                if not str(prompt).startswith("Use only the zyx-authoring-")
+                if not any(str(prompt).startswith(f"Use only the {known_id} MCP connection") for known_id in KNOWN_ZYX_SERVER_IDS)
+                and prompt != HOST_TOOL_GUIDANCE
             ],
         ]
-    write_json(codex_manifest_path, codex_manifest)
+    write_json(codex_manifest_path, render_manifest_skill_references(codex_manifest, environment))
 
     root_manifest_path = target_root / "plugin.json"
     if root_manifest_path.exists():
@@ -539,7 +706,7 @@ def configure_plugin(
                 "description": config["short_description"],
             }
         )
-        write_json(root_manifest_path, root_manifest)
+        write_json(root_manifest_path, render_manifest_skill_references(root_manifest, environment))
 
     readme_path = target_root / "README.md"
     readme = readme_path.read_text(encoding="utf-8")
@@ -554,6 +721,7 @@ def configure_plugin(
             f"- Bootstrap protocol: `{protocol}`",
             f"- MCP server ID: `{config['server_id']}`",
             f"- Endpoint: `{config['endpoint']}`",
+            f"- Skill suffix: `{STAGING_SKILL_SUFFIX}`" if environment == "staging" else "- Skill suffix: none",
             "<!-- END:environment-config -->",
         ]
     )
@@ -565,7 +733,7 @@ def configure_plugin(
     )
     if replacement_count != 1:
         raise ValueError("README.md must contain exactly one environment configuration block")
-    write_text_lf(readme_path, updated_readme)
+    write_text_lf(readme_path, render_skill_references(updated_readme, environment))
 
     connection_block = "\n".join(
         [
@@ -577,11 +745,25 @@ def configure_plugin(
                 "Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas "
                 "koneksi sebelum memulai run atau melakukan staging."
             ),
+            "",
+            (
+                "Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; "
+                "nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. "
+                "Pengecualian: `authoring.get_solution_collection_review_context` memakai "
+                "`authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` "
+                "serta identitas konfirmasi dan receipt."
+            ),
+            "",
+            (
+                "Nama skill host memakai akhiran `-stg` hanya pada staging. "
+                "Pertahankan nilai argumen `skill` pada `workflow.get_playbook` sesuai ID peran "
+                "canonical tanpa akhiran, seperti contoh bootstrap di bawah."
+            ),
             "<!-- END:environment-connection -->",
         ]
     )
 
-    for skill in EXPECTED_SKILLS:
+    for skill in skill_ids:
         skill_path = target_root / "skills" / skill / "SKILL.md"
         skill_content = skill_path.read_text(encoding="utf-8")
         updated_skill, skill_replacements = re.subn(
@@ -595,8 +777,10 @@ def configure_plugin(
                 f"skills/{skill}/SKILL.md must contain exactly one environment connection block"
             )
         updated_skill = re.sub(r'(\*\*Plugin version\*\*: `)[^`]+(`)', lambda m: f"{m[1]}{version}{m[2]}", updated_skill)
-        updated_skill = re.sub(r'("pluginVersion":\s*")[^"]+(")', lambda m: f"{m[1]}{version}{m[2]}", updated_skill)
-        write_text_lf(skill_path, updated_skill)
+        updated_skill = re.sub(r'((?:"pluginVersion"|pluginVersion):\s*")[^"]+(")', lambda m: f"{m[1]}{version}{m[2]}", updated_skill)
+        write_text_lf(skill_path, render_skill_references(updated_skill, environment))
+        host_path = target_root / "skills" / skill / "agents/openai.yaml"
+        write_text_lf(host_path, render_skill_host_prompt(host_path.read_text(encoding="utf-8"), environment))
 
     summary = validate_rendered_package(target_root, environment)
     print(
@@ -632,6 +816,11 @@ def inspect_mcp_json_file(config_path: Path, expected_server_id: str, expected_e
     zyx_entries: dict[str, str] = {}
     issues: list[str] = []
     has_legacy = False
+    legacy_ids = set(AMBIGUOUS_LEGACY_SERVER_IDS)
+    for environment, config in ENVIRONMENTS.items():
+        if config["server_id"] == expected_server_id:
+            legacy_ids = legacy_server_ids_for(environment)
+            break
 
     for server_id, entry in servers.items():
         if not isinstance(entry, dict):
@@ -646,7 +835,7 @@ def inspect_mcp_json_file(config_path: Path, expected_server_id: str, expected_e
         if not is_zyx:
             continue
         zyx_entries[server_id] = norm_url
-        if server_id in LEGACY_SERVER_IDS:
+        if server_id in legacy_ids:
             has_legacy = True
             issues.append(f"Legacy server ID {server_id!r} detected")
 
@@ -742,7 +931,14 @@ def inspect_installed_plugin_dir(
     issues.extend(mcp_report["issues"])
 
     skill_match = True
-    for skill in EXPECTED_SKILLS:
+    expected_skills = rendered_skill_ids(environment)
+    installed_skills_dir = installed_dir / "skills"
+    if installed_skills_dir.is_dir():
+        unexpected_skills = sorted(entry.name for entry in installed_skills_dir.iterdir() if entry.name not in expected_skills)
+        if unexpected_skills:
+            skill_match = False
+            issues.append(f"Unexpected or legacy skill directories: {', '.join(unexpected_skills)}")
+    for skill in expected_skills:
         rel_skill = f"skills/{skill}/SKILL.md"
         installed_skill = installed_dir / Path(rel_skill)
         if not installed_skill.is_file():
@@ -780,6 +976,15 @@ def inspect_installed_plugin_dir(
     }
 
 
+def installed_plugin_path(base: Path, environment: str) -> Path:
+    """Find the selected environment's current or previous plugin folder read-only."""
+    if (base / "skills").exists():
+        return base
+    current = base / ENVIRONMENTS[environment]["plugin_id"]
+    previous = base / LEGACY_PLUGIN_IDS[environment]
+    return current if current.exists() or not previous.exists() else previous
+
+
 def run_doctor(
     plugin_root: Path,
     environments: list[str],
@@ -796,13 +1001,7 @@ def run_doctor(
     reports: list[dict[str, Any]] = []
     for env_name in environments:
         cfg = ENVIRONMENTS[env_name]
-        plugin_id = cfg["plugin_id"]
-
-        ag_plugin_path = (
-            antigravity_base
-            if antigravity_dir and (antigravity_dir / "skills").exists()
-            else antigravity_base / plugin_id
-        )
+        ag_plugin_path = installed_plugin_path(antigravity_base, env_name)
         ag_report = inspect_installed_plugin_dir(ag_plugin_path, plugin_root, env_name)
         ag_report["host"] = "antigravity"
         ag_mcp = inspect_mcp_json_file(ag_mcp_path, cfg["server_id"], cfg["endpoint"])
@@ -820,13 +1019,13 @@ def run_doctor(
         reports.append(ag_report)
 
         if codex_dir is not None:
-            target = codex_dir if (codex_dir / "skills").exists() else (codex_dir / plugin_id)
+            target = installed_plugin_path(codex_dir, env_name)
             codex_report = inspect_installed_plugin_dir(target, plugin_root, env_name)
             codex_report["host"] = "codex"
             reports.append(codex_report)
 
         if claude_dir is not None:
-            target = claude_dir if (claude_dir / "skills").exists() else (claude_dir / plugin_id)
+            target = installed_plugin_path(claude_dir, env_name)
             claude_report = inspect_installed_plugin_dir(target, plugin_root, env_name)
             claude_report["host"] = "claude"
             reports.append(claude_report)
@@ -867,6 +1066,17 @@ def replace_managed_directory(built_dir: Path, managed_target: Path, metadata: d
                 f"Target directory {resolved_target} is non-empty and lacks ownership marker "
                 f"{OWNERSHIP_MARKER_FILENAME}. Refusing to overwrite unmanaged directory."
             )
+        if has_entries:
+            marker = read_json(marker_path)
+            if marker.get("managedBy") not in {"zyx-authoring-mcp-build", "zyx-authoring-mcp-sync"}:
+                raise ValueError("Target ownership marker does not belong to the Zyx plugin generator")
+            installed_manifest = read_json(resolved_target / "plugin.json")
+            installed_environment = next((env for env, cfg in ENVIRONMENTS.items()
+                                          if installed_manifest.get("name") in {cfg["plugin_id"], LEGACY_PLUGIN_IDS[env]}), None)
+            if installed_environment != metadata["environment"] or marker.get("environment", installed_environment) != metadata["environment"]:
+                raise ValueError("Refusing to replace a managed plugin for another environment")
+            # The marker establishes ownership, not permission to discard added files.
+            inspect_source_tree(resolved_target, allow_source_only=False)
 
     parent_dir = resolved_target.parent
     parent_dir.mkdir(parents=True, exist_ok=True)
@@ -922,7 +1132,7 @@ def update_host_mcp_config_file(config_path: Path, environment: str) -> dict[str
         raise ValueError("Host config mcpServers must be a JSON object")
 
     for server_id in servers:
-        if server_id in LEGACY_SERVER_IDS:
+        if server_id in legacy_server_ids_for(environment):
             raise ValueError(
                 f"Legacy MCP server ID {server_id!r} found in {config_path.name}. "
                 "Remove or migrate the legacy entry explicitly before syncing."
@@ -1062,13 +1272,13 @@ def verify_release_progression(candidate_dir: Path, baseline_dir: Path) -> dict[
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI entrypoint supporting build, doctor, sync, verify-release, and legacy positional invocation."""
+    """CLI for environment builds, coexistence, doctor, sync, and release progression."""
     args_list = list(sys.argv[1:] if argv is None else argv)
     default_plugin_root = Path(__file__).resolve().parent.parent
 
     if (
         len(args_list) >= 2
-        and args_list[0] not in {"build", "doctor", "sync", "verify-release", "-h", "--help"}
+        and args_list[0] not in {"build", "doctor", "sync", "verify-release", "verify-coexistence", "-h", "--help"}
         and args_list[1] in ENVIRONMENTS
     ):
         parser = argparse.ArgumentParser(prog="configure_environment.py")
@@ -1123,7 +1333,18 @@ def main(argv: list[str] | None = None) -> int:
     verify_parser.add_argument("--baseline-dir", type=Path, required=True)
     verify_parser.add_argument("--json", action="store_true")
 
+    coexistence_parser = subparsers.add_parser("verify-coexistence", help="Check distinct staging and production skill IDs")
+    coexistence_parser.add_argument("--staging-dir", type=Path, required=True)
+    coexistence_parser.add_argument("--production-dir", type=Path, required=True)
+    coexistence_parser.add_argument("--json", action="store_true")
+
     parsed = parser.parse_args(args_list)
+
+    if parsed.command == "verify-coexistence":
+        summary = verify_environment_coexistence(parsed.staging_dir, parsed.production_dir)
+        if parsed.json:
+            print(json.dumps(summary, indent=2))
+        return 0
 
     if parsed.command == "build":
         summary = configure_plugin(

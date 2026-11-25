@@ -7,7 +7,6 @@ import Image from "next/image";
 import {
   AtSign,
   UploadCloud,
-  ImageIcon,
   X,
   CheckCircle2,
   ArrowRight,
@@ -93,14 +92,14 @@ export function PkaRegistrationForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-(--reading-section-gap)">
+    <form onSubmit={handleSubmit} className="max-w-2xl space-y-(--section-gap)">
       {/* Follow CTA */}
-      <section className="flex flex-col gap-(--compact-gap) rounded-xl border border-border bg-muted/30 p-(--group-gap) sm:flex-row sm:items-center sm:justify-between">
+      <section className="flex flex-wrap items-start justify-between gap-(--compact-gap) border-y border-border/55 py-(--row-padding)">
         <div className="flex items-start gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
-            <AtSign className="size-5" />
+          <span className="mt-0.5 text-muted-foreground">
+            <AtSign className="size-5" aria-hidden />
           </span>
-          <div>
+          <div className="min-w-0">
             <p className="text-body-base font-semibold text-foreground">
               {t("followTitle", { handle: IG_HANDLE })}
             </p>
@@ -113,16 +112,16 @@ export function PkaRegistrationForm({
           href={IG_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-md border border-border bg-background px-3 py-2 text-body-sm font-semibold text-foreground transition-colors duration-150 hover:bg-muted sm:self-auto"
+          className="ml-auto inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-md px-2 text-body-sm font-medium text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
         >
           {t("openInstagram")}
-          <ExternalLink className="size-3.5" />
+          <ExternalLink className="size-3.5" aria-hidden />
         </a>
       </section>
 
       {/* Fields */}
-      <div className="space-y-(--related-gap) rounded-xl border border-border bg-card p-(--panel-padding)">
-        <div className="space-y-1.5">
+      <div className="grid gap-(--related-gap) sm:grid-cols-2">
+        <div className="min-w-0 space-y-1.5">
           <Label htmlFor="pka-fullname" className="text-body-sm font-medium text-foreground">
             {t("fullName")}
           </Label>
@@ -136,7 +135,7 @@ export function PkaRegistrationForm({
           />
         </div>
 
-        <div className="space-y-1.5">
+        <div className="min-w-0 space-y-1.5">
           <Label htmlFor="pka-faculty" className="text-body-sm font-medium text-foreground">
             {t("faculty")}
           </Label>
@@ -150,7 +149,7 @@ export function PkaRegistrationForm({
           />
         </div>
 
-        <div className="space-y-1.5">
+        <div className="min-w-0 space-y-1.5">
           <Label htmlFor="pka-email" className="text-body-sm font-medium text-foreground">
             {t("email")}
           </Label>
@@ -162,12 +161,12 @@ export function PkaRegistrationForm({
             required
             className="rounded-md opacity-70"
           />
-          <p className="pt-1 text-body-sm text-muted-foreground">
+          <p className="text-body-xs text-muted-foreground">
             {t("emailHelp")}
           </p>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="min-w-0 space-y-1.5">
           <Label htmlFor="pka-instagram" className="text-body-sm font-medium text-foreground">
             {t("instagram")}
           </Label>
@@ -185,20 +184,22 @@ export function PkaRegistrationForm({
         </div>
 
         {/* Proof uploader */}
-        <div className="space-y-1.5">
-          <Label className="text-body-sm font-medium text-foreground">
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor="pka-proof" className="text-body-sm font-medium text-foreground">
             {t("proofLabel", { handle: IG_HANDLE })}
           </Label>
           <input
             ref={fileInputRef}
+            id="pka-proof"
             type="file"
             accept="image/*"
             className="sr-only"
+            tabIndex={-1}
             onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
           />
           {previewUrl ? (
-            <div className="flex items-center gap-4 rounded-lg border border-border bg-muted/20 p-3">
-              <div className="relative size-20 shrink-0 overflow-hidden rounded-md border border-border">
+            <div className="flex items-center gap-3 border-y border-border/55 py-(--row-padding)">
+              <div className="relative size-14 shrink-0 overflow-hidden rounded-md border border-border">
                 <Image src={previewUrl} alt={t("proofPreview")} fill className="object-cover" unoptimized />
               </div>
               <div className="min-w-0 flex-1">
@@ -214,20 +215,19 @@ export function PkaRegistrationForm({
               </Button>
             </div>
           ) : (
-            <button
+            <Button
               type="button"
+              size="lg"
+              variant="outline"
               onClick={() => fileInputRef.current?.click()}
-              className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center transition-colors duration-150 hover:border-brand-primary/60 hover:bg-muted/40"
+              className="h-auto min-h-14 w-full border-dashed px-3 py-2 text-left whitespace-normal [&>span]:justify-start"
             >
-              <span className="flex size-10 items-center justify-center rounded-lg bg-background text-muted-foreground">
-                <UploadCloud className="size-5" />
+              <UploadCloud className="size-5 text-muted-foreground" aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className="block text-body-sm font-medium text-foreground">{t("uploadPrompt")}</span>
+                <span className="block text-body-xs text-muted-foreground">{t("uploadHint")}</span>
               </span>
-              <span className="text-body-sm font-medium text-foreground">{t("uploadPrompt")}</span>
-              <span className="flex items-center gap-1 text-body-sm text-muted-foreground">
-                <ImageIcon className="size-3.5" />
-                {t("uploadHint")}
-              </span>
-            </button>
+            </Button>
           )}
         </div>
 

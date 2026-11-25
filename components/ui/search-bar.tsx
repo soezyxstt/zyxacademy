@@ -5,6 +5,12 @@ import { Search, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  useIsMobileSearchInline,
+  useMobileChrome,
+  useMobileTopNavSearch,
+} from "@/components/navigation/mobile-chrome-context";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 
 export interface SearchBarProps
   extends Omit<React.ComponentProps<"input">, "size"> {
@@ -40,6 +46,8 @@ export interface SearchBarProps
   onExpandedChange?: (expanded: boolean) => void;
   /** Auto-collapse when focus leaves the search bar while query is empty (defaults to true) */
   autoCollapseOnBlur?: boolean;
+  /** Delegate to the unified mobile top navbar when active on mobile (defaults to true) */
+  mobileTopNav?: boolean;
 }
 
 const variantStyles = {
@@ -108,6 +116,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
       defaultExpanded = false,
       onExpandedChange,
       autoCollapseOnBlur = true,
+      mobileTopNav = true,
       id,
       "aria-label": ariaLabel,
       ...props
@@ -115,6 +124,9 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
     ref
   ) => {
     const t = useTranslations("search");
+    const viewportMode = useViewportMode();
+    const { isTopNavActive } = useMobileChrome();
+    const isInsideOverlay = useIsMobileSearchInline();
     const inputRef = React.useRef<HTMLInputElement | null>(null);
     const triggerRef = React.useRef<HTMLButtonElement | null>(null);
     const generatedId = React.useId();
@@ -217,6 +229,43 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
 
     const searchLabel = ariaLabel ?? placeholder ?? t("searchAction");
 
+    const delegateToTopNav =
+      mobileTopNav &&
+      !disabled &&
+      !isInsideOverlay &&
+      viewportMode === "mobile" &&
+      isTopNavActive;
+
+    const handleDelegatedChange = (nextValue: string) => {
+      if (!isControlled) {
+        setInternalValue(nextValue);
+      }
+      if (onChange) {
+        onChange({
+          target: { value: nextValue },
+          currentTarget: { value: nextValue },
+        } as React.ChangeEvent<HTMLInputElement>);
+      }
+      onSearch?.(nextValue);
+    };
+
+    useMobileTopNavSearch(
+      delegateToTopNav
+        ? {
+            value: query,
+            onChange: handleDelegatedChange,
+            onClear: clearQuery,
+            placeholder: placeholder ?? t("placeholder"),
+            ariaLabel: searchLabel,
+            isLoading,
+          }
+        : null
+    );
+
+    if (delegateToTopNav) {
+      return null;
+    }
+
     return (
       <TooltipProvider>
         <div
@@ -286,7 +335,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
             tabIndex={isExpanded ? 0 : -1}
             disabled={disabled}
             className={cn(
-              "min-w-0 bg-transparent text-foreground font-sans placeholder:text-muted-foreground/60 focus:outline-none transition-opacity duration-200 motion-reduce:transition-none",
+              "min-w-0 bg-transparent text-foreground font-sans placeholder:text-muted-foreground/60 focus:outline-none transition-opacity duration-200 motion-reduce:transition-none [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden",
               isExpanded
                 ? cn("w-full flex-1 opacity-100", currentSize.input)
                 : "w-0 flex-none opacity-0 pointer-events-none p-0",

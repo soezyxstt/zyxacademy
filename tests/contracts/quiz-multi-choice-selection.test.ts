@@ -5,7 +5,7 @@ import { checkAnswerCorrectness } from "@/lib/gamification/question-grading";
 
 describe("Quiz Multi-Choice and Option Indicator Invariants", () => {
   const normalize = (s: string) => s.replace(/\r\n/g, "\n");
-  const quizPlayerCode = ["components/course/quiz-player.tsx", "hooks/use-quiz-player.ts", "lib/quiz/player-state.ts"].map(path => normalize(readFileSync(path, "utf8"))).join("\n");
+  const quizPlayerCode = ["components/course/quiz-player.tsx", "features/student-assessment/ui/shared/quiz-player-parts.tsx", "hooks/use-quiz-player.ts", "lib/quiz/player-state.ts"].map(path => normalize(readFileSync(path, "utf8"))).join("\n");
   const quizOptionStylesCode = normalize(readFileSync("components/course/quiz-option-styles.ts", "utf8"));
   const studentQuizPageCode = normalize(readFileSync("app/(student)/courses/[id]/quiz/[quizId]/page.tsx", "utf8"));
   const studentQuizReviewCode = normalize(readFileSync("components/course/student-quiz-review.tsx", "utf8"));
@@ -35,9 +35,7 @@ describe("Quiz Multi-Choice and Option Indicator Invariants", () => {
     expect(isQuizAnswerComplete(0)).toBe(true);
   });
 
-  it("ensures QuizPlayer renders question type badge (Pilihan Jamak vs Pilihan Tunggal)", () => {
-    expect(quizPlayerCode).toContain('t("quiz.multipleChoice")');
-    expect(quizPlayerCode).toContain('t("quiz.singleChoice")');
+  it("ensures QuizPlayer renders distinct instructions for single and multiple choices", () => {
     expect(quizPlayerCode).toContain('t("quiz.chooseAllCorrect")');
     expect(quizPlayerCode).toContain('t("quiz.chooseOne")');
     const quizMessages = JSON.parse(readFileSync("messages/id/learning.json", "utf8")).quiz;

@@ -36,7 +36,7 @@ export async function processAdminOperation(id: string, execute: AdminOperationE
     const authority = claimed.result?.authority as { clientId?: unknown; resource?: unknown } | undefined;
     const required = [claimed.requiredScope, ...(claimed.kind === "form_sheet" ? ["forms:responses:read"] : [])];
     if (!authority || typeof authority.clientId !== "string" || authority.clientId === MCP_MANUAL_CLIENT_ID || authority.resource !== mcpEnvironmentIdentity().resource) throw new AdminMcpError("INVALID_JOB_AUTHORITY");
-    await resolveMcpAdmin({ userId: claimed.actorId, actorId: claimed.actorId, sessionId: claimed.sessionId, scopes: [claimed.requiredScope, ...(claimed.kind === "form_sheet" ? ["forms:responses:read"] : [])], authMethod: "oauth" } as McpPrincipal);
+    await resolveMcpAdmin({ userId: claimed.actorId, actorId: claimed.actorId, sessionId: claimed.sessionId, scopes: required, authMethod: "oauth", clientId: authority.clientId, resource: String(authority.resource) } as McpPrincipal);
     if (!(await hasMcpOAuthConsent({ userId: claimed.actorId, sessionId: claimed.sessionId, clientId: authority.clientId, resource: String(authority.resource), scope: required }))) throw new AdminMcpError("OAUTH_CONSENT_REQUIRED");
   } catch {
     await db.update(adminOperationJobs).set({ status: "failed", errorCode: "AUTHORIZATION_EXPIRED", updatedAt: new Date() }).where(and(eq(adminOperationJobs.id, id), eq(adminOperationJobs.status, "running")));

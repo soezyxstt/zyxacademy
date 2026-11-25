@@ -97,7 +97,10 @@ test("Article code can teach media syntax without fetching media, and math retai
 test("linked Diktat rendering and Article-owned restage invalidation retain their contracts", () => {
   const article = { ...base, blocks: [{ id: "a", orderIndex: 0, blockType: "explanation", content: "Teks awal" }] };
   const diktat = { id: "d", title: "Diktat", sourceArticleId: article.id, sourceArticleVersion: article.version, sourceArticleHash: article.generationHash, contentMarkdown: "## Ringkasan\nIsi diktat" };
-  expect(compileProductDiktatHtml({ article, diktat } as any)).toContain(">Diktat</span>");
+  const html = compileProductDiktatHtml({ article, diktat } as any);
+  expect(html).toContain('<header class="diktat-header"><h1>Diktat</h1></header>');
+  expect(html).not.toContain(">Diktat</span>");
+  expect(html).toContain('class="diktat-watermark"');
   expect(() => compileProductDiktatHtml({ article, diktat: { ...diktat, sourceArticleHash: "b".repeat(64) } } as any)).toThrow("LINEAGE_MISMATCH");
   const before = { products: [article] }, unchanged = { products: [{ ...article }] }, changed = { products: [{ ...article, blocks: [{ ...article.blocks[0], content: "Teks berubah" }] }] };
   expect(findStalePdfEvidenceProductIds(before as any, unchanged as any).has("article")).toBe(false);

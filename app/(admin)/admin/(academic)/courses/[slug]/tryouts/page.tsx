@@ -99,7 +99,7 @@ export default async function AdminCourseTryoutsPage({ params }: Props) {
   await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx, { userId: actor.user.id, questions: bankIds, requestId: crypto.randomUUID() }));
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="min-w-0 space-y-(--compact-gap)">
       <CourseDetailHeader course={data.course} />
       <TryoutsClient
         courseId={courseId}

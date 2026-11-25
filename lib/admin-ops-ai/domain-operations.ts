@@ -1,3 +1,4 @@
+import { getAllFeatureFlagsStatus } from "@/lib/feature-flags";
 import { db } from "@/db";
 import {
   user,
@@ -13,7 +14,6 @@ import {
 } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-import { getAllFeatureFlagsStatus, KNOWN_FEATURE_FLAGS } from "@/lib/feature-flags";
 import { membershipIdFor, type PeranCode } from "@/lib/auth/peran";
 import { sendAdminBroadcast } from "@/lib/notifications/send";
 import { lockAuthoringIdentityChange } from "@/lib/auth/authoring-actor";
@@ -409,38 +409,10 @@ export async function executePublishBlogArticle(input: PublishBlogArticleInput, 
 export async function executeGetFeatureFlags() {
   const flags = getAllFeatureFlagsStatus();
   return {
-    summary: `Status Feature Flags sistem (${flags.filter((f) => f.enabled).length} aktif dari total ${flags.length}).`,
-    data: flags.map((f) => ({
-      key: f.key,
-      name: f.name,
-      category: f.categoryLabel,
-      enabled: f.enabled,
-      description: f.description,
+    summary: "Status Feature Flags operasional.",
+    data: flags.map(({ key, name, categoryLabel, enabled, description }) => ({
+      key, name, category: categoryLabel, enabled, description,
     })),
-  };
-}
-
-export interface SetFeatureFlagInput {
-  flagKey: string;
-  enabled: boolean;
-  reason?: string;
-}
-
-export async function executeSetFeatureFlag(input: SetFeatureFlagInput, _actorId?: string) {
-  const flagKey = input.flagKey.trim();
-  if (!flagKey) throw new Error("Kunci feature flag wajib diisi.");
-
-  const known = KNOWN_FEATURE_FLAGS.find((f) => f.key.toLowerCase() === flagKey.toLowerCase());
-  if (!known) {
-    throw new Error(`Feature flag '${flagKey}' tidak dikenal. Periksa katalog feature flag.`);
-  }
-
-  // Set process env
-  process.env[known.key] = input.enabled ? "1" : "0";
-
-  return {
-    summary: `Feature flag '${known.name}' (${known.key}) berhasil diubah menjadi '${input.enabled ? "AKTIF" : "NONAKTIF"}'.`,
-    data: { flagKey: known.key, enabled: input.enabled, reason: input.reason },
   };
 }
 

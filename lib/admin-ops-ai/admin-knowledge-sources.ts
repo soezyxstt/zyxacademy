@@ -290,9 +290,9 @@ export function generateFeatureFlagsCatalog(): string {
 
   lines.push("");
   lines.push("### Panduan Operasional Flag");
-  lines.push("- Flag aktif jika bernilai '1' atau 'true' di environment variables.");
-  lines.push("- Flag default tidak aktif (false) jika tidak disetel.");
-  lines.push("- Perubahan flag diatur melalui proposal aksi Ops AI atau file environment.");
+  lines.push("- Artikel V3 aktif dengan '1' atau 'true'. Kelas Live, AI Diktat, cache semantik Zyra, sinkronisasi editor Drive, dan email refleksi aktif dengan '1'.");
+  lines.push("- Input gambar Zyra aktif secara default. Setel flag server dan versi publik ke '0' untuk menonaktifkannya.");
+  lines.push("- Perubahan flag diatur melalui konfigurasi environment.");
 
   return lines.join("\n");
 }
@@ -338,7 +338,6 @@ Daftar halaman dan menu navigasi pada Admin Panel Zyx Academy (/admin).
 ## 6. Sistem & Ops
 - **/admin/ops** (Monitor Ops): Monitor kesehatan server, antrean Inngest, dan status database.
 - **/admin/ops/tutor-activity** (Aktivitas Tutor): Log keaktifan dan audit kinerja tutor.
-- **/admin/ops/flags** (Feature Flags): Status dan konfigurasi flag fitur sistem.
 - **/admin/ops/analytics** (Analitik Zyra): Statistik token, biaya, dan latensi asisten AI.
 - **/admin/ops/keys** (API Keys): Pengelolaan kuota kunci Google Gemini AI.
 `;

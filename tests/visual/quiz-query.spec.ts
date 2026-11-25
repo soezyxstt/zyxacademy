@@ -1,11 +1,12 @@
 import { expect, test, type Page, type Route, type TestInfo } from "@playwright/test";
 import { buildFixture } from "./fixtures/interactive-document-build";
+import type { QuizFixtureConfig } from "./fixtures/quiz-query";
 
 const origin = "http://quiz-query.invalid";
 let fixture: Awaited<ReturnType<typeof buildFixture>>;
 test.beforeAll(async () => { fixture = await buildFixture("tests/visual/fixtures/quiz-query.tsx"); });
 
-async function boot(page: Page, config: Window["quizFixture"], respond?: (route: Route) => Promise<void>) {
+async function boot(page: Page, config: QuizFixtureConfig, respond?: (route: Route) => Promise<void>) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
@@ -45,6 +46,25 @@ test("quiz keeps recovery after an invalid acknowledgement, then clears it after
     await route.fulfill({ json: acknowledge ? { score: null, correct: 1, total: 2, gradingStatus: "pending" } : { unexpected: true } });
   });
   await expect(page.getByRole("checkbox", { name: /Dua/ })).toBeEnabled();
+  const bottomBar = page.locator("[data-quiz-mobile-bottombar]");
+  if (page.viewportSize()!.width < 768) {
+    await expect(bottomBar.getByRole("button")).toHaveCount(2);
+    await expect(bottomBar.getByRole("button", { name: "Sebelumnya" })).toBeDisabled();
+    const next = bottomBar.getByRole("button", { name: "Lanjut", exact: true });
+    await expect(next).toBeEnabled();
+    await expect(bottomBar.getByRole("button", { name: /kuis|kirim/i })).toHaveCount(0);
+    expect(await next.evaluate(button => {
+      const row = button.parentElement!;
+      return Math.abs(row.getBoundingClientRect().right - button.getBoundingClientRect().right);
+    })).toBeLessThanOrEqual(1);
+  } else {
+    const earlySubmit = page.getByRole("button", { name: "Kumpulkan kuis", exact: true });
+    await earlySubmit.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("button", { name: "Cek kembali", exact: true }).click();
+    await expect(earlySubmit).toBeFocused();
+    expect(posts).toHaveLength(0);
+  }
   await capture(page, info, "quiz-empty", errors);
   await page.getByRole("checkbox", { name: /Dua/ }).click();
   await page.getByRole("checkbox", { name: /Empat/ }).click();
@@ -93,7 +113,11 @@ test("quiz keeps recovery after an invalid acknowledgement, then clears it after
   }
   await page.getByRole("button", { name: "Lanjut", exact: true }).click();
   await page.locator("textarea").fill("Jawaban terakhir sebelum dikumpulkan.");
-  await page.getByRole("button", { name: "Kumpulkan kuis", exact: true }).click();
+  if (originalViewport.width < 768) {
+    await expect(bottomBar.getByRole("button")).toHaveCount(2);
+    await expect(bottomBar.getByRole("button", { name: "Lanjut", exact: true })).toHaveCount(0);
+  }
+  await page.getByRole("button", { name: "Kirim jawaban", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await capture(page, info, "quiz-confirm", errors);
   await page.getByRole("button", { name: "Ya, kumpulkan", exact: true }).click();
@@ -108,9 +132,11 @@ test("quiz keeps recovery after an invalid acknowledgement, then clears it after
   await expect.poll(() => page.evaluate(() => localStorage.getItem("zyx-quiz-answers-fixture-attempt"))).toBeNull();
   // The fixture stubs navigation. The confirmed attempt stays locked until it leaves this page.
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await expect(dialog.locator('button[aria-busy="true"]')).toBeDisabled();
-  await expect(page.locator("main button").filter({ hasText: "Kumpulkan kuis" })).toBeDisabled();
+  await expect(dialog).toBeHidden();
+  const submitControl = originalViewport.width < 768
+    ? page.locator("[data-quiz-mobile-bottombar] button").last()
+    : page.getByRole("button", { name: /^(Kirim jawaban|Mengirim…)$/ });
+  await expect(submitControl).toBeDisabled();
   await expect(page.locator("textarea")).toBeDisabled();
   await capture(page, info, "quiz-submitted", errors);
 });
@@ -165,7 +191,8 @@ test("timeout waits for the active upload and sends one latest answer snapshot",
 test("demo submission stays local", async ({ page }, info) => {
   const errors = await boot(page, { mode: "demo" });
   await page.getByRole("checkbox", { name: /Dua/ }).click();
-  await page.getByRole("button", { name: "Kumpulkan kuis", exact: true }).click();
+  await page.getByRole("button", { name: "Lanjut", exact: true }).click();
+  await page.getByRole("button", { name: "Kirim jawaban", exact: true }).click();
   await page.getByRole("button", { name: "Ya, kumpulkan", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Jawaban demo tersimpan");
   await capture(page, info, "quiz-demo-submitted", errors);
@@ -186,10 +213,10 @@ test("untimed quiz stays open past 15 minutes and still advances per question", 
   expect(await page.evaluate(() => localStorage.getItem("zyx-quiz-timer-deadline-fixture-attempt"))).toBeNull();
   await capture(page, info, "quiz-untimed-per-question", errors);
 
-  await page.getByRole("button", { name: "Kumpulkan kuis", exact: true }).click();
+  await page.getByRole("button", { name: "Kirim jawaban", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("Sisa waktu pengerjaan:", { exact: true })).toHaveCount(0);
+  await expect(dialog.getByText("Sisa waktu", { exact: true })).toHaveCount(0);
   await capture(page, info, "quiz-untimed-confirm", errors);
 });
 
@@ -206,7 +233,7 @@ test("a different signed-in account cannot restore the server owner's quiz draft
   const errors = await boot(page, { mode: "player", expectedUserId: "other-student" });
   await expect(page.locator('[aria-busy="true"]')).toBeVisible();
   await expect(page.getByText("Pilih bilangan genap.")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Kumpulkan kuis", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Kirim jawaban", exact: true })).toHaveCount(0);
   await capture(page, info, "quiz-account-guard", errors);
 });
 

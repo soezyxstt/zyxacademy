@@ -5,6 +5,8 @@ import { registerOperationDescriptor } from "@/lib/admin-mcp/operation-contracts
 import { requireMcpScope, type McpPrincipal } from "./mcp-auth";
 import { insufficientScopeChallenge } from "./mcp-oauth";
 import { issueMcpRunToken, verifyMcpExecutionBootstrap } from "./mcp-workflows";
+import { projectRevisionResponse, type RevisionContextOptions } from "./revision-response";
+import { authoringFailureDiagnostics } from "./diagnostics";
 
 export const REVISION_MCP_LIMITS = { operations: 128, releaseEntries: 16, entityIds: 256, requestBytes: 524_288 } as const;
 const identifier = z.string().trim().min(1).max(256).regex(/^[^\u0000-\u001f]+$/);
@@ -12,6 +14,8 @@ const revision = z.string().regex(/^[a-f0-9]{64}$/);
 const kind = z.enum(["idea", "product"]);
 const bootstrap = z.string().min(1).max(32_768);
 const identity = { kind, bootstrapToken: bootstrap, importId: identifier, expectedRevision: revision };
+const responseMode = z.enum(["full", "compact"]).optional();
+export const revisionReadTargetSchema = z.object({ entityType: identifier, entityId: identifier, sectionId: identifier.optional(), blockId: identifier.optional(), unitId: identifier.optional(), itemId: identifier.optional() }).strict().refine(target => !(target.blockId && !target.sectionId) && !(target.itemId && (target.sectionId || target.blockId || target.unitId)) && !(target.unitId && (target.sectionId || target.blockId)), "A block needs its section ID; an item or Diktat unit must be selected without a section or block");
 const field = z.string().max(256).refine(value => {
   const segments = value.split(".");
   if (!value || segments.length > 8) return false;
@@ -23,7 +27,7 @@ const field = z.string().max(256).refine(value => {
 }, "Use stable-ID object fields, never numeric array positions or prototype paths");
 export const revisionPatchOperationSchema = z.object({
   op: z.enum(["set", "add", "remove", "move"]),
-  target: z.object({ entityType: identifier, entityId: identifier, sectionId: identifier.optional(), blockId: identifier.optional(), itemId: identifier.optional() }).strict(),
+  target: revisionReadTargetSchema,
   field: field.optional(), value: z.unknown().optional(), beforeId: identifier.nullable().optional(),
 }).strict();
 const entry = z.object({ kind, importId: identifier, expectedRevision: revision }).strict();
@@ -67,7 +71,7 @@ function failure(error: unknown): CallToolResult {
     : /LIMIT|TOO_LARGE/.test(code) ? "Split the change into requests within the advertised limits. After every accepted patch, use its returned successor importId and revision. A release supports at most 16 exact entries."
     : /VERSION|PROFILE/.test(code) ? "Use an Idea or learning Product Bundle V3 or newer. Revision editing does not support V1 or V2."
     : "Read authoring.get_edit_context and authoring.plan_release for current requirements and recovery actions. No publication was implicitly authorized.";
-  return { ...result({ ok: false, error: code, remediation, ...(requiredScope ? { requiredScope } : {}), ...(error instanceof z.ZodError ? { issues: error.issues.map(issue => ({ code: issue.code, path: issue.path })) } : {}) }, true),
+  return { ...result({ ok: false, error: code, remediation, ...authoringFailureDiagnostics(error, { code }), ...(requiredScope ? { requiredScope } : {}), ...(error instanceof z.ZodError ? { issues: error.issues.map(issue => ({ code: issue.code, path: issue.path })) } : {}) }, true),
     ...(requiredScope ? { _meta: { "mcp/www_authenticate": [insufficientScopeChallenge(requiredScope)] } } : {}),
   };
 }
@@ -83,8 +87,8 @@ export function registerRevisionTools(server: McpServer, principal: McpPrincipal
     if (checked.mode !== "verified") throw new Error("AUTHORING_MCP_BOOTSTRAP_REQUIRED");
     return checked.bootstrap;
   }
-  async function readContext(input: { kind: "idea" | "product"; importId: string; expectedRevision: string }) {
-    const context = await ports.invoke("getRevisionContext", { actorId, kind: input.kind, importId: input.importId, expectedRevision: input.expectedRevision });
+  async function readContext(input: { kind: "idea" | "product"; importId: string; expectedRevision: string } & RevisionContextOptions) {
+    const context = await ports.invoke("getRevisionContext", { actorId, kind: input.kind, importId: input.importId, expectedRevision: input.expectedRevision, ...(input.responseMode ? { responseMode: input.responseMode } : {}), ...(input.target ? { target: input.target } : {}) });
     if (!context || typeof context !== "object" || !("kind" in context) || context.kind !== input.kind) throw new Error("REVISION_KIND_MISMATCH");
     if (!("revision" in context) || context.revision !== input.expectedRevision) throw new Error("REVISION_STALE_CONTEXT");
     return context;
@@ -104,13 +108,14 @@ export function registerRevisionTools(server: McpServer, principal: McpPrincipal
     } };
   }
   async function draftResult(method: "createRevisionDraft" | "patchRevisionDraft" | "restoreRevisionDraft", input: Record<string, unknown>, inputKind: "idea" | "product", token: string) {
+    const options: RevisionContextOptions = input.responseMode === "compact" ? { responseMode: "compact" } : {};
     const value = await ports.invoke(method, input);
     if (!value || typeof value !== "object") throw new Error("REVISION_CONTEXT_INVALID");
-    if ("stagingRunId" in value && typeof value.stagingRunId === "string") return withExecution(value, inputKind, token);
+    if ("stagingRunId" in value && typeof value.stagingRunId === "string") return projectRevisionResponse(withExecution(value, inputKind, token), options);
     if ("importId" in value && typeof value.importId === "string" && "revision" in value && typeof value.revision === "string") {
-      const context = await readContext({ kind: inputKind, importId: value.importId, expectedRevision: value.revision });
+      const context = await readContext({ kind: inputKind, importId: value.importId, expectedRevision: value.revision, ...options });
       if (!("stagingRunId" in context) || typeof context.stagingRunId !== "string") throw new Error("REVISION_EXECUTION_IDENTITY_REQUIRED");
-      return withExecution({ ...value, ...context }, inputKind, token);
+      return projectRevisionResponse(withExecution({ ...value, ...context }, inputKind, token), options);
     }
     throw new Error("REVISION_CONTEXT_INVALID");
   }
@@ -129,18 +134,18 @@ export function registerRevisionTools(server: McpServer, principal: McpPrincipal
       } catch (error) { return failure(error); }
     });
   }
-  register("authoring.get_edit_context", z.object(identity), "read", "Read an exact V3+ Idea/Product revision, stable edit targets, live baseline and next actions. No Source Pack or authoring run is required.", async input => {
+  register("authoring.get_edit_context", z.object({ ...identity, responseMode, target: revisionReadTargetSchema.optional() }), "read", "Read an exact V3+ Idea/Product revision. Default full includes review context. Use responseMode compact for identity and impact, or target for one stable entity, section, block, Diktat unit or collection item; compact and targeted reads defer review/readiness. No Source Pack or authoring run is required.", async input => {
     verify(input.kind, input.bootstrapToken);
-    return withExecution(await readContext(input), input.kind, input.bootstrapToken);
+    return projectRevisionResponse(withExecution(await readContext(input), input.kind, input.bootstrapToken), input);
   });
-  register("authoring.create_revision", z.object({ kind, bootstrapToken: bootstrap, baseImportId: identifier, expectedRevision: revision, entityIds: z.array(identifier).min(1).max(REVISION_MCP_LIMITS.entityIds).optional() }), "stage", "Create a durable editable revision from the observed live artifact or editable V3+ draft. Use restore_revision for withdrawn historical content. For a single-product edit, pass entityIds containing its stable product ID. Direct patches outside this selection are rejected. Inspect dependency and print evidence impact before release.", async ({ bootstrapToken, ...input }) => {
+  register("authoring.create_revision", z.object({ kind, bootstrapToken: bootstrap, baseImportId: identifier, expectedRevision: revision, entityIds: z.array(identifier).min(1).max(REVISION_MCP_LIMITS.entityIds).optional(), responseMode }), "stage", "Create a durable editable revision from the observed live artifact or editable V3+ draft. Use restore_revision for withdrawn historical content. For a single-product edit, pass entityIds containing its stable product ID. Direct patches outside this selection are rejected. Optional responseMode compact returns identity/impact without a full bundle or readiness computation; read full context before review.", async ({ bootstrapToken, ...input }) => {
     verify(input.kind, bootstrapToken);
-    await readContext({ kind: input.kind, importId: input.baseImportId, expectedRevision: input.expectedRevision });
+    await readContext({ kind: input.kind, importId: input.baseImportId, expectedRevision: input.expectedRevision, responseMode: "compact" });
     return draftResult("createRevisionDraft", { actorId, ...input }, input.kind, bootstrapToken);
   });
-  register("authoring.patch_revision", z.object({ ...identity, operations: z.array(revisionPatchOperationSchema).min(1).max(REVISION_MCP_LIMITS.operations) }), "stage", "Patch a draft by stable entity, section, block or item IDs. Supports set/add/remove/move. Exact revision protects other edits; the server rebuilds hashes and returns a successor importId/revision plus impact. Use the returned identity on every next call.", async ({ bootstrapToken, ...input }) => {
+  register("authoring.patch_revision", z.object({ ...identity, operations: z.array(revisionPatchOperationSchema).min(1).max(REVISION_MCP_LIMITS.operations), responseMode }), "stage", "Patch a draft by stable entity, section, block, Diktat unit or item IDs. Supports set/add/remove/move. Exact revision protects other edits; the server rebuilds hashes and returns a successor importId/revision plus impact. Use the returned identity on every next call. Optional responseMode compact omits the full bundle and defers review/readiness.", async ({ bootstrapToken, ...input }) => {
     verify(input.kind, bootstrapToken);
-    await readContext(input);
+    await readContext({ ...input, responseMode: "compact" });
     return draftResult("patchRevisionDraft", { actorId, ...input }, input.kind, bootstrapToken);
   });
   register("authoring.plan_release", z.object(release), "read", "Plan an atomic release manifest across Idea and Product V3+ draft revisions, including mixed V3/V4/V5 references. Returns exact blockers, affected evidence and a planHash; never publishes.", async ({ entries, bootstrapTokens }) => {
@@ -165,10 +170,10 @@ export function registerRevisionTools(server: McpServer, principal: McpPrincipal
     await readContext(input);
     return ports.invoke("listRevisionHistory", { actorId, ...input });
   });
-  register("authoring.restore_revision", z.object({ kind, bootstrapToken: bootstrap, historicalImportId: identifier, expectedRevision: revision, currentImportId: identifier, currentRevision: revision }), "stage", "Restore historical content as a new draft based on the observed current live revision. Review and evidence gates remain required; this never rewrites history or publishes.", async ({ bootstrapToken, ...input }) => {
+  register("authoring.restore_revision", z.object({ kind, bootstrapToken: bootstrap, historicalImportId: identifier, expectedRevision: revision, currentImportId: identifier, currentRevision: revision, responseMode }), "stage", "Restore historical content as a new draft based on the observed current live revision. Review and evidence gates remain required; this never rewrites history or publishes. Optional responseMode compact returns the successor identity and impact without full review context.", async ({ bootstrapToken, ...input }) => {
     verify(input.kind, bootstrapToken);
-    await readContext({ kind: input.kind, importId: input.historicalImportId, expectedRevision: input.expectedRevision });
-    await readContext({ kind: input.kind, importId: input.currentImportId, expectedRevision: input.currentRevision });
+    await readContext({ kind: input.kind, importId: input.historicalImportId, expectedRevision: input.expectedRevision, responseMode: "compact" });
+    await readContext({ kind: input.kind, importId: input.currentImportId, expectedRevision: input.currentRevision, responseMode: "compact" });
     return draftResult("restoreRevisionDraft", { actorId, ...input }, input.kind, bootstrapToken);
   });
 }

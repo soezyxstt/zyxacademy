@@ -4,14 +4,11 @@ import * as schema from "@/db/schema";
 import { createPostgresTestDb } from "../helpers/postgres";
 
 const { client, testDb: db } = await createPostgresTestDb();
-const originalPka = process.env.FEATURE_PKA;
 mock.module("@/db", () => ({ db }));
 const { canAccessDiscussionChannel } = await import("@/lib/discussions/access");
 const { getDiscussionRecipientAccess } = await import("@/lib/discussions/recipient-access");
 
 afterAll(async () => {
- if (originalPka === undefined) delete process.env.FEATURE_PKA;
- else process.env.FEATURE_PKA = originalPka;
  await client.close();
 });
 
@@ -62,7 +59,6 @@ test("bounded recipient access matches current single-user channel authorization
  await compare("course");
  expect((await getDiscussionRecipientAccess("course", users)).size).toBe(0);
  await db.delete(schema.mataKuliah).where(eq(schema.mataKuliah.id, "ambiguous"));
- process.env.FEATURE_PKA = "1";
  await db.insert(schema.enrollments).values({ id: "pka-alice", userId: "alice", courseId: "tutorial-pka", expiresAt: new Date("2000-01-01") });
  await compare("pka");
  expect((await getDiscussionRecipientAccess("pka", users)).has("alice")).toBe(true);
@@ -71,7 +67,6 @@ test("bounded recipient access matches current single-user channel authorization
  expect((await getDiscussionRecipientAccess("pka", users)).has("tutor")).toBe(false);
  await db.insert(schema.penugasanTutor).values({ id: "pka-assignment", penggunaId: "tutor", mataKuliahId: "pka-canonical", status: "active", assignmentScope: "course" });
  expect((await getDiscussionRecipientAccess("pka", users)).has("tutor")).toBe(true);
- process.env.FEATURE_PKA = "0";
- expect((await getDiscussionRecipientAccess("pka", users)).size).toBe(0);
+ await compare("pka");
  await expect(getDiscussionRecipientAccess("global", Array.from({ length: 101 }, () => "alice"))).rejects.toThrow("DISCUSSION_UNAVAILABLE");
 }, 120_000);

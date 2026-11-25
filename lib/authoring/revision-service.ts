@@ -30,13 +30,14 @@ import { withRevisionReviewGuard } from "./revision-review-context";
 import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { lockCanonicalIdentities, type CanonicalLock } from "@/lib/vectorize/canonical-locks";
 import { assertProspectiveReleaseDependencies, assertRevisionVerificationReleaseContext } from "./revision-verification-context";
+import { selectRevisionContent, type RevisionContextOptions, type RevisionResponseMode } from "./revision-response";
 export { prepareRevisionVerification } from "./revision-verification-context";
 
 export type RevisionSelector = { actorId: string; kind: RevisionKind; importId: string; expectedRevision: string };
 export type RevisionReleaseEntry = { importId: string; expectedRevision: string };
 export type RevisionReleaseInput = { actorId: string; entries: RevisionReleaseEntry[] };
-export type CreateRevisionInput = { actorId: string; kind: RevisionKind; baseImportId: string; expectedRevision: string; entityIds?: string[] };
-export type RestoreRevisionInput = { actorId: string; kind: RevisionKind; historicalImportId: string; expectedRevision: string; currentImportId: string; currentRevision: string };
+export type CreateRevisionInput = { actorId: string; kind: RevisionKind; baseImportId: string; expectedRevision: string; entityIds?: string[]; responseMode?: RevisionResponseMode };
+export type RestoreRevisionInput = { actorId: string; kind: RevisionKind; historicalImportId: string; expectedRevision: string; currentImportId: string; currentRevision: string; responseMode?: RevisionResponseMode };
 export type RevisionReviewInput = RevisionSelector & { evidence: Record<string, unknown> };
 type Row = typeof imporBundle.$inferSelect;
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -117,7 +118,7 @@ async function latestLive(rootImportId: string, connection: typeof db | Tx = db)
 }
 
 /** Persist a new immutable revision and close only its preceding unpublished draft. */
-async function persistDraft(input: { actorId: string; kind: RevisionKind; source: Row; original: Bundle; operations: RevisionPatchOperation[]; previous?: Row; selectedEntityIds?: string[]; restoreFrom?: Row; base?: Row; versionOverrides?: Record<string, number> }) {
+async function persistDraft(input: { actorId: string; kind: RevisionKind; source: Row; original: Bundle; operations: RevisionPatchOperation[]; previous?: Row; selectedEntityIds?: string[]; restoreFrom?: Row; base?: Row; versionOverrides?: Record<string, number>; responseMode?: RevisionResponseMode }) {
   const previousLineage = lineageOf(input.previous ?? input.source);
   const base = input.base ?? (input.source.status === "published" ? input.source : previousLineage ? await rowFor(previousLineage.baseImportId, previousLineage.baseRevision, input.kind) : input.source);
   const importId = `impor-${input.kind}-revision-${randomUUID()}`;
@@ -125,7 +126,7 @@ async function persistDraft(input: { actorId: string; kind: RevisionKind; source
   const bundleId = `revision-${randomUUID()}`;
   const built = buildRevisionArtifact({ kind: input.kind, original: input.original, bundleId, operations: input.operations, incrementVersions: Boolean(input.operations.length), versionOverrides: input.versionOverrides } as Parameters<typeof buildRevisionArtifact>[0]);
   const bundle = built.bundle as Bundle;
-  if (input.previous && !built.impact.changed) return getRevisionContext({ actorId: input.actorId, kind: input.kind, importId: input.previous.id, expectedRevision: input.previous.checksum });
+  if (input.previous && !built.impact.changed) return getRevisionContext({ actorId: input.actorId, kind: input.kind, importId: input.previous.id, expectedRevision: input.previous.checksum, responseMode: input.responseMode });
   const scope = await scopeFor(bundle);
   if ("products" in bundle) {
     if (bundle.products.some(product => !["article", "diktat", "flashcard_set", "flashcard", "solution_collection"].includes(product.productType))) throw new Error("REVISION_LEARNING_PRODUCTS_ONLY");
@@ -161,7 +162,7 @@ async function persistDraft(input: { actorId: string; kind: RevisionKind; source
       await audit(tx, input.actorId, source, "draft_superseded", { rootImportId: lineage.rootImportId, successorImportId: importId, successorRevision: created.checksum, state: "superseded_draft" });
     }
   });
-  return getRevisionContext({ actorId: input.actorId, kind: input.kind, importId, expectedRevision: checksum(bundle) });
+  return getRevisionContext({ actorId: input.actorId, kind: input.kind, importId, expectedRevision: checksum(bundle), responseMode: input.responseMode });
 }
 
 export async function createRevisionDraft(input: CreateRevisionInput) {
@@ -171,7 +172,7 @@ export async function createRevisionDraft(input: CreateRevisionInput) {
   if (!["published", "draft", "validated", "approved", "rejected"].includes(source.status)) throw new Error("REVISION_LIVE_OR_DRAFT_REQUIRED");
   return persistDraft({ ...input, source, original: await bundleFor(source), operations: [], selectedEntityIds: input.entityIds });
 }
-export async function patchRevisionDraft(input: RevisionSelector & { operations: RevisionPatchOperation[] }) {
+export async function patchRevisionDraft(input: RevisionSelector & { operations: RevisionPatchOperation[]; responseMode?: RevisionResponseMode }) {
   await authorize(input.actorId);
   if (!input.operations.length || input.operations.length > 128 || Buffer.byteLength(JSON.stringify(input.operations)) > 512 * 1024) throw new Error("REVISION_PATCH_LIMIT");
   const source = await rowFor(input.importId, input.expectedRevision, input.kind);
@@ -179,7 +180,7 @@ export async function patchRevisionDraft(input: RevisionSelector & { operations:
   if (lineage && source.status === "withdrawn") {
     const fingerprint = digest({ actorId: input.actorId, importId: source.id, revision: source.checksum, operations: input.operations });
     const [successor] = await db.select().from(imporBundle).where(and(sql`${imporBundle.validationReport}->'revisionLineage'->>'previousImportId' = ${source.id}`, sql`${imporBundle.validationReport}->'revisionLineage'->>'requestFingerprint' = ${fingerprint}`)).limit(1);
-    if (successor) return getRevisionContext({ actorId: input.actorId, kind: input.kind, importId: successor.id, expectedRevision: successor.checksum });
+    if (successor) return getRevisionContext({ actorId: input.actorId, kind: input.kind, importId: successor.id, expectedRevision: successor.checksum, responseMode: input.responseMode });
   }
   if (!lineage || !["draft", "validated", "approved", "rejected"].includes(source.status)) throw new Error("REVISION_DRAFT_REQUIRED");
   if (lineage.selectedEntityIds.length && input.operations.some(operation => !lineage.selectedEntityIds.includes(operation.target.entityId))) throw new Error("REVISION_PATCH_OUTSIDE_SELECTION");
@@ -196,7 +197,7 @@ export async function restoreRevisionDraft(input: RestoreRevisionInput) {
   const historicalVersions = await db.select({ id: itemImporBundle.entityId, version: itemImporBundle.entityVersion }).from(itemImporBundle).where(inArray(itemImporBundle.entityId, inventory(original).map(item => item.entityId)));
   for (const item of historicalVersions) floors.set(item.id, Math.max(floors.get(item.id) ?? 0, item.version));
   const versionOverrides = Object.fromEntries(inventory(original).filter(item => ["idea", "relation", "article", "diktat", "flashcard", "flashcard_set", "solution_collection"].includes(item.entityType)).map(item => [item.entityId, Math.max(item.entityVersion, floors.get(item.entityId) ?? 0) + 1]));
-  return persistDraft({ actorId: input.actorId, kind: input.kind, source: current, base: current, original, operations: [], restoreFrom: historical, versionOverrides });
+  return persistDraft({ actorId: input.actorId, kind: input.kind, source: current, base: current, original, operations: [], restoreFrom: historical, versionOverrides, responseMode: input.responseMode });
 }
 
 function unitContext(product: ProductEntity) {
@@ -279,21 +280,25 @@ async function reusableEvidence(row: Row, bundle: Bundle, actorId: string) {
   return result;
 }
 
-export async function getRevisionContext(input: RevisionSelector) {
+export async function getRevisionContext(input: RevisionSelector & RevisionContextOptions) {
   await authorize(input.actorId);
   const row = await rowFor(input.importId, input.expectedRevision, input.kind);
   const bundle = await bundleFor(row);
   const scope = await scopeFor(bundle);
   const lineage = lineageOf(row);
   const draft = ["draft", "validated", "approved", "rejected"].includes(row.status);
+  const selection = input.target ? selectRevisionContent(bundle, input.target) : undefined;
+  // Compact edits and targeted reads need identity and scope, not publication readiness.
+  // Review and release services still compute and enforce their complete gates.
+  const includeReview = input.responseMode !== "compact" && !input.target;
   let reviewContext: unknown = null;
-  if (draft && input.kind === "idea") reviewContext = await getIdeaRevisionReviewContext({ importId: row.id, reviewerId: input.actorId, expectedRevision: row.checksum });
-  if (draft && input.kind === "product" && row.version === 5) reviewContext = await getSolutionCollectionReviewContext({ importId: row.id, reviewerId: input.actorId, expectedRevision: row.checksum });
-  if (draft && input.kind === "product" && row.version !== 5) {
+  if (includeReview && draft && input.kind === "idea") reviewContext = await getIdeaRevisionReviewContext({ importId: row.id, reviewerId: input.actorId, expectedRevision: row.checksum });
+  if (includeReview && draft && input.kind === "product" && row.version === 5) reviewContext = await getSolutionCollectionReviewContext({ importId: row.id, reviewerId: input.actorId, expectedRevision: row.checksum });
+  if (includeReview && draft && input.kind === "product" && row.version !== 5) {
     const products = productBundle(bundle).products;
     reviewContext = { policyVersion: (await import("@/lib/materials/quality-policy")).QUALITY_POLICY_VERSION, contentFingerprint: productPedagogyFingerprint(products), sections: products.flatMap(product => product.productType === "article" ? product.sections.map(section => ({ productId: product.id, sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(product, section.id) })) : []), readiness: await currentPublisherProductReadiness(row.id, input.actorId) };
   }
-  return { kind: input.kind, importId: row.id, revision: row.checksum, version: row.version, schemaVersion: bundle.manifest.schemaVersion, status: row.status, scope, stagingRunId: lineage?.stagingRunId ?? null, draftLineage: lineage, bundle: "products" in bundle ? { manifest: bundle.manifest, products: bundle.products, dependencies: bundle.dependencies } : { manifest: bundle.manifest, entities: bundle.entities }, reviewContext, reviewReuse: draft ? await reusableEvidence(row, bundle, input.actorId) : null, nextActions: draft ? ["authoring.patch_revision", ...(row.version === 4 ? ["authoring.prepare_revision_verification"] : []), "authoring.review_revision", "authoring.plan_release"] : ["authoring.create_revision", "authoring.list_revisions", "authoring.restore_revision"] };
+  return { kind: input.kind, importId: row.id, revision: row.checksum, version: row.version, schemaVersion: bundle.manifest.schemaVersion, status: row.status, scope, stagingRunId: lineage?.stagingRunId ?? null, draftLineage: lineage, bundle: "products" in bundle ? { manifest: bundle.manifest, products: bundle.products, dependencies: bundle.dependencies } : { manifest: bundle.manifest, entities: bundle.entities }, ...(selection ? { selection } : {}), reviewContext, reviewReuse: includeReview && draft ? await reusableEvidence(row, bundle, input.actorId) : null, nextActions: draft ? ["authoring.patch_revision", ...(row.version === 4 ? ["authoring.prepare_revision_verification"] : []), "authoring.review_revision", "authoring.plan_release"] : ["authoring.create_revision", "authoring.list_revisions", "authoring.restore_revision"] };
 }
 
 export async function listRevisionHistory(input: RevisionSelector) {

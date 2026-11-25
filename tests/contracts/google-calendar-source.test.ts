@@ -42,3 +42,56 @@ test("temporary token failures retry with sanitized errors, confirmed invalid gr
   rows = await testDb.select().from(schema.googleCalendarSync);
   expect(rows.find(row => row.target === "user:fixture-tutor")?.error).toBe("reconnect");
 });
+
+test("masked Better Auth FAILED_TO_GET_ACCESS_TOKEN probes Google OAuth and marks invalid_grant as reconnect", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalClientId = process.env.GOOGLE_CLIENT_ID;
+  const originalClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  process.env.GOOGLE_CLIENT_ID = "fixture-client-id";
+  process.env.GOOGLE_CLIENT_SECRET = "fixture-client-secret";
+  try {
+    tokenError = { body: { code: "FAILED_TO_GET_ACCESS_TOKEN" } };
+    globalThis.fetch = Object.assign(() =>
+      Promise.resolve(
+        Response.json({ error: "invalid_grant", error_description: "Token has been expired or revoked." }, { status: 400 }),
+      ), { preconnect: originalFetch.preconnect });
+
+    await syncGoogleCalendar("user:fixture-tutor");
+    const rows = await testDb.select().from(schema.googleCalendarSync);
+    expect(rows.find(row => row.target === "user:fixture-tutor")?.error).toBe("reconnect");
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalClientId === undefined) delete process.env.GOOGLE_CLIENT_ID;
+    else process.env.GOOGLE_CLIENT_ID = originalClientId;
+    if (originalClientSecret === undefined) delete process.env.GOOGLE_CLIENT_SECRET;
+    else process.env.GOOGLE_CLIENT_SECRET = originalClientSecret;
+  }
+});
+
+test("malformed booking duration is skipped instead of aborting calendar sync", async () => {
+  await testDb.insert(schema.groups).values({ id: "fixture-group", name: "Fixture Group" });
+  await testDb.insert(schema.tutorSlots).values({
+    id: "bad-slot",
+    tutorId: "fixture-tutor",
+    dayOfWeek: "Jumat",
+    startTime: "18:00",
+    endTime: "16:30",
+    mode: "online",
+    sessionDate: "2026-12-04",
+  });
+  await testDb.insert(schema.bookings).values({
+    id: "bad-booking",
+    slotId: "bad-slot",
+    studentId: "fixture-tutor",
+    courseId: "course",
+    groupId: "fixture-group",
+    status: "scheduled",
+    sessionDate: "2026-12-04",
+    startTime: "18:00",
+    endTime: "16:30",
+    mode: "online",
+  });
+
+  const entries = await calendarSource("fixture-tutor");
+  expect(entries.find((entry) => entry.key === "booking:bad-booking")).toBeUndefined();
+});

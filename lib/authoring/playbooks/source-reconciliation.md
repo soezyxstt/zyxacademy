@@ -1,43 +1,70 @@
-# Zyx Source Pack MCP: Lossless Transcription and Multi-Source Reconciliation Guide
+# Zyx Source Pack MCP: Transcription and Reconciliation Guide
 
-## 1. Core Fidelity Principle
+## 1. Preserve the source
 
-A Source Pack is a canonical, lossless transcription of the original academic source documents. It is NOT a summary, study guide, or translation.
+Keep the source language, wording, notation, conditions, equation numbers, derivations, examples, exercises and solutions. Normalize layout into Markdown and LaTeX without changing meaning. Do not translate, summarize, correct an apparent error, add a missing answer, or replace intermediate work with an invented shortcut.
 
-1. **Preserve Original Language:** Keep the exact language of each source document (whether Indonesian, English, or mixed). Translation and pedagogical adaptation happen later in Idea Bundle and Product Bundle stages.
-2. **Zero Omission of Units:** Every page (`1..expectedUnits`) or slide must be accounted for. If a page is a title page, table of contents, or intentionally blank, include its unit marker (`<!-- page N -->`) and a brief literal transcription of its visible text so unit coverage reaches 100%.
-3. **Complete Mathematical and Symbolic Fidelity:**
-   - Transcribe every definition, theorem, lemma, corollary, proof step, and condition verbatim in clean LaTeX.
-   - Never replace intermediate algebraic steps with phrases like "dengan cara yang sama" or "trivial" unless the original source itself wrote those exact words.
-   - Preserve original equation numbers, theorem numbers, and variable symbols.
-4. **Complete Worked Examples, Exercises, and Solutions:**
-   - Every worked example, practice problem, and solution step in the source document must be transcribed in full, including problem numbers, sub-parts (`(a)`, `(b)`, `(c)`), given values, and final answers.
+Account for every page, slide, sheet or section with exactly `<!-- source-unit: N -->` in order. A page heading alone is not a unit marker. Transcribe title pages and contents pages too; a blank unit still keeps its marker. Use headings only for headings present in the source. Keep reading order across columns, footnotes and continued tables or questions.
 
-## 2. Handling Visuals, Diagrams, and Tables in Source Transcription
+Compare extracted text with the original page image wherever layout, symbols or visuals matter. Resolve ambiguous symbols from the source, not from mathematical expectation. If essential content remains unreadable, report the document and unit and keep the pack unfinished. Never remove an uncertainty merely to set `status: "complete"`.
 
-Because downstream Idea and Product stages read the Markdown transcription in `documents/<docId>.md`:
-1. **Tables:** Convert every visual table into a complete GitHub-Flavored Markdown table (or LaTeX `array`/`tabular` when matrix layout requires it) with all headers, units, and cell values preserved.
-2. **Plots and Graphs:** Below the transcribed caption or paragraph, add a structured `[Visual Transcription]` block recording:
-   - Coordinate axes, labels, and units.
-   - Plotted functions, curves, asymptotes, critical points, intercepts, and shaded regions.
-   - Explicit numerical or symbolic values marked on the axes (for example, $c$, $L$, $L-\varepsilon$, $L+\varepsilon$, $c-\delta$, $c+\delta$).
-3. **Schematic Diagrams, Free-Body Diagrams, and Circuits:** Record every labeled component, node, force vector, direction, and connectivity relationship so downstream Product authoring can construct accurate typed visuals (`learning_canvas` or `epsilon_delta_graph`).
+## 2. Count what is actually present
 
-## 3. Multi-Source Reconciliation Rules
+Inventory each original before reconciling its output. Count headings, formulas, tables, examples, applications, visuals, questions and solutions consistently. Do not derive both sides from the same output and call that source reconciliation.
 
-When a chapter has multiple source documents (for example, a textbook chapter PDF, lecture slides, and a tutorial problem set):
-1. **Separate Document Files:** Keep each physical source document as its own entry in `manifest.json.documents` and its own Markdown file `documents/<docId>.md`. Never merge multiple PDFs into a single `.md` file, because `originalSha256` and `expectedUnits` are verified per document.
-2. **Notation and Terminology Alignment Notes:**
-   - Preserve each document's literal notation inside its own `.md` file.
-   - When two documents use different symbols for the same concept (for example, $\ln x$ vs $\log x$, or $\vec{F}$ vs $\mathbf{F}$), you may append a brief non-destructive `> [Reconciliation Note]` blockquote at the relevant section noting the cross-document equivalence while keeping the original text intact.
-3. **Cross-Linking Problems and Solutions:**
-   - When problems are in one PDF (`role: "problem_set"`) and solutions are in another (`role: "solution_manual"`), keep both documents separate in `documents/` and preserve matching problem numbers (`Soal 1(a)`, `Soal 1(b)`) so downstream provenance can link both source chunks cleanly.
+| Content | Markdown representation checked by the quality validator |
+| --- | --- |
+| Heading | Markdown `#` through `######` followed by its original text |
+| Formula | Balanced `$...$` or `$$...$$`; escape literal currency dollar signs |
+| Table | Complete Markdown table with a separator row, or an HTML `table` when needed to preserve merged cells |
+| Example | Unique marker such as `<!-- source-example: ex-1 -->`, followed by the full example |
+| Application | Unique `<!-- source-application: app-1 -->` marker and full content |
+| Question | Unique `<!-- source-question: q-1 -->` marker and full stem, options and parts |
+| Solution | Unique `<!-- source-solution: sol-1 -->` marker and all supplied solution steps |
+| Visual | One complete `:::visual-explanation` block per counted visual |
 
-## 4. Quality Gate Remediation Checklist
+Marker IDs use lowercase letters, digits, dots, underscores, colons or hyphens and begin with a letter or digit. Preserve printed numbering in the text; the marker ID does not replace it. Keep markers unique within each document. The Markdown counts must match `outputCounts`, and the source inventory must match those counts. `inventory.visuals` maps to `outputCounts.visualExplanations`.
 
-Before calling `source.ingest`, verify:
-- Every `documents/<docId>.md` exists in the ZIP and its UTF-8 byte SHA-256 matches `markdownSha256`.
-- Every unit from `1` to `expectedUnits` has an explicit marker (`<!-- page N -->` or `<!-- slide N -->`).
-- Character and token density per unit meet the validator threshold (no stubbed or truncated pages).
-- All LaTeX delimiters (`$...$` and `$$...$$`) are balanced.
-- `archiveChecksum` is computed over the deterministic serialization of the manifest (with `archiveChecksum` omitted) and all document files.
+Tables retain every header, unit and cell. A matrix represented as math counts as math; a LaTeX table alone is not counted as a Markdown/HTML table. Do not alter the inventory to hide a lost table or to satisfy the counter.
+
+## 3. Explain visuals from visible evidence
+
+The archive must not contain Markdown image references or HTML `img` elements. Transcribe each visual into the required block within its source unit. Record labels, axes, units, values, directions, connections and reading order. Do not infer unlabeled values, hidden geometry or a formula that the source does not state.
+
+Example format for a visible diagram containing only nodes A and B with an arrow from A to B:
+
+```markdown
+<!-- source-unit: 1 -->
+:::visual-explanation
+id: diagram-1
+source-unit: 1
+kind: diagram
+title: Urutan A ke B
+purpose: Menunjukkan urutan dua simpul.
+elements:
+  - Simpul A.
+  - Simpul B.
+relationships:
+  - Panah berarah dari A ke B.
+labels:
+  - A
+  - B
+reading-order:
+  - A
+  - B
+instructional-meaning: A mendahului B sesuai arah panah.
+uncertainty: none
+:::
+```
+
+Every block needs a unique `id` in the document and nonempty `source-unit`, `kind`, `title`, `purpose`, `elements`, `instructional-meaning`, and `uncertainty`. The declared unit must match the preceding unit marker. Use scalar text or lists with two spaces before `-` as shown. Close the block with `:::`; do not nest blocks.
+
+For `3d-plot`, `chart`, `diagram`, `geometry`, `graph`, `number-line`, and `plot`, also supply nonempty lists for `relationships`, `labels`, and `reading-order`. Use `uncertainty: none` only when the transcription has no unresolved ambiguity. If the source intentionally omits a quantity, state that fact without estimating it. If blur or cropping prevents faithful transcription, resolve it before claiming the pack is complete.
+
+## 4. Reconcile documents and finish
+
+Keep each physical original in its own manifest entry, Markdown file and coverage file. Do not merge PDFs or deduplicate repeated content across originals: hashes, units and evidence are document-specific. Preserve each source's notation. Record conflicts or possible equivalences in private working notes for later review, not as invented source claims.
+
+For a question document (`role: "question"`) and a separate solution document (`role: "solution"`), preserve printed question numbers and subparts so later provenance can point to both. Record only answers and steps that are actually present. A question without a supplied solution remains a question without a supplied solution.
+
+Complete four real passes: `inventory`, `transcription`, `visual`, and `reconciliation`. In the visual pass, verify visual content or confirm its absence. Before ingest, compare originals with final Markdown, check exact unit sequences and all counts, balance math delimiters, and verify original and Markdown byte hashes. No fixed character-density threshold proves completeness. Valid counts and hashes support the audit but cannot replace reading the source.

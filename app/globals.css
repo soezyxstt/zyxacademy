@@ -442,7 +442,7 @@
 
 /* Sonner injects unlayered styles. Scope the overrides to its styled toasts. */
 .zyx-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
-  @apply flex flex-wrap items-center justify-end gap-x-1.5 gap-y-2 rounded-lg border-border bg-card p-3 font-sans text-body-sm text-card-foreground shadow-lg;
+  @apply flex flex-wrap items-center justify-end gap-x-1.5 gap-y-2 rounded-xl border-border bg-card p-3 font-sans text-body-sm text-card-foreground shadow-lg;
   --toast-status: var(--muted-foreground);
 
   &[data-type="success"] { --toast-status: var(--color-status-success); }
@@ -508,6 +508,52 @@
   > :is([data-close-button], [data-button]):focus-visible {
     outline: 2px solid var(--zx-accent);
     outline-offset: 2px;
+  }
+}
+
+/* Compact, top-right mobile Sonner toasts directly below MobileTopNavbar (<768px). */
+@media (max-width: 767.98px) {
+  .zyx-toaster[data-sonner-toaster] {
+    left: auto !important;
+    right: 12px !important;
+    top: calc(var(--mobile-navbar-height, 0px) + 8px) !important;
+    bottom: auto !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: min(21.5rem, calc(100vw - 1.5rem)) !important;
+    --width: min(21.5rem, calc(100vw - 1.5rem));
+  }
+
+  .zyx-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+    top: 0 !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: 0 !important;
+    width: auto !important;
+    min-width: 15.5rem;
+    max-width: min(21.5rem, calc(100vw - 1.5rem)) !important;
+    @apply rounded-xl px-3.5 py-2.5 shadow-lg;
+
+    > [data-icon] {
+      display: none !important;
+    }
+
+    &:has(> [data-icon]:not(:empty)) > [data-content] {
+      padding-inline-start: 0 !important;
+    }
+
+    &[data-type="success"],
+    &[data-type="error"],
+    &[data-type="warning"] {
+      background-color: color-mix(in oklab, var(--toast-status) 12%, var(--card)) !important;
+      border-color: color-mix(in oklab, var(--toast-status) 38%, var(--border)) !important;
+    }
+
+    &[data-type="info"],
+    &:not([data-type]) {
+      background-color: var(--card) !important;
+      border-color: var(--border) !important;
+    }
   }
 }
 
@@ -1012,13 +1058,13 @@
 
 /* KaTeX overflow formatting overrides. Vertical scrollbar is strictly suppressed
    so tall glyphs (fractions, sums, integrals) never produce vertical scrollbars;
-   horizontal scrolling remains for wide equations without ugly vertical tracks. */
+   horizontal scrolling remains for wide equations without visible scrollbar chrome. */
 .katex-display {
   overflow-x: auto;
   overflow-y: hidden !important;
   max-width: 100%;
-  padding: 0.35em 0;
-  scrollbar-width: thin;
+  padding: 0.45em 0;
+  scrollbar-width: none;
 }
 
 .katex-display > .katex {
@@ -1027,13 +1073,14 @@
   text-align: inherit;
 }
 
-.katex-display::-webkit-scrollbar:vertical {
-  display: none !important;
-  width: 0 !important;
+.katex-display::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .katex-html {
-  overflow-y: hidden;
+  overflow: visible;
 }
 
 [data-katex-display],
@@ -1098,6 +1145,8 @@
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+  width: 0;
+  height: 0;
 }
 
 /* Keep these unlayered so KaTeX's unlayered defaults cannot restore row margins. */
@@ -1105,8 +1154,16 @@
   min-width: 0;
   max-width: 100%;
   overflow-x: auto;
-  padding: 0.125rem 0.25rem;
+  overflow-y: hidden;
+  padding: 0.25rem 0.25rem;
   text-align: left;
+  scrollbar-width: none;
+}
+
+.article-formula-row::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .article-formula-row .katex-display {
@@ -1126,11 +1183,22 @@
 
 /* One named, keyboard-accessible scrollport keeps wide mathematics reachable. */
 [data-math-scroll] {
+  overflow-y: hidden;
+}
+[data-math-scroll]:not(.no-scrollbar) {
   scrollbar-width: thin;
 }
 [data-math-scroll]:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+[data-content-lane="zyra-tutor"] [data-math-scroll] {
+  scrollbar-width: none;
+}
+[data-content-lane="zyra-tutor"] [data-math-scroll]::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 @layer components {
   /* Match the layer of the global important overflow rule. */
@@ -1139,6 +1207,53 @@
     overflow: visible !important;
     max-width: none;
   }
+}
+
+/* Hide scrollbars by default on mobile viewports and touch devices while keeping
+   thin theme-aware scrollbars on desktop (>= 768px with fine pointer).
+   Desktop narrow viewports keep [data-math-scroll] thin for V4 verification. */
+@media (max-width: 767.98px), (pointer: coarse) {
+  *:not(.mobile-scrollbar):not(.show-scrollbar):not([data-math-scroll]),
+  .ds-scrollbar:not(.mobile-scrollbar):not(.show-scrollbar),
+  .sidebar-scroll:not(.mobile-scrollbar):not(.show-scrollbar),
+  .katex-display:not(.mobile-scrollbar):not(.show-scrollbar) {
+    scrollbar-width: none;
+  }
+
+  *:not(.mobile-scrollbar):not(.show-scrollbar):not([data-math-scroll])::-webkit-scrollbar,
+  .ds-scrollbar:not(.mobile-scrollbar):not(.show-scrollbar)::-webkit-scrollbar,
+  .sidebar-scroll:not(.mobile-scrollbar):not(.show-scrollbar)::-webkit-scrollbar,
+  .katex-display:not(.mobile-scrollbar):not(.show-scrollbar)::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+@media (pointer: coarse) {
+  [data-math-scroll]:not(.mobile-scrollbar):not(.show-scrollbar) {
+    scrollbar-width: none;
+  }
+
+  [data-math-scroll]:not(.mobile-scrollbar):not(.show-scrollbar)::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+/* Explicit opt-in utilities for containers that intentionally show a scrollbar on mobile. */
+.mobile-scrollbar,
+.show-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--muted-foreground) 22%, transparent) transparent;
+}
+
+.mobile-scrollbar::-webkit-scrollbar,
+.show-scrollbar::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+  height: 6px;
 }
 
 /* Focus surfaces such as the Python playground opt out of decorative shell ornaments. */
@@ -1151,22 +1266,235 @@ body:has([data-plain-canvas]) [data-page-ornaments] {
   margin-top: 0;
 }
 
-/* Seamless join between MobileNavbar and sticky page tab bar. */
+/* Seamless join between MobileNavbar and sticky page tab bar, plus mobile bottom nav offset. */
 :root {
   --mobile-navbar-height: 0px;
+  --mobile-bottom-nav-height: 0px;
 }
 
 @media (max-width: 767.98px) {
   body:has([data-mobile-navbar]) {
-    --mobile-navbar-height: 3.25rem;
+    --mobile-navbar-height: calc(3.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-mobile-search-expanded="true"]) {
+    --mobile-navbar-height: calc(6.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-pull-state="refreshing"]) {
+    --mobile-navbar-height: calc(5.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-pull-state="error"]) {
+    --mobile-navbar-height: calc(5.875rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-mobile-search-expanded="true"][data-pull-state="refreshing"]) {
+    --mobile-navbar-height: calc(8.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-navbar][data-mobile-search-expanded="true"][data-pull-state="error"]) {
+    --mobile-navbar-height: calc(8.875rem + env(safe-area-inset-top, 0px));
+  }
+
+  body:has([data-mobile-bottom-nav]) {
+    --mobile-bottom-nav-height: calc(3.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Keep application navigation out of active assessments before hydration. */
+  body:has([data-quiz-pending], [data-tryout-pending], [data-quiz-layout="mobile"], [data-tryout-layout="mobile"]) {
+    --mobile-bottom-nav-height: 0px;
+  }
+
+  body:has([data-quiz-pending], [data-tryout-pending], [data-quiz-layout="mobile"], [data-tryout-layout="mobile"]) [data-mobile-bottom-nav] {
+    display: none;
   }
 }
 
 [data-mobile-navbar]:has(~ main [data-sticky-tabs-bar="flush"]) {
-  border-bottom-color: transparent;
+  background-image: none;
+  background-color: color-mix(in oklab, var(--background) 95%, transparent);
+}
+
+@keyframes ptr-ready-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes ptr-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
 }
 
 /* Flush sticky page tab bar attaches directly under the navbar without top page padding. */
 [data-application-page]:has([data-sticky-tabs-bar="flush"]) {
   padding-top: 0;
 }
+
+/* When a primary mobile tab nav is present, secondary page tab bars stay full-width
+   and flush when requested, but do not double-stack as sticky bars on mobile. */
+@media (max-width: 767.98px) {
+  main:has([data-primary-mobile-tabs]) [data-application-page] [data-sticky-tabs-bar] {
+    position: relative;
+    top: auto;
+    z-index: 0;
+    isolation: isolate;
+  }
+}
+
+/* Nested page tab bars inside another tabpanel remain full-width without competing for sticky. */
+[role="tabpanel"] [data-sticky-tabs-bar] {
+  position: relative;
+  top: auto;
+  z-index: 0;
+  isolation: isolate;
+}
+
+/* Mobile assessments supply the spacing around their toolbar and fixed footer. */
+[data-application-page]:has([data-quiz-layout="mobile"], [data-tryout-layout="mobile"]) {
+  padding-block: 0;
+}
+/* Editorial reading surfaces retain authored content and semantic callout accents. */
+.article-editorial {
+  font-family: var(--font-sans);
+}
+.article-editorial p.text-body-base {
+  line-height: 1.75;
+}
+.article-editorial [data-article-callout] {
+  border-width: 0 0 0 2px;
+  border-color: var(--color-primary);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0 0 0 1rem;
+}
+.article-editorial [data-article-callout] > svg,
+.article-editorial [data-article-callout] .font-heading {
+  color: var(--color-primary);
+}
+.article-editorial [data-article-callout="warning"],
+.article-editorial [data-article-callout="caution"],
+.article-editorial [data-article-callout="important"] {
+  border-color: var(--color-status-warning);
+}
+.article-editorial [data-article-callout="warning"] > svg,
+.article-editorial [data-article-callout="caution"] > svg,
+.article-editorial [data-article-callout="important"] > svg,
+.article-editorial [data-article-callout="warning"] .font-heading,
+.article-editorial [data-article-callout="caution"] .font-heading,
+.article-editorial [data-article-callout="important"] .font-heading {
+  color: var(--color-status-warning);
+}
+
+.article-editorial .formula-focus,
+.article-editorial [data-article-surface="plain"],
+.article-editorial .article-definition {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+.article-editorial blockquote {
+  border-left-width: 2px;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0 0 1rem;
+}
+
+
+.article-editorial [data-math-layout="comparison"] .katex-display,
+.article-editorial [data-math-layout="comparison"] .katex-display > .katex,
+.article-editorial [data-block-type="worked_example"] .katex-display,
+.article-editorial [data-block-type="worked_example"] .katex-display > .katex,
+.article-editorial [data-part-kind="worked_example"] .katex-display,
+.article-editorial [data-part-kind="worked_example"] .katex-display > .katex,
+.article-editorial .article-formula-row .katex-display,
+.article-editorial .article-formula-row .katex-display > .katex {
+  text-align: left;
+}
+.article-editorial [data-article-exercise] :is(input, textarea):focus-visible {
+  border-color: color-mix(in oklab, var(--primary) 60%, transparent);
+  --tw-ring-color: color-mix(in oklab, var(--primary) 40%, transparent);
+  --tw-ring-offset-width: 0px;
+}
+
+/* Keep short authored statements beside their explanation, including legacy bundles. */
+.article-editorial [data-math-pair="compact"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0.5rem 1rem;
+}
+.article-editorial [data-math-pair="compact"] > * { margin-block: 0; }
+.article-editorial [data-math-pair="compact"] > [data-math-symbols],
+.article-editorial [data-math-pair="compact"] > [data-math-symbols-disclosure],
+.article-editorial [data-math-pair="compact"] > [data-math-conditions] { grid-column: 1 / -1; }
+.article-editorial .katex-display,
+.article-editorial .katex-display > .katex { text-align: left; }
+.article-editorial .katex-display { margin-block: 0; padding-block: 0.125rem; }
+.article-editorial [data-math-pair="compact"] .katex-display { margin-block: 0; }
+@media (min-width: 640px) {
+  .article-editorial [data-math-pair="compact"] { grid-template-columns: minmax(130px, 220px) minmax(0, 1fr); }
+}
+.article-editorial .markdown-article > p + p { margin-top: var(--paragraph-gap); }
+
+.article-editorial [data-part-kind="math_unit"] + [data-part-kind="math_unit"] {
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+.article-editorial .katex-display > .katex { width: max-content; min-width: 100%; max-width: none; }
+.article-editorial .katex-html { overflow: visible; }
+.article-editorial [data-part-kind="worked_example"] [data-step-id] > div:first-child .markdown-article { font-weight: 500; }
+
+.article-editorial [data-part-kind="math_unit"] + [data-part-kind="math_unit"] { margin-top: 1.5rem; }
+.article-editorial [data-part-kind="math_unit"] .katex-display { margin-block: 0; padding-block: 0; }
+.article-editorial [data-symbol-id] .markdown-article > p { margin-block: 0; }
+.article-editorial [data-part-kind="worked_example"] [data-math-scroll] { padding-right: 1rem; }
+
+.article-editorial [data-math-symbols] .markdown-article :is(p, li) { font-size: var(--text-body-sm); }
+.article-editorial [data-math-overflow-right="true"] {
+  mask-image: linear-gradient(to right, black calc(100% - 16px), transparent);
+}
+@media (max-width: 767.98px) {
+  .article-editorial {
+    --text-reading-major: calc(1.1875rem * var(--user-font-scale, 1));
+    --text-reading-major--line-height: 1.3;
+    --text-reading-minor: calc(1.03125rem * var(--user-font-scale, 1));
+    --text-reading-minor--line-height: 1.35;
+    --paragraph-gap: 0.65rem;
+  }
+  .article-editorial .markdown-article,
+  .article-editorial .markdown-article :is(p, li),
+  .article-editorial p.text-body-base {
+    font-size: calc(0.875rem * var(--user-font-scale, 1));
+    line-height: 1.65;
+  }
+  .article-editorial .markdown-article > :is(p, ul, ol) {
+    margin-block: 0.55rem;
+  }
+  .article-editorial .markdown-article > :is(h1, h2, h3, h4) {
+    margin-top: 1.1rem;
+    margin-bottom: 0.4rem;
+  }
+  .article-editorial .katex-display,
+  .article-editorial [data-math-scroll] .katex-display {
+    font-size: 0.9rem;
+    margin-block: 0.45rem;
+    padding-block: 0.2rem;
+  }
+}
+
+.article-editorial [data-math-symbols] dd .markdown-article :is(p, li) { color: var(--muted-foreground); }
