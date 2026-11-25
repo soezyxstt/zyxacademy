@@ -468,7 +468,7 @@ describe("iOS registration, desktop notification bridge, and honest client readi
           { id: "own", userId: "current-user", title: "Own account", createdAt: "2026-11-21T10:00:00.000Z" },
         ];
         return new Response(JSON.stringify({ notifications }), { status: 200 });
-      }) as typeof fetch,
+      }) as unknown as typeof fetch,
       sendNative: async () => {},
     });
     await new Promise(resolve => setTimeout(resolve, 90));
@@ -491,7 +491,7 @@ describe("iOS registration, desktop notification bridge, and honest client readi
           }, { once: true });
         });
         return new Response(JSON.stringify({ notifications: [] }), { status: 200 });
-      }) as typeof fetch,
+      }) as unknown as typeof fetch,
     });
     await new Promise(resolve => setTimeout(resolve, 80));
     stop();
