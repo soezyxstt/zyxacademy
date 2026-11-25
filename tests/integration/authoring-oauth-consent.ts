@@ -75,6 +75,8 @@ try {
   const { principalFromConnectionToken } = await import("@/lib/authoring/mcp-auth");
   const { POST: revoke } = await import("@/app/api/mcp/oauth/revoke/route");
   const { assertAdminMutationAuthority } = await import("@/lib/admin-mcp/mutations");
+  // Use the application database type; its module is mocked to the PGlite fixture above.
+  const { db: applicationDb } = await import("@/lib/db");
   const clientId = issueClientRegistration({ clientName: "First", redirectUris: [callback] });
   const otherClient = issueClientRegistration({ clientName: "Second", redirectUris: [callback] });
   const params = { client_id: clientId, redirect_uri: callback, resource, scope: read, state: "opaque",
@@ -294,7 +296,7 @@ try {
   await expect(principalFromConnectionToken(manual, resource)).rejects.toThrow("AUTHORING_MCP_SESSION_INVALID");
   const durablePrincipal = await principalFromConnectionToken(durable.access_token, resource);
   expect(durablePrincipal.userId).toBe(userId);
-  await db.transaction(tx => assertAdminMutationAuthority(tx, durablePrincipal, "admin.operation_receipt", null));
+  await applicationDb.transaction(tx => assertAdminMutationAuthority(tx, durablePrincipal, "admin.operation_receipt", null));
   const replayed = await refresh(replayFamily.refresh_token);
   const [replayGrant] = await db.select({ value: verification.value }).from(verification).where(eq(verification.id, replayGrantId));
   const replayData = JSON.parse(replayGrant.value);
@@ -322,7 +324,7 @@ try {
   const revoked = await callAuthoring(rotated.access_token);
   expect(revoked.status).toBe(401);
   expect(revoked.headers.get("www-authenticate")).toContain('error="invalid_token"');
-  await expect(db.transaction(tx => assertAdminMutationAuthority(tx, durablePrincipal, "admin.operation_receipt", null))).rejects.toThrow("OAUTH_CONSENT_REQUIRED");
+  await expect(applicationDb.transaction(tx => assertAdminMutationAuthority(tx, durablePrincipal, "admin.operation_receipt", null))).rejects.toThrow("OAUTH_CONSENT_REQUIRED");
 } finally {
   await client.close();
 }
