@@ -54,7 +54,13 @@ export async function pauseBrowserPush(): Promise<void> {
    if (subscription && !await subscription.unsubscribe()) throw Error("PUSH_UNSUBSCRIBE_FAILED");
   }
  }
- if (token) await fetch("/api/notifications/register-token", { method:"DELETE", credentials:"include", headers:{"Content-Type":"application/json"}, body:JSON.stringify({token}) }).catch(() => {});
+ if (token) {
+  const response = await fetch("/api/notifications/register-token", {
+   method: "DELETE", credentials: "include", headers: { "Content-Type": "application/json" },
+   body: JSON.stringify({ token, browserOnly: true }),
+  });
+  if (!response.ok) throw Error("BROWSER_PUSH_RETIRE_FAILED");
+ }
  clearRegisteredPushTokenIdentity();
 }
 
