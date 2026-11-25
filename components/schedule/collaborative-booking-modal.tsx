@@ -188,6 +188,8 @@ export function CollaborativeBookingModal({
         return t("booking.errors.groupInactive");
       case "TUTOR_NOT_ASSIGNED":
         return t("booking.errors.tutorNotAssigned");
+      case "SLOT_COURSE_NOT_ALLOWED":
+        return t("booking.errors.slotCourseNotAllowed");
       case "GROUP_COURSE_NOT_ENROLLED":
         return t("booking.errors.groupCourseNotEnrolled");
       default:

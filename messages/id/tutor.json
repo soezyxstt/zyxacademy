@@ -148,6 +148,8 @@
     "online": "Daring",
     "inPerson": "Tatap muka",
     "date": "Tanggal",
+    "slotCourses": "Mata kuliah untuk slot ini",
+    "allAssignedCourses": "Semua mata kuliah yang diampu",
     "tutorNotes": "Catatan tutor",
     "topic": "Topik",
     "noSpecificTopic": "Belum ada topik khusus",

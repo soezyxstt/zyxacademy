@@ -111,16 +111,20 @@ export function getGroupQuotaSummary(group: BookingGroupLike | null | undefined)
 function extractSlotCourseAllowlist(slot: BookingSlotLike | null | undefined): Set<string> | null {
   if (!slot) return null;
   if (Array.isArray(slot.matchedCourseIds)) {
-    return new Set(slot.matchedCourseIds.filter((id): id is string => Boolean(id && id.trim())));
+    return new Set(
+      slot.matchedCourseIds
+        .map((id) => (typeof id === "string" ? id.trim().toLowerCase() : ""))
+        .filter(Boolean),
+    );
   }
   if (typeof slot.courseId === "string" && slot.courseId.trim()) {
-    return new Set([slot.courseId.trim()]);
+    return new Set([slot.courseId.trim().toLowerCase()]);
   }
   const tutorCourses = slot.tutor?.tutorCourses;
   if (Array.isArray(tutorCourses) && tutorCourses.length > 0) {
     const ids = tutorCourses
-      .map((entry) => entry?.courseId ?? entry?.course?.id ?? "")
-      .filter((id): id is string => Boolean(id && id.trim()));
+      .map((entry) => (entry?.courseId ?? entry?.course?.id ?? "").trim().toLowerCase())
+      .filter(Boolean);
     if (ids.length > 0) return new Set(ids);
   }
   return null;
@@ -142,9 +146,10 @@ export function getEligibleCoursesForGroupAndSlot(
     const course = entry?.course ?? entry;
     const id = (course?.id ?? entry?.courseId ?? "").trim();
     if (!id) continue;
+    const normalizedId = id.toLowerCase();
     const title = (course?.title ?? course?.name ?? id).trim() || id;
-    if (!linkedById.has(id)) {
-      linkedById.set(id, { id, title });
+    if (!linkedById.has(normalizedId)) {
+      linkedById.set(normalizedId, { id, title });
     }
   }
 
@@ -154,7 +159,7 @@ export function getEligibleCoursesForGroupAndSlot(
     return { linkedCourses, eligibleCourses: linkedCourses };
   }
 
-  const eligibleCourses = linkedCourses.filter((course) => allowlist.has(course.id));
+  const eligibleCourses = linkedCourses.filter((course) => allowlist.has(course.id.toLowerCase()));
   return { linkedCourses, eligibleCourses };
 }
 

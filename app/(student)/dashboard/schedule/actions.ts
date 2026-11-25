@@ -11,6 +11,8 @@ import {
   groups,
   groupCourses,
   groupMembers,
+  enrollmentTokens,
+  enrollmentTokenCourses,
   tutorCourses,
   penugasanTutor,
   mataKuliah,
@@ -50,6 +52,12 @@ import {
 import { executeDecideTutorRescheduleTicket } from "@/app/(tutor)/tutor/schedule/actions";
 import { recordMutationAudit } from "@/lib/audit/mutasi";
 import { type DbExecutor } from "@/lib/auth/tutor-access";
+import { tutorSlotCourses } from "@/db/schedule-extras";
+import {
+  filterCourseIdsBySlotRestriction,
+  isCourseAllowedForSlot,
+  isMissingTutorSlotCoursesTable,
+} from "@/lib/schedule/slot-courses";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 
@@ -187,11 +195,26 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
   });
 
   // ── STUDENT ROLE DATA ───────────────────────────────────────────────────────
-  // 1. Get student study groups
+  // 1. Get student study groups (including courses linked directly or via enrollment tokens)
   const myMemberships = await db.query.groupMembers.findMany({
     where: and(
       eq(groupMembers.userId, dbUser.id),
-      courseIds ? inArray(groupMembers.groupId, db.select({ id: groupCourses.groupId }).from(groupCourses).where(inArray(groupCourses.courseId, courseIds))) : undefined,
+      courseIds
+        ? or(
+            inArray(
+              groupMembers.groupId,
+              db.select({ id: groupCourses.groupId }).from(groupCourses).where(inArray(groupCourses.courseId, courseIds)),
+            ),
+            inArray(
+              groupMembers.groupId,
+              db
+                .select({ id: enrollmentTokens.groupId })
+                .from(enrollmentTokens)
+                .innerJoin(enrollmentTokenCourses, eq(enrollmentTokenCourses.tokenId, enrollmentTokens.id))
+                .where(inArray(enrollmentTokenCourses.courseId, courseIds)),
+            ),
+          )
+        : undefined,
     ),
     with: {
       group: {
@@ -200,6 +223,16 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
             where: courseIds ? inArray(groupCourses.courseId, courseIds) : undefined,
             with: {
               course: true,
+            },
+          },
+          tokens: {
+            with: {
+              tokenCourses: {
+                where: courseIds ? inArray(enrollmentTokenCourses.courseId, courseIds) : undefined,
+                with: {
+                  course: true,
+                },
+              },
             },
           },
           members: {
@@ -212,7 +245,32 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
     },
   });
 
-  const myGroups = myMemberships.map((m) => m.group).filter(Boolean);
+  const myGroups = myMemberships
+    .map((m) => m.group)
+    .filter(Boolean)
+    .map((g) => {
+      const seenCourseIds = new Set<string>();
+      const mergedCourses: typeof g.courses = [];
+      for (const entry of g.courses ?? []) {
+        if (!entry?.courseId || seenCourseIds.has(entry.courseId)) continue;
+        seenCourseIds.add(entry.courseId);
+        mergedCourses.push(entry);
+      }
+      for (const token of g.tokens ?? []) {
+        for (const tc of token.tokenCourses ?? []) {
+          if (!tc?.courseId || seenCourseIds.has(tc.courseId)) continue;
+          seenCourseIds.add(tc.courseId);
+          mergedCourses.push({
+            id: `token:${token.id}:${tc.courseId}`,
+            groupId: g.id,
+            courseId: tc.courseId,
+            createdAt: token.createdAt,
+            course: tc.course,
+          });
+        }
+      }
+      return { ...g, courses: mergedCourses };
+    });
   const myGroupIds = myGroups.map((g) => g.id);
 
   // 1b. Weekly usage per group for the viewed week (derived quota display)
@@ -319,17 +377,26 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
   const eligibleTutorIds = new Set(eligibleTutors.map((row) => row.id));
   const adminTutorIds = new Set(eligibleTutors.filter((row) => row.role === "admin").map((row) => row.id));
   const coursesByAlias = new Map<string, typeof mappedCourses>();
+  const activeCoursesByAlias = new Map<string, typeof mappedCourses>();
   for (const row of mappedCourses) {
     for (const id of new Set([row.id, row.legacyCourseId].filter((value): value is string => Boolean(value)))) {
       const matches = coursesByAlias.get(id) ?? [];
       matches.push(row);
       coursesByAlias.set(id, matches);
+      if (row.status === "active") {
+        const activeMatches = activeCoursesByAlias.get(id) ?? [];
+        activeMatches.push(row);
+        activeCoursesByAlias.set(id, activeMatches);
+      }
     }
   }
-  const adminCourseIds = mappedCourses.flatMap((row) => {
-    const ids = row.legacyCourseId ? [row.id, row.legacyCourseId] : [row.id];
-    return row.status === "active" && ids.some((id) => filterCourseIds.has(id)) && ids.every((id) => coursesByAlias.get(id)?.length === 1) ? ids : [];
-  });
+  const adminCourseIds = [
+    ...mappedCourses.flatMap((row) => {
+      const ids = row.legacyCourseId ? [row.id, row.legacyCourseId] : [row.id];
+      return row.status === "active" && ids.some((id) => filterCourseIds.has(id)) && ids.every((id) => activeCoursesByAlias.get(id)?.length === 1) ? ids : [];
+    }),
+    ...Array.from(filterCourseIds).filter((id) => !coursesByAlias.has(id)),
+  ];
   const assignmentsByTutor = new Map<string, typeof canonicalAssignments>();
   for (const row of canonicalAssignments) {
     const assignments = assignmentsByTutor.get(row.tutorId) ?? [];
@@ -390,6 +457,35 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
       })
     : [];
 
+  const slotIds = allTutorSlots.map((slot) => slot.id);
+  const slotCourseRestrictionsBySlot = new Map<string, string[]>();
+  if (slotIds.length > 0) {
+    try {
+      const slotCourseRows = await db
+        .select({ slotId: tutorSlotCourses.slotId, courseId: tutorSlotCourses.courseId })
+        .from(tutorSlotCourses)
+        .where(inArray(tutorSlotCourses.slotId, slotIds));
+      for (const row of slotCourseRows) {
+        const list = slotCourseRestrictionsBySlot.get(row.slotId) ?? [];
+        list.push(row.courseId);
+        slotCourseRestrictionsBySlot.set(row.slotId, list);
+      }
+    } catch (error) {
+      if (!isMissingTutorSlotCoursesTable(error)) {
+        throw error;
+      }
+    }
+  }
+
+  const expandCourseAliases = (id: string): string[] => {
+    const out = [id];
+    for (const row of activeCoursesByAlias.get(id) ?? []) {
+      out.push(row.id);
+      if (row.legacyCourseId) out.push(row.legacyCourseId);
+    }
+    return out;
+  };
+
   // A student only needs booking occupancy to hide claimed slots. Keep the
   // booking details in the group-scoped read above so another group's topic,
   // notes, resources, audit entries, and ticket thread are never exposed as
@@ -402,7 +498,7 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
         const ids = row.legacyCourseId ? [row.courseId, row.legacyCourseId] : [row.courseId];
         return eligibleTutorIds.has(slot.tutorId) && row.courseStatus === "active"
           && (adminTutorIds.has(slot.tutorId) || (row.status === "active" && row.scope === "course"))
-          && ids.every((id) => !coursesByAlias.has(id) || (coursesByAlias.get(id)?.length === 1 && coursesByAlias.get(id)?.[0].id === row.courseId))
+          && ids.every((id) => !activeCoursesByAlias.has(id) || (activeCoursesByAlias.get(id)?.length === 1 && activeCoursesByAlias.get(id)?.[0].id === row.courseId))
           ? ids : [];
       });
       const legacy = (slot.tutor?.tutorCourses ?? []).flatMap((row) => {
@@ -410,12 +506,19 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
         if (blocked.has(id)) return [];
         const matches = coursesByAlias.get(id) ?? [];
         if (!matches.length) return [id];
-        return matches.length === 1 && matches[0].legacyCourseId === id && matches[0].status === "active" && eligibleTutorIds.has(slot.tutorId)
-          ? [id, matches[0].id] : [];
+        const activeMatches = activeCoursesByAlias.get(id) ?? [];
+        return activeMatches.length === 1 && (activeMatches[0].legacyCourseId === id || activeMatches[0].id === id) && eligibleTutorIds.has(slot.tutorId)
+          ? [...new Set([id, activeMatches[0].id])] : [];
       });
       coursesByTutor.set(slot.tutorId, [...new Set([...compatible, ...legacy, ...(adminTutorIds.has(slot.tutorId) ? adminCourseIds : [])])]);
     }
-    const matchedCourseIds = courseIds ?? coursesByTutor.get(slot.tutorId) ?? [];
+    const baseCourseIds = courseIds ?? coursesByTutor.get(slot.tutorId) ?? [];
+    const slotRestrictions = slotCourseRestrictionsBySlot.get(slot.id);
+    const matchedCourseIds = filterCourseIdsBySlotRestriction(
+      baseCourseIds,
+      slotRestrictions,
+      expandCourseAliases,
+    );
     return matchedCourseIds.length ? [{ ...slot, matchedCourseIds, booking: occupants[0] ?? null }] : [];
   });
 
@@ -566,6 +669,33 @@ export async function collaborativeBookSlot(
           success: false,
           error: "Tutor ini tidak bersertifikasi untuk mata kuliah ini",
           reason: "TUTOR_NOT_ASSIGNED",
+        };
+      }
+
+      // 6b. Verify optional per-slot course restriction chosen by tutor
+      let slotRestrictedCourseIds: string[] = [];
+      try {
+        const slotCourseRows = await tx
+          .select({ courseId: tutorSlotCourses.courseId })
+          .from(tutorSlotCourses)
+          .where(eq(tutorSlotCourses.slotId, slotId));
+        slotRestrictedCourseIds = slotCourseRows.map((row) => row.courseId);
+      } catch (error) {
+        if (!isMissingTutorSlotCoursesTable(error)) {
+          throw error;
+        }
+      }
+
+      if (
+        !isCourseAllowedForSlot(
+          [courseId, tutorAssignment.courseId, tutorAssignment.legacyCourseId],
+          slotRestrictedCourseIds,
+        )
+      ) {
+        return {
+          success: false,
+          error: "Slot ini tidak dibuka untuk mata kuliah yang dipilih.",
+          reason: "SLOT_COURSE_NOT_ALLOWED",
         };
       }
 

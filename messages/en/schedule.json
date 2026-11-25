@@ -204,6 +204,7 @@
       "noQuota": "This group has no tutorial session quota.",
       "groupInactive": "This group is not active.",
       "tutorNotAssigned": "This tutor is not assigned to the selected course.",
+      "slotCourseNotAllowed": "This slot is not open for the selected course.",
       "groupCourseNotEnrolled": "This group is not enrolled in the selected course.",
       "book": "Could not book the slot.",
       "saveLink": "Could not save the link.",
