@@ -42,6 +42,7 @@ export function DeviceNotificationSettings() {
   const { data: session, isPending } = useSession();
   const experience = useStudentExperience();
   const { notificationStep } = useOnboardingTour();
+  const showingTourSetup = Boolean(notificationStep);
   const isDemo = experience?.mode === "demo";
   const userId = session?.user?.id ?? null;
 
@@ -63,8 +64,17 @@ export function DeviceNotificationSettings() {
   }, [isDemo]);
 
   useEffect(() => {
-    void refreshStatus();
-  }, [refreshStatus]);
+    let cancelled = false;
+    // The tour owns permission changes while its control is visible. Discard
+    // the earlier snapshot so the ordinary panel reads the result when it returns.
+    setStatus(null);
+    if (!isDemo && !showingTourSetup && userId) {
+      void getUnifiedNotificationDeliveryStatus().then(next => {
+        if (!cancelled) setStatus(next);
+      });
+    }
+    return () => { cancelled = true; };
+  }, [isDemo, showingTourSetup, userId]);
 
   useEffect(() => {
     setLocalSupported(isLocalReminderSchedulingSupported());

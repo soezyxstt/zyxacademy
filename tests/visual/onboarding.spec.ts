@@ -3,6 +3,8 @@ import { getTourSteps } from "../../lib/onboarding/tour-steps";
 import { TOUR_STEP_COUNT, type TourRole, type TourState } from "../../lib/onboarding/tour-state";
 import id from "../../messages/id/onboarding.json";
 import en from "../../messages/en/onboarding.json";
+import idStudent from "../../messages/id/student.json";
+import enStudent from "../../messages/en/student.json";
 
 /**
  * Run against the local fixture server, not a deployed app:
@@ -94,6 +96,15 @@ async function showStepTarget(page: Page, info: TestInfo, selector: string, name
   throw new Error(`Tour did not reveal ${selector}`);
 }
 
+async function expectDeviceNotificationsReady(page: Page) {
+  const words = (new URL(page.url()).searchParams.get("locale") === "en" ? enStudent : idStudent).notificationPreferences;
+  const device = page.getByRole("region", { name: words.deviceSectionTitle, exact: true });
+  await expect(device.getByText(words.permissionGranted, { exact: true })).toBeVisible();
+  await expect(device.getByText(words.readinessReady, { exact: true })).toBeVisible();
+  await expect(device.getByText(words.readinessPermissionRequired, { exact: true })).toHaveCount(0);
+  await expect(device.getByRole("button", { name: words.enablePush, exact: true })).toHaveCount(0);
+}
+
 async function finishNotificationStep(page: Page, keyboard = false) {
   const setup = page.locator('[data-tour="notification-permission"]');
   const enable = setup.locator('[data-tour-notification-action="enable"]');
@@ -106,6 +117,8 @@ async function finishNotificationStep(page: Page, keyboard = false) {
   const done = setup.locator('[data-tour-notification-action="complete"]');
   if (keyboard) { await done.focus(); await page.keyboard.press("Enter"); }
   else await done.click();
+  await expect(panel(page)).toHaveCount(0);
+  await expectDeviceNotificationsReady(page);
 }
 
 async function openFixture(page: Page, options: { role: TourRole; course?: boolean; locale?: "id" | "en"; theme?: "light" | "dark"; path?: string; platform?: "web" | "ios" | "android" | "desktop"; permission?: "prompt" | "granted" | "denied" | "unsupported" }) {
@@ -150,6 +163,7 @@ for (const platform of ["ios", "android", "desktop"] as const) {
     await capture(page, info, `notification-${platform}-ready`);
     await setup.locator('[data-tour-notification-action="complete"]').click();
     await expect(panel(page)).toHaveCount(0);
+    await expectDeviceNotificationsReady(page);
     expect(await page.evaluate(() => window.__tourFixture.readState()?.status)).toBe("completed");
     expect(errors).toEqual([]);
   });
@@ -187,6 +201,7 @@ test("notification permission: registration failure can retry without a false su
   await capture(page, info, "notification-registration-retry-en-dark");
   await setup.locator('[data-tour-notification-action="complete"]').click();
   await expect(panel(page)).toHaveCount(0);
+  await expectDeviceNotificationsReady(page);
   expect(errors).toEqual([]);
 });
 
@@ -198,6 +213,7 @@ for (const permission of ["granted", "unsupported"] as const) {
     await capture(page, info, `notification-${permission}`);
     await setup.locator('[data-tour-notification-action="complete"]').click();
     await expect(panel(page)).toHaveCount(0);
+    if (permission === "granted") await expectDeviceNotificationsReady(page);
     expect(await page.evaluate(() => window.__tourNotifications.permissionRequests)).toEqual([]);
     expect(errors).toEqual([]);
   });
