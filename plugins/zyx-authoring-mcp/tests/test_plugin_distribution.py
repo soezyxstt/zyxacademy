@@ -39,7 +39,7 @@ class PluginDistributionTest(unittest.TestCase):
         release = ce.load_release_metadata(self.source_copy)
         self.assertEqual(tuple(release["skills"]), original + focused)
         self.assertEqual(ce.EXPECTED_SKILLS, original + focused)
-        self.assertEqual(release["version"], "0.5.2")
+        self.assertEqual(release["version"], "0.5.3")
         self.assertEqual(release["bootstrapProtocol"], 1)
         self.assertEqual(release["minCompatibleVersion"], "0.2.0")
         server_source = (self.repo_plugin_root.parent.parent / "lib/authoring/mcp-playbook.ts").read_text(encoding="utf-8")
@@ -76,6 +76,25 @@ class PluginDistributionTest(unittest.TestCase):
                     self.assertGreaterEqual(len(fields["short_description"]), 25)
                     self.assertLessEqual(len(fields["short_description"]), 64)
                     self.assertIn(f"${skill}", fields["default_prompt"])
+                    self.assertIn(ce.SKILL_HOST_PROMPT_SUFFIX.format(server_id=ce.ENVIRONMENTS[env_name]["server_id"]), fields["default_prompt"])
+                    self.assertIn("`tools/list`", text)
+                    self.assertIn("argumen `operation`", text)
+                    self.assertIn("`authoring_solution_review_context`", text)
+
+    def test_short_host_ids_leave_room_for_all_portable_tool_names(self) -> None:
+        for environment, config in ce.ENVIRONMENTS.items():
+            with self.subTest(environment=environment):
+                ce.validate_host_namespace(config)
+                prefix = f"mcp_{config['plugin_id']}_{config['server_id']}_"
+                longest = prefix + ("a" * ce.PUBLIC_TOOL_NAME_MAX_LENGTH)
+                self.assertRegex(longest, r"^[a-zA-Z0-9_-]{1,64}$")
+                old_config = {
+                    **config,
+                    "plugin_id": ce.LEGACY_PLUGIN_IDS[environment],
+                    "server_id": ce.LEGACY_ENVIRONMENT_SERVER_IDS[environment],
+                }
+                with self.assertRaisesRegex(ValueError, "host tool-name budget"):
+                    ce.validate_host_namespace(old_config)
 
     def test_missing_focused_skill_files_fail_packaging_instead_of_silently_omitting_skill(self) -> None:
         for relative in (
@@ -149,12 +168,12 @@ class PluginDistributionTest(unittest.TestCase):
             summary_a = ce.configure_plugin(self.source_copy, env_name, output_dir=out_a)
             summary_b = ce.configure_plugin(self.source_copy, env_name, output_dir=out_b)
             self.assertEqual(summary_a["payloadHash"], summary_b["payloadHash"])
-            self.assertEqual(summary_a["version"], "0.5.2")
+            self.assertEqual(summary_a["version"], "0.5.3")
             self.assertEqual(summary_a["bootstrapProtocol"], 1)
             for skill in ce.EXPECTED_SKILLS:
                 content = (out_a / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
                 declared_versions = re.findall(r'(?:"pluginVersion"|pluginVersion):\s*"([^"]+)"', content)
-                self.assertEqual(set(declared_versions), {"0.5.2"})
+                self.assertEqual(set(declared_versions), {"0.5.3"})
                 self.assertNotIn('"pluginVersion": "0.4.1"', content)
 
             cfg = ce.ENVIRONMENTS[env_name]
@@ -173,6 +192,14 @@ class PluginDistributionTest(unittest.TestCase):
                 claude_desktop,
                 {"mcpServers": {cfg["server_id"]: {"type": "streamable-http", "url": cfg["endpoint"]}}},
             )
+            # Regenerating and switching environments must not duplicate or retain
+            # an old connection guard in any of the 12 host prompts.
+            repeat = ce.configure_plugin(out_a, env_name)
+            self.assertEqual(repeat["payloadHash"], summary_a["payloadHash"])
+            other = "production" if env_name == "staging" else "staging"
+            ce.configure_plugin(out_a, other)
+            round_trip = ce.configure_plugin(out_a, env_name)
+            self.assertEqual(round_trip["payloadHash"], summary_a["payloadHash"])
 
     def test_refuses_in_place_overwrite_of_live_repo_source_without_output_dir(self) -> None:
         with self.assertRaises(ValueError) as ctx:
@@ -181,14 +208,14 @@ class PluginDistributionTest(unittest.TestCase):
 
     def test_version_bump_updates_json_and_prose_bootstrap_literals_for_every_skill(self) -> None:
         release = ce.load_release_metadata(self.source_copy)
-        release["version"] = "0.5.3"
+        release["version"] = "0.5.4"
         ce.write_json(self.source_copy / "release.json", release)
         target = self.temp_dir / "next-version"
         ce.configure_plugin(self.source_copy, "staging", output_dir=target)
         for skill in ce.EXPECTED_SKILLS:
             text = (target / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
             versions = re.findall(r'(?:"pluginVersion"|pluginVersion):\s*"([^"]+)"', text)
-            self.assertEqual(set(versions), {"0.5.3"}, skill)
+            self.assertEqual(set(versions), {"0.5.4"}, skill)
 
     def test_packaging_rejects_zip_env_references_and_unknown_files(self) -> None:
         bad_zip = self.source_copy / "skills" / "rogue.zip"
@@ -254,7 +281,7 @@ class PluginDistributionTest(unittest.TestCase):
 
     def test_doctor_redacts_secrets_and_detects_healthy_legacy_and_drift(self) -> None:
         ag_plugins = self.temp_dir / "ag-plugins"
-        ag_staging_dir = ag_plugins / "zyx-authoring-mcp-staging"
+        ag_staging_dir = ag_plugins / "zyx-stg"
         ce.configure_plugin(self.source_copy, "staging", output_dir=ag_staging_dir)
 
         ag_mcp_cfg = self.temp_dir / "mcp_config.json"
@@ -262,7 +289,7 @@ class PluginDistributionTest(unittest.TestCase):
             ag_mcp_cfg,
             {
                 "mcpServers": {
-                    "zyx-authoring-staging": {
+                    "zyx-stg": {
                         "serverUrl": "https://user:supersecret@staging.zyxacademy.com/api/mcp/authoring?token=secret123#frag"
                     },
                     "other-tool": {
@@ -299,6 +326,41 @@ class PluginDistributionTest(unittest.TestCase):
         self.assertFalse(legacy_report["ok"])
         self.assertEqual(legacy_report["reports"][0]["status"], "legacy_server_id")
 
+    def test_doctor_finds_long_id_install_and_sync_leaves_it_untouched(self) -> None:
+        plugins_root = self.temp_dir / "old-plugins"
+        old_dir = plugins_root / ce.LEGACY_PLUGIN_IDS["staging"]
+        ce.configure_plugin(self.source_copy, "staging", output_dir=old_dir)
+        old_config = {"mcpServers": {
+            ce.LEGACY_ENVIRONMENT_SERVER_IDS["staging"]: {
+                "serverUrl": ce.ENVIRONMENTS["staging"]["endpoint"],
+            },
+        }}
+        ce.write_json(old_dir / ".mcp.json", old_config)
+        config_path = self.temp_dir / "mcp_config.json"
+        ce.write_json(config_path, old_config)
+        before = config_path.read_bytes()
+        report = ce.run_doctor(self.source_copy, ["staging"], antigravity_dir=plugins_root, antigravity_mcp_config=config_path)
+        self.assertFalse(report["ok"])
+        self.assertEqual(report["reports"][0]["path"], str(old_dir))
+        self.assertEqual(report["reports"][0]["status"], "legacy_server_id")
+        self.assertEqual(config_path.read_bytes(), before)
+        with self.assertRaisesRegex(ValueError, "migrate the legacy entry explicitly"):
+            ce.update_host_mcp_config_file(config_path, "staging")
+        self.assertEqual(config_path.read_bytes(), before)
+
+    def test_staging_sync_preserves_production_connection_during_id_migration(self) -> None:
+        config_path = self.temp_dir / "mcp_config.json"
+        production = {"serverUrl": ce.ENVIRONMENTS["production"]["endpoint"]}
+        ce.write_json(config_path, {"mcpServers": {"zyx-authoring-production": production}})
+        ce.update_host_mcp_config_file(config_path, "staging")
+        servers = ce.read_json(config_path)["mcpServers"]
+        self.assertEqual(servers["zyx-authoring-production"], production)
+        self.assertEqual(servers["zyx-stg"], {"serverUrl": ce.ENVIRONMENTS["staging"]["endpoint"]})
+        staging = ce.inspect_mcp_json_file(config_path, "zyx-stg", ce.ENVIRONMENTS["staging"]["endpoint"])
+        production_report = ce.inspect_mcp_json_file(config_path, "zyx-prd", ce.ENVIRONMENTS["production"]["endpoint"])
+        self.assertEqual(staging["status"], "healthy")
+        self.assertEqual(production_report["status"], "legacy_server_id")
+
     def test_sync_default_builds_only_to_artifacts_and_preserves_non_zyx_config(self) -> None:
         artifacts_root = self.temp_dir / "artifacts"
         managed_target = self.temp_dir / "managed-plugin"
@@ -320,7 +382,7 @@ class PluginDistributionTest(unittest.TestCase):
 
         updated_cfg = ce.read_json(host_cfg)
         self.assertIn("github-mcp", updated_cfg["mcpServers"])
-        self.assertIn("zyx-authoring-staging", updated_cfg["mcpServers"])
+        self.assertIn("zyx-stg", updated_cfg["mcpServers"])
 
     def test_sync_rejects_unmanaged_non_empty_target_and_host_cache_paths(self) -> None:
         artifacts_root = self.temp_dir / "artifacts"
@@ -338,7 +400,7 @@ class PluginDistributionTest(unittest.TestCase):
         self.assertIn("lacks ownership marker", str(ctx.exception))
         self.assertTrue((unmanaged / "user-file.txt").is_file())
 
-        fake_cache = self.temp_dir / ".codex" / "plugins" / "cache" / "zyx-authoring-mcp-staging"
+        fake_cache = self.temp_dir / ".codex" / "plugins" / "cache" / "zyx-stg"
         with self.assertRaises(ValueError) as ctx2:
             ce.run_sync(
                 self.source_copy,

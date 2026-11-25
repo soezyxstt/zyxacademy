@@ -8,12 +8,14 @@ description: Mengatur alur Zyx dari Source Pack utuh ke Idea V3 dan Product bela
 Mulai dari tahap yang perlu dikerjakan. Pakai ulang sumber, Idea published, serta draft yang sesuai scope, dan pertahankan bukti yang server nyatakan masih sah.
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.2"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.3"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+
+Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
 
 ## Bootstrap dan pilihan tahap
 
-1. Panggil `workflow.get_playbook` dengan identitas `{"skill": "zyx-authoring-pipeline", "stage": "pipeline", "bootstrapProtocol": 1, "pluginVersion": "0.5.2"}` dan `clientCapabilities` nyata. Baca `common/execution` serta `pipeline/orchestration`. Jika gagal atau tidak kompatibel, hentikan tahap dan sampaikan `remediation`.
+1. Panggil `workflow.get_playbook` dengan identitas `{"skill": "zyx-authoring-pipeline", "stage": "pipeline", "bootstrapProtocol": 1, "pluginVersion": "0.5.3"}` dan `clientCapabilities` nyata. Baca `common/execution` serta `pipeline/orchestration`. Jika gagal atau tidak kompatibel, hentikan tahap dan sampaikan `remediation`.
 2. Temukan scope lewat katalog. Periksa `source.list_packs`, `authoring.list_imports`, dan, setelah run tersedia, `analysis.get_coverage` sebelum membuat artifact baru.
 3. Saat masuk atau melanjutkan tahap, ambil bootstrap dengan skill serta stage pada tabel. Ambil `workflow.get_contract` untuk run yang berlaku. Ikuti tool, schema, batas, serta jalur verifikasi yang server live iklankan; paket skill baru tidak berarti server sudah diperbarui.
 

@@ -9,6 +9,7 @@ import { ZipSecurityError } from "@/lib/bundle/zip-reader";
 import { resolveAuthSecret } from "@/lib/auth-secret";
 import { authoringValidationSnapshot, ideaV3SchemaDocuments, productV4SchemaDocuments, productV5SchemaDocuments } from "@/lib/authoring/mcp-contract-revision";
 import { interactiveVisualGuidance } from "@/lib/authoring/interactive-visual-guidance";
+import { MCP_TOOL_NAMING } from "@/lib/authoring/mcp-tool-names";
 import {
   AUTHORING_MCP_BOOTSTRAP_PROTOCOL,
   buildPlaybookResponse,
@@ -653,6 +654,7 @@ function workflowStaticDefinition(workflowKey: AuthoringWorkflow) {
 export function authoringContractSnapshot() {
   const payload = {
     version: AUTHORING_MCP_VERSION,
+    toolNaming: MCP_TOOL_NAMING,
     revisions: flexibleRevisionContract(),
     validation: authoringValidationSnapshot(),
     workflows: WORKFLOW_OPTIONS,
@@ -932,6 +934,7 @@ export function getMcpPlaybook(input: {
   return {
     ok: compatible,
     ...playbook,
+    toolNaming: MCP_TOOL_NAMING,
     contractRevision: contractDigest.contractRevision,
     contractChecksum: contractDigest.contractChecksum,
     bootstrapToken,
@@ -1591,6 +1594,7 @@ export function workflowContract(
   return {
     version: AUTHORING_MCP_VERSION,
     runToken: replacementRunToken,
+    toolNaming: MCP_TOOL_NAMING,
     environment: resolveAuthoringMcpEnvironment(),
     serverRevision: resolveAuthoringServerRevision(),
     contractRevision: contractDigest.contractRevision,

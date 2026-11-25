@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Content Revisions"
   short_description: "Edit stable units and release reviewed Zyx revisions"
-  default_prompt: "Use $zyx-content-revisions to edit the requested Idea or Product unit by stable ID, carry successful successor identities forward without duplicate writes, then read full context and satisfy exact review, evidence and authorized release gates."
+  default_prompt: "Use $zyx-content-revisions to edit the requested Idea or Product unit by stable ID, carry successful successor identities forward without duplicate writes, then read full context and satisfy exact review, evidence and authorized release gates. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

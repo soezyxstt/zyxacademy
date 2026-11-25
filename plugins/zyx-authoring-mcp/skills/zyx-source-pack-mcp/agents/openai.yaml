@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Source Pack MCP"
   short_description: "Transkripsi sumber utuh dengan bukti tiap halaman"
-  default_prompt: "Gunakan $zyx-source-pack-mcp, ambil playbook aktif, dan periksa sumber tersimpan sebelum membaca ulang. Rekonsiliasi semua halaman, rumus, tabel, visual, soal, dan solusi dengan binary asli. Ingest hanya setelah bukti serta cakupan lengkap; jangan menebak atau mengubah isi sumber."
+  default_prompt: "Gunakan $zyx-source-pack-mcp, ambil playbook aktif, dan periksa sumber tersimpan sebelum membaca ulang. Rekonsiliasi semua halaman, rumus, tabel, visual, soal, dan solusi dengan binary asli. Ingest hanya setelah bukti serta cakupan lengkap; jangan menebak atau mengubah isi sumber. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

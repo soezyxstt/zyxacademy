@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Question Authoring MCP"
   short_description: "Draft verified questions from published Ideas"
-  default_prompt: "Use $zyx-question-authoring-mcp to fill the requested bank gap with original questions grounded in published Ideas, follow the current quiz playbook, and stage only within the requested scope."
+  default_prompt: "Use $zyx-question-authoring-mcp to fill the requested bank gap with original questions grounded in published Ideas, follow the current quiz playbook, and stage only within the requested scope. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { pageTitle } from "@/lib/site";
 import { resolveMcpAdmin } from "@/lib/authoring/mcp-auth";
 import {
+  defaultConsentScopes,
   readClientRegistration,
   requestedScopes,
   resourceUrl,
@@ -175,7 +176,7 @@ export default async function McpAuthorizePage({
       sessionId={session.session.id}
       isAdmin={isAdmin}
       scopes={validScopes}
-      defaultScopes={validScopes}
+      defaultScopes={defaultConsentScopes(validScopes)}
       searchParams={{
         clientId,
         redirectUri,

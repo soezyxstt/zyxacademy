@@ -14,6 +14,8 @@ import {
 } from "@/lib/authoring/mcp-workflows";
 
 export const MCP_OAUTH_SCOPES: readonly string[] = [...MCP_AUTHORING_SCOPES, ...ADMIN_MCP_SCOPES];
+// Fresh OAuth connections offer every supported permission without granting it.
+export const MCP_OAUTH_INITIAL_SCOPES: readonly string[] = [...MCP_OAUTH_SCOPES];
 export const MCP_OAUTH_RESOURCE_PATH = "/api/mcp/authoring";
 export const MCP_OAUTH_CODE_TTL_MS = 5 * 60 * 1000;
 
@@ -55,11 +57,17 @@ export function isAllowedRedirectUri(value: string): boolean {
 }
 
 export function requestedScopes(raw: string | null): string[] {
-  const scopes = (raw?.trim() || MCP_AUTHORING_DEFAULT_SCOPES.join(" ")).split(/\s+/).filter(Boolean);
+  const scopes = (raw?.trim() || MCP_OAUTH_INITIAL_SCOPES.join(" ")).split(/\s+/).filter(Boolean);
   if (scopes.some((scope) => !MCP_OAUTH_SCOPES.includes(scope as typeof MCP_OAUTH_SCOPES[number]))) {
     throw new Error("invalid_scope");
   }
   return [...new Set(scopes)];
+}
+
+export function defaultConsentScopes(requested: readonly string[]): string[] {
+  const isInitialScopeSet = requested.length === MCP_OAUTH_INITIAL_SCOPES.length
+    && MCP_OAUTH_INITIAL_SCOPES.every((scope) => requested.includes(scope));
+  return isInitialScopeSet ? [...MCP_AUTHORING_DEFAULT_SCOPES] : [...requested];
 }
 
 export function approvedScopes(raw: string | null, selected: FormDataEntryValue[]): string[] {

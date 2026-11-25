@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Media MCP"
   short_description: "Reuse media or upload once and verify the job outcome"
-  default_prompt: "Use $zyx-media-mcp to find or upload the requested public media on the verified target, preserve the request identity through recovery, confirm the job result and use its served URL within the authorized content scope."
+  default_prompt: "Use $zyx-media-mcp to find or upload the requested public media on the verified target, preserve the request identity through recovery, confirm the job result and use its served URL within the authorized content scope. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

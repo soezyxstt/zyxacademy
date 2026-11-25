@@ -8,6 +8,8 @@ This contract covers repository implementation and focused local verification. D
 
 Read `admin.environment`, then pass the intended `expectedEnvironment` and `expectedOrigin` to data tools. `admin.capabilities` returns a paginated catalog derived from operations registered on that server, their required and missing scopes, mutation controls, retry strategies and bounded workflow guides. Metadata does not grant permission. Initial source-grounded authoring still uses its stage playbook; existing V3+ content uses the [revision workflow](../bundle/authoring-revisions.md).
 
+These references are canonical operation IDs. Call names use underscores, such as `admin_environment`; capability discovery returns `callName` and authoring contracts return `toolNaming`. Preserve dotted IDs in operation arguments and receipts. Fresh OAuth connections offer all supported permissions with four authoring defaults selected. See [MCP host compatibility](mcp-host-compatibility.md) for the fixed long-name alias, short package IDs, and exact consent boundaries.
+
 Structured failures preserve required scopes and the OAuth insufficient-scope challenge. Validation reports field paths without echoing supplied values. A stale revision requires a fresh read and reconciliation. A lost response does not justify a new request key.
 
 ## Blog workflow
@@ -34,9 +36,9 @@ Writes and receipt replay recheck active canonical membership, the bound live se
 
 ## Repository plugin distribution
 
-The source is `plugins/zyx-authoring-mcp`, release 0.5.2. All 12 skills and their host prompts follow the current contracts. Initial Idea/Product authoring prefers advertised draft builders; edits use scoped revision context. Source extraction, original questions, historical reference ingest, blog, forms, media, admin operations and recovery retain their own rules. Environment packaging preserves distinct staging and production connections. The [skills distribution guide](authoring-mcp-skills.md) records package and installed-host boundaries.
+The source is `plugins/zyx-authoring-mcp`, release 0.5.3. All 12 skills and their host prompts follow the current contracts. Initial Idea/Product authoring prefers advertised draft builders; edits use scoped revision context. Source extraction, original questions, historical reference ingest, blog, forms, media, admin operations and recovery retain their own rules. Environment packaging preserves distinct staging and production connections. The [skills distribution guide](authoring-mcp-skills.md) records package and installed-host boundaries.
 
-Ordinary CI validates the package. Automated mirroring uses the existing manually dispatched sync workflow. The 0.5.2 staging package was released through reviewed [package PR #3](https://github.com/soezyxstt/zyx-authoring-mcp/pull/3); the application now pins its merge commit `dcb6098002e4e730f7da610d6c13417388cd45fc`. Production is unchanged. A local source edit, push or successful package check alone does not establish either remote synchronization or installed-host acceptance.
+Ordinary CI validates the package. Automated mirroring uses the existing manually dispatched sync workflow. The 0.5.3 staging package was released through reviewed [package PR #4](https://github.com/soezyxstt/zyx-authoring-mcp/pull/4); the application now pins its merge commit `3a1865523d37a92c31f6c530c30a0b41ff4ecd83`. [Marketplace PR #2](https://github.com/soezyxstt/zyx-marketplace/pull/2) aligns only the staging catalog entry with `zyx-stg`. Production is unchanged. A local source edit, push or successful package check alone does not establish either remote synchronization or installed-host acceptance.
 
 ## Focused local verification
 

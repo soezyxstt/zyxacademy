@@ -18,9 +18,9 @@ from urllib.parse import urlsplit, urlunsplit
 ENVIRONMENTS: dict[str, dict[str, str]] = {
     "production": {
         "environment": "production",
-        "plugin_id": "zyx-authoring-mcp",
+        "plugin_id": "zyx-prd",
         "display_name": "Zyx Academy",
-        "server_id": "zyx-authoring-production",
+        "server_id": "zyx-prd",
         "endpoint": "https://www.zyxacademy.com/api/mcp/authoring",
         "homepage": "https://www.zyxacademy.com/",
         "brand_color": "#2563EB",
@@ -28,9 +28,9 @@ ENVIRONMENTS: dict[str, dict[str, str]] = {
     },
     "staging": {
         "environment": "staging",
-        "plugin_id": "zyx-authoring-mcp-staging",
+        "plugin_id": "zyx-stg",
         "display_name": "Zyx Academy (Staging)",
-        "server_id": "zyx-authoring-staging",
+        "server_id": "zyx-stg",
         "endpoint": "https://staging.zyxacademy.com/api/mcp/authoring",
         "homepage": "https://staging.zyxacademy.com/",
         "brand_color": "#F59E0B",
@@ -38,8 +38,62 @@ ENVIRONMENTS: dict[str, dict[str, str]] = {
     },
 }
 
-LEGACY_SERVER_IDS = {"zyx-authoring", "zyx-mcp"}
+AMBIGUOUS_LEGACY_SERVER_IDS = {"zyx-authoring", "zyx-mcp"}
+LEGACY_ENVIRONMENT_SERVER_IDS = {
+    "production": "zyx-authoring-production",
+    "staging": "zyx-authoring-staging",
+}
+LEGACY_PLUGIN_IDS = {
+    "production": "zyx-authoring-mcp",
+    "staging": "zyx-authoring-mcp-staging",
+}
+LEGACY_SERVER_IDS = AMBIGUOUS_LEGACY_SERVER_IDS | set(LEGACY_ENVIRONMENT_SERVER_IDS.values())
 KNOWN_ZYX_SERVER_IDS = {cfg["server_id"] for cfg in ENVIRONMENTS.values()} | LEGACY_SERVER_IDS
+PUBLIC_TOOL_NAME_MAX_LENGTH = 40
+HOST_TOOL_NAME_MAX_LENGTH = 64
+HOST_TOOL_GUIDANCE = (
+    "Use advertised tool names from tools/list; dotted names in the skills identify operations. "
+    "Keep dotted operation argument values unchanged."
+)
+SKILL_HOST_PROMPT_SUFFIX = (
+    "Use only the {server_id} MCP connection; use advertised tool names "
+    "and keep dotted operation arguments unchanged."
+)
+
+
+def legacy_server_ids_for(environment: str) -> set[str]:
+    """Keep migration checks scoped to the intended environment."""
+    return AMBIGUOUS_LEGACY_SERVER_IDS | {LEGACY_ENVIRONMENT_SERVER_IDS[environment]}
+
+
+def validate_host_namespace(config: dict[str, str]) -> None:
+    """Reserve room for every portable tool name after host namespacing."""
+    for key in ("plugin_id", "server_id"):
+        if not re.fullmatch(r"[a-z][a-z0-9-]*", config[key]):
+            raise ValueError(f"Invalid portable {key}: {config[key]!r}")
+    prefix = f"mcp_{config['plugin_id']}_{config['server_id']}_"
+    if len(prefix) + PUBLIC_TOOL_NAME_MAX_LENGTH > HOST_TOOL_NAME_MAX_LENGTH:
+        raise ValueError("Plugin and server IDs exceed the host tool-name budget")
+
+
+def render_skill_host_prompt(yaml_text: str, server_id: str) -> str:
+    """Keep the existing skill prompt and render one environment-bound suffix."""
+    pattern = r'(?m)^  default_prompt: ("(?:[^"\\]|\\.)*")$'
+
+    def replace_prompt(match: re.Match[str]) -> str:
+        prompt = json.loads(match.group(1))
+        for known_id in KNOWN_ZYX_SERVER_IDS:
+            suffix = " " + SKILL_HOST_PROMPT_SUFFIX.format(server_id=known_id)
+            if prompt.endswith(suffix):
+                prompt = prompt[:-len(suffix)]
+                break
+        prompt += " " + SKILL_HOST_PROMPT_SUFFIX.format(server_id=server_id)
+        return "  default_prompt: " + json.dumps(prompt, ensure_ascii=False)
+
+    rendered, count = re.subn(pattern, replace_prompt, yaml_text)
+    if count != 1:
+        raise ValueError("Skill host metadata must contain one quoted default_prompt")
+    return rendered
 
 EXPECTED_SKILLS = (
     "zyx-authoring-pipeline",
@@ -345,6 +399,7 @@ def validate_rendered_package(target_root: Path, environment: str) -> dict[str, 
     if environment not in ENVIRONMENTS:
         raise ValueError(f"Unsupported environment: {environment!r}")
     config = ENVIRONMENTS[environment]
+    validate_host_namespace(config)
     other_env = "production" if environment == "staging" else "staging"
     other_config = ENVIRONMENTS[other_env]
 
@@ -417,6 +472,13 @@ def validate_rendered_package(target_root: Path, environment: str) -> dict[str, 
             raise ValueError(f"skills/{skill}/SKILL.md must require admin.environment identity discovery")
         if "references/" in skill_text:
             raise ValueError(f"skills/{skill}/SKILL.md must not reference deleted local references/*.md")
+        if "`tools/list`" not in skill_text or "argumen `operation`" not in skill_text:
+            raise ValueError(f"skills/{skill}/SKILL.md must distinguish tool names from operation IDs")
+        host_text = (target_root / "skills" / skill / "agents/openai.yaml").read_text(encoding="utf-8")
+        if SKILL_HOST_PROMPT_SUFFIX.format(server_id=config["server_id"]) not in host_text:
+            raise ValueError(f"skills/{skill}/agents/openai.yaml must bind the current connection and tool names")
+        if SKILL_HOST_PROMPT_SUFFIX.format(server_id=other_config["server_id"]) in host_text:
+            raise ValueError(f"skills/{skill}/agents/openai.yaml contains a cross-environment connection")
 
     payload_hash, file_hashes = compute_package_payload_hash(target_root, allowed_files)
     return {
@@ -459,6 +521,7 @@ def configure_plugin(
     """Configure the plugin package for a target environment (into output_dir or build tree)."""
     if environment not in ENVIRONMENTS:
         raise ValueError(f"Unknown environment {environment!r}. Expected one of: {', '.join(ENVIRONMENTS)}")
+    validate_host_namespace(ENVIRONMENTS[environment])
 
     target_root = plugin_root.resolve()
     if output_dir is not None:
@@ -521,10 +584,12 @@ def configure_plugin(
             prompts = [prompts]
         interface["defaultPrompt"] = [
             guard_prompt,
+            HOST_TOOL_GUIDANCE,
             *[
                 prompt
                 for prompt in prompts
-                if not str(prompt).startswith("Use only the zyx-authoring-")
+                if not any(str(prompt).startswith(f"Use only the {known_id} MCP connection") for known_id in KNOWN_ZYX_SERVER_IDS)
+                and prompt != HOST_TOOL_GUIDANCE
             ],
         ]
     write_json(codex_manifest_path, codex_manifest)
@@ -577,6 +642,14 @@ def configure_plugin(
                 "Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas "
                 "koneksi sebelum memulai run atau melakukan staging."
             ),
+            "",
+            (
+                "Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; "
+                "nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. "
+                "Pengecualian: `authoring.get_solution_collection_review_context` memakai "
+                "`authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` "
+                "serta identitas konfirmasi dan receipt."
+            ),
             "<!-- END:environment-connection -->",
         ]
     )
@@ -597,6 +670,8 @@ def configure_plugin(
         updated_skill = re.sub(r'(\*\*Plugin version\*\*: `)[^`]+(`)', lambda m: f"{m[1]}{version}{m[2]}", updated_skill)
         updated_skill = re.sub(r'((?:"pluginVersion"|pluginVersion):\s*")[^"]+(")', lambda m: f"{m[1]}{version}{m[2]}", updated_skill)
         write_text_lf(skill_path, updated_skill)
+        host_path = target_root / "skills" / skill / "agents/openai.yaml"
+        write_text_lf(host_path, render_skill_host_prompt(host_path.read_text(encoding="utf-8"), config["server_id"]))
 
     summary = validate_rendered_package(target_root, environment)
     print(
@@ -632,6 +707,11 @@ def inspect_mcp_json_file(config_path: Path, expected_server_id: str, expected_e
     zyx_entries: dict[str, str] = {}
     issues: list[str] = []
     has_legacy = False
+    legacy_ids = set(AMBIGUOUS_LEGACY_SERVER_IDS)
+    for environment, config in ENVIRONMENTS.items():
+        if config["server_id"] == expected_server_id:
+            legacy_ids = legacy_server_ids_for(environment)
+            break
 
     for server_id, entry in servers.items():
         if not isinstance(entry, dict):
@@ -646,7 +726,7 @@ def inspect_mcp_json_file(config_path: Path, expected_server_id: str, expected_e
         if not is_zyx:
             continue
         zyx_entries[server_id] = norm_url
-        if server_id in LEGACY_SERVER_IDS:
+        if server_id in legacy_ids:
             has_legacy = True
             issues.append(f"Legacy server ID {server_id!r} detected")
 
@@ -780,6 +860,15 @@ def inspect_installed_plugin_dir(
     }
 
 
+def installed_plugin_path(base: Path, environment: str) -> Path:
+    """Find the selected environment's current or previous plugin folder read-only."""
+    if (base / "skills").exists():
+        return base
+    current = base / ENVIRONMENTS[environment]["plugin_id"]
+    previous = base / LEGACY_PLUGIN_IDS[environment]
+    return current if current.exists() or not previous.exists() else previous
+
+
 def run_doctor(
     plugin_root: Path,
     environments: list[str],
@@ -796,13 +885,7 @@ def run_doctor(
     reports: list[dict[str, Any]] = []
     for env_name in environments:
         cfg = ENVIRONMENTS[env_name]
-        plugin_id = cfg["plugin_id"]
-
-        ag_plugin_path = (
-            antigravity_base
-            if antigravity_dir and (antigravity_dir / "skills").exists()
-            else antigravity_base / plugin_id
-        )
+        ag_plugin_path = installed_plugin_path(antigravity_base, env_name)
         ag_report = inspect_installed_plugin_dir(ag_plugin_path, plugin_root, env_name)
         ag_report["host"] = "antigravity"
         ag_mcp = inspect_mcp_json_file(ag_mcp_path, cfg["server_id"], cfg["endpoint"])
@@ -820,13 +903,13 @@ def run_doctor(
         reports.append(ag_report)
 
         if codex_dir is not None:
-            target = codex_dir if (codex_dir / "skills").exists() else (codex_dir / plugin_id)
+            target = installed_plugin_path(codex_dir, env_name)
             codex_report = inspect_installed_plugin_dir(target, plugin_root, env_name)
             codex_report["host"] = "codex"
             reports.append(codex_report)
 
         if claude_dir is not None:
-            target = claude_dir if (claude_dir / "skills").exists() else (claude_dir / plugin_id)
+            target = installed_plugin_path(claude_dir, env_name)
             claude_report = inspect_installed_plugin_dir(target, plugin_root, env_name)
             claude_report["host"] = "claude"
             reports.append(claude_report)
@@ -922,7 +1005,7 @@ def update_host_mcp_config_file(config_path: Path, environment: str) -> dict[str
         raise ValueError("Host config mcpServers must be a JSON object")
 
     for server_id in servers:
-        if server_id in LEGACY_SERVER_IDS:
+        if server_id in legacy_server_ids_for(environment):
             raise ValueError(
                 f"Legacy MCP server ID {server_id!r} found in {config_path.name}. "
                 "Remove or migrate the legacy entry explicitly before syncing."

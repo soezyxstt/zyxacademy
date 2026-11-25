@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { auth } from "@/lib/auth";
 import { principalFromConnectionToken, resolveMcpAdmin, type McpPrincipal } from "@/lib/authoring/mcp-auth";
-import { publicMcpOrigin, resourceUrl } from "@/lib/authoring/mcp-oauth";
+import { MCP_OAUTH_INITIAL_SCOPES, publicMcpOrigin, resourceUrl } from "@/lib/authoring/mcp-oauth";
 import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
-import { MCP_AUTHORING_DEFAULT_SCOPES, MCP_AUTHORING_SCOPES } from "@/lib/authoring/mcp-workflows";
+import { MCP_AUTHORING_SCOPES } from "@/lib/authoring/mcp-workflows";
 import { timePdfStage } from "@/lib/compute/pdf-read-options";
 
 export const runtime = "nodejs";
@@ -17,7 +17,7 @@ function unauthorized(message: string): NextResponse {
     {
       status: 401,
       headers: {
-        "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadata}" scope="${MCP_AUTHORING_DEFAULT_SCOPES.join(" ")}"`,
+        "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadata}", scope="${MCP_OAUTH_INITIAL_SCOPES.join(" ")}"`,
       },
     },
   );
