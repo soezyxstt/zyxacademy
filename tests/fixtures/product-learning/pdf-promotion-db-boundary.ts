@@ -24,7 +24,13 @@ mock.module("@/db", () => ({ db: new Proxy(local, { get(target, property) {
   return Reflect.get(target, property, target);
 } }) }));
 mock.module("@/lib/storage", () => ({ storage: {
-  exists: async (key: string) => objects.has(key), download: async (key: string) => { const bytes = objects.get(key); if (!bytes) throw new Error("MISSING_LOCAL_OBJECT"); return bytes; },
+  exists: async (key: string) => objects.has(key), download: async (key: string) => {
+    const bytes = objects.get(key);
+    // Match the private S3 adapter: an absent checkpoint is a cache miss, while
+    // transport and permission errors must still fail verification.
+    if (!bytes) throw new Error("MISSING_LOCAL_OBJECT", { cause: { name: "NoSuchKey", $metadata: { httpStatusCode: 404 } } });
+    return bytes;
+  },
   upload: async (bytes: Uint8Array, _filename: string, _type: string, options: { key: string }) => { objects.set(options.key, new Uint8Array(bytes)); return { key: options.key, url: "local-only", size: bytes.length }; },
 } }));
 mock.module("@/jobs/client", () => ({ inngest: { send: async () => ({ ids: [] }) } }));
