@@ -42,6 +42,8 @@ Review lanjutan pada `aa006de8` memeriksa pencabutan lintas bahasa untuk respons
 
 Pada jalur Shared UI `4805e7d1`, reviewer memeriksa 52 tangkapan Android dengan geometri yang valid. Seluruh 52 masih memiliki selisih piksel. Sebelas dari 12 alur interaksi lulus setelah retry, dan uji teks besar lulus. Percobaan tersisa kehilangan koneksi ADB sebelum memeriksa daftar pada layar lebar. Bukti ini belum menambah komponen yang lulus tiga keadaan di kedua platform. [Artefak Shared UI Android](https://github.com/soezyxstt/zyxacademy/actions/runs/45837732023/artifacts/15129611377).
 
+Pada induk `c7fddf65`, kelima kelompok uji kontrak backend lulus pada gabungan empat jalur. Untuk kotak masuk, klien Expo memanggil handler Next.js melalui transport bersesi. Pengujian memeriksa dua akun terhadap database uji, termasuk isolasi riwayat dan efek menandai pesan sebagai dibaca. Kelompok lain menguji otorisasi dan cursor offline, pembelajaran dan sesi langsung Murid, jadwal dan tryout Academic, serta handler Admin. Alur masuk hingga layar produk pada perangkat dan penilaian per operasi masih berjalan. [Hasil lima kelompok](https://github.com/soezyxstt/zyxacademy/actions/runs/45846036130/job/140001017502).
+
 ## Inventaris per permukaan
 
 | Permukaan web | Jumlah | Bukti yang diperlukan untuk lulus |
