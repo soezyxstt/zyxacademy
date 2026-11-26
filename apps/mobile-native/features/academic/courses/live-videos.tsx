@@ -4,6 +4,7 @@ import type { TutorSupportClient } from "../../../../../packages/academic/tutor-
 import type { AdminVideoRemover } from "../../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourseSectionResult } from "../../../../../packages/native-parity/academic/courses/sections";
 import { CourseVideoDialog } from "../../course-video/CourseVideoDialog";
+import { CourseVideoManagement } from "../../course-video/Management";
 import { LiveCourseDelete } from "./live-delete";
 import { Action, CourseStatus, CourseTheme, DataRow, SearchBox, layout } from "./ui";
 
@@ -29,6 +30,7 @@ export function LiveVideos({ data, player, remove, refresh }: Props) {
   const playlists = data.playlists.filter(list => matches(list.title) || list.videos.some(video => matches(video.title)));
   return <>
     <SearchBox label="Cari video atau daftar putar" value={search} onChange={setSearch} />
+    {remove ? <CourseVideoManagement role="admin" courseId={data.course.id} theme={theme} refresh={refresh} /> : null}
     {playlists.length ? playlists.map(list => <View key={list.id}>
       <DataRow title={list.title} description={list.description} detail={`${list.videos.length} video`}
         expanded={open === list.id} onPress={() => setOpen(open === list.id ? null : list.id)} />

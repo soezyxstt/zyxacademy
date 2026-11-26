@@ -26,6 +26,7 @@ import { NativeRequestNotDispatched } from "../../../network/transport";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import type { AcademicScreenProps } from "../contracts";
 import { CourseVideoDialog } from "../../course-video/CourseVideoDialog";
+import { CourseVideoManagement } from "../../course-video/Management";
 import { ScheduleResources } from "../../schedule/resources";
 import { SharedDialog } from "../../shared-ui";
 import { CalendarActions } from "./calendar-actions";
@@ -681,7 +682,10 @@ function formatDuration(duration: number | null) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-export function ConnectedVideos({ data, theme, back, playback, videoPlayer }: Navigation & { data: TutorVideosData; playback?: TutorSupportClient["playback"]; videoPlayer?: TutorSupportClient["videoPlayer"] }) {
+export function ConnectedVideos({ data, theme, back, playback, videoPlayer, courseId, refresh }: Navigation & {
+  data: TutorVideosData; playback?: TutorSupportClient["playback"]; videoPlayer?: TutorSupportClient["videoPlayer"];
+  courseId: string; refresh(): void;
+}) {
   const [expanded, setExpanded] = useState<string>();
   const [selected, setSelected] = useState<{ id: string; title: string } | null>(null);
   const trigger = useRef<ComponentRef<typeof Button> | null>(null);
@@ -743,6 +747,7 @@ export function ConnectedVideos({ data, theme, back, playback, videoPlayer }: Na
   }
 
   return <TutorPage title="Video" subtitle={data.title} theme={theme} onBack={back}>
+    <CourseVideoManagement role="tutor" courseId={courseId} theme={theme} refresh={refresh} />
     <Heading theme={theme} title="Playlist" count={`${data.playlists.length} playlist`} />
     {error ? <Label theme={theme} tone="error">{error}</Label> : null}
     {data.playlists.map((playlist) => <View key={playlist.id}>

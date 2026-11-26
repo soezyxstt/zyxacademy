@@ -9,15 +9,15 @@ import type { CourseCommandViewer } from "./course-command";
 export type CourseWriteTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Saved = { id: string; canonicalCourseId: string; legacyCourseId?: string; legacyChapterId?: string };
 
-async function assertAuthority(tx: CourseWriteTransaction, viewer: CourseCommandViewer) {
-  await assertAuthoringActor(tx, viewer.user.id, { roles: ["admin"], error: "FORBIDDEN", lock: true });
+export async function assertCourseWriteAuthority(tx: CourseWriteTransaction, viewer: CourseCommandViewer, role: "admin" | "tutor" = "admin") {
+  await assertAuthoringActor(tx, viewer.user.id, { roles: [role], error: "FORBIDDEN", lock: true });
   const [active] = await tx.select({ expiresAt: session.expiresAt }).from(session)
     .where(and(eq(session.id, viewer.session.id), eq(session.userId, viewer.user.id))).limit(1).for("share");
   if (!active || active.expiresAt.getTime() <= Date.now()) throw new Error("UNAUTHENTICATED");
 }
 
 export async function courseWrite<T extends object>({
-  slug, targetId, draft, requestId, viewer, entityType, action, write, validateReplay,
+  slug, targetId, draft, requestId, viewer, entityType, action, write, validateReplay, authorize = assertCourseWriteAuthority,
 }: {
   slug: string;
   targetId?: string;
@@ -28,6 +28,7 @@ export async function courseWrite<T extends object>({
   action: "create" | "update" | "archive" | "reorder" | "delete";
   write(tx: CourseWriteTransaction): Promise<Saved>;
   validateReplay(tx: CourseWriteTransaction, result: Saved): Promise<void>;
+  authorize?(tx: CourseWriteTransaction, viewer: CourseCommandViewer): Promise<void>;
 }) {
   const receiptScope = (entityType === "native_course_material" && action === "delete") || entityType === "native_course_management" || entityType === "native_chapter_management" || entityType === "native_course_video" || entityType === "native_course_flashcard" || entityType === "native_course_question"
     ? { sessionHash: revisionOf(viewer.session.id) } : {};
@@ -46,7 +47,7 @@ export async function courseWrite<T extends object>({
 
   function writeOnce() {
     return db.transaction(async (tx) => {
-      await assertAuthority(tx, viewer);
+      await authorize(tx, viewer);
       const previous = await findReceipt(tx);
       if (previous) return previous;
       const result = await write(tx);
@@ -70,7 +71,7 @@ export async function courseWrite<T extends object>({
     const fault = postgresCode(error);
     if (fault !== "23505" && !retryableTransactionFault(fault)) throw error;
     const raced = await db.transaction(async (tx) => {
-      await assertAuthority(tx, viewer);
+      await authorize(tx, viewer);
       return findReceipt(tx);
     });
     if (raced) return raced;
