@@ -50,7 +50,7 @@ jobs:
           mkdir -p artifacts/student-evidence/reference
           printf '%s\n' 'catalog source data verified' > artifacts/student-evidence/reference/catalog-input-verified.txt
           bun tests/visual/native-parallel/student/capture-catalog.ts
-          bunx playwright test tests/visual/native-parallel/student/web-reference.spec.ts --project=mobile-380 --reporter=list
+          bunx playwright test tests/visual/native-parallel/student/web-reference.spec.ts tests/visual/native-parallel/student/assessment-reference.spec.ts --project=mobile-380 --reporter=list
       - name: Keep a web artifact even if capture failed
         if: always()
         run: |
@@ -78,7 +78,7 @@ jobs:
           - platform: ios
             runner: macos-26
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 75
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
         with:
@@ -90,6 +90,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -100,6 +103,11 @@ jobs:
         run: |
           test -f apps/mobile-native/features/student/StudentFixtureRoute.tsx
           printf '%s\n' 'export { default } from "../features/student/StudentFixtureRoute";' > apps/mobile-native/app/student-fixture.tsx
+      - name: Generate scoped Student route smoke cases
+        run: |
+          bun tests/visual/native-parallel/student/generate-smoke.ts
+          mkdir -p artifacts/student-evidence/${{ matrix.platform }}/smoke
+          cp artifacts/student-evidence/generated/manifest.json artifacts/student-evidence/${{ matrix.platform }}/smoke/generated-manifest.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -125,7 +133,10 @@ jobs:
             adb shell wm size 380x820
             adb shell settings put system font_scale 1
             adb install apps/mobile-native/android/app/build/outputs/apk/release/app-release.apk
-            bash tests/visual/native-parallel/student/run-maestro.sh android "$(adb get-serialno)"
+            status=0
+            bash tests/visual/native-parallel/student/run-maestro.sh android "$(adb get-serialno)" || status=1
+            bash tests/visual/native-parallel/student/run-generated-smoke.sh android "$(adb get-serialno)" || status=1
+            exit "$status"
       - if: matrix.platform == 'ios'
         name: Build and test iOS simulator
         run: |
@@ -134,11 +145,21 @@ jobs:
           xcrun simctl bootstatus "$device" -b
           xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
           (cd apps/mobile-native && npx --no-install expo run:ios --configuration Release --device "$device" --no-bundler)
-          bash tests/visual/native-parallel/student/run-maestro.sh ios "$device"
+          status=0
+          bash tests/visual/native-parallel/student/run-maestro.sh ios "$device" || status=1
+          bash tests/visual/native-parallel/student/run-generated-smoke.sh ios "$device" || status=1
+          exit "$status"
       - name: Report comparison eligibility and image extents
         if: always()
         run: |
           python tests/visual/native-parallel/student/compare.py --platform ${{ matrix.platform }} --web artifacts/student-evidence/web --native artifacts/student-evidence/${{ matrix.platform }} --output artifacts/student-evidence/${{ matrix.platform }}/comparison
+      - name: Report executed and blocked route cases
+        if: always()
+        run: |
+          if test -f artifacts/student-evidence/generated/manifest.json; then
+            mkdir -p artifacts/student-evidence/${{ matrix.platform }}/smoke
+            python tests/visual/native-parallel/student/summarize-smoke.py --manifest artifacts/student-evidence/generated/manifest.json --output artifacts/student-evidence/${{ matrix.platform }}/smoke
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
