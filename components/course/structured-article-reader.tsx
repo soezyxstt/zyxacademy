@@ -59,7 +59,7 @@ import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/re
 import { useTranslations } from "@/lib/i18n/client";
 import { useArticleReadingProgress } from "@/hooks/use-article-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
-import { OfflineReadingActions } from "@/components/offline/offline-reading-actions";
+import { OfflineReadingActions, useOfflineReadingActions } from "@/components/offline/offline-reading-actions";
 import { useOfflineReadingVisit } from "@/components/offline/use-offline-reading-visit";
 import { ShareLinkButton } from "@/components/share-link-button";
 import {
@@ -124,6 +124,9 @@ function StructuredArticleReaderContent({
   const tSearch = useTranslations("search");
   const learnerMode = isLearnerReaderMode(mode);
   const isV4 = article.sections.some(section => section.blocks.some(block => block.parts?.length));
+  const [revokedReading, setRevokedReading] = useState<typeof article>();
+  const revokeReading = useCallback(() => setRevokedReading(article), [article]);
+  const offlineReadingActions = useOfflineReadingActions({ userId: learnerMode && !adapter ? studentId : undefined, courseId: article.courseId, materialId: article.id, kind: "article", onRevoked: revokeReading });
   const [readingPosition, setReadingPosition] = useState(0);
   const [showSectionContext, setShowSectionContext] = useState(false);
   const headerRef = useRef<HTMLElement | null>(null);
@@ -824,6 +827,8 @@ function StructuredArticleReaderContent({
     </div>
   );
 
+  if (revokedReading === article) return null;
+
   return (
     <ArticleCodingProvider value={{ courseId: article.courseId, articleId: article.id, articleVersion: article.version, enabled: learnerMode && !adapter, browserOnly: pythonBrowserOnly }}>
     <InteractiveDocumentArticle value={learnerMode && !adapter ? { courseId: article.courseId, articleId: article.id, articleVersion: article.version } : null}>
@@ -952,7 +957,7 @@ function StructuredArticleReaderContent({
 
                 {/* Right: Progress + Action controls */}
                 <div className="flex items-center gap-2 shrink-0">
-                  {learnerMode && !adapter && <OfflineReadingActions userId={studentId} courseId={article.courseId} materialId={article.id} kind="article" />}
+                  {learnerMode && !adapter && <OfflineReadingActions {...offlineReadingActions} />}
                   <ShareLinkButton
                     title={article.title}
                     variant="ghost"

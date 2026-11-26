@@ -416,7 +416,7 @@ export async function putOfflineReading(record: OfflineReadingRecord, token: Off
       tx.onabort = () => resolve();
     });
     if (saved && isOfflineScopeCurrent(token)) {
-      for (const key of removed) removeNativeReading(key);
+      for (const key of removed) void removeNativeReading(key).catch(() => {});
       const mirrored = await mirrorSaveToNativeStore(record);
       if (isOfflineScopeCurrent(token)) await new Promise<void>((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, "readwrite"); const store = tx.objectStore(STORE_NAME); const request = store.get(record.key);
@@ -518,23 +518,40 @@ export async function getOfflineReadingByKey(key: string, options: { includeExpi
 export async function getOfflineReading(userId: string, courseId: string, materialId: string): Promise<OfflineReadingRecord | null> {
   return getOfflineReadingByKey(buildKey(userId, courseId, materialId));
 }
-function removeNativeReading(key: string): void {
+async function removeNativeReading(key: string): Promise<void> {
   removeOfflineReadingPosition(key);
-  void getCapacitor()?.Plugins?.ZyxOfflineStore?.removeReading({ key }).catch(() => {});
-  void getTauri()?.core?.invoke?.("remove_offline_reading", { key }).catch(() => {});
+  await Promise.all([
+    getCapacitor()?.Plugins?.ZyxOfflineStore?.removeReading({ key }),
+    getTauri()?.core?.invoke?.("remove_offline_reading", { key }),
+  ]);
 }
 export async function removeOfflineReadingByKey(key: string): Promise<void> {
   if (!key) return;
   resourceGenerations.set(key, (resourceGenerations.get(key) ?? 0) + 1);
-  removeNativeReading(key);
-  if (!isOfflineReadingCacheSupported()) return;
+  if (!isOfflineReadingCacheSupported()) { await removeNativeReading(key); return; }
   const db = await openDb();
+  const update = (quarantine: boolean) => new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    if (quarantine) {
+      const request = store.get(key);
+      request.onsuccess = () => {
+        const record = request.result as OfflineReadingRecord | undefined;
+        if (record) store.put({ ...record, accessValidUntil: 0 });
+      };
+    } else store.delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onabort = () => reject(tx.error);
+  });
   try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      tx.objectStore(STORE_NAME).delete(key);
-      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
-    });
+    if (getCapacitor()?.Plugins?.ZyxOfflineStore || getTauri()?.core?.invoke) {
+      // Keep enough identity to retry a failed native deletion. The browser
+      // package becomes unreadable before waiting on the bridge.
+      await update(true);
+      notifyOfflineCacheChanged();
+    }
+    await removeNativeReading(key);
+    await update(false);
     notifyOfflineCacheChanged();
   } finally { db.close(); }
 }
@@ -597,7 +614,7 @@ export async function clearOfflineReadingsForOtherUsers(currentUserId: string | 
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite"); const store = tx.objectStore(STORE_NAME); const request = store.getAll();
       request.onsuccess = () => {
-        for (const item of request.result as OfflineReadingRecord[]) if (!scope || item.scopeKey !== scope.scopeKey) { store.delete(item.key); removeNativeReading(item.key); }
+        for (const item of request.result as OfflineReadingRecord[]) if (!scope || item.scopeKey !== scope.scopeKey) { store.delete(item.key); void removeNativeReading(item.key).catch(() => {}); }
       };
       tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
     });

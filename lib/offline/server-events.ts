@@ -51,7 +51,7 @@ export async function writeOfflinePolicy(actorId: string, expectedRevision: numb
 }
 
 /** Cursor advances across invisible rows too; otherwise one busy private scope stalls other clients. */
-export async function readOfflineChanges(accountId: string, courseIds: string[], cursor: string | null, limit = 200): Promise<{ cursor: string; reset: boolean; hasMore: boolean; changes: OfflineChange[] }> {
+export async function readOfflineChanges(accountId: string, courseIds: string[], cursor: string | null, limit = 200, requestedCourseIds: readonly string[] = []): Promise<{ cursor: string; reset: boolean; hasMore: boolean; changes: OfflineChange[] }> {
   return db.transaction(async tx => {
     const head = await currentOfflineCursor(tx);
     if (cursor === head) return { cursor: head, reset: false, hasMore: false, changes: [] };
@@ -64,7 +64,10 @@ export async function readOfflineChanges(accountId: string, courseIds: string[],
     const rows = await tx.select().from(offlineContentChanges).where(and(gt(offlineContentChanges.cursor, after), lte(offlineContentChanges.cursor, through))).orderBy(asc(offlineContentChanges.cursor)).limit(limit + 1);
     const page = rows.slice(0, limit);
     const scopes = new Set(courseIds);
-    const visible = page.filter(row => row.userId === accountId || (row.userId === null && (row.courseId === null || scopes.has(row.courseId))));
+    const requested = new Set(requestedCourseIds);
+    const visible = page.filter(row => row.userId === accountId || (row.userId === null && (
+      row.courseId === null || scopes.has(row.courseId) || (row.kind === "access" && requested.has(row.courseId))
+    )));
     return { cursor: rows.length > limit ? page[page.length - 1]!.cursor.toString() : head, reset: false, hasMore: rows.length > limit, changes: visible.map(row => ({ cursor: row.cursor.toString(), kind: row.kind, resourceId: row.resourceId, courseId: row.courseId, action: row.action, revision: row.revision })) };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }

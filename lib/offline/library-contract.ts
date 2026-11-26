@@ -8,7 +8,7 @@ export interface NativeOfflineLibrarySnapshot extends OfflineCacheScope {
   lastVerifiedAt: number;
   syncCursor: string;
   enrollmentIds?: string[];
-  courses: Array<{ id: string; title: string; code?: string; thumbnailUrl?: string; accessValidUntil?: number; chapterIds?: string[] }>;
+  courses: Array<{ id: string; title: string; code?: string; thumbnailUrl?: string; accessValidUntil?: number; chapterIds?: string[]; fullContent?: boolean }>;
   achievements: Array<{ id: string; title: string; description?: string; icon?: string }>;
   materials: Array<{ id: string; courseId: string; title: string; kind: string; accessValidUntil?: number; thumbnailUrl?: string; videoUrl?: string; contentVersion: string }>;
   policy: OfflinePolicy;
@@ -21,6 +21,7 @@ export interface OfflineMetadataSnapshot extends NativeOfflineLibrarySnapshot {
 }
 export const OFFLINE_CACHE_CHANGED_EVENT = "zyx:offline-cache-changed";
 export const OFFLINE_RESOURCE_CHANGED_EVENT = "zyx:offline-resource-changed";
+export const OFFLINE_RESOURCE_CHANGE_CHANNEL = "zyx:offline-resource-changes";
 export const OFFLINE_SYNC_REQUEST_EVENT = "zyx:offline-sync-request";
 export function notifyOfflineCacheChanged(): void {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(OFFLINE_CACHE_CHANGED_EVENT));

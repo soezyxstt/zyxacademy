@@ -58,7 +58,8 @@ export type OfflineResourceEnvelope<K extends OfflineResourceKind = OfflineResou
   data: OfflineResourceData[K]; assets: OfflineAsset[];
 };
 export type OfflineChange = { cursor: string; kind: OfflineResourceKind | "course" | "policy" | "access"; resourceId: string | null; courseId: string | null; action: "upsert" | "delete" | "invalidate"; revision: string | null };
-export const offlineSyncRequestSchema = z.object({ cursor: offlineCursorSchema.nullable().default(null), courseIds: z.array(idSchema).max(100).default([]), locale: offlineLocaleSchema.default("id") }).strict();
+export const OFFLINE_SYNC_COURSE_LIMIT = 150;
+export const offlineSyncRequestSchema = z.object({ cursor: offlineCursorSchema.nullable().default(null), courseIds: z.array(idSchema).max(OFFLINE_SYNC_COURSE_LIMIT).default([]), locale: offlineLocaleSchema.default("id") }).strict();
 export type OfflineSyncRequest = z.input<typeof offlineSyncRequestSchema>;
 export type OfflineSyncResponse = OfflineIdentity & {
   cursor: string; reset: boolean; hasMore: boolean; serverTime: number; leaseExpiresAt: number; policy: OfflinePolicy;

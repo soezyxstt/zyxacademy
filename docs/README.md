@@ -102,7 +102,7 @@ docs/
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Pre-deployment quality, contract, database, worker, AI Gateway, MCP, and native app release gates. |
 | [operations/cloud-run-staging.md](operations/cloud-run-staging.md) | Operations | `ACTIVE` | Cloud Run Bangkok staging container build, Secret Manager import, Cloudflare Edge Worker routing, and rollback. |
 | [operations/vercel-staging.md](operations/vercel-staging.md) | Operations | `ACTIVE` | Manual Vercel custom `staging` deployment, target guards, and recovery procedure. |
-| [operations/offline-data-sync.md](operations/offline-data-sync.md) | Operations | `ACTIVE` | Account-scoped cache, second-visit reading admission, version checks, access leases and native recovery. |
+| [operations/offline-data-sync.md](operations/offline-data-sync.md) | Operations | `ACTIVE` | Admin mutation coverage, account-scoped caches, reconnect and revocation checks, and native recovery. |
 | [operations/admin-mcp.md](operations/admin-mcp.md) | Operations | `ACTIVE` | Admin MCP endpoint (`/api/mcp/authoring`), OAuth scopes, mutation boundaries, and supported tool catalog. |
 | [operations/agent-first-content.md](operations/agent-first-content.md) | Operations | `ACTIVE` | Agent-first MCP workflows for blog, forms, media, and committed-mutation receipt recovery. |
 | [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | Build-time pinned skills catalog (`authoring-skills.lock.json`), distribution, and host verification. |

@@ -6,7 +6,7 @@ import { isOfflineScheduledCheckDue } from "@/lib/date-utils";
 import { captureOfflineScope, isOfflineScopeCurrent, scopedReadingKey, subscribeOfflineScope, type OfflineCacheScope, type OfflineScopeToken } from "./cache-scope";
 import { recordOfflineReadingVisit } from "./cache-db";
 import { offlineEnvelopeSchema, offlineManifestResponseSchema, offlineSyncResponseSchema } from "./client-validation";
-import { OFFLINE_HEADERS, offlineResourceKey, offlineResourceUrl, type OfflineCourseAccess, type OfflineManifestResponse, type OfflinePolicy, type OfflineResourceDescriptor, type OfflineResourceEnvelope,  type OfflineSyncResponse, type OfflineVideoCatalog, type OfflineAchievementCatalog, type OfflineCourseOutline } from "./sync-contract";
+import { OFFLINE_HEADERS, OFFLINE_SYNC_COURSE_LIMIT, offlineResourceKey, offlineResourceUrl, type OfflineCourseAccess, type OfflineManifestResponse, type OfflinePolicy, type OfflineResourceDescriptor, type OfflineResourceEnvelope,  type OfflineSyncResponse, type OfflineVideoCatalog, type OfflineAchievementCatalog, type OfflineCourseOutline } from "./sync-contract";
 import { boundOfflineMetadata, emptyOfflineSnapshot, readOfflineLibrarySnapshot, writeOfflineLibrarySnapshot } from "./metadata-cache";
 import { cacheOfflineResource, offlineReadingGeneration, listOfflineReadingRecords, removeOfflineReadingByKey, updateOfflineReadingMetadata, type OfflineReadingRecord } from "./reading-cache";
 import { downloadOfflineImages, replaceOfflineAssetUrls } from "./asset-cache";
@@ -28,6 +28,7 @@ export interface OfflineSyncController {
   sync: () => Promise<void>;
   refreshResource: (resource: OfflineResourceRequest, options?: OfflineRefreshOptions) => Promise<boolean>;
   snapshot: () => Promise<OfflineMetadataSnapshot>;
+  courseIds: () => Promise<string[]>;
   dispose: () => void;
 }
 export function compareOfflineCursors(a: string, b: string): number { return BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0; }
@@ -58,6 +59,8 @@ export function createOfflineSyncController(options: {
   scope: OfflineCacheScope;
   fetcher?: typeof fetch;
   queryClient?: QueryClient;
+  ready?: Promise<unknown>;
+  onChange?: (change: import("./sync-contract").OfflineChange) => void;
   onSnapshot?: (snapshot: NativeOfflineLibrarySnapshot) => void;
   initialSnapshot?: NativeOfflineLibrarySnapshot;
   repository?: OfflineSyncRepository;
@@ -70,30 +73,49 @@ export function createOfflineSyncController(options: {
   const abort = new AbortController();
   let disposed = false;
   let verifiedSession: string | undefined;
+  let requiresReset: boolean | undefined;
   let syncFlight: Promise<void> | undefined;
+  let syncAgain = false;
   let value: OfflineMetadataSnapshot | undefined;
   const resourceFlights = new Map<string, { promise: Promise<boolean>; automatic?: boolean }>();
   const requestedCourses = new Set<string>();
   const courseGrants = new Map<string, { access: OfflineCourseAccess; cursor: string }>();
   const emittedChanges = new Set<string>();
+  const publishChange = (change: import("./sync-contract").OfflineChange) => {
+    const detail = { scopeKey: options.scope.scopeKey, change };
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(OFFLINE_RESOURCE_CHANGED_EVENT, { detail }));
+    options.onChange?.(change);
+  };
   const emitChange = (change: import("./sync-contract").OfflineChange) => {
-    const key = JSON.stringify(change);
+    const key = JSON.stringify([change.cursor, change.kind, change.courseId, change.resourceId, change.action, change.revision]);
     if (emittedChanges.has(key)) return;
     emittedChanges.add(key);
     if (emittedChanges.size > 500) emittedChanges.delete(emittedChanges.values().next().value!);
-    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(OFFLINE_RESOURCE_CHANGED_EVENT, { detail: { scopeKey: options.scope.scopeKey, change } }));
+    publishChange(change);
   };
   const load = repository.readSnapshot().then(stored => value = stored?.scopeKey === options.scope.scopeKey ? stored : emptyOfflineSnapshot(options.scope, options.initialSnapshot?.scopeKey === options.scope.scopeKey ? options.initialSnapshot : undefined));
   const current = () => !disposed && Boolean(token && token.scope.scopeKey === options.scope.scopeKey && isOfflineScopeCurrent(token));
   const assertCurrent = () => { if (!current()) throw new DOMException("Offline account changed", "AbortError"); };
   const unsubscribe = subscribeOfflineScope(() => { if (!current()) { disposed = true; abort.abort(); } });
-  const getSnapshot = async () => { await load; return value!; };
+  const getSnapshot = async () => { await load; requiresReset ??= !value!.lastVerifiedAt; return value!; };
   const persist = async () => {
     assertCurrent();
     value = boundOfflineMetadata(value!);
     if (!await repository.writeSnapshot(value!, token!)) throw new Error("offline_storage_unavailable");
     assertCurrent();
     options.onSnapshot?.(value!);
+  };
+  const withStoreLock = async <T>(work: () => Promise<T>): Promise<T> => {
+    await options.ready;
+    const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
+    if (options.repository || !locks) return work();
+    return locks.request(`zyx:offline-scope:${options.scope.scopeKey}`, { signal: abort.signal }, async () => {
+      await getSnapshot();
+      assertCurrent();
+      const stored = await repository.readSnapshot();
+      if (stored?.scopeKey === options.scope.scopeKey) value = stored;
+      return work();
+    });
   };
   const validateIdentity = (identity: { accountId: string; sessionId: string; environment: string; locale: string }) => {
     assertCurrent();
@@ -109,6 +131,16 @@ export function createOfflineSyncController(options: {
     assertCurrent();
     if (!response.ok && response.status !== 304) throw new ApiError(response.status, "Offline synchronization failed");
     return response;
+  };
+  const publishCourseQuery = async (courseId: string, course?: { id: string; title: string }, verifiedAt = now()) => {
+    const client = options.queryClient;
+    if (!client) return;
+    const key = queryKeys.student.course(options.scope.userId, courseId);
+    const previous = client.getQueryData<{ id: string; title: string } | null>(key);
+    if ((!course && previous === null) || (course && previous?.id === course.id && previous.title === course.title)) return;
+    await client.cancelQueries({ queryKey: key, exact: true });
+    assertCurrent();
+    client.setQueryData(key, course ? { id: course.id, title: course.title } : null, { updatedAt: verifiedAt });
   };
   const applyMetadata = async (envelope: OfflineResourceEnvelope, cached?: OfflineResourceEnvelope) => {
     const { key, courseId } = envelope.resource;
@@ -145,7 +177,7 @@ export function createOfflineSyncController(options: {
       if (outline.id !== courseId) return false;
       const chapterIds = grant?.access.chapterIds ?? value!.courses.find(course => course.id === outline.id)?.chapterIds;
       const materials = outline.materials.filter(item => item.courseId === courseId && (!grant || offlineAccessAllowsRecord(grant.access, item)));
-      value!.courses = [...value!.courses.filter(course => course.id !== outline.id), { id: outline.id, title: outline.title, accessValidUntil: prepared.leaseExpiresAt, chapterIds }];
+      value!.courses = [...value!.courses.filter(course => course.id !== outline.id), { id: outline.id, title: outline.title, accessValidUntil: prepared.leaseExpiresAt, chapterIds, fullContent: grant?.access.fullContent }];
       value!.materials = [...value!.materials.filter(item => item.courseId !== outline.id || item.kind === "video"), ...materials.map(item => ({ id: item.id, courseId: outline.id, accessValidUntil: prepared.leaseExpiresAt, title: item.title, kind: item.kind, contentVersion: item.revision }))];
     }
     if (prepared.resource.kind === "video_catalog" && prepared.resource.courseId) {
@@ -155,6 +187,7 @@ export function createOfflineSyncController(options: {
     if (prepared.resource.kind === "achievement_catalog") value!.achievements = (prepared.data as OfflineAchievementCatalog).achievements;
     value!.resources[key] = prepared;
     await persist();
+    if (prepared.resource.kind === "course_outline" && courseId) await publishCourseQuery(courseId, value!.courses.find(course => course.id === courseId), prepared.validatedAt);
     return true;
   };
   const doRefreshResource = async (resource: OfflineResourceRequest, refreshOptions: OfflineRefreshOptions = {}): Promise<boolean> => {
@@ -169,9 +202,10 @@ export function createOfflineSyncController(options: {
     let authorized: OfflineResourceEnvelope | undefined;
     const canWrite = () => {
       if (!current() || offlineReadingGeneration(readingKey) !== readingGeneration) return false;
+      const grant = resource.courseId ? courseGrants.get(resource.courseId) : undefined;
+      if (grant && (!grant.access.allowed || (authorized && (compareOfflineCursors(authorized.cursor, grant.cursor) < 0 || !offlineAccessAllowsRecord(grant.access, authorized.resource))))) return false;
       if (!automatic) return true;
       if (value!.policy.revision !== policy.revision || !value!.policy.autoCache || (typeof navigator !== "undefined" && navigator.onLine === false)) return false;
-      const grant = resource.courseId ? courseGrants.get(resource.courseId) : undefined;
       return Boolean(grant?.access.allowed && grant.access.leaseExpiresAt > now()
         && (!authorized || (compareOfflineCursors(authorized.cursor, grant.cursor) >= 0
           && offlineAccessAllowsRecord(grant.access, authorized.resource))));
@@ -237,17 +271,33 @@ export function createOfflineSyncController(options: {
     return promise;
   };
   const revoke = async () => {
+    if (value!.syncError !== "access") publishChange({ kind: "access", courseId: null, resourceId: null, action: "delete", cursor: "0", revision: null });
+    options.queryClient?.removeQueries({ queryKey: queryKeys.account(options.scope.userId) });
     const records = await repository.listReadings();
     for (const record of records) await repository.removeReading(record.key);
+    verifiedSession = undefined;
     value = emptyOfflineSnapshot(options.scope);
     value.syncState = "error"; value.syncError = "access";
     await repository.writeSnapshot(value, token!);
-    options.queryClient?.removeQueries({ queryKey: queryKeys.account(options.scope.userId) });
-    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(OFFLINE_RESOURCE_CHANGED_EVENT, { detail: { scopeKey: options.scope.scopeKey, change: { kind: "access", courseId: null, resourceId: null, action: "delete", cursor: value.syncCursor, revision: null } } }));
+    requiresReset = true;
   };
   const applyAccess = async (response: OfflineSyncResponse) => {
     const grants = new Map(response.access.map(grant => [grant.courseId, grant]));
+    const narrowed = new Set<string>();
     for (const grant of response.access) {
+      const savedCourse = value!.courses.find(course => course.id === grant.courseId);
+      const oldGrant = courseGrants.get(grant.courseId)?.access;
+      if (!grant.allowed || ((oldGrant?.fullContent ?? savedCourse?.fullContent) && !grant.fullContent) || savedCourse?.chapterIds?.some(id => !grant.chapterIds.includes(id))) narrowed.add(grant.courseId);
+      const watched = [...watchedResources.values()].filter(item => item.scopeKey === options.scope.scopeKey && item.resource.courseId === grant.courseId);
+      if (narrowed.has(grant.courseId) && (savedCourse || oldGrant?.allowed || (!oldGrant && watched.length))) {
+        emitChange({ cursor: response.cursor, kind: "access", action: grant.allowed ? "invalidate" : "delete", courseId: grant.courseId, resourceId: null, revision: null });
+        if (grant.allowed) for (const item of watched) {
+          const resource = value!.manifests[grant.courseId]?.resources.find(resource => resource.kind === item.resource.kind && resource.id === item.resource.id);
+          if (resource && !offlineAccessAllowsRecord(grant, resource)) {
+            emitChange({ cursor: response.cursor, kind: resource.kind, courseId: grant.courseId, resourceId: resource.id, action: "delete", revision: null });
+          }
+        }
+      }
       const previous = courseGrants.get(grant.courseId);
       const cursor = previous && compareOfflineCursors(previous.cursor, response.cursor) > 0 ? previous.cursor : response.cursor;
       courseGrants.set(grant.courseId, { access: grant, cursor });
@@ -255,46 +305,67 @@ export function createOfflineSyncController(options: {
     const records = await repository.listReadings();
     for (const record of records) if ((!record.pinned && now() - record.lastAccessedAt > response.policy.retentionMs) || (grants.has(record.courseId) && !offlineAccessAllowsRecord(grants.get(record.courseId), record))) await repository.removeReading(record.key);
     const revoked = new Set(response.access.filter(grant => !grant.allowed).map(grant => grant.courseId));
-    for (const [key, envelope] of Object.entries(value!.resources)) if (envelope?.resource.courseId && revoked.has(envelope.resource.courseId)) delete value!.resources[key];
+    for (const [key, envelope] of Object.entries(value!.resources)) if (envelope?.resource.courseId && narrowed.has(envelope.resource.courseId)) delete value!.resources[key];
     for (const courseId of Object.keys(value!.manifests)) if (revoked.has(courseId)) delete value!.manifests[courseId];
-    value!.materials = value!.materials.filter(item => !revoked.has(item.courseId));
+    value!.materials = value!.materials.filter(item => !narrowed.has(item.courseId));
     value!.enrollmentIds = response.enrollments.map(course => course.id);
-    value!.courses = [...response.enrollments.map(({ id, title }) => ({ id, title, accessValidUntil: grants.get(id)?.leaseExpiresAt ?? response.leaseExpiresAt, chapterIds: grants.get(id)?.chapterIds })), ...value!.courses.filter(course => !value!.enrollmentIds!.includes(course.id) && !revoked.has(course.id)).map(course => ({ ...course, accessValidUntil: grants.get(course.id)?.leaseExpiresAt ?? course.accessValidUntil, chapterIds: grants.get(course.id)?.chapterIds ?? course.chapterIds }))];
+    value!.courses = [...response.enrollments.map(({ id, title }) => ({ id, title, accessValidUntil: grants.get(id)?.leaseExpiresAt ?? response.leaseExpiresAt, chapterIds: grants.get(id)?.chapterIds, fullContent: grants.get(id)?.fullContent })), ...value!.courses.filter(course => !value!.enrollmentIds!.includes(course.id) && !revoked.has(course.id)).map(course => ({ ...course, accessValidUntil: grants.get(course.id)?.leaseExpiresAt ?? course.accessValidUntil, chapterIds: grants.get(course.id)?.chapterIds ?? course.chapterIds, fullContent: grants.get(course.id)?.fullContent ?? course.fullContent }))];
     value!.policy = response.policy;
     value!.sessionId = response.sessionId;
     value!.lastVerifiedAt = response.serverTime;
     // The server bounds each course lease by both session and enrollment expiry.
     value!.accessValidUntil = response.leaseExpiresAt;
-    options.queryClient?.setQueryData(queryKeys.student.enrollments(options.scope.userId), response.enrollments.map(({ id, title }) => ({ id, title })), { updatedAt: response.serverTime });
-    for (const grant of response.access) {
-      const item = value!.courses.find(course => course.id === grant.courseId);
-      options.queryClient?.setQueryData(queryKeys.student.course(options.scope.userId, grant.courseId), grant.allowed && item ? item : null, { updatedAt: response.serverTime });
+    if (options.queryClient) {
+      const key = queryKeys.student.enrollments(options.scope.userId);
+      const data = response.enrollments.map(({ id, title }) => ({ id, title }));
+      const previous = options.queryClient.getQueryData<typeof data>(key);
+      if (previous?.length !== data.length || previous.some((item, index) => item.id !== data[index]?.id || item.title !== data[index]?.title)) {
+        await options.queryClient.cancelQueries({ queryKey: key, exact: true });
+        assertCurrent();
+        options.queryClient.setQueryData(key, data, { updatedAt: response.serverTime });
+      }
+      for (const grant of response.access) {
+        const course = value!.courses.find(course => course.id === grant.courseId);
+        if (!grant.allowed || course) await publishCourseQuery(grant.courseId, grant.allowed ? course : undefined, response.serverTime);
+      }
     }
   };
   const needsReadingValidation = (record: OfflineReadingRecord) => !record.assetsComplete || record.invalidated
     || (record.accessValidUntil ?? 0) <= now() || now() - (record.lastVerifiedAt ?? 0) >= value!.policy.contentMaxAgeMs;
-  const reconcileCourse = async (courseId: string, reset: boolean) => {
+  const reconcileCourse = async (courseId: string, reset: boolean, changedReadings: Set<string>) => {
     const params = new URLSearchParams({ courseId, locale: options.scope.locale });
     const response = await request(`/api/offline/manifest?${params}`);
     const manifest: OfflineManifestResponse = offlineManifestResponseSchema.parse(await response.json());
     validateIdentity(manifest);
     if (manifest.resource.courseId !== courseId) throw new ApiResponseError("Offline course mismatch");
+    const grantCursor = courseGrants.get(courseId)?.cursor;
+    if (grantCursor && compareOfflineCursors(manifest.cursor, grantCursor) < 0) throw new ApiResponseError("Outdated offline manifest");
     courseGrants.set(courseId, { access: { ...manifest.resource, leaseExpiresAt: Math.min(manifest.resource.leaseExpiresAt, manifest.leaseExpiresAt) }, cursor: manifest.cursor });
     const priorManifest = value!.manifests[courseId];
-    if (priorManifest) for (const watched of watchedResources.values()) {
+    for (const watched of watchedResources.values()) {
       if (watched.scopeKey !== options.scope.scopeKey || watched.resource.courseId !== courseId) continue;
-      const previous = priorManifest.resources.find(resource => resource.id === watched.resource.id && resource.kind === watched.resource.kind);
+      const previous = priorManifest?.resources.find(resource => resource.id === watched.resource.id && resource.kind === watched.resource.kind);
       const latest = manifest.resources.find(resource => resource.id === watched.resource.id && resource.kind === watched.resource.kind);
-      if (previous && (!latest || latest.revision !== previous.revision)) emitChange({ cursor: manifest.cursor, kind: watched.resource.kind, resourceId: watched.resource.id, courseId, action: latest ? "upsert" : "delete", revision: latest?.revision ?? null });
+      const changed = changedReadings.has(offlineResourceKey(watched.resource.kind, watched.resource.id, courseId));
+      if ((!latest && (previous || changed)) || (latest && previous && latest.revision !== previous.revision)) emitChange({ cursor: manifest.cursor, kind: watched.resource.kind, resourceId: watched.resource.id, courseId, action: latest ? "upsert" : "delete", revision: latest?.revision ?? null });
     }
-    // Publish the authenticated course grant before native reading writes.
-    for (const kind of ["course_outline", "video_catalog"] as const) if (!await refreshResource({ kind, id: courseId, courseId }, { force: true })) throw new Error("offline_metadata_incomplete");
     const saved = (await repository.listReadings()).filter(record => record.courseId === courseId);
     const byIdentity = new Map(manifest.resources.map(resource => [`${resource.kind}:${resource.id}`, resource]));
+    const currentReadings = [];
     for (const record of saved) {
       const kind = record.kind === "structured_article" ? "article" : "diktat";
       const descriptor = byIdentity.get(`${kind}:${record.materialId}`);
-      if (!descriptor || !offlineAccessAllowsRecord(manifest.resource, record)) { emitChange({ cursor: manifest.cursor, kind, resourceId: record.materialId, courseId, action: "delete", revision: null }); await repository.removeReading(record.key); continue; }
+      // Use the current descriptor's chapters so a move outside a grant takes
+      // effect even when the saved package's old chapter is still accessible.
+      if (!descriptor || !offlineAccessAllowsRecord(manifest.resource, descriptor)) {
+        emitChange({ cursor: manifest.cursor, kind, resourceId: record.materialId, courseId, action: "delete", revision: null });
+        await repository.removeReading(record.key);
+      } else currentReadings.push({ record, descriptor });
+    }
+    value!.materials = value!.materials.filter(item => item.courseId !== courseId || item.kind === "video" || byIdentity.has(`${item.kind}:${item.id}`));
+    // Publish revoked readings and the authorized outline before fetching replacements.
+    for (const kind of ["course_outline", "video_catalog"] as const) if (!await refreshResource({ kind, id: courseId, courseId }, { force: true })) throw new Error("offline_metadata_incomplete");
+    for (const { record, descriptor } of currentReadings) {
       if (descriptor.revision !== record.contentVersion || reset || needsReadingValidation(record)) {
         await repository.patchReading(record.key, { invalidated: true, requiredCursor: manifest.cursor });
         if (!await refreshResource(descriptor, { pinned: record.pinned, force: true })) throw new Error("offline_package_incomplete");
@@ -303,6 +374,13 @@ export function createOfflineSyncController(options: {
       }
     }
     value!.manifests[courseId] = { cursor: manifest.cursor, checkedAt: manifest.serverTime, resources: manifest.resources };
+  };
+  const courseIds = async (records?: OfflineReadingRecord[]) => {
+    await getSnapshot();
+    const watched = [...watchedResources.values()].flatMap(item => item.scopeKey === options.scope.scopeKey && item.resource.courseId ? [item.resource.courseId] : []);
+    const persisted = options.queryClient?.getQueriesData({ queryKey: [...queryKeys.student.all(options.scope.userId), "course"] })
+      .flatMap(([key, data]) => data && typeof key[5] === "string" ? [key[5]] : []) ?? [];
+    return [...new Set([...watched, ...(records ?? await repository.listReadings()).map(record => record.courseId), ...requestedCourses, ...Object.keys(value!.manifests), ...persisted, ...value!.courses.map(course => course.id)])].slice(0, OFFLINE_SYNC_COURSE_LIMIT);
   };
   const runSync = async () => {
     await getSnapshot(); assertCurrent();
@@ -313,28 +391,41 @@ export function createOfflineSyncController(options: {
       let hasMore = true;
       while (hasMore && pages++ < 20) {
         const records = await repository.listReadings();
-        const courseIds = [...new Set([...value!.courses.map(course => course.id), ...Object.keys(value!.manifests), ...records.map(record => record.courseId), ...requestedCourses, ...[...watchedResources.values()].filter(item => item.scopeKey === options.scope.scopeKey).flatMap(item => item.resource.courseId ? [item.resource.courseId] : [])])].slice(0, 100);
-        const response = await request("/api/offline/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cursor: value!.lastVerifiedAt ? value!.syncCursor : null, courseIds, locale: options.scope.locale }) });
+        const response = await request("/api/offline/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cursor: requiresReset ? null : value!.syncCursor, courseIds: await courseIds(records), locale: options.scope.locale }) }).catch(async error => {
+          if (error instanceof ApiError && error.status === 403) await revoke();
+          throw error;
+        });
         const result = offlineSyncResponseSchema.parse(await response.json());
         validateIdentity(result);
         const previousVerifiedAt = value!.lastVerifiedAt;
+        if (result.reset) { requiresReset = true; courseGrants.clear(); }
         await applyAccess(result);
-        // Native stores require the freshly verified scope before accepting packages.
-        await persist();
         const allowed = result.access.filter(grant => grant.allowed);
         const changedCourses = new Set<string>();
+        const changedReadings = new Set<string>();
         let globalChanged = result.reset;
-        if (result.reset && previousVerifiedAt > 0) emitChange({ cursor: result.cursor, kind: "course", resourceId: null, courseId: null, action: "invalidate", revision: null });
+        let achievementsChanged = result.reset;
         for (const change of result.changes) {
           emitChange(change);
+          if (change.kind === "achievement_catalog" || (change.kind === "course" && !change.courseId)) achievementsChanged = true;
           if (change.courseId) changedCourses.add(change.courseId);
-          else globalChanged = true;
+          else if (change.kind === "course" || change.kind === "policy" || change.kind === "access") globalChanged = true;
+          if (change.kind === "video_catalog" && change.action === "delete" && change.courseId) {
+            delete value!.resources[offlineResourceKey("video_catalog", change.courseId, change.courseId)];
+            value!.materials = value!.materials.filter(item => item.courseId !== change.courseId || item.kind !== "video");
+          }
+          if (change.kind !== "article" && change.kind !== "diktat") continue;
+          if (change.resourceId) changedReadings.add(offlineResourceKey(change.kind, change.resourceId, change.courseId));
+          if (change.action === "delete") value!.materials = value!.materials.filter(item => item.courseId !== change.courseId || item.id !== change.resourceId || item.kind !== change.kind);
           for (const record of records) {
-            if ((change.courseId && change.courseId !== record.courseId) || (change.resourceId && change.resourceId !== record.materialId && change.kind !== "course" && change.kind !== "access")) continue;
-            if (change.action === "delete" && change.resourceId === record.materialId) await repository.removeReading(record.key);
+            if (change.courseId !== record.courseId || change.resourceId !== record.materialId || change.kind !== (record.kind === "structured_article" ? "article" : "diktat")) continue;
+            if (change.action === "delete") await repository.removeReading(record.key);
             else await repository.patchReading(record.key, { invalidated: true, requiredCursor: change.cursor });
           }
         }
+        // Native stores require the freshly verified scope before accepting packages.
+        await persist();
+        let reconcileError: unknown;
         const scheduled = isOfflineScheduledCheckDue(previousVerifiedAt, now(), result.policy.schedule);
         for (const grant of allowed) {
           const previous = value!.manifests[grant.courseId];
@@ -342,31 +433,42 @@ export function createOfflineSyncController(options: {
             (value!.resources[offlineResourceKey(kind, grant.courseId, grant.courseId)]?.leaseExpiresAt ?? 0) <= now())
             || value!.materials.some(item => item.courseId === grant.courseId && item.accessValidUntil !== undefined && item.accessValidUntil <= now());
           if (globalChanged || changedCourses.has(grant.courseId) || !previous || catalogExpired || previous.resources.some(resource => !offlineAccessAllowsRecord(grant, resource)) || scheduled || now() - previous.checkedAt >= result.policy.metadataMaxAgeMs || records.some(record => record.courseId === grant.courseId && needsReadingValidation(record))) {
-            await reconcileCourse(grant.courseId, result.reset);
+            try { await reconcileCourse(grant.courseId, result.reset, changedReadings); } catch (error) { reconcileError = error; }
           }
         }
         const achievementKey = offlineResourceKey("achievement_catalog", "catalog");
         const achievements = value!.resources[achievementKey];
-        if (globalChanged || !achievements || achievements.leaseExpiresAt <= now() || scheduled || now() - achievements.validatedAt >= result.policy.metadataMaxAgeMs) {
+        if (achievementsChanged || !achievements || achievements.leaseExpiresAt <= now() || scheduled || now() - achievements.validatedAt >= result.policy.metadataMaxAgeMs) {
           if (!await refreshResource({ kind: "achievement_catalog", id: "catalog", courseId: null }, { force: true })) throw new Error("offline_metadata_incomplete");
         }
         // Cursor advances only after invalidations and access revocations are durable.
+        if (reconcileError) throw reconcileError;
+        const previousCursor = value!.syncCursor;
         value!.syncCursor = result.cursor;
         value!.syncState = "ready"; delete value!.syncError;
-        await persist();
+        try { await persist(); } catch (error) { value!.syncCursor = previousCursor; throw error; }
+        requiresReset = false;
         hasMore = result.hasMore;
       }
     } catch (error) {
       if (!current()) return;
-      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) { await revoke(); return; }
+      if (error instanceof ApiError && error.status === 401) { await revoke(); return; }
+      if (value!.syncError === "access") return;
       value!.syncState = "error"; value!.syncError = error instanceof Error && error.message === "offline_storage_unavailable" ? "storage" : "network";
       await persist().catch(() => {});
     }
   };
   return {
-    sync() { if (syncFlight) return syncFlight; const promise = runSync().finally(() => { syncFlight = undefined; }); syncFlight = promise; return promise; },
-    refreshResource,
+    sync() {
+      if (syncFlight) { syncAgain = true; return syncFlight; }
+      syncFlight = withStoreLock(async () => {
+        do { syncAgain = false; await runSync(); } while (syncAgain && current());
+      }).finally(() => { syncFlight = undefined; });
+      return syncFlight;
+    },
+    refreshResource: (resource, refreshOptions) => withStoreLock(() => refreshResource(resource, refreshOptions)),
     snapshot: getSnapshot,
+    courseIds,
     dispose() { disposed = true; abort.abort(); unsubscribe(); },
   };
 }

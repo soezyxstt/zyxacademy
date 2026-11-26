@@ -305,18 +305,20 @@ export async function setDemoCourse(courseId: string, enabled: boolean) {
   try {
     const now = new Date();
     await db.transaction(async (tx) => {
-      if (enabled) {
-        await tx
-          .update(mataKuliah)
+      const previous = enabled
+        ? await tx.update(mataKuliah)
           .set({ isDemo: false, updatedAt: now })
-          .where(eq(mataKuliah.isDemo, true));
-      }
+          .where(eq(mataKuliah.isDemo, true))
+          .returning({ id: mataKuliah.id })
+        : [];
 
       await tx
         .update(mataKuliah)
         .set({ isDemo: enabled, updatedAt: now })
         .where(eq(mataKuliah.id, canonicalCourse.id));
-      await recordOfflineChange(tx, { kind: "access", action: "invalidate" });
+      for (const courseId of new Set([canonicalCourse.id, ...previous.map(course => course.id)])) {
+        await recordOfflineChange(tx, { kind: "access", courseId, action: "invalidate" });
+      }
     });
 
     revalidatePath("/demo");

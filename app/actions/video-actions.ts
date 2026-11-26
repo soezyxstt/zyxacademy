@@ -115,10 +115,10 @@ async function assertVideoManagerPermission(courseId: string): Promise<{
   }
 }
 
-async function mutateVideoCatalog<T>(courseId: string, write: (tx: OfflineTransaction) => Promise<T>): Promise<T> {
+async function mutateVideoCatalog<T>(courseId: string, write: (tx: OfflineTransaction) => Promise<T>, action: "invalidate" | "delete" = "invalidate"): Promise<T> {
   return db.transaction(async tx => {
     const result = await write(tx);
-    await recordOfflineChange(tx, { kind: "video_catalog", courseId, action: "invalidate" });
+    await recordOfflineChange(tx, { kind: "video_catalog", courseId, action });
     return result;
   });
 }
@@ -335,7 +335,7 @@ export async function updateVideoPlaylistAction(
       return { success: false, error: "Judul playlist wajib diisi" };
     }
 
-    await mutateVideoCatalog(authInfo.courseId, async tx => tx
+    await mutateVideoCatalog(playlist.courseId, async tx => tx
       .update(courseVideoPlaylists)
       .set({
         title: cleanTitle,
@@ -387,10 +387,10 @@ export async function deleteVideoPlaylistAction(playlistId: string) {
       if (v.thumbnailUrl && !isExtThumb) await storage.delete(v.thumbnailUrl).catch(() => {});
     }
 
-    await mutateVideoCatalog(authInfo.courseId, async tx => {
+    await mutateVideoCatalog(playlist.courseId, async tx => {
       await tx.delete(courseVideos).where(and(eq(courseVideos.playlistId, playlistId), inArray(courseVideos.courseId, authInfo.validCourseIds)));
       await tx.delete(courseVideoPlaylists).where(eq(courseVideoPlaylists.id, playlistId));
-    });
+    }, "delete");
 
     revalidateVideoPaths(authInfo.courseId, authInfo.courseSlug);
     return { success: true };
@@ -484,7 +484,8 @@ export async function saveCourseVideoAction(input: {
         return { success: false, error: "Video bukan bagian dari mata kuliah ini" };
       }
 
-      await mutateVideoCatalog(authInfo.courseId, async tx => tx
+      const accessChanged = existing[0].chapterId !== (input.chapterId || null) || existing[0].videoUrl !== finalVideoUrl;
+      await mutateVideoCatalog(existing[0].courseId, async tx => tx
         .update(courseVideos)
         .set({
           playlistId: input.playlistId,
@@ -497,7 +498,7 @@ export async function saveCourseVideoAction(input: {
           fileSize: input.fileSize || null,
           updatedAt: new Date(),
         })
-        .where(eq(courseVideos.id, input.id!)));
+        .where(eq(courseVideos.id, input.id!)), accessChanged ? "delete" : "invalidate");
     } else {
       // Insert new
       const id = randomUUID();
@@ -557,7 +558,7 @@ export async function deleteCourseVideoAction(videoId: string) {
     if (video.videoUrl && !isExtVid) await storage.delete(video.videoUrl).catch(() => {});
     if (video.thumbnailUrl && !isExtThumb) await storage.delete(video.thumbnailUrl).catch(() => {});
 
-    await mutateVideoCatalog(authInfo.courseId, async tx => tx.delete(courseVideos).where(eq(courseVideos.id, videoId)));
+    await mutateVideoCatalog(video.courseId, async tx => tx.delete(courseVideos).where(eq(courseVideos.id, videoId)), "delete");
 
     revalidateVideoPaths(authInfo.courseId, authInfo.courseSlug);
     return { success: true };

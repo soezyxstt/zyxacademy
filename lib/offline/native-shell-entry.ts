@@ -2,7 +2,7 @@ import { getCapacitor, getTauri } from "@/lib/native/runtime";
 import { createOfflineScope, setOfflineScope, type OfflineCacheScope } from "./cache-scope";
 import { createOfflineSyncController } from "./sync-client";
 import { clearAllOfflineReadings, hydrateNativeOfflineReadings, setOfflineReadingPinned, removeOfflineReadingByKey } from "./reading-cache";
-import { OFFLINE_CACHE_CHANGED_EVENT, type NativeOfflineLibrarySnapshot } from "./library-contract";
+import { OFFLINE_CACHE_CHANGED_EVENT, OFFLINE_RESOURCE_CHANGED_EVENT, type NativeOfflineLibrarySnapshot } from "./library-contract";
 import { OFFLINE_LIBRARY_COPY } from "./library-copy";
 import { mountNativeStudentNavigation } from "./native-student-navigation";
 import { visibleOfflineLibrary } from "./library-access";
@@ -93,8 +93,10 @@ function openReading(item: Summary): void {
   activeKey = item.key; activeVersion = item.contentVersion ?? null;
   window.dispatchEvent(new CustomEvent("zyx:offline-open-reading", { detail: { key: item.key } }));
 }
+let refreshQueued = false;
 async function refreshNative(): Promise<void> {
-  if (!bridge || isRendering) return;
+  if (!bridge) return;
+  if (isRendering) { refreshQueued = true; return; }
   isRendering = true;
   try {
     const [library, readings] = await Promise.all([bridge.getLibrary(), bridge.listReadings()]);
@@ -114,7 +116,10 @@ async function refreshNative(): Promise<void> {
       else if (updated.contentVersion !== activeVersion) showReaderUpdate(updated);
     }
     render();
-  } finally { isRendering = false; }
+  } finally {
+    isRendering = false;
+    if (refreshQueued) { refreshQueued = false; void refreshNative(); }
+  }
 }
 function showReaderUpdate(item: Summary): void {
   let bar = document.getElementById("offline-reader-update");
@@ -318,6 +323,17 @@ window.addEventListener("zyx:offline-reader-opened", event => {
   activeVersion = version ?? null;
 });
 window.addEventListener("zyx:offline-reader-closed", () => { activeKey = null; activeVersion = null; document.getElementById("offline-reader-update")?.setAttribute("hidden", ""); });
+window.addEventListener(OFFLINE_RESOURCE_CHANGED_EVENT, event => {
+  const { scopeKey, change } = (event as CustomEvent<{ scopeKey: string; change: import("./sync-contract").OfflineChange }>).detail;
+  if (scopeKey !== currentScope?.scopeKey || change.action !== "delete" || !activeKey) return;
+  const active = items.find(item => item.key === activeKey);
+  if (!active || (change.courseId && active.courseId !== change.courseId)) return;
+  if (change.kind === "access" || ((change.kind === "article" || change.kind === "diktat") && active.materialId === change.resourceId)) {
+    window.dispatchEvent(new Event("zyx:offline-lock-reader"));
+    activeKey = null;
+    activeVersion = null;
+  }
+});
 window.addEventListener("online", () => { void sync(); });
 window.addEventListener("offline", render);
 desktopNavigation.addEventListener("change", render);

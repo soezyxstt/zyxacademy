@@ -117,6 +117,30 @@ describe("offline committed change log", () => {
     expect((await events.readOfflineChanges("offline-user", [], "999")).reset).toBe(true);
   });
 
+  it("syncs real course creation and edits, and delivers archive on both old aliases", async () => {
+    const { saveCourseWithCanonicalProjection, archiveCourseWithLegacyDeletion } = await import("@/lib/academic/course-canonical-sync");
+    const id = "offline-test-mutation";
+    const created = await saveCourseWithCanonicalProjection({ id, title: "Before", category: "Matematika", isNew: true });
+    const initial = await synchronizeOffline(await actor(), { courseIds: [id], locale: "id", cursor: "0" });
+    expect(initial.changes.map(change => change.courseId)).toEqual([id]);
+    const canonicalId = "offline-test-mutation-canonical";
+    // Older catalog rows can have independent canonical and legacy IDs.
+    await db.update(schema.mataKuliah).set({ id: canonicalId }).where(eq(schema.mataKuliah.id, created.canonicalCourseId));
+    const requested = { courseIds: [id, canonicalId], locale: "id" as const };
+    await saveCourseWithCanonicalProjection({ id, title: "After", category: "Matematika", isNew: false });
+    const updated = await synchronizeOffline(await actor(), { ...requested, cursor: initial.cursor });
+    expect(updated.changes.filter(change => change.action === "invalidate").map(change => change.courseId).sort()).toEqual([...requested.courseIds].sort());
+    const outline = await buildOfflineResource(await actor(), "course_outline", id, id);
+    expect(outline.data).toMatchObject({ title: "After" });
+    await archiveCourseWithLegacyDeletion(canonicalId, "offline-admin");
+    expect(await db.select().from(schema.courses).where(eq(schema.courses.id, id))).toEqual([]);
+    const revoked = await synchronizeOffline(await actor(), { ...requested, cursor: updated.cursor });
+    expect(revoked.changes.filter(change => change.kind === "access" && change.action === "delete").map(change => change.courseId).sort()).toEqual([...new Set(requested.courseIds)].sort());
+    expect(revoked.access.filter(grant => requested.courseIds.includes(grant.courseId)).every(grant => !grant.allowed)).toBe(true);
+    const unrelated = await synchronizeOffline(await actor(), { courseIds: [], locale: "id", cursor: updated.cursor });
+    expect(unrelated.changes).toEqual([]);
+  });
+
   it("prunes a bounded cursor prefix and makes old clients reconcile a full manifest", async () => {
     for (let i = 0; i < 5; i++) await db.transaction(tx => events.recordOfflineChange(asEventTx(tx), { kind: "course", action: "invalidate" }));
     await db.update(schema.offlineContentChanges).set({ createdAt: new Date(Date.now() - 100 * 86_400_000) }).where(sql`${schema.offlineContentChanges.cursor} < 5`);

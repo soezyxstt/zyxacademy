@@ -77,7 +77,7 @@ import type { StudentCourseAccessTier } from "@/lib/course-utils";
 import { ChapterSummarySheet } from "@/components/course/chapter-summary-sheet";
 import { useMaterialReadingProgress } from "@/hooks/use-material-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
-import { OfflineReadingActions } from "@/components/offline/offline-reading-actions";
+import { OfflineReadingActions, useOfflineReadingActions } from "@/components/offline/offline-reading-actions";
 import { useOfflineReadingVisit } from "@/components/offline/use-offline-reading-visit";
 import { ShareLinkButton } from "@/components/share-link-button";
 import { hapticSelection } from "@/lib/native/haptics";
@@ -527,7 +527,10 @@ function MaterialViewerContent({
 
   const textReading = material.kind === "article" && Boolean(material.body?.trim());
   const offlineUserId = !demo && learnerMode && textReading ? studentId : undefined;
+  const [revokedReading, setRevokedReading] = useState<typeof material>();
+  const revokeReading = useCallback(() => setRevokedReading(material), [material]);
   const readingKind = material.docCategory === "diktat" ? "diktat" : "article";
+  const offlineReadingActions = useOfflineReadingActions({ userId: learnerMode && !demo && textReading ? studentId : undefined, courseId: material.courseId, materialId: material.id, kind: readingKind, onRevoked: revokeReading });
   useOfflineReadingVisit(offlineUserId, material.courseId, material.id, readingKind);
 
   useEffect(() => {
@@ -1266,6 +1269,8 @@ function MaterialViewerContent({
     </div>
   ) : null;
 
+  if (revokedReading === material) return null;
+
   if (material.kind === "article" && material.body) {
     const summaryChapterId = !hideHeader && learnerMode && accessTier !== "free" && ragEnabled ? chapterId : undefined;
     const articleDisplayTitle = chapterTitle || material.title;
@@ -1448,7 +1453,7 @@ function MaterialViewerContent({
                           <TooltipContent side="bottom">{t("reader.downloadPdf")}</TooltipContent>
                         </Tooltip>
                       )}
-                      {learnerMode && !demo && <OfflineReadingActions userId={studentId} courseId={material.courseId} materialId={material.id} kind={readingKind} />}
+                      {learnerMode && !demo && <OfflineReadingActions {...offlineReadingActions} />}
                       <ShareLinkButton
                         title={articleDisplayTitle}
                         variant="ghost"

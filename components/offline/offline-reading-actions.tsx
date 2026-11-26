@@ -16,9 +16,8 @@ const copy = {
   en: { update: "Material updated. Load the latest version", newVersion: "New version" },
 };
 /** A content update never replaces the document while someone is reading it. */
-export function OfflineReadingActions({ userId, courseId, materialId, kind }: { userId?: string; courseId: string; materialId: string; kind: "article" | "diktat" }) {
+export function useOfflineReadingActions({ userId, courseId, materialId, kind, onRevoked }: { userId?: string; courseId: string; materialId: string; kind: "article" | "diktat"; onRevoked: () => void }) {
   const { locale } = useAppLocale();
-  const t = copy[locale];
   const router = useRouter();
   const [updated, setUpdated] = useState(false);
   const [refreshing, startRefresh] = useTransition();
@@ -31,27 +30,43 @@ export function OfflineReadingActions({ userId, courseId, materialId, kind }: { 
     };
     const unsubscribe = subscribeOfflineScope(watch);
     watch();
+    let refreshQueued = false;
+    let watching = true;
+    const refresh = () => {
+      if (refreshQueued) return;
+      refreshQueued = true;
+      queueMicrotask(() => {
+        refreshQueued = false;
+        if (watching) startRefresh(() => router.refresh());
+      });
+    };
     const changed = (event: Event) => {
       const detail = (event as CustomEvent<{ scopeKey: string; change: OfflineChange }>).detail;
       const scope = getOfflineScope(userId);
       if (!detail || scope?.locale !== locale || detail.scopeKey !== scope.scopeKey) return;
       const change = detail.change;
+      if (change.courseId && change.courseId !== courseId) return;
       const matchingMaterial = change.kind === kind && change.resourceId === materialId;
-      const matchingCourse = change.kind === "course" && (!change.courseId || change.courseId === courseId);
-      if ((matchingMaterial || matchingCourse) && change.action === "delete") { setUpdated(false); startRefresh(() => router.refresh()); }
-      else if (matchingMaterial || matchingCourse) setUpdated(true);
-      if ((change.kind === "access" || change.kind === "enrollments") && (!change.courseId || change.courseId === courseId)) {
-        // An access change uses the authoritative route immediately; its role
-        // and course gates must not wait for someone to accept a content update.
+      const matchingCourse = change.kind === "course";
+      const accessChanged = change.kind === "access" || change.kind === "enrollments";
+      if ((matchingMaterial || matchingCourse || accessChanged) && change.action === "delete") {
+        setUpdated(false);
         startRefresh(() => router.refresh());
-      }
+        onRevoked();
+      } else if (accessChanged) refresh();
+      else if (matchingMaterial || matchingCourse) setUpdated(true);
     };
     window.addEventListener(OFFLINE_RESOURCE_CHANGED_EVENT, changed);
-    return () => { unsubscribe(); unwatch?.(); window.removeEventListener(OFFLINE_RESOURCE_CHANGED_EVENT, changed); };
-  }, [userId, courseId, materialId, kind, locale, router]);
-  if (!userId) return null;
+    return () => { watching = false; unsubscribe(); unwatch?.(); window.removeEventListener(OFFLINE_RESOURCE_CHANGED_EVENT, changed); };
+  }, [userId, courseId, materialId, kind, locale, router, onRevoked]);
+  return { updated: Boolean(userId && updated), refreshing, refresh: () => { setUpdated(false); startRefresh(() => router.refresh()); } };
+}
+
+export function OfflineReadingActions({ updated, refreshing, refresh }: ReturnType<typeof useOfflineReadingActions>) {
+  const { locale } = useAppLocale();
+  const t = copy[locale];
   return <>
-    {updated && <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="sm" aria-label={t.update} disabled={refreshing} onClick={() => { setUpdated(false); startRefresh(() => router.refresh()); }}><RefreshCw className={refreshing ? "size-4 animate-spin motion-reduce:animate-none" : "size-4"} />{t.newVersion}</Button></TooltipTrigger><TooltipContent>{t.update}</TooltipContent></Tooltip>}
+    {updated && <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="sm" aria-label={t.update} disabled={refreshing} onClick={refresh}><RefreshCw className={refreshing ? "size-4 animate-spin motion-reduce:animate-none" : "size-4"} />{t.newVersion}</Button></TooltipTrigger><TooltipContent>{t.update}</TooltipContent></Tooltip>}
     <span role="status" className="sr-only">{updated ? t.update : ""}</span>
   </>;
 }

@@ -971,7 +971,11 @@ export async function publishProductBundle(input: { importId: string; publishedB
     const itbSources = bundle.products.flatMap((product) => product.productType === "question" ? [{ questionId: product.id, referenceId: product.itbSource.referenceId, eventName: product.itbSource.eventName }] : []);
     const itbCuration = bundle.products.flatMap((product) => product.productType === "question" ? product.itbCuration.map((curation) => ({ questionId: product.id, referenceId: curation.referenceId, dimensions: curation.dimensions })) : []);
     await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:published`), actorId: input.publishedBy, entityType: "product_bundle", entityId: input.importId, action: "published", beforeSnapshot: { status: "draft" }, afterSnapshot: { status: "published", productCount: bundle.products.length, vectorJobCount: insertedVectorJobCount, publicationHash, itbSources, itbCuration }, correlationId: input.importId });
-    await recordOfflineChange(tx, { kind: "course", courseId: course.legacyId, action: "invalidate", revision: publicationHash });
+    for (const product of products) {
+      if (product.productType === "article" || product.productType === "diktat") {
+        await recordOfflineChange(tx, { kind: product.productType, courseId: course.targetId, resourceId: targetId(product), action: "upsert" });
+      }
+    }
     return { publicationId, importId: input.importId, published: true, productCount: bundle.products.length, vectorJobCount: insertedVectorJobCount };
   });
   if (courseLegacyId && !isV5) {
@@ -1071,9 +1075,8 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
     if (withdrawnRows.length !== 1) throw new Error("PRODUCT_BUNDLE_PUBLICATION_CONFLICT");
     await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:withdrawn`), actorId: input.withdrawnBy, entityType: "product_bundle", entityId: input.importId, action: "withdrawn", beforeSnapshot: { status: "published" }, afterSnapshot: { status: "withdrawn", productCount: productIds.length, vectorJobCount: vectorJobs.length }, correlationId: input.importId });
     for (const product of retiringProducts) {
-      if (product.productType === "article" || product.productType === "diktat") await recordOfflineChange(tx, { kind: product.productType, courseId: course.legacyId, resourceId: targetId(product), action: "delete" });
+      if (product.productType === "article" || product.productType === "diktat") await recordOfflineChange(tx, { kind: product.productType, courseId: course.targetId, resourceId: targetId(product), action: "delete" });
     }
-    await recordOfflineChange(tx, { kind: "course", courseId: course.legacyId, action: "invalidate" });
     return { importId: input.importId, withdrawn: true, productCount: productIds.length, vectorJobCount: vectorJobs.length };
   });
   if (courseLegacyId && bundle.manifest.schemaVersion !== "product-bundle.v5") {

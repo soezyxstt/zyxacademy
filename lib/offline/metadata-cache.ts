@@ -9,7 +9,7 @@ import { DEFAULT_OFFLINE_POLICY, offlinePolicySchema } from "./sync-contract";
 import { notifyOfflineCacheChanged, type NativeOfflineLibrarySnapshot, type OfflineMetadataSnapshot } from "./library-contract";
 
 const course = z.object({ id: z.string().min(1), title: z.string() });
-const librarySchema = z.object({ schemaVersion: z.literal(2), scopeKey: z.string(), environment: z.string(), userId: z.string(), locale: z.enum(["id", "en"]), sessionId: z.string().optional(), accessValidUntil: z.number(), lastVerifiedAt: z.number(), syncCursor: z.string().regex(/^\d+$/), enrollmentIds: z.array(z.string()).optional(), courses: z.array(course.extend({ accessValidUntil: z.number().optional(), chapterIds: z.array(z.string()).optional() })).max(150), achievements: z.array(z.object({ id: z.string(), title: z.string(), description: z.string().optional(), icon: z.string().optional() })), materials: z.array(z.object({ id: z.string(), courseId: z.string(), title: z.string(), kind: z.string(), accessValidUntil: z.number().optional(), thumbnailUrl: z.string().optional(), videoUrl: z.string().optional(), contentVersion: z.string() })), policy: offlinePolicySchema, syncState: z.enum(["ready", "syncing", "error"]), syncError: z.enum(["network", "storage", "access"]).optional() });
+const librarySchema = z.object({ schemaVersion: z.literal(2), scopeKey: z.string(), environment: z.string(), userId: z.string(), locale: z.enum(["id", "en"]), sessionId: z.string().optional(), accessValidUntil: z.number(), lastVerifiedAt: z.number(), syncCursor: z.string().regex(/^\d+$/), enrollmentIds: z.array(z.string()).optional(), courses: z.array(course.extend({ accessValidUntil: z.number().optional(), chapterIds: z.array(z.string()).optional(), fullContent: z.boolean().optional() })).max(150), achievements: z.array(z.object({ id: z.string(), title: z.string(), description: z.string().optional(), icon: z.string().optional() })), materials: z.array(z.object({ id: z.string(), courseId: z.string(), title: z.string(), kind: z.string(), accessValidUntil: z.number().optional(), thumbnailUrl: z.string().optional(), videoUrl: z.string().optional(), contentVersion: z.string() })), policy: offlinePolicySchema, syncState: z.enum(["ready", "syncing", "error"]), syncError: z.enum(["network", "storage", "access"]).optional() });
 export function emptyOfflineSnapshot(scope: OfflineCacheScope, initial?: NativeOfflineLibrarySnapshot): OfflineMetadataSnapshot {
   return { ...scope, schemaVersion: 2, accessValidUntil: 0, lastVerifiedAt: 0, syncCursor: "0", courses: [], achievements: [], materials: [], policy: DEFAULT_OFFLINE_POLICY, syncState: "ready", ...initial, resources: {}, manifests: {} };
 }
@@ -88,14 +88,17 @@ export async function attachOfflineQueryPersistence(client: QueryClient, scope: 
   const stored = snapshot ? await readOfflineState<PersistedMetadataQuery[]>(`queries:${scope.scopeKey}`).catch(() => null) : null;
   if (!isOfflineScopeCurrent(token)) return () => {};
   for (const entry of Array.isArray(stored) ? stored : []) {
-    const data = parsePersistableQuery(entry.queryKey, entry.data, scope.userId);
-    if (data === undefined || !Number.isFinite(entry.dataUpdatedAt) || entry.dataUpdatedAt > Date.now() || Date.now() - entry.dataUpdatedAt > (snapshot?.policy.retentionMs ?? DEFAULT_OFFLINE_POLICY.retentionMs)) continue;
+    if (!snapshot || entry.queryKey?.[4] !== "course") continue;
+    const latestCourse = snapshot.courses.find(course => course.id === entry.queryKey[5]);
+    if (!latestCourse || (latestCourse.accessValidUntil ?? snapshot.accessValidUntil) <= Date.now()) continue;
+    const data = course.safeParse(parsePersistableQuery(entry.queryKey, entry.data, scope.userId));
+    if (!data.success || data.data.title !== latestCourse.title || !Number.isFinite(entry.dataUpdatedAt) || entry.dataUpdatedAt > Date.now() || Date.now() - entry.dataUpdatedAt > snapshot.policy.retentionMs) continue;
     const current = client.getQueryState(entry.queryKey);
-    if (!current?.dataUpdatedAt || current.dataUpdatedAt < entry.dataUpdatedAt) client.setQueryData(entry.queryKey, data, { updatedAt: entry.dataUpdatedAt });
+    if (!current?.dataUpdatedAt || current.dataUpdatedAt < entry.dataUpdatedAt) client.setQueryData(entry.queryKey, data.data, { updatedAt: entry.dataUpdatedAt });
   }
   // The authenticated sync snapshot also supplies a fast sidebar on a fresh
   // browser process, even before this process has persisted query state.
-  if (snapshot && !client.getQueryData(queryKeys.student.enrollments(scope.userId))) client.setQueryData(queryKeys.student.enrollments(scope.userId), snapshot.courses.filter(course => !snapshot.enrollmentIds || snapshot.enrollmentIds.includes(course.id)).map(({ id, title }) => ({ id, title })), { updatedAt: snapshot.lastVerifiedAt });
+  if (snapshot && !client.getQueryData(queryKeys.student.enrollments(scope.userId))) client.setQueryData(queryKeys.student.enrollments(scope.userId), snapshot.courses.filter(course => (course.accessValidUntil ?? snapshot.accessValidUntil) > Date.now() && (!snapshot.enrollmentIds || snapshot.enrollmentIds.includes(course.id))).map(({ id, title }) => ({ id, title })), { updatedAt: snapshot.lastVerifiedAt });
   let timer: ReturnType<typeof setTimeout> | undefined;
   let disposed = false;
   const persist = () => {
@@ -108,7 +111,9 @@ export async function attachOfflineQueryPersistence(client: QueryClient, scope: 
     void writeOfflineState(`queries:${scope.scopeKey}`, entries, () => !disposed && isOfflineScopeCurrent(token)).catch(() => {});
   };
   const unsubscribe = client.getQueryCache().subscribe(event => {
-    if (parsePersistableQuery(event.query.queryKey, event.query.state.data, scope.userId) === undefined) return;
+    const key = event.query.queryKey;
+    if (parsePersistableQuery(key, event.query.state.data, scope.userId) === undefined
+      && !(event.type === "removed" && parsePersistableQuery(key, key.length === 5 ? [] : null, scope.userId) !== undefined)) return;
     clearTimeout(timer); timer = setTimeout(persist, 250);
   });
   return () => { persist(); disposed = true; clearTimeout(timer); unsubscribe(); };

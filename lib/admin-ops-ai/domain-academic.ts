@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { recordOfflineChange } from "@/lib/offline/server-events";
 import {
   courses,
   chapters,
@@ -123,29 +124,32 @@ export async function executeCreateCourse(input: CreateCourseInput, actorId?: st
     (c) => c.toLowerCase() === cleanCategory.toLowerCase()
   ) || "Umum";
 
-  try {
+  if (matchedCategory === "Umum") {
+    await db.transaction(async tx => {
+      await tx.insert(courses).values({
+        id: cleanId,
+        title: cleanTitle,
+        category: matchedCategory as Category,
+        description: cleanDesc,
+      });
+      await tx.insert(mataKuliah).values({
+        id: cleanId,
+        code: `legacy-${cleanId}`,
+        title: cleanTitle,
+        status: "active",
+        legacyCourseId: cleanId,
+      }).onConflictDoNothing();
+      await recordOfflineChange(tx, { kind: "course", courseId: cleanId, action: "upsert" });
+    });
+  } else {
     await saveCourseWithCanonicalProjection({
       id: cleanId,
       title: cleanTitle,
-      category: matchedCategory as Category,
+      category: matchedCategory,
       description: cleanDesc,
       isNew: true,
       actorId: await resolvePenggunaActorId(actorId),
     });
-  } catch {
-    await db.insert(courses).values({
-      id: cleanId,
-      title: cleanTitle,
-      category: matchedCategory as Category,
-      description: cleanDesc,
-    });
-    await db.insert(mataKuliah).values({
-      id: cleanId,
-      code: `legacy-${cleanId}`,
-      title: cleanTitle,
-      status: "active",
-      legacyCourseId: cleanId,
-    }).onConflictDoNothing();
   }
 
   return {

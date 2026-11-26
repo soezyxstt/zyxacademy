@@ -113,10 +113,10 @@ export function registerAcademicTools(server: McpServer, principal: McpPrincipal
     const old = await video(id, tx); expectRevision(old, expectedRevision);
     const merged = { courseId: old.courseId, playlistId: old.playlistId, chapterId: old.chapterId, title: old.title, description: old.description, videoUrl: old.videoUrl, duration: old.duration, orderIndex: old.orderIndex, ...input };
     if (old.courseId !== merged.courseId) throw new AdminMcpError("COURSE_MOVE_FORBIDDEN");
-    await validateVideo(tx, merged); const [row] = await tx.update(courseVideos).set(merged).where(eq(courseVideos.id, id)).returning(); await recordOfflineChange(tx, { kind: "video_catalog", courseId: row.courseId, action: "invalidate" }); return videoView(row);
+    await validateVideo(tx, merged); const [row] = await tx.update(courseVideos).set(merged).where(eq(courseVideos.id, id)).returning(); await recordOfflineChange(tx, { kind: "video_catalog", courseId: row.courseId, action: old.chapterId !== row.chapterId || old.videoUrl !== row.videoUrl ? "delete" : "invalidate" }); return videoView(row);
   });
   write("videos.delete", "videos:write", z.object({ id: adminId, expectedRevision: adminRevision }), "Hapus entri video. Objek penyimpanan tetap tersedia.", async (tx, input) => {
-    const old = await video(input.id, tx); expectRevision(old, input.expectedRevision); await tx.delete(courseVideos).where(eq(courseVideos.id, input.id)); await recordOfflineChange(tx, { kind: "video_catalog", courseId: old.courseId, action: "invalidate" }); return { id: input.id, deleted: true };
+    const old = await video(input.id, tx); expectRevision(old, input.expectedRevision); await tx.delete(courseVideos).where(eq(courseVideos.id, input.id)); await recordOfflineChange(tx, { kind: "video_catalog", courseId: old.courseId, action: "delete" }); return { id: input.id, deleted: true };
   });
   async function material(id: string, source: Source = db) {
     const [row] = await source.select().from(courseMaterials).where(eq(courseMaterials.id, id)).limit(1); if (!row) throw new AdminMcpError("NOT_FOUND"); return row;

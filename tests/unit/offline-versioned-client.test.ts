@@ -223,7 +223,7 @@ describe("durable sync recovery", () => {
       expect(conditionalRequests).toBe(1);
       expect(f.stored.syncState).toBe("ready");
       expect(f.stored.resources[catalogKey]).toMatchObject({ cursor: "2", validatedAt: now, leaseExpiresAt: grant.leaseExpiresAt });
-      expect(f.stored.courses).toEqual([{ id: "course", title: "Fisika", accessValidUntil: grant.leaseExpiresAt, chapterIds: ["chapter"] }]);
+      expect(f.stored.courses).toEqual([{ id: "course", title: "Fisika", accessValidUntil: grant.leaseExpiresAt, chapterIds: ["chapter"], fullContent: true }]);
       const materials = visibleOfflineLibrary(f.stored, now)?.materials;
       expect(materials?.find(item => item.id === material.id)).toMatchObject({ id: material.id, kind: material.kind, accessValidUntil: grant.leaseExpiresAt });
       expect(materials?.some(item => item.id === "revoked")).toBe(false);
@@ -359,6 +359,102 @@ describe("durable sync recovery", () => {
     expect(f.stored.syncCursor).toBe("2");
     expect(f.stored.syncState).toBe("ready");
     controller.dispose();
+  });
+
+  test("publication adds metadata without saving a package; reconnect removes revoked packages even when a catalog fetch fails", async () => {
+    const f = fixture();
+    f.records.clear();
+    const requests: string[] = [];
+    let rejectCatalog = false;
+    const fetcher = mockFetch(async (input, init) => {
+      requests.push(String(input));
+      if (rejectCatalog && String(input).includes("kind=video_catalog")) return new Response(null, { status: 503 });
+      if (rejectCatalog && String(input).startsWith("/api/offline/manifest")) return Response.json({ ...f.identity, cursor: "3", serverTime: now, leaseExpiresAt: f.delta.leaseExpiresAt, resource: f.delta.access[0], resources: [] });
+      if (rejectCatalog && String(input).includes("kind=course_outline")) return Response.json({ ...f.identity, resource: f.descriptor("course_outline", "course", "course"), cursor: "3", validatedAt: now, leaseExpiresAt: f.delta.leaseExpiresAt, data: { id: "course", title: "Fisika", chapters: [], materials: [] }, assets: [] });
+      return f.fetcher(input, init);
+    });
+    const controller = createOfflineSyncController({ scope, repository: f.repository, fetcher, now: () => now });
+    try {
+      await controller.sync();
+      expect(f.stored.materials.some(item => item.id === "article")).toBe(true);
+      expect(f.records.size).toBe(0);
+      expect(requests.some(path => path.includes("kind=article"))).toBe(false);
+      expect(await controller.refreshResource({ kind: "article", id: "article", courseId: "course" }, { pinned: true })).toBe(true);
+      f.delta.cursor = "3";
+      f.delta.access[0] = { ...f.delta.access[0]!, fullContent: false, chapterIds: ["free"] };
+      f.delta.changes = [{ cursor: "3", kind: "access", action: "invalidate", courseId: "course", resourceId: null, revision: null }];
+      rejectCatalog = true;
+      await controller.sync();
+      expect(f.records.size).toBe(0);
+      expect(f.stored.materials.some(item => item.id === "article")).toBe(false);
+      expect(f.stored.syncCursor).toBe("2");
+    } finally { controller.dispose(); }
+  });
+
+  test("applies a withdrawal before fetching its replacement catalog", async () => {
+    const f = fixture();
+    const controller = createOfflineSyncController({
+      scope, repository: f.repository, now: () => now,
+      fetcher: mockFetch(async (input, init) => {
+        if (String(input).startsWith("/api/offline/manifest")) return new Response(null, { status: 503 });
+        return f.fetcher(input, init);
+      }),
+    });
+    f.delta.changes[0] = { ...f.delta.changes[0]!, action: "delete" };
+    try {
+      await controller.sync();
+      expect(f.records.has(key)).toBe(false);
+      expect(f.stored.syncCursor).toBe("1");
+    } finally { controller.dispose(); }
+  });
+
+  test("does another pass when a hint arrives during synchronization", async () => {
+    const f = fixture();
+    let calls = 0;
+    let start!: () => void;
+    let release!: () => void;
+    const started = new Promise<void>(resolve => { start = resolve; });
+    const held = new Promise<void>(resolve => { release = resolve; });
+    const controller = createOfflineSyncController({
+      scope, repository: f.repository, now: () => now,
+      fetcher: mockFetch(async (input, init) => {
+        if (String(input) === "/api/offline/sync" && ++calls === 1) {
+          const current = await f.fetcher(input, init);
+          start();
+          await held;
+          return current;
+        }
+        return f.fetcher(input, init);
+      }),
+    });
+    try {
+      const first = controller.sync();
+      await started;
+      f.delta.cursor = "3";
+      f.delta.changes = [];
+      const second = controller.sync();
+      release();
+      await Promise.all([first, second]);
+      expect(calls).toBe(2);
+      expect(f.stored.syncCursor).toBe("3");
+    } finally { controller.dispose(); }
+  });
+
+  test("advances an unrelated cursor without fetching catalogs or replacing saved readings", async () => {
+    const f = fixture();
+    const requests: string[] = [];
+    const fetcher = mockFetch(async (input, init) => { requests.push(String(input)); return f.fetcher(input, init); });
+    const controller = createOfflineSyncController({ scope, repository: f.repository, fetcher, now: () => now });
+    try {
+      await controller.sync();
+      f.delta.cursor = "3";
+      f.delta.changes = [];
+      requests.length = 0;
+      await controller.sync();
+      expect(requests).toEqual(["/api/offline/sync"]);
+      expect(f.stored.syncCursor).toBe("3");
+      expect(f.records.get(key)?.contentVersion).toBe("v2");
+    } finally { controller.dispose(); }
   });
 
   test("a response that arrives after switching accounts never hydrates the next account", async () => {

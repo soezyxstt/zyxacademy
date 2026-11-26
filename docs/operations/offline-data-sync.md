@@ -28,7 +28,18 @@ Migration `0048_offline_content_sync.sql` adds `offline_sync_state`, `offline_co
 
 Content mutation and change records share a PostgreSQL transaction. Updating the cursor row holds a lock until commit. A later writer cannot allocate a higher cursor and commit before an earlier writer, avoiding the lost-change case of using a bare sequence as a commit watermark.
 
-Publication, withdrawal, direct material edits, course/chapter synchronization, enrollment writes and video edits record changes through their shared services. Admin, tutor, import and MCP callers use the same path. Draft edits do not publish a learner package until the existing release workflow approves them.
+The mutation and invalidation coverage follows the data admitted to local storage.
+
+| Persisted data | Mutation paths | Delivery and reconciliation |
+| --- | --- | --- |
+| Course and chapter outline | Admin and MCP course and chapter save, archive and reorder, Admin Ops create, chapter bundle import and compatibility projection | Course events map to canonical and legacy client IDs. Course archive records access deletion for both old aliases. Chapter changes use the owning course and reconcile current chapter grants. |
+| Article and Diktat packages and list entries | Admin document publish, unpublish and edits, canonical compatibility write, Product bundle publish and withdrawal through UI, MCP or revision release, published Diktat PDF metadata update | Events identify the canonical reading and course. A new reading appears in the outline. Saved updates replace complete packages. Unpublication, course revocation and moves outside the learner's chapter grant remove the old reading. |
+| Video and playlist catalog | Admin and tutor video and playlist actions, MCP video and playlist writes | Course events trigger a conditional catalog read. Deletion and changes to a video's chapter or URL clear the previous catalog projection before a replacement fetch. Video streams are online-only. |
+| Enrollment and access | Group enrollment and grant renewal through Admin UI, MCP, token redemption and PKA. Tutor assignment, account status and roles through shared Admin, MCP and Admin Ops paths. Course pricing and chapter ordering through canonical services. | User-targeted events reach that account's devices. Current authorization narrows or revokes storage before catalog and package downloads. Expiry also takes effect through leases. |
+| Browser account queries and native library projections | Same course, enrollment and access mutations | Sync replaces the enrolled-course and course-title projections and removes revoked data. Browser query hydration checks the authorized library snapshot before restoring a course. Native library and reading stores receive the same reconciliation. |
+| Achievement definitions | Code-owned badge families, thresholds, artwork and translations | The conditional achievement catalog is refreshed by routine validation or an explicit revalidation. There is no admin writer for these definitions. Badge ownership stays outside the offline catalog. |
+
+Draft authoring follows the existing approval workflow. Website materials, uploaded PDFs, assessments, private progress and user-authored reading positions are outside the admin-managed offline package inventory. A published Diktat PDF update touches the Diktat descriptor timestamp, so it invalidates the Diktat metadata while its generated PDF remains online.
 
 The log provides durable delivery. A bounded foreground stream carries only a hint to read it. A missed stream message, push notification or webhook cannot strand a device at an old version. No new queue provider or provider credential is required.
 
@@ -36,9 +47,9 @@ The log provides durable delivery. A bounded foreground stream carries only a hi
 
 The shared controller checks on account start, app resume, reconnect, live hints and the active check interval. It deduplicates work and cancels requests for a prior account. Normal checks transfer a cursor, current access and small metadata; unchanged bodies use conditional requests.
 
-Stream reconnects do not postpone the active fallback check. An unchanged cursor skips the change-log scan. Each stream poll still checks the current session.
+Stream reconnects use bounded retry delays and do not postpone the active fallback check. A hint arriving during synchronization queues another pass. An unchanged cursor skips the change-log scan and unrelated events do not trigger catalog fetches. Each stream poll checks the current session. The native recovery shell uses the authenticated active check interval and reconnect events because its bridge transports bounded responses. Browser contexts with Web Locks serialize same-scope writes and use BroadcastChannel to notify other tabs with active readers.
 
-It validates response identity, removes revoked resources, persists invalidations and reconciles affected course manifests before advancing its cursor. A missing, future or expired cursor requests a full authorized manifest. Duplicate events and late requests cannot lower a stored version. Failed downloads retain the previous complete package and leave the update pending.
+Sync validates response identity, removes revoked resources, persists invalidations and reconciles affected course manifests before acknowledging its cursor. Mounted readers keep the current version until the learner accepts an ordinary update. Explicit deletion clears the old reading and refreshes the authorized route. Grant changes are checked without waiting for confirmation. A missing, future or expired cursor requests a full authorized manifest. Duplicate events and late requests cannot lower a stored version. Failed downloads retain the previous complete package and leave the update pending.
 
 Routine checks use the authorized manifest to refresh verification timestamps and leases for complete, current readings with matching revisions. Per-reading requests still recover changed, incomplete, invalidated, stale or expired packages and revalidate saved readings after a cursor reset.
 
@@ -75,6 +86,8 @@ Automatic cache entries can be removed to make room. Explicit downloads stay pin
 
 Native and web libraries and saved readers show Offline once as muted text when the device is disconnected. The indicator takes up no space while connected. Reconnection leaves the current reading open. Learners can choose Buka aplikasi to return to the web app. Sync progress, failed requests, expired access and empty storage retain their own messages. Release channel selection still uses the configured environment. Reading position belongs to its account and material. A content update must not mix private state into another account.
 
+The client checks up to 150 distinct course scopes in a pass. Libraries above this existing metadata bound and concurrent writes on platforms without Web Locks lack verified coverage. Operators running one-off SQL, migrations or seed scripts outside the shared mutation services must enqueue a scoped revalidation after commit. Cached RSC history and static application assets follow their Next.js and service worker lifecycle. The durable cursor covers the app-managed library and query projections.
+
 An offline device cannot learn about a server-side permission change until it reconnects. The stored access limit bounds this delay. After that limit expires, the app requires a new check. A shorter limit provides a tighter revocation window. No push transport guarantees immediate removal from a device without a connection.
 
 ## API surface
@@ -94,7 +107,7 @@ Resource headers include `x-offline-*` identity, cursor, revision and validation
 
 ## MCP impact
 
-Existing publication and academic tools receive invalidation through the same services. This change adds no MCP tools and does not change OAuth scopes, consent, discovery, packaged skills, playbooks, host prompts or environment bindings. Policy editing and manual revalidation are intentionally admin-UI-only, as recorded in `lib/admin-mcp/operations-catalog.ts`.
+Existing publication, academic, video and access tools receive invalidation through the same services. The event consumers authorize and translate course IDs under the current server origin and account. The revalidation request uses the same authenticated clients on staging and production. This change adds no MCP tools and does not change OAuth scopes, consent, discovery, packaged skills, playbooks, host prompts or environment bindings. Policy editing and manual revalidation are intentionally admin-UI-only, as recorded in `lib/admin-mcp/operations-catalog.ts`.
 
 The reader admission threshold and the library, reader and native shell connectivity presentation are device-local. The existing desktop recovery and admin policy entries in the operations catalog still cover the affected workflows. Native origin lookup and web API calls use the existing clients and environment bindings.
 

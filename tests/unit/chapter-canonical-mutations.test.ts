@@ -249,6 +249,8 @@ describe("chapter identity and ordering with a fake transaction", () => {
     await reorder("canonical-only", [created.canonicalChapterId]);
     await archive(created.canonicalChapterId);
     expect(data.bab[0].status).toBe("archived");
+    expect(offlineChanges).toHaveLength(4);
+    expect(offlineChanges.every(change => change.courseId === "canonical-only")).toBe(true);
   });
   it("fails closed for ambiguous course and chapter aliases", async () => {
     fixtures();

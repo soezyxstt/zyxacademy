@@ -14,7 +14,6 @@ import { validateProductBundleAdmission } from "@/lib/bundle/product-admission";
 import { productInteractiveDocuments } from "@/lib/bundle/product-validator";
 import { stageInteractiveDocumentAssets, validateInteractiveDocumentArchive } from "@/lib/materials/interactive-document-assets";
 import { getIdeaRevisionReviewContext, publishIdeaBundle, reviewIdeaBundleRevision, withdrawIdeaBundle } from "@/lib/bundle/publication";
-import { recordOfflineChange } from "@/lib/offline/server-events";
 import { publishProductBundle, withdrawProductBundle, productPublicationLockIdentities } from "@/lib/bundle/product-publication";
 import { currentPublisherProductReadiness } from "@/lib/bundle/product-readiness";
 import { executePedagogicReview, type ExecutePedagogicReviewInput } from "@/lib/bundle/product-pedagogic-review";
@@ -642,7 +641,6 @@ export async function publishRevisionRelease(input: RevisionReleaseInput & { exp
         for (const identity of retired) await tx.insert(vectorSyncQueue).values({ id: `revision-retire-${digest([input.expectedPlanHash, identity])}`, courseId: entry.scope.legacyCourseId, koId: null, action: "delete", namespace: identity.namespace, payload: { entityType: identity.entityType, entityId: identity.entityId, version: identity.version } }).onConflictDoNothing();
       }
       await tx.insert(auditMutasi).values({ id: `audit-release-${input.expectedPlanHash}`, actorId: input.actorId, entityType: "authoring_release", entityId: input.expectedPlanHash, action: "release_published", afterSnapshot: { entries: requested, manifest: prepared.manifest, published, verificationContexts: prepared.entries.map(entry => ({ importId: entry.row.id, context: entry.row.validationReport.revisionVerificationContext ?? null })) }, correlationId: input.expectedPlanHash, courseId: prepared.entries[0].scope.legacyCourseId });
-      for (const courseId of new Set(prepared.entries.map(entry => entry.scope.legacyCourseId))) await recordOfflineChange(tx, { kind: "course", courseId, action: "invalidate", revision: input.expectedPlanHash });
       return published;
     });
   });
