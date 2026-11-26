@@ -126,7 +126,7 @@ type SyncOptions = {
   session: NativeSessionTransport;
   locale: NativeOfflineLocale;
   repository: NativeOfflineMetadataRepository;
-  readings: () => Promise<Pick<NativeOfflineReadingStore, "captureCourseVersions" | "withdrawCourse">>;
+  readings: () => Promise<Pick<NativeOfflineReadingStore, "applyAccessWithCourseDenials" | "captureCourseVersions" | "withdrawCourse">>;
   now?: () => number;
 };
 
@@ -178,6 +178,8 @@ export function createNativeOfflineSyncController({ session, locale, repository,
   async function syncPage(courseIds: string[], expectedCursor: string | null) {
     // A response can change authority only from the revision its request started with.
     let accessRevision = await repository.accessRevision(scope);
+    const readingStore = await readings();
+    const requestedVersions = await readingStore.captureCourseVersions(scope);
     const value = await request("/api/offline/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -185,6 +187,8 @@ export function createNativeOfflineSyncController({ session, locale, repository,
     });
     const response = parseNativeOfflineSyncResponse(value, scope, expectedCursor);
     if (response.leaseExpiresAt <= Math.max(now(), response.serverTime)) throw new NativeOfflineSyncError("revoked");
+    // An explicit denial applies to both locales. A grant whose local lease elapsed only applies here.
+    const deniedCourses = response.access.filter(grant => !grant.allowed).map(grant => grant.courseId);
     const grants = new Map(response.access.map(item => [item.courseId, {
       ...item,
       leaseExpiresAt: Math.min(item.leaseExpiresAt, response.leaseExpiresAt),
@@ -197,7 +201,10 @@ export function createNativeOfflineSyncController({ session, locale, repository,
 
     async function applyAccess(reapply = false) {
       assertCurrent();
-      const revision = await repository.applyAccess(scope, { expectedCursor, expectedRevision: accessRevision, reapply, response }, assertCurrent);
+      const page = { expectedCursor, expectedRevision: accessRevision, reapply, response };
+      const revision = !reapply && deniedCourses.length
+        ? await readingStore.applyAccessWithCourseDenials(scope, page, deniedCourses, requestedVersions, assertCurrent)
+        : await repository.applyAccess(scope, page, assertCurrent);
       assertCurrent();
       if (revision === null) throw new NativeOfflineSyncError("conflict");
       accessRevision = revision;
@@ -232,7 +239,6 @@ export function createNativeOfflineSyncController({ session, locale, repository,
 
       const path = `/api/offline/manifest?${new URLSearchParams({ courseId, locale })}`;
       let manifest: NativeOfflineManifestResponse;
-      const readingStore = await readings();
       const versions = await readingStore.captureCourseVersions(scope);
       try {
         const value = await request(path, { retry: "transient-read" }, true);

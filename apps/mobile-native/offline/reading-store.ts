@@ -1,11 +1,14 @@
 import type { NativeSessionScope } from "../network/transport";
 import {
   offlineMetadataSchema,
+  prepareOfflineReadingAccess,
   readOfflineReadingAuthorities,
   readOfflineReadingAuthority,
   readOfflineReadingAuthorityVersions,
-  withdrawOfflineReadingCourse,
+  withdrawOfflineReadingCourses,
+  writeOfflineReadingSnapshot,
   type OfflineReadingCourseVersion,
+  type OfflineMetadataAccessPage,
 } from "./metadata-store";
 import {
   OfflineReadingError,
@@ -251,6 +254,25 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
     return Number(changes > 0);
   }
 
+  async function removeCourses(tx: Connection, scope: NativeOfflineScope, courseIds: readonly string[]) {
+    if (!courseIds.length) return;
+    const placeholders = courseIds.map(() => "?").join(", ");
+    await tx.runAsync(`DELETE FROM expo_reading_packages_v2 WHERE ${scopeFilter} AND course_id IN (${placeholders})`,
+      ...keys(scope), ...courseIds);
+  }
+
+  async function withdrawCourses(tx: Connection, session: NativeSessionScope, courseIds: readonly string[],
+    versions: readonly OfflineReadingCourseVersion[], assertCurrent: () => void) {
+    let changed = false;
+    for (const version of versions) {
+      const withdrawn = await withdrawOfflineReadingCourses(tx, session, courseIds, version, assertCurrent);
+      if (!withdrawn.length) continue;
+      await removeCourses(tx, { ...session, locale: version.locale }, withdrawn);
+      changed = true;
+    }
+    return changed;
+  }
+
   async function inspect(scope: NativeOfflineScope, guard: Guard) {
     assertGrant(guard);
     await initialize();
@@ -468,16 +490,24 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
       await initialize();
       return readOfflineReadingAuthorityVersions(db, session);
     },
+    async applyAccessWithCourseDenials(scope: NativeOfflineScope, page: OfflineMetadataAccessPage & { expectedRevision: number }, courseIds: readonly string[],
+      versions: readonly OfflineReadingCourseVersion[], assertCurrent: () => void) {
+      const revision = await transaction(async tx => {
+        assertCurrent();
+        const update = await prepareOfflineReadingAccess(tx, scope, page);
+        if (!update || !await writeOfflineReadingSnapshot(tx, scope, update.revision, update.encoded)) return null;
+        await removeCourses(tx, scope, courseIds);
+        await withdrawCourses(tx, scope, courseIds, versions.filter(version => version.locale !== scope.locale), assertCurrent);
+        assertCurrent();
+        return update.revision + 1;
+      });
+      if (revision !== null) notifyOfflineReadingChanges();
+      return revision;
+    },
     async withdrawCourse(session: NativeSessionScope, courseId: string, versions: OfflineReadingCourseVersion[], assertCurrent: () => void) {
       const changed = await transaction(async tx => {
         assertCurrent();
-        let changed = false;
-        for (const version of versions) {
-          if (!await withdrawOfflineReadingCourse(tx, session, courseId, version, assertCurrent)) continue;
-          const scope = { ...session, locale: version.locale };
-          await tx.runAsync(`DELETE FROM expo_reading_packages_v2 WHERE ${scopeFilter} AND course_id = ?`, ...keys(scope), courseId);
-          changed = true;
-        }
+        const changed = await withdrawCourses(tx, session, [courseId], versions, assertCurrent);
         assertCurrent();
         return changed;
       });
