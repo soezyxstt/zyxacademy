@@ -1,6 +1,13 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/api/tautan/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public clients read the same published link fields as the public directory. Existing administrative links tools retain their scopes, consent, environment and ability to manage unpublished entries."
+  },
+  {
     "source": "app/api/auth/native/expo/exchange/route.ts",
     "actions": ["POST"],
     "tools": [],
