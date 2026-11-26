@@ -87,7 +87,7 @@ function fixture() {
   };
 }
 
-test("the lifecycle only opens account context for Student paths and requires a verified Student role", () => {
+test("study reminder scheduling requires a Student path and verified Student role", () => {
   for (const path of ["/dashboard", "/courses/physics", "/settings/notifications", "/discussions"]) {
     expect(isStudyReminderPath(path)).toBe(true);
   }

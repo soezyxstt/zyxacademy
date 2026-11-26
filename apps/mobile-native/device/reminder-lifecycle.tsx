@@ -12,10 +12,7 @@ function StudentReminderRefresh() {
 
   useEffect(() => {
     if (!transport || !context || !transport.isCurrent()) return;
-    if (!isStudyReminderAccount(context)) {
-      void expoReminders.clearSession(transport.scope).catch(() => {});
-      return;
-    }
+    if (!isStudyReminderAccount(context)) return;
     const { locale } = context;
     let disposed = false;
     void (async () => {
@@ -33,6 +30,7 @@ function StudentReminderRefresh() {
 
 export function LocalReminderLifecycle() {
   const pathname = usePathname();
+  const { context, denied } = useNativeAccountContext();
   const { state, transport, revalidating, subscribeBeforeLocalLogout } = useNativeSession();
 
   useLayoutEffect(() => {
@@ -42,11 +40,16 @@ export function LocalReminderLifecycle() {
 
   useEffect(() => {
     if (!expoReminders.isSupported) return;
-    if (transport && !revalidating) void expoReminders.clearOtherSessions(transport).catch(() => {});
+    if (transport && !revalidating) {
+      void expoReminders.clearOtherSessions(transport).catch(() => {});
+      if (denied || (context && !isStudyReminderAccount(context))) {
+        void expoReminders.clearSession(transport.scope).catch(() => {});
+      }
+    }
     else if (state.status === "signed-out") void expoReminders.clearOtherSessions(null).catch(() => {});
-  }, [transport, state.status, revalidating]);
+  }, [transport, state.status, revalidating, context, denied]);
 
   // The native session provider revalidates on foreground. Only Student routes
-  // need a role lookup and then reschedule when that verified context changes.
+  // reschedule after the shared account context confirms eligibility.
   return expoReminders.isSupported && isStudyReminderPath(pathname) ? <StudentReminderRefresh /> : null;
 }
