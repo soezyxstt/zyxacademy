@@ -53,7 +53,11 @@ class ScopeTest(unittest.TestCase):
     def test_background_entry_does_not_build_web(self):
         result = self.plan('workers/deno-background/main.ts')
         self.assertTrue(result['worker'])
-        for key in ['web', 'v4', 'typecheck', 'test_typecheck', 'authoring', 'schedule']:
+        self.assertTrue(result['test_typecheck'])
+        entry_test = 'tests/contracts/product-v4-queue-diagnostics.test.ts'
+        self.assertIn(entry_test, result['tests'])
+        self.assertIn(entry_test, result['compiler_tests'])
+        for key in ['web', 'v4', 'typecheck', 'authoring', 'schedule']:
             self.assertFalse(result[key], key)
 
     def test_new_worker_and_shared_job_are_worker_inputs(self):
