@@ -5,8 +5,10 @@ import { NavigationTabs, SharedPopover } from "../../shared-ui";
 import { PKA_COURSE_ID } from "../../../../../lib/pka-config";
 import { formatCourseLeaderboardDuration } from "../../../../../lib/student/course-leaderboard";
 import type { AcademicRanking, CourseRanking, LeaderboardPage, RankingRow } from "../../../../../packages/native-parity/student/community/contracts";
+import { courseCopy } from "../courses/copy";
+import { coursePath } from "../../../../../packages/native-parity/student/courses/contract";
 import { studentPathWithQuery } from "../routes";
-import { Action, Actions, Choices, Copy, Page, Remote, Row, Rows, communityPath, styles, useCommunity, useRemote } from "./ui";
+import { Action, Actions, Choices, Copy, Page, Remote, Row, Rows, communityPath, describeError, styles, useCommunity, useRemote } from "./ui";
 
 function identityPath(publicId: string) { return `/students/${encodeURIComponent(publicId)}`; }
 
@@ -116,6 +118,9 @@ export function CourseLeaderboardScreen() {
   const simulationLabel = id === PKA_COURSE_ID ? tr("Simulasi", "Simulation") : "Tryout";
   const assessmentLabel = (type === "quiz" ? quizLabel : simulationLabel).toLowerCase();
   const data = useRemote<CourseRanking>(communityPath("course-ranking", { id, type }));
+  const { error } = data;
+  const accessDenied = error instanceof Error && "status" in error && error.status === 403
+    && "code" in error && error.code === "forbidden";
   const base = `/courses/${encodeURIComponent(id)}/leaderboard`;
   const number = new Intl.NumberFormat(session.locale);
   const percent = new Intl.NumberFormat(session.locale, { style: "percent", maximumFractionDigits: 1 });
@@ -124,7 +129,10 @@ export function CourseLeaderboardScreen() {
       activeId={type} onTabPress={value => navigate(`${base}?type=${value}`)}
       accessibilityLabel={tr("Jenis peringkat", "Ranking type")} moreLabel={tr("Lainnya", "More")} closeLabel={tr("Tutup", "Close")}
       theme={theme} testID="student-course-ranking-tab" />
-    <Remote state={data}>{board => {
+    {accessDenied ? <View style={styles.field} accessibilityLiveRegion="polite">
+      <Copy kind="error">{describeError(error, tr)}</Copy>
+      <Actions><Action label={courseCopy(session.locale).activation} onPress={() => navigate(coursePath(id))} /></Actions>
+    </View> : <Remote state={data}>{board => {
       const rank = board.ownRank === null ? "-" : number.format(board.ownRank);
       const total = number.format(board.totalStudents);
       return <>
@@ -159,7 +167,7 @@ export function CourseLeaderboardScreen() {
             : tr("Selesaikan kuis untuk masuk peringkat.", "Complete a quiz to appear in the rankings.")}</Copy>
         </View>}
       </>;
-    }}</Remote>
+    }}</Remote>}
   </Page>;
 }
 
