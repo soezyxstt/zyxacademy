@@ -146,7 +146,8 @@ def device_observation(pattern, markdown=False):
  parts=[]
  for platform, name in (('android', 'Android'), ('ios', 'iOS')):
   if platform not in device_platforms:
-   parts.append(f'{name}: no device captures')
+   observed = 'no device captures' if platform in device_report.get('platforms', {}) else 'no archived observation for this run'
+   parts.append(f'{name}: {observed}')
    continue
   evidence_path, statuses = device_platforms[platform]
   outcomes = {scenario: statuses.get(case['id'], 'absent') for scenario, case in case_index[pattern].items()}

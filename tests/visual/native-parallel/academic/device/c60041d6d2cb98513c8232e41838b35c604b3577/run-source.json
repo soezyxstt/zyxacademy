@@ -1,0 +1,18 @@
+{
+  "pr": 514,
+  "revision": "c60041d6d2cb98513c8232e41838b35c604b3577",
+  "runId": "45808678527",
+  "runAttempt": "1",
+  "runUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808678527",
+  "parityCredit": false,
+  "previousDiagnosticIndex": "../06ac6f8f84b740a5fae96f2cfaf2b272f9982659/index.json",
+  "platforms": {
+    "android": {
+      "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808678527/job/139871147373",
+      "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808678527/artifacts/15114412486",
+      "jobConclusion": "failure",
+      "routeCaptureScope": "Stamped fixture route captures",
+      "interactionBlocker": "Maestro remained in the default gallery before reaching the academic fixture assertions."
+    }
+  }
+}

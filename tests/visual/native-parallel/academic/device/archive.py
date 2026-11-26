@@ -36,6 +36,12 @@ def archive_platform(artifact, output, source, artifact_url):
         "interactionCounts": dict(Counter(row["status"] for row in status)),
         "interactions": status,
     }
+    accessibility = load(artifact / "accessibility/statuses.json")
+    if accessibility is not None:
+        data["accessibilityCounts"] = dict(Counter(
+            "passed" if row["passed"] else "failed" for row in accessibility
+        ))
+        data["accessibility"] = accessibility
     manifest = load(artifact / "routes/manifest.json")
     provenance = load(artifact / "provenance.json")
     if provenance is None:
@@ -67,6 +73,7 @@ def archive_platform(artifact, output, source, artifact_url):
         device=manifest["device"],
         dpr=manifest["deviceScaleFactor"],
         routeCaptureCounts=dict(Counter(row["status"] for row in cases.values())),
+        capturedRoutePatterns=len({row["pattern"] for row in cases.values() if row["status"] == "captured"}),
         routeEvidence=f"{manifest['platform']}/routes.json",
     )
     return data, cases
