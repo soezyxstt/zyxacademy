@@ -7,7 +7,9 @@ import { RetryAfterError } from "inngest";
 
 const config = JSON.parse(await readFile("artifacts/neon-worker/.env.staging.json", "utf8"));
 assert.equal(config.NEON_STORAGE_BUCKET, "zyx-staging");
-assert.equal(config.AUTHORING_VERIFICATION_BROWSER_PROVIDER, "cloudflare");
+const expected = JSON.parse(await readFile(".github/config/staging-authoring-browser.json", "utf8"));
+assert.equal(config.AUTHORING_VERIFICATION_BROWSER_PROVIDER, expected.AUTHORING_VERIFICATION_BROWSER_PROVIDER);
+assert.equal(config.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION, expected.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION);
 Object.assign(process.env, config);
 async function retryBrowser<T>(run: () => Promise<T>): Promise<T> {
   for (let attempt = 0; ; attempt++) {
