@@ -6,6 +6,7 @@ import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-c
 import { NativeSessionProvider } from "../auth/session-provider";
 import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
 import { NotificationsProvider } from "../device/notifications-provider";
+import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";
 import { nativeFontSources } from "../typography";
 
 export default function RootLayout() {
@@ -20,6 +21,7 @@ export default function RootLayout() {
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <StatusBar style="auto" />
       <NativeSessionProvider origin={NATIVE_STAGING_ORIGIN}>
+        <AssessmentDraftCleanup />
         <NotificationsProvider>
           <Stack screenOptions={{ headerShown: false, animation: "none" }} />
         </NotificationsProvider>

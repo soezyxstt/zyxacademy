@@ -1580,5 +1580,12 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Saved-account selection, Google sign-in and device session removal require the user's browser or native app. MCP bearer tokens retain their authorized user, session, scopes and environment; account switching cannot retarget them."
+  },
+  {
+    "source": "app/api/native/student/assessment/[courseId]/[...segments]/route.ts",
+    "actions": ["readStudentAssessment", "startQuizAttempt", "submitQuizAttempt", "submitTryout", "manageAssessmentAttachment", "regenerateQuizAnalytics", "completeSolutionCollection"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Learner assessment requires the native Student session, course eligibility and attempt ownership. It uses the existing academic services through app HTTPS and does not accept MCP credentials."
   }
 ] as const;
