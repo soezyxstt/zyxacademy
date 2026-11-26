@@ -92,6 +92,10 @@ export async function startAuthFixture(certPath: string, keyPath: string) {
   const claimExpiresAt = Date.now() + 120_000;
   let confirmedState: string | null = null;
   let claimed = false;
+  let completedHandoff = false;
+  let exchangedCode = false;
+  let verifiedContext = false;
+  let signedOut = false;
   let browserIdentity: Awaited<ReturnType<typeof seedBrowserSession>> | null = null;
   const server = Bun.serve({
     hostname: fixtureHost,
@@ -138,11 +142,25 @@ export async function startAuthFixture(certPath: string, keyPath: string) {
           ...noStore, Location: fixtureOrigin + nativeComplete + "?" + query, "Set-Cookie": browserIdentity.cookie,
         } });
       }
-      if (route === "GET " + nativeComplete) return localizeRedirect(await complete(upstream));
-      if (route === "POST /api/auth/native/expo/exchange") return exchange(upstream);
-      if (route === "GET /api/native/context") return requestContext.run(upstream, accountContext);
+      if (route === "GET " + nativeComplete) {
+        const response = await complete(upstream);
+        if (response.headers.get("location")?.startsWith(EXPO_STAGING_SCHEME + "://auth/native-finish#")) completedHandoff = true;
+        return localizeRedirect(response);
+      }
+      if (route === "POST /api/auth/native/expo/exchange") {
+        const response = await exchange(upstream);
+        if (response.ok) exchangedCode = true;
+        return response;
+      }
+      if (route === "GET /api/native/context") {
+        const response = await requestContext.run(upstream, accountContext);
+        if (response.ok) verifiedContext = true;
+        return response;
+      }
       if (route === "GET /api/auth/get-session" || route === "POST /api/auth/sign-out") {
-        return auth.handler(upstream);
+        const response = await auth.handler(upstream);
+        if (route === "POST /api/auth/sign-out" && response.ok) signedOut = true;
+        return response;
       }
       return result(404);
     },
@@ -151,6 +169,20 @@ export async function startAuthFixture(certPath: string, keyPath: string) {
   return {
     claim,
     identity: () => browserIdentity && { accountId: browserIdentity.accountId, sessionId: browserIdentity.sessionId },
+    progress() {
+      if (signedOut) return "sign-out";
+      if (verifiedContext) return "authorized context";
+      if (exchangedCode) return "code exchange";
+      if (completedHandoff) return "browser completion";
+      if (claimed) return "browser form";
+      if (confirmedState) return "native start";
+      return "no auth request";
+    },
+    async verifiedAndRevoked() {
+      if (!verifiedContext || !signedOut || !browserIdentity) return false;
+      const headers = new Headers({ Cookie: browserIdentity.cookie.split(";", 1)[0] });
+      return (await auth.api.getSession({ headers, query: { disableCookieCache: true, disableRefresh: true } })) === null;
+    },
     async stop() {
       await server.stop(true);
       await pool.end();

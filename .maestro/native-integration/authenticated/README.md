@@ -1,5 +1,7 @@
 # Authenticated device preview
 
-The dedicated hosted preview first exercises the unchanged native authentication endpoints over a runner-local HTTPS listener and disposable PostgreSQL. A synthetic browser page replaces Google for the fixture only. The signed session must pass the native client session and Student context checks before logout.
+The hosted preview exercises the real native authentication endpoints over a runner-local HTTPS listener and disposable PostgreSQL. A synthetic browser form replaces Google for this fixture. The signed session must pass the native client’s session and Student context checks before logout.
 
-The installed-device flow belongs in this directory and runs separately from the guest product flows. It requires an ephemeral test build, loopback network access, and trust for the runner certificate. The regular app remains bound to staging and uses its Google browser handoff.
+The optional Android job compiles a separate Expo APK with the fixture’s exact HTTPS origin and certificate. It installs the certificate on a disposable emulator and blocks network egress from the device except loopback. The flow uses the real browser session, native challenge and verifier, protected offline library and logout. It checks remote revocation and rejects the protected library after sign-out. The workflow discards the APK, TLS key, browser claim and Maestro output instead of uploading them.
+
+The normal Expo build uses the existing staging origin and Google flow. This fixture adds no production route, account or MCP operation.
