@@ -63,13 +63,15 @@ try {
   const startLocation = start.headers.get("location");
   check(startLocation?.startsWith(fixtureOrigin + "/auth/native-start?"), "Unexpected browser destination");
   const page = await local(startLocation);
-  check(page.status === 200 && (await page.text()).includes("Continue as preview student"), "Browser fixture did not open");
+  check(page.status === 200 && page.headers.get("referrer-policy") === "same-origin" &&
+    (await page.text()).includes("Continue as preview student"), "Browser form did not preserve its same-origin submission policy");
   const handoffCookie = cookie(start, NATIVE_AUTH_HANDOFF_COOKIE);
   const signInPath = "/api/auth/native/fixture" + new URL(startLocation).search;
-  const signIn = (claim: string) => local(signInPath, {
-    method: "POST", headers: { Cookie: handoffCookie, Origin: fixtureOrigin },
+  const signIn = (claim: string, origin = fixtureOrigin) => local(signInPath, {
+    method: "POST", headers: { Cookie: handoffCookie, Origin: origin },
     body: new URLSearchParams({ claim }),
   });
+  check((await signIn(fixture.claim, "null")).status === 403, "A browser form without same-origin provenance was accepted");
   check((await signIn("0".repeat(64))).status === 403, "Wrong runner claim was accepted");
   const signedIn = await signIn(fixture.claim);
   check(signedIn.status === 303, "The fixture did not sign in");

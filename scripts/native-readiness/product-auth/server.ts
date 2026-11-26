@@ -49,7 +49,9 @@ function browserFixturePage(query: URLSearchParams, staff?: StaffRole) {
     <label for="runner-code">Runner code</label>
     <input id="runner-code" type="password" name="claim" inputmode="none" required autocomplete="off" autofocus>
     <button>Continue as preview ${staff ?? "student"}</button></form></main></html>`, {
-    headers: { ...noStore, "Content-Type": "text/html; charset=utf-8",
+    // A no-referrer navigation changes a real HTML form POST's Origin to null.
+    // Refer only within this private origin so the same-origin check stays exact.
+    headers: { ...noStore, "Referrer-Policy": "same-origin", "Content-Type": "text/html; charset=utf-8",
       "Content-Security-Policy": "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" },
   });
 }
@@ -120,7 +122,8 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
   let claimExpiresAt = 0;
   let startStatus: number | undefined;
   let sawStartRequest = false;
-  let browserStep: "browser page served" | "browser page rejected" | "browser claim submitted" | undefined;
+  let browserStep: "browser page served" | "browser page rejected" | "browser form rejected by origin"
+    | "browser form rejected by handoff" | "browser claim rejected" | undefined;
   let confirmedState: string | null = null;
   let claimed = false;
   let completedHandoff = false;
@@ -184,13 +187,22 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         return result(403);
       }
       if (route === "POST " + browserSubmit) {
-        browserStep = "browser claim submitted";
+        if (browserOrigin !== fixtureOrigin) {
+          browserStep = "browser form rejected by origin";
+          return result(403);
+        }
         const query = handoffQuery(url);
         if (!query || query.get("state") !== confirmedState || !upstream.cookies.has(NATIVE_AUTH_HANDOFF_COOKIE) ||
-          browserOrigin !== fixtureOrigin || claimed || Date.now() >= claimExpiresAt) return result(403);
+          claimed || Date.now() >= claimExpiresAt) {
+          browserStep = "browser form rejected by handoff";
+          return result(403);
+        }
         const submitted = (await upstream.formData()).get("claim");
         if (typeof submitted !== "string" || !/^[a-f\d]{64}$/.test(submitted) ||
-          !timingSafeEqual(Buffer.from(claim, "hex"), Buffer.from(submitted, "hex"))) return result(403);
+          !timingSafeEqual(Buffer.from(claim, "hex"), Buffer.from(submitted, "hex"))) {
+          browserStep = "browser claim rejected";
+          return result(403);
+        }
         claimed = true;
         browserIdentity = await seedBrowserSession(staff);
         await tutorLive?.seed(browserIdentity.accountId);
