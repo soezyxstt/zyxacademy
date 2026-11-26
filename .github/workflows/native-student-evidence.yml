@@ -124,6 +124,20 @@ jobs:
       - if: matrix.platform == 'android'
         run: sudo chmod a+rw /dev/kvm
       - if: matrix.platform == 'android'
+        name: Install supported Android command-line tools for AVD creation
+        run: |
+          cli="$RUNNER_TEMP/student-android-cli"
+          mkdir -p "$cli" "$ANDROID_HOME/cmdline-tools"
+          curl --fail --silent --show-error --location --retry 3 --connect-timeout 15 --max-time 180 \
+            --output "$cli/tools.zip" https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip
+          printf '%s  %s\n' 4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583 "$cli/tools.zip" | sha256sum --check
+          unzip -q "$cli/tools.zip" -d "$cli"
+          # The emulator action resolves its SDK tools from the latest slot.
+          sdk_cli="$ANDROID_HOME/cmdline-tools/latest"
+          if [[ -e "$sdk_cli" || -L "$sdk_cli" ]]; then mv "$sdk_cli" "$cli/runner-tools"; fi
+          mv "$cli/cmdline-tools" "$sdk_cli"
+          printf '%s\n' "$sdk_cli/bin" >> "$GITHUB_PATH"
+      - if: matrix.platform == 'android'
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 35
