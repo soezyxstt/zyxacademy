@@ -87,6 +87,22 @@ describe("Zyra Stream Consumer", () => {
     ]);
   });
 
+  test("validates and normalizes followups in the web adapter", async () => {
+    const valid = { label: " Contoh ", prompt: " Tunjukkan contoh ", icon: "example", intent: "explain" };
+    const invalid = { ...valid, intent: "unknown" };
+    const stream = createMockStream([
+      `data: ${JSON.stringify({ type: "data-followups", followups: [valid] })}\n`,
+      `data: ${JSON.stringify({ type: "data-followups", followups: [invalid] })}\n`,
+    ]);
+
+    const parts = [];
+    for await (const part of consumeZyraStream(stream)) parts.push(part);
+    expect(parts).toEqual([
+      { type: "data-followups", followups: [{ ...valid, label: "Contoh", prompt: "Tunjukkan contoh" }] },
+      { type: "data-followups", followups: [] },
+    ]);
+  });
+
   test("handles aborted signal gracefully", async () => {
     const stream = createMockStream([
       "data: {\"type\":\"text-delta\",\"textDelta\":\"Part 1\"}\n\n",

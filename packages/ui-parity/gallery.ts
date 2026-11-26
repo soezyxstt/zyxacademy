@@ -1,3 +1,4 @@
+import { radioCases } from "./radio-cases";
 import { choiceCases } from "./choice-cases";
 import { controlCases } from "./control-cases";
 import { separatorCases } from "./separator-cases";
@@ -8,6 +9,7 @@ export const galleryCases = [
   ...skeletonCases.map((item) => ({ ...item, family: "skeleton" as const, component: "skeleton" as const })),
   ...controlCases.map((item) => ({ ...item, family: "control" as const })),
   ...choiceCases.map((item) => ({ ...item, family: "choice" as const, component: item.kind })),
+  ...radioCases.map((item) => ({ ...item, family: "radio" as const })),
 ];
 export type GalleryCase = (typeof galleryCases)[number];
 

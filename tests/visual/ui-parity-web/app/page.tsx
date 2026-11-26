@@ -6,6 +6,7 @@ import { parityFrame } from "@/packages/ui-parity/frame";
 import { getSeparatorPosition } from "@/packages/ui-parity/separator-cases";
 import { getSkeletonPosition } from "@/packages/ui-parity/skeleton-cases";
 
+import { RadioCase } from "./RadioCases";
 import { ChoiceCase } from "./ChoiceCases";
 import { ControlCase } from "./ControlCases";
 
@@ -27,6 +28,8 @@ function Specimen({ item }: { item: GalleryCase }) {
   switch (item.family) {
     case "control":
       return <ControlCase id={item.id} />;
+    case "radio":
+      return <RadioCase id={item.id} />;
     case "choice":
       return <ChoiceCase id={item.id} />;
     case "skeleton":

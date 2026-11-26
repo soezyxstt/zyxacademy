@@ -17,6 +17,7 @@ function specimenCapture(item: GalleryCase) {
     case "skeleton":
       return { selector: skeletonSelector, size: { width: item.width, height: item.height } };
     case "control":
+    case "radio":
     case "choice":
       return { selector: "[data-parity-control]", size: null };
   }
@@ -103,6 +104,13 @@ try {
     await expect(control(`${component}-disabled-dark`)).toBeDisabled();
   }
 
+  const radioGroup = control("radio-group-unchecked-light");
+  const standard = radioGroup.getByRole("radio", { name: "Standar" });
+  await standard.click();
+  await expect(standard).toBeChecked();
+  await standard.press("ArrowRight");
+  await expect(radioGroup.getByRole("radio", { name: "Ketik jawaban" })).toBeChecked();
+  await expect(control("radio-group-disabled-dark").getByRole("radio").first()).toBeDisabled();
   if (errors.length > 0) throw new Error(errors.join("\n"));
   const cases = galleryCases.map(({ id, component }) => ({ id, component }));
   await writeFile(manifest, `${JSON.stringify(cases, null, 2)}\n`);
