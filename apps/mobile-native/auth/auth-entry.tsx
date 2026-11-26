@@ -71,7 +71,7 @@ function GoogleEntryForm({ intent, incomingError }: {
 
   return <AuthPage title={isSignUp ? copy.signUpTitle : copy.signIn}>
     <AuthStatus center reference>{isSignUp ? copy.signUpDescription : copy.signInDescription}</AuthStatus>
-    <SavedAccounts fromSessionId={null} enabled={!busy} locale={intent.locale} theme={theme} onBusyChange={setSavedBusy} />
+    <SavedAccounts fromSessionId={null} loginIntent={intent} enabled={!busy} locale={intent.locale} theme={theme} onBusyChange={setSavedBusy} />
     {error && <AuthStatus error>{error}</AuthStatus>}
     <View style={styles.actions}>
       <Button

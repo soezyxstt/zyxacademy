@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 import { createNativeSessionController } from "../../apps/mobile-native/auth/session-controller";
 import { NativeAdditionalLoginError } from "../../apps/mobile-native/auth/additional-login-error";
+import { resolveNativeLoginReturn } from "../../apps/mobile-native/auth/login-intent";
+import { savedAccountCopy, savedAccountError } from "../../apps/mobile-native/auth/saved-account-model";
 import { NATIVE_STAGING_ORIGIN as origin, type SessionIdentity } from "../../apps/mobile-native/auth/session-api";
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
 
@@ -80,6 +82,7 @@ test("an unconsumed mutation blocks switching and failed storage restores privat
   await session.acceptAdditionalLogin(f.newSession("staff"), "staff", "student");
   const pending = await session.getSnapshot().transport!.request("/api/change", { method: "POST" });
   await expect(session.switchSavedAccount("student", "staff")).rejects.toMatchObject({ code: "PENDING_CHANGES" });
+  expect(session.getSnapshot().accountChangeIssue).toBeUndefined();
   expect(await pending.text()).toBe("message");
   const previous = f.getStored();
   f.setFailWrite(true);
@@ -87,12 +90,85 @@ test("an unconsumed mutation blocks switching and failed storage restores privat
   expect(session.getSnapshot().state).toEqual({ status: "signed-in", accountId: "staff", sessionId: "staff", expiresAt });
   expect(session.getSnapshot().transport?.isCurrent()).toBe(true);
   expect(f.getStored()).toBe(previous);
+  const issue = session.getSnapshot().accountChangeIssue!;
+  expect(issue).toEqual({ action: "switch", code: "SWITCH_FAILED" });
+  expect(savedAccountError("id", issue.code, issue.action)).toBe(savedAccountCopy("id").switchFailed);
+  await session.refresh();
+  expect(session.getSnapshot().accountChangeIssue).toBe(issue);
+  session.dismissAccountChangeIssue({ ...issue });
+  expect(session.getSnapshot().accountChangeIssue).toBe(issue);
+  session.dismissAccountChangeIssue(issue);
+  expect(session.getSnapshot().accountChangeIssue).toBeUndefined();
+  await expect(session.switchSavedAccount("student", "staff")).rejects.toThrow();
+  expect(session.getSnapshot().accountChangeIssue).toBeDefined();
   f.setFailWrite(false);
   await session.switchSavedAccount("student", "staff");
+  expect(session.getSnapshot().accountChangeIssue).toBeUndefined();
   await session.removeSavedAccount("staff", "student");
   expect(f.revoked).toEqual([credential("staff")]);
   expect(await session.listSavedAccounts()).toEqual([]);
   expect(JSON.parse(f.getStored()!)).not.toHaveProperty("savedSessions");
+});
+
+test("signed-out saved account preserves its validated return through restart and routes under the verified role", async () => {
+  const f = fixture();
+  const session = await f.login();
+  const intent = { entry: "sign-in", locale: "en", next: "/admin/forms" } as const;
+  await session.acceptAdditionalLogin(f.newSession("admin"), "admin", "student");
+  await session.switchSavedAccount("student", "admin", intent);
+  expect(session.getSnapshot().loginIntent).toBeUndefined();
+  await session.logout();
+  await session.switchSavedAccount("admin", null, intent);
+  const cold = f.create();
+  await cold.refresh();
+  expect(cold.getSnapshot().loginIntent).toEqual(intent);
+  const route = (href: string) => ({ href, contextKey: `${href}.tsx`, isGenerated: false, isInternal: false, children: [] });
+  const sitemap = { ...route("/"), children: [route("/admin"), route("/admin/forms"), route("/dashboard")] };
+  const next = cold.getSnapshot().loginIntent?.next;
+  expect(resolveNativeLoginReturn(next, { roles: ["admin"], dashboard: "/admin" }, sitemap))
+    .toEqual({ status: "ready", href: "/admin/forms" });
+  expect(resolveNativeLoginReturn(next, { roles: ["murid"], dashboard: "/dashboard" }, sitemap))
+    .toEqual({ status: "denied", dashboard: "/dashboard" });
+  await cold.clearLoginIntent({ accountId: "admin", sessionId: "admin" });
+  expect(cold.getSnapshot().loginIntent).toBeUndefined();
+});
+
+test("a signed-out rollback is visible after remount and unsafe destinations are dropped on retry", async () => {
+  const f = fixture();
+  const session = await f.login();
+  await session.acceptAdditionalLogin(f.newSession("staff"), "staff", "student");
+  await session.logout();
+  const intent = { entry: "sign-in", locale: "en", next: "https://foreign.invalid/admin" } as const;
+  const stored = f.getStored();
+  const statuses: string[] = [];
+  session.subscribe(() => statuses.push(session.getSnapshot().state.status));
+  f.setFailWrite(true);
+  await expect(session.switchSavedAccount("student", null, intent)).rejects.toThrow();
+  expect(statuses).toEqual(["loading", "signed-out"]);
+  expect(session.getSnapshot().loginIntent).toBeUndefined();
+  expect(session.getSnapshot().transport).toBeNull();
+  const issue = session.getSnapshot().accountChangeIssue!;
+  expect(savedAccountError("en", issue.code, issue.action)).toBe(savedAccountCopy("en").switchFailed);
+  expect(f.getStored()).toBe(stored);
+  f.setFailWrite(false);
+  await session.switchSavedAccount("student", null, intent);
+  expect(session.getSnapshot().accountChangeIssue).toBeUndefined();
+  expect(session.getSnapshot().loginIntent).toEqual({ entry: "sign-in", locale: "en" });
+});
+
+test("an add rollback surfaces a localized issue only to the restored account", async () => {
+  const f = fixture();
+  const session = await f.login();
+  const unsubscribe = session.subscribeBeforeLocalLogout(() => { throw new Error("cleanup failed"); });
+  await expect(session.acceptAdditionalLogin(f.newSession("staff"), "staff", "student")).rejects.toMatchObject({ code: "SWITCH_FAILED" });
+  const original = session.getSnapshot();
+  expect(original.state).toMatchObject({ status: "signed-in", accountId: "student" });
+  expect(original.accountChangeIssue).toEqual({ action: "add", code: "SWITCH_FAILED" });
+  expect(savedAccountError("en", "SWITCH_FAILED", "add")).toBe(savedAccountCopy("en").addFailed);
+  expect(f.revoked).toEqual([credential("staff")]);
+  unsubscribe();
+  await session.logout();
+  expect(session.getSnapshot().accountChangeIssue).toBeUndefined();
 });
 
 test("enforces the five-account limit, verifies saved identities again and filters foreign stored accounts", async () => {

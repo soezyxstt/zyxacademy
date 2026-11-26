@@ -8,18 +8,21 @@ import { NativeListRow } from "../features/shared-ui/layout";
 import { nativeTypography } from "../typography";
 import { authCopy } from "./auth-copy";
 import { useNativeBrowserLogin } from "./browser-login";
+import type { NativeLoginIntent } from "./login-intent";
 import { allowsSavedAccountLogin, describeSavedAccount, savedAccountCopy, savedAccountError, type SavedAccountLocale, type SavedNativeAccount } from "./saved-account-model";
 import { useNativeSession } from "./session-provider";
 
 type Theme = keyof typeof nativeColors;
 type Load = { accounts?: SavedNativeAccount[]; error?: true };
 
-export function SavedAccounts({ fromSessionId, locale, theme, enabled, onBusyChange }: {
+export function SavedAccounts({ fromSessionId, loginIntent, locale, theme, enabled, onBusyChange }: {
   fromSessionId: string | null; locale: SavedAccountLocale; theme: Theme; enabled: boolean; onBusyChange?(busy: boolean): void;
+  loginIntent?: NativeLoginIntent;
 }) {
   const router = useRouter();
   const focused = useIsFocused();
-  const { listSavedAccounts, switchSavedAccount, removeSavedAccount, getSnapshot, revalidating } = useNativeSession();
+  const { listSavedAccounts, switchSavedAccount, removeSavedAccount, getSnapshot, revalidating, state,
+    accountChangeIssue, dismissAccountChangeIssue } = useNativeSession();
   const login = useNativeBrowserLogin();
   const [load, setLoad] = useState<Load>();
   const [attempt, setAttempt] = useState(0);
@@ -36,6 +39,8 @@ export function SavedAccounts({ fromSessionId, locale, theme, enabled, onBusyCha
   const googleBusy = login.status === "opening" || login.status === "exchanging";
   const busy = Boolean(mutation) || googleBusy;
   const atLimit = (load?.accounts?.length ?? 0) + (fromSessionId === null ? 0 : 1) >= MAX_SAVED_ACCOUNTS;
+  const rollback = fromSessionId === null ? state.status === "signed-out" : state.status === "signed-in" && state.sessionId === fromSessionId;
+  const issue = rollback ? accountChangeIssue : undefined;
 
   useEffect(() => {
     onBusyChange?.(Boolean(mutation));
@@ -70,13 +75,13 @@ export function SavedAccounts({ fromSessionId, locale, theme, enabled, onBusyCha
     setError(null);
     try {
       if (action === "switch") {
-        await switchSavedAccount(account.accountId, fromSessionId);
-        router.replace("/");
+        await switchSavedAccount(account.accountId, fromSessionId, loginIntent);
+        if (fromSessionId !== null || !loginIntent) router.replace("/");
       } else {
         await removeSavedAccount(account.accountId, fromSessionId);
       }
     } catch (failure) {
-      if (active.current) setError(savedAccountError(locale, failure, action));
+      if (active.current && getSnapshot().accountChangeIssue?.action !== action) setError(savedAccountError(locale, failure, action));
     } finally {
       request.current = null;
       if (active.current) {
@@ -95,7 +100,7 @@ export function SavedAccounts({ fromSessionId, locale, theme, enabled, onBusyCha
     setBrowserFallback(false);
     try {
       const outcome = await login.addAccount(fromSessionId, preferBrowser);
-      if (!active.current) return;
+      if (!active.current || getSnapshot().accountChangeIssue?.action === "add") return;
       if (outcome === "accepted") router.replace("/");
       else if (outcome === "stale") setError(savedAccountError(locale, "SESSION_EXPIRED", "add"));
       else if (outcome === "unavailable" || outcome === "cancelled") {
@@ -106,7 +111,7 @@ export function SavedAccounts({ fromSessionId, locale, theme, enabled, onBusyCha
         setBrowserFallback(!preferBrowser && login.isCredentialAvailable);
       }
     } catch (failure) {
-      if (active.current) setError(savedAccountError(locale, failure, "add"));
+      if (active.current && getSnapshot().accountChangeIssue?.action !== "add") setError(savedAccountError(locale, failure, "add"));
     } finally {
       request.current = null;
       if (active.current) {
@@ -116,7 +121,7 @@ export function SavedAccounts({ fromSessionId, locale, theme, enabled, onBusyCha
     }
   }
 
-  if (!enabled || !focused || !login.isAvailable || (fromSessionId === null && !load?.accounts?.length && !load?.error && !error)) return null;
+  if (!enabled || !focused || !login.isAvailable || (fromSessionId === null && !load?.accounts?.length && !load?.error && !error && !issue)) return null;
   const locked = busy || revalidating;
   const caption = [styles.caption, { color: colors.mutedForeground }];
   const removeRow = remove && load?.accounts?.findIndex(row => row.accountId === remove.accountId);
@@ -128,6 +133,12 @@ export function SavedAccounts({ fromSessionId, locale, theme, enabled, onBusyCha
       <Button theme={theme} variant="outline" onPress={retry}>{copy.retry}</Button>
     </View> : null}
     {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.caption, { color: colors.destructive }]}>{error}</Text> : null}
+    {issue ? <View style={styles.actions} testID="native-saved-account-recovery">
+      <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.caption, { color: colors.destructive }]}>
+        {savedAccountError(locale, issue.code, issue.action)}
+      </Text>
+      <Button theme={theme} variant="outline" disabled={locked} onPress={() => { dismissAccountChangeIssue(issue); retry(); }}>{copy.retry}</Button>
+    </View> : null}
     {remove && typeof removeRow === "number" && removeRow >= 0 ? <View style={styles.stack} testID="native-account-remove-confirmation">
       <Text accessibilityRole="header" style={[styles.heading, { color: colors.foreground }]}>{copy.removeTitle}</Text>
       <Text style={caption}>{copy.removeDescription.replace("{email}", describeSavedAccount(remove, removeRow, locale).identity)}</Text>

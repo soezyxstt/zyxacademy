@@ -4,11 +4,13 @@ import { Pressable } from "react-native";
 import { useNativeAccountContext } from "../auth/use-account-context";
 import { useNativeSession } from "../auth/session-provider";
 import { SavedAccounts } from "../auth/SavedAccounts";
+import { AuthStatus } from "../auth/auth-page";
+import { savedAccountCopy, savedAccountError } from "../auth/saved-account-model";
 import { Avatar } from "../components/Avatar";
 import { Button } from "../components/Button";
 import { useTourEvent } from "../features/onboarding/tour-events";
 import { NativeListRow } from "../features/shared-ui/layout";
-import { SharedSheet } from "../features/shared-ui/overlays";
+import { SharedDialog, SharedSheet } from "../features/shared-ui/overlays";
 import { accountMenuCopy, accountMenuEntries } from "./account-menu-model";
 
 export function useRoleAccountMenu({ enabled, theme, visit }: {
@@ -16,7 +18,7 @@ export function useRoleAccountMenu({ enabled, theme, visit }: {
 }) {
   const tour = useTourEvent();
   const { context } = useNativeAccountContext();
-  const { state, transport, getSnapshot } = useNativeSession();
+  const { state, transport, getSnapshot, accountChangeIssue, dismissAccountChangeIssue } = useNativeSession();
   const navigation = useNavigation();
   const sitemap = useSitemap();
   const trigger = useRef<ComponentRef<typeof Pressable>>(null);
@@ -33,6 +35,7 @@ export function useRoleAccountMenu({ enabled, theme, visit }: {
   if (!ready) return { trigger, action: undefined, open: () => {}, sheet: null };
 
   const copy = accountMenuCopy(context.locale);
+  const recoveryCopy = savedAccountCopy(context.locale);
   const entries = accountMenuEntries(context, sitemap);
   const name = context.display?.name.trim();
   const email = context.display?.email.trim();
@@ -46,7 +49,7 @@ export function useRoleAccountMenu({ enabled, theme, visit }: {
     trigger,
     action: { label: name ? copy.accountNamed.replace("{name}", name) : copy.account, expanded: open },
     open: () => { if (current()) { setOpen(true); tour?.("account"); } },
-    sheet: <SharedSheet open={open} testID="role-account-menu" theme={theme}
+    sheet: <><SharedSheet open={open} testID="role-account-menu" theme={theme}
       title={copy.account} closeLabel={copy.close} returnFocusRef={trigger} onDismiss={() => setOpen(false)}>
       {(name || email) && <NativeListRow layout="compact" theme={theme} title={name || email || copy.userFallback}
           subtitle={name && email ? email : undefined} leading={<Avatar decorative initials={Array.from(name || email || "?")[0].toUpperCase()} theme={theme} />} />}
@@ -55,6 +58,17 @@ export function useRoleAccountMenu({ enabled, theme, visit }: {
       {open ? <SavedAccounts key={state.sessionId} fromSessionId={state.sessionId} enabled locale={context.locale} theme={theme} /> : null}
       <Button variant="destructive" testID="role-account-sign-out" theme={theme}
           onPress={() => choose(`/sign-out?locale=${context.locale}`)}>{copy.logOut}</Button>
-    </SharedSheet>,
+    </SharedSheet>
+      {accountChangeIssue && !open ? <SharedDialog open testID="role-account-change-recovery" theme={theme}
+        title={recoveryCopy.saved} closeLabel={copy.close} returnFocusRef={trigger}
+        onDismiss={() => dismissAccountChangeIssue(accountChangeIssue)}>
+        <AuthStatus error>{savedAccountError(context.locale, accountChangeIssue.code, accountChangeIssue.action)}</AuthStatus>
+        <Button theme={theme} onPress={() => {
+          if (!current()) return;
+          dismissAccountChangeIssue(accountChangeIssue);
+          setOpen(true);
+        }}>{recoveryCopy.retry}</Button>
+      </SharedDialog> : null}
+    </>,
   };
 }

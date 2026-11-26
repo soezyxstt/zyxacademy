@@ -96,6 +96,7 @@ export function useNativeSession() {
     removeSavedAccount: controller.removeSavedAccount,
     acceptAdditionalLogin: controller.acceptAdditionalLogin,
     clearLoginIntent: controller.clearLoginIntent,
+    dismissAccountChangeIssue: controller.dismissAccountChangeIssue,
     rememberAccountAccess: controller.rememberAccountAccess,
     logout: controller.logout,
     refresh: controller.refresh,

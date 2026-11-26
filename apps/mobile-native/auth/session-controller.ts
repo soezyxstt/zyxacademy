@@ -1,4 +1,4 @@
-import { AccountSwitchError, MAX_SAVED_ACCOUNTS } from "../../../lib/auth/account-switch-contract";
+import { AccountSwitchError, MAX_SAVED_ACCOUNTS, type AccountSwitchErrorCode } from "../../../lib/auth/account-switch-contract";
 import type { NativeAccountContext } from "../../../packages/native-session/context";
 import type { NativeSessionScope, NativeSessionTransport, createNativeTransport } from "../network/transport";
 import { NativeAdditionalLoginError } from "./additional-login-error";
@@ -39,6 +39,8 @@ export type NativeSessionState =
   | { status: "logout-pending"; retry: boolean }
   | ({ status: "signed-in" } & SessionIdentity);
 
+export type NativeAccountChangeIssue = Readonly<{ action: "add" | "switch"; code: AccountSwitchErrorCode }>;
+
 function decodeStoredSession(value: string | null, origin: string): StoredSession | null {
   if (!value) return null;
   try {
@@ -71,6 +73,7 @@ export function createNativeSessionController({ origin, store: secureStore, api,
   let record: StoredSession | null | undefined;
   let saved: ActiveSession[] = [];
   let changing: Promise<void> | null = null;
+  let rollback: { issue: NativeAccountChangeIssue; source: Pick<SessionIdentity, "accountId" | "sessionId"> | null } | undefined;
 
   // Commit both sides of a switch in the same device-only SecureStore record.
   // With no saved accounts, keep the existing single-session representation.
@@ -113,6 +116,7 @@ export function createNativeSessionController({ origin, store: secureStore, api,
     revalidating: boolean;
     loginIntent?: NativeLoginIntent;
     offlineReadingDenied?: true;
+    accountChangeIssue?: NativeAccountChangeIssue;
   } = {
     state: { status: "loading" }, transport: null, revalidating: false,
   };
@@ -133,8 +137,14 @@ export function createNativeSessionController({ origin, store: secureStore, api,
     if (revalidating || state !== snapshot.state) verifiedAccess = undefined;
     const offlineReadingDenied = state.status === "signed-in" && record?.status === "active" &&
       state.accountId === record.accountId && state.sessionId === record.sessionId && record.readingDenied;
+    if (rollback && (state.status === "logout-pending" ||
+      (state.status === "signed-out" && rollback.source !== null) ||
+      (state.status === "signed-in" && (state.accountId !== rollback.source?.accountId || state.sessionId !== rollback.source?.sessionId)))) {
+      rollback = undefined;
+    }
+    const accountChangeIssue = (state.status === "signed-in" || state.status === "signed-out") ? rollback?.issue : undefined;
     snapshot = { state, transport, revalidating, ...(loginIntent && { loginIntent }),
-      ...(offlineReadingDenied && { offlineReadingDenied }) };
+      ...(offlineReadingDenied && { offlineReadingDenied }), ...(accountChangeIssue && { accountChangeIssue }) };
     for (const notify of subscriptions) notify();
   }
 
@@ -447,9 +457,20 @@ export function createNativeSessionController({ origin, store: secureStore, api,
 
   function runChange(from: string | null, change: () => Promise<void>) {
     if (changing) return Promise.reject(new AccountSwitchError("BUSY"));
-    changing = enqueue(async () => { await load(); checkSwitchSource(from); await change(); })
+    changing = enqueue(async () => {
+      await load();
+      checkSwitchSource(from);
+      if (snapshot.accountChangeIssue) dismissAccountChangeIssue(snapshot.accountChangeIssue);
+      await change();
+    })
       .finally(() => { changing = null; });
     return changing;
+  }
+
+  function dismissAccountChangeIssue(issue: NativeAccountChangeIssue) {
+    if (snapshot.accountChangeIssue !== issue) return;
+    rollback = undefined;
+    publish(snapshot.state, snapshot.transport, snapshot.revalidating, snapshot.loginIntent);
   }
 
   async function listSavedAccounts() {
@@ -461,7 +482,9 @@ export function createNativeSessionController({ origin, store: secureStore, api,
     });
   }
 
-  async function activate(candidate: ActiveSession, identity: SessionIdentity | null, from: string | null, signal?: AbortSignal) {
+  async function activate(candidate: ActiveSession, identity: SessionIdentity | null, from: string | null, {
+    action, signal, loginIntent,
+  }: { action: NativeAccountChangeIssue["action"]; signal?: AbortSignal; loginIntent?: NativeLoginIntent }) {
     const previous = record?.status === "active" ? record : null;
     checkSwitchSource(from);
     if (signal?.aborted) throw new AccountSwitchError("CANCELLED");
@@ -469,7 +492,7 @@ export function createNativeSessionController({ origin, store: secureStore, api,
       await persist(previous, saved.filter(item => item.sessionId !== candidate.sessionId));
       throw new AccountSwitchError("SESSION_EXPIRED");
     }
-    const next: ActiveSession = { ...candidate, ...identity, loginIntent: undefined };
+    const next: ActiveSession = { ...candidate, ...identity, loginIntent };
     const previousSaved = saved;
     const others = saved.filter(item => item.expiresAt > now() && item.accountId !== next.accountId);
     if (previous) others.push({ ...previous, loginIntent: undefined });
@@ -494,17 +517,22 @@ export function createNativeSessionController({ origin, store: secureStore, api,
       record = next;
       publishVerified(identity);
     } catch (error) {
+      const code = error instanceof AccountSwitchError ? error.code : "SWITCH_FAILED";
+      if (code !== "CANCELLED") {
+        rollback = { issue: { action, code }, source: previous && { accountId: previous.accountId, sessionId: previous.sessionId } };
+      }
       if (previous) publishVerified(previous);
       else publish({ status: "signed-out" });
       throw error;
     }
   }
 
-  function switchSavedAccount(accountId: string, from: string | null) {
+  function switchSavedAccount(accountId: string, from: string | null, intent?: NativeLoginIntent) {
+    const loginIntent = from === null ? parseNativeLoginIntent(intent) : undefined;
     return runChange(from, async () => {
       const candidate = saved.find(item => item.accountId === accountId);
       if (!candidate) throw new AccountSwitchError("ACCOUNT_UNAVAILABLE");
-      await activate(candidate, await api.read(candidate.cookie), from);
+      await activate(candidate, await api.read(candidate.cookie), from, { action: "switch", loginIntent });
     });
   }
 
@@ -529,7 +557,7 @@ export function createNativeSessionController({ origin, store: secureStore, api,
         if (record?.accountId === accountId || saved.some(item => item.accountId === accountId && item.expiresAt > now())) {
           throw new AccountSwitchError("ACTIVE_ACCOUNT");
         }
-        await activate({ status: "active", origin, cookie, ...identity }, identity, from, signal);
+        await activate({ status: "active", origin, cookie, ...identity }, identity, from, { action: "add", signal });
       });
     } catch (error) {
       // A provider may return an existing credential. Only retire a newly minted session.
@@ -588,7 +616,7 @@ export function createNativeSessionController({ origin, store: secureStore, api,
       return () => { beforeLocalLogout.delete(handler); };
     },
     acceptLogin, listSavedAccounts, switchSavedAccount, removeSavedAccount, acceptAdditionalLogin,
-    clearLoginIntent,
+    clearLoginIntent, dismissAccountChangeIssue,
     rememberAccountAccess,
     logout,
     refresh,
