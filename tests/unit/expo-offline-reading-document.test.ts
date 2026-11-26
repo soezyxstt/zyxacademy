@@ -169,6 +169,7 @@ test("native selection keeps host extraction Android-online-only and bounds the 
   expect(readerSelectionUsesContentEngine("web", true)).toBe(false);
   expect(normalizeReadingSelection("  Flux\u0000\ngradient ")).toBe("Flux\ngradient");
   expect(normalizeReadingSelection("x".repeat(2_000))).toHaveLength(1200);
+  expect(normalizeReadingSelection("  print(2)\n", "clipboard")).toBe("  print(2)\n");
   expect(normalizeReadingSelection({ snippet: "spoofed" })).toBe("");
 });
 

@@ -92,12 +92,14 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
 
   function onSelection(key: ReadingSelectionKey, selected: unknown, sectionTitle?: string) {
     if (!canInteract() || !alive.current) return;
-    const snippet = normalizeReadingSelection(selected, key === readingSelectionKeys.copy ? 64_000 : undefined);
+    const snippet = normalizeReadingSelection(selected, key === readingSelectionKeys.copy ? "clipboard" : "quote");
     if (!snippet) { setEmptyClipboard(true); return; }
     if (key === readingSelectionKeys.ask) ask?.(snippet, sectionTitle);
     else {
       setCopyFailed(false);
-      void setStringAsync(snippet).catch(() => { if (alive.current && canInteract()) setCopyFailed(true); });
+      void setStringAsync(snippet).catch(() => false).then(copied => {
+        if (!copied && alive.current && canInteract()) setCopyFailed(true);
+      });
     }
   }
 
