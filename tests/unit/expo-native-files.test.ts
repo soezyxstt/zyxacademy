@@ -39,6 +39,7 @@ function setup(overrides: Partial<Parameters<typeof createNativeFileController>[
   clock?: Parameters<typeof createNativeFileController>[1],
   files = new Map<string, Uint8Array[]>()) {
   const discarded: string[] = [];
+  const closed = new Set<string>();
   const names: string[] = [];
   const shares: Array<{ uri: string; mimeType: string; title: string; size: number }> = [];
   const transport = createNativeTransport({ origin, fetcher });
@@ -59,7 +60,7 @@ function setup(overrides: Partial<Parameters<typeof createNativeFileController>[
       return {
         uri,
         async write(chunk) { chunks.push(chunk); },
-        close() {},
+        close() { closed.add(uri); },
         remove() { files.delete(uri); },
       };
     },
@@ -71,7 +72,7 @@ function setup(overrides: Partial<Parameters<typeof createNativeFileController>[
     },
     ...overrides,
   }, clock);
-  return { controller, transport, identity, session, request, files, discarded, shares, names };
+  return { controller, transport, identity, session, request, files, discarded, shares, names, closed };
 }
 
 function fileClock() {
@@ -448,6 +449,7 @@ test("PDF views stage one protected local file, renew only metadata, and release
   expect(ready.status).toBe("ready");
   if (ready.status !== "ready") throw new Error("Expected staged file");
   expect(ready.document.uri).toMatch(/^file:/);
+  expect(fixture.closed.has(ready.document.uri)).toBe(true);
   expect(ready.document.expiresAt).toBe(input.sessionExpiresAt);
   expect(fixture.files.size).toBe(1);
   expect(await fixture.controller.renewMaterialPdf(input, ready.document.revision)).toMatchObject({ status: "ready", grant: { revision } });

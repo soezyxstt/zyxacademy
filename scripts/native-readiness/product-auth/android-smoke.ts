@@ -46,15 +46,16 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
     "--debug-output", join(privateDir, label + "-debug"), "--test-output-dir", join(privateDir, label + "-results"),
     ...inputs, join(flows, name + ".yaml")], {
     stdout: "pipe",
-    stderr: "ignore",
+    stderr: "pipe",
     env: { ...process.env, MAESTRO_CLI_NO_ANALYTICS: "true", MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: "true" },
   });
   const timeout = setTimeout(() => child.kill(), 210_000);
   try {
-    const [exit, output] = await Promise.all([child.exited, new Response(child.stdout).text()]);
+    const [exit, output, errors] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
     if (exit === 0) return;
     // Only emit a fixed label for a failed command, never a secret or future command.
-    const failedCommand = output.split(/\r?\n/).findLast(line => /❌|\bFAILED\b|Assertion is false|Element not found/i.test(line)) ?? "";
+    const failedCommands = [output, errors].flatMap(stream => stream.split(/\r?\n/)
+      .filter(line => /❌|\bFAILED\b|Assertion is false|Element not found/i.test(line)).slice(-5));
     for (const [needle, label] of [
       ["Preview HTTPS ready", "Chrome health page"],
       ["native-auth-google", "native sign-in button"],
@@ -77,6 +78,9 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["Benar 1", "Pet practice score"],
       ["artikel kanonis", "canonical Article body"],
       ["diktat PKA", "canonical PKA Diktat body"],
+      ["student-open-material-pdf", "Student PDF open"],
+      ["student-material-pdf-page", "Student PDF page indicator"],
+      ["student-pdf-open-previews", "Student PDF previews control"],
       ["student-pdf-thumbnail", "Student PDF local thumbnail"],
       ["student-pdf-note", "Student private PDF note"],
       ["student-pdf-search", "Student authorized PDF text search"],
@@ -89,7 +93,7 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["Akses ditolak", "wrong-role screen"],
       ["Kamu sudah keluar", "sign-out"],
     ] as const) {
-      if (failedCommand.includes(needle)) lastDeviceCheck = label;
+      if (failedCommands.some(line => line.includes(needle))) lastDeviceCheck = label;
     }
     throw new Error();
   } finally {
@@ -129,6 +133,14 @@ async function reportDeviceState() {
   } else if (screen === "Expo") {
     const hierarchy = await shellOutput("exec-out", "uiautomator", "dump", "/dev/tty");
     const visible = [
+      ["student-material-pdf-screen", "Student PDF reader"],
+      ["student-material-pdf-prepare-error", "Student PDF file preparation error"],
+      ["student-material-pdf-render-error", "Student PDF native rendering error"],
+      ["student-material-pdf-access-error", "Student PDF access ended"],
+      ["student-material-pdf-page", "Student PDF page indicator"],
+      ["student-pdf-open-previews", "Student PDF previews control"],
+      ["student-pdf-note-input", "Student PDF note editor"],
+      ["student-pdf-query", "Student PDF search input"],
       ["Bacaan offline", "offline library title"], ["Offline readings", "offline library title"],
       ["Diktat verifikasi offline", "offline Diktat title"], ["Simpan Diktat", "offline save action"],
       ["Hapus Diktat", "offline saved state"], ["Periksa pembaruan", "online refresh action"],

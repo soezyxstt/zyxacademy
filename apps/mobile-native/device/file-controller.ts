@@ -736,6 +736,7 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       assertCurrent();
       const file = staged.hold("course-reading.pdf");
       await copyBytes(response.body, file, "application/pdf", MATERIAL_PDF_MAX_BYTES, declared, assertCurrent, [request.session.signal, request.signal]);
+      file.close();
       assertCurrent();
       ready = true;
       return { status: "ready", document: { ...grant, uri: file.uri, release: staged.finish } };

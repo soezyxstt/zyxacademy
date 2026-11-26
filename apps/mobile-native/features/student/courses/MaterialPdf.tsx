@@ -48,6 +48,7 @@ function PdfPage({ courseId, materialId, reader, title, page, locale, theme, ope
   const [state, setState] = useState<MaterialPdfResult | null>(null);
   const [position, setPosition] = useState<{ page: number; total: number }>();
   const [scale, setScale] = useState(1);
+  const [renderFailed, setRenderFailed] = useState(false);
   const [outline, setOutline] = useState<PdfOutlineRow[]>([]);
   const pdf = useRef<PdfRef>(null);
   const [lease, setLease] = useState(0);
@@ -141,20 +142,22 @@ function PdfPage({ courseId, materialId, reader, title, page, locale, theme, ope
       trustAllCerts={false}
       style={{ flex: 1, width: "100%", backgroundColor: colors.card }}
       onPageChanged={(current, total) => setPosition({ page: current, total })}
-      onError={() => { release.current(); setPosition(undefined); setOutline([]); setState({ status: "error", issue: "type" }); }}
+      onError={() => { setRenderFailed(true); release.current(); setPosition(undefined); setOutline([]); setState({ status: "error", issue: "type" }); }}
       onPressLink={value => {
         const url = safeMaterialPdfLink(value);
         if (url && canInteract()) openExternal?.(url);
       }}
     /> : !state ? <ActivityIndicator style={{ margin: 20 }} accessibilityLabel={en ? "Loading PDF" : "Memuat PDF"} /> :
       <View style={{ padding: 16, gap: 10 }}>
-        <Text accessibilityRole="alert" style={{ color: colors.foreground }}>
+        <Text accessibilityRole="alert" testID={`${testIDPrefix}-material-pdf-${renderFailed ? "render-error" : denied ? "access-error" : "prepare-error"}`}
+          style={{ color: colors.foreground }}>
           {denied ? en ? "Access to this PDF ended." : "Akses PDF berakhir."
             : en ? "The PDF could not be opened." : "PDF belum dapat dibuka."}
         </Text>
         {!denied ? <>
           <Button theme={theme} onPress={() => {
             if (!canInteract()) return;
+            setRenderFailed(false);
             setState(null);
             setAttempt(value => value + 1);
           }}>{en ? "Try again" : "Coba lagi"}</Button>
