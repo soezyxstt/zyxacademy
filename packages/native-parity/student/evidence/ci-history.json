@@ -41,7 +41,22 @@
       "ios": {
         "jobId": 139855852683,
         "status": "queued_at_observation"
-      }
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T11:12:53Z",
+          "ios": {
+            "jobId": 139855852683,
+            "status": "build_failed_before_device_flows",
+            "reason": "Expo ENOENT ~/.expo/devicectl-exists; source predates the setup fix.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45803927675/artifacts/15110427607",
+            "summaryCounts": {
+              "not_run": 125,
+              "blocked": 66
+            }
+          }
+        }
+      ]
     }
   ]
 }

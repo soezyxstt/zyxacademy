@@ -28,4 +28,6 @@ bun tests/visual/native-parallel/student/generate-smoke.ts
 bun tests/visual/native-parallel/student/generate-report.ts
 ```
 
-Generator laporan membaca `artifacts/student-evidence/{android,ios}/smoke/smoke-summary.json` jika tersedia. Untuk sumber lain, berikan `--android=<path>` atau `--ios=<path>`. Simpan summary bersama artefak perangkat; ID kasus tanpa hasil yang cocok tetap `not_recorded` atau `not_in_summary`. Laporan mencatat SHA dan URL run dari summary jika tersedia. Penghasil laporan tidak menyatakan lulus paritas berdasarkan screenshot atau test fixture saja.
+Generator laporan membaca summary yang ditunjuk `device-runs/index.json`, atau `artifacts/student-evidence/{android,ios}/smoke/smoke-summary.json` jika tidak ada entri indeks. Untuk sumber lain, berikan `--android=<path>` atau `--ios=<path>`. Summary asli dipertahankan; `provenance.json` di sampingnya mengikat artefak lama yang belum memuat SHA atau URL run. ID kasus tanpa hasil yang cocok tetap `not_recorded` atau `not_in_summary`. Penghasil laporan tidak menyatakan lulus paritas berdasarkan screenshot atau test fixture saja.
+
+Jika manifest capture assessment, learning atau community tersedia, generator membacanya otomatis. Entri dengan error tetap `failed`; PNG hanya dilaporkan sebagai capture lulus bila manifest menyatakan berhasil dan berkas tersedia, dengan checksum diperiksa jika manifest menyediakannya. Ketidakcocokan atau berkas yang hilang dicatat terpisah. [Riwayat CI](ci-history.json) adalah snapshot bertanggal, bukan indikator status langsung.

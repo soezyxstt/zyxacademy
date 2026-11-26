@@ -1,14 +1,20 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { basename, dirname, join } from "node:path";
 import { matchStudentRoute, studentPatterns, type StudentArea } from "../../../../apps/mobile-native/features/student/routes";
 
 // Generate smoke metadata first, then run this script. Optional platform summary
 // files can be passed with --android=... and --ios=...; absent data is not a pass.
 const manifestPath = process.argv.find(arg => arg.startsWith("--manifest="))?.slice(11) ?? "artifacts/student-evidence/generated/manifest.json";
+const deviceIndexPath = "packages/native-parity/student/evidence/device-runs/index.json";
+const deviceIndex = existsSync(deviceIndexPath) ? JSON.parse(readFileSync(deviceIndexPath, "utf8")) : {};
 const summaries = Object.fromEntries((["android", "ios"] as const).map(platform => {
   const path = process.argv.find(arg => arg.startsWith(`--${platform}=`))?.slice(platform.length + 3)
-    ?? `artifacts/student-evidence/${platform}/smoke/smoke-summary.json`;
-  return [platform, existsSync(path) ? { path, data: JSON.parse(readFileSync(path, "utf8")) } : null];
+    ?? deviceIndex[platform] ?? `artifacts/student-evidence/${platform}/smoke/smoke-summary.json`;
+  const provenancePath = join(dirname(path), "provenance.json");
+  return [platform, existsSync(path) ? { path, data: JSON.parse(readFileSync(path, "utf8")),
+    provenance: existsSync(provenancePath) ? JSON.parse(readFileSync(provenancePath, "utf8")) : {} } : null];
 }));
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const web = JSON.parse(readFileSync("tests/visual/native-parallel/student/product/web/web.json", "utf8"));
@@ -16,6 +22,36 @@ const webRoot = "tests/visual/native-parallel/student/product/web";
 const base = "packages/native-parity/student/evidence";
 const ciHistory = JSON.parse(readFileSync(`${base}/ci-history.json`, "utf8"));
 const sha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+const optionalManifests = ["tests/visual/native-parallel/student/product/assessment-web/web.json",
+  "tests/visual/native-parallel/student/learning/product/web.json"];
+const communityDirectory = "tests/visual/native-parallel/student/references/community";
+if (existsSync(communityDirectory)) optionalManifests.push(...readdirSync(communityDirectory)
+  .filter(name => /^manifest-.*\.json$/.test(name)).sort().map(name => `${communityDirectory}/${name}`));
+const optionalAttempts: any[] = [];
+for (const manifestFile of optionalManifests.filter(existsSync)) {
+  const input = JSON.parse(readFileSync(manifestFile, "utf8"));
+  for (const entry of input.results ?? input.entries ?? []) {
+    const pattern = entry.pattern ?? matchStudentRoute(entry.path ?? "")?.pattern;
+    if (!pattern) continue;
+    const error = entry.error ?? null;
+    const passed = !error && (entry.status === "passed" || entry.status === 200);
+    const names = Array.isArray(entry.screenshots) ? entry.screenshots :
+      entry.screenshot ? [{ file: entry.screenshot }] : passed ? [{ file: `${entry.id}.png` }] : [];
+    const files = names.map((item: any) => typeof item === "string" ? { file: item } : item).map((item: any) => {
+      if (typeof item.file !== "string" || basename(item.file) !== item.file) return { status: "invalid_path", name: item.file };
+      const file = join(dirname(manifestFile), item.file);
+      if (!existsSync(file)) return { status: "missing", file };
+      const digest = createHash("sha256").update(readFileSync(file)).digest("hex");
+      return { status: item.sha256 && item.sha256 !== digest ? "sha256_mismatch" : "available", file, sha256: digest };
+    });
+    const status = error || !passed ? "failed" : files.length && files.every((file: any) => file.status === "available") ? "passed" : "capture_missing_or_invalid";
+    optionalAttempts.push({ pattern, id: entry.id, path: entry.path, status, error, files, manifest: manifestFile,
+      sourceHead: input.serverSha ?? null, project: input.project ?? null, viewport: entry.viewport ?? (input.width && input.height ? { width: input.width, height: input.height } : null),
+      dpr: entry.deviceScale ?? input.dpr ?? null, theme: entry.theme ?? input.theme ?? null, locale: input.locale ?? null,
+      browser: entry.browser ?? input.browser ?? null, terminal: entry.terminal ?? entry.actualPath ?? null,
+      coursePickerLoading: entry.coursePickerLoading ?? null, runtimeErrors: entry.runtimeErrors ?? [], failedRequests: entry.failedRequests ?? [] });
+  }
+}
 
 const c = "/api/native/student/courses";
 const l = "/api/native/student/learning";
@@ -87,7 +123,9 @@ const resultFor = (platform: "android" | "ios", source: string, caseId: string) 
   const summary = summaries[platform];
   if (!summary) return { status: "not_recorded" };
   const item = summary.data.routes?.find((row: any) => row.source === source)?.cases?.find((row: any) => row.id === caseId);
-  const provenance = { summary: summary.path, sourceHead: summary.data.sourceHead ?? null, workflowRun: summary.data.workflowRun ?? null };
+  const provenance = { summary: summary.path, sourceHead: summary.data.sourceHead ?? summary.provenance.sourceHead ?? null,
+    workflowRun: summary.data.workflowRun ?? summary.provenance.workflowRun ?? null, artifact: summary.provenance.artifact ?? null,
+    job_status: summary.provenance.status ?? summary.data.status ?? null };
   return item ? { status: item.result ?? "not_run", artifacts: item.artifacts ?? [], ...provenance } : { status: "not_in_summary", ...provenance };
 };
 const docs = "docs/native-readiness.md";
@@ -108,6 +146,11 @@ const rows = manifest.routes.map((route: any) => {
   }))) : pattern === "/courses/[id]/flashcard" ? ["question", "review-pending", "review-failed"].map(state => ({
     id: `flashcard-${state}`, file: `tests/visual/native-parallel/student/learning/web/${state}.png`, evidence: "web component fixture",
   })) : [];
+  const attempts = optionalAttempts.filter(item => item.pattern === pattern);
+  const optionalCaptures = attempts.filter(item => item.status === "passed").flatMap(item => item.files.map((file: any) => ({
+    id: `${item.id}-${basename(file.file)}`, file: file.file, evidence: "authenticated product web", sourceHead: item.sourceHead,
+    manifest: item.manifest, viewport: item.viewport, dpr: item.dpr, theme: item.theme, locale: item.locale, sha256: file.sha256,
+  })));
   const ciCase = pattern === "/courses" ? "Catalog populated, filtered and loading; three catalog reference captures" :
     pattern === "/calendar" ? "Calendar all, tutorial filter and empty filter" :
     pattern === "/courses/[id]/quiz/[quizId]" ? "Quiz player states and gateway reference in light/dark" :
@@ -125,7 +168,7 @@ const rows = manifest.routes.map((route: any) => {
     operations: operations[pattern], contract_doc: info.doc, checks: [...info.checks, "tests/visual/native-parallel/student/expanded-fixtures.test.ts"],
     http_evidence: httpCourses.has(pattern) ? { source: "tests/visual/native-parallel/student/product/README.md", scope: "Local synthetic HTTP reads for dashboard, extras, catalog, course and material; see per-view assertions." } :
       httpCommunity.has(pattern) ? { source: "packages/native-parity/student/community/README.md", scope: "Local synthetic HTTP tests cover selected guard and community operations; inspect linked test for exact scope." } : null,
-    web_evidence: [...productCaptures, ...componentCaptures],
+    web_evidence: [...productCaptures, ...componentCaptures, ...optionalCaptures], web_attempts: attempts,
     web_ci_evidence: ciCase && webRun ? { case: ciCase, status: webRun.web.status, sourceHead: webRun.sourceHead,
       run: webRun.url, artifact: webRun.web.artifact, kind: "synthetic web component fixture" } : null,
     fixture_cases: cases,
@@ -158,9 +201,11 @@ for (const row of rows) {
   const assertions = available.reduce((n: number, x: any) => n + x.assertion_count, 0);
   const captures = row.web_evidence.map((x: any) => link(x.file, x.id));
   if (row.web_ci_evidence) captures.push(`[CI web fixture](${row.web_ci_evidence.artifact})`);
+  for (const attempt of row.web_attempts.filter((item: any) => item.status !== "passed"))
+    captures.push(`${link(attempt.manifest, `${attempt.id}: ${attempt.status}`)} (tanpa kredit capture)`);
   const screenshots = captures.join(", ") || "Belum ada capture tercatat";
   const platform = (["android", "ios"] as const).map(p => !summaries[p] ? `${p}: belum tercatat` :
-    summaries[p]!.data.workflowRun ? `[${p} run](${summaries[p]!.data.workflowRun})` : `${p}: summary lokal tersedia`).join("; ");
+    summaries[p]!.data.workflowRun || summaries[p]!.provenance.workflowRun ? `[${p} run](${summaries[p]!.data.workflowRun ?? summaries[p]!.provenance.workflowRun})` : `${p}: summary lokal tersedia`).join("; ");
   lines.push(`| ${link(row.source, row.pattern)} | ${link(row.implementation.ui, row.implementation.symbol)}; ${row.operations.map((op: string) => `\`${op}\``).join("<br>")}<br>${link(row.contract_doc, "kontrak dan izin")} | ${available.length} / ${blocked}; ${assertions} assertion yang direncanakan | ${screenshots} | ${platform} |`);
 }
 lines.push("", "Status pada tabel menunjukkan kode dan skenario yang ada. Periksa hasil tiap ID pada JSON: `generated_not_executed` belum dijalankan, `blocked` memuat alasan, dan artefak web tidak membuktikan state yang identik di native. Perbedaan, aksesibilitas, permission, dan pembuktian nol piksel tetap memerlukan evaluasi platform.", "");
