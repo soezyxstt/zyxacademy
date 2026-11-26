@@ -74,6 +74,7 @@ export function createManagementHttpClient({ request, userId, sessionId, assertC
       },
       meetings: cursor => nativeRead("meetings", { cursor }, signal),
       meeting: id => get(`/api/native/operations/management?view=meeting&id=${encodeURIComponent(id)}`, signal),
+      transcript: parameters => nativeRead("transcript", parameters, signal),
       meetingDirectory: () => get<MeetingDirectory>("/api/admin/meet/users", signal),
       discussions: parameters => nativeRead("discussions", parameters, signal),
       discussion: parameters => nativeRead("discussion", parameters, signal),

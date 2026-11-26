@@ -2,7 +2,7 @@ import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibili
 import { useState } from "react";
 import { View } from "react-native";
 import { DEFAULT_ICON, EMOJI_OPTIONS, LINK_COLORS, LINK_CATEGORY_SUGGESTIONS, isValidHttpUrl } from "../../../../../lib/links";
-import { ManagementFailure, managementSlug, type DiscussionThread, type LinkFields, type MeetingSpace, type PublicLink } from "../../../../../packages/native-parity/operations/management-contract";
+import { ManagementFailure, managementSlug, type DiscussionThread, type LinkFields, type MeetingSpace, type MeetingTranscript, type PublicLink } from "../../../../../packages/native-parity/operations/management-contract";
 import { meetingLinks } from "./links";
 import { discussionDestination, discussionWorkspaceHref } from "../../../../../packages/native-parity/discussion-destination";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, formatTimestamp, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
@@ -86,7 +86,7 @@ export function MeetDetails({ id }: { id: string }) {
       <Section title={meeting.title}>
         <Copy muted>{formatTimestamp(meeting.startTime, locale)}</Copy>
         <Copy>{`${Math.floor(meeting.totalDurationSeconds / 60)} menit · ${meeting.participantCount ?? meeting.participants.length} peserta · Puncak ${meeting.peakConcurrentParticipants ?? 0}`}</Copy>
-        <Copy>{`${meeting.recordings.length} rekaman · ${meeting.transcripts.reduce((total, transcript) => total + transcript.lines, 0)} baris transkrip`}</Copy>
+        <Copy>{`${meeting.recordings.length} rekaman · ${meeting.transcripts.reduce((total, transcript) => total + transcript.lines, 0)}${meeting.transcripts.some(transcript => transcript.firstPage?.nextCursor) ? "+" : ""} baris transkrip`}</Copy>
       </Section>
       <Section title="Kehadiran peserta">
         {!meeting.participants.length && <Copy muted>Belum ada peserta.</Copy>}
@@ -98,10 +98,39 @@ export function MeetDetails({ id }: { id: string }) {
       </Section>
       <Section title="Transkrip">
         {!meeting.transcripts.length && <Copy muted>Belum ada transkrip.</Copy>}
-        {meeting.transcripts.map(transcript => <Copy key={transcript.id}>{`${transcript.lines} baris`}</Copy>)}
+        {meeting.transcripts.map(transcript => <TranscriptSection key={`${id}/${transcript.id}`} recordId={id} transcript={transcript}
+          speakers={meeting.participants} />)}
       </Section>
     </>}
   </Screen>;
+}
+
+function TranscriptSection({ recordId, transcript, speakers }: { recordId: string; transcript: MeetingTranscript; speakers: { id: string; name: string }[] }) {
+  const { locale, openExternal } = useManagement();
+  const en = locale === "en";
+  const [expanded, setExpanded] = useState(false);
+  const pages = usePagination();
+  const read = useRead("transcript", { id: recordId, transcript: transcript.id, cursor: pages.cursor ?? "" }, expanded && Boolean(pages.cursor));
+  const page = pages.cursor ? read.data : transcript.firstPage;
+  const speakerNames = new Map(speakers.map(person => [person.id, person.name]));
+  const documentUrl = transcript.documentUrl;
+  const hasDocument = documentUrl && /^https:\/\/docs\.google\.com\/document\/(?:u\/\d+\/)?d\/[A-Za-z0-9_-]+(?:[/?#]|$)/.test(documentUrl);
+  return <View style={styles.field}>
+    {transcript.startTime && <Copy strong>{formatTimestamp(transcript.startTime, locale)}</Copy>}
+    <View style={styles.row}>
+      {transcript.firstPage ? <Action selected={expanded} onPress={() => setExpanded(!expanded)}>{expanded ? (en ? "Hide transcript" : "Tutup transkrip") : (en ? "Read transcript" : "Baca transkrip")}</Action> : <Copy>{`${transcript.lines} ${en ? "lines" : "baris"}`}</Copy>}
+      {hasDocument && openExternal && <Action onPress={() => openExternal(documentUrl)}>{en ? "Open Google Docs" : "Buka Google Docs"}</Action>}
+    </View>
+    {expanded && <>
+      {pages.cursor && <LoadState {...read} retry={read.reload} />}
+      {page && !page.items.length && <Copy muted>{en ? "No transcript text yet." : "Belum ada teks transkrip."}</Copy>}
+      {page?.items.map(entry => <View key={entry.id} style={styles.field}>
+        <Copy muted>{`${speakerNames.get(entry.speakerId) || (en ? "Participant" : "Peserta")} · ${formatTimestamp(entry.startTime, locale)}`}</Copy>
+        <Copy>{entry.text}</Copy>
+      </View>)}
+      <Pagination {...pages} next={page?.nextCursor} />
+    </>}
+  </View>;
 }
 
 export function Discussions({ searchParams }: { searchParams: URLSearchParams }) {

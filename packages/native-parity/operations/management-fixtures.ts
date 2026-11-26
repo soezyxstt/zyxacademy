@@ -118,6 +118,7 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
     },
     meetings: () => ({ items: meetings.map(({ id, title, startTime, endTime, participantCount, peakConcurrentParticipants }) => ({ id, title, startTime, endTime, participantCount, peakConcurrentParticipants })) }),
     meeting: id => required(meetings.find(record => record.id === id)),
+    transcript: () => ({ items: [] }),
     meetingDirectory: () => data ? initialDirectory : { users: [], courses: [] },
     discussions: ({ search, status }) => ({ items: threads.filter(thread => (!status || thread.status === status) && (!search || `${thread.title} ${thread.channel}`.toLowerCase().includes(search.toLowerCase()))) }),
     discussion: ({ id, message }) => {

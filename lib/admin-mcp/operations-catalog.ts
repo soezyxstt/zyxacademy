@@ -1957,7 +1957,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "The native Admin workspace uses the verified Admin account. Discussion targets, report reads and moderation use the existing role and channel authorization. Moderators resolve or dismiss a pending report through the same locked transition as the website. Native Forms Sheets export builds rows from authorized stored responses and confirms conflicts against the observed sheet revision. Its provider receipt is scoped to the Admin session. MCP forms.responses.* scopes, consent, job workflow and environment bindings retain their existing contracts. Management writes retain their interactive authorization and retry rules."
+    "reason": "The native Admin workspace uses the verified Admin account. Conference transcript entries and existing Google Docs links use the authorized interactive Meet history read. Discussion targets, report reads and moderation use the existing role and channel authorization. Moderators resolve or dismiss a pending report through the same locked transition as the website. Native Forms Sheets export builds rows from authorized stored responses and confirms conflicts against the observed sheet revision. Its provider receipt is scoped to the Admin session. MCP forms.responses.* scopes, consent, job workflow and environment bindings retain their existing contracts. Management writes retain their interactive authorization and retry rules."
   },
   {
     "source": "app/api/native/operations/forms/[formId]/responses/[responseId]/attachment/[index]/route.ts",

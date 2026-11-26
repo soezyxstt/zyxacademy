@@ -185,6 +185,7 @@ export interface ComprehensiveMeetingAnalytics {
     endTime: string;
     docsExportUri?: string;
     fullText: string;
+    nextEntryPageToken?: string;
     entries: {
       entryId: string;
       participantResourceName: string;
@@ -769,6 +770,7 @@ export async function getCompleteMeetingAnalytics(
         startTime: t.startTime,
         endTime: t.endTime,
         docsExportUri,
+        nextEntryPageToken: entriesRes.nextPageToken,
         fullText,
         entries,
       };

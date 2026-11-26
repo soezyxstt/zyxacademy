@@ -83,7 +83,9 @@ export type MediaLibrary = { folders: string[]; files: MediaFile[]; destinations
 export type MediaLocation = { space: "media" | "storage"; folder: string; cursor?: string };
 export type MeetingRecord = { id: string; title: string; startTime: string; endTime?: string; participantCount?: number; peakConcurrentParticipants?: number };
 export type MeetingParticipant = { id: string; name: string; userType: string; totalDurationSeconds: number; sessions: { startTime?: string; endTime?: string }[] };
-export type MeetingDetails = MeetingRecord & { totalDurationSeconds: number; participants: MeetingParticipant[]; recordings: { id: string; url?: string; startTime?: string }[]; transcripts: { id: string; lines: number }[] };
+export type MeetingSpeech = { id: string; speakerId: string; startTime: string; text: string };
+export type MeetingTranscript = { id: string; lines: number; startTime?: string; endTime?: string; documentUrl?: string; firstPage?: ManagementPage<MeetingSpeech> };
+export type MeetingDetails = MeetingRecord & { totalDurationSeconds: number; participants: MeetingParticipant[]; recordings: { id: string; url?: string; startTime?: string }[]; transcripts: MeetingTranscript[] };
 export type MeetingSpace = { name: string; title: string; meetingCode: string; meetingUri?: string; slug?: string; hostEmail?: string; invitedEmails: string[] };
 export type MeetingUser = { id: string; name: string; email: string; roles: string[]; courseIds: string[] };
 export type MeetingDirectory = { users: MeetingUser[]; courses: { id: string; title: string }[] };
@@ -105,7 +107,7 @@ export type PricingData = { vouchers: Voucher[]; discounts: PricingDiscounts; no
 export type ManagementReads = {
   articles: [undefined, ArticleSummary[]]; article: [string, Article]; forms: [undefined, FormDefinition[]]; form: [string, FormDetails];
   presets: [{ cursor?: string; settingsOnly?: boolean }, FormPresetPage]; preset: [string, FormPreset];
-  media: [MediaLocation, MediaLibrary]; meetings: [string | undefined, ManagementPage<MeetingRecord>]; meeting: [string, MeetingDetails]; meetingDirectory: [undefined, MeetingDirectory];
+  media: [MediaLocation, MediaLibrary]; meetings: [string | undefined, ManagementPage<MeetingRecord>]; meeting: [string, MeetingDetails]; transcript: [{ id: string; transcript: string; cursor: string }, ManagementPage<MeetingSpeech>]; meetingDirectory: [undefined, MeetingDirectory];
   discussions: [{ cursor?: string; search?: string; status?: DiscussionThread["status"] }, ManagementPage<DiscussionThread>]; discussion: [{ id: string; cursor?: string; message?: string }, DiscussionPage];
   discussionReports: [{ cursor?: string }, ManagementPage<DiscussionReportSummary>]; pricing: [undefined, PricingData]; links: [undefined, PublicLink[]];
 };

@@ -19,9 +19,18 @@ mock.module("@/lib/google-meet", () => ({
     googleCalls++;
     return { conferenceRecords: [] };
   },
-  getCompleteMeetingAnalytics: async () => {
+  getCompleteMeetingAnalytics: async id => {
     googleCalls++;
-    throw Error("fixture unavailable");
+    assert.equal(id, "conf-one");
+    return { spaceName: "spaces/test", participants: [], recordings: [], transcripts: [{
+      transcriptId: "transcript-one", startTime: "2026-01-01T10:00:00Z", docsExportUri: "https://docs.google.com/document/d/synthetic/edit", nextEntryPageToken: "second",
+      entries: [{ entryId: "first", participantResourceName: "conferenceRecords/conf-one/participants/teacher", text: "Baris pertama", startTime: "2026-01-01T10:00:00Z" }],
+    }] };
+  },
+  listTranscriptEntries: async (record, transcript, size, cursor) => {
+    assert.deepEqual([record, transcript, size, cursor], ["conf-one", "transcript-one", 100, "second"]);
+    googleCalls++;
+    return { transcriptEntries: [{ name: "entries/last", participant: "participants/teacher", text: "Baris akhir", startTime: "2026-01-01T10:00:02Z" }] };
   },
 }));
 let count = 0;
@@ -55,6 +64,7 @@ try {
       "discussion",
       "discussion-reports",
       "meetings",
+      "transcript",
       "meeting",
     ])
       await check(view, code, "synth");
@@ -156,13 +166,21 @@ try {
   await check("discussion", 404, thread.id, current.id, { message: "other-thread-message" });
 
   await check("meetings", 200);
+  await check("transcript", 400, "conf-one", current.id, { transcript: "../bad", cursor: "second" });
+  await check("transcript", 403, "conf-one", "other", { transcript: "transcript-one", cursor: "second" });
+  const { transcripts } = await check("meeting", 200, "conf-one");
+  const [transcript] = transcripts;
+  assert.equal(transcript.documentUrl, "https://docs.google.com/document/d/synthetic/edit");
+  assert.deepEqual(transcript.firstPage.items[0], { id: "first", speakerId: "teacher", text: "Baris pertama", startTime: "2026-01-01T10:00:00Z" });
+  const tail = await check("transcript", 200, "conf-one", current.id, { transcript: transcript.id, cursor: transcript.firstPage.nextCursor });
+  assert.deepEqual(tail, { items: [{ id: "last", speakerId: "teacher", text: "Baris akhir", startTime: "2026-01-01T10:00:02Z" }] });
   await check("unknown", 404);
-  assert.equal(googleCalls, 1);
+  assert.equal(googleCalls, 3);
   await testDb
     .delete(penggunaPeran)
     .where(eq(penggunaPeran.penggunaId, current.id));
   await guards(403);
-  assert.equal(googleCalls, 1);
+  assert.equal(googleCalls, 3);
   console.log("private management handler cases passed", count);
 } finally {
   await client.close();

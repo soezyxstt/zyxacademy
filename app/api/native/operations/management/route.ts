@@ -12,7 +12,7 @@ import { getNativeOperationsAdmin } from "@/lib/auth/native-operations-admin";
 import { BlogServiceError, getBlogArticle } from "@/lib/blog/service";
 import { validDiscussionId } from "@/lib/discussions/policy";
 import { listThreadsAcrossChannels, getThread, listChannelMetadata, listReports } from "@/lib/discussions/service";
-import { getCompleteMeetingAnalytics, listConferenceRecords } from "@/lib/google-meet";
+import { getCompleteMeetingAnalytics, listConferenceRecords, listTranscriptEntries } from "@/lib/google-meet";
 import { getPricingDiscounts } from "@/lib/pricing-settings";
 import { ManagementFailure, type Article, type ManagementPage, type MeetingDetails, type MeetingRecord, type PricingData } from "@/packages/native-parity/operations/management-contract";
 
@@ -46,7 +46,14 @@ async function readMeetDetails(id: string): Promise<MeetingDetails> {
     totalDurationSeconds: analytics.totalDurationSeconds ?? 0, participantCount: analytics.participantCount, peakConcurrentParticipants: analytics.peakConcurrentParticipants,
     participants: analytics.participants.map(person => ({ id: person.participantId, name: person.displayName, userType: person.userType, totalDurationSeconds: person.totalDurationSeconds, sessions: person.sessions })),
     recordings: analytics.recordings.map(rec => ({ id: rec.recordingId, url: rec.driveExportUri, startTime: rec.startTime })),
-    transcripts: analytics.transcripts.map(entry => ({ id: entry.transcriptId, lines: entry.entries.length })),
+    transcripts: analytics.transcripts.map(transcript => ({
+      id: transcript.transcriptId, lines: transcript.entries.length, startTime: transcript.startTime, endTime: transcript.endTime,
+      documentUrl: transcript.docsExportUri,
+      firstPage: {
+        items: transcript.entries.map(entry => ({ id: entry.entryId, speakerId: entry.participantResourceName.split("/").pop() ?? "", startTime: entry.startTime, text: entry.text })),
+        nextCursor: transcript.nextEntryPageToken,
+      },
+    })),
   };
 }
 
@@ -113,6 +120,15 @@ export async function GET(request: NextRequest) {
         });
       }
       case "meetings": return reply(await readMeetRecords(cursor));
+      case "transcript": {
+        const transcript = params.get("transcript");
+        if (!id || !transcript || !/^[A-Za-z0-9_-]{1,180}$/.test(transcript) || !cursor) return reply({ error: "invalid" }, 400);
+        const page = await listTranscriptEntries(id, transcript, 100, cursor);
+        return reply({
+          items: (page.transcriptEntries ?? []).map(entry => ({ id: entry.name.split("/").pop(), speakerId: entry.participant.split("/").pop(), startTime: entry.startTime, text: entry.text })),
+          nextCursor: page.nextPageToken,
+        });
+      }
       case "meeting": return id ? reply(await readMeetDetails(id)) : reply({ error: "invalid" }, 400);
       default: return reply({ error: "not-found" }, 404);
     }
