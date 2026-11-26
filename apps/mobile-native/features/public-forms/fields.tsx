@@ -134,11 +134,12 @@ type FileField = {
   clear(): void;
 };
 
-export function FormField({ index, question, value, detail, issue, onValue, onDetail, disabled, locale, file, colors }: {
-  index: number; question: PublicQuestion; value?: PublicAnswer; detail: string; issue?: FieldIssue; onValue: (value: PublicAnswer | undefined) => void;
+export function FormField({ index, number, question, value, detail, issue, onValue, onDetail, disabled, locale, file, colors }: {
+  index: number; number?: number; question: PublicQuestion; value?: PublicAnswer; detail: string; issue?: FieldIssue; onValue: (value: PublicAnswer | undefined) => void;
   onDetail: (detail: string) => void; disabled: boolean; locale: FormLocale; file?: FileField; colors: FormColors;
 }) {
   const copy = publicFormCopy(locale);
+  const [focusedText, setFocusedText] = useState(false);
   const type = question.type;
   const readOnly = type === "SECTION" || type === "STATEMENT";
   const image = sourceUrl(question.imageUrl);
@@ -149,8 +150,12 @@ export function FormField({ index, question, value, detail, issue, onValue, onDe
   let control;
   if (type === "TEXT" || type === "PARAGRAPH") {
     const TextField = type === "TEXT" ? Input : Textarea;
-    control = <TextField accessibilityLabel={question.title} disabled={disabled} maxLength={50_000} value={scalar} testID={`public-form-field-${index}`}
-      style={formStyles.input} onChangeText={onValue} />;
+    control = <TextField accessibilityLabel={question.title} accessibilityHint={question.required ? copy.required : undefined}
+      placeholder={type === "TEXT" ? copy.textPlaceholder : copy.paragraphPlaceholder}
+      placeholderTextColor={colors.mutedForeground + "66"} disabled={disabled} maxLength={50_000} value={scalar}
+      testID={`public-form-field-${index}`} onFocus={() => setFocusedText(true)} onBlur={() => setFocusedText(false)}
+      style={type === "TEXT" ? [styles.lineInput, { borderBottomColor: focusedText ? colors.brandPrimary : colors.border + "cc" }]
+        : styles.paragraph} onChangeText={onValue} />;
   } else if (type === "CHECKBOX" || type === "RADIO") {
     const multiple = type === "CHECKBOX";
     const choices = question.otherOption?.enabled ? [...options, otherOption] : options;
@@ -214,10 +219,17 @@ export function FormField({ index, question, value, detail, issue, onValue, onDe
     </View>;
   }
 
-  return <View style={formStyles.group}>
-    <Text accessibilityRole="header" style={[formStyles.heading, { color: colors.foreground }]}>{title}</Text>
-    {!readOnly && question.required && <Text style={[formStyles.meta, { color: colors.mutedForeground }]}>{copy.required}</Text>}
-    {Boolean(question.description) && <Text style={[formStyles.body, { color: colors.mutedForeground }]}>{question.description}</Text>}
+  return <View style={styles.field}>
+    <View style={formStyles.group}>
+      <View style={styles.fieldTitle}>
+        {number !== undefined && <Text accessible={false} importantForAccessibility="no" style={[styles.number, { color: colors.brandPrimary }]}>{number}.</Text>}
+        <Text accessibilityRole="header" accessibilityLabel={!readOnly && question.required ? `${title}, ${copy.required}` : title}
+          style={[formStyles.heading, nativeTypography.headingSemibold, styles.titleText, { color: colors.foreground }]}>
+          {title}{!readOnly && question.required && <Text style={{ color: colors.destructive }}> *</Text>}
+        </Text>
+      </View>
+      {Boolean(question.description) && <Text style={[formStyles.body, { color: colors.mutedForeground }]}>{question.description}</Text>}
+    </View>
     {image && <QuestionImage key={image} uri={image} title={question.title} failure={copy.mediaFailed} colors={colors} />}
     {control}
     {issue && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[formStyles.meta, { color: colors.destructive }]}>{fieldIssueMessage(locale, issue)}</Text>}
@@ -228,6 +240,13 @@ export function FormField({ index, question, value, detail, issue, onValue, onDe
 }
 
 const styles = StyleSheet.create({
+  field: { gap: 16 },
+  fieldTitle: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  number: { ...nativeTypography.mono, fontSize: 14, lineHeight: 20, paddingTop: 2 },
+  titleText: { flex: 1 },
+  lineInput: { height: 36, paddingTop: 0, paddingBottom: 12, paddingHorizontal: 0, borderRadius: 0,
+    borderWidth: 0, borderBottomWidth: 2, outlineWidth: 0, boxShadow: "none", backgroundColor: "transparent" },
+  paragraph: { minHeight: 112, padding: 12 },
   choice: { minHeight: 44, minWidth: 44, flexDirection: "row", alignItems: "center", gap: 8, padding: 8, borderWidth: 1, borderRadius: nativeRadii.md },
   choiceText: { flexShrink: 1 },
   choiceMark: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },

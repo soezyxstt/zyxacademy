@@ -15,6 +15,11 @@ name: Public and short form capture states and accessible controls
     id: public-form-field-0
 - assertVisible:
     id: public-form-next
+- assertVisible: Bagian 1 / 1
+- assertVisible: "0%"
+- assertVisible:
+    text: Kembali
+    enabled: false
 - runFlow:
     file: helpers/open-public-form.yaml
     env:

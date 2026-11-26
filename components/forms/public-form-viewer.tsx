@@ -40,7 +40,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { buildFormSteps, formFileSizeLimitMb, formScaleValues, isEmptyFormAnswer, type FormStep, type FormDisplayMode } from "@/lib/forms/presentation";
+import { buildFormSteps, formFileSizeLimitMb, formQuestionNumbers, formScaleValues, isEmptyFormAnswer, type FormStep, type FormDisplayMode } from "@/lib/forms/presentation";
 import { formFileAccept, type FormFileMime } from "@/lib/forms/file-types";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { customFormMessage, type FormClosure } from "@/lib/forms/response-policy";
@@ -236,23 +236,8 @@ export function PublicFormViewer({
   // A preview can change modes or remove questions while mounted.
   const stepIndex = Math.min(currentStepIndex, steps.length - 1);
   // Number only answerable questions.
-  const questionNumberMap = useMemo(() => {
-    const map = new Map<number, number>();
-    if (!form?.questions) return map;
-    let n = 0;
-    form.questions.forEach((q, idx) => {
-      if (q.type !== "SECTION" && q.type !== "STATEMENT") {
-        n += 1;
-        map.set(idx, n);
-      }
-    });
-    return map;
-  }, [form]);
-
-  const totalQuestions = useMemo(() => {
-    if (!form?.questions) return 0;
-    return form.questions.filter((q) => q.type !== "SECTION" && q.type !== "STATEMENT").length;
-  }, [form]);
+  const questionNumberMap = useMemo(() => formQuestionNumbers(form?.questions ?? []), [form]);
+  const totalQuestions = questionNumberMap.size;
 
   // Calculate overall percentage progress
   const progressPercent = Math.round((stepIndex / Math.max(steps.length, 1)) * 100);

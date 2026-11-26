@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
-import { buildFormSteps } from "../../../../packages/forms/presentation";
+import { buildFormSteps, formQuestionNumbers } from "../../../../packages/forms/presentation";
 import { customFormMessage } from "../../../../packages/forms/response-policy";
 import { Input } from "../../components/Input";
-import { Progress } from "../../components/Progress";
+import { Button } from "../../components/Button";
+import { nativeTypography } from "../../typography";
+import Svg, { Path } from "react-native-svg";
 import { hapticError, hapticSuccess } from "../../device/haptics";
 import { NativeStatusPanel, SharedUiActionButton } from "../shared-ui/layout";
 import type { FormSubmission } from "./client";
@@ -57,7 +59,11 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
   const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
   const positions = useRef<Record<string, number>>({});
   const [focus, setFocus] = useState<{ key: string } | null>(null);
-  const { indices, email, cover } = fieldsOnStep(steps[cursor]);
+  const step = steps[cursor];
+  const { indices, email, cover } = fieldsOnStep(step);
+  const numbers = useMemo(() => formQuestionNumbers(form.questions), [form.questions]);
+  const percent = Math.round(cursor / steps.length * 100);
+  const section = step?.kind === "page";
   const finalStep = cursor === steps.length - 1;
   const blocked = result === "uncertain" || result === "already-sent" || result === "missing";
   const needsCheck = result === "denied" || result === "invalid";
@@ -226,12 +232,36 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
   })();
 
   const disabled = !!pending || blocked || !!checking;
+  const advanceLabel = finalStep ? copy.submit : cover && !email && !indices.length ? copy.start : copy.next;
+  const controls = <View style={[styles.actions, { borderTopColor: colors.border + "99" }]}>
+    {(section || cursor > 0) && <Button variant={section ? "outline" : "ghost"}
+      disabled={cursor === 0 || !!pending} onPress={() => navigate(cursor - 1)}>{copy.back}</Button>}
+    {!blocked && <Button testID="public-form-next" onPress={next} isLoading={pending?.status === "submit"}
+      accessibilityLabel={advanceLabel} disabled={disabled || needsCheck || (finalStep && !!sessionStatus)}
+      iconPosition="end" renderIcon={(color, size) => <Svg width={size} height={size} viewBox="0 0 24 24" accessible={false}>
+        <Path d={finalStep ? "M22 2 15 22l-4-9-9-4 20-7ZM22 2 11 13" : "M5 12h14m-7-7 7 7-7 7"}
+          stroke={color} fill="none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      </Svg>}>{pending?.status === "submit" ? copy.submitting : advanceLabel}</Button>}
+  </View>;
   return <View style={styles.response}>
-    {steps.length > 1 && <Progress value={cursor} max={steps.length} accessibilityLabel={copy.progress} style={styles.progress} />}
-    <ScrollView ref={scroller} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
-      {cover && <View style={formStyles.group}>
-        <Text accessibilityRole="header" style={[formStyles.title, { color: colors.foreground }]}>{form.title}</Text>
-        {form.description && <Text style={[formStyles.body, { color: colors.mutedForeground }]}>{form.description}</Text>}
+    <View style={{ borderBottomWidth: 1, borderBottomColor: colors.border + "66", backgroundColor: colors.background + "d9" }}>
+      <View accessible accessibilityRole="progressbar" accessibilityLabel={copy.progress}
+        accessibilityValue={{ min: 0, max: 100, now: percent }} style={{ height: 4, backgroundColor: colors.muted + "99" }}>
+        <View style={{ width: `${percent}%`, height: 4, backgroundColor: colors.brandPrimary }} />
+      </View>
+      <View style={[styles.column, styles.header]}>
+        <Text numberOfLines={1} style={[formStyles.meta, nativeTypography.bodyMedium, { flex: 1, color: colors.foreground }]}>{form.title}</Text>
+        {section && <Text style={[formStyles.meta, nativeTypography.bodySemibold, { color: colors.mutedForeground }]}>
+          {locale === "id" ? "Bagian" : "Section"} {cursor + 1} / {steps.length}
+        </Text>}
+        {step?.kind === "question" && <Text style={[styles.counter, { color: colors.mutedForeground }]}>{numbers.get(step.questionIndex)} / {numbers.size}</Text>}
+        <Text style={[styles.counter, { fontWeight: "700", color: colors.brandPrimary }]}>{percent}%</Text>
+      </View>
+    </View>
+    <ScrollView ref={scroller} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.column, styles.content]}>
+      {cover && <View style={styles.cover}>
+        <Text accessibilityRole="header" style={[formStyles.title, { letterSpacing: -0.6, color: colors.foreground }]}>{form.title}</Text>
+        {form.description && <Text style={[styles.description, { color: colors.mutedForeground }]}>{form.description}</Text>}
       </View>}
       {email && <View style={formStyles.group} onLayout={event => { positions.current.email = event.nativeEvent.layout.y; }}>
         <Text accessibilityRole="header" style={[formStyles.heading, { color: colors.foreground }]}>{copy.emailTitle}</Text>
@@ -241,10 +271,11 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
           value={draft.email} onChangeText={value => { update({ ...draftRef.current, email: value }); setEmailIssue(false); }} style={formStyles.input} />
         {emailIssue && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[formStyles.meta, { color: colors.destructive }]}>{copy.emailInvalid}</Text>}
       </View>}
-      {indices.map(index => {
+      {indices.map((index, position) => {
         const question = form.questions[index];
-        return <View key={index} onLayout={event => { positions.current[index] = event.nativeEvent.layout.y; }}>
-          <FormField index={index} question={question} value={draft.answers[index]} detail={draft.other[index] ?? ""} issue={issues[index]}
+        return <View key={index} style={section && (cover || email || position > 0) && [styles.divider, { borderTopColor: colors.border + "b3" }]}
+          onLayout={event => { positions.current[index] = event.nativeEvent.layout.y; }}>
+          <FormField index={index} number={numbers.get(index)} question={question} value={draft.answers[index]} detail={draft.other[index] ?? ""} issue={issues[index]}
             colors={colors} locale={locale} disabled={disabled} onValue={value => updateAnswer(index, value)}
             onDetail={value => update({ ...draftRef.current, other: { ...draftRef.current.other, [index]: value } })}
             file={question.type !== "FILE_UPLOAD" ? undefined : {
@@ -262,21 +293,21 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
       {sessionStatus === "unavailable" && <NativeStatusPanel tone="error" title={copy.sessionUnavailable}
         action={{ id: "session", label: copy.retry }} onAction={onSessionRetry ?? onCheck} />}
       {checkFailed && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[formStyles.meta, { color: colors.destructive }]}>{copy.loadError}</Text>}
-      <View style={formStyles.row}>
-        {cursor > 0 && <SharedUiActionButton action={{ id: "back", label: copy.back, disabled: !!pending, variant: "ghost" }}
-          onAction={() => navigate(cursor - 1)} />}
-        {!blocked && <SharedUiActionButton
-          action={{ id: "next", label: pending?.status === "submit" ? copy.submitting.replace("...", "…")
-            : finalStep ? copy.submit : cover && !email && !indices.length ? copy.start : copy.next,
-            disabled: disabled || needsCheck || (finalStep && !!sessionStatus), pending: pending?.status === "submit", variant: "default" }}
-          onAction={next} testID="public-form-next" />}
-      </View>
+      {(section || step?.kind !== "question") && controls}
     </ScrollView>
+    {!section && step?.kind === "question" && <View style={[styles.column, styles.footer, { backgroundColor: colors.background }]}>{controls}</View>}
   </View>;
 }
 
 const styles = StyleSheet.create({
   response: { flex: 1 },
-  progress: { marginBottom: 12 },
-  content: { gap: 16, paddingBottom: 16 },
+  column: { alignSelf: "center", width: "100%", maxWidth: 672, paddingHorizontal: 16 },
+  header: { flexDirection: "row", minHeight: 44, alignItems: "center", columnGap: 8 },
+  counter: { ...nativeTypography.mono, fontSize: 12, lineHeight: 16, fontVariant: ["tabular-nums"] },
+  content: { gap: 16, paddingVertical: 16 },
+  cover: { gap: 16 },
+  description: { ...nativeTypography.bodyRegular, fontSize: 16, lineHeight: 26 },
+  divider: { borderTopWidth: 1, paddingTop: 20, marginTop: 4, paddingBottom: 20 },
+  actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end", gap: 8, borderTopWidth: 1, paddingTop: 12 },
+  footer: { paddingBottom: 8 },
 });
