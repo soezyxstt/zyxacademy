@@ -8,8 +8,9 @@ import type { FormLocale, PublicFormLoad } from "./model";
 
 type Access = "waiting" | "anonymous" | "signed-in" | "unavailable";
 
-export function PublicFormScreen({ state, locale, access, opening, browserFailed, onRetry, onLogin, onWeb, onMeet, onBack, children }: {
+export function PublicFormScreen({ state, locale, access, opening, browserFailed, onRetry, onLogin, onWeb, onMeet, onBack, children, insideSafeArea }: {
   state: PublicFormLoad | null; locale: FormLocale; access: Access; opening?: boolean; browserFailed?: boolean;
+  insideSafeArea?: boolean;
   onRetry(): void; onLogin(): void; onWeb(): void; onMeet(): void; onBack(): void; children?: ReactNode;
 }) {
   const copy = publicFormCopy(locale);
@@ -55,7 +56,7 @@ export function PublicFormScreen({ state, locale, access, opening, browserFailed
   }
 
   const title = state?.status === "closed" ? state.title : state?.status === "meeting" ? "Google Meet" : copy.formTitle;
-  return <NativeCompactShell back={{ label: copy.back, onPress: onBack }} navigationTitle={title}>
+  return <NativeCompactShell back={{ label: copy.back, onPress: onBack }} navigationTitle={title} edges={insideSafeArea ? [] : undefined}>
     {browserFailed && <Text accessibilityRole="alert" accessibilityLiveRegion="polite"
       style={[formStyles.meta, { color: colors.destructive }]}>{copy.browserFailed}</Text>}
     {contents}

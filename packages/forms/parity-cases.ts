@@ -8,6 +8,12 @@ export const publicFormCases = {
 } as const;
 
 export type PublicFormCaseId = keyof typeof publicFormCases;
+export const publicFormFrame = { width: 380, height: 640 } as const;
+export const publicFormPageCases = {
+  forms: { route: "/forms/[id]", cases: ["forms-ready", "forms-closed", "forms-missing"] },
+  "short-forms": { route: "/f/[slug]", cases: ["short-collision", "short-meeting", "short-missing"] },
+} as const satisfies Record<string, { route: string; cases: readonly PublicFormCaseId[] }>;
+
 export function isPublicFormCaseId(id: unknown): id is PublicFormCaseId {
   return typeof id === "string" && Object.hasOwn(publicFormCases, id);
 }

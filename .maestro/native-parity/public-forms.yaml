@@ -1,0 +1,48 @@
+appId: com.zyx.academy.nativeparity
+name: Public and short form capture states and accessible controls
+---
+- launchApp
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
+- runFlow:
+    file: helpers/open-public-form.yaml
+    env:
+      CASE_ID: forms-ready
+- assertVisible: Pendaftaran tutorial
+- assertVisible: Nama peserta
+- assertVisible:
+    id: public-form-field-0
+- assertVisible:
+    id: public-form-next
+- runFlow:
+    file: helpers/open-public-form.yaml
+    env:
+      CASE_ID: forms-closed
+- assertVisible: .*Formulir ditutup.*
+- assertVisible: .*Pendaftaran sesi ini telah berakhir.*
+- runFlow:
+    file: helpers/open-public-form.yaml
+    env:
+      CASE_ID: forms-missing
+- assertVisible: .*Formulir tidak ditemukan.*
+- assertVisible: Kembali ke beranda
+- runFlow:
+    file: helpers/open-public-form.yaml
+    env:
+      CASE_ID: short-collision
+- assertVisible: Pendaftaran tutorial
+- assertVisible: Nama peserta
+- assertNotVisible: Gabung Google Meet
+- runFlow:
+    file: helpers/open-public-form.yaml
+    env:
+      CASE_ID: short-meeting
+- assertVisible: Google Meet
+- assertVisible: Gabung Google Meet
+- runFlow:
+    file: helpers/open-public-form.yaml
+    env:
+      CASE_ID: short-missing
+- assertVisible: .*Formulir tidak ditemukan.*
+- assertVisible: Kembali ke beranda

@@ -17,7 +17,8 @@ fi
 status=0
 python scripts/native-parity/capture-gallery.py android || status=1
 bash scripts/native-parity/check-interactions.sh android "$(adb get-serialno)" || status=1
-python scripts/native-parity/compare-directory.py android || status=1
+adb shell cmd uimode night no
+python scripts/native-parity/compare-pages.py android || status=1
 if [[ ${EXPO_PUBLIC_PARITY_WEBVIEW:-} == 1 ]]; then
   python scripts/native-parity/capture-webview.py android || status=1
 fi

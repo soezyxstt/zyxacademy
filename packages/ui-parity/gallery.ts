@@ -1,3 +1,4 @@
+import { alertCases } from "./alert-cases";
 import { radioCases } from "./radio-cases";
 import { avatarCases } from "./avatar-cases";
 import { badgeCases, betaBadgeCases } from "./badge-cases";
@@ -23,6 +24,7 @@ export const galleryCases = [
   ...formattedDateCases.map((item) => ({ ...item, family: "formatted-date" as const, component: "formatted-date" as const })),
   ...notificationInboxCases.map((item) => ({ ...item, family: "notification-inbox" as const, component: "notification-inbox" as const })),
   ...sliderCases.map((item) => ({ ...item, family: "slider" as const, component: "slider" as const })),
+  ...alertCases.map((item) => ({ ...item, family: "alert" as const, component: "alert" as const })),
 ];
 export type GalleryCase = (typeof galleryCases)[number];
 

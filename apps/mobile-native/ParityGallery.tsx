@@ -7,6 +7,7 @@ import { nativeColors } from "../../packages/design-tokens/native-colors";
 import { getParityFrameHeight, parityFrame } from "../../packages/ui-parity/frame";
 import { getSeparatorPosition } from "../../packages/ui-parity/separator-cases";
 import { getSkeletonPosition } from "../../packages/ui-parity/skeleton-cases";
+import { AlertCase } from "./AlertCases";
 import { AvatarCase } from "./AvatarCases";
 import { BadgeCase, BetaBadgeCase } from "./BadgeCases";
 import { Separator } from "./components/Separator";
@@ -38,6 +39,8 @@ function Specimen({ item }: { item: GalleryCase }) {
       return <ControlCase id={item.id} />;
     case "radio":
       return <RadioCase id={item.id} />;
+    case "alert":
+      return <AlertCase item={item} />;
     case "avatar":
       return <AvatarCase item={item} />;
     case "badge":

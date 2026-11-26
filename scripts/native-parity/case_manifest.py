@@ -4,21 +4,37 @@ import json
 import re
 
 
+PAGE_CAPTURES = {
+    "directory": ("/tautan", "internal/public-links"),
+    "forms": ("/forms/[id]", "internal/public-forms"),
+    "short-forms": ("/f/[slug]", "internal/public-forms"),
+}
+
+
 def valid_case_id(name):
     return isinstance(name, str) and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name) is not None
 
 
-def load_directory_manifest(path):
+def load_page_manifest(path, group):
+    route, _ = PAGE_CAPTURES[group]
     manifest = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(manifest, dict) or manifest.get("route") != "/tautan":
-        raise ValueError("Expected the /tautan case manifest")
+    if not isinstance(manifest, dict) or manifest.get("route") != route:
+        raise ValueError(f"Expected the {route} case manifest")
     if any(type(manifest.get(axis)) is not int or manifest[axis] <= 0 for axis in ("width", "height")):
-        raise ValueError("Invalid directory viewport")
+        raise ValueError("Invalid page viewport")
     cases = manifest.get("cases")
     if not isinstance(cases, list) or len(cases) != 3 or not all(map(valid_case_id, cases)) or len(set(cases)) != 3:
-        raise ValueError("Expected three distinct directory cases")
+        raise ValueError("Expected three distinct page cases")
     if any(not isinstance(manifest.get(key), str) or not manifest[key] for key in ("commit", "buildCommit")):
-        raise ValueError("Missing directory reference revisions")
+        raise ValueError("Missing page reference revisions")
+    redirect = manifest.get("externalRedirect")
+    if group == "short-forms":
+        if (not isinstance(redirect, dict) or redirect.get("case") != "short-meeting" or redirect["case"] not in cases
+                or redirect.get("status") != 307 or not isinstance(redirect.get("location"), str)
+                or not re.fullmatch(r"https://meet\.google\.com/[a-z]{3}-[a-z]{4}-[a-z]{3}", redirect["location"])):
+            raise ValueError("Missing or invalid Google Meet redirect evidence")
+    elif redirect is not None:
+        raise ValueError("Unexpected external redirect evidence")
     return manifest
 
 
