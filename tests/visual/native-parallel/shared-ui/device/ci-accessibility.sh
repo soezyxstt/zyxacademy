@@ -27,13 +27,26 @@ adb_device=(adb -s "$device")
 
 android_locale() {
   local result
-  result=$("${adb_device[@]}" shell cmd locale get-app-locales "$app_id" --user "$android_user")
+  result=$("${adb_device[@]}" shell cmd locale get-app-locales "$app_id" --user "$android_user") || return 1
   if [[ "$result" =~ \[([[:alnum:],-]*)\] ]]; then
     printf '%s\n' "${BASH_REMATCH[1]}"
   else
     printf 'Could not read Android application locale: %s\n' "$result" >&2
     return 1
   fi
+}
+
+android_font_scale() {
+  "${adb_device[@]}" shell settings --user "$android_user" get system font_scale | tr -d '\r'
+}
+
+same_android_font_scale() {
+  if [[ "$1" == "$2" ]]; then
+    return 0
+  fi
+  # Android can persist a font scale as a float after the shell writes it.
+  [[ "$1" =~ ^[0-9]+(\.[0-9]+)?$ && "$2" =~ ^[0-9]+(\.[0-9]+)?$ ]] &&
+    awk -v first="$1" -v second="$2" 'BEGIN { exit (first + 0 != second + 0) }'
 }
 
 ios_text_size() {
@@ -49,7 +62,7 @@ ios_text_size() {
 }
 
 restore_settings() {
-  local status=$? failure=0
+  local status=$? failure=0 restored_locale restored_scale
   trap - EXIT
   if [[ "$platform" == android ]]; then
     if [[ "$original_scale" == null ]]; then
@@ -62,8 +75,14 @@ restore_settings() {
     else
       "${adb_device[@]}" shell cmd locale set-app-locales "$app_id" --user "$android_user" || failure=1
     fi
-    [[ $(android_locale) == "$original_locale" ]] || failure=1
-    [[ $("${adb_device[@]}" shell settings --user "$android_user" get system font_scale | tr -d '\r') == "$original_scale" ]] || failure=1
+    if ! restored_locale=$(android_locale) || [[ "$restored_locale" != "$original_locale" ]]; then
+      printf 'Android application locale after restore: [%s], expected [%s].\n' "$restored_locale" "$original_locale" >&2
+      failure=1
+    fi
+    if ! restored_scale=$(android_font_scale) || ! same_android_font_scale "$restored_scale" "$original_scale"; then
+      printf 'Android font scale after restore: %s, expected %s.\n' "$restored_scale" "$original_scale" >&2
+      failure=1
+    fi
     "${adb_device[@]}" shell am force-stop --user "$android_user" "$app_id" || failure=1
   else
     # The locale override belongs to the app process, so the next launch inherits the simulator locale.
@@ -87,7 +106,7 @@ if [[ "$platform" == android ]]; then
   fi
   android_user=$("${adb_device[@]}" shell am get-current-user | tr -d '\r')
   [[ "$android_user" =~ ^[0-9]+$ ]]
-  original_scale=$("${adb_device[@]}" shell settings --user "$android_user" get system font_scale | tr -d '\r')
+  original_scale=$(android_font_scale)
   [[ "$original_scale" == null || "$original_scale" =~ ^[0-9]+(\.[0-9]+)?$ ]]
   original_locale=$(android_locale)
 else
@@ -107,9 +126,10 @@ rm -f -- "$out/report.xml" "$out/hierarchy.json" "$out/large-text.png" "$out/con
 if [[ "$platform" == android ]]; then
   "${adb_device[@]}" shell settings --user "$android_user" put system font_scale 1.3
   "${adb_device[@]}" shell cmd locale set-app-locales "$app_id" --user "$android_user" --locales id-ID
-  text_size=$("${adb_device[@]}" shell settings --user "$android_user" get system font_scale | tr -d '\r')
+  text_size=$(android_font_scale)
   locale=$(android_locale)
-  [[ "$text_size" == 1.3 && "$locale" == id-ID ]]
+  same_android_font_scale "$text_size" 1.3
+  [[ "$locale" == id-ID ]]
   "${adb_device[@]}" shell am force-stop --user "$android_user" "$app_id"
   launch=$("${adb_device[@]}" shell am start -W --user "$android_user" -n "$app_id/.MainActivity")
   if [[ ! "$launch" =~ Status:[[:space:]]+ok ]]; then
@@ -132,9 +152,14 @@ status=0
 "${maestro_device[@]}" test --format junit --output "$out/report.xml" \
   --test-output-dir "$out/results" --debug-output "$out/logs" "$device_dir/ci-accessibility.yaml" || status=1
 "${maestro_device[@]}" hierarchy > "$out/hierarchy.json" || status=1
+if ! grep -Fq 'Cari pertanyaan' "$out/hierarchy.json" || ! grep -Fq 'Pertanyaan baru' "$out/hierarchy.json"; then
+  printf 'The captured hierarchy is missing the fixture action labels.\n' >&2
+  status=1
+fi
 if [[ "$platform" == android ]]; then
   "${adb_device[@]}" exec-out screencap -p > "$out/large-text.png" || status=1
 else
   xcrun simctl io "$device" screenshot "$out/large-text.png" || status=1
 fi
+[[ -s "$out/large-text.png" ]] || status=1
 exit "$status"

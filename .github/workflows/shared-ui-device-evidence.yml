@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 160
     concurrency:
       group: shared-ui-evidence-${{ matrix.platform }}-${{ github.head_ref || github.ref }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     env:
       CI: '1'
       NEXT_TELEMETRY_DISABLED: '1'
@@ -113,6 +113,7 @@ jobs:
         name: Verify iPhone and iPad cases
         run: bash tests/visual/native-parallel/shared-ui/device/ci-ios.sh
       - name: Archive evidence and diagnostic logs
+        id: evidence-artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -120,3 +121,40 @@ jobs:
           path: artifacts/native-parity/shared-ui/${{ matrix.platform }}/
           if-no-files-found: warn
           retention-days: 14
+      - name: Summarize device evidence
+        if: always()
+        env:
+          SHARED_ARTIFACT_URL: ${{ steps.evidence-artifact.outputs.artifact-url }}
+          SHARED_JOB_STATUS: ${{ job.status }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          import os
+          from pathlib import Path
+
+          platform = os.environ["SHARED_PLATFORM"]
+          output = Path("artifacts/native-parity/shared-ui") / platform
+          print(f"### Shared UI device evidence ({platform})\n")
+          print(f"Commit `{os.environ['SHARED_BUILD']}`, attempt {os.environ['GITHUB_RUN_ATTEMPT']}, job {os.environ['SHARED_JOB_STATUS']}.")
+          artifact_url = os.environ["SHARED_ARTIFACT_URL"]
+          print(f"[Download evidence and logs]({artifact_url})" if artifact_url else "Evidence artifact unavailable.")
+
+          statuses = ("match", "different", "blank", "invalid", "unverified")
+          print("\n| Group | Expected | Web | Native | Match | Different | Blank | Invalid | Unverified | Collector |")
+          print("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |")
+          for group in ("phone", "tablet", "wide"):
+              reports = sorted((output / group).glob("run-*/ci-summary.json"))
+              if not reports:
+                  print(f"| {group} | | | | | | | | | Summary unavailable |")
+              for report in reports:
+                  try:
+                      summary = json.loads(report.read_text(encoding="utf-8"))
+                  except (OSError, ValueError):
+                      print(f"| {group} | | | | | | | | | Summary unreadable |")
+                      continue
+                  counts = summary.get("comparisonCounts", {})
+                  cells = [summary.get(key, "") for key in ("expectedCases", "webCaptured", "nativeCaptured")]
+                  cells.extend(counts.get(status, "") for status in statuses)
+                  cells.append({0: "Passed", 1: "Failed"}.get(summary.get("exit"), "Unknown"))
+                  print("| " + " | ".join(map(str, [group, *cells])) + " |")
+          PY

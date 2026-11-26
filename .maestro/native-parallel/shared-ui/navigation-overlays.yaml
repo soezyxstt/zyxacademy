@@ -2,6 +2,9 @@ appId: com.zyx.academy.nativeparity
 name: Dialog validation and overlay dismissal
 ---
 - launchApp
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
 - openLink: zyx-native-parity://shared-ui/shared-dialog-closed-light
 - extendedWaitUntil:
     visible:
@@ -52,7 +55,7 @@ name: Dialog validation and overlay dismissal
     when:
       platform: Android
     commands:
-      - pressKey: BACK
+      - pressKey: Back
 - runFlow:
     when:
       platform: iOS

@@ -1,6 +1,9 @@
 appId: com.zyx.academy.nativeparity
 name: Nama kontrol bahasa Indonesia pada ukuran teks besar
 ---
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
 - openLink: zyx-native-parity://shared-ui/shared-ui-toolbar-compact
 - extendedWaitUntil:
     visible:

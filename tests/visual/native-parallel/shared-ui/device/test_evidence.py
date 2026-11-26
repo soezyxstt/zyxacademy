@@ -139,7 +139,7 @@ class EvidenceTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "reference DPR is 3"):
                 device_info(args)
 
-    def test_capture_waits_for_both_markers_and_records_verified_frame(self):
+    def test_capture_waits_for_gallery_case_and_geometry_and_records_verified_frame(self):
         self.make_images()
         screenshot = (self.raw / self.image_name).read_bytes()
         scratch = self.root / "scratch"
@@ -153,8 +153,15 @@ class EvidenceTest(unittest.TestCase):
             self.assertTrue(check)
             if command[0] == "maestro":
                 flow = Path(command[-1]).read_text()
-                self.assertIn("id: sample-modal-panel", flow)
-                self.assertIn("id: shared-ui-geometry-6x4-dpr-2-insets-1-2-1-2", flow)
+                steps = (
+                    "- launchApp",
+                    "visible: separator",
+                    "- openLink: zyx-native-parity://internal/shared-ui/sample-light",
+                    "id: sample-modal-panel",
+                    "id: shared-ui-geometry-6x4-dpr-2-insets-1-2-1-2",
+                )
+                positions = [flow.index(step) for step in steps]
+                self.assertEqual(positions, sorted(positions))
             elif command[0] == "adb":
                 stdout.write(screenshot)
             else:

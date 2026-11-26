@@ -9,9 +9,12 @@ import subprocess
 import sys
 import tempfile
 
+from evidence import device_screenshot, maestro_case_flow
+
 ROOT = Path(__file__).resolve().parents[5]
 DEVICE_DIR = Path(__file__).resolve().parent
 GROUP_WIDTHS = {"phone": 380, "tablet": 768, "wide": 1024}
+GEOMETRY_CASE = "shared-ui-shell-back-light"
 MARKER = re.compile(r"shared-ui-geometry-(\d+)x(\d+)-dpr-(\d+(?:-\d+)?)-insets-(\d+)-(\d+)-(\d+)-(\d+)")
 
 
@@ -66,6 +69,38 @@ def expected_cases(group):
     return selected
 
 
+def require_group_width(group, width):
+    if group == "phone":
+        if width >= GROUP_WIDTHS["tablet"]:
+            raise ValueError(f"phone requires a compact native content width below {GROUP_WIDTHS['tablet']} dp, measured {width} dp")
+    elif width < (minimum := GROUP_WIDTHS[group]):
+        raise ValueError(f"{group} requires a native content width of at least {minimum} dp, measured {width} dp")
+
+
+def probe_geometry(device, output):
+    flow = output / "geometry.yaml"
+    flow.write_text(maestro_case_flow(GEOMETRY_CASE, f"shared-ui-case-{GEOMETRY_CASE}"), encoding="utf-8")
+    maestro = ["maestro", "--device", device]
+    open_result = command("geometry-open", [
+        *maestro, "test", "--test-output-dir", str(output / "geometry-results"),
+        "--debug-output", str(output / "geometry-debug"), str(flow),
+    ], output)
+    reason = "Maestro hierarchy did not complete"
+    attempts = 1 if open_result else 3
+    for attempt in range(1, attempts + 1):
+        name = f"geometry-hierarchy-{attempt}"
+        result = command(name, [*maestro, "hierarchy"], output)
+        if result == 0 and open_result == 0:
+            try:
+                return measure((output / f"{name}.log").read_text(encoding="utf-8", errors="replace"))
+            except ValueError as error:
+                reason = str(error)
+                print(f"Geometry attempt {attempt}: {reason}", flush=True)
+    if open_result:
+        raise ValueError("could not open native geometry fixture")
+    raise ValueError(f"could not obtain a unique integral viewport geometry marker: {reason}")
+
+
 def main():
     platform = os.environ.get("SHARED_PLATFORM", "")
     group = os.environ.get("SHARED_GROUP", "")
@@ -82,30 +117,19 @@ def main():
         expected = expected_cases(group)
         summary["expectedCases"] = len(expected)
         (output / "expected-cases.json").write_text(json.dumps(expected, indent=2) + "\n", encoding="utf-8")
-        flow = output / "geometry.yaml"
-        flow.write_text(
-            "appId: com.zyx.academy.nativeparity\n---\n- launchApp\n"
-            "- openLink: zyx-native-parity://shared-ui/shared-ui-shell-back-light\n"
-            "- extendedWaitUntil:\n    visible:\n      id: shared-ui-case-shared-ui-shell-back-light\n    timeout: 30000\n",
-            encoding="utf-8",
-        )
-        if command("geometry-open", ["maestro", "--device", device, "test", str(flow)], output):
-            raise ValueError("could not open native geometry fixture")
-        geometry = None
-        for attempt in range(1, 4):
-            result = command(f"geometry-hierarchy-{attempt}", ["maestro", "--device", device, "hierarchy"], output)
-            if result == 0:
-                try:
-                    geometry = measure((output / f"geometry-hierarchy-{attempt}.log").read_text(encoding="utf-8", errors="replace"))
-                    break
-                except ValueError as error:
-                    print(f"Geometry attempt {attempt}: {error}", flush=True)
-        if geometry is None:
-            raise ValueError("could not obtain a unique integral viewport geometry marker")
-        geometry.update({"platform": platform, "group": group, "device": device, "build": build, "baselineWidth": GROUP_WIDTHS[group]})
-        summary["geometry"] = geometry
-        (output / "geometry.json").write_text(json.dumps(geometry, indent=2) + "\n", encoding="utf-8")
-        print(f"Measured native geometry: {geometry}", flush=True)
+        try:
+            geometry = probe_geometry(device, output)
+            geometry.update({"platform": platform, "group": group, "device": device, "build": build, "baselineWidth": GROUP_WIDTHS[group]})
+            summary["geometry"] = geometry
+            (output / "geometry.json").write_text(json.dumps(geometry, indent=2) + "\n", encoding="utf-8")
+            print(f"Measured native geometry: {geometry}", flush=True)
+            require_group_width(group, geometry["width"])
+        except (OSError, ValueError, subprocess.SubprocessError):
+            try:
+                device_screenshot(platform, device, output / "geometry-failure.png")
+            except (OSError, subprocess.SubprocessError) as error:
+                print(f"Geometry diagnostic screenshot failed: {error}", file=sys.stderr, flush=True)
+            raise
 
         web_root = output / "web"
         scale = geometry["scale"]

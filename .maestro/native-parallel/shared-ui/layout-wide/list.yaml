@@ -1,7 +1,10 @@
 appId: com.zyx.academy.nativeparity
-name: Shared list layout in a 1024dp viewport
+name: Shared list layout in a wide viewport
 ---
 - launchApp
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
 - openLink: zyx-native-parity://shared-ui/shared-ui-list-wide-light
 - assertVisible:
     id: shared-ui-list-wide-light-sinta-wide

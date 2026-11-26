@@ -253,6 +253,26 @@ def device_info(args):
     raise ValueError("Choose a booted iOS simulator using its explicit UDID")
 
 
+def maestro_case_flow(case_id, ready_id, marker=None):
+    flow = (
+        f"appId: {APP_ID}\n---\n- launchApp\n"
+        "- extendedWaitUntil:\n    visible: separator\n    timeout: 20000\n"
+        f"- openLink: zyx-native-parity://internal/shared-ui/{case_id}\n"
+        f"- extendedWaitUntil:\n    visible:\n      id: {ready_id}\n    timeout: 20000\n"
+    )
+    if marker:
+        flow += f"- extendedWaitUntil:\n    visible:\n      id: {marker}\n    timeout: 10000\n"
+    return flow
+
+
+def device_screenshot(platform, device, path):
+    if platform == "ios":
+        subprocess.run(["xcrun", "simctl", "io", device, "screenshot", str(path)], check=True)
+    else:
+        with path.open("wb") as stream:
+            subprocess.run(["adb", "-s", device, "exec-out", "screencap", "-p"], stdout=stream, check=True)
+
+
 def capture_case(case, args, device, scratch):
     case_id = case["id"]
     dimensions = pixel_size(case, args.scale)
@@ -263,21 +283,11 @@ def capture_case(case, args, device, scratch):
     sidecar = target.with_suffix(".json")
     sidecar.unlink(missing_ok=True)
     flow = scratch / "capture.yaml"
-    flow.write_text(
-        f"appId: {APP_ID}\n---\n- launchApp\n"
-        f"- openLink: zyx-native-parity://shared-ui/{case_id}\n"
-        f"- extendedWaitUntil:\n    visible:\n      id: {ready_id}\n    timeout: 20000\n"
-        f"- extendedWaitUntil:\n    visible:\n      id: {marker}\n    timeout: 10000\n",
-        encoding="utf-8",
-    )
+    flow.write_text(maestro_case_flow(case_id, ready_id, marker), encoding="utf-8")
     subprocess.run(["maestro", "--device", args.device, "test", str(flow)], check=True)
 
     path = scratch / f"{case_id}.png"
-    if args.platform == "ios":
-        subprocess.run(["xcrun", "simctl", "io", args.device, "screenshot", str(path)], check=True)
-    else:
-        with path.open("wb") as stream:
-            subprocess.run(["adb", "-s", args.device, "exec-out", "screencap", "-p"], stdout=stream, check=True)
+    device_screenshot(args.platform, args.device, path)
     frame = load_png(path)
     path.replace(target)
     crop_viewport(frame, dimensions, args.insets)

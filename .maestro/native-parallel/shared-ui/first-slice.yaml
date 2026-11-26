@@ -2,6 +2,9 @@ appId: com.zyx.academy.nativeparity
 name: Shared UI compact shell, header, and list recovery
 ---
 - launchApp
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
 - openLink: zyx-native-parity://shared-ui/shared-ui-shell-back-light
 - extendedWaitUntil:
     visible: Dokumen
