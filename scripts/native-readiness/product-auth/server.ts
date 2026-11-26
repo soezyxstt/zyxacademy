@@ -137,6 +137,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
   }) : null;
   const previewVideo = studentProduct ? await (await import("./video-fixture")).createVideoPreview() : null;
   const studentNavigation = studentProduct || offlineProduct ? await import("@/app/api/student/navigation/route") : null;
+  const opsAi = staff === "admin" ? await (await import("./ops-ai-fixture")).loadOpsAiPreview() : null;
   const staffReads = staff ? await (await import("./staff-fixture")).loadStaffReads() : null;
   const offline = offlineProduct ? await (await import("./offline-fixture")).createOfflinePreview() : null;
   const liveRoutes = tutorLive ? await Promise.all([
@@ -285,6 +286,10 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
           return response;
         }
       }
+      if (opsAi && request.method === "POST" && url.pathname.startsWith("/api/admin/ops-ai")) {
+        const response = await requestContext.run(upstream, () => opsAi.handle(upstream));
+        if (response) return response;
+      }
       if (staff && opposite && staffReads && request.method === "GET") {
         if (url.pathname === staffRoles[staff].apiPath) {
           const response = await requestContext.run(upstream, () => staffReads[staff](upstream));
@@ -367,6 +372,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     sawOfflineRevocation: () => offline?.sawRevocation() ?? false,
     browserTrustVerified: () => visitedHealth,
     verifiedTutorLive: () => tutorLive?.verified(),
+    verifiedAdminOpsAi: () => opsAi?.verified(),
     revokeOnlineReading: () => previewReading?.revoke(),
     verifiedOnlineReading: () => previewReading?.verified(),
     readingProgress: () => previewReading?.progress() ?? offline?.progress(),

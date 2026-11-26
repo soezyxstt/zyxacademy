@@ -1,7 +1,7 @@
 import * as Clipboard from "expo-clipboard";
 import { randomUUID } from "expo-crypto";
 import { useEffect, useMemo, useRef, useState, type ComponentRef, type RefObject } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Keyboard, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useOpsAiChat } from "../../../../../lib/admin-ops-ai/chat-client";
 import { OPS_AI_POLICY_BOUNDS, OpsAiActionProposalV2Schema, type OpsAiActionProposalV2 } from "../../../../../lib/admin-ops-ai/chat-contract";
 import { stripOpsFollowupMarkup } from "../../../../../lib/admin-ops-ai/followups";
@@ -91,6 +91,7 @@ export function OpsAiWorkspace({ open, uri, theme, locale, session, close, retur
 
   function send(text = input, nextMode = mode) {
     if (!current() || operation.current || isStreaming || !text.trim()) return;
+    Keyboard.dismiss();
     setMode(nextMode);
     setNotice("");
     const grantIds = Object.keys(grants).filter(id => grants[id] > Date.now()).slice(-8);
@@ -221,9 +222,9 @@ export function OpsAiWorkspace({ open, uri, theme, locale, session, close, retur
           onPress={() => void revoke(true)}>{t.newChat}</Button> : null}
       </View>
       <View style={styles.inputRow}>
-        <Input theme={theme} multiline maxLength={OPS_AI_POLICY_BOUNDS.maxMessageCharLength} accessibilityLabel={t.message}
+        <Input testID="admin-ops-ai-input" theme={theme} multiline maxLength={OPS_AI_POLICY_BOUNDS.maxMessageCharLength} accessibilityLabel={t.message}
           placeholder={t.message} value={input} onChangeText={setInput} disabled={blocked} style={styles.input} />
-        <Button theme={theme} size="icon-lg" accessibilityLabel={isStreaming ? t.stop : t.send}
+        <Button testID="admin-ops-ai-send" theme={theme} size="icon-lg" accessibilityLabel={isStreaming ? t.stop : t.send}
           disabled={blocked || (!isStreaming && !input.trim())}
           renderIcon={(color, size) => <NavigationIcon name={isStreaming ? "close" : "send"} color={color} size={size} />}
           onPress={() => { if (isStreaming) stop(); else send(); }} />

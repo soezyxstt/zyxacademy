@@ -20,6 +20,10 @@ name: Verified staff role, protected read, wrong-role denial and logout
     when:
       true: ${PREVIEW_TUTOR_LIVE == "true"}
     file: tutor-live.yaml
+- runFlow:
+    when:
+      true: ${PREVIEW_ADMIN_OPS_AI == "true"}
+    file: admin-ops-ai.yaml
 - openLink: "${PREVIEW_WRONG_ROLE_URL}"
 - extendedWaitUntil:
     visible: "(Akses ditolak\\.|Access denied\\.)"

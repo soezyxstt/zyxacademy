@@ -196,6 +196,7 @@ try {
       PREVIEW_WRONG_ROLE_URL: scheme + opposite.route.slice(1),
       PREVIEW_READ_URL: scheme + selected.route.slice(1),
       PREVIEW_TUTOR_LIVE: staff === "tutor" ? "true" : "false",
+      PREVIEW_ADMIN_OPS_AI: staff === "admin" ? "true" : "false",
     }).flatMap(([name, value]) => ["-e", `${name}=${value}`]);
     step = `complete ${selected.label} browser login, read data, reject the wrong role and sign out`;
     await runFlow("staff", inputs, staff);
@@ -205,6 +206,11 @@ try {
       step = "verify room ownership, one command per phase and the Tutor socket reconnect";
       if (!await fixture.verifiedTutorLive()) throw new Error();
       console.log("Android opened a Tutor room with the loopback Worker, recovered after reopen and socket interruption, and ended the quiz");
+    }
+    if (staff === "admin") {
+      step = "verify the approved Ops AI action created the fixture form with responses closed";
+      if (!await fixture.verifiedAdminOpsAi()) throw new Error();
+      console.log("Android streamed a synthetic Ops AI response and approved a signed plan through the canonical Admin endpoint");
     }
     console.log(`Android verified ${selected.label} login, a protected read, opposite-role denial and session revocation`);
   } else {
