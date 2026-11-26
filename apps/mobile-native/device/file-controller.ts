@@ -48,6 +48,8 @@ type TemporaryFile = {
 
 type NativeFileDevice = {
   available: boolean;
+  resetOwnedCache?(): void;
+  androidExports?: boolean;
   pick(mimeTypes: readonly string[]): Promise<PickerDocument[] | null>;
   inspect(asset: PickerDocument): { mimeType?: string; size?: number };
   open(asset: PickerDocument): ReadableStream<Uint8Array>;
@@ -55,6 +57,21 @@ type NativeFileDevice = {
   createTemporary(name: string): TemporaryFile;
   canShare(): Promise<boolean>;
   share(uri: string, mimeType: string, title: string): Promise<void>;
+};
+
+export const ANDROID_FILE_EXPORT_LEASE_MS = 2 * 60_000;
+
+type ExportClock = {
+  now(): number;
+  schedule(work: () => void, delay: number): () => void;
+};
+
+const deviceClock: ExportClock = {
+  now: Date.now,
+  schedule(work, delay) {
+    const timer = setTimeout(work, delay);
+    return () => clearTimeout(timer);
+  },
 };
 
 class FileIssue extends Error {
@@ -187,10 +204,57 @@ function removeTemporary(file: TemporaryFile | undefined): void {
   try { file.remove(); } catch { /* The dedicated cache is also purged on the next launch. */ }
 }
 
-export function createNativeFileController(device: NativeFileDevice) {
+export function createNativeFileController(device: NativeFileDevice, clock = deviceClock) {
   const heldDocuments = new WeakMap<DraftDocument, AbortSignal>();
+  const exports = new Map<TemporaryFile, { expiresAt: number; release(): void }>();
+  let initialized = false;
   let picking = false;
   let sharing = false;
+
+  function initialize(): void {
+    if (!device.available || initialized) return;
+    device.resetOwnedCache?.();
+    initialized = true;
+  }
+
+  function expireExports(): void {
+    const now = clock.now();
+    for (const transfer of exports.values()) {
+      if (transfer.expiresAt <= now) transfer.release();
+    }
+  }
+
+  function stageExport(request: Pick<DocumentDraftRequest, "session" | "signal">) {
+    const session = request.session.signal;
+    const caller = request.signal;
+    let file: TemporaryFile | undefined;
+    let stopTimer: (() => void) | undefined;
+    const release = () => {
+      session.removeEventListener("abort", release);
+      caller?.removeEventListener("abort", release);
+      stopTimer?.();
+      if (file) exports.delete(file);
+      removeTemporary(file);
+      file = undefined;
+    };
+    session.addEventListener("abort", release, { once: true });
+    caller?.addEventListener("abort", release, { once: true });
+    return {
+      hold(name: string) {
+        file = device.createTemporary(name);
+        return file;
+      },
+      retain() {
+        if (!device.androidExports || !file || session.aborted || caller?.aborted) return;
+        const expiresAt = clock.now() + ANDROID_FILE_EXPORT_LEASE_MS;
+        exports.set(file, { expiresAt, release });
+        stopTimer = clock.schedule(release, ANDROID_FILE_EXPORT_LEASE_MS);
+      },
+      finish() {
+        if (!stopTimer) release();
+      },
+    };
+  }
 
   function belongsToDocumentDraft(document: DraftDocument, request: DocumentDraftRequest): boolean {
     return heldDocuments.get(document) === request.session.signal && sameDraft(document, request)
@@ -219,6 +283,7 @@ export function createNativeFileController(device: NativeFileDevice) {
     let file: TemporaryFile | undefined;
     let errorStage: Issue = "picker";
     try {
+      initialize();
       assets = await device.pick(permitted);
       assertCurrent();
       if (!assets) return { status: "cancelled" };
@@ -266,15 +331,40 @@ export function createNativeFileController(device: NativeFileDevice) {
     if (!device.available) return { status: "unavailable" };
     if (sharing) return { status: "busy" };
     if (!belongsToDocumentDraft(document, request)) return rejectCurrent(request, request.isDraftCurrent) ?? { status: "stale" };
+    if (!validPolicy(request.policy)) return { status: "error", issue: "policy" };
+    if (!request.policy.mimeTypes.includes(document.mimeType)) return { status: "error", issue: "type" };
+    if (document.size > request.policy.maxBytes) return { status: "error", issue: "size" };
     sharing = true;
+    const staged = stageExport(request);
+    const current = () => rejectCurrent(request, request.isDraftCurrent)
+      ?? (belongsToDocumentDraft(document, request) ? null : { status: "stale" } as const);
     try {
+      initialize();
+      expireExports();
       if (!await device.canShare()) return { status: "unavailable" };
-      if (!belongsToDocumentDraft(document, request)) return rejectCurrent(request, request.isDraftCurrent) ?? { status: "stale" };
-      await device.share(document.uri, document.mimeType, title?.trim() || document.name);
-      return rejectCurrent(request, request.isDraftCurrent) ?? { status: "finished" };
+      const before = current();
+      if (before) return before;
+      let uri = document.uri;
+      if (device.androidExports) {
+        // A recipient can keep the granted URI after the chooser returns.
+        // Give it a short-lived copy independent of the editable draft.
+        const file = staged.hold(document.name);
+        await copyBytes(device.open(document), file, document.mimeType, document.size, document.size, () => {
+          if (current()) throw new FileIssue("read");
+        }, [request.session.signal, request.signal]);
+        const afterCopy = current();
+        if (afterCopy) return afterCopy;
+        uri = file.uri;
+      }
+      await device.share(uri, document.mimeType, title?.trim() || document.name);
+      const afterShare = current();
+      if (afterShare) return afterShare;
+      staged.retain();
+      return { status: "finished" };
     } catch (error) {
-      return rejectCurrent(request, request.isDraftCurrent) ?? resultFrom(error, "share");
+      return current() ?? resultFrom(error, "share");
     } finally {
+      staged.finish();
       sharing = false;
     }
   }
@@ -295,14 +385,12 @@ export function createNativeFileController(device: NativeFileDevice) {
     const maxBytes = diskImages ? Math.min(request.policy.maxBytes, 8 * 1024 * 1024) : request.policy.maxBytes;
     const assertCurrent = () => { if (rejectCurrent(request)) throw new FileIssue("fetch"); };
     sharing = true;
-    let file: TemporaryFile | undefined;
     let response: Awaited<ReturnType<NativeSessionTransport["request"]>> | undefined;
     let errorStage: Issue = "share";
-    // Remove the temporary file at session exit even if the OS share sheet is still open.
-    const purge = () => removeTemporary(file);
-    request.session.signal.addEventListener("abort", purge, { once: true });
-    request.signal?.addEventListener("abort", purge, { once: true });
+    const staged = stageExport(request);
     try {
+      initialize();
+      expireExports();
       if (!await device.canShare()) return { status: "unavailable" };
       assertCurrent();
       errorStage = "fetch";
@@ -319,23 +407,24 @@ export function createNativeFileController(device: NativeFileDevice) {
       const issue = sizeIssue(declaredSize, maxBytes);
       if (issue) return { status: "error", issue };
       const name = fileName(request.fileName ?? dispositionName(response.headers.get("Content-Disposition")), mimeType);
-      file = device.createTemporary(name);
+      const file = staged.hold(name);
       await copyBytes(response.body, file, mimeType, maxBytes, declaredSize, assertCurrent,
         [request.session.signal, request.signal]);
       assertCurrent();
       errorStage = "share";
       await device.share(file.uri, mimeType, request.title?.trim() || name);
-      return rejectCurrent(request) ?? { status: "finished" };
+      const afterShare = rejectCurrent(request);
+      if (afterShare) return afterShare;
+      staged.retain();
+      return { status: "finished" };
     } catch (error) {
       return rejectCurrent(request) ?? resultFrom(error, errorStage);
     } finally {
       response?.dispose();
-      request.session.signal.removeEventListener("abort", purge);
-      request.signal?.removeEventListener("abort", purge);
-      purge();
+      staged.finish();
       sharing = false;
     }
   }
 
-  return { pickDocument, belongsToDocumentDraft, shareDocument, shareAuthorizedDownload };
+  return { initialize, expireExports, pickDocument, belongsToDocumentDraft, shareDocument, shareAuthorizedDownload };
 }

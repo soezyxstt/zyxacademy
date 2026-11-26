@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { createNativeFileController, type DocumentDraftRequest, type PickerDocument } from "../../apps/mobile-native/device/file-controller";
+import {
+  ANDROID_FILE_EXPORT_LEASE_MS,
+  createNativeFileController,
+  type DocumentDraftRequest,
+  type PickerDocument,
+} from "../../apps/mobile-native/device/file-controller";
 import { createPublicLinkSharer } from "../../apps/mobile-native/device/share-links";
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
 
@@ -26,8 +31,9 @@ function deferred<T>() {
 }
 
 function setup(overrides: Partial<Parameters<typeof createNativeFileController>[0]> = {},
-  fetcher = async (_url: string, _init: RequestInit): Promise<Response> => { throw new Error("Unexpected request"); }) {
-  const files = new Map<string, Uint8Array[]>();
+  fetcher = async (_url: string, _init: RequestInit): Promise<Response> => { throw new Error("Unexpected request"); },
+  clock?: Parameters<typeof createNativeFileController>[1],
+  files = new Map<string, Uint8Array[]>()) {
   const discarded: string[] = [];
   const names: string[] = [];
   const shares: Array<{ uri: string; mimeType: string; title: string; size: number }> = [];
@@ -60,9 +66,34 @@ function setup(overrides: Partial<Parameters<typeof createNativeFileController>[
       shares.push({ uri, mimeType, title, size: chunks.reduce((total, chunk) => total + chunk.byteLength, 0) });
     },
     ...overrides,
-  });
+  }, clock);
   return { controller, transport, identity, session, request, files, discarded, shares, names };
 }
+
+function fileClock() {
+  let now = 1_750_000_000_000;
+  const timers = new Map<() => void, number>();
+  return {
+    now: () => now,
+    schedule(work: () => void, delay: number) {
+      timers.set(work, now + delay);
+      return () => { timers.delete(work); };
+    },
+    advance(ms: number, deliverTimers = true) {
+      now += ms;
+      if (!deliverTimers) return;
+      for (const [work, when] of timers) {
+        if (now >= when) {
+          timers.delete(work);
+          work();
+        }
+      }
+    },
+  };
+}
+
+const diktatTarget = { kind: "diktat-pdf", courseId: "course-1", diktatId: "diktat-2" } as const;
+const pdfResponse = async () => new Response(stream(fixturePdf), { headers: { "Content-Type": "application/pdf" } });
 
 describe("Expo scoped files", () => {
   test("copies a valid chosen document, discards the picker cache and authorizes only that live draft", async () => {
@@ -153,7 +184,7 @@ describe("Expo scoped files", () => {
       ...request, target: { ...requestTarget, courseId: "https://other.example.test/" },
     })).toEqual({ status: "error", issue: "invalid-target" });
     expect(calls).toBe(0);
-    for (const issue of ["unauthorized", "fetch", "type", "size", "size"]) {
+    for (const issue of ["unauthorized", "fetch", "type", "size", "size"] as const) {
       expect(await fixture.controller.shareAuthorizedDownload(request)).toEqual({ status: "error", issue });
       expect(fixture.shares).toHaveLength(0);
       expect(fixture.files.size).toBe(0);
@@ -200,6 +231,75 @@ describe("Expo scoped files", () => {
     expect(fixture.files.size).toBe(0);
     dismissed.resolve();
     expect(await pending).toEqual({ status: "stale" });
+  });
+
+  test("keeps an Android export readable after chooser return and removes it at lease expiry", async () => {
+    const clock = fileClock();
+    const fixture = setup({ androidExports: true }, pdfResponse, clock);
+    expect(await fixture.controller.shareAuthorizedDownload({
+      session: fixture.session, target: diktatTarget, policy,
+    })).toEqual({ status: "finished" });
+    const { uri } = fixture.shares[0];
+    clock.advance(ANDROID_FILE_EXPORT_LEASE_MS - 1);
+    expect(fixture.files.get(uri)?.[0]).toEqual(fixturePdf);
+    clock.advance(1);
+    expect(fixture.files.has(uri)).toBe(false);
+  });
+
+  test("revokes completed Android grants by account exit or the first active sweep after suspension", async () => {
+    const clock = fileClock();
+    const fixture = setup({ androidExports: true }, pdfResponse, clock);
+    await fixture.controller.shareAuthorizedDownload({ session: fixture.session, target: diktatTarget, policy });
+    clock.advance(ANDROID_FILE_EXPORT_LEASE_MS, false);
+    fixture.controller.expireExports();
+    expect(fixture.files.size).toBe(0);
+
+    await fixture.controller.shareAuthorizedDownload({ session: fixture.session, target: diktatTarget, policy });
+    expect(fixture.files.size).toBe(1);
+    fixture.transport.clearSession();
+    expect(fixture.files.size).toBe(0);
+  });
+
+  test("gives a picked Android draft a separate short-lived export copy", async () => {
+    const clock = fileClock();
+    const fixture = setup({ androidExports: true }, pdfResponse, clock);
+    const picked = await fixture.controller.pickDocument(fixture.request);
+    if (picked.status !== "ready") throw new Error("Expected a document");
+    const { document } = picked;
+    expect(await fixture.controller.shareDocument(document, fixture.request)).toEqual({ status: "finished" });
+    const { uri } = fixture.shares[0];
+    expect(uri).not.toBe(document.uri);
+    expect(fixture.files.size).toBe(2);
+    clock.advance(ANDROID_FILE_EXPORT_LEASE_MS);
+    expect(fixture.files.has(uri)).toBe(false);
+    expect(fixture.files.has(document.uri)).toBe(true);
+    expect(fixture.controller.belongsToDocumentDraft(document, fixture.request)).toBe(true);
+    document.release();
+    expect(fixture.files.size).toBe(0);
+  });
+
+  test("a process restart purges orphaned owned exports before opening another file action", async () => {
+    const disk = new Map<string, Uint8Array[]>();
+    const sibling = "file:///cache/other-feature/kept.pdf";
+    disk.set(sibling, [fixturePdf]);
+    let resets = 0;
+    const sameDisk = {
+      androidExports: true,
+      resetOwnedCache() {
+        resets++;
+        for (const path of disk.keys()) if (path.startsWith("file:///cache/zyx-native-file-actions/")) disk.delete(path);
+      },
+    };
+    const before = setup(sameDisk, pdfResponse, fileClock(), disk);
+    before.controller.initialize();
+    await before.controller.shareAuthorizedDownload({ session: before.session, target: diktatTarget, policy });
+    expect(resets).toBe(1);
+    expect(disk.size).toBe(2);
+
+    const after = setup(sameDisk, pdfResponse, fileClock(), disk);
+    after.controller.initialize();
+    expect([...disk.keys()]).toEqual([sibling]);
+    expect(resets).toBe(2);
   });
 });
 
