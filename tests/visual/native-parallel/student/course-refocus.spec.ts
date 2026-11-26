@@ -38,8 +38,13 @@ const nativeViews: Plugin = {
           React.createElement("div", { "data-testid": testID, "data-offset": contentOffset?.y,
             onScroll: event => onScroll({ nativeEvent: { contentOffset: { y: event.currentTarget.scrollTop } } }) }, refreshControl, children);
         export const Dimensions = { get: () => ({ scale: 2.75 }) };
-        export const Platform = { OS: "ios" }, StyleSheet = { create: value => value }, useColorScheme = () => "light";`,
-      "../../../routing/student-chrome": "export const useStudentChromeVisibility = () => {};",
+        export const Platform = { OS: "ios" }, StyleSheet = { create: value => value, hairlineWidth: 1 }, useColorScheme = () => "light";`,
+      "react-native-svg": "export const SvgXml = () => null;",
+      "../../shared-ui/navigation": `import React from "react";
+        export const NavigationTabs = ({ tabs, activeId, onTabPress, testID }) => React.createElement("div", { "data-testid": testID, role: "tablist" },
+          tabs.map(tab => React.createElement("button", { key: tab.id, role: "tab", "aria-selected": tab.id === activeId,
+            onClick: () => onTabPress(tab.id) }, tab.label)));`,
+      "../../shared-ui/navigation-icons": "export const NavigationIcon = () => null;",
       "./MaterialPdf": "export const MaterialPdf = () => null;",
       "./OnlineReading": "export const OnlineReading = () => null;",
       "./catalog": "export const Catalog = () => null;",
@@ -162,6 +167,7 @@ test("Back restores the most recently reported materials list offset after autho
   const panel = page.getByTestId("student-materials-list");
   await waitForReads(1);
   await answer(0, 200, list);
+  await expect(page.getByTestId("student-material-limits")).toBeVisible();
   await expect(panel).toHaveAttribute("data-offset", "24");
   await page.evaluate(() => window.courseRefocus.scroll(146));
   expect(await page.evaluate(() => window.courseRefocus.savedScroll())).toBe(146);
