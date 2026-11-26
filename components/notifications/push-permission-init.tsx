@@ -141,7 +141,11 @@ export function PushPermissionInit() {
 
   // Check on navigation and when returning to the app. Denied browsers need settings guidance, not another OS prompt.
   useEffect(() => {
-    if (isPending || !userId || isAdminSurface || tour.blocking || !isPushEnvironmentSupported()) {
+    if (isPending || !userId || tour.blocking) {
+      setPrompt(null);
+      return;
+    }
+    if (isAdminSurface || !isPushEnvironmentSupported()) {
       setPrompt(null);
       return;
     }
