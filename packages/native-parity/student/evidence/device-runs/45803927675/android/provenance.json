@@ -102,5 +102,17 @@
       "member": "smoke/community/results/2026-11-26_111538/smoke-037/screenshots/step-006-assertCondition-Belum_ada_sesi_minggu_in.png",
       "sha256": "5becb6e432617f4ffaea7c911071ddd595812c06a06466df73c5da76ee075870"
     }
-  ]
+  ],
+  "matchedScenarioResults": {
+    "catalog": {
+      "name": "Catalog comparable fixture all TPB and PKA",
+      "status": "SUCCESS",
+      "source": "report.xml"
+    },
+    "flashcard": {
+      "name": "Learning flashcard flip and grade",
+      "status": "SUCCESS",
+      "source": "report.xml"
+    }
+  }
 }

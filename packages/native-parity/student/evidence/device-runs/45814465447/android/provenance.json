@@ -232,5 +232,17 @@
     "nativeCrash": "Fatal main-thread IllegalStateException in React Native Fabric removeViewAt: Unable to find parentView for tag 378",
     "sequence": "The crash occurred before the visibility assertion. Both generated long-list launch cases passed on the same build.",
     "laterChange": "96053de3 keeps the quiz button child wrapper mounted during loading. This run predates that change."
+  },
+  "matchedScenarioResults": {
+    "catalog": {
+      "name": "Catalog comparable fixture all TPB and PKA",
+      "status": "ERROR",
+      "source": "report.xml"
+    },
+    "flashcard": {
+      "name": "Learning flashcard flip and grade",
+      "status": "SUCCESS",
+      "source": "report.xml"
+    }
   }
 }

@@ -18,7 +18,8 @@ const summaries = Object.fromEntries((["android", "ios"] as const).map(platform 
   const captureIndexPath = join(dirname(path), "smoke-captures.json");
   const captureIndex = existsSync(captureIndexPath) ? JSON.parse(readFileSync(captureIndexPath, "utf8")) : null;
   const comparisonPath = join(dirname(path), "comparison.json");
-  const comparison: { id: string; status: string; differing_pixels?: number }[] = existsSync(comparisonPath) ? JSON.parse(readFileSync(comparisonPath, "utf8")) : [];
+  const comparison: { id: string; status: string; differing_pixels?: number; native_scenario?: { name: string; status: string } }[] =
+    existsSync(comparisonPath) ? JSON.parse(readFileSync(comparisonPath, "utf8")) : [];
   const archivePath = captureIndex ? join(dirname(path), "smoke-captures.zip") : null;
   if (archivePath && (captureIndex.archive !== basename(archivePath) ||
     captureIndex.sourceHead !== provenance.sourceHead || captureIndex.workflowRun !== provenance.workflowRun ||
@@ -202,6 +203,7 @@ const rows = manifest.routes.map(route => {
     if (!summary) return [];
     return summary.comparison.filter(row => row.id.startsWith(group + "-") && !row.id.includes("-versus-"))
       .map(row => ({ platform, id: row.id, status: row.status, differingPixels: row.differing_pixels ?? null,
+        standaloneScenario: row.native_scenario ?? summary.provenance.matchedScenarioResults?.[group] ?? null,
         report: summary.comparisonPath, sourceHead: summary.provenance.sourceHead ?? null, checkoutSha: summary.provenance.checkoutSha ?? null }));
   }) : [];
   const attempts = optionalAttempts.filter(item => item.pattern === pattern);
@@ -291,7 +293,7 @@ for (const row of rows) {
     return run ? `[${p}](${run}) ${label}` : `${p} ${label}`;
   }).join("<br>");
   const compared = row.device_comparisons.map(item =>
-    link(item.report, `${item.platform} ${item.id} · ${item.differingPixels === null ? item.status : item.differingPixels + " px berbeda"}`));
+    link(item.report, `${item.platform} ${item.id} · ${item.differingPixels === null ? item.status : item.differingPixels + " px berbeda"} · flow ${item.standaloneScenario?.status ?? "belum tercatat"}`));
   lines.push(`| ${link(row.source, row.pattern)} | ${link(row.implementation.ui, row.implementation.symbol)}; ${row.operations.map((op: string) => `\`${op}\``).join("<br>")}<br>${link(row.contract_doc, "kontrak dan izin")} | ${available.length} / ${blocked}; ${assertions} assertion yang direncanakan | ${screenshots} | ${[platform, ...compared].join("<br>")} |`);
 }
 lines.push("", "Jumlah per platform berasal dari run yang ditautkan. Setiap kasus di JSON mencatat hasil, marker saat run dan SHA perangkat. `runnable` menandai fixture yang dapat dijalankan, sedangkan `blocked` menyertakan alasannya. Perbandingan visual tiga keadaan per item dan bukti aksesibilitas masih memerlukan evaluasi perangkat.", "");

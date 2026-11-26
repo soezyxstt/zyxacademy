@@ -179,5 +179,17 @@
     "count": 21,
     "maestroError": "DeviceServerDiedException: Device server died during 'deviceInfo' on emulator-5554",
     "adbError": "Command failed (host:transport:emulator-5554): device offline"
+  },
+  "matchedScenarioResults": {
+    "catalog": {
+      "name": "Catalog comparable fixture all TPB and PKA",
+      "status": "SUCCESS",
+      "source": "report.xml"
+    },
+    "flashcard": {
+      "name": "Learning flashcard flip and grade",
+      "status": "SUCCESS",
+      "source": "report.xml"
+    }
   }
 }
