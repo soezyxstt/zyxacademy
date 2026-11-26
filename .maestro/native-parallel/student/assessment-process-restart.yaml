@@ -1,0 +1,20 @@
+appId: com.zyx.academy.nativeparity
+name: Student restores a saved answer after process restart
+---
+- launchApp:
+    clearState: true
+- openLink: "zyx-native-parity://student-fixture?scenario=populated&store=disk&path=%2Fcourses%2Fnative-assessment-course%2Fquiz%2Fnative-quiz%3FattemptId%3Dnative-active-attempt"
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-option-1
+    timeout: 30000
+- tapOn:
+    id: student-assessment-option-1
+- assertVisible: "1/3 Sudah diisi"
+- stopApp
+- launchApp
+- openLink: "zyx-native-parity://student-fixture?scenario=populated&store=disk&path=%2Fcourses%2Fnative-assessment-course%2Fquiz%2Fnative-quiz%3FattemptId%3Dnative-active-attempt"
+- extendedWaitUntil:
+    visible: "1/3 Sudah diisi"
+    timeout: 30000
+- takeScreenshot: student-assessment-restored-after-restart

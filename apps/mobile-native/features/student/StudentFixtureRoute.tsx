@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { openDatabaseAsync } from "expo-sqlite";
+import { createAssessmentDraftRepository } from "./assessment-draft-store";
 import { useLocalSearchParams } from "expo-router";
 import { Appearance, BackHandler, View, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -9,24 +11,30 @@ import { StudentEntry } from "./StudentEntry";
 import type { StudentSession } from "./contracts";
 import { matchStudentRoute } from "./routes";
 
+// Keep device evidence separate from product drafts, including garbage collection.
+const fixtureRepository = createAssessmentDraftRepository(() => openDatabaseAsync("student-fixture-answers.db"));
+
 const baseSession: StudentSession = { userId: "student-fixture", role: "student", locale: "id", origin: "https://student.invalid" };
 
-function Fixture({ scenario, initialPath }: { scenario: string; initialPath: string }) {
+function Fixture({ scenario, initialPath, theme, locale, persistent }: { persistent: boolean; scenario: string; initialPath: string; theme?: "light" | "dark"; locale: "en" | "id" }) {
   const request = useMemo(() => createStudentFixtureRequest(scenario), [scenario]);
-  const session = useMemo(() => ({ ...baseSession, locale: scenario === "catalog-parity" ? "en" : "id" }), [scenario]);
+  const session = useMemo(() => ({ ...baseSession, locale }), [locale]);
   const drafts = useMemo(() => {
+    if (persistent) return fixtureRepository.bind({
+      origin: session.origin, accountId: session.userId, sessionId: "student-device-evidence", locale,
+    }, () => {}).drafts;
     const data = new Map<string, string>();
     return {
       get: async (key: string) => data.get(key) ?? null,
       set: async (key: string, value: string) => { data.set(key, value); },
       remove: async (key: string) => { data.delete(key); },
     };
-  }, []);
+  }, [persistent, session, locale]);
   useEffect(() => {
-    if (scenario !== "catalog-parity") return;
-    Appearance.setColorScheme("dark");
+    if (!theme) return;
+    Appearance.setColorScheme(theme);
     return () => Appearance.setColorScheme("unspecified");
-  }, [scenario]);
+  }, [theme]);
   const nextId = useRef(0);
   const offsets = useRef(new Map<number, number>());
   const [stack, setStack] = useState([{ id: 0, path: initialPath }]);
@@ -57,8 +65,10 @@ function Fixture({ scenario, initialPath }: { scenario: string; initialPath: str
 
 /** Mounted in a local checkout or Student CI only. This entry never uses a network transport. */
 export default function StudentFixtureRoute() {
-  const params = useLocalSearchParams<{ scenario?: string; path?: string }>();
+  const params = useLocalSearchParams<{ scenario?: string; path?: string; theme?: string; locale?: string; store?: string }>();
   const scenario = typeof params.scenario === "string" ? params.scenario : "enrolled";
   const path = typeof params.path === "string" && matchStudentRoute(params.path) ? params.path : scenario === "catalog-parity" ? "/courses" : "/dashboard";
-  return <Fixture key={JSON.stringify([scenario, path])} initialPath={path} scenario={scenario} />;
+  const theme = params.theme === "light" || params.theme === "dark" ? params.theme : scenario === "catalog-parity" ? "dark" : undefined;
+  const locale = params.locale === "en" || scenario === "catalog-parity" ? "en" : "id";
+  return <Fixture key={JSON.stringify([scenario, path, theme, locale])} initialPath={path} scenario={scenario} theme={theme} locale={locale} persistent={params.store === "disk"} />;
 }

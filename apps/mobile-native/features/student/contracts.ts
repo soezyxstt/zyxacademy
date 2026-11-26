@@ -30,6 +30,12 @@ export interface StudentServices {
     set(key: string, value: string): Promise<void>;
     remove(key: string): Promise<void>;
   };
+  offlineCourse?: {
+    status: "inactive" | "loading" | "syncing" | "ready" | "offline" | "error" | "revoked";
+    course: { id: string; title: string; materials: ReadonlyArray<{ id: string; title: string; kind: string }> } | null;
+    retry(): void;
+  };
+  openOfflineMaterial?: (courseId: string, materialId: string) => void;
   renderMaterial?: (props: { courseId: string; materialId: string; section?: string; page?: number }) => ReactNode;
   openExternal?: (path: string) => void;
   nativeAuthScheme?: string;
@@ -46,7 +52,8 @@ export interface StudentServices {
     setHaptics(enabled: boolean): void;
   };
   notifications?: { enabled: boolean; setEnabled(enabled: boolean): Promise<void> };
-  pickAssessmentFile?: () => Promise<{uri: string; name: string; type: string; size?: number} | null>;
+  pickAssessmentFile?: () => Promise<import("./assessment/device").AssessmentFile | null>;
+  assessmentPhotos?: import("./assessment/device").AssessmentPhotoPicker;
   renderAssessmentMarkdown?: (markdown: string, courseId: string) => ReactNode;
   renderAssessmentParts?: (parts: unknown[], courseId: string, visuals?: unknown[]) => ReactNode;
 }
