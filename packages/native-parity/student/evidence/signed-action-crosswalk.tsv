@@ -20,7 +20,7 @@ courses	/courses/[id]/material	murid	materials.scroll-restore	Stores scoped list
 courses	/courses/[id]/material/[materialId]	murid	materials.detail	Material detail read and locked activation. Canonical article aliases resolve before reader open.	connected	local-http
 courses	/courses/[id]/material/[materialId]	murid	article.open	OnlineReading loads canonical structured and compatible published legacy or generated Articles under current material access.	connected	signed-http
 courses	/courses/[id]/material/[materialId]	murid	article.assets	Fetches admitted assets using account, revision and same-origin policy.	connected	signed-http
-courses	/courses/[id]/material/[materialId]	murid	article.section-navigation	ReadingStudy and ReadingDocument select sections and restore progress. Complete web search and outline controls need parity.	partial	fixture
+courses	/courses/[id]/material/[materialId]	murid	article.section-navigation	Online reading lists the outline, searches admitted sections and opens the matched section. Exact in-text highlighting remains a separate interaction.	partial	contract
 courses	/courses/[id]/material/[materialId]	murid	article.mark-complete	Writes section progress and completion against exact revision.	connected	signed-http
 courses	/courses/[id]/material/[materialId]	murid	article.formative-evaluate	Evaluates an authorized revision, section and block via reading/learning.	connected	signed-http
 courses	/courses/[id]/material/[materialId]	murid	article.formative-reveal	Requests explicit answer reveal under same content scope.	connected	signed-http
@@ -32,8 +32,8 @@ courses	/courses/[id]/material/[materialId]	murid	diktat.open	OnlineReading open
 courses	/courses/[id]/material/[materialId]	murid	diktat.complete	Writes completion for canonical Diktat with course rights and exact revision.	connected	signed-http
 courses	/courses/[id]/material/[materialId]	murid	diktat.download	VerifiedStudentEntry exposes a scoped PDF file action when Diktat full download is allowed.	connected	contract
 courses	/courses/[id]/material/[materialId]	murid	pdf.open	Protected material-pdf issues bytes and a renewable viewing lease. Native renderer supports page deep link.	connected	signed-http
-courses	/courses/[id]/material/[materialId]	murid	pdf.navigate	Viewer supports page and pinch interaction. Native controls lack web outline, thumbnails and search.	partial	source
-courses	/courses/[id]/material/[materialId]	murid	pdf.bookmarks	Web MaterialViewer maintains scoped bookmarks and local notes. Native has no editor or list for either.	absent	source
+courses	/courses/[id]/material/[materialId]	murid	pdf.navigate	Native viewer supports page jumps, zoom and embedded document outline. Text search and thumbnails are tracked separately.	partial	contract
+courses	/courses/[id]/material/[materialId]	murid	pdf.bookmarks	Native reader saves, opens and deletes notes and bookmarks within the account, document and revision.	connected	contract
 courses	/courses/[id]/material/[materialId]	murid	pdf.non-diktat-download	Native manual PDF export rechecks the exact document, chapter, source, revision and web download entitlement before sharing delivered bytes.	connected	contract
 courses	/courses/[id]/material/[materialId]	murid	materials.saved-access	Offers access to relevant authorized saved reading and library.	connected	ci-contract
 courses	/courses	murid	catalog.support	Eligible support link opens website or external contact through guarded HTTPS handoff.	browser	source

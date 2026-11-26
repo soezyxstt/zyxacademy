@@ -10,6 +10,8 @@ import { ReadingContentDocument } from "../../../offline/ReadingDocument";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { CourseMarkdown } from "../CourseMarkdown";
 import type { StudentRequest, StudentSession } from "../contracts";
+import { ReadingNavigation } from "./ReadingNavigation";
+import { readingNavigationItems } from "./reading-search";
 import { OnlineReadingError, type OnlineReadingContent } from "./online-reading";
 import { readingLearning, readingStudySections, resumeReadingSection, type CheckResult, type ReadProgress, type StudyBlock, type StudySection } from "./reading-learning";
 
@@ -33,7 +35,9 @@ export function ReadingStudy({ content, courseId, request, session, theme, onCom
   const { canInteract } = useProtectedInteraction();
   const study = useMemo(() => readingLearning(request, courseId, content), [request, courseId, content]);
   const sections = useMemo(() => readingStudySections(content), [content]);
+  const navigation = useMemo(() => readingNavigationItems(content), [content]);
   const [selected, setSelected] = useState<string>();
+  const [unstructuredSection, setUnstructuredSection] = useState<string>();
   const [progress, setProgress] = useState<ReadProgress>();
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState<"unavailable" | "stale">();
@@ -50,7 +54,8 @@ export function ReadingStudy({ content, courseId, request, session, theme, onCom
     : sections.length > 0 && sections.every(section => sectionProgress[section.id]?.completed));
   const completionReported = useRef(false);
   const checks = active?.checks ?? [];
-  const selectedContent = useMemo(() => active ? { ...content, section: active.slug } : content, [active, content]);
+  const selectedContent = useMemo(() => active || unstructuredSection
+    ? { ...content, section: active?.slug ?? unstructuredSection } : content, [active, content, unstructuredSection]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -149,7 +154,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, onCom
       <Button theme={theme} variant="outline" disabled={busy || page >= sections.length - 1}
         onPress={() => select(sections[page + 1])}>{id ? "Bagian berikutnya" : "Next section"}</Button>
     </View>}
-    {error !== "stale" ? <ReadingContentDocument key={active?.id ?? content.data.id} content={selectedContent}
+    {error !== "stale" ? <ReadingContentDocument key={active?.id ?? unstructuredSection ?? content.data.id} content={selectedContent}
       testID="student-online-reading-document" onProgress={active ? scroll : undefined} /> : <View style={{ flex: 1 }} />}
     <View style={{ gap: 6, padding: 8, borderTopWidth: 1, borderColor: colors.border }}>
       {error && <Text accessibilityRole="alert" style={{ color: colors.destructive }}>{error === "stale"
@@ -158,6 +163,11 @@ export function ReadingStudy({ content, courseId, request, session, theme, onCom
       <View style={toolbar}>
         {error === "stale" ? <Button theme={theme} onPress={reload}>{id ? "Muat ulang bacaan" : "Reload reading"}</Button> : <>
           {error && !progress ? <Button theme={theme} variant="outline" onPress={() => setAttempt(value => value + 1)}>{id ? "Periksa progres" : "Check progress"}</Button> : null}
+          {navigation.length > 0 && <ReadingNavigation items={navigation} locale={locale} theme={theme} onOpen={item => {
+            if (!canInteract()) return;
+            if (content.structured) select(sections.find(section => section.id === item.id));
+            else if (item.slug) setUnstructuredSection(item.slug);
+          }} />}
           {checks.length > 0 && <Button theme={theme} variant="outline" disabled={busy} onPress={() => setCheck(checks[0])}>
             {id ? "Cek pemahaman" : "Check understanding"}
           </Button>}

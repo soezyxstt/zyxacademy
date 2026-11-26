@@ -475,7 +475,7 @@ function Document({
           {(target && renderMaterial?.(target)) ?? (target?.kind === "pdf" && material.nativePdf && pdfReader
             ? <MaterialPdf key={JSON.stringify([course.id, material.id, target.page, locale])} reader={pdfReader}
                 courseId={course.id} materialId={material.id} title={material.title} page={target.page} theme={theme}
-                locale={locale} openWeb={openWeb} openExternal={openExternal} />
+                locale={locale} openWeb={openWeb} openExternal={openExternal} annotationIdentity={{ origin: session.origin, userId: session.userId }} />
             : target && material.nativeReading && !canonicalHref
             ? <OnlineReading key={JSON.stringify([course.id, material.id, target.section, locale])}
                 request={request} session={session} reloadDetail={reload} kind={material.nativeReading} courseId={course.id} materialId={material.id}

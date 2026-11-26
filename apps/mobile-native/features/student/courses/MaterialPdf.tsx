@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Text, View } from "react-native";
-import Pdf from "react-native-pdf";
+import Pdf, { type PdfRef } from "react-native-pdf";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
 import { Button } from "../../../components/Button";
 import type { MaterialPdfResult, PreparedMaterialPdf } from "../../../device/file-controller";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
+import { PdfReaderControls, type PdfAnnotationIdentity } from "./PdfReaderControls";
+import { pdfOutline, type PdfOutlineRow } from "./pdf-reader-model";
 import { safeMaterialPdfLink, type StudentPdfReader } from "./pdf-reading";
 
 type Props = {
@@ -19,6 +21,7 @@ type Props = {
   testIDPrefix?: string;
   buttonLabel?: string;
   openWeb?: () => void;
+  annotationIdentity?: PdfAnnotationIdentity;
   openExternal?: (url: string) => void;
 };
 
@@ -37,13 +40,17 @@ export function MaterialPdf(props: Props) {
   </>;
 }
 
-function PdfPage({ courseId, materialId, reader, title, page, locale, theme, openWeb, openExternal, testIDPrefix = "student", close }: Props & { close(): void }) {
+function PdfPage({ courseId, materialId, reader, title, page, locale, theme, openWeb, openExternal, annotationIdentity, testIDPrefix = "student", close }: Props & { close(): void }) {
   const { canInteract } = useProtectedInteraction();
   const access = useRef({ reader, canInteract });
   access.current = { reader, canInteract };
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<MaterialPdfResult | null>(null);
-  const [pageLabel, setPageLabel] = useState("");
+  const [position, setPosition] = useState<{ page: number; total: number }>();
+  const [scale, setScale] = useState(1);
+  const [outline, setOutline] = useState<PdfOutlineRow[]>([]);
+  const pdf = useRef<PdfRef>(null);
+  const [lease, setLease] = useState(0);
   const release = useRef<() => void>(() => {});
   const colors = nativeColors[theme];
   const en = locale === "en";
@@ -62,7 +69,8 @@ function PdfPage({ courseId, materialId, reader, title, page, locale, theme, ope
     release.current = stop;
     function fail(result: MaterialPdfResult) {
       stop();
-      setPageLabel("");
+      setPosition(undefined);
+      setOutline([]);
       setState(result);
     }
     function schedule(until: number) {
@@ -73,6 +81,7 @@ function PdfPage({ courseId, materialId, reader, title, page, locale, theme, ope
         fail({ status: "error", issue: "unauthorized" });
         return;
       }
+      setLease(until);
       expiry = setTimeout(() => fail({ status: "error", issue: "unauthorized" }), remaining);
       check = setTimeout(renew, Math.min(60_000, Math.max(1000, remaining - 3000)));
     }
@@ -105,17 +114,30 @@ function PdfPage({ courseId, materialId, reader, title, page, locale, theme, ope
     <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderBottomWidth: 1, borderColor: colors.border }}>
       <Button theme={theme} variant="outline" testID={`${testIDPrefix}-material-pdf-close`} onPress={close}>{en ? "Back" : "Kembali"}</Button>
       <Text accessibilityRole="header" numberOfLines={2} style={{ flex: 1, color: colors.foreground, fontWeight: "600", fontSize: 16 }}>{title}</Text>
-      {pageLabel ? <Text style={{ color: colors.mutedForeground, fontVariant: ["tabular-nums"] }} testID={`${testIDPrefix}-material-pdf-page`}>{pageLabel}</Text> : null}
+      {position ? annotationIdentity && state?.status === "ready" ?
+        <PdfReaderControls testID={`${testIDPrefix}-material-pdf-page`} position={position} scale={scale} outline={outline} locale={locale} theme={theme}
+          go={target => pdf.current?.setPage(target)} zoom={setScale}
+          annotationScope={{ ...annotationIdentity, courseId, materialId, revision: state.document.revision, active: () => Date.now() < lease }}
+          /> : <Text style={{ color: colors.mutedForeground, fontVariant: ["tabular-nums"] }} testID={`${testIDPrefix}-material-pdf-page`}>
+            {position.page} / {position.total}
+          </Text> : null}
     </View>
     {state?.status === "ready" ? <Pdf
+      ref={pdf}
       source={{ uri: state.document.uri, cache: false }}
       page={page}
+      scale={scale}
+      maxScale={3}
+      onScaleChanged={setScale}
+      onLoadComplete={(total, _path, _size, contents) => {
+        if (annotationIdentity) setOutline(pdfOutline(contents, total));
+      }}
       fitPolicy={0}
       enableAnnotationRendering
       trustAllCerts={false}
       style={{ flex: 1, width: "100%", backgroundColor: colors.card }}
-      onPageChanged={(current, total) => setPageLabel(`${current} / ${total}`)}
-      onError={() => { release.current(); setPageLabel(""); setState({ status: "error", issue: "type" }); }}
+      onPageChanged={(current, total) => setPosition({ page: current, total })}
+      onError={() => { release.current(); setPosition(undefined); setOutline([]); setState({ status: "error", issue: "type" }); }}
       onPressLink={value => {
         const url = safeMaterialPdfLink(value);
         if (url && canInteract()) openExternal?.(url);
