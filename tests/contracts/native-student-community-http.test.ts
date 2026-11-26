@@ -7,10 +7,10 @@ import { Client } from "pg";
 import {
   courses, enrollments, gamificationLeaderboardPeriods, gamificationProfiles, mataKuliah, pengguna, penggunaPeran,
   quizTemplates, session, studentQuizAttempts, user,
-} from "../../../../../db/schema";
-import { membershipIdFor } from "../../../../../lib/auth/peran";
-import type { AcademicRanking, AgendaData, CourseRanking, LeaderboardPage, NotificationPreferences, Profile, PublicStudentProfile, ReflectionPage, Schedule } from "../../../../../packages/native-parity/student/community/contracts";
-import { localStudentCookie } from "./session";
+} from "../../db/schema";
+import { membershipIdFor } from "../../lib/auth/peran";
+import type { AcademicRanking, AgendaData, CourseRanking, LeaderboardPage, NotificationPreferences, Profile, PublicStudentProfile, ReflectionPage, Schedule } from "../../packages/native-parity/student/community/contracts";
+import { localStudentCookie } from "../visual/native-parallel/student/product/session";
 
 const http = process.env.STUDENT_COMMUNITY_HTTP_BASE;
 const key = "community-test-" + randomUUID().slice(0, 8);

@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { studentFixturePath } from "../../../../apps/mobile-native/features/student/fixture-location";
-import { matchStudentRoute } from "../../../../apps/mobile-native/features/student/routes";
-import { assessmentApiPath } from "../../../../packages/native-parity/student/assessment/contract";
-import { assessmentFixturePaths, createAssessmentFixtureRequest } from "../../../../packages/native-parity/student/assessment/fixtures";
-import { createCommunityFixtureRequest } from "../../../../packages/native-parity/student/community/fixtures";
-import { createCourseFixtureRequest } from "../../../../packages/native-parity/student/courses/fixtures";
-import { createLearningFixtureRequest } from "../../../../packages/native-parity/student/learning/fixtures";
+import { studentFixturePath } from "../../apps/mobile-native/features/student/fixture-location";
+import { matchStudentRoute } from "../../apps/mobile-native/features/student/routes";
+import { assessmentApiPath } from "../../packages/native-parity/student/assessment/contract";
+import { assessmentFixturePaths, createAssessmentFixtureRequest } from "../../packages/native-parity/student/assessment/fixtures";
+import { createCommunityFixtureRequest } from "../../packages/native-parity/student/community/fixtures";
+import { createCourseFixtureRequest } from "../../packages/native-parity/student/courses/fixtures";
+import { createLearningFixtureRequest } from "../../packages/native-parity/student/learning/fixtures";
 
 const longText = "Jelaskan hubungan koefisien dengan perubahan gradien";
 

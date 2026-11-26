@@ -175,7 +175,7 @@ const areaInfo: Record<StudentArea, { ui: string; symbol: string; doc: string; c
   courses: { ui: "apps/mobile-native/features/student/courses/index.tsx", symbol: "CourseScreen", doc: "packages/native-parity/student/courses/README.md", checks: ["tests/contracts/native-student-courses.test.ts", "tests/unit/native-student-course-data.test.ts", "tests/unit/native-student-dashboard-extras.test.ts"] },
   assessment: { ui: "apps/mobile-native/features/student/assessment/index.tsx", symbol: "AssessmentScreen", doc: "packages/native-parity/student/assessment/README.md", checks: ["tests/contracts/native-student-assessment.test.ts", "tests/unit/native-student-assessment-drafts.test.ts", "tests/visual/native-parallel/student/assessment-reference.spec.ts"] },
   learning: { ui: "apps/mobile-native/features/student/learning/index.tsx", symbol: "LearningScreen", doc: "packages/native-parity/student/learning/README.md", checks: ["tests/contracts/native-student-learning.test.ts", "tests/contracts/native-student-learning-postgres.test.ts"] },
-  community: { ui: "apps/mobile-native/features/student/community/index.tsx", symbol: "CommunityScreen", doc: "packages/native-parity/student/community/README.md", checks: ["packages/native-parity/student/community/community.test.ts", "tests/visual/native-parallel/student/product/community-http.test.ts"] },
+  community: { ui: "apps/mobile-native/features/student/community/index.tsx", symbol: "CommunityScreen", doc: "packages/native-parity/student/community/README.md", checks: ["packages/native-parity/student/community/community.test.ts", "tests/contracts/native-student-community-http.test.ts"] },
 };
 const httpCourses = new Set(["/dashboard", "/courses", "/courses/[id]", "/courses/[id]/material", "/courses/[id]/material/[materialId]"]);
 const httpCommunity = new Set(["/leaderboard", "/leaderboard/academic", "/courses/[id]/leaderboard", "/calendar", "/dashboard/schedule", "/profile/reflections", "/settings/notifications", "/profile", "/students/[publicId]", "/dashboard/discussions", "/courses/[id]/discussions", "/discussions"]);
@@ -282,7 +282,7 @@ const rows = manifest.routes.map(route => {
   return { source, pattern, area, implementation: { status: "module_present_fixture_hosted", ui: info.ui, symbol: info.symbol,
       entry: "apps/mobile-native/features/student/StudentEntry.tsx", verified_entry: "apps/mobile-native/features/student/VerifiedStudentEntry.tsx",
       limitation: "The integration preview mounts the verified entry. A signed-in product run and fixture device results have separate provenance." },
-    operations: operations[pattern], contract_doc: info.doc, checks: [...info.checks, "tests/visual/native-parallel/student/expanded-fixtures.test.ts"],
+    operations: operations[pattern], contract_doc: info.doc, checks: [...info.checks, "tests/unit/native-student-expanded-fixtures.test.ts"],
     http_evidence: httpCourses.has(pattern) ? { source: "tests/visual/native-parallel/student/product/README.md", scope: "Local synthetic HTTP reads for dashboard, extras, catalog, course and material; see per-view assertions." } :
       ["/courses/[id]/quiz/[quizId]", "/courses/[id]/tryout/[tryoutId]", "/courses/[id]/my-results", "/courses/[id]/my-results/[submissionId]"].includes(pattern) ?
       { source: "tests/visual/native-parallel/student/product/assessment-http.ts", scope: "Signed HTTP with a local PostgreSQL database. Checks retries, attempt ownership, release and score for quiz and tryout." } :
