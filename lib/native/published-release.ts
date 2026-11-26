@@ -1,4 +1,5 @@
 import "server-only";
+import { selectExpoAndroidRelease } from "@/packages/native-session/expo-android-update";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { selectLatestReleaseForChannel, type AppUpdateChannel, type GitHubReleaseItem } from "./updates";
 
@@ -8,7 +9,7 @@ export function getDownloadChannel(): AppUpdateChannel {
   return new URL(resolveAuthBaseUrl()).hostname === "staging.zyxacademy.com" ? "nightly" : "stable";
 }
 
-export async function readPublishedRelease(channel: AppUpdateChannel) {
+function createReleaseRequest() {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
     "User-Agent": "ZyxAcademyAppUpdater/1.0",
@@ -16,9 +17,13 @@ export async function readPublishedRelease(channel: AppUpdateChannel) {
   if (process.env.GITHUB_RELEASES_TOKEN) {
     headers.Authorization = `Bearer ${process.env.GITHUB_RELEASES_TOKEN}`;
   }
-  const request = (url: string) => fetch(url, {
+  return (url: string) => fetch(url, {
     headers, next: { revalidate: 300 }, signal: AbortSignal.timeout(8000),
   });
+}
+
+export async function readPublishedRelease(channel: AppUpdateChannel) {
+  const request = createReleaseRequest();
 
   try {
     if (channel === "stable") {
@@ -38,6 +43,25 @@ export async function readPublishedRelease(channel: AppUpdateChannel) {
       const release = selectLatestReleaseForChannel(items, channel);
       if (release || !response.headers.get("link")?.includes('rel="next"')) return { release };
     }
+  } catch {
+    return { release: null, error: "github_network_error" };
+  }
+}
+
+export async function readPublishedExpoAndroidRelease() {
+  const request = createReleaseRequest();
+  const releases: unknown[] = [];
+  try {
+    // Bound this preview channel to the most recent published pages of the same repository.
+    for (let page = 1; page <= 5; page++) {
+      const response = await request(`${releasesApi}?per_page=100&page=${page}`);
+      if (!response.ok) return { release: null, error: `github_http_${response.status}` };
+      const entries: unknown = await response.json();
+      if (!Array.isArray(entries)) return { release: null, error: "github_release_invalid" };
+      releases.push(...entries);
+      if (!response.headers.get("link")?.includes('rel="next"')) break;
+    }
+    return { release: selectExpoAndroidRelease(releases) };
   } catch {
     return { release: null, error: "github_network_error" };
   }

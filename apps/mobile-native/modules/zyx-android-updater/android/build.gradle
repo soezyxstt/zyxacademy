@@ -1,0 +1,18 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.zyx.academy.updater'
+version = '0.1.0'
+
+android {
+  namespace 'com.zyx.academy.updater'
+  defaultConfig {
+    consumerProguardFiles 'consumer-rules.pro'
+  }
+}
+
+dependencies {
+  implementation 'com.android.tools.build:apksig:8.13.2'
+}

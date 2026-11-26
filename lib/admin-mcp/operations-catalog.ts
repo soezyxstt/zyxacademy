@@ -204,6 +204,13 @@ export const operationsCatalog = [
     "reason": "Web and Expo show personal achievement notifications for the active learner and acknowledge only that account's displayed events. These participant actions use the existing learner session."
   },
   {
+    "source": "app/api/app/latest/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "This public release lookup selects compatible application archives. Expo targets its own signed Android pre-release independently of Capacitor and desktop, and installation requires explicit consent in Android. MCP has no device installation authority."
+  },
+  {
     "source": "app/api/auth/native/google/route.ts",
     "actions": ["POST"],
     "tools": [],

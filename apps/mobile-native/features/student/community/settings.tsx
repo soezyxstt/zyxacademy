@@ -12,6 +12,7 @@ import { useTourEvent } from "../../onboarding/tour-events";
 import { useStudentAlert } from "./alerts";
 import { studentBrowserNotificationsUrl } from "../browser-handoff";
 import { AccountSessionsPanel } from "./account-sessions";
+import { AppUpdatePanel } from "./app-update";
 import { ProfileEditorPanel } from "./profile";
 import { Action, Actions, Choices, Copy, Field, Notice, Page, Remote, Toggle, communityPath, operationResult, post, readJson, styles, useCommunity, useOperation, useRemote } from "./ui";
 
@@ -198,6 +199,7 @@ function GeneralPanel() {
     <Notice notice={state.notice} />
     {openOfflineLibrary && <Actions><Action label={tr("Kelola bacaan offline", "Manage offline readings")} onPress={() => openOfflineLibrary()} /></Actions>}
     {tour && <Actions><Action label={tr("Ulangi tur", "Replay tour")} onPress={() => tour("replay")} /></Actions>}
+    <AppUpdatePanel />
     <AccountSessionsPanel />
   </>;
 }

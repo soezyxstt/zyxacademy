@@ -187,6 +187,7 @@ community	/students/[publicId]	murid	social.profile	Reads one eligible public pr
 community	/students/[publicId]	murid	social.follow	Follows or unfollows eligible visible user.	connected	fixture
 community	/students/[publicId]	murid	social.block	Confirms blocking an eligible member, then removes profile access following shared policy.	connected	local-http
 community	/students/[publicId]	murid	social.report	Confirms reasoned report under actor and duplicate/rate limit policy.	connected	fixture
+shell	/settings	active-account	settings.android-app-update	Checks the dedicated Expo Android prerelease projection. Explicit download verifies digest, actual APK signer, package and upgrade version before Android confirmation. No matching archive is published. Signed installation evidence is pending.	connected	contract
 community	/settings	murid	settings.locale	Sets account locale via protected native endpoint, then refreshes verified context.	connected	fixture
 community	/settings	murid	settings.theme	Persists device theme with system, light and dark variants.	connected	contract
 community	/settings	murid	settings.haptics	Persists device haptic setting and applies supported feedback.	connected	contract
