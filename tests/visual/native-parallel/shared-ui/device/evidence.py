@@ -5,7 +5,10 @@ from decimal import Decimal, InvalidOperation
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
+import platform
+import plistlib
 import re
 import subprocess
 from tempfile import TemporaryDirectory
@@ -253,9 +256,33 @@ def device_info(args):
     for runtime, devices in listing["devices"].items():
         for device in devices:
             if device["udid"].lower() == args.device.lower():
-                abi = text_output(["xcrun", "simctl", "spawn", args.device, "uname", "-m"])
-                return {"model": device["name"], "osVersion": runtime, "abi": abi}
+                return {
+                    "model": device["name"], "osVersion": runtime,
+                    **ios_app_info(args.device, getattr(args, "ios_executable_sha256", None)),
+                }
     raise ValueError("Choose a booted iOS simulator using its explicit UDID")
+
+
+def ios_app_info(device, expected_sha256):
+    app = Path(text_output(["xcrun", "simctl", "get_app_container", device, APP_ID, "app"])).resolve()
+    with (app / "Info.plist").open("rb") as stream:
+        info = plistlib.load(stream)
+    if not isinstance(info, dict) or info.get("CFBundleIdentifier") != APP_ID:
+        raise ValueError(f"Installed iOS app Info.plist must identify {APP_ID}")
+    name = info.get("CFBundleExecutable")
+    if not isinstance(name, str) or not name or Path(name).name != name:
+        raise ValueError("Installed iOS app has an invalid CFBundleExecutable")
+    executable = (app / name).resolve()
+    if executable.parent != app or not executable.is_file():
+        raise ValueError("Installed iOS app executable is missing from the app bundle")
+    abi = platform.machine()
+    architectures = text_output(["xcrun", "lipo", "-archs", str(executable)]).split()
+    if abi not in architectures:
+        raise ValueError(f"Installed iOS app supports {architectures}, runner architecture is {abi!r}")
+    digest = sha256(executable)
+    if expected_sha256 is not None and digest != expected_sha256.lower():
+        raise ValueError(f"Installed iOS app executable SHA-256 {digest} disagrees with expected {expected_sha256}")
+    return {"abi": abi, "appArchitectures": architectures, "appExecutableSha256": digest}
 
 
 def maestro_case_flow(case_id, ready_id, marker=None):
@@ -310,13 +337,13 @@ def wait_for_android_device(device, context):
 
 
 def capture_frame(args, case_id, flow, path):
-    attempts = 3 if args.platform == "android" else 1
+    attempts, timeout = (3, 120) if args.platform == "android" else (1, 240)
     for attempt in range(1, attempts + 1):
         fixture_setup = True
         try:
             result = subprocess.run(
                 ["maestro", "--device", args.device, "test", str(flow)],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120, check=True,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, check=True,
             )
             print(f"[{case_id}] Maestro attempt {attempt}/{attempts}\n{command_text(result.stdout)}", flush=True)
             fixture_setup = False
@@ -398,6 +425,10 @@ def read_args():
     capture.add_argument("--insets", required=True, **inset_flags)
     capture.add_argument("--device", required=True, help="Explicit adb serial or booted simulator UDID")
     capture.add_argument("--build", required=True, help="Commit or artifact identifier of the installed build")
+    capture.add_argument(
+        "--ios-executable-sha256", default=os.environ.get("SHARED_IOS_EXECUTABLE_SHA256"),
+        help="Expected SHA-256 of the iOS build executable (defaults to SHARED_IOS_EXECUTABLE_SHA256)",
+    )
     compare = commands.add_parser("compare", parents=[common])
     compare.add_argument("--insets", **inset_flags)
     compare.add_argument("--out-dir", type=Path, required=True)
@@ -406,6 +437,9 @@ def read_args():
     args.reference_dir = args.reference_dir or REFERENCE_ROOT / f"dpr{scale_label(args.scale)}"
     if args.insets is not None and any(value < 0 for value in args.insets):
         parser.error("Insets must be nonnegative")
+    if args.command == "capture" and args.ios_executable_sha256 is not None:
+        if args.platform != "ios" or not re.fullmatch(r"[a-fA-F0-9]{64}", args.ios_executable_sha256):
+            parser.error("--ios-executable-sha256 requires iOS capture and a 64-character hexadecimal digest")
     return args
 
 

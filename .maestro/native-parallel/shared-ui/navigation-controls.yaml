@@ -5,7 +5,7 @@ name: Role navigation and tab overflow
 - extendedWaitUntil:
     visible: separator
     timeout: 20000
-- openLink: zyx-native-parity://shared-ui/mobile-navbar-student-light
+- openLink: zyx-native-parity://internal/shared-ui/mobile-navbar-student-light
 - runFlow: helpers/confirm-ios-link.yaml
 - extendedWaitUntil:
     visible:
@@ -16,7 +16,7 @@ name: Role navigation and tab overflow
 - assertVisible:
     id: mobile-navbar-student-light-state
     text: Cari
-- openLink: zyx-native-parity://shared-ui/mobile-navbar-tutor-light
+- openLink: zyx-native-parity://internal/shared-ui/mobile-navbar-tutor-light
 - runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: mobile-navbar-tutor-light-switch-course
@@ -27,21 +27,21 @@ name: Role navigation and tab overflow
     id: mobile-navbar-tutor-light-course-sheet
 - assertVisible:
     id: mobile-navbar-tutor-light-switch-course
-- openLink: zyx-native-parity://shared-ui/mobile-navbar-admin-dark
+- openLink: zyx-native-parity://internal/shared-ui/mobile-navbar-admin-dark
 - runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: mobile-navbar-admin-dark-back
 - assertVisible:
     id: mobile-navbar-admin-dark-state
     text: Kembali
-- openLink: zyx-native-parity://shared-ui/bottom-navigation-student-light
+- openLink: zyx-native-parity://internal/shared-ui/bottom-navigation-student-light
 - runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: bottom-navigation-student-light-discuss
 - assertVisible:
     id: bottom-navigation-student-light-state
     text: Diskusi
-- openLink: zyx-native-parity://shared-ui/bottom-navigation-tutor-light
+- openLink: zyx-native-parity://internal/shared-ui/bottom-navigation-tutor-light
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     id: bottom-navigation-tutor-light-state
@@ -51,7 +51,7 @@ name: Role navigation and tab overflow
 - assertVisible:
     id: bottom-navigation-tutor-light-state
     text: Jadwal
-- openLink: zyx-native-parity://shared-ui/bottom-navigation-admin-dark
+- openLink: zyx-native-parity://internal/shared-ui/bottom-navigation-admin-dark
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     id: bottom-navigation-admin-dark-state
@@ -66,19 +66,19 @@ name: Role navigation and tab overflow
 - assertVisible:
     id: bottom-navigation-admin-dark-state
     text: Ops
-- openLink: zyx-native-parity://shared-ui/navigation-tabs-first-light
+- openLink: zyx-native-parity://internal/shared-ui/navigation-tabs-first-light
 - runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: navigation-tabs-first-light-academic
 - assertVisible:
     id: navigation-tabs-first-light-active
     text: Akademik
-- openLink: zyx-native-parity://shared-ui/navigation-tabs-academic-dark
+- openLink: zyx-native-parity://internal/shared-ui/navigation-tabs-academic-dark
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     id: navigation-tabs-academic-dark-active
     text: Akademik
-- openLink: zyx-native-parity://shared-ui/navigation-tabs-overflow-light
+- openLink: zyx-native-parity://internal/shared-ui/navigation-tabs-overflow-light
 - runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: navigation-tabs-overflow-light-more

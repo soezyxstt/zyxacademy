@@ -14,6 +14,7 @@ from evidence import command_text, device_screenshot, maestro_case_flow, transie
 ROOT = Path(__file__).resolve().parents[5]
 DEVICE_DIR = Path(__file__).resolve().parent
 GROUP_WIDTHS = {"phone": 380, "tablet": 768, "wide": 1024}
+GROUP_CASE_COUNTS = {"phone": 49, "tablet": 2, "wide": 1}
 GEOMETRY_CASE = "shared-ui-shell-back-light"
 MARKER = re.compile(r"shared-ui-geometry-(\d+)x(\d+)-dpr-(\d+(?:-\d+)?)-insets-(\d+)-(\d+)-(\d+)-(\d+)")
 
@@ -64,9 +65,29 @@ def expected_cases(group):
     if any(item["width"] not in GROUP_WIDTHS.values() for item in cases):
         raise ValueError("case has no phone/tablet/wide group")
     selected = [item["id"] for item in cases if item["width"] == GROUP_WIDTHS[group]]
-    if not selected:
-        raise ValueError(f"no cases in group {group}")
+    if len(selected) != GROUP_CASE_COUNTS[group]:
+        raise ValueError(f"expected {GROUP_CASE_COUNTS[group]} cases in {group}, found {len(selected)}")
     return selected
+
+
+def read_shard(platform, group):
+    try:
+        index = int(os.environ.get("SHARED_SHARD_INDEX", "0"))
+        count = int(os.environ.get("SHARED_SHARD_COUNT", "1"))
+    except ValueError as error:
+        raise ValueError("SHARED_SHARD_INDEX and SHARED_SHARD_COUNT must be integers") from error
+    if count == 1 and index == 0:
+        return index, count
+    if platform == "ios" and group == "phone" and count == 3 and 0 <= index < count:
+        return index, count
+    raise ValueError("Only iOS phone supports SHARED_SHARD_COUNT=3 with SHARED_SHARD_INDEX 0, 1 or 2")
+
+
+def shard_cases(cases, index, count):
+    base, extra = divmod(len(cases), count)
+    start = index * base + min(index, extra)
+    size = base + int(index < extra)
+    return cases[start : start + size]
 
 
 def require_group_width(group, width):
@@ -118,14 +139,19 @@ def main():
     build = os.environ.get("SHARED_BUILD") or os.environ.get("GITHUB_SHA", "")
     if platform not in ("android", "ios") or group not in GROUP_WIDTHS or not device or not re.fullmatch(r"[0-9a-fA-F]{40}", build):
         raise ValueError("Set SHARED_PLATFORM=android|ios, SHARED_GROUP=phone|tablet|wide, SHARED_DEVICE and 40-character SHARED_BUILD or GITHUB_SHA")
+    shard_index, shard_count = read_shard(platform, group)
     group_dir = ROOT / "artifacts" / "native-parity" / "shared-ui" / platform / group
     group_dir.mkdir(parents=True, exist_ok=True)
     output = Path(tempfile.mkdtemp(prefix="run-", dir=group_dir))
-    summary = {"platform": platform, "group": group, "device": device, "build": build, "runDirectory": str(output.relative_to(ROOT)), "errors": []}
+    summary = {
+        "platform": platform, "group": group, "device": device, "build": build,
+        "shardIndex": shard_index, "shardCount": shard_count, "runDirectory": str(output.relative_to(ROOT)), "errors": [],
+    }
     status = 1
     try:
-        expected = expected_cases(group)
+        expected = shard_cases(expected_cases(group), shard_index, shard_count)
         summary["expectedCases"] = len(expected)
+        summary["expectedCaseIds"] = expected
         (output / "expected-cases.json").write_text(json.dumps(expected, indent=2) + "\n", encoding="utf-8")
         try:
             geometry = probe_geometry(device, output, platform=platform)
@@ -153,7 +179,7 @@ def main():
             "SHARED_UI_REFERENCES": str(web_root),
             "PARITY_DPR": scale,
         })
-        web_result = command("web-capture", ["bun", "tests/visual/native-parallel/shared-ui/capture.ts"], output, env)
+        web_result = command("web-capture", ["bun", "tests/visual/native-parallel/shared-ui/capture.ts", *expected], output, env)
         summary["webExit"] = web_result
         manifest = reference / "results.json"
         if not manifest.exists():
@@ -186,7 +212,7 @@ def main():
         summary["errors"].append(str(error))
         print(f"CI evidence error: {error}", file=sys.stderr, flush=True)
     finally:
-        if group == "phone":
+        if group == "phone" and shard_index == 0:
             try:
                 accessibility = command("accessibility", ["bash", str(DEVICE_DIR / "ci-accessibility.sh")], output)
             except OSError as error:

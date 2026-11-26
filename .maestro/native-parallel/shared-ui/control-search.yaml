@@ -5,39 +5,71 @@ name: Shared search expansion, editing and clear
 - extendedWaitUntil:
     visible: separator
     timeout: 20000
-- openLink: zyx-native-parity://shared-ui/shared-ui-search-collapsed
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-search-collapsed
 - runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: shared-ui-search-collapsed-trigger
 - assertVisible:
     id: shared-ui-search-collapsed-input
-    focused: true
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: shared-ui-search-collapsed-input
+          focused: true
 - inputText: Gelombang
 - assertVisible:
     id: shared-ui-search-collapsed-input
     text: Gelombang
 - tapOn:
     id: shared-ui-search-collapsed-clear
-- assertVisible:
-    id: shared-ui-search-collapsed-input
-    focused: true
+- assertNotVisible:
+    id: shared-ui-search-collapsed-clear
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: shared-ui-search-collapsed-input
+          focused: true
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - inputText: Mekanika
+      - assertVisible:
+          id: shared-ui-search-collapsed-input
+          text: '^Mekanika$'
 - tapOn:
     id: shared-ui-search-collapsed-close
 - assertVisible:
     id: shared-ui-search-collapsed-trigger
-- openLink: zyx-native-parity://shared-ui/shared-ui-search-query
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-search-query
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     id: shared-ui-search-query-input
     text: Gelombang
 - tapOn:
     id: shared-ui-search-query-clear
-- assertVisible:
-    id: shared-ui-search-query-input
-    focused: true
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: shared-ui-search-query-input
+          focused: true
 - assertNotVisible:
     id: shared-ui-search-query-clear
-- openLink: zyx-native-parity://shared-ui/shared-ui-search-loading
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - inputText: Fisika
+      - assertVisible:
+          id: shared-ui-search-query-input
+          text: '^Fisika$'
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-search-loading
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     id: shared-ui-search-loading-input

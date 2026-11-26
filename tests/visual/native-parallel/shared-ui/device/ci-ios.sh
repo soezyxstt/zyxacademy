@@ -4,8 +4,24 @@ set -euo pipefail
 device_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repo_root=$(cd -- "$device_dir/../../../../.." && pwd)
 app_id=com.zyx.academy.nativeparity
+requested_group=${SHARED_GROUP:-}
+requested_app=${SHARED_IOS_APP:-}
+requested_app=${requested_app%/}
 
-for dependency in xcrun python3 npx maestro; do
+dependencies=(xcrun python3 maestro)
+if [[ -n "$requested_group" || -n "$requested_app" ]]; then
+  case "$requested_group" in
+    phone|tablet|wide) ;;
+    *) echo 'Set SHARED_GROUP to phone, tablet, or wide for a prebuilt simulator app' >&2; exit 2 ;;
+  esac
+  if [[ "$requested_app" != /* || "$requested_app" != *.app || ! -d "$requested_app" ]]; then
+    echo 'Set SHARED_IOS_APP to the absolute path of an existing simulator .app directory' >&2
+    exit 2
+  fi
+else
+  dependencies+=(npx)
+fi
+for dependency in "${dependencies[@]}"; do
   if ! command -v "$dependency" >/dev/null; then
     echo "Missing iOS device runner dependency: $dependency" >&2
     exit 2
@@ -14,7 +30,7 @@ done
 export MAESTRO_CLI_NO_ANALYTICS=true
 export MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true
 
-build_dir=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/zyx-shared-ios.XXXXXX")
+build_dir=
 active_simulator=
 stop_simulator() {
   if [[ -n "$active_simulator" ]]; then
@@ -24,7 +40,9 @@ stop_simulator() {
 }
 cleanup() {
   stop_simulator || true
-  rm -rf -- "$build_dir"
+  if [[ -n "$build_dir" ]]; then
+    rm -rf -- "$build_dir"
+  fi
 }
 trap cleanup EXIT
 trap 'exit 130' INT
@@ -62,6 +80,15 @@ sys.exit(f"No available iOS simulator for {group} ({description})")
 ' "$group" "$model" "$requested_udid"
 }
 
+select_simulator() {
+  local group=$1
+  case "$group" in
+    phone) find_simulator "$group" "${SHARED_IOS_MODEL:-}" "${SHARED_DEVICE:-}" ;;
+    tablet) find_simulator "$group" "${SHARED_IOS_TABLET_MODEL:-}" "" ;;
+    wide) find_simulator "$group" "${SHARED_IOS_WIDE_MODEL:-}" "" ;;
+  esac
+}
+
 prepare_simulator() {
   local device=$1 state=$2
   if [[ "$state" != Booted ]]; then
@@ -72,30 +99,44 @@ prepare_simulator() {
   xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
 }
 
-check_phone_fixture() {
-  local device=$1
-  local diagnostic_dir="$repo_root/artifacts/native-parity/shared-ui/ios/phone/preflight"
+check_fixture() {
+  local group=$1 device=$2
+  local diagnostic_dir="$repo_root/artifacts/native-parity/shared-ui/ios/$group/preflight"
   mkdir -p "$diagnostic_dir" || return
-  echo "Checking the iPhone fixture deep link on $device"
+  echo "Checking the iOS $group fixture deep link and simulator ABI on $device"
   if PYTHONPATH="$device_dir${PYTHONPATH:+:$PYTHONPATH}" \
-    python3 - "$device_dir/ci-evidence.py" "$device" "$diagnostic_dir" <<'PY'
+    python3 - "$device_dir/ci-evidence.py" "$group" "$device" "$diagnostic_dir" <<'PY'
 from pathlib import Path
+from types import SimpleNamespace
+import os
 import runpy
+import subprocess
 import sys
+from evidence import device_info
 
-script, device, diagnostics = sys.argv[1:]
-probe_geometry = runpy.run_path(script)["probe_geometry"]
+script, group, device, diagnostics = sys.argv[1:]
+evidence = runpy.run_path(script)
 try:
-    geometry = probe_geometry(device, Path(diagnostics), platform="ios")
-except (OSError, ValueError) as error:
-    sys.exit(f"iPhone fixture preflight failed: {error}")
-print(f'iPhone fixture measured {geometry["width"]}x{geometry["height"]} pt at DPR {geometry["scale"]}')
+    geometry = evidence["probe_geometry"](device, Path(diagnostics), platform="ios")
+    evidence["require_group_width"](group, geometry["width"])
+    simulator = device_info(SimpleNamespace(
+        platform="ios", device=device,
+        ios_executable_sha256=os.environ.get("SHARED_IOS_EXECUTABLE_SHA256"),
+    ))
+except (OSError, ValueError, subprocess.SubprocessError) as error:
+    sys.exit(f"iOS {group} fixture preflight failed: {error}")
+print(f'iOS {group} fixture measured {geometry["width"]}x{geometry["height"]} pt '
+      f'at DPR {geometry["scale"]} on {simulator["abi"]}')
 PY
   then
     return 0
   fi
   xcrun simctl io "$device" screenshot "$diagnostic_dir/screen.png" || true
   return 1
+}
+
+runs_group_interactions() {
+  [[ "$1" != phone || "${SHARED_SHARD_INDEX:-0}" == 0 ]]
 }
 
 collect_evidence() {
@@ -111,18 +152,39 @@ collect_evidence() {
   esac
 
   echo "Collecting iOS shared UI evidence for $group on $device"
-  mkdir -p "$interactions" || return
-  maestro --platform ios --device "$device" test \
-    --format junit --output "$interactions/report.xml" \
-    --test-output-dir "$interactions/results" --debug-output "$interactions/logs" \
-    "${group_flows[@]}" || group_status=1
+  if runs_group_interactions "$group"; then
+    mkdir -p "$interactions" || return
+    maestro --platform ios --device "$device" test \
+      --format junit --output "$interactions/report.xml" \
+      --test-output-dir "$interactions/results" --debug-output "$interactions/logs" \
+      "${group_flows[@]}" || group_status=1
+  fi
   SHARED_GROUP="$group" SHARED_DEVICE="$device" SHARED_PLATFORM=ios \
     bash "$device_dir/ci-evidence.sh" || group_status=1
   return "$group_status"
 }
 
+verify_installed_group() {
+  local group=$1 bundle=$2 selection device state
+  selection=$(select_simulator "$group") || return
+  read -r device state <<< "$selection"
+  prepare_simulator "$device" "$state" || return
+  xcrun simctl install "$device" "$bundle" || return
+  xcrun simctl launch "$device" "$app_id" || return
+  if runs_group_interactions "$group"; then
+    check_fixture "$group" "$device" || return
+  fi
+  collect_evidence "$group" "$device"
+}
+
 cd "$repo_root"
-phone=$(find_simulator phone "${SHARED_IOS_MODEL:-}" "${SHARED_DEVICE:-}")
+if [[ -n "$requested_group" ]]; then
+  verify_installed_group "$requested_group" "$requested_app"
+  exit
+fi
+
+build_dir=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/zyx-shared-ios.XXXXXX")
+phone=$(select_simulator phone)
 read -r phone_device phone_state <<< "$phone"
 prepare_simulator "$phone_device" "$phone_state"
 mkdir -p "$build_dir/expo-home"
@@ -147,30 +209,17 @@ if [[ -z "$app_bundle" ]]; then
 fi
 
 status=0
-check_phone_fixture "$phone_device" || status=1
-collect_evidence phone "$phone_device" || status=1
+if check_fixture phone "$phone_device"; then
+  collect_evidence phone "$phone_device" || status=1
+else
+  status=1
+fi
 stop_simulator
 
 # An 11-inch iPad exercises tablet layout. A 13-inch iPad reaches the wide
 # layout in portrait without rotating the application between captures.
 for group in tablet wide; do
-  if [[ "$group" == tablet ]]; then
-    model=${SHARED_IOS_TABLET_MODEL:-}
-  else
-    model=${SHARED_IOS_WIDE_MODEL:-}
-  fi
-  if ! simulator=$(find_simulator "$group" "$model" ""); then
-    status=1
-    continue
-  fi
-  read -r device state <<< "$simulator"
-  if prepare_simulator "$device" "$state" \
-    && xcrun simctl install "$device" "$app_bundle" \
-    && xcrun simctl launch "$device" "$app_id"; then
-    collect_evidence "$group" "$device" || status=1
-  else
-    status=1
-  fi
+  verify_installed_group "$group" "$app_bundle" || status=1
   stop_simulator
 done
 

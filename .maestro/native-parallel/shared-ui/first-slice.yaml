@@ -5,7 +5,7 @@ name: Shared UI compact shell, header, and list recovery
 - extendedWaitUntil:
     visible: separator
     timeout: 20000
-- openLink: zyx-native-parity://shared-ui/shared-ui-shell-back-light
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-shell-back-light
 - runFlow: helpers/confirm-ios-link.yaml
 - extendedWaitUntil:
     visible: Dokumen
@@ -27,20 +27,20 @@ name: Shared UI compact shell, header, and list recovery
     commands:
       - pressKey: Back
       - assertVisible: Fisika dasar
-- openLink: zyx-native-parity://shared-ui/shared-ui-shell-long-title-dark
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-shell-long-title-dark
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible: "Dokumen Fisika dasar: Mekanika, termodinamika, dan gelombang"
-- openLink: zyx-native-parity://shared-ui/shared-ui-shell-slots-light
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-shell-slots-light
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible: Peserta
 - tapOn: Terapkan filter
 - assertVisible: "Tidak ada pengguna yang cocok.*"
-- openLink: zyx-native-parity://shared-ui/shared-ui-header-actions-light
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-header-actions-light
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible: Nara Pratama
 - tapOn: Filter
 - assertVisible: "Tidak ada pengguna yang cocok.*"
-- openLink: zyx-native-parity://shared-ui/shared-ui-header-action-states-dark
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-header-action-states-dark
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     text: Reset filter
@@ -49,22 +49,22 @@ name: Shared UI compact shell, header, and list recovery
     text: '^Simpan(, busy)?$'
     enabled: false
 - assertVisible: Nara Pratama
-- openLink: zyx-native-parity://shared-ui/shared-ui-header-long-title-light
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-header-long-title-light
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible: Nara Pratama
-- openLink: zyx-native-parity://shared-ui/shared-ui-list-filled-light
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-list-filled-light
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     id: shared-ui-list-filled-light-sinta-compact
 - assertVisible: Sinta Ayuningtyas Kusumawardani
 - assertVisible: Ditangguhkan
-- openLink: zyx-native-parity://shared-ui/shared-ui-list-empty-dark
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-list-empty-dark
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible: "Tidak ada pengguna yang cocok.*"
 - assertNotVisible: Nara Pratama
 - tapOn: Reset filter
 - assertVisible: Nara Pratama
-- openLink: zyx-native-parity://shared-ui/shared-ui-list-error-light
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-list-error-light
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible: Daftar pengguna gagal dimuat
 - assertNotVisible: Nara Pratama

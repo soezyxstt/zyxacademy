@@ -5,12 +5,12 @@ name: Shared loading, empty and recovery states
 - extendedWaitUntil:
     visible: separator
     timeout: 20000
-- openLink: zyx-native-parity://shared-ui/shared-ui-status-loading
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-status-loading
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible: Memuat pertanyaan
 - assertNotVisible:
     id: shared-ui-status-loading-action
-- openLink: zyx-native-parity://shared-ui/shared-ui-status-empty
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-status-empty
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible: Belum ada pertanyaan
 - assertVisible: Pertanyaan baru akan muncul di sini.
@@ -19,7 +19,7 @@ name: Shared loading, empty and recovery states
 - assertVisible: Buat pertanyaan
 - assertNotVisible:
     id: shared-ui-status-empty-action
-- openLink: zyx-native-parity://shared-ui/shared-ui-status-recovery
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-status-recovery
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible: Pertanyaan gagal dimuat
 - tapOn:

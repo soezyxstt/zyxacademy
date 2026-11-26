@@ -1,8 +1,10 @@
-from decimal import Decimal
 from contextlib import redirect_stdout
+from decimal import Decimal
 from io import StringIO
 import json
+import os
 from pathlib import Path
+import plistlib
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
@@ -12,7 +14,7 @@ from unittest.mock import patch
 
 from PIL import Image
 
-from evidence import capture_case, capture_frame, device_info, geometry_id, manifest_cases, parse_scale, pixel_size, sha256
+from evidence import APP_ID, capture_case, capture_frame, device_info, geometry_id, ios_app_info, manifest_cases, parse_scale, pixel_size, read_args, sha256
 
 
 SCRIPT = Path(__file__).with_name("evidence.py")
@@ -140,6 +142,67 @@ class EvidenceTest(unittest.TestCase):
         with patch("evidence.text_output", return_value="Physical density: 160\nOverride density: 320"):
             with self.assertRaisesRegex(ValueError, "reference DPR is 3"):
                 device_info(args)
+
+    def test_ios_reads_installed_bundle_architecture_without_guest_tools(self):
+        app = self.root / "Native Gallery.app"
+        app.mkdir()
+        executable = app / "Native Gallery"
+        executable.write_bytes(b"test Mach-O payload")
+        (app / "Info.plist").write_bytes(plistlib.dumps({
+            "CFBundleIdentifier": APP_ID, "CFBundleExecutable": executable.name,
+        }, fmt=plistlib.FMT_BINARY))
+        runtime = "com.apple.CoreSimulator.SimRuntime.iOS-26-2"
+        simulator = "test-udid"
+        listing = json.dumps({"devices": {runtime: [{"udid": simulator.upper(), "name": "Test iPhone"}]}})
+        args = SimpleNamespace(platform="ios", device=simulator, ios_executable_sha256=sha256(executable).upper())
+
+        with patch("evidence.text_output", side_effect=[listing, str(app), "x86_64 arm64"]) as command, patch("evidence.platform.machine", return_value="arm64"):
+            result = device_info(args)
+
+        self.assertEqual(result, {
+            "model": "Test iPhone", "osVersion": runtime, "abi": "arm64", "appArchitectures": ["x86_64", "arm64"],
+            "appExecutableSha256": sha256(executable),
+        })
+        self.assertEqual([call.args[0] for call in command.call_args_list], [
+            ["xcrun", "simctl", "list", "devices", "booted", "-j"],
+            ["xcrun", "simctl", "get_app_container", simulator, APP_ID, "app"],
+            ["xcrun", "lipo", "-archs", str(executable)],
+        ])
+
+    def test_ios_rejects_installed_bundle_incompatible_with_runner_or_build(self):
+        app = self.root / "Gallery.app"
+        app.mkdir()
+        (app / "Gallery").write_bytes(b"test Mach-O payload")
+        (app / "Info.plist").write_bytes(plistlib.dumps({"CFBundleIdentifier": APP_ID, "CFBundleExecutable": "Gallery"}))
+        for architectures, message in (("x86_64", "runner architecture"), ("arm64", "disagrees with expected")):
+            with (
+                self.subTest(architectures=architectures),
+                patch("evidence.text_output", side_effect=[str(app), architectures]),
+                patch("evidence.platform.machine", return_value="arm64"),
+                self.assertRaisesRegex(ValueError, message),
+            ):
+                ios_app_info("test-udid", "0" * 64)
+
+    def test_ios_capture_keeps_shard_case_selection_and_reads_artifact_checksum(self):
+        digest = "a" * 64
+        flags = [
+            "capture", "--platform", "ios", "--scale", "2", "--raw-dir", str(self.raw),
+            "--insets", "0", "0", "0", "0", "--device", "fixture", "--build", "wanted-sha",
+            "--case", "sample-light", "--case", "sample-dark",
+        ]
+        with patch.object(sys, "argv", [str(SCRIPT), *flags]), patch.dict(os.environ, SHARED_IOS_EXECUTABLE_SHA256=digest):
+            args = read_args()
+        self.assertEqual(args.ios_executable_sha256, digest)
+        self.assertEqual(args.case, ["sample-light", "sample-dark"])
+
+    def test_ios_fixture_setup_allows_the_slower_simulator_driver(self):
+        args = SimpleNamespace(platform="ios", device="test-udid")
+        frame = self.raw / self.image_name
+        result = subprocess.CompletedProcess([], 0, stdout=b"")
+        with patch("evidence.subprocess.run", return_value=result) as run, redirect_stdout(StringIO()):
+            capture_frame(args, CASE["id"], self.root / "flow.yml", frame)
+        self.assertEqual(run.call_args_list[0].kwargs["timeout"], 240)
+        self.assertEqual(run.call_args_list[1].args[0], ["xcrun", "simctl", "io", args.device, "screenshot", str(frame)])
 
     def test_capture_waits_for_gallery_case_and_geometry_and_records_verified_frame(self):
         self.make_images()
