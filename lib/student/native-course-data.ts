@@ -1,7 +1,8 @@
 import { db } from "@/db";
-import { artikel, diktatMateri, progress, user } from "@/db/schema";
-import { and, eq, or } from "drizzle-orm";
+import { aiMaterialInstances, artikel, courseMaterials, diktatMateri, diktats, progress, studentMaterialProgress, user, websiteMaterials } from "@/db/schema";
+import { and, eq, notLike, or } from "drizzle-orm";
 import { getCourse, getCourseChapterOutline, getStudentCourseAccess, normalizeChapterIds } from "@/lib/course-utils";
+import { getMaterialArticleSummaries } from "@/app/(student)/courses/[id]/material/canonical-summaries";
 import { getCourseOverviewData } from "@/lib/learning-analytics";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { isPkaEnrolled } from "@/lib/pka-enrollment";
@@ -15,7 +16,8 @@ import {
   loadPrimaryLearningData,
   loadRecommendedCoursesData,
 } from "@/app/(student)/dashboard/dashboard-sections";
-import type { CourseCard, LearningData, LearningQuery, MaterialRow } from "@/packages/native-parity/student/courses/contract";
+import { getWhatsAppAdminChatHref } from "@/lib/whatsapp-admin";
+import type { CourseCard, LearningData, LearningQuery, MaterialDetailData, MaterialRow } from "@/packages/native-parity/student/courses/contract";
 
 type NativeLearningResult = LearningData | { status: 403 | 404 };
 type Course = NonNullable<Awaited<ReturnType<typeof getCourse>>>;
@@ -102,8 +104,11 @@ function documentChapterIds(row: DocumentRow): string[] {
 }
 
 function canOpenDocument(access: Access, row: DocumentRow): boolean {
-  const chapterIds = documentChapterIds(row);
-  if (row.kind === "quiz" || row.kind === "tryout" || row.kind === "solution_collection") return !row.locked;
+  const chapterIds = Array.isArray(row.chapterIds) ? [...row.chapterIds] : [];
+  if ("chapterId" in row && row.chapterId) chapterIds.push(row.chapterId);
+  if (row.kind === "quiz") return row.canOpen;
+  if (row.kind === "tryout") return access.hasFullContentAccess;
+  if (row.kind === "solution_collection") return canAccessCourseContent(access.policy, "article", chapterIds);
   if (row.kind === "pdf" && row.docCategory !== "diktat" && hasChapterScopeWithin(chapterIds, access.policy.scopedChapterIds)) return true;
   return canAccessCourseContent(access.policy, row.docCategory === "diktat" ? "diktat" : "article", chapterIds);
 }
@@ -126,6 +131,49 @@ async function findCanonicalDetail(courseId: string, materialId: string) {
   return null;
 }
 
+async function hasCompletedMaterial(studentId: string, materialId: string): Promise<boolean> {
+  const [[legacy], [current]] = await Promise.all([
+    db.select({ id: progress.id }).from(progress)
+      .where(and(eq(progress.userId, studentId), eq(progress.materialId, materialId), eq(progress.status, "completed"))).limit(1),
+    db.select({ completionPercent: studentMaterialProgress.completionPercent }).from(studentMaterialProgress)
+      .where(and(eq(studentMaterialProgress.studentId, studentId), eq(studentMaterialProgress.materialId, materialId))).limit(1),
+  ]);
+  return Boolean(legacy || (current && current.completionPercent >= 90));
+}
+
+async function findLegacyDetail(
+  studentId: string,
+  materialId: string,
+  course: Course,
+  access: Access,
+): Promise<MaterialDetailData["material"] | null> {
+  const id = course.legacyId ?? course.id;
+  const [[diktat], [webArticle], [manual], [generatedArticle]] = await Promise.all([
+    db.select({ title: diktats.title, chapterIds: diktats.chapterIds }).from(diktats)
+      .where(and(eq(diktats.id, materialId), eq(diktats.courseId, id), eq(diktats.status, "ready"))).limit(1),
+    db.select({ title: websiteMaterials.title, chapterId: websiteMaterials.chapterId }).from(websiteMaterials)
+      .where(and(eq(websiteMaterials.id, materialId), eq(websiteMaterials.courseId, id), eq(websiteMaterials.status, "published"))).limit(1),
+    db.select({ title: courseMaterials.title, chapterIds: courseMaterials.chapterIds }).from(courseMaterials)
+      .where(and(eq(courseMaterials.id, materialId), eq(courseMaterials.courseId, id))).limit(1),
+    db.select({ title: aiMaterialInstances.title, chapterIds: aiMaterialInstances.chapterIds }).from(aiMaterialInstances)
+      .where(and(eq(aiMaterialInstances.id, materialId), eq(aiMaterialInstances.courseId, id), notLike(aiMaterialInstances.title, "[DRAF]%"))).limit(1),
+  ]);
+  // Use the same source priority as the web reader. Each lookup is
+  // course-bound, even when an identifier also exists in another course.
+  const reference = diktat ?? webArticle ?? manual ?? generatedArticle;
+  if (!reference) return null;
+  const isManual = reference === manual;
+  const isDiktat = reference === diktat;
+  const title = reference === generatedArticle ? reference.title.replace(/^\[DRAF\]\s*/u, "") : reference.title;
+  const chapterIds = "chapterId" in reference ? [reference.chapterId] : reference.chapterIds;
+  const isFreePdf = isManual && hasChapterScopeWithin(chapterIds, access.policy.scopedChapterIds);
+  const locked = !isFreePdf && !canAccessCourseContent(access.policy, isDiktat ? "diktat" : "article", chapterIds);
+  const kind = isDiktat || isManual ? "pdf" : "article";
+  const group = isDiktat ? "diktat" : isManual ? "pdf" : "materi";
+  const completed = !locked && await hasCompletedMaterial(studentId, materialId);
+  return { id: materialId, title, kind, group, completed, locked };
+}
+
 export async function loadNativeCourseData(studentId: string, query: LearningQuery): Promise<NativeLearningResult> {
   if (query.view === "dashboard") return loadDashboard(studentId);
   if (query.view === "catalog") {
@@ -133,6 +181,7 @@ export async function loadNativeCourseData(studentId: string, query: LearningQue
     return {
       view: "catalog",
       targetCategory: studentTargetCategory,
+      supportUrl: getWhatsAppAdminChatHref(),
       courses: groups.flatMap((group) => group.courses.map((course) => ({
         ...projectCourse(course, Boolean(course.hasFullContentAccess)),
         category: group.jurusan,
@@ -144,7 +193,6 @@ export async function loadNativeCourseData(studentId: string, query: LearningQue
     };
   }
 
-  if (!("courseId" in query)) return { status: 404 };
   const id = query.courseId;
   const [course, access] = await Promise.all([getCourse(id), getStudentCourseAccess(studentId, id)]);
   if (!course) return { status: 404 };
@@ -168,30 +216,28 @@ export async function loadNativeCourseData(studentId: string, query: LearningQue
   if (query.view === "material-detail") {
     const canonical = access.canonicalCourseId ? await findCanonicalDetail(access.canonicalCourseId, query.materialId) : null;
     if (canonical && "ambiguous" in canonical) return { status: 404 };
-    if (canonical && !canAccessCourseContent(access.policy, canonical.policyKind, [canonical.chapterId])) {
+    if (canonical) {
+      const locked = !canAccessCourseContent(access.policy, canonical.policyKind, [canonical.chapterId]);
+      const [summaries, legacyCompleted] = locked ? [[], false] as const : await Promise.all([
+        canonical.group === "materi" ? getMaterialArticleSummaries(id, studentId, canonical.id) : [],
+        hasCompletedMaterial(studentId, canonical.id),
+      ]);
       return {
         view: "material-detail",
         course: courseCard,
-        material: { id: canonical.id, title: canonical.title, kind: "article", group: canonical.group, completed: false, locked: true },
+        material: {
+          id: canonical.id,
+          title: canonical.title,
+          kind: "article",
+          group: canonical.group,
+          completed: legacyCompleted || Boolean(summaries[0]?.completed),
+          locked,
+        },
       };
     }
 
-    const data = await loadCourseMaterialData({ id, studentId, course });
-    const row = data.materialsWithLockState.find((material) => material.id === (canonical?.id ?? query.materialId));
-    if (canonical) {
-      return {
-        view: "material-detail",
-        course: courseCard,
-        material: { id: canonical.id, title: row?.title ?? canonical.title, kind: "article", group: canonical.group, completed: Boolean(row?.completed), locked: false },
-      };
-    }
-    if (!row || (row.kind !== "article" && row.kind !== "pdf")) return { status: 404 };
-    const locked = !canOpenDocument(access, row);
-    return {
-      view: "material-detail",
-      course: courseCard,
-      material: { id: row.id, title: row.title, kind: row.kind, group: row.tabGroup, completed: !locked && row.completed, locked },
-    };
+    const material = await findLegacyDetail(studentId, query.materialId, course, access);
+    return material ? { view: "material-detail", course: courseCard, material } : { status: 404 };
   }
 
   const data = await loadCourseMaterialData({ id, studentId, course });

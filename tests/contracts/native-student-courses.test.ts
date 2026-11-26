@@ -80,12 +80,14 @@ describe("native Student course fixtures", () => {
   test("unenrolled and revoked learners can use the free preview while premium readers stay locked", async () => {
     for (const scenario of ["unenrolled", "revoked"] as const) {
       const learner = createCourseFixtureRequest(scenario);
-      expect((await (await learner(dashboard)).json()).enrolled).toEqual([]);
+      const before = await (await learner(dashboard)).json();
+      expect(before.enrolled).toHaveLength(scenario === "revoked" ? 1 : 0);
       const locked: MaterialDetailData = await (await learner(materialDetail("catatan-fungsi"))).json();
       const preview: MaterialDetailData = await (await learner(materialDetail("pengantar"))).json();
       expect(locked.material.locked).toBeTrue();
       expect(locked.material.completed).toBeFalse();
       expect(preview.material.locked).toBeFalse();
+      expect((await (await learner(dashboard)).json()).enrolled).toEqual([]);
       expect(Object.keys(locked.material).sort()).toEqual(["completed", "group", "id", "kind", "locked", "title"]);
     }
   });

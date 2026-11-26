@@ -65,6 +65,7 @@ function json(data: unknown, status = 200) {
 export function createCourseFixtureRequest(scenario: CourseFixtureScenario): (path: string, init?: RequestInit) => Promise<Response> {
   let firstRead = true;
   let activated = false;
+  let accessRevoked = false;
   return async (path, init) => {
     const url = new URL(path, "https://student.fixture.invalid");
     if (url.origin !== "https://student.fixture.invalid" || url.pathname !== coursesEndpoint) return json({ error: "FIXTURE_NOT_FOUND" }, 404);
@@ -87,27 +88,38 @@ export function createCourseFixtureRequest(scenario: CourseFixtureScenario): (pa
       throw new TypeError("Network request failed");
     }
 
-    const enrolled = activated || (scenario !== "unenrolled" && scenario !== "revoked");
-    const allDocuments = scenario === "long-content" ? [...documents, ...longRows] : [...documents];
-    const course = { ...math, hasFullContentAccess: enrolled, materialsCount: allDocuments.length };
-    const rows = allDocuments.map((item) => ({ ...item, locked: !enrolled && !item.chapterIds.includes("bab-1") }));
+    const view = url.searchParams.get("view");
+    if (scenario === "revoked" && view === "material-detail" && url.searchParams.get("materialId") === "catatan-fungsi") {
+      accessRevoked = true;
+    }
+    const enrolled = activated || (scenario !== "unenrolled" && !accessRevoked);
+    const requestedCourseId = url.searchParams.get("courseId");
+    const isPka = requestedCourseId === "tutorial-pka";
+    const isPhysics = requestedCourseId === physics.id;
+    const catalogClass = { ...math, hasFullContentAccess: enrolled, materialsCount: documents.length + (scenario === "long-content" ? longRows.length : 0) };
+    const allDocuments = isPhysics
+      ? [{ ...documents[0], id: "pengantar-fisika", title: "Satuan dan pengukuran" }]
+      : scenario === "long-content" && !isPka ? [...documents, ...longRows] : [...documents];
+    const course = isPka
+      ? { ...catalogClass, id: "tutorial-pka", title: "Tutorial PKA", category: "PKA", description: "Materi persiapan PKA.", hasFullContentAccess: true }
+      : isPhysics ? physics : catalogClass;
+    const rows = allDocuments.map((item) => ({ ...item, locked: !course.hasFullContentAccess && !item.chapterIds.includes("bab-1") }));
     const chapters = [...new Set(rows.flatMap((row) => row.chapterIds))].map((id, index) => ({
       id,
       title: ["Sistem bilangan real", "Fungsi dan grafik"][index] ?? `Bab ${index + 1}`,
       aliases: [id],
     }));
 
-    const view = url.searchParams.get("view");
     if (view === "dashboard") return json({
-      view, firstName: "Nara", enrolled: enrolled ? [course] : [], recommended: enrolled ? [physics] : [course, physics],
+      view, firstName: "Nara", enrolled: enrolled ? [catalogClass] : [], recommended: enrolled ? [physics] : [catalogClass, physics],
       continueReading: enrolled ? [{ courseId: math.id, courseTitle: math.title, materialId: "pengantar", title: "Sistem bilangan real", completionPercent: 36 }] : [],
     });
-    if (view === "catalog") return json({ view, targetCategory: "TPB", courses: [course, physics] });
-    if (url.searchParams.get("courseId") !== course.id) return json({ error: "COURSE_RESOURCE_NOT_FOUND" }, 404);
+    if (view === "catalog") return json({ view, targetCategory: "TPB", courses: [catalogClass, physics] });
+    if (requestedCourseId !== course.id) return json({ error: "COURSE_RESOURCE_NOT_FOUND" }, 404);
     if (view === "course") return json({
       view, course, actions: [],
       chapters: chapters
-        .filter((_, index) => enrolled || index === 0)
+        .filter((_, index) => course.hasFullContentAccess || index === 0)
         .map(({ id, title }) => ({
           id, title, materialId: rows.find((row) => row.chapterIds.includes(id))?.id ?? null,
           completionPercent: id === "bab-1" ? 36 : 0, completed: false,

@@ -11,6 +11,7 @@ import { Input } from "../../../components/Input";
 import { Skeleton } from "../../../components/Skeleton";
 import { nativeTypography } from "../../../typography";
 import type { StudentScreenProps } from "../contracts";
+import { StudentListRow } from "../ListRow";
 import { courseCopy, type CourseCopy } from "./copy";
 
 type Theme = keyof typeof nativeColors;
@@ -76,13 +77,17 @@ function useLearningData(request: Request, url: string, view: LearningQuery["vie
     async function load() {
       try {
         const reply = await request(url, { signal: controller.signal });
-        if (!current) return;
-        if (!reply.ok) {
-          setResource({ kind: "error", status: reply.status });
-          return;
+        try {
+          if (!current) return;
+          if (!reply.ok) {
+            setResource({ kind: "error", status: reply.status });
+            return;
+          }
+          const body: unknown = await reply.json();
+          if (current) setResource(validResponse(body, view) ? { kind: "ready", data: body } : { kind: "error", status: 500 });
+        } finally {
+          reply.dispose?.();
         }
-        const body: unknown = await reply.json();
-        if (current) setResource(validResponse(body, view) ? { kind: "ready", data: body } : { kind: "error", status: 500 });
       } catch {
         if (current) setResource({ kind: "error", status: 0 });
       }
@@ -120,27 +125,10 @@ function Section({ title, children }: { title?: string; children: ReactNode }) {
 }
 
 function Row({ title, meta, onPress, testID }: { title: string; meta?: string; onPress?: () => void; testID?: string }) {
-  const colors = nativeColors[useContext(ThemeContext)];
-  const contents = (
-    <>
-      <View style={styles.rowText}>
-        <LearningText style={nativeTypography.bodyMedium}>{title}</LearningText>
-        {meta ? <LearningText role="meta">{meta}</LearningText> : null}
-      </View>
-      {onPress ? <Text accessible={false} style={[styles.chevron, { color: colors.mutedForeground }]}>›</Text> : null}
-    </>
-  );
-  if (!onPress) return <View testID={testID} style={[styles.row, { borderBottomColor: colors.border }]}>{contents}</View>;
+  const theme = useContext(ThemeContext);
   return (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={meta ? `${title}, ${meta}` : title}
-      testID={testID}
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, { borderBottomColor: colors.border }, pressed && { backgroundColor: `${colors.primary}14` }]}
-    >
-      {contents}
-    </Pressable>
+    <StudentListRow title={title} subtitle={meta} testID={testID} theme={theme} chevron
+      primary={onPress ? { onPress, role: "link" } : undefined} />
   );
 }
 
@@ -185,20 +173,24 @@ function Enrollment({ request, reload }: { request: Request; reload: () => void 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: cleanToken }),
       });
-      if (response.status === 401 || response.status === 409) {
-        setMessage(copy.expiredHint);
-        return;
-      }
-      const result = await response.json() as EnrollmentResponse;
-      if (response.ok && result.success) {
-        setToken("");
-        setMessage(copy.activated);
-        reload();
-      } else if (!result.success && ["alreadyMember", "alreadyEnrolled"].includes(result.errorCode)) {
-        // A retry may follow a successful activation whose response was lost.
-        reload();
-      } else {
-        setMessage(!result.success ? errors[result.errorCode] ?? copy.activationError : copy.activationError);
+      try {
+        if (response.status === 401 || response.status === 409) {
+          setMessage(copy.expiredHint);
+          return;
+        }
+        const result = await response.json() as EnrollmentResponse;
+        if (response.ok && result.success) {
+          setToken("");
+          setMessage(copy.activated);
+          reload();
+        } else if (!result.success && ["alreadyMember", "alreadyEnrolled"].includes(result.errorCode)) {
+          // A retry may follow a successful activation whose response was lost.
+          reload();
+        } else {
+          setMessage(!result.success ? errors[result.errorCode] ?? copy.activationError : copy.activationError);
+        }
+      } finally {
+        response.dispose?.();
       }
     } catch {
       setMessage(copy.activationError);
@@ -228,17 +220,21 @@ function Enrollment({ request, reload }: { request: Request; reload: () => void 
   );
 }
 
-function CourseRows({ courses, navigate }: { courses: CourseCard[]; navigate: Navigate }) {
+function CourseRows({ courses, navigate, catalog = false }: { courses: CourseCard[]; navigate: Navigate; catalog?: boolean }) {
   const copy = useContext(CopyContext);
-  return courses.map((course) => (
-    <Row
-      key={course.id}
-      title={course.title}
-      meta={[course.description, course.materialsCount === undefined ? "" : `${course.materialsCount} ${copy.materials.toLocaleLowerCase()}`].filter(Boolean).join(" · ") || undefined}
-      testID={`student-course-${course.id}`}
-      onPress={() => navigate(coursePath(course.id))}
-    />
-  ));
+  return courses.map((course) => {
+    const counts = [
+      [course.materialsCount, copy.materials],
+      [course.quizzesCount, copy.quiz],
+      [course.tryoutsCount, copy.tryout],
+    ].flatMap(([count, label]) => typeof count === "number" && count > 0 ? [`${count} ${String(label).toLocaleLowerCase()}`] : []);
+    const countsOrEmpty = counts.length > 0 ? counts : [copy.noCourseContents];
+    const details = catalog ? countsOrEmpty : [course.description, ...counts];
+    const meta = [...details, course.hasFullContentAccess ? "" : copy.limitedAccess].filter(Boolean).join(" · ");
+    return (
+      <Row key={course.id} title={course.title} meta={meta} testID={`student-course-${course.id}`} onPress={() => navigate(coursePath(course.id))} />
+    );
+  });
 }
 
 function Dashboard({ data, navigate, request, reload }: { data: DashboardData } & Pick<StudentScreenProps, "navigate" | "request"> & { reload: () => void }) {
@@ -282,13 +278,15 @@ function Toggle({ label, selected, onPress }: { label: string; selected: boolean
   );
 }
 
-function Catalog({ data, navigate, route, replace }: { data: CatalogData } & Pick<StudentScreenProps, "navigate" | "route" | "replace">) {
+function Catalog({ data, navigate, route, replace, openExternal }: { data: CatalogData } & Pick<StudentScreenProps, "navigate" | "route" | "replace" | "openExternal">) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const search = route.query.q ?? "";
-  const category = route.query.category || null;
   const searchTerm = search.trim().toLocaleLowerCase();
   const categories = [...new Set(data.courses.map((course) => course.category))];
+  const legacyCategory = categories.find((category) => category.toLowerCase().trim().replace(/[^\w\s-]/gu, "").replace(/\s+/gu, "-") === route.query.jurusan);
+  const category = route.query.category || legacyCategory || null;
+  const supportUrl = data.supportUrl;
   const matching = data.courses.filter((course) => (!category || course.category === category)
     && [course.title, course.description, course.category].some((text) => text.toLocaleLowerCase().includes(searchTerm)));
 
@@ -299,17 +297,21 @@ function Catalog({ data, navigate, route, replace }: { data: CatalogData } & Pic
           <Input theme={theme} accessibilityLabel={copy.search} placeholder={copy.search} value={search} onChangeText={(q) => updateListQuery(route, replace, { q })} />
           {categories.length > 1 && (
             <View style={styles.toggles} accessibilityRole="tablist">
-              <Toggle label={copy.allCategories} selected={category === null} onPress={() => updateListQuery(route, replace, { category: undefined })} />
-              {categories.map((name) => <Toggle key={name} label={name} selected={category === name} onPress={() => updateListQuery(route, replace, { category: name })} />)}
+              <Toggle label={copy.allCategories} selected={category === null} onPress={() => updateListQuery(route, replace, { category: undefined, jurusan: undefined })} />
+              {categories.map((name) => <Toggle key={name} label={name} selected={category === name} onPress={() => updateListQuery(route, replace, { category: name, jurusan: undefined })} />)}
             </View>
           )}
         </>
       )}
       {matching.length === 0 ? <LearningText>{copy.noCourses}</LearningText> : categories.filter((name) => matching.some((course) => name === course.category)).map((name) => (
         <Section key={name} title={name}>
-          <CourseRows courses={matching.filter((course) => name === course.category)} navigate={navigate} />
+          <CourseRows courses={matching.filter((course) => name === course.category)} navigate={navigate} catalog />
         </Section>
       ))}
+      {openExternal ? <Section>
+        <Row title={copy.plans} onPress={() => openExternal("/plans")} />
+        {supportUrl ? <Row title={copy.contact} onPress={() => openExternal(supportUrl)} /> : null}
+      </Section> : null}
     </>
   );
 }
@@ -416,8 +418,10 @@ function Document({ data, request, reload, renderMaterial, route }: { data: Mate
 }
 
 function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
-  const { route, query, request, navigate, replace, back, initialScrollY, onScrollY, renderMaterial, session } = props;
-  const theme = useColorScheme() === "dark" ? "dark" : "light";
+  const { route, query, request, navigate, replace, back, initialScrollY, onScrollY, renderMaterial, openExternal, devicePreferences, session } = props;
+  const systemTheme = useColorScheme() === "dark" ? "dark" : "light";
+  const preference = devicePreferences?.theme;
+  const theme = preference && preference !== "system" ? preference : systemTheme;
   const colors = nativeColors[theme];
   const copy = courseCopy(session.locale);
   const { resource, reload: loadAgain } = useLearningData(request, learningEndpoint(query), query.view);
@@ -462,7 +466,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
   } else {
     switch (resource.data.view) {
       case "dashboard": content = <Dashboard data={resource.data} navigate={navigate} request={request} reload={reload} />; break;
-      case "catalog": content = <Catalog data={resource.data} navigate={navigate} route={route} replace={replace} />; break;
+      case "catalog": content = <Catalog data={resource.data} navigate={navigate} route={route} replace={replace} openExternal={openExternal} />; break;
       case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} />; break;
       case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} />; break;
       case "material-detail": content = <Document data={resource.data} request={request} reload={reload} renderMaterial={renderMaterial} route={route} />; break;
@@ -527,9 +531,7 @@ const styles = StyleSheet.create({
   body: { fontSize: 14, lineHeight: 21 },
   meta: { fontSize: 12, lineHeight: 18 },
   section: { gap: 3 },
-  row: { minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, paddingVertical: 8 },
   rowText: { flexShrink: 1, gap: 2 },
-  chevron: { fontSize: 22, paddingHorizontal: 4 },
   toggles: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   toggle: { borderWidth: 1, borderRadius: nativeRadii.md, minHeight: 44, justifyContent: "center", paddingHorizontal: 10, paddingVertical: 5 },
   notice: { borderStartWidth: 2, paddingStart: 12, gap: 8, paddingVertical: 3 },

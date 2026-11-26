@@ -1,8 +1,10 @@
 export const coursesEndpoint = "/api/native/student/courses";
 
 export type LearningQuery =
-  | { view: "dashboard" | "catalog" }
-  | { view: "course" | "material-list"; courseId: string }
+  | { view: "dashboard" }
+  | { view: "catalog" }
+  | { view: "course"; courseId: string }
+  | { view: "material-list"; courseId: string }
   | { view: "material-detail"; courseId: string; materialId: string };
 
 export function learningEndpoint(query: LearningQuery): string {
@@ -54,6 +56,7 @@ export type CatalogData = {
   view: "catalog";
   courses: CourseCard[];
   targetCategory: string | null;
+  supportUrl?: string | null;
 };
 
 export type CourseChapter = {

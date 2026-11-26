@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, courseMaterials, progress, studentMaterialProgress, quizTemplates, studentQuizAttempts, exams } from "@/db/schema";
 import { getMaterialArticleSummaries } from "@/app/(student)/courses/[id]/material/canonical-summaries";
 import { getCourse, getCourseChapterOutline, getStudentCourseAccess, extractFreeQuizChapterScope, isFreeChapterScoped, isFreeQuizTemplate } from "@/lib/course-utils";
+import { canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
 import { listPublishedSolutionCollections } from "@/lib/solutions/repository";
 import { storage } from "@/lib/storage";
 
@@ -265,6 +266,7 @@ export async function loadCourseMaterialData({
       completed: completedQuizIds.has(q.id),
       isPastYear: false,
       isPreview: isFree,
+      canOpen: Boolean(studentAccess && canAccessStudentQuizTemplate(studentAccess.policy, q)),
       chapterIds: quizChapterIds,
       href: `/courses/${id}/quiz/${q.id}`,
     };
