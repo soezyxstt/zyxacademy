@@ -13,7 +13,7 @@ for (const theme of ["light", "dark"]) for (const id of cases) {
   const response = await page.goto(`http://localhost:3211/?case=${id}&theme=${theme}`, { waitUntil: "networkidle", timeout: 120000 });
   expect(response?.status()).toBe(200);
   await page.evaluate(() => document.fonts.ready);
-  if (id === "analytics-data") { await expect(page.getByText("2.524", { exact: true })).toBeVisible(); await expect(page.locator(".recharts-line-curve")).toHaveCount(2, { timeout: 30000 }); }
+  if (id === "analytics-data") { await expect(page.getByText("2.524", { exact: true })).toBeVisible(); await expect(page.locator(".recharts-line-curve")).toHaveCount(2, { timeout: 30000 }); for (const curve of await page.locator(".recharts-line-curve").all()) await expect(curve).toHaveAttribute("d", /^M.+/); }
   if (id === "analytics-empty") await expect(page.getByText("0", { exact: true }).first()).toBeVisible();
   if (id === "blog-valid") await expect(page.locator("img")).toBeVisible();
   if (id === "blog-failed") await page.getByRole("button", { name: "Simulasikan gambar gagal" }).click();
