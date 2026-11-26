@@ -159,6 +159,11 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
         forms.splice(previous ? forms.indexOf(previous) : 0, previous ? 1 : 0, { form, responses: previous?.responses ?? [] });
         return { id: form.id, revision: form.revision };
       }
+      case "form.export": {
+        required(forms.find(detail => detail.form.id === action.id));
+        return { id: action.id, formSheet: { kind: "saved", url: "https://docs.google.com/spreadsheets/d/fixture-form-results/edit",
+          created: true, sharingIncomplete: false } };
+      }
       case "form.settings": {
         invalid(validateFormSettings(action.settings));
         const detail = reads.form(action.id);
@@ -198,12 +203,21 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
         folders.push(key);
         return { id: key };
       }
-      case "media.rename": {
-        validateFileName(action.name);
-        const file = required(files.find(item => item.key === action.key));
-        const key = joinPath(parentPath(file.key), action.name.trim());
-        invalid(key === file.key || files.some(other => other.key === key) ? "Nama file sudah dipakai." : undefined);
-        Object.assign(file, { key, name: action.name.trim() });
+      case "media.rename":
+      case "media.move": {
+        const name = action.type === "media.rename" ? action.name.trim() : required(action.key.split("/").at(-1));
+        validateFileName(name);
+        const key = joinPath(action.type === "media.move" ? action.destination || "media" : parentPath(action.key), name);
+        if (action.folder) {
+          required(folders.find(path => path === action.key));
+          invalid(within(key, action.key) || folders.some(path => path === key) ? "Folder tujuan tidak tersedia." : undefined);
+          folders.forEach((path, index) => { if (within(path, action.key)) folders[index] = key + path.slice(action.key.length); });
+          files.forEach(file => { if (within(file.key, action.key)) file.key = key + file.key.slice(action.key.length); });
+        } else {
+          const file = required(files.find(item => item.key === action.key));
+          invalid(key === file.key || files.some(other => other.key === key) ? "Nama file sudah dipakai." : undefined);
+          Object.assign(file, { key, name });
+        }
         return { id: key };
       }
       case "media.delete": {

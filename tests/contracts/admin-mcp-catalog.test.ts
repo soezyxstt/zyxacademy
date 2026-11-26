@@ -25,6 +25,15 @@ test("native Admin discussion targets and report reads stay in the interactive w
   expect(entry.actions).toEqual(["GET", "POST"]);
 });
 
+test("native Admin media file writes keep their interactive authorization and MCP media grants", () => {
+  const entry = operationsCatalog.find(item => item.source === "app/api/native/operations/management/media/route.ts")!;
+  expect(entry.status).toBe("excluded");
+  expect(entry.tools).toEqual([]);
+  expect(entry.actions).toEqual(["POST"]);
+  expect(entry.reason).toContain("live Admin account, session");
+  expect(entry.reason).toContain("MCP media.list and media.upload");
+});
+
 test("model configuration and billed latency refresh remain explicitly UI-only", () => {
   const entry = operationsCatalog.find(item => item.source === "app/(admin)/admin/ops/models/page.tsx")!;
   expect(entry.status).toBe("excluded");

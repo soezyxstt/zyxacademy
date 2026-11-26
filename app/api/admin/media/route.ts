@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { storage } from "@/lib/storage";
-import { assertSafeKey, buildMediaKey, buildMediaFolderPath, existingMediaFolderPath, leafFilename } from "@/lib/storage/keys";
+import { assertSafeKey, buildMediaFolderPath, existingMediaFolderPath, leafFilename } from "@/lib/storage/keys";
+import { uploadMediaLibraryFile } from "@/lib/storage/media-library-files";
 import {
   baseFolderName,
   buildFolderTree,
@@ -137,17 +138,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const folder = existingMediaFolderPath(folderPath);
-    assertMediaPath(folder);
-    const key = buildMediaKey({ folderPath: folder, filename: file.name, preserveFolderPath: true });
-    const uploadRes = await storage.upload(file, file.name, file.type, { key });
-
     return NextResponse.json({
       success: true,
-      key: uploadRes.key,
-      url: storage.getUrl(uploadRes.key),
-      size: uploadRes.size,
-      folderPath: folder,
+      ...await uploadMediaLibraryFile(file, folderPath),
     });
   } catch (err: any) {
     console.error("Media upload error:", err);

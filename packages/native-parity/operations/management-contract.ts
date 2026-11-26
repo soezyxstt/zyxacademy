@@ -79,7 +79,7 @@ export const newQuestion = (): FormQuestion => ({ title: "", type: "TEXT", requi
 export const newForm = (): FormFields => ({ title: "", description: "", category: "survey", slug: "", questions: [newQuestion()], settings: { acceptingResponses: true } });
 
 export type MediaFile = { key: string; name: string; size: number; url?: string; lastModified?: string };
-export type MediaLibrary = { folders: string[]; files: MediaFile[]; cursor?: string };
+export type MediaLibrary = { folders: string[]; files: MediaFile[]; destinations?: string[]; cursor?: string };
 export type MediaLocation = { space: "media" | "storage"; folder: string; cursor?: string };
 export type MeetingRecord = { id: string; title: string; startTime: string; endTime?: string; participantCount?: number; peakConcurrentParticipants?: number };
 export type MeetingParticipant = { id: string; name: string; userType: string; totalDurationSeconds: number; sessions: { startTime?: string; endTime?: string }[] };
@@ -119,7 +119,8 @@ export type ManagementAction =
   | { type: "form.preset.update"; id: string; revision: string; name: string; description: string }
   | { type: "form.preset.delete"; id: string; revision: string }
   | { type: "media.folder"; folder: string; name: string }
-  | { type: "media.rename"; key: string; name: string }
+  | { type: "media.rename"; key: string; name: string; folder?: boolean }
+  | { type: "media.move"; key: string; folder: boolean; destination: string }
   | { type: "media.delete"; key: string; folder: boolean }
   | { type: "media.copy"; key: string; folder: boolean; destination: string }
   | { type: "meet.create"; title: string; slug: string; accessType: "OPEN" | "TRUSTED" | "RESTRICTED"; invitedEmails: string[] }

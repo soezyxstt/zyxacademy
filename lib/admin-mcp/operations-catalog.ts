@@ -1869,6 +1869,13 @@ export const operationsCatalog = [
     "reason": "The native Admin workspace uses the verified Admin account. Discussion targets, report reads and moderation use the existing role and channel authorization. Moderators resolve or dismiss a pending report through the same locked transition as the website. Management writes retain their interactive authorization and retry rules. No new MCP capability or scope is granted."
   },
   {
+    "source": "app/api/native/operations/management/media/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive native media upload and replacement require the live Admin account, session and a local file selection. Writes use the existing media-library storage paths and provider receipts. MCP media.list and media.upload keep their registered scopes, content limits, consent and environment bindings."
+  },
+  {
     "source": "app/(admin)/admin/discussions/page.tsx",
     "actions": [],
     "tools": [],

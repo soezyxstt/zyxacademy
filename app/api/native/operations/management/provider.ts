@@ -14,9 +14,12 @@ const mediaFolder = z.union([mediaKey, z.literal("")]);
 const mediaOnly = (key: string) => key === "media" || key.startsWith("media/");
 const providerOperations = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("media.folder"), folder: mediaFolder, name }),
-  z.strictObject({ type: z.literal("media.rename"), key: mediaKey, name }),
+  z.strictObject({ type: z.literal("media.rename"), key: mediaKey, name, folder: z.boolean().optional() }),
+  z.strictObject({ type: z.literal("media.move"), key: mediaKey, destination: mediaFolder, folder: z.boolean() }),
   z.strictObject({ type: z.literal("media.delete"), key: mediaKey, folder: z.boolean() }),
   z.strictObject({ type: z.literal("media.copy"), key: path.refine(key => !mediaOnly(key)), destination: mediaFolder, folder: z.boolean() }),
+  z.strictObject({ type: z.literal("media.upload"), destination: mediaFolder, name, fileHash: z.string().regex(/^[a-f0-9]{64}$/), mime: z.string().max(200) }),
+  z.strictObject({ type: z.literal("media.replace"), key: mediaKey, fileHash: z.string().regex(/^[a-f0-9]{64}$/), mime: z.string().max(200) }),
   z.strictObject({ type: z.literal("meet.create"), title: z.string().trim().max(500), slug: z.string().trim().max(100).regex(/^[a-z0-9_-]*$/), accessType: z.enum(["OPEN", "TRUSTED", "RESTRICTED"]), invitedEmails: z.array(z.email().max(254)).max(100).transform(items => [...new Set(items.map(value => value.toLowerCase()))].sort()) }),
   z.strictObject({ type: z.literal("meet.end"), spaceName: z.string().regex(/^spaces\/[A-Za-z0-9_-]{1,180}$/) }),
   z.strictObject({ type: z.literal("meet.delete"), id: z.string().regex(/^[A-Za-z0-9_-]{1,180}$/) }),
@@ -106,13 +109,18 @@ export function invokeOperationsProvider(origin: string, headers: Headers): Invo
         return { id: result.key };
       }
       case "media.rename":
+      case "media.move":
       case "media.delete": {
         const { POST } = await import("@/app/api/admin/media/ops/route");
-        const result = action.type === "media.rename"
-          ? await decoded(await POST(request({ action: "rename", kind: "file", key: action.key, newName: action.name })))
-          : await decoded(await POST(request(action.folder ? { action: "delete", kind: "folder", folderPath: folderOf(action.key) } : { action: "delete", kind: "file", key: action.key })));
-        return { id: result.key ?? action.key };
+        const source = action.folder ? { kind: "folder", folderPath: folderOf(action.key) } : { kind: "file", key: action.key };
+        const operation = action.type === "media.rename" ? { action: "rename", newName: action.name }
+          : action.type === "media.move" ? { action: "move", targetFolder: folderOf(action.destination) } : { action: "delete" };
+        const result = await decoded(await POST(request({ ...source, ...operation })));
+        return { id: result.key ?? (result.folderPath ? `media/${result.folderPath}` : action.key) };
       }
+      case "media.upload":
+      case "media.replace":
+        throw new ManagementFailure("invalid");
       case "media.copy": {
         const { POST } = await import("@/app/api/admin/media/storage/route");
         const source = action.folder ? { folderPath: action.key, kind: "folder" } : { key: action.key, kind: "file" };

@@ -2,54 +2,10 @@ import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibili
 import { useState } from "react";
 import { View } from "react-native";
 import { DEFAULT_ICON, EMOJI_OPTIONS, LINK_COLORS, LINK_CATEGORY_SUGGESTIONS, isValidHttpUrl } from "../../../../../lib/links";
-import { ManagementFailure, managementSlug, type DiscussionThread, type LinkFields, type MediaLocation, type MeetingSpace, type PublicLink } from "../../../../../packages/native-parity/operations/management-contract";
+import { ManagementFailure, managementSlug, type DiscussionThread, type LinkFields, type MeetingSpace, type PublicLink } from "../../../../../packages/native-parity/operations/management-contract";
 import { meetingLinks } from "./links";
 import { discussionDestination, discussionWorkspaceHref } from "../../../../../packages/native-parity/discussion-destination";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, formatTimestamp, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
-
-export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
-  const { openExternal } = useManagement();
-  const [space, setSpace] = useState<MediaLocation["space"]>(initialSpace === "storage" ? "storage" : "media");
-  const [folder, setFolder] = useState("");
-  const [editor, setEditor] = useState<{ key?: string; name: string } | null>(null);
-  const [confirm, setConfirm] = useState<Confirmation | null>(null);
-  const read = useRead("media", { space, folder });
-  const action = useAction();
-  function remove(key: string, isFolder: boolean) {
-    setConfirm({ title: isFolder ? "Hapus folder?" : "Hapus berkas?", description: isFolder ? `${key} beserta isinya akan dihapus.` : `${key} akan dihapus dari pustaka media.`, label: "Hapus", danger: true,
-      run: () => void action.run({ type: "media.delete", key, folder: isFolder }, read.reload, "Media dihapus."),
-    });
-  }
-  function copy(key: string, isFolder: boolean) {
-    setConfirm({ title: "Salin ke media?", description: `${key} akan disalin ke pustaka media.`, label: "Salin", run: () => void action.run({ type: "media.copy", key, folder: isFolder, destination: "" }, undefined, "Media disalin.") });
-  }
-  const parent = folder.split("/").slice(0, -1).join("/");
-  return <Screen title="Media" description="Penyimpanan hanya untuk dibaca. Salin berkas ke pustaka media untuk mengelolanya.">
-    <Sections values={[["media", "Pustaka media"], ["storage", "Penyimpanan"]]} current={space} onChange={next => { setSpace(next); setFolder(""); setEditor(null); }} />
-    <View style={styles.row}>
-      {folder && <Action onPress={() => setFolder(parent === "media" ? "" : parent)}>Folder induk</Action>}
-      <Action onPress={read.reload}>Muat ulang</Action>
-      {space === "media" && <Action onPress={() => setEditor({ name: "" })}>Folder baru</Action>}
-    </View>
-    {folder && <Copy muted>{folder}</Copy>}
-    <Feedback {...action} />
-    {editor && <Section title={editor.key ? "Ganti nama berkas" : "Folder baru"}>
-      <Field label="Nama" value={editor.name} onChangeText={next => setEditor({ ...editor, name: next })} />
-      <View style={styles.row}><Action onPress={() => setEditor(null)}>Batal</Action>
-        <Action variant="default" busy={action.busy} onPress={() => action.run(editor.key ? { type: "media.rename", key: editor.key, name: editor.name } : { type: "media.folder", folder, name: editor.name }, () => { setEditor(null); read.reload(); })}>Simpan</Action>
-      </View>
-    </Section>}
-    <LoadState {...read} retry={read.reload} />
-    {read.data && <Section>
-      {!read.data.files.length && !read.data.folders.length && <Copy muted>Folder ini masih kosong.</Copy>}
-      {read.data.folders.map(key => <Item key={key} title={key.split("/").at(-1) ?? key} meta="Folder" onPress={() => setFolder(key)} actions={space === "media" ? <Action variant="destructive" onPress={() => remove(key, true)}>Hapus folder</Action> : <Action onPress={() => copy(key, true)}>Salin ke media</Action>} />)}
-      {read.data.files.map(file => <Item key={file.key} title={file.name} meta={`${Math.ceil(file.size / 1024)} KB`} onPress={file.url && openExternal ? () => openExternal(file.url!) : undefined} actions={space === "storage" ? <Action onPress={() => copy(file.key, false)}>Salin ke media</Action> : <>
-        <Action onPress={() => setEditor({ key: file.key, name: file.name })}>Ganti nama</Action><Action variant="destructive" onPress={() => remove(file.key, false)}>Hapus</Action>
-      </>} />)}
-    </Section>}
-    <Confirm value={confirm} onClose={() => setConfirm(null)} />
-  </Screen>;
-}
 
 const meetAccess = [["OPEN", "Terbuka"], ["TRUSTED", "Organisasi dan undangan"], ["RESTRICTED", "Perlu izin host"]] as const;
 export function MeetList() {

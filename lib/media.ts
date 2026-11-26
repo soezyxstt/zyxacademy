@@ -67,6 +67,7 @@ const MARKDOWN_EXTS = new Set(["md", "markdown"]);
 const TEXT_EXTS = new Set(["txt", "csv", "log", "json", "ts", "tsx", "js", "mjs", "css", "html", "xml"]);
 
 export const MEDIA_MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
+export const MEDIA_DOCUMENT_MIME_TYPES = [...new Set([...Object.values(MIME_BY_EXT), "application/octet-stream"])];
 
 export const MEDIA_ACCEPT_ATTR = [
   "image/*",

@@ -6,12 +6,30 @@ import { PERAN_SEEDS } from "../../lib/auth/peran";
 import { createPostgresTestDb } from "../helpers/postgres";
 
 const { client, testDb } = await createPostgresTestDb();
+const actor = { id: "native-provider-admin", sessionId: "native-provider-session" };
+let uploadCalls = 0;
 mock.module("server-only", () => ({}));
 mock.module("@/db", () => ({ db: testDb }));
+mock.module("@/lib/auth-session", () => ({ getAuthSession: async () => ({ user: { id: actor.id }, session: { id: actor.sessionId } }) }));
+mock.module("@/lib/auth/native-operations-admin", () => ({ getNativeOperationsAdmin: async () => ({ ok: true, user: { id: actor.id } }) }));
+mock.module("@/lib/storage", () => ({ storage: {
+  exists: async key => key === "media/blog/test.pdf",
+  getUrl: key => "/api/storage/file/" + key,
+  upload: async (file, _name, _type, { key }) => {
+    assert.equal(await file.text(), "%PDF-1.7");
+    uploadCalls++;
+    return { key, size: file.size };
+  },
+} }));
 mock.module("@/app/api/admin/media/route", () => ({ POST: async request => {
   const value = await request.json();
   assert.deepEqual(value, { action: "mkdir", folderPath: "blog/draf" });
   return Response.json({ success: true, key: "media/blog/draf/.keep" });
+} }));
+mock.module("@/app/api/admin/media/ops/route", () => ({ POST: async request => {
+  const value = await request.json();
+  assert.deepEqual(value, { action: "move", kind: "folder", folderPath: "blog/draf", targetFolder: "revisi" });
+  return Response.json({ success: true, folderPath: "revisi/draf" });
 } }));
 mock.module("@/app/api/admin/meet/create/route", () => ({ POST: async request => {
   const value = await request.json();
@@ -31,7 +49,6 @@ mock.module("@/lib/google-meet", () => ({ getConferenceRecord: async id => {
 try {
   const { ensureLegacyIdentity } = await import("../../lib/auth/legacy-identity");
   const { invokeOperationsProvider, nativeProviderMutation } = await import("../../app/api/native/operations/management/provider");
-  const actor = { id: "native-provider-admin", sessionId: "native-provider-session" };
   await testDb.insert(peran).values([...PERAN_SEEDS]).onConflictDoNothing();
   await testDb.insert(user).values({ id: actor.id, name: "Admin", email: "admin@example.invalid", role: "admin" });
   await ensureLegacyIdentity(actor.id);
@@ -42,6 +59,31 @@ try {
   const folder = { type: "media.folder", folder: "media/blog", name: "draf" };
   assert.deepEqual(await apply("placeholder-media-mkdir", folder), { id: "media/blog/draf/.keep" });
   assert.deepEqual(await apply("placeholder-media-mkdir", folder, () => assert.fail("provider replay")), { id: "media/blog/draf/.keep" });
+  const move = { type: "media.move", key: "media/blog/draf", destination: "media/revisi", folder: true };
+  assert.deepEqual(await apply("placeholder-media-move", move), { id: "media/revisi/draf" });
+  assert.deepEqual(await apply("placeholder-media-move", move, () => assert.fail("provider replay")), { id: "media/revisi/draf" });
+  const { POST: filePost } = await import("../../app/api/native/operations/management/media/route");
+  const { NextRequest } = await import("next/server");
+  function replaceFile({ sessionId = actor.sessionId, initiator = origin, contents = "%PDF-1.7", target = "media/blog/test.pdf" } = {}) {
+    const form = new FormData();
+    form.append("action", "replace");
+    form.append("file", new File([contents], "test.pdf", { type: "application/pdf" }));
+    form.append("key", target);
+    return filePost(new NextRequest(origin + "/api/native/operations/management/media", { method: "POST", body: form,
+      headers: { Origin: initiator, "x-native-operations-user-id": actor.id, "x-native-operations-session-id": sessionId,
+        "x-native-operations-request-key": "placeholder-media-replace",
+      },
+    }));
+  }
+  assert.equal((await replaceFile({ initiator: "https://outside.invalid" })).status, 403);
+  assert.equal((await replaceFile({ sessionId: "other-session" })).status, 403);
+  assert.equal((await replaceFile({ target: "private/test.pdf" })).status, 400);
+  const replacement = await replaceFile();
+  assert.equal(replacement.status, 200);
+  assert.deepEqual(await replacement.json(), { id: "media/blog/test.pdf" });
+  assert.equal((await replaceFile()).status, 200);
+  assert.equal((await replaceFile({ contents: "%PDF-1.4 changed" })).status, 409);
+  assert.equal(uploadCalls, 1);
   const meet = { type: "meet.create", title: "Latihan", slug: "latihan", accessType: "OPEN", invitedEmails: ["Tutor@Example.Invalid", "tutor@example.invalid"] };
   const meeting = await apply("placeholder-meet-create", meet);
   assert.equal(meeting.warningCount, 1);
@@ -68,7 +110,7 @@ try {
   const record = await apply("placeholder-deleted-meet", { type: "meet.delete", id: "gone" });
   assert.deepEqual(record, { id: "gone" });
   await assert.rejects(apply("placeholder-remaining-meet", { type: "meet.delete", id: "still" }), { code: "uncertain" });
-  assert.equal((await testDb.select().from(auditMutasi)).length, 5);
+  assert.equal((await testDb.select().from(auditMutasi)).length, 7);
   await testDb.delete(session).where(eq(session.id, actor.sessionId));
   await assert.rejects(apply("placeholder-meet-create", meet, () => assert.fail("expired session")), { code: "forbidden" });
   console.log("Mocked provider dispatch, partial warning, pending, uncertain, replay and session revocation checks passed");

@@ -60,8 +60,11 @@ export function createManagementHttpClient({ request, userId, sessionId, assertC
       media: async ({ folder, space }) => {
         const basePath = space === "media" ? "/api/admin/media" : "/api/admin/media/storage";
         const relative = space === "media" ? folder.replace(/^media\/?/, "") : folder;
-        const result = await get<{ folders: { path: string }[]; files: MediaFile[] }>(`${basePath}?folder=${encodeURIComponent(relative)}`, signal);
-        return { folders: result.folders.map(item => space === "media" ? `media/${item.path}` : item.path), files: result.files };
+        type Folder = { path: string; children?: Folder[] };
+        const result = await get<{ folders: Folder[]; files: MediaFile[]; tree?: Folder[] }>(`${basePath}?folder=${encodeURIComponent(relative)}`, signal);
+        const flatten = (tree: Folder[]): string[] => tree.flatMap(item => [`media/${item.path}`, ...flatten(item.children ?? [])]);
+        return { folders: result.folders.map(item => space === "media" ? `media/${item.path}` : item.path),
+          files: result.files, ...(result.tree ? { destinations: flatten(result.tree) } : {}) };
       },
       meetings: cursor => nativeRead("meetings", { cursor }, signal),
       meeting: id => get(`/api/native/operations/management?view=meeting&id=${encodeURIComponent(id)}`, signal),

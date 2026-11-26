@@ -10,6 +10,7 @@ import { NativeListRow } from "../../shared-ui/layout";
 import { NavigationTabs } from "../../shared-ui/navigation";
 import { nativeTypography } from "../../../typography";
 import type { PickBlogThumbnail } from "./blog-upload";
+import type { PickMediaFile } from "./media-upload";
 
 export type ManagementTheme = keyof typeof nativeColors;
 type Draft<T> = { value: T; baseline: T; revision?: string; changed: boolean };
@@ -22,6 +23,7 @@ export type ManagementRuntime = {
   openExternal?: (url: string) => void | Promise<void>;
   share?: (url: string, title?: string) => void | Promise<void>;
   pickBlogThumbnail?: PickBlogThumbnail;
+  pickMediaFile?: PickMediaFile;
   drafts: ManagementDraftStore;
   retries: Map<string, string>;
   renderMarkdown?: (markdown: string) => ReactNode;

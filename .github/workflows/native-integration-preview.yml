@@ -247,6 +247,11 @@ jobs:
       - name: Admin operations management access and report moderation
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun tests/integration/operations-management-reads.mjs
+      - name: Admin media picker, bulk moves and provider receipts
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-native-media-library.test.ts
+          bun tests/integration/operations-management-provider.mjs
       - name: Account connection management and OAuth consent
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun tests/integration/authoring-oauth-consent.ts

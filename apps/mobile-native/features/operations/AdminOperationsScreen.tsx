@@ -5,6 +5,7 @@ import type { NativeSessionTransport } from "../../network/transport";
 import { EvaluationScreen, type EvaluationScreenProps } from "./evaluation";
 import { createManagementClient, ManagementScreen, type ManagementScreenProps } from "./management";
 import { connectBlogThumbnailPicker } from "./management/expo-blog-upload";
+import { connectMediaFilePicker } from "./management/expo-media-upload";
 import { useManagementLinkActions } from "./management/link-actions";
 import { createSessionMonitoringActions, createSessionMonitoringReader, MonitoringScreen, type MonitoringScreenProps } from "./monitoring";
 import { resolveOperationsArea } from "./routes";
@@ -27,6 +28,7 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
   const clients = useMemo(() => ({
     management: createManagementClient(session),
     pickBlogThumbnail: connectBlogThumbnailPicker(session),
+    pickMediaFile: connectMediaFilePicker(session),
     evaluation: createEvaluationRequest(session),
     monitoring: createSessionMonitoringReader(session, context.locale),
     actions: createSessionMonitoringActions(session),
@@ -39,7 +41,7 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
   const key = operationsAccountKey(session, context);
   switch (resolveOperationsArea(href)) {
     case "management":
-      return <AdminManagement key={key} {...props} accountKey={key} client={clients.management} pickBlogThumbnail={clients.pickBlogThumbnail} />;
+      return <AdminManagement key={key} {...props} accountKey={key} client={clients.management} pickBlogThumbnail={clients.pickBlogThumbnail} pickMediaFile={clients.pickMediaFile} />;
     case "evaluation":
       return <EvaluationScreen {...props.evaluation} href={href} navigate={navigate} accountKey={key}
         request={clients.evaluation} locale={context.locale} theme={theme} />;
@@ -52,11 +54,11 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
   }
 }
 
-function AdminManagement({ session, href, context, management, navigate, theme, accountKey, client, pickBlogThumbnail }: AdminOperationsScreenProps &
-  Pick<ManagementScreenProps, "accountKey" | "client" | "pickBlogThumbnail">) {
+function AdminManagement({ session, href, context, management, navigate, theme, accountKey, client, pickBlogThumbnail, pickMediaFile }: AdminOperationsScreenProps &
+  Pick<ManagementScreenProps, "accountKey" | "client" | "pickBlogThumbnail" | "pickMediaFile">) {
   const links = useManagementLinkActions(session, href, context.locale, management);
   return <ManagementScreen
     {...management} {...links} path={href} navigate={navigate} accountKey={accountKey} client={client}
-    pickBlogThumbnail={pickBlogThumbnail} access="admin" locale={context.locale} theme={theme}
+    pickBlogThumbnail={pickBlogThumbnail} pickMediaFile={pickMediaFile} access="admin" locale={context.locale} theme={theme}
   />;
 }

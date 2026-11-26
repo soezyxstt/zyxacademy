@@ -4,10 +4,12 @@ import { matchManagementPath, type ManagementClient } from "../../../../../packa
 import { createManagementFixture, type ManagementFixtureOptions } from "../../../../../packages/native-parity/operations/management-fixtures";
 import { BlogEditorRoute, BlogList } from "./blog";
 import type { PickBlogThumbnail } from "./blog-upload";
+import type { PickMediaFile } from "./media-upload";
 import { Documentation } from "./docs";
 import { FormBuilderRoute, FormDetailRoute } from "./forms";
 import { Pricing } from "./pricing";
-import { Discussions, ImportantLinks, MediaLibrary, MeetDetails, MeetList } from "./tools";
+import { Discussions, ImportantLinks, MeetDetails, MeetList } from "./tools";
+import { MediaLibrary } from "./media";
 import { Action, Copy, ManagementContext, Screen, type ManagementDraftStore, type ManagementTheme } from "./ui";
 import { NativeStatusPanel } from "../../shared-ui/layout";
 
@@ -29,6 +31,7 @@ export type ManagementScreenProps = {
   share?: (url: string, title?: string) => void | Promise<void>;
   linkError?: string;
   pickBlogThumbnail?: PickBlogThumbnail;
+  pickMediaFile?: PickMediaFile;
   renderMarkdown?: (markdown: string) => ReactNode;
 };
 
@@ -36,7 +39,7 @@ export function ManagementScreen(props: ManagementScreenProps) {
   return <AccountManagement key={`${props.accountKey}:${props.access}`} {...props} />;
 }
 
-function AccountManagement({ path, navigate, client, access, theme, locale = "id", openExternal, share, linkError, pickBlogThumbnail, renderMarkdown }: ManagementScreenProps) {
+function AccountManagement({ path, navigate, client, access, theme, locale = "id", openExternal, share, linkError, pickBlogThumbnail, pickMediaFile, renderMarkdown }: ManagementScreenProps) {
   const systemTheme = useColorScheme();
   const [drafts] = useState<ManagementDraftStore>(() => new Map());
   const [retries] = useState(() => new Map<string, string>());
@@ -67,7 +70,7 @@ function AccountManagement({ path, navigate, client, access, theme, locale = "id
       case "/admin/tautan": screen = <ImportantLinks />; break;
     }
   }
-  return <ManagementContext.Provider value={{ client, navigate, theme: theme ?? systemTheme ?? "light", locale, drafts, retries, openExternal, share, pickBlogThumbnail, renderMarkdown }}>
+  return <ManagementContext.Provider value={{ client, navigate, theme: theme ?? systemTheme ?? "light", locale, drafts, retries, openExternal, share, pickBlogThumbnail, pickMediaFile, renderMarkdown }}>
     <View key={path} style={{ flex: 1 }}>
       {linkError && <NativeStatusPanel title={linkError} tone="error" theme={theme} />}
       {screen}

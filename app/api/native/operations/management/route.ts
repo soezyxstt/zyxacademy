@@ -166,6 +166,9 @@ export async function POST(request: NextRequest) {
     const sessionId = auth?.session?.id;
     if (!sessionId || auth.user.id !== admin.user.id || request.headers.get("x-native-operations-user-id") !== admin.user.id || request.headers.get("x-native-operations-session-id") !== sessionId) return reply({ error: "forbidden" }, 403);
     const action = await readAction(request);
+    if (action && typeof action === "object" && "type" in action && (action.type === "media.upload" || action.type === "media.replace")) {
+      return reply({ error: "expected-multipart" }, 415);
+    }
     const requestKey = request.headers.get("x-native-operations-request-key");
     if (isDiscussionOperation(action)) {
       const [active] = await db.select({ id: session.id }).from(session).where(and(eq(session.id, sessionId), eq(session.userId, admin.user.id), gt(session.expiresAt, new Date()))).limit(1);
