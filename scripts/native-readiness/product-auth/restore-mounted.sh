@@ -19,4 +19,4 @@ routes = run_path("scripts/native-readiness/product/mount.py")["inventory"]()
 if Counter(routes.values()) != expected:
     raise SystemExit("The mounted source differs from the reviewed route inventory")
 PY
-echo "Verified mounted product tree $tree (54 Academic, 50 Student, 36 Operations, 13 public routes)"
+echo "Verified mounted product tree $tree (54 Academic, 50 Student, 36 Operations, 13 public browser handoffs)"
