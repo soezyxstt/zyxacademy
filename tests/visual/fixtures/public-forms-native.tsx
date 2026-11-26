@@ -10,7 +10,7 @@ const id = decodeURIComponent(location.pathname.split("/").at(-1) ?? "");
 
 createRoot(document.getElementById("root")!).render(
   <NextIntlClientProvider locale="id" timeZone="Asia/Jakarta" messages={{ publicForms, ui }}>
-    <PublicFormViewer idOrSlug={id} />
+    <PublicFormViewer idOrSlug={id} shortEntry={location.pathname.startsWith("/f/")} />
     <Toaster />
   </NextIntlClientProvider>,
 );

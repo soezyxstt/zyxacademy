@@ -19,7 +19,7 @@ jobs:
       group: native-combined-preview
       cancel-in-progress: true
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,3 +42,22 @@ jobs:
         working-directory: apps/mobile-native
       - run: npx --no-install tsc --noEmit
         working-directory: apps/mobile-native
+      - name: Bundle mounted Android and iOS product entry points
+        working-directory: apps/mobile-native
+        env:
+          EXPO_NO_TELEMETRY: '1'
+        run: npx --no-install expo export --platform all --max-workers 2 --output-dir "$RUNNER_TEMP/native-product"
+      - name: Verify both native bundles were produced
+        run: |
+          python3 - <<'CHECK'
+          import json, os
+          from pathlib import Path
+          out = Path(os.environ["RUNNER_TEMP"]) / "native-product"
+          metadata = json.loads((out / "metadata.json").read_text())["fileMetadata"]
+          for platform in ["android", "ios"]:
+              bundle = out / metadata[platform]["bundle"]
+              size = bundle.stat().st_size
+              if not size:
+                  raise SystemExit(f"Empty {platform} bundle")
+              print(f"{platform}: {size:,} bytes")
+          CHECK

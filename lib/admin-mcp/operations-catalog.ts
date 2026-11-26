@@ -36,6 +36,20 @@ export const operationsCatalog = [
     "reason": "Learner assessment requires the native Student session, course eligibility and attempt ownership. It uses the existing academic services through app HTTPS and does not accept MCP credentials."
   },
   {
+    "source": "app/api/forms/[idOrSlug]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public form links resolve published respondent content. Live submissions use the respondent session or the form's anonymous policy. Admin MCP forms preview and simulation use separate read scopes and never submit live responses."
+  },
+  {
+    "source": "app/api/forms/upload/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Admin MCP preview and simulation do not upload respondent files."
+  },
+  {
     "source": "app/api/tautan/route.ts",
     "actions": ["GET"],
     "tools": [],

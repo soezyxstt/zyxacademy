@@ -146,9 +146,13 @@ export function parsePublicForm(input: unknown, entry: FormEntry): PublicFormLoa
   } };
 }
 
+// Expo fetch keeps both file bytes and the complete multipart body in JavaScript memory.
+const maxBufferedUploadMb = 10;
+
 export function formUploadPolicy(question: PublicQuestion) {
-  const maxMb = formFileSizeLimitMb(question.maxFileSizeMb);
-  return { mimeTypes: question.allowedFileTypes ?? FORM_FILE_MIMES, maxBytes: Math.floor(maxMb * 1024 * 1024), maxMb };
+  const authoredMaxMb = formFileSizeLimitMb(question.maxFileSizeMb);
+  const maxMb = Math.min(authoredMaxMb, maxBufferedUploadMb);
+  return { mimeTypes: question.allowedFileTypes ?? FORM_FILE_MIMES, maxBytes: Math.floor(maxMb * 1024 * 1024), maxMb, authoredMaxMb };
 }
 
 export function isOtherAnswer(answer: PublicAnswer | undefined) {

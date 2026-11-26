@@ -3,8 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { customForms, customFormResponses } from "@/db/schema";
 import { eq, or, isNull, and } from "drizzle-orm";
-import { findShortFormMeeting } from "@/lib/forms/short-entry";
-import { describeFormClosure, getFormClosure, getFormClosedReason, getFormRespondentError } from "@/lib/forms/response-policy";
+import { findFullFormEntry, findShortFormEntry } from "@/lib/forms/short-entry";
+import { describeFormClosure, expectsFormWriteSession, formWriteSessionError, getFormClosure, getFormClosedReason, getFormRespondentError, matchesFormWriteSession } from "@/lib/forms/response-policy";
 
 export async function GET(
   req: Request,
@@ -12,30 +12,12 @@ export async function GET(
 ) {
   try {
     const { idOrSlug } = await params;
-    if (new URL(req.url).searchParams.get("entry") === "short") {
-      const meetingUri = await findShortFormMeeting(idOrSlug);
-      if (meetingUri) return NextResponse.json({ success: true, destination: "meeting", meetingUri });
+    const short = new URL(req.url).searchParams.get("entry") === "short";
+    const entry = short ? await findShortFormEntry(idOrSlug) : null;
+    if (entry?.kind === "meeting") {
+      return NextResponse.json({ success: true, destination: "meeting", meetingUri: entry.meetingUri });
     }
-
-
-    const [form] = await db
-      .select({
-        id: customForms.id,
-        slug: customForms.slug,
-        title: customForms.title,
-        description: customForms.description,
-        category: customForms.category,
-        questions: customForms.questions,
-        settings: customForms.settings,
-      })
-      .from(customForms)
-      .where(
-        and(
-          isNull(customForms.deletedAt),
-          or(eq(customForms.id, idOrSlug), eq(customForms.slug, idOrSlug.toLowerCase()))
-        )
-      )
-      .limit(1);
+    const form = short ? entry?.form : await findFullFormEntry(idOrSlug);
 
     if (!form) {
       return NextResponse.json({ error: "Formulir tidak ditemukan atau telah dihapus." }, { status: 404 });
@@ -59,7 +41,14 @@ export async function POST(
   try {
     const { idOrSlug } = await params;
     const exactId = new URL(req.url).searchParams.get("target") === "id";
-    const session = await auth.api.getSession({ headers: req.headers });
+    const expectedSession = expectsFormWriteSession(req);
+    const session = await auth.api.getSession({
+      headers: req.headers,
+      ...(expectedSession && { query: { disableCookieCache: true, disableRefresh: true } }),
+    });
+    if (expectedSession && !matchesFormWriteSession(req.headers, session)) {
+      return NextResponse.json({ error: formWriteSessionError }, { status: 401 });
+    }
 
     const [form] = await db
       .select({

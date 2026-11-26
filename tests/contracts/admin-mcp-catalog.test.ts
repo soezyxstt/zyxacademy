@@ -64,3 +64,12 @@ test("device sign-in, role context, photo recovery and OS permissions stay user-
     expect(entry?.tools).toEqual([]);
   }
 });
+
+test("live public form writes stay separate from MCP preview and simulation", () => {
+  for (const source of ["app/api/forms/[idOrSlug]/route.ts", "app/api/forms/upload/route.ts"]) {
+    const entry = operationsCatalog.find(item => item.source === source);
+    expect(entry?.status).toBe("excluded");
+    expect(entry?.tools).toEqual([]);
+    expect(entry?.actions).toContain("POST");
+  }
+});

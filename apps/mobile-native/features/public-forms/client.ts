@@ -1,11 +1,12 @@
-import type { NativeRequestInit, NativeResponse } from "../../network/transport";
+import { formWriteSessionHeaders, type FormWriteIdentity } from "../../../../packages/forms/response-policy";
+import { NativeTransportError, type NativeRequestInit, type NativeResponse } from "../../network/transport";
 import { parsePublicForm, publicFormApiPath, submitFormBody, type FormDraft, type FormEntry, type PublicForm, type PublicFormLoad } from "./model";
 
 type FormResponse = Pick<NativeResponse, "status" | "headers" | "body" | "dispose">;
 export type FormRequest = (path: string, init: NativeRequestInit) => Promise<FormResponse>;
 export type FormSubmission =
   | { status: "sent" }
-  | { status: "login" | "verify-email" | "already-sent" | "missing" | "denied" | "invalid" | "uncertain" };
+  | { status: "login" | "verify-email" | "already-sent" | "missing" | "denied" | "invalid" | "uncertain" | "session-pending" };
 export type FormUpload =
   | { status: "uploaded"; storageUrl: string }
   | { status: "login" | "verify-email" | "type" | "size" | "missing" | "denied" | "retry" };
@@ -73,10 +74,10 @@ export async function loadPublicForm(request: FormRequest, entry: FormEntry, ide
 const verifiedEmailError = "Verifikasi alamat email akun Zyx Anda sebelum mengisi formulir ini.";
 const alreadySentError = "Anda sudah pernah mengisi formulir ini (Dibatasi 1 kali pengisian).";
 
-export async function submitPublicForm(request: FormRequest, form: PublicForm, draft: FormDraft, signal: AbortSignal): Promise<FormSubmission> {
+export async function submitPublicForm(request: FormRequest, form: PublicForm, draft: FormDraft, signal: AbortSignal, identity?: FormWriteIdentity): Promise<FormSubmission> {
   try {
-    return await withResponse<FormSubmission>(request, publicFormApiPath(form.id) + "?target=id", {
-      method: "POST", signal, headers: { "Content-Type": "application/json" },
+    return await withResponse<FormSubmission>(request, publicFormApiPath(form.id) + (identity ? "?target=id&respondent=session" : "?target=id"), {
+      method: "POST", signal, headers: { "Content-Type": "application/json", ...(identity && formWriteSessionHeaders(identity)) },
       body: JSON.stringify(submitFormBody(form, draft)),
     }, 20_000, async response => {
       if (response.status === 401) return { status: "login" };
@@ -91,14 +92,17 @@ export async function submitPublicForm(request: FormRequest, form: PublicForm, d
       }
       return value?.success === true ? { status: "sent" } : { status: "uncertain" };
     });
-  } catch {
-    return { status: "uncertain" };
+  } catch (error) {
+    return { status: error instanceof NativeTransportError && error.code === "credentials" ? "login" : "uncertain" };
   }
 }
 
-export async function uploadPublicForm(request: FormRequest, body: FormData, signal: AbortSignal, origin: string): Promise<FormUpload> {
+export async function uploadPublicForm(request: FormRequest, body: FormData, signal: AbortSignal, origin: string, identity?: FormWriteIdentity): Promise<FormUpload> {
   try {
-    return await withResponse<FormUpload>(request, "/api/forms/upload?target=id", { method: "POST", body, signal }, 90_000, async response => {
+    const path = identity ? "/api/forms/upload?target=id&respondent=session" : "/api/forms/upload?target=id";
+    return await withResponse<FormUpload>(request, path, {
+      method: "POST", body, signal, headers: identity && formWriteSessionHeaders(identity),
+    }, 90_000, async response => {
       if (response.status === 401) return { status: "login" };
       if (response.status === 403) {
         const data = await readJson(response, 4096);
@@ -117,8 +121,8 @@ export async function uploadPublicForm(request: FormRequest, body: FormData, sig
       }
       return { status: "retry" };
     });
-  } catch {
-    return { status: "retry" };
+  } catch (error) {
+    return { status: error instanceof NativeTransportError && error.code === "credentials" ? "login" : "retry" };
   }
 }
 

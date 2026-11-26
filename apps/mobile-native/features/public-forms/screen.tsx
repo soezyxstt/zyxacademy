@@ -17,7 +17,7 @@ export function PublicFormScreen({ state, locale, access, opening, browserFailed
   const ready = state?.status === "ready";
   const requiresAccount = ready && (state.form.settings.requireLogin || state.form.settings.collectEmail === "verified");
   let contents: ReactNode;
-  if (!state || (ready && access === "waiting")) {
+  if (!state || (ready && access === "waiting" && !children)) {
     const loading = copy.loading.replace("...", "…");
     contents = <View style={styles.loading} accessible accessibilityLabel={loading} accessibilityLiveRegion="polite">
       <ActivityIndicator color={colors.primary} />
@@ -39,7 +39,7 @@ export function PublicFormScreen({ state, locale, access, opening, browserFailed
   } else if (state.status === "unsupported") {
     contents = <NativeStatusPanel title={copy.support}
       action={{ id: "web", label: opening ? copy.opening : copy.openWeb, pending: opening }} onAction={onWeb} />;
-  } else if (state.status === "error" || access === "unavailable") {
+  } else if (state.status === "error" || (access === "unavailable" && !children)) {
     contents = <View style={formStyles.group}>
       <NativeStatusPanel tone="error" title={copy.loadError} action={{ id: "retry", label: copy.retry }} onAction={onRetry} />
       <View style={{ alignSelf: "flex-start" }}>

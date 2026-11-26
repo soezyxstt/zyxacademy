@@ -69,7 +69,8 @@ def mount():
                  'const { subscribeBeforeLocalLogout } = useNativeSession();\n  useEffect(() => subscribeBeforeLocalLogout(repository.purgeSession), [subscribeBeforeLocalLogout]);')
     layout = MOBILE / "app/_layout.tsx"
     rewrite_once(layout, 'import { nativeFontSources }', 'import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";\nimport { nativeFontSources }')
-    rewrite_once(layout, '<NativeAccountContextProvider>', '<NativeAccountContextProvider>\n          <AssessmentDraftCleanup />')
+    if '<AssessmentDraftCleanup />' not in layout.read_text():
+        rewrite_once(layout, '<NativeAccountContextProvider>', '<NativeAccountContextProvider>\n          <AssessmentDraftCleanup />')
     print(f"Mounted {len(routes)} canonical external routes and the Murid redirect.")
 
 

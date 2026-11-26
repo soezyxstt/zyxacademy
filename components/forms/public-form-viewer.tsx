@@ -40,7 +40,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { buildFormSteps, formFileSizeLimitMb, isEmptyFormAnswer, type FormStep, type FormDisplayMode } from "@/lib/forms/presentation";
+import { buildFormSteps, formFileSizeLimitMb, formScaleValues, isEmptyFormAnswer, type FormStep, type FormDisplayMode } from "@/lib/forms/presentation";
 import { formFileAccept, type FormFileMime } from "@/lib/forms/file-types";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { customFormMessage, type FormClosure } from "@/lib/forms/response-policy";
@@ -93,11 +93,13 @@ const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "
 
 export function PublicFormViewer({
   idOrSlug,
+  shortEntry = false,
   previewForm,
   isPreview = false,
   initialStepIndex = 0,
 }: {
   idOrSlug?: string;
+  shortEntry?: boolean;
   previewForm?: FormPayload;
   isPreview?: boolean;
   initialStepIndex?: number;
@@ -196,7 +198,7 @@ export function PublicFormViewer({
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/forms/${idOrSlug}`);
+      const res = await fetch(`/api/forms/${encodeURIComponent(idOrSlug)}${shortEntry ? "?entry=short" : ""}`);
       const data = await res.json();
       if (data.form) {
         setForm(data.form);
@@ -213,7 +215,7 @@ export function PublicFormViewer({
     } finally {
       setLoading(false);
     }
-  }, [idOrSlug]);
+  }, [idOrSlug, shortEntry]);
 
   useEffect(() => {
     if (isPreview && previewForm) {
@@ -365,7 +367,7 @@ export function PublicFormViewer({
         setUploadProgress((prev) => (prev >= 85 ? prev : prev + 15));
       }, 200);
 
-      const res = await fetch("/api/forms/upload", {
+      const res = await fetch(form?.id ? "/api/forms/upload?target=id" : "/api/forms/upload", {
         method: "POST",
         body: formData,
       });
@@ -558,7 +560,7 @@ export function PublicFormViewer({
     setErrorMsg(null);
     setLoginRequired(false);
     try {
-      const res = await fetch(`/api/forms/${idOrSlug}`, {
+      const res = await fetch(`/api/forms/${encodeURIComponent(form?.id || idOrSlug || "")}${form?.id ? "?target=id" : ""}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answers: finalAnswers, responderEmail: trimmedEmail || undefined }),
@@ -1526,7 +1528,7 @@ export function PublicFormViewer({
                       </div>
                     )}
 
-                    {/* 7. SCALE (Linear Scale 1-5) */}
+                    {/* 7. SCALE */}
                     {q.type === "SCALE" && (
                       <div className="max-w-lg space-y-2">
                         <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs text-muted-foreground">
@@ -1534,8 +1536,8 @@ export function PublicFormViewer({
                           <span className="font-semibold">{q.scaleHighLabel || t("publicForm.scaleHigh")}</span>
                         </div>
 
-                        <div className="grid grid-cols-5 divide-x divide-border/60 border-y border-border/60">
-                          {[1, 2, 3, 4, 5].map((num) => {
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] border-y border-border/60">
+                          {formScaleValues(q).map((num) => {
                             const isSelected = answerVal === num.toString();
                             return (
                               <Button
@@ -1547,7 +1549,7 @@ export function PublicFormViewer({
                                   handleAnswerChange(qIdx, num.toString());
                                   advanceAfterChoice();
                                 }}
-                                className="min-h-11 rounded-none focus-visible:outline-offset-[-3px] aria-pressed:bg-foreground aria-pressed:text-background"
+                                className="min-h-11 rounded-none border-r border-border/60 last:border-r-0 focus-visible:outline-offset-[-3px] aria-pressed:bg-foreground aria-pressed:text-background"
                               >
                                 {num}
                               </Button>
