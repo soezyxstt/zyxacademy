@@ -1,6 +1,6 @@
 # Entry native Student
 
-Untuk mencoba rute produk pada checkout PR ini, jalankan `python3 scripts/native-readiness/product/mount.py` dari root di checkout uji. Skrip integrator memasang 50 rute Student bersama 103 rute publik, Tutor dan Admin. Setelah menjalankan aplikasi Expo, login dengan sesi Murid dan buka `/dashboard`. Untuk CI gabungan, pilih `include_pending_student=true` pada workflow Native integration preview. Perintah fixture lokal di bawah dapat dipakai terpisah.
+Kelima puluh rute Student sudah terpasang pada branch integrasi. Buka aplikasi Expo, masuk dengan akun Murid, lalu buka `/dashboard`. Workflow `Native integration preview` memeriksa rute pada commit induk dan menjalankan alur Murid, Tutor, serta Admin di Android ketika dipicu manual.
 
 `StudentEntry` menerima satu alamat web Student (path dan query), sesi, transport, slot renderer serta callback navigasi. `matchStudentRoute` memilih pemilik layar dan mendahulukan Tutorial PKA statis. Daftar lengkap dan tiga kasus awal per halaman ada di `packages/native-parity/student/evidence/routes.json`.
 
