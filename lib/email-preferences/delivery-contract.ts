@@ -13,8 +13,9 @@ export function buildEmailUnsubscribeUrls(
   userId: string,
   category: EmailNotificationCategory,
   appUrl = getPublicAppUrl(),
+  nowMs?: number,
 ): { confirmationUrl: string; oneClickUrl: string } {
-  const token = createEmailUnsubscribeToken({ userId, category });
+  const token = createEmailUnsubscribeToken({ userId, category, nowMs });
   const base = appUrl.replace(/\/$/, "");
   const encodedToken = encodeURIComponent(token);
   return {

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { getAvailabilityReminderWeek, isDueTutorialEmail, safeReminderLink } from "@/lib/notifications/tutorial-reminder-policy";
+import { getAvailabilityReminderWeek, getTutorialEmailDispatchAt, safeReminderLink } from "@/lib/notifications/tutorial-reminder-policy";
 import { renderTutorialSession30mEmail } from "@/lib/notifications/tutorial-reminder-emails";
 import { DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES } from "@/lib/notifications/types";
 import { cronWindow } from "@/lib/queue/cron";
@@ -19,12 +19,13 @@ test("midnight and month boundary use WIB", () => {
   expect(result.start).toBe("2026-12-27");
   expect(result.end).toBe("2027-01-02");
 });
-test("H-30 uses one five-minute tick and never sends after start", () => {
+test("H-30 queues the exact minute, including non-five-minute starts, and never sends after start", () => {
   const date = "2026-11-29";
-  expect(isDueTutorialEmail(date, "08:00", new Date("2026-11-29T00:30:00Z"))).toBe(true);
-  expect(isDueTutorialEmail(date, "08:00", new Date("2026-11-29T00:35:00Z"))).toBe(false);
-  expect(isDueTutorialEmail(date, "08:03", new Date("2026-11-29T00:35:00Z"))).toBe(true);
-  expect(isDueTutorialEmail(date, "08:00", new Date("2026-11-29T00:30:00Z"), new Date("2026-11-29T01:00:00Z"))).toBe(false);
+  expect(getTutorialEmailDispatchAt(date, "08:00", new Date("2026-11-29T00:30:00Z"))).toBe(Date.parse("2026-11-29T00:30:00Z"));
+  expect(getTutorialEmailDispatchAt(date, "08:00", new Date("2026-11-29T00:35:00Z"))).toBeNull();
+  expect(getTutorialEmailDispatchAt(date, "08:03", new Date("2026-11-29T00:30:00Z"))).toBe(Date.parse("2026-11-29T00:33:00Z"));
+  expect(getTutorialEmailDispatchAt(date, "08:03", new Date("2026-11-29T00:35:00Z"))).toBe(Date.parse("2026-11-29T00:33:00Z"));
+  expect(getTutorialEmailDispatchAt(date, "08:00", new Date("2026-11-29T00:30:00Z"), new Date("2026-11-29T01:00:00Z"))).toBeNull();
 });
 test("both reminders default on and cloud dispatch schedules all ticks", () => {
   expect(DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES.tutorAvailabilityEnabled).toBe(true);

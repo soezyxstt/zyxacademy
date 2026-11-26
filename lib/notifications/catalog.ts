@@ -296,7 +296,7 @@ export const NOTIFICATION_EVENT_CATALOG: readonly NotificationCatalogEntry[] = [
     push: false,
     email: "optional",
     emailCategory: "events_and_schedules",
-    schedule: "Every 5 minutes; email when session is 25–30 minutes away",
+    schedule: "Five-minute discovery; queue delivery at H-30",
     defaultLink: "/dashboard/schedule",
     summary: "Optional pre-session email with meeting details and participant resources.",
   },

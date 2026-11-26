@@ -6,10 +6,10 @@ import { hasRecentNotificationByDedupeKey, sendToUser } from "@/lib/notification
 import { getUserLocalePreference } from "@/lib/i18n/preferences";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
 import { sendOptionalEmail } from "@/lib/email-preferences/send";
-import { formatJakartaDateKey } from "@/lib/notifications/interval-policy";
-import { getAvailabilityReminderWeek, isDueTutorialEmail } from "@/lib/notifications/tutorial-reminder-policy";
+import { formatJakartaDateKey, parseJakartaSessionStart } from "@/lib/notifications/interval-policy";
+import { getAvailabilityReminderWeek, getTutorialEmailDispatchAt } from "@/lib/notifications/tutorial-reminder-policy";
 import { renderTutorAvailabilityEmail, renderTutorialSession30mEmail, type TutorialReminderResource } from "@/lib/notifications/tutorial-reminder-emails";
-import { extractStorageKey, scopedStorageFileKind } from "@/lib/storage/keys";
+import { extractStorageKey, isSafeKey, scopedStorageFileKind } from "@/lib/storage/keys";
 import { defineJob } from "./define-job";
 import { mapConcurrent } from "./vector-sync";
 
@@ -22,7 +22,7 @@ function scheduledTick(data: Record<string, unknown>, now: Date) {
 function attachmentUrl(url: string, kind: string) {
   if (kind !== "file") return url;
   const key = extractStorageKey(url);
-  return key && scopedStorageFileKind(key) === "tutorial"
+  return key && isSafeKey(key) && scopedStorageFileKind(key) === "tutorial"
     ? "/api/storage/file/" + key.split("/").map(encodeURIComponent).join("/")
     : null;
 }
@@ -67,6 +67,7 @@ export const tutorAvailabilityReminderCron = defineJob(
         if (process.env.RESEND_API_KEY) {
           const result = await sendOptionalEmail({ userId: tutor.id, category: "events_and_schedules", locale,
             idempotencyKey: `availability/${tutor.id}/${week.dateKey}`,
+            unsubscribeTokenNowMs: Date.parse(week.dateKey + "T01:00:00Z"),
             render: resolved => renderTutorAvailabilityEmail({ locale: resolved, name: tutor.name, start: week.start, end: week.end }) });
           if (result.status === "sent") sent++;
         }
@@ -78,14 +79,45 @@ export const tutorAvailabilityReminderCron = defineJob(
 );
 
 export const tutorialSessionEmailCron = defineJob(
-  { id: "tutorial-session-email-cron", name: "Tutorial H-30 email", triggers: [{ cron: "*/5 * * * *" }] },
-  async ({ event, step }) => step.run("send-session-emails", async () => {
-    if (!process.env.RESEND_API_KEY) return { sent: 0 };
+  { id: "tutorial-session-email-cron", name: "Schedule tutorial H-30 emails", triggers: [{ cron: "*/5 * * * *" }] },
+  async ({ event, step }) => {
+    if (!process.env.RESEND_API_KEY) return { queued: 0 };
     const now = new Date();
     const tick = scheduledTick(event.data, now);
     const dateKeys = [formatJakartaDateKey(tick), formatJakartaDateKey(new Date(tick.getTime() + 86_400_000))];
+    const due = await step.run("find-due-sessions", async () => {
+      const rows = await db.select({ id: bookings.id, date: bookings.sessionDate, start: bookings.startTime, slotStart: tutorSlots.startTime })
+        .from(bookings).innerJoin(tutorSlots, eq(bookings.slotId, tutorSlots.id))
+        .where(and(eq(bookings.status, "scheduled"), inArray(bookings.sessionDate, dateKeys)));
+      return rows.flatMap(row => {
+        const time = row.start ?? row.slotStart;
+        const dispatchAt = row.date ? getTutorialEmailDispatchAt(row.date, time, tick, now) : null;
+        return dispatchAt === null ? [] : [{ id: row.id, date: row.date!, time, dispatchAt }];
+      });
+    });
+    // One stable task per booking/start. The next sweep can recover late
+    // bookings; Cloud Tasks deduplicates its identical ID.
+    await mapConcurrent(due, 5, async row => {
+      const id = `tutorial-h30:${row.id}:${row.date}:${row.time}`;
+      await step.enqueueTask(id, { name: "tutorial/session-email.requested", id,
+        data: { bookingId: row.id, date: row.date, startTime: row.time },
+        delaySeconds: Math.max(0, Math.ceil((row.dispatchAt - Date.now()) / 1000)) });
+    });
+    return { queued: due.length };
+  },
+);
+
+export const tutorialSessionEmailWorker = defineJob(
+  { id: "tutorial-session-email-worker", name: "Send tutorial H-30 emails", triggers: [{ event: "tutorial/session-email.requested" }] },
+  async ({ event, step }) => {
+    if (!process.env.RESEND_API_KEY) return { sent: 0 };
+    const { bookingId, date: expectedDate, startTime: expectedTime } = event.data;
+    if (typeof bookingId !== "string" || typeof expectedDate !== "string" || typeof expectedTime !== "string") return { sent: 0 };
+    const startsAt = parseJakartaSessionStart(expectedDate, expectedTime);
+    const now = new Date();
+    if (!startsAt || startsAt <= now || startsAt.getTime() - now.getTime() > 30 * 60_000) return { sent: 0 };
     const sessions = await db.select({
-      id: bookings.id, groupId: bookings.groupId, groupName: groups.name, courseTitle: courses.title,
+      id: bookings.id, slotId: bookings.slotId, groupId: bookings.groupId, groupName: groups.name, courseTitle: courses.title,
       tutorId: tutorSlots.tutorId, tutorName: user.name, date: bookings.sessionDate,
       startTime: bookings.startTime, endTime: bookings.endTime,
       slotStart: tutorSlots.startTime, slotEnd: tutorSlots.endTime,
@@ -96,13 +128,13 @@ export const tutorialSessionEmailCron = defineJob(
       .innerJoin(groups, eq(bookings.groupId, groups.id)).innerJoin(courses, eq(bookings.courseId, courses.id))
       .innerJoin(user, eq(tutorSlots.tutorId, user.id))
       .where(and(eq(bookings.status, "scheduled"), eq(groups.status, "active"), or(isNull(groups.endDate), gt(groups.endDate, now)),
-        inArray(bookings.sessionDate, dateKeys)));
+        eq(bookings.id, bookingId), eq(bookings.sessionDate, expectedDate)));
     let sent = 0;
     const failures: unknown[] = [];
     for (const session of sessions) {
       const startTime = session.startTime ?? session.slotStart;
       const endTime = session.endTime ?? session.slotEnd;
-      if (!session.date || !isDueTutorialEmail(session.date, startTime, tick, now)) continue;
+      if (!session.date || session.date !== expectedDate || startTime !== expectedTime) continue;
       const date = session.date;
       const members = await db.select({ id: user.id, name: user.name }).from(groupMembers)
         .innerJoin(user, eq(groupMembers.userId, user.id)).innerJoin(pengguna, eq(user.id, pengguna.id))
@@ -132,24 +164,36 @@ export const tutorialSessionEmailCron = defineJob(
       }
       await mapConcurrent([...recipients.values()], 5, async (recipient) => {
         try {
-          if (!(await getActivityNotificationPreferences(recipient.id)).tutorialSessionEmailEnabled) return;
+          const delivered = await step.run(`email:${recipient.id}`, async () => {
+          if (!(await getActivityNotificationPreferences(recipient.id)).tutorialSessionEmailEnabled) return false;
+          if (recipient.audience === "student") {
+            const [membership] = await db.select({ id: groupMembers.id }).from(groupMembers)
+              .innerJoin(groups, eq(groups.id, groupMembers.groupId))
+              .innerJoin(pengguna, eq(pengguna.id, groupMembers.userId))
+              .where(and(eq(groupMembers.userId, recipient.id), eq(groupMembers.groupId, session.groupId),
+                eq(groups.status, "active"), or(isNull(groups.endDate), gt(groups.endDate, new Date())), eq(pengguna.status, "active"))).limit(1);
+            if (!membership) return false;
+          }
           // Avoid sending a cancelled/rescheduled or already-started session from a delayed batch.
           const [current] = await db.select({ status: bookings.status, date: bookings.sessionDate, start: bookings.startTime, slot: bookings.slotId })
             .from(bookings).where(eq(bookings.id, session.id)).limit(1);
-          if (!current || current.status !== "scheduled" || current.date !== date || (current.start ?? session.slotStart) !== startTime ||
-              !isDueTutorialEmail(date, startTime, tick, new Date())) return;
+          if (!current || current.status !== "scheduled" || current.date !== date || current.slot !== session.slotId ||
+              (current.start ?? session.slotStart) !== startTime || startsAt <= new Date()) return false;
           const result = await sendOptionalEmail({ userId: recipient.id, category: "events_and_schedules",
             idempotencyKey: `tutorial-h30/${session.id}/${date}/${startTime}/${recipient.id}`,
+            unsubscribeTokenNowMs: startsAt.getTime() - 30 * 60_000,
             render: locale => renderTutorialSession30mEmail({ locale, name: recipient.name, courseTitle: session.courseTitle,
               groupName: session.groupName, tutorName: session.tutorName, date, startTime, endTime,
               mode: session.mode, location: session.location, meetUrl: session.meetUrl, topic: session.topic,
               audience: recipient.audience, resources }),
           });
-          if (result.status === "sent") sent++;
+          return result.status === "sent";
+          });
+          if (delivered) sent++;
         } catch (error) { failures.push(error); }
       });
     }
     if (failures.length) throw new Error(`TUTORIAL_SESSION_EMAIL_FAILED:${failures.length}`);
     return { sent };
-  }),
+  },
 );

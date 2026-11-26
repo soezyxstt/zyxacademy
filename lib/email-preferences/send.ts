@@ -20,6 +20,7 @@ interface SendOptionalEmailInput {
   replyTo?: string | string[];
   /** Stable per-recipient delivery identity for scheduled email retries. */
   idempotencyKey?: string;
+  unsubscribeTokenNowMs?: number;
 }
 
 export type SendOptionalEmailResult =
@@ -43,7 +44,7 @@ export async function sendOptionalEmail(input: SendOptionalEmailInput): Promise<
   const rendered = input.render?.(locale) ?? { subject: input.subject ?? "", html: input.html ?? "" };
   if (!rendered.subject || !rendered.html) throw new Error("OPTIONAL_EMAIL_TEMPLATE_MISSING");
 
-  const urls = buildEmailUnsubscribeUrls(input.userId, input.category);
+  const urls = buildEmailUnsubscribeUrls(input.userId, input.category, undefined, input.unsubscribeTokenNowMs);
   const html = appendEmailUnsubscribeFooter(rendered.html, urls.confirmationUrl, input.category, locale);
   const headers = optionalEmailHeaders(urls.oneClickUrl);
 
