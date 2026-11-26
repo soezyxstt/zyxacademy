@@ -23,7 +23,12 @@ export function publicAssessmentRasterUrl(raw: string, appOrigin: string): strin
   } catch { return null; }
 }
 
-type RasterResponse = Pick<Response, "url" | "status" | "redirected" | "type" | "headers" | "body">;
+export type RasterAssetResponse = {
+  status: number;
+  headers: Pick<Headers, "get">;
+  body: ReadableStream<Uint8Array> | null;
+};
+type RasterResponse = Pick<Response, "url" | "redirected" | "type"> & RasterAssetResponse;
 export type PublicAssessmentRasterFetch = (url: string, init: RequestInit) => Promise<RasterResponse>;
 
 export async function fetchPublicAssessmentRaster(

@@ -1,4 +1,4 @@
-import { assessmentRasterTypes, boundedAssessmentRaster, createAssessmentRasterQueue, fetchPublicAssessmentRaster, publicAssessmentRasterLimit, rasterPrefixLimit, type PublicAssessmentRasterFetch } from "./assessment-raster";
+import { assessmentRasterTypes, boundedAssessmentRaster, createAssessmentRasterQueue, fetchPublicAssessmentRaster, publicAssessmentRasterLimit, rasterPrefixLimit, type PublicAssessmentRasterFetch, type RasterAssetResponse } from "./assessment-raster";
 import type { NativeSessionScope, NativeSessionTransport } from "../network/transport";
 import { MATERIAL_PDF_HEADERS, MATERIAL_PDF_MAX_BYTES, materialPdfPath, type MaterialPdfTarget } from "../../../packages/native-parity/student/courses/pdf";
 import { adminMaterialPdfPath, type AdminPdfBundle, ADMIN_PDF_ACCOUNT, ADMIN_PDF_SESSION } from "../../../packages/native-parity/academic/courses/pdf";
@@ -666,7 +666,7 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
 
   async function prepareAssetResponse({ session, signal, current, response, name, limit, mimeTypes, rasterSignal }: {
     session: NativeSessionTransport; signal: AbortSignal; current(): void;
-    response: Pick<Response, "status" | "body"> & { headers: Pick<Headers, "get"> };
+    response: RasterAssetResponse;
     name: string; limit: number; mimeTypes: readonly string[]; rasterSignal?: AbortSignal;
   }) {
     const staged = stageExport({ session, signal });
