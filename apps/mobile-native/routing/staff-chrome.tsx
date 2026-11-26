@@ -7,6 +7,7 @@ import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import type { NativeAccountContext } from "../../../packages/native-session/context";
 import { resolveNativeProtectedDestination } from "../auth/login-intent";
 import { NativeInboxBell } from "../features/notification-inbox/bell";
+import { OpsAiWorkspace } from "../features/operations/ops-ai/OpsAiWorkspace";
 import { NativeListRow, NativeStatusPanel } from "../features/shared-ui/layout";
 import { VisibleNavbarTitle } from "./visible-navbar-title";
 import { MobileNavbar, RoleBottomNavigation } from "../features/shared-ui/navigation";
@@ -40,12 +41,15 @@ export function StaffChrome({ role, href, theme, focused, context, checkingAcces
   const sitemap = useSitemap();
   const colors = nativeColors[theme];
   const trigger = useRef<ComponentRef<typeof Pressable>>(null);
+  const opsTrigger = useRef<ComponentRef<typeof Pressable>>(null);
   const request = useRef<AbortController | null>(null);
-  const [sheet, setSheet] = useState<"more" | "classes" | null>(null);
+  const [sheet, setSheet] = useState<"more" | "classes" | "ops-ai" | null>(null);
   const [coursePicker, setCoursePicker] = useState<CoursePicker>({ status: "loading" });
   const [visibility, setVisibility] = useState(defaultStaffVisibility);
   const siteSearch = useSiteSearch({ enabled: focused && !checkingAccess && !visibility.hideTop && sheet === null, theme, visit });
   const accountMenu = useRoleAccountMenu({ enabled: focused && !checkingAccess && !visibility.hideTop && sheet === null, theme, visit });
+  const opsAvailable = role === "admin" && focused && !visibility.hideTop && !checkingAccess &&
+    context.roles.includes("admin") && session.isCurrent() && /^\/admin(?:\/|[?#]|$)/.test(href);
 
   useEffect(() => {
     if (!focused) {
@@ -105,13 +109,16 @@ export function StaffChrome({ role, href, theme, focused, context, checkingAcces
       <MobileNavbar role={role} theme={theme} title={navigation.title} includeSafeArea={false} testID={`${role}-navbar`}
         hidden={visibility.hideTop}
         notificationSlot={focused && !visibility.hideTop ? <NativeInboxBell role={role} locale={locale} theme={theme} visit={visit} /> : null}
-        actions={{ search: siteSearch.action, account: accountMenu.action }} actionRefs={{ search: siteSearch.trigger, account: accountMenu.trigger }}
+        actions={{ search: siteSearch.action, account: accountMenu.action,
+          "ops-ai": opsAvailable ? { label: "Zyx Ops AI", expanded: sheet === "ops-ai" } : undefined }}
+        actionRefs={{ search: siteSearch.trigger, account: accountMenu.trigger, "ops-ai": opsTrigger }}
         home={navigation.backTo === null ? { label: navigation.homeLabel } : undefined}
         back={navigation.backTo ? { label: navigation.labels.back } : undefined}
         onAction={action => {
           if (action === "home") choose(navigation.targets.home);
           if (action === "search") siteSearch.open();
           if (action === "account") accountMenu.open();
+          if (action === "ops-ai" && opsAvailable && screenNavigation.isFocused()) setSheet("ops-ai");
           if (action === "back" && navigation.backTo && screenNavigation.isFocused() && session.isCurrent()) back(navigation.backTo);
         }} />
       <View style={styles.frame}>
@@ -131,7 +138,7 @@ export function StaffChrome({ role, href, theme, focused, context, checkingAcces
           accessibilityLabel={navigation.labels.bottomNavLabel} includeSafeArea={false} testID="tutor-bottom-nav"
           hidden={hidden} actionIds={["classes"]} expandedId={sheet === "classes" ? "classes" : undefined} itemRefs={{ classes: trigger }}
           onDestinationPress={id => id === "classes" ? openClasses() : choose(navigation.targets[id])} />}
-      <SharedSheet open={focused && sheet !== null && !hidden && !checkingAccess}
+      <SharedSheet open={focused && (sheet === "more" || sheet === "classes") && !hidden && !checkingAccess}
         title={navigation.role === "admin" ? navigation.labels.moreSheetTitle : classes.title}
         closeLabel={navigation.closeLabel} onDismiss={closeSheet} returnFocusRef={trigger} theme={theme}
         testID={`${role}-navigation-sheet`}>
@@ -147,6 +154,9 @@ export function StaffChrome({ role, href, theme, focused, context, checkingAcces
             <NativeStatusPanel theme={theme} tone="error" title={classes.failed} action={{ id: "retry", label: classes.retry }} onAction={openClasses} /> :
             (coursePicker.entries.length ? coursePicker.entries.map(renderLink) : <NativeStatusPanel theme={theme} title={classes.empty} />))}
       </SharedSheet>
+      {role === "admin" && context.roles.includes("admin") ? <OpsAiWorkspace key={session.scope.origin}
+        open={opsAvailable && sheet === "ops-ai"} uri={href} locale={locale} theme={theme} session={session}
+        close={closeSheet} returnFocusRef={opsTrigger} /> : null}
       {siteSearch.dialog}
       {accountMenu.sheet}
     </SafeAreaView>

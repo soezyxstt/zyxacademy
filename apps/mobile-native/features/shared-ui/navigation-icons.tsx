@@ -17,6 +17,7 @@ const paths = {
   "switch-course": "m7 15 5 5 5-5m-10-6 5-5 5 5",
   chevron: "m6 9 6 6 6-6",
   close: "m6 6 12 12M18 6 6 18",
+  send: "m22 2-7 20-4-9-9-4zM22 2 11 13",
   lock: "M7 11V7a5 5 0 0 1 10 0v4M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Zm7 4v3",
   "chevron-right": "m9 18 6-6-6-6",
   "arrow-right": "M5 12h14m-7-7 7 7-7 7",
