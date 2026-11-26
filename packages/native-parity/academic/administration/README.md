@@ -10,7 +10,7 @@ Pada `/admin/notifications`, tombol Tulis notifikasi membuka komposer yang terhu
 | --- | --- | --- |
 | Pengguna, kelompok dan token | `getAdminUsersData`, `getAdminStudyGroups`, `getEnrollmentTokens` | Perubahan peran dan pengelolaan anggota kelompok bertoken |
 | Jadwal | `getAdminScheduleData`, termasuk periode, slot, jadwal akademik terbit, tutor, tiket dan audit | Buat atau edit jadwal, ketersediaan, penugasan, relokasi dan pembatalan sesi, sertifikasi tutor |
-| Notifikasi | `getNotificationHistoryAction` | Komposisi, audiens, pratinjau, konfirmasi dan pencocokan hasil pengiriman fixture |
+| Notifikasi | `listAdminNotificationHistory` | Komposisi, audiens, pratinjau, konfirmasi dan pencocokan hasil pengiriman fixture |
 | Tutorial PKA | `getPkaRegistrationsAction`, `getPkaAnnouncementsAction`, `getPkaSchedulesAction` | Cari atau lihat status bukti, kelola pengumuman, buat atau edit jadwal PKA |
 | Review materi | Daftar detail memakai `resolveCourseIdentity`, `getIdeaBundleImport`, dan `getProductBundleImport`. Detail Idea mendukung pembacaan kutipan dan penyimpanan keputusan item untuk Admin aktif. | Review Product dan keputusan tingkat bundle, revisi konten, terbit, tarik, hapus |
 | PDF Diktat | `POST /api/admin/bundles/product/{id}/pdf` mengantrekan pekerjaan, GET hasil permintaan dan GET status khusus memberi status dari server | Antrean fixture dan perubahan status |

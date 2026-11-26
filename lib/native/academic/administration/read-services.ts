@@ -1,6 +1,5 @@
 import "server-only";
 import { getAdminStudyGroups } from "@/app/(admin)/admin/(academic)/groups/actions";
-import { getNotificationHistoryAction } from "@/app/(admin)/admin/(academic)/notifications/actions";
 import { getAdminScheduleData } from "@/app/(admin)/admin/(academic)/schedules/actions";
 import { getEnrollmentTokens } from "@/app/(admin)/admin/(academic)/tokens/actions";
 import { getPkaAnnouncementsAction, getPkaRegistrationsAction, getPkaSchedulesAction } from "@/app/(admin)/admin/(academic)/tutorial-pka/actions";
@@ -13,6 +12,7 @@ import { getDiktatPdfContext } from "@/lib/bundle/product-diktat-evidence";
 import { getProductBundleImport } from "@/lib/bundle/product-staging";
 import { getIdeaBundleImport } from "@/lib/bundle/staging";
 import { formatJakartaDatetimeLocal, getJakartaCalendarDate, toIsoTimestamp } from "@/lib/date-utils";
+import { listAdminNotificationHistory } from "@/lib/notifications/admin-history";
 import { pkaScheduleRevision } from "@/lib/pka/schedule-update";
 import type { ReviewKind } from "@/packages/native-parity/academic/administration/fixtures";
 import type { DiktatEvidenceStatus, LiveField, LivePage, LiveRow } from "@/packages/native-parity/academic/administration/live";
@@ -195,7 +195,7 @@ export const administrationReadServices: AdministrationReadServices = {
       case "schedules":
         return schedules(query);
       case "notifications": {
-        const { rows, total } = await getNotificationHistoryAction(query.page, listPageSize);
+        const { rows, total } = await listAdminNotificationHistory(query.page, listPageSize);
         return rowsPage(rows.map((entry) => ({
           id: entry.id, title: entry.title, subtitle: entry.userName ?? undefined, detail: jakDateTime(entry.createdAt),
           fields: [field("Isi", entry.body), field("Percobaan", entry.attempted), field("Berhasil", entry.succeeded), field("Gagal", entry.failedCount)],

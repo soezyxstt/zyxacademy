@@ -42,6 +42,8 @@ beforeAll(async () => {
       });
     }
   }
+  // The native Admin role comes from active memberships even when the legacy role differs.
+  await database.update(schema.user).set({ role: "student" }).where(eq(schema.user.id, actor.user.id));
   await database.insert(schema.session).values({
     id: learner.session.id, userId: learner.user.id, token: "student-fixture", expiresAt: new Date("2099-01-01"),
   });
