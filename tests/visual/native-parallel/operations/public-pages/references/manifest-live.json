@@ -143,6 +143,21 @@
       "scrollWidth": 380,
       "layout": "fits",
       "runtimeIssues": []
+    },
+    {
+      "file": "form-local-submit-380-dpr1.png",
+      "path": "/forms-playground",
+      "locale": "en",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 380,
+      "layout": "fits",
+      "runtimeIssues": [
+        "Web FileUploadField updates FormsPlaygroundPage during render."
+      ]
     }
   ]
 }
