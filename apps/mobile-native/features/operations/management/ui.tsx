@@ -1,11 +1,13 @@
 import { usePageTitle } from "../../../routing/visible-navbar-title";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View, type TextInputProps } from "react-native";
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, View, type TextInputProps } from "react-native";
 
 import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import { ManagementFailure, type ManagementAction, type ManagementClient, type ManagementReads, type ManagementReceipt } from "../../../../../packages/native-parity/operations/management-contract";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
+import { NativeListRow } from "../../shared-ui/layout";
+import { NavigationTabs } from "../../shared-ui/navigation";
 import { nativeTypography } from "../../../typography";
 import type { PickBlogThumbnail } from "./blog-upload";
 
@@ -184,13 +186,13 @@ export function Choices<T extends string>({ current, values, onChange }: { curre
   return <View style={styles.row}>{values.map(([value, label]) => <Action key={value} selected={current === value} variant={current === value ? "default" : "outline"} onPress={() => onChange(value)}>{label}</Action>)}</View>;
 }
 
-export function Sections<T extends string>({ current, values, onChange }: { current: T; values: readonly (readonly [T, string])[]; onChange: (value: T) => void }) {
-  const { colors } = useManagement();
-  return <ScrollView horizontal showsHorizontalScrollIndicator={false} accessibilityRole="tablist" style={{ borderBottomColor: colors.border, borderBottomWidth: 1 }} contentContainerStyle={styles.tabs}>
-    {values.map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: current === value }} onPress={() => onChange(value)} style={[styles.tab, { borderBottomColor: current === value ? colors.primary : "transparent" }]}>
-      <Text style={[styles.strong, { color: current === value ? colors.primary : colors.mutedForeground }]}>{label}</Text>
-    </Pressable>)}
-  </ScrollView>;
+export function Sections<T extends string>({ current, values, onChange, variant = "page" }: {
+  current: T; values: readonly (readonly [T, string])[]; onChange: (value: T) => void; variant?: "page" | "inline";
+}) {
+  const { theme, locale } = useManagement();
+  return <NavigationTabs tabs={values.map(([id, label]) => ({ id, label }))} activeId={current} onTabPress={onChange}
+    accessibilityLabel={locale === "id" ? "Bagian halaman" : "Page sections"} moreLabel={locale === "id" ? "Lebih" : "More"}
+    closeLabel={locale === "id" ? "Tutup" : "Close"} variant={variant} theme={theme} activateCurrent />;
 }
 
 export function Section({ title, children }: { title?: string; children: ReactNode }) {
@@ -199,11 +201,11 @@ export function Section({ title, children }: { title?: string; children: ReactNo
 }
 
 export function Item({ title, meta, actions, onPress }: { title: string; meta?: string; actions?: ReactNode; onPress?: () => void }) {
-  const { colors } = useManagement();
-  const summary = <View style={styles.field}><Copy strong>{title}</Copy>{meta && <Copy muted>{meta}</Copy>}</View>;
+  const { colors, theme } = useManagement();
   return <View style={[styles.item, { borderBottomColor: colors.border }]}>
-    {onPress ? <Pressable accessibilityRole="link" accessibilityLabel={title} onPress={onPress} style={styles.itemTitle}>{summary}</Pressable> : summary}
-    {actions && <View style={styles.row}>{actions}</View>}
+    <NativeListRow layout="compact" density="dense" title={title} subtitle={meta} theme={theme}
+      primary={onPress ? { onPress, role: "link", label: title } : undefined} />
+    {actions && <View style={styles.itemActions}>{actions}</View>}
   </View>;
 }
 
@@ -254,10 +256,8 @@ export const styles = StyleSheet.create({
   section: { borderTopWidth: 1, paddingTop: 12, gap: 12 },
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
   field: { gap: 5 },
-  tabs: { gap: 8 },
-  tab: { borderBottomWidth: 2, paddingHorizontal: 8, minHeight: 44, justifyContent: "center" },
-  item: { gap: 8, paddingVertical: 10, borderBottomWidth: 1 },
-  itemTitle: { minHeight: 44, justifyContent: "center" },
+  item: { borderBottomWidth: StyleSheet.hairlineWidth },
+  itemActions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8, paddingBottom: 8 },
   loader: { alignSelf: "flex-start", padding: 12 },
   backdrop: { flex: 1, padding: 20, justifyContent: "center", alignItems: "center", backgroundColor: "#00000070" },
   modal: { width: "100%", maxWidth: 420, borderWidth: 1, borderRadius: nativeRadii.lg, padding: 20, gap: 14 },

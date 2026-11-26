@@ -154,7 +154,7 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
     <Field label="Judul artikel (opsional)" value={value.title} placeholder="Judul dapat diambil dari heading pertama" onChangeText={next => edit("title", next)} />
     <Field label="Ringkasan / Summary (opsional)" value={value.summary} multiline onChangeText={next => edit("summary", next)} />
     <Heading>Konten (Markdown)</Heading>
-    <Sections current={mode} values={[["write", "Tulis"], ["preview", "Pratinjau"]]} onChange={setMode} />
+    <Sections variant="inline" current={mode} values={[["write", "Tulis"], ["preview", "Pratinjau"]]} onChange={setMode} />
     {mode === "write" ? <>
       <Field label="Konten (Markdown)" value={value.content} multiline style={{ minHeight: 180 }} onChangeText={next => edit("content", next)} />
       <View style={styles.row}><Action onPress={() => setMedia(!media)}>{media ? "Tutup media" : "Sisipkan media"}</Action></View>
