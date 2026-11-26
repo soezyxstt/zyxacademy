@@ -143,6 +143,8 @@ test("flashcard reference matches the device inputs", async ({ browser }, info) 
       await expect(question).toBeVisible();
       await expect(back).toHaveJSProperty("inert", true);
       await expect(dock).toHaveCount(0);
+      // The route sets its mobile title in requestAnimationFrame. Let the paused clock finish that paint.
+      await page.clock.runFor(32);
       await save("question");
       await question.click();
       await expect(front).toHaveJSProperty("inert", true);

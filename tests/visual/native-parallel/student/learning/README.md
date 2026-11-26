@@ -19,6 +19,8 @@ bun run test:visual tests/visual/learning-query.spec.ts --project mobile-380 \
 
 CI memeriksa manifest input dan hash PNG web, hasil flow Maestro, serta ukuran gambar sebelum menghitung selisih seluruh tangkapan tanpa penskalaan. Perbandingan dengan referensi web yang sekarang menyertakan navigasi menunggu tangkapan perangkat dari revisi yang sama. [Pembanding](../compare.py)
 
+Dua pengambilan ulang lokal setelah paint awal menghasilkan lima pasang PNG web yang identik. Pada keadaan menunggu di ukuran Android, 631 piksel berbeda dengan selisih maksimum satu tingkat RGB. Manifest memuat hash tangkapan yang disimpan.
+
 ## Selisih Android pada run 45818468369
 
 Run ini membandingkan 311.600 piksel per keadaan dari source head `379dbde47ad55e7689b5bf6e65f4812e5549063d` dan checkout `8f073512c063882ac5a24621824ad7cee84c2832`. Komposisi web saat itu sudah memakai `StudentFlashcardsView`, dengan judul halaman yang hanya tersedia untuk pembaca layar. Chrome navigasi web belum dimuat pada fixture tersebut. Android memakai tombol `Kembali`, judul `Flashcard: Kalkulus Dasar`, dan bilah sistem asli. Saat kartu dibalik, dok penilaian Android juga berhenti di atas safe area bawah. [Tangkapan web dan Android, SHA-256 per file](../../../../../packages/native-parity/student/evidence/device-runs/45818468369/android/provenance.json)
