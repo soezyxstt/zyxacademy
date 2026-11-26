@@ -32,3 +32,5 @@ Code inventory for the 15 `integration` entries in `routes.tsv`. Dispositions be
 ### Browser handoff implemented on the integration branch
 
 The Expo routes for `/mcp/authorize`, `/mcp/connections` and `/meet/[slug]` now open the corresponding staging Next route on explicit activation. The server handles consent and meeting resolution in the browser session. The URL builder preserves supported OAuth parameters, rejects ambiguous repeated values and encodes the exact meeting slug as one path segment. Focused tests cover URI construction. Browser return, server responses and Back still need Android and iOS evidence.
+
+The Expo native-intent entry captures the raw consent request before Expo Router parses its query. The router receives an in-memory locator with a five-minute expiry. This preserves nested redirect URIs and opaque OAuth state across navigation inside the running app.

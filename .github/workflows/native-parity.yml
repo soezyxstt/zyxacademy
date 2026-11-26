@@ -96,6 +96,16 @@ jobs:
         with:
           bun-version: '1.3.14'
       - run: bun install --frozen-lockfile
+      - name: Inventory web component symbols for the migration review
+        run: |
+          bun test scripts/native-readiness/symbols.test.ts
+          bun scripts/native-readiness/symbols.ts --all > "$RUNNER_TEMP/component-symbols.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: component-symbols
+          path: ${{ runner.temp }}/component-symbols.json
+          if-no-files-found: error
+          retention-days: 7
       - run: bun test tests/unit/progress-parity.test.ts tests/unit/avatar-parity.test.ts
       - run: bun scripts/native-parity/generate-tokens.ts --check
       - run: bunx playwright install --with-deps chromium

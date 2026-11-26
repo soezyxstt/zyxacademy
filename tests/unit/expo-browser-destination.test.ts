@@ -25,3 +25,25 @@ test("meeting routes preserve case and encode a single path segment", () => {
     expect(browserDestination("meet", { slug })).toBeNull();
   }
 });
+
+test("raw native consent intent bypasses router decoding and expires on the device", async () => {
+  const { createConsentIntake } = await import("../../apps/mobile-native/routing/consent-intent");
+  let now = 0;
+  const intake = createConsentIntake(() => now);
+  const state = "opaque%2F+ &state";
+  const redirect = "https://client.example/callback?label=x+y&value=%26";
+  const query = new URLSearchParams({ client_id: "client", redirect_uri: redirect, state });
+  for (const prefix of ["zyx-native-parity://mcp/authorize", "zyx-native-parity:///mcp/authorize",
+    "/mcp/authorize", NATIVE_STAGING_ORIGIN + "/mcp/authorize"]) {
+    const routed = intake.capture(prefix + "?" + query, () => "ref");
+    expect(routed).toBe("/mcp/authorize?handoff=ref");
+    const url = new URL(intake.resolve("ref")!);
+    expect(url.searchParams.get("state")).toBe(state);
+    expect(url.searchParams.get("redirect_uri")).toBe(redirect);
+  }
+  expect(intake.capture("/mcp/authorize?" + query + "&state=second", () => "invalid")).toBe("/mcp/authorize");
+  expect(intake.capture("/mcp/authorize?handoff=ref", () => "unused")).toBe("/mcp/authorize");
+  expect(intake.capture("zyx-native-parity://auth/native-finish#state=fixture", () => "unused")).toBeNull();
+  now = 300_000;
+  expect(intake.resolve("ref")).toBeNull();
+});
