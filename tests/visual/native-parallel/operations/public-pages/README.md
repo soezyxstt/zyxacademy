@@ -25,4 +25,16 @@ The course data in the existing web demo fixture differ from the Expo demo fixtu
 
 The [live manifest](references/manifest-live.json) indexes verified browser interactions and source layouts. The [SSR manifest](references/manifest-ssr.json) indexes initial states rendered from actual Next route HTML and local application assets with application JavaScript disabled. To repeat the SSR checkpoint, keep the fixture server running and run `PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium node --import tsx tests/visual/native-parallel/operations/public-pages/capture-ssr.ts`.
 
-All checkpoint PNGs use the 380 × 844 viewport at DPR 1. Chromium measured 388 px for the landing document. The quiz section's decorative dots extend 8 px past the viewport, and the images preserve the declared crop. The browser form captured the initial fields, required-field validation, and successful local submission. The success toast appeared and the full-name field reset. The attachment row stayed visible after submission, and React reported that FileUploadField updates FormsPlaygroundPage during render. The submission image includes the local Next dev issue badge. The SSR plans image shows the initial loading state. Pricing interaction, the complete demo routes and 1536 px viewport remain outside this checkpoint.
+The initial 18 checkpoint PNGs use the 380 × 844 viewport at DPR 1. Chromium measured 388 px for the landing document. The quiz section's decorative dots extend 8 px past the viewport, and the images preserve the declared crop. The browser form captured the initial fields, required-field validation, and successful local submission. The success toast appeared and the full-name field reset. The attachment row stayed visible after submission, and React reported that FileUploadField updates FormsPlaygroundPage during render. The submission image includes the local Next dev issue badge. The SSR plans image shows the initial loading state. Complete demo routes and desktop captures for the other public pages remain outside this checkpoint.
+
+
+## Loaded Plans prices
+
+The real Next.js Plans route captured loaded prices at 1536 × 864 px, DPR 1. The browser-only fixture mounts the same `PlansClient` source with local translation and routing boundaries. It captures loaded prices at 380 × 844 px and 1536 × 864 px, DPR 1, then asserts that increasing the group size updates the displayed price. Its local response to `GET /api/pricing` uses the canonical default discount settings and a browser date of 20 September 2026. Minimal initially displays Rp 390.000 per person and Rp 1.170.000 per semester for three people and three courses. See the [price manifest](references/manifest-plans-prices.json).
+
+```sh
+PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium \
+  node --import tsx tests/visual/native-parallel/operations/public-pages/capture-plans.ts
+```
+
+The direct Next.js mobile run reached the page before the cold pricing endpoint completed. The warmed retry lost its local server before navigation. The 380 px price-loaded image comes from the browser-only fixture. The original demo routes and isolated empty component yielded no accepted browser image in this run.

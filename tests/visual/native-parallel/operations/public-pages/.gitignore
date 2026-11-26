@@ -1,3 +1,4 @@
 .next/
 next-env.d.ts
 references/manifest-partial.json
+app/fixture-globals.generated.css

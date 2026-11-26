@@ -158,6 +158,19 @@
       "runtimeIssues": [
         "Web FileUploadField updates FormsPlaygroundPage during render."
       ]
+    },
+    {
+      "file": "plans-default-1536-dpr1.png",
+      "path": "/plans",
+      "locale": "id",
+      "theme": "light",
+      "width": 1536,
+      "height": 864,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 1536,
+      "layout": "fits",
+      "runtimeIssues": []
     }
   ]
 }

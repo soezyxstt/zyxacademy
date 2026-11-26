@@ -1,4 +1,9 @@
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+
+const globalStyles = readFileSync(new URL("../../../../../app/globals.css", import.meta.url), "utf8");
+writeFileSync(new URL("./app/fixture-globals.generated.css", import.meta.url),
+  globalStyles.replace('@import "tailwindcss";', '@import "tailwindcss" source(none);'));
 
 const mock = (name) => fileURLToPath(new URL(`./mocks/${name}.ts`, import.meta.url));
 const demo = (name) => fileURLToPath(new URL(`../../../demo-harness/${name}.ts`, import.meta.url));
@@ -15,6 +20,7 @@ const replacements = {
 
 export default {
   devIndicators: false,
+  onDemandEntries: { maxInactiveAge: 120_000, pagesBufferLength: 30 },
   agentRules: false,
   images: { unoptimized: true },
   turbopack: { root: fileURLToPath(new URL("../../../../..", import.meta.url)) },
@@ -26,7 +32,7 @@ export default {
     ];
   },
   webpack(config, { webpack }) {
-    config.plugins.push(new webpack.NormalModuleReplacementPlugin(/.*/, (resource) => {
+    config.plugins.push(new webpack.NormalModuleReplacementPlugin(/^(?:@\/(?:lib\/(?:i18n|env|native|email-preferences|demo)|app\/)|\.{1,2}\/)/, (resource) => {
       const replacement = replacements[resource.request];
       if (replacement) resource.request = replacement;
       if (resource.context.includes("/app/(marketing)/demo") && /^(\.\/|\.\.\/)demo-data$/.test(resource.request)) {

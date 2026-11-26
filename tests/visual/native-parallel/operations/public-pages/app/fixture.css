@@ -1,7 +1,10 @@
-@import "../../../../../../app/globals.css";
+@import "./fixture-globals.generated.css";
 
 @source "../../../../../../app/(marketing)";
 @source "../../../../../../components";
+@source "../../../../../../features/student-assessment";
+@source "../../../../../../app/(student)";
+@source "../../../../../../app/not-found.tsx";
 @source "./";
 
 @font-face {

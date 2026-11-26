@@ -112,7 +112,9 @@ async function assertAndInteract(page: Page, fixture: Fixture, name: string) {
     }
     case "plans-default": {
       await show(heading(m.plans.title));
-      await expect(page.locator('[data-plan-price="minimal"]')).toBeVisible();
+      const price = page.locator('[data-plan-price="minimal"]');
+      await expect(price).toContainText(/Rp\s+[\d.]+/, { timeout: 20_000 });
+      await price.scrollIntoViewIfNeeded();
       return;
     }
     case "plans-course-limits": {
