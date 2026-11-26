@@ -4,11 +4,13 @@ import { loadNativeAccountContext } from "../../../apps/mobile-native/network/ac
 import { createNativeTransport } from "../../../apps/mobile-native/network/transport";
 import { NATIVE_AUTH_HANDOFF_COOKIE } from "@/lib/native/auth-handoff";
 import { EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
-import { fixtureOrigin } from "./scope";
+import { fixtureOrigin, fixtureSessionSeconds } from "./scope";
 import { startAuthFixture } from "./server";
 
+class FixtureCheckError extends Error {}
+
 function check(condition: unknown, label: string): asserts condition {
-  if (!condition) throw new Error(label);
+  if (!condition) throw new FixtureCheckError(label);
 }
 
 function cookie(response: Response, name: string) {
@@ -91,11 +93,12 @@ try {
   check(verified.status === 200 && expected && user?.id === expected.accountId && sessionCookie, "Expected native signed cookie missing");
   check((await exchange(verifier)).status === 400, "Native grant could be replayed");
 
-  stage = "verify the session and live Student context through the native clients";
+  stage = "verify the session through the native client";
   const api = createNativeSessionApi(EXPO_STAGING_ORIGIN, scopedFetch);
   const session = await api.read(sessionCookie, undefined, true);
   check(session?.accountId === expected.accountId && session.sessionId === expected.sessionId, "Native session identity mismatch");
-  check(session.expiresAt > Date.now() && session.expiresAt <= Date.now() + 300_000, "Native session outlives its fixture lease");
+  check(session.expiresAt > Date.now() && session.expiresAt <= Date.now() + fixtureSessionSeconds * 1000, "Native session outlives its fixture lease");
+  stage = "verify live Student context through the native client";
   const transport = createNativeTransport({ origin: EXPO_STAGING_ORIGIN, fetcher: scopedFetch });
   const binding = transport.setSession({ origin: EXPO_STAGING_ORIGIN, ...expected, readCookie: () => sessionCookie });
   const context = await loadNativeAccountContext(binding);
@@ -105,9 +108,10 @@ try {
   await api.revoke(sessionCookie);
   check((await local("/api/native/context", { headers: { Cookie: sessionCookie } })).status === 401, "Revoked context stayed active");
   console.log("Verified loopback Native start, complete, exchange, session, Student context and logout");
-} catch {
+} catch (error) {
   // Response bodies, cookies, verifier and grant never appear in job logs.
-  console.error("Native authenticated fixture failed to " + stage);
+  console.error("Native authenticated fixture failed to " + stage +
+    (error instanceof FixtureCheckError ? ": " + error.message : ""));
   process.exitCode = 1;
 } finally {
   await fixture?.stop();

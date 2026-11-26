@@ -5,7 +5,7 @@ import { NextRequest } from "next/server";
 import { getSafeRedirectPath } from "@/lib/auth-redirect";
 import { NATIVE_AUTH_HANDOFF_COOKIE, normalizeNativeAuthState } from "@/lib/native/auth-handoff";
 import { EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
-import { assertFixtureRunner, fixtureHost, fixtureOrigin, fixturePort } from "./scope";
+import { assertFixtureRunner, fixtureHost, fixtureOrigin, fixturePort, fixtureSessionSeconds } from "./scope";
 import { prepareFixtureDatabase, seedBrowserSession } from "./seed";
 
 const noStore = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
@@ -61,7 +61,17 @@ export async function startAuthFixture(certPath: string, keyPath: string) {
   process.env.NEXT_PUBLIC_APP_URL = EXPO_STAGING_ORIGIN;
 
   // Route handlers still call the actual Better Auth, role and DB implementations.
-  // Only Next's framework request storage runs through this test listener.
+  // The CI process uses a short nonrenewable session policy on the real Better Auth instance.
+  const authModule = await import("better-auth");
+  const createAuth = authModule.betterAuth;
+  mock.module("better-auth", () => ({
+    ...authModule,
+    betterAuth: (options: Parameters<typeof createAuth>[0]) => createAuth({
+      ...options,
+      session: { ...options.session, expiresIn: fixtureSessionSeconds, disableSessionRefresh: true },
+      telemetry: { enabled: false },
+    }),
+  }));
   mock.module("server-only", () => ({}));
   mock.module("next/headers", () => ({
     headers: async () => currentRequest().headers,

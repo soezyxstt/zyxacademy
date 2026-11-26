@@ -1,10 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { makeSignature } from "better-auth/crypto";
-import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Client } from "pg";
-import { assertFixtureRunner, fixtureDatabase } from "./scope";
+import { assertFixtureRunner, fixtureDatabase, fixtureSessionSeconds } from "./scope";
 
 export async function prepareFixtureDatabase() {
   assertFixtureRunner();
@@ -22,9 +21,7 @@ export async function prepareFixtureDatabase() {
 
 export async function seedBrowserSession() {
   assertFixtureRunner();
-  const [{ auth }, { db }, { session: sessions }] = await Promise.all([
-    import("@/lib/auth"), import("@/db"), import("@/db/schema"),
-  ]);
+  const { auth } = await import("@/lib/auth");
   const context = await auth.$context;
   const user = await context.internalAdapter.createUser({
     name: "Expo Preview Student",
@@ -32,9 +29,8 @@ export async function seedBrowserSession() {
     emailVerified: true,
   });
   const session = await context.internalAdapter.createSession(user.id);
-  const expiresIn = 300;
-  await db.update(sessions).set({ expiresAt: new Date(Date.now() + expiresIn * 1000) }).where(eq(sessions.id, session.id));
+  if (session.expiresAt.getTime() > Date.now() + fixtureSessionSeconds * 1000) throw new Error("Fixture session exceeds its lease");
   const signature = await makeSignature(session.token, context.secret);
   const cookie = context.authCookies.sessionToken.name + "=" + encodeURIComponent(session.token + "." + signature);
-  return { accountId: user.id, sessionId: session.id, cookie: `${cookie}; Path=/; Max-Age=${expiresIn}; Secure; HttpOnly; SameSite=Lax` };
+  return { accountId: user.id, sessionId: session.id, cookie: `${cookie}; Path=/; Max-Age=${fixtureSessionSeconds}; Secure; HttpOnly; SameSite=Lax` };
 }
