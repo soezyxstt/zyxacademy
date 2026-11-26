@@ -10,10 +10,12 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const canonicalFields = { id: soal.id, origin: soal.origin, version: soal.version, status: soal.status, courseId: soal.mataKuliahId, updatedAt: soal.updatedAt };
 const compatibilityFields = {
   id: aiQuestionBank.id, origin: aiQuestionBank.origin, reviewStatus: aiQuestionBank.reviewStatus,
-  courseId: aiQuestionBank.courseId, updatedAt: aiQuestionBank.updatedAt,
+  courseId: aiQuestionBank.courseId,
+  // Legacy questions have no update timestamp. Bind confirmation to the stored row.
+  rowVersion: sql<string>`md5(to_jsonb(${aiQuestionBank})::text)`,
 };
 type Canonical = Pick<typeof soal.$inferSelect, "id" | "origin" | "version" | "status" | "updatedAt"> & { courseId: string };
-type Compatibility = Pick<typeof aiQuestionBank.$inferSelect, keyof typeof compatibilityFields>;
+type Compatibility = Pick<typeof aiQuestionBank.$inferSelect, "id" | "origin" | "reviewStatus" | "courseId"> & { rowVersion: string };
 
 function originalQuestion(canonical?: Canonical, compatibility?: Compatibility) {
   return (!canonical || canonical.origin === "zyx_original") && (!compatibility || compatibility.origin === "zyx_original");

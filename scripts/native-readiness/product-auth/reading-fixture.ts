@@ -139,8 +139,15 @@ export async function createReadingPreview(runHandler: (request: Request, handle
         content: `${prompt}\n<!--__ZYX_V4_BLOCK_PAYLOAD__:${check}-->`,
         version: 3, generationHash: details.generationHash, status: "published",
       });
-      await tx.insert(schema.courseMaterials).values({
-        id: pdfId, courseId, title: "PDF verifikasi kelas", type: "materi", fileUrl: pdfUrl, chapterIds: [chapter],
+      // Non-Diktat manual PDFs remain available to signed-in free participants on the web.
+      // Use a ready Diktat PDF from the restricted chapter to exercise grant withdrawal.
+      const sourceMtdId = pdfId + "-source";
+      await tx.insert(schema.masterTeachingDocuments).values({
+        id: sourceMtdId, courseId, title: "Sumber PDF verifikasi", markdownContent: "Luas", createdById: accountId,
+      });
+      await tx.insert(schema.diktats).values({
+        id: pdfId, courseId, title: "PDF verifikasi kelas", fileUrl: pdfUrl, chapterIds: [chapter],
+        sourceMtdId, sourceMtdVersion: 1, generationHash: "preview-pdf", status: "ready",
       });
       await tx.insert(schema.diktatMateri).values({
         ...details, id: pkaDiktatId, mataKuliahId: pkaCanonical, babId: pkaChapter, title: "Diktat verifikasi PKA",
@@ -225,7 +232,7 @@ export async function createReadingPreview(runHandler: (request: Request, handle
       const manual = new Request(EXPO_STAGING_ORIGIN + "/api/native/student/material-pdf?" + new URLSearchParams({ courseId, materialId: pdfId }), { headers });
       const manualStatus = (await runHandler(manual, pdf.GET)).status;
       withdrawalStage = `PDF HTTP ${manualStatus}`;
-      if (manualStatus !== 403) throw new Error("Manual PDF authorization survived withdrawal");
+      if (manualStatus !== 403) throw new Error("Diktat PDF authorization survived withdrawal");
       const pkaStatus = (await runHandler(request(pkaCourseId, pkaDiktatId), reading.GET)).status;
       withdrawalStage = `PKA HTTP ${pkaStatus}`;
       deniedPka = pkaStatus === 403;
