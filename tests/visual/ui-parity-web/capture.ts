@@ -7,6 +7,7 @@ import { getParityFrameHeight, parityFrame } from "../../../packages/ui-parity/f
 import { getProgressPosition } from "../../../packages/ui-parity/progress-cases";
 import { getSeparatorPosition } from "../../../packages/ui-parity/separator-cases";
 import { galleryCases, type GalleryCase } from "../../../packages/ui-parity/gallery";
+import { sliderPosition } from "../../../packages/ui-parity/slider-cases";
 import { notificationInboxCases, notificationInboxCopy } from "../../../packages/ui-parity/notification-inbox-cases";
 import { formatNotificationTime } from "../../../lib/date-utils/notification-display";
 
@@ -36,6 +37,8 @@ function specimenCapture(item: GalleryCase) {
       return { selector: "[data-parity-formatted-date] > span", size: null };
     case "notification-inbox":
       return { selector: item.rows.length ? "ul" : "p", size: null };
+    case "slider":
+      return { selector: "[data-parity-slider]", size: sliderPosition };
     case "control":
     case "radio":
     case "choice":
@@ -120,6 +123,13 @@ try {
         "width",
         `${getProgressPosition().width * item.value / item.max}px`,
       );
+    }
+    if (item.family === "slider") {
+      const thumb = frame.getByRole("slider", { name: item.label });
+      await expect(thumb).toHaveAttribute("aria-valuemin", String(item.min));
+      await expect(thumb).toHaveAttribute("aria-valuemax", String(item.max));
+      await expect(thumb).toHaveAttribute("aria-valuenow", String(item.value));
+      if (item.disabled) await expect(thumb).toBeDisabled();
     }
     if (item.family === "avatar") {
       await expect(frame.getByRole("img", { name: item.label })).toBeVisible();
@@ -235,6 +245,26 @@ try {
   }
   await expect(standard).not.toBeChecked();
   await expect(control("radio-group-disabled-dark").getByRole("radio").first()).toBeDisabled();
+  const rtlSlider = page.locator('[data-parity-case="slider-start-rtl-light"]');
+  const thumb = rtlSlider.getByRole("slider", { name: "Posisi bacaan" });
+  const commit = rtlSlider.locator("[data-parity-slider-commit]");
+  await thumb.press("ArrowLeft");
+  await expect(thumb).toHaveAttribute("aria-valuenow", "1");
+  await expect(commit).toHaveText("Nilai 1");
+  await rtlSlider.scrollIntoViewIfNeeded();
+  const track = await rtlSlider.locator("[data-parity-slider]").boundingBox();
+  if (!track) throw new Error("Slider track is unavailable");
+  const y = track.y + track.height / 2;
+  await page.mouse.move(track.x + track.width * 0.8, y);
+  await page.mouse.down();
+  try {
+    await page.mouse.move(track.x + track.width * 0.2, y, { steps: 4 });
+    await expect(thumb).toHaveAttribute("aria-valuenow", "8");
+    await expect(commit).toHaveText("Nilai 1");
+  } finally {
+    await page.mouse.up();
+  }
+  await expect(commit).toHaveText("Nilai 8");
   await page.setViewportSize(directoryFrame);
   const directoryManifest = { ...directoryFrame, route: "/tautan", cases: Object.keys(directoryCases),
     commit: process.env.PARITY_HEAD_SHA, buildCommit: process.env.GITHUB_SHA };

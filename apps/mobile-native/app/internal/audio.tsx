@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { useNativeSession } from "../../auth/session-provider";
 import { Button } from "../../components/Button";
-import { Progress } from "../../components/Progress";
+import { Slider } from "../../components/Slider";
 import { createExpoAudioPlayback, localAudioAvailable } from "../../device/audio";
 import { audioCheckSources } from "../../device/audio-source";
 import { nativeTypography } from "../../typography";
@@ -81,7 +81,9 @@ export default function InternalAudioRoute() {
                 </Button>
               ))}
             </View>
-            <Progress value={playback.position} max={playback.duration} accessibilityLabel="Posisi audio" />
+            <Slider key={playback.source} value={playback.position} max={playback.duration} step={0.1}
+              disabled={seekDisabled} accessibilityLabel="Posisi audio" accessibilityValueText={formatTime}
+              onValueCommit={position => void audio.seekTo(position)} />
             <Text style={[styles.metadata, { color: colors.mutedForeground }]}>
               {formatTime(playback.position)} / {formatTime(playback.duration)}
             </Text>
