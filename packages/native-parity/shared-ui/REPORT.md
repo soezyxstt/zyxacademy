@@ -37,7 +37,7 @@ Manifest menyimpan ID kasus, komponen, tema, dan viewport. Laporan capture menau
 | NativePageHeader | Aksi aktif, aksi terkunci/sibuk, judul aksesibel | PageHeader dengan Button web. Judul aksesibel diuji terpisah dari judul navbar. |
 | NativeResponsiveList | Berisi, kosong/reset, gagal/retry; tambahan mode lebar | UsersDashboard, ParticipantsClient dan panel status Admin. NativeListRow, NativeStatusPanel, SharedUiActionButton teruji di dalam komposisi ini. Native menerima representasi baris dari halaman. |
 | MobileNavbar | Student dengan Home, Tutor dengan pengganti kelas, Admin dengan Back | MobileTopNavbar serta grup aksi sesuai peran. Query, autentikasi dan navigasi diikat oleh host. |
-| RoleBottomNavigation | Tujuan Student dengan badge, kelas Tutor aktif, editor Admin menyembunyikan nav | MobileBottomNav dengan model label per peran. Keluar editor memperlihatkan nav Admin. |
+| RoleBottomNavigation | Tujuan Student dengan badge, kelas Tutor aktif, tujuan Admin dengan materi aktif | MobileBottomNav dengan model label per peran. Alur interaksi Admin menyembunyikan nav saat membuka editor dan membukanya kembali saat keluar. |
 | NavigationTabs | Tab pertama, pilihan akademik, daftar melebihi lebar | StudentLeaderboardControls dan Tabs. Native menyediakan menu overflow terukur dan callback pilihan terkontrol. |
 | SharedDialog | Pemicu tertutup, validasi alasan, alasan panjang | Dialog web dengan isi fixture jadwal. Buka, submit kosong, Escape dan fokus ke pemicu diuji di Chromium. |
 | SharedSheet | Pemicu tertutup, outline pendek, outline panjang/Back | Sheet web dan isi fixture outline. Gestur, Back dan keyboard fisik pada modal memerlukan perangkat. |

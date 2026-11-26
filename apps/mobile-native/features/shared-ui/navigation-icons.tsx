@@ -1,4 +1,4 @@
-import Svg, { Path } from "react-native-svg";
+import Svg, { Path, Rect } from "react-native-svg";
 
 const paths = {
   back: "m12 19-7-7 7-7M5 12h14",
@@ -10,8 +10,7 @@ const paths = {
   account: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m12-14a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
   classes: "m2 10 10-5 10 5-10 5-10-5Zm4 2v5c3 3 9 3 12 0v-5m4-2v6",
   people: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m20 0v-2a4 4 0 0 0-3-4m-3-12a4 4 0 0 1 0 8m-3-4a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
-  ops: "M20 19a9 9 0 1 0-16 0m8-5 4-4M11 14a1 1 0 1 0 2 0 1 1 0 1 0-2 0",
-  more: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
+  ops: "m12 14 4-4M3.34 19a10 10 0 1 1 17.32 0",
   search: "M20 20l-4-4m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0",
   notifications: "M18 8a6 6 0 0 0-12 0c0 6-3 7-3 9h18c0-2-3-3-3-9m-8 12a2 2 0 0 0 4 0",
   "ops-ai": "m7 8 3 3-3 3m6 0h4M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z",
@@ -22,12 +21,23 @@ const paths = {
   check: "m5 12 4 4L19 6",
 } as const;
 
-export type NavigationIconName = keyof typeof paths;
+// LayoutDashboard and LayoutGrid, used in the Admin web navigation.
+const rectangles = {
+  dashboard: [[3, 3, 7, 9], [14, 3, 7, 5], [14, 12, 7, 9], [3, 16, 7, 5]],
+  more: [[3, 3, 7, 7], [14, 3, 7, 7], [14, 14, 7, 7], [3, 14, 7, 7]],
+} as const;
+
+export type NavigationIconName = keyof typeof paths | keyof typeof rectangles;
 
 export function NavigationIcon({ name, color, size }: { name: NavigationIconName; color: string; size: number }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" accessible={false}>
-      <Path d={paths[name]} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Svg width={size} height={size} viewBox="0 0 24 24" accessible={false}
+      fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      {name === "dashboard" || name === "more"
+        ? rectangles[name].map(([x, y, width, height]) => (
+          <Rect key={`${x}-${y}`} x={x} y={y} width={width} height={height} rx={1} />
+        ))
+        : <Path d={paths[name]} />}
     </Svg>
   );
 }

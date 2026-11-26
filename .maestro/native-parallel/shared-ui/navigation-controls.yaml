@@ -58,12 +58,18 @@ name: Role navigation and tab overflow
 - openLink: zyx-native-parity://internal/shared-ui/bottom-navigation-admin-dark
 - runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
+    id: bottom-navigation-admin-dark
+- tapOn:
+    id: bottom-navigation-admin-dark-editor
+- assertVisible:
     id: bottom-navigation-admin-dark-state
     text: Editor materi
 - assertNotVisible:
     id: bottom-navigation-admin-dark
 - tapOn:
     id: bottom-navigation-admin-dark-back
+- assertVisible:
+    id: bottom-navigation-admin-dark
 - tapOn:
     id: bottom-navigation-admin-dark-more
 - tapOn: Web Analytics

@@ -7,10 +7,12 @@ import {
   CalendarDays,
   CalendarRange,
   ChevronsUpDown,
+  Gauge,
   GraduationCap,
   Home,
+  LayoutDashboard,
+  LayoutGrid,
   MessageSquareText,
-  MoreHorizontal,
   Search,
   SquareTerminal,
   UserRound,
@@ -63,7 +65,7 @@ function Bottom({ role }: { role: "student" | "tutor" | "admin" }) {
   const [active, setActive] = useState(
     role === "tutor" ? "classes" : role === "admin" ? "courses" : "home",
   );
-  const [editor, setEditor] = useState(role === "admin");
+  const [editor, setEditor] = useState(false);
   const items: MobileBottomNavItem[] =
     role === "student"
       ? [
@@ -103,22 +105,22 @@ function Bottom({ role }: { role: "student" | "tutor" | "admin" }) {
             },
           ]
         : [
-            { id: "home", label: f.adminNavLabels.home, icon: Home },
-            { id: "courses", label: f.adminNavLabels.courses, icon: BookOpen },
+            { id: "home", label: f.adminNavLabels.home, icon: LayoutDashboard },
+            { id: "courses", label: f.adminNavLabels.courses, icon: GraduationCap },
             { id: "people", label: f.adminNavLabels.people, icon: Users },
-            { id: "ops", label: f.adminNavLabels.ops, icon: SquareTerminal },
-            { id: "more", label: f.adminNavLabels.more, icon: MoreHorizontal },
+            { id: "ops", label: f.adminNavLabels.ops, icon: Gauge },
+            { id: "more", label: f.adminNavLabels.more, icon: LayoutGrid },
           ];
   const label = editor
-    ? "Editor materi"
+    ? f.adminEditor.title
     : items.find((item) => item.id === active)?.label;
   return (
     <>
       <div className="px-4 pt-4">
         <p role="status">{label}</p>
-        {editor && (
-          <Button variant="outline" onClick={() => setEditor(false)}>
-            Kembali
+        {role === "admin" && (
+          <Button variant="outline" onClick={() => setEditor(!editor)}>
+            {editor ? f.navbarLabels.back : f.adminEditor.open}
           </Button>
         )}
       </div>

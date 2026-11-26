@@ -36,6 +36,7 @@ export const navigationFixture = {
   },
   tutorCourse: "Dasar Pemrograman dan Penyelesaian Masalah",
   adminTitle: "Tinjau materi",
+  adminEditor: { title: "Editor materi", open: "Buka editor" },
   leaderboardTabs: [
     { id: "rank", label: "Rank" },
     { id: "academic", label: "Akademik" },

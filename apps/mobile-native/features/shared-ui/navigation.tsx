@@ -39,6 +39,7 @@ const destinationIcons = {
   ops: "ops",
   more: "more",
 } as const satisfies Record<RoleDestinationId<RoleNavigationRole>, NavigationIconName>;
+const adminDestinationIcons = { ...destinationIcons, home: "dashboard", courses: "classes" } as const;
 
 export const navbarActionIds = ["back", "home", "switch-course", "search", "notifications", "account", "ops-ai"] as const;
 export type NavbarActionId = (typeof navbarActionIds)[number];
@@ -212,6 +213,7 @@ export function RoleBottomNavigation<Role extends RoleNavigationRole>({
   const resolvedTheme = theme ?? systemTheme ?? "light";
   const colors = nativeColors[resolvedTheme];
   const destinations: readonly RoleDestinationId<Role>[] = roleNavigationDestinations[role];
+  const icons = role === "admin" ? adminDestinationIcons : destinationIcons;
 
   if (hidden) return null;
 
@@ -252,7 +254,7 @@ export function RoleBottomNavigation<Role extends RoleNavigationRole>({
               ]}
             >
               <View accessible={false}>
-                <NavigationIcon name={role === "admin" && id === "courses" ? "classes" : destinationIcons[id]} color={color} size={20} />
+                <NavigationIcon name={icons[id]} color={color} size={20} />
                 {showBadge ? (
                   <View style={[count ? styles.badge : styles.dot, { backgroundColor: colors.destructive }]}>
                     {count ? <Text style={[nativeTypography.bodyMedium, styles.badgeLabel, { color: colors.background }]}>{count > 99 ? "99+" : count}</Text> : null}

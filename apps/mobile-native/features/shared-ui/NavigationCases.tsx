@@ -89,7 +89,7 @@ function BottomCase({ item }: { item: BottomCaseProps }) {
   const [studentTab, setStudentTab] = useState<RoleDestinationId<"student">>("home");
   const [tutorTab, setTutorTab] = useState<RoleDestinationId<"tutor">>("classes");
   const [adminTab, setAdminTab] = useState<RoleDestinationId<"admin">>("courses");
-  const [adminEditor, setAdminEditor] = useState(true);
+  const [adminEditor, setAdminEditor] = useState(false);
   const [adminMore, setAdminMore] = useState(false);
   const moreRef = useRef<ComponentRef<typeof Pressable>>(null);
 
@@ -135,8 +135,15 @@ function BottomCase({ item }: { item: BottomCaseProps }) {
   return (
     <View style={styles.fill}>
       <View style={styles.pageGutter}>
-        <ExampleText theme={item.theme} status testID={`${item.id}-state`}>{adminEditor ? "Editor materi" : fixture.adminNavLabels[adminTab]}</ExampleText>
-        {adminEditor ? <Button testID={`${item.id}-back`} variant="outline" theme={item.theme} onPress={() => setAdminEditor(false)}>Kembali</Button> : null}
+        <ExampleText theme={item.theme} status testID={`${item.id}-state`}>{adminEditor ? fixture.adminEditor.title : fixture.adminNavLabels[adminTab]}</ExampleText>
+        <Button
+          testID={`${item.id}-${adminEditor ? "back" : "editor"}`}
+          variant="outline"
+          theme={item.theme}
+          onPress={() => setAdminEditor(!adminEditor)}
+        >
+          {adminEditor ? fixture.navbarLabels.back : fixture.adminEditor.open}
+        </Button>
       </View>
       <View style={styles.fill} />
       <RoleBottomNavigation

@@ -42,6 +42,7 @@ export function sharedUiReferenceScript(
         if ([...document.images].some(image => visible(image) && (!image.complete || !image.naturalWidth))) return false;
         if (expected.dialog !== null && [...document.querySelectorAll('[role="dialog"]')].some(visible) !== expected.dialog) return false;
         if (expected.id === "shared-dialog-validation-light" && ![...document.querySelectorAll('[role="alert"]')].some(el => visible(el) && el.textContent.includes("wajib"))) return false;
+        if (expected.component === "bottom-navigation" && ![...frame.querySelectorAll("[data-mobile-bottom-nav]")].some(visible)) return false;
         if (expected.component === "grid") {
           const grid = frame.querySelector('div.grid[class*="/documents:grid-cols-2"]');
           if (!grid || !visible(grid)) return false;
