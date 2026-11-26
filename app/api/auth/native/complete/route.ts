@@ -7,10 +7,13 @@ import {
   buildNativeAuthDeepLink,
   isMobileAuthScheme,
   NATIVE_AUTH_HANDOFF_COOKIE,
-  normalizeNativeAuthScheme,
   normalizeNativeAuthState,
   resolveNativeRequestOrigin,
 } from "@/lib/native/auth-handoff";
+
+import { normalizeBrowserHandoffScheme, EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
+import { encodeExpoAuthCode, isExpoCodeChallenge } from "@/lib/native/expo-auth-code";
+import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -94,7 +97,7 @@ async function buildDesktopHandoffHtml(deepLink: string, request: NextRequest) {
 
 function readHandoffCookie(
   request: NextRequest,
-): { scheme: string; state: string; next: string } | null {
+): { scheme: string; state: string; next: string; challenge?: string } | null {
   const raw = request.cookies.get(NATIVE_AUTH_HANDOFF_COOKIE)?.value;
   if (!raw) return null;
   try {
@@ -108,6 +111,7 @@ function readHandoffCookie(
         scheme: parsed.scheme,
         state: parsed.state,
         next: parsed.next,
+        challenge: typeof parsed.challenge === "string" ? parsed.challenge : undefined,
       };
     }
     return null;
@@ -117,7 +121,7 @@ function readHandoffCookie(
 }
 
 export async function GET(request: NextRequest) {
-  const scheme = normalizeNativeAuthScheme(request.nextUrl.searchParams.get("scheme"));
+  const scheme = normalizeBrowserHandoffScheme(request.nextUrl.searchParams.get("scheme"));
   const state = normalizeNativeAuthState(request.nextUrl.searchParams.get("state"));
   const safeNext = getSafeRedirectPath(request.nextUrl.searchParams.get("next") ?? undefined);
 
@@ -130,6 +134,11 @@ export async function GET(request: NextRequest) {
   const handoff = readHandoffCookie(request);
   if (!handoff || handoff.scheme !== scheme || handoff.state !== state) {
     return NextResponse.json({ error: "Missing or invalid auth handoff session" }, { status: 403 });
+  }
+
+  const expo = scheme === EXPO_STAGING_SCHEME;
+  if (expo && (new URL(resolveAuthBaseUrl()).origin !== EXPO_STAGING_ORIGIN || !isExpoCodeChallenge(handoff.challenge))) {
+    return NextResponse.json({ error: "Invalid native auth parameters" }, { status: 400 });
   }
 
   let token: string | null = null;
@@ -149,15 +158,23 @@ export async function GET(request: NextRequest) {
     retryUrl.searchParams.set("scheme", scheme);
     retryUrl.searchParams.set("state", state);
     retryUrl.searchParams.set("next", safeNext);
+    if (expo && handoff.challenge) retryUrl.searchParams.set("challenge", handoff.challenge);
     return NextResponse.redirect(retryUrl, {
       status: 302,
       headers: { "Cache-Control": "no-store" },
     });
   }
 
-  const deepLink = buildNativeAuthDeepLink(scheme, token, state, safeNext);
+  let deepLink: string;
+  if (scheme === EXPO_STAGING_SCHEME) {
+    const { secret } = await auth.$context;
+    const code = await encodeExpoAuthCode(token, handoff.challenge!, secret);
+    deepLink = `${scheme}://auth/native-finish#${new URLSearchParams({ code, state })}`;
+  } else {
+    deepLink = buildNativeAuthDeepLink(scheme, token, state, safeNext);
+  }
 
-  const response = isMobileAuthScheme(scheme)
+  const response = scheme === EXPO_STAGING_SCHEME || isMobileAuthScheme(scheme)
     ? new NextResponse(null, {
         status: 302,
         headers: {

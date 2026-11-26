@@ -1,6 +1,7 @@
 """Compare native fixture crops at device scale with the corresponding browser crops."""
 import argparse
 import io
+import json
 import os
 from pathlib import Path
 
@@ -53,6 +54,7 @@ def main():
         return
     mismatches = []
     rows = []
+    measurements = []
     for case, (x, y) in zip(cases, positions):
         reference = reference_dir / f"{case}.png"
         web = Image.open(reference).convert("RGB")
@@ -72,12 +74,18 @@ def main():
         bounds = difference.getbbox()
         extent = ", ".join(map(str, bounds)) if bounds else ""
         max_delta = max(hi for _, hi in difference.getextrema())
+        measurements.append({"id": case, "differentPixels": changed, "maxRgbDelta": max_delta,
+                             "bounds": bounds, "blankReference": blank_reference})
         rows.append(f"| {case} | {changed} | {max_delta} | {extent} | {'Pass' if passed else 'Fail'} |")
     report = "\n".join([
         f"### {args.frame.parent.name}: {args.component} at DPR {args.scale}", "",
         "| Case | Different pixels | Maximum RGB delta | Difference bounds (px) | Result |",
         "| --- | ---: | ---: | --- | --- |", *rows, "",
     ])
+    evidence = {"component": args.component, "platform": args.frame.parent.name, "scale": args.scale,
+                "commit": os.environ.get("PARITY_HEAD_SHA"), "buildCommit": os.environ.get("GITHUB_SHA"),
+                "cases": measurements}
+    (args.frame.parent / f"result-{args.component}.json").write_text(json.dumps(evidence, indent=2) + "\n")
     print(report)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary, "a", encoding="utf-8") as stream:

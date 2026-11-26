@@ -8,6 +8,13 @@ export const operationsCatalog = [
     "reason": "The Expo course views return metadata for the signed-in learner under the existing course policy. Activation is the learner's existing group token redemption flow, with live Student authorization and a bound account. Admin MCP tools retain their own enrollment and group permissions."
   },
   {
+    "source": "app/api/auth/native/expo/exchange/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The internal staging Expo app exchanges a browser login code bound to its own verifier. This is an interactive end-user session. MCP clients keep their separate OAuth registration, consent, scopes, discovery, playbooks, packaged skills and environment bindings."
+  },
+  {
     "source": "components/admin/offline-cache-settings.tsx",
     "actions": ["save", "refresh"],
     "tools": [],
@@ -55,6 +62,13 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Installed-device version checks and installer launch require the native app. MCP tokens, scopes, consent, discovery, playbooks, packaged skills and host prompts cannot install or update a user's device."
+  },
+  {
+    "source": "apps/mobile-native/device/notifications-controller.ts",
+    "actions": ["requestPermission", "sync", "setAccount"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Push permission requires direct device consent. Registration, rotation and removal use the authenticated app session on its own origin and do not change admin notification operations or MCP bindings."
   },
   {
     "source": "components/course/material-viewer.tsx",
