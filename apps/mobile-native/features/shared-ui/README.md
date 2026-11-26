@@ -16,7 +16,7 @@ Impor dari `apps/mobile-native/features/shared-ui`. Komponen menerima data, labe
 
 ## Kasus yang dapat dijalankan
 
-`FirstSliceExample` menerima `caseId` dari `packages/native-parity/shared-ui/layout-cases.ts`. Kasus awal `shared-ui-shell-back-light` menampilkan dokumen, membuka baris dokumen, dan kembali ke kelas. Panggilan `FirstSliceExample` tanpa `caseId` membuka kasus ini. Di harness galeri, buka `zyx-native-parity://shared-ui/shared-ui-shell-back-light`. Untuk entry lokal, pasang `<FirstSliceExample />` di dalam `SafeAreaProvider` setelah font dimuat. Jalankan `maestro test .maestro/native-parallel/shared-ui/first-slice.yaml` pada build galeri untuk memeriksa Back, aksi header, reset filter, dan retry.
+`FirstSliceExample` menerima `caseId` dari `packages/native-parity/shared-ui/layout-cases.ts`. Kasus awal `shared-ui-shell-back-light` menampilkan dokumen, membuka baris dokumen, dan kembali ke kelas. Panggilan `FirstSliceExample` tanpa `caseId` membuka kasus ini. Di harness galeri, buka `zyx-native-parity://shared-ui/shared-ui-shell-back-light`. Untuk entry lokal, pasang `<FirstSliceExample />` di dalam `SafeAreaProvider` setelah font dimuat. Jalankan `maestro test .maestro/native-parallel/shared-ui/first-slice.yaml` pada build galeri di viewport compact untuk memeriksa Back, aksi header, reset filter, dan retry. Jalankan `maestro test .maestro/native-parallel/shared-ui/layout-wide/list.yaml` di viewport 1024 dp untuk memverifikasi cabang layout lebar.
 
 Halaman dapat mengikat aksi berdasarkan ID.
 
