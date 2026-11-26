@@ -121,7 +121,7 @@
         "height": 844
       },
       "terminal": "/dashboard/discussions",
-      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByRole('button', { name: 'Strategi menentukan limit kiri dan kanan' }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByRole('button', { name: 'Strategi menentukan limit kiri dan kanan' }).filter({ visible: true }).first()\n"
+      "error": "Error: expect(received).toEqual(expected) // deep equality\n\n- Expected  -  1\n+ Received  + 77\n\n- Array []\n+ Array [\n+   \"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n+\n+ - A server/client branch `if (typeof window !== 'undefined')`.\n+ - Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n+ - Date formatting in a user's locale which doesn't match the server.\n+ - External changing data without sending a snapshot of it al"
     },
     {
       "id": "discussions-alias",
@@ -276,16 +276,22 @@
       "path": "/dashboard/schedule",
       "expected": [
         "Kalender dan jadwal tutorial",
-        "Raisa Komunitas"
+        "Raisa Komunitas",
+        "Klinik integral"
       ],
-      "status": "failed",
+      "status": "passed",
       "browser": "154.0.8037.57",
       "viewport": {
         "width": 380,
         "height": 844
       },
       "terminal": "/dashboard/schedule",
-      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Raisa Komunitas', { exact: true }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByText('Raisa Komunitas', { exact: true }).filter({ visible: true }).first()\n"
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-schedule.png"
     },
     {
       "id": "feedback",
@@ -357,16 +363,24 @@
       "scenario": "community-enrolled",
       "path": "/profile/edit",
       "expected": [
+        "Edit profil",
         "Tahun masuk ITB (angkatan)"
       ],
-      "status": "failed",
+      "status": "passed",
       "browser": "154.0.8037.57",
       "viewport": {
         "width": 380,
         "height": 844
       },
       "terminal": "/profile/edit",
-      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByLabel('Tahun masuk ITB (angkatan)', { exact: true }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByLabel('Tahun masuk ITB (angkatan)', { exact: true }).filter({ visible: true }).first()\n"
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [
+        "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using templa"
+      ],
+      "screenshot": "mobile-380-profile-edit.png"
     },
     {
       "id": "reflections",
@@ -395,6 +409,7 @@
       "scenario": "community-enrolled",
       "path": "/settings",
       "expected": [
+        "Preferensi",
         "Bahasa Indonesia",
         "English"
       ],
@@ -405,7 +420,7 @@
         "height": 844
       },
       "terminal": "/settings",
-      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('English', { exact: true }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByText('English', { exact: true }).filter({ visible: true }).first()\n"
+      "error": "Error: expect(received).toEqual(expected) // deep equality\n\n- Expected  -  1\n+ Received  + 51\n\n- Array []\n+ Array [\n+   \"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n+\n+ - A server/client branch `if (typeof window !== 'undefined')`.\n+ - Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n+ - Date formatting in a user's locale which doesn't match the server.\n+ - External changing data without sending a snapshot of it al"
     },
     {
       "id": "notification-preferences",
@@ -415,14 +430,19 @@
         "Aktivitas belajar",
         "Jam tenang"
       ],
-      "status": "failed",
+      "status": "passed",
       "browser": "154.0.8037.57",
       "viewport": {
         "width": 380,
         "height": 844
       },
       "terminal": "/settings/notifications",
-      "error": "Error: expect(received).toEqual(expected) // deep equality\n\n- Expected  -  1\n+ Received  + 77\n\n- Array []\n+ Array [\n+   \"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n+\n+ - A server/client branch `if (typeof window !== 'undefined')`.\n+ - Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n+ - Date formatting in a user's locale which doesn't match the server.\n+ - External changing data without sending a snapshot of it al"
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-notification-preferences.png"
     },
     {
       "id": "notification-browser",

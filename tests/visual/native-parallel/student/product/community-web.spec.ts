@@ -23,6 +23,7 @@ type Case = {
   checks: TextExpectation[];
   selectedTab?: string;
   openMenu?: string;
+  profileLink?: string;
 };
 const text = (value: string, exact = true): TextExpectation => ({ kind: "text", value, exact });
 const heading = (value: string): TextExpectation => ({ kind: "heading", value });
@@ -41,6 +42,7 @@ const cases: Case[] = [
   { id: "course-leaderboard-revoked", path: "/courses/matematika-1/leaderboard", scenario: "revoked", checks: [heading("Kelas memerlukan token")] },
   { id: "course-discussions", path: course + "/discussions", checks: [button(data.threadTitle, false)] },
   { id: "dashboard-discussions", path: "/dashboard/discussions", checks: [button(data.threadTitle, false)] },
+  { id: "dashboard-discussions-via-profile", path: "/dashboard/discussions", profileLink: "Diskusi", checks: [button(data.threadTitle, false)] },
   { id: "discussions-alias", path: "/discussions" + openThread, expectedPath: "/dashboard/discussions",
     expectedQuery: { thread: [data.threadId] }, checks: [text(data.threadTitle), text(data.question)] },
   { id: "achievements", path: "/achievements", checks: [tab("Ringkasan"), text("Kades")], selectedTab: "Ringkasan" },
@@ -56,6 +58,9 @@ const cases: Case[] = [
   { id: "profile-edit", path: "/profile/edit", checks: [heading("Edit profil"), { kind: "combobox", value: "Tahun masuk ITB (angkatan)" }] },
   { id: "reflections", path: "/profile/reflections", checks: [text("2 kuis"), text("21 flashcard")] },
   { id: "settings", path: "/settings", openMenu: "Bahasa", checks: [
+    heading("Preferensi"), { kind: "menuitemradio", value: "Bahasa Indonesia" }, { kind: "menuitemradio", value: "English" },
+  ] },
+  { id: "settings-via-profile", path: "/settings", profileLink: "Pengaturan", openMenu: "Bahasa", checks: [
     heading("Preferensi"), { kind: "menuitemradio", value: "Bahasa Indonesia" }, { kind: "menuitemradio", value: "English" },
   ] },
   { id: "notification-preferences", path: "/settings/notifications", checks: [heading("Aktivitas belajar"), heading("Jam tenang")] },
@@ -105,6 +110,8 @@ type VisualEvidence = {
   scenario: string;
   path: string;
   terminal?: string;
+  entryPath?: string;
+  entryErrors?: string[];
   expected: string[];
   status: string;
   screenshot?: string;
@@ -145,7 +152,15 @@ for (const item of cases) {
       status: "failed", browser: browser.version(), viewport: page.viewportSize() ?? undefined };
     let screenshot: string | undefined;
     try {
-      const { errors, consoleErrors } = await open(page, scenario, item.path);
+      const { errors, consoleErrors } = await open(page, scenario, item.profileLink ? "/profile" : item.path);
+      if (item.profileLink) {
+        await expect(page.getByText(data.learner, { exact: true }).filter({ visible: true }).first()).toBeVisible();
+        evidence.entryPath = "/profile";
+        evidence.entryErrors = errors.splice(0).map(error => error.split("\n")[0].slice(0, 200));
+        await page.getByRole("link", { name: item.profileLink, exact: true }).click();
+        await page.waitForURL(url => url.pathname === item.path);
+        await waitForVisualReadiness(page);
+      }
       const actual = new URL(page.url());
       evidence.terminal = actual.pathname + actual.search;
       expect(actual.pathname).toBe(item.expectedPath ?? item.path.split("?")[0]);
