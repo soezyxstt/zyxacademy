@@ -3,7 +3,7 @@
 import Image from "next/image";
 import dynamic from "next/dynamic";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -40,10 +40,18 @@ function VideoPlayerLoading() {
   );
 }
 
-const ZyxVideoPlayer = dynamic(
-  () => import("./zyx-video-player").then((mod) => mod.ZyxVideoPlayer),
-  { loading: VideoPlayerLoading }
-);
+const loadZyxVideoPlayer = () =>
+  import("./zyx-video-player").then((mod) => mod.ZyxVideoPlayer);
+
+/** Warms the Vidstack player chunk before the user opens the modal. */
+export function preloadVideoPlayer() {
+  void loadZyxVideoPlayer();
+}
+
+const ZyxVideoPlayer = dynamic(loadZyxVideoPlayer, {
+  ssr: false,
+  loading: VideoPlayerLoading,
+});
 
 type VideoPlayerModalProps = {
   video: VideoItem | null;
@@ -70,10 +78,51 @@ export function VideoPlayerModal({
   const t = useTranslations("studentCourse");
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
+  const [overrideSrc, setOverrideSrc] = useState<string | null>(null);
+  const [recoveryStage, setRecoveryStage] = useState<"idle" | "refreshed" | "fallback">("idle");
   const playlistOpen = isPlaylistOpen && (playlist?.videos.length ?? 0) > 1;
   useDialogHistory(open && video !== null && playlistOpen, () => setIsPlaylistOpen(false));
 
+  useEffect(() => {
+    setOverrideSrc(null);
+    setRecoveryStage("idle");
+  }, [video?.id, video?.videoUrl]);
+
+  const handleMediaError = useCallback(async () => {
+    if (!video || !video.fallbackVideoUrl) return;
+
+    // 1. Try refreshing an expired presigned URL once.
+    if (recoveryStage === "idle") {
+      setRecoveryStage("refreshed");
+      try {
+        const res = await fetch(`/api/videos/${encodeURIComponent(video.id)}/playback-url`, {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { url?: string };
+          if (data.url && data.url !== (overrideSrc ?? video.videoUrl)) {
+            setOverrideSrc(data.url);
+            return;
+          }
+        }
+      } catch {
+        // Fall through to proxy fallback below.
+      }
+      setRecoveryStage("fallback");
+      setOverrideSrc(video.fallbackVideoUrl);
+      return;
+    }
+
+    // 2. If refreshed presigned URL still fails, fall back to the storage proxy.
+    if (recoveryStage === "refreshed" && overrideSrc !== video.fallbackVideoUrl) {
+      setRecoveryStage("fallback");
+      setOverrideSrc(video.fallbackVideoUrl);
+    }
+  }, [overrideSrc, recoveryStage, video]);
+
   if (!video) return null;
+
+  const activeVideoSrc = overrideSrc ?? video.videoUrl;
 
   const playlistVideos = playlist?.videos || [];
   const currentIndex = playlistVideos.findIndex((v) => v.id === video.id);
@@ -116,11 +165,12 @@ export function VideoPlayerModal({
             <ZyxVideoPlayer
               key={video.id}
               videoId={video.id}
-              src={video.videoUrl}
+              src={activeVideoSrc}
               title={video.title}
               poster={video.thumbnailUrl}
               autoPlay={true}
               onEnded={handleVideoEnded}
+              onMediaError={handleMediaError}
               className="h-full w-full"
             />
           </div>

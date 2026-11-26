@@ -1,8 +1,6 @@
 "use client";
 
-import Image from "next/image";
-
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import "@vidstack/react/player/styles/default/theme.css";
 import "@vidstack/react/player/styles/default/layouts/video.css";
 import { MediaPlayer, MediaProvider, type MediaPlayerInstance } from "@vidstack/react";
@@ -13,9 +11,7 @@ import {
   readVideoPlaybackTime,
   saveVideoPlaybackTime,
 } from "@/lib/video/playback-persistence";
-import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTranslations } from "@/lib/i18n/client";
 
 export type ZyxVideoPlayerProps = {
   videoId?: string;
@@ -24,12 +20,13 @@ export type ZyxVideoPlayerProps = {
   poster?: string | null;
   autoPlay?: boolean;
   onEnded?: () => void;
+  onMediaError?: () => void;
   className?: string;
 };
 
 /**
  * Modern video player component powered by Vidstack.
- * Supports YouTube streaming with sleek controls, playback speed selector,
+ * Supports YouTube and direct storage streaming with playback speed selector,
  * keyboard shortcuts, responsive layout, and dark mode adaptation.
  */
 export function ZyxVideoPlayer({
@@ -39,19 +36,14 @@ export function ZyxVideoPlayer({
   poster,
   autoPlay = true,
   onEnded,
+  onMediaError,
   className,
 }: ZyxVideoPlayerProps) {
-  const t = useTranslations("studentCourse");
-  const [mounted, setMounted] = useState(false);
   const playerRef = useRef<MediaPlayerInstance | null>(null);
   const restoredForVideoRef = useRef<string | null>(null);
   const endedRef = useRef(false);
   const lastSavedAtRef = useRef(0);
   const lastPlaybackSnapshotRef = useRef<{ time: number; duration?: number } | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     endedRef.current = false;
@@ -131,31 +123,9 @@ export function ZyxVideoPlayer({
 
   const youtubeId = extractYouTubeVideoId(src);
   const effectiveSrc = youtubeId ? `youtube/${youtubeId}` : src;
-
-  if (!mounted) {
-    return (
-      <div
-        className={cn(
-          "relative aspect-video w-full overflow-hidden bg-black flex items-center justify-center",
-          className
-        )}
-      >
-        {poster && (
-          <Image unoptimized loading="eager" width={160} height={90}
-            src={poster}
-            alt={title}
-            className="absolute inset-0 h-full w-full object-cover opacity-60"
-          />
-        )}
-        <div className="relative flex flex-col items-center gap-2 text-white">
-          <div className="flex size-12 items-center justify-center rounded-full bg-brand-primary/90 shadow-md">
-            <Play className="size-6 fill-white ml-0.5" />
-          </div>
-          <span className="text-body-xs font-medium">{t("courseVideos.loadingPlayer")}</span>
-        </div>
-      </div>
-    );
-  }
+  // Direct presigned S3/Neon URLs play cross-origin without requiring bucket CORS
+  // headers when `crossOrigin` is omitted. Keep `crossOrigin` only for same-origin paths.
+  const isSameOriginSrc = effectiveSrc.startsWith("/");
 
   return (
     <div
@@ -174,11 +144,12 @@ export function ZyxVideoPlayer({
         load="eager"
         autoPlay={autoPlay}
         playsInline
-        crossOrigin
+        crossOrigin={isSameOriginSrc ? true : undefined}
         onCanPlay={handleCanPlay}
         onTimeUpdate={handleTimeUpdate}
         onPause={persistCurrentTime}
         onEnded={handleEnded}
+        onError={onMediaError}
         className="h-full w-full object-contain"
       >
         <MediaProvider />

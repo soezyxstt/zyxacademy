@@ -16,6 +16,7 @@ import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { storage } from "@/lib/storage";
+import { resolveCourseVideoPlaybackUrl } from "@/lib/video/playback";
 import {
   extractYouTubeVideoId,
   getCanonicalYouTubeUrl,
@@ -50,6 +51,7 @@ export type VideoItem = {
   title: string;
   description: string | null;
   videoUrl: string;
+  fallbackVideoUrl?: string | null;
   thumbnailUrl: string | null;
   videoKey?: string | null;
   thumbnailKey?: string | null;
@@ -193,35 +195,42 @@ export async function getCourseVideosData(courseSlugOrId: string) {
 
   const chapterMap = new Map(chapterRows.map((ch) => [ch.id, ch.title]));
 
-  const mappedVideos: VideoItem[] = videoRows.filter((video) => access.tier === "staff" || !video.chapterId || access.scopedChapterIds.includes(video.chapterId)).map((v) => {
-    const resolvedVideoUrl = v.videoUrl
-      ? v.videoUrl.startsWith("youtube/")
-        ? v.videoUrl
-        : storage.getUrl(v.videoUrl)
-      : "";
-    const resolvedThumbnailUrl = v.thumbnailUrl ? storage.getUrl(v.thumbnailUrl) : null;
+  const visibleVideos = videoRows.filter(
+    (video) => access.tier === "staff" || !video.chapterId || access.scopedChapterIds.includes(video.chapterId),
+  );
 
-    return {
-      id: v.id,
-      courseId: v.courseId,
-      playlistId: v.playlistId,
-      chapterId: v.chapterId,
-      chapterTitle: v.chapterId ? chapterMap.get(v.chapterId) || null : null,
-      title: v.title,
-      description: v.description,
-      videoUrl: hasFullContentAccess ? resolvedVideoUrl : "",
-      thumbnailUrl: resolvedThumbnailUrl,
-      videoKey: hasFullContentAccess ? (v.videoUrl || null) : null,
-      thumbnailKey: v.thumbnailUrl || null,
-      duration: v.duration,
-      fileSize: v.fileSize,
-      orderIndex: v.orderIndex,
-      uploadedBy: v.uploadedBy,
-      createdAt: v.createdAt,
-      updatedAt: v.updatedAt,
-      locked: !hasFullContentAccess,
-    };
-  });
+  const mappedVideos: VideoItem[] = await Promise.all(
+    visibleVideos.map(async (v) => {
+      const resolvedPlayback = hasFullContentAccess
+        ? await resolveCourseVideoPlaybackUrl(v.videoUrl, storage)
+        : { playbackUrl: "", fallbackUrl: "", isPresigned: false };
+      const resolvedThumbnailUrl = v.thumbnailUrl ? storage.getUrl(v.thumbnailUrl) : null;
+
+      return {
+        id: v.id,
+        courseId: v.courseId,
+        playlistId: v.playlistId,
+        chapterId: v.chapterId,
+        chapterTitle: v.chapterId ? chapterMap.get(v.chapterId) || null : null,
+        title: v.title,
+        description: v.description,
+        videoUrl: hasFullContentAccess ? resolvedPlayback.playbackUrl : "",
+        fallbackVideoUrl: hasFullContentAccess && resolvedPlayback.isPresigned
+          ? resolvedPlayback.fallbackUrl
+          : null,
+        thumbnailUrl: resolvedThumbnailUrl,
+        videoKey: hasFullContentAccess ? (v.videoUrl || null) : null,
+        thumbnailKey: v.thumbnailUrl || null,
+        duration: v.duration,
+        fileSize: v.fileSize,
+        orderIndex: v.orderIndex,
+        uploadedBy: v.uploadedBy,
+        createdAt: v.createdAt,
+        updatedAt: v.updatedAt,
+        locked: !hasFullContentAccess,
+      };
+    }),
+  );
 
   const videosByPlaylist = new Map<string, VideoItem[]>();
   for (const v of mappedVideos) {
