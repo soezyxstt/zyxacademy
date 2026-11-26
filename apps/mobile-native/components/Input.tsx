@@ -20,7 +20,6 @@ export const Input = forwardRef<ComponentRef<typeof TextInput>, InputProps>(func
   onChangeText,
   onFocus,
   placeholderTextColor,
-  renderToHardwareTextureAndroid,
   style,
   theme,
   value,
@@ -42,7 +41,6 @@ export const Input = forwardRef<ComponentRef<typeof TextInput>, InputProps>(func
       value={value}
       editable={!disabled && editable}
       multiline={multiline}
-      renderToHardwareTextureAndroid={renderToHardwareTextureAndroid ?? (multiline && disabled)}
       accessibilityState={{ ...accessibilityState, disabled }}
       placeholderTextColor={placeholderTextColor ?? colors.mutedForeground}
       underlineColorAndroid="transparent"
@@ -61,7 +59,7 @@ export const Input = forwardRef<ComponentRef<typeof TextInput>, InputProps>(func
       style={[
         styles.input,
         multiline && styles.multiline,
-        multiline && disabled && disabledControlStyle,
+        multiline && disabled && (Platform.OS === "android" ? styles.disabledMultilineAndroid : disabledControlStyle),
         Platform.OS === "android" && androidInset,
         nativeTypography.bodyRegular,
         { backgroundColor: colors.background, borderColor: colors.input, color: colors.foreground },
@@ -92,6 +90,8 @@ const styles = StyleSheet.create({
     textAlignVertical: "center",
   },
   multiline: { height: "auto", minHeight: 80, borderRadius: nativeRadii.lg, textAlignVertical: "top" },
+  // Composite the completed EditText once. View opacity also fades its glyph paint on Android.
+  disabledMultilineAndroid: { filter: [{ opacity: 0.5 }] },
   hintInset: { paddingTop: 9, paddingBottom: 7 },
   multilineInset: { paddingTop: 7, paddingBottom: 9 },
 });
