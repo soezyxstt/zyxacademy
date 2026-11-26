@@ -115,6 +115,9 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install Pillow==12.2.0
+      - if: matrix.platform == 'android'
+        name: Verify device result selection and transport retry
+        run: python -m unittest discover -s tests/visual/native-parallel/student -p 'test_*.py'
       - run: npm ci
         working-directory: apps/mobile-native
       - name: Mount isolated fixture route for this run
