@@ -1,0 +1,50 @@
+appId: com.zyx.academy.nativeparity
+name: Shared composer draft, attachments and recovery
+---
+- launchApp
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
+- openLink: zyx-native-parity://shared-ui/shared-ui-composer-empty
+- assertVisible:
+    id: shared-ui-composer-empty-submit
+    enabled: false
+- tapOn:
+    id: shared-ui-composer-empty-input
+- inputText: Jawaban lengkap
+- hideKeyboard
+- tapOn:
+    id: shared-ui-composer-empty-submit
+- assertVisible: Balasan terkirim
+- assertVisible: Jawaban lengkap
+- openLink: zyx-native-parity://shared-ui/shared-ui-composer-attachment
+- assertVisible: grafik.png
+- tapOn:
+    id: shared-ui-composer-attachment-remove
+- assertNotVisible: grafik.png
+- assertVisible:
+    id: shared-ui-composer-attachment-input
+    text: Coba periksa langkah kedua.
+- tapOn:
+    id: shared-ui-composer-attachment-tools-attach
+- assertVisible: grafik.png
+- openLink: zyx-native-parity://shared-ui/shared-ui-composer-recovery
+- assertVisible:
+    id: shared-ui-composer-recovery-error
+- assertVisible:
+    id: shared-ui-composer-recovery-input
+    text: Bagaimana menentukan periode gelombang?
+- tapOn:
+    id: shared-ui-composer-recovery-input
+- inputText: revisi
+- assertVisible:
+    id: shared-ui-composer-recovery-input
+    text: ".*revisi.*"
+- hideKeyboard
+- tapOn:
+    id: shared-ui-composer-recovery-submit
+- assertVisible: Balasan terkirim
+- assertVisible:
+    text: ".*revisi.*"
+- assertNotVisible:
+    id: shared-ui-composer-recovery-error

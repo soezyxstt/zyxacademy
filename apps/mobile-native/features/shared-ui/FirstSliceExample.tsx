@@ -3,6 +3,7 @@ import { BackHandler, StyleSheet, Text, View } from "react-native";
 
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { layoutCases, layoutFixture, type LayoutCaseId, type LayoutFixtureCase } from "../../../../packages/native-parity/shared-ui/layout-cases";
+import { nativeTypography } from "../../typography";
 import type { SharedUiAction, SharedUiActionHandler } from "./actions";
 import {
   NativeCompactShell,
@@ -81,7 +82,7 @@ function LayoutExample({ fixture }: { fixture: LayoutFixtureCase }) {
   if (detail) {
     return (
       <NativeCompactShell navigationTitle={detail.title} theme={theme} back={{ label: layoutFixture.documents, onPress: () => setDetail(null) }}>
-        <Text style={{ color: nativeColors[theme].mutedForeground }}>{detail.subtitle}</Text>
+        <Text style={[nativeTypography.bodyRegular, { color: nativeColors[theme].mutedForeground }]}>{detail.subtitle}</Text>
       </NativeCompactShell>
     );
   }
@@ -145,6 +146,7 @@ function LayoutExample({ fixture }: { fixture: LayoutFixtureCase }) {
             ]}
             primary={documents ? { onPress: () => setDetail(row), role: "link" } : undefined}
             subtitle={row.subtitle}
+            testID={`${id}-${row.id}-${layout}`}
             theme={theme}
             title={row.title}
           />
@@ -158,5 +160,5 @@ function LayoutExample({ fixture }: { fixture: LayoutFixtureCase }) {
 
 const styles = StyleSheet.create({
   slot: { paddingHorizontal: 16, alignItems: "flex-start" },
-  slotTitle: { fontSize: 16, fontWeight: "600", paddingVertical: 12 },
+  slotTitle: { ...nativeTypography.bodySemibold, fontSize: 16, paddingVertical: 12 },
 });

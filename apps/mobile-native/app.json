@@ -20,6 +20,15 @@
       "expo-router",
       "expo-secure-store",
       [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ],
+      [
         "expo-notifications",
         {
           "defaultChannel": "zyx_updates",

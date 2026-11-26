@@ -1,0 +1,61 @@
+appId: com.zyx.academy.nativeparity
+name: Shared UI compact shell, header, and list recovery
+---
+- launchApp
+- openLink: zyx-native-parity://shared-ui/shared-ui-shell-back-light
+- extendedWaitUntil:
+    visible: Dokumen
+    timeout: 10000
+- assertVisible: "Usaha dan energi pada sistem dengan gaya yang berubah terhadap posisi.*"
+- tapOn: "Gaya dan hukum Newton.*"
+- assertVisible: Gaya dan hukum Newton
+- tapOn:
+    id: shared-ui-back
+- assertVisible: "Gaya dan hukum Newton.*Artikel"
+- tapOn:
+    id: shared-ui-back
+- assertVisible: Fisika dasar
+- tapOn: Buka dokumen
+- assertVisible: Dokumen
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - pressKey: Back
+      - assertVisible: Fisika dasar
+- openLink: zyx-native-parity://shared-ui/shared-ui-shell-long-title-dark
+- assertVisible: "Dokumen Fisika dasar: Mekanika, termodinamika, dan gelombang"
+- openLink: zyx-native-parity://shared-ui/shared-ui-shell-slots-light
+- assertVisible: Peserta
+- tapOn: Terapkan filter
+- assertVisible: "Tidak ada pengguna yang cocok.*"
+- openLink: zyx-native-parity://shared-ui/shared-ui-header-actions-light
+- assertVisible: Nara Pratama
+- tapOn: Filter
+- assertVisible: "Tidak ada pengguna yang cocok.*"
+- openLink: zyx-native-parity://shared-ui/shared-ui-header-action-states-dark
+- assertVisible:
+    text: Reset filter
+    enabled: false
+- assertVisible:
+    text: Simpan
+    enabled: false
+- assertVisible: Nara Pratama
+- openLink: zyx-native-parity://shared-ui/shared-ui-header-long-title-light
+- assertVisible: Nara Pratama
+- openLink: zyx-native-parity://shared-ui/shared-ui-list-filled-light
+- assertVisible:
+    id: shared-ui-list-filled-light-sinta-compact
+- assertVisible: Sinta Ayuningtyas Kusumawardani
+- assertVisible: Ditangguhkan
+- openLink: zyx-native-parity://shared-ui/shared-ui-list-empty-dark
+- assertVisible: "Tidak ada pengguna yang cocok.*"
+- assertNotVisible: Nara Pratama
+- tapOn: Reset filter
+- assertVisible: Nara Pratama
+- openLink: zyx-native-parity://shared-ui/shared-ui-list-error-light
+- assertVisible: Daftar pengguna gagal dimuat
+- assertNotVisible: Nara Pratama
+- tapOn: Coba lagi
+- assertVisible: Nara Pratama
+- assertNotVisible: Daftar pengguna gagal dimuat
