@@ -5,12 +5,14 @@ import { operationsCases } from "../../../packages/native-parity/operations/case
 
 import { caseInteractions } from "./case-interactions";
 
-const [flowDirectory, screenshotDirectory] = process.argv.slice(2);
+const [flowDirectory, screenshotDirectory, ...caseIds] = process.argv.slice(2);
 if (!flowDirectory || !screenshotDirectory) throw new Error("Expected flow directory and screenshot directory");
+const cases = caseIds.length ? operationsCases.filter(item => caseIds.includes(item.id)) : operationsCases;
+if (caseIds.length && cases.length !== caseIds.length) throw new Error("Expected unique registered case IDs");
 mkdirSync(flowDirectory, { recursive: true });
 mkdirSync(screenshotDirectory, { recursive: true });
 const manifest = [];
-for (const item of operationsCases) {
+for (const item of cases) {
   const filename = item.id + ".png";
   const url = "zyx-native-parity://operations-fixture?caseId=" + encodeURIComponent(item.id);
   // Each case has its own flow, so a failed mount does not hide subsequent cases.

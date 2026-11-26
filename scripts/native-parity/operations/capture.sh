@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 platform=${1:?Specify android or ios}
+phase=${2:-full}
 output_dir="$PWD/artifacts/native-parity/operations/$platform"
-mkdir -p "$output_dir"
 app=apps/mobile-native
 case "$platform" in
   android)
+    mkdir -p "$output_dir"
     device=$(adb get-serialno)
     adb shell wm density 160
     adb shell wm size 380x844
@@ -16,14 +17,24 @@ case "$platform" in
     adb install "${PARITY_APK_PATH:-$app/android/app/build/outputs/apk/release/app-release.apk}"
     ;;
   ios)
-    mkdir -p "$HOME/.expo"
-    device=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; print(next(d["udid"] for group in reversed(list(json.load(sys.stdin)["devices"].values())) for d in group if d["name"] == "iPhone 17 Pro"))')
-    xcrun simctl boot "$device"
-    xcrun simctl bootstatus "$device" -b
-    (cd "$app" && npx --no-install expo run:ios --configuration Release --device "$device" --no-bundler)
+    device_file="$output_dir/ios-simulator.txt"
+    if [[ "$phase" == build || ! -s "$device_file" ]]; then
+      mkdir -p "$output_dir" "$HOME/.expo"
+      device=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; print(next(d["udid"] for group in reversed(list(json.load(sys.stdin)["devices"].values())) for d in group if d["name"] == "iPhone 17 Pro"))')
+      echo "Booting iPhone 17 Pro simulator"
+      xcrun simctl boot "$device"
+      xcrun simctl bootstatus "$device" -b
+      echo "Building and installing the iOS release fixture"
+      (cd "$app" && npx --no-install expo run:ios --configuration Release --device "$device" --no-bundler)
+      printf '%s\n' "$device" > "$device_file"
+    fi
+    if [[ "$phase" == build ]]; then exit 0; fi
+    device=$(cat "$device_file")
+    if [[ "$phase" == smoke ]]; then output_dir="$output_dir-smoke"; fi
     ;;
   *) exit 2 ;;
 esac
+mkdir -p "$output_dir"
 
 # Pin the same device test CLI archive as the native parity runner.
 maestro_dir=$(mktemp -d)
@@ -36,8 +47,13 @@ trap 'rm -rf "$maestro_dir"' EXIT
 )
 export MAESTRO_CLI_NO_ANALYTICS=true
 fixture_flows="$maestro_dir/operations"
-bun scripts/native-parity/operations/capture-cases.ts "$fixture_flows" "$output_dir/cases"
-cp .maestro/native-parallel/operations/*.yaml "$fixture_flows/"
+if [[ "$phase" == smoke ]]; then
+  bun scripts/native-parity/operations/capture-cases.ts "$fixture_flows" "$output_dir/cases" \
+    operations-public-blog-list-open-back operations-public-blog-detail-content operations-public-blog-list-empty
+else
+  bun scripts/native-parity/operations/capture-cases.ts "$fixture_flows" "$output_dir/cases"
+  cp .maestro/native-parallel/operations/*.yaml "$fixture_flows/"
+fi
 run_flows() {
   local report=$1 results=$2 logs=$3
   shift 3

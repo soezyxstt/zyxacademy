@@ -54,7 +54,7 @@ jobs:
       group: operations-device-${{ github.event.pull_request.number }}-${{ matrix.platform }}
       cancel-in-progress: false
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: ${{ matrix.platform == 'ios' && 100 || 60 }}
     env:
       CI: '1'
       EXPO_NO_TELEMETRY: '1'
@@ -77,7 +77,33 @@ jobs:
           distribution: temurin
           java-version: '17'
       - if: matrix.platform == 'ios'
-        run: bash scripts/native-parity/operations/capture.sh ios
+        id: ios_build
+        name: Build and install the iOS release fixture
+        timeout-minutes: 65
+        run: bash scripts/native-parity/operations/capture.sh ios build
+      - if: matrix.platform == 'ios'
+        name: Capture iOS blog viewport checkpoints
+        timeout-minutes: 6
+        run: bash scripts/native-parity/operations/capture.sh ios smoke
+      - if: ${{ !cancelled() && matrix.platform == 'ios' && steps.ios_build.outcome == 'success' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - if: ${{ !cancelled() && matrix.platform == 'ios' && steps.ios_build.outcome == 'success' }}
+        name: Compare iOS blog viewport checkpoints
+        run: |
+          python -m pip install Pillow==12.2.0
+          python scripts/native-parity/operations/compare.py artifacts/native-parity/operations/ios-smoke tests/visual/native-parallel/operations/references --width 402 --density 3
+      - if: ${{ !cancelled() && matrix.platform == 'ios' && steps.ios_build.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: operations-ios-smoke
+          path: artifacts/native-parity/operations/ios-smoke
+          retention-days: 7
+      - if: ${{ !cancelled() && matrix.platform == 'ios' && steps.ios_build.outcome == 'success' }}
+        name: Run the complete iOS fixture suite
+        timeout-minutes: 25
+        run: bash scripts/native-parity/operations/capture.sh ios full
       - if: matrix.platform == 'android'
         working-directory: apps/mobile-native
         run: |
