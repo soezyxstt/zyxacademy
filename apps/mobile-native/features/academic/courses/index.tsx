@@ -2,7 +2,7 @@ import { useContext, useEffect, useState, useSyncExternalStore, type ReactNode }
 import { ScrollView, View } from "react-native";
 import { type CourseFixture, courseFixtures } from "../../../../../packages/native-parity/academic/courses/fixtures";
 import {
-  adminCoursePath, completedCourseAttempts, resolveAdminCourseAlias, type AdminCourseLiveRead, type LiveCourseRead,
+  adminCoursePath, completedCourseAttempts, resolveAdminCourseAlias, type AdminCourse, type AdminCourseLiveRead, type LiveCourseRead,
 } from "../../../../../packages/native-parity/academic/courses/model";
 import { useAdministrationSnapshot } from "../administration/provider";
 import type { AcademicScreenProps } from "../contracts";
@@ -15,7 +15,7 @@ import { LiveCourseSection } from "./live-sections";
 import { isAdminCourseLiveSection } from "../../../../../packages/native-parity/academic/courses/sections";
 import { CourseList, CourseOverview, CourseSettings } from "./overview";
 import { AdminCourseFixtureContext } from "./scope";
-import { Action, CourseStatus, DataRow, Ink, Panel, PendingCourses, Tabs, CourseTheme, layout } from "./ui";
+import { Action, CourseStatus, DataRow, Ink, Metrics, PendingCourses, Tabs, CourseTheme, layout } from "./ui";
 
 export { AdminCourseFixtureProvider } from "./scope";
 export type { AdminCourse, AdminChapter, AdminCourseOverview, AdminCourseLiveRead, LiveCourseRead } from "../../../../../packages/native-parity/academic/courses/model";
@@ -131,13 +131,12 @@ function LiveCourseRoute({ live, isList, section, actor, navigate, query, back }
   }
   const detail = live.detail?.status === "ready" ? live.detail.data : null;
   return (
-    <CoursePage title={detail?.course.title ?? "Mata kuliah"} back={back}
-      subtitle={detail ? `${detail.course.category} · ${detail.course.id}` : undefined}>
+    <CoursePage title={detail?.course.title ?? "Mata kuliah"} back={back}>
       <LiveStatus read={live.detail} retry={live.retry}>
         {(data) => <CourseOverview data={data} actor={actor} navigate={navigate}
           liveChapterEditor={live.saveChapter ? { save: live.saveChapter, refresh: live.retry } : undefined} />}
       </LiveStatus>
-      {detail ? <CourseMenu slug={detail.course.slug} navigate={navigate} live /> : null}
+      {detail ? <CourseMenu course={detail.course} navigate={navigate} live /> : null}
     </CoursePage>
   );
 }
@@ -158,7 +157,8 @@ function FixtureCourseRoute({ isList, section, ...props }: AcademicScreenProps &
     </CoursePage>
   );
   if (isList) {
-    const courses = snapshot.filter(({ course }) => scenario !== "empty" || !fixtureCourseIds.has(course.id)).map(({ course }) => course);
+    const courses = snapshot.filter(({ course }) => scenario !== "empty" || !fixtureCourseIds.has(course.id))
+      .map(({ course, pricing }) => ({ ...course, pricing: pricing.category }));
     return (
       <CoursePage title="Mata kuliah" back={back} scroll={false}>
         <CourseList courses={courses} actor={actor} navigate={navigate} allowCreate
@@ -200,23 +200,31 @@ function FixtureCourseRoute({ isList, section, ...props }: AcademicScreenProps &
   })();
 
   return (
-    <CoursePage title={data.course.title} subtitle={`${data.course.category} · ${data.course.id}`} back={back}>
+    <CoursePage title={data.course.title} subtitle={section ? `${data.course.category} · ${data.course.id}` : undefined} back={back}>
       {routeTitle ? <Ink kind="heading">{routeTitle}</Ink> : null}
       {view}
-      {!section ? <CourseMenu slug={data.course.slug} navigate={navigate} /> : null}
+      {!section ? <CourseMenu course={data.course} navigate={navigate} /> : null}
     </CoursePage>
   );
 }
 
-function CourseMenu({ slug, navigate, live }: { slug: string; navigate(path: string): void; live?: boolean }) {
-  return (
-    <Panel title="Kelola mata kuliah">
+function CourseMenu({ course, navigate, live }: { course: AdminCourse; navigate(path: string): void; live?: boolean }) {
+  const [open, setOpen] = useState(false);
+  return <>
+    <DataRow title="Kelola mata kuliah" testID="course-menu" expanded={open} detail={open ? "⌃" : "⌄"} onPress={() => setOpen(!open)} />
+    {open ? <View style={layout.group}>
       {sections.filter((section) => !live || isAdminCourseLiveSection(section.id)).map((section) => (
-        <DataRow key={section.id} title={section.label} testID={`course-link-${section.id}`}
-          onPress={() => navigate(adminCoursePath(slug, section.id))} />
+        <DataRow key={section.id} title={section.label} testID={`course-link-${section.id}`} onPress={() => {
+          setOpen(false);
+          navigate(adminCoursePath(course.slug, section.id));
+        }} />
       ))}
-    </Panel>
-  );
+      {course.description ? <Ink>{course.description}</Ink> : null}
+      <Metrics values={[
+        { label: "Bab", value: course.chapterCount }, { label: "Dokumen", value: course.materialCount }, { label: "Kuis", value: course.quizCount },
+      ]} />
+    </View> : null}
+  </>;
 }
 
 const reviewStatuses = {

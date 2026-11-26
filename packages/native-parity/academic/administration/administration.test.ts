@@ -4,6 +4,7 @@ import type { AcademicCommand } from "../../../../apps/mobile-native/features/ac
 import { saveEnrollmentToken } from "../../../../apps/mobile-native/features/academic/administration/enrollment-token-client";
 import { handleEnrollmentTokenWrite } from "../../../../lib/native/academic/administration/enrollment-token-handler";
 import { saveStudyGroup } from "../../../../apps/mobile-native/features/academic/administration/study-group-client";
+import { readStudyGroupMembers, writeStudyGroupMember } from "../../../../apps/mobile-native/features/academic/administration/study-group-members-client";
 import { handleStudyGroupWrite } from "../../../../lib/native/academic/administration/study-group-handler";
 import { rebaseStudyGroupFields, type StudyGroupCreate, type StudyGroupFields } from "../../../academic/study-group-edit";
 import { savePkaAnnouncement } from "../../../../apps/mobile-native/features/academic/administration/pka-edit-client";
@@ -188,6 +189,31 @@ test("user status retry retains the target, account, revision and request identi
   assert.equal(await saveUserStatus(transport, id, body, requestId, signal), "saved");
   assert.equal(await saveUserStatus({ ...transport, accountId: "another-admin" }, id, body, requestId, signal), "denied");
   assert.deepEqual(calls, Array(3).fill([`/api/native/academic-administration/users/${id}/status`, { method: "PATCH", body, requestId }]));
+});
+
+test("study group membership retries use the same command and require the exact receipt", async () => {
+  const id = "synthetic-group";
+  const requestId = "00000000-0000-4000-8000-000000000001";
+  const body = { accountId: "synthetic-admin", action: "remove" as const, userId: "synthetic-student", expectedRevision: "a".repeat(64) };
+  const receipt = { status: "saved", id, requestId, action: body.action, userId: body.userId };
+  const calls: [string, AcademicCommand][] = [];
+  let response = Response.json({ ...receipt, userId: "another-person" });
+  const data = { id, name: "Kelompok belajar", revision: body.expectedRevision, canAdd: true, members: [], candidates: [], nextPage: false };
+  const transport = {
+    accountId: body.accountId, locale: "id", origin: "https://academic.invalid",
+    get: async (path: string) => {
+      assert.equal(path, `/api/native/academic-administration/groups/${id}/members?page=2&search=nama`);
+      return Response.json(data);
+    },
+    command: async (path: string, command: AcademicCommand) => { calls.push([path, command]); return response; },
+  };
+  const signal = new AbortController().signal;
+  assert.deepEqual(await readStudyGroupMembers(transport, id, 2, "nama", signal), { status: "ready", data });
+  assert.equal(await writeStudyGroupMember(transport, id, body, requestId, signal), "uncertain");
+  response = Response.json(receipt);
+  assert.equal(await writeStudyGroupMember(transport, id, body, requestId, signal), "saved");
+  assert.equal(await writeStudyGroupMember({ ...transport, accountId: "another-admin" }, id, body, requestId, signal), "denied");
+  assert.deepEqual(calls, Array(2).fill([`/api/native/academic-administration/groups/${id}/members`, { method: "PATCH", body, requestId }]));
 });
 
 test("PDF retries re-submit the same actor-bound identity and evidence is matched to the accepted attempt", async () => {

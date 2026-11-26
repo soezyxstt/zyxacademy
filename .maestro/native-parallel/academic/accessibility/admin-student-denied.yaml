@@ -8,5 +8,5 @@ name: Academic Admin list unavailable to students
     timeout: 20000
 - assertNotVisible: Biologi Dasar.*
 - assertNotVisible:
-    id: course-search
+    id: course-search-trigger
 - takeScreenshot: academic-accessibility-admin-student-denied

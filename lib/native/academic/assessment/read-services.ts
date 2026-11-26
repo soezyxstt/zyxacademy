@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { aiQuestionBank, courses, exams, mataKuliah, questions, quizTemplates, studentQuizAttempts, user } from "@/db/schema";
+import { aiQuestionBank, courses, exams, mataKuliah, questions, quizTemplates, studentQuizAttempts, submissions, user } from "@/db/schema";
 import { getQuizTemplatePreviewAction } from "@/app/actions/tutor-management";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { ensureLegacyIdentity } from "@/lib/auth/legacy-identity";
@@ -15,7 +15,7 @@ import { getTutorQuestionBank, getTutorQuizzesWithAttribution, getTutorQuizWithA
 import { parseSelectionRulesInput, resolveEffectiveAssessmentType } from "@/lib/tutor/assessment-policy";
 import { quizTemplateRevision } from "@/lib/asesmen/quiz-template-write";
 import { defaultQuiz, questionTypes, type AssessmentCourse, type AssessmentQuiz, type AssessmentTryout, type BankQuestion, type QuestionType } from "@/packages/native-parity/academic/assessment/model";
-import { tryoutMetadataRevision } from "@/lib/tutor/tryout-authoring";
+import { selectableTryoutBankCondition, tryoutBankQuestionId, tryoutMetadataRevision, tryoutQuestionSetRevision } from "@/lib/tutor/tryout-authoring";
 import { tryoutCorrectIndices } from "./tryout-answer";
 import type { AssessmentReadScope, AssessmentReadServices } from "./handle-read";
 
@@ -255,16 +255,29 @@ export const assessmentReadServices: AssessmentReadServices = {
     if (!resolved) return null;
     const { course, legacyId } = resolved;
     const courseId = legacyId ?? course.id;
-    const rows = await db.select().from(exams)
-      .where(and(eq(exams.courseId, courseId), eq(exams.type, "tryout"))).orderBy(desc(exams.createdAt));
-    const contents = rows.length ? await db.select().from(questions)
-      .where(inArray(questions.examId, rows.map((row) => row.id))).orderBy(asc(questions.order)) : [];
-    // Follow the web page's global disclosure path for persisted tryout snapshots.
-    const disclosures: { questionId: string; courseId: string }[] = [];
+    const canSaveDraft = resolved.status === "active" && legacyId !== null;
+    const [rows, bankRows] = await Promise.all([
+      db.select().from(exams).where(and(eq(exams.courseId, courseId), eq(exams.type, "tryout"))).orderBy(desc(exams.createdAt)),
+      canSaveDraft ? db.select({
+        id: aiQuestionBank.id, courseId: aiQuestionBank.courseId, prompt: aiQuestionBank.prompt, type: aiQuestionBank.questionType,
+        difficulty: aiQuestionBank.difficulty, tags: aiQuestionBank.tags,
+      }).from(aiQuestionBank).where(selectableTryoutBankCondition([course.id, courseId]))
+        .orderBy(desc(aiQuestionBank.createdAt), asc(aiQuestionBank.id)) : [],
+    ]);
+    const draftIds = canSaveDraft ? rows.filter((row) => row.status === "draft").map((row) => row.id) : [];
+    const [contents, usedDrafts] = await Promise.all([
+      rows.length ? db.select().from(questions)
+        .where(inArray(questions.examId, rows.map((row) => row.id))).orderBy(asc(questions.order), asc(questions.id)) : [],
+      draftIds.length ? db.selectDistinct({ examId: submissions.examId }).from(submissions)
+        .where(inArray(submissions.examId, draftIds)) : [],
+    ]);
+    const usedDraftIds = new Set(usedDrafts.map((row) => row.examId));
+    const disclosures = bankRows.map((row) => ({ questionId: row.id, courseId: row.courseId }));
     const questionsByExam = new Map<string, AssessmentTryout["questions"]>();
+    const rowsByExam = new Map<string, (typeof questions.$inferSelect)[]>();
     for (const row of contents) {
       const fields = object(row.content);
-      const bankQuestionId = typeof fields.bankQuestionId === "string" ? fields.bankQuestionId : undefined;
+      const bankQuestionId = tryoutBankQuestionId(row.content);
       if (bankQuestionId) disclosures.push({ questionId: bankQuestionId, courseId });
       else if (!Object.keys(fields).length) disclosures.push(...authorizedSnapshotDisclosures(courseId, [null]));
       const items = questionsByExam.get(row.examId) ?? [];
@@ -276,16 +289,22 @@ export const assessmentReadServices: AssessmentReadServices = {
         acceptableAnswers: strings(fields.acceptableAnswers), acceptsFile: fields.acceptsFile === true, bankQuestionId,
       });
       questionsByExam.set(row.examId, items);
+      const rawRows = rowsByExam.get(row.examId) ?? [];
+      rawRows.push(row);
+      rowsByExam.set(row.examId, rawRows);
     }
     await db.transaction((tx) => recordAuthorizedGlobalDisclosures(tx, {
       userId: scope.actorId, questions: disclosures, requestId: crypto.randomUUID(),
     }));
     return {
-      course, bank: [], canSaveDraft: resolved.status === "active" && legacyId !== null,
+      course, canSaveDraft,
+      bank: bankRows.map((row) => ({ id: row.id, prompt: row.prompt, type: type(row.type), difficulty: row.difficulty, tags: strings(row.tags) })),
       tryouts: rows.map((row) => {
         const settings = object(row.settings);
         return {
           id: row.id, revision: 0, metadataRevision: tryoutMetadataRevision(row), title: row.title, status: row.status,
+          questionSetRevision: canSaveDraft && row.status === "draft" && !usedDraftIds.has(row.id)
+            ? tryoutQuestionSetRevision(row, rowsByExam.get(row.id) ?? []) : undefined,
           timeLimitMinutes: number(settings.timeLimitMinutes, 90), maxAttempts: number(settings.maxAttempts, 2),
           openAt: iso(row.openAt), closeAt: iso(row.closeAt), questions: questionsByExam.get(row.id) ?? [],
         };

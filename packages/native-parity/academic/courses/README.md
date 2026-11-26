@@ -2,6 +2,8 @@
 
 `CourseScreen` melayani 13 pola rute berikut melalui `AcademicFixtureEntry` dan `AcademicLiveScreen`. Dialog menggunakan `SharedDialog`. Hasil kuis, pengerjaan, dan peringkat memakai `ResponsiveTable`. Sesi fixture diikat ke akun, peran, dan skenario. Sesi autentik mengambil proyeksi dari Next.js melalui transport yang diikat ke akun dan origin. Seluruh pembacaan autentik memerlukan sesi dan peran Admin canonical, serta menggunakan respons `private, no-store`. Ganti akun atau peran menutup sesi layar. Fokus ulang setelah kembali menyegarkan daftar dan detail sambil mempertahankan filter.
 
+Pada layar sempit, daftar menampilkan ID, kategori, dan jumlah konten per mata kuliah. Tombol cari membuka isian dan mempertahankan kategori yang dipilih. Ringkasan mata kuliah langsung menampilkan daftar bab, deskripsi bab, dan jumlah berkas serta soal. Buka **Kelola mata kuliah** untuk mengakses bagian lain. Tata letak ini merujuk pada [perbandingan Android 380 × 852](../../../../tests/visual/native-parallel/academic/device/f75e0496914edd53c4bc24487ca58f6ac47a3769/README.md) dari build terdahulu.
+
 | Rute web, relatif ke `/admin/courses` | Layar dan interaksi fixture | Operasi autentik |
 | --- | --- | --- |
 | `/` | Pencarian, kategori, pagination, buka detail, kembali dengan filter tetap aktif, tambah | `getCoursesWithStats`, baca daftar |

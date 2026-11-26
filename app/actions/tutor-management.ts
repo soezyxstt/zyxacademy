@@ -21,13 +21,13 @@ import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { rejectQuestionVisualReferences } from "@/lib/authoring/question-visual-references";
-import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
-import { verifyQuestionVisualBinding } from "@/lib/materials/question-visual-binding";
 import { parseMaterialIntoSections } from "@/lib/ingestion-parser";
 import { revalidatePath } from "next/cache";
+import { revisionOf } from "@/lib/admin-mcp/revision";
 import { notifyQuizPublishedBestEffort } from "@/lib/notifications/send";
-import { lockTryoutExam, saveTryoutRecord } from "@/lib/tutor/tryout-authoring";
-import { normalizeQuestionProvenance, questionProvenanceSnapshot } from "@/lib/asesmen/question-provenance";
+import { lockTryoutExam, saveTryoutRecord, tryoutBankQuestionId } from "@/lib/tutor/tryout-authoring";
+import { buildTryoutBankSnapshot } from "@/lib/tutor/tryout-bank-snapshot";
+import { normalizeQuestionProvenance } from "@/lib/asesmen/question-provenance";
 import {
   createAssessmentWithLegacyProjection,
   updateAssessmentWithLegacyProjection,
@@ -1404,7 +1404,7 @@ export async function deleteTryoutAction(courseId: string, examId: string) {
         .select()
         .from(exams)
         .where(eq(exams.id, examId))
-        .limit(1);
+        .limit(1).for("update");
 
       await tx.delete(questions).where(eq(questions.examId, examId));
       await tx.delete(exams).where(eq(exams.id, examId));
@@ -1667,22 +1667,12 @@ export async function importQuestionBankToTryoutAction(
     throw new Error(reason);
   }
 
-  const [bankRows, existingQuestions] = await Promise.all([
-    db
-      .select()
-      .from(aiQuestionBank)
-      .where(
-        and(
-          inArray(aiQuestionBank.courseId, candidateCourseIds),
-          publishedQuizQuestionCondition(),
-          inArray(aiQuestionBank.id, uniqueIds),
-        ),
-      ),
-    db
-      .select({ content: questions.content, order: questions.order })
-      .from(questions)
-      .where(eq(questions.examId, examId)),
-  ]);
+  const bankScope = and(
+    inArray(aiQuestionBank.courseId, candidateCourseIds),
+    publishedQuizQuestionCondition(),
+    inArray(aiQuestionBank.id, uniqueIds),
+  );
+  const bankRows = await db.select().from(aiQuestionBank).where(bankScope);
   if (bankRows.length !== uniqueIds.length) {
     const reason = "Sebagian soal bank tidak tersedia atau belum dipublikasi.";
     await recordTutorFailureAudit({
@@ -1700,50 +1690,49 @@ export async function importQuestionBankToTryoutAction(
     throw new Error(reason);
   }
 
-  const importedIds = new Set(
-    existingQuestions.flatMap((question) => {
-      const content = typeof question.content === "string" ? JSON.parse(question.content) : question.content;
-      return typeof content?.bankQuestionId === "string" ? [content.bankQuestionId] : [];
-    }),
-  );
-  const rowsToImport = uniqueIds
-    .map((qId) => bankRows.find((row) => row.id === qId)!)
-    .filter((row) => !importedIds.has(row.id));
-  for (const row of rowsToImport) {
-    const copied = { prompt: row.prompt, options: Array.isArray(row.options) ? row.options.map(String) : [], explanation: row.explanation };
-    const documents = [copied.prompt, ...copied.options, copied.explanation].flatMap(parseInteractiveDocumentsInMarkdown);
-    if (documents.length && !await verifyQuestionVisualBinding(exam.courseId, copied)) {
-      throw new Error("Aset visual soal belum terverifikasi untuk mata kuliah tryout.");
+  const existingQuestions = await db.select({ content: questions.content }).from(questions).where(eq(questions.examId, examId));
+  const importedIds = new Set(existingQuestions.map((question) => tryoutBankQuestionId(question.content)));
+  const rowsById = new Map(bankRows.map((row) => [row.id, row]));
+  const candidates = uniqueIds.map((id) => rowsById.get(id)!);
+  const snapshots = new Map<string, { bankRevision: string; content: Awaited<ReturnType<typeof buildTryoutBankSnapshot>> }>();
+  async function buildSnapshot(row: typeof aiQuestionBank.$inferSelect) {
+    try {
+      return await buildTryoutBankSnapshot(exam.courseId, row);
+    } catch (error) {
+      if (error instanceof Error && error.message === "TRYOUT_BANK_VISUAL_UNVERIFIED") {
+        throw new Error("Aset visual soal belum terverifikasi untuk mata kuliah tryout.");
+      }
+      throw error;
     }
   }
-  const firstOrder =
-    existingQuestions.reduce((highest, question) => Math.max(highest, question.order), 0) + 1;
+  for (const row of candidates) {
+    if (!importedIds.has(row.id)) snapshots.set(row.id, { bankRevision: revisionOf(row), content: await buildSnapshot(row) });
+  }
 
   const requestId = newAuditRequestId();
+  let imported = 0;
   try {
     await db.transaction(async (tx) => {
-      if (rowsToImport.length > 0) {
-        await tx.insert(questions).values(
-          rowsToImport.map((row, index) => ({
-            id: `que-bank-${randomUUID()}`,
-            examId,
-            type: row.questionType,
-            order: firstOrder + index,
-            content: {
-              bankQuestionId: row.id,
-              prompt: row.prompt,
-              options: Array.isArray(row.options) ? row.options.map(String) : [],
-              correctIndex: Array.isArray(row.correctIndices) ? row.correctIndices[0] : undefined,
-              correctIndices: Array.isArray(row.correctIndices) ? row.correctIndices : [],
-              acceptsImage: false,
-              acceptsFile: row.questionType === "essay",
-              acceptableAnswers: Array.isArray(row.acceptableAnswers) ? row.acceptableAnswers : [],
-              explanation: row.explanation,
-              ...questionProvenanceSnapshot(row),
-            },
-          })),
-        );
+      if (!await lockTryoutExam(tx, exam.courseId, examId)) throw new Error("TRYOUT_NOT_FOUND");
+      const lockedBank = await tx.select().from(aiQuestionBank).where(bankScope).for("share");
+      if (lockedBank.length !== uniqueIds.length) throw new Error("Sebagian soal bank tidak tersedia atau belum dipublikasi.");
+      const lockedBankById = new Map(lockedBank.map((row) => [row.id, row]));
+      const current = await tx.select({ content: questions.content, order: questions.order })
+        .from(questions).where(eq(questions.examId, examId));
+      const currentIds = new Set(current.map((question) => tryoutBankQuestionId(question.content)));
+      const firstOrder = current.reduce((highest, question) => Math.max(highest, question.order), 0) + 1;
+      const rowsToImport = uniqueIds.filter((id) => !currentIds.has(id)).map((id) => lockedBankById.get(id)!);
+      if (rowsToImport.length) {
+        const values = await Promise.all(rowsToImport.map(async (row, index) => {
+          const preflight = snapshots.get(row.id);
+          return {
+            id: `que-bank-${randomUUID()}`, examId, type: row.questionType, order: firstOrder + index,
+            content: preflight?.bankRevision === revisionOf(row) ? preflight.content : await buildSnapshot(row),
+          };
+        }));
+        await tx.insert(questions).values(values);
       }
+      imported = rowsToImport.length;
 
       await recordTutorMutationAudit(
         {
@@ -1759,8 +1748,8 @@ export async function importQuestionBankToTryoutAction(
           reason: "Question bank items imported to tryout by admin",
           after: {
             examId,
-            importedCount: rowsToImport.length,
-            skippedCount: uniqueIds.length - rowsToImport.length,
+            importedCount: imported,
+            skippedCount: uniqueIds.length - imported,
           },
         },
         tx,
@@ -1786,8 +1775,8 @@ export async function importQuestionBankToTryoutAction(
   revalidatePath(`/courses/${courseId}/tryout/${examId}`);
   return {
     success: true,
-    imported: rowsToImport.length,
-    skipped: uniqueIds.length - rowsToImport.length,
+    imported,
+    skipped: uniqueIds.length - imported,
   };
 }
 

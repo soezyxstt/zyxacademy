@@ -1,5 +1,7 @@
 import { isEnrollmentTokenEditor, type EnrollmentTokenEditor } from "../../../../packages/academic/enrollment-token-admin";
 import { isStudyGroupEditorRead, type StudyGroupEditorRead } from "../../../../packages/academic/study-group-edit";
+import { isStudyGroupMembersRead, type StudyGroupMemberRecovery, type StudyGroupMembersRead } from "../../../../packages/academic/study-group-members";
+import type { NativeAdminViewer } from "./admin-transaction";
 import {
   isLiveAdministrationRead, type DiktatEvidenceStatus, type DiktatPdfTarget, type LiveAdministrationRead, type LiveListSection, type LivePage,
 } from "../../../../packages/native-parity/academic/administration/live";
@@ -21,10 +23,11 @@ export type AdministrationQuery = {
 };
 
 export type AdministrationReadServices = {
-  session(): Promise<{ user: { id: string } } | null>;
+  session(): Promise<{ user: { id: string }; session?: { id: string } } | null>;
   hasAdmin(id: string): Promise<boolean>;
   list(section: LiveListSection, query: AdministrationQuery): Promise<LivePage>;
   groupEditor?(id?: string): Promise<StudyGroupEditorRead | null>;
+  groupMembers?(id: string, page: number, search: string, recovery?: { request: StudyGroupMemberRecovery; viewer: NativeAdminViewer }): Promise<StudyGroupMembersRead | null>;
   tokenEditor?(id?: string): Promise<EnrollmentTokenEditor | null>;
   bundle(kind: ReviewKind, slug: string, bundleId: string, page: number): Promise<LivePage | null>;
   pdfStatus(slug: string, target: DiktatPdfTarget, attemptId: string): Promise<DiktatEvidenceStatus | null>;
@@ -70,6 +73,20 @@ export async function handleAdministrationRead(parts: string[], search: URLSearc
       const result = await services.groupEditor(kind);
       if (!result) return notFound();
       return isStudyGroupEditorRead(result) ? Response.json(result, { headers }) : problem(500, "READ_FAILED");
+    }
+    if (section === "groups" && id === "members" && parts.length === 3 && services.groupMembers) {
+      const [userId, action, expectedRevision, requestId] = ["retryUserId", "retryAction", "retryRevision", "retryRequestId"].map((field) => search.get(field));
+      let recovery: { request: StudyGroupMemberRecovery; viewer: NativeAdminViewer } | undefined;
+      if ([userId, action, expectedRevision, requestId].some((value) => value !== null)) {
+        if (!session.session?.id) return problem(401, "UNAUTHENTICATED");
+        if (!userId || !validPart(userId) || (action !== "add" && action !== "remove")
+          || !expectedRevision || !/^[a-f0-9]{64}$/.test(expectedRevision) || !requestId
+          || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(requestId)) return problem(400, "INVALID_RECOVERY");
+        recovery = { request: { userId, action, expectedRevision, requestId }, viewer: { user: session.user, session: session.session } };
+      }
+      const result = await services.groupMembers(kind, query.page, query.search, recovery);
+      if (!result) return notFound();
+      return isStudyGroupMembersRead(result) ? Response.json(result, { headers }) : problem(500, "READ_FAILED");
     }
     if (section === "token-editor" && parts.length <= 2 && services.tokenEditor) {
       const result = await services.tokenEditor(kind);

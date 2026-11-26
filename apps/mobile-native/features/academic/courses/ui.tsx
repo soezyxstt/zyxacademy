@@ -6,6 +6,7 @@ import { Input } from "../../../components/Input";
 import { Skeleton } from "../../../components/Skeleton";
 import { nativeTypography } from "../../../typography";
 import { SharedDialog, type SharedDialogProps } from "../../shared-ui/overlays";
+import { NavigationIcon } from "../../shared-ui/navigation-icons";
 
 type Theme = keyof typeof nativeColors;
 export const CourseTheme = createContext<Theme>("light");
@@ -102,18 +103,24 @@ export function Tabs<T extends string>({ options, selected, onSelect, testID }: 
   );
 }
 
-export function Picker({ label, options, selected, onSelect, testID }: {
+export function Picker({ label, options, selected, onSelect, testID, compact = false }: {
   label: string; options: readonly { id: string; label: string }[];
-  selected: string; onSelect(id: string): void; testID?: string;
+  selected: string; onSelect(id: string): void; testID?: string; compact?: boolean;
 }) {
+  const theme = useContext(CourseTheme);
   const [open, setOpen] = useState(false);
+  const selection = options.find((item) => item.id === selected)?.label ?? label;
   return (
     <View style={layout.compact}>
-      <Action
+      {compact ? <Button theme={theme} variant="ghost" onPress={() => setOpen(!open)} testID={testID}
+        accessibilityLabel={`${label}, ${selection}`} accessibilityState={{ expanded: open }} iconPosition="end"
+        renderIcon={(color, size) => <NavigationIcon name="chevron" color={color} size={size} />} style={{ height: 44 }}>
+        {selection}
+      </Button> : <Action
         testID={testID}
-        label={options.find((item) => item.id === selected)?.label ?? label}
+        label={selection}
         onPress={() => setOpen(!open)}
-      />
+      />}
       {open ? (
         <View accessibilityLabel={label} style={layout.compact}>
           {options.map((item) => (

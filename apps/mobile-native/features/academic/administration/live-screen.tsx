@@ -10,7 +10,9 @@ import { AdministrationCalendar } from "./calendar";
 import { LiveEnrollmentTokenEditor } from "./enrollment-token-editor";
 import type { EnrollmentTokenUnavailable } from "./enrollment-token-client";
 import { LiveStudyGroupEditor } from "./study-group-editor";
+import { StudyGroupMembersEditor } from "./study-group-members-editor";
 import { PkaAnnouncementEditor } from "./pka-edit";
+import { clearPkaScheduleRecovery, PkaScheduleEditor } from "./pka-schedule-editor";
 import { UserStatusEditor } from "./user-status-editor";
 import { DiktatPdfControls, readDiktatScope } from "./diktat-controls";
 import type { AcademicTransport } from "../client";
@@ -85,6 +87,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const { pattern, title } = route;
   const { params, query, transport, navigate, replace, back } = props;
   const tokenPage = pattern === "/admin/tokens";
+  const pkaSchedulePage = pattern === "/admin/tutorial-pka/schedules";
   const searchEnabled = pattern === "/admin/users" || pattern === "/admin/groups" || tokenPage
     || pattern === "/admin/tutorial-pka/registrations";
   const [search, setSearch] = useState(query.search ?? "");
@@ -92,11 +95,14 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const [selected, setSelected] = useState<LiveRow>();
   const [pdfRow, setPdfRow] = useState<LiveRow>();
   const [pkaDraft, setPkaDraft] = useState<{ actorTransport: AcademicTransport; row: LiveRow }>();
+  const [pkaScheduleDraft, setPkaScheduleDraft] = useState<{ actorTransport: AcademicTransport; id: string }>();
   const [userStatusDraft, setUserStatusDraft] = useState<{ actorTransport: AcademicTransport; row: LiveRow }>();
   const [groupDraft, setGroupDraft] = useState<{ actorTransport: AcademicTransport; id?: string }>();
+  const [groupMembersDraft, setGroupMembersDraft] = useState<{ actorTransport: AcademicTransport; id: string }>();
   const [tokenDraft, setTokenDraft] = useState<{ actorTransport: AcademicTransport; id?: string }>();
   const [success, setSuccess] = useState("");
   const groupEditor = groupDraft?.actorTransport === transport ? groupDraft : undefined;
+  const groupMembersEditor = pattern === "/admin/groups" && groupMembersDraft?.actorTransport === transport ? groupMembersDraft : undefined;
   const tokenEditor = tokenDraft?.actorTransport === transport ? tokenDraft : undefined;
   const announcement = pkaDraft?.actorTransport === transport ? pkaDraft.row : undefined;
   const userStatusRow = userStatusDraft?.actorTransport === transport && pattern === "/admin/users" ? userStatusDraft.row : undefined;
@@ -112,7 +118,9 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const week = Number(filters.week) || 0;
   const data = state.status === "ready" && state.data.type === "page" ? state.data : undefined;
   const tokenRow = tokenEditor?.id ? data?.rows.find((row) => row.id === tokenEditor.id) : undefined;
-  const visibleSelection = tokenPage && selected ? data?.rows.find((row) => row.id === selected.id) : selected;
+  const pkaSchedule = pkaSchedulePage && pkaScheduleDraft?.actorTransport === transport
+    ? data?.rows.find((row) => row.id === pkaScheduleDraft.id) : undefined;
+  const visibleSelection = (tokenPage || pkaSchedulePage) && selected ? data?.rows.find((row) => row.id === selected.id) : selected;
   const tokenAccessEnded = tokenPage && (state.status === "denied" || state.status === "missing");
   const clearTokenContext = useCallback(() => {
     setSelected(undefined);
@@ -127,6 +135,16 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     invalidate(status);
     clearTokenContext();
   }, [invalidate, clearTokenContext]);
+  const clearPkaScheduleContext = useCallback(() => {
+    clearPkaScheduleRecovery(transport);
+    setPkaScheduleDraft(undefined);
+    setSelected(undefined);
+    setSuccess("");
+  }, [transport]);
+  const pkaScheduleAccessEnded = pkaSchedulePage && (state.status === "denied" || state.status === "missing");
+  useEffect(() => {
+    if (pkaScheduleAccessEnded) clearPkaScheduleContext();
+  }, [pkaScheduleAccessEnded, clearPkaScheduleContext]);
   function reloadTokens() {
     setFilters((previous) => ({ ...previous, search: "", page: "1" }));
     retry();
@@ -185,12 +203,13 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       <Action label="Minggu berikutnya" onPress={() => filter("week", String(week + 1))} disabled={week >= 520} />
     </View> : null}
     {state.status === "loading" ? <PendingCourses /> : null}
-    {state.status === "denied" && (tokenPage
+    {state.status === "denied" && (tokenPage || pkaSchedulePage
       ? <NativeStatusPanel title="Akses admin diperlukan." message="Masuk kembali jika sesi berakhir." tone="error" theme={theme}
-        action={{ id: "retry", label: "Coba lagi" }} onAction={reloadTokens} />
+        action={{ id: "retry", label: "Coba lagi" }} onAction={tokenPage ? reloadTokens : retry} />
       : <NativeStatusPanel title="Akses admin diperlukan." message="Masuk kembali jika sesi berakhir." tone="error" theme={theme} />)}
-    {state.status === "missing" ? <CourseStatus label={tokenPage ? "Token tidak tersedia." : "Halaman atau data tidak ditemukan."}
-      retry={tokenPage ? reloadTokens : undefined} error /> : null}
+    {state.status === "missing" ? <CourseStatus label={pkaSchedulePage ? "Jadwal tidak ditemukan."
+      : tokenPage ? "Token tidak tersedia." : "Halaman atau data tidak ditemukan."}
+      retry={tokenPage ? reloadTokens : pkaSchedulePage ? retry : undefined} error /> : null}
     {state.status === "error" ? <NativeStatusPanel title="Data administrasi gagal dimuat." tone="error" theme={theme} action={{ id: "retry", label: "Coba lagi" }} onAction={retry} /> : null}
     {target ? <CourseStatus label="Membuka halaman tujuan…" /> : null}
     {success ? <View accessibilityLiveRegion="polite"><Ink>{success}</Ink></View> : null}
@@ -208,20 +227,23 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         { id: "success", label: "Berhasil", renderCell: (row) => row.fields?.find((field) => field.label === "Berhasil")?.value ?? "0" },
         { id: "failure", label: "Gagal", renderCell: (row) => row.fields?.find((field) => field.label === "Gagal")?.value ?? "0" },
       ]} /> : !data?.week ? data?.rows.map((row) => {
-      type ActionId = "pdf" | "edit" | "edit-group" | "revoke-token" | "user-status";
+      type ActionId = "pdf" | "edit" | "edit-pka-schedule" | "edit-group" | "group-members" | "revoke-token" | "user-status";
       const actions: SharedUiAction<ActionId>[] = [];
       if (row.pdf && transport.command && !pdfPending) actions.push({ id: "pdf", label: "Minta PDF" });
       if (row.tokenActive !== undefined && transport.command) actions.push({ id: "revoke-token", label: row.tokenActive ? "Cabut token" : "Status token" });
-      if (row.groupEditable && transport.command) actions.push({ id: "edit-group", label: "Edit kelompok" });
+      if (row.groupEditable && transport.command) actions.push({ id: "edit-group", label: "Edit kelompok" }, { id: "group-members", label: "Kelola anggota" });
       if (row.announcementEdit && transport.command) actions.push({ id: "edit", label: "Edit pengumuman" });
+      if (row.pkaScheduleEdit && transport.command) actions.push({ id: "edit-pka-schedule", label: "Edit jadwal" });
       if (row.userStatusEdit && transport.command) actions.push({ id: "user-status", label: "Ubah status" });
       const onAction: SharedUiActionHandler<ActionId> = (id) => {
         if (id === "pdf") setPdfRow(row);
         else {
           setSuccess("");
           if (id === "edit-group") setGroupDraft({ actorTransport: transport, id: row.id });
+          else if (id === "group-members") setGroupMembersDraft({ actorTransport: transport, id: row.id });
           else if (id === "revoke-token") setTokenDraft({ actorTransport: transport, id: row.id });
           else if (id === "user-status") setUserStatusDraft({ actorTransport: transport, row });
+          else if (id === "edit-pka-schedule") setPkaScheduleDraft({ actorTransport: transport, id: row.id });
           else setPkaDraft({ actorTransport: transport, row });
         }
       };
@@ -240,6 +262,10 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     {announcement?.announcementEdit ? <PkaAnnouncementEditor id={announcement.id} initial={announcement.announcementEdit}
       transport={transport} cancel={() => { setPkaDraft(undefined); retry(); }}
       saved={() => { setPkaDraft(undefined); setSuccess("Pengumuman diperbarui."); retry(); }} /> : null}
+    {data && pkaSchedule?.pkaScheduleEdit ? <PkaScheduleEditor key={pkaSchedule.id} id={pkaSchedule.id}
+      initial={pkaSchedule.pkaScheduleEdit} transport={transport} close={() => { setPkaScheduleDraft(undefined); retry(); }}
+      unavailable={invalidate}
+      saved={() => { setPkaScheduleDraft(undefined); setSuccess("Jadwal diperbarui."); retry(); }} /> : null}
     {data && userStatusRow?.userStatusEdit ? <UserStatusEditor key={userStatusRow.id} id={userStatusRow.id} name={userStatusRow.title}
       email={userStatusRow.subtitle} initial={userStatusRow.userStatusEdit} transport={transport}
       close={() => setUserStatusDraft(undefined)}
@@ -252,6 +278,9 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         setGroupDraft(undefined);
         retry();
       }} /> : null}
+    {groupMembersEditor && state.status !== "denied" ? <StudyGroupMembersEditor key={groupMembersEditor.id} id={groupMembersEditor.id}
+      transport={transport} close={() => setGroupMembersDraft(undefined)} saved={retry}
+      denied={() => { setGroupMembersDraft(undefined); setSelected(undefined); invalidate("denied"); }} /> : null}
     {data && tokenEditor && (!tokenEditor.id || tokenRow) ? <LiveEnrollmentTokenEditor key={tokenEditor.id ?? "issue"} id={tokenEditor.id} reference={tokenRow?.title} transport={transport}
       unavailable={tokenUnavailable} cancel={() => setTokenDraft(undefined)} saved={() => {
         setSuccess(tokenEditor.id ? "Token dicabut." : "Token dibuat.");

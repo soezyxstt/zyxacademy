@@ -13,10 +13,12 @@ import { getDiktatPdfContext } from "@/lib/bundle/product-diktat-evidence";
 import { getProductBundleImport } from "@/lib/bundle/product-staging";
 import { getIdeaBundleImport } from "@/lib/bundle/staging";
 import { formatJakartaDatetimeLocal, getJakartaCalendarDate, toIsoTimestamp } from "@/lib/date-utils";
+import { pkaScheduleRevision } from "@/lib/pka/schedule-update";
 import type { ReviewKind } from "@/packages/native-parity/academic/administration/fixtures";
 import type { DiktatEvidenceStatus, LiveField, LivePage, LiveRow } from "@/packages/native-parity/academic/administration/live";
 import { readNativeEnrollmentToken } from "./enrollment-token-service";
 import { readNativeStudyGroupEditor } from "./study-group-service";
+import { readNativeStudyGroupMembers } from "./study-group-members-service";
 import { announcementRevision } from "./announcement-edit-transaction";
 import type { AdministrationQuery, AdministrationReadServices } from "./handle-read";
 
@@ -122,6 +124,7 @@ export const administrationReadServices: AdministrationReadServices = {
   },
   bundle: readBundle,
   groupEditor: readNativeStudyGroupEditor,
+  groupMembers: readNativeStudyGroupMembers,
   tokenEditor: readNativeEnrollmentToken,
   async pdfStatus(slug, { importId, productId, expectedRevision }, attemptId): Promise<DiktatEvidenceStatus | null> {
     const [identity, bundle] = await Promise.all([resolveCourseIdentity(slug), getProductBundleImport(importId)]);
@@ -221,6 +224,7 @@ export const administrationReadServices: AdministrationReadServices = {
         return paginate(entries.filter((entry) => query.status === "upcoming" ? entry.sessionAt.getTime() > now
           : query.status === "past" ? entry.sessionAt.getTime() <= now : true).map((entry) => ({
           id: entry.id, title: entry.title, subtitle: jakDateTime(entry.sessionAt), detail: entry.sessionAt.getTime() <= now ? "Sesi lampau" : undefined,
+          pkaScheduleEdit: pkaScheduleRevision(entry.id, entry),
           fields: [field("Tautan Meet", entry.meetLink), field("Penerima", entry.recipientCount)],
         })), query.page);
       }

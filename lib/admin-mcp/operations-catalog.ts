@@ -16,17 +16,17 @@ export const operationsCatalog = [
   },
   {
     "source": "app/api/native/academic-assessment/[...resource]/route.ts",
-    "actions": ["GET", "POST"],
+    "actions": ["GET", "POST", "PATCH"],
     "tools": [],
     "status": "excluded",
-    "reason": "Interactive assessment reads and manual grading require the signed-in academic role, disclosure checks and course scope. Admin authoring tools continue to use their registered scopes, consent and service contracts."
+    "reason": "Interactive assessment reads and manual grading require the signed-in academic role, disclosure checks and course scope. Tryout draft metadata and bank selection require an active Admin session and course-scoped revision and retry checks. Existing MCP authoring tools use their registered scopes, consent and service contracts."
   },
   {
     "source": "app/api/native/academic-administration/[...resource]/route.ts",
     "actions": ["GET", "POST", "PATCH"],
     "tools": [],
     "status": "excluded",
-    "reason": "The Expo adapter reads administrative data, manages study groups and enrollment tokens, and updates user status and PKA announcement text in an active Admin session. User status uses the web status update with an account and session-scoped receipt. MCP users.set_status has its own scope and consent. PKA is outside MCP scope."
+    "reason": "The Expo adapter reads administrative data, manages ordinary study groups and their members, manages enrollment tokens, and updates user status, PKA announcement text and PKA schedules in an active Admin session. Membership and user status use web operations with session-scoped receipts. MCP membership and user status tools have their own scopes and consent. PKA is outside MCP scope."
   },
   {
     "source": "app/api/admin/bundles/product/[id]/pdf/route.ts",

@@ -6,13 +6,14 @@ import { handleGradeCommand } from "@/lib/native/academic/assessment/handle-grad
 import { assessmentReadServices } from "@/lib/native/academic/assessment/read-services";
 
 import { handleAdminTryoutDraftCommand } from "@/lib/native/academic/assessment/tryout-draft-command";
-import { saveTryoutDraftFromNative } from "@/lib/native/academic/assessment/tryout-draft-service";
+import { changeTryoutDraftQuestionsFromNative, saveTryoutDraftFromNative } from "@/lib/native/academic/assessment/tryout-draft-service";
 
 function tryoutDraftCommand(request: Request, parts: string[], origin: string) {
   return handleAdminTryoutDraftCommand(request, parts, origin, {
     session: getAuthSession,
     hasAdmin: assessmentReadServices.isAdmin,
     save: saveTryoutDraftFromNative,
+    changeQuestions: changeTryoutDraftQuestionsFromNative,
   });
 }
 

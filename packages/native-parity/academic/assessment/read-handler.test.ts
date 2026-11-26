@@ -273,3 +273,41 @@ test("Admin tryout draft writes keep the scoped payload and request across navig
   assert.equal(commands[2].init.method, "PATCH");
   assert.equal((commands[2].init.body as { expectedRevision: string }).expectedRevision, "a".repeat(64));
 });
+
+test("same-session Admin bank selection retries keep the original course, exam, order and revision", async () => {
+  const calls: Array<{ path: string; init: import("../../../../apps/mobile-native/features/academic/client").AcademicCommand }> = [];
+  const transport = {
+    accountId: "admin", origin: "https://example.test", locale: "id",
+    get: async () => Response.json(null, { status: 404 }),
+    command: async (path: string, init: import("../../../../apps/mobile-native/features/academic/client").AcademicCommand) => {
+      calls.push({ path, init });
+      const examId = calls.length === 1 ? "different-draft" : "draft";
+      return Response.json({ requestId: init.requestId, examId, revision: "b".repeat(64), imported: 2, skipped: 0 });
+    },
+  };
+  const context = { actor: { id: "admin", role: "admin" }, scope: { kind: "admin", slug: "biologi" }, scenario: "populated" } as const;
+  const command = {
+    kind: "tryout.question.import", courseId: "mk-bio", exam: { id: "draft", expectedRevision: 0 },
+    questionSetRevision: "a".repeat(64), bankIds: ["q-two", "q-one"],
+  } as const;
+  const edit = { ...command, bankIds: [...command.bankIds] };
+  const gateway = createAssessmentReadGateway(transport);
+  const requestId = "tryout-bank-request";
+  assert.equal((await gateway.mutate(context, requestId, edit)).ok, false);
+  const remounted = createAssessmentReadGateway(transport);
+  const pending = remounted.pendingTryoutDraft?.(context);
+  assert.ok(pending);
+  const otherContext = { ...context, scope: { ...context.scope, slug: "fisika" } };
+  assert.equal(remounted.pendingTryoutDraft?.(otherContext), null);
+  assert.equal((await remounted.mutate(otherContext, requestId, pending.command)).ok, false);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(await remounted.mutate(context, pending.requestId, pending.command),
+    { ok: true, value: { id: "draft", message: "2 soal diimpor." } });
+  assert.deepEqual(calls[0], calls[1]);
+  assert.deepEqual(calls[0], {
+    path: "/api/native/academic-assessment/admin/biologi/tryouts/draft/questions",
+    init: { method: "POST", requestId, body: { courseId: "mk-bio", expectedRevision: "a".repeat(64), action: "import", bankIds: ["q-two", "q-one"] } },
+  });
+  remounted.confirmTryoutDraft?.(context, requestId);
+  assert.equal(remounted.pendingTryoutDraft?.(context), null);
+});

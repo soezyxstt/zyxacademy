@@ -21,6 +21,7 @@ import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
 import type { PackageType } from "@/lib/group-constants";
 import { computeWeeklySessionStats } from "@/lib/schedule-lock";
 import { insertStudyGroupCourses, insertStudyGroupRecord, updateStudyGroupRecord } from "@/lib/groups/study-group-records";
+import { addStudyGroupMember, lockStudyGroupMembership, removeStudyGroupMember } from "@/lib/groups/study-group-members";
 
 export type AdminGroupsQuery = { page?: number; search?: string; status?: string; packageType?: string; courseId?: string };
 const GROUPS_PAGE_SIZE = 25;
@@ -355,17 +356,10 @@ export type UpdateGroupInput = {
  */
 export async function updateStudyGroup(groupId: string, data: UpdateGroupInput) {
   await assertAdmin();
-
-  const existing = await db.query.groups.findFirst({
-    where: eq(groups.id, groupId),
-  });
-
-  if (!existing) {
-    return { success: false, error: "Kelompok belajar tidak ditemukan" };
-  }
-
   try {
     await db.transaction(async (tx) => {
+      const existing = await lockStudyGroupMembership(tx, groupId);
+      if (!existing) throw new Error("GROUP_NOT_FOUND");
       await updateStudyGroupRecord(tx, existing, data);
       if (data.courseIds !== undefined) {
         await tx.delete(groupCourses).where(eq(groupCourses.groupId, groupId));
@@ -377,6 +371,7 @@ export async function updateStudyGroup(groupId: string, data: UpdateGroupInput) 
     revalidatePath("/dashboard/groups");
     return { success: true };
   } catch (err: any) {
+    if (err.message === "GROUP_NOT_FOUND") return { success: false, error: "Kelompok belajar tidak ditemukan" };
     console.error("Failed to update study group:", err);
     return { success: false, error: "Gagal memperbarui kelompok belajar" };
   }
@@ -410,70 +405,19 @@ export async function addGroupMember(
 ) {
   await assertAdmin();
 
-  const groupRecord = await db.query.groups.findFirst({
-    where: eq(groups.id, groupId),
-    with: {
-      courses: true,
-      members: true,
-    },
-  });
-
-  if (!groupRecord) {
-    return { success: false, error: "Kelompok belajar tidak ditemukan" };
-  }
-
-  const alreadyMember = groupRecord.members.some((m) => m.userId === userId);
-  if (alreadyMember) {
-    return { success: false, error: "Pengguna sudah tergabung dalam kelompok ini" };
-  }
-
-  const now = new Date();
-  const expiresAt = groupRecord.endDate || getSemesterEndDate(now);
-
   try {
     await db.transaction(async (tx) => {
-      // 1. Insert member
-      await tx.insert(groupMembers).values({
-        id: randomUUID(),
-        groupId,
-        userId,
-        role,
-        joinedAt: now,
-      });
-
-      // 2. Auto-enroll in group courses
-      for (const gc of groupRecord.courses) {
-        const existingEnrollment = await tx.query.enrollments.findFirst({
-          where: and(
-            eq(enrollments.userId, userId),
-            eq(enrollments.courseId, gc.courseId)
-          ),
-        });
-
-        if (!existingEnrollment) {
-          const enrollmentId = randomUUID();
-          await tx.insert(enrollments).values({
-            id: enrollmentId,
-            userId,
-            courseId: gc.courseId,
-            enrolledAt: now,
-            expiresAt,
-          });
-          await dualWriteEnrollment(tx, {
-            id: enrollmentId,
-            userId,
-            courseId: gc.courseId,
-            enrolledAt: now,
-            expiresAt,
-          });
-        }
-      }
+      const group = await lockStudyGroupMembership(tx, groupId);
+      if (!group) throw new Error("GROUP_NOT_FOUND");
+      await addStudyGroupMember(tx, group, userId, role);
     });
 
     revalidatePath("/admin/groups");
     revalidatePath("/dashboard/groups");
     return { success: true };
   } catch (err: any) {
+    if (err.message === "GROUP_NOT_FOUND") return { success: false, error: "Kelompok belajar tidak ditemukan" };
+    if (err.message === "ALREADY_MEMBER") return { success: false, error: "Pengguna sudah tergabung dalam kelompok ini" };
     console.error("Failed to add group member:", err);
     return { success: false, error: "Gagal menambahkan anggota ke kelompok" };
   }
@@ -486,9 +430,9 @@ export async function removeGroupMember(groupId: string, userId: string) {
   await assertAdmin();
 
   try {
-    await db
-      .delete(groupMembers)
-      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
+    await db.transaction(async (tx) => {
+      if (await lockStudyGroupMembership(tx, groupId)) await removeStudyGroupMember(tx, groupId, userId);
+    });
 
     revalidatePath("/admin/groups");
     revalidatePath("/dashboard/groups");

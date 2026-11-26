@@ -13,7 +13,9 @@ name: Admin course filter, overview and analytics
 - tapOn:
     id: course-category-Biologi
 - tapOn:
-    id: course-search
+    id: course-search-trigger
+- assertVisible:
+    id: course-search-input
 - inputText: biologi
 - hideKeyboard
 - assertNotVisible:
@@ -34,6 +36,8 @@ name: Admin course filter, overview and analytics
 - takeScreenshot: academic-admin-courses-filter-restored-light
 - tapOn:
     id: course-row-biologi-dasar
+- tapOn:
+    id: course-menu
 - scrollUntilVisible:
     element:
       id: course-link-analytics

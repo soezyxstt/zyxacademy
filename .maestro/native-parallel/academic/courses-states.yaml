@@ -50,7 +50,7 @@ name: Admin course empty, recovery and access denial
 - assertVisible: Penyimpanan terputus. Perubahan masih tersedia.
 - tapOn:
     id: course-retry
-- assertVisible: 3. Biologi molekuler
+- assertVisible: .*Biologi molekuler.*
 - takeScreenshot: academic-admin-courses-overview-recovered-dark
 - tapOn:
     id: course-chapter-academic-chapter-1
@@ -66,7 +66,8 @@ name: Admin course empty, recovery and access denial
     id: course-chapter-cancel
 - assertNotVisible:
     id: course-chapter-dialog
-- assertVisible: 1. Struktur sel
+- assertVisible:
+    id: course-chapter-academic-chapter-1
 - openLink: zyx-native-parity://academic?role=tutor&path=%2Fadmin%2Fcourses&theme=dark
 - extendedWaitUntil:
     visible: Akses ditolak.

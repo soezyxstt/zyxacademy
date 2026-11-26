@@ -23,6 +23,8 @@ const native = {
   Modal: ({ visible = true, children }) => visible ? h("Modal", null, children) : null,
   ActivityIndicator: "ActivityIndicator", I18nManager: { isRTL: false }, KeyboardAvoidingView: "KeyboardAvoidingView",
   ScrollView: "ScrollView", Text: "Text", TextInput: "TextInput", View: "View",
+  FlatList: ({ data, keyExtractor, renderItem, ListEmptyComponent }) => h("FlatList", null,
+    data.length ? data.map((item, index) => h("ListItem", { key: keyExtractor(item) }, renderItem({ item, index }))) : ListEmptyComponent),
   Easing: { bezier: () => (value) => value },
   Animated: { View: "AnimatedView", Value: class {}, timing() {}, loop: () => ({ start() {}, stop() {}, reset() {} }) },
 };
@@ -40,7 +42,11 @@ const built = buildSync({
     contents: `export { ConnectedSchedule } from "./tutor/connected";
       export { createTutorSupportClient } from "./tutor/support-client";
       export { AdministrationLiveScreen } from "./administration/live-screen";
+      export { StudyGroupMembersEditor } from "./administration/study-group-members-editor";
       export { LivePdfTitleEdit } from "./courses/live-material";
+      export { Tryouts } from "./assessment/tryouts";
+      export { createAssessmentReadGateway } from "./assessment/client";
+      export { CourseScreen, AdminCourseFixtureProvider } from "./courses";
       export { createAcademicClient } from "./client";`,
     resolveDir: resolve(__dirname, "../../../apps/mobile-native/features/academic"),
   },
@@ -48,7 +54,8 @@ const built = buildSync({
 });
 const entry = { exports: {} };
 new Function("require", "module", "exports", built.outputFiles[0].text)((id) => dependencies[id] ?? testRequire(id), entry, entry.exports);
-const { ConnectedSchedule, createTutorSupportClient, AdministrationLiveScreen, LivePdfTitleEdit, createAcademicClient } = entry.exports;
+const { ConnectedSchedule, createTutorSupportClient, AdministrationLiveScreen, LivePdfTitleEdit, createAcademicClient,
+  CourseScreen, AdminCourseFixtureProvider, StudyGroupMembersEditor, Tryouts, createAssessmentReadGateway } = entry.exports;
 
 const noop = () => {};
 const navigation = { theme: "light", back: noop, navigate: noop, replace: noop, query: {} };
@@ -169,6 +176,74 @@ test("Enrollment token lookup and command denials clear codes and details until 
   }
 });
 
+test("Group membership recovery hides the target and retry until a fresh read authorizes the exact pending action", async () => {
+  const retry = "Periksa dengan percobaan ulang";
+  const id = "private-group";
+  const old = { id: "person", name: "Nama privat lama", email: "lama@fixture.test" };
+  const fresh = { ...old, name: "Nama privat baru", email: "baru@fixture.test" };
+  const group = { id, name: "Kelompok privat", revision: "a".repeat(64), canAdd: true,
+    members: [{ ...old, membershipId: "membership", role: "member" }], candidates: [], nextPage: false };
+  for (const status of [401, 403, 404, 503]) {
+    let read;
+    let defer = false;
+    let deniedCount = 0;
+    const requests = [];
+    const transport = {
+      accountId: "admin",
+      async get(path) {
+        const url = new URL(path, "https://fixture.test");
+        if (!requests.length) return Response.json(group);
+        const { body, requestId } = requests[0];
+        assert.equal(url.searchParams.get("retryRequestId"), requestId);
+        assert.equal(url.searchParams.get("retryUserId"), body.userId);
+        assert.equal(url.searchParams.get("retryAction"), body.action);
+        assert.equal(url.searchParams.get("retryRevision"), body.expectedRevision);
+        if (defer) return new Promise((resolve) => { read = resolve; });
+        return Response.json({ ...group, members: [], recoveryTarget: fresh });
+      },
+      async command(_path, payload) {
+        requests.push(payload);
+        return new Response(null, { status: 503 });
+      },
+    };
+    const props = { id, transport, close: noop, denied: () => deniedCount++, saved: noop };
+    await mount(StudyGroupMembersEditor, props);
+    await press("Keluarkan");
+    assert.ok(screenContains(old.email));
+    await press("Keluarkan");
+    assert.ok(screenContains(fresh.email));
+    assert.equal(screenContains(old.email), false);
+    unmount();
+
+    defer = true;
+    await mount(StudyGroupMembersEditor, props);
+    function assertNoRecoveryDetails() {
+      for (const value of [old.email, fresh.email, old.name, fresh.name, retry]) assert.equal(screenContains(value), false, value);
+    }
+    assertNoRecoveryDetails();
+    assert.ok(screenContains("Memuat anggota…"));
+    await act(async () => { read(new Response(null, { status })); });
+    assertNoRecoveryDetails();
+    assert.equal(requests.length, 1);
+    assert.equal(deniedCount, status === 401 || status === 403 ? 1 : 0);
+    if (status === 503) {
+      await press("Muat ulang anggota");
+    } else {
+      unmount();
+      await mount(StudyGroupMembersEditor, props);
+    }
+    assertNoRecoveryDetails();
+    await act(async () => { read(Response.json({ ...group, members: [], recoveryTarget: fresh })); });
+    assert.ok(screenContains(fresh.email));
+    assert.ok(screenContains(retry));
+    assert.equal(screenContains(old.email), false);
+    defer = false;
+    await press(retry);
+    assert.deepEqual(requests[0], requests[1]);
+    unmount();
+  }
+});
+
 test("The native PDF title form rejects NUL without sending a command and accepts a correction", async () => {
   const calls = [];
   let refreshes = 0;
@@ -194,4 +269,196 @@ test("The native PDF title form rejects NUL without sending a command and accept
   assert.equal(refreshes, 1);
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].command.body, { title: "Modul kegiatan", expectedRevision: revision });
+});
+
+function CourseFixture(props) {
+  return h(AdminCourseFixtureProvider, { scenario: props.scenario }, h(CourseScreen, {
+    actor: { id: "academic-admin", role: "admin" }, ...props,
+  }));
+}
+
+test("Admin fixture course list shows metadata and keeps category and search filters actionable", async () => {
+  const paths = [];
+  await mount(CourseFixture, { scenario: "populated", path: "/admin/courses", params: {}, navigate: (path) => paths.push(path) });
+  assert.ok(screenContains("Semua (3)"));
+  assert.ok(screenContains("academic-course-1"));
+  assert.ok(screenContains("Premium"));
+  assert.ok(screenContains("2 bab · 3 dokumen · 3 kuis"));
+  assert.equal(screenContains("course-search-input"), false);
+  await press("course-category");
+  await press("course-category-Biologi");
+  await press("course-search-trigger");
+  const input = renderer.root.findAllByType("TextInput").find((node) => node.props.testID === "course-search-input");
+  assert.ok(input);
+  act(() => input.props.onChangeText("biologi"));
+  assert.ok(screenContains("Biologi Dasar"));
+  assert.equal(screenContains("Fisika Dasar"), false);
+  await press("course-row-biologi-dasar");
+  assert.deepEqual(paths, ["/admin/courses/biologi-dasar"]);
+  await press("course-search-clear");
+  await press("course-search-close");
+  assert.equal(screenContains("course-search-input"), false);
+  assert.equal(screenContains("Fisika Dasar"), false);
+  await press("course-clear-filters");
+  assert.ok(screenContains("Fisika Dasar"));
+});
+
+test("Admin course detail recovers to the chapter list and retains its chapter and section actions", async () => {
+  const paths = [];
+  await mount(CourseFixture, { scenario: "error", path: "/admin/courses/biologi-dasar", params: { slug: "biologi-dasar" },
+    navigate: (path) => paths.push(path), theme: "dark" });
+  assert.ok(screenContains("Data mata kuliah gagal dimuat."));
+  await press("course-retry");
+  assert.ok(screenContains("2 bab"));
+  assert.ok(screenContains("Fungsi organel dan membran sel."));
+  for (const [number, title] of [[1, "Struktur sel"], [2, "Genetika dasar"]]) {
+    const chapter = renderer.root.findAllByType("Pressable")
+      .find((node) => node.props.testID === `course-chapter-academic-chapter-${number}`);
+    assert.ok(chapter?.props.accessibilityLabel.startsWith(`${number}. ${title},`));
+    assert.ok(chapter.findAllByType("Text").some((label) => label.children.includes(`Bab ${number}`)));
+  }
+  assert.equal(screenContains("course-link-analytics"), false);
+  await press("course-chapter-create");
+  await press("course-chapter-save");
+  assert.ok(screenContains("Judul bab wajib diisi."));
+  await press("course-chapter-cancel");
+  await press("course-chapter-edit-academic-chapter-1");
+  assert.ok(screenContains("course-chapter-dialog"));
+  await press("course-chapter-cancel");
+  await press("course-menu");
+  await press("course-link-analytics");
+  assert.deepEqual(paths, ["/admin/courses/biologi-dasar/analytics"]);
+  assert.equal(screenContains("course-link-analytics"), false);
+});
+
+const pkaScheduleId = "pka-schedule-protected";
+const pkaSchedulePath = "/admin/tutorial-pka/schedules";
+const pkaInitial = {
+  title: "Judul jadwal PKA privat", sessionAt: "2026-11-29T06:00:37.543Z",
+  meetLink: "https://meet.google.com/pka-private-old", revision: "a".repeat(64),
+};
+const pkaLatest = {
+  title: "Judul jadwal PKA terbaru", sessionAt: "2026-11-30T07:15:45.321Z",
+  meetLink: "https://meet.google.com/pka-private-new", revision: "b".repeat(64),
+};
+
+function pkaSchedulePage(schedule) {
+  return { type: "page", rows: schedule ? [{
+    id: pkaScheduleId, title: schedule.title, fields: [{ label: "Tautan Meet", value: schedule.meetLink }],
+    pkaScheduleEdit: schedule,
+  }] : [], nextPage: false };
+}
+
+test("PKA schedule terminal write responses hide the schedule and discard the uncertain draft", async () => {
+  for (const status of [401, 403, 404]) {
+    let schedule = pkaInitial;
+    const calls = [];
+    const transport = {
+      accountId: "admin",
+      async get() { return Response.json(pkaSchedulePage(schedule)); },
+      async command(_path, command) {
+        calls.push(command);
+        return new Response(null, { status: calls.length === 1 ? 503 : status });
+      },
+    };
+    await mount(AdministrationLiveScreen, { path: pkaSchedulePath, params: {}, transport, actor: { id: "admin", role: "admin" } });
+    await press("Edit jadwal");
+    assert.ok(screenContains(pkaInitial.meetLink));
+    await press("academic-admin-save");
+    assert.ok(screenContains("Hasil penyimpanan belum diketahui."));
+    await press("Periksa dengan percobaan ulang");
+    assert.deepEqual(calls[0], calls[1]);
+    for (const stale of [pkaInitial.title, pkaInitial.meetLink, "Edit jadwal PKA", "Periksa dengan percobaan ulang"]) {
+      assert.equal(screenContains(stale), false, stale);
+    }
+    assert.ok(screenContains(status === 404 ? "Jadwal tidak ditemukan." : "Akses admin diperlukan."));
+    schedule = status === 404 ? undefined : pkaLatest;
+    await press("Coba lagi");
+    assert.equal(screenContains(pkaInitial.title), false);
+    if (schedule) {
+      await press("Edit jadwal");
+      assert.ok(screenContains(pkaLatest.meetLink));
+      assert.equal(screenContains("Periksa dengan percobaan ulang"), false);
+    }
+    unmount();
+  }
+});
+
+test("PKA rejects NUL before sending and rebases disjoint fields without losing the precise instant", async () => {
+  const calls = [];
+  const transport = {
+    accountId: "admin",
+    async get() { return Response.json(pkaSchedulePage(calls.length === 2 ? { ...pkaLatest, title: "Judul lokal" } : pkaInitial)); },
+    async command(_path, command) {
+      calls.push(command);
+      return calls.length === 1
+        ? Response.json({ status: "conflict", id: pkaScheduleId, requestId: command.requestId, schedule: pkaLatest }, { status: 409 })
+        : Response.json({ status: "saved", id: pkaScheduleId, requestId: command.requestId, schedule: { ...pkaLatest, title: "Judul lokal" } });
+    },
+  };
+  await mount(AdministrationLiveScreen, { path: pkaSchedulePath, params: {}, transport, actor: { id: "admin", role: "admin" } });
+  await press("Edit jadwal");
+  const input = renderer.root.findAllByType("TextInput").find((node) => node.props.testID === "academic-live-pka-schedule-title");
+  assert.ok(input);
+  act(() => input.props.onChangeText("Judul\0invalid"));
+  await press("academic-admin-save");
+  assert.equal(calls.length, 0);
+  assert.ok(screenContains("Isi judul, tanggal dan jam (WIB)."));
+  act(() => input.props.onChangeText("Judul lokal"));
+  const meetInput = renderer.root.findAllByType("TextInput").find((node) => node.props.testID === "academic-live-pka-schedule-meet");
+  assert.ok(meetInput);
+  act(() => meetInput.props.onChangeText(`${pkaInitial.meetLink}\0`));
+  await press("academic-admin-save");
+  assert.equal(calls.length, 0);
+  assert.ok(screenContains("Periksa tautan HTTPS."));
+  act(() => meetInput.props.onChangeText(pkaInitial.meetLink));
+  await press("academic-admin-save");
+  assert.equal(calls[0].body.sessionAt, pkaInitial.sessionAt);
+  assert.ok(screenContains("Jadwal sudah diubah."));
+  await press("Gunakan revisi terbaru");
+  assert.ok(screenContains("Judul lokal"));
+  assert.ok(screenContains(pkaLatest.meetLink));
+  assert.equal(screenContains(pkaInitial.meetLink), false);
+  await press("academic-admin-save");
+  assert.deepEqual(calls[1].body, { title: "Judul lokal", sessionAt: pkaLatest.sessionAt,
+    meetLink: pkaLatest.meetLink, expectedRevision: pkaLatest.revision });
+  assert.notEqual(calls[0].requestId, calls[1].requestId);
+});
+
+test("Admin tryout bank denial hides the draft, saved questions and picker until a successful GET", async () => {
+  const exam = {
+    id: "tryout-private", title: "Tryout privat", status: "draft", timeLimitMinutes: 45, maxAttempts: 1, revision: 0,
+    questionSetRevision: "a".repeat(64), openAt: null, closeAt: null,
+    questions: [{ id: "tryout-saved", prompt: "Soal rahasia tersimpan", type: "essay", options: [], correctIndices: [],
+      acceptableAnswers: [], revision: 0, order: 1, acceptsFile: false }],
+  };
+  const course = { id: "academic-course", slug: "biologi", title: "Mata kuliah privat" };
+  const bank = [{ id: "tryout-bank-choice", prompt: "Soal bank rahasia", type: "essay", tags: [], difficulty: "easy" }];
+  const context = { actor: { id: "admin", role: "admin" }, scope: { kind: "admin", slug: course.slug }, scenario: "populated" };
+  for (const status of [401, 403]) {
+    let readStatus = 200;
+    const gateway = createAssessmentReadGateway({
+      accountId: "admin",
+      get: async () => readStatus === 200 ? Response.json({ course, tryouts: [exam], bank }) : new Response(null, { status: readStatus }),
+      command: async () => new Response(null, { status }),
+    });
+    await mount(Tryouts, { gateway, context, base: "/admin/courses/biologi" });
+    await press("academic-tryout-questions-tryout-private");
+    assert.ok(screenContains("Soal rahasia tersimpan"));
+    await press("academic-tryout-import");
+    await press("academic-picker-tryout-bank-choice");
+    assert.ok(screenContains("Soal bank rahasia"));
+    await press("academic-tryout-import-confirm");
+    for (const value of [course.title, exam.title, exam.questions[0].prompt, bank[0].prompt]) {
+      assert.equal(screenContains(value), false);
+    }
+    readStatus = 403;
+    await press("academic-tryout-access-reload");
+    assert.equal(screenContains(exam.title), false);
+    readStatus = 200;
+    await press("academic-tryout-access-reload");
+    assert.equal(screenContains(exam.title), true);
+    assert.equal(screenContains(bank[0].prompt), false);
+    unmount();
+  }
 });

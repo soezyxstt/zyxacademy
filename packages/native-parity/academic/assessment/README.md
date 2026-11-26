@@ -12,10 +12,11 @@
 | Hasil kuis | `GET /api/native/academic-assessment/tutor/{courseId}/attempts/{quizId}`. Tutor ditugaskan dan template cocok dengan kursus. | Menampilkan status dan jawaban dari snapshot percobaan, termasuk pengungkapan yang dicatat server. |
 | Antrean dan detail penilaian | `GET /api/native/academic-assessment/tutor/{courseId}/grading` dan `grading/{attemptId}`. Tutor ditugaskan, percobaan berada di kursus tersebut. | Menggunakan read model penilaian web dengan jawaban yang sudah dikumpulkan. |
 | Simpan atau selesaikan penilaian | `POST /api/native/academic-assessment/tutor/{courseId}/grading/{attemptId}`. Tutor aktif dengan sesi dan penugasan yang diperiksa dalam transaksi. | Nilai esai dan isian memakai revisi per jawaban. Kunci dicakup oleh akun, metode, course ID dan percobaan. Percobaan ulang membaca hasil transaksi asli. |
-| Daftar tryout dan soal | `GET /api/native/academic-assessment/admin/{slug}/tryouts`. Peran Admin aktif. | Membaca tryout kursus dan menerapkan pencatatan pengungkapan soal dari web. |
+| Daftar tryout, soal, dan pilihan bank | `GET /api/native/academic-assessment/admin/{slug}/tryouts`. Peran Admin aktif. | Mencatat pengungkapan snapshot dan pilihan bank sebelum menampilkan data. Pilihan bank kursus berisi metadata soal Zyx dan contoh ITB yang sudah terbit. |
 | Hapus kuis | `DELETE /api/quiz/templates/{id}`. Pemeriksaan sesi, kursus, peran dan revisi di transaksi. | Memakai penghapusan proyeksi web. Receipt tetap dapat diverifikasi setelah kuis dan hasil percobaan terhapus. |
 | Buat atau edit metadata draf tryout | `POST /api/native/academic-assessment/admin/{slug}/tryouts` atau `PATCH .../tryouts/{examId}`. Admin aktif dengan sesi dan kursus yang diperiksa di transaksi. | Menyimpan judul, durasi, batas percobaan, waktu buka dan waktu tutup ke exam draf. Edit memakai revisi metadata, mempertahankan pengaturan lain, dan mencatat receipt atomik. |
-| Mutasi bank, publikasi, penghapusan dan penyuntingan soal tryout | Gateway fixture. | Alur menampilkan validasi, konflik, batal dan coba lagi dengan data lokal. Penyimpanan berakun untuk aksi ini masih perlu adapter server. |
+| Impor dan hapus soal impor pada draf | `POST /api/native/academic-assessment/admin/{slug}/tryouts/{examId}/questions`. Admin aktif, sesi, kursus dan revisi draf diperiksa dalam transaksi. | Impor menambahkan hingga 100 soal dalam urutan pilihan dan melewati soal yang sudah ada. Snapshot menyimpan kunci, pembahasan dan asal soal, dengan verifikasi aset sesuai alur web. Penghapusan melepas snapshot dari draf. Perubahan soal hanya tersedia untuk draf yang belum memiliki pengumpulan. Mutasi dan receipt dicatat secara atomik. |
+| Edit isi soal, publikasi, penghapusan tryout, dan mutasi bank | Gateway fixture. | Penyimpanan berakun untuk aksi ini masih perlu adapter server. |
 
 Perintah kuis native menyertakan `actingRole` dari ruang Tutor atau Admin yang sedang aktif. Server memeriksa peran kanonis serta penugasan Tutor dalam transaksi. Percobaan ulang dengan kunci yang sama menggunakan peran, kursus dan isi perintah awal.
 
@@ -26,8 +27,10 @@ Perakitan kuis dan revisi bank melalui MCP tetap memakai alat, scope dan playboo
 ```sh
 node_modules/.bin/tsx --test packages/native-parity/academic/assessment/*.test.ts
 bun scripts/test-contracts.ts tests/contracts/tutor-quiz-native.test.ts tests/contracts/tutor-quiz-api-access.test.ts tests/contracts/tutor-quiz-manual-grading.test.ts
-bun scripts/test-contracts.ts tests/contracts/native-tryout-draft.test.ts
+bun scripts/test-contracts.ts tests/contracts/native-tryout-draft.test.ts tests/contracts/tryout-question-visual-import.test.ts
 bun test tests/gamification/question-disclosure-calls.test.ts
 ```
 
 Skenario Maestro untuk edit, penilaian dan impor fixture tersedia di `.maestro/native-parallel/academic/`. Referensi Playwright web tersedia di `tests/visual/native-parallel/academic/web/`. Bukti Android, iOS dan komparasi piksel masih terbuka. Lampiran penilaian hanya menampilkan nama berkas. Rendering rumus kompleks dan dokumen interaktif mengikuti integrasi renderer bersama.
+
+Uji HTTP lokal memakai sesi Admin dan Tutor sintetis, Next.js, dan PostgreSQL. Uji ini mencakup cakupan pilihan bank, pengungkapan soal, urutan impor, pemulihan permintaan yang dikirim bersamaan, dan penghapusan snapshot. [Fixture dan perintah uji lokal](../local/README.md).

@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { courses, groups, groupCourses, groupMembers, enrollmentTokens, enrollmentTokenCourses, enrollments, pengguna } from "@/db/schema";
@@ -9,6 +9,7 @@ import { PACKAGE_PRESETS } from "@/lib/group-constants";
 import { normalizeGroupName, validateGroupName } from "@/lib/groups/group-name-policy";
 import { normalizeDate } from "@/lib/date-utils";
 import { expireEnrollmentToken, generateEnrollmentTokenCode } from "@/lib/groups/enrollment-token-lifecycle";
+import { insertStudyGroupMember, lockStudyGroupMembership, removeStudyGroupMember } from "@/lib/groups/study-group-members";
 import { adminToolkit, adminId, adminRevision } from "./toolkit";
 import { AdminMcpError, revisionOf, type AdminTransaction } from "./mutations";
 type Source = typeof db | AdminTransaction;
@@ -35,6 +36,7 @@ async function validCourses(tx: AdminTransaction, ids: string[]) {
   const rows = await tx.select({ id: courses.id }).from(courses).where(inArray(courses.id, ids)); if (rows.length !== ids.length) throw new AdminMcpError("COURSE_NOT_FOUND");
 }
 async function enrollMember(tx: AdminTransaction, userId: string, courseIds: string[], expiresAt: Date, actorId: string) {
+  if (courseIds.length) await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`group-enrollment:${userId}`}, 0))`);
   for (const courseId of courseIds) {
     const [old] = await tx.select().from(enrollments).where(and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId))).limit(1);
     if (old && normalizeDate(old.expiresAt).getTime() >= expiresAt.getTime()) continue;
@@ -53,6 +55,7 @@ export function registerGroupTools(server: McpServer, principal: McpPrincipal) {
     return { id, ...await inspectGroup(id, tx) };
   });
   write("groups.update", "groups:write", groupDefinition.extend({ id: adminId, expectedRevision: adminRevision }), "Ubah paket dan course memakai revisi groups.inspect. Penambahan course memberi enrollment kepada anggota yang ada.", async (tx, { id, expectedRevision, ...input }) => {
+    if (!(await lockStudyGroupMembership(tx, id))) throw new AdminMcpError("NOT_FOUND");
     const old = await inspectGroup(id, tx); if (old.revision !== expectedRevision) throw new AdminMcpError("REVISION_CONFLICT");
     const values = packageValues(input); if (values.totalQuotaSessions < old.group.usedQuotaSessions) throw new AdminMcpError("QUOTA_BELOW_USAGE");
     await validCourses(tx, input.courseIds);
@@ -68,19 +71,21 @@ export function registerGroupTools(server: McpServer, principal: McpPrincipal) {
     await tx.update(groups).set({ status: input.status, updatedAt: new Date() }).where(eq(groups.id, input.id)); return { id: input.id, ...await inspectGroup(input.id, tx) };
   });
   write("groups.members.add", "groups:write", z.object({ id: adminId, expectedRevision: adminRevision, userId: adminId, role: z.enum(["leader", "member"]).default("member") }), "Tambahkan anggota dan enrollment course. Kapasitas dan status kelompok diperiksa dalam transaksi.", async (tx, input) => {
+    if (!(await lockStudyGroupMembership(tx, input.id))) throw new AdminMcpError("NOT_FOUND");
     const group = await inspectGroup(input.id, tx); if (group.revision !== input.expectedRevision) throw new AdminMcpError("REVISION_CONFLICT");
     if (group.group.status !== "active" || !group.group.endDate || normalizeDate(group.group.endDate).getTime() <= Date.now()) throw new AdminMcpError("GROUP_NOT_ACTIVE");
     if (group.memberCount >= group.capacity) throw new AdminMcpError("GROUP_CAPACITY_REACHED");
     const [person] = await tx.select().from(pengguna).where(and(eq(pengguna.id, input.userId), eq(pengguna.status, "active"))).limit(1); if (!person) throw new AdminMcpError("ACTIVE_USER_REQUIRED");
     const existing = await tx.select({ id: groupMembers.id }).from(groupMembers).where(and(eq(groupMembers.groupId, input.id), eq(groupMembers.userId, input.userId))).limit(1); if (existing.length) throw new AdminMcpError("ALREADY_MEMBER");
     if (input.role === "leader" && (await tx.select({ id: groupMembers.id }).from(groupMembers).where(and(eq(groupMembers.groupId, input.id), eq(groupMembers.role, "leader"))).limit(1)).length) throw new AdminMcpError("LEADER_ALREADY_EXISTS");
-    await tx.insert(groupMembers).values({ id: crypto.randomUUID(), groupId: input.id, userId: input.userId, role: input.role, joinedAt: new Date() });
+    await insertStudyGroupMember(tx, input.id, input.userId, input.role, new Date());
     await enrollMember(tx, input.userId, group.courses.map(c => c.courseId), normalizeDate(group.group.endDate), principal.actorId);
     return { id: input.id, ...await inspectGroup(input.id, tx) };
   });
   write("groups.members.remove", "groups:write", z.object({ id: adminId, expectedRevision: adminRevision, userId: adminId }), "Keluarkan anggota dari kelompok. Enrollment course tetap mengikuti masa akses yang tersimpan.", async (tx, input) => {
+    if (!(await lockStudyGroupMembership(tx, input.id))) throw new AdminMcpError("NOT_FOUND");
     if ((await inspectGroup(input.id, tx)).revision !== input.expectedRevision) throw new AdminMcpError("REVISION_CONFLICT");
-    const deleted = await tx.delete(groupMembers).where(and(eq(groupMembers.groupId, input.id), eq(groupMembers.userId, input.userId))).returning({ id: groupMembers.id }); if (!deleted.length) throw new AdminMcpError("NOT_FOUND");
+    if (!(await removeStudyGroupMember(tx, input.id, input.userId)).length) throw new AdminMcpError("NOT_FOUND");
     return { id: input.id, ...await inspectGroup(input.id, tx) };
   });
   write("groups.adjust_quota", "groups:write", z.object({ id: adminId, expectedRevision: adminRevision, totalQuotaSessions: z.number().int().min(0).max(100000), usedQuotaSessions: z.number().int().min(0).max(100000), weeklyQuotaSessions: z.number().int().min(0).max(100000), reason: z.string().trim().min(3).max(1000) }), "Koreksi kuota dengan alasan yang tercatat; total tidak boleh di bawah penggunaan.", async (tx, { id, expectedRevision, reason, ...quotas }) => {

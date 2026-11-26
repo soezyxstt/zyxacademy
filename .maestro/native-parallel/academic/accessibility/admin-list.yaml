@@ -9,5 +9,5 @@ name: Academic Admin course list accessibility
     timeout: 20000
 - assertVisible: Biologi Dasar.*
 - assertVisible:
-    id: course-search
+    id: course-search-trigger
 - takeScreenshot: academic-accessibility-admin-list

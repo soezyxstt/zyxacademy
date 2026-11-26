@@ -1,15 +1,19 @@
 import { useContext, useState } from "react";
-import { View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import { allowedCategories } from "../../../../../packages/academic/course-categories";
 import { parseCoursePricingInput, type CoursePricing } from "../../../../../packages/academic/course-pricing";
 import { emptyCourseFixture, type CourseFixture } from "../../../../../packages/native-parity/academic/courses/fixtures";
 import { adminCoursePath, filterAdminCourses, type AdminChapter, type AdminCourse, type AdminCourseOverview } from "../../../../../packages/native-parity/academic/courses/model";
-import { NativeListRow, NativeResponsiveList } from "../../shared-ui";
+import { NativeListRow, NativeResponsiveList, SharedUiSearch } from "../../shared-ui";
 import type { AdminChapterEditor } from "../../../../../packages/native-parity/academic/courses/edit-contract";
+import { Button } from "../../../components/Button";
+import { nativeTypography } from "../../../typography";
+import { NavigationIcon } from "../../shared-ui/navigation-icons";
 import { LiveChapterEditor } from "./live-chapters";
 import type { AcademicActor } from "../contracts";
 import { MutationStatus, useCourseMutation } from "./scope";
-import { Action, CourseDialog, CourseStatus, CourseTheme, DataRow, Field, Ink, Metrics, Panel, Picker, SearchBox, layout } from "./ui";
+import { Action, CourseDialog, CourseStatus, CourseTheme, Field, Ink, Metrics, Panel, Picker, layout, useCourseColors } from "./ui";
 
 type Navigate = (path: string) => void;
 const pricingChoices = [
@@ -19,9 +23,47 @@ const pricingChoices = [
 ] as const;
 const courseCategoryChoices = allowedCategories.map((id) => ({ id, label: id }));
 const pageSize = 12;
+type CourseListEntry = AdminCourse & { pricing?: CoursePricing["category"] };
+
+function CourseTag({ children }: { children: string }) {
+  const palette = useCourseColors();
+  return <Text style={[courseStyles.tag, { color: palette.foreground, backgroundColor: palette.muted }]}>{children}</Text>;
+}
+
+function CourseId({ id }: { id: string }) {
+  const palette = useCourseColors();
+  return <Text style={[courseStyles.id, { color: palette.mutedForeground }]}>{id}</Text>;
+}
+
+function CourseIconAction({ label, onPress, testID, glyph = "+", primary = false }: {
+  label: string; onPress(): void; testID: string; glyph?: string; primary?: boolean;
+}) {
+  const theme = useContext(CourseTheme);
+  return <Button theme={theme} accessibilityLabel={label} onPress={onPress} testID={testID} size="icon-lg" variant={primary ? "default" : "outline"}
+    style={courseStyles.iconAction} renderIcon={(color) => <Text accessible={false} style={[courseStyles.actionGlyph, { color }]}>{glyph}</Text>} />;
+}
+
+function CourseCatalogRow({ course, navigate }: { course: CourseListEntry; navigate: Navigate }) {
+  const palette = useCourseColors();
+  const [focused, setFocused] = useState(false);
+  const counts = `${course.chapterCount} bab · ${course.materialCount} dokumen · ${course.quizCount} kuis`;
+  const access = pricingChoices.find(({ id }) => id === course.pricing)?.label;
+  return <Pressable accessibilityRole="link" accessibilityLabel={[course.title, course.id, course.category, access, counts].filter(Boolean).join(", ")}
+    testID={`course-row-${course.slug}`} onPress={() => navigate(adminCoursePath(course.slug))} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+    style={({ pressed }) => [courseStyles.catalogRow, pressed && { backgroundColor: `${palette.primary}14` },
+      focused && { outlineColor: palette.accent, outlineWidth: 2, outlineOffset: -2 }]}>
+    <Text style={[courseStyles.catalogTitle, { color: palette.foreground }]}>{course.title}</Text>
+    <View style={courseStyles.metadata}>
+      <CourseId id={course.id} />
+      <CourseTag>{course.category}</CourseTag>
+      {access ? <Ink kind="meta" tone="muted">{access}</Ink> : null}
+    </View>
+    <Ink kind="meta" tone="muted">{counts}</Ink>
+  </Pressable>;
+}
 
 export function CourseList({ courses, actor, navigate, allowCreate, initialSearch, initialCategory, pending, readError, retry }: {
-  courses: readonly AdminCourse[];
+  courses: readonly CourseListEntry[];
   actor: AcademicActor;
   navigate: Navigate;
   allowCreate: boolean;
@@ -32,7 +74,9 @@ export function CourseList({ courses, actor, navigate, allowCreate, initialSearc
   retry?(): void;
 }) {
   const theme = useContext(CourseTheme);
+  const palette = useCourseColors();
   const [search, setSearch] = useState(initialSearch);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [category, setCategory] = useState(initialCategory);
   const [page, setPage] = useState(0);
   const [creating, setCreating] = useState(false);
@@ -42,17 +86,29 @@ export function CourseList({ courses, actor, navigate, allowCreate, initialSearc
   const visible = filtered.slice(visiblePage * pageSize, (visiblePage + 1) * pageSize);
   const categories = [...new Set([category, ...courses.map((course) => course.category)].filter(Boolean))].sort((first, right) => first.localeCompare(right, "id"));
   const reset = () => { setSearch(""); setCategory(""); setPage(0); };
+  const filtersActive = Boolean(search || category);
+  const searching = searchOpen || Boolean(search);
+  const emptyTitle = filtersActive ? "Tidak ada mata kuliah yang sesuai." : "Belum ada mata kuliah.";
   return (
     <>
-      <SearchBox label="Cari mata kuliah" value={search} onChange={(value) => { setSearch(value); setPage(0); }} testID="course-search" />
-      <View style={layout.row}>
-        <Picker label="Kategori mata kuliah" selected={category} onSelect={(value) => { setCategory(value); setPage(0); }} testID="course-category"
-          options={[{ id: "", label: "Semua kategori" }, ...categories.map((id) => ({ id, label: id }))]} />
-        {search || category ? <Action label="Atur ulang" onPress={reset} testID="course-clear-filters" variation="ghost" /> : null}
-        {allowCreate ? <Action label="Tambah mata kuliah" onPress={() => { setCreated(false); setCreating(true); }} testID="course-create" variation="default" /> : null}
+      <View style={courseStyles.toolbar}>
+        <View style={courseStyles.filter}>
+          <Picker compact label="Kategori mata kuliah" selected={category} onSelect={(value) => { setCategory(value); setPage(0); }} testID="course-category"
+            options={[{ id: "", label: pending || readError ? "Semua kategori" : `Semua (${courses.length})` }, ...categories.map((id) => ({ id, label: id }))]} />
+        </View>
+        {filtersActive ? <Action label="Atur ulang" onPress={reset} testID="course-clear-filters" variation="ghost" /> : null}
+        <View style={searching ? courseStyles.expandedSearch : undefined}>
+          <SharedUiSearch label="Cari mata kuliah" clearLabel="Hapus pencarian" value={search} theme={theme}
+            onValueChange={(value) => { setSearch(value); setPage(0); }} testID="course-search"
+            expansion={{ expanded: searchOpen, onExpandedChange: setSearchOpen, closeLabel: "Tutup pencarian" }} />
+        </View>
+        {allowCreate && !searching ? <CourseIconAction label="Tambah mata kuliah" onPress={() => { setCreated(false); setCreating(true); }} testID="course-create" primary /> : null}
       </View>
       {created ? <CourseStatus label="Mata kuliah dibuat." /> : null}
-      <NativeResponsiveList
+      {!pending && !readError && !visible.length ? <View style={courseStyles.empty} accessibilityLiveRegion="polite">
+        <NavigationIcon name="book" size={22} color={palette.mutedForeground} />
+        <Ink kind="strong">{emptyTitle}</Ink>
+      </View> : <View style={[courseStyles.catalog, { borderColor: palette.border }]}><NativeResponsiveList
         label="Daftar mata kuliah"
         theme={theme}
         state={pending ? { status: "loading", label: "Memuat mata kuliah" }
@@ -60,23 +116,23 @@ export function CourseList({ courses, actor, navigate, allowCreate, initialSearc
             status: "error", title: "Data mata kuliah gagal dimuat.",
             action: { id: "retry", label: "Coba lagi" }, onAction: retry,
           } : { status: "ready", rows: visible }}
-        empty={{ title: search || category ? "Tidak ada mata kuliah yang sesuai." : "Belum ada mata kuliah." }}
+        empty={{ title: emptyTitle }}
         getRowKey={(row) => row.id}
-        renderRow={(course, listLayout) => (
+        renderRow={(course, listLayout) => listLayout === "compact" ? <CourseCatalogRow course={course} navigate={navigate} /> : (
           <NativeListRow
             layout={listLayout}
             theme={theme}
             title={course.title}
-            subtitle={listLayout === "compact" ? `${course.category} · ${course.chapterCount} bab · ${course.materialCount} materi · ${course.quizCount} kuis` : course.category}
-            metadata={listLayout === "wide" ? [
+            subtitle={`${course.id} · ${course.category}`}
+            metadata={[
               { id: "chapters", label: "Bab", value: String(course.chapterCount) },
               { id: "materials", label: "Materi", value: String(course.materialCount) },
               { id: "quizzes", label: "Kuis", value: String(course.quizCount) },
-            ] : undefined}
+            ]}
             primary={{ testID: `course-row-${course.slug}`, role: "link", onPress: () => navigate(adminCoursePath(course.slug)) }}
           />
         )}
-      />
+      /></View>}
       {filtered.length > pageSize ? (
         <View style={layout.row}>
           <Action label="Sebelumnya" onPress={() => setPage(visiblePage - 1)} disabled={visiblePage === 0} />
@@ -198,6 +254,7 @@ export function CourseOverview({ data, fixture, liveChapterEditor, actor, naviga
   actor: AcademicActor;
   navigate: Navigate;
 }) {
+  const palette = useCourseColors();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editing, setEditing] = useState<AdminChapter | "new" | null>(null);
   const [deleting, setDeleting] = useState<AdminChapter | null>(null);
@@ -224,48 +281,69 @@ export function CourseOverview({ data, fixture, liveChapterEditor, actor, naviga
 
   return (
     <>
-      {course.description ? <Ink>{course.description}</Ink> : null}
-      <Metrics values={[
-        { label: "Bab", value: course.chapterCount },
-        { label: "Dokumen", value: course.materialCount },
-        { label: "Kuis", value: course.quizCount },
-      ]} />
-      <Panel title="Bab" action={canEdit ? <Action label={createPending ? "Periksa bab baru" : "Tambah bab"} onPress={() => setEditing("new")} testID="course-chapter-create" /> : null}>
+      <View style={[courseStyles.metadata, courseStyles.courseIdentity]}>
+        <CourseId id={course.id} />
+        <Ink kind="meta" tone="muted">{course.category}</Ink>
+      </View>
+      <View style={[courseStyles.chapterHeader, { borderColor: palette.border }]}>
+        <View style={courseStyles.metadata}>
+          <NavigationIcon name="classes" color={palette.mutedForeground} size={18} />
+          <Ink kind="heading">{`${chapters.length} bab`}</Ink>
+        </View>
+        {canEdit ? createPending
+          ? <Action label="Periksa bab baru" onPress={() => setEditing("new")} testID="course-chapter-create" />
+          : <CourseIconAction label="Tambah bab" onPress={() => setEditing("new")} testID="course-chapter-create" primary /> : null}
+      </View>
+      <View>
         <MutationStatus mutation={reorder} reload={reorder.clear} success="Urutan bab tersimpan." />
         {chapters.length === 0 ? <CourseStatus label="Belum ada bab." /> : chapters.map((chapter, index) => {
+          const chapterNumber = index + 1;
           const isExpanded = expanded === chapter.id;
+          const editPending = liveChapterEditor?.save(course.id, chapter.id).pending();
+          const editTestId = `course-chapter-edit-${chapter.id}`;
+          const summary = <>
+            <View style={courseStyles.metadata}>
+              <CourseTag>{`Bab ${chapterNumber}`}</CourseTag>
+              <Ink kind="strong">{chapter.title}</Ink>
+            </View>
+            {chapter.description ? <Ink kind="meta" tone="muted">{chapter.description}</Ink> : null}
+            <View style={courseStyles.metadata}>
+              <CourseTag>{`${chapter.materialCount} dokumen`}</CourseTag>
+              <CourseTag>{`${chapter.questionCount} soal`}</CourseTag>
+            </View>
+          </>;
           return (
-            <View key={chapter.id} style={layout.compact}>
-              <DataRow title={`${index + 1}. ${chapter.title}`}
-                detail={`${chapter.materialCount} materi · ${chapter.questionCount} soal`}
-                expanded={isExpanded} onPress={() => setExpanded(isExpanded ? null : chapter.id)}
-                testID={`course-chapter-${chapter.id}`} />
-              {isExpanded ? (
+            <View key={chapter.id} style={[courseStyles.chapterRow, { borderColor: palette.border }]}>
+              <View style={courseStyles.chapterRowTop}>
+                {canEdit ? <Pressable accessibilityRole="button" accessibilityState={{ expanded: isExpanded }}
+                  accessibilityLabel={`${chapterNumber}. ${chapter.title}, ${chapter.materialCount} dokumen, ${chapter.questionCount} soal${chapter.description ? `. ${chapter.description}` : ""}`}
+                  onPress={() => setExpanded(isExpanded ? null : chapter.id)} testID={`course-chapter-${chapter.id}`}
+                  style={({ pressed }) => [courseStyles.chapterSummary, pressed && { backgroundColor: `${palette.primary}14` }]}>
+                  {summary}
+                </Pressable> : <View testID={`course-chapter-${chapter.id}`} style={courseStyles.chapterSummary}>{summary}</View>}
+                {canEdit ? editPending
+                  ? <Action label="Periksa edit bab" onPress={() => setEditing(chapter)} testID={editTestId} />
+                  : <CourseIconAction label={`Edit bab ${chapter.title}`} onPress={() => setEditing(chapter)} testID={editTestId} glyph="✎" /> : null}
+              </View>
+              {isExpanded && canEdit ? (
                 <View style={layout.group}>
-                  {chapter.description ? <Ink>{chapter.description}</Ink> : null}
-                  {canEdit ? (
-                    <>
-                      <View style={layout.row}>
-                        <Action label="Dokumen" onPress={() => navigate(`${adminCoursePath(course.slug, "documents")}?chapter=${encodeURIComponent(chapter.id)}`)} />
-                        <Action label="Bank soal" onPress={() => navigate(`${adminCoursePath(course.slug, "questions")}?chapter=${encodeURIComponent(chapter.id)}`)} />
-                        <Action label={liveChapterEditor?.save(course.id, chapter.id).pending() ? "Periksa edit bab" : "Edit bab"}
-                          onPress={() => setEditing(chapter)} testID={`course-chapter-edit-${chapter.id}`} />
-                        {fixture ? <Action label="Hapus bab" onPress={() => setDeleting(chapter)} variation="destructive" /> : null}
-                      </View>
-                      {fixture && chapters.length > 1 ? (
-                        <View style={layout.row}>
-                          <Action label="Naikkan" onPress={() => move(chapter, -1)} disabled={index === 0} />
-                          <Action label="Turunkan" onPress={() => move(chapter, 1)} disabled={index === chapters.length - 1} />
-                        </View>
-                      ) : null}
-                    </>
+                  <View style={layout.row}>
+                    <Action label="Dokumen" onPress={() => navigate(`${adminCoursePath(course.slug, "documents")}?chapter=${encodeURIComponent(chapter.id)}`)} />
+                    <Action label="Bank soal" onPress={() => navigate(`${adminCoursePath(course.slug, "questions")}?chapter=${encodeURIComponent(chapter.id)}`)} />
+                    {fixture ? <Action label="Hapus bab" onPress={() => setDeleting(chapter)} variation="destructive" /> : null}
+                  </View>
+                  {fixture && chapters.length > 1 ? (
+                    <View style={layout.row}>
+                      <Action label="Naikkan" onPress={() => move(chapter, -1)} disabled={index === 0} />
+                      <Action label="Turunkan" onPress={() => move(chapter, 1)} disabled={index === chapters.length - 1} />
+                    </View>
                   ) : null}
                 </View>
               ) : null}
             </View>
           );
         })}
-      </Panel>
+      </View>
       {fixture && editing ? (
         <ChapterEditor data={fixture} chapter={editing === "new" ? undefined : editing} actor={actor} onClose={() => setEditing(null)} />
       ) : null}
@@ -289,6 +367,26 @@ export function CourseOverview({ data, fixture, liveChapterEditor, actor, naviga
     </>
   );
 }
+
+const courseStyles = StyleSheet.create({
+  toolbar: { flexDirection: "row", alignItems: "flex-start", flexWrap: "wrap", gap: 8 },
+  filter: { flexGrow: 1, flexShrink: 1, alignItems: "flex-start" },
+  expandedSearch: { flexBasis: "100%" },
+  iconAction: { height: 44, width: 44, borderRadius: nativeRadii.lg },
+  actionGlyph: { fontSize: 20, lineHeight: 24 },
+  empty: { alignItems: "center", gap: 12, paddingVertical: 30 },
+  catalog: { flex: 1, borderTopWidth: StyleSheet.hairlineWidth },
+  catalogRow: { minHeight: 88, justifyContent: "center", paddingVertical: 10, gap: 4 },
+  catalogTitle: { ...nativeTypography.headingSemibold, fontSize: 14, lineHeight: 20 },
+  metadata: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6 },
+  id: { fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", fontSize: 12, lineHeight: 17, flexShrink: 1 },
+  tag: { ...nativeTypography.bodyMedium, fontSize: 11, lineHeight: 15, flexShrink: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: nativeRadii.md },
+  courseIdentity: { justifyContent: "flex-end", minHeight: 32 },
+  chapterHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, minHeight: 44, paddingBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth },
+  chapterRow: { paddingVertical: 10, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  chapterRowTop: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  chapterSummary: { flex: 1, minWidth: 0, minHeight: 44, gap: 5 },
+});
 
 function ChapterEditor({ data, chapter, actor, onClose }: {
   data: CourseFixture; chapter?: AdminChapter; actor: AcademicActor; onClose(): void;

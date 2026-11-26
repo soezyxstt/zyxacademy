@@ -186,7 +186,7 @@ function DistributionEditor({ selection, change, tags, setTags }: {
 }
 
 export function QuestionPicker({ bank, ids, change, timers, setTimer, disabledIds = [] }: {
-  bank: readonly BankQuestion[];
+  bank: readonly Pick<BankQuestion, "id" | "prompt" | "type" | "tags" | "difficulty">[];
   ids: readonly string[];
   change(ids: string[]): void;
   timers?: Readonly<Record<string, number>>;

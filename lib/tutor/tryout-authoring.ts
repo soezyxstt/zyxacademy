@@ -1,11 +1,12 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { db } from "@/db";
-import { exams } from "@/db/schema";
+import { aiQuestionBank, exams, questions } from "@/db/schema";
 import { revisionOf } from "@/lib/admin-mcp/revision";
 import type { TryoutInput } from "@/packages/native-parity/academic/assessment/model";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type TryoutExam = typeof exams.$inferSelect;
+type TryoutQuestionRow = typeof questions.$inferSelect;
 type TryoutMetadata = Omit<TryoutInput, "openAt" | "closeAt"> & { openAt?: string | null; closeAt?: string | null };
 
 function settingsObject(value: unknown): Record<string, unknown> {
@@ -21,6 +22,24 @@ function settingsObject(value: unknown): Record<string, unknown> {
 export function tryoutMetadataRevision(row: TryoutExam): string {
   const { id, courseId, type, title, status, settings, openAt, closeAt, createdAt } = row;
   return revisionOf({ id, courseId, type, title, status, settings, openAt, closeAt, createdAt });
+}
+
+export function tryoutQuestionSetRevision(exam: TryoutExam, rows: readonly TryoutQuestionRow[]): string {
+  const byId = Object.fromEntries(rows.map((row) => [row.id, row]));
+  return revisionOf([tryoutMetadataRevision(exam), byId]);
+}
+
+export function selectableTryoutBankCondition(courseIds: string[]) {
+  return and(
+    inArray(aiQuestionBank.courseId, courseIds),
+    eq(aiQuestionBank.reviewStatus, "published"),
+    inArray(aiQuestionBank.origin, ["zyx_original", "itb_example"]),
+  );
+}
+
+export function tryoutBankQuestionId(content: unknown): string | undefined {
+  const bankQuestionId = settingsObject(content).bankQuestionId;
+  return typeof bankQuestionId === "string" && bankQuestionId ? bankQuestionId : undefined;
 }
 
 export function lockTryoutExam(tx: Transaction, legacyCourseId: string, id: string) {
