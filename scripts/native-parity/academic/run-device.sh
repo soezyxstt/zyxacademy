@@ -11,13 +11,14 @@ mkdir -p "$output"
 app_id=com.zyx.academy.nativeparity
 stage=setup
 priority_status=null
+accessibility_status=null
 maestro_status=null
 capture_status=null
 compare_status=null
 
 write_status() {
-  printf '{"stage":"%s","priorityExitCode":%s,"interactionExitCode":%s,"captureExitCode":%s,"comparisonExitCode":%s}\n' \
-    "$stage" "$priority_status" "$maestro_status" "$capture_status" "$compare_status" > "$output/status.json"
+  printf '{"stage":"%s","priorityExitCode":%s,"accessibilityExitCode":%s,"interactionExitCode":%s,"captureExitCode":%s,"comparisonExitCode":%s}\n' \
+    "$stage" "$priority_status" "$accessibility_status" "$maestro_status" "$capture_status" "$compare_status" > "$output/status.json"
 }
 trap write_status EXIT
 write_status
@@ -71,9 +72,16 @@ if (
   printf '%s  maestro.zip\n' "$sha256" | shasum -a 256 -c - &&
   unzip -q maestro.zip
 ) > "$output/maestro-install.log" 2>&1; then
+  stage=accessibility
+  write_status
+  accessibility_status=0
+  python "$scripts/accessibility.py" "$platform" "$device" "$maestro_dir/maestro/bin/maestro" "$output/accessibility" || accessibility_status=$?
+  stage=interactions
+  write_status
   python "$scripts/interactions.py" "$platform" "$device" "$maestro_dir/maestro/bin/maestro" "$output/interactions" || maestro_status=$?
 else
   maestro_status=1
+  accessibility_status=1
 fi
 
 stage=comparison
@@ -92,6 +100,6 @@ if [[ ! -s "$output/interaction-manifest.json" ]]; then
   python "$scripts/evaluate.py" "$output" || compare_status=$?
 fi
 stage=finished
-if (( maestro_status || capture_status || compare_status )); then
+if (( accessibility_status || maestro_status || capture_status || compare_status )); then
   exit 1
 fi

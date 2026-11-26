@@ -1,0 +1,1286 @@
+{
+  "origin": "http://127.0.0.1:3314",
+  "observedAt": "2026-11-26T11:08:22.679Z",
+  "viewport": {
+    "width": 380,
+    "height": 844,
+    "dpr": 1
+  },
+  "entries": [
+    {
+      "id": "admin-groups",
+      "role": "admin",
+      "path": "/admin/groups",
+      "expectedPath": "/admin/groups",
+      "expectedLabel": "Kelompok Belajar",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/groups",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nKelompok belajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nKelompok Belajar\nTidak ada kelompok belajar yang sesuai dengan filter.\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-groups-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/groups",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nKelompok belajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-groups-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "admin-schedules",
+      "role": "admin",
+      "path": "/admin/schedules",
+      "expectedPath": "/admin/schedules",
+      "expectedLabel": "Jadwal & Kalender Akademik",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/schedules",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nJadwal umum\nCari di seluruh Zyx\nTarik untuk memuat ulang\nJadwal & Kalender Akademik\n0/1\nWIB\nGMT+7\nSen\n23\nSel\n24\nRab\n25\nKam\n26\nJum\n27\nSab\n28\nMin\n29\n07:00\n08:00\n09:00\n10:00\n11:00\n12:00\n13:00\n14:00\n15:00\n16:00\n17:00\n18:00\n19:00\n20:00\n21:00\n22:00\n23:00\n24:00\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-schedules-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/schedules",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nJadwal umum\nCari di seluruh Zyx\nTarik untuk memuat ulang\nJadwal & Kalender Akademik\n0/1\nWIB\nGMT+7\nSen\n23\nSel\n24\nRab\n25\nKam\n26\nJum\n27\nSab\n28\nMin\n29\n07:00\n08:00\n09:00\n10:00\n11:00\n12:00\n13:00\n14:00\n15:00\n16:00\n17:00\n18:00\n19:00\n20:00\n21:00\n22:00\n23:00\n24:00\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-schedules-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "admin-users",
+      "role": "admin",
+      "path": "/admin/users",
+      "expectedPath": "/admin/users",
+      "expectedLabel": "Pengguna",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/users",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nPengguna\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nPengguna\nMenampilkan 3 dari 3 pengguna\nA\nAdmin Akademik\nAnda\n\nadmin@academic.test\n\nADMIN\n26 Nov 2026\nN\nNadia Lestari\n\nnadia@academic.test\n\n26 Nov 2026\nT\nTutor Akademik\n\ntutor@academic.test\n\nTUTOR\n26 Nov 2026\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-users-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/users",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nPengguna\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nPengguna\nMenampilkan 3 dari 3 pengguna\nA\nAdmin Akademik\nAnda\n\nadmin@academic.test\n\nADMIN\n26 Nov 2026\nN\nNadia Lestari\n\nnadia@academic.test\n\n26 Nov 2026\nT\nTutor Akademik\n\ntutor@academic.test\n\nTUTOR\n26 Nov 2026\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-users-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "admin-tokens",
+      "role": "admin",
+      "path": "/admin/tokens",
+      "expectedPath": "/admin/tokens",
+      "expectedLabel": "Token Aktivasi",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/tokens",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nToken aktivasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nToken Aktivasi\n0 dari 0 token\n\nBelum ada token\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-tokens-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/tokens",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nToken aktivasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nToken Aktivasi\n0 dari 0 token\n\nBelum ada token\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-tokens-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "admin-notifications",
+      "role": "admin",
+      "path": "/admin/notifications",
+      "expectedPath": "/admin/notifications",
+      "expectedLabel": "Kirim Notifikasi",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/notifications",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nNotifikasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nNotifikasi\nKirim Notifikasi\nTarget penerima\nJudul (0/100)\nPesan (0/500)\n\nPesan hanya diterima pengguna yang mengizinkan notifikasi browser.\n\nLink (opsional)\nKirim notifikasi\nRiwayat Notifikasi\n\nBelum ada notifikasi\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-notifications-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/notifications",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nNotifikasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nNotifikasi\nKirim Notifikasi\nTarget penerima\nJudul (0/100)\nPesan (0/500)\n\nPesan hanya diterima pengguna yang mengizinkan notifikasi browser.\n\nLink (opsional)\nKirim notifikasi\nRiwayat Notifikasi\n\nBelum ada notifikasi\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-notifications-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "admin-pka-registrations",
+      "role": "admin",
+      "path": "/admin/tutorial-pka/registrations",
+      "expectedPath": "/admin/tutorial-pka/registrations",
+      "expectedLabel": "Pendaftar Tutorial PKA",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/tutorial-pka/registrations",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nPendaftar PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPendaftar Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\n\nBelum ada pendaftar\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-pka-registrations-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/tutorial-pka/registrations",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nPendaftar PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPendaftar Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\n\nBelum ada pendaftar\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-pka-registrations-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "admin-pka-announcements",
+      "role": "admin",
+      "path": "/admin/tutorial-pka/announcements",
+      "expectedPath": "/admin/tutorial-pka/announcements",
+      "expectedLabel": "Pengumuman Tutorial PKA",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/tutorial-pka/announcements",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nPengumuman PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengumuman Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\nBuat Pengumuman\nJudul (0/100)\nPesan (Markdown, 0/4000)\n\nDikirim lewat notifikasi dan email ke peserta Tutorial PKA.\n\nKirim pengumuman\nRiwayat Pengumuman\n\nBelum ada pengumuman\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-pka-announcements-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/tutorial-pka/announcements",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nPengumuman PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengumuman Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\nBuat Pengumuman\nJudul (0/100)\nPesan (Markdown, 0/4000)\n\nDikirim lewat notifikasi dan email ke peserta Tutorial PKA.\n\nKirim pengumuman\nRiwayat Pengumuman\n\nBelum ada pengumuman\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-pka-announcements-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "admin-pka-schedules",
+      "role": "admin",
+      "path": "/admin/tutorial-pka/schedules",
+      "expectedPath": "/admin/tutorial-pka/schedules",
+      "expectedLabel": "Jadwal Live Tutorial PKA",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/tutorial-pka/schedules",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nJadwal Live PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nJadwal Live Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\n\n0 sesi total, 0 akan datang.\n\nBelum ada jadwal live\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-pka-schedules-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/tutorial-pka/schedules",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nJadwal Live PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nJadwal Live Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\n\n0 sesi total, 0 akan datang.\n\nBelum ada jadwal live\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-pka-schedules-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "admin-pka-alias",
+      "role": "admin",
+      "path": "/admin/tutorial-pka",
+      "expectedPath": "/admin/tutorial-pka/registrations",
+      "expectedLabel": "Pendaftar Tutorial PKA",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/tutorial-pka/registrations",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nPendaftar PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPendaftar Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\n\nBelum ada pendaftar\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-pka-alias-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/tutorial-pka/registrations",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nPendaftar PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPendaftar Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\n\nBelum ada pendaftar\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-pka-alias-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "admin-materials-alias",
+      "role": "admin",
+      "path": "/admin/materials",
+      "expectedPath": "/admin/courses",
+      "expectedLabel": "Biologi Dasar",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-materials-alias-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/courses",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-materials-alias-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "tutor-schedule",
+      "role": "tutor",
+      "path": "/tutor/schedule",
+      "expectedPath": "/tutor/schedule",
+      "expectedLabel": "Jadwal tutorial",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/tutor/schedule",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nJadwal mengajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nJadwal tutorial\nKalender\n0/0\nWIB\nGMT+7\nSen\n23\nSel\n24\nRab\n25\nKam\n26\nJum\n27\nSab\n28\nMin\n29\n07:00\n08:00\n09:00\n10:00\n11:00\n12:00\n13:00\n14:00\n15:00\n16:00\n17:00\n18:00\n19:00\n20:00\n21:00\n22:00\n23:00\n24:00\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-schedule-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/tutor/schedule",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nJadwal mengajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nJadwal tutorial\nKalender\n0/0\nWIB\nGMT+7\nSen\n23\nSel\n24\nRab\n25\nKam\n26\nJum\n27\nSab\n28\nMin\n29\n07:00\n08:00\n09:00\n10:00\n11:00\n12:00\n13:00\n14:00\n15:00\n16:00\n17:00\n18:00\n19:00\n20:00\n21:00\n22:00\n23:00\n24:00\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-schedule-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "tutor-quizzes",
+      "role": "tutor",
+      "path": "/tutor/academic-course-1/quizzes",
+      "expectedPath": "/tutor/academic-course-1/quizzes",
+      "expectedLabel": "Kelola kuis dan bank soal",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/quizzes",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nLebih\nKelola kuis dan bank soal: Biologi Dasar\nKuis\nBank Soal\nKuis (0)\n\nBelum Ada Kuis\n\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-quizzes-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/quizzes",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nKelola kuis dan bank soal: Biologi Dasar\nKuis\nBank Soal\nKuis (0)\n\nBelum Ada Kuis\n\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-quizzes-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "tutor-quiz-new",
+      "role": "tutor",
+      "path": "/tutor/academic-course-1/quizzes/new",
+      "expectedPath": "/tutor/academic-course-1/quizzes/new",
+      "expectedLabel": "Kuis",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/quizzes/new",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBuat kuis baru\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBuat kuis: Biologi Dasar\nPengaturan\n0\nJudul kuis\nMata kuliah\nJudul kuis\nKategori\nAkses\nJadwal\nTerjadwal\nOtomatis buka dan tutup sesuai waktu\nManual\nBuka atau tutup kuis kapan saja\nStatus kuis\nDurasi dan percobaan\nBatas waktu pengerjaan\nMaksimal percobaan\nAturan dan pembahasan\nNavigasi bebas\nSiswa boleh kembali ke soal sebelumnya\nWajib menjawab semua\nSemua soal harus diisi sebelum dikirim\nAcak urutan soal\nSetiap siswa mendapat urutan soal berbeda\nAcak opsi jawaban\nUrutan pilihan jawaban diacak\nTampilkan pembahasan\nSimpan draf\nTerbitkan kuis\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-quiz-new-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/quizzes/new",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBuat kuis baru\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBuat kuis: Biologi Dasar\nPengaturan\n0\nJudul kuis\nMata kuliah\nJudul kuis\nKategori\nAkses\nJadwal\nTerjadwal\nOtomatis buka dan tutup sesuai waktu\nManual\nBuka atau tutup kuis kapan saja\nStatus kuis\nDurasi dan percobaan\nBatas waktu pengerjaan\nMaksimal percobaan\nAturan dan pembahasan\nNavigasi bebas\nSiswa boleh kembali ke soal sebelumnya\nWajib menjawab semua\nSemua soal harus diisi sebelum dikirim\nAcak urutan soal\nSetiap siswa mendapat urutan soal berbeda\nAcak opsi jawaban\nUrutan pilihan jawaban diacak\nTampilkan pembahasan\nSimpan draf\nTerbitkan kuis\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-quiz-new-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "tutor-quiz-grading",
+      "role": "tutor",
+      "path": "/tutor/academic-course-1/quizzes/grading",
+      "expectedPath": "/tutor/academic-course-1/quizzes/grading",
+      "expectedLabel": "Penilaian kuis",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/quizzes/grading",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-quiz-grading-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/quizzes/grading",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-quiz-grading-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "tutor-tryout-grading",
+      "role": "tutor",
+      "path": "/tutor/academic-course-1/grading",
+      "expectedPath": "/tutor/academic-course-1/grading",
+      "expectedLabel": "Penilaian tryout",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/grading",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-tryout-grading-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/grading",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-tryout-grading-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "tutor-docs",
+      "role": "tutor",
+      "path": "/tutor/docs",
+      "expectedPath": "/tutor/docs",
+      "expectedLabel": "Dokumentasi tutor",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/tutor/docs",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nDokumentasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nDokumentasi tutor\nMulai mengajar\nMengenal ruang kerja tutor\nPahami alur kerja harian tutor mulai dari dashboard, jadwal mengajar, diskusi kelas, hingga ruang mata kuliah.\nJadwal dan sesi tutorial\nMengelola jadwal, slot 90 menit, dan tiket\nBuka ketersediaan bertanggal, salin pola pekan lalu, tangani tiket perubahan jadwal, dan unggah catatan sesi.\nMenjawab diskusi dan memantau peserta\nTangani pertanyaan murid lintas kelas dengan cepat dan pantau keaktifan kelompok belajar di setiap mata kuliah.\nMateri dan penilaian\nMelihat dokumen dan mengelola video kelas\nLihat dokumen mata kuliah dan susun video pembelajaran dalam playlist.\nMembuat kuis dan menilai jawaban esai\nSusun kuis per bab, pahami perbedaan kuis dan tryout, serta selesaikan antrean penilaian esai murid.\nMemandu kuis langsung (Live Qui",
+          "screenshot": "captures/tutor-docs-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/tutor/docs",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nDokumentasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nDokumentasi tutor\nMulai mengajar\nMengenal ruang kerja tutor\nPahami alur kerja harian tutor mulai dari dashboard, jadwal mengajar, diskusi kelas, hingga ruang mata kuliah.\nJadwal dan sesi tutorial\nMengelola jadwal, slot 90 menit, dan tiket\nBuka ketersediaan bertanggal, salin pola pekan lalu, tangani tiket perubahan jadwal, dan unggah catatan sesi.\nMenjawab diskusi dan memantau peserta\nTangani pertanyaan murid lintas kelas dengan cepat dan pantau keaktifan kelompok belajar di setiap mata kuliah.\nMateri dan penilaian\nMelihat dokumen dan mengelola video kelas\nLihat dokumen mata kuliah dan susun video pembelajaran dalam playlist.\nMembuat kuis dan menilai jawaban esai\nSusun kuis per bab, pahami perbedaan kuis dan tryout, serta selesaikan antrean penilaian esai murid.\nMemandu kuis langsung (Live Qui",
+          "screenshot": "captures/tutor-docs-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "tutor-doc-detail",
+      "role": "tutor",
+      "path": "/tutor/docs/ruang-kerja-tutor",
+      "expectedPath": "/tutor/docs/ruang-kerja-tutor",
+      "expectedLabel": "Mengenal ruang kerja tutor",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/tutor/docs/ruang-kerja-tutor",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nDokumentasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nSemua panduan\nMulai mengajar\nMengenal ruang kerja tutor\n\nPahami alur kerja harian tutor mulai dari dashboard, jadwal mengajar, diskusi kelas, hingga ruang mata kuliah.\n\nAkses cepat\nDashboard pengajar\nJadwal mengajar\nDiskusi\nPeta alur kerja pengajar\n\nLINTAS KELAS\n\nJadwal & slot 90 menit\nKotak masuk diskusi\n\nDI DALAM MATA KULIAH\n\nDokumen, Video & Peserta\nKuis, Penilaian Esai & Kuis Langsung\nPeta ruang kerja tutor: berpindah antara operasional lintas kelas dan alat khusus per mata kuliah dari sidebar kiri.\n\nPanel pengajar Zyx membagi pekerjaan Anda menjadi dua tingkat: operasional lintas kelas (Dashboard, Jadwal, dan Diskusi) serta workspace mata kuliah (Dokumen, Video, Peserta, Kuis, Penilaian Esai, dan Kuis Langsung).\n\nDaftar mata kuliah di menu Pengajaran mengikuti penugasan yang diatur oleh ",
+          "screenshot": "captures/tutor-doc-detail-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/tutor/docs/ruang-kerja-tutor",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nDokumentasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nSemua panduan\nMulai mengajar\nMengenal ruang kerja tutor\n\nPahami alur kerja harian tutor mulai dari dashboard, jadwal mengajar, diskusi kelas, hingga ruang mata kuliah.\n\nAkses cepat\nDashboard pengajar\nJadwal mengajar\nDiskusi\nPeta alur kerja pengajar\n\nLINTAS KELAS\n\nJadwal & slot 90 menit\nKotak masuk diskusi\n\nDI DALAM MATA KULIAH\n\nDokumen, Video & Peserta\nKuis, Penilaian Esai & Kuis Langsung\nPeta ruang kerja tutor: berpindah antara operasional lintas kelas dan alat khusus per mata kuliah dari sidebar kiri.\n\nPanel pengajar Zyx membagi pekerjaan Anda menjadi dua tingkat: operasional lintas kelas (Dashboard, Jadwal, dan Diskusi) serta workspace mata kuliah (Dokumen, Video, Peserta, Kuis, Penilaian Esai, dan Kuis Langsung).\n\nDaftar mata kuliah di menu Pengajaran mengikuti penugasan yang diatur oleh ",
+          "screenshot": "captures/tutor-doc-detail-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "tutor-materials",
+      "role": "tutor",
+      "path": "/tutor/academic-course-1/materials",
+      "expectedPath": "/tutor/academic-course-1/materials",
+      "expectedLabel": "Materi",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/materials",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nDokumen: Biologi Dasar\nMateri (0)\n\nBelum ada materi\n\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-materials-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/materials",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nDokumen: Biologi Dasar\nMateri (0)\n\nBelum ada materi\n\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-materials-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "tutor-videos",
+      "role": "tutor",
+      "path": "/tutor/academic-course-1/videos",
+      "expectedPath": "/tutor/academic-course-1/videos",
+      "expectedLabel": "Video",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/videos",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nVideo: Biologi Dasar\nBelum ada playlist video\n\nBuat playlist terlebih dahulu, lalu tambahkan video YouTube ke dalamnya.\n\nBuat playlist pertama\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-videos-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/videos",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nVideo: Biologi Dasar\nBelum ada playlist video\n\nBuat playlist terlebih dahulu, lalu tambahkan video YouTube ke dalamnya.\n\nBuat playlist pertama\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-videos-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "admin-review-alias",
+      "role": "admin",
+      "path": "/admin/materials/review",
+      "expectedPath": "/admin/courses",
+      "expectedLabel": "Biologi Dasar",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-review-alias-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/courses",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-review-alias-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "status": 200,
+            "landed": "/admin/courses",
+            "offOriginBlocked": [],
+            "expectedPathOk": true,
+            "labelVisible": true,
+            "pass": true,
+            "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+            "screenshot": "captures/admin-review-alias-light.png"
+          },
+          {
+            "theme": "dark",
+            "pass": false,
+            "error": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:3314/admin/materials/review\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:3314/admin/materials/review\", waiting until \"domcontentloaded\"\u001b[22m\n"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "admin-authoring-alias",
+      "role": "admin",
+      "path": "/admin/authoring-context",
+      "expectedPath": "/admin/courses",
+      "expectedLabel": "Biologi Dasar",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-authoring-alias-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/courses",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-authoring-alias-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed\nBrowser logs:\n\n<launching> /usr/bin/chromium --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usa"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "admin-review",
+      "role": "admin",
+      "path": "/admin/courses/biologi-dasar/review",
+      "expectedPath": "/admin/courses/biologi-dasar/review",
+      "expectedLabel": "Source Pack + Idea",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/review",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSource Pack + Idea\nProduk\n\nBelum ada Source Pack + Idea.\n\nUpload ZIP bundle dari workflow MCP.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-review-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/review",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSource Pack + Idea\nProduk\n\nBelum ada Source Pack + Idea.\n\nUpload ZIP bundle dari workflow MCP.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-review-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "admin-documents",
+      "role": "admin",
+      "path": "/admin/courses/biologi-dasar/documents",
+      "expectedPath": "/admin/courses/biologi-dasar/documents",
+      "expectedLabel": "Dokumen",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/documents",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSemua\nMateri\nDiktat\nSoal\nMateri PDF\nBelum ada dokumen\n\nDokumen mata kuliah ini belum tersedia.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-documents-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/documents",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSemua\nMateri\nDiktat\nSoal\nMateri PDF\nBelum ada dokumen\n\nDokumen mata kuliah ini belum tersedia.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-documents-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "admin-analytics",
+      "role": "admin",
+      "path": "/admin/courses/biologi-dasar/analytics",
+      "expectedPath": "/admin/courses/biologi-dasar/analytics",
+      "expectedLabel": "Analitik",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/analytics",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal kuis dan simulasi\n0\nTotal pengerjaan\n0\n(Pengerjaan selesai oleh siswa)\nRata-rata nilai\n0 / 100\n(Rata-rata dari kuis terpilih)\nDianalisis\n0 / 0\nPerbarui\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-analytics-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/analytics",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal kuis dan simulasi\n0\nTotal pengerjaan\n0\n(Pengerjaan selesai oleh siswa)\nRata-rata nilai\n0 / 100\n(Rata-rata dari kuis terpilih)\nDianalisis\n0 / 0\nPerbarui\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-analytics-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "tutor-tryout-alias",
+      "role": "tutor",
+      "path": "/tutor/academic-course-1/tryouts",
+      "expectedPath": "/tutor/academic-course-1",
+      "expectedLabel": "Biologi Dasar",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/tutor/academic-course-1",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBiologi Dasar\nTerdaftar\n1\nAktif minggu ini\n0\nBelum dihitung\nKonsep prioritas\n\nData siswa belum cukup untuk mengurutkan konsep.\n\nMiskonsepsi umum\n\nBelum dihitung\n\nPerlu perhatian\n\nPerbarui analitik untuk melihat siswa yang perlu perhatian.\n\nIntervensi aktif\n\nBelum ada intervensi\n\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-tryout-alias-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/tutor/academic-course-1",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBiologi Dasar\nTerdaftar\n1\nAktif minggu ini\n0\nBelum dihitung\nKonsep prioritas\n\nData siswa belum cukup untuk mengurutkan konsep.\n\nMiskonsepsi umum\n\nBelum dihitung\n\nPerlu perhatian\n\nPerbarui analitik untuk melihat siswa yang perlu perhatian.\n\nIntervensi aktif\n\nBelum ada intervensi\n\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-tryout-alias-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "status": 200,
+            "landed": "/tutor/academic-course-1/tryouts",
+            "offOriginBlocked": [],
+            "expectedPathOk": false,
+            "labelVisible": false,
+            "pass": false,
+            "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nMemuat...\nBeranda\nJadwal\nDiskusi\nKelas"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "missing-admin-document",
+      "role": "admin",
+      "path": "/admin/courses/biologi-dasar/documents/not-seeded",
+      "expectedPath": "/admin/courses/biologi-dasar/documents/not-seeded",
+      "expectedLabel": null,
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/documents/not-seeded",
+          "offOriginBlocked": [],
+          "pass": false,
+          "notFoundVisible": true,
+          "classification": "unseeded/missing: streamed HTTP 200 and 404 UI",
+          "textExcerpt": "Langsung ke isi utama\nDokumen\nCari di seluruh Zyx\nTarik untuk memuat ulang\n∑\n×\n∂\n∇\nλ\nσ\nθ\n404\nPeriksa alamat halaman atau kembali ke beranda.\n\nHalaman tidak ditemukan\n\nKe beranda\nKembali",
+          "screenshot": "captures/missing-admin-document-light-404.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "status": 200,
+            "landed": "/admin/courses/biologi-dasar/documents/not-seeded",
+            "offOriginBlocked": [],
+            "pass": false,
+            "classification": "unexpected status for missing fixture",
+            "textExcerpt": "Langsung ke isi utama\nDokumen\nCari di seluruh Zyx\nTarik untuk memuat ulang"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "missing-idea-bundle",
+      "role": "admin",
+      "path": "/admin/courses/biologi-dasar/review/idea/not-seeded",
+      "expectedPath": "/admin/courses/biologi-dasar/review/idea/not-seeded",
+      "expectedLabel": null,
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/review/idea/not-seeded",
+          "offOriginBlocked": [],
+          "pass": false,
+          "notFoundVisible": true,
+          "classification": "unseeded/missing: streamed HTTP 200 and 404 UI",
+          "textExcerpt": "Langsung ke isi utama\nReview ide\nCari di seluruh Zyx\nTarik untuk memuat ulang\n∑\n×\n∂\n∇\nλ\nσ\nθ\n404\nPeriksa alamat halaman atau kembali ke beranda.\n\nHalaman tidak ditemukan\n\nKe beranda\nKembali",
+          "screenshot": "captures/missing-idea-bundle-light-404.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "status": 200,
+            "landed": "/admin/courses/biologi-dasar/review/idea/not-seeded",
+            "offOriginBlocked": [],
+            "pass": false,
+            "classification": "unexpected status for missing fixture",
+            "textExcerpt": "Langsung ke isi utama\nReview ide\nCari di seluruh Zyx\nTarik untuk memuat ulang"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "missing-product-bundle",
+      "role": "admin",
+      "path": "/admin/courses/biologi-dasar/review/product/not-seeded",
+      "expectedPath": "/admin/courses/biologi-dasar/review/product/not-seeded",
+      "expectedLabel": null,
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/review/product/not-seeded",
+          "offOriginBlocked": [],
+          "pass": false,
+          "notFoundVisible": true,
+          "classification": "unseeded/missing: streamed HTTP 200 and 404 UI",
+          "textExcerpt": "Langsung ke isi utama\nReview produk\nCari di seluruh Zyx\nTarik untuk memuat ulang\n∑\n×\n∂\n∇\nλ\nσ\nθ\n404\nPeriksa alamat halaman atau kembali ke beranda.\n\nHalaman tidak ditemukan\n\nKe beranda\nKembali",
+          "screenshot": "captures/missing-product-bundle-light-404.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "status": 200,
+            "landed": "/admin/courses/biologi-dasar/review/product/not-seeded",
+            "offOriginBlocked": [],
+            "pass": false,
+            "classification": "unexpected status for missing fixture",
+            "textExcerpt": "Langsung ke isi utama\nReview produk\nCari di seluruh Zyx\nTarik untuk memuat ulang"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "missing-tutor-quiz",
+      "role": "tutor",
+      "path": "/tutor/academic-course-1/quizzes/not-seeded/edit",
+      "expectedPath": "/tutor/academic-course-1/quizzes/not-seeded/edit",
+      "expectedLabel": null,
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/quizzes/not-seeded/edit",
+          "offOriginBlocked": [],
+          "pass": false,
+          "notFoundVisible": true,
+          "classification": "unseeded/missing: streamed HTTP 200 and 404 UI",
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nEdit kuis\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\n∑\n×\n∂\n∇\nλ\nσ\nθ\n404\nPeriksa alamat halaman atau kembali ke beranda.\n\nHalaman tidak ditemukan\n\nKe beranda\nKembali\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/missing-tutor-quiz-light-404.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "status": 200,
+            "landed": "/tutor/academic-course-1/quizzes/not-seeded/edit",
+            "offOriginBlocked": [],
+            "pass": false,
+            "classification": "unexpected status for missing fixture",
+            "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nEdit kuis\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMemuat...\nBeranda\nJadwal\nDiskusi\nKelas"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "admin-questions",
+      "role": "admin",
+      "path": "/admin/courses/biologi-dasar/questions",
+      "expectedPath": "/admin/courses/biologi-dasar/questions",
+      "expectedLabel": "Soal",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/questions",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSemua soal (0)\nSoal asli Zyx (0)\nReferensi historis (0)\nBank soal (0)\nMenampilkan 0–0 dari 0\n\nTidak ada butir soal yang sesuai\n\nUbah pencarian atau filter kesulitan.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-questions-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/questions",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSemua soal (0)\nSoal asli Zyx (0)\nReferensi historis (0)\nBank soal (0)\nMenampilkan 0–0 dari 0\n\nTidak ada butir soal yang sesuai\n\nUbah pencarian atau filter kesulitan.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-questions-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:3314/admin/courses/biologi-dasar/questions\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:3314/admin/courses/biologi-dasar/questions\", waiting until \"domcontentloaded\"\u001b[22m\n"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "admin-flashcards",
+      "role": "admin",
+      "path": "/admin/courses/biologi-dasar/flashcards",
+      "expectedPath": "/admin/courses/biologi-dasar/flashcards",
+      "expectedLabel": "Flashcard",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/flashcards",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\n\nBelum ada kartu hafalan\n\nKelas ini belum memiliki set kartu hafalan. Buat set untuk menambahkan kartu konsep.\n\nBuat set\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-flashcards-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/flashcards",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\n\nBelum ada kartu hafalan\n\nKelas ini belum memiliki set kartu hafalan. Buat set untuk menambahkan kartu konsep.\n\nBuat set\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-flashcards-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed\nBrowser logs:\n\n<launching> /usr/bin/chromium --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usa"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "admin-quizzes",
+      "role": "admin",
+      "path": "/admin/courses/biologi-dasar/quizzes",
+      "expectedPath": "/admin/courses/biologi-dasar/quizzes",
+      "expectedLabel": "Kuis",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/quizzes",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\n0 dari 0 kuis\n\nBelum ada kuis yang dibuat untuk kelas ini\n\nGunakan tombol tambah untuk menyusun kuis mandiri atau simulasi ujian pada kelas ini.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-quizzes-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/quizzes",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\n0 dari 0 kuis\n\nBelum ada kuis yang dibuat untuk kelas ini\n\nGunakan tombol tambah untuk menyusun kuis mandiri atau simulasi ujian pada kelas ini.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-quizzes-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "admin-results",
+      "role": "admin",
+      "path": "/admin/courses/biologi-dasar/results",
+      "expectedPath": "/admin/courses/biologi-dasar/results",
+      "expectedLabel": "Hasil",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/results",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal pengerjaan siswa\n0\n(Pada 0 kuis)\nRata-rata nilai\n0 / 100\n(Nilai pengerjaan siswa)\nTingkat kelulusan\n0%\n(Siswa dengan nilai ≥ 70)\nDianalisis\n0 / 0\n(Kuis dengan laporan insight)\nEvaluasi hasil per kuis dan simulasi\n\nBelum ada kuis untuk dianalisis\n\nBuat kuis pada tab Kuis & Asesmen untuk mulai mengumpulkan data pengerjaan siswa.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-results-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/results",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal pengerjaan siswa\n0\n(Pada 0 kuis)\nRata-rata nilai\n0 / 100\n(Nilai pengerjaan siswa)\nTingkat kelulusan\n0%\n(Siswa dengan nilai ≥ 70)\nDianalisis\n0 / 0\n(Kuis dengan laporan insight)\nEvaluasi hasil per kuis dan simulasi\n\nBelum ada kuis untuk dianalisis\n\nBuat kuis pada tab Kuis & Asesmen untuk mulai mengumpulkan data pengerjaan siswa.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-results-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "admin-settings",
+      "role": "admin",
+      "path": "/admin/courses/biologi-dasar/settings",
+      "expectedPath": "/admin/courses/biologi-dasar/settings",
+      "expectedLabel": "Pengaturan",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/settings",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nInformasi mata kuliah\nID / slug permanen\nNama mata kuliah\nProgram studi / kategori\nKategori akses\nDeskripsi mata kuliah (opsional)\nSimpan perubahan\nDemo publik\n\nDemo dapat dibuka tanpa login. Konten harus terbit dan lengkap.\n\nBelum dipilih\n\nArtikel terbit dengan struktur lengkap\n\n0 tersedia\n\nDiktat terbit dengan dua bagian\n\n0 tersedia\n\nSedikitnya lima flashcard terbit\n\n0 tersedia\n\nSedikitnya tiga soal kuis terbit\n\n0 tersedia\n\nLengkapi dan terbitkan konten yang diperlukan sebelum memilih mata kuliah ini.\n\nJadikan demo publik\nZona bahaya\n\nMenghapus mata kuliah ini juga menghapus seluruh bab, materi PDF, kuis, dan riwayat pengerjaan siswa yang terhubung.\n\nHapus mata kuliah\nBeranda\nKela",
+          "screenshot": "captures/admin-settings-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/settings",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nInformasi mata kuliah\nID / slug permanen\nNama mata kuliah\nProgram studi / kategori\nKategori akses\nDeskripsi mata kuliah (opsional)\nSimpan perubahan\nDemo publik\n\nDemo dapat dibuka tanpa login. Konten harus terbit dan lengkap.\n\nBelum dipilih\n\nArtikel terbit dengan struktur lengkap\n\n0 tersedia\n\nDiktat terbit dengan dua bagian\n\n0 tersedia\n\nSedikitnya lima flashcard terbit\n\n0 tersedia\n\nSedikitnya tiga soal kuis terbit\n\n0 tersedia\n\nLengkapi dan terbitkan konten yang diperlukan sebelum memilih mata kuliah ini.\n\nJadikan demo publik\nZona bahaya\n\nMenghapus mata kuliah ini juga menghapus seluruh bab, materi PDF, kuis, dan riwayat pengerjaan siswa yang terhubung.\n\nHapus mata kuliah\nBeranda\nKela",
+          "screenshot": "captures/admin-settings-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ]
+      ]
+    }
+  ]
+}

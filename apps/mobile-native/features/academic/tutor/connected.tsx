@@ -12,10 +12,12 @@ import type {
   TutorSupportClient,
   TutorVideosData,
 } from "../../../../../packages/academic/tutor-support";
+import type { TutorSlotEditor, TutorSlotPending } from "../../../../../packages/academic/tutor-slot";
 import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import type { AcademicScreenProps } from "../contracts";
+import { SharedDialog } from "../../shared-ui";
 import { TutorWeekCalendar, tutorJakartaToday } from "./schedule-calendar";
 import { Choices, Empty, Heading, Label, Row, TutorDetail, TutorPage, tutorLayout } from "./ui";
 
@@ -36,10 +38,27 @@ function times(start: string | null, end: string | null) {
 type ScheduleTab = "calendar" | "tickets" | "groups";
 const ticketStatuses = { pending: "Menunggu keputusan", approved: "Disetujui", rejected: "Ditolak" };
 
-export function ConnectedSchedule({ data, week, theme, back, replace, query }: Navigation & { week: number; data: TutorScheduleData }) {
+export function ConnectedSchedule({ data: initial, week, theme, back, replace, query, editor, reload }: Navigation & {
+  week: number;
+  data: TutorScheduleData;
+  editor?: TutorSlotEditor;
+  reload(signal: AbortSignal): Promise<TutorScheduleData>;
+}) {
+  const [data, setData] = useState(initial);
   const [tab, setTab] = useState<ScheduleTab>(query.tab === "tickets" ? "tickets" : "calendar");
   const [search, setSearch] = useState("");
-  const [selectedDate, setSelectedDate] = useState<string>();
+  const [selectedDate, setSelectedDate] = useState(() => query.date >= initial.from && query.date <= initial.to ? query.date : undefined);
+  const [draft, setDraft] = useState<TutorSlotPending | null>(null);
+  const [slotError, setSlotError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [needsRefresh, setNeedsRefresh] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const pending = editor?.pending() ?? [];
+  const awaiting = Boolean(draft && pending.some((item) => item.target?.slotId === draft.target?.slotId));
+  const attempt = useRef<AbortController | null>(null);
+  const addSlotRef = useRef<ComponentRef<typeof Button>>(null);
+  useEffect(() => () => attempt.current?.abort(), []);
   const matches = (values: (string | null)[]) => values.some((value) => value?.toLowerCase().includes(search.trim().toLowerCase()));
   const slots = data.slots.filter((slot) => !search.trim() || matches([slot.date, slot.start, slot.location]));
   const sessions = data.sessions.filter((session) => !search.trim() || matches([session.date, session.groupName, session.courseTitle, session.topic]));
@@ -47,25 +66,113 @@ export function ConnectedSchedule({ data, week, theme, back, replace, query }: N
   const events = [
     ...slots.map((slot) => ({
       id: `slot-${slot.id}`, dateId: slot.date, title: "Slot ketersediaan",
-      caption: [times(slot.start, slot.end), slot.mode === "online" ? "Daring" : slot.location ?? "Tatap muka", slot.booked ? "Terisi" : "Tersedia"].join(" · "),
+      caption: [times(slot.start, slot.end), slot.mode === "online" ? "Daring" : slot.location ?? "Tatap muka",
+        slot.booked ? "Terisi" : slot.hasBookingHistory ? "Ada riwayat pemesanan" : "Tersedia"].join(" · "),
+      disabled: Boolean(editor && !slot.revision),
     })),
     ...sessions.flatMap((session) => session.date ? [{
       id: `session-${session.id}`, dateId: session.date, title: session.topic ?? session.courseTitle ?? "Sesi tutorial",
       caption: [session.groupName, times(session.start, session.end), sessionStatus(session.status)].filter(Boolean).join(" · "),
+      disabled: Boolean(editor),
     }] : []),
   ];
   const today = tutorJakartaToday();
   const defaultDate = !search.trim() && today >= data.from && today <= data.to ? today : events[0]?.dateId ?? data.from;
   const undated = sessions.filter((session) => !session.date);
-  return <TutorPage title="Jadwal mengajar" theme={theme} onBack={back}>
+
+  function openSlot(value: TutorSlotPending) {
+    if (saving) return;
+    setDraft(pending.find((item) => item.target?.slotId === value.target?.slotId) ?? value);
+    setSlotError("");
+    setBlocked(false);
+  }
+
+  async function refresh(signal: AbortSignal) {
+    try {
+      const current = await reload(signal);
+      if (!signal.aborted) { setData(current); setNeedsRefresh(false); }
+    } catch {
+      if (!signal.aborted) setNeedsRefresh(true);
+    }
+  }
+
+  async function refreshSchedule() {
+    if (attempt.current) return;
+    const controller = new AbortController();
+    attempt.current = controller;
+    setSaving(true);
+    try {
+      await refresh(controller.signal);
+    } finally {
+      attempt.current = null;
+      if (!controller.signal.aborted) setSaving(false);
+    }
+  }
+
+  async function save() {
+    if (!editor || !draft || attempt.current || blocked) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    attempt.current = controller;
+    setSaving(true);
+    setSlotError("");
+    try {
+      const result = await editor.save(draft.target, draft.fields, randomUUID(), signal);
+      if (signal.aborted) return;
+      if (result.status === "saved") {
+        const date = result.receipt.date;
+        setDraft(null);
+        setNotice("Slot tersimpan.");
+        const targetWeek = week + Math.floor((Date.parse(date) - Date.parse(data.from)) / (7 * 86_400_000));
+        if (targetWeek !== week && targetWeek >= -520 && targetWeek <= 520) replace(`/tutor/schedule?week=${targetWeek}&date=${date}`);
+        else {
+          setSelectedDate(targetWeek === week ? date : undefined);
+          await refresh(signal);
+        }
+      } else {
+        setSlotError({
+          invalid: "Periksa tanggal, durasi dan lokasi slot.",
+          conflict: "Slot telah berubah. Muat jadwal terbaru.",
+          booked: "Slot dengan riwayat pemesanan tidak dapat diedit.",
+          overlap: "Waktu pilihan bertumpang tindih dengan slot lain.",
+          denied: "Akses untuk menyimpan slot ditolak.",
+          unknown: "Penyimpanan belum terkonfirmasi. Coba kirim lagi.",
+        }[result.status]);
+        if (["booked", "conflict", "denied"].includes(result.status)) {
+          setBlocked(true);
+          setNeedsRefresh(true);
+        }
+      }
+    } finally {
+      attempt.current = null;
+      if (!signal.aborted) setSaving(false);
+    }
+  }
+
+  return <><TutorPage title="Jadwal mengajar" theme={theme} onBack={back}>
     <Choices<ScheduleTab> theme={theme} label="Bagian jadwal" value={tab} change={setTab}
       options={[["calendar", "Kalender"], ["tickets", "Tiket"], ["groups", "Kelas dan kelompok"]]} />
     {tab === "calendar" ? <>
+      {notice ? <Label theme={theme} tone="strong">{notice}</Label> : null}
+      {needsRefresh ? <LoadFailure theme={theme} error="Jadwal perlu diperbarui." retry={refreshSchedule} /> : null}
+      {editor ? <Button ref={addSlotRef} theme={theme} style={tutorLayout.action} disabled={saving || needsRefresh}
+        onPress={() => openSlot({ target: undefined, fields: { date: selectedDate ?? defaultDate, start: "09:00", mode: "online", location: "", notes: "" } })}>
+        Tambah slot
+      </Button> : null}
+      {pending.map((item) => <Button key={item.target?.slotId ?? "create"} theme={theme} variant="outline" style={tutorLayout.action}
+        disabled={saving} onPress={() => openSlot(item)}>{`Lanjutkan pengiriman slot ${dated(item.fields.date)}`}</Button>)}
       <Input theme={theme} accessibilityLabel="Cari slot dan sesi" placeholder="Cari slot, topik, kelompok" value={search}
         onChangeText={(value) => { setSearch(value); setSelectedDate(undefined); }} style={tutorLayout.input} />
       <TutorWeekCalendar theme={theme} start={data.from} week={week} today={today} selectedDate={selectedDate ?? defaultDate}
         events={events} onDateChange={setSelectedDate}
-        onWeekChange={(direction) => replace(`/tutor/schedule?week=${week + direction}`)} />
+        onWeekChange={(direction) => { if (!saving) replace(`/tutor/schedule?week=${week + direction}`); }}
+        onEventPress={editor ? (id) => {
+          if (needsRefresh) return;
+          const slot = slots.find((candidate) => id === `slot-${candidate.id}`);
+          if (!slot?.revision) return;
+          openSlot({ target: { slotId: slot.id, expectedRevision: slot.revision },
+            fields: { date: slot.date, start: slot.start, mode: slot.mode, location: slot.location ?? "", notes: slot.notes ?? "" } });
+        } : undefined} />
       {undated.length ? <View>
         <Heading theme={theme} title="Sesi tanpa tanggal" count={String(undated.length)} />
         {undated.map((session) => <Row key={session.id} theme={theme}
@@ -89,7 +196,29 @@ export function ConnectedSchedule({ data, week, theme, back, replace, query }: N
       </Row>)}
       {data.groups.length === 0 ? <Empty theme={theme} title="Belum ada kelompok aktif" /> : null}
     </View> : null}
-  </TutorPage>;
+  </TutorPage>
+  <SharedDialog open={Boolean(draft)} theme={theme} title={draft?.target ? "Edit slot ketersediaan" : "Tambah slot ketersediaan"}
+    description="90 menit" closeLabel="Kembali" onDismiss={() => setDraft(null)}
+    dismissOnBackdrop={false} dismissDisabled={saving} returnFocusRef={addSlotRef} testID="tutor-connected-slot-dialog"
+    footer={<Button theme={theme} style={tutorLayout.action} onPress={save} isLoading={saving} disabled={blocked}>
+      {awaiting ? "Coba kirim lagi" : "Simpan slot"}
+    </Button>}>
+    {draft ? <>
+      <Label theme={theme} tone="strong">Tanggal (YYYY-MM-DD)</Label>
+      <Input theme={theme} accessibilityLabel="Tanggal" value={draft.fields.date} editable={!saving && !awaiting && !blocked}
+        onChangeText={(date) => setDraft({ ...draft, fields: { ...draft.fields, date } })} />
+      <Label theme={theme} tone="strong">Mulai (HH:MM)</Label>
+      <Input theme={theme} accessibilityLabel="Waktu mulai" value={draft.fields.start} editable={!saving && !awaiting && !blocked}
+        onChangeText={(start) => setDraft({ ...draft, fields: { ...draft.fields, start } })} />
+      <Choices<"online" | "offline"> theme={theme} label="Mode sesi" value={draft.fields.mode} disabled={saving || awaiting || blocked}
+        change={(mode) => setDraft({ ...draft, fields: { ...draft.fields, mode } })} options={[["online", "Daring"], ["offline", "Tatap muka"]]} />
+      {draft.fields.mode === "offline" ? <Input theme={theme} accessibilityLabel="Lokasi" placeholder="Lokasi atau ruangan" value={draft.fields.location}
+        editable={!saving && !awaiting && !blocked} onChangeText={(location) => setDraft({ ...draft, fields: { ...draft.fields, location } })} /> : null}
+      <Input theme={theme} accessibilityLabel="Catatan slot" placeholder="Catatan slot (opsional)" value={draft.fields.notes} multiline
+        maxLength={4000} editable={!saving && !awaiting && !blocked} onChangeText={(notes) => setDraft({ ...draft, fields: { ...draft.fields, notes } })} />
+      {slotError ? <Label theme={theme} tone="error">{slotError}</Label> : null}
+    </> : null}
+  </SharedDialog></>;
 }
 
 function LoadFailure({ theme, error, retry }: { theme: Navigation["theme"]; error: string; retry: () => void }) {

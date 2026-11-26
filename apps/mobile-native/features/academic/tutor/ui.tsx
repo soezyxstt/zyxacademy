@@ -125,8 +125,8 @@ export function Row({ theme, title, subtitle, meta, titleMeta, indicator = "›"
   ) : <View testID={testID} style={style}>{content}</View>;
 }
 
-export function Choices<T extends string>({ theme, options, value, change, label, tabBar = false }: {
-  theme: TutorTheme; options: readonly (readonly [T, string])[]; value: T; change: (value: T) => void; label: string; tabBar?: boolean;
+export function Choices<T extends string>({ theme, options, value, change, label, tabBar = false, disabled = false }: {
+  theme: TutorTheme; options: readonly (readonly [T, string])[]; value: T; change: (value: T) => void; label: string; tabBar?: boolean; disabled?: boolean;
 }) {
   const colors = nativeColors[theme];
   return <ScrollView
@@ -142,6 +142,7 @@ export function Choices<T extends string>({ theme, options, value, change, label
         key={id}
         accessibilityRole="tab"
         accessibilityState={{ selected: id === value }}
+        disabled={disabled}
         variant={!tabBar && id === value ? "outline" : "ghost"}
         theme={theme}
         style={[

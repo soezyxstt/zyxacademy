@@ -24,6 +24,8 @@ Tangkapan mobile menggunakan viewport 380 × 844 CSS px, DPR 1 atau 3, locale `i
 
 Workflow `.github/workflows/academic-native-evidence.yml` menjalankan job Android dan iOS secara independen dari galeri komponen. Setiap job mengambil sembilan kasus prioritas, menjalankan setiap berkas Maestro akademik dalam proses terpisah, lalu melanjutkan tangkapan 162 kasus dari manifest akademik. Penanda sesaat di kedua sudut frame memverifikasi identitas kasus dan mengukur batas konten setelah safe area. Job menyimpan frame bersih setelah dua frame konten berturut-turut sama dan menandai kasus yang gagal diverifikasi. Arsip `academic-android-evidence` dan `academic-ios-evidence` menyimpan PNG mentah, manifest rute, log, status tiap alur, dan hasil pembandingan selama tujuh hari. Job Linux menyiapkan referensi Playwright pada viewport terukur serta menyimpan referensi, selisih, dan status dalam arsip `academic-matched-viewport`.
 
+Folder `accessibility/` di setiap arsip berisi hierarki perangkat, screenshot, dan hasil pemeriksaan nama yang terbaca di detail peserta Tutor dan daftar kursus Admin. Alur penolakan memeriksa bahwa data kedua halaman tidak muncul dalam hierarki akun murid. Pemeriksaan TalkBack dan VoiceOver memerlukan pengujian tersendiri.
+
 `device-manifest.py` menggunakan delapan pasangan nama screenshot Maestro dan kasus Playwright dengan peran, data, state, dan tema yang sama. Kasus yang tidak memiliki padanan semantik, seperti layar detail peserta yang terpisah di native, tidak dipasangkan. Nama screenshot yang tidak ditemukan tercatat dalam manifest perangkat.
 
 Unduh artefak Android dari run yang ingin diuji. Untuk iOS, gunakan nama artefak iOS dan referensi DPR 3.

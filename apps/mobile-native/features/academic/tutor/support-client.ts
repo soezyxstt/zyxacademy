@@ -3,6 +3,7 @@ import { tutorPlaybackUrl } from "../../../../../packages/academic/tutor-support
 import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
 import type { AcademicTransport } from "../client";
 import { createTryoutGradeEditor } from "./tryout-grade-client";
+import { createTutorSlotEditor } from "./slot-client";
 
 function coursePath(courseId: string, page: string) {
   return `courses/${encodeURIComponent(courseId)}/${page}`;
@@ -31,6 +32,7 @@ export function createTutorSupportClient(transport: AcademicTransport): TutorSup
   }
 
   return {
+    slotEditor: createTutorSlotEditor(transport),
     tryoutGrade: createTryoutGradeEditor(transport),
     schedule: (week, signal) => read("schedule", signal, new URLSearchParams({ week: String(week) })),
     discussions: (courseId, search, cursor, signal) => {

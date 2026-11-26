@@ -6,6 +6,24 @@ import subprocess
 from pathlib import Path
 
 
+def run_flow(command_prefix, flow, output, timeout=150):
+    output = output.resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    command = [
+        *command_prefix, "test", "--format", "junit", "--output", str(output / "report.xml"),
+        "--test-output-dir", str(output / "results"), "--debug-output", str(output / "logs"),
+        str(flow.resolve()),
+    ]
+    with (output / "maestro.log").open("w") as log:
+        try:
+            process = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, timeout=timeout)
+            return {"flow": flow.stem, "exitCode": process.returncode, "status": "passed" if process.returncode == 0 else "failed"}
+        except subprocess.TimeoutExpired:
+            return {"flow": flow.stem, "status": "timed-out"}
+        except OSError:
+            return {"flow": flow.stem, "status": "runner-error"}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("platform", choices=("android", "ios"))
@@ -14,24 +32,10 @@ def main():
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
+    prefix = [str(args.maestro), "--platform", args.platform, "--device", args.device]
     results = []
     for flow in sorted(Path(".maestro/native-parallel/academic").glob("*.yaml")):
-        output = (args.output / flow.stem).resolve()
-        output.mkdir(parents=True, exist_ok=True)
-        command = [
-            str(args.maestro), "--platform", args.platform, "--device", args.device, "test",
-            "--format", "junit", "--output", str(output / "report.xml"),
-            "--test-output-dir", str(output / "results"), "--debug-output", str(output / "logs"),
-            str(flow.resolve()),
-        ]
-        with (output / "maestro.log").open("w") as log:
-            try:
-                process = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, timeout=150)
-                result = {"flow": flow.stem, "exitCode": process.returncode, "status": "passed" if process.returncode == 0 else "failed"}
-            except subprocess.TimeoutExpired:
-                result = {"flow": flow.stem, "status": "timed-out"}
-            except OSError:
-                result = {"flow": flow.stem, "status": "runner-error"}
+        result = run_flow(prefix, flow, args.output / flow.stem)
         results.append(result)
         (args.output / "statuses.json").write_text(json.dumps(results, indent=2) + "\n")
         print(f"{result['status'].upper()} {flow.stem}", flush=True)

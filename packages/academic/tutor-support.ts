@@ -1,9 +1,21 @@
 import type { TryoutGradeEditor } from "./tryout-grade";
+import type { TutorSlotEditor } from "./tutor-slot";
 
 export type TutorScheduleData = {
   from: string;
   to: string;
-  slots: { id: string; date: string; start: string; end: string; mode: string; location: string | null; booked: boolean }[];
+  slots: {
+    id: string;
+    date: string;
+    start: string;
+    end: string;
+    mode: "online" | "offline";
+    location: string | null;
+    booked: boolean;
+    hasBookingHistory?: boolean;
+    notes?: string | null;
+    revision?: string;
+  }[];
   sessions: { id: string; date: string | null; start: string | null; end: string | null; courseTitle: string | null; groupName: string | null; topic: string | null; status: string }[];
   tickets: { id: string; type: "reschedule" | "cancellation"; status: "approved" | "rejected" | "pending"; reason: string; proposedDate: string | null }[];
   groups: { id: string; name: string; packageName: string; used: number; total: number; members: number }[];
@@ -73,6 +85,7 @@ export type TutorSupportReads = {
 };
 
 export type TutorSupportClient = TutorSupportReads & {
+  slotEditor?: TutorSlotEditor;
   tryoutGrade?: TryoutGradeEditor;
   playback?(videoId: string, signal: AbortSignal): Promise<string>;
   pendingAnswer?(threadId: string): TutorDiscussionDraft | undefined;

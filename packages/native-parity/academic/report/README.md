@@ -29,3 +29,7 @@ The exact source-level MCP catalog entries for all 36 Admin academic routes are 
 ## Other available fixture sources
 
 Potential starting points include `app/visual-fixtures/tutor-tryouts`, `quiz-analytics`, `admin-schedules`, `question-bank-toolbar`, `admin-document-workspace`, `tryout-authoring`, `bundle-lifecycle`, and `discussions`, along with matching specs where present. The generic harness lives in `tests/visual/ui-parity-web/`, `packages/ui-parity/gallery.ts` and `apps/mobile-native/ParityGallery.tsx`. Recheck whether each fixture exercises the precise target component, props and state. Under `plans/native-parallel/README.md`, native credit requires three individually assessed component cases, actual Android and iOS evidence and zero-pixel comparisons; browser-only capture is not native evidence.
+
+## Runtime evidence crosswalk
+
+The current [54-route runtime crosswalk](../../../../tests/visual/native-parallel/academic/pages/coverage.tsv) separates the three registry case IDs, protected web captures, source-level native operations, fixture and renderer dependencies, planned Maestro flows, and unverified device execution. The [per-route evidence index](../../../../tests/visual/native-parallel/academic/pages/summary.md) links each recorded page or interaction capture. The [capture README](../../../../tests/visual/native-parallel/academic/pages/README.md) records the local fixture, browser restrictions, and exclusion of Next development chrome. These records describe the changing local worktree and do not establish device parity or deployment.

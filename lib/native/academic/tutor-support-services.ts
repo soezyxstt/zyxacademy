@@ -15,6 +15,7 @@ import { addCalendarDays, getCalendarWeekRange, getJakartaCalendarDate } from "@
 import { getTutorScheduleReadModel } from "@/lib/schedule/tutor-read-model";
 import { cleanSummary } from "@/lib/utils";
 import type { TutorSupportServices } from "./handle-tutor-support";
+import { tutorSlotDetails } from "./tutor-slot-service";
 
 async function readCourse(userId: string, courseId: string) {
   return requireTutorCourseAccess(userId, courseId, { allowAdmin: false });
@@ -52,11 +53,15 @@ export const tutorSupportServices = {
   async schedule(userId, week) {
     const { startIso: from, endIso: to } = getCalendarWeekRange(addCalendarDays(getJakartaCalendarDate(), week * 7));
     const schedule = await getTutorScheduleReadModel({ tutorId: userId, allowAdmin: false, fromDate: from, toDate: to }, undefined, listTutorAccessibleCourses);
+    const details = new Map((await tutorSlotDetails(userId, schedule.ownedSlots.map((slot) => slot.id))).map((slot) => [slot.id, slot]));
     return {
       from, to,
-      slots: schedule.ownedSlots.flatMap(({ id, sessionDate, startTime, endTime, mode, location, booking }) =>
-        sessionDate ? [{ id, date: sessionDate, start: startTime, end: endTime, mode, location, booked: Boolean(booking) }] : [],
-      ),
+      slots: schedule.ownedSlots.flatMap(({ id, booking }) => {
+        const slot = details.get(id);
+        if (!slot?.date || slot.date < from || slot.date > to) return [];
+        return [{ id, date: slot.date, start: slot.start, end: slot.end, mode: slot.mode, location: slot.location,
+          notes: slot.notes, booked: Boolean(booking), hasBookingHistory: slot.booked, revision: slot.booked ? undefined : slot.revision }];
+      }),
       sessions: schedule.ownedBookings.map(({ id, sessionDate, startTime, endTime, course, group, topic, status }) => ({
         id, date: sessionDate, start: startTime, end: endTime, courseTitle: course?.title ?? null, groupName: group?.name ?? null, topic, status,
       })),

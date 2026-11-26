@@ -47,7 +47,8 @@ mock.module("@/lib/tutor/assessment-policy", () => ({
   recordTutorMutationAuditSafe: async () => {},
   recordTutorFailureAudit: async () => {},
 }));
-mock.module("@/lib/audit/mutasi", () => ({ recordTutorMutationAudit: async () => {} }));
+const audit = { ...await import("@/lib/audit/mutasi") };
+mock.module("@/lib/audit/mutasi", () => ({ ...audit, recordTutorMutationAudit: async () => {} }));
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("next/cache", () => ({ revalidatePath: () => {}, revalidateTag: () => {} }));
 

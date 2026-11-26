@@ -1,0 +1,7 @@
+{
+  "generated_utc": "2026-11-26T11:09:15.459870+00:00",
+  "head": "b1f31fa515e26bc496a1539c809dec0d3819ef5e",
+  "scope": "local worktree, including uncommitted changes; no deployment or device execution asserted",
+  "route_count": 54,
+  "capture_manifest": "tests/visual/native-parallel/academic/pages/results.json"
+}
