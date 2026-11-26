@@ -3,11 +3,13 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 
+import { NativeAccountContextProvider } from "../auth/use-account-context";
 import { NativeSessionProvider } from "../auth/session-provider";
 import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
 import { NotificationsProvider } from "../device/notifications-provider";
-import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";
+import { LocalReminderLifecycle } from "../device/reminder-lifecycle";
 import { OfflineMetadataProvider } from "../offline/lifecycle-provider";
+import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";
 import { nativeFontSources } from "../typography";
 
 export default function RootLayout() {
@@ -23,11 +25,14 @@ export default function RootLayout() {
       <StatusBar style="auto" />
       <NativeSessionProvider origin={NATIVE_STAGING_ORIGIN}>
         <AssessmentDraftCleanup />
-        <NotificationsProvider>
-          <OfflineMetadataProvider>
-            <Stack screenOptions={{ headerShown: false, animation: "none" }} />
-          </OfflineMetadataProvider>
-        </NotificationsProvider>
+        <NativeAccountContextProvider>
+          <LocalReminderLifecycle />
+          <NotificationsProvider>
+            <OfflineMetadataProvider>
+              <Stack screenOptions={{ headerShown: false, animation: "none" }} />
+            </OfflineMetadataProvider>
+          </NotificationsProvider>
+        </NativeAccountContextProvider>
       </NativeSessionProvider>
     </SafeAreaProvider>
   );

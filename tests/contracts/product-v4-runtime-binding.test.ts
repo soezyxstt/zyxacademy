@@ -49,6 +49,10 @@ test("extracted article and query runtime dependencies remain in the API source 
     expect(fs.existsSync(path)).toBe(true);
     expect(includes.some(pattern => new Bun.Glob(pattern).match(`./${path}`)), path).toBe(true);
   }
+  for (const path of ["lib/bundle/product-import-id.mjs", "lib/bundle/product-v4-verification-reuse.ts", "lib/compute/product-v4-execution.ts"] as const) {
+    expect(PRODUCT_V4_RUNTIME_FILES).toContain(path);
+    expect(includes.some(pattern => new Bun.Glob(pattern).match(`./${path}`)), path).toBe(true);
+  }
 });
 
 test("changing extracted article sources or Query versions invalidates renderer evidence", async () => {

@@ -4,6 +4,7 @@ import * as schema from "@/db/schema";
 import { productDraftInputSchema, type ProductDraftInput } from "@/lib/authoring/product-draft-builder";
 import type { ProductDraftCreationPorts, ProductDraftRun } from "@/lib/authoring/product-draft-service";
 import { createPostgresTestDb } from "../helpers/postgres";
+import { solutionCollectionDraft } from "../helpers/product-draft-formats";
 
 // Real PostgreSQL filters and constraints; no remote database or provider calls.
 const { client, testDb } = await createPostgresTestDb();
@@ -131,6 +132,21 @@ test("server metadata stays deterministic for actor, run and draft key and uses 
   ];
   expect(new Set([first, ...contexts].map(value => value.bundleId)).size).toBe(4);
   expect(contexts[2].creatorId).toBe("another-author");
+});
+
+test("solution collections bind current active course and chapter titles instead of stale run labels", async () => {
+  const draft = solutionCollectionDraft();
+  const product = draft.products[0];
+  product.ideaIds = ["idea-main"];
+  product.sourceRefs = [{ sourceId: "source-main", excerptIds: ["excerpt-main"] }];
+  const args = { ...input(draft), run: { ...run, courseLabel: "Old course", chapterLabel: "Old chapter" } };
+  const result = await loadProductDraftContext(args);
+  expect(result).toMatchObject({ courseTitle: "Course", chapterTitle: "Chapter" });
+  await expect(loadProductDraftContext({ ...args, run: { ...args.run, chapterId: "foreign-chapter" } })).rejects.toThrow("PRODUCT_DRAFT_COLLECTION_SCOPE_REQUIRED");
+  const { eq } = await import("drizzle-orm");
+  await testDb.update(schema.bab).set({ status: "archived" }).where(eq(schema.bab.id, "chapter"));
+  try { await expect(loadProductDraftContext(args)).rejects.toThrow("PRODUCT_DRAFT_COLLECTION_SCOPE_REQUIRED"); }
+  finally { await testDb.update(schema.bab).set({ status: "active" }).where(eq(schema.bab.id, "chapter")); }
 });
 
 test.each(["ideas", "sources", "excerpts", "sections"] as const)("aggregate %s reference limit rejects valid-shaped inputs before database I/O", async kind => {

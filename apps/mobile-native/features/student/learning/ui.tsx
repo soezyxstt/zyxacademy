@@ -34,32 +34,37 @@ export function useLearningColors() {
   return nativeColors[useColorScheme() ?? "light"];
 }
 
-export function LearningPage({ props, title, children, ready = true }: { props: StudentScreenProps; title: string; children: ReactNode; ready?: boolean }) {
+export function LearningPage({ props, title, children, footer, ready = true }: {
+  props: StudentScreenProps; title: string; children: ReactNode; footer?: ReactNode; ready?: boolean;
+}) {
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const initialY = useRef(props.initialScrollY);
   const restored = useRef(initialY.current === 0);
   const colors = useLearningColors();
   const back = english(props.session.locale) ? "Back" : "Kembali";
   return (
-    <ScrollView
-      ref={scroll}
-      style={{ backgroundColor: colors.background }}
-      contentContainerStyle={styles.page}
-      keyboardShouldPersistTaps="handled"
-      onContentSizeChange={() => {
-        if (!ready || restored.current) return;
-        restored.current = true;
-        scroll.current?.scrollTo({ y: initialY.current, animated: false });
-      }}
-      onScroll={(event) => { if (restored.current) props.onScrollY(event.nativeEvent.contentOffset.y); }}
-      scrollEventThrottle={100}
-    >
-      <View style={styles.header}>
-        <Button onPress={props.back} variant="ghost" size="sm" style={{ alignSelf: "flex-start" }}>{back}</Button>
-        <Copy heading level="title">{title}</Copy>
-      </View>
-      {children}
-    </ScrollView>
+    <View style={[styles.frame, { backgroundColor: colors.background }]}>
+      <ScrollView
+        ref={scroll}
+        style={styles.frame}
+        contentContainerStyle={styles.page}
+        keyboardShouldPersistTaps="handled"
+        onContentSizeChange={() => {
+          if (!ready || restored.current) return;
+          restored.current = true;
+          scroll.current?.scrollTo({ y: initialY.current, animated: false });
+        }}
+        onScroll={(event) => { if (restored.current) props.onScrollY(event.nativeEvent.contentOffset.y); }}
+        scrollEventThrottle={100}
+      >
+        <View style={styles.header}>
+          <Button onPress={props.back} variant="ghost" size="sm" style={{ alignSelf: "flex-start" }}>{back}</Button>
+          <Copy heading level="title">{title}</Copy>
+        </View>
+        {children}
+      </ScrollView>
+      {footer}
+    </View>
   );
 }
 
@@ -157,6 +162,7 @@ export function launchWeb(props: StudentScreenProps, path: string): boolean {
 }
 
 export const styles = StyleSheet.create({
+  frame: { flex: 1 },
   page: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 32, gap: 20, width: "100%", maxWidth: 960, alignSelf: "center" },
   header: { gap: 10 },
   copy: { flexShrink: 1, fontSize: 14, lineHeight: 21 },

@@ -45,6 +45,10 @@ test("device sign-in, role context, photo recovery and OS permissions stay user-
   for (const source of [
     "app/api/auth/native/expo/exchange/route.ts",
     "app/api/native/context/route.ts",
+    "apps/mobile-native/routing/BrowserHandoff.tsx",
+    "apps/mobile-native/device/reminder-controller.ts",
+    "apps/mobile-native/device/file-controller.ts",
+    "apps/mobile-native/device/audio-controller.ts",
     "apps/mobile-native/device/photo-controller.ts",
     "apps/mobile-native/device/notifications-controller.ts",
   ]) {

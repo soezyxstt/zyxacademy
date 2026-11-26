@@ -28,3 +28,9 @@ Code inventory for the 15 `integration` entries in `routes.tsv`. Dispositions be
 - `proxy.ts` performs a coarse cookie check for protected product paths; authoritative checks are in layouts, actions and handlers. Its native marketing redirect excludes auth, legal, forms, meet and these integration routes. A browser's session must not be assumed to equal the Expo session, particularly for MCP consent and sign-out.
 - Dependencies: session/account transport and browser return, public form upload/file selection, URL routing and OS opening, offline content/access scope, article/math/visual renderers, and an HTTPS read adapter if native `/tautan` or `/f` resolution is chosen. Preserve scopes and consent on MCP; do not call Server Actions or database directly from Expo.
 - Scope: 15 route patterns, including 3 auth pages, 2 handoff pages, 2 MCP pages, 2 form routes and 6 other routes. Inventory is source inspection only; no runtime, platform, visual, OAuth, deployment or readiness credit is asserted.
+
+### Browser handoff implemented on the integration branch
+
+The Expo routes for `/mcp/authorize`, `/mcp/connections` and `/meet/[slug]` now open the corresponding staging Next route on explicit activation. The server handles consent and meeting resolution in the browser session. The URL builder preserves supported OAuth parameters, rejects ambiguous repeated values and encodes the exact meeting slug as one path segment. Focused tests cover URI construction. Browser return, server responses and Back still need Android and iOS evidence.
+
+The Expo native-intent entry captures the raw consent request before Expo Router parses its query. The router receives an in-memory locator with a five-minute expiry. This preserves nested redirect URIs and opaque OAuth state across navigation inside the running app.

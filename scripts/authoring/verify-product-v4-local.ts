@@ -4,6 +4,7 @@ import { mkdir, readFile, rmdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { assertProductV4LocalTarget } from "../../lib/compute/product-v4-local-operator";
+import { isProductImportId } from "../../lib/bundle/product-import-id.mjs";
 
 const outputRoot = "artifacts/v4-local-evidence";
 type LocalInput = { privateFile: string; sourceRevision: string; importId: string; runId: string; expectedChecksum: string; retry?: boolean };
@@ -15,7 +16,7 @@ export function assertProductV4LocalSource(expected: string, source: { head: str
 export function validateProductV4LocalInput(value: unknown): LocalInput {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("PRODUCT_V4_LOCAL_EXACT_INPUT_REQUIRED");
   const input = value as Record<string, unknown>;
-  if (Object.keys(input).some(key => !["privateFile", "sourceRevision", "importId", "runId", "expectedChecksum", "retry"].includes(key)) || typeof input.privateFile !== "string" || !input.privateFile || input.privateFile.includes("\0") || typeof input.sourceRevision !== "string" || !/^[a-f0-9]{40}$/.test(input.sourceRevision) || typeof input.importId !== "string" || !/^impor-product-[a-f0-9]{32}$/.test(input.importId) || typeof input.runId !== "string" || !/^mcp-run-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(input.runId) || typeof input.expectedChecksum !== "string" || !/^[a-f0-9]{64}$/.test(input.expectedChecksum) || (input.retry !== undefined && typeof input.retry !== "boolean")) throw new Error("PRODUCT_V4_LOCAL_EXACT_INPUT_REQUIRED");
+  if (Object.keys(input).some(key => !["privateFile", "sourceRevision", "importId", "runId", "expectedChecksum", "retry"].includes(key)) || typeof input.privateFile !== "string" || !input.privateFile || input.privateFile.includes("\0") || typeof input.sourceRevision !== "string" || !/^[a-f0-9]{40}$/.test(input.sourceRevision) || !isProductImportId(input.importId) || typeof input.runId !== "string" || !/^mcp-run-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(input.runId) || typeof input.expectedChecksum !== "string" || !/^[a-f0-9]{64}$/.test(input.expectedChecksum) || (input.retry !== undefined && typeof input.retry !== "boolean")) throw new Error("PRODUCT_V4_LOCAL_EXACT_INPUT_REQUIRED");
   return input as LocalInput;
 }
 
@@ -38,7 +39,7 @@ async function readBoundedJson(file: string, maxBytes: number) {
 }
 
 export async function acquireProductV4LocalLock(importId: string, root = outputRoot) {
-  if (!/^impor-product-[a-f0-9]{32}$/.test(importId)) throw new Error("PRODUCT_V4_LOCAL_EXACT_INPUT_REQUIRED");
+  if (!isProductImportId(importId)) throw new Error("PRODUCT_V4_LOCAL_EXACT_INPUT_REQUIRED");
   const parent = path.resolve(root, importId);
   await mkdir(parent, { recursive: true, mode: 0o700 });
   const lock = path.join(parent, ".lock");

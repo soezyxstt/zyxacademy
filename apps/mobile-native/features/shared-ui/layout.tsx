@@ -263,7 +263,6 @@ export type NativeListRowProps<Id extends string = string> = SharedUiActionGroup
   layout: NativeListLayout;
   title: string;
   subtitle?: string;
-  testID?: string;
   titleRole?: "header";
   leading?: ReactNode;
   metadata?: readonly { id: string; label: string; value: string }[];
@@ -276,7 +275,6 @@ export function NativeListRow<Id extends string>({
   layout,
   title,
   subtitle,
-  testID,
   titleRole,
   leading,
   primary,

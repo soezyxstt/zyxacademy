@@ -216,7 +216,7 @@ describe("authoring skills distribution", () => {
     expect(candidate.catalogs.chatgpt[0].frontmatter.name).toBe("zyx-authoring-stg");
     const product = loadSkillCatalog(candidateRoot, "all").resources.get("skill://zyx-authoring/all/zyx-product-bundle-mcp-stg/SKILL.md")!.text!;
     const release = JSON.parse(readFileSync(resolve(candidateSource, "release.json"), "utf8"));
-    for (const required of ["productDraftInput", "authoring.create_product_draft", "authoring:preview", "workflow.get_contract", "productBundle.verification.localOperator", release.version]) expect(product).toContain(required);
+    for (const required of ["productDraftInput", "authoring.create_product_draft", "authoring:preview", "workflow.get_contract", "productBundle.verification.execution", release.version]) expect(product).toContain(required);
     expect(product).toContain('skill: "zyx-product-bundle-mcp"');
     const productPlaybook = buildPlaybookResponse({ skill: "zyx-product-bundle-mcp" }).instructionsMarkdown;
     for (const required of ["product-bundle.v4", "math_unit", "visual_ref"]) expect(productPlaybook).toContain(required);

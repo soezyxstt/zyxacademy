@@ -13,6 +13,7 @@ import { getProductV4Verification, getProductV4VerificationReadiness, requestPro
 
 import { insufficientScopeChallenge } from "./mcp-oauth";
 import { authoringFailureDiagnostics } from "./diagnostics";
+import { productV4ExecutionCapability } from "@/lib/compute/product-v4-execution";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const context = { runToken: z.string().min(1), bootstrapToken: z.string().min(1) };
@@ -34,6 +35,9 @@ type Ports = typeof defaults;
 type Registrar = { registerTool(name: string, config: { description: string; inputSchema: Record<string, z.ZodType>; annotations: { readOnlyHint: boolean; destructiveHint: false; openWorldHint: false } }, callback: (input: Record<string, unknown>) => Promise<CallToolResult>): unknown };
 const result = (payload: Record<string, unknown>, isError = false): CallToolResult => ({ content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload, ...(isError ? { isError: true } : {}) });
 const safeCodes = /^(AUTHORING_MCP_(TOKEN_INVALID|TOKEN_EXPIRED|SCOPE_REQUIRED|BOOTSTRAP_[A-Z_]+|LEGACY_RUN_RESTART_REQUIRED|WORKFLOW_MISMATCH)|SOURCE_FIGURE_[A-Z_]+|PRODUCT_V4_VERIFICATION_CONFLICT|PRODUCT_BUNDLE_NOT_FOUND)$/;
+function verificationConflict(current: Awaited<ReturnType<Ports["readiness"]>>) {
+  return Object.assign(new Error("PRODUCT_V4_VERIFICATION_CONFLICT"), { currentVerification: { contentHash: current.plan.contentHash, planHash: current.plan.planHash, status: current.state?.status } });
+}
 
 export function productV4RequestErrorCode(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
@@ -95,11 +99,22 @@ export function registerProductV4Tools(server: McpServer, principal: McpPrincipa
   register("authoring.verify_product_bundle", z.object({ ...context, importId: z.string().min(1), expectedContentHash: hash, expectedPlanHash: hash.optional(), retry: z.boolean().optional() }), true, "Request server derived verification for the current V4 content hash.", async (input, run) => {
     await importScope(input.importId, run);
     const current = await ports.readiness(input.importId, run.runId);
-    if (current.plan.contentHash !== input.expectedContentHash || (input.expectedPlanHash && current.plan.planHash !== input.expectedPlanHash)) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");
-    return ports.request({ importId: input.importId, runId: run.runId, expectedPlanHash: current.plan.planHash, retry: input.retry });
+    if (current.plan.contentHash !== input.expectedContentHash || (input.expectedPlanHash && current.plan.planHash !== input.expectedPlanHash)) throw verificationConflict(current);
+    const requested = await ports.request({ importId: input.importId, runId: run.runId, expectedPlanHash: current.plan.planHash, retry: input.retry });
+    return { ...requested, execution: productV4ExecutionCapability() };
   });
-  register("authoring.get_verification", z.object({ ...context, importId: z.string().min(1), planHash: hash }), false, "Read current server verification evidence for the exact plan hash.", async (input, run) => {
-    await importScope(input.importId, run); return ports.verification({ importId: input.importId, runId: run.runId, planHash: input.planHash });
+  register("authoring.get_verification", z.object({ ...context, importId: z.string().min(1), planHash: hash }), false, "Read verification for the exact current plan. not_started means no current attempt; follow request_verification instead of polling or editing content.", async (input, run) => {
+    await importScope(input.importId, run);
+    try {
+      const verification = await ports.verification({ importId: input.importId, runId: run.runId, planHash: input.planHash });
+      return { ...verification, execution: productV4ExecutionCapability() };
+    } catch (error) {
+      if (!(error instanceof Error) || !["PRODUCT_V4_VERIFICATION_JOB_NOT_FOUND", "PRODUCT_V4_VERIFICATION_CONFLICT"].includes(error.message)) throw error;
+      const current = await ports.readiness(input.importId, run.runId);
+      if (current.plan.planHash !== input.planHash) throw verificationConflict(current);
+      if (error.message === "PRODUCT_V4_VERIFICATION_CONFLICT") throw verificationConflict(current);
+      return { ...current, execution: productV4ExecutionCapability() };
+    }
   });
 }
 

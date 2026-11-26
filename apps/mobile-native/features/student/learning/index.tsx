@@ -3,7 +3,7 @@ import { ActivityIndicator } from "react-native";
 import { courseHref, learningRequestPath, learningRouteViews, liveHostPattern, type LearningData, type LearningView } from "../../../../../packages/native-parity/student/learning/contracts";
 import type { StudentScreenProps } from "../contracts";
 import { CourseScreen } from "../courses";
-import { FlashcardsContent } from "./flashcards";
+import { FlashcardsPage } from "./flashcards";
 import { ConceptContent, MasteryContent, ProgressContent, StudyPathContent } from "./knowledge";
 import { LiveContent, PlaygroundContent, VideoContent } from "./media";
 import { PkaHomeContent, PkaReportContent, PkaScheduleContent, PkaSimulationContent, PkaStageContent, pkaStageTitle } from "./pka";
@@ -22,10 +22,11 @@ const lockedCopy: Partial<Record<LearningView, string>> = {
   path: "learning.path.lockedDescription", progress: "learning.progress.enterToken",
 };
 
-function ReadyContent({ data, props, reload, t }: { data: Extract<LearningData, { state: "ready" }>; props: StudentScreenProps; reload: () => void; t: Translate }) {
+function ReadyContent({ data, props, t }: {
+  data: Exclude<Extract<LearningData, { state: "ready" }>, { view: "flashcard" }>; props: StudentScreenProps; t: Translate;
+}) {
   switch (data.view) {
     case "concept": return <ConceptContent data={data} props={props} t={t} />;
-    case "flashcard": return <FlashcardsContent cards={data.cards} props={props} reload={reload} t={t} />;
     case "mastery": return <MasteryContent data={data} props={props} t={t} />;
     case "path": return <StudyPathContent props={props} t={t} />;
     case "playground": return <PlaygroundContent props={props} />;
@@ -93,8 +94,11 @@ function LearningRoute({ props, view }: { props: StudentScreenProps; view: Learn
     : data?.state === "ready" && data.view === "pka-stage" ? pkaStageTitle(route.params.subject, data.stage.stage, t)
     : titleKeys[view] && (courseTitle || view.startsWith("pka-")) ? t(titleKeys[view]!, { course: courseTitle })
     : view === "playground" ? "Playground Python" : isEnglish ? "Learning" : "Pembelajaran";
+  if (data?.state === "ready" && data.view === "flashcard") {
+    return <FlashcardsPage cards={data.cards} props={props} title={title} t={t} reload={reload} />;
+  }
   let content;
-  if (data?.state === "ready") content = <ReadyContent data={data} props={props} t={t} reload={reload} />;
+  if (data?.state === "ready") content = <ReadyContent data={data} props={props} t={t} />;
   else if (data?.state === "locked" || current?.status === 403) content = <Section title={t("learning.courseAccess.limited")}>
     <Copy muted>{lockedCopy[view] ? t(lockedCopy[view]!) : isEnglish ? "Access to this course is limited." : "Akses kelas ini terbatas."}</Copy>
     {route.params.id ? <Message action={isEnglish ? "Activate course" : "Aktifkan kelas"} onAction={() => props.navigate(courseHref(route.params.id))}>

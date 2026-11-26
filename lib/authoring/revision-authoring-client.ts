@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { DerivedContentReview } from "./revision-derived";
 
 const identifier = z.string().trim().min(1).max(256);
 const revision = z.string().regex(/^[a-f0-9]{64}$/);
@@ -16,6 +17,10 @@ export type AuthoringRevisionPatch = {
   field?: string;
   value?: unknown;
   beforeId?: string | null;
+};
+export type AuthoringRevisionPatchOptions = {
+  derivedContentReviews?: DerivedContentReview[];
+  refreshPrintEvidence?: boolean;
 };
 export type AuthoringRevisionTransport = (name: string, input: Record<string, unknown>) => Promise<unknown>;
 export type AuthoringRevisionResponse = Record<string, unknown>;
@@ -109,8 +114,12 @@ export function createRevisionAuthoringClient(options: {
         expectedRevision: identity.revision, responseMode: "compact", ...(entityIds ? { entityIds } : {}),
       }), "successor");
     },
-    patch(operations: AuthoringRevisionPatch[]) {
-      return operation("authoring.patch_revision", () => ({ ...args(), responseMode: "compact", operations }), "successor");
+    /** Reviews and evidence refresh are explicit caller decisions, never automatic recovery. */
+    patch(operations: AuthoringRevisionPatch[], patchOptions: AuthoringRevisionPatchOptions = {}) {
+      return operation("authoring.patch_revision", () => ({ ...args(), responseMode: "compact", operations,
+        ...(patchOptions.derivedContentReviews ? { derivedContentReviews: patchOptions.derivedContentReviews } : {}),
+        ...(patchOptions.refreshPrintEvidence !== undefined ? { refreshPrintEvidence: patchOptions.refreshPrintEvidence } : {}),
+      }), "successor");
     },
     planRelease() {
       return operation("authoring.plan_release", () => ({ entries: [{ kind, importId: identity.importId, expectedRevision: identity.revision }], bootstrapTokens: { [kind]: bootstrapToken } }));
