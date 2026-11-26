@@ -72,6 +72,7 @@ const built = buildSync({
 const modules = {
   "react-native": nativeHost,
   "react-native-safe-area-context": {
+    SafeAreaListener: "SafeAreaListener",
     SafeAreaView: "SafeAreaView",
     useSafeAreaInsets: () => ({ left: 0, top: 24, right: 0, bottom: 24 }),
   },
@@ -81,7 +82,7 @@ const entry = { exports: {} };
 const execute = new Function("require", "module", "exports", built.outputFiles[0].text);
 execute((id) => modules[id] ?? testRequire(id), entry, entry.exports);
 
-const { Button, SharedDialog, SharedDialogFooter, SharedPopover, SharedUiComposer, SharedUiControlCase, SharedUiSearch } = entry.exports;
+const { Button, SharedDialog, SharedDialogFooter, SharedPopover, SharedPopoverAnchor, SharedUiComposer, SharedUiControlCase, SharedUiSearch } = entry.exports;
 const { createElement: h, useState } = React;
 let renderer;
 
@@ -182,11 +183,12 @@ test("Dialog actions follow compact and wide reading order with focus on the sam
   assert.equal(isFocused("cancel"), false);
 });
 
-test("Popover uses the anchor's layout coordinates and restores focus after Android Back", () => {
+test("Ref-only popover remeasures after native show and restores focus after Android Back", () => {
   platform.OS = "android";
+  let anchorY = 16;
   const anchorRef = { current: {
     testID: "trigger",
-    measure: (callback) => callback(0, 0, 56, 32, 308, 40),
+    measure: (callback) => callback(0, 0, 56, 32, 308, anchorY),
     focus: () => focusEvents.push(["trigger", "imperative"]),
   } };
 
@@ -208,19 +210,140 @@ test("Popover uses the anchor's layout coordinates and restores focus after Andr
     nativeEvent: { layout: { width: 380, height: 800 } },
   }));
   flushAnimationFrame();
+  assert.equal(nativeHost.StyleSheet.flatten(host("View", "popover").props.style).top, 52);
+  anchorY = 40;
+  const modal = renderer.root.findByType("Modal");
+  act(() => modal.props.onShow());
+  flushAnimationFrame();
   const position = nativeHost.StyleSheet.flatten(host("View", "popover").props.style);
   assert.equal(position.top, 76);
   assert.equal(position.left, 76);
   assert.equal(position.maxHeight, 688);
 
-  const modal = renderer.root.findByType("Modal");
-  act(() => modal.props.onShow());
-  flushAnimationFrame();
   assert.deepEqual(focusEvents.slice(-2), [["popover-close", "imperative"], ["popover-close", "focus"]]);
   act(() => modal.props.onRequestClose());
   flushAnimationFrame();
   assert.equal(host("View", "popover"), undefined);
   assert.deepEqual(focusEvents.slice(-2), [["trigger", "imperative"], ["trigger", "focus"]]);
+});
+
+test("Android popover uses native anchor and modal frames in dp for both opening orders", () => {
+  platform.OS = "android";
+  const triggerRef = React.createRef();
+  const triggerFrame = { x: 308, y: 40, width: 56, height: 32 };
+
+  function Example({ initiallyOpen }) {
+    const [open, setOpen] = useState(initiallyOpen);
+    return h(SharedPopoverAnchor, null,
+      h(Button, { ref: triggerRef, testID: "trigger", onPress: () => setOpen(true) }, "Filter"),
+      h(SharedPopover, {
+        open,
+        onDismiss: () => setOpen(false),
+        title: "Filter",
+        closeLabel: "Tutup",
+        anchorRef: triggerRef,
+        align: "end",
+        testID: "popover",
+      }, "Semua kelas"),
+    );
+  }
+
+  function reportFrame(listener, frame, insets) {
+    const view = renderer.root.findAllByType("SafeAreaListener")[listener];
+    act(() => view.props.onChange({ frame, insets }));
+  }
+
+  function position() {
+    return nativeHost.StyleSheet.flatten(host("View", "popover").props.style);
+  }
+
+  const screenInsets = { top: 24, left: 0, right: 0, bottom: 24 };
+  mount(h(Example, { initiallyOpen: true }));
+  const modal = renderer.root.findByType("Modal");
+  act(() => modal.props.onShow());
+  reportFrame(1, { x: 0, y: 0, width: 380, height: 800 }, screenInsets);
+  flushAnimationFrame();
+  assert.equal(host("View", "popover"), undefined);
+  assert.deepEqual(focusEvents, []);
+  reportFrame(0, triggerFrame, screenInsets);
+  flushAnimationFrame();
+  assert.equal(position().top, 76);
+  assert.equal(position().left, 76);
+  assert.deepEqual(focusEvents.at(-1), ["popover-close", "focus"]);
+  act(() => modal.props.onRequestClose());
+  flushAnimationFrame();
+  assert.equal(host("View", "popover"), undefined);
+  assert.deepEqual(focusEvents.at(-1), ["trigger", "focus"]);
+
+  click("trigger");
+  assert.equal(host("View", "popover"), undefined);
+  const modalInsets = { ...screenInsets, top: 0 };
+  const shiftedModal = { x: 20, y: 24, width: 360, height: 776 };
+  reportFrame(1, shiftedModal, modalInsets);
+  assert.equal(shiftedModal.y + position().top, 76);
+  assert.equal(shiftedModal.x + position().left, 76);
+
+  reportFrame(0, { ...triggerFrame, y: 140 }, screenInsets);
+  reportFrame(1, { ...shiftedModal, height: 212 }, modalInsets);
+  assert.equal(position().bottom, 100);
+  assert.equal(position().maxHeight, 100);
+});
+
+test("Popovers stay usable when a measured anchor is unavailable", (context) => {
+  platform.OS = "android";
+  context.mock.timers.enable({ apis: ["setTimeout"] });
+  const triggerRef = React.createRef();
+  const dismissals = [];
+
+  function Example({ tracked, dismissDisabled }) {
+    const [open, setOpen] = useState(true);
+    const popover = h(SharedPopover, {
+      open,
+      onDismiss: (reason) => { dismissals.push(reason); setOpen(false); },
+      title: "Filter",
+      closeLabel: "Tutup",
+      anchorRef: triggerRef,
+      dismissDisabled,
+      testID: "popover",
+    }, "Semua kelas");
+    return tracked ? h(SharedPopoverAnchor, null, popover) : popover;
+  }
+
+  function assertCentered() {
+    const viewport = renderer.root.findByType("KeyboardAvoidingView");
+    const panel = host("View", "popover");
+    assert.equal(nativeHost.StyleSheet.flatten(viewport.props.style).justifyContent, "center");
+    assert.equal(nativeHost.StyleSheet.flatten(panel.props.style).position, undefined);
+  }
+
+  mount(h(Example, { key: "ref-only" }));
+  assertCentered();
+  click("popover-close");
+  flushAnimationFrame();
+  assert.deepEqual(dismissals, ["close-button"]);
+
+  act(() => renderer.update(h(Example, { key: "tracked", tracked: true, dismissDisabled: true })));
+  act(() => renderer.root.findByType("Modal").props.onShow());
+  assert.equal(host("View", "popover"), undefined);
+  act(() => context.mock.timers.tick(300));
+  flushAnimationFrame();
+  assertCentered();
+  assert.equal(host("Pressable", "popover-close").props.disabled, true);
+
+  const focusBeforeLateFrames = [...focusEvents];
+  const [trigger, viewport] = renderer.root.findAllByType("SafeAreaListener");
+  const insets = { left: 0, top: 24, right: 0, bottom: 24 };
+  act(() => trigger.props.onChange({ insets, frame: { x: 308, y: 40, width: 56, height: 32 } }));
+  act(() => viewport.props.onChange({ insets, frame: { x: 0, y: 0, width: 380, height: 800 } }));
+  flushAnimationFrame();
+  const panelStyle = nativeHost.StyleSheet.flatten(host("View", "popover").props.style);
+  assert.equal(panelStyle.top, 76);
+  assert.deepEqual(focusEvents, focusBeforeLateFrames);
+
+  act(() => renderer.update(h(Example, { key: "tracked", tracked: true })));
+  click("popover-close");
+  flushAnimationFrame();
+  assert.deepEqual(dismissals, ["close-button", "close-button"]);
 });
 
 test("Search opens, clears once in controlled mode, and restores trigger focus on Escape", () => {

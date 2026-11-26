@@ -9,7 +9,7 @@ import { Label } from "../../components/Label";
 import { nativeTypography } from "../../typography";
 import { MobileNavbar, NavigationTabs, RoleBottomNavigation, type NavbarActionId, type RoleDestinationId } from "./navigation";
 import { NavigationIcon } from "./navigation-icons";
-import { SharedDialog, SharedDialogFooter, SharedPopover, SharedSheet } from "./overlays";
+import { SharedDialog, SharedDialogFooter, SharedPopover, SharedPopoverAnchor, SharedSheet } from "./overlays";
 
 type NavbarCaseProps = Extract<NavigationFixtureCase, { component: "mobile-navbar" }>;
 type BottomCaseProps = Extract<NavigationFixtureCase, { component: "bottom-navigation" }>;
@@ -353,27 +353,29 @@ function PopoverCase({ item, geometryMarker }: { item: PopoverCaseProps; geometr
     <View style={styles.pageGutter}>
       <View style={styles.popoverTrigger}>
         <ExampleText theme={item.theme} status testID={`${item.id}-selection`}>{active}</ExampleText>
-        <Button ref={triggerRef} testID={`${item.id}-trigger`} onPress={() => setOpen(true)}
-          theme={item.theme} variant="outline" accessibilityState={{ expanded: open }}>
-          {fixture.popover.title}
-        </Button>
+        <SharedPopoverAnchor>
+          <Button ref={triggerRef} testID={`${item.id}-trigger`} onPress={() => setOpen(true)}
+            theme={item.theme} variant="outline" accessibilityState={{ expanded: open }}>
+            {fixture.popover.title}
+          </Button>
+          <SharedPopover
+            open={open}
+            onDismiss={() => setOpen(false)}
+            title={item.theme === "dark" ? fixture.popover.courseField : fixture.popover.field}
+            closeLabel={fixture.close}
+            anchorRef={triggerRef}
+            align="end"
+            theme={item.theme}
+            testID={`${item.id}-panel`}
+          >
+            {geometryMarker}
+            {options.map((label, index) => (
+              <OptionRow key={label} label={label} selected={active === label} theme={item.theme}
+                testID={`${item.id}-option-${index + 1}`} onPress={() => { setActive(label); setOpen(false); }} />
+            ))}
+          </SharedPopover>
+        </SharedPopoverAnchor>
       </View>
-      <SharedPopover
-        open={open}
-        onDismiss={() => setOpen(false)}
-        title={item.theme === "dark" ? fixture.popover.courseField : fixture.popover.field}
-        closeLabel={fixture.close}
-        anchorRef={triggerRef}
-        align="end"
-        theme={item.theme}
-        testID={`${item.id}-panel`}
-      >
-        {geometryMarker}
-        {options.map((label, index) => (
-          <OptionRow key={label} label={label} selected={active === label} theme={item.theme}
-            testID={`${item.id}-option-${index + 1}`} onPress={() => { setActive(label); setOpen(false); }} />
-        ))}
-      </SharedPopover>
     </View>
   );
 }

@@ -46,7 +46,7 @@ name: Shared UI compact shell, header, and list recovery
     text: Reset filter
     enabled: false
 - assertVisible:
-    text: Simpan
+    text: '^Simpan(, busy)?$'
     enabled: false
 - assertVisible: Nara Pratama
 - openLink: zyx-native-parity://shared-ui/shared-ui-header-long-title-light

@@ -67,6 +67,8 @@ Contoh pilihan tab tetap melalui callback yang sama ketika tab ada di overflow. 
 
 Gunakan `SharedDialogFooter` di prop `footer` untuk aksi dialog responsif. Berikan tombol dalam urutan layar lebar, dengan aksi utama terakhir. Di bawah lebar jendela 640 dp, tombol memenuhi lebar footer dan aksi utama tampil serta dibaca lebih dahulu.
 
+Untuk mengukur posisi native di Android, bungkus `SharedPopover` dan tombol pemicunya dalam `SharedPopoverAnchor`. Pastikan batas pembungkus mengikuti tombol dan tombol memiliki area sentuh yang cukup di dalam pembungkus. Teruskan ref tombol ke `anchorRef` untuk pemulihan fokus. `SharedPopover` juga menerima `anchorRef` secara langsung saat pembungkus tidak tersedia. Jika posisi pemicu belum terukur, panel dapat tampil di tengah dan mengikuti posisi pemicu saat pengukuran tersedia.
+
 ```tsx
 <NavigationTabs
   accessibilityLabel="Tampilan peringkat"
