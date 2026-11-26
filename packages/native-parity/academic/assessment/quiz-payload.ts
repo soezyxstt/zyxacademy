@@ -1,5 +1,21 @@
 import type { QuizInput } from "./model";
 
+type QuizAvailability = Pick<QuizInput, "manualStatus" | "openAt" | "closeAt">;
+export type QuizScheduleMode = "manual" | "scheduled";
+
+export function initialQuizScheduleMode(input: QuizAvailability): QuizScheduleMode {
+  return input.manualStatus === "scheduled" || input.openAt || input.closeAt ? "scheduled" : "manual";
+}
+
+export function quizAvailability(input: QuizAvailability, mode: QuizScheduleMode): QuizAvailability {
+  if (mode === "scheduled") return {
+    manualStatus: input.manualStatus,
+    openAt: input.openAt?.trim() || null,
+    closeAt: input.closeAt?.trim() || null,
+  };
+  return { manualStatus: input.manualStatus === "scheduled" ? "open" : input.manualStatus, openAt: null, closeAt: null };
+}
+
 /** Shared payload for course quiz authors and the Admin eval quiz editor. */
 export function quizAuthoringPayload(input: QuizInput) {
   const settings = input.settings;

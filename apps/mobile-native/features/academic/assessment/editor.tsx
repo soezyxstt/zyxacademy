@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { View } from "react-native";
 import {
-  commaList, difficulties, questionTypes, quizCategories, quizValidationError,
-  type BankQuestion, type QuizInput, type QuizSelection, type QuizStatus,
+  commaList, difficulties, initialQuizScheduleMode, questionTypes, quizAvailability, quizCategories, quizValidationError,
+  type BankQuestion, type QuizInput, type QuizScheduleMode, type QuizSelection, type QuizStatus,
 } from "../../../../../packages/native-parity/academic/assessment";
 import { addVisibleQuizQuestions, emptyQuizQuestionFilters, filterQuizQuestions, removeVisibleQuizQuestions, unchangedOrEligibleSelection,
   type PickerQuestion, type QuizQuestionFilters,
@@ -37,6 +37,7 @@ export interface QuizEditorProps {
 
 export function QuizEditor({ initialValue, role, bank, courseControl, isSaving, feedback, onSave, onCancel }: QuizEditorProps) {
   const [input, setInput] = useState(initialValue);
+  const [scheduleMode, setScheduleMode] = useState(() => initialQuizScheduleMode(initialValue));
   const [activeTab, setTab] = useState<(typeof tabs)[number]["id"]>("configuration");
   const [validation, setValidation] = useState("");
   const [discard, setDiscard] = useState(false);
@@ -55,12 +56,12 @@ export function QuizEditor({ initialValue, role, bank, courseControl, isSaving, 
   }
 
   function serialise(status: QuizStatus): QuizInput {
+    const mode = role === "admin" ? scheduleMode : input.manualStatus === "scheduled" ? "scheduled" : "manual";
     return {
       ...input,
       title: input.title.trim(),
       status,
-      openAt: input.manualStatus === "scheduled" ? input.openAt?.trim() || null : null,
-      closeAt: input.manualStatus === "scheduled" ? input.closeAt?.trim() || null : null,
+      ...quizAvailability(input, mode),
       timeLimitSeconds: duration.trim() ? Number(duration) * 60 : null,
       maxAttempts: attempts.trim() ? Number(attempts) : null,
       selection: input.selection.mode === "specific" ? input.selection : { ...input.selection, tags: commaList(tags) },
@@ -83,6 +84,12 @@ export function QuizEditor({ initialValue, role, bank, courseControl, isSaving, 
 
   const existingIds = initialValue.selection.mode === "specific" ? initialValue.selection.questionIds : [];
   const disabledIds = bank.flatMap((question) => question.quizSelectable === false && !existingIds.includes(question.id) ? [question.id] : []);
+  const scheduled = role === "admin" ? scheduleMode === "scheduled" : input.manualStatus === "scheduled";
+
+  function changeScheduleMode(mode: QuizScheduleMode) {
+    setScheduleMode(mode);
+    if (mode === "manual") setInput(current => ({ ...current, ...quizAvailability(current, mode) }));
+  }
 
   return (
     <View style={layout.group}>
@@ -95,9 +102,13 @@ export function QuizEditor({ initialValue, role, bank, courseControl, isSaving, 
             value={input.category} change={(value) => update("category", value)} />
           <SelectField label="Akses" options={{ free: "Gratis", paid: "Berbayar" }}
             value={input.visibility} change={(value) => update("visibility", value)} />
-          <SelectField label="Ketersediaan" options={{ open: "Terbuka", closed: "Tertutup", scheduled: "Terjadwal" }}
+          {role === "admin" ? <SelectField label="Mode akses" options={{ manual: "Manual", scheduled: "Terjadwal" }}
+            value={scheduleMode} change={changeScheduleMode} /> : null}
+          <SelectField label="Ketersediaan" options={role === "admin"
+            ? scheduled ? { open: "Paksa buka", closed: "Paksa tutup", scheduled: "Ikuti jadwal" } : { open: "Terbuka", closed: "Tertutup" }
+            : { open: "Terbuka", closed: "Tertutup", scheduled: "Terjadwal" }}
             value={input.manualStatus} change={(value) => update("manualStatus", value)} />
-          {input.manualStatus === "scheduled" ? <ScheduleFields openAt={input.openAt} closeAt={input.closeAt}
+          {scheduled ? <ScheduleFields openAt={input.openAt} closeAt={input.closeAt}
             setOpen={(value) => update("openAt", value)} setClose={(value) => update("closeAt", value)} /> : null}
           <Field label="Durasi dalam menit" value={duration} onChangeText={setDuration} keyboardType="decimal-pad" placeholder="Tanpa batas" />
           <Field label="Batas percobaan" value={attempts} onChangeText={setAttempts} keyboardType="number-pad" placeholder="Tanpa batas" />

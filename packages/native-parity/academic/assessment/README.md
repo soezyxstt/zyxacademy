@@ -2,7 +2,7 @@
 
 `AssessmentScreen` memasang halaman kuis Tutor dan Admin academic, hasil serta penilaian kuis Tutor, dan daftar serta isi tryout Admin. Rute tryout Tutor mengganti halaman dengan ikhtisar kursus, sesuai alias web. Fixture mendukung kursus terisi, kosong, di luar penugasan dan kegagalan sementara. Course ID Tutor dan slug Admin dipisahkan di kontrak `AssessmentContext`.
 
-`QuizEditor` menerima `QuizInput`, `BankQuestion[]`, peran, kontrol pemilihan kursus opsional, status penyimpanan, dan callback simpan atau batal. Jalur Operations dapat memasang editor ini pada rute Admin eval dan memakai `quizAuthoringPayload` untuk membentuk input endpoint kuis yang sama. Pemasangan pada rute Admin eval menjadi cakupan jalur Operations.
+`QuizEditor` menerima `QuizInput`, `BankQuestion[]`, peran, kontrol pemilihan kursus opsional, status penyimpanan, dan callback simpan atau batal. Jalur Operations dapat memasang editor ini pada rute Admin eval dan memakai `quizAuthoringPayload` untuk membentuk input endpoint kuis yang sama. Admin dapat memakai mode terjadwal dan memaksa kuis buka atau tutup sambil menyimpan tanggal asli. Mode Manual menghapus tanggal. Pilihan ini memakai kontrak kuis yang sama untuk API, sesi Admin dan MCP.
 
 | Operasi | Transport dan izin | Hasil dan pemulihan |
 | --- | --- | --- |

@@ -8,6 +8,23 @@ import { handleGradeAttachment, handleTryoutGradeAttachment } from "../../../../
 
 import { TRYOUT_GRADE_ATTACHMENT_ACCOUNT, TRYOUT_GRADE_ATTACHMENT_SESSION, tryoutGradeAttachmentPath, tryoutGradeAttachmentPolicy } from "../../../academic/tryout-grade-attachment";
 import { readStoredTryoutGradeAttachment } from "../../../../lib/native/academic/grading-snapshot";
+import { defaultQuiz } from "./model";
+import { initialQuizScheduleMode, quizAuthoringPayload, quizAvailability } from "./quiz-payload";
+
+test("Admin quiz overrides preserve the schedule in the canonical template payload", () => {
+  const initial = { ...defaultQuiz("admin"), manualStatus: "closed" as const,
+    openAt: "2026-12-01T09:00+07:00", closeAt: "2026-12-01T10:00+07:00" };
+  const mode = initialQuizScheduleMode(initial);
+  assert.equal(mode, "scheduled");
+  for (const manualStatus of ["open", "closed", "scheduled"] as const) {
+    const payload = quizAuthoringPayload({ ...initial, ...quizAvailability({ ...initial, manualStatus }, mode) });
+    assert.equal(payload.manualStatus, manualStatus);
+    assert.equal(payload.openAt, "2026-12-01T02:00:00.000Z");
+    assert.equal(payload.closeAt, "2026-12-01T03:00:00.000Z");
+  }
+  assert.deepEqual(quizAvailability(initial, "manual"), { manualStatus: "closed", openAt: null, closeAt: null });
+  assert.deepEqual(quizAvailability({ ...initial, manualStatus: "scheduled" }, "manual"), { manualStatus: "open", openAt: null, closeAt: null });
+});
 
 function services(override: Partial<AssessmentReadServices> = {}): AssessmentReadServices {
   return {
