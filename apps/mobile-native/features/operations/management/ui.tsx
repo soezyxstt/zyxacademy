@@ -128,6 +128,7 @@ export function useDraft<T>(key: string, initialValue: T, initialRevision?: stri
   return {
     ...state,
     change: (value: T) => write({ ...current.current, value, changed: true }),
+    update: (derive: (value: T) => T) => write({ ...current.current, value: derive(current.current.value), changed: true }),
     resolve: (value: T, baseline: T, revision: string) => write({ value, baseline, revision, changed: true }),
     saved: (baseline: T, revision?: string) => write({
       ...current.current, baseline, revision: revision ?? current.current.revision, changed: current.current.value !== baseline,

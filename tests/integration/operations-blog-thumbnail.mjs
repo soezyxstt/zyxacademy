@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mock } from "bun:test";
 import { eq } from "drizzle-orm";
-import { peran, session, user } from "../../db/schema";
+import { penggunaPeran, peran, session, user } from "../../db/schema";
 import { PERAN_SEEDS } from "../../lib/auth/peran";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
@@ -63,6 +63,22 @@ try {
   assert.equal((await call(bound(admin), multipart("image/png", new Uint8Array(0)))).status, 400);
   assert.equal((await call(bound(admin), multipart("image/png", Uint8Array.of(1, 2, 3)))).status, 400);
   assert.equal((await call(bound(admin), multipart("image/png", new Uint8Array(20 * 1024 * 1024 + 1)))).status, 413);
+  const contentType = "multipart/form-data; boundary=fixture";
+  let pulls = 0;
+  let streamCancelled = false;
+  const chunk = new Uint8Array(4 * 1024 * 1024);
+  const streamed = () => new ReadableStream({
+    pull(controller) { pulls++; controller.enqueue(chunk); },
+    cancel() { streamCancelled = true; },
+  }, { highWaterMark: 0 });
+  const streamingPost = (body, headers = {}) => POST(new Request(origin + path, {
+    method: "POST", duplex: "half", headers: { ...bound(admin), "content-type": contentType, ...headers }, body,
+  }));
+  assert.equal((await streamingPost(streamed(), { "content-length": "99999999" })).status, 413);
+  assert.equal(pulls, 0);
+  assert.equal((await streamingPost(streamed())).status, 413);
+  assert.equal(pulls, 6);
+  assert.equal(streamCancelled, true);
   assert.equal(uploads.length, 0);
 
   let calls = 0;
@@ -103,6 +119,22 @@ try {
   current = identity("teacher");
   assert.equal((await call({}, multipart("video/mp4", Uint8Array.of(1), "fixture.mp4"))).status, 200);
   assert.equal(uploads[1].type, "video/mp4");
+  current = admin;
+  await testDb.update(session).set({ expiresAt: new Date("2099-01-01T00:00:00Z") }).where(eq(session.id, admin.session.id));
+  const encodedBody = Buffer.concat([
+    Buffer.from('--fixture\r\nContent-Disposition: form-data; name="file"; filename="fixture.png"\r\nContent-Type: image/png\r\n\r\n'),
+    pngBytes,
+    Buffer.from("\r\n--fixture--\r\n"),
+  ]);
+  const revokedDuringRead = new ReadableStream({
+    async pull(controller) {
+      await testDb.delete(penggunaPeran).where(eq(penggunaPeran.penggunaId, admin.user.id));
+      controller.enqueue(encodedBody);
+      controller.close();
+    },
+  }, { highWaterMark: 0 });
+  assert.equal((await streamingPost(revokedDuringRead)).status, 403);
+  assert.equal(uploads.length, 2);
   console.log("Scoped Blog thumbnail and Web upload compatibility checks passed");
 } finally {
   await client.close();

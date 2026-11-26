@@ -46,8 +46,6 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
   const id = article?.id;
   const draft = useDraft<ArticleFields>(`blog:${id ?? "new"}`, article ? articleFields(article) : emptyArticle, article?.revision);
   const value = draft.value;
-  const currentValue = useRef(value);
-  currentValue.current = value;
   const action = useAction();
   const [mode, setMode] = useState<"write" | "preview">(initialTab === "preview" ? "preview" : "write");
   const [tag, setTag] = useState("");
@@ -65,8 +63,13 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
   const thumbnailRequest = useRef<AbortController | null>(null);
   useEffect(() => () => thumbnailRequest.current?.abort(), []);
   const mustReview = needsReview || (action.error instanceof ManagementFailure && action.error.code === "conflict");
-  const edit = <K extends keyof ArticleFields>(key: K, next: ArticleFields[K]) => { if (!action.busy) draft.change({ ...value, [key]: next }); };
-  const leave = () => navigate("/admin/blog");
+  const edit = <K extends keyof ArticleFields>(key: K, next: ArticleFields[K]) => { if (!action.busy) draft.update(fields => ({ ...fields, [key]: next })); };
+  const leave = () => {
+    thumbnailRequest.current?.abort();
+    thumbnailRequest.current = null;
+    setUploadingThumbnail(false);
+    navigate("/admin/blog");
+  };
 
   function submit() {
     if (mustReview || thumbnailRequest.current) return;
@@ -114,7 +117,7 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
       }, controller.signal);
       if (controller.signal.aborted || result.status === "cancelled") return;
       if (result.status === "uploaded") {
-        draft.change({ ...currentValue.current, thumbnailUrl: result.url });
+        draft.update(fields => ({ ...fields, thumbnailUrl: result.url }));
       } else {
         setThumbnailError({
           unavailable: "Gambar belum dapat dipilih.",
@@ -127,8 +130,10 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
     } catch {
       if (!controller.signal.aborted) setThumbnailError("Gambar belum dapat dipilih.");
     } finally {
-      thumbnailRequest.current = null;
-      if (!controller.signal.aborted) setUploadingThumbnail(false);
+      if (thumbnailRequest.current === controller) {
+        thumbnailRequest.current = null;
+        if (!controller.signal.aborted) setUploadingThumbnail(false);
+      }
     }
   }
 
