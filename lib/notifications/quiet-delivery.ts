@@ -8,8 +8,7 @@ import { getUserLocalePreference } from "@/lib/i18n/preferences";
 import { notificationVisibility } from "./discussion-history";
 import { getDefaultHomeLinkForRole } from "./catalog";
 import type { NotificationPayload } from "./types";
-import { formatJakartaDateKey } from "./interval-policy";
-import { getAvailabilityReminderWeek } from "./tutorial-reminder-policy";
+import { getDeferredAvailabilityReminderWeek } from "./tutorial-reminder-policy";
 
 const noDelivery = { attempted: 0, succeeded: 0, failedTokens: [], errors: [] };
 const leaseAvailable = (now: Date) => or(isNull(deferredNotificationPushes.leaseUntil), lte(deferredNotificationPushes.leaseUntil, now));
@@ -82,24 +81,20 @@ async function filterDeferredAvailability(
    continue;
   }
   if (!eligibility.has(key)) {
-   const dateKey = key.slice("tutor_availability:".length);
-   const original = new Date(dateKey + "T01:00:00Z");
+   const week = getDeferredAvailabilityReminderWeek(key, now);
    let eligible = false;
-   if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey) && Number.isFinite(original.getTime()) && formatJakartaDateKey(original) === dateKey) {
-    const week = getAvailabilityReminderWeek(original);
-    if (week.saturday && formatJakartaDateKey(now) <= week.end) {
-     const [active] = await db.select({ id: pengguna.id }).from(pengguna)
-      .where(and(eq(pengguna.id, userId), eq(pengguna.status, "active"),
-       exists(db.select({ id: penggunaPeran.id }).from(penggunaPeran)
-        .innerJoin(peran, eq(peran.id, penggunaPeran.peranId))
-        .where(and(eq(penggunaPeran.penggunaId, userId), eq(peran.code, "tutor")))),
-       notExists(db.select({ id: activityNotificationPreferences.userId }).from(activityNotificationPreferences)
-        .where(and(eq(activityNotificationPreferences.userId, userId), eq(activityNotificationPreferences.tutorAvailabilityEnabled, false)))),
-       notExists(db.select({ id: tutorSlots.id }).from(tutorSlots)
-        .where(and(eq(tutorSlots.tutorId, userId), gte(tutorSlots.sessionDate, week.start), lte(tutorSlots.sessionDate, week.end)))),
-      )).limit(1);
-     eligible = Boolean(active);
-    }
+   if (week) {
+    const [active] = await db.select({ id: pengguna.id }).from(pengguna)
+     .where(and(eq(pengguna.id, userId), eq(pengguna.status, "active"),
+      exists(db.select({ id: penggunaPeran.id }).from(penggunaPeran)
+       .innerJoin(peran, eq(peran.id, penggunaPeran.peranId))
+       .where(and(eq(penggunaPeran.penggunaId, userId), eq(peran.code, "tutor")))),
+      notExists(db.select({ id: activityNotificationPreferences.userId }).from(activityNotificationPreferences)
+       .where(and(eq(activityNotificationPreferences.userId, userId), eq(activityNotificationPreferences.tutorAvailabilityEnabled, false)))),
+      notExists(db.select({ id: tutorSlots.id }).from(tutorSlots)
+       .where(and(eq(tutorSlots.tutorId, userId), gte(tutorSlots.sessionDate, week.start), lte(tutorSlots.sessionDate, week.end)))),
+     )).limit(1);
+    eligible = Boolean(active);
    }
    eligibility.set(key, eligible);
   }
