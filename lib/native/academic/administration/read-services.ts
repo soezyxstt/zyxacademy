@@ -104,7 +104,7 @@ async function readBundle(kind: ReviewKind, slug: string, bundleId: string, page
     resolveCourseIdentity(slug), kind === "idea" ? getIdeaBundleImport(bundleId) : getProductBundleImport(bundleId),
   ]);
   if (!identity || !bundle || !matchesCourseIdentity(bundle.courseId, identity)) return null;
-  return paginate([
+  const result = paginate([
     {
       id: bundle.id, title: bundle.bundleId, subtitle: identity.title, detail: bundleStatus[bundle.status],
       fields: [field("Versi", bundle.version), field("Diperbarui", jakDateTime(bundle.updatedAt)), field("Jumlah item", bundle.items.length)],
@@ -118,6 +118,8 @@ async function readBundle(kind: ReviewKind, slug: string, bundleId: string, page
       } : {}),
     })),
   ], page);
+  return kind === "product" && bundle.courseId
+    ? { ...result, productBundle: { id: bundle.id, courseId: bundle.courseId, checksum: bundle.checksum } } : result;
 }
 
 export const administrationReadServices: AdministrationReadServices = {

@@ -6,6 +6,7 @@ import {
 import { matchAdministrationRoute, type AdministrationPattern } from "../../../../../packages/native-parity/academic/administration/routes";
 import { nativeTypography } from "../../../typography";
 import { NativeListRow, NativeStatusPanel, ResponsiveTable, type SharedUiAction, type SharedUiActionHandler } from "../../shared-ui";
+import { ProductReviewWorkspace } from "./product-review-workspace";
 import { BroadcastComposer } from "./broadcast-composer";
 import { ScheduleEventEditor } from "./schedule-event-editor";
 import { AdministrationCalendar } from "./calendar";
@@ -92,6 +93,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const { pattern, title } = route;
   const { params, query, transport, navigate, replace, back } = props;
   const [eventDraft, setEventDraft] = useState<{ transport: AcademicTransport; row?: LiveRow }>();
+  const [productEditor, setProductEditor] = useState<{ transport: AcademicTransport; id: string }>();
   const tokenPage = pattern === "/admin/tokens";
   const pkaSchedulePage = pattern === "/admin/tutorial-pka/schedules";
   const pkaAnnouncementPage = pattern === "/admin/tutorial-pka/announcements";
@@ -190,7 +192,12 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     setFilters((previous) => ({ ...previous, [name]: value, ...(name === "page" ? {} : { page: "1" }) }));
   }
   const filtered = Boolean(filters.search || filters.status || filters.role);
+  if (article && data?.productBundle && !pdfPending && productEditor?.transport === transport && productEditor.id === params.bundleId) {
+    return <ProductReviewWorkspace key={params.bundleId} scope={data.productBundle} transport={transport} back={() => setProductEditor(undefined)}
+      exit={() => { setProductEditor(undefined); retry(); }} listing={() => replace("/admin/materials/review?section=product")} />;
+  }
   return <AdministrationPage title={title} back={back}>
+    {article && data?.productBundle && !pdfPending && transport.command ? <Action label="Review dan publikasi" onPress={() => setProductEditor({ transport, id: params.bundleId })} /> : null}
     {pkaTab ? <Tabs options={pkaTabs} selected={pkaTab} onSelect={(id) => navigate(`/admin/tutorial-pka/${id}`)} /> : null}
     {pattern === "/admin/schedules" && data?.scheduleCourses && transport.command ? <View style={layout.row}>
       <Action label="Buat agenda" onPress={() => setEventDraft({ transport })} />

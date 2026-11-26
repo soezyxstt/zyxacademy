@@ -17,7 +17,7 @@ export interface AcademicResponse {
 }
 
 export type AcademicCommand = {
-  method: "POST" | "PATCH" | "DELETE";
+  method: "POST" | "PUT" | "PATCH" | "DELETE";
   body: unknown;
   requestId: string;
 };
