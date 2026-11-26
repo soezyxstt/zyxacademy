@@ -44,7 +44,10 @@ case "$platform" in
   ios)
     xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
     xcrun simctl list devices booted > "$output/device.txt"
-    xcrun simctl status_bar "$device" override --time '09:41' --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState unplugged --batteryLevel 100
+    xcrun simctl status_bar "$device" override --time '09:41' --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100 > "$output/status-bar.log" 2>&1 || {
+      status_bar_exit=$?
+      printf 'simctl status_bar override exited %s\n' "$status_bar_exit" | tee -a "$output/status-bar.log" >&2
+    }
     bundle="$(xcrun simctl get_app_container "$device" "$app_id" app)"
     python - "$bundle/Info.plist" > "$output/compiled-fixture.json" <<'PY'
 import json
