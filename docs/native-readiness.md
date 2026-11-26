@@ -22,6 +22,23 @@ Pada `1587768e8`, 20 alur interaksi Maestro lulus di Android, termasuk pemilihan
 
 Pada `f2c2fb262`, checkout gabungan empat branch menjalankan alur login PKCE dengan identitas browser sintetis, akses dashboard Student, perubahan status baca milik penerima, pemeriksaan isolasi akun lain, dan pencabutan sesi terhadap handler Next.js serta PostgreSQL di runner. Pengujian itu berjalan pada tingkat protokol. [Kontrak sesi dan otorisasi](https://github.com/soezyxstt/zyxacademy/actions/runs/45867603711/job/140075317358).
 
+### Selisih referensi Button dan Label di Android
+
+Pada `ecf50dd0f`, perbandingan RGB tanpa resize pada DPR 1 menemukan selisih antara Chromium dan Android WebView pada 51 dari 54 crop komponen. Ketiga crop Separator identik. Kecocokan serentak pada kedua mesin memerlukan referensi yang identik. [Capture Android dan WebView](https://github.com/soezyxstt/zyxacademy/actions/runs/45870855525/artifacts/15144358376), [referensi Chromium](https://github.com/soezyxstt/zyxacademy/actions/runs/45870855525/artifacts/15143076949).
+
+| Kasus | Expo ke WebView | Expo ke Chromium | WebView ke Chromium |
+| --- | ---: | ---: | ---: |
+| Button aktif terang | 379 | 510 | 546 |
+| Button nonaktif gelap | 360 | 509 | 541 |
+| Button ikon terang | 144 | 110 | 152 |
+| Label kosong terang | 553 | 737 | 831 |
+| Label panjang gelap | 2.004 | 3.094 | 3.350 |
+| Label nonaktif terang | 1.272 | 1.463 | 1.654 |
+
+Pada baris tengah isi tombol teks, warna tombol Expo membentang dari x=125 sampai x=195. Kedua referensi web berhenti di x=194. Tombol ikon memiliki lebar yang sama pada ketiga mesin. Shaping label `Simpan` pada 14 px menghasilkan advance 50,169 px untuk TTF Inter Medium native dan WOFF2 web pada bobot 500. Pengukuran intrinsik teks React Native Android memakai lebar layout dalam piksel fisik utuh. Mekanisme pembulatan ini konsisten dengan selisih lebar satu piksel yang teramati. [Kode pengukuran React Native 0.88.1](https://github.com/facebook/react-native/blob/v0.88.1/packages/react-native/ReactAndroid/src/main/java/com/facebook/react/views/text/TextLayoutManager.kt).
+
+Piksel label Button yang kontras mulai di y=44 pada Expo dan Chromium, serta y=43 pada WebView. Simulasi geser area teks ke atas satu piksel mengubah selisih crop teks Expo terhadap WebView dari 301 ke 222 dan dari 300 ke 219. Selisih terhadap Chromium naik dari 412 ke 471 dan dari 411 ke 464. Untuk tiga kasus Label, posisi saat ini menghasilkan selisih terkecil dari pergeseran vertikal bulat yang diuji, dari minus dua sampai plus dua piksel. Hasil ini mendukung mempertahankan pengukuran teks dan posisi label saat ini. Kasus Button dan Label masih terbuka pada gerbang piksel.
+
 ## Review integrasi 26 November 2026
 
 Reviewer independen GPT-6.2 Sol High memeriksa revisi induk `be5e5e13`. Empat branch dapat digabung di checkout CI sementara. Generator memasang 153 entry kanonik dari inventaris eksternal: 50 halaman Student, 54 Academic, 36 Admin Operations dan 13 publik. Tipe Expo gabungan gagal pada implementasi formulir publik dan dua atribut pada baris daftar bersama. Angka 153 mengukur pemasangan rute di checkout tersebut. Gerbang halaman tetap membutuhkan navigasi, otorisasi dan data yang teruji melalui entry produk di perangkat. [Uji gabungan](https://github.com/soezyxstt/zyxacademy/actions/runs/45808986956).
