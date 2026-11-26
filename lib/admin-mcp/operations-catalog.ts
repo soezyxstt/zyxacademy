@@ -190,13 +190,6 @@ export const operationsCatalog = [
     "reason": "Interactive Admin and assigned Tutor video management verifies the exact course, session and revision, then applies shared web catalog operations. MCP videos.* retains its existing scopes, discovery, confirmation and environment bindings."
   },
   {
-    "source": "app/api/native/course-videos/[role]/[courseId]/route.ts",
-    "actions": ["GET", "POST"],
-    "tools": [],
-    "status": "excluded",
-    "reason": "Interactive Admin and assigned Tutor video management verifies the exact course, session and revision, then applies shared web catalog operations. MCP videos.* retains its existing scopes, discovery, confirmation and environment bindings."
-  },
-  {
     "source": "app/api/native/schedule/[role]/[bookingId]/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],
