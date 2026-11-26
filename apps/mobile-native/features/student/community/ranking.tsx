@@ -111,6 +111,11 @@ export function LeaderboardScreen() {
 }
 
 export function CourseLeaderboardScreen() {
+  const { focused } = useCommunity();
+  return focused === false ? null : <FocusedCourseLeaderboard />;
+}
+
+function FocusedCourseLeaderboard() {
   const { route, navigate, session, theme, colors, tr } = useCommunity();
   const id = route.params.id;
   const type = route.query.type === "simulation" ? "simulation" : "quiz";

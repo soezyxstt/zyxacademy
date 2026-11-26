@@ -52,6 +52,8 @@ STUDENT_COMMUNITY_HTTP_BASE=http://127.0.0.1:3140 \
 
 ### Batas data pada ranking kursus
 
+Layar peringkat kursus melepas data dan status akses ketika kehilangan fokus. Saat peserta kembali dari halaman kelas, layar meminta ulang peringkat untuk kursus dan tab yang sama. Respons dari kunjungan sebelumnya diabaikan, termasuk ketika peserta berhasil mengaktifkan kelas atau aksesnya dicabut. [Uji fokus peringkat](../../../../tests/visual/native-parallel/student/ranking-refocus.spec.ts)
+
 Uji HTTP tambahan menjalankan handler `course-ranking` hasil commit `1581156e` melalui `AppRouteRouteModule.handle` dari versi Next.js di repo, dengan PostgreSQL lokal dan sesi Better Auth bertanda tangan. Kelima peserta memiliki skor berbeda. Respons untuk peserta peringkat kelima hanya memuat tiga baris bernama serta `ownRank: 5` dan `totalStudents: 5`. Sesi anonim menghasilkan 401. Akun yang tidak berhak dan enrollment yang sudah berakhir mendapat 403. Skenario lulus dengan 10 assertion, termasuk metrik podium dan hasil simulasi kosong. Fixture sementara dibersihkan setelah pengujian.
 
 Tes yang sama dapat dijalankan pada server produk lokal yang memuat commit tersebut dengan `STUDENT_COMMUNITY_HTTP_BASE` menunjuk ke origin server, lalu `bun --env-file=.env.local test -t "course ranking sends three named rows" tests/contracts/native-student-community-http.test.ts`.
