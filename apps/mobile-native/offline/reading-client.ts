@@ -84,12 +84,13 @@ type Options = {
   session: NativeSessionTransport | null;
   onRevoked(): Promise<void>;
   now?: () => number;
+  canAutomaticallyDownload?(wifiOnly: boolean): Promise<boolean>;
   checkAsset(bytes: Uint8Array<ArrayBuffer>, digest: string): Promise<boolean>;
 };
 
-export function createOfflineReadingController({ scope, verifiedUntil, repository, session, onRevoked, now = Date.now, checkAsset }: Options) {
+export function createOfflineReadingController({ scope, verifiedUntil, repository, session, onRevoked, now = Date.now, checkAsset, canAutomaticallyDownload }: Options) {
   const lifetime = new AbortController();
-  const flights = new Map<string, { operation: AbortController; promise: Promise<OfflineReadingDownload> }>();
+  const flights = new Map<string, { operation: AbortController; promise: Promise<OfflineReadingDownload>; automatic: boolean }>();
   const forgetting = new Set<string>();
   let revoked = false;
   let clearing: Promise<number> | undefined;
@@ -137,7 +138,7 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
     }
   }
 
-  async function perform(target: OfflineReadingTarget, operation: AbortController, requiredEntry?: number, timeoutMs = CASE_TIMEOUT): Promise<OfflineReadingDownload> {
+  async function perform(target: OfflineReadingTarget, operation: AbortController, requiredEntry?: number, timeoutMs = CASE_TIMEOUT, automatic = false): Promise<OfflineReadingDownload> {
     const activeGuard = { verifiedUntil, assertCurrent: () => assertCurrent(operation.signal) };
     const timeout = setTimeout(() => operation.abort(), timeoutMs);
     let requestVersion: OfflineReadingRequestVersion | null = null;
@@ -146,6 +147,10 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
       const store = await repository();
       const authority = await store.authorize(scope, target, activeGuard, requiredEntry);
       if (!authority) return { status: "unavailable" };
+      if (automatic) {
+        if (!authority.autoCache || !await canAutomaticallyDownload?.(authority.wifiOnly)) return { status: "unavailable" };
+        if ((await store.list(scope, activeGuard)).some(item => item.key === readingKey(target))) return { status: "saved" };
+      }
       const verify = { revision: authority.descriptor.revision, minCursor: authority.cursor };
       requestVersion = authority.requestVersion;
       courseVersions = authority.courseVersions;
@@ -161,6 +166,7 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
       const leaseExpiresAt = Math.min(verifiedUntil, authority.leaseExpiresAt, payload.leaseExpiresAt);
       let assetLeaseExpiresAt: number | null = null;
       for (const url of payload.assets) {
+        if (automatic && !await canAutomaticallyDownload?.(authority.wifiOnly)) return { status: "cancelled" };
         const item = await request(url, operation.signal, true, async response => {
           const metadata = readOfflineReadingHeaders(response, scope, { ...verify, minCursor: payload.cursor, now: now() });
           if (metadata.validatedAt < payload.validatedAt) throw new NativeOfflineProtocolError();
@@ -176,7 +182,8 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
         assetLeaseExpiresAt = Math.min(assetLeaseExpiresAt ?? Infinity, item.leaseExpiresAt);
         assets.push(item.item);
       }
-      await store.store(scope, { target, revision: verify.revision, cursor: payload.cursor, resetGeneration: authority.resetGeneration,
+      if (automatic && !await canAutomaticallyDownload?.(authority.wifiOnly)) return { status: "cancelled" };
+      await store.store(scope, { target, pinned: !automatic, revision: verify.revision, cursor: payload.cursor, resetGeneration: authority.resetGeneration,
         validatedAt: payload.validatedAt, leaseExpiresAt, assetLeaseExpiresAt, body, assets, requiredEntry }, activeGuard);
       return { status: "saved" };
     } catch (error) {
@@ -208,17 +215,21 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
     }
   }
 
-  function startDownload(target: OfflineReadingTarget, requiredEntry?: number, timeoutMs?: number): Promise<OfflineReadingDownload> {
+  function startDownload(target: OfflineReadingTarget, requiredEntry?: number, timeoutMs?: number, automatic = false): Promise<OfflineReadingDownload> {
     if (!session || revoked) return Promise.resolve({ status: "unavailable" });
     const key = readingKey(target);
     if (clearing || forgetting.has(key) || lifetime.signal.aborted || session.signal.aborted || verifiedUntil <= now()) {
       return Promise.resolve({ status: "cancelled" });
     }
     const pending = flights.get(key);
-    if (pending) return pending.promise;
+    if (pending) {
+      if (automatic || !pending.automatic) return pending.promise;
+      pending.operation.abort();
+      return pending.promise.then(() => startDownload(target, requiredEntry, timeoutMs));
+    }
     const operation = new AbortController();
-    const promise = perform(target, operation, requiredEntry, timeoutMs).finally(() => { flights.delete(key); });
-    flights.set(key, { operation, promise });
+    const promise = perform(target, operation, requiredEntry, timeoutMs, automatic).finally(() => { flights.delete(key); });
+    flights.set(key, { operation, promise, automatic });
     return promise;
   }
 
@@ -283,6 +294,12 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
         forgetting.delete(key);
       }
     },
+    async recordVisit(target: OfflineReadingTarget, visitId: string) {
+      assertCurrent();
+      if (!session || clearing) return false;
+      return (await repository()).recordVisit(scope, target, visitId, guard);
+    },
+    downloadAutomatically: (target: OfflineReadingTarget) => startDownload(target, undefined, undefined, true),
     download: (target: OfflineReadingTarget) => startDownload(target),
     dispose() {
       lifetime.abort();

@@ -1138,3 +1138,31 @@ test("video catalogs are tied to a current session, course grant and invalidatio
   expect((await metadata.read(scope, now))?.catalogs?.map(catalog => catalog.kind)).toEqual(["achievement_catalog"]);
   expect((await metadata.read(scope, lease))?.catalogs).toEqual([]);
 });
+
+test("only a second distinct admitted visit saves an unpinned automatic copy within the network policy", async () => {
+  const { options, commit, observed, metadata, controller } = await setup(resource());
+  const policy = { ...page().policy, wifiOnly: true };
+  await commit(page("4", { reset: false, policy }), [descriptor()], "4");
+  let wifi = false;
+  const requests: boolean[] = [];
+  const automatic = createOfflineReadingController({ ...options, async canAutomaticallyDownload(wifiOnly) {
+    requests.push(wifiOnly);
+    return !wifiOnly || wifi;
+  } });
+  expect(await automatic.recordVisit(target, "visit-one")).toBe(false);
+  expect(await automatic.recordVisit(target, "visit-one")).toBe(false);
+  expect(observed).toHaveLength(0);
+  expect(await automatic.recordVisit(target, "visit-two")).toBe(true);
+  expect(await automatic.downloadAutomatically(target)).toEqual({ status: "unavailable" });
+  expect(requests).toEqual([true]);
+  expect(observed).toHaveLength(0);
+  wifi = true;
+  expect(await automatic.recordVisit(target, "visit-three")).toBe(true);
+  expect(await automatic.downloadAutomatically(target)).toEqual({ status: "saved" });
+  expect(await automatic.list()).toMatchObject([{ id: target.id, pinned: false }]);
+  expect(await automatic.storage()).toMatchObject({ count: 1, pinnedCount: 0 });
+  expect(await controller.clearDownloads()).toBe(1);
+  expect((await metadata.read(scope, now))?.courses[0]?.materials).toMatchObject([descriptor()]);
+  expect(await automatic.recordVisit(target, "visit-four")).toBe(false);
+  automatic.dispose();
+});

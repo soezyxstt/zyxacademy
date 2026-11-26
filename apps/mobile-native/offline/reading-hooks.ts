@@ -1,7 +1,9 @@
+import { getNetworkStateAsync } from "expo-network";
 import { useCallback, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Platform } from "react-native";
 
-import { useNativeSession } from "../auth/session-provider";
+import { nativeConnectivity, useNativeSession } from "../auth/session-provider";
+import { observedConnectivity } from "../device/connectivity";
 import { createOfflineReadingController } from "./reading-client";
 import type { OfflineReadingDownload, OfflineReadingPackage, OfflineReadingSummary } from "./reading-contract";
 import { subscribeOfflineReadingChanges } from "./reading-events";
@@ -40,6 +42,11 @@ export function useOfflineReadingPackages(locale: NativeOfflineLocale) {
       scope, verifiedUntil, session: transport,
       repository: openExpoOfflineReadingStore,
       checkAsset: verifyExpoOfflineReadingAsset,
+      async canAutomaticallyDownload(wifiOnly) {
+        const network = await getNetworkStateAsync().catch(() => null);
+        if (!network || !nativeConnectivity.getSnapshot().foreground || observedConnectivity(network) !== true) return false;
+        return !wifiOnly || network.type === "WIFI" || network.type === "ETHERNET";
+      },
       async onRevoked() {
         await purgeOfflineReadingSession(scope).finally(() => refresh());
       },
@@ -57,6 +64,8 @@ export function useOfflineReadingPackages(locale: NativeOfflineLocale) {
     read: current?.read ?? noRead,
     forget: current?.forget ?? noForget,
     download: current?.download ?? noDownload,
+    recordVisit: current?.recordVisit ?? noForget,
+    downloadAutomatically: current?.downloadAutomatically ?? noDownload,
     storage: current?.storage ?? noStorage,
     purgeUnavailable: current?.purgeUnavailable ?? noPurge,
     setPinned: current?.setPinned ?? noForget,

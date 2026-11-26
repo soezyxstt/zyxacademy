@@ -435,11 +435,11 @@ function MaterialShareLink({ target, title, share, locale }: {
 
 function Document({
   data, request, reload, renderMaterial, route, replace, openOfflineLibrary, openExternal, saveDiktatPdf, saveCourseMaterialPdf, drafts,
-  shareMaterialLink, pdfReader, locale, session,
+  shareMaterialLink, pdfReader, locale, session, recordOfflineReadingVisit,
 }: {
   data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader; locale: string;
 } & Pick<StudentScreenProps, "route" | "replace" | "openOfflineLibrary" | "openExternal" | "saveDiktatPdf" |
-  "saveCourseMaterialPdf" | "drafts" | "shareMaterialLink" | "pdfReader" | "session">) {
+  "saveCourseMaterialPdf" | "drafts" | "shareMaterialLink" | "pdfReader" | "session" | "recordOfflineReadingVisit">) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const { course, material } = data;
@@ -479,7 +479,8 @@ function Document({
             : target && material.nativeReading && !canonicalHref
             ? <OnlineReading key={JSON.stringify([course.id, material.id, target.section, locale])}
                 request={request} session={session} drafts={drafts} reloadDetail={reload} kind={material.nativeReading} courseId={course.id} materialId={material.id}
-                title={material.title} section={target.section} theme={theme} locale={locale === "en" ? "en" : "id"} openWeb={openWeb} />
+                title={material.title} section={target.section} theme={theme} locale={locale === "en" ? "en" : "id"} openWeb={openWeb}
+                recordOfflineReadingVisit={recordOfflineReadingVisit} />
             : openWeb ? <Button theme={theme} variant="outline" testID="student-open-pdf-on-web" onPress={openWeb}>
                 {target?.kind === "pdf" ? copy.openPdfOnWeb : downloadableDiktat ? copy.openDiktatOnWeb : copy.openDocumentOnWeb}
               </Button> : <LearningText>{copy.rendererPending}</LearningText>)}
@@ -650,7 +651,8 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery; documen
       case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
       case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} openOfflineLibrary={props.openOfflineLibrary} locale={locale} disclosures={props.documentDisclosures ?? fallbackDisclosures.current} openExternal={openExternal} />; break;
       case "material-detail": content = <Document data={resource.data} request={request} session={props.session} locale={locale} reload={reload} renderMaterial={renderMaterial} pdfReader={props.pdfReader} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} openExternal={openExternal} saveDiktatPdf={props.saveDiktatPdf}
-        saveCourseMaterialPdf={props.saveCourseMaterialPdf} drafts={props.drafts} shareMaterialLink={props.shareMaterialLink} />; break;
+        saveCourseMaterialPdf={props.saveCourseMaterialPdf} drafts={props.drafts} shareMaterialLink={props.shareMaterialLink}
+        recordOfflineReadingVisit={props.recordOfflineReadingVisit} />; break;
     }
   }
 

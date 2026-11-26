@@ -38,6 +38,7 @@ import { compareNativeOfflineCursors, isNativeOfflineCursor, type NativeOfflineM
 const CHUNK_BYTES = 256 * 1024;
 const INFO_BYTES = 384 * 1024;
 const DEVICE_BYTES = 2 * READING_STORAGE_LIMIT;
+const visitLimit = 1000;
 const schema = `
   DROP TABLE IF EXISTS expo_reading_packages_v1;
   DROP TABLE IF EXISTS expo_reading_parts_v1;
@@ -69,6 +70,17 @@ const schema = `
     chunk INTEGER NOT NULL,
     data BLOB NOT NULL,
     PRIMARY KEY (entry, part, chunk)
+  );
+  CREATE TABLE IF NOT EXISTS expo_reading_visits (
+    origin TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    locale TEXT NOT NULL,
+    resource_key TEXT NOT NULL,
+    newest_visit TEXT NOT NULL,
+    prior_visit TEXT,
+    opened_at INTEGER NOT NULL,
+    PRIMARY KEY (origin, account_id, session_id, locale, resource_key)
   );
   CREATE TABLE IF NOT EXISTS expo_reading_unpinned_v2 (
     entry INTEGER PRIMARY KEY
@@ -131,6 +143,7 @@ export type OfflineManifestCheck = {
 
 export type ReadingCandidate = {
   target: OfflineReadingTarget;
+  pinned?: boolean;
   revision: string;
   cursor: string;
   resetGeneration: number;
@@ -409,6 +422,7 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
         assertGrant(guard);
         const authority = await readOfflineReadingAuthority(tx, scope);
         const access = authority && proof(authority, candidate.target, now());
+        if (candidate.pinned === false && authority?.readingPolicy?.autoCache !== true) throw new OfflineReadingError("cancelled");
         if (!authority?.readingPolicy || !access || access.descriptor.revision !== candidate.revision
           || access.resetGeneration !== candidate.resetGeneration || !isNativeOfflineCursor(candidate.cursor)
           || compareNativeOfflineCursors(candidate.cursor, access.cursor) < 0
@@ -466,7 +480,7 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
         `, ...keys(scope), key, candidate.target.courseId, candidate.revision, chapters, candidate.validatedAt,
         candidate.validatedAt, Math.min(candidate.leaseExpiresAt, access.leaseExpiresAt),
         candidate.cursor, candidate.resetGeneration, candidate.assetLeaseExpiresAt, info, size, now());
-        if (previous?.pinned === 0) {
+        if (previous ? previous.pinned === 0 : candidate.pinned === false) {
           await tx.runAsync("INSERT INTO expo_reading_unpinned_v2 (entry) VALUES (?)", lastInsertRowId);
         }
         const parts = [candidate.body, ...candidate.assets.map(asset => asset.bytes)];
@@ -498,6 +512,30 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
     read,
     list,
     store,
+    async recordVisit(scope: NativeOfflineScope, target: OfflineReadingTarget, visitId: string, guard: Guard) {
+      if (!/^[a-zA-Z0-9_-]{1,128}$/.test(visitId)) return false;
+      const key = readingKey(target);
+      return transaction(async tx => {
+        assertGrant(guard);
+        const prior = await tx.getFirstAsync<{ newest_visit: string; prior_visit: string | null }>(
+          `SELECT newest_visit, prior_visit FROM expo_reading_visits WHERE ${scopeFilter} AND resource_key = ?`, ...keys(scope), key,
+        );
+        if (prior?.newest_visit === visitId || prior?.prior_visit === visitId) return false;
+        await tx.runAsync(`
+          INSERT INTO expo_reading_visits (origin, account_id, session_id, locale, resource_key, newest_visit, prior_visit, opened_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT (origin, account_id, session_id, locale, resource_key) DO UPDATE SET
+            newest_visit = excluded.newest_visit, prior_visit = excluded.prior_visit, opened_at = excluded.opened_at
+        `, ...keys(scope), key, visitId, prior?.newest_visit ?? null, now());
+        await tx.runAsync(`
+          DELETE FROM expo_reading_visits WHERE ${scopeFilter} AND resource_key IN (
+            SELECT resource_key FROM expo_reading_visits WHERE ${scopeFilter} ORDER BY opened_at DESC, resource_key ASC LIMIT -1 OFFSET ?
+          )
+        `, ...keys(scope), ...keys(scope), visitLimit);
+        assertGrant(guard);
+        return prior !== null;
+      });
+    },
     async storage(scope: NativeOfflineScope, guard: Guard) {
       const { entries, authority } = await inspect(scope, guard);
       return {
@@ -530,6 +568,7 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
           `SELECT COUNT(*) AS count FROM expo_reading_packages_v2 WHERE ${scopeFilter}`, ...keys(scope),
         );
         await tx.runAsync(`DELETE FROM expo_reading_packages_v2 WHERE ${scopeFilter}`, ...keys(scope));
+        await tx.runAsync(`DELETE FROM expo_reading_visits WHERE ${scopeFilter}`, ...keys(scope));
         assertGrant(guard);
         return total?.count ?? 0;
       });
@@ -579,7 +618,8 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
         checkedAt: access.checkedAt,
         generation: access.resetGeneration,
       } : null;
-      return { ...access, requestVersion, courseVersions: authorities.map(({ locale, revision }) => ({ locale, revision })) };
+      return { ...access, requestVersion, courseVersions: authorities.map(({ locale, revision }) => ({ locale, revision })),
+        autoCache: authority?.readingPolicy?.autoCache === true, wifiOnly: authority?.readingPolicy?.wifiOnly !== false };
     },
     async captureCourseVersions(session: NativeSessionScope) {
       await initialize();
@@ -696,7 +736,10 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
       if (changed) notifyOfflineReadingChanges();
     },
     async clearSession({ origin, accountId, sessionId }: NativeSessionScope) {
-      await transaction(tx => tx.runAsync("DELETE FROM expo_reading_packages_v2 WHERE origin = ? AND account_id = ? AND session_id = ?", origin, accountId, sessionId));
+      await transaction(async tx => {
+        await tx.runAsync("DELETE FROM expo_reading_packages_v2 WHERE origin = ? AND account_id = ? AND session_id = ?", origin, accountId, sessionId);
+        await tx.runAsync("DELETE FROM expo_reading_visits WHERE origin = ? AND account_id = ? AND session_id = ?", origin, accountId, sessionId);
+      });
       notifyOfflineReadingChanges();
     },
   };

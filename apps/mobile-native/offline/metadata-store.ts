@@ -64,7 +64,7 @@ type StoredSnapshot = {
   activeCheckIntervalMs?: number;
   metadataMaxAgeMs?: number;
   catalogs?: OfflineLibraryCatalog[];
-  readingPolicy?: Pick<OfflinePolicy, "maxBytes" | "maxEntries" | "retentionMs" | "contentMaxAgeMs">;
+  readingPolicy?: Pick<OfflinePolicy, "maxBytes" | "maxEntries" | "retentionMs" | "contentMaxAgeMs"> & Partial<Pick<OfflinePolicy, "autoCache" | "wifiOnly">>;
   readingValidation?: ReadingValidation;
   pending?: { cursor: string; reset: boolean };
   courses: StoredCourse[];
@@ -360,7 +360,7 @@ function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflin
     catalogs: response.reset ? undefined : usableCatalogs((previous?.catalogs ?? []).filter(catalog => !invalidatedCatalog(catalog, response)),
       authorized, response.serverTime),
     readingPolicy: { maxBytes: response.policy.maxBytes, maxEntries: response.policy.maxEntries, retentionMs: response.policy.retentionMs,
-      contentMaxAgeMs: response.policy.contentMaxAgeMs },
+      contentMaxAgeMs: response.policy.contentMaxAgeMs, autoCache: response.policy.autoCache, wifiOnly: response.policy.wifiOnly },
     readingValidation,
     pending: { cursor: response.cursor, reset: response.reset },
     courses: authorized.slice(0, NATIVE_OFFLINE_COURSE_LIMIT) };

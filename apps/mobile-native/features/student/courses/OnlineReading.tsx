@@ -1,3 +1,4 @@
+import { randomUUID } from "expo-crypto";
 import { getStringAsync } from "expo-clipboard";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Platform, ScrollView, Text, View } from "react-native";
@@ -15,6 +16,7 @@ type ReaderProps = {
   request: StudentRequest;
   session: StudentSession;
   drafts?: StudentServices["drafts"];
+  recordOfflineReadingVisit?: StudentServices["recordOfflineReadingVisit"];
   kind: ReadingContent["kind"];
   courseId: string;
   materialId: string;
@@ -57,7 +59,7 @@ export function OnlineReading(props: ReaderProps) {
   </>;
 }
 
-function OnlineReadingPage({ request, session, kind, courseId, materialId, locale, section, title, theme, close, openWeb, drafts, ask, onCompleted }: ReaderProps & {
+function OnlineReadingPage({ request, session, kind, courseId, materialId, locale, section, title, theme, close, openWeb, drafts, ask, onCompleted, recordOfflineReadingVisit }: ReaderProps & {
   close(): void; onCompleted(): void; ask?: (snippet: string, sectionTitle?: string) => void;
 }) {
   const { canInteract } = useProtectedInteraction();
@@ -65,6 +67,9 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
   const [attempt, setAttempt] = useState(0);
   const [emptyClipboard, setEmptyClipboard] = useState(false);
   const alive = useRef(true);
+  const [visitId] = useState(randomUUID);
+  const recordedVisit = useRef(false);
+  const hasContent = Boolean(state && "content" in state);
   const colors = nativeColors[theme];
   const id = locale === "id";
   useEffect(() => {
@@ -77,6 +82,11 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
     return () => ctrl.abort();
   }, [attempt, canInteract, courseId, kind, locale, materialId, request, section]);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useEffect(() => {
+    if (!hasContent || !recordOfflineReadingVisit || recordedVisit.current || !canInteract()) return;
+    recordedVisit.current = true;
+    void recordOfflineReadingVisit({ kind, courseId, id: materialId }, visitId).catch(() => {});
+  }, [canInteract, courseId, hasContent, kind, materialId, recordOfflineReadingVisit, visitId]);
 
   const status = state && "status" in state ? state.status : null;
   const forbidden = status === 401 || status === 403;

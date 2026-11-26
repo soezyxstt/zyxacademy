@@ -128,6 +128,11 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
     return navigation.isFocused() && current.state === state && current.transport === transport && !current.revalidating &&
       state.expiresAt > Date.now() && context.accountId === accountId && context.sessionId === sessionId;
   };
+  const recordOfflineReadingVisit: StudentEntryProps["recordOfflineReadingVisit"] = async (target, visitId) => {
+    if (!isTargetCurrent() || !packages.canDownload || !await packages.recordVisit(target, visitId)) return;
+    await metadata.retry();
+    if (isTargetCurrent()) await packages.downloadAutomatically(target);
+  };
   const saveDiktatPdf: StudentEntryProps["saveDiktatPdf"] = (courseId, diktatId, signal) => scopedFiles.shareAuthorizedDownload({
     session: transport, target: { kind: "diktat-pdf", courseId, diktatId }, policy: diktatPdfPolicy, signal, isTargetCurrent,
   });
@@ -170,7 +175,7 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
     {focused && !revalidating && context.roles.length === 1 && context.accountId === accountId && context.sessionId === sessionId
       ? <StudentCelebrations key={identityKey} transport={transport} locale={context.locale} navigate={props.navigate} /> : null}
     <StudentEntry {...props} focused={focused} openExternal={props.openExternal ?? openExternal} openBrowserNotifications={openBrowserNotifications} openOfflineMaterial={openSaved} openOfflineLibrary={target.kind === "course" || target.kind === "material" || matchStudentRoute(props.path)?.pattern === "/settings" ? openLibrary : undefined} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
-    pdfReader={pdfReader} calendarLink={calendarLink}
+    pdfReader={pdfReader} calendarLink={calendarLink} recordOfflineReadingVisit={recordOfflineReadingVisit}
     saveCourseMaterialPdf={Platform.OS === "android" || Platform.OS === "ios" ? saveCourseMaterialPdf : undefined}
     shareMaterialLink={Platform.OS === "android" || Platform.OS === "ios" ? shareMaterialLink : undefined}
     saveDiktatPdf={Platform.OS === "android" || Platform.OS === "ios" ? saveDiktatPdf : undefined}

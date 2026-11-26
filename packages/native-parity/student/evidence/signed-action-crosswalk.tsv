@@ -217,6 +217,7 @@ shared	/offline	murid	offline.package-open	Opens saved revision for allowed sess
 shared	/offline	murid	offline.package-update	Refreshes or replaces package from scoped latest manifest with restore after transient failure.	connected	contract
 shared	/offline	murid	offline.package-remove	Confirms removal and releases package bytes.	connected	contract
 shared	/offline	murid	offline.manage-storage	Signed scope lists bytes and pin count, pins or unpins and clears downloads while retaining course manifests.	connected	contract
+shared	/offline	murid	offline.automatic-cache	Second authorized online Article/Diktat visit records a scoped marker and admits an unpinned download under current network and cache policy.	connected	contract
 shared	/offline	murid	offline.course-catalog	Uses verified offline course grants and per-course material manifests to open or download eligible readings.	connected	contract
 shared	/offline	murid	offline.video-catalog	Persists authorized video summaries and small lease-bound thumbnails. Online opens the exact video through the native player authorization.	connected	contract
 shared	/offline	murid	offline.achievement-definitions	Caches signed localized achievement definitions and thresholds.	connected	contract
