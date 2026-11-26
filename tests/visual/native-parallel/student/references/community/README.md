@@ -21,6 +21,7 @@ node --env-file="$STUDENT_EVIDENCE_ENV" node_modules/@playwright/test/cli.js tes
 ## Batas bukti
 
 - Pada 380 × 844, 23 tangkapan mencakup 19 pola rute. Navigasi dari profil ke diskusi dan pengaturan lulus. Pemuatan langsung `/dashboard/discussions` dan `/settings` masih gagal hidrasi pada checkout web `7d93b3a5`. [Manifest 380 px](manifest-mobile-380.json)
+- Pada checkout web `28b8dd941b665105ebe0f6331d6b594abc06ed08`, pemuatan langsung `/settings` lulus pada 380 × 844. Pengujian menunggu tautan **Unduh aplikasi** yang baru muncul setelah komponen preferensi terpasang, lalu memastikan menu **Bahasa** terbuka dan menampilkan **Bahasa Indonesia** serta **English**. [Manifest pemuatan langsung](manifest-settings-direct-28b8dd94-mobile-380.json)
 - Pada 1536 × 864, dua kasus ranking global lulus dan dua kasus ranking kursus gagal. [Manifest desktop](manifest-laptop-fhd-125.json)
 - Kasus yang berhasil tersimpan sebagai PNG bersama manifest. Entri gagal menyimpan penyebab tanpa mengklaim tangkapan lulus. Kasus dalam spesifikasi yang tidak ada di manifest belum menghasilkan bukti.
 - Ranking akademik menampilkan nilai 93% untuk peserta sintetis. Ranking partisipasi menampilkan 165 XP. Halaman ranking kursus aktif dapat menampilkan isi tersebut ketika pemilih kursus pada shell masih memuat.

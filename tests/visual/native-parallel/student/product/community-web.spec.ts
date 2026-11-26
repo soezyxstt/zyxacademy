@@ -166,7 +166,14 @@ for (const item of cases) {
       expect(actual.pathname).toBe(item.expectedPath ?? item.path.split("?")[0]);
       for (const [name, values] of Object.entries(item.expectedQuery ?? {})) expect(actual.searchParams.getAll(name)).toEqual(values);
       await expect(page.getByRole("main").last()).toBeVisible();
-      if (item.openMenu) await page.getByRole("button", { name: item.openMenu, exact: true }).click();
+      if (item.openMenu) {
+        // The trigger is server-rendered. This link in GeneralPreferences only
+        // appears after its mount effect, when the menu can receive input.
+        await expect(page.getByRole("link", { name: "Unduh aplikasi", exact: true })).toBeVisible({ timeout: 25_000 });
+        const trigger = page.getByRole("button", { name: item.openMenu, exact: true });
+        await trigger.click();
+        await expect(trigger).toHaveAttribute("aria-expanded", "true");
+      }
       for (const check of item.checks) await expect(locate(page, check).filter({ visible: true }).first()).toBeVisible({ timeout: 25_000 });
       if (item.selectedTab) await expect(page.getByRole("tab", { name: item.selectedTab, exact: true })).toHaveAttribute("aria-selected", "true");
       const display = await page.evaluate(() => ({
