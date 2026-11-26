@@ -10,14 +10,17 @@ import {
   readingResourcePath,
   type OfflineReadingAsset,
   type OfflineReadingDownload,
+  type OfflineReadingRevalidation,
   type OfflineReadingTarget,
 } from "./reading-contract";
-import type { NativeOfflineReadingStore } from "./reading-store";
+import type { NativeOfflineReadingStore, OfflineReadingRequestVersion } from "./reading-store";
 import { NATIVE_OFFLINE_HEADERS, NativeOfflineProtocolError, type NativeOfflineScope } from "./sync-contract";
 
 const MIME = /^image\/(?:png|jpeg|webp|gif|avif)$/;
 const REQUEST_TIMEOUT = 20_000;
 const CASE_TIMEOUT = 120_000;
+const REVALIDATION_LIMIT = 3;
+const REVALIDATION_TIMEOUT = 25_000;
 
 function contentType(response: NativeResponse) {
   return response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "";
@@ -66,7 +69,7 @@ async function failure(response: NativeResponse, asset: boolean): Promise<Offlin
     const code = data && typeof data === "object" && "code" in data ? data.code : null;
     if (code === "OFFLINE_ACCESS_REVOKED" || code === "OFFLINE_ACCOUNT_CHANGED") return new OfflineReadingError("revoked");
     if (response.status === 404 || code === "OFFLINE_COURSE_ACCESS_DENIED" || code === "OFFLINE_ACCESS_CHANGED"
-      || code === "OFFLINE_MATERIAL_CHANGED") return new OfflineReadingError("changed");
+      || code === "OFFLINE_MATERIAL_CHANGED") return new OfflineReadingError("changed", true);
     if (asset && code === "OFFLINE_ASSET_NOT_ADMITTED") return new OfflineReadingError("unsupported");
   }
   return new OfflineReadingError("retry");
@@ -87,6 +90,8 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
   const flights = new Map<string, { operation: AbortController; promise: Promise<OfflineReadingDownload> }>();
   const forgetting = new Set<string>();
   let revoked = false;
+  let lastRevalidatedEntry: number | undefined;
+  let revalidation: Promise<OfflineReadingRevalidation> | undefined;
 
   if (session && (session.scope.origin !== scope.origin || session.scope.accountId !== scope.accountId
     || session.scope.sessionId !== scope.sessionId)) throw new NativeOfflineProtocolError();
@@ -129,17 +134,16 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
     }
   }
 
-  async function perform(target: OfflineReadingTarget, operation: AbortController): Promise<OfflineReadingDownload> {
+  async function perform(target: OfflineReadingTarget, operation: AbortController, requiredEntry?: number, timeoutMs = CASE_TIMEOUT): Promise<OfflineReadingDownload> {
     const activeGuard = { verifiedUntil, assertCurrent: () => assertCurrent(operation.signal) };
-    const timeout = setTimeout(() => operation.abort(), CASE_TIMEOUT);
-    let revision: string | undefined;
-    let verifiedNetwork = false;
+    const timeout = setTimeout(() => operation.abort(), timeoutMs);
+    let requestVersion: OfflineReadingRequestVersion | null = null;
     try {
       const store = await repository();
-      const authority = await store.authorize(scope, target, activeGuard);
+      const authority = await store.authorize(scope, target, activeGuard, requiredEntry);
       if (!authority) return { status: "unavailable" };
       const verify = { revision: authority.descriptor.revision, minCursor: authority.cursor };
-      revision = verify.revision;
+      requestVersion = authority.requestVersion;
       const payload = await request(readingResourcePath(target, scope.locale), operation.signal, false, async response => {
         const metadata = readOfflineReadingHeaders(response, scope, { ...verify, now: now() });
         if (response.headers.get("etag") !== `"${metadata.revision}"`) throw new NativeOfflineProtocolError();
@@ -167,9 +171,8 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
         assetLeaseExpiresAt = Math.min(assetLeaseExpiresAt ?? Infinity, item.leaseExpiresAt);
         assets.push(item.item);
       }
-      verifiedNetwork = true;
-      await store.store(scope, { target, revision, cursor: payload.cursor, resetGeneration: authority.resetGeneration,
-        validatedAt: payload.validatedAt, leaseExpiresAt, assetLeaseExpiresAt, body, assets }, activeGuard);
+      await store.store(scope, { target, revision: verify.revision, cursor: payload.cursor, resetGeneration: authority.resetGeneration,
+        validatedAt: payload.validatedAt, leaseExpiresAt, assetLeaseExpiresAt, body, assets, requiredEntry }, activeGuard);
       return { status: "saved" };
     } catch (error) {
       try { assertCurrent(operation.signal); } catch { return { status: "cancelled" }; }
@@ -180,15 +183,47 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
         await onRevoked().catch(() => {});
         return { status: "unavailable" };
       }
-      if (error.code === "changed" && !verifiedNetwork && revision) {
-        // This response withdrew or changed the very version we requested.
+      if (error.invalidatesSaved && requestVersion) {
+        // A server invalidation can affect only the saved proof that preceded this request.
         const store = await repository().catch(() => null);
-        await store?.forget(scope, target, activeGuard, revision).catch(() => {});
+        await store?.invalidate(scope, target, requestVersion, activeGuard).catch(() => {});
       }
       return { status: error.code };
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  function startDownload(target: OfflineReadingTarget, requiredEntry?: number, timeoutMs?: number): Promise<OfflineReadingDownload> {
+    if (!session || revoked) return Promise.resolve({ status: "unavailable" });
+    const key = readingKey(target);
+    if (forgetting.has(key) || lifetime.signal.aborted || session.signal.aborted || verifiedUntil <= now()) {
+      return Promise.resolve({ status: "cancelled" });
+    }
+    const pending = flights.get(key);
+    if (pending) return pending.promise;
+    const operation = new AbortController();
+    const promise = perform(target, operation, requiredEntry, timeoutMs).finally(() => { flights.delete(key); });
+    flights.set(key, { operation, promise });
+    return promise;
+  }
+
+  async function revalidateSaved(): Promise<OfflineReadingRevalidation> {
+    assertCurrent();
+    const result = { attempted: 0, restored: 0 };
+    if (!session) return result;
+    const deadline = now() + REVALIDATION_TIMEOUT;
+    const candidates = await (await repository()).revalidationCandidates(scope, guard, REVALIDATION_LIMIT, lastRevalidatedEntry);
+    for (const { target, entry } of candidates) {
+      const remaining = deadline - now();
+      if (remaining <= 0 || lifetime.signal.aborted || session.signal.aborted || revoked || verifiedUntil <= now()) break;
+      lastRevalidatedEntry = entry;
+      if (flights.has(readingKey(target))) continue;
+      const attempt = await startDownload(target, entry, remaining);
+      result.attempted++;
+      if (attempt.status === "saved") result.restored++;
+    }
+    return result;
   }
 
   return {
@@ -199,6 +234,18 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
     async read(target: OfflineReadingTarget) {
       if (revoked || lifetime.signal.aborted || session?.signal.aborted || verifiedUntil <= now()) return null;
       return (await repository()).read(scope, target, guard);
+    },
+    async storage() {
+      assertCurrent();
+      return (await repository()).storage(scope, guard);
+    },
+    async purgeUnavailable() {
+      assertCurrent();
+      return (await repository()).purgeUnavailable(scope, guard);
+    },
+    revalidateSaved() {
+      revalidation ??= revalidateSaved().finally(() => { revalidation = undefined; });
+      return revalidation;
     },
     async forget(target: OfflineReadingTarget) {
       const key = readingKey(target);
@@ -211,19 +258,7 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
         forgetting.delete(key);
       }
     },
-    download(target: OfflineReadingTarget): Promise<OfflineReadingDownload> {
-      if (!session || revoked) return Promise.resolve({ status: "unavailable" });
-      const key = readingKey(target);
-      if (forgetting.has(key) || lifetime.signal.aborted || session.signal.aborted || verifiedUntil <= now()) {
-        return Promise.resolve({ status: "cancelled" });
-      }
-      const pending = flights.get(key);
-      if (pending) return pending.promise;
-      const operation = new AbortController();
-      const promise = perform(target, operation).finally(() => { flights.delete(key); });
-      flights.set(key, { operation, promise });
-      return promise;
-    },
+    download: (target: OfflineReadingTarget) => startDownload(target),
     dispose() {
       lifetime.abort();
       for (const { operation } of flights.values()) operation.abort();

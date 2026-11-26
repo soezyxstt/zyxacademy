@@ -1,7 +1,7 @@
 import { projectOfflineLibrary, type OfflineLibraryData } from "./library-model";
 import type { NativeOfflineResourceDescriptor } from "./sync-contract";
 
-export const offlineLibraryFixtureCases = ["populated", "empty", "failure"] as const;
+export const offlineLibraryFixtureCases = ["populated", "empty", "failure", "cleanup", "refresh"] as const;
 export type OfflineLibraryFixtureCase = (typeof offlineLibraryFixtureCases)[number];
 export function isOfflineLibraryFixtureCase(value: unknown): value is OfflineLibraryFixtureCase {
   return offlineLibraryFixtureCases.some(id => id === value);
@@ -27,5 +27,6 @@ export const offlineLibraryFixtureData: OfflineLibraryData = {
 };
 
 export function offlineLibraryFixtureRows(id: OfflineLibraryFixtureCase) {
+  if (id === "refresh") return projectOfflineLibrary({ ...offlineLibraryFixtureData, saved: [] }, now, expires).rows;
   return id === "populated" ? projectOfflineLibrary(offlineLibraryFixtureData, now, expires).rows : [];
 }

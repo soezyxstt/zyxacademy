@@ -12,6 +12,7 @@ cd ../..
 status=0
 bash scripts/native-parity/check-interactions.sh ios "$device" || status=1
 python scripts/native-parity/capture-gallery.py ios "$device" || status=1
+python scripts/native-parity/compare-directory.py ios "$device" || status=1
 if [[ ${EXPO_PUBLIC_PARITY_WEBVIEW:-} == 1 ]]; then
   python scripts/native-parity/capture-webview.py ios "$device" || status=1
 fi

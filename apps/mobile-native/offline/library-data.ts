@@ -34,13 +34,14 @@ type Observation = ReturnType<typeof createInvalidation>;
 type ReadResult = {
   observation: Observation;
   revision: number;
-  data: OfflineLibraryData | null;
+  data: (OfflineLibraryData & { unavailableCount: number }) | null;
 };
 
-export function useOfflineLibraryData({ scope, verifiedUntil, list, subscribe }: {
+export function useOfflineLibraryData({ scope, verifiedUntil, list, storage, subscribe }: {
   scope: NativeOfflineScope | null;
   verifiedUntil: number;
   list: () => Promise<OfflineReadingSummary[]>;
+  storage: () => Promise<{ unavailableCount: number }>;
   subscribe: Subscribe;
 }) {
   const now = Date.now();
@@ -53,15 +54,16 @@ export function useOfflineLibraryData({ scope, verifiedUntil, list, subscribe }:
   useEffect(() => {
     if (!scopeKey || !scope) return;
     let active = true;
-    const finish = (data: OfflineLibraryData | null) => {
+    const finish = (data: ReadResult["data"]) => {
       if (active && revision === observation.getRevision()) setResult({ observation, revision, data });
     };
     void Promise.all([
       openExpoOfflineMetadataStore().then(repository => repository.read(scope)),
       list(),
-    ]).then(([metadata, saved]) => finish({ metadata, saved }), () => finish(null));
+      storage(),
+    ]).then(([metadata, saved, { unavailableCount }]) => finish({ metadata, saved, unavailableCount }), () => finish(null));
     return () => { active = false; };
-  }, [list, observation, revision, scope, scopeKey]);
+  }, [list, observation, revision, scope, scopeKey, storage]);
 
   const current = scopeKey && result?.observation === observation && result.revision === revision ? result : null;
   const projection = useMemo(() => projectOfflineLibrary(current?.data ?? blank, Date.now(), verifiedUntil), [current, verifiedUntil]);
@@ -75,6 +77,7 @@ export function useOfflineLibraryData({ scope, verifiedUntil, list, subscribe }:
 
   return {
     ...visible, observation, revision,
+    unavailableCount: current?.data?.unavailableCount ?? 0,
     loaded: current !== null,
     failed: current?.data === null,
     retry: observation.refresh,

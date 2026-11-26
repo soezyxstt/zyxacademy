@@ -266,8 +266,9 @@ export type NativeListRowProps<Id extends string = string> = SharedUiActionGroup
   titleRole?: "header";
   leading?: ReactNode;
   metadata?: readonly { id: string; label: string; value: string }[];
-  primary?: { onPress: () => void; label?: string; role?: "button" | "link"; disabled?: boolean };
+  primary?: { onPress: () => void; label?: string; role?: "button" | "link"; disabled?: boolean; testID?: string };
   theme?: SharedUiTheme;
+  /** Identifies the primary control when it has no test ID of its own. */
   testID?: string;
 };
 
@@ -299,10 +300,9 @@ export function NativeListRow<Id extends string>({
   );
 
   return (
-    <View testID={primary ? undefined : testID} style={[styles.row, layout === "wide" && styles.wideRow]}>
+    <View style={[styles.row, layout === "wide" && styles.wideRow]} testID={primary && primary.testID === undefined ? undefined : testID}>
       {primary ? (
         <Pressable
-          testID={testID}
           accessibilityLabel={primary.label ?? (subtitle ? `${title}. ${subtitle}` : title)}
           accessibilityRole={primary.role ?? "button"}
           accessibilityState={{ disabled: primary.disabled }}
@@ -310,6 +310,7 @@ export function NativeListRow<Id extends string>({
           onBlur={() => setFocused(false)}
           onFocus={() => setFocused(true)}
           onPress={primary.onPress}
+          testID={primary.testID ?? testID}
           style={({ pressed }) => [
             styles.identity,
             styles.rowPress,

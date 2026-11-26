@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import { avatarPosition } from "../../../packages/ui-parity/avatar-cases";
-import { directoryCases } from "../../../packages/public-links/fixtures";
+import { directoryCases, directoryFrame } from "../../../packages/public-links/fixtures";
 import { parityFrame } from "../../../packages/ui-parity/frame";
 import { getProgressPosition } from "../../../packages/ui-parity/progress-cases";
 import { getSeparatorPosition } from "../../../packages/ui-parity/separator-cases";
@@ -195,6 +195,9 @@ try {
   }
   await expect(standard).not.toBeChecked();
   await expect(control("radio-group-disabled-dark").getByRole("radio").first()).toBeDisabled();
+  await page.setViewportSize(directoryFrame);
+  const directoryManifest = { ...directoryFrame, cases: Object.keys(directoryCases) };
+  await writeFile(new URL("directory.json", outputDirectory), JSON.stringify(directoryManifest));
   for (const [caseId, item] of Object.entries(directoryCases)) {
     const response = await page.goto(`${url}/tautan/${caseId}`);
     if (!response?.ok()) throw new Error(`Public directory fixture returned HTTP ${response?.status()}`);
