@@ -12,6 +12,9 @@ on:
       - 'app/forms/**'
       - 'app/f/**'
       - 'app/api/forms/**'
+      - 'app/meet/**'
+      - 'app/api/meet/**'
+      - 'components/meet/**'
       - 'components/forms/public-form-viewer.tsx'
       - 'messages/*/publicForms.json'
       - 'components/logo.tsx'
@@ -155,6 +158,7 @@ jobs:
             artifacts/native-parity/web/dpr*/directory.json
             artifacts/native-parity/web/dpr*/forms.json
             artifacts/native-parity/web/dpr*/short-forms.json
+            artifacts/native-parity/web/dpr*/meet.json
           if-no-files-found: error
 
       - name: Export the mobile WebView reference
@@ -249,6 +253,7 @@ jobs:
             artifacts/native-parity/${{ matrix.platform }}/directory/result.json
             artifacts/native-parity/${{ matrix.platform }}/forms/result.json
             artifacts/native-parity/${{ matrix.platform }}/short-forms/result.json
+            artifacts/native-parity/${{ matrix.platform }}/meet/result.json
           retention-days: 7
 
   visual-summary:

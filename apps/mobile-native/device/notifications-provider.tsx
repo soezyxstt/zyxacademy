@@ -14,11 +14,9 @@ const NotificationsContext = createContext<DeviceNotificationSettings | null>(nu
 
 export function NotificationsProvider({
   children,
-  configured = false,
   locale = "id",
 }: {
   children: ReactNode;
-  configured?: boolean;
   locale?: "id" | "en";
 }) {
   const { state, transport, subscribeBeforeLogout } = useNativeSession();
@@ -34,7 +32,6 @@ export function NotificationsProvider({
 
   useEffect(() => {
     const instance = createExpoNotificationController({
-      configured,
       getLocale: () => currentLocale.current,
       onStatusChange: setStatus,
     });
@@ -43,11 +40,11 @@ export function NotificationsProvider({
       controller.current = null;
       instance.dispose();
     };
-  }, [configured]);
+  }, []);
 
   useEffect(() => {
     if (!loggingOut) void controller.current?.setAccount(activeTransport);
-  }, [activeTransport, configured, loggingOut]);
+  }, [activeTransport, loggingOut]);
 
   useEffect(() => subscribeBeforeLogout(async cleanupTransport => {
     await controller.current?.setAccount(null, cleanupTransport);

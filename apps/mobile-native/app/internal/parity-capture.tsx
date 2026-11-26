@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { publicFormCases } from "../../../../packages/forms/parity-cases";
+import { meetingCaseIds } from "../../../../packages/meet/parity-cases";
 import { directoryCases } from "../../../../packages/public-links/fixtures";
 import { componentNames } from "../../../../packages/ui-parity/gallery";
 
@@ -32,6 +33,8 @@ export default function ParityCaptureMenu() {
         {Object.keys(publicFormCases).map(caseId => option("public-forms", caseId, {
           pathname: "/internal/public-forms/[caseId]", params: { caseId, frame: "1" },
         }))}
+        <Text accessibilityRole="header" style={styles.heading}>Google Meet</Text>
+        {meetingCaseIds.map(caseId => option("meet", caseId, { pathname: "/internal/meet/[caseId]", params: { caseId } }))}
         {process.env.EXPO_PUBLIC_PARITY_WEBVIEW === "1" && (
           <>
             <Text accessibilityRole="header" style={styles.heading}>WebView</Text>

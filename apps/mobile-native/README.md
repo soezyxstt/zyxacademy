@@ -16,6 +16,12 @@ Buka di Expo Go yang mendukung SDK 58. Untuk build pengembangan lokal, gunakan `
 
 Build lokal menggunakan ID `com.zyx.academy.nativeparity` agar dapat dipasang berdampingan dengan paket Capacitor di `apps/mobile`.
 
+### FCM Android staging
+
+Simpan file klien `google-services.json` Firebase untuk `com.zyx.academy.nativeparity` dari project `zyx-academy-staging` di direktori ini. Expo juga memakai `android.googleServicesFile` jika konfigurasi build sudah menentukan file lokal. Prebuild memeriksa project dan klien yang cocok sebelum menyalin konfigurasi ke proyek Android. Gunakan file klien yang diunduh dari pengaturan aplikasi Firebase Android. Prebuild menolak JSON service account.
+
+Jalankan `npx expo prebuild --platform android` lalu bangun ulang APK setelah menambah atau mengganti file. Metadata serta resource Firebase di APK menentukan ketersediaan FCM. Build tanpa file, binary lama, Expo Go, dan iOS tidak mengaktifkan registrasi push melalui jalur ini. Pengguna meminta izin melalui Pengaturan. Pengujian pengiriman tetap memerlukan APK yang dikonfigurasi dan perangkat Android dengan layanan Google Play.
+
 ## Galeri dan bukti paritas
 
 Pilih komponen di atas galeri untuk membuka tiga kasusnya. Pada build internal, tautan seperti `zyx-native-parity://gallery/button` membuka komponen yang sama. Galeri memuat Inter dan Lexend dari aset lokal agar capture dapat diulang tanpa akses jaringan.

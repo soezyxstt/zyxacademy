@@ -7,7 +7,7 @@ import sys
 import time
 
 from PIL import ImageChops, ImageOps
-from case_manifest import PAGE_CAPTURES, load_page_manifest
+from case_manifest import PAGE_BEHAVIORS, PAGE_CAPTURES, load_page_manifest, page_behavior_cases
 from compare import MARKER, load_frame
 from device_capture import open_route, screenshot
 
@@ -38,7 +38,7 @@ def capture_page(platform, device, group):
     output.mkdir(parents=True, exist_ok=True)
     web = root / "web" / f"dpr{scale}"
     manifest = load_page_manifest(web / f"{group}.json", group)
-    redirect = manifest.get("externalRedirect")
+    behaviors = page_behavior_cases(manifest)
     commit, build_commit = os.environ.get("PARITY_HEAD_SHA"), os.environ.get("GITHUB_SHA")
     if (manifest["commit"], manifest["buildCommit"]) != (commit, build_commit):
         raise ValueError("Page reference revisions differ from the tested build")
@@ -63,10 +63,10 @@ def capture_page(platform, device, group):
             rows.append({"case": case, "status": "missing-stable-frame"})
             continue
         crop.save(output / f"{case}.png")
-        if redirect and case == redirect["case"]:
+        if key := behaviors.get(case):
             blank = not any(lo < hi for lo, hi in crop.getextrema())
-            rows.append({"case": case, "status": "invalid-native-fallback" if blank else "external-redirect",
-                         "framePixels": list(crop.size), "externalRedirect": redirect})
+            rows.append({"case": case, "status": "invalid-native-fallback" if blank else PAGE_BEHAVIORS[key][0],
+                         "framePixels": list(crop.size), key: manifest[key]})
             continue
         try:
             reference = load_frame(web / f"{group}-{case}.png")
@@ -87,7 +87,7 @@ def capture_page(platform, device, group):
                 "referenceEngine": "chromium", "commit": commit, "buildCommit": build_commit, "cases": rows}
     (output / "result.json").write_text(json.dumps(evidence, indent=2) + "\n")
     print(json.dumps(evidence))
-    return all(row["status"] in {"pass", "external-redirect"} for row in rows) and len(rows) == 3
+    return all(row["status"] in {"pass", "external-redirect", "backend-recovery"} for row in rows) and len(rows) == 3
 
 
 if __name__ == "__main__":

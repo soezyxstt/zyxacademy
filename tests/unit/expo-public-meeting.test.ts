@@ -6,6 +6,7 @@ import { loadPublicMeeting } from "../../apps/mobile-native/features/meet/client
 import { browserDestination } from "../../apps/mobile-native/routing/browser-destination";
 import { operationsCatalog } from "../../lib/admin-mcp/operations-catalog";
 import * as destinations from "../../packages/meet/public-destination";
+import { meetingCaseIds, meetingFixtureResponse, meetingFixtureTitle } from "../../packages/meet/parity-cases";
 
 const require = createRequire(import.meta.url);
 const slug = "Kelas A#1";
@@ -34,12 +35,10 @@ async function fixture() {
       isNull: (key: string) => (record: Record<string, unknown>) => record[key] === null,
     },
     "@/packages/meet/public-destination": destinations,
-    "@/components/ui/button": {},
+    "@/components/meet/unavailable": { MeetingUnavailable: () => null },
     "@/lib/site": { createMetadata: (metadata: unknown) => metadata },
     "@/lib/i18n/server": { getAppLocale: async () => "id", getTranslations: async () => (key: string) => key },
-    "next/link": {},
     "next/navigation": { redirect: (url: string) => { throw new Error(url); } },
-    "lucide-react": {},
     "react/jsx-dev-runtime": { jsxDEV: (_component: unknown, props: unknown) => props },
     "react/jsx-runtime": { jsx: (_component: unknown, props: unknown) => props, jsxs: (_component: unknown, props: unknown) => props },
   };
@@ -72,7 +71,7 @@ test("the public lookup and canonical Next page use the same exact nondeleted me
   const deleted = await load(slug);
   expect(deleted.status).toBe(404);
   expect(await deleted.json()).toEqual({ error: "meeting-unavailable" });
-  expect(await renderPage(slug)).toHaveProperty("children");
+  expect(await renderPage(slug)).toEqual({ title: "public.meetNotFound", description: "public.meetUnavailable", home: "public.home" });
 });
 
 test("an invalid slug skips the database and a non-Google destination never becomes joinable", async () => {
@@ -82,7 +81,7 @@ test("an invalid slug skips the database and a non-Google destination never beco
   for (const value of ["https://meet.google.com.evil.test/room", "https://name@meet.google.com/room", "http://meet.google.com/room"]) {
     row.meetingUri = value;
     expect((await load(slug)).status).toBe(404);
-    expect(await renderPage(slug)).toHaveProperty("children");
+    expect(await renderPage(slug)).toHaveProperty("home", "public.home");
   }
 });
 
@@ -118,4 +117,14 @@ test("public meeting lookup and browser handoff stay outside MCP", () => {
   for (const source of ["app/api/meet/[slug]/route.ts", "apps/mobile-native/app/meet/[slug].tsx"]) {
     expect(operationsCatalog.find(item => item.source === source)).toMatchObject({ status: "excluded", tools: [] });
   }
+});
+
+test("the meeting fixtures drive the real lookup through absence, availability, and recovery", async () => {
+  const [unavailable, ready, failed] = meetingCaseIds;
+  const read = (id: typeof meetingCaseIds[number], attempt = 1) => loadPublicMeeting(id, new AbortController().signal,
+    async () => meetingFixtureResponse(id, attempt));
+  expect(await read(unavailable)).toEqual({ status: "unavailable" });
+  expect(await read(ready)).toEqual({ status: "available", title: meetingFixtureTitle });
+  expect(await read(failed)).toEqual({ status: "error" });
+  expect(await read(failed, 2)).toEqual({ status: "unavailable" });
 });

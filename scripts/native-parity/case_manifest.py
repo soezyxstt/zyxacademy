@@ -8,7 +8,18 @@ PAGE_CAPTURES = {
     "directory": ("/tautan", "internal/public-links"),
     "forms": ("/forms/[id]", "internal/public-forms"),
     "short-forms": ("/f/[slug]", "internal/public-forms"),
+    "meet": ("/meet/[slug]", "internal/meet"),
 }
+
+REDIRECT_CASES = {"short-forms": "short-meeting", "meet": "meeting-ready"}
+PAGE_BEHAVIORS = {
+    "externalRedirect": ("external-redirect", "Web redirects, native handoff captured"),
+    "recovery": ("backend-recovery", "Web reload recovered, native retry screen captured"),
+}
+
+
+def page_behavior_cases(manifest):
+    return {entry["case"]: key for key in PAGE_BEHAVIORS if (entry := manifest.get(key))}
 
 
 def valid_case_id(name):
@@ -28,13 +39,21 @@ def load_page_manifest(path, group):
     if any(not isinstance(manifest.get(key), str) or not manifest[key] for key in ("commit", "buildCommit")):
         raise ValueError("Missing page reference revisions")
     redirect = manifest.get("externalRedirect")
-    if group == "short-forms":
-        if (not isinstance(redirect, dict) or redirect.get("case") != "short-meeting" or redirect["case"] not in cases
+    if group in REDIRECT_CASES:
+        if (not isinstance(redirect, dict) or redirect.get("case") != REDIRECT_CASES[group] or redirect["case"] not in cases
                 or redirect.get("status") != 307 or not isinstance(redirect.get("location"), str)
                 or not re.fullmatch(r"https://meet\.google\.com/[a-z]{3}-[a-z]{4}-[a-z]{3}", redirect["location"])):
             raise ValueError("Missing or invalid Google Meet redirect evidence")
     elif redirect is not None:
         raise ValueError("Unexpected external redirect evidence")
+    recovery = manifest.get("recovery")
+    if group == "meet":
+        if cases != ["meeting-unavailable", "meeting-ready", "meeting-recovery"] or recovery != {
+            "case": "meeting-recovery", "beforeStatus": 503, "afterStatus": 200,
+        }:
+            raise ValueError("Missing or invalid meeting recovery evidence")
+    elif recovery is not None:
+        raise ValueError("Unexpected recovery evidence")
     return manifest
 
 
