@@ -29,6 +29,10 @@ on:
         description: Include the current head of Student PR 515 in the preview
         type: boolean
         default: true
+      include_ios:
+        description: Also run the guest product entry on an iOS simulator
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -179,7 +183,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && !inputs.include_pending_student && '[{"platform":"android","runner":"ubuntu-latest"}]' || '[{"platform":"android","runner":"ubuntu-latest"},{"platform":"ios","runner":"macos-26"}]') }}
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.include_ios && '[{"platform":"android","runner":"ubuntu-latest"},{"platform":"ios","runner":"macos-26"}]' || '[{"platform":"android","runner":"ubuntu-latest"}]') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 65
     concurrency:
