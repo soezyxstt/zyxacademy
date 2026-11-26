@@ -38,6 +38,7 @@ export interface StudentServices {
     get(key: string): Promise<string | null>;
     set(key: string, value: string): Promise<void>;
     remove(key: string): Promise<void>;
+    update?(key: string, change: (current: string | null) => string | null): Promise<void>;
   };
   offlineCourse?: {
     status: "inactive" | "loading" | "syncing" | "ready" | "offline" | "error" | "revoked";

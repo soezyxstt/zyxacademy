@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createNativeSessionApi, NATIVE_STAGING_ORIGIN } from "@/apps/mobile-native/auth/session-api";
 import { createNativeSessionController } from "@/apps/mobile-native/auth/session-controller";
-import { createAssessmentDraftRepository, type AssessmentDraftDatabase } from "@/apps/mobile-native/features/student/assessment-draft-store";
+import { createAssessmentDraftRepository, DISCUSSION_DRAFT_KEY, type AssessmentDraftDatabase } from "@/apps/mobile-native/features/student/assessment-draft-store";
 import { createNativeTransport } from "@/apps/mobile-native/network/transport";
 
 const valid = () => {};
@@ -162,4 +162,22 @@ test("surfaces a database failure to the caller and retries connection initializ
   await expect(drafts.set(key, "first write")).rejects.toThrow("Storage unavailable");
   await drafts.set(key, "second write");
   expect(await drafts.get(key)).toBe("second write");
+});
+
+
+test("discussion drafts share the scoped database, serialize changes and purge on logout", async () => {
+  const disk = sqlite();
+  const repository = disk.create();
+  const { drafts } = repository.bind(primary, valid);
+  const concurrent = (value: string) => drafts.update!(DISCUSSION_DRAFT_KEY, raw => [raw, value].filter(Boolean).join(","));
+  await Promise.all([concurrent("first"), concurrent("second")]);
+  const reopened = disk.create();
+  const exact = reopened.bind(primary, valid).drafts;
+  expect(await exact.get(DISCUSSION_DRAFT_KEY)).toBe("first,second");
+  const english = reopened.bind({ ...primary, locale: "en" }, valid).drafts;
+  expect(await english.get(DISCUSSION_DRAFT_KEY)).toBeNull();
+  await english.update!(DISCUSSION_DRAFT_KEY, () => "English");
+  await reopened.purgeSession(primary);
+  expect(await exact.get(DISCUSSION_DRAFT_KEY)).toBeNull();
+  expect(await english.get(DISCUSSION_DRAFT_KEY)).toBeNull();
 });

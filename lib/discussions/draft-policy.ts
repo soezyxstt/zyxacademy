@@ -1,0 +1,2 @@
+export const DISCUSSION_DRAFT_MAX_ENTRIES = 25;
+export const DISCUSSION_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;

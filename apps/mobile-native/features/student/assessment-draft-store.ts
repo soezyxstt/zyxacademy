@@ -26,6 +26,7 @@ const initDrafts = `
 `;
 
 const matchingDraft = "origin = ? AND account_id = ? AND session_id = ? AND locale = ? AND draft_key = ?";
+export const DISCUSSION_DRAFT_KEY = "discussion:v1";
 const validDraftKey = /^assessment:(quiz|tryout|start):.+:.+$/u;
 
 export function createAssessmentDraftRepository(open: () => Promise<AssessmentDraftDatabase>) {
@@ -81,34 +82,49 @@ export function createAssessmentDraftRepository(open: () => Promise<AssessmentDr
     }
 
     function checkKey(key: string): void {
-      if (!validDraftKey.test(key)) throw new Error("Invalid assessment draft key");
+      if (key !== DISCUSSION_DRAFT_KEY && !validDraftKey.test(key)) throw new Error("Invalid assessment draft key");
+    }
+
+    async function read(db: AssessmentDraftDatabase, key: string) {
+      const draft = await db.getFirstAsync<{ value: string }>(
+        `SELECT value FROM assessment_drafts WHERE ${matchingDraft}`, ...scoped, key,
+      );
+      return draft?.value ?? null;
+    }
+
+    async function write(db: AssessmentDraftDatabase, key: string, value: string | null) {
+      if (value === null) {
+        await db.runAsync(`DELETE FROM assessment_drafts WHERE ${matchingDraft}`, ...scoped, key);
+        return;
+      }
+      await db.runAsync(
+        `INSERT INTO assessment_drafts (origin, account_id, session_id, locale, draft_key, value)
+         VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(origin, account_id, session_id, locale, draft_key)
+         DO UPDATE SET value = excluded.value`,
+        ...scoped, key, value,
+      );
     }
 
     const drafts: Drafts = {
       async get(key) {
         checkKey(key);
-        return useDatabase(async db => {
-          const draft = await db.getFirstAsync<{ value: string }>(
-            `SELECT value FROM assessment_drafts WHERE ${matchingDraft}`, ...scoped, key,
-          );
-          return draft?.value ?? null;
-        });
+        return useDatabase(db => read(db, key));
       },
       async set(key, value) {
         checkKey(key);
-        await useDatabase(async db => {
-          await db.runAsync(
-            `INSERT INTO assessment_drafts (origin, account_id, session_id, locale, draft_key, value)
-             VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(origin, account_id, session_id, locale, draft_key)
-             DO UPDATE SET value = excluded.value`,
-            ...scoped, key, value,
-          );
-        });
+        return useDatabase(db => write(db, key, value));
       },
       async remove(key) {
         checkKey(key);
-        await useDatabase(async db => {
-          await db.runAsync(`DELETE FROM assessment_drafts WHERE ${matchingDraft}`, ...scoped, key);
+        return useDatabase(db => write(db, key, null));
+      },
+      async update(key, change) {
+        checkKey(key);
+        return useDatabase(async db => {
+          const current = await read(db, key);
+          assertCurrent();
+          const value = change(current);
+          if (value !== current) await write(db, key, value);
         });
       },
     };

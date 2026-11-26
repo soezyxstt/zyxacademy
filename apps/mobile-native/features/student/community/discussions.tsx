@@ -1,11 +1,16 @@
 import { randomUUID } from "expo-crypto";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Image, View } from "react-native";
 import { SharedUiComposer, type SharedUiAction } from "../../shared-ui";
 import { DiscussionMessageBody } from "./discussion-markdown";
+import { DISCUSSION_DRAFT_KEY } from "../assessment-draft-store";
+import {
+  changeDiscussionDraft, discussionDraftScope, discussionSubmission, emptyDiscussionDraft, readDiscussionDraft,
+  type DiscussionDraft, type DraftContext,
+} from "./discussion-drafts";
 import type {
   DiscussionAttachment, DiscussionAuthorProfile, DiscussionChannelMetadata, DiscussionMention, DiscussionMessage, DiscussionPage,
-  DiscussionSendResult, DiscussionSubmit, DiscussionThread, DiscussionThreadStatus,
+  DiscussionSendResult, DiscussionThread, DiscussionThreadStatus,
 } from "../../../../../lib/discussions/contracts";
 import {
   Action, Actions, Choices, Copy, Field, Notice, Page, Remote, Row, Rows, Toggle, communityPath,
@@ -17,9 +22,6 @@ type ThreadDetail = {
   thread: DiscussionThread; messages: DiscussionPage<DiscussionMessage> & { observationReceipt: string; previousCursor?: string };
   readThroughSeq: number; aiStatuses: { messageId: string; status: string; reason: string | null }[];
 };
-type DraftContext = { action: "create"; channelId: string } | { action: "answer"; threadId: string }
-  | { action: "reply"; threadId: string; replyTo: string };
-type DraftSend = { action: DraftContext["action"]; input: DiscussionSubmit & { channelId?: string; threadId?: string; replyTo?: string; title?: string } };
 
 function workspace(view: string, query: Record<string, string | undefined> = {}, channelIds: string[] = []) {
   const params = new URLSearchParams({ view });
@@ -39,108 +41,206 @@ function useDiscussionNavigation() {
   };
 }
 
-type UploadedImage = { id: string; name: string };
 function Composer({ context, channelId, skinId, onSent }: {
   context: DraftContext; channelId: string; skinId: string | null; onSent(target: { threadId: string; messageId: string }): void;
 }) {
-  const { request, tr, session, theme, pickAssessmentFile } = useCommunity();
-  const [body, setBody] = useState("");
+  const { request, tr, session, theme, pickAssessmentFile, drafts, focused = true } = useCommunity();
+  const scope = discussionDraftScope(context, channelId, skinId);
+  const durable = Boolean(drafts?.update);
+  const [draft, renderDraft] = useState(emptyDiscussionDraft);
+  const current = useRef(draft);
+  const [loading, setLoading] = useState(durable);
+  const [storageError, setStorageError] = useState(false);
+  const [loaded, setLoaded] = useState(!durable);
+  const [loadVersion, setLoadVersion] = useState(0);
+  const alive = useRef(false);
+  const isFocused = useRef(focused);
+  isFocused.current = focused;
   const selection = useRef({ start: 0, end: 0 });
   const [requestedSelection, setRequestedSelection] = useState<{ start: number; end: number }>();
-  const [title, setTitle] = useState("");
-  const [askZyra, setAskZyra] = useState(false);
-  const [attachments, setAttachments] = useState<UploadedImage[]>([]);
-  const [mentions, setMentions] = useState<{ id: string; handle: string }[]>([]);
   const [mentionResults, setMentionResults] = useState<DiscussionMention[]>([]);
   const [search, setSearch] = useState("");
   const [mentionOpen, setMentionOpen] = useState(false);
-  const [pendingSend, setPendingSend] = useState<DraftSend>();
-  const [replayTarget, setReplayTarget] = useState<{ threadId: string; messageId: string }>();
-  const [notice, setNotice] = useState<string>();
   const lock = useRef(false);
   const [sending, setSending] = useState(false);
   const action = useOperation();
-  const reset = () => {
-    setPendingSend(undefined);
-    setReplayTarget(undefined);
-    setBody("");
-    setTitle("");
-    setAskZyra(false);
-    setAttachments([]);
-    setMentions([]);
-    setNotice(undefined);
-  };
-  const submit = async () => {
-    if (lock.current || action.pending) return;
-    lock.current = true;
-    setSending(true);
-    setNotice(undefined);
-    const draft = pendingSend ?? {
-      action: context.action,
-      input: {
-        body, requestId: randomUUID(), askZyra, skinId, attachmentIds: attachments.map(image => image.id),
-        mentionIds: mentions.map(item => item.id), mentionHandles: mentions.map(item => item.handle),
-        ...(context.action === "create" ? { channelId: context.channelId, title: title.trim() || undefined }
-          : { threadId: context.threadId, ...(context.action === "reply" ? { replyTo: context.replyTo } : {}) }),
-      },
-    };
-    setPendingSend(draft);
+
+  const showDraft = useCallback((next: DiscussionDraft | null) => {
+    if (!alive.current) return;
+    current.current = next ?? emptyDiscussionDraft();
+    renderDraft(current.current);
+  }, []);
+
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!drafts?.update) return;
+    let active = true;
+    setLoading(true);
+    setStorageError(false);
+    void drafts.get(DISCUSSION_DRAFT_KEY).then(raw => {
+      if (!active) return;
+      showDraft(readDiscussionDraft(raw, scope));
+      setLoaded(true);
+    }, () => {
+      if (active) setStorageError(true);
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, [drafts, scope, showDraft, loadVersion]);
+
+  const save = async (next: DiscussionDraft | null, expected?: DiscussionDraft) => {
+    if (!drafts?.update) return true;
+    let applied = false;
+    let saved: DiscussionDraft | null = null;
     try {
-      const result = await post<DiscussionSendResult>(request, "discussion", draft);
-      if (result.ok) {
-        reset();
-        onSent(result.value);
-        return;
-      }
-      if (result.error === "replay_unverified") {
-        setReplayTarget(result.value);
-        setNotice(tr("Status kiriman belum dapat diperiksa. Buka diskusi untuk memeriksanya.", "The submission could not be verified. Open the discussion to check it."));
-        return;
-      }
-      const labels = {
-        unavailable: tr("Akses diskusi berubah.", "Discussion access has changed."),
-        invalid: tr("Periksa isi dan pilihan Anda.", "Check your message and selections."),
-        rate_limited: tr("Terlalu banyak permintaan. Coba lagi nanti.", "Too many requests. Try again later."),
-        conflict: tr("Percobaan ini bertentangan dengan kiriman sebelumnya.", "This request conflicts with an earlier submission."),
-        resolved: tr("Diskusi sudah selesai.", "The discussion is resolved."),
-        attachment_expired: tr("Lampiran kedaluwarsa. Lepas lalu unggah kembali.", "An attachment expired. Remove it and upload it again."),
-        unknown: tr("Pengiriman belum terkonfirmasi. Coba kirim ulang dengan identitas yang sama.", "Delivery is unconfirmed. Retry this submission with the same request ID."),
-      };
-      setNotice(labels[result.error]);
-      if (result.error !== "unknown") setPendingSend(undefined);
+      await drafts.update(DISCUSSION_DRAFT_KEY, raw => {
+        const change = changeDiscussionDraft(raw, scope, expected, next);
+        applied = change.applied;
+        saved = change.current;
+        return change.value;
+      });
+      if (alive.current) setStorageError(false);
+      if (!applied) showDraft(saved);
+      return applied;
     } catch {
-      setNotice(tr("Pengiriman belum terkonfirmasi. Coba kirim ulang dengan identitas yang sama.", "Delivery is unconfirmed. Retry this submission with the same request ID."));
-    } finally {
-      lock.current = false;
-      setSending(false);
+      if (alive.current) setStorageError(true);
+      return false;
     }
   };
+
+  const edit = (change: (previous: DiscussionDraft) => DiscussionDraft) => {
+    if (!alive.current || !isFocused.current || !loaded || lock.current || current.current.pendingId) return;
+    const next = change(current.current);
+    showDraft(next);
+    void save(next);
+  };
+
+  const { body, title, askZyra, attachments, mentions, pendingId, error, replayTarget } = draft;
+  const [expiryTick, setExpiryTick] = useState(0);
+  const clock = Date.now();
+  useEffect(() => {
+    if (!focused) return;
+    const now = Date.now();
+    const nextExpiry = Math.min(...attachments.map(image => image.expiresAt).filter(at => at > now));
+    if (!Number.isFinite(nextExpiry)) return;
+    const timer = setTimeout(() => setExpiryTick(value => value + 1), Math.min(nextExpiry - now + 1, 2_147_483_647));
+    return () => clearTimeout(timer);
+  }, [attachments, focused, expiryTick]);
+  const expired = attachments.some(image => image.expiresAt <= clock);
+
+  const submit = async () => {
+    const previous = current.current;
+    if (lock.current || action.pending || !loaded || !isFocused.current || previous.replayTarget
+      || (!previous.pendingId && previous.attachments.some(image => image.expiresAt <= Date.now()))) return;
+    lock.current = true;
+    setSending(true);
+    const pending = { ...previous, pendingId: previous.pendingId ?? randomUUID(), error: "unknown" as const };
+    try {
+      // Ensure the retry identity and frozen payload survive before sending.
+      if (!await save(pending, previous)) return;
+      showDraft(pending);
+      if (!alive.current || !isFocused.current) return;
+      let result: DiscussionSendResult;
+      try {
+        result = await post<DiscussionSendResult>(request, "discussion",
+          discussionSubmission(pending, context, skinId, pending.pendingId));
+      } catch {
+        return; // The already saved state records unconfirmed delivery.
+      }
+      if (result.ok) {
+        if (await save(null, pending)) {
+          showDraft(null);
+          if (alive.current && isFocused.current) onSent(result.value);
+        }
+      } else if (result.error !== "unknown") {
+        const next: DiscussionDraft = result.error === "replay_unverified"
+          ? { ...pending, error: result.error, replayTarget: result.value }
+          : {
+            ...pending, pendingId: undefined, error: result.error,
+            attachments: result.error === "attachment_expired"
+              ? pending.attachments.map(image => ({ ...image, expiresAt: 0 })) : pending.attachments,
+          };
+        if (await save(next, pending)) showDraft(next);
+      }
+    } finally {
+      lock.current = false;
+      if (alive.current) setSending(false);
+    }
+  };
+
+  const discard = async (open: boolean) => {
+    if (lock.current || !isFocused.current) return;
+    lock.current = true;
+    setSending(true);
+    const previous = current.current;
+    try {
+      if (await save(null, previous)) {
+        showDraft(null);
+        if (open && previous.replayTarget && alive.current && isFocused.current) onSent(previous.replayTarget);
+      }
+    } finally {
+      lock.current = false;
+      if (alive.current) setSending(false);
+    }
+  };
+
   const upload = () => void action.run(async () => {
     const selected = await pickAssessmentFile?.();
-    if (!selected) return;
+    if (!selected || !alive.current || !isFocused.current) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(selected.type) || (selected.size ?? 0) > 8 * 1024 * 1024) {
       throw new Error("Invalid image");
     }
     const form = new FormData();
     form.append("channelId", channelId);
     form.append("file", selected as unknown as Blob);
-    const item = await readJson<UploadedImage>(request, "/api/discussions/attachments", { method: "POST", headers: { Origin: new URL(session.origin).origin }, body: form });
-    setAttachments(items => [...items, { id: item.id, name: selected.name }]);
+    const started = Date.now();
+    const item = await readJson<{ id: string; name?: string; expiresAt?: string }>(request, "/api/discussions/attachments",
+      { method: "POST", headers: { Origin: new URL(session.origin).origin }, body: form });
+    const expiresAt = Date.parse(item.expiresAt ?? "");
+    edit(previous => ({ ...previous, error: undefined, attachments: [...previous.attachments, {
+      id: item.id, name: (item.name || selected.name).slice(0, 512),
+      expiresAt: Number.isFinite(expiresAt) ? expiresAt : started + 24 * 60 * 60 * 1000,
+    }] }));
   }, undefined, tr("Unggah gambar belum berhasil. Gunakan JPEG, PNG, atau WebP hingga 8 MiB.", "Image upload failed. Use JPEG, PNG, or WebP up to 8 MiB."));
+
   const lookup = () => void action.run(async () => {
     setMentionResults(await post<DiscussionMention[]>(request, "discussion", context.action === "create"
       ? { action: "channel-mentions", channelId, search: search.trim() }
       : { action: "mentions", threadId: context.threadId, search: search.trim() }));
   });
-  const locked = Boolean(pendingSend) || sending;
+  const labels = {
+    unavailable: tr("Akses diskusi berubah.", "Discussion access has changed."),
+    invalid: tr("Periksa isi dan pilihan Anda.", "Check your message and selections."),
+    rate_limited: tr("Terlalu banyak permintaan. Coba lagi nanti.", "Too many requests. Try again later."),
+    conflict: tr("Percobaan ini bertentangan dengan kiriman sebelumnya.", "This request conflicts with an earlier submission."),
+    resolved: tr("Diskusi sudah selesai.", "The discussion is resolved."),
+    attachment_expired: tr("Lampiran kedaluwarsa. Lepas lalu unggah kembali.", "An attachment expired. Remove it and upload it again."),
+    unknown: tr("Pengiriman belum terkonfirmasi. Coba kirim ulang dengan identitas yang sama.", "Delivery is unconfirmed. Retry this submission with the same request ID."),
+    replay_unverified: tr("Status kiriman belum dapat diperiksa. Buka diskusi untuk memeriksanya.", "The submission could not be verified. Open the discussion to check it."),
+  };
+  const locked = !loaded || Boolean(pendingId) || sending || !focused;
+  const notice = error ? labels[error] : expired ? labels.attachment_expired : undefined;
   const tools: SharedUiAction<"attach" | "mention">[] = [
     { id: "mention", label: tr("Sebut peserta", "Mention someone") },
   ];
   if (pickAssessmentFile) tools.unshift({
     id: "attach", label: tr("Lampirkan gambar", "Attach image"), disabled: action.pending || attachments.length >= 4,
   });
+  if (loading) return <Copy kind="muted">{tr("Memuat draf", "Loading draft")}</Copy>;
   return <View style={styles.block}>
-    {context.action === "create" && <Field label={tr("Judul pertanyaan (opsional)", "Question title (optional)")} value={title} onChangeText={setTitle} maxLength={160} editable={!locked} />}
+    {storageError && <>
+      <Notice notice={tr("Draf belum dapat disimpan atau dimuat.", "The draft could not be saved or loaded.")} />
+      <Actions><Action label={tr("Coba lagi", "Try again")} onPress={() => {
+        if (loaded) void save(current.current, current.current);
+        else setLoadVersion(value => value + 1);
+      }} /></Actions>
+    </>}
+    {context.action === "create" && <Field label={tr("Judul pertanyaan (opsional)", "Question title (optional)")} value={title} onChangeText={value => edit(previous => ({ ...previous, title: value, error: undefined }))} maxLength={160} editable={!locked} />}
     <SharedUiComposer
       testID={context.action === "answer" ? "student-discussion-answer" : "student-discussion-composer"}
       theme={theme}
@@ -148,8 +248,8 @@ function Composer({ context, channelId, skinId, onSent }: {
       draft={body}
       onDraftChange={value => {
         setRequestedSelection(undefined);
-        setBody(value);
-        setMentions(items => items.filter(item => value.includes(`@${item.handle}`)));
+        edit(previous => ({ ...previous, body: value, error: undefined,
+          mentions: previous.mentions.filter(item => value.includes(`@${item.handle}`)) }));
       }}
       selection={requestedSelection}
       onSelectionChange={value => {
@@ -160,20 +260,21 @@ function Composer({ context, channelId, skinId, onSent }: {
       canSubmitEmpty={attachments.length > 0}
       pending={sending}
       editingDisabled={locked}
-      submitDisabled={action.pending || Boolean(replayTarget)}
+      submitDisabled={!loaded || !focused || action.pending || Boolean(replayTarget) || (expired && !pendingId)}
       submitLabel={context.action === "create" ? tr("Kirim pertanyaan", "Send question") : context.action === "answer" ? tr("Kirim jawaban", "Send answer") : tr("Kirim balasan", "Send reply")}
       onSubmit={() => void submit()}
       tools={tools}
       onTool={tool => tool === "attach" ? upload() : setMentionOpen(value => !value)}
       recovery={notice ? {
         message: notice,
-        retry: pendingSend && !replayTarget ? { label: tr("Coba kirim ulang", "Retry submission"), onRetry: () => void submit() } : undefined,
+        retry: pendingId && !replayTarget ? { label: tr("Coba kirim ulang", "Retry submission"), onRetry: () => void submit() } : undefined,
       } : undefined}
-      beforeInput={attachments.length ? <Rows>{attachments.map(image => <Row key={image.id} title={image.name}>
-        <Actions><Action label={tr("Lepas gambar", "Remove image")} disabled={locked} onPress={() => setAttachments(items => items.filter(item => item.id !== image.id))} /></Actions>
+      beforeInput={attachments.length ? <Rows>{attachments.map(image => <Row key={image.id} title={image.name} meta={image.expiresAt <= clock ? tr("Kedaluwarsa", "Expired") : undefined}>
+        <Actions><Action label={tr("Lepas gambar", "Remove image")} disabled={locked} onPress={() =>
+          edit(previous => ({ ...previous, error: undefined, attachments: previous.attachments.filter(item => item.id !== image.id) }))} /></Actions>
       </Row>)}</Rows> : undefined}
     />
-    <Toggle label={tr("Tanya Zyra", "Ask Zyra")} value={askZyra} onChange={setAskZyra} disabled={locked} />
+    <Toggle label={tr("Tanya Zyra", "Ask Zyra")} value={askZyra} onChange={value => edit(previous => ({ ...previous, askZyra: value, error: undefined }))} disabled={locked} />
     {mentionOpen && <>
       <Field label={tr("Nama peserta", "Participant name")} value={search} onChangeText={setSearch} maxLength={80} editable={!locked} />
       <Actions><Action label={tr("Cari peserta", "Find participant")} busy={action.pending} disabled={locked || !search.trim()} onPress={lookup} /></Actions>
@@ -184,19 +285,16 @@ function Composer({ context, channelId, skinId, onSent }: {
         const insert = ` @${handle} `;
         const nextBody = body.slice(0, start) + insert + body.slice(end);
         if (mentions.length >= 10 || nextBody.length > 12000 || mentions.some(value => value.id === item.id)) return;
-        setMentions(items => [...items.filter(value => nextBody.includes(`@${value.handle}`)), { id: item.id, handle }]);
-        setBody(nextBody);
+        edit(previous => ({ ...previous, body: nextBody, error: undefined,
+          mentions: [...previous.mentions.filter(value => nextBody.includes(`@${value.handle}`)), { id: item.id, handle }] }));
         setRequestedSelection({ start: start + insert.length, end: start + insert.length });
         setMentionOpen(false);
       }} />)}
     </>}
     <Notice notice={action.notice} />
-    {(replayTarget || pendingSend && !sending) && <Actions>
-      {replayTarget && <Action label={tr("Buka kiriman", "Open submission")} mode="default" onPress={() => {
-        reset();
-        onSent(replayTarget);
-      }} />}
-      {pendingSend && !sending && <Action label={tr("Tinggalkan kiriman", "Discard submission")} onPress={reset} />}
+    {pendingId && !sending && <Actions>
+      {replayTarget && <Action label={tr("Buka kiriman", "Open submission")} mode="default" disabled={!focused} onPress={() => void discard(true)} />}
+      <Action label={tr("Tinggalkan kiriman", "Discard submission")} disabled={!focused} onPress={() => void discard(false)} />
     </Actions>}
   </View>;
 }
@@ -378,7 +476,7 @@ function ThreadView({ scope, channels }: { scope: Scope; channels: DiscussionCha
         {data.thread.canReply && <Actions><Action mode="default" label={tr("Tulis jawaban", "Write answer")}
           onPress={() => { setReplyTo(undefined); setAnswerOpen(true); }} /></Actions>}
         {((answerOpen && data.thread.canReply) || reply?.canReply) && <Composer
-          key={reply?.id ?? "answer"} channelId={data.thread.channelId} skinId={scope.skinId}
+          key={JSON.stringify([data.thread.channelId, scope.skinId, reply?.id])} channelId={data.thread.channelId} skinId={scope.skinId}
           context={reply ? { action: "reply", threadId, replyTo: reply.id } : { action: "answer", threadId }}
           onSent={target => {
             setAnswerOpen(false);
@@ -437,7 +535,7 @@ function Workspace({ scope }: { scope: Scope }) {
     <Actions><Action label={tr("Cari", "Search")} onPress={() => { setCursor(undefined); setApplied(search.trim()); }} />
       {selected && <Action label={composing ? tr("Tutup formulir", "Close composer") : tr("Pertanyaan baru", "New question")}
         mode="default" onPress={() => setComposing(value => !value)} />}</Actions>
-    {composing && selected && <Composer key={selected.id} context={{ action: "create", channelId: selected.id }} channelId={selected.id}
+    {composing && selected && <Composer key={JSON.stringify([selected.id, scope.skinId])} context={{ action: "create", channelId: selected.id }} channelId={selected.id}
       skinId={scope.skinId} onSent={target => navigate({ channel: selected.id, thread: target.threadId, message: target.messageId })} />}
     <Choices value={status} options={[{ value: "open", label: tr("Terbuka", "Open") }, { value: "resolved", label: tr("Selesai", "Resolved") }]}
       onSelect={value => { setStatus(value); setCursor(undefined); }} />
