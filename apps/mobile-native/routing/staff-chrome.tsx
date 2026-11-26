@@ -13,6 +13,7 @@ import { NavigationIcon } from "../features/shared-ui/navigation-icons";
 import { SharedSheet } from "../features/shared-ui/overlays";
 import type { NativeSessionTransport } from "../network/transport";
 import { nativeTypography } from "../typography";
+import { useSiteSearch } from "../features/site-search/search";
 import { useRoleAccountMenu } from "./account-menu";
 import { defaultStaffVisibility, StaffNavVisibility } from "./staff-chrome-visibility";
 import { adminMoreSections, adminOtherRoleEntries, staffNavigation, tutorClassCopy, tutorClassEntries } from "./staff-navigation";
@@ -42,6 +43,7 @@ export function StaffChrome({ role, href, theme, focused, context, checkingAcces
   const [sheet, setSheet] = useState<"more" | "classes" | null>(null);
   const [coursePicker, setCoursePicker] = useState<CoursePicker>({ status: "loading" });
   const [visibility, setVisibility] = useState(defaultStaffVisibility);
+  const siteSearch = useSiteSearch({ enabled: focused && !checkingAccess && !visibility.hideTop && sheet === null, theme, visit });
   const accountMenu = useRoleAccountMenu({ enabled: focused && !checkingAccess && !visibility.hideTop && sheet === null, theme, visit });
 
   useEffect(() => {
@@ -102,11 +104,12 @@ export function StaffChrome({ role, href, theme, focused, context, checkingAcces
       <MobileNavbar role={role} theme={theme} title={navigation.title} includeSafeArea={false} testID={`${role}-navbar`}
         hidden={visibility.hideTop}
         pageActions={focused && !visibility.hideTop ? <NativeInboxBell role={role} locale={locale} theme={theme} visit={visit} /> : null}
-        actions={{ account: accountMenu.action }} actionRefs={{ account: accountMenu.trigger }}
+        actions={{ search: siteSearch.action, account: accountMenu.action }} actionRefs={{ search: siteSearch.trigger, account: accountMenu.trigger }}
         home={navigation.backTo === null ? { label: navigation.homeLabel } : undefined}
         back={navigation.backTo ? { label: navigation.labels.back } : undefined}
         onAction={action => {
           if (action === "home") choose(navigation.targets.home);
+          if (action === "search") siteSearch.open();
           if (action === "account") accountMenu.open();
           if (action === "back" && navigation.backTo && screenNavigation.isFocused() && session.isCurrent()) back(navigation.backTo);
         }} />
@@ -141,6 +144,7 @@ export function StaffChrome({ role, href, theme, focused, context, checkingAcces
             <NativeStatusPanel theme={theme} tone="error" title={classes.failed} action={{ id: "retry", label: classes.retry }} onAction={openClasses} /> :
             (coursePicker.entries.length ? coursePicker.entries.map(renderLink) : <NativeStatusPanel theme={theme} title={classes.empty} />))}
       </SharedSheet>
+      {siteSearch.dialog}
       {accountMenu.sheet}
     </SafeAreaView>
   );

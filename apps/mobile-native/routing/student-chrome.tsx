@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import { MobileNavbar, RoleBottomNavigation } from "../features/shared-ui/navigation";
 import { NativeInboxBell } from "../features/notification-inbox/bell";
+import { useSiteSearch } from "../features/site-search/search";
 import { useRoleAccountMenu } from "./account-menu";
 import { studentNavigation } from "./student-navigation";
 
@@ -33,6 +34,7 @@ export function StudentChrome({ href, pattern, locale, theme, enabled, visit, ba
 }) {
   const [visibility, setVisibility] = useState(defaultVisibility);
   const focused = useIsFocused();
+  const siteSearch = useSiteSearch({ enabled: enabled && focused && !visibility.hideTop, theme, visit });
   const accountMenu = useRoleAccountMenu({ enabled: enabled && focused && !visibility.hideTop, theme, visit });
   const { active, title, labels, targets, homeLabel, backTo, hideBottom } = studentNavigation(href, pattern, locale);
   return (
@@ -40,12 +42,13 @@ export function StudentChrome({ href, pattern, locale, theme, enabled, visit, ba
       <MobileNavbar role="student" theme={theme} title={title} includeSafeArea={false} testID="student-navbar"
         hidden={!enabled || visibility.hideTop}
         pageActions={enabled && !visibility.hideTop ? <NativeInboxBell role="student" locale={locale} theme={theme} visit={visit} /> : null}
-        actions={{ account: accountMenu.action }} actionRefs={{ account: accountMenu.trigger }}
+        actions={{ search: siteSearch.action, account: accountMenu.action }} actionRefs={{ search: siteSearch.trigger, account: accountMenu.trigger }}
         home={backTo === null ? { label: homeLabel } : undefined}
         back={backTo ? { label: labels.back } : undefined}
         onAction={action => {
           if (action === "back" && backTo) back(backTo);
           if (action === "home") visit(targets.home);
+          if (action === "search") siteSearch.open();
           if (action === "account") accountMenu.open();
         }} />
       <View style={{ flex: 1 }}>
@@ -55,6 +58,7 @@ export function StudentChrome({ href, pattern, locale, theme, enabled, visit, ba
         accessibilityLabel={labels.bottomNavLabel} includeSafeArea={false} testID="student-bottom-nav"
         hidden={!enabled || hideBottom || visibility.hideBottom}
         onDestinationPress={destination => visit(targets[destination])} />
+      {siteSearch.dialog}
       {accountMenu.sheet}
     </SafeAreaView>
   );

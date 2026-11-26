@@ -176,6 +176,13 @@ export const operationsCatalog = [
     "reason": "Expo appearance and haptics are personal device preferences. The host uses the existing verified account locale, session and origin for app copy. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
   },
   {
+    "source": "apps/mobile-native/features/site-search/results.ts",
+    "actions": ["readSearchHits"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The authenticated app reads the existing role-filtered site search on its current origin. Result selection opens an installed role route or the public website. Search does not delegate an admin operation or change MCP authorization."
+  },
+  {
     "source": "apps/mobile-native/routing/route-history.ts",
     "actions": ["remember", "restore", "clear"],
     "tools": [],

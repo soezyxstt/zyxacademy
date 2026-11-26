@@ -4,6 +4,8 @@ Status: **prototipe lokal dan rencana, belum menjadi kontrak runtime atau rilis*
 
 Ketukan push FCM dan APNs memakai ID notifikasi yang tersimpan di server. Expo memanggil `/api/notifications/history?tapId=…` dengan sesi aktif dan memeriksa rute serta peran sebelum membuka tujuan. Ketukan menunggu verifikasi untuk sesi yang sama. Jika pencarian mendapat 401, Expo memeriksa ulang sesi sebelum mencoba pencarian sekali lagi. Setelah rute terbuka, aplikasi mengirim tanda baca sekali melalui `/api/notifications/read`. Ringkasan jam tenang hanya membuka beranda jika peran dan sesi sudah terverifikasi saat ketukan diterima. Bukti perangkat untuk pengiriman FCM dan APNs masih diperlukan.
 
+Pencarian di navbar Murid, Tutor, dan Admin membaca hasil dari `GET /api/search` menggunakan sesi yang sedang aktif. Pemilihan hasil memeriksa peran dan ketersediaan rute di aplikasi. Tautan marketing, blog, formulir, dan Meet membuka situs. [Pencarian Expo](../apps/mobile-native/features/site-search/search.tsx).
+
 ## Sesi build internal
 
 Pada branch integrasi, `zyx-native-parity://internal/session` membuka pemeriksaan akun untuk build native. Sesi memakai login Google di browser sistem pada origin staging. Aplikasi menyimpan verifier acak di SecureStore sebelum membuka browser. Server mengikat kode pada tantangan S256 dan mengirimkannya di fragmen callback. Endpoint `POST /api/auth/native/expo/exchange` memerlukan verifier untuk menukar kode sekali dengan cookie sesi Better Auth. Server memeriksa ketersediaan akun saat pertukaran. Login ini berbagi sesi database dengan login browser yang memulainya.
