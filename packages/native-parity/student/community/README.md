@@ -33,3 +33,15 @@ Prefix operasi baru adalah `/api/native/student/community/`. GET dan POST memeri
 - Penjadwalan menerima tautan persiapan. Penampil dokumen, lampiran persiapan dari perangkat, perekaman sesi dan kalender mingguan dari `Calendar` bersama belum dibuktikan di perangkat. Rute `/calendar` mempertahankan tampilan agenda dan pemilah kategori dari web. Scope tindakan pengelolaan sesi tutor berada di alur tutor.
 - Unit fixture `bun test packages/native-parity/student/community/community.test.ts` memeriksa alias, kontrak skenario, lingkup ranking, data publik dan deduplikasi fixture. Pemeriksaan HTTP opt-in memakai Next dan PostgreSQL lokal sintetis. Jalankan dengan `STUDENT_COMMUNITY_HTTP_BASE` yang menuju server loopback, database `student_evidence` dan sesi sintetis dari `tests/visual/native-parallel/student/product/`. Suite ini tidak diarahkan ke staging atau production.
 - Endpoint baru tercatat sebagai UI-only di katalog admin MCP. Registri tool/scope, consent, discovery, playbook, paket skill, host prompt dan binding environment tetap mengikuti domain asli. Produk native belum memiliki bukti nol piksel berbeda di Android dan iOS. Fixture dan tangkapan web mengukur lapisan masing-masing.
+
+### Verifikasi HTTP lokal
+
+Pada 26 November 2026, suite komunitas lulus 4 dari 4 kasus dengan 41 assertion pada Next.js Turbopack dan PostgreSQL sintetis `student_evidence`. Server loopback memakai snapshot `7d93b3a5984814ee382ccd36d9ceff8cb34abbcd`. Pengujian membuktikan sesi dan kecocokan akun, penolakan aktor diskusi berperan ganda, filter enrollment yang diarsipkan atau dicabut, pemisahan skor akademik dan XP partisipasi, proyeksi profil dan blokir, tujuh tanggal WIB pada jadwal, respons arsip refleksi kosong, serta isolasi penyimpanan jadwal notifikasi antara dua akun. Data sintetis dibersihkan setelah suite.
+
+```sh
+STUDENT_COMMUNITY_HTTP_BASE=http://127.0.0.1:3140 \
+  bun --env-file="$STUDENT_EVIDENCE_ENV" test \
+  tests/visual/native-parallel/student/product/community-http.test.ts
+```
+
+`STUDENT_EVIDENCE_ENV` menunjuk ke berkas lokal server uji yang memuat database dan konfigurasi Better Auth fixture. Suite memeriksa nama database dan host loopback sebelum membuat rekaman. Jalankan setelah seed Student memberi sesi sintetis untuk kasus enrollment dicabut. Hasil ini membuktikan kontrak Next.js melalui HTTP lokal. Bukti Expo, Android dan iOS dicatat lewat jalur terpisah.

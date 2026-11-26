@@ -9,7 +9,7 @@ import {
   quizTemplates, session, studentQuizAttempts, user,
 } from "../../../../../db/schema";
 import { membershipIdFor } from "../../../../../lib/auth/peran";
-import type { AcademicRanking, AgendaData, CourseRanking, LeaderboardPage, Profile, PublicStudentProfile } from "../../../../../packages/native-parity/student/community/contracts";
+import type { AcademicRanking, AgendaData, CourseRanking, LeaderboardPage, NotificationPreferences, Profile, PublicStudentProfile, ReflectionPage, Schedule } from "../../../../../packages/native-parity/student/community/contracts";
 import { localStudentCookie } from "./session";
 
 const http = process.env.STUDENT_COMMUNITY_HTTP_BASE;
@@ -119,6 +119,29 @@ describe.skipIf(!http)("Next native community against disposable local PostgreSQ
     const agenda = await calendar.json() as AgendaData;
     expect(agenda.events.some(event => event.id === "quiz-" + ids.active)).toBe(true);
     expect(agenda.events.some(event => event.id === "quiz-" + ids.archived)).toBe(false);
+  }, 90_000);
+
+  test("the weekly schedule supplies seven Jakarta dates and notification timing is account-owned", async () => {
+    const schedule = await request("schedule?offset=0&course=" + ids.active, ids.enrolled);
+    expect(schedule.status).toBe(200);
+    const week = await schedule.json() as Schedule;
+    expect(new Set(week.dates).size).toBe(7);
+    expect(week.dates[0]).toBe(week.week.startIso);
+    expect(week.dates.at(-1)).toBe(week.week.endIso);
+    expect((await request("schedule?offset=105", ids.enrolled)).status).toBe(400);
+
+    const archive = await request("reflections", ids.enrolled);
+    expect(archive.status).toBe(200);
+    expect(await archive.json() as ReflectionPage).toEqual({ entries: [], nextCursor: null });
+
+    const timing = { mode: "repeat", leadMinutes: 90, intervalMinutes: 30 } as const;
+    const update = await request("notification-timing", ids.enrolled, timing);
+    expect(update.status).toBe(200);
+    expect(await update.json()).toEqual({ success: true });
+    const owner = await (await request("notifications", ids.enrolled)).json() as NotificationPreferences;
+    const peer = await (await request("notifications", ids.peer)).json() as NotificationPreferences;
+    expect(owner.activity.tutorialEmailSchedule).toEqual(timing);
+    expect(peer.activity.tutorialEmailSchedule).not.toEqual(timing);
   }, 90_000);
 
   test("global and following participation use opt-in XP, separate from course scores and private profile fields", async () => {
