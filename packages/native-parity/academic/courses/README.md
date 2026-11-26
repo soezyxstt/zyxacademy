@@ -13,7 +13,7 @@ Pada layar sempit, daftar menampilkan ID, kategori, dan jumlah konten per mata k
 | `/[slug]/results` | Ringkasan kelas dan hasil per kuis | `getCourseDetailData`, baca jumlah pengerjaan selesai, skor dan tingkat kelulusan |
 | `/[slug]/leaderboard` | Filter jenis, cari peserta, lihat pengerjaan | `readAdminCourseLeaderboard`, baca pengerjaan selesai untuk pemeringkatan mata kuliah |
 | `/[slug]/documents` | Filter jenis dan bab, cari, buka dokumen, edit dan konfirmasi hapus | `listAdminCourseMaterials`, baca katalog |
-| `/[slug]/documents/[materialId]` | Pratinjau teks, edit, simpan, terbitkan atau tarik publikasi | `listAdminCourseMaterials`, baca metadata katalog. Edit judul PDF unggahan melalui `writeCourseMaterialMetadata` |
+| `/[slug]/documents/[materialId]` | Pratinjau PDF dan teks, edit, simpan, terbitkan atau tarik publikasi | `listAdminCourseMaterials`, `getAdminCourseMaterialPreview`, `writeCourseTextDocument` dan `writeCourseMaterialMetadata` |
 | `/[slug]/questions` | Filter asal, bab, kesulitan, lihat pembahasan dan konfirmasi hapus | `getCourseDetailData(slug, true)`, baca soal setelah pencatatan disclosure |
 | `/[slug]/flashcards` | Filter bab, buka set, balik kartu, edit dan hapus set atau kartu | `getCourseFlashcardsData`, baca set serta sisi kartu |
 | `/[slug]/videos` | Cari dan buka daftar putar, tambah atau edit metadata video, buka tautan HTTPS | `getCourseVideosData`, baca katalog dan ketersediaan pemutaran |
@@ -27,6 +27,8 @@ Simpan informasi mata kuliah melalui `PATCH /api/native/academic/admin/courses/[
 PDF unggahan dapat diubah melalui `PATCH /api/native/academic/admin/courses/[slug]/documents/[materialId]/metadata`. Permintaan lama dengan judul dan revisi tetap diterima. Editor juga mendukung kategori, subkategori, tahun dan bab yang diperiksa terhadap mata kuliah. Simpan memperbarui judul pada proyeksi sumber dan menandai katalog offline untuk penyegaran. Menghapus dokumen memerlukan konfirmasi, hak Admin dan revisi terbaru. Sumber yang masih dirujuk artikel dilindungi. Sesudah transaksi tersimpan, pembersihan objek unggahan yang tidak digunakan berjalan secara best effort seperti pada web.
 
 Admin dapat meminta saran judul dan bab dari editor dokumen. PDF juga mendapat saran klasifikasi dan tahun. Server mengambil nama berkas dan bab dari mata kuliah yang terverifikasi dan menggunakan standardisasi web. Admin menerapkan hasil ke draf, memeriksanya, lalu menyimpan.
+
+Baca pratinjau dan simpan perubahan teks melalui `GET` dan `PATCH /api/native/academic-document/[slug]/[materialId]`. Artikel canonical, Diktat canonical dan Artikel Web legacy memakai pembaruan yang sama dengan editor web. Perubahan teks mempertahankan versi produk. Terbitkan dan jadikan draf adalah tindakan terpisah. Setiap mutasi memeriksa sesi Admin, mata kuliah, sumber dan revisi. Setelah gangguan jaringan, **Periksa perubahan** menggunakan kembali ID permintaan dan draf dari sesi aktif. Pratinjau memakai blok terstruktur atau Markdown dalam pembaca lokal. Gambar yang memerlukan unduhan terautentikasi tampil dengan fallback.
 
 Klien dan server memvalidasi judul yang sudah dipangkas dengan panjang 1 sampai 500 karakter dan menolak karakter NUL. Jika transaksi PostgreSQL gagal karena serialisasi atau deadlock, server mengulangi transaksi sekali dengan pemeriksaan izin dan revisi. Konflik revisi tetap mendapat 409. Gangguan database yang belum pulih mendapat 500 agar klien dapat memeriksa hasil dengan ID yang sama.
 

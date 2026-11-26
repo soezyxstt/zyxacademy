@@ -11,6 +11,7 @@ import { LiveVideos } from "./live-videos";
 import { AdminCoursePdfPreview } from "./admin-pdf-preview";
 import { LivePdfTitleEdit } from "./live-material";
 import { LiveCourseEdit } from "./live-settings";
+import { LiveTextCourseDocument } from "./live-text-document";
 import { LiveCourseArchive } from "./live-management";
 import { QuizAttemptsTable, QuizResultsTable } from "./tables";
 import { Action, CourseDialog, CourseStatus, DataRow, Ink, Metrics, Panel, Picker, SearchBox, Tabs, layout } from "./ui";
@@ -60,7 +61,9 @@ export function LiveCourseSection({ data, query, navigate, updateSettings, updat
           {document.status ? <DataRow title="Status" detail={localLabel(document.status) ?? undefined} /> : null}
           {chapters.filter(({ id }) => document.chapterIds.includes(id)).map(({ id, title }) => <DataRow key={id} title={title} description="Bab" />)}
           {data.pdfPreview ? <AdminCoursePdfPreview courseId={data.course.id} materialId={document.id} title={document.title} /> : null}
-          {!data.pdfPreview ? <CourseStatus label={editTitle ? "Pratinjau dokumen tersedia di Zyx web." : "Pratinjau dan penyuntingan dokumen tersedia di Zyx web."} /> : null}
+          {document.kind === "article" ? <LiveTextCourseDocument slug={data.course.slug} courseId={data.course.id}
+            documentId={document.id} initialEdit={query.mode === "edit"} refresh={refresh} />
+            : !data.pdfPreview ? <CourseStatus label="Pratinjau dokumen tidak tersedia." /> : null}
         </Panel>
       );
     }

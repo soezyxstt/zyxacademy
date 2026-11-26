@@ -148,6 +148,13 @@ export const operationsCatalog = [
     "reason": "Live quiz hosting requires a verified Tutor session, active course assignment and current room ownership. HTTPS commands use the web live room service and host state uses its signed realtime socket. MCP credentials cannot open or control a room."
   },
   {
+    "source": "app/api/native/academic-document/[slug]/[materialId]/route.ts",
+    "actions": ["GET", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Text previews, content edits and publication status changes for canonical articles, canonical Diktat and legacy articles require a current Admin session and exact course and source ownership. Native revisions and same-session receipts reuse the web material projections and offline changes. MCP material and authoring tools keep their registered scopes, consent and operation contracts."
+  },
+  {
     "source": "app/api/native/academic-assessment/[...resource]/route.ts",
     "actions": ["GET", "POST", "PATCH", "DELETE"],
     "tools": [],

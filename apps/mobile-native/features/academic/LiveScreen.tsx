@@ -13,6 +13,7 @@ import { AssessmentScreen } from "./assessment";
 import { createAssessmentReadGateway } from "./assessment/client";
 import { AdministrationLiveScreen } from "./administration";
 import { CourseScreen } from "./courses";
+import { TextDocumentTransport } from "./courses/live-text-document";
 import { TutorScreen } from "./tutor";
 import type { AcademicScreenProps } from "./contracts";
 
@@ -101,9 +102,12 @@ export function AcademicLiveScreen({ href, transport, refresh, ...host }: LivePr
     const section = match.pattern.split("/")[4];
     const itemId = match.params.quizId ?? match.params.materialId;
     if (isAdminCourseLiveSection(section, itemId)) {
-      return <LiveCourseSectionScreen key={key} {...props} read={client.courseSection} section={section} itemId={itemId}
-        refresh={refresh} updateSettings={client.updateCourseSettings} updateMaterial={client.updateMaterial} removeVideo={client.removeVideo} removeQuestion={client.removeQuestion} flashcardEditor={client.flashcardEditor}
-        videoPlayer={client.tutor.support?.videoPlayer} archiveCourse={client.archiveCourse} />;
+      return <TextDocumentTransport.Provider value={transport}>
+        <LiveCourseSectionScreen key={key} {...props} read={client.courseSection} section={section} itemId={itemId}
+          refresh={refresh} updateSettings={client.updateCourseSettings} updateMaterial={client.updateMaterial} removeVideo={client.removeVideo}
+          removeQuestion={client.removeQuestion} flashcardEditor={client.flashcardEditor}
+          videoPlayer={client.tutor.support?.videoPlayer} archiveCourse={client.archiveCourse} />
+      </TextDocumentTransport.Provider>;
     }
   }
   return <AcademicMessage {...host}>Sumber data halaman ini belum terhubung.</AcademicMessage>;

@@ -14,9 +14,6 @@ import {
   studentQuizAttempts,
   quizAiInsights,
   aiQuestionBank,
-  artikel,
-  diktatMateri,
-  websiteMaterials,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { z } from "zod";
@@ -43,6 +40,7 @@ import { PREMIUM_PRICING, parseCoursePricingInput, type CoursePricing } from "@/
 import { getDemoCourseEligibility } from "@/app/(marketing)/demo/demo-data";
 import { courseChapterRevision } from "@/lib/academic/course-chapter-revision";
 import { revalidateChapterPaths } from "@/lib/academic/revalidate-chapter-paths";
+import { isTextDocumentSource, writeCourseTextDocument } from "@/lib/academic/course-text-document";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 
 export async function getCourses() {
@@ -1016,40 +1014,10 @@ export async function updateDocumentStatusAction(input: {
 }) {
   await assertAdmin();
   const { materialId, source, status } = input;
-  const now = new Date();
-
   try {
-    await db.transaction(async tx => {
-      if (source === "canonical-article") {
-        const changed = await tx
-          .update(artikel)
-          .set({
-            status,
-            publishedAt: status === "published" ? now : null,
-            updatedAt: now,
-          })
-          .where(or(eq(artikel.id, materialId), eq(artikel.slug, materialId))).returning({ id: artikel.id, courseId: artikel.mataKuliahId });
-        for (const row of changed) await recordOfflineChange(tx, { kind: "article", resourceId: row.id, courseId: row.courseId, action: status === "published" ? "upsert" : "delete" });
-      } else if (source === "canonical-diktat") {
-        const changed = await tx
-          .update(diktatMateri)
-          .set({
-            status,
-            publishedAt: status === "published" ? now : null,
-            updatedAt: now,
-          })
-          .where(eq(diktatMateri.id, materialId)).returning({ id: diktatMateri.id, courseId: diktatMateri.mataKuliahId });
-        for (const row of changed) await recordOfflineChange(tx, { kind: "diktat", resourceId: row.id, courseId: row.courseId, action: status === "published" ? "upsert" : "delete" });
-      } else if (source === "legacy-article") {
-        const changed = await tx
-          .update(websiteMaterials)
-          .set({
-            status: status === "published" ? "published" : "draft",
-          })
-          .where(eq(websiteMaterials.id, materialId)).returning({ courseId: websiteMaterials.courseId });
-        for (const row of changed) await recordOfflineChange(tx, { kind: "course", courseId: row.courseId, action: "invalidate" });
-      }
-    });
+    if (isTextDocumentSource(source)) {
+      await db.transaction(tx => writeCourseTextDocument(tx, { id: materialId, source, allowArticleSlug: true }, { action: "status", status }));
+    }
     revalidatePath("/admin/courses");
     return { success: true };
   } catch (err: any) {
@@ -1072,44 +1040,12 @@ export async function updateArticleContentAction(input: {
     return { success: false, error: "Judul artikel wajib diisi" };
   }
 
-  const now = new Date();
-
   try {
-    await db.transaction(async tx => {
-      if (source === "canonical-article") {
-        const changed = await tx
-          .update(artikel)
-          .set({
-            title: cleanTitle,
-            contentMarkdown,
-            babId: babId || null,
-            updatedAt: now,
-          })
-          .where(or(eq(artikel.id, id), eq(artikel.slug, id))).returning({ id: artikel.id, courseId: artikel.mataKuliahId });
-        for (const row of changed) await recordOfflineChange(tx, { kind: "article", resourceId: row.id, courseId: row.courseId, action: "upsert" });
-      } else if (source === "canonical-diktat") {
-        const changed = await tx
-          .update(diktatMateri)
-          .set({
-            title: cleanTitle,
-            contentMarkdown,
-            babId: babId || null,
-            updatedAt: now,
-          })
-          .where(eq(diktatMateri.id, id)).returning({ id: diktatMateri.id, courseId: diktatMateri.mataKuliahId });
-        for (const row of changed) await recordOfflineChange(tx, { kind: "diktat", resourceId: row.id, courseId: row.courseId, action: "upsert" });
-      } else if (source === "legacy-article") {
-        const changed = await tx
-          .update(websiteMaterials)
-          .set({
-            title: cleanTitle,
-            canonicalMarkdown: contentMarkdown,
-            chapterId: babId || "",
-          })
-          .where(eq(websiteMaterials.id, id)).returning({ courseId: websiteMaterials.courseId });
-        for (const row of changed) await recordOfflineChange(tx, { kind: "course", courseId: row.courseId, action: "invalidate" });
-      }
-    });
+    if (isTextDocumentSource(source)) {
+      await db.transaction(tx => writeCourseTextDocument(tx, { id, source, allowArticleSlug: true }, {
+        action: "content", title: cleanTitle, markdown: contentMarkdown, chapterId: babId || null,
+      }));
+    }
     revalidatePath("/admin/courses");
     return { success: true };
   } catch (err: any) {

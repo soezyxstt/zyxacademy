@@ -44,6 +44,9 @@ on:
       - 'tests/contracts/notifications-history.test.ts'
       - 'tests/contracts/offline-server-sync.test.ts'
       - 'tests/contracts/native-admin-course-management.test.ts'
+      - 'tests/contracts/native-admin-text-document.test.ts'
+      - 'tests/unit/expo-native-text-document.test.ts'
+      - 'app/api/native/academic-document/**'
       - 'tests/contracts/tutor-quiz-manual-grading.test.ts'
       - 'tests/offline-shell-and-reader.test.ts'
       - 'tests/unit/expo-offline-reading-document.test.ts'
@@ -236,6 +239,11 @@ jobs:
         run: |
           bun scripts/test-contracts.ts tests/contracts/native-admin-course-management.test.ts tests/contracts/native-tutor-slot.test.ts tests/contracts/native-tryout-draft.test.ts
           bun test packages/native-parity/academic/assessment/read-handler.test.ts
+      - name: Admin native text document edits and publication
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-native-text-document.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-admin-text-document.test.ts
       - name: Admin operations management access and report moderation
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun tests/integration/operations-management-reads.mjs

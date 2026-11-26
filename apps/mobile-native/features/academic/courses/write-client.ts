@@ -13,7 +13,8 @@ type Method = "POST" | "PATCH" | "DELETE";
 const retry = { status: "retry" } as const;
 const saved = { status: "saved" } as const;
 
-export function createCourseCommandTarget<Draft extends object>(send: NonNullable<AcademicTransport["command"]>, validate?: (draft: Draft) => boolean) {
+export function createCourseCommandTarget<Draft extends object>(send: NonNullable<AcademicTransport["command"]>, validate?: (draft: Draft) => boolean,
+  basePath = "/api/native/academic/admin/courses") {
   const entries = new Map<string, Entry<Draft>>();
 
   return function target(resource: string, method: Method): CourseWriteTarget<Draft> {
@@ -39,7 +40,7 @@ export function createCourseCommandTarget<Draft extends object>(send: NonNullabl
         };
         const operation = (async (): Promise<AdminCourseEditResponse> => {
           try {
-            const response = await send(`/api/native/academic/admin/courses${resource ? `/${resource}` : ""}`, {
+            const response = await send(`${basePath}${resource ? `/${resource}` : ""}`, {
               method, body: entry.draft, requestId: entry.requestId,
             }, signal);
             if (response.status === 200) {

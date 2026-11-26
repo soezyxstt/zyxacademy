@@ -160,3 +160,12 @@ test("native course commands reuse administrative projections with session autho
   expect(entry.reason).toContain("Chapter reorder");
   expect(entry.reason).toContain("materials.update_metadata");
 });
+
+test("native text material preview and manual publication require a course-scoped Admin session", () => {
+  const entry = operationsCatalog.find(item => item.source === "app/api/native/academic-document/[slug]/[materialId]/route.ts")!;
+  expect(entry.actions).toEqual(["GET", "PATCH"]);
+  expect(entry.status).toBe("excluded");
+  expect(entry.tools).toEqual([]);
+  expect(entry.reason).toContain("course and source ownership");
+  expect(entry.reason).toContain("same-session receipts");
+});
