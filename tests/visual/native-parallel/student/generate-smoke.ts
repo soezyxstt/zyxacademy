@@ -66,7 +66,7 @@ for (const [pattern, path, marker] of [
 
 const communityReady: Record<string, Partial<Record<string, Marker>>> = {
   "/achievements": { loaded: text("Papan lencana"), empty: text("Pencapaian") },
-  "/calendar": { loaded: text("Kuis limit"), empty: text("Belum ada agenda.") },
+  "/calendar": { loaded: text("Kuis limit"), empty: text("Belum ada agenda terjadwal") },
   "/courses/[id]/discussions": { loaded: text("Limit kiri dan kanan pada fungsi potongan"), empty: text("Belum ada diskusi.") },
   "/courses/[id]/leaderboard": { loaded: text("#1 Nara Putri"), empty: text("Konten tidak tersedia atau akses berubah.") },
   "/dashboard/discussions": { loaded: text("Limit kiri dan kanan pada fungsi potongan"), empty: text("Belum ada diskusi.") },
