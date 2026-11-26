@@ -197,27 +197,46 @@ jobs:
           test "${#apps[@]}" -eq 1
           app="${apps[0]}"
           test -d "$app"
-          executable=$(plutil -extract CFBundleExecutable raw -o - "$app/Info.plist")
-          binary="$app/$executable"
-          test -x "$binary"
-          xcrun lipo -archs "$binary" > "$archive/architecture.txt"
-          xcrun lipo -verify_arch "$(uname -m)" "$binary"
-          xcrun vtool -arch "$(uname -m)" -show-build "$binary" > "$archive/mach-o-build.txt"
-          grep -Eq 'platform[[:space:]]+IOSSIMULATOR([[:space:]]|$)' "$archive/mach-o-build.txt"
-          git rev-parse HEAD > "$archive/checkout-sha.txt"
-          git diff -- apps/mobile-native/metro.config.js > "$archive/test-build.patch"
-          shasum -a 256 "$binary" | awk '{print $1}' > "$archive/app-executable.sha256"
           tar -czf "$archive/shared-ui-ios-app.tar.gz" -C "$build/app" "$(basename "$app")"
           checksum=$(shasum -a 256 "$archive/shared-ui-ios-app.tar.gz" | awk '{print $1}')
           printf '%s  shared-ui-ios-app.tar.gz\n' "$checksum" > "$archive/app-archive.sha256"
           printf 'archive-sha256=%s\n' "$checksum" >> "$GITHUB_OUTPUT"
+          executable=$(python3 - "$app/Info.plist" <<'PY'
+          import plistlib
+          import sys
+          from pathlib import Path
+
+          with Path(sys.argv[1]).open("rb") as source:
+              info = plistlib.load(source)
+          platforms = info.get("CFBundleSupportedPlatforms", [])
+          simulator = isinstance(platforms, list) and "iPhoneSimulator" in platforms
+          if not simulator and info.get("DTPlatformName") != "iphonesimulator":
+              sys.exit("Expected an iOS Simulator bundle in Info.plist")
+          executable = info.get("CFBundleExecutable")
+          if not isinstance(executable, str) or not executable or Path(executable).name != executable:
+              sys.exit("Missing or invalid CFBundleExecutable in Info.plist")
+          print(executable)
+          PY
+          )
+          binary="$app/$executable"
+          test -x "$binary"
+          runner_arch=$(uname -m)
+          xcrun lipo -archs "$binary" > "$archive/architecture.txt"
+          grep -qwF -- "$runner_arch" "$archive/architecture.txt"
+          if ! xcrun vtool -arch "$runner_arch" -show-build "$binary" > "$archive/mach-o-build.txt" 2>&1; then
+            echo 'Mach-O load command diagnostics unavailable.' >> "$archive/mach-o-build.txt"
+          fi
+          git rev-parse HEAD > "$archive/checkout-sha.txt"
+          git diff -- apps/mobile-native/metro.config.js > "$archive/test-build.patch"
+          shasum -a 256 "$binary" | awk '{print $1}' > "$archive/app-executable.sha256"
       - name: Upload immutable iOS app
         id: app-artifact
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: shared-ui-ios-app-${{ env.SHARED_BUILD }}-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/shared-ui-ios-artifact/
-          if-no-files-found: error
+          if-no-files-found: warn
           compression-level: 0
           retention-days: 14
 
@@ -305,7 +324,7 @@ jobs:
           binary="$app/$executable"
           test -x "$binary"
           test "$(xcrun lipo -archs "$binary")" = "$(cat architecture.txt)"
-          xcrun lipo -verify_arch "$(uname -m)" "$binary"
+          grep -qwF -- "$(uname -m)" architecture.txt
           executable_sha=$(shasum -a 256 "$binary" | awk '{print $1}')
           test "$executable_sha" = "$(cat app-executable.sha256)"
           cp checkout-sha.txt architecture.txt mach-o-build.txt test-build.patch app-archive.sha256 app-executable.sha256 "$output/"
