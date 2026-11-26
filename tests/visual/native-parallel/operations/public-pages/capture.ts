@@ -209,8 +209,8 @@ async function main() {
   }, null, 2) + "\n");
 
   async function capture(width: number, fixture: Fixture) {
-    const height = width === 380 ? 844 : 864;
-    const dpr = 1;
+    const height = width === 380 ? 844 : width === 402 ? 874 : 864;
+    const dpr = width === 402 ? 3 : 1;
     const name = fixture.id.replace("operations-public-", "");
     const options = overrides[name] ?? {};
     const context = await browser.newContext({
@@ -295,7 +295,7 @@ async function main() {
       });
       const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
       if (errors.length) throw new Error(errors.join("\n"));
-      const file = `${name}-${width}-dpr1.png`;
+      const file = `${name}-${width}-dpr${dpr}.png`;
       await page.screenshot({ path: `${out}/${file}`, animations: "disabled", scale: "device" });
       const layout = scrollWidth > width ? "overflow" : "fits";
       rows.push({

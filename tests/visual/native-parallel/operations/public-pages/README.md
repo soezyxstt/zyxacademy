@@ -13,11 +13,11 @@ PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium PUBLIC_REFERENCE_GROUP=demo \
   node --import tsx tests/visual/native-parallel/operations/public-pages/capture.ts
 ```
 
-Run the static group before the demo group. The first demo request compiles the Student application views. `PUBLIC_REFERENCE_CASES` accepts comma-separated case names without the `operations-public-` prefix. `PUBLIC_REFERENCE_WIDTHS` accepts `380`, `1536`, or `380,1536`. The case registry also drives the native fixtures in `packages/native-parity/operations/public-fixtures.ts`. The blog reference lives in the parent operations harness.
+Run the static group before the demo group. The first demo request compiles the Student application views. `PUBLIC_REFERENCE_CASES` accepts comma-separated case names without the `operations-public-` prefix. `PUBLIC_REFERENCE_WIDTHS` accepts comma-separated widths of `380`, `402`, or `1536`. The case registry also drives the native fixtures in `packages/native-parity/operations/public-fixtures.ts`. The blog reference lives in the parent operations harness.
 
 Each route re-exports its original Next.js page body. The isolated root provides the original locale provider, real translation catalogs, application CSS, local Inter and Lexend faces, and published local image assets. The marketing navbar and footer are outside this reference scope. Pricing and release data, email tokens and demo course data are local fixtures. The fixture form submits locally and fixture unsubscribe uses a local redirect without recording an email preference. Browser requests are confined to localhost.
 
-Captures use Chromium with UTC, reduced motion, sRGB and a fixed browser date. The viewports are 380 × 844 px and 1536 × 864 px, both at DPR 1. The capture records horizontal overflow from the original web markup at the declared viewport. It rejects unexpected HTTP errors, redirects, blocked requests, page errors and console errors. Result manifests record the interaction outcome, locale, theme, dimensions and source width.
+Captures use Chromium with UTC, reduced motion, sRGB and a fixed browser date. The default viewports are 380 × 844 px and 1536 × 864 px, both at DPR 1. Width `402` uses an 874 px height and DPR 3. The capture records horizontal overflow from the original web markup at the declared viewport. It rejects unexpected HTTP errors, redirects, blocked requests, page errors and console errors. Result manifests record the interaction outcome, locale, theme, dimensions and source width.
 
 The course data in the existing web demo fixture differ from the Expo demo fixture. The original app calculates web pricing using fixture discount settings. The native gallery supplies its own deterministic numeric quotes. These images establish browser states and source layout. Android and iOS screenshots and cross-platform pixel comparisons are separate evidence.
 
@@ -46,3 +46,12 @@ The [demo manifest](references/manifest-demo.json) records isolated Chromium cap
 The demo runner serves local images from the repository's `public` directory. It reads the fixture server's built static assets when available to avoid a dev server timeout on the larger JavaScript chunks. It supplies a local anonymous session response when the quiz checks authentication. The manifest combines successful captures from focused reruns.
 
 The dashboard images show the visible link and initial plan. Course retry, article completion and quiz submission were outside this capture. The web and native demo fixtures use different course IDs and article content, so there is no paired pixel comparison. [Operations route evidence](../route-evidence.md)
+
+## 402 px references
+
+The Indonesian light landing hero, English light form entry and English dark demo empty state passed at 402 × 874 CSS px, DPR 3, and produced PNGs of 1206 × 2622 px. The landing document measured 410 CSS px wide. The form and demo fit the viewport. These are browser captures of the initial states. [Capture manifest](references/manifest-402-dpr3.json)
+
+```sh
+PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium PUBLIC_REFERENCE_CASES=hero-id,form-empty,demo-empty PUBLIC_REFERENCE_WIDTHS=402 \
+  node --import tsx tests/visual/native-parallel/operations/public-pages/capture.ts
+```
