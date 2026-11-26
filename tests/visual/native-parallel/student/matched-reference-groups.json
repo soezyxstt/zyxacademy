@@ -1,0 +1,97 @@
+{
+  "dashboard": {
+    "route": "/dashboard",
+    "states": [
+      "enrolled",
+      "unenrolled",
+      "revoked"
+    ],
+    "testcase": "Student dashboard enrollment states",
+    "productFixture": "packages/native-parity/student/dashboard/responses.json"
+  },
+  "quiz-gateway": {
+    "route": "/courses/[id]/quiz/[quizId]",
+    "states": [
+      "new",
+      "resumable",
+      "exhausted"
+    ],
+    "testcase": "Student quiz gateway attempt states",
+    "webOrigin": "http://student-quiz-gateway-reference.invalid"
+  },
+  "calendar": {
+    "route": "/calendar",
+    "states": [
+      "all",
+      "tutorial",
+      "empty-filter"
+    ],
+    "testcase": "Student calendar reference inputs and category states",
+    "webOrigin": "http://calendar-reference.invalid"
+  },
+  "course-detail": {
+    "route": "/courses/[id]",
+    "states": [
+      "enrolled",
+      "unenrolled",
+      "revoked"
+    ],
+    "testcase": "Student course and material reference {state}",
+    "productFixture": "packages/native-parity/student/courses/material-reference.json"
+  },
+  "material-list": {
+    "route": "/courses/[id]/material",
+    "states": [
+      "enrolled",
+      "unenrolled",
+      "revoked"
+    ],
+    "testcase": "Student course and material reference {state}",
+    "productFixture": "packages/native-parity/student/courses/material-reference.json"
+  },
+  "material-reader": {
+    "route": "/courses/[id]/material/[materialId]",
+    "states": [
+      "enrolled",
+      "unenrolled",
+      "revoked"
+    ],
+    "testcase": "Student course and material reference {state}",
+    "productFixture": "packages/native-parity/student/courses/material-reference.json",
+    "dependencies": {
+      "enrolled": "The enrolled native reader uses the authorized fallback until the host installs the article renderer."
+    }
+  },
+  "results": {
+    "route": "/courses/[id]/my-results",
+    "states": [
+      "mixed",
+      "empty",
+      "graded"
+    ],
+    "testcase": "Student course results history states",
+    "webOrigin": "http://student-results-reference.invalid"
+  },
+  "course-ranking": {
+    "route": "/courses/[id]/leaderboard",
+    "states": [
+      "quiz",
+      "simulation",
+      "unranked"
+    ],
+    "testcase": "Student course ranking podium and own rank",
+    "webOrigin": "http://student-ranking-reference.invalid",
+    "webSuite": "ranking"
+  },
+  "participation-ranking": {
+    "route": "/leaderboard",
+    "states": [
+      "global",
+      "following",
+      "empty"
+    ],
+    "testcase": "Student participation ranking global and following filters",
+    "webOrigin": "http://student-ranking-reference.invalid",
+    "webSuite": "ranking"
+  }
+}

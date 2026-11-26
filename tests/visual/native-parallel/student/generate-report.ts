@@ -17,6 +17,8 @@ const summaries = Object.fromEntries((["android", "ios"] as const).map(platform 
   const provenance = existsSync(provenancePath) ? JSON.parse(readFileSync(provenancePath, "utf8")) : {};
   const captureIndexPath = join(dirname(path), "smoke-captures.json");
   const captureIndex = existsSync(captureIndexPath) ? JSON.parse(readFileSync(captureIndexPath, "utf8")) : null;
+  const comparisonPath = join(dirname(path), "comparison.json");
+  const comparison: { id: string; status: string; differing_pixels?: number }[] = existsSync(comparisonPath) ? JSON.parse(readFileSync(comparisonPath, "utf8")) : [];
   const archivePath = captureIndex ? join(dirname(path), "smoke-captures.zip") : null;
   if (archivePath && (captureIndex.archive !== basename(archivePath) ||
     captureIndex.sourceHead !== provenance.sourceHead || captureIndex.workflowRun !== provenance.workflowRun ||
@@ -24,7 +26,7 @@ const summaries = Object.fromEntries((["android", "ios"] as const).map(platform 
     createHash("sha256").update(readFileSync(archivePath)).digest("hex") !== captureIndex.archiveSha256)) {
     throw new Error(`Device capture archive failed provenance or checksum validation: ${archivePath}`);
   }
-  return [platform, { path, data: JSON.parse(readFileSync(path, "utf8")), provenance, captureIndexPath, captureIndex, archivePath }];
+  return [platform, { path, data: JSON.parse(readFileSync(path, "utf8")), provenance, captureIndexPath, captureIndex, archivePath, comparison, comparisonPath }];
 }));
 const manifest: { sourceHead?: string; routes: { source: string; cases: any[] }[] } =
   JSON.parse(readFileSync(manifestPath, "utf8"));
@@ -33,20 +35,34 @@ const webRoot = "tests/visual/native-parallel/student/product/web";
 const base = "packages/native-parity/student/evidence";
 const ciHistory = JSON.parse(readFileSync(`${base}/ci-history.json`, "utf8"));
 const webRun = ciHistory.runs.findLast((run: any) => run.web?.status === "passed" && run.web.artifact);
-const flashcardReferences = ["android", "ios"].flatMap(target => {
-  const directory = `tests/visual/native-parallel/student/learning/web/${target}`;
-  const manifest = `${directory}/flashcard-reference.json`;
-  const reference = JSON.parse(readFileSync(manifest, "utf8"));
-  return Object.entries(reference.captures).map(([name, sha256]) => {
-    const file = `${directory}/${name}`;
-    if (createHash("sha256").update(readFileSync(file)).digest("hex") !== sha256) {
-      throw new Error(`Flashcard reference checksum does not match: ${file}`);
-    }
-    return { id: `${target}-${name.replace(/\.png$/, "")}`, file, sha256, manifest,
-      evidence: "web component fixture; target label is viewport only", viewport: reference.viewport,
-      dpr: reference.deviceScaleFactor, theme: reference.theme, locale: reference.locale };
+const matchedGroups: Record<string, { route: string; productFixture?: string }> =
+  JSON.parse(readFileSync("tests/visual/native-parallel/student/matched-reference-groups.json", "utf8"));
+const pairedReferenceGroups: Record<string, { directory: string; prefix: string; product?: boolean }> = {
+  "/courses/[id]/flashcard": { directory: "learning", prefix: "flashcard" },
+  ...Object.fromEntries(Object.entries(matchedGroups).map(([prefix, config]) => [
+    config.route, { directory: prefix, prefix, product: Boolean(config.productFixture) },
+  ])),
+};
+function deviceSizedWebReferences(pattern: string) {
+  const group = pairedReferenceGroups[pattern];
+  if (!group) return [];
+  return ["android", "ios"].flatMap(target => {
+    const directory = `tests/visual/native-parallel/student/${group.directory}/web/${target}`;
+    const manifest = `${directory}/${group.prefix}-reference.json`;
+    const reference = JSON.parse(readFileSync(manifest, "utf8"));
+    const referenceCommit = execFileSync("git", ["log", "-1", "--format=%H", "--", manifest], { encoding: "utf8" }).trim();
+    return Object.entries(reference.captures).map(([name, sha256]) => {
+      const file = `${directory}/${name}`;
+      if (createHash("sha256").update(readFileSync(file)).digest("hex") !== sha256) {
+        throw new Error(`Device-sized web reference checksum does not match: ${file}`);
+      }
+      return { id: `${target}-${name.replace(/\.png$/, "")}`, file, sha256, manifest, referenceCommit,
+        serverSha: reference.serverSha ?? null,
+        evidence: group.product ? "authenticated product web" : "web component fixture; target label is viewport only", viewport: reference.viewport,
+        dpr: reference.deviceScaleFactor, theme: reference.theme, locale: reference.locale };
+    });
   });
-});
+}
 const sha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const optionalManifests = ["tests/visual/native-parallel/student/product/assessment-web/web.json",
   "tests/visual/native-parallel/student/learning/product/web.json"];
@@ -158,7 +174,7 @@ const resultFor = (platform: "android" | "ios", source: string, caseId: string) 
     entry.route === source && entry.caseId === caseId && entry.theme === item.theme &&
     entry.fixturePath === item.path && entry.status === "passed" && item.result === "passed" &&
     item.artifacts?.some((member: string) => `smoke/${member}` === entry.artifactMember));
-  return { status: item.result ?? "not_run", artifacts: item.artifacts ?? [],
+  return { status: item.result ?? "not_run", marker_at_run: item.marker ?? null, artifacts: item.artifacts ?? [],
     ...(item.attempts ? { attempts: item.attempts } : {}),
     ...(capture ? { retained_capture: { archive: summary.archivePath, file: capture.file, sha256: capture.sha256, index: summary.captureIndexPath } } : {}),
     ...provenance };
@@ -179,7 +195,15 @@ const rows = manifest.routes.map(route => {
   });
   const componentCaptures = pattern === "/courses" ? ["android", "ios"].flatMap(target => ["all", "tpb", "pka"].map(state => ({
     id: `catalog-${target}-${state}`, file: `${base}/web-reference/${target}/catalog-${state}.png`, evidence: "web fixture; target label is viewport only",
-  }))) : pattern === "/courses/[id]/flashcard" ? flashcardReferences : [];
+  }))) : deviceSizedWebReferences(pattern);
+  const group = pattern === "/courses" ? "catalog" : pairedReferenceGroups[pattern]?.prefix;
+  const deviceComparisons = group ? (["android", "ios"] as const).flatMap(platform => {
+    const summary = summaries[platform];
+    if (!summary) return [];
+    return summary.comparison.filter(row => row.id.startsWith(group + "-") && !row.id.includes("-versus-"))
+      .map(row => ({ platform, id: row.id, status: row.status, differingPixels: row.differing_pixels ?? null,
+        report: summary.comparisonPath, sourceHead: summary.provenance.sourceHead ?? null, checkoutSha: summary.provenance.checkoutSha ?? null }));
+  }) : [];
   const attempts = optionalAttempts.filter(item => item.pattern === pattern);
   const optionalCaptures = attempts.filter(item => item.status === "passed").flatMap(item => item.files.map((file: any) => ({
     id: `${item.id}-${basename(file.file)}`, file: file.file, evidence: "authenticated product web", sourceHead: item.sourceHead,
@@ -190,30 +214,33 @@ const rows = manifest.routes.map(route => {
     pattern === "/courses/[id]/quiz/[quizId]" ? "Quiz player states and gateway reference in light/dark" :
     pattern === "/courses/[id]/my-results" ? "Populated and empty results reference in light/dark" : null;
   const cases = route.cases.map((entry: any) => ({
-    id: entry.id, scenario: entry.scenario, theme: entry.theme, path: entry.path, fixture_status: entry.flow ? "generated_not_executed" : "blocked",
+    id: entry.id, scenario: entry.scenario, theme: entry.theme, path: entry.path, fixture_status: entry.flow ? "runnable" : "blocked",
     marker: entry.marker ?? null, steps: entry.steps ?? [], assertion_count: entry.marker ? 1 + (entry.steps ?? []).filter((step: any) => step.assert || step.absent || step.scroll).length : 0,
     flow: entry.flow ?? null, blocked_reason: entry.reason ?? null, limitation: entry.limitation ?? null,
     android: resultFor("android", source, entry.id), ios: resultFor("ios", source, entry.id),
   }));
   return { source, pattern, area, implementation: { status: "module_present_fixture_hosted", ui: info.ui, symbol: info.symbol,
       entry: "apps/mobile-native/features/student/StudentEntry.tsx", verified_entry: "apps/mobile-native/features/student/VerifiedStudentEntry.tsx",
-      limitation: "Screen and adapter exist in source. Product router mounting, device behavior and parity require separate evidence." },
+      limitation: "The integration preview mounts the verified entry. A signed-in product run and fixture device results have separate provenance." },
     operations: operations[pattern], contract_doc: info.doc, checks: [...info.checks, "tests/visual/native-parallel/student/expanded-fixtures.test.ts"],
     http_evidence: httpCourses.has(pattern) ? { source: "tests/visual/native-parallel/student/product/README.md", scope: "Local synthetic HTTP reads for dashboard, extras, catalog, course and material; see per-view assertions." } :
+      ["/courses/[id]/quiz/[quizId]", "/courses/[id]/tryout/[tryoutId]", "/courses/[id]/my-results", "/courses/[id]/my-results/[submissionId]"].includes(pattern) ?
+      { source: "tests/visual/native-parallel/student/product/assessment-http.ts", scope: "Signed HTTP with a local PostgreSQL database. Checks retries, attempt ownership, release and score for quiz and tryout." } :
       httpCommunity.has(pattern) ? { source: "packages/native-parity/student/community/README.md", scope: "Local synthetic HTTP tests cover selected guard and community operations; inspect linked test for exact scope." } : null,
     web_evidence: [...productCaptures, ...componentCaptures, ...optionalCaptures], web_attempts: attempts,
     web_ci_evidence: ciCase && webRun ? { case: ciCase, status: webRun.web.status, sourceHead: webRun.sourceHead,
       run: webRun.url, artifact: webRun.web.artifact, kind: "synthetic web component fixture" } : null,
     fixture_cases: cases,
+    device_comparisons: deviceComparisons,
     device_status: { android: summaries.android ? `see ${summaries.android.path}` : "not_recorded", ios: summaries.ios ? `see ${summaries.ios.path}` : "not_recorded" },
     interaction_status: "Generated fixture interactions are not device results unless a matching summary records them.",
     parity_status: "not_established", known_differences: pattern === "/courses/[id]/flashcard" ?
-      "Web fixture references match the target dimensions and input for the question, pending review and explicit rejection. Expo renders distinct grade colors and the upper notice. System safe area, font rasterization, math layout and device pixel comparison remain unverified. See tests/visual/native-parallel/student/learning/README.md." :
+      "See device_comparisons for measured runs of the question, pending review and explicit rejection. The web component composition, native title, system safe area and math rendering differ. See tests/visual/native-parallel/student/learning/README.md for the reference version." :
       pattern.endsWith("/material/[materialId]") ? "Fixture shows a reader-unavailable state when the shared renderer is absent; it does not render the web document. Device pixel diff is not measured." :
       pattern === "/pet" ? "Expo uses catalog posters; GLB animation and equipped visuals require the shared renderer. Device pixel diff is not measured." :
       pattern === "/settings" ? "Some web display settings are not mapped to native. Device pixel diff is not measured." :
-      "Per-case pixel diff has not been established by this report.",
-    pending: ["Verified product router mounting and signed-in product flow", "Android and iOS captures, interactions, accessibility and matching pixel comparison", ...(cases.some((x: any) => x.blocked_reason) ? ["Resolve named fixture or device blockers in fixture_cases"] : []),
+      deviceComparisons.length ? "Per-platform outcomes are recorded in device_comparisons at their own source commits." : "Per-case pixel diff has not been established by this report.",
+    pending: ["Signed-in end-to-end product flow on the integrated host", "Remaining Android and iOS captures, interactions, accessibility and matching pixel comparisons", ...(cases.some((x: any) => x.blocked_reason) ? ["Resolve named fixture or device blockers in fixture_cases"] : []),
       ...(pattern.includes("/material/[materialId]") ? ["Integrate and test authorized article, diktat and PDF renderers"] : []),
       ...(["/courses/[id]/live/host", "/settings/notifications/browser", "/courses/[id]/playground", "/courses/[id]/video"].includes(pattern) ? ["Exercise system browser handoff and return on devices"] : [])],
     readiness_reference: docs };
@@ -254,10 +281,19 @@ for (const row of rows) {
   for (const attempt of row.web_attempts.filter((item: any) => item.status !== "passed"))
     captures.push(`${link(attempt.manifest, `${attempt.id}: ${attempt.status}`)} (tanpa kredit capture)`);
   const screenshots = captures.join(", ") || "Belum ada capture tercatat";
-  const platform = (["android", "ios"] as const).map(p => !summaries[p] ? `${p}: belum tercatat` :
-    summaries[p]!.data.workflowRun || summaries[p]!.provenance.workflowRun ? `[${p} run](${summaries[p]!.data.workflowRun ?? summaries[p]!.provenance.workflowRun})` : `${p}: summary lokal tersedia`).join("; ");
-  lines.push(`| ${link(row.source, row.pattern)} | ${link(row.implementation.ui, row.implementation.symbol)}; ${row.operations.map((op: string) => `\`${op}\``).join("<br>")}<br>${link(row.contract_doc, "kontrak dan izin")} | ${available.length} / ${blocked}; ${assertions} assertion yang direncanakan | ${screenshots} | ${platform} |`);
+  const platform = (["android", "ios"] as const).map(p => {
+    const summary = summaries[p];
+    if (!summary) return `${p} belum tercatat`;
+    const counts = new Map<string, number>();
+    for (const item of cases) counts.set(item[p].status, (counts.get(item[p].status) ?? 0) + 1);
+    const label = Array.from(counts, ([status, n]) => `${n} ${status}`).join(", ");
+    const run = summary.provenance.workflowRun ?? summary.data.workflowRun;
+    return run ? `[${p}](${run}) ${label}` : `${p} ${label}`;
+  }).join("<br>");
+  const compared = row.device_comparisons.map(item =>
+    link(item.report, `${item.platform} ${item.id} · ${item.differingPixels === null ? item.status : item.differingPixels + " px berbeda"}`));
+  lines.push(`| ${link(row.source, row.pattern)} | ${link(row.implementation.ui, row.implementation.symbol)}; ${row.operations.map((op: string) => `\`${op}\``).join("<br>")}<br>${link(row.contract_doc, "kontrak dan izin")} | ${available.length} / ${blocked}; ${assertions} assertion yang direncanakan | ${screenshots} | ${[platform, ...compared].join("<br>")} |`);
 }
-lines.push("", "Status pada tabel menunjukkan kode dan skenario yang ada. Periksa hasil tiap ID pada JSON: `generated_not_executed` belum dijalankan, `blocked` memuat alasan, dan artefak web tidak membuktikan state yang identik di native. Perbedaan, aksesibilitas, permission, dan pembuktian nol piksel tetap memerlukan evaluasi platform.", "");
+lines.push("", "Jumlah per platform berasal dari run yang ditautkan. Setiap kasus di JSON mencatat hasil, marker saat run dan SHA perangkat. `runnable` menandai fixture yang dapat dijalankan, sedangkan `blocked` menyertakan alasannya. Perbandingan visual tiga keadaan per item dan bukti aksesibilitas masih memerlukan evaluasi perangkat.", "");
 writeFileSync(`${base}/routes.md`, lines.join("\n"));
 console.log(JSON.stringify({ routes: rows.length, webProductCaptures: rows.reduce((n: number, row: any) => n + row.web_evidence.filter((e: any) => e.evidence === "authenticated product web").length, 0), fixtureCases: rows.reduce((n: number, row: any) => n + row.fixture_cases.length, 0), android: !!summaries.android, ios: !!summaries.ios }));

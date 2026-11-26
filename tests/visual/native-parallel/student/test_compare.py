@@ -1,0 +1,72 @@
+"""Exercise rejection and pixel counting using synthetic Maestro output."""
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+from PIL import Image
+
+
+class MatchedReferenceTest(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.script = Path(__file__).resolve().with_name('compare.py')
+        self.case = 'Student quiz gateway attempt states'
+        self.state = 'quiz-gateway-new'
+        self.web = self.root / 'web' / 'android'
+        self.web.mkdir(parents=True)
+        pinned = self.script.parent / 'quiz-gateway' / 'web' / 'android'
+        for name in [self.state + '.png', 'quiz-gateway-reference.json']:
+            shutil.copyfile(pinned / name, self.web / name)
+        self.native = self.root / 'native'
+        self.flow = self.native / 'results' / 'unit-test' / self.case
+        self.image = self.flow / 'takeScreenshot' / ('student-' + self.state + '.png')
+        self.image.parent.mkdir(parents=True)
+        shutil.copyfile(self.web / (self.state + '.png'), self.image)
+        (self.native / 'report.xml').write_text(f'<testsuite><testcase name="{self.case}" status="SUCCESS"/></testsuite>')
+        command = {'command': {'takeScreenshotCommand': {'path': self.image.stem}},
+                   'metadata': {'status': 'COMPLETED', 'artifacts': [{'type': 'TAKE_SCREENSHOT', 'path': 'takeScreenshot/' + self.image.name}]}}
+        (self.flow / 'commands.json').write_text(json.dumps([command]))
+
+    def compare(self):
+        out = self.root / 'comparison'
+        process = subprocess.run([sys.executable, str(self.script), '--platform', 'android',
+                                  '--web', str(self.web.parent), '--native', str(self.native),
+                                  '--output', str(out)], capture_output=True, text=True)
+        # Other cases are deliberately absent, so the entire run is incomplete.
+        self.assertEqual(process.returncode, 1, process.stderr)
+        return next(row for row in json.loads((out / 'comparison.json').read_text()) if row['id'] == self.state)
+
+    def test_counts_changed_pixels_on_the_whole_viewport(self):
+        self.assertEqual(self.compare()['status'], 'pass')
+        with Image.open(self.image) as source:
+            pixels = source.convert('RGB')
+        previous = pixels.getpixel((0, 0))
+        pixels.putpixel((0, 0), (255 - previous[0], previous[1], previous[2]))
+        pixels.save(self.image)
+        result = self.compare()
+        self.assertEqual((result['status'], result['differing_pixels'], result['bounds']), ('different', 1, [0, 0, 1, 1]))
+
+    def test_refuses_a_capture_without_its_device_trace(self):
+        (self.flow / 'commands.json').write_text('[]')
+        self.assertEqual(self.compare()['status'], 'not_comparable')
+
+    def test_refuses_a_failed_testcase(self):
+        (self.native / 'report.xml').write_text(f'<testsuite><testcase name="{self.case}" status="ERROR"><failure/></testcase></testsuite>')
+        self.assertEqual(self.compare()['status'], 'not_comparable')
+
+    def test_refuses_changed_web_inputs(self):
+        file = self.web / 'quiz-gateway-reference.json'
+        data = json.loads(file.read_text())
+        data['states']['new']['assessment']['questionCount'] += 1
+        file.write_text(json.dumps(data))
+        self.assertEqual(self.compare()['status'], 'not_comparable')
+
+
+if __name__ == '__main__':
+    unittest.main()

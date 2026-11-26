@@ -1,6 +1,6 @@
 # Bukti migrasi Student
 
-`routes.json` dan [routes.md](routes.md) mencatat 50 pola sumber dari `plans/native-parallel/routes.tsv`, screen native, ID operasi, kasus fixture, jumlah assertion yang direncanakan, referensi web, bukti HTTP dan hasil perangkat jika tersedia. `generated_not_executed` berarti flow ada tetapi belum dibuktikan berjalan. Alias tetap memerlukan verifikasi tujuan dan Back. Rute dinamis memerlukan parameter valid, hilang atau ditolak sesuai relevansinya.
+`routes.json` dan [routes.md](routes.md) mencatat 50 pola sumber dari `plans/native-parallel/routes.tsv`, screen native, ID operasi, kasus fixture, referensi web, bukti HTTP dan hasil tiap perangkat. `runnable` berarti fixture dapat dijalankan. Kolom Android dan iOS mencantumkan hasil dari run yang ditautkan. Alias tetap memerlukan verifikasi tujuan dan Back. Rute dinamis memerlukan parameter valid, hilang atau ditolak sesuai relevansinya.
 
 `tests/visual/native-parallel/student/web-reference.spec.ts` mengambil referensi dari fixture web yang memakai komponen produksi dan data sintetis untuk katalog, kalender, dan quiz player. Hasil ini hanya memeriksa komponen di fixture pada viewport dan tema yang dijalankan. Fixture tidak membuktikan halaman server, data nyata, otorisasi, atau kesetaraan aplikasi native.
 
@@ -57,3 +57,9 @@ Ketiga pasangan katalog memakai data fixture sepadan pada ukuran 380 × 820. [Ha
 | Semua | 53.263 | [Web](device-runs/45814465447/android/web-captures/catalog-all.png) · [Android](device-runs/45814465447/android/captures/student-catalog-all.png) · [Dif](device-runs/45814465447/android/captures/catalog-all-diff.png) |
 | TPB | 45.212 | [Web](device-runs/45814465447/android/web-captures/catalog-tpb.png) · [Android](device-runs/45814465447/android/captures/student-catalog-tpb.png) · [Dif](device-runs/45814465447/android/captures/catalog-tpb-diff.png) |
 | PKA | 28.345 | [Web](device-runs/45814465447/android/web-captures/catalog-pka.png) · [Android](device-runs/45814465447/android/captures/student-catalog-pka.png) · [Dif](device-runs/45814465447/android/captures/catalog-pka-diff.png) |
+
+### Referensi pada ukuran perangkat
+
+Dashboard menggunakan sesi Student bertanda tangan serta respons kursus dan aktivitas dari PostgreSQL pengujian. Setiap SHA-256 mengikat data fixture native dan seed ke tangkapan halaman. Kalender dan gateway kuis memakai komponen web produksi dengan input sintetis yang sama dengan fixture native. Ketiga keadaan direkam pada 380 × 820 piksel untuk Android serta 1206 × 2622 piksel untuk iOS. [Dashboard](../../../../tests/visual/native-parallel/student/dashboard/) · [Kalender](../../../../tests/visual/native-parallel/student/calendar/) · [Gateway kuis](../../../../tests/visual/native-parallel/student/quiz-gateway/)
+
+Setiap perbandingan mencatat digest gambar dan status skenario Maestro. Pembanding memeriksa bahwa perintah tangkap layar memang selesai dalam testcase yang dituju. Katalog dapat menyimpan pengukuran tab yang sudah diperiksa saat langkah pencarian yang terjadi kemudian gagal, sehingga status seluruh testcase tetap terlihat bersama jumlah piksel berbeda. Untuk keadaan kuis, kalender, dashboard dan flashcard, pembanding juga memeriksa hasil akhir flow sebelum mengukur. [Kode pembanding](../../../../tests/visual/native-parallel/student/compare.py) · [Regresi pembanding](../../../../tests/visual/native-parallel/student/test_compare.py)
