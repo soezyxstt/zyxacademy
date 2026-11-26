@@ -11,3 +11,7 @@ export function getIntegerProgressRange({ min, max, now, percent }: ReturnType<t
   }
   return { min, max: 100, now: Math.round(percent) };
 }
+
+export function getProgressCornerRadius(width: number, height: number, radius: number): number {
+  return Math.max(0, Math.min(radius, width / 2, height / 2));
+}

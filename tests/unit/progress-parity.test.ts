@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 
 import { componentNames, galleryCases } from "../../packages/ui-parity/gallery";
 import { getProgressPosition, progressCases } from "../../packages/ui-parity/progress-cases";
-import { getIntegerProgressRange, getProgressValue } from "../../packages/ui-primitives/progress";
+import { getIntegerProgressRange, getProgressCornerRadius, getProgressValue } from "../../packages/ui-primitives/progress";
 
 test("the Expo and web galleries share three centered progress cases", () => {
   expect(componentNames).toContain("progress");
@@ -33,4 +33,11 @@ test("native accessibility converts fractional or out-of-range integers to an in
   expect(getIntegerProgressRange(fractional)).toEqual({ min: 0, max: 100, now: 50 });
   const large = getProgressValue(3_000_000_000, 4_000_000_000);
   expect(getIntegerProgressRange(large)).toEqual({ min: 0, max: 100, now: 75 });
+});
+
+test("the rounded coverage mask clamps both axes of the coincident fill to the track", () => {
+  expect(getProgressCornerRadius(256, 8, 8)).toBe(4);
+  expect(getProgressCornerRadius(4, 8, 8)).toBe(2);
+  expect(getProgressCornerRadius(256, 20, 8)).toBe(8);
+  expect(getProgressCornerRadius(0, 8, 8)).toBe(0);
 });
