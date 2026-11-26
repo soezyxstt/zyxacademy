@@ -26,7 +26,7 @@ async function bytes(response: StudentResponse, limit: number) {
   return data;
 }
 
-export type OnlineReadingContent = ReadingContent & { revision: string; structured: boolean };
+export type OnlineReadingContent = ReadingContent & { revision: string; structured: boolean; codingMode?: "native" | "browser" };
 
 export async function readOnlineMaterial(request: StudentRequest, target: Target, locale: ReadingContent["locale"], signal: AbortSignal): Promise<OnlineReadingContent> {
   const { courseId, materialId, kind, section } = target;
@@ -66,5 +66,6 @@ export async function readOnlineMaterial(request: StudentRequest, target: Target
   }
   assertActive(signal);
   return { kind, title: row.title, data, locale, section, revision: row.revision, structured: row.structured === true,
+    codingMode: row.codingMode === "native" || row.codingMode === "browser" ? row.codingMode : undefined,
     resolveImage: source => sources.get(source) };
 }

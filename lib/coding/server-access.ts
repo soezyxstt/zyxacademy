@@ -4,13 +4,19 @@ import { resolveCourseAccess } from "@/lib/student/course-access";
 import { db } from "@/db";
 import { codingProblems } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
+import { nativeArticleCodingHeader } from "./native-article-contract";
+import { getPeranCodes } from "@/lib/auth/authorization";
+import { personalAccountSessionHeader } from "@/packages/student-community/account-access";
 import { codingProblemPrivateSchema } from "./contracts";
 
 export async function requireCodingAccess(request: Request, courseId: string, checkNativeViewer = false) {
-  const session = await auth.api.getSession({ headers: request.headers });
+  const nativeArticle = request.headers.has(nativeArticleCodingHeader);
+  const session = await auth.api.getSession({ headers: request.headers, ...(nativeArticle ? { query: { disableCookieCache: true, disableRefresh: true } } : {}) });
   if (!session?.user?.id) throw new Error("CODING_UNAUTHORIZED");
   const expectedUser = request.headers.get("x-student-id");
   if (checkNativeViewer && expectedUser !== null && expectedUser !== session.user.id) throw new Error("CODING_FORBIDDEN");
+  if (nativeArticle && (expectedUser !== session.user.id || request.headers.get(personalAccountSessionHeader) !== session.session.id ||
+    !(await getPeranCodes(session.user.id)).includes("murid"))) throw new Error("CODING_FORBIDDEN");
   const access = await resolveCourseAccess({ courseId, userId: session.user.id });
   if (!access.hasCourseAccess || !access.canonicalCourseId || !access.hasFullContentAccess) throw new Error("CODING_FORBIDDEN");
   return { userId: session.user.id, courseId: access.canonicalCourseId };

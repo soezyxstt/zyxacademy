@@ -20,13 +20,13 @@ async function authorizedReading(studentId: string, { courseId, materialId }: Ta
   if (record && "ambiguous" in record) throw new OfflineHttpError(404, "READING_UNAVAILABLE");
   if (record) {
     if (!canAccessCourseContent(access, record.policyKind, [record.chapterId])) throw new OfflineHttpError(403, "READING_ACCESS_DENIED");
-    return { ...record, format: "canonical" as const, chapterIds: [record.chapterId] };
+    return { ...record, format: "canonical" as const, chapterIds: [record.chapterId], canRunCoding: access.hasFullContentAccess };
   }
   const legacyCourse = access.legacyCourseId ?? access.courseId ?? courseId;
   const legacy = await findLegacyMaterialDetail(legacyCourse, materialId);
   if (legacy?.source !== "legacy-article") throw new OfflineHttpError(404, "READING_UNAVAILABLE");
   if (!canAccessCourseContent(access, "article", legacy.chapterIds)) throw new OfflineHttpError(403, "READING_ACCESS_DENIED");
-  return { ...legacy, id: materialId, chapterId: legacy.chapterIds[0] ?? null, policyKind: "article" as const, legacyCourse };
+  return { ...legacy, id: materialId, chapterId: legacy.chapterIds[0] ?? null, policyKind: "article" as const, legacyCourse, canRunCoding: false };
 }
 
 export async function loadNativePublishedReading(studentId: string, target: Target, environment: string) {
@@ -58,5 +58,5 @@ export async function loadNativePublishedReading(studentId: string, target: Targ
     catch { return false; }
   });
   const revision = createHash("sha256").update(JSON.stringify([kind, version, data, assets])).digest("hex");
-  return { kind, courseId: target.courseId, id, title, revision, data, assets, structured: article !== null };
+  return { kind, courseId: target.courseId, id, title, revision, data, assets, structured: article !== null, codingMode: article ? current.canRunCoding ? "native" as const : "browser" as const : null };
 }

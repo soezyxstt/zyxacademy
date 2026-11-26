@@ -9,7 +9,9 @@ import { Input } from "../../../components/Input";
 import { ReadingContentDocument } from "../../../offline/ReadingDocument";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { CourseMarkdown } from "../CourseMarkdown";
-import type { StudentRequest, StudentSession } from "../contracts";
+import type { StudentRequest, StudentServices, StudentSession } from "../contracts";
+import { sectionCodingParts } from "../../../../../lib/coding/native-article-contract";
+import { ArticleCoding, type CodingItem } from "./ArticleCoding";
 import { ReadingNavigation } from "./ReadingNavigation";
 import { readingNavigationItems } from "./reading-search";
 import { OnlineReadingError, type OnlineReadingContent } from "./online-reading";
@@ -18,7 +20,7 @@ import { readingLearning, readingStudySections, resumeReadingSection, type Check
 type Theme = keyof typeof nativeColors;
 type Study = ReturnType<typeof readingLearning>;
 type Props = { content: OnlineReadingContent; courseId: string; request: StudentRequest; session: StudentSession;
-  theme: Theme; onCompleted(): void; reload(): void };
+  theme: Theme; drafts?: StudentServices["drafts"]; openWeb?: () => void; onCompleted(): void; reload(): void };
 
 const toolbar = { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 8 };
 const stale = (error: unknown) => error instanceof OnlineReadingError && [401, 403, 404, 409].includes(error.status);
@@ -31,7 +33,7 @@ function takeVisit(visit: Visit) {
   return elapsed;
 }
 
-export function ReadingStudy({ content, courseId, request, session, theme, onCompleted, reload }: Props) {
+export function ReadingStudy({ content, courseId, request, session, theme, drafts, openWeb, onCompleted, reload }: Props) {
   const { canInteract } = useProtectedInteraction();
   const study = useMemo(() => readingLearning(request, courseId, content), [request, courseId, content]);
   const sections = useMemo(() => readingStudySections(content), [content]);
@@ -42,6 +44,8 @@ export function ReadingStudy({ content, courseId, request, session, theme, onCom
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState<"unavailable" | "stale">();
   const [busy, setBusy] = useState(false);
+  const [showCoding, setShowCoding] = useState(false);
+  const [coding, setCoding] = useState<CodingItem>();
   const [check, setCheck] = useState<StudyBlock>();
   const pending = useRef<AbortController | null>(null);
   const visit = useRef<Visit | undefined>(undefined);
@@ -49,6 +53,10 @@ export function ReadingStudy({ content, courseId, request, session, theme, onCom
   const id = locale === "id";
   const colors = nativeColors[theme];
   const active = sections.find(section => section.id === selected) ?? sections.find(section => section.slug === content.section) ?? sections[0];
+  const codingSection = content.structured && active && "sections" in content.data
+    ? content.data.sections.find(section => section.id === active.id) : undefined;
+  const codingParts = useMemo(() => sectionCodingParts(codingSection?.blocks ?? []), [codingSection]);
+  const canUseNativeCoding = content.codingMode === "native" && Boolean(session.sessionId);
   const sectionProgress = progress && "sectionProgress" in progress ? progress.sectionProgress : {};
   const completed = progress && ("status" in progress ? progress.status === "completed"
     : sections.length > 0 && sections.every(section => sectionProgress[section.id]?.completed));
@@ -134,7 +142,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, onCom
 
   function scroll(percent: number) {
     const current = visit.current;
-    if (!current || !canInteract() || error || check) return;
+    if (!current || !canInteract() || error || check || showCoding) return;
     current.percent = Math.max(current.percent, percent);
     if (percent >= 90 && !current.autoCompleted && Date.now() - current.start >= 2_000 &&
       !sectionProgress[current.id]?.completed && !pending.current) {
@@ -168,6 +176,10 @@ export function ReadingStudy({ content, courseId, request, session, theme, onCom
             if (content.structured) select(sections.find(section => section.id === item.id));
             else if (item.slug) setUnstructuredSection(item.slug);
           }} />}
+          {codingParts.length > 0 && (canUseNativeCoding || openWeb) && <Button theme={theme} variant="outline" disabled={busy}
+            testID="student-reading-open-coding" onPress={() => {
+              if (canInteract()) { if (canUseNativeCoding) setShowCoding(true); else openWeb?.(); }
+            }}>{canUseNativeCoding ? "Python" : id ? "Buka Python di web" : "Open Python on the web"}</Button>}
           {checks.length > 0 && <Button theme={theme} variant="outline" disabled={busy} onPress={() => setCheck(checks[0])}>
             {id ? "Cek pemahaman" : "Check understanding"}
           </Button>}
@@ -178,6 +190,22 @@ export function ReadingStudy({ content, courseId, request, session, theme, onCom
         </>}
       </View>
     </View>
+    {codingSection && "version" in content.data && <Modal visible={showCoding && error !== "stale"}
+      onRequestClose={() => { setShowCoding(false); setCoding(undefined); }} animationType="none">
+      {showCoding && <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        {coding ? <ArticleCoding key={coding.part.id} item={coding} courseId={courseId} articleId={content.data.id}
+          version={content.data.version} scope={{ materialId: content.data.id, sectionId: codingSection.id,
+            partId: coding.part.id, revision: content.revision }} request={request} session={session} drafts={drafts} theme={theme}
+          close={() => setCoding(undefined)} />
+          : <ScrollView contentContainerStyle={{ padding: 12, gap: 8 }}>
+            <Button theme={theme} variant="outline" onPress={() => setShowCoding(false)}>{id ? "Kembali ke bacaan" : "Back to reading"}</Button>
+            {codingParts.map((item, index) => <Button key={item.part.id} theme={theme} variant="outline"
+              onPress={() => { if (canInteract()) setCoding(item); }}>
+              {item.title ? item.title + " · " : ""}{item.part.kind === "code_example" ? id ? "Contoh" : "Example" : id ? "Latihan" : "Exercise"} {index + 1}
+            </Button>)}
+          </ScrollView>}
+      </SafeAreaView>}
+    </Modal>}
     {active && <Modal visible={Boolean(check)} onRequestClose={() => setCheck(undefined)} animationType="none">
       {check && <ReadingCheck key={check.id} block={check} blocks={checks} study={study} locale={locale}
         sectionId={active.id} select={setCheck} close={() => setCheck(undefined)} theme={theme} session={session} />}

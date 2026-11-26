@@ -1,3 +1,4 @@
+import { assertNativeArticleProblem, requireNativeArticleCoding } from "@/lib/coding/native-article-access";
 import { db } from "@/db";
 import { codingSubmitHttpSchema, readCodingSurface, codingSurfaceIdentity } from "@/lib/coding/http-contracts";
 import { requireCodingAccess, assertCodingSameOrigin, loadPublishedCodingProblem, codingErrorResponse } from "@/lib/coding/server-access";
@@ -16,6 +17,8 @@ export async function GET(request: Request) {
     const actor = await requireCodingAccess(request, url.searchParams.get("courseId") ?? "", true);
     const problem = await loadPublishedCodingProblem(actor.courseId, url.searchParams.get("problemId") ?? "", Number(url.searchParams.get("version")));
     const surface = readCodingSurface(url.searchParams.get("surface"));
+    const article = await requireNativeArticleCoding(request, actor.userId, url.searchParams.get("courseId") ?? "");
+    assertNativeArticleProblem(article, problem, surface);
     if (surface?.kind === "live_quiz") await resolveCodingSurface(surface, problem, actor.userId);
     const surfaceId = surface ? codingSurfaceIdentity(surface) : undefined;
     const rows = await loadCodingHistory(db, actor.userId, problem.problemId, problem.version, { courseId: actor.courseId, surfaceId });
@@ -32,6 +35,8 @@ export async function POST(request: Request) {
     const { surface, submission } = parsed.data;
     const actor = await requireCodingAccess(request, parsed.data.courseId, true);
     const problem = await loadPublishedCodingProblem(actor.courseId, submission.problem.problemId, submission.problem.version);
+    const article = await requireNativeArticleCoding(request, actor.userId, parsed.data.courseId);
+    assertNativeArticleProblem(article, problem, surface);
     const policy = await resolveCodingSurface(surface, problem, actor.userId);
     const attempt = await submitCodingAttempt(createCodingAttemptRepository(db), {
       learnerId: actor.userId, courseId: actor.courseId, surface: surface.kind, surfaceId: policy.surfaceId,

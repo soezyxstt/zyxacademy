@@ -6,7 +6,7 @@ import { nativeColors } from "../../../../../packages/design-tokens/native-color
 import { Button } from "../../../components/Button";
 import type { ReadingContent } from "../../../offline/reading-document";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
-import type { StudentRequest, StudentSession } from "../contracts";
+import type { StudentRequest, StudentServices, StudentSession } from "../contracts";
 import { useOpenCourseZyra, type CourseZyraContextInput } from "../zyra/context";
 import { OnlineReadingError, readOnlineMaterial, type OnlineReadingContent } from "./online-reading";
 import { ReadingStudy } from "./ReadingStudy";
@@ -14,6 +14,7 @@ import { ReadingStudy } from "./ReadingStudy";
 type ReaderProps = {
   request: StudentRequest;
   session: StudentSession;
+  drafts?: StudentServices["drafts"];
   kind: ReadingContent["kind"];
   courseId: string;
   materialId: string;
@@ -56,7 +57,7 @@ export function OnlineReading(props: ReaderProps) {
   </>;
 }
 
-function OnlineReadingPage({ request, session, kind, courseId, materialId, locale, section, title, theme, close, openWeb, ask, onCompleted }: ReaderProps & {
+function OnlineReadingPage({ request, session, kind, courseId, materialId, locale, section, title, theme, close, openWeb, drafts, ask, onCompleted }: ReaderProps & {
   close(): void; onCompleted(): void; ask?: (snippet: string, sectionTitle?: string) => void;
 }) {
   const { canInteract } = useProtectedInteraction();
@@ -101,7 +102,7 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
       </Text> : null}
     </View> : null}
     {state && "content" in state ? <ReadingStudy key={state.content.revision} content={state.content} courseId={courseId} request={request}
-      session={session} theme={theme} onCompleted={onCompleted} reload={reload} />
+      session={session} theme={theme} drafts={drafts} openWeb={openWeb} onCompleted={onCompleted} reload={reload} />
       : !state ? <ActivityIndicator style={{ margin: 20 }} accessibilityLabel={id ? "Memuat bacaan" : "Loading reading"} />
       : <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
         <Text accessibilityRole="alert" style={{ color: colors.foreground }}>

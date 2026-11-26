@@ -68,14 +68,28 @@ export const operationsCatalog = [
     "actions": ["GET"],
     "tools": [],
     "status": "excluded",
-    "reason": "Student Python exercise reads provide the published public problem snapshot. Live reads also require current participant membership, room and question. No private tests or reference solution are exposed."
+    "reason": "Student Python exercise reads provide the published public problem snapshot. Live reads also require current participant membership, room and question. Expo Article reads verify the current signed learner, published reading revision, section and exercise. Only public problem fields are returned."
   },
   {
     "source": "app/api/coding/submissions/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "Student coding history and graded attempts use the learner's verified account, existing course access and the authorized article or live room. Live grading uses the existing attempt reservation and score delivery. Interactive practice and exercise help provide no MCP capability or scope."
+    "reason": "Student coding history and graded attempts use the learner's verified account, existing course access and the authorized article or live room. Expo Article grading binds the exact published section and part to the signed learner request. Live grading uses the existing attempt reservation and score delivery. Student coding provides no MCP capability or scope."
+  },
+  {
+    "source": "app/api/coding/drafts/route.ts",
+    "actions": ["GET", "PUT"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Learners read and save their own coding drafts. Expo Article requests additionally verify the current account, session, Article section, part, revision and draft key."
+  },
+  {
+    "source": "app/api/coding/terminal/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive Python sessions require existing course access. Expo Article requests additionally verify the signed learner and current runnable Article part. No MCP credentials or scope apply."
   },
   {
     "source": "app/api/native/academic-document/[slug]/[materialId]/suggestion/route.ts",
@@ -145,7 +159,7 @@ export const operationsCatalog = [
     "actions": ["GET"],
     "tools": [],
     "status": "excluded",
-    "reason": "Published canonical, website and generated course readings use the current Student session, course and chapter authorization, and Tutorial PKA registration where applicable. Admitted image bytes are bound to the same authorized revision. Native reading does not accept MCP credentials or change authoring permissions."
+    "reason": "Published canonical, website and generated course readings use the current Student session, course and chapter authorization, and Tutorial PKA registration where applicable. Admitted image bytes are bound to the same authorized revision. Published structured Articles indicate whether the existing full course entitlement permits native Python. Native reading does not accept MCP credentials or change authoring permissions."
   },
   {
     "source": "app/api/native/student/reading/learning/route.ts",
