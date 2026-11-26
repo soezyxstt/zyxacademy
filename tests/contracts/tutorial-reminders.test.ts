@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
-import { getAvailabilityReminderWeek, getDeferredAvailabilityReminderWeek, getTutorialEmailDispatchAt, safeReminderLink } from "@/lib/notifications/tutorial-reminder-policy";
-import { renderTutorialSession30mEmail } from "@/lib/notifications/tutorial-reminder-emails";
+import { getAvailabilityReminderWeek, getDeferredAvailabilityReminderWeek, getTutorialEmailDispatchTimes, isTutorialEmailDue, safeReminderLink } from "@/lib/notifications/tutorial-reminder-policy";
+import { renderTutorialSessionReminderEmail } from "@/lib/notifications/tutorial-reminder-emails";
+import { DEFAULT_TUTORIAL_EMAIL_SCHEDULE, isTutorialEmailSchedule, tutorialEmailOffsets } from "@/lib/notifications/tutorial-email-schedule";
 import { DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES } from "@/lib/notifications/types";
 import { cronWindow } from "@/lib/queue/cron";
 
@@ -33,13 +34,30 @@ test("deferred availability uses the original Saturday week and expires at the n
   expect(getDeferredAvailabilityReminderWeek("tutor_availability:2026-02-30", new Date("2026-03-01T01:00:00Z"))).toBeNull();
   expect(getDeferredAvailabilityReminderWeek("upcoming_session:booking", new Date("2026-11-14T01:00:00Z"))).toBeNull();
 });
-test("H-30 queues the exact minute, including non-five-minute starts, and never sends after start", () => {
+test("default reminder is exactly once 60 minutes before start, including non-five-minute starts", () => {
   const date = "2026-11-29";
-  expect(getTutorialEmailDispatchAt(date, "08:00", new Date("2026-11-29T00:30:00Z"))).toBe(Date.parse("2026-11-29T00:30:00Z"));
-  expect(getTutorialEmailDispatchAt(date, "08:00", new Date("2026-11-29T00:35:00Z"))).toBeNull();
-  expect(getTutorialEmailDispatchAt(date, "08:03", new Date("2026-11-29T00:30:00Z"))).toBe(Date.parse("2026-11-29T00:33:00Z"));
-  expect(getTutorialEmailDispatchAt(date, "08:03", new Date("2026-11-29T00:35:00Z"))).toBe(Date.parse("2026-11-29T00:33:00Z"));
-  expect(getTutorialEmailDispatchAt(date, "08:00", new Date("2026-11-29T00:30:00Z"), new Date("2026-11-29T01:00:00Z"))).toBeNull();
+  const schedule = DEFAULT_TUTORIAL_EMAIL_SCHEDULE;
+  expect(tutorialEmailOffsets(schedule)).toEqual([60]);
+  expect(getTutorialEmailDispatchTimes(date, "08:03", schedule, new Date("2026-11-29T00:00:00Z"))).toEqual([Date.parse("2026-11-29T00:03:00Z")]);
+  expect(getTutorialEmailDispatchTimes(date, "08:03", schedule, new Date("2026-11-29T00:05:00Z"))).toEqual([Date.parse("2026-11-29T00:03:00Z")]);
+  expect(getTutorialEmailDispatchTimes(date, "08:03", schedule, new Date("2026-11-29T00:10:00Z"))).toEqual([]);
+  expect(getTutorialEmailDispatchTimes(date, "08:03", schedule, new Date("2026-11-29T00:00:00Z"), new Date("2026-11-29T01:03:00Z"))).toEqual([]);
+});
+test("repeat offsets stop before session and are bounded; preferences are rechecked at delivery", () => {
+  const repeat = { mode: "repeat", leadMinutes: 95, intervalMinutes: 30 } as const;
+  expect(tutorialEmailOffsets(repeat)).toEqual([95,65,35,5]);
+  expect(isTutorialEmailSchedule({mode: "repeat", leadMinutes: 60, intervalMinutes: 5})).toBe(true);
+  expect(isTutorialEmailSchedule({mode: "repeat", leadMinutes: 65, intervalMinutes: 5})).toBe(false);
+  expect(isTutorialEmailSchedule({mode: "repeat", leadMinutes: 30, intervalMinutes: 30})).toBe(false);
+  expect(isTutorialEmailSchedule({mode: "once", leadMinutes: 1441, intervalMinutes: 30})).toBe(false);
+  expect(isTutorialEmailSchedule({mode: "repeat", leadMinutes: 60, intervalMinutes: 1})).toBe(false);
+  const start = new Date("2026-11-29T01:00:00Z");
+  const due = start.getTime() - 35 * 60_000;
+  expect(isTutorialEmailDue(repeat, start, due, new Date(due))).toBe(true);
+  expect(isTutorialEmailDue(DEFAULT_TUTORIAL_EMAIL_SCHEDULE, start, due, new Date(due))).toBe(false);
+  expect(isTutorialEmailDue(repeat, start, due, new Date(due - 1))).toBe(false);
+  expect(isTutorialEmailDue(repeat, start, due, new Date(due + 300_000))).toBe(false);
+  expect(isTutorialEmailDue(repeat, start, due, start)).toBe(false);
 });
 test("both reminders default on and cloud dispatch schedules all ticks", () => {
   expect(DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES.tutorAvailabilityEnabled).toBe(true);
@@ -53,13 +71,14 @@ test("both reminders default on and cloud dispatch schedules all ticks", () => {
 });
 test("email includes safe meeting and both attachment directions", () => {
   for (const locale of ["id", "en"] as const) {
-    const result = renderTutorialSession30mEmail({ locale, name: "<Name>", courseTitle: "Math", groupName: "A", tutorName: "Tutor",
+    const result = renderTutorialSessionReminderEmail({ locale, name: "<Name>", courseTitle: "Math", groupName: "A", tutorName: "Tutor",
       date: "2026-11-29", startTime: "08:00", endTime: "09:30", mode: "online", location: null,
-      meetUrl: "https://meet.google.com/abc-defg-hij", topic: "Calculus", audience: "student",
+      meetUrl: "https://meet.google.com/abc-defg-hij", topic: "Calculus", audience: "student", minutesBefore: 95,
       resources: [{ label: "<Tutor file>", url: "/api/storage/file/schedules/b/post_session/a.pdf", fromTutor: true },
         { label: "Student file", url: "https://example.com/file", fromTutor: false },
         { label: "Unsafe", url: "javascript:alert(1)", fromTutor: false }] });
     expect(result.html).toContain("https://meet.google.com/abc-defg-hij");
+    expect(result.html).toContain(locale === "en" ? "1 hour 35 minutes" : "1 jam 35 menit");
     expect(result.html).toContain("&lt;Tutor file&gt;");
     expect(result.html).toContain("Student file");
     expect(result.html).not.toContain("javascript:");

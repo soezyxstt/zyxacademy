@@ -47,11 +47,14 @@ export type SystemNotificationTemplate =
   | { key: "admin_alert"; params: { title: string; body: string } }
   | { key: "discussion"; params: { threadTitle?: string; preview?: string; eventKind?: string } };
 
+import { DEFAULT_TUTORIAL_EMAIL_SCHEDULE, type TutorialEmailSchedule } from "./tutorial-email-schedule";
+
 export interface ActivityNotificationPreferences {
   discussionsEnabled: boolean;
   flashcardsEnabled: boolean;
   tutorAvailabilityEnabled: boolean;
   tutorialSessionEmailEnabled: boolean;
+  tutorialEmailSchedule: TutorialEmailSchedule;
 }
 
 export const DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES: ActivityNotificationPreferences = {
@@ -59,9 +62,10 @@ export const DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES: ActivityNotificationPref
   flashcardsEnabled: true,
   tutorAvailabilityEnabled: true,
   tutorialSessionEmailEnabled: true,
+  tutorialEmailSchedule: DEFAULT_TUTORIAL_EMAIL_SCHEDULE,
 };
 
-export type ActivityNotificationPreferenceKey = keyof ActivityNotificationPreferences;
+export type ActivityNotificationPreferenceKey = Exclude<keyof ActivityNotificationPreferences, "tutorialEmailSchedule">;
 
 export interface NotificationPayload {
   /** Short notification title (65 chars or fewer recommended). */

@@ -2,11 +2,13 @@
 
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { Bell, BookOpen, CalendarDays, Newspaper, ShieldCheck, BookmarkCheck, MessagesSquare, Layers } from "lucide-react";
-import { updateNotificationPreferencesAction, updateActivityNotificationPreferenceAction, type NotificationPreferencesActionState } from "./actions";
+import { updateNotificationPreferencesAction, updateActivityNotificationPreferenceAction, updateTutorialEmailScheduleAction, type NotificationPreferencesActionState } from "./actions";
 import { DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES, type ActivityNotificationPreferences, type ActivityNotificationPreferenceKey } from "@/lib/notifications/types";
 import type { EmailNotificationPreferences } from "@/lib/email-preferences/contracts";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { isTutorialEmailSchedule, tutorialEmailOffsets, type TutorialEmailMode } from "@/lib/notifications/tutorial-email-schedule";
 import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/lib/i18n/client";
 import { useStudentExperience } from "@/components/student-experience-provider";
@@ -97,6 +99,42 @@ export function NotificationPreferencesForm({
     else toast.error(t("notificationPreferences.saveFailed"));
   }, [state, t]);
 
+  const initialSchedule = initialActivityPreferences.tutorialEmailSchedule;
+  const [emailMode, setEmailMode] = useState<TutorialEmailMode>(initialSchedule.mode);
+  const [leadHours, setLeadHours] = useState(String(Math.floor(initialSchedule.leadMinutes / 60)));
+  const [leadMinutes, setLeadMinutes] = useState(String(initialSchedule.leadMinutes % 60));
+  const [interval, setInterval] = useState(String(initialSchedule.intervalMinutes));
+  useEffect(() => {
+    setEmailMode(initialSchedule.mode);
+    setLeadHours(String(Math.floor(initialSchedule.leadMinutes / 60)));
+    setLeadMinutes(String(initialSchedule.leadMinutes % 60));
+    setInterval(String(initialSchedule.intervalMinutes));
+  }, [initialSchedule.mode, initialSchedule.leadMinutes, initialSchedule.intervalMinutes]);
+  const schedule = { mode: emailMode, leadMinutes: Number(leadHours) * 60 + Number(leadMinutes), intervalMinutes: Number(interval) };
+  const validSchedule = leadHours !== "" && leadMinutes !== "" && interval !== "" &&
+    Number.isInteger(Number(leadHours)) && Number(leadHours) >= 0 && Number(leadHours) <= 24 &&
+    Number.isInteger(Number(leadMinutes)) && Number(leadMinutes) >= 0 && Number(leadMinutes) <= 59 &&
+    isTutorialEmailSchedule(schedule);
+  const scheduleChanged = schedule.mode !== activity.tutorialEmailSchedule.mode ||
+    schedule.leadMinutes !== activity.tutorialEmailSchedule.leadMinutes ||
+    schedule.intervalMinutes !== activity.tutorialEmailSchedule.intervalMinutes;
+  const saveSchedule = async () => {
+    if (!validSchedule || activityLock.current) return;
+    activityLock.current = true;
+    setActivityPending(true);
+    try {
+      const result = experience?.mode === "demo" ? { success: true } : await updateTutorialEmailScheduleAction(schedule);
+      if (!result.success) throw new Error("SAVE_FAILED");
+      setActivity(current => ({ ...current, tutorialEmailSchedule: schedule }));
+      toast.success(t("notificationPreferences.saved"));
+    } catch {
+      toast.error(t("notificationPreferences.saveFailed"));
+    } finally {
+      activityLock.current = false;
+      setActivityPending(false);
+    }
+  };
+
   const masterId = `${baseId}-email-enabled`;
 
   return (
@@ -124,6 +162,49 @@ export function NotificationPreferencesForm({
               <Switch id={`${baseId}-${key}`} checked={activity[key]} disabled={activityPending} onCheckedChange={checked => void toggleActivity(key, checked)} aria-label={t(`notificationPreferences.${label}`)} />
             </div>
           ))}
+          {activity.tutorialSessionEmailEnabled && (
+            <div className="space-y-3 px-3 py-3 sm:pl-10">
+              <label htmlFor={`${baseId}-tutorial-email-mode`} className="block text-body-sm font-medium">
+                {t("notificationPreferences.tutorialEmailFrequency")}
+              </label>
+              <select id={`${baseId}-tutorial-email-mode`} value={emailMode}
+                onChange={event => setEmailMode(event.target.value === "repeat" ? "repeat" : "once")}
+                disabled={activityPending}
+                className="h-10 w-full max-w-sm rounded-md border border-input bg-background px-3 text-body-sm focus-visible:ring-2 focus-visible:ring-primary/50">
+                <option value="once">{t("notificationPreferences.tutorialEmailOnce")}</option>
+                <option value="repeat">{t("notificationPreferences.tutorialEmailRepeat")}</option>
+              </select>
+              <fieldset disabled={activityPending} className="space-y-2">
+                <legend className="mb-2 text-body-sm font-medium">
+                  {t(emailMode === "repeat" ? "notificationPreferences.tutorialEmailFirst" : "notificationPreferences.tutorialEmailBefore")}
+                </legend>
+                <div className="grid max-w-sm grid-cols-2 gap-3">
+                  <label className="space-y-1 text-body-xs">
+                    <span>{t("notificationPreferences.tutorialEmailHours")}</span>
+                    <Input type="number" min={0} max={24} step={1} value={leadHours} onChange={event => setLeadHours(event.target.value)} />
+                  </label>
+                  <label className="space-y-1 text-body-xs">
+                    <span>{t("notificationPreferences.tutorialEmailMinutes")}</span>
+                    <Input type="number" min={0} max={59} step={1} value={leadMinutes} onChange={event => setLeadMinutes(event.target.value)} />
+                  </label>
+                </div>
+                {emailMode === "repeat" && (
+                  <label className="block max-w-sm space-y-1 text-body-xs">
+                    <span>{t("notificationPreferences.tutorialEmailEvery")}</span>
+                    <Input type="number" min={5} max={1440} step={1} value={interval} onChange={event => setInterval(event.target.value)} />
+                  </label>
+                )}
+              </fieldset>
+              <p className={cn("text-body-xs", validSchedule ? "text-muted-foreground" : "text-destructive")} aria-live="polite">
+                {validSchedule
+                  ? t("notificationPreferences.tutorialEmailCount", { count: tutorialEmailOffsets(schedule).length })
+                  : t("notificationPreferences.tutorialEmailInvalid")}
+              </p>
+              <p className="text-body-xs text-muted-foreground">{t("notificationPreferences.tutorialEmailCategoryNote")}</p>
+              <Button type="button" size="sm" variant="outline" disabled={!validSchedule || !scheduleChanged || activityPending}
+                onClick={() => void saveSchedule()}>{t("notificationPreferences.save")}</Button>
+            </div>
+          )}
         </div>
       </section>
       <DeviceNotificationSettings />

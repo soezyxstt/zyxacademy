@@ -1,5 +1,6 @@
 import { addCalendarDays, calendarDateFromInput } from "@/lib/schedule/calendar-date";
 import { formatJakartaDateKey, parseJakartaSessionStart } from "./interval-policy";
+import { tutorialEmailOffsets, type TutorialEmailSchedule } from "./tutorial-email-schedule";
 
 export function getAvailabilityReminderWeek(now: Date) {
   const dateKey = formatJakartaDateKey(now);
@@ -20,13 +21,23 @@ export function getDeferredAvailabilityReminderWeek(dedupeKey: string, now: Date
   return week.saturday && today >= dateKey && today <= week.end ? week : null;
 }
 
-/** Queue the exact H-30 instant; allow one extra sweep for late bookings. */
-export function getTutorialEmailDispatchAt(date: string, time: string, tick: Date, now = tick): number | null {
+export const TUTORIAL_EMAIL_SWEEP_MS = 5 * 60_000;
+
+/** Discover exact delivery times just ahead of a five-minute sweep, with one
+ * recovery window for a newly booked or briefly delayed session. */
+export function getTutorialEmailDispatchTimes(date: string, time: string, schedule: TutorialEmailSchedule, tick: Date, now = tick): number[] {
   const starts = parseJakartaSessionStart(date, time);
-  if (!starts || starts <= now) return null;
-  const minutes = (starts.getTime() - tick.getTime()) / 60_000;
-  if (minutes <= 25 || minutes >= 35) return null;
-  return starts.getTime() - 30 * 60_000;
+  if (!starts || starts <= now) return [];
+  return tutorialEmailOffsets(schedule).map(offset => starts.getTime() - offset * 60_000)
+    .filter(due => due > tick.getTime() - TUTORIAL_EMAIL_SWEEP_MS && due < tick.getTime() + TUTORIAL_EMAIL_SWEEP_MS &&
+      due > now.getTime() - TUTORIAL_EMAIL_SWEEP_MS);
+}
+
+/** Recheck the current recipient's preference before a delayed task sends. */
+export function isTutorialEmailDue(schedule: TutorialEmailSchedule, startsAt: Date, dispatchAt: number, now: Date): boolean {
+  return Number.isFinite(dispatchAt) && dispatchAt <= now.getTime() &&
+    now.getTime() - dispatchAt < TUTORIAL_EMAIL_SWEEP_MS && now < startsAt &&
+    tutorialEmailOffsets(schedule).includes((startsAt.getTime() - dispatchAt) / 60_000);
 }
 
 export function safeReminderLink(value: string, appUrl: string): string | null {

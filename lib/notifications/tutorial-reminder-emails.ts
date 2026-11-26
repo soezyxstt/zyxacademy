@@ -25,15 +25,19 @@ export function renderTutorAvailabilityEmail(input: { locale: Locale; name: stri
 }
 
 export interface TutorialReminderResource { label: string; url: string; fromTutor: boolean }
-export function renderTutorialSession30mEmail(input: {
+export function renderTutorialSessionReminderEmail(input: {
   locale: Locale; name: string; courseTitle: string; groupName: string; tutorName: string;
   date: string; startTime: string; endTime: string; mode: "online" | "offline";
   location: string | null; meetUrl: string | null; topic: string | null;
-  audience: "student" | "tutor"; resources: TutorialReminderResource[];
+  audience: "student" | "tutor"; resources: TutorialReminderResource[]; minutesBefore: number;
 }) {
   const en = input.locale === "en";
   const base = getPublicAppUrl();
-  const subject = en ? `Tutorial starts soon: ${input.courseTitle}` : `Tutorial segera dimulai: ${input.courseTitle}`;
+  const subject = en ? `Tutorial reminder: ${input.courseTitle}` : `Pengingat tutorial: ${input.courseTitle}`;
+  const hours = Math.floor(input.minutesBefore / 60);
+  const minutes = input.minutesBefore % 60;
+  const duration = [hours ? (en ? `${hours} hour${hours === 1 ? "" : "s"}` : `${hours} jam`) : "",
+    minutes ? (en ? `${minutes} minute${minutes === 1 ? "" : "s"}` : `${minutes} menit`) : ""].filter(Boolean).join(" ");
   const details = [
     { label: en ? "Course" : "Mata kuliah", value: input.courseTitle },
     { label: en ? "Group" : "Grup", value: input.groupName },
@@ -58,7 +62,7 @@ export function renderTutorialSession30mEmail(input: {
   return { subject, html: renderEmailLayout({ locale: input.locale, bodyHtml: `
     <h1 style="${emailStyles.heading}">${escape(subject)}</h1>
     <p style="${emailStyles.paragraph}">${escape(en ? `Hello ${input.name},` : `Halo ${input.name},`)}</p>
-    <p style="${emailStyles.paragraph}">${en ? "Your tutorial starts in about 30 minutes. Here are the meeting details." : "Sesi tutorialmu akan dimulai sekitar 30 menit lagi. Berikut detail pertemuannya."}</p>
+    <p style="${emailStyles.paragraph}">${escape(en ? `Your tutorial starts in about ${duration}. Here are the meeting details.` : `Sesi tutorialmu akan dimulai sekitar ${duration} lagi. Berikut detail pertemuannya.`)}</p>
     ${renderEmailDetails(details)}
     ${meet}${resources}
     <p style="${emailStyles.paragraph}margin-top:20px;">${link(en ? "View tutorial schedule" : "Lihat jadwal tutorial", schedulePath, base)}</p>

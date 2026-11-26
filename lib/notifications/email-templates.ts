@@ -124,31 +124,3 @@ export function renderStudyReengagementEmail(input: {
     ),
   };
 }
-
-export function renderUpcomingSessionEmail(input: {
-  locale: Locale;
-  recipientName: string;
-  courseTitle: string;
-  sessionDate: string;
-  startTime: string;
-  endTime: string;
-  link: string;
-}): { subject: string; html: string } {
-  const isEn = input.locale === "en";
-  return renderScheduleEventEmail({
-    locale: input.locale,
-    recipientName: input.recipientName,
-    title: isEn
-      ? `Upcoming tutorial session: ${input.courseTitle}`
-      : `Pengingat sesi tutorial: ${input.courseTitle}`,
-    summary: isEn
-      ? `Reminder that your ${input.courseTitle} tutorial session is scheduled soon.`
-      : `Pengingat bahwa sesi tutorial ${input.courseTitle} akan segera berlangsung.`,
-    details: [
-      { label: isEn ? "Course" : "Mata kuliah", value: input.courseTitle },
-      { label: isEn ? "Date" : "Tanggal", value: input.sessionDate },
-      { label: isEn ? "Time" : "Waktu", value: `${input.startTime} - ${input.endTime} WIB` },
-    ],
-    link: input.link,
-  });
-}

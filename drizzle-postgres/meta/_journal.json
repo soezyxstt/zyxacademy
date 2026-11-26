@@ -330,6 +330,13 @@
       "when": 1795657920002,
       "tag": "0046_tutorial_reminder_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1795657920003,
+      "tag": "0047_tutorial_email_schedule",
+      "breakpoints": true
     }
   ]
 }

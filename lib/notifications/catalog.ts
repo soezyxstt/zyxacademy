@@ -280,15 +280,15 @@ export const NOTIFICATION_EVENT_CATALOG: readonly NotificationCatalogEntry[] = [
     notificationType: "tutor_reminder",
     inApp: true,
     push: true,
-    email: "optional",
-    emailCategory: "events_and_schedules",
-    schedule: "Hourly (H-24h window with optional email, H-1h push window)",
+    email: "never",
+    emailCategory: null,
+    schedule: "Hourly (H-24h and H-1h push windows)",
     defaultLink: "/dashboard/schedule",
     summary: "Server-backed reminder ahead of confirmed tutorial sessions, complementing native local reminders.",
   },
 
   {
-    key: "tutorial_session_30m_email",
+    key: "tutorial_session_reminder_email",
     audiences: ["student", "tutor"],
     trigger: "interval",
     notificationType: "tutor_reminder",
@@ -296,9 +296,9 @@ export const NOTIFICATION_EVENT_CATALOG: readonly NotificationCatalogEntry[] = [
     push: false,
     email: "optional",
     emailCategory: "events_and_schedules",
-    schedule: "Five-minute discovery; queue delivery at H-30",
+    schedule: "Five-minute discovery; exact per-account reminder times (default H-1h)",
     defaultLink: "/dashboard/schedule",
-    summary: "Optional pre-session email with meeting details and participant resources.",
+    summary: "Optional pre-session email with meeting details and participant resources; once or repeated based on account preferences.",
   },
   // Interval: Tutor
   {

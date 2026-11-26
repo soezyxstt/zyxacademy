@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { saveEmailNotificationPreferences } from "@/lib/email-preferences/repository";
-import { setActivityNotificationPreference } from "@/lib/notifications/activity-preferences";
+import { isTutorialEmailSchedule } from "@/lib/notifications/tutorial-email-schedule";
+import { setActivityNotificationPreference, setTutorialEmailSchedule } from "@/lib/notifications/activity-preferences";
 import type { ActivityNotificationPreferenceKey } from "@/lib/notifications/types";
 
 export interface NotificationPreferencesActionState {
@@ -58,6 +59,21 @@ export async function updateActivityNotificationPreferenceAction(key: ActivityNo
     return { success: true };
   } catch (error) {
     console.error("[updateActivityNotificationPreferenceAction]", error);
+    return { success: false };
+  }
+}
+
+export async function updateTutorialEmailScheduleAction(schedule: unknown): Promise<{ success: boolean }> {
+  if (!isTutorialEmailSchedule(schedule)) return { success: false };
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user?.id) return { success: false };
+    await setTutorialEmailSchedule(session.user.id, schedule);
+    revalidatePath("/settings");
+    revalidatePath("/settings/notifications");
+    return { success: true };
+  } catch (error) {
+    console.error("[updateTutorialEmailScheduleAction]", error);
     return { success: false };
   }
 }
