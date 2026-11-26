@@ -7,6 +7,9 @@ import { AdminMarkdownDiagram } from "../shared-ui/AdminMarkdownDiagram";
 import { CourseMarkdown } from "../student/CourseMarkdown";
 import { CanvasTable, LearningCanvas } from "../student/zyra/LearningCanvas";
 import { SolutionGeometry } from "./geometry";
+import { SolutionEpsilonGraph } from "./epsilon-graph";
+import { SolutionInteractiveScene } from "./interactive-scene";
+import { visualFunctionToLatex } from "../../../../lib/math/visual-function-latex";
 import { readSolutionVisual, solutionFallback } from "./visual-preview-model";
 
 type Props = { value: unknown; origin: string; locale: "id" | "en"; theme?: keyof typeof nativeColors };
@@ -44,6 +47,11 @@ export function SolutionVisualPreview({ value, origin, locale, theme }: Props) {
     <Text accessibilityRole="header" style={[styles.title, { color: colors.foreground }]}>{visual.label}</Text>
     {markdown(visual.description, true)}
     {visual.kind === "geometry_2d" ? <SolutionGeometry visual={visual} theme={chosenTheme} /> : null}
+    {visual.kind === "epsilon_delta_graph" && <>
+      {markdown(`$${visualFunctionToLatex(visual.functionModel)}$`)}
+      <SolutionEpsilonGraph key={visual.id} spec={visual} locale={locale} theme={chosenTheme} />
+    </>}
+    {visual.kind === "interactive_scene" && <SolutionInteractiveScene key={visual.id} spec={visual} locale={locale} theme={chosenTheme} />}
     {visual.kind === "interactive_document" && ("table" in fallback || visual.printCaption !== fallback.content)
       ? markdown(visual.printCaption, true) : null}
     {"table" in fallback ? <CanvasTable table={fallback.table} {...common} /> : <>
