@@ -259,7 +259,10 @@ async function resolveCourseVideoAuthorization(key: string): Promise<CourseVideo
       .where(and(inArray(courseVideos.courseId, validCourseIdList), eq(courseVideos.videoUrl, key)));
     return {
       matched: true,
-      allowed: rows.length > 0 && rows.every((row) => !row.chapterId || access.scopedChapterIds.includes(row.chapterId)),
+      allowed:
+        rows.length > 0 &&
+        (access.tier === "staff" ||
+          rows.every((row) => !row.chapterId || access.scopedChapterIds.includes(row.chapterId))),
     };
   } catch {
     return { matched: true, allowed: false };

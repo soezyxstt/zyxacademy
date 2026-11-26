@@ -3,7 +3,7 @@
 import Image from "next/image";
 import dynamic from "next/dynamic";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -78,51 +78,77 @@ export function VideoPlayerModal({
   const t = useTranslations("studentCourse");
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
-  const [overrideSrc, setOverrideSrc] = useState<string | null>(null);
-  const [recoveryStage, setRecoveryStage] = useState<"idle" | "refreshed" | "fallback">("idle");
+  const [recovery, setRecovery] = useState<{
+    videoId: string;
+    src: string | null;
+    stage: "refreshing" | "refreshed" | "fallback";
+  } | null>(null);
+  const recoveryAbortRef = useRef<AbortController | null>(null);
   const playlistOpen = isPlaylistOpen && (playlist?.videos.length ?? 0) > 1;
   useDialogHistory(open && video !== null && playlistOpen, () => setIsPlaylistOpen(false));
 
   useEffect(() => {
-    setOverrideSrc(null);
-    setRecoveryStage("idle");
-  }, [video?.id, video?.videoUrl]);
+    recoveryAbortRef.current?.abort();
+    recoveryAbortRef.current = null;
+    return () => {
+      recoveryAbortRef.current?.abort();
+      recoveryAbortRef.current = null;
+    };
+  }, [open, video?.id, video?.videoUrl]);
 
   const handleMediaError = useCallback(async () => {
-    if (!video || !video.fallbackVideoUrl) return;
+    if (!open || !video || !video.fallbackVideoUrl) return;
+
+    const currentRecovery = recovery?.videoId === video.id ? recovery : null;
+    // Ignore duplicate error events while a refresh request is already in flight.
+    if (currentRecovery?.stage === "refreshing") return;
+
+    const targetVideoId = video.id;
+    const fallbackUrl = video.fallbackVideoUrl;
+    const currentSrc = currentRecovery?.src ?? video.videoUrl;
 
     // 1. Try refreshing an expired presigned URL once.
-    if (recoveryStage === "idle") {
-      setRecoveryStage("refreshed");
+    if (!currentRecovery) {
+      recoveryAbortRef.current?.abort();
+      const controller = new AbortController();
+      recoveryAbortRef.current = controller;
+      setRecovery({ videoId: targetVideoId, src: null, stage: "refreshing" });
+
       try {
-        const res = await fetch(`/api/videos/${encodeURIComponent(video.id)}/playback-url`, {
+        const res = await fetch(`/api/videos/${encodeURIComponent(targetVideoId)}/playback-url`, {
           cache: "no-store",
+          signal: controller.signal,
         });
+        if (controller.signal.aborted) return;
         if (res.ok) {
           const data = (await res.json()) as { url?: string };
-          if (data.url && data.url !== (overrideSrc ?? video.videoUrl)) {
-            setOverrideSrc(data.url);
+          if (controller.signal.aborted) return;
+          if (data.url && data.url !== currentSrc) {
+            setRecovery({ videoId: targetVideoId, src: data.url, stage: "refreshed" });
             return;
           }
         }
       } catch {
+        if (controller.signal.aborted) return;
         // Fall through to proxy fallback below.
       }
-      setRecoveryStage("fallback");
-      setOverrideSrc(video.fallbackVideoUrl);
+
+      if (!controller.signal.aborted) {
+        setRecovery({ videoId: targetVideoId, src: fallbackUrl, stage: "fallback" });
+      }
       return;
     }
 
     // 2. If refreshed presigned URL still fails, fall back to the storage proxy.
-    if (recoveryStage === "refreshed" && overrideSrc !== video.fallbackVideoUrl) {
-      setRecoveryStage("fallback");
-      setOverrideSrc(video.fallbackVideoUrl);
+    if (currentRecovery.stage === "refreshed" && currentSrc !== fallbackUrl) {
+      setRecovery({ videoId: targetVideoId, src: fallbackUrl, stage: "fallback" });
     }
-  }, [overrideSrc, recoveryStage, video]);
+  }, [open, recovery, video]);
 
   if (!video) return null;
 
-  const activeVideoSrc = overrideSrc ?? video.videoUrl;
+  const activeVideoSrc =
+    recovery?.videoId === video.id && recovery.src ? recovery.src : video.videoUrl;
 
   const playlistVideos = playlist?.videos || [];
   const currentIndex = playlistVideos.findIndex((v) => v.id === video.id);

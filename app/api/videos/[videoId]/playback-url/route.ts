@@ -23,7 +23,8 @@ export async function GET(
   { params }: { params: Promise<{ videoId: string }> },
 ) {
   const { videoId } = await params;
-  if (!videoId?.trim()) {
+  const cleanVideoId = videoId?.trim();
+  if (!cleanVideoId) {
     return NextResponse.json({ error: "Missing videoId" }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
@@ -40,7 +41,7 @@ export async function GET(
       videoUrl: courseVideos.videoUrl,
     })
     .from(courseVideos)
-    .where(eq(courseVideos.id, videoId))
+    .where(eq(courseVideos.id, cleanVideoId))
     .limit(1);
 
   if (!video) {

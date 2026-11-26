@@ -121,6 +121,14 @@ export function ZyxVideoPlayer({
     onEnded?.();
   }, [onEnded, videoId]);
 
+  const handleMediaError = useCallback(() => {
+    // Save current position and allow `handleCanPlay` to restore it if the
+    // parent recovers playback by swapping to a refreshed/fallback stream URL.
+    persistCurrentTime();
+    restoredForVideoRef.current = null;
+    onMediaError?.();
+  }, [onMediaError, persistCurrentTime]);
+
   const youtubeId = extractYouTubeVideoId(src);
   const effectiveSrc = youtubeId ? `youtube/${youtubeId}` : src;
   // Direct presigned S3/Neon URLs play cross-origin without requiring bucket CORS
@@ -149,7 +157,7 @@ export function ZyxVideoPlayer({
         onTimeUpdate={handleTimeUpdate}
         onPause={persistCurrentTime}
         onEnded={handleEnded}
-        onError={onMediaError}
+        onError={handleMediaError}
         className="h-full w-full object-contain"
       >
         <MediaProvider />

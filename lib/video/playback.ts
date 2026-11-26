@@ -47,6 +47,10 @@ export async function resolveCourseVideoPlaybackUrl(
     return { playbackUrl: trimmed, fallbackUrl: trimmed, isPresigned: false };
   }
 
+  if (trimmed.startsWith("/")) {
+    return { playbackUrl: trimmed, fallbackUrl: trimmed, isPresigned: false };
+  }
+
   const fallbackUrl = storageProvider.getUrl(trimmed);
   if (isDirectStorageVideoKey(trimmed) && typeof storageProvider.getSignedUrl === "function") {
     try {

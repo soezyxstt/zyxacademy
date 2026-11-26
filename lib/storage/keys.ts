@@ -474,12 +474,12 @@ export function buildCourseVideoThumbnailKey(params: {
 
 /** Returns true when a key is a protected course video file (excluding public thumbnails). */
 export function isCourseVideoKey(key: string): boolean {
-  return key.startsWith("courses/") && key.includes("/videos/") && !key.includes("/videos/thumbnails/");
+  return isSafeKey(key) && /^courses\/[^/]+\/videos\/(?!thumbnails\/)[^/]+$/.test(key);
 }
 
 /** Returns true when a key is a course video thumbnail under `courses/{slug}/videos/thumbnails/{leaf}`. */
 export function isCourseVideoThumbnailKey(key: string): boolean {
-  return key.startsWith("courses/") && key.includes("/videos/thumbnails/");
+  return isSafeKey(key) && /^courses\/[^/]+\/videos\/thumbnails\/[^/]+$/.test(key);
 }
 
 export function buildProductVerificationKey(planHash: string, leaf = "manifest.json"): string {
