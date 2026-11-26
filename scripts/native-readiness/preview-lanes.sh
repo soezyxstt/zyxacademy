@@ -16,13 +16,14 @@ for lane in shared-ui student academic operations; do
     result=clean
   else
     # These exact sibling blobs contain earlier, partial copies of the same
-    # host wiring. All of their settings are present in the integration host.
+    # host wiring, or of a fixture from the already merged shared-ui owner.
     while IFS= read -r -d '' conflict; do
       theirs=$(git rev-parse ":3:$conflict" 2>/dev/null || true)
       case "$conflict:$theirs" in
         apps/mobile-native/metro.config.js:37a0da32595bcda45c8d4225e5f460d2be3f9dc0|\
         apps/mobile-native/metro.config.js:e14f0a444329b687525c5c6c0041828537f0f2fe|\
         apps/mobile-native/metro.config.js:f173791ee1b71704e9f05c6f9b4097c7df330e49|\
+        apps/mobile-native/features/shared-ui/SharedUiCase.tsx:0c862d99b40168da5acd8ee6d6642d3fe430eb43|\
         apps/mobile-native/auth/session-provider.tsx:46e789eebb13c65f86d88a21b39b026751ac5d4f)
           git checkout --ours -- "$conflict"
           git add -- "$conflict"
