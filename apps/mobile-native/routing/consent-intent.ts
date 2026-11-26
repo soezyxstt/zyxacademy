@@ -1,4 +1,6 @@
-import { NATIVE_BROWSER_SCHEME } from "../auth/browser-intent";
+import { academicIntentPath } from "./academic-intent";
+import { NATIVE_BROWSER_SCHEME, rewriteNativeBrowserIntent } from "../auth/browser-intent";
+import { rewriteNativeAuthEntry } from "../auth/login-intent";
 import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
 import { browserDestination } from "./browser-destination";
 
@@ -15,7 +17,9 @@ export function createConsentIntake(now: () => number = Date.now) {
     for (const [id, value] of pending) if (value.expiresAt <= time) pending.delete(id);
   }
 
-  function capture(path: string, allocateId: () => string): string | null {
+  function capture(path: string, allocateId: () => string): string | null;
+  function capture(path: string, allocateId: () => Promise<string>): string | Promise<string> | null;
+  function capture(path: string, allocateId: () => string | Promise<string>): string | Promise<string> | null {
     const base = path.split(/[?#]/, 1)[0];
     if (!inputs.includes(base)) return null;
     if (path.length > 32768 || path.includes("#")) return route;
@@ -29,12 +33,19 @@ export function createConsentIntake(now: () => number = Date.now) {
     const url = browserDestination("authorize", fields);
     if (!url || !params.has("client_id")) return route;
 
-    prune();
-    const oldest = pending.keys().next();
-    if (pending.size >= 8 && !oldest.done) pending.delete(oldest.value);
-    const id = allocateId();
-    pending.set(id, { url, expiresAt: now() + 5 * 60_000 });
-    return route + "?handoff=" + encodeURIComponent(id);
+    const retain = (id: string) => {
+      prune();
+      const oldest = pending.keys().next();
+      if (pending.size >= 8 && !oldest.done) pending.delete(oldest.value);
+      pending.set(id, { url, expiresAt: now() + 5 * 60_000 });
+      return route + "?handoff=" + encodeURIComponent(id);
+    };
+    try {
+      const id = allocateId();
+      return typeof id === "string" ? retain(id) : id.then(retain, () => route);
+    } catch {
+      return route;
+    }
   }
 
   function resolve(id: unknown): string | null {
@@ -46,3 +57,8 @@ export function createConsentIntake(now: () => number = Date.now) {
 }
 
 export const consentIntake = createConsentIntake();
+
+export function createNativeIntentRedirect(allocateConsentId: () => Promise<string>) {
+  return ({ path }: { path: string; initial: boolean }) =>
+    consentIntake.capture(path, allocateConsentId) ?? rewriteNativeAuthEntry(path) ?? academicIntentPath(path) ?? rewriteNativeBrowserIntent(path);
+}

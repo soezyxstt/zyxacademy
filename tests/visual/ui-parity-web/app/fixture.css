@@ -2,6 +2,9 @@
 
 @source "../../../../components/ui/*.tsx";
 @source "./";
+@source "../../../../app/tautan/directory.tsx";
+@source "../../../../components/logo.tsx";
+@source "../../../../lib/links.ts";
 
 @font-face {
   font-family: "Parity Inter";

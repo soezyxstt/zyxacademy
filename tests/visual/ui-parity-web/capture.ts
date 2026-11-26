@@ -2,6 +2,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import { avatarPosition } from "../../../packages/ui-parity/avatar-cases";
+import { directoryCases } from "../../../packages/public-links/fixtures";
 import { parityFrame } from "../../../packages/ui-parity/frame";
 import { getProgressPosition } from "../../../packages/ui-parity/progress-cases";
 import { getSeparatorPosition } from "../../../packages/ui-parity/separator-cases";
@@ -194,6 +195,17 @@ try {
   }
   await expect(standard).not.toBeChecked();
   await expect(control("radio-group-disabled-dark").getByRole("radio").first()).toBeDisabled();
+  for (const [caseId, item] of Object.entries(directoryCases)) {
+    const response = await page.goto(`${url}/tautan/${caseId}`);
+    if (!response?.ok()) throw new Error(`Public directory fixture returned HTTP ${response?.status()}`);
+    const main = page.getByRole("main");
+    await expect(main.getByRole("link")).toHaveCount(item.links.length);
+    await expect(main.getByRole("heading", { level: 1 })).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    await expect.poll(() => main.locator("img:visible").evaluateAll(images =>
+      images.length === 1 && images.every(image => (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
+    await page.screenshot({ path: fileURLToPath(new URL(`directory-${caseId}.png`, outputDirectory)), scale: "device" });
+  }
   if (errors.length > 0) throw new Error(errors.join("\n"));
   const cases = galleryCases.map(({ id, component }) => ({ id, component }));
   await writeFile(manifest, `${JSON.stringify(cases, null, 2)}\n`);

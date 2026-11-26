@@ -61,11 +61,11 @@ function responseHeaders({ asset = false, version = revision, cursor = "4", vali
   };
 }
 
-function resource({ withImage = false, version = revision, cursor = "4", expires = lease, url = assetPath, locale = scope.locale } = {}) {
+function resource({ withImage = false, version = revision, cursor = "4", expires = lease, validatedAt = now, url = assetPath, locale = scope.locale } = {}) {
   return Response.json({
     ...identity, locale, resource: descriptor(target, version), data: withImage ? { ...data, body: `![Sample](${url})` } : data,
-    cursor, validatedAt: now, leaseExpiresAt: expires, assets: withImage ? [{ url, required: true }] : [],
-  }, { headers: responseHeaders({ version, cursor, expires }) });
+    cursor, validatedAt, leaseExpiresAt: expires, assets: withImage ? [{ url, required: true }] : [],
+  }, { headers: responseHeaders({ version, cursor, expires, validatedAt }) });
 }
 
 function raster(extraHeaders: HeadersInit = {}) {
@@ -240,12 +240,14 @@ test("an uncommitted access event suppresses the old package and rejects a late 
   expect(await readingStore.list(scope, guard)).toEqual([]);
 });
 
-test("expiry, renewed matching manifest, chapter withdrawal and session purge are enforced", async () => {
-  const { controller, commit, readingStore, metadata, db, guard, time } = await setup(resource({ expires: now + 1_000 }), resource());
+test("a current matching manifest renews healthy proof and chapter withdrawal purges the reading", async () => {
+  const { controller, commit, readingStore, metadata, db, guard, time } = await setup(resource({ expires: now + 1_000 }));
   expect((await controller.download(target)).status).toBe("saved");
+  time(now + 500);
+  await commit(page("4", { reset: false, serverTime: now + 500 }), [descriptor()], "4");
+  expect((await controller.read(target))?.summary.leaseExpiresAt).toBe(now + 1_000);
+  await readingStore.reconcile(scope, guard.assertCurrent);
   time(now + 1_000);
-  expect(await controller.read(target)).toBeNull();
-  await commit(page("4", { reset: false, serverTime: now + 1_001 }), [descriptor()], "4");
   expect((await controller.read(target))?.summary.leaseExpiresAt).toBe(lease);
   const narrowed = page("5", { reset: false, serverTime: now + 1_002, access: [{ ...grant, chapterIds: [] }] });
   await commit(narrowed, [], "4");
@@ -257,17 +259,128 @@ test("expiry, renewed matching manifest, chapter withdrawal and session purge ar
   expect(await controller.list()).toEqual([]);
 });
 
+test("an expired resource lease requires a successful resource and required image re-download", async () => {
+  const expiration = now + 1_000;
+  const refreshed = resource({ withImage: true, validatedAt: expiration + 1 });
+  const { controller, readingStore, commit, guard, observed, time } = await setup(
+    resource({ withImage: true, expires: expiration }), raster(),
+    refreshed, new Response(null, { status: 500 }),
+    resource({ withImage: true, validatedAt: expiration + 1 }),
+    raster({ "x-offline-validated-at": String(expiration + 1) }),
+  );
+  expect((await controller.download(target)).status).toBe("saved");
+  time(expiration);
+  await commit(page("4", { reset: false, serverTime: expiration }), [descriptor()], "4");
+  await readingStore.reconcile(scope, guard.assertCurrent);
+  expect(await controller.list()).toEqual([]);
+  expect((await controller.download(target)).status).toBe("retry");
+  expect(await controller.read(target)).toBeNull();
+  expect((await controller.download(target)).status).toBe("saved");
+  expect(observed.filter(path => path === assetPath)).toHaveLength(3);
+  expect((await controller.read(target))?.summary.leaseExpiresAt).toBe(lease);
+});
+
+test("a required image lease caps healthy manifest renewal and cannot be revived by metadata", async () => {
+  const expiration = now + 1_000;
+  const { controller, commit, readingStore, guard, time } = await setup(
+    resource({ withImage: true }), raster({ "x-offline-lease-expires-at": String(expiration) }),
+  );
+  expect((await controller.download(target)).status).toBe("saved");
+  time(now + 500);
+  await commit(page("4", { reset: false, serverTime: now + 500 }), [descriptor()], "4");
+  await readingStore.reconcile(scope, guard.assertCurrent);
+  expect((await controller.read(target))?.summary.leaseExpiresAt).toBe(expiration);
+  time(expiration);
+  await commit(page("4", { reset: false, serverTime: expiration }), [descriptor()], "4");
+  await readingStore.reconcile(scope, guard.assertCurrent);
+  expect(await controller.read(target)).toBeNull();
+});
+
+test("a reading already older than the policy freshness period requires a resource request", async () => {
+  const staleAt = now + 60_000;
+  const expires = now + 90_000;
+  const { controller, readingStore, commit, guard, time } = await setup(resource({ expires }), resource({ expires, validatedAt: staleAt }));
+  const limits = { reset: false, leaseExpiresAt: expires, access: [{ ...grant, leaseExpiresAt: expires }],
+    policy: { ...page().policy, contentMaxAgeMs: 60_000 } };
+  await commit(page("4", limits), [descriptor()], "4");
+  expect((await controller.download(target)).status).toBe("saved");
+  expect((await controller.read(target))?.summary.leaseExpiresAt).toBe(staleAt);
+  time(staleAt);
+  await commit(page("4", { ...limits, serverTime: staleAt }), [descriptor()], "4");
+  await readingStore.reconcile(scope, guard.assertCurrent);
+  expect(await controller.list()).toEqual([]);
+  expect((await controller.download(target)).status).toBe("saved");
+});
+
+test("cursor reset invalidates matching packages and rejects a late pre-reset response", async () => {
+  let respond!: (value: Response) => void;
+  let received!: () => void;
+  const requested = new Promise<void>(resolve => { received = resolve; });
+  const delayed = new Promise<Response>(resolve => { respond = resolve; });
+  const { controller, readingStore, commit, guard, time } = await setup(resource(), () => {
+    received();
+    return delayed;
+  }, resource({ cursor: "1", validatedAt: now + 1 }));
+  expect((await controller.download(target)).status).toBe("saved");
+  const preReset = controller.download(target);
+  await requested;
+  time(now + 1);
+  await commit(page("1", { serverTime: now + 1 }), [descriptor()], "4");
+  await readingStore.reconcile(scope, guard.assertCurrent);
+  expect(await controller.read(target)).toBeNull();
+  respond(resource());
+  expect((await preReset).status).toBe("changed");
+  expect((await controller.download(target)).status).toBe("saved");
+});
+
+test("an explicit same-revision invalidation remains pending across a matching manifest", async () => {
+  const { controller, readingStore, commit, guard, time } = await setup(resource(), resource({ cursor: "5", validatedAt: now + 1 }));
+  expect((await controller.download(target)).status).toBe("saved");
+  time(now + 1);
+  await commit(page("5", { reset: false, serverTime: now + 1, changes: [{
+    cursor: "5", kind: target.kind, courseId: target.courseId, resourceId: target.id, action: "invalidate", revision,
+  }] }), [descriptor()], "4");
+  await readingStore.reconcile(scope, guard.assertCurrent);
+  expect(await controller.read(target)).toBeNull();
+  expect((await controller.download(target)).status).toBe("saved");
+});
+
+test("a newer manifest behind a saved resource cursor cannot validate that package", async () => {
+  const { controller, readingStore, commit, guard, time } = await setup(resource({ cursor: "8" }), resource({ cursor: "8", validatedAt: now + 1 }));
+  expect((await controller.download(target)).status).toBe("saved");
+  expect(await controller.read(target)).not.toBeNull();
+  time(now + 1);
+  await commit(page("5", { reset: false, serverTime: now + 1 }), [descriptor()], "4");
+  await readingStore.reconcile(scope, guard.assertCurrent);
+  expect(await controller.read(target)).toBeNull();
+  expect((await controller.download(target)).status).toBe("saved");
+});
+
+test("a legacy package without verification metadata requires a fresh resource response", async () => {
+  const { controller, readingStore, commit, db, guard, time } = await setup(resource(), resource({ validatedAt: now + 1 }));
+  expect((await controller.download(target)).status).toBe("saved");
+  db.exec("DELETE FROM expo_reading_verification_v1");
+  time(now + 1);
+  await commit(page("4", { reset: false, serverTime: now + 1 }), [descriptor()], "4");
+  await readingStore.reconcile(scope, guard.assertCurrent);
+  expect(await controller.list()).toEqual([]);
+  expect((await controller.download(target)).status).toBe("saved");
+});
+
 test("pins complete packages within storage policy and splits large payloads into bounded SQLite rows", async () => {
   const { readingStore, commit, guard, db } = await setup();
   const materials = Array.from({ length: 26 }, (_, index) => descriptor({ ...target, id: `reading-${index}` }));
   await commit(page("5"), materials, "4");
+  const authority = await readingStore.authorize(scope, { ...target, id: materials[0].id }, guard);
+  const verification = { revision, cursor: "5", resetGeneration: authority!.resetGeneration, assetLeaseExpiresAt: null,
+    leaseExpiresAt: lease, validatedAt: now };
   for (const item of materials.slice(0, 25)) {
     const selection = { ...target, id: item.id };
     const body = new TextEncoder().encode(JSON.stringify({ ...data, id: selection.id, body: selection.id === "reading-0" ? "x".repeat(600_000) : "" }));
-    await readingStore.store(scope, { target: selection, body, assets: [], revision, cursor: "5", leaseExpiresAt: lease, validatedAt: now }, guard);
+    await readingStore.store(scope, { target: selection, body, assets: [], ...verification }, guard);
   }
   await expect(readingStore.store(scope, { target: { ...target, id: materials[25].id }, body: new Uint8Array([42]),
-    assets: [], revision, cursor: "5", validatedAt: now, leaseExpiresAt: lease }, guard)).rejects.toMatchObject({ code: "storage-full" });
+    assets: [], ...verification }, guard)).rejects.toMatchObject({ code: "storage-full" });
   expect(await readingStore.list(scope, guard)).toHaveLength(25);
   expect(db.query("SELECT MAX(length(data)) AS size FROM expo_reading_parts_v1").get()).toEqual({ size: 256 * 1024 });
   expect((await readingStore.read(scope, { ...target, id: "reading-0" }, guard))?.data).toMatchObject({ body: "x".repeat(600_000) });

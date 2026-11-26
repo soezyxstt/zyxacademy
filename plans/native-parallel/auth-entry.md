@@ -6,6 +6,8 @@ The return allowlist comes from `routes.tsv`. External auth links validate and e
 
 Sign-out revokes the verified session and clears its app data through the existing session controller. A failed revocation offers retry and keeps sign-in disabled while cleanup is pending. The Home action targets `/`. It reaches the current internal entry until the Operations public home is integrated. The callback and sign-out do not use the internal session diagnostics as a destination.
 
+An expired or server-invalid session persists its local cleanup scope without a credential before purging cached data. Interrupted cleanup resumes offline at startup. The offline library uses the last locale verified by the canonical account context for that exact session. A known role denial keeps the active app session separate from cached reading access.
+
 ## Visual references for hosted CI
 
 **Unverified on Android, iOS and the web reference.** Use the actual marketing route and the corresponding Expo route. Capture 380 px and a wide viewport where supported, with the application fonts and both themes. Record OS, density, locale, reference commit, image and verdict for each case. Hold async transitions with test intercepts or controlled fixtures on hosted infrastructure.

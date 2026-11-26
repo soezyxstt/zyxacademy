@@ -9,7 +9,7 @@ const colorProperties = {
   input: "input", mutedForeground: "muted-foreground", primary: "primary",
   primaryForeground: "primary-foreground", primaryHover: "primary-hover", secondary: "secondary",
   secondaryForeground: "secondary-foreground", secondaryHover: "secondary-hover",
-  destructive: "destructive", marketingNavy: "marketing-navy", accent: "zx-accent", ring: "ring",
+  brandPrimary: "brand-primary", destructive: "destructive", marketingNavy: "marketing-navy", accent: "zx-accent", ring: "ring",
 };
 const themeSelectors = { light: ":root", dark: ".dark" } as const;
 const stylesheet = postcss.parse(readFileSync(cssFile, "utf8"), { from: cssFile.pathname });
@@ -49,6 +49,10 @@ const mediumRadius = Number(base[1]) * 16 * Number(factor[1]);
 const output = [
   "// Generated from app/globals.css by scripts/native-parity/generate-tokens.ts.",
   `export const nativeColors = ${JSON.stringify(themes, null, 2)} as const;`,
+  `export const nativeLinkInks = ${JSON.stringify(Object.fromEntries(["brand-secondary", "tertiary-1", "tertiary-2", "tertiary-3", "success", "info", "warning", "error"].map(key => {
+    const token = ["success", "info", "warning", "error"].includes(key) ? "status-" + key : key;
+    return [key, readColor("@theme inline", "color-" + token)];
+  })), null, 2)} as const;`,
   `export const nativeRadii = { sm: ${Number(base[1]) * 16 * Number(smallFactor[1])}, md: ${mediumRadius}, lg: ${Number(base[1]) * 16} } as const;`,
   "",
 ].join("\n");
