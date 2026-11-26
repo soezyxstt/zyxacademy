@@ -19,6 +19,16 @@ test("only confirmed foreground reconnect reverifies the session before notifyin
   expect(events).toEqual(["verify", "undefined", "false", "verify", "true"]);
 });
 
+test("the first reachable observation can recover an unavailable foreground session", () => {
+  const reasons: string[] = [];
+  const device = createNativeConnectivity({ reverify: reason => { reasons.push(reason); } });
+  device.updateForeground(true);
+  device.updateNetwork({ type: "UNKNOWN" });
+  device.updateNetwork(connected);
+  device.updateNetwork(connected);
+  expect(reasons).toEqual(["foreground", "first-online"]);
+});
+
 test("reconnect while backgrounded defers verification until the app becomes active", () => {
   const events: boolean[] = [];
   const device = createNativeConnectivity({ reverify: () => { events.push(device.getSnapshot().foreground); } });

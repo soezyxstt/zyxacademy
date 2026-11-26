@@ -22,6 +22,7 @@ function createHarness() {
   let canDelete = true;
   let offline = false;
   let readStatus = 200;
+  let beforeRead: (() => Promise<void>) | undefined;
   let beforeWrite: (() => Promise<void>) | undefined;
   const requests: Array<{ url: string; init: RequestInit }> = [];
   const api = createNativeSessionApi(origin, async (url, init) => {
@@ -31,6 +32,7 @@ function createHarness() {
       if (canDelete) serverSession = null;
       return Response.json({ success: true });
     }
+    await beforeRead?.();
     return readStatus === 200 ? Response.json(serverSession) : new Response(null, { status: readStatus });
   });
   const dataTransport = createNativeTransport({ origin, fetcher: async () => Response.json({ success: true }) });
@@ -48,6 +50,7 @@ function createHarness() {
     setStored: (value: unknown) => { stored = JSON.stringify(value); },
     setBeforeWrite: (value?: () => Promise<void>) => { beforeWrite = value; },
     setOffline: (value: boolean) => { offline = value; },
+    setBeforeRead: (value?: () => Promise<void>) => { beforeRead = value; },
     setReadStatus: (value: number) => { readStatus = value; },
     setCanDelete: (value: boolean) => { canDelete = value; },
     setServerSession: (value: unknown) => { serverSession = value; },
@@ -101,6 +104,28 @@ describe("Expo staging session", () => {
     expect(restored.getSnapshot()).toEqual({ state: { status: "signed-out" }, transport: null, revalidating: false });
     expect(activeTransport?.isCurrent()).toBe(false);
     expect(harness.readStored()).toBeNull();
+  });
+
+  test("a reconnect during an older failing read retries once only while online", async () => {
+    for (const online of [false, true]) {
+      const harness = createHarness();
+      harness.setStored({ status: "active", origin, cookie, ...identity });
+      const session = harness.controller();
+      const started = Promise.withResolvers<void>();
+      const pending = Promise.withResolvers<void>();
+      harness.setBeforeRead(() => {
+        started.resolve();
+        harness.setBeforeRead();
+        return pending.promise;
+      });
+      const first = session.refresh();
+      await started.promise;
+      const recovery = session.refreshAfterRecovery(() => online);
+      pending.reject(new TypeError("connection lost before reconnect"));
+      await Promise.all([first, recovery]);
+      expect(harness.requests.length).toBe(online ? 2 : 1);
+      expect(session.getSnapshot().state.status).toBe(online ? "signed-in" : "unavailable");
+    }
   });
 
   test("clears a different origin or expired record before using it", async () => {

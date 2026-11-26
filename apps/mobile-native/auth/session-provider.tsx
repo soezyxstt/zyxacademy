@@ -22,7 +22,17 @@ const session = createNativeSessionController({
   },
 });
 
-export const nativeConnectivity = createNativeConnectivity({ reverify: () => { void session.refresh(); } });
+export const nativeConnectivity: ReturnType<typeof createNativeConnectivity> = createNativeConnectivity({
+  reverify(reason) {
+    const snapshot = session.getSnapshot();
+    if (reason === "first-online" && !snapshot.revalidating &&
+      snapshot.state.status !== "loading" && snapshot.state.status !== "unavailable") return;
+    void session.refreshAfterRecovery(() => {
+      const { foreground, online } = nativeConnectivity.getSnapshot();
+      return foreground && online === true;
+    });
+  },
+});
 const getServerConnectivity = () => initialConnectivity;
 
 export function useNativeConnectivity() {

@@ -261,6 +261,18 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
     return refreshOperation;
   }
 
+  function refreshAfterRecovery(stillOnline: () => boolean) {
+    const existing = refreshOperation;
+    if (!existing || logoutOperation) return refresh();
+    const expectedRevision = revision;
+    // An in-flight read may have started before the network became usable.
+    return existing.then(() => {
+      if (revision === expectedRevision && !logoutOperation && snapshot.state.status === "unavailable" && stillOnline()) {
+        return refresh();
+      }
+    });
+  }
+
   async function acceptLogin(
     headers: SessionHeaders, expectedAccount: string, signal?: AbortSignal, intent?: NativeLoginIntent,
   ) {
@@ -400,5 +412,6 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
     rememberAccountAccess,
     logout,
     refresh,
+    refreshAfterRecovery,
   };
 }
