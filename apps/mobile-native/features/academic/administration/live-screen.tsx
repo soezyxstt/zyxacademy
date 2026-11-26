@@ -7,6 +7,7 @@ import { matchAdministrationRoute, type AdministrationPattern } from "../../../.
 import { nativeTypography } from "../../../typography";
 import { NativeListRow, NativeStatusPanel, ResponsiveTable, type SharedUiAction, type SharedUiActionHandler } from "../../shared-ui";
 import { ProductReviewWorkspace } from "./product-review-workspace";
+import { adminNotificationField } from "../../../../../packages/academic/admin-notification-history";
 import { BroadcastComposer } from "./broadcast-composer";
 import { ScheduleMeet } from "./schedule-meet";
 import { ScheduleEventEditor } from "./schedule-event-editor";
@@ -327,8 +328,14 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         { id: "title", label: "Notifikasi", weight: 3, renderCell: (row) => <NativeListRow title={row.title} subtitle={row.detail}
           theme={theme} layout="compact" primary={{ onPress: () => setSelected(row) }} /> },
         { id: "recipient", label: "Penerima", weight: 2, renderCell: (row) => row.subtitle ?? "Belum tersedia" },
-        { id: "success", label: "Berhasil", renderCell: (row) => row.fields?.find((field) => field.label === "Berhasil")?.value ?? "0" },
-        { id: "failure", label: "Gagal", renderCell: (row) => row.fields?.find((field) => field.label === "Gagal")?.value ?? "0" },
+        { id: "type", label: adminNotificationField.type, renderCell: (row) => row.fields?.find(field => field.label === adminNotificationField.type)?.value ?? "Belum tersedia" },
+        { id: "read", label: adminNotificationField.read, renderCell: (row) => row.fields?.find(field => field.label === adminNotificationField.read)?.value ?? "Belum tersedia" },
+        { id: "delivery", label: adminNotificationField.delivery, weight: 2, renderCell: (row) => {
+          const delivery = row.fields?.find(field => field.label === adminNotificationField.delivery)?.value;
+          const attempted = row.fields?.find(field => field.label === "Percobaan")?.value ?? "0";
+          const succeeded = row.fields?.find(field => field.label === "Berhasil")?.value ?? "0";
+          return delivery ? (attempted === "0" ? delivery : `${delivery} · ${succeeded}/${attempted}`) : "Belum tersedia";
+        } },
       ]} /> : !data?.week ? data?.rows.map((row) => {
       type ActionId = "pdf" | "review-idea" | "edit" | "edit-pka-schedule" | "edit-group" | "group-members" | "revoke-token" | "user-status" | "user-roles"
         | "pka-pin" | "pka-archive" | "pka-delete" | "tutorial-qualifications";

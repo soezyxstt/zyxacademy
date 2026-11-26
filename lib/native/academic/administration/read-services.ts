@@ -15,6 +15,7 @@ import { academicEventView } from "@/lib/schedule/academic-event";
 import { formatJakartaDatetimeLocal, getJakartaCalendarDate, toIsoTimestamp } from "@/lib/date-utils";
 import { listAdminNotificationHistory } from "@/lib/notifications/admin-history";
 import { matchesPkaSearch } from "@/packages/academic/pka-registrations";
+import { adminNotificationField, adminNotificationHistoryFields } from "@/packages/academic/admin-notification-history";
 import { pkaScheduleRevision } from "@/lib/pka/schedule-update";
 import { pkaAnnouncementState } from "@/lib/pka/lifecycle";
 import { readPkaDeliveryStatuses } from "@/lib/pka/native-delivery-queue";
@@ -216,10 +217,14 @@ export const administrationReadServices: AdministrationReadServices = {
         return schedules(query);
       case "notifications": {
         const { rows, total } = await listAdminNotificationHistory(query.page, listPageSize);
-        return rowsPage(rows.map((entry) => ({
-          id: entry.id, title: entry.title, subtitle: entry.userName ?? undefined, detail: jakDateTime(entry.createdAt),
-          fields: [field("Isi", entry.body), field("Percobaan", entry.attempted), field("Berhasil", entry.succeeded), field("Gagal", entry.failedCount)],
-        })), total > query.page * listPageSize);
+        return rowsPage(rows.map((entry) => {
+          const notification = adminNotificationHistoryFields(entry);
+          return {
+            id: entry.id, title: entry.title, subtitle: entry.userName || entry.userId, detail: jakDateTime(entry.createdAt),
+            fields: [field("Isi", entry.body), field(adminNotificationField.type, notification.type), field(adminNotificationField.read, notification.read),
+              field(adminNotificationField.delivery, notification.delivery), field("Percobaan", entry.attempted), field("Berhasil", entry.succeeded), field("Gagal", entry.failedCount)],
+          };
+        }), total > query.page * listPageSize);
       }
       case "registrations": {
         const entries = await getPkaRegistrationsAction();
