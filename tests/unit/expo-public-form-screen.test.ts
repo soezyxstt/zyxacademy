@@ -4,16 +4,15 @@ import { nativeColors } from "../../packages/design-tokens/native-colors";
 import { plansGlowOffsets, plansOrnaments } from "../../packages/design-tokens/plans-ornaments";
 import { publicFormFixtureClosure, publicFormFixtureEnvelope, publicFormFixtureTitle } from "../../packages/forms/parity-cases";
 import * as copy from "../../apps/mobile-native/features/public-forms/copy";
-import { parsePublicForm } from "../../apps/mobile-native/features/public-forms/model";
-import type { PublicFormScreen } from "../../apps/mobile-native/features/public-forms/screen";
+import { parsePublicForm, type PublicFormLoad } from "../../apps/mobile-native/features/public-forms/model";
 
-type Props = Parameters<typeof PublicFormScreen>[0];
+type Fixture = { state: PublicFormLoad; children?: string; browserFailed?: boolean; insideSafeArea?: boolean };
 type Element = { type: string; props: Record<string, unknown> };
 const node = (type: string, props: Record<string, unknown>): Element => ({ type, props });
 
 async function testScreen() {
   const compiled = await Bun.build({ entrypoints: ["./apps/mobile-native/features/public-forms/screen.tsx"], format: "cjs", external: ["*"] });
-  const module = { exports: {} as { PublicFormScreen(props: Props): Element } };
+  const module = { exports: {} as { PublicFormScreen(props: Record<string, unknown>): Element } };
   const dependencies: Record<string, unknown> = {
     "react/jsx-runtime": { jsx: node, jsxs: node },
     "react/jsx-dev-runtime": { jsxDEV: node },
@@ -28,7 +27,7 @@ async function testScreen() {
   const onRetry = () => {};
   const onHome = () => {};
   const props = { onRetry, onHome, onBack: () => {}, onLogin: () => {}, onWeb: () => {}, onMeet: () => {} };
-  return { render: (args: Partial<Props>) => module.exports.PublicFormScreen({ ...props, state: null, locale: "id", access: "anonymous", ...args }), onRetry, onHome };
+  return { render: (args: Fixture) => module.exports.PublicFormScreen({ ...props, locale: "id", access: "anonymous", ...args }), onRetry, onHome };
 }
 
 test("missing and closed forms use the full page and retain distinct home and recheck actions", async () => {

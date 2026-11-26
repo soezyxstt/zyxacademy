@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { runInNewContext } from "node:vm";
 
 test("disabled controls use the rounded half-alpha byte through Android HWUI's float conversion", async () => {
-  const compiled = await Bun.build({ entrypoints: ["./apps/mobile-native/components/control-opacity.ts"], format: "cjs", external: ["react-native"], write: false });
+  const compiled = await Bun.build({ entrypoints: ["./apps/mobile-native/components/control-opacity.ts"], format: "cjs", external: ["react-native"] });
   const source = await compiled.outputs[0].text();
   const opacityFor = (OS: string) => {
     const module = { exports: {} as { disabledControlStyle: { opacity: number } } };
