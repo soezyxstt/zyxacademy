@@ -1,4 +1,5 @@
-import type { StudentRoute } from "./contracts";
+import { materialPath, type MaterialDetailData } from "../../../../packages/native-parity/student/courses/contract";
+import type { StudentMaterialReaderTarget, StudentRoute } from "./contracts";
 
 export type StudentArea = "courses" | "assessment" | "learning" | "community";
 
@@ -48,4 +49,17 @@ export function matchStudentRoute(path: string): (StudentRoute & { area: Student
     return { area: definition.area, pattern: definition.pattern, path, params, query };
   }
   return null;
+}
+
+export function studentMaterialReaderTarget(route: StudentRoute, { course, material }: MaterialDetailData): StudentMaterialReaderTarget | null {
+  if (material.locked || route.pattern !== "/courses/[id]/material/[materialId]") return null;
+  const requestedPage = Number(route.query.page);
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : undefined;
+  const target = { courseId: course.id, materialId: material.id, section: route.query.section, page };
+  if (material.kind === "article") return { ...target, kind: "article" };
+
+  if (route.params.materialId !== material.id) return null;
+  const pathname = materialPath(route.params.id, material.id, target.section);
+  const webPath = page === undefined ? pathname : `${pathname}${target.section ? "&" : "?"}page=${page}`;
+  return { ...target, kind: "pdf", webPath };
 }

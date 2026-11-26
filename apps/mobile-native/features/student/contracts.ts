@@ -21,6 +21,13 @@ export interface StudentRoute {
 export type StudentResponse = Pick<NativeResponse, "ok" | "status" | "headers" | "json" | "text" | "arrayBuffer"> & { dispose?(): void };
 export type StudentRequest = (path: string, init?: RequestInit) => Promise<StudentResponse>;
 
+export type StudentMaterialReaderTarget = {
+  courseId: string;
+  materialId: string;
+  section?: string;
+  page?: number;
+} & ({ kind: "article" } | { kind: "pdf"; webPath: string });
+
 export interface StudentServices {
   session: StudentSession;
   /** Transport bound to the current session. Only relative API paths are passed. */
@@ -38,7 +45,7 @@ export interface StudentServices {
   };
   openOfflineLibrary?: (target?: OfflineLibraryTarget) => void;
   openOfflineMaterial?: (courseId: string, materialId: string) => void;
-  renderMaterial?: (props: { courseId: string; materialId: string; section?: string; page?: number }) => ReactNode;
+  renderMaterial?: (target: StudentMaterialReaderTarget) => ReactNode;
   openExternal?: (path: string) => void;
   nativeAuthScheme?: string;
   onLocaleChanged?(locale: "id" | "en"): void;

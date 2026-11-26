@@ -12,7 +12,7 @@ import { Skeleton } from "../../../components/Skeleton";
 import { nativeTypography } from "../../../typography";
 import type { StudentScreenProps } from "../contracts";
 import { StudentListRow } from "../ListRow";
-import { matchStudentRoute } from "../routes";
+import { matchStudentRoute, studentMaterialReaderTarget } from "../routes";
 import { canonicalStudentArticleHref, offlineMaterialRecovery, type OfflineCourseMetadata, type OfflineCourseTarget } from "../offline-courses";
 import { DashboardBottom, DashboardTop, useDashboardExtras } from "./dashboard-extra";
 import { courseCopy, type CourseCopy } from "./copy";
@@ -429,14 +429,13 @@ function Documents({ data, route, replace, navigate, request, reload, openOfflin
   );
 }
 
-function Document({ data, request, reload, renderMaterial, route, replace, openOfflineLibrary }: { data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader } & Pick<StudentScreenProps, "route" | "replace" | "openOfflineLibrary">) {
+function Document({ data, request, reload, renderMaterial, route, replace, openOfflineLibrary, openExternal }: { data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader } & Pick<StudentScreenProps, "route" | "replace" | "openOfflineLibrary" | "openExternal">) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const { course, material } = data;
   const canonicalHref = canonicalStudentArticleHref(route, data);
   useEffect(() => { if (canonicalHref) replace(canonicalHref); }, [canonicalHref, replace]);
-  const requestedPage = Number(route.query.page);
-  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : undefined;
+  const target = studentMaterialReaderTarget(route, data);
   return (
     <>
       <LearningText role="meta">{course.title}</LearningText>
@@ -451,7 +450,10 @@ function Document({ data, request, reload, renderMaterial, route, replace, openO
           {material.completed ? <LearningText role="meta">{copy.completed}</LearningText> : null}
           {openOfflineLibrary && material.kind === "article" ? <Button theme={theme} variant="outline"
             onPress={() => openOfflineLibrary({ courseId: course.id, materialId: material.id })}>{copy.savedCourses}</Button> : null}
-          {renderMaterial?.({ courseId: course.id, materialId: material.id, section: route.query.section, page }) ?? <LearningText>{copy.rendererPending}</LearningText>}
+          {(target && renderMaterial?.(target)) ?? (target?.kind === "pdf" && openExternal
+            ? <Button theme={theme} variant="outline" testID="student-open-pdf-on-web"
+              onPress={() => openExternal(target.webPath)}>{copy.openPdfOnWeb}</Button>
+            : <LearningText>{copy.rendererPending}</LearningText>)}
         </>
       )}
     </>
@@ -612,7 +614,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
       case "catalog": content = <Catalog data={resource.data} navigate={navigate} route={route} replace={replace} openExternal={openExternal} locale={locale} />; break;
       case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
       case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} openOfflineLibrary={props.openOfflineLibrary} />; break;
-      case "material-detail": content = <Document data={resource.data} request={request} reload={reload} renderMaterial={renderMaterial} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} />; break;
+      case "material-detail": content = <Document data={resource.data} request={request} reload={reload} renderMaterial={renderMaterial} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} openExternal={openExternal} />; break;
     }
   }
 
