@@ -48,6 +48,8 @@ Skrip asesmen menerima sembilan respons 200, tiga 201, dua 404, dan satu 409. Se
 
 ### Suite Playwright Student pada viewport seluler
 
+Pengulangan pada checkout `28b8dd94` dengan komponen preferensi yang sudah terpasang menghasilkan 38/44. Enam kegagalan tercatat pada hidrasi shell web. Pengujian langsung `/settings` secara terpisah menghasilkan satu tangkapan yang lolos pemeriksaan. [Rincian pengulangan dan matriks dua viewport](../references/community/README.md)
+
 Pada checkout `0cc3c835251cead65ff838cde0c3e9c9ad3ccc0b`, Playwright menjalankan seluruh direktori Student dengan proyek `mobile-380`, Next.js 16.3 dan PostgreSQL 16.13 lokal. Sebanyak **41 dari 44 tes lulus**, tiga gagal dan tidak ada yang dilewati. Semua 19 tes komponen, referensi dan siklus layar lulus. Sebanyak 22 dari 25 skenario web komunitas bersesi lulus pada run pertama.
 
 | Halaman produk | Run pertama | Satu percobaan ulang pada server yang sama dengan konteks browser baru |
