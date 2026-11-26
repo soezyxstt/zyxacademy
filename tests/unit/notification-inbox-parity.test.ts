@@ -10,7 +10,7 @@ test("the gallery uses one ordered empty, unread, and mixed Student inbox fixtur
   expect(cases.map(item => item.id)).toEqual(notificationInboxCases.map(item => item.id));
   expect(cases.map(item => item.rows.map(row => row.read))).toEqual([[], [false], [false, true]]);
   expect(cases.map(item => item.locale)).toEqual(["id", "en", "id"]);
-  expect(getParityFrameHeight("notification-inbox")).toBe(216);
+  expect(cases.map(item => getParityFrameHeight(item.id))).toEqual([216, 168, 264]);
   expect(getParityFrameHeight("progress")).toBe(parityFrame.height);
 });
 

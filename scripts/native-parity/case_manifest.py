@@ -42,7 +42,7 @@ def load_case_layout(path):
             raise ValueError(f"Duplicate case id {case_id}")
         # The native gallery stacks all three cases in one device viewport.
         height = entry.get("height", 100)
-        if type(height) is not int or not 1 <= height <= 216:
+        if type(height) is not int or not 1 <= height <= 648:
             raise ValueError(f"Invalid capture height for {case_id}")
         case_ids.add(case_id)
         groups.setdefault(component, []).append(case_id)
@@ -51,6 +51,8 @@ def load_case_layout(path):
     for component, cases in groups.items():
         if len(cases) != 3:
             raise ValueError(f"Expected three cases for {component}, found {len(cases)}")
+        if sum(heights[case] for case in cases) > 648:
+            raise ValueError(f"Capture frames for {component} exceed the gallery viewport")
     return groups, heights
 
 

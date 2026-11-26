@@ -6,6 +6,11 @@ export const parityFrame = {
   gap: 8,
 } as const;
 
-export function getParityFrameHeight(component: string) {
-  return component === "notification-inbox" ? 216 : parityFrame.height;
+export function getParityFrameHeight(caseId: string) {
+  switch (caseId) {
+    case "notification-inbox-empty-light": return 216;
+    case "notification-inbox-unread-light": return 168;
+    case "notification-inbox-mixed-dark": return 264;
+    default: return parityFrame.height;
+  }
 }

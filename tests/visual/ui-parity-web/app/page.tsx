@@ -73,7 +73,7 @@ export default function ParityPage() {
     <>
       <main style={{ display: "grid", justifyContent: "center", gap: parityFrame.gap, paddingBlock: parityFrame.gap }}>
         {galleryCases.map((item) => (
-          <ParityCaseFrame key={item.id} id={item.id} theme={item.theme} height={getParityFrameHeight(item.component)}>
+          <ParityCaseFrame key={item.id} id={item.id} theme={item.theme} height={getParityFrameHeight(item.id)}>
             <Specimen item={item} />
           </ParityCaseFrame>
         ))}

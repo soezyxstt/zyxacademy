@@ -103,7 +103,7 @@ try {
     const frame = page.locator(`[data-parity-case="${item.id}"]`);
     const specimen = frame.locator(selector);
     await expect(frame).toHaveCSS("width", `${parityFrame.width}px`);
-    await expect(frame).toHaveCSS("height", `${getParityFrameHeight(item.component)}px`);
+    await expect(frame).toHaveCSS("height", `${getParityFrameHeight(item.id)}px`);
     if (item.family === "formatted-date" && item.expected === null) {
       await expect(specimen).toHaveCount(0);
       await expect(frame).toHaveText(item.prefix);
@@ -158,7 +158,7 @@ try {
       const panel = frame.locator("[data-notification-inbox-panel]");
       const [frameBox, panelBox] = await Promise.all([frame.boundingBox(), panel.boundingBox()]);
       if (!frameBox || !panelBox || panelBox.y + panelBox.height > frameBox.y + frameBox.height) {
-        throw new Error(`${item.id}: notification panel exceeds its capture frame`);
+        throw new Error(`${item.id}: notification panel exceeds its capture frame (panel height ${panelBox?.height}, frame height ${frameBox?.height})`);
       }
       await expect(frame.getByRole("heading", { name: copy.title })).toBeVisible();
       await expect(frame.getByRole("button", { name: copy.close, exact: true })).toBeVisible();
@@ -306,7 +306,7 @@ try {
   }
   if (errors.length > 0) throw new Error(errors.join("\n"));
   await writeFile(directoryManifestPath, JSON.stringify(directoryManifest));
-  const cases = galleryCases.map(({ id, component }) => ({ id, component, height: getParityFrameHeight(component) }));
+  const cases = galleryCases.map(({ id, component }) => ({ id, component, height: getParityFrameHeight(id) }));
   await writeFile(manifest, `${JSON.stringify(cases, null, 2)}\n`);
 } finally {
   await browser.close();
