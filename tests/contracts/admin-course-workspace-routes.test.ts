@@ -79,7 +79,7 @@ describe("admin course workspace routes", () => {
 
   test("adds the tryout route to the admin course navigation titles", () => {
     const sidebar = source("components/admin-sidebar.tsx");
-    const mobileNavbar = source("components/mobile-navbar.tsx");
+    const mobileNavbar = source("components/navigation/route-title-model.ts");
 
     expect(sidebar).toContain('id: "tryouts", label: "Tryout"');
     expect(mobileNavbar).toContain('if (subpath.startsWith("/tryouts")) return roleTitle("admin", "tryouts", "Tryouts");');

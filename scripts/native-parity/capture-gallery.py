@@ -5,6 +5,7 @@ import sys
 import time
 
 from case_manifest import load_case_groups
+from device_capture import open_route, screenshot
 
 
 def capture(platform, device):
@@ -13,22 +14,12 @@ def capture(platform, device):
     components = load_case_groups(directory / "web" / f"dpr{scale}" / "cases.json")
     failures = []
     for component in components:
-        url = f"zyx-native-parity://gallery/{component}"
         frame = directory / platform / f"frame-{component}.png"
         command = [sys.executable, str(Path(__file__).with_name("compare.py")), str(frame),
                    str(scale), component]
-        if platform == "ios":
-            subprocess.run(["xcrun", "simctl", "openurl", device, url], check=True)
-        else:
-            subprocess.run(["adb", "shell", "am", "start", "-W", "-a",
-                            "android.intent.action.VIEW", "-d", url,
-                            "com.zyx.academy.nativeparity"], check=True)
+        open_route(platform, device, f"gallery/{component}")
         for _ in range(30):
-            if platform == "ios":
-                subprocess.run(["xcrun", "simctl", "io", device, "screenshot", str(frame)], check=True)
-            else:
-                with frame.open("wb") as stream:
-                    subprocess.run(["adb", "exec-out", "screencap", "-p"], stdout=stream, check=True)
+            screenshot(platform, device, frame)
             if subprocess.run([*command, "--ready"], capture_output=True).returncode == 0:
                 break
             time.sleep(1)

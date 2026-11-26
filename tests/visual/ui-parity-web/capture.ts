@@ -103,7 +103,7 @@ try {
     const frame = page.locator(`[data-parity-case="${item.id}"]`);
     const specimen = frame.locator(selector);
     await expect(frame).toHaveCSS("width", `${parityFrame.width}px`);
-    await expect(frame).toHaveCSS("height", `${getParityFrameHeight(item.component)}px`);
+    await expect(frame).toHaveCSS("height", `${getParityFrameHeight(item.id)}px`);
     if (item.family === "formatted-date" && item.expected === null) {
       await expect(specimen).toHaveCount(0);
       await expect(frame).toHaveText(item.prefix);
@@ -155,7 +155,13 @@ try {
     }
     if (item.family === "notification-inbox") {
       const copy = notificationInboxCopy[item.locale];
+      const panel = frame.locator("[data-notification-inbox-panel]");
+      const [frameBox, panelBox] = await Promise.all([frame.boundingBox(), panel.boundingBox()]);
+      if (!frameBox || !panelBox || panelBox.y + panelBox.height > frameBox.y + frameBox.height) {
+        throw new Error(`${item.id}: notification panel exceeds its capture frame (panel height ${panelBox?.height}, frame height ${frameBox?.height})`);
+      }
       await expect(frame.getByRole("heading", { name: copy.title })).toBeVisible();
+      await expect(frame.getByRole("button", { name: copy.close, exact: true })).toBeVisible();
       await expect(frame.getByRole("button", { name: copy.markAllRead, exact: true })).toHaveCount(item.rows.some(row => !row.read) ? 1 : 0);
       if (!item.rows.length) await expect(specimen).toHaveText(copy.empty);
       else {
@@ -173,11 +179,27 @@ try {
       const questions = frame.getByRole("tab", { name: "Analisis soal" });
       await expect(evaluation).toHaveAttribute("aria-selected", String(item.selected === "ai-insights"));
       await expect(questions).toHaveAttribute("aria-selected", String(item.selected === "questions"));
+      for (const tab of [evaluation, questions]) {
+        await expect(tab).toHaveCSS("font-size", "14px");
+        await expect(tab).toHaveCSS("font-weight", "500");
+        const appearance = await tab.evaluate(element => {
+          const indicator = getComputedStyle(element, "::after");
+          return {
+            height: element.getBoundingClientRect().height,
+            indicatorHeight: indicator.height,
+            indicatorVisible: indicator.backgroundColor !== "rgba(0, 0, 0, 0)",
+          };
+        });
+        expect(appearance.height).toBeCloseTo(40, 1);
+        expect(appearance.indicatorHeight).toBe("2px");
+        expect(appearance.indicatorVisible).toBe(await tab.getAttribute("aria-selected") === "true");
+      }
       await expect(specimen).toHaveText("Beta");
       await expect(specimen).toHaveCSS("font-size", "10px");
       await expect(specimen).toHaveCSS("font-weight", "600");
       await expect(specimen).toHaveCSS("letter-spacing", "0.5px");
       await expect(specimen).toHaveCSS("height", "16px");
+      await expect(specimen).toHaveCSS("border-top-left-radius", "4px");
       await expect(specimen).toHaveCSS("text-transform", "uppercase");
     }
     await frame.screenshot({
@@ -220,7 +242,10 @@ try {
     await expect(control(`${component}-disabled-dark`)).toBeDisabled();
   }
 
-  const [, unreadInbox, mixedInbox] = notificationInboxCases;
+  const [emptyInbox, unreadInbox, mixedInbox] = notificationInboxCases;
+  const emptyFrame = page.locator(`[data-parity-case="${emptyInbox.id}"]`);
+  await emptyFrame.getByRole("button", { name: notificationInboxCopy.id.close, exact: true }).click();
+  await expect(emptyFrame.locator("[data-notification-inbox-panel]")).toHaveCount(0);
   const unreadFrame = page.locator(`[data-parity-case="${unreadInbox.id}"]`);
   const markAll = unreadFrame.getByRole("button", { name: notificationInboxCopy.en.markAllRead, exact: true });
   await markAll.click();
@@ -281,7 +306,7 @@ try {
   }
   if (errors.length > 0) throw new Error(errors.join("\n"));
   await writeFile(directoryManifestPath, JSON.stringify(directoryManifest));
-  const cases = galleryCases.map(({ id, component }) => ({ id, component, height: getParityFrameHeight(component) }));
+  const cases = galleryCases.map(({ id, component }) => ({ id, component, height: getParityFrameHeight(id) }));
   await writeFile(manifest, `${JSON.stringify(cases, null, 2)}\n`);
 } finally {
   await browser.close();

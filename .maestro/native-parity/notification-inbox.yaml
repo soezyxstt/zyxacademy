@@ -7,6 +7,15 @@ name: Student inbox content and read actions
       COMPONENT: notification-inbox
 - assertVisible: Belum ada notifikasi.
 - assertVisible:
+    id: notification-inbox-empty-light-title
+    text: Notifikasi
+- assertVisible:
+    id: notification-inbox-empty-light-close
+    text: Tutup notifikasi
+- tapOn:
+    id: notification-inbox-empty-light-close
+- assertNotVisible: Belum ada notifikasi.
+- assertVisible:
     id: notification-inbox-unread-light-row-quiz
     text: ".*5 min ago.*Unread"
 - tapOn:

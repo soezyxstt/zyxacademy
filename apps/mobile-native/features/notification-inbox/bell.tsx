@@ -12,10 +12,10 @@ import { useNativeAccountContext } from "../../auth/use-account-context";
 import { Button } from "../../components/Button";
 import type { NativeSessionTransport } from "../../network/transport";
 import { nativeTypography } from "../../typography";
-import { NavigationIcon } from "../shared-ui/navigation-icons";
 import { SharedPopover } from "../shared-ui/overlays";
 import { loadInbox, markInboxRead, type InboxPage, type InboxRow } from "./client";
-import { InboxContent } from "./content";
+import { InboxContent, InboxHeader, inboxPanelSurface } from "./content";
+import { InboxIcon } from "./icons";
 
 type BellProps = { locale: "id" | "en"; theme: "dark" | "light"; visit(href: string): void };
 
@@ -99,16 +99,18 @@ function InboxBell({ session, account, locale, theme, visit }: BellProps & { ses
       accessibilityLabel={unread ? `${copy.bell}, ${unread} ${locale === "id" ? "belum dibaca" : "unread"}` : copy.bell}
       accessibilityState={{ expanded: open }} testID="student-inbox"
       onPress={() => { setLoading(true); setOpen(true); }}
-      renderIcon={(color, size) => <NavigationIcon name="notifications" color={color} size={size} />} />
+      renderIcon={(color, size) => <InboxIcon name="bell" color={color} size={size} />} />
     {!!unread && <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
       style={[styles.badge, { backgroundColor: colors.destructive }]}>
       <Text style={[nativeTypography.bodyMedium, styles.count, { color: colors.background }]}>{unread > 99 ? "99+" : unread}</Text>
     </View>}
     <SharedPopover open={open} anchorRef={anchor} align="end" title={copy.title} theme={theme} onDismiss={dismiss}
-      closeLabel={locale === "id" ? "Tutup" : "Close"}>
-      <InboxContent locale={locale} theme={theme} unread={unread ?? 0} rows={data?.rows}
+      closeLabel={copy.close} maxWidth={352} sideOffset={8} panelStyle={inboxPanelSurface(theme)} bodyInsets={false} bodyMaxHeight={384}
+      renderHeader={controls => <InboxHeader {...controls} locale={locale} theme={theme} unread={unread ?? 0}
+        saving={saving} onMarkAllRead={() => void select()} />}>
+      <InboxContent locale={locale} theme={theme} rows={data?.rows}
         loading={loading} saving={saving} error={error} onRetry={() => setRefresh(value => value + 1)}
-        onMarkAllRead={() => void select()} onSelect={row => void select(row)} />
+        onSelect={row => void select(row)} />
     </SharedPopover>
   </View>;
 }

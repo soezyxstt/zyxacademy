@@ -13,12 +13,13 @@ import { useNativeSession } from "../auth/session-provider";
 import { nativeUiLocale } from "../auth/ui-locale";
 import { Button } from "../components/Button";
 import { useDevicePreferences } from "../device/preferences-provider";
-import { AcademicLiveScreen, bindAcademicSession } from "../features/academic";
+import { AcademicLiveScreen, bindAcademicSession, createAcademicClient } from "../features/academic";
 import { AdminOperationsScreen, PublicOperationsScreen } from "../features/operations";
 import { VerifiedStudentEntry } from "../features/student/VerifiedStudentEntry";
 import { academicRouteCanRead, productLocation, productQueryUpdate } from "./product-location";
 import { expoRouteHistory } from "./route-history-expo";
 import { StudentChrome } from "./student-chrome";
+import { StaffChrome } from "./staff-chrome";
 
 type Owner = "public" | "student" | "academic" | "operations";
 
@@ -26,9 +27,9 @@ export function productRoute(pattern: string, owner: Owner) {
   return function InstalledProductRoute() {
     const params = useLocalSearchParams();
     const route = useRoute();
-    // SDK 58 decodes useLocalSearchParams values again. Student filters can
+    // SDK 58 decodes useLocalSearchParams values again. Product filters can
     // contain literal percent sequences, so take the entry's decoded query as stored.
-    const local = owner === "student" ? { ...params, ...route.params, "#": params["#"] } : params;
+    const local = owner === "public" ? params : { ...params, ...route.params, "#": params["#"] };
     const href = productLocation(pattern, local);
     if (!href) return <Redirect href="/" />;
     return <ProductRoute href={href} pattern={pattern} owner={owner} />;
@@ -37,6 +38,7 @@ export function productRoute(pattern: string, owner: Owner) {
 
 function ProductRoute({ href, pattern, owner }: { href: string; pattern: string; owner: Owner }) {
   const router = useRouter();
+  const screenNavigation = useNavigation();
   const isFocused = useIsFocused();
   const { state, transport, getSnapshot } = useNativeSession();
   const access = useNativeAccountContext();
@@ -52,6 +54,22 @@ function ProductRoute({ href, pattern, owner }: { href: string; pattern: string;
   const replace = useCallback((path: string) => navigate(path, { replace: true }), [navigate]);
   const back = useCallback((fallback = "/") => router.canGoBack() ? router.back() : replace(fallback), [replace, router]);
   const context = access.context;
+  const navigateStaff = useCallback((path: string, options?: { replace?: boolean }) => {
+    if (getSafeRedirectPath(path) !== path || !screenNavigation.isFocused() || !transport?.isCurrent()) return;
+    const update = productQueryUpdate(pattern, href, path);
+    if (update === null) navigate(path, options);
+    else if (Object.keys(update).length) screenNavigation.dispatch(CommonActions.setParams(update));
+  }, [href, navigate, pattern, screenNavigation, transport]);
+  const replaceStaff = useCallback((path: string) => navigateStaff(path, { replace: true }), [navigateStaff]);
+  const visitStaff = useCallback((path: string) => {
+    if (path !== href.split(/[?#]/, 1)[0]) router.navigate(path as Href);
+  }, [href, router]);
+  const loadTutorCourses = useCallback(async (signal: AbortSignal) => {
+    if (!transport?.isCurrent() || !context?.roles.includes("tutor")) return [];
+    const dashboard = await createAcademicClient(bindAcademicSession(transport, locale)).tutor.dashboard(signal);
+    if (!Array.isArray(dashboard.courses)) throw new Error("Invalid tutor course list");
+    return dashboard.courses.filter(course => typeof course?.courseId === "string" && typeof course.title === "string");
+  }, [context, locale, transport]);
 
   useFocusEffect(useCallback(() => {
     if (owner === "public" || state.status !== "signed-in" || !transport || !context) return;
@@ -88,11 +106,13 @@ function ProductRoute({ href, pattern, owner }: { href: string; pattern: string;
     {locale === "en" ? "Access denied." : "Akses ditolak."}
   </Text><Button onPress={() => back()}>{locale === "en" ? "Back" : "Kembali"}</Button></SafeAreaView>;
   const accountKey = JSON.stringify([context.accountId, context.sessionId, locale]);
-  return <SafeAreaView key={accountKey} style={{ flex: 1 }}>
+  return <StaffChrome key={accountKey} role={role} href={href} theme={theme} focused={isFocused} context={context}
+    session={transport} visit={visitStaff} back={back} loadTutorCourses={loadTutorCourses}>
     {owner === "academic" ? <AcademicRoute href={href} session={transport} accountId={context.accountId}
-      role={role} locale={locale} navigate={navigate} replace={replace} back={back} theme={theme} /> :
-      <AdminOperationsScreen href={href} session={transport} context={context} navigate={navigate} theme={theme} />}
-  </SafeAreaView>;
+      role={role} locale={locale} navigate={navigateStaff} replace={replaceStaff}
+      back={() => back(role === "admin" ? "/admin" : "/tutor")} theme={theme} /> :
+      <AdminOperationsScreen href={href} session={transport} context={context} navigate={navigateStaff} theme={theme} />}
+  </StaffChrome>;
 }
 
 function AcademicRoute({ session, locale, accountId, role, ...props }: {

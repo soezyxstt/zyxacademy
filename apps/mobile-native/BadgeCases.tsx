@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 
-import { nativeColors } from "../../packages/design-tokens/native-colors";
 import { badgePosition, quizInsightsBadgeTabs, type BadgeCaseSpec, type BetaBadgeCaseSpec } from "../../packages/ui-parity/badge-cases";
 import { Badge, BetaBadge } from "./components/Badge";
-import { nativeControlLabelPosition, nativeTypography } from "./typography";
+import { NavigationTabs } from "./features/shared-ui/navigation";
 
 export function BadgeCase({ item }: { item: BadgeCaseSpec }) {
   return (
@@ -50,41 +49,26 @@ function QuizTabIcon({ ai, color }: { ai: boolean; color: string }) {
 
 export function BetaBadgeCase({ item }: { item: BetaBadgeCaseSpec }) {
   const [selected, setSelected] = useState<(typeof quizInsightsBadgeTabs)[number]["value"]>(item.selected);
-  const colors = nativeColors[item.theme];
+  const tabs = quizInsightsBadgeTabs.map(({ value, label }) => {
+    const ai = value === "ai-insights";
+    return {
+      id: value, label,
+      accessibilityLabel: ai ? `${label} Beta` : label,
+      renderIcon: (color: string) => <QuizTabIcon ai={ai} color={color} />,
+      accessory: ai ? <BetaBadge accessible={false} theme={item.theme} style={styles.centeredBadge} /> : undefined,
+    };
+  });
   return (
-    <View style={[badgePosition, styles.center]}>
-      <View accessibilityRole="tablist" style={styles.tabs}>
-        {quizInsightsBadgeTabs.map(({ value, label }) => {
-          const active = selected === value;
-          const ai = value === "ai-insights";
-          const color = active ? colors.foreground : colors.mutedForeground;
-          return (
-            <Pressable
-              key={value}
-              accessibilityRole="tab"
-              accessibilityLabel={ai ? `${label} Beta` : label}
-              accessibilityState={{ selected: active }}
-              onPress={() => setSelected(value)}
-              style={styles.tab}
-              testID={`${item.id}-${value}`}
-            >
-              <QuizTabIcon ai={ai} color={color} />
-              <Text style={[styles.label, nativeControlLabelPosition, { color }]}>{label}</Text>
-              {ai && <BetaBadge theme={item.theme} style={styles.centeredBadge} />}
-              {active && <View style={[styles.indicator, { backgroundColor: colors.primary }]} />}
-            </Pressable>
-          );
-        })}
-      </View>
+    <View style={[badgePosition, styles.tabFrame]}>
+      <NavigationTabs tabs={tabs} activeId={selected} onTabPress={setSelected}
+        variant="inline" accessibilityLabel="Analisis kuis" moreLabel="Lebih" closeLabel="Tutup"
+        theme={item.theme} testID={item.id} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   center: { justifyContent: "center", alignItems: "center" },
-  tabs: { flexDirection: "row", gap: 2 },
-  tab: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 12 },
-  label: { ...nativeTypography.bodyMedium, fontSize: 14, lineHeight: 20, includeFontPadding: false },
+  tabFrame: { justifyContent: "center" },
   centeredBadge: { alignSelf: "center" },
-  indicator: { position: "absolute", left: 0, right: 0, bottom: 0, height: 2 },
 });

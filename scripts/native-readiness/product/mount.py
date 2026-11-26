@@ -39,6 +39,13 @@ def rewrite_once(path, before, after):
     path.write_text(source.replace(before, after))
 
 
+def insert_hook(path, hook_import, anchor, hook):
+    first_import = path.read_text().splitlines()[0]
+    if first_import != hook_import:
+        rewrite_once(path, first_import, f"{hook_import}\n{first_import}")
+    rewrite_once(path, anchor, f"{anchor}\n  {hook}")
+
+
 def mount():
     for feature in ["student/VerifiedStudentEntry.tsx", "operations/index.ts", "academic/index.ts"]:
         if not (MOBILE / "features" / feature).is_file():
@@ -79,12 +86,25 @@ def mount():
         ),
     }
     for name, (anchor, hook) in chrome_hooks.items():
-        screen = MOBILE / "features/student" / name
-        first_import = screen.read_text().splitlines()[0]
-        chrome_import = 'import { useStudentChromeVisibility } from "../../../routing/student-chrome";'
-        if first_import != chrome_import:
-            rewrite_once(screen, first_import, f"{chrome_import}\n{first_import}")
-        rewrite_once(screen, anchor, f"{anchor}\n  {hook}")
+        insert_hook(MOBILE / "features/student" / name,
+                    'import { useStudentChromeVisibility } from "../../../routing/student-chrome";', anchor, hook)
+    staff_hooks = {
+        "academic/assessment/grading.tsx": (
+            'const [attemptId, setAttemptId] = useState(query.attemptId || "");',
+            'useStaffChromeVisibility({ hideTop: Boolean(attemptId), hideBottom: Boolean(attemptId) });',
+        ),
+        "academic/tutor/connected.tsx": (
+            'export function ConnectedLive({ data, theme, back, courseTitle, refresh }: Navigation & { data: TutorLiveData; courseTitle?: string; refresh(): void }) {',
+            'useStaffChromeVisibility({ hideBottom: Boolean(data.active) });',
+        ),
+        "operations/management/tools.tsx": (
+            'const thread = matching?.find(item => item.id === active);',
+            'useStaffChromeVisibility({ hideTop: Boolean(thread), hideBottom: Boolean(thread) });',
+        ),
+    }
+    for name, (anchor, hook) in staff_hooks.items():
+        insert_hook(MOBILE / "features" / name,
+                    'import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";', anchor, hook)
     layout = MOBILE / "app/_layout.tsx"
     cleanup_import = 'import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";'
     if cleanup_import not in layout.read_text():

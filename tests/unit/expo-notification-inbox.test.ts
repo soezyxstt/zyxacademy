@@ -3,7 +3,7 @@ import { loadInbox, markInboxRead } from "../../apps/mobile-native/features/noti
 import type { NativeRequestInit, NativeSessionTransport } from "../../apps/mobile-native/network/transport";
 
 const id = "ed441c04-7cae-4ccb-98fb-802fbf041e65";
-const row = { id, title: "Jadwal", body: "Kelas dimulai.", read: false, createdAt: "2026-01-02T09:00:00Z", metadata: { url: "/dashboard/schedule" } };
+const row = { id, title: "Jadwal", body: "Kelas dimulai.", type: "tutor_booking", read: false, createdAt: "2026-01-02T09:00:00Z", metadata: { url: "/dashboard/schedule" } };
 
 function inboxSession(payload: unknown, status = 200, current = true) {
   const signal = new AbortController().signal;
@@ -25,12 +25,18 @@ test("closed bell only reads the count; expanded history preserves the global un
   const inbox = inboxSession({ unreadCount: 26, notifications: [row] });
   const page = await loadInbox(inbox.session, true, inbox.signal);
   expect(page.unread).toBe(26);
-  expect(page.rows[0]).toMatchObject({ id, href: "/dashboard/schedule", read: false });
+  expect(page.rows[0]).toMatchObject({ id, href: "/dashboard/schedule", read: false, type: "tutor_booking" });
   const counter = inboxSession({ unreadCount: 3, notifications: [] });
   expect(await loadInbox(counter.session, false, counter.signal)).toEqual({ unread: 3, rows: [] });
   expect(inbox.calls[0].path).toBe("/api/notifications/history?limit=20");
   expect(counter.calls[0].path).toBe("/api/notifications/history?countOnly=true");
   expect(inbox.disposed()).toBe(1);
+});
+
+test("older notification records use the default icon when their type is absent", async () => {
+  const inbox = inboxSession({ unreadCount: 1, notifications: [{ ...row, type: undefined }] });
+  const page = await loadInbox(inbox.session, true, inbox.signal);
+  expect(page.rows[0]?.type).toBeNull();
 });
 
 test("read acknowledgement uses only the current session and the exact idempotent selection", async () => {

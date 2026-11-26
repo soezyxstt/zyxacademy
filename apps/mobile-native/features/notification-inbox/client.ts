@@ -1,6 +1,6 @@
 import type { NativeSessionTransport } from "../../network/transport";
 
-export type InboxRow = { id: string; title: string; body: string; read: boolean; createdAt: string; href: string | null };
+export type InboxRow = { id: string; title: string; body: string; type: string | null; read: boolean; createdAt: string; href: string | null };
 export type InboxPage = { unread: number; rows: InboxRow[] };
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -18,7 +18,8 @@ function parseInbox(value: unknown): InboxPage {
       throw new Error("Invalid notification record");
     }
     return {
-      id: row.id, title: row.title, body: row.body, read: row.read, createdAt: row.createdAt,
+      id: row.id, title: row.title, body: row.body, type: typeof row.type === "string" ? row.type : null,
+      read: row.read, createdAt: row.createdAt,
       href: isObject(row.metadata) && typeof row.metadata.url === "string" ? row.metadata.url : null,
     };
   });

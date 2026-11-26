@@ -3,7 +3,7 @@ import { afterEach, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
-import { createOfflineMetadataStore } from "../../apps/mobile-native/offline/metadata-store";
+import { createOfflineMetadataStore, readOfflineReadingAuthority } from "../../apps/mobile-native/offline/metadata-store";
 import { createOfflineReadingController } from "../../apps/mobile-native/offline/reading-client";
 import { readingKey, type OfflineReadingData, type OfflineReadingTarget } from "../../apps/mobile-native/offline/reading-contract";
 import { subscribeOfflineReadingChanges } from "../../apps/mobile-native/offline/reading-events";
@@ -212,6 +212,184 @@ test("a required asset reporting the material changed invalidates the old packag
 
 const courseDenied = () => Response.json({ code: "OFFLINE_COURSE_ACCESS_DENIED" }, { status: 403 });
 const deniedGrant = { ...grant, allowed: false, fullContent: false, chapterIds: [], leaseExpiresAt: now };
+
+async function pinFixtures(store: ReturnType<typeof createOfflineReadingStore>, guard: {
+  verifiedUntil: number; assertCurrent(): void;
+}, languageScope: NativeOfflineScope, materials: NativeOfflineResourceDescriptor[]) {
+  for (const material of materials) {
+    const authority = await store.authorize(languageScope, material, guard);
+    expect(authority).not.toBeNull();
+    await store.store(languageScope, {
+      target: material, revision: material.revision, cursor: authority!.cursor, leaseExpiresAt: authority!.leaseExpiresAt,
+      resetGeneration: authority!.resetGeneration, validatedAt: now, assetLeaseExpiresAt: null, assets: [],
+      body: new TextEncoder().encode(JSON.stringify({ ...data, id: material.id, courseId: material.courseId })),
+    }, guard);
+  }
+}
+
+function materialManifest(cursor: string, access: typeof grant, materials: NativeOfflineResourceDescriptor[]) {
+  return Response.json({ ...identity, cursor, serverTime: now, leaseExpiresAt: access.leaseExpiresAt, resource: access, resources: materials },
+    { headers: headerIdentity });
+}
+
+for (const source of ["sync", "manifest"] as const) {
+  test(`partial ${source} access narrows both language caches without extending the alternate lease`, async () => {
+    const removed = { ...descriptor({ ...target, id: "reading-2" }), chapterIds: ["chapter-2"] };
+    const other = descriptor({ ...target, courseId: "course-2" });
+    const materials = [descriptor(), removed, other];
+    const otherGrant = { ...grant, courseId: other.courseId };
+    const broad = { ...grant, chapterIds: ["chapter-1", "chapter-2"] };
+    const restricted = { ...grant, fullContent: false, chapterIds: ["chapter-1", "chapter-3"] };
+    const incremental = page("5", {
+      reset: false, access: [source === "sync" ? restricted : broad, otherGrant],
+      changes: [{ cursor: "5", kind: "access", courseId: target.courseId, resourceId: null, action: "invalidate", revision: null }],
+    });
+    const { commit, connection, metadata, readingStore, guard, options, db } = await setup(
+      Response.json(incremental, { headers: headerIdentity }), materialManifest("5", restricted, [descriptor()]),
+    );
+    await commit(page("4", { access: [broad, otherGrant] }), materials, "4");
+    const alternateLease = now + 10_000;
+    await commit(page("4", { access: [{ ...broad, leaseExpiresAt: alternateLease }, otherGrant] }), materials, null, englishScope);
+    for (const languageScope of [scope, englishScope]) await pinFixtures(readingStore, guard, languageScope, materials);
+    const sync = createNativeOfflineSyncController({
+      session: options.session, locale: "id", repository: metadata, readings: async () => readingStore, now: () => now,
+    });
+    expect(await sync.sync([target.courseId])).toMatchObject({ cursor: "5" });
+    for (const languageScope of [scope, englishScope]) {
+      expect((await readingStore.list(languageScope, guard)).map(item => item.key).sort())
+        .toEqual([readingKey(target), other.key].sort());
+      expect(await readingStore.read(languageScope, removed, guard)).toBeNull();
+    }
+    const alternate = await readOfflineReadingAuthority(connection, englishScope);
+    expect(alternate?.courses.find(course => course.courseId === target.courseId)).toMatchObject({
+      fullContent: false, chapterIds: ["chapter-1"], leaseExpiresAt: alternateLease,
+    });
+    expect(db.query("SELECT COUNT(*) AS count FROM expo_reading_parts_v2").get()).toEqual({ count: 4 });
+  });
+}
+
+test("explicit article and diktat publication deletions remove matching packages before a failed manifest", async () => {
+  const article = descriptor({ ...target, kind: "article" });
+  const retained = descriptor({ ...target, id: "other-reading" });
+  const materials = [descriptor(), article, retained];
+  const publishedDeletes = [descriptor(), article].map(item => ({
+    cursor: "5", kind: item.kind, courseId: item.courseId, resourceId: item.id, action: "delete" as const, revision: null,
+  }));
+  const { commit, metadata, readingStore, guard, options, db } = await setup(
+    Response.json(page("5", { reset: false, changes: publishedDeletes }), { headers: headerIdentity }),
+    new Response(null, { status: 503 }), new Response(null, { status: 503 }),
+  );
+  await commit(page(), materials, "4");
+  await commit(page(), materials, null, englishScope);
+  for (const languageScope of [scope, englishScope]) await pinFixtures(readingStore, guard, languageScope, materials);
+  const sync = createNativeOfflineSyncController({
+    session: options.session, locale: "id", repository: metadata, readings: async () => readingStore, now: () => now,
+  });
+  await expect(sync.sync([target.courseId])).rejects.toMatchObject({ code: "http", status: 503 });
+  for (const languageScope of [scope, englishScope]) {
+    expect((await readingStore.list(languageScope, guard)).map(item => item.key)).toEqual([retained.key]);
+    expect((await metadata.read(languageScope, now))?.cursor).toBe("4");
+  }
+  expect(db.query("SELECT COUNT(*) AS count FROM expo_reading_parts_v2").get()).toEqual({ count: 2 });
+});
+
+for (const equivalent of [true, false]) {
+  test(`verified manifest omission ${equivalent ? "withdraws equivalent" : "preserves differently authorized"} alternate readings`, async () => {
+    const retained = descriptor({ ...target, id: "other-reading" });
+    const materials = [descriptor(), retained];
+    const { commit, metadata, readingStore, guard, options } = await setup(
+      Response.json(page("5", { reset: false, changes: [
+        { cursor: "5", kind: "article", courseId: target.courseId, resourceId: "different-article", action: "invalidate", revision: null },
+      ] }), { headers: headerIdentity }),
+      materialManifest("5", grant, [retained]),
+    );
+    await commit(page(), materials, "4");
+    await commit(page("4", { access: [{ ...grant, fullContent: equivalent }] }), materials, null, englishScope);
+    for (const languageScope of [scope, englishScope]) await pinFixtures(readingStore, guard, languageScope, materials);
+    const sync = createNativeOfflineSyncController({
+      session: options.session, locale: "id", repository: metadata, readings: async () => readingStore, now: () => now,
+    });
+    expect(await sync.sync([target.courseId])).toMatchObject({ cursor: "5" });
+    expect(await readingStore.read(scope, target, guard)).toBeNull();
+    const alternate = await readingStore.read(englishScope, target, guard);
+    if (equivalent) expect(alternate).toBeNull();
+    else expect(alternate).not.toBeNull();
+    expect(await readingStore.read(englishScope, retained, guard)).not.toBeNull();
+  });
+}
+
+for (const source of ["sync", "manifest"] as const) {
+  test(`delayed partial ${source} preserves the newer alternate-language grant and its downloads`, async () => {
+    const removed = { ...descriptor({ ...target, id: "reading-2" }), chapterIds: ["chapter-2"] };
+    const materials = [descriptor(), removed];
+    const broad = { ...grant, chapterIds: ["chapter-1", "chapter-2"] };
+    const narrower = { ...grant, fullContent: false };
+    const syncResponse = Response.json(page("5", {
+      reset: false, access: [source === "manifest" ? broad : narrower],
+      changes: [{ cursor: "5", kind: "access", courseId: target.courseId, resourceId: null, action: "invalidate", revision: null }],
+    }), { headers: headerIdentity });
+    const requested = Promise.withResolvers<void>();
+    const delayed = Promise.withResolvers<Response>();
+    const hold = () => {
+      requested.resolve();
+      return delayed.promise;
+    };
+    const { commit, metadata, readingStore, guard, options } = await setup(
+      ...(source === "sync" ? [hold, materialManifest("5", narrower, [descriptor()])] : [syncResponse, hold]),
+    );
+    await commit(page("4", { access: [broad] }), materials, "4");
+    await commit(page("4", { access: [broad] }), materials, null, englishScope);
+    for (const languageScope of [scope, englishScope]) await pinFixtures(readingStore, guard, languageScope, materials);
+    const sync = createNativeOfflineSyncController({
+      session: options.session, locale: "id", repository: metadata, readings: async () => readingStore, now: () => now,
+    });
+    const pending = sync.sync([target.courseId]);
+    await requested.promise;
+    await commit(page("6", { reset: false, access: [broad] }), materials, "4", englishScope);
+    delayed.resolve(source === "sync" ? syncResponse : materialManifest("5", narrower, [descriptor()]));
+    expect(await pending).toMatchObject({ cursor: "5" });
+    expect(await readingStore.read(scope, removed, guard)).toBeNull();
+    expect(await readingStore.read(englishScope, removed, guard)).not.toBeNull();
+  });
+}
+
+test("a reset in the requesting language supplies no removal evidence for an omitted alternate course", async () => {
+  const other = descriptor({ ...target, courseId: "course-2" });
+  const otherGrant = { ...grant, courseId: other.courseId };
+  const { commit, metadata, readingStore, guard, options } = await setup(
+    Response.json(page("1", { access: [otherGrant], enrollments: [] }), { headers: headerIdentity }),
+    materialManifest("1", otherGrant, [other]),
+  );
+  await commit(page("5", { access: [otherGrant], enrollments: [] }), [other], "4");
+  await commit(page(), [descriptor()], null, englishScope);
+  await pinFixtures(readingStore, guard, englishScope, [descriptor()]);
+  const sync = createNativeOfflineSyncController({
+    session: options.session, locale: "id", repository: metadata, readings: async () => readingStore, now: () => now,
+  });
+  expect(await sync.sync([other.courseId])).toMatchObject({ cursor: "1" });
+  expect(await readingStore.read(englishScope, target, guard)).not.toBeNull();
+});
+
+test("a manifest omission does not withdraw alternate bytes if the source pass cannot commit", async () => {
+  const other = descriptor({ ...target, courseId: "course-2" });
+  const otherGrant = { ...grant, courseId: other.courseId };
+  const both = { access: [grant, otherGrant], enrollments: [] };
+  const { commit, metadata, readingStore, guard, options } = await setup(
+    Response.json(page("5", { ...both, reset: false, changes: [
+      { cursor: "5", kind: "course", courseId: null, resourceId: null, action: "invalidate", revision: null },
+    ] }), { headers: headerIdentity }),
+    materialManifest("5", grant, []),
+    new Response(null, { status: 503 }), new Response(null, { status: 503 }),
+  );
+  await commit(page("4", both), [descriptor(), other], "4");
+  await commit(page(), [descriptor()], null, englishScope);
+  await pinFixtures(readingStore, guard, englishScope, [descriptor()]);
+  const sync = createNativeOfflineSyncController({
+    session: options.session, locale: "id", repository: metadata, readings: async () => readingStore, now: () => now,
+  });
+  await expect(sync.sync([target.courseId, other.courseId])).rejects.toMatchObject({ code: "http", status: 503 });
+  expect(await readingStore.read(englishScope, target, guard)).not.toBeNull();
+});
 
 for (const endpoint of ["resource", "asset", "manifest", "sync"] as const) {
   test(`a course denial from ${endpoint} withdraws its authority and saved readings in both languages`, async () => {

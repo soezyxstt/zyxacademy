@@ -2,6 +2,7 @@ import en from "../../messages/en/notifications.json";
 import id from "../../messages/id/notifications.json";
 
 export const notificationInboxCopy = { en, id };
+export const notificationInboxFixtureGutter = 8;
 const now = Date.parse("2026-11-26T12:00:00Z");
 
 export type NotificationInboxItem = {

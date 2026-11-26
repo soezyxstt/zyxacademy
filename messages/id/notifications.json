@@ -22,6 +22,9 @@
   "bell": "Notifikasi",
   "title": "Notifikasi",
   "markAllRead": "Tandai semua dibaca",
+  "close": "Tutup notifikasi",
+  "unread": "Belum dibaca",
+  "loading": "Memuat notifikasi…",
   "empty": "Belum ada notifikasi.",
   "relative": {
     "justNow": "Baru saja",

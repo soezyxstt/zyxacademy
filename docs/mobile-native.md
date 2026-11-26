@@ -2,6 +2,8 @@
 
 Status: **prototipe lokal dan rencana, belum menjadi kontrak runtime atau rilis**. Next.js tetap melayani web dan backend; aplikasi Expo React Native yang diusulkan adalah klien tambahan dalam repositori yang sama. Migrasi dilakukan bertahap dan Capacitor tetap menjadi jalur mobile sampai setiap alur penggantinya lolos verifikasi dan keputusan rilis dibuat. Status deployment dan perilaku aktif tetap mengikuti [arsitektur](ARCHITECTURE.md), [fitur](features.md), dan [prosedur rilis](DEPLOYMENT.md).
 
+Ketukan push FCM dan APNs memakai ID notifikasi yang tersimpan di server. Expo memanggil `/api/notifications/history?tapId=…` dengan sesi aktif dan memeriksa rute serta peran sebelum membuka tujuan. Ketukan menunggu verifikasi untuk sesi yang sama. Jika pencarian mendapat 401, Expo memeriksa ulang sesi sebelum mencoba pencarian sekali lagi. Setelah rute terbuka, aplikasi mengirim tanda baca sekali melalui `/api/notifications/read`. Ringkasan jam tenang hanya membuka beranda jika peran dan sesi sudah terverifikasi saat ketukan diterima. Bukti perangkat untuk pengiriman FCM dan APNs masih diperlukan.
+
 ## Sesi build internal
 
 Pada branch integrasi, `zyx-native-parity://internal/session` membuka pemeriksaan akun untuk build native. Sesi memakai login Google di browser sistem pada origin staging. Aplikasi menyimpan verifier acak di SecureStore sebelum membuka browser. Server mengikat kode pada tantangan S256 dan mengirimkannya di fragmen callback. Endpoint `POST /api/auth/native/expo/exchange` memerlukan verifier untuk menukar kode sekali dengan cookie sesi Better Auth. Server memeriksa ketersediaan akun saat pertukaran. Login ini berbagi sesi database dengan login browser yang memulainya.

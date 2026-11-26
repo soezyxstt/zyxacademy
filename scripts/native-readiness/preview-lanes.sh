@@ -61,6 +61,9 @@ for lane in shared-ui student academic operations; do
         apps/mobile-native/metro.config.js:716939b01771f080c0a2f83cb166bf5d53eaecc9|\
         apps/mobile-native/metro.config.js:e14f0a444329b687525c5c6c0041828537f0f2fe|\
         apps/mobile-native/metro.config.js:f173791ee1b71704e9f05c6f9b4097c7df330e49|\
+        apps/mobile-native/features/shared-ui/CONTRACTS.md:07d120b9bbf20d88d30ece1798f11ff0212e7e86|\
+        apps/mobile-native/features/shared-ui/navigation.tsx:9fe43b66774fed56322a60cda0f4650e110773d0|\
+        apps/mobile-native/features/shared-ui/overlays.tsx:8b17d7b02028b2d4f447bda0c0314502b00ca3a2|\
         apps/mobile-native/features/shared-ui/SharedUiCase.tsx:0c862d99b40168da5acd8ee6d6642d3fe430eb43|\
         apps/mobile-native/auth/session-provider.tsx:46e789eebb13c65f86d88a21b39b026751ac5d4f)
           git checkout --ours -- "$conflict"

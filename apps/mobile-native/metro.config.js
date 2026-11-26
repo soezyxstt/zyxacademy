@@ -2,7 +2,7 @@ const path = require("node:path");
 const { getDefaultConfig } = require("expo/metro-config");
 
 const config = getDefaultConfig(__dirname);
-const sharedPaths = ["packages", "public/founders", "messages", "lib", "components/navigation/student"];
+const sharedPaths = ["packages", "public/founders", "messages", "lib", "components/navigation"];
 config.watchFolders = [...new Set([
   ...config.watchFolders,
   ...sharedPaths.map(folder => path.resolve(__dirname, "../..", folder)),

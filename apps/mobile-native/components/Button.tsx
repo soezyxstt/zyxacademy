@@ -7,6 +7,8 @@ import {
   useColorScheme,
   View,
   type PressableProps,
+  type StyleProp,
+  type TextStyle,
 } from "react-native";
 
 import { nativeColors, nativeLinkInks, nativeRadii } from "../../../packages/design-tokens/native-colors";
@@ -22,6 +24,7 @@ type ButtonProps = Omit<PressableProps, "children"> & {
   isLoading?: boolean;
   renderIcon?: (color: string, size: number) => ReactNode;
   iconPosition?: "start" | "end";
+  labelStyle?: StyleProp<TextStyle>;
   /** Tinted feedback surface with readable label ink. */
   softTone?: "brand" | "error" | "warning" | "success";
   /** Allows labels to wrap when the caller provides a flexible button height. */
@@ -51,6 +54,7 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
   hitSlop,
   iconPosition = "start",
   isLoading = false,
+  labelStyle,
   needsOffscreenAlphaCompositing,
   onBlur,
   onFocus,
@@ -164,6 +168,7 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
                   nativeControlLabelPosition,
                   wrapLabel && styles.wrappedLabel,
                   { color: palette.ink },
+                  labelStyle,
                 ]}>
                   {children}
                 </Text>
