@@ -707,7 +707,51 @@
       "android": {
         "jobId": 139977462101,
         "status": "in_progress_at_observation"
-      }
+      },
+      "checkoutSha": "863ba52c773dcadcb4e20cc3734e6d922d37c0c5",
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T15:23:00Z",
+          "android": {
+            "jobId": 139977462101,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Generated smoke: {'passed': 183, 'blocked': 3, 'failed': 17}. Standalone flows: {'passed': 2, 'failed': 25}. Matched comparison: {'missing': 33}.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45839001628/artifacts/15130999260",
+            "summaryCounts": {
+              "passed": 183,
+              "blocked": 3,
+              "failed": 17
+            },
+            "standaloneCounts": {
+              "passed": 2,
+              "failed": 25
+            },
+            "matchedComparisonCounts": {
+              "missing": 33
+            },
+            "initialFailureCategories": {
+              "ADB transport": 58
+            },
+            "finalFailureCategories": {
+              "ADB transport": 17
+            },
+            "retryOutcomes": {
+              "passed": 41,
+              "failed": 17
+            },
+            "scrollRestoration": {
+              "status": "missing",
+              "capture": "student-long-content",
+              "matches": 0
+            }
+          },
+          "ios": {
+            "jobId": 139977461611,
+            "status": "in_progress_at_observation",
+            "details": "Hosted macOS assigned, boot simulator and install iOS release in progress."
+          }
+        }
+      ]
     }
   ]
 }
