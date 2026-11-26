@@ -32,6 +32,8 @@ PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium node tests/visual/native-parallel/a
 
 Kontainer menyimpan data dalam penyimpanan sementara. Setelah pengujian, hentikan server Next.js dan jalankan `docker stop academic-smoke`. Referensi rute bersesi disimpan di `artifacts/native-parity/academic/routes`.
 
+Untuk uji review Idea, jalankan Next lokal dengan tambahan `R2_ENDPOINT=http://127.0.0.1:3318 R2_BUCKET=academic-fixture R2_ACCESS_KEY_ID=academic-fixture R2_SECRET_ACCESS_KEY=academic-fixture` pada perintah yang sama. Jalankan `bun packages/native-parity/academic/local/idea-item-review-smoke.ts` dari terminal kedua. Uji membuat artefak sementara dan menyajikannya di loopback selama permintaan berlangsung.
+
 Capture web menyembunyikan indikator pengembangan Next.js pada elemen `nextjs-portal`. Font, isi halaman, navigasi dan ukuran viewport tetap berasal dari halaman web yang diuji.
 
 Untuk menelusuri alur lewat tautan dan kontrol web yang dirender, jalankan:

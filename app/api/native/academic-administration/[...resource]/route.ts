@@ -12,15 +12,20 @@ import { handleStudyGroupMemberWrite } from "@/lib/native/academic/administratio
 import { writeNativeStudyGroupMember } from "@/lib/native/academic/administration/study-group-members-service";
 import { handleNativeUserStatus } from "@/lib/native/academic/administration/user-status-handler";
 import { saveNativeUserStatus } from "@/lib/native/academic/administration/user-status-service";
+import { handleNativeIdeaReview, isNativeIdeaReviewPath } from "@/lib/native/academic/administration/idea-review-handler";
+import { readNativeIdeaReview, writeNativeIdeaReview } from "@/lib/native/academic/administration/idea-review-service";
 import { handleAdministrationRead } from "@/lib/native/academic/administration/handle-read";
 import { administrationReadServices } from "@/lib/native/academic/administration/read-services";
 
 export async function GET(request: Request, context: { params: Promise<{ resource: string[] }> }) {
-  return handleAdministrationRead((await context.params).resource, new URL(request.url).searchParams, administrationReadServices);
+  const { resource } = await context.params;
+  if (isNativeIdeaReviewPath(resource)) return ideaReview(request, resource);
+  return handleAdministrationRead(resource, new URL(request.url).searchParams, administrationReadServices);
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ resource: string[] }> }) {
   const { resource } = await context.params;
+  if (isNativeIdeaReviewPath(resource)) return ideaReview(request, resource);
   if (resource[0] === "sessions") return handleNativePkaSchedule(request, resource, new URL(resolveAuthBaseUrl()).origin, {
     session: getAuthSession, hasAdmin: administrationReadServices.hasAdmin, save: updateNativePkaSchedule,
   });
@@ -45,6 +50,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ resou
   });
 }
 
+function ideaReview(request: Request, resource: string[]) {
+  return handleNativeIdeaReview(request, resource, new URL(resolveAuthBaseUrl()).origin, {
+    session: getAuthSession, hasAdmin: administrationReadServices.hasAdmin, read: readNativeIdeaReview, write: writeNativeIdeaReview,
+  });
+}
 
 function studyGroupWrite(request: Request, resource: string[]) {
   return handleStudyGroupWrite(request, resource, new URL(resolveAuthBaseUrl()).origin, {

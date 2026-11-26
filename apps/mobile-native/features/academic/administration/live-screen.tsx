@@ -15,6 +15,7 @@ import { PkaAnnouncementEditor } from "./pka-edit";
 import { clearPkaScheduleRecovery, PkaScheduleEditor } from "./pka-schedule-editor";
 import { UserStatusEditor } from "./user-status-editor";
 import { DiktatPdfControls, readDiktatScope } from "./diktat-controls";
+import { IdeaReviewEditor } from "./idea-review-editor";
 import type { AcademicTransport } from "../client";
 import type { AcademicScreenProps } from "../contracts";
 import { CourseTheme, PendingCourses, useCourseColors } from "../courses/ui";
@@ -94,6 +95,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const [filters, setFilters] = useState({ ...query });
   const [selected, setSelected] = useState<LiveRow>();
   const [pdfRow, setPdfRow] = useState<LiveRow>();
+  const [ideaDraft, setIdeaDraft] = useState<{ actorTransport: AcademicTransport; slug: string; importId: string; id: string }>();
   const [pkaDraft, setPkaDraft] = useState<{ actorTransport: AcademicTransport; row: LiveRow }>();
   const [pkaScheduleDraft, setPkaScheduleDraft] = useState<{ actorTransport: AcademicTransport; id: string }>();
   const [userStatusDraft, setUserStatusDraft] = useState<{ actorTransport: AcademicTransport; row: LiveRow }>();
@@ -110,6 +112,9 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const palette = useCourseColors();
   const { width, fontScale } = useWindowDimensions();
   const article = pattern === "/admin/courses/[slug]/review/product/[bundleId]";
+  const ideaReviewPage = pattern === "/admin/courses/[slug]/review/idea/[bundleId]";
+  const idea = ideaReviewPage && ideaDraft?.actorTransport === transport && ideaDraft.slug === params.slug && ideaDraft.importId === params.bundleId
+    ? ideaDraft : undefined;
   const pdfPending = article && readDiktatScope(query, params.bundleId);
   const { state, retry, invalidate } = useRead(transport, administrationReadPath(pattern, params, filters));
   const target = state.status === "ready" && state.data.type === "redirect" ? state.data.target : undefined;
@@ -120,7 +125,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const tokenRow = tokenEditor?.id ? data?.rows.find((row) => row.id === tokenEditor.id) : undefined;
   const pkaSchedule = pkaSchedulePage && pkaScheduleDraft?.actorTransport === transport
     ? data?.rows.find((row) => row.id === pkaScheduleDraft.id) : undefined;
-  const visibleSelection = (tokenPage || pkaSchedulePage) && selected ? data?.rows.find((row) => row.id === selected.id) : selected;
+  const visibleSelection = (tokenPage || pkaSchedulePage || ideaReviewPage) && selected ? data?.rows.find((row) => row.id === selected.id) : selected;
   const tokenAccessEnded = tokenPage && (state.status === "denied" || state.status === "missing");
   const clearTokenContext = useCallback(() => {
     setSelected(undefined);
@@ -205,13 +210,13 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       <Action label="Minggu berikutnya" onPress={() => filter("week", String(week + 1))} disabled={week >= 520} />
     </View> : null}
     {state.status === "loading" ? <PendingCourses /> : null}
-    {state.status === "denied" && (tokenPage || pkaSchedulePage
+    {state.status === "denied" && (tokenPage || pkaSchedulePage || ideaReviewPage
       ? <NativeStatusPanel title="Akses admin diperlukan." message="Masuk kembali jika sesi berakhir." tone="error" theme={theme}
         action={{ id: "retry", label: "Coba lagi" }} onAction={tokenPage ? reloadTokens : retry} />
       : <NativeStatusPanel title="Akses admin diperlukan." message="Masuk kembali jika sesi berakhir." tone="error" theme={theme} />)}
     {state.status === "missing" ? <CourseStatus label={pkaSchedulePage ? "Jadwal tidak ditemukan."
       : tokenPage ? "Token tidak tersedia." : "Halaman atau data tidak ditemukan."}
-      retry={tokenPage ? reloadTokens : pkaSchedulePage ? retry : undefined} error /> : null}
+      retry={tokenPage ? reloadTokens : pkaSchedulePage || ideaReviewPage ? retry : undefined} error /> : null}
     {state.status === "error" ? <NativeStatusPanel title="Data administrasi gagal dimuat." tone="error" theme={theme} action={{ id: "retry", label: "Coba lagi" }} onAction={retry} /> : null}
     {target ? <CourseStatus label="Membuka halaman tujuan…" /> : null}
     {success ? <View accessibilityLiveRegion="polite"><Ink>{success}</Ink></View> : null}
@@ -229,9 +234,10 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         { id: "success", label: "Berhasil", renderCell: (row) => row.fields?.find((field) => field.label === "Berhasil")?.value ?? "0" },
         { id: "failure", label: "Gagal", renderCell: (row) => row.fields?.find((field) => field.label === "Gagal")?.value ?? "0" },
       ]} /> : !data?.week ? data?.rows.map((row) => {
-      type ActionId = "pdf" | "edit" | "edit-pka-schedule" | "edit-group" | "group-members" | "revoke-token" | "user-status";
+      type ActionId = "pdf" | "review-idea" | "edit" | "edit-pka-schedule" | "edit-group" | "group-members" | "revoke-token" | "user-status";
       const actions: SharedUiAction<ActionId>[] = [];
       if (row.pdf && transport.command && !pdfPending) actions.push({ id: "pdf", label: "Minta PDF" });
+      if (ideaReviewPage && row.ideaReviewId) actions.push({ id: "review-idea", label: "Review Idea" });
       if (row.tokenActive !== undefined && transport.command) actions.push({ id: "revoke-token", label: row.tokenActive ? "Cabut token" : "Status token" });
       if (row.groupEditable && transport.command) actions.push({ id: "edit-group", label: "Edit kelompok" }, { id: "group-members", label: "Kelola anggota" });
       if (row.announcementEdit && transport.command) actions.push({ id: "edit", label: "Edit pengumuman" });
@@ -241,7 +247,10 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         if (id === "pdf") setPdfRow(row);
         else {
           setSuccess("");
-          if (id === "edit-group") setGroupDraft({ actorTransport: transport, id: row.id });
+          if (id === "review-idea" && row.ideaReviewId) setIdeaDraft({
+            actorTransport: transport, slug: params.slug, importId: params.bundleId, id: row.ideaReviewId,
+          });
+          else if (id === "edit-group") setGroupDraft({ actorTransport: transport, id: row.id });
           else if (id === "group-members") setGroupMembersDraft({ actorTransport: transport, id: row.id });
           else if (id === "revoke-token") setTokenDraft({ actorTransport: transport, id: row.id });
           else if (id === "user-status") setUserStatusDraft({ actorTransport: transport, row });
@@ -256,6 +265,10 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
           actions={actions} onAction={onAction} />
       </View>;
     }) : null}
+    {data && idea ? <IdeaReviewEditor key={idea.id} slug={idea.slug} importId={idea.importId} ideaId={idea.id} transport={transport}
+      close={() => setIdeaDraft(undefined)}
+      unavailable={(status) => { setIdeaDraft(undefined); setSelected(undefined); setSuccess(""); invalidate(status); }}
+      saved={() => { setIdeaDraft(undefined); setSuccess("Review Idea tersimpan."); retry(); }} /> : null}
     {data && (page > 1 || data.nextPage) ? <View style={layout.row}>
       <Action label="Sebelumnya" onPress={() => filter("page", String(page - 1))} disabled={page <= 1} />
       <Ink kind="meta">{`Halaman ${page}`}</Ink>

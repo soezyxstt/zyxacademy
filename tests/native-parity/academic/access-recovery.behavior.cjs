@@ -522,3 +522,57 @@ test("Admin tryout bank denial hides the draft, saved questions and picker until
     unmount();
   }
 });
+
+test("Admin Idea review exposes scoped evidence, supports cancel and exact retry, and reloads conflicts", async () => {
+  const params = { slug: "fisika", bundleId: "idea-import" };
+  const ideaId = "idea-velocity";
+  const routePath = "/admin/courses/fisika/review/idea/idea-import";
+  const itemPath = "/api/native/academic-administration/bundle/idea/fisika/idea-import/item/idea-velocity";
+  const page = { type: "page", rows: [{ id: "row-idea", title: ideaId, ideaReviewId: ideaId }], nextPage: false };
+  const target = { courseId: "course", importId: params.bundleId, ideaId, code: "KIN-VELOCITY",
+    statement: "Kecepatan adalah perubahan posisi.", explanation: "Hubungkan posisi dan waktu.", latex: null,
+    editable: true, sources: [{ title: "Kinematika", excerpt: "Kutipan bahan sumber", locator: "Halaman 1" }],
+    review: { status: "pending", notes: "", expectedRevision: "a".repeat(64), expectedReviewRevision: "b".repeat(64) } };
+  const calls = [];
+  const transport = {
+    accountId: "admin",
+    get: async (path) => Response.json(path === itemPath ? target : page),
+    command: async (path, init) => {
+      assert.equal(path, itemPath);
+      calls.push(init);
+      if (calls.length === 1) return new Response(null, { status: 503 });
+      if (calls.length === 3) return new Response(null, { status: 409 });
+      return Response.json({ importId: params.bundleId, ideaId, requestId: init.requestId, status: init.body.status });
+    },
+  };
+  async function changeNotes(notes) {
+    const input = renderer.root.findAllByType("TextInput").find((node) => node.props.testID === "academic-idea-review-notes");
+    assert.ok(input);
+    await act(() => input.props.onChangeText(notes));
+  }
+  await mount(AdministrationLiveScreen, { path: routePath, params, transport, actor: { id: "admin", role: "admin" } });
+  await press("Review Idea");
+  assert.ok(screenContains("Kutipan bahan sumber"));
+  await changeNotes("Catatan yang dibatalkan");
+  await press("Batal");
+  assert.equal(calls.length, 0);
+  await press("Review Idea");
+  assert.equal(screenContains("Catatan yang dibatalkan"), false);
+  await changeNotes("Perjelas kaitan dengan sumber.");
+  await press("academic-admin-save");
+  assert.equal(calls.length, 1);
+  await press("Tutup");
+  await press("Review Idea");
+  assert.ok(screenContains("Perjelas kaitan dengan sumber."));
+  await press("academic-idea-review-retry");
+  assert.deepEqual(calls[0], calls[1]);
+  assert.ok(screenContains("Review Idea tersimpan."));
+  await press("Review Idea");
+  await changeNotes("Keputusan lama");
+  await press("academic-admin-save");
+  assert.ok(screenContains("Idea atau keputusan review telah berubah."));
+  target.review.notes = "Catatan dari server";
+  await press("Coba lagi");
+  assert.ok(screenContains("Catatan dari server"));
+  assert.equal(screenContains("Keputusan lama"), false);
+});

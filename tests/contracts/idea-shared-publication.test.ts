@@ -234,6 +234,68 @@ test("item review rechecks the locked import, final decision and snapshot before
   expect((await testDb.select().from(schema.reviewItemBundle).where(eq(schema.reviewItemBundle.imporBundleId, "a")))[0]).toMatchObject({ status: "approved", notes: "reviewed" });
 }, 30000);
 
+test("native Idea review binds the current Admin, bundle, item, review revision and retry", async () => {
+  const { handleNativeIdeaReview } = await import("@/lib/native/academic/administration/idea-review-handler");
+  const { readNativeIdeaReview, writeNativeIdeaReview } = await import("@/lib/native/academic/administration/idea-review-service");
+  const reviewers = ["creator-1", "curator-1"].map((id) => ({ user: { id }, session: { id: `session-${id}` } }));
+  const expiresAt = new Date(Date.now() + 60_000);
+  await testDb.insert(schema.session).values(reviewers.map(({ user, session }) => ({
+    id: session.id, userId: user.id, token: session.id, expiresAt,
+  })));
+  const origin = "https://example.test";
+  const parts = ["bundle", "idea", "legacy-physics", "d", "item", "idea-velocity"];
+  const send = (options: { draft?: unknown; requestId?: string; reviewer?: number; slug?: string; allowed?: boolean; from?: string } = {}) => {
+    const resource = parts.map((part, i) => i === 2 ? options.slug ?? part : part);
+    const request = new Request(`${origin}/api/native/academic-administration/${resource.join("/")}`, {
+      method: options.draft ? "PATCH" : "GET",
+      body: options.draft ? JSON.stringify(options.draft) : undefined,
+      headers: { origin: options.from ?? origin, "content-type": "application/json", "idempotency-key": options.requestId ?? crypto.randomUUID() },
+    });
+    return handleNativeIdeaReview(request, resource, origin, {
+      session: async () => reviewers[options.reviewer ?? 0], hasAdmin: async () => options.allowed ?? true,
+      read: readNativeIdeaReview, write: writeNativeIdeaReview,
+    });
+  };
+  expect((await send({ slug: "different-course" })).status).toBe(404);
+  expect((await send({ allowed: false })).status).toBe(403);
+  const initialResponse = await send();
+  expect(initialResponse.status).toBe(200);
+  expect(initialResponse.headers.get("cache-control")).toBe("private, no-store");
+  const initial = await initialResponse.json();
+  expect(initial).toMatchObject({ importId: "d", ideaId: "idea-velocity", editable: true, code: "KIN-VELOCITY",
+    sources: [expect.objectContaining({ excerpt: expect.any(String) })], review: { status: "pending", notes: "" } });
+  const draft = { ...initial.review, status: "changes_requested", notes: "Perjelas laju perubahan posisi." };
+  const requestId = crypto.randomUUID();
+  expect((await send({ draft, from: "https://elsewhere.test" })).status).toBe(403);
+  expect((await send({ draft: { ...draft, notes: "\0" } })).status).toBe(422);
+  const first = await send({ draft, requestId });
+  expect(first.status).toBe(200);
+  const receipt = await first.json();
+  expect(await (await send({ draft, requestId })).json()).toEqual(receipt);
+  expect((await send({ draft: { ...draft, notes: "Ubah" }, requestId })).status).toBe(409);
+  expect((await send({ draft })).status).toBe(409);
+  const saved = await (await send()).json();
+  expect(saved.review).toMatchObject({ notes: draft.notes, status: draft.status });
+  expect(saved.review.expectedReviewRevision).not.toEqual(draft.expectedReviewRevision);
+  expect((await (await send({ reviewer: 1 })).json()).review).toEqual(initial.review);
+  await testDb.update(schema.imporBundle).set({ status: "received" }).where(eq(schema.imporBundle.id, "d"));
+  expect((await (await send()).json()).editable).toBe(false);
+  expect((await send({ draft: saved.review })).status).toBe(409);
+  await testDb.update(schema.imporBundle).set({ status: "published" }).where(eq(schema.imporBundle.id, "d"));
+  expect(await (await send({ draft, requestId })).json()).toEqual(receipt);
+  expect((await send({ draft: saved.review })).status).toBe(409);
+  beforeTransaction = async () => {
+    await testDb.update(schema.imporBundle).set({ checksum: "f".repeat(64) }).where(eq(schema.imporBundle.id, "d"));
+  };
+  expect(await (await send({ draft, requestId })).json()).toEqual({ error: "IDEA_BUNDLE_STALE_CONTEXT" });
+  await testDb.update(schema.imporBundle).set({ checksum: draft.expectedRevision }).where(eq(schema.imporBundle.id, "d"));
+  await testDb.update(schema.session).set({ expiresAt: new Date(0) }).where(eq(schema.session.id, reviewers[0].session.id));
+  expect((await send({ draft, requestId })).status).toBe(401);
+  expect((await testDb.select().from(schema.auditMutasi).where(and(
+    eq(schema.auditMutasi.actorId, reviewers[0].user.id), eq(schema.auditMutasi.action, "native_item_review_receipt"),
+  )))).toHaveLength(1);
+}, 30000);
+
 test("Admin decisions require the viewed revision and audited decisions for every Idea", async () => {
   await testDb.delete(schema.reviewBundle).where(eq(schema.reviewBundle.imporBundleId, "a"));
   await testDb.delete(schema.reviewItemBundle).where(eq(schema.reviewItemBundle.imporBundleId, "a"));

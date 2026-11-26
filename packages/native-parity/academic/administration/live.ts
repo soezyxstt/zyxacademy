@@ -7,7 +7,7 @@ export type LiveField = { label: string; value: string };
 export type DiktatPdfTarget = { importId: string; productId: string; expectedRevision: string };
 export type DiktatEvidenceStatus = "ready" | "pending" | "failed" | "stale" | "unavailable";
 export type DiktatPdfRequest = DiktatPdfTarget & { requestId: string };
-export type LiveRow = { id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; announcementEdit?: PkaAnnouncementRevision; pkaScheduleEdit?: PkaScheduleRevision; dateId?: string; groupEditable?: boolean; tokenActive?: boolean; userStatusEdit?: AdminUserStatusRevision };
+export type LiveRow = { id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; ideaReviewId?: string; announcementEdit?: PkaAnnouncementRevision; pkaScheduleEdit?: PkaScheduleRevision; dateId?: string; groupEditable?: boolean; tokenActive?: boolean; userStatusEdit?: AdminUserStatusRevision };
 export type LivePage = { type: "page"; rows: LiveRow[]; nextPage: boolean; summary?: LiveField[]; week?: { start: string; today: string } };
 export type LiveRedirect = { type: "redirect"; target: string };
 export type LiveAdministrationRead = LivePage | LiveRedirect;
@@ -67,6 +67,7 @@ function row(value: unknown): value is LiveRow {
     && (value.userStatusEdit === undefined || isAdminUserStatusRevision(value.userStatusEdit))
     && (value.dateId === undefined || isDateId(value.dateId))
     && (value.pdf === undefined || isDiktatPdfTarget(value.pdf))
+    && (value.ideaReviewId === undefined || typeof value.ideaReviewId === "string")
     && (value.announcementEdit === undefined || isPkaAnnouncementRevision(value.announcementEdit))
     && (value.pkaScheduleEdit === undefined || isPkaScheduleRevision(value.pkaScheduleEdit));
 }

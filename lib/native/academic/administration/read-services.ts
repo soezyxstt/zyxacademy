@@ -109,6 +109,7 @@ async function readBundle(kind: ReviewKind, slug: string, bundleId: string, page
     ...bundle.items.map((entry) => ({
       id: entry.id, title: entry.entityId, subtitle: itemType[entry.entityType] ?? "Item bundle",
       detail: bundleStatus[entry.status] ?? "Menunggu review", fields: [field("Versi item", entry.entityVersion)],
+      ...(kind === "idea" && entry.entityType === "idea" ? { ideaReviewId: entry.entityId } : {}),
       ...(kind === "product" && bundle.status === "draft" && (bundle.version === 2 || bundle.version === 3) && entry.entityType === "diktat" ? {
         pdf: { importId: bundle.id, productId: entry.entityId, expectedRevision: bundle.checksum },
       } : {}),
