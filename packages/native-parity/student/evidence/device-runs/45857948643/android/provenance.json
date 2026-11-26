@@ -1740,5 +1740,11 @@
     }
   ],
   "status": "device_flows_completed_with_failures",
-  "reason": "Generated smoke: {'passed': 199, 'blocked': 3, 'failed': 1}. Standalone flows: {'failed': 10, 'passed': 17}. Matched comparison: {'missing': 11, 'not_comparable': 1, 'different': 20, 'blocked_renderer': 1}."
+  "reason": "Generated smoke: {'passed': 199, 'blocked': 3, 'failed': 1}. Standalone flows: {'failed': 10, 'passed': 17}. Matched comparison: {'missing': 11, 'not_comparable': 1, 'different': 20, 'blocked_renderer': 1}.",
+  "dashboardDeviceLogExcerpt": {
+    "file": "dashboard-crash-logcat-excerpt.txt",
+    "member": "standalone-retry/002/results/2026-11-26_164323/Student dashboard enrollment states/logs/device-logcat.txt",
+    "memberSha256": "6de74fb73cb15cc2f4c305636c4426dd6c91e52abcca453038ca8cb9b24531dd",
+    "excerptSha256": "43e2d56dc6973d9d04f1e3e2b4633d3870fbdb5f52904cea523f4aef71fb5598"
+  }
 }
