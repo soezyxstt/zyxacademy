@@ -3,7 +3,15 @@ name: Download an authorized Student reading
 ---
 - launchApp:
     clearState: true
-- openLink: "zyx-native-parity://sign-in?next=%2Foffline&locale=id"
+- extendedWaitUntil:
+    visible:
+      id: native-auth-google
+    timeout: 30000
+- openLink: "zyx-native-parity://offline"
+- extendedWaitUntil:
+    visible: "(Masuk untuk melihat bacaan Anda|Sign in to see your readings)"
+    timeout: 30000
+- tapOn: "^(Masuk|Sign in)$"
 - extendedWaitUntil:
     visible:
       id: native-auth-google
