@@ -80,27 +80,24 @@ try {
         const url = new URL(route.request().url());
         return url.protocol === "data:" || url.origin === origin.origin ? route.continue() : route.abort();
       });
-      const headers = { "x-student-id": owner, "x-app-locale": "id" };
-      const responseFor = async (view: "dashboard" | "dashboard-extras") => {
-        const response = await context.request.get(new URL(learningEndpoint({ view }), origin).href, {
-          headers, maxRedirects: 0, timeout: navigationTimeout,
-        });
-        assert.equal(response.status(), 200, `${state}/${view}`);
+      const headers = { cookie: `${cookie.name}=${cookie.value}`, "x-student-id": owner, "x-app-locale": "id" };
+      const readJson = async (path: string) => {
+        const response = await fetch(new URL(path, origin), {
+          headers, redirect: "error", signal: AbortSignal.timeout(navigationTimeout),
+        }).catch(() => { throw new Error(`${state}: Request failed for ${path}`); });
+        assert.equal(response.status, 200, `${state}: ${path}`);
         return response.json();
       };
-      const dashboard = await responseFor("dashboard");
-      const extras = await responseFor("dashboard-extras");
+      const dashboard = await readJson(learningEndpoint({ view: "dashboard" }));
+      const extras = await readJson(learningEndpoint({ view: "dashboard-extras" }));
       assert.equal(dashboard.enrolled.length, state === "enrolled" ? 1 : 0, state);
       assert.equal(dashboard.firstName, { enrolled: "Alya", unenrolled: "Bima", revoked: "Citra" }[state]);
       assert.ok(!extras.partial, `Incomplete dashboard extras for ${state}`);
       capturedResponses[state] = { dashboard, extras };
       // Warm the distinct route the browser navbar consumes. Its client request
       // otherwise races cold dev compilation and has automatic retry disabled.
-      const today = await context.request.get(new URL("/api/student/today", origin).href, {
-        headers, maxRedirects: 0, timeout: navigationTimeout,
-      });
-      assert.equal(today.status(), 200, `${state}/today`);
-      assert.equal((await today.json()).streak.current, 0, `${state}/streak`);
+      const today = await readJson("/api/student/today");
+      assert.equal(today.streak.current, 0, `${state}/streak`);
 
       const page = await context.newPage();
       const recoveredErrors = new Set<string>();
