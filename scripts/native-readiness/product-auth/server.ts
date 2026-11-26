@@ -109,9 +109,9 @@ export async function startAuthFixture(certPath: string, keyPath: string) {
       headers.set("Host", new URL(EXPO_STAGING_ORIGIN).host);
       const browserOrigin = headers.get("origin");
       if (browserOrigin === fixtureOrigin) headers.set("Origin", EXPO_STAGING_ORIGIN);
+      const body = request.method === "POST" && request.body ? await request.arrayBuffer() : undefined;
       const upstream = new NextRequest(EXPO_STAGING_ORIGIN + url.pathname + url.search, {
-        method: request.method, headers,
-        body: request.method === "POST" ? await request.arrayBuffer() : undefined,
+        method: request.method, headers, body: body?.byteLength ? body : undefined,
       });
       const route = request.method + " " + url.pathname;
       if (route === "GET /api/auth/native/start") {

@@ -21,6 +21,7 @@ function cookie(response: Response, name: string) {
 
 const [certificate, key] = process.argv.slice(2);
 let stage = "start the isolated auth fixture";
+let signOutStatus: number | undefined;
 let fixture: Awaited<ReturnType<typeof startAuthFixture>> | undefined;
 try {
   check(certificate && key, "TLS material is required");
@@ -37,6 +38,7 @@ try {
     const headers = new Headers(init.headers);
     if (headers.get("Origin") === EXPO_STAGING_ORIGIN) headers.set("Origin", fixtureOrigin);
     const response = await local(target.pathname + target.search, { ...init, headers });
+    if (target.pathname === "/api/auth/sign-out") signOutStatus = response.status;
     return new Response(response.body, { status: response.status, headers: response.headers });
   };
   const verifier = randomBytes(32).toString("base64url");
@@ -111,7 +113,8 @@ try {
 } catch (error) {
   // Response bodies, cookies, verifier and grant never appear in job logs.
   console.error("Native authenticated fixture failed to " + stage +
-    (error instanceof FixtureCheckError ? ": " + error.message : ""));
+    (error instanceof FixtureCheckError ? ": " + error.message : "") +
+    (signOutStatus ? " (sign-out HTTP " + signOutStatus + ")" : ""));
   process.exitCode = 1;
 } finally {
   await fixture?.stop();
