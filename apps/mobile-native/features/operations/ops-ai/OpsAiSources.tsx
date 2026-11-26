@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import type { OpsAiCitation } from "../../../../../lib/admin-ops-ai/chat-contract";
-import { OPS_AI_CITATION_OFFICIAL_LABEL } from "../../../../../lib/admin-ops-ai/citations";
+import { OPS_AI_CITATION_OFFICIAL_LABEL, type OpsAiCitation } from "../../../../../lib/admin-ops-ai/chat-contract";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
 import { Button } from "../../../components/Button";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";

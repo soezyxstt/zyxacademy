@@ -4,6 +4,9 @@ import { z } from "zod";
 // 1. Provenance and Citations
 // ============================================================================
 
+/** Describes the context supplied to the model. */
+export const OPS_AI_CITATION_OFFICIAL_LABEL = "Sumber yang diberikan kepada model" as const;
+
 export const OpsAiProvenanceSourceSchema = z.enum([
   "semantic-rag",
   "live-tool",

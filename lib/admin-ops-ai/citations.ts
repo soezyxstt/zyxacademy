@@ -19,12 +19,8 @@ import type { AdminKnowledgeSearchResult } from "./admin-knowledge-contracts";
 // 1. Official Copywriting Constants
 // ============================================================================
 
-/**
- * Official UI copywriting label for citations provided to the model.
- * Clarifies that these sources were presented to the model as context,
- * avoiding ungrounded claims that the model read or cited every source verbatim.
- */
-export const OPS_AI_CITATION_OFFICIAL_LABEL = "Sumber yang diberikan kepada model" as const;
+import { OPS_AI_CITATION_OFFICIAL_LABEL } from "./chat-contract";
+export { OPS_AI_CITATION_OFFICIAL_LABEL };
 
 export const OPS_AI_CITATION_OFFICIAL_DISCLAIMER =
   "Sumber yang diberikan kepada model untuk referensi kontekstual, bukan jaminan model mengutip seluruh hasil secara verbatim." as const;
