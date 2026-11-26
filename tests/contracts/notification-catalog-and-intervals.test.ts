@@ -43,8 +43,11 @@ describe("notification event catalog", () => {
 
     for (const entry of NOTIFICATION_EVENT_CATALOG) {
       expect(entry.audiences.length).toBeGreaterThan(0);
-      expect(entry.inApp).toBe(true);
-      expect(entry.push).toBe(true);
+      expect(entry.inApp || entry.push || entry.email !== "never").toBe(true);
+      if (entry.key === "tutorial_session_30m_email") {
+        expect(entry.inApp).toBe(false);
+        expect(entry.push).toBe(false);
+      }
       if (entry.email === "optional") {
         expect(entry.emailCategory).not.toBeNull();
       } else {

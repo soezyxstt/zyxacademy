@@ -50,11 +50,15 @@ export type SystemNotificationTemplate =
 export interface ActivityNotificationPreferences {
   discussionsEnabled: boolean;
   flashcardsEnabled: boolean;
+  tutorAvailabilityEnabled: boolean;
+  tutorialSessionEmailEnabled: boolean;
 }
 
 export const DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES: ActivityNotificationPreferences = {
   discussionsEnabled: true,
   flashcardsEnabled: true,
+  tutorAvailabilityEnabled: true,
+  tutorialSessionEmailEnabled: true,
 };
 
 export type ActivityNotificationPreferenceKey = keyof ActivityNotificationPreferences;

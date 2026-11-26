@@ -92,8 +92,12 @@ export {
  * All background functions for Deno/compute Inngest execution.
  */
 import { quietNotificationWorker } from "./notification-quiet";
+import { tutorAvailabilityReminderCron, tutorialSessionEmailCron } from "./tutorial-reminders";
+export { tutorAvailabilityReminderCron, tutorialSessionEmailCron } from "./tutorial-reminders";
 
 export const computeFunctions = [
+  tutorAvailabilityReminderCron,
+  tutorialSessionEmailCron,
   quietNotificationWorker,
   aiModelCatalogCron,
   googleCalendarSyncCron,

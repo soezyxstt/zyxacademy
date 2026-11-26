@@ -18,6 +18,8 @@ interface SendOptionalEmailInput {
   locale?: Locale;
   from?: string;
   replyTo?: string | string[];
+  /** Stable per-recipient delivery identity for scheduled email retries. */
+  idempotencyKey?: string;
 }
 
 export type SendOptionalEmailResult =
@@ -52,7 +54,7 @@ export async function sendOptionalEmail(input: SendOptionalEmailInput): Promise<
     html,
     headers,
     replyTo: input.replyTo,
-  });
+  }, input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined);
   if (error || !data?.id) {
     throw new Error(`OPTIONAL_EMAIL_SEND_FAILED:${error?.message ?? "missing_email_id"}`);
   }

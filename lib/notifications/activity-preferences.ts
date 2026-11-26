@@ -11,6 +11,8 @@ export async function getActivityNotificationPreferences(userId: string): Promis
   const [row] = await db.select({
     discussionsEnabled: activityNotificationPreferences.discussionsEnabled,
     flashcardsEnabled: activityNotificationPreferences.flashcardsEnabled,
+    tutorAvailabilityEnabled: activityNotificationPreferences.tutorAvailabilityEnabled,
+    tutorialSessionEmailEnabled: activityNotificationPreferences.tutorialSessionEmailEnabled,
   }).from(activityNotificationPreferences).where(eq(activityNotificationPreferences.userId, userId)).limit(1);
   return row ?? { ...DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES };
 }

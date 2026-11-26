@@ -51,10 +51,12 @@ export function NotificationPreferencesForm({
   accountEmail,
   initialPreferences,
   initialActivityPreferences = DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES,
+  isTutor = false,
 }: {
   accountEmail: string;
   initialPreferences: EmailNotificationPreferences;
   initialActivityPreferences?: ActivityNotificationPreferences;
+  isTutor?: boolean;
 }) {
   const t = useTranslations("student");
   const experience = useStudentExperience();
@@ -108,7 +110,9 @@ export function NotificationPreferencesForm({
           {([
             { key: "discussionsEnabled", label: "activityDiscussions", description: "activityDiscussionsDescription", Icon: MessagesSquare },
             { key: "flashcardsEnabled", label: "activityFlashcards", description: "activityFlashcardsDescription", Icon: Layers },
-          ] as const).map(({ key, label, description, Icon }) => (
+            { key: "tutorAvailabilityEnabled", label: "activityTutorAvailability", description: "activityTutorAvailabilityDescription", Icon: CalendarDays },
+            { key: "tutorialSessionEmailEnabled", label: "activityTutorialSessionEmail", description: "activityTutorialSessionEmailDescription", Icon: CalendarDays },
+          ] as const).filter(row => row.key !== "tutorAvailabilityEnabled" || isTutor).map(({ key, label, description, Icon }) => (
             <div key={key} className="flex items-center justify-between gap-4 rounded-lg px-3 py-(--row-padding) transition-colors hover:bg-muted/30">
               <label htmlFor={`${baseId}-${key}`} className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
                 <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />

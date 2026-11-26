@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getAuthUser, type AuthUser } from "@/lib/auth-session";
 import { getEmailNotificationPreferences } from "@/lib/email-preferences/repository";
+import { hasPeran } from "@/lib/auth/authorization";
 import { getActivityNotificationPreferences } from "@/lib/notifications/activity-preferences";
 import { getTranslations } from "@/lib/i18n/server";
 import { createMetadata } from "@/lib/site";
@@ -55,7 +56,7 @@ async function AccountEmailPreferences({ account }: { account: AuthUser }) {
   const [preferences, activityPreferences] = await Promise.all([
     getEmailNotificationPreferences(account.id), getActivityNotificationPreferences(account.id),
   ]);
-  return <NotificationPreferencesForm accountEmail={account.email} initialPreferences={preferences} initialActivityPreferences={activityPreferences} />;
+  return <NotificationPreferencesForm accountEmail={account.email} initialPreferences={preferences} initialActivityPreferences={activityPreferences} isTutor={await hasPeran(account.id, "tutor")} />;
 }
 
 function SettingsPanelSkeleton() {

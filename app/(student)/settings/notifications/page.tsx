@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { NotificationPreferencesForm } from "./notification-preferences-form";
 import { auth } from "@/lib/auth";
 import { getEmailNotificationPreferences } from "@/lib/email-preferences/repository";
+import { hasPeran } from "@/lib/auth/authorization";
 import { getActivityNotificationPreferences } from "@/lib/notifications/activity-preferences";
 import { pageTitle } from "@/lib/site";
 import { PageHeader } from "@/components/page-header";
@@ -32,7 +33,7 @@ export default async function NotificationPreferencesPage() {
         title={<TranslatedText namespace="student" messageKey="notificationPreferences.title" />}
       />
       <Reveal>
-        <NotificationPreferencesForm accountEmail={session.user.email} initialPreferences={preferences} initialActivityPreferences={activityPreferences} />
+        <NotificationPreferencesForm accountEmail={session.user.email} initialPreferences={preferences} initialActivityPreferences={activityPreferences} isTutor={await hasPeran(session.user.id, "tutor")} />
       </Reveal>
     </ApplicationPage>
   );

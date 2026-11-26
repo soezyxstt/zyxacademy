@@ -70,6 +70,8 @@ export const activityNotificationPreferences = pgTable("activity_notification_pr
  userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
  discussionsEnabled: boolean("discussions_enabled").notNull().default(true),
  flashcardsEnabled: boolean("flashcards_enabled").notNull().default(true),
+ tutorAvailabilityEnabled: boolean("tutor_availability_enabled").notNull().default(true),
+ tutorialSessionEmailEnabled: boolean("tutorial_session_email_enabled").notNull().default(true),
  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

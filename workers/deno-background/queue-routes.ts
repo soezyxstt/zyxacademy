@@ -47,10 +47,14 @@ export async function dispatchCron(c: Context) {
   if (!isCronJobName(c.req.header("X-CloudScheduler-JobName"), env)) return c.body(null, 403);
   const scheduledAt = new Date(c.req.header("X-CloudScheduler-ScheduleTime") ?? "");
   if (!Number.isFinite(scheduledAt.getTime())) return c.body(null, 400);
-  const now = Date.now();
-  for (const entry of cronWindow(env, scheduledAt)) {
-    await enqueueTask({ name: entry.job, id: `cron:${entry.job}:${entry.scheduledAt}`, data: {},
-      delaySeconds: Math.max(0, (entry.scheduledAt - now) / 1000) });
+  const entries = cronWindow(env, scheduledAt);
+  // The five-minute reminder sweep adds scheduled tasks; bound parallelism so
+  // the daily dispatcher does not serially wait on hundreds of relay requests.
+  for (let index = 0; index < entries.length; index += 8) {
+    await Promise.all(entries.slice(index, index + 8).map(entry =>
+      enqueueTask({ name: entry.job, id: `cron:${entry.job}:${entry.scheduledAt}`,
+        data: { scheduledAt: entry.scheduledAt },
+        delaySeconds: Math.max(0, (entry.scheduledAt - Date.now()) / 1000) })));
   }
   await db.delete(queueTaskCheckpoints).where(lt(queueTaskCheckpoints.recordedAt, sql`now() - interval '35 days'`));
   return c.body(null, 204);

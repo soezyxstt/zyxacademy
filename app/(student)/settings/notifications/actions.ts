@@ -48,7 +48,7 @@ export async function updateNotificationPreferencesAction(
 }
 
 export async function updateActivityNotificationPreferenceAction(key: ActivityNotificationPreferenceKey, enabled: boolean): Promise<{ success: boolean }> {
-  if ((key !== "discussionsEnabled" && key !== "flashcardsEnabled") || typeof enabled !== "boolean") return { success: false };
+  if ((key !== "discussionsEnabled" && key !== "flashcardsEnabled" && key !== "tutorAvailabilityEnabled" && key !== "tutorialSessionEmailEnabled") || typeof enabled !== "boolean") return { success: false };
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user?.id) return { success: false };
