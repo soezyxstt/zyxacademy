@@ -1,14 +1,14 @@
 # Tindakan produk Murid dengan sesi Expo
 
-Pemeriksaan sumber memakai branch integrasi pada `29dd624ce`. Baris Calendar dan pembaca materi mencatat perubahan setelah audit sumber. Tabel mencakup 50 pola pemilik Student dari inventaris 145 tujuan produk Expo, beserta tindakan shell yang juga tersedia untuk Murid. Setiap ID pada [tabel tindakan](signed-action-crosswalk.tsv) mewakili kontrol, pembacaan, mutasi atau alih tujuan yang dapat diperiksa. Tindakan yang memakai kontrak dan hasil yang sama dicatat sekali pada pemanggil utama. Contohnya, tindakan di dalam thread digunakan bersama oleh diskusi dasbor dan diskusi kelas. Akses kanal kelas tetap memiliki ID tersendiri karena batas izin berbeda. [Inventaris rute](../../../../plans/native-parallel/routes.tsv), [pemetaan rute dan bukti perangkat](routes.json).
+Pemeriksaan sumber memakai branch integrasi pada `29dd624ce`. Tabel tindakan diperbarui setelah audit sumber, termasuk perubahan Kalender, pembaca, asesmen, diskusi, dan pustaka offline. Tabel mencakup 50 pola pemilik Student dari inventaris 145 tujuan produk Expo, beserta tindakan shell yang juga tersedia untuk Murid. Setiap ID pada [tabel tindakan](signed-action-crosswalk.tsv) mewakili kontrol, pembacaan, mutasi atau alih tujuan yang dapat diperiksa. Tindakan yang memakai kontrak dan hasil yang sama dicatat sekali pada pemanggil utama. Contohnya, tindakan di dalam thread digunakan bersama oleh diskusi dasbor dan diskusi kelas. Akses kanal kelas tetap memiliki ID tersendiri karena batas izin berbeda. [Inventaris rute](../../../../plans/native-parallel/routes.tsv), [pemetaan rute dan bukti perangkat](routes.json).
 
 | Area | Tujuan Student | Tersambung | Sebagian | Belum tersedia | Alias | Browser |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Dasbor, kursus, pembaca dan Zyra | 5 | 38 | 6 | 0 | 0 | 2 |
-| Kuis, tryout, hasil dan pembahasan | 9 | 29 | 2 | 0 | 0 | 0 |
+| Dasbor, kursus, pembaca dan Zyra | 5 | 39 | 6 | 0 | 0 | 2 |
+| Kuis, tryout, hasil dan pembahasan | 9 | 31 | 2 | 0 | 0 | 0 |
 | Pembelajaran, video, live dan PKA | 17 | 36 | 0 | 0 | 3 | 1 |
 | Komunitas, jadwal, profil dan pengaturan | 19 | 77 | 1 | 0 | 4 | 2 |
-| Shell masuk, akun, onboarding, MCP dan offline | Bersama | 18 | 0 | 0 | 1 | 1 |
+| Shell masuk, akun, onboarding, MCP dan offline | Bersama | 23 | 0 | 0 | 1 | 1 |
 
 Pemasangan layar ditelusuri dari file Expo yang merujuk ke `StudentProductRoute`, lalu ke `VerifiedStudentEntry`, `StudentEntry`, dan pemilik layar. Entry memeriksa peran dan konteks akun. Adapter Student memeriksa sesi, origin, identitas lewat `x-student-id`, serta izin domain sebelum membaca atau menulis. Jalur yang memakai endpoint asli, seperti inbox, video, coding, Zyra, offline dan lampiran privat, memakai otorisasi milik layanan tujuan. Tabel menginventarisasi tindakan yang ditemukan dalam source review. Penghitungan simbol, interaksi platform, dan hasil QA per tindakan tetap diperlukan untuk keputusan kesiapan. [Dispatch dan cakupan rute](../../../../scripts/native-readiness/product/route-coverage.ts), [entry bersesi](../../../../apps/mobile-native/features/student/VerifiedStudentEntry.tsx), [router fitur](../../../../apps/mobile-native/features/student/StudentEntry.tsx), [guard Student](../../../../app/api/native/student/_session.ts).
 
