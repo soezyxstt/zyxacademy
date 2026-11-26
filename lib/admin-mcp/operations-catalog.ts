@@ -36,6 +36,41 @@ export const operationsCatalog = [
     "reason": "Learner assessment requires the native Student session, course eligibility and attempt ownership. It uses the existing academic services through app HTTPS and does not accept MCP credentials."
   },
   {
+    "source": "app/api/native/academic/[...resource]/route.ts",
+    "actions": ["GET", "POST", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Course and roster reads use the signed-in role and course assignment. Settings, chapters and uploaded PDF titles use shared projections, revision checks and session-authorized retry receipts. MCP courses.update, chapters.create, chapters.update and materials.update_metadata retain their registered authorization and input contracts."
+  },
+  {
+    "source": "app/api/native/academic/tutor-support/[...resource]/route.ts",
+    "actions": ["GET", "POST", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Schedule, live class, materials and discussions use the current Tutor session. Availability edits apply the web schedule rules and verify slot ownership and revision. Replies reuse the signed-in discussion service. Tryout grades use the web grading operation and the stored answer revision. The writes use durable receipts scoped to the active Tutor session."
+  },
+  {
+    "source": "app/api/native/academic-assessment/[...resource]/route.ts",
+    "actions": ["GET", "POST", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive assessment reads and manual grading require the signed-in academic role, disclosure checks and course scope. Tryout draft metadata and bank selection require an active Admin session and course-scoped revision and retry checks. Existing MCP authoring tools use their registered scopes, consent and service contracts."
+  },
+  {
+    "source": "app/api/native/academic-administration/[...resource]/route.ts",
+    "actions": ["GET", "POST", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Expo adapter reads administrative data and uses active Admin sessions for study groups, enrollment tokens, user status, PKA and Idea item review. Idea item review uses the staged artifact and the canonical reviewer decision operation with a session-scoped receipt. MCP operations retain their registered scopes and consent."
+  },
+  {
+    "source": "app/api/admin/bundles/product/[id]/pdf/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The V2/V3 draft PDF queue uses the signed-in Admin UI and an exact Diktat, revision and request identity. V4 uses its separate trusted verification workflow and scoped authoring tools."
+  },
+  {
     "source": "app/api/forms/[idOrSlug]/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],
@@ -1464,6 +1499,13 @@ export const operationsCatalog = [
     "reason": "Related MCP operations are implemented; this source may contain additional UI actions. See docs/operations/admin-mcp.md for exact supported boundaries."
   },
   {
+    "source": "app/api/blog/upload/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive blog media upload uses the authenticated web tutor or Admin session, or the bound native Admin session for thumbnails. Blog MCP article tools can reference accepted media URLs under their existing scopes and consent."
+  },
+  {
     "source": "app/(admin)/admin/forms/[id]/page.tsx",
     "actions": [],
     "tools": [
@@ -1624,6 +1666,13 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "No operations tool implemented for this source; mutations require service invariants and concurrency review."
+  },
+  {
+    "source": "app/api/admin/native-monitoring/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": ["shortlinks.create"],
+    "status": "partial",
+    "reason": "The native Admin UI reuses web monitoring behind canonical admin session authorization. Native writes validate origin and input, including short links, analytics sync, versioned model changes, latency scheduling and read-only report proposal creation/review/confirmation. Its MCP equivalent retains its existing scope and request-key contract. This adapter changes no MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
   },
   {
     "source": "app/(admin)/admin/ops/web-analytics/page.tsx",

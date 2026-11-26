@@ -67,18 +67,16 @@ export function isEmailCategoryEnabled(
   }
 }
 
+export const emailCategoryPreference = {
+  course_updates: "courseUpdates",
+  events_and_schedules: "eventsAndSchedules",
+  learning_reminders: "learningReminders",
+  news_and_offers: "newsAndOffers",
+} as const satisfies Record<EmailNotificationCategory, keyof EmailNotificationPreferences>;
+
 export function applyCategoryUnsubscribe(
   preferences: EmailNotificationPreferences,
   category: EmailNotificationCategory,
 ): EmailNotificationPreferences {
-  switch (category) {
-    case "course_updates":
-      return { ...preferences, courseUpdates: false };
-    case "events_and_schedules":
-      return { ...preferences, eventsAndSchedules: false };
-    case "learning_reminders":
-      return { ...preferences, learningReminders: false };
-    case "news_and_offers":
-      return { ...preferences, newsAndOffers: false };
-  }
+  return { ...preferences, [emailCategoryPreference[category]]: false };
 }

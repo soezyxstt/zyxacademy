@@ -10,6 +10,7 @@ PAGE_CAPTURES = {
     "short-forms": ("/f/[slug]", "internal/public-forms"),
     "meet": ("/meet/[slug]", "internal/meet"),
 }
+DIRECTORY_CASES = ("empty", "single", "grouped")
 
 REDIRECT_CASES = {"short-forms": "short-meeting", "meet": "meeting-ready"}
 PAGE_BEHAVIORS = {
@@ -36,6 +37,8 @@ def load_page_manifest(path, group):
     cases = manifest.get("cases")
     if not isinstance(cases, list) or len(cases) != 3 or not all(map(valid_case_id, cases)) or len(set(cases)) != 3:
         raise ValueError("Expected three distinct page cases")
+    if group == "directory" and tuple(cases) != DIRECTORY_CASES:
+        raise ValueError("Expected the empty, single and grouped directory cases")
     if any(not isinstance(manifest.get(key), str) or not manifest[key] for key in ("commit", "buildCommit")):
         raise ValueError("Missing page reference revisions")
     redirect = manifest.get("externalRedirect")

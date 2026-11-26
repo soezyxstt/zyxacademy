@@ -4,7 +4,7 @@ import { NATIVE_STAGING_ORIGIN } from "../../apps/mobile-native/auth/session-api
 import type { DocumentDraftRequest } from "../../apps/mobile-native/device/file-controller";
 import type { PhotoDraftRequest, PhotoOutcome } from "../../apps/mobile-native/device/photo-controller";
 import * as client from "../../apps/mobile-native/features/public-forms/client";
-import type { pickAndUploadFormFile } from "../../apps/mobile-native/features/public-forms/expo-client";
+import type { FormWriteIdentity } from "../../packages/forms/response-policy";
 import { operationsCatalog } from "../../lib/admin-mcp/operations-catalog";
 
 const scope = { origin: NATIVE_STAGING_ORIGIN, sessionId: "session-a", accountId: "account-a" };
@@ -12,8 +12,12 @@ const photoUrl = "/api/storage/file/forms/demo/camera.jpg";
 const uri = "file:///app/cache/camera.jpg";
 
 async function fixture(platform = "android") {
-  const built = await Bun.build({ entrypoints: ["apps/mobile-native/features/public-forms/expo-client.ts"], format: "cjs", external: ["*"], write: false });
-  const module = { exports: {} as { pickAndUploadFormFile: typeof pickAndUploadFormFile } };
+  const built = await Bun.build({ entrypoints: ["apps/mobile-native/features/public-forms/expo-client.ts"], format: "cjs", external: ["*"] });
+  const module = { exports: {} as { pickAndUploadFormFile(
+    source: "camera" | "document",
+    resolveWrite: () => Promise<{ request: client.FormRequest; identity?: FormWriteIdentity } | null>,
+    draft: DocumentDraftRequest, formId: string, questionIndex: number,
+  ): Promise<unknown> } };
   const calls: string[] = [];
   const requests: Parameters<client.FormRequest>[] = [];
   const release = () => { calls.push("release"); };
@@ -49,6 +53,7 @@ async function fixture(platform = "android") {
       expect(target.session).toBe(draft.session);
       expect(target.target).toEqual({ ...draft.target, draftId: "draft-a:q3" });
       expect(target.output).toEqual({ format: "jpeg", maxBytes: 500 });
+      expect(target.discardOnRestore).toBe(true);
       return captured ?? { status: "ready", photo: { uri, name: "captured.jpg", size: 376, mimeType: "image/jpeg", release } };
     } } },
     "./client": client,

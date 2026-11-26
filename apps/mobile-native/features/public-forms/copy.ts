@@ -7,6 +7,7 @@ const nativeCopy = {
   id: {
     progress: "Kemajuan pengisian formulir", retry: "Coba lagi", openWeb: "Buka di browser", meeting: "Gabung Google Meet", opening: "Membuka…",
     browserFailed: "Browser gagal dibuka. Coba lagi.", saved: "Terima kasih", support: "Lanjutkan di browser untuk mengisi formulir ini.",
+    exitForm: "Keluar dari formulir",
     verifiedEmail: "Verifikasi email akun Zyx Anda sebelum mengirim jawaban.", alreadySent: "Formulir ini hanya menerima satu jawaban per akun. Jawaban Anda sudah tercatat.",
     denied: "Formulir belum menerima jawaban Anda. Periksa status formulir.", checkStatus: "Periksa status",
     uncertain: "Status pengiriman belum diketahui. Jawaban mungkin sudah diterima. Periksa sebelum mengisi kembali.",
@@ -28,6 +29,7 @@ const nativeCopy = {
   en: {
     progress: "Form progress", retry: "Try again", openWeb: "Open in browser", meeting: "Join Google Meet", opening: "Opening…",
     browserFailed: "Could not open the browser. Try again.", saved: "Thank you", support: "Continue in your browser to fill out this form.",
+    exitForm: "Exit form",
     verifiedEmail: "Verify your Zyx account email before submitting a response.", alreadySent: "This form accepts one response per account. Your response is already on record.",
     denied: "The form could not accept your response. Check the form status.", checkStatus: "Check status",
     uncertain: "Submission status is unknown. Your response may have been received. Check before filling out the form again.",

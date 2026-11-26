@@ -1,0 +1,93 @@
+{
+  "source": "Bank Soal IdeaAssignmentFields with synthetic chapter and published Idea records",
+  "locale": "id-ID",
+  "timeZone": "Asia/Jakarta",
+  "dpr": 1,
+  "captures": [
+    {
+      "id": "available",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "screenshot": "evaluation-ideas-available-light-380.png"
+    },
+    {
+      "id": "available",
+      "theme": "light",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "evaluation-ideas-available-light-1536.png"
+    },
+    {
+      "id": "balanced",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "screenshot": "evaluation-ideas-balanced-light-380.png"
+    },
+    {
+      "id": "balanced",
+      "theme": "light",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "evaluation-ideas-balanced-light-1536.png"
+    },
+    {
+      "id": "invalid",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "screenshot": "evaluation-ideas-invalid-light-380.png"
+    },
+    {
+      "id": "invalid",
+      "theme": "light",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "evaluation-ideas-invalid-light-1536.png"
+    },
+    {
+      "id": "available",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "screenshot": "evaluation-ideas-available-dark-380.png"
+    },
+    {
+      "id": "available",
+      "theme": "dark",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "evaluation-ideas-available-dark-1536.png"
+    },
+    {
+      "id": "balanced",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "screenshot": "evaluation-ideas-balanced-dark-380.png"
+    },
+    {
+      "id": "balanced",
+      "theme": "dark",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "evaluation-ideas-balanced-dark-1536.png"
+    },
+    {
+      "id": "invalid",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "screenshot": "evaluation-ideas-invalid-dark-380.png"
+    },
+    {
+      "id": "invalid",
+      "theme": "dark",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "evaluation-ideas-invalid-dark-1536.png"
+    }
+  ],
+  "errors": []
+}

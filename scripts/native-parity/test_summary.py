@@ -101,6 +101,39 @@ class PageSummaryTest(unittest.TestCase):
             write("reference-manifests/dpr3/directory.json", {**self.manifest, "buildCommit": "other"})
             self.assertFalse(page_summary(root, "fixture", "merge", "directory")[1])
 
+    def test_android_webview_directory_claim_is_independent_and_exact(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "reference-manifests/dpr1/directory.json"
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(json.dumps(self.manifest))
+            chromium = root / "android-measurements/directory/result.json"
+            chromium.parent.mkdir(parents=True)
+            report = self.report("android")
+            chromium.write_text(json.dumps(report))
+            webview = root / "android-measurements/native-vs-webview/directory/result.json"
+            webview.parent.mkdir(parents=True)
+
+            def webview_summary():
+                return page_summary(root, "fixture", "merge", "directory", ("android",), "android-webview")
+
+            self.assertFalse(webview_summary()[1])
+            webview.write_text(json.dumps(report))
+            self.assertFalse(webview_summary()[1])
+            report["referenceEngine"] = "android-webview"
+            webview.write_text(json.dumps(report))
+            rows, passed = webview_summary()
+            self.assertTrue(passed)
+            self.assertIn("#### `/tautan` route vs Android WebView", rows)
+            report["cases"][1].update(status="fail", differentPixels=1)
+            report["cases"][2].update(status="missing-stable-frame", surface="webview")
+            webview.write_text(json.dumps(report))
+            rows, passed = webview_summary()
+            self.assertFalse(passed)
+            self.assertIn("| single | 1 differing pixels |", rows)
+            self.assertIn("| grouped | Missing stable WebView frame |", rows)
+            self.assertTrue(page_summary(root, "fixture", "merge", "directory", ("android",))[1])
+
     def test_external_redirect_needs_two_handoff_frames_and_never_counts_as_a_pixel_match(self):
         redirect = {"case": "short-meeting", "status": 307, "location": "https://meet.google.com/abc-defg-hij"}
         manifest = {**self.manifest, "route": "/f/[slug]", "cases": ["short-collision", "short-meeting", "short-missing"],

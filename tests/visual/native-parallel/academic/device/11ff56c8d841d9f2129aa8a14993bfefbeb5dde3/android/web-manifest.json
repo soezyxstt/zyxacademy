@@ -1,0 +1,154 @@
+{
+  "sourceRevision": "11ff56c8d841d9f2129aa8a14993bfefbeb5dde3",
+  "viewport": {
+    "width": 380,
+    "height": 852
+  },
+  "deviceScaleFactor": 1,
+  "locale": "id-ID",
+  "timezoneId": "Asia/Jakarta",
+  "clock": "2026-11-28T02:00:00.000Z",
+  "browser": "Chromium 154.0.8037.57",
+  "fonts": [
+    "Inter 400-700",
+    "Lexend 700"
+  ],
+  "captures": [
+    {
+      "id": "tutor-dashboard-assigned-light",
+      "component": "TutorDashboardContent",
+      "source": "features/tutor-dashboard/ui/tutor-dashboard-content.tsx",
+      "route": "/tutor",
+      "theme": "light",
+      "image": "tutor-dashboard-assigned-light.png",
+      "width": 380,
+      "height": 852,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 380,
+        "height": 852
+      },
+      "sha256": "5ec71d2e86a6ed489d2251d172eef0c9a008ea7e9281e14a934825eaba4b7f0d"
+    },
+    {
+      "id": "tutor-participants-enrolled-light",
+      "component": "ParticipantsClient",
+      "source": "app/(tutor)/tutor/[courseId]/participants/participants-client.tsx",
+      "route": "/tutor/academic-course-1/participants",
+      "theme": "light",
+      "image": "tutor-participants-enrolled-light.png",
+      "width": 380,
+      "height": 852,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 380,
+        "height": 852
+      },
+      "sha256": "c66be09d3e1f7520f0ebbf3a2d4b03011245ac416ec846b679bae044f70157b7"
+    },
+    {
+      "id": "tutor-participants-empty-dark",
+      "component": "ParticipantsClient",
+      "source": "app/(tutor)/tutor/[courseId]/participants/participants-client.tsx",
+      "route": "/tutor/academic-course-2/participants",
+      "theme": "dark",
+      "image": "tutor-participants-empty-dark.png",
+      "width": 380,
+      "height": 852,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 380,
+        "height": 852
+      },
+      "sha256": "abe66a9a207271b02dba066e280f28264222004475a578ebecf29313befad746"
+    },
+    {
+      "id": "tutor-tryout-grading-pending-light",
+      "component": "GradingClient",
+      "source": "app/(tutor)/tutor/[courseId]/grading/grading-client.tsx",
+      "route": "/tutor/academic-course-1/grading",
+      "theme": "light",
+      "image": "tutor-tryout-grading-pending-light.png",
+      "width": 380,
+      "height": 852,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 380,
+        "height": 852
+      },
+      "sha256": "f4805d56fa4e166782e3a956deda7b57182753e0251fd3c4470d17d3f0e0f97b"
+    },
+    {
+      "id": "tutor-quizzes-list-light",
+      "component": "QuizzesClient",
+      "source": "app/(tutor)/tutor/[courseId]/quizzes/quizzes-client.tsx",
+      "route": "/tutor/academic-course-1/quizzes",
+      "theme": "light",
+      "image": "tutor-quizzes-list-light.png",
+      "width": 380,
+      "height": 852,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 380,
+        "height": 852
+      },
+      "sha256": "5cbf3bb2f015bc8e116e082beb8b7dd4f9f41bd221057b1a2fa25faa2fc4bfcf"
+    },
+    {
+      "id": "admin-courses-list-light",
+      "component": "CoursesDashboard",
+      "source": "components/admin/courses-dashboard.tsx",
+      "route": "/admin/courses",
+      "theme": "light",
+      "image": "admin-courses-list-light.png",
+      "width": 380,
+      "height": 852,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 380,
+        "height": 852
+      },
+      "sha256": "e3fd3f57209c757cccb4943094898018d98584f61d0b756cbd7c1a053268b402"
+    },
+    {
+      "id": "admin-courses-empty-dark",
+      "component": "CoursesDashboard",
+      "source": "components/admin/courses-dashboard.tsx",
+      "route": "/admin/courses?state=empty",
+      "theme": "dark",
+      "image": "admin-courses-empty-dark.png",
+      "width": 380,
+      "height": 852,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 380,
+        "height": 852
+      },
+      "sha256": "09312567080406ea8e265eba2f6822951c45a160bb3d2b398458712b18914628"
+    },
+    {
+      "id": "admin-course-chapters-light",
+      "component": "CourseDetailHeader + ChaptersTab",
+      "source": "components/admin/course-detail/course-detail-header.tsx and components/admin/course-detail/chapters-tab.tsx",
+      "route": "/admin/courses/academic-course-1",
+      "theme": "light",
+      "image": "admin-course-chapters-light.png",
+      "width": 380,
+      "height": 852,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 380,
+        "height": 852
+      },
+      "sha256": "f0b108b6b2c26cf57f897ff8c198eae01480218ee28de5330f18c10204356871"
+    }
+  ]
+}

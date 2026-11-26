@@ -104,6 +104,103 @@ test("collection and reader views do not select unrelated body or answer columns
   } finally { select.mockRestore(); distinct.mockRestore(); }
 });
 
+test("native demo reads the same scoped products and grades only a signed question order", async () => {
+  const { GET: read } = await import("@/app/api/native/public/demo/[view]/route");
+  const { POST: grade } = await import("@/app/api/demo/quiz/route");
+  const open = (view: string, search: string) => read(new Request(`http://localhost/api/native/public/demo/${view}?${search}`), { params: Promise.resolve({ view }) });
+  const article = await open("article", "course=course-0&articleId=article");
+  expect(article.status).toBe(200);
+  expect(article.headers.get("cache-control")).toBe("no-store");
+  const reader = await article.json();
+  expect(reader).toMatchObject({ kind: "article", title: "Chapter 1", sections: [{ blocks: [{ text: "ARTICLE BODY" }] }] });
+  expect(JSON.stringify(reader)).not.toMatch(/DIKTAT BODY|PRIVATE|CARD BACK|SOLUTION/);
+  expect((await open("article", "course=course-0&articleId=later")).status).toBe(404);
+  expect((await open("article", "course=course-0&course=course-1")).status).toBe(404);
+  expect((await open("article", "course=unknown")).status).toBe(404);
+  expect((await open("flashcards", "course=course-0&collectionOffset=1000000")).status).toBe(404);
+
+  const documents = await (await open("documents", "course=course-0")).json();
+  expect(documents.documents).toEqual([
+    { id: "article", title: "Free article", kind: "article", collectionOffset: 0 },
+    { id: "diktat", title: "Free diktat", kind: "diktat", collectionOffset: 0 },
+  ]);
+  expect(JSON.stringify(documents)).not.toMatch(/ARTICLE BODY|DIKTAT BODY|CARD BACK|SOLUTION/);
+  const quiz = await (await open("quiz", "course=course-0&quizOffset=3")).json();
+  expect(quiz).toMatchObject({ courseId: "course-0", offset: 3, total: 4, questions: [{ id: "q4" }] });
+  expect(JSON.stringify(quiz)).not.toMatch(/correctIndices|SOLUTION|ARTICLE BODY|DIKTAT BODY|CARD BACK/);
+  const payload = { courseId: quiz.courseId, quizOffset: quiz.offset, questionIds: ["q4"], questionSetToken: quiz.token, answers: [[0]] };
+  const submit = (body: object) => grade(new Request("http://localhost/api/demo/quiz", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  }));
+  const result = await submit(payload);
+  expect(result.status).toBe(200);
+  expect(await result.json()).toMatchObject({ score: 1, total: 1, results: [{ isCorrect: true, correctIndices: [0] }] });
+  expect((await submit({ ...payload, questionIds: ["q1"] })).status).toBe(409);
+});
+
+test("native product revisions match the scoped experience when the summary is stale", async () => {
+  const { GET: read } = await import("@/app/api/native/public/demo/[view]/route");
+  const summaryModule = await import("@/lib/demo/summary-repository");
+  const original = await summaryModule.getDemoSummaries();
+  const stale = spyOn(summaryModule, "getDemoSummaries").mockResolvedValue(
+    original.map((summary) => ({ ...summary, snapshot: { ...summary.snapshot, revision: "older-revision" } })),
+  );
+  try {
+    const open = (view: string) => read(new Request(`http://localhost/api/native/public/demo/${view}?course=course-0`), {
+      params: Promise.resolve({ view }),
+    });
+    const progress = await (await open("progress")).json();
+    expect(progress.baseline.revision).toBe("older-revision");
+    for (const view of ["article", "diktat", "flashcards", "quiz", "quiz-list", "quiz-start"]) {
+      const response = await open(view);
+      expect(response.status).toBe(200);
+      const content = await response.json();
+      expect(content.revision).toBe(fictionalDemoSnapshot("course-0").revision);
+      if (view === "quiz") {
+        const scope = JSON.parse(Buffer.from(content.token.split(".")[0], "base64url").toString("utf8"));
+        expect(scope.contentRevision).toBe(content.revision);
+      }
+    }
+  } finally { stale.mockRestore(); }
+});
+
+test("native demo projects progress, path, mastery and the synthetic tryout list for the selected public course", async () => {
+  const { GET: read } = await import("@/app/api/native/public/demo/[view]/route");
+  const open = (view: string, course: string, locale = "id") => read(
+    new Request(`http://localhost/api/native/public/demo/${view}?course=${course}`, { headers: { "Accept-Language": locale } }),
+    { params: Promise.resolve({ view }) },
+  );
+  const snapshot = fictionalDemoSnapshot("course-0");
+  for (const view of ["progress", "path", "mastery", "tryout-list"]) {
+    expect((await open(view, "unknown")).status).toBe(404);
+    expect((await open(view, "course-0&course=course-1")).status).toBe(404);
+    const response = await open(view, "course-0", "en");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const payload = await response.json();
+    expect(payload.kind).toBe(view);
+    expect(JSON.stringify(payload)).not.toMatch(/ARTICLE BODY|DIKTAT BODY|CARD BACK|SOLUTION|PRIVATE SOURCE|displayName|recentReviews|correctIndices/);
+    switch (view) {
+      case "progress":
+        expect(payload.baseline).toEqual({
+          courseId: snapshot.courseId, revision: snapshot.revision, course: snapshot.course,
+          flashcards: { dueCount: snapshot.flashcards.dueCount }, history: snapshot.history, streakDays: snapshot.streakDays,
+        });
+        break;
+      case "path":
+        expect(payload.steps.map((step: { conceptName: string }) => step.conceptName)).toEqual(snapshot.weakConcepts.map((topic) => topic.title));
+        break;
+      case "mastery":
+        expect(payload.groups[0]).toMatchObject({ chapter: { title: "Chapter 1" }, concepts: [{ conceptName: "Free article" }, { conceptName: "Free diktat" }] });
+        break;
+      case "tryout-list":
+        expect(payload.exam).toEqual({ id: "synthetic-study-skills-v1", title: "Practice tryout", questionCount: 3, timeLimitMinutes: 15, maximumAttempts: 2 });
+        expect((await (await open(view, "course-0")).json()).exam.title).toBe("Tryout latihan");
+        break;
+    }
+  }
+});
+
 test("quiz pages redact solutions, bind revision and versions, and grading reads the solution", async () => {
   const first = await getDemoExperience("course-0", {}, "quiz");
   const second = await getDemoExperience("course-0", { quizOffset: 3 }, "quiz");

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
-import { Alert, Linking, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { buildFormSteps, formQuestionNumbers } from "../../../../packages/forms/presentation";
 import { customFormMessage } from "../../../../packages/forms/response-policy";
@@ -38,6 +38,16 @@ type FormResponseProps = {
 };
 
 const emptyDraft = (): FormDraft => ({ answers: {}, other: {}, email: "" });
+
+function FormActionIcon({ kind, color, size }: { kind: "back" | "next" | "check" | "send" | "exit"; color: string; size: number }) {
+  const path = {
+    back: "m12 19-7-7 7-7m-7 7h14", next: "M5 12h14m-7-7 7 7-7 7", check: "m20 6-11 11-5-5",
+    send: "M22 2 15 22l-4-9-9-4 20-7ZM22 2 11 13", exit: "m18 6-12 12M6 6l12 12",
+  }[kind];
+  return <Svg width={size} height={size} viewBox="0 0 24 24" accessible={false}>
+    <Path d={path} stroke={color} fill="none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>;
+}
 
 export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSessionRetry, onUploadWeb, cameraAvailable, onSubmit, onUpload, onLogin, onWeb, onCheck, onDone, statusCheck, checking, checkFailed, onRepeat }: FormResponseProps) {
   const colors = nativeColors[useColorScheme() ?? "light"];
@@ -244,17 +254,18 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
   })();
 
   const disabled = !!pending || blocked || !!checking;
-  const advanceLabel = finalStep ? copy.submit : cover && !email && !indices.length ? copy.start : copy.next;
-  const controls = <View style={[styles.actions, { borderTopColor: colors.border + "99" }]}>
-    {(section || cursor > 0) && <Button variant={section ? "outline" : "ghost"}
-      disabled={cursor === 0 || !!pending} onPress={() => navigate(cursor - 1)}>{copy.back}</Button>}
-    {!blocked && <Button testID="public-form-next" onPress={next} isLoading={pending?.status === "submit"}
-      accessibilityLabel={advanceLabel} disabled={disabled || needsCheck || (finalStep && !!sessionStatus)}
-      iconPosition="end" renderIcon={(color, size) => <Svg width={size} height={size} viewBox="0 0 24 24" accessible={false}>
-        <Path d={finalStep ? "M22 2 15 22l-4-9-9-4 20-7ZM22 2 11 13" : "M5 12h14m-7-7 7 7-7 7"}
-          stroke={color} fill="none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      </Svg>}>{pending?.status === "submit" ? copy.submitting : advanceLabel}</Button>}
-  </View>;
+  const questionStep = step?.kind === "question";
+  const showFooter = !section && (cursor > 0 || questionStep);
+  const advanceLabel = step?.kind === "cover" ? copy.start : finalStep ? copy.submit : copy.next;
+  const advanceIcon = step?.kind === "email" ? "check" : finalStep && (questionStep || section) ? "send" : "next";
+  const advance = !blocked && <Button testID="public-form-next" size={section ? "default" : "lg"} onPress={next}
+    isLoading={pending?.status === "submit"} accessibilityLabel={advanceLabel} disabled={disabled || needsCheck || (finalStep && !!sessionStatus)}
+    iconPosition="end" renderIcon={(color, size) => <FormActionIcon kind={advanceIcon} color={color} size={size} />}>
+    {pending?.status === "submit" ? copy.submitting : advanceLabel}
+  </Button>;
+  const back = <Button testID="public-form-back" size={section ? "default" : "lg"} variant={section ? "outline" : "ghost"}
+    disabled={cursor === 0 || !!pending} onPress={() => navigate(cursor - 1)}
+    renderIcon={section ? undefined : (color, size) => <FormActionIcon kind="back" color={color} size={size} />}>{copy.back}</Button>;
   return <View style={styles.response}>
     <View style={{ borderBottomWidth: 1, borderBottomColor: colors.border + "66", backgroundColor: colors.background + "d9" }}>
       <View accessible accessibilityRole="progressbar" accessibilityLabel={copy.progress}
@@ -262,6 +273,9 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
         <View style={{ width: `${percent}%`, height: 4, backgroundColor: colors.brandPrimary }} />
       </View>
       <View style={[styles.column, styles.header]}>
+        {Platform.OS === "ios" && <Button size="icon-lg" variant="ghost" testID="public-form-exit" accessibilityLabel={copy.exitForm}
+          disabled={!!pending} style={styles.exit} onPress={() => { if (!occupied.current) onDone(); }}
+          renderIcon={(color, size) => <FormActionIcon kind="exit" color={color} size={size} />} />}
         <Text numberOfLines={1} style={[formStyles.meta, nativeTypography.bodyMedium, { flex: 1, color: colors.foreground }]}>{form.title}</Text>
         {section && <Text style={[formStyles.meta, nativeTypography.bodySemibold, { color: colors.mutedForeground }]}>
           {locale === "id" ? "Bagian" : "Section"} {cursor + 1} / {steps.length}
@@ -278,7 +292,7 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
       {email && <View style={formStyles.group} onLayout={event => { positions.current.email = event.nativeEvent.layout.y; }}>
         <Text accessibilityRole="header" style={[formStyles.heading, { color: colors.foreground }]}>{copy.emailTitle}</Text>
         <Text style={[formStyles.meta, { color: colors.mutedForeground }]}>{copy.emailExplanation}</Text>
-        <Input accessibilityLabel={copy.emailTitle} autoComplete="email" autoCapitalize="none" autoCorrect={false}
+        <Input testID="public-form-email" accessibilityLabel={copy.emailTitle} autoComplete="email" autoCapitalize="none" autoCorrect={false}
           keyboardType="email-address" placeholder={copy.emailPlaceholder} disabled={disabled}
           value={draft.email} onChangeText={value => { update({ ...draftRef.current, email: value }); setEmailIssue(false); }} style={formStyles.input} />
         {emailIssue && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[formStyles.meta, { color: colors.destructive }]}>{copy.emailInvalid}</Text>}
@@ -307,9 +321,12 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
       {sessionStatus === "unavailable" && <NativeStatusPanel tone="error" title={copy.sessionUnavailable}
         action={{ id: "session", label: copy.retry }} onAction={onSessionRetry ?? onCheck} />}
       {checkFailed && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[formStyles.meta, { color: colors.destructive }]}>{copy.loadError}</Text>}
-      {(section || step?.kind !== "question") && controls}
+      {section && <View style={[styles.actions, styles.sectionActions, { borderTopColor: colors.border + "99" }]}>{back}{advance}</View>}
+      {!section && !questionStep && advance && <View style={styles.inlineActions}>{advance}</View>}
     </ScrollView>
-    {!section && step?.kind === "question" && <View style={[styles.column, styles.footer, { backgroundColor: colors.background }]}>{controls}</View>}
+    {showFooter && <View testID="public-form-footer" style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border + "99" }]}>
+      <View style={[styles.column, styles.actions, styles.footerActions]}>{back}{questionStep && advance}</View>
+    </View>}
   </View>;
 }
 
@@ -317,11 +334,15 @@ const styles = StyleSheet.create({
   response: { flex: 1 },
   column: { alignSelf: "center", width: "100%", maxWidth: 672, paddingHorizontal: 16 },
   header: { flexDirection: "row", minHeight: 44, alignItems: "center", columnGap: 8 },
+  exit: { width: 44, height: 44, marginStart: -8 },
   counter: { ...nativeTypography.mono, fontSize: 12, lineHeight: 16, fontVariant: ["tabular-nums"] },
   content: { gap: 16, paddingVertical: 16 },
   cover: { gap: 16 },
   description: { ...nativeTypography.bodyRegular, fontSize: 16, lineHeight: 26 },
   divider: { borderTopWidth: 1, paddingTop: 20, marginTop: 4, paddingBottom: 20 },
-  actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end", gap: 8, borderTopWidth: 1, paddingTop: 12 },
-  footer: { paddingBottom: 8 },
+  actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end", gap: 8 },
+  sectionActions: { borderTopWidth: 1, paddingTop: 12 },
+  inlineActions: { alignItems: "flex-start" },
+  footer: { flexShrink: 0, borderTopWidth: 1 },
+  footerActions: { paddingVertical: 8 },
 });

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { useRef, useState, type ComponentRef } from "react";
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme, useWindowDimensions } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { nativeColors, nativeRadii } from "../../../../packages/design-tokens/native-colors";
 import { formScaleValues } from "../../../../packages/forms/presentation";
@@ -143,6 +143,8 @@ export function FormField({ index, number, question, value, detail, issue, onVal
 }) {
   const copy = publicFormCopy(locale);
   const [focusedText, setFocusedText] = useState(false);
+  const textInput = useRef<ComponentRef<typeof Input>>(null);
+  const { fontScale } = useWindowDimensions();
   const type = question.type;
   const readOnly = type === "SECTION" || type === "STATEMENT";
   const image = sourceUrl(question.imageUrl);
@@ -153,12 +155,16 @@ export function FormField({ index, number, question, value, detail, issue, onVal
   let control;
   if (type === "TEXT" || type === "PARAGRAPH") {
     const TextField = type === "TEXT" ? Input : Textarea;
-    control = <TextField accessibilityLabel={question.title} accessibilityHint={question.required ? copy.required : undefined}
+    const field = <TextField ref={type === "TEXT" ? textInput : undefined} accessibilityLabel={question.title} accessibilityHint={question.required ? copy.required : undefined}
       placeholder={type === "TEXT" ? copy.textPlaceholder : copy.paragraphPlaceholder}
       placeholderTextColor={colors.mutedForeground + "66"} disabled={disabled} maxLength={50_000} value={scalar}
       testID={`public-form-field-${index}`} onFocus={() => setFocusedText(true)} onBlur={() => setFocusedText(false)}
-      style={type === "TEXT" ? [styles.lineInput, { borderBottomColor: focusedText ? colors.brandPrimary : colors.border + "cc" }]
+      style={type === "TEXT" ? [styles.lineInput, { height: Math.max(36, 20 * fontScale + 16), borderBottomColor: focusedText ? colors.brandPrimary : colors.border + "cc" }]
         : styles.paragraph} onChangeText={onValue} />;
+    // Android's TextInput does not expose native hit slop. Keep the underline
+    // geometry and let touches in the extra space below it focus the same field.
+    control = type === "TEXT" ? <Pressable accessible={false} importantForAccessibility="no" focusable={false}
+      disabled={disabled} style={styles.lineTouchTarget} onPress={() => textInput.current?.focus()}>{field}</Pressable> : field;
   } else if (type === "CHECKBOX" || type === "RADIO") {
     const multiple = type === "CHECKBOX";
     const choices = question.otherOption?.enabled ? [...options, otherOption] : options;
@@ -257,7 +263,8 @@ const styles = StyleSheet.create({
   fieldTitle: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
   number: { ...nativeTypography.mono, fontSize: 14, lineHeight: 20, paddingTop: 2 },
   titleText: { flex: 1 },
-  lineInput: { height: 36, paddingTop: 0, paddingBottom: 12, paddingHorizontal: 0, borderRadius: 0,
+  lineTouchTarget: { minHeight: 44 },
+  lineInput: { paddingTop: 0, paddingBottom: 12, paddingHorizontal: 0, borderRadius: 0,
     borderWidth: 0, borderBottomWidth: 2, outlineWidth: 0, boxShadow: "none", backgroundColor: "transparent" },
   paragraph: { minHeight: 112, padding: 12 },
   choice: { minHeight: 44, minWidth: 44, flexDirection: "row", alignItems: "center", gap: 8, padding: 8, borderWidth: 1, borderRadius: nativeRadii.md },

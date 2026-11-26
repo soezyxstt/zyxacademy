@@ -52,9 +52,9 @@ afterAll(() => {
 test("PDF queue requires an exact target and rejects V4 before enqueue", async () => {
   sent = undefined;
   reserveCount = 0;
-  expect((await POST(new Request("https://example.test", { method: "POST", body: "{}" }), context)).status).toBe(400);
+  expect((await POST(new Request("https://example.test", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }), context)).status).toBe(400);
   version = 4;
-  const request = () => new Request("https://example.test", { method: "POST", body: JSON.stringify({ productId: "second", expectedRevision: revision, requestId }) });
+  const request = () => new Request("https://example.test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productId: "second", expectedRevision: revision, requestId }) });
   const rejected = await POST(request(), context);
   expect(rejected.status).toBe(422);
   expect((await rejected.json()).error).toBe("PRODUCT_V4_TRUSTED_VERIFICATION_REQUIRED");
@@ -77,7 +77,7 @@ test("PDF queue requires an exact target and rejects V4 before enqueue", async (
 test("queue rejection fails only the reserved attempt and hides provider errors", async () => {
   queueRejects = true;
   failedAttempt = undefined;
-  const response = await POST(new Request("https://example.test", { method: "POST", body: JSON.stringify({ productId: "second", expectedRevision: revision, requestId }) }), context);
+  const response = await POST(new Request("https://example.test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productId: "second", expectedRevision: revision, requestId }) }), context);
   expect(response.status).toBe(503);
   expect(await response.json()).toEqual({ outcome: "accepted", requestId, attemptId: "attempt-1", duplicate: false, error: "PRODUCT_DIKTAT_PDF_QUEUE_UNAVAILABLE" });
   expect(failedAttempt).toEqual(["import", "attempt-1"]);
@@ -101,4 +101,17 @@ test("preview rejects stale evidence after download before returning bytes", asy
   expect((await response.json()).error).toBe("PRODUCT_DIKTAT_PDF_STALE");
   staleAfterDownload = false;
   expect((await GET(new Request(`https://example.test?productId=second&expectedRevision=${revision}`), context)).status).toBe(200);
+});
+
+test("foreign-origin PDF requests cannot register or enqueue work", async () => {
+  sent = undefined;
+  reserveCount = 0;
+  const response = await POST(new Request("https://example.test", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: "https://foreign.example.test", "Sec-Fetch-Site": "same-site" },
+    body: JSON.stringify({ productId: "second", expectedRevision: revision, requestId }),
+  }), context);
+  expect(response.status).toBe(403);
+  expect(reserveCount).toBe(0);
+  expect(sent).toBeUndefined();
 });

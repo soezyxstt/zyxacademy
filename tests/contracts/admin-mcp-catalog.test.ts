@@ -9,6 +9,7 @@ test("model configuration and billed latency refresh remain explicitly UI-only",
   expect(entry.tools).toEqual([]);
   expect(entry.actions).toEqual(["listAiModelSettingsAction", "updateAiModelSettingAction", "resetAiModelSettingAction", "refreshAiModelLatenciesAction"]);
 });
+
 test("every registered and conditional permission is grantable, and tool names are unique", () => {
   const names: string[] = []; const scopes = new Set<string>();
   for (const file of readdirSync("lib/admin-mcp").filter(file => file.endsWith("-tools.ts"))) {
@@ -80,4 +81,36 @@ test("live public form writes stay separate from MCP preview and simulation", ()
     expect(entry?.tools).toEqual([]);
     expect(entry?.actions).toContain("POST");
   }
+});
+
+test("native academic reads and legacy Diktat PDF keep signed-in UI authorization", () => {
+  const native = operationsCatalog.find(item => item.source === "app/api/native/academic-administration/[...resource]/route.ts")!;
+  const pdf = operationsCatalog.find(item => item.source === "app/api/admin/bundles/product/[id]/pdf/route.ts")!;
+  expect(native.status).toBe("excluded");
+  expect(native.actions).toEqual(["GET", "POST", "PATCH"]);
+  expect(native.tools).toEqual([]);
+  expect(pdf.status).toBe("excluded");
+  expect(pdf.actions).toEqual(["GET", "POST"]);
+  expect(pdf.tools).toEqual([]);
+});
+
+test("native academic transports use interactive sessions", () => {
+  for (const source of [
+    "app/api/native/academic/[...resource]/route.ts",
+    "app/api/native/academic/tutor-support/[...resource]/route.ts",
+    "app/api/native/academic-assessment/[...resource]/route.ts",
+  ]) {
+    const entry = operationsCatalog.find(item => item.source === source);
+    expect(entry?.status).toBe("excluded");
+    expect(entry?.tools).toEqual([]);
+  }
+});
+
+test("native course commands reuse administrative projections with session authorization", () => {
+  const entry = operationsCatalog.find(item => item.source === "app/api/native/academic/[...resource]/route.ts")!;
+  expect(entry.actions).toEqual(["GET", "POST", "PATCH"]);
+  expect(entry.tools).toEqual([]);
+  expect(entry.reason).toContain("chapters.create");
+  expect(entry.reason).toContain("chapters.update");
+  expect(entry.reason).toContain("materials.update_metadata");
 });

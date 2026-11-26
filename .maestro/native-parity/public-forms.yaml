@@ -23,6 +23,17 @@ name: Public and short form capture states and accessible controls
     text: Kembali
     enabled: false
 - runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: public-form-exit
+      - tapOn:
+          id: public-form-exit
+      - extendedWaitUntil:
+          visible: separator
+          timeout: 20000
+- runFlow:
     file: helpers/open-public-form.yaml
     env:
       CASE_ID: forms-closed
@@ -67,3 +78,7 @@ name: Public and short form capture states and accessible controls
 - extendedWaitUntil:
     visible: separator
     timeout: 20000
+- runFlow:
+    when:
+      platform: Android
+    file: helpers/public-form-question-flow.yaml

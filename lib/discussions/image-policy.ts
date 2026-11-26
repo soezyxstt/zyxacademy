@@ -1,3 +1,5 @@
+import { readBoundedMultipart } from "../bounded-multipart";
+
 export const DISCUSSION_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 export const DISCUSSION_IMAGE_MAX_PIXELS = 16_000_000;
 export const DISCUSSION_IMAGE_MAX_EDGE = 4096;
@@ -82,31 +84,9 @@ export async function parseDiscussionImageUpload(request: Request, configuredPub
   if (!origin || !allowedOrigins.has(origin) || (fetchSite && fetchSite !== "same-origin")) {
     throw new DiscussionImageError("origin");
   }
-  const contentType = request.headers.get("content-type") ?? "";
-  if (!/^multipart\/form-data\s*;/i.test(contentType)) throw new DiscussionImageError("invalid");
-  const maxBody = DISCUSSION_IMAGE_MAX_BYTES + 64 * 1024;
-  const length = request.headers.get("content-length");
-  if (length !== null && (!/^\d+$/.test(length) || Number(length) > maxBody)) throw new DiscussionImageError("size");
-  if (!request.body) throw new DiscussionImageError("invalid");
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > maxBody) {
-      void reader.cancel();
-      throw new DiscussionImageError("size");
-    }
-    chunks.push(value);
-  }
-  let form: FormData;
-  try {
-    form = await new Response(Buffer.concat(chunks), { headers: { "content-type": contentType } }).formData();
-  } catch {
-    throw new DiscussionImageError("invalid");
-  }
+  const parsed = await readBoundedMultipart(request, DISCUSSION_IMAGE_MAX_BYTES + 64 * 1024);
+  if (parsed.status !== "parsed") throw new DiscussionImageError(parsed.status);
+  const { form } = parsed;
   const fields = [...form.keys()];
   const channelId = form.get("channelId");
   const file = form.get("file");

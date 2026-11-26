@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="iPhone 17 Pro - iOS 26.2 - EED6FB0A-E273-43C6-B5DE-3DF739543042" tests="1" failures="0" time="11.473" timestamp="2026-11-26T14:22:13">
+    <testcase id="confirm-ios-gallery" name="confirm-ios-gallery" classname="confirm-ios-gallery" file=".maestro/native-parity/helpers/confirm-ios-gallery.yaml" time="11.431" timestamp="2026-11-26T14:22:13" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

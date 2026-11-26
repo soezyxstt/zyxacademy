@@ -18,12 +18,13 @@ import { adminMoreSections, adminOtherRoleEntries, staffNavigation, tutorClassCo
 
 type CoursePicker = { status: "loading" } | { status: "error" } | { status: "ready"; entries: ReturnType<typeof tutorClassEntries> };
 
-export function StaffChrome({ role, href, theme, focused, context, session, visit, back, loadTutorCourses, children }: {
+export function StaffChrome({ role, href, theme, focused, context, checkingAccess, session, visit, back, loadTutorCourses, children }: {
   role: "admin" | "tutor";
   href: string;
   theme: "light" | "dark";
   focused: boolean;
   context: NativeAccountContext;
+  checkingAccess: boolean;
   session: NativeSessionTransport;
   visit(href: string): void;
   back(fallback: string): void;
@@ -120,7 +121,7 @@ export function StaffChrome({ role, href, theme, focused, context, session, visi
           accessibilityLabel={navigation.labels.bottomNavLabel} includeSafeArea={false} testID="tutor-bottom-nav"
           hidden={hidden} actionIds={["classes"]} expandedId={sheet === "classes" ? "classes" : undefined} itemRefs={{ classes: trigger }}
           onDestinationPress={id => id === "classes" ? openClasses() : choose(navigation.targets[id])} />}
-      <SharedSheet open={focused && sheet !== null && !hidden}
+      <SharedSheet open={focused && sheet !== null && !hidden && !checkingAccess}
         title={navigation.role === "admin" ? navigation.labels.moreSheetTitle : classes.title}
         closeLabel={navigation.closeLabel} onDismiss={closeSheet} returnFocusRef={trigger} theme={theme}
         testID={`${role}-navigation-sheet`}>

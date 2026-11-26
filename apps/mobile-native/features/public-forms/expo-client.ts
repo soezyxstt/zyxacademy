@@ -12,7 +12,8 @@ export const requestPublicForm: FormRequest = async (path, init) => {
   const url = new URL(path, NATIVE_STAGING_ORIGIN);
   if (url.origin !== NATIVE_STAGING_ORIGIN || url.username || url.password || url.hash
     || !(url.pathname.startsWith("/api/forms/"))) throw new Error("Invalid public form path.");
-  const response = await fetch(url.href, { ...init, credentials: "omit", redirect: "manual" });
+  const response: Pick<Response, "body" | "headers" | "redirected" | "status" | "type" | "url"> =
+    await fetch(url.href, { ...init, credentials: "omit", redirect: "manual" });
   const dispose = () => { void response.body?.cancel().catch(() => {}); };
   if (response.redirected || response.status === 0 || (response.status >= 300 && response.status < 400)
     || (response.url && new URL(response.url).origin !== NATIVE_STAGING_ORIGIN)) {
@@ -46,6 +47,7 @@ async function captureFormPhoto(draft: DocumentDraftRequest, questionIndex: numb
     target: { ...draft.target, draftId: `${draft.target.draftId}:q${questionIndex + 1}` },
     isDraftCurrent: draft.isDraftCurrent,
     output: { format: "jpeg", maxBytes: draft.policy.maxBytes },
+    discardOnRestore: true,
   });
   if (captured.status === "ready") {
     const { photo } = captured;

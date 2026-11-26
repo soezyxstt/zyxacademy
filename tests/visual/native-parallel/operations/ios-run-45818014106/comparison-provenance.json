@@ -1,0 +1,651 @@
+[
+  {
+    "fixture": {
+      "path": "/blog",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "flow": "operations-public-blog-list-open-back",
+    "variant": "page body",
+    "native": {
+      "archiveMember": "cases/operations-public-blog-list-open-back.png",
+      "artifactPath": "results/2026-11-26_142457/operations-public-blog-list-open-back/takeScreenshot/operations-public-blog-list-open-back.png",
+      "sha256": "269d9f98f9ae70be1b89f6bee670f7519a199c4ea56162052d871ca9f29dd953"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/references/blog-list-light-402-dpr3.png",
+      "sha256": "54e27f4932552935d5e0942f6973759dc469db3024bbfdec25a225c08da0bcd4",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "description": "Earlier Chromium page-body fixture with local substitutes and sRGB",
+      "provenance": "tests/visual/native-parallel/operations/README.md",
+      "workingTreeBase": "f4ed84dc1b65047e4f6f91984f7604231e974a97"
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 1955436,
+    "maxChannelDelta": 255,
+    "differentPercent": 61.839,
+    "diff": {
+      "path": "diffs/operations-public-blog-list-open-back-diff.png",
+      "sha256": "66ee65680b77e41d91900eeefcb0634bf4649816b73324db721fe74107ac8767",
+      "rendering": "autocontrasted absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": {
+      "path": "/blog/belajar-dengan-latihan-terarah",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "flow": "operations-public-blog-detail-content",
+    "variant": "page body",
+    "native": {
+      "archiveMember": "cases/operations-public-blog-detail-content.png",
+      "artifactPath": "results/2026-11-26_142457/operations-public-blog-detail-content/takeScreenshot/operations-public-blog-detail-content.png",
+      "sha256": "ffa35726ec5537cc35f35fc967e92527298c13435726c224ce5b4f2b2b771b81"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/references/blog-detail-light-402-dpr3.png",
+      "sha256": "353c60d02f8ba19e011ae4b1038f95ae49849e46ac03aadc989460de12b0cfb3",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "description": "Earlier Chromium page-body fixture with local substitutes and sRGB",
+      "provenance": "tests/visual/native-parallel/operations/README.md",
+      "workingTreeBase": "f4ed84dc1b65047e4f6f91984f7604231e974a97"
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 563353,
+    "maxChannelDelta": 255,
+    "differentPercent": 17.816,
+    "diff": {
+      "path": "diffs/operations-public-blog-detail-content-diff.png",
+      "sha256": "dfb124a6a2eae8a4d113f15e9354e007455f9dc3d135adfffeb07a4c8b833955",
+      "rendering": "autocontrasted absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": {
+      "path": "/blog?category=kegiatan_zyx",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "flow": "operations-public-blog-list-empty",
+    "variant": "page body",
+    "native": {
+      "archiveMember": "cases/operations-public-blog-list-empty.png",
+      "artifactPath": "results/2026-11-26_142457/operations-public-blog-list-empty/takeScreenshot/operations-public-blog-list-empty.png",
+      "sha256": "d410f24f86385831d369273f61fef255c7b5cc7817becc1e84a11277cf041e16"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/references/blog-empty-dark-en-402-dpr3.png",
+      "sha256": "d220fc6ded78f90cc6934dce7cd39b5838f268f4158cb6a090a91b1284d4041f",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "description": "Earlier Chromium page-body fixture with local substitutes and sRGB",
+      "provenance": "tests/visual/native-parallel/operations/README.md",
+      "workingTreeBase": "f4ed84dc1b65047e4f6f91984f7604231e974a97"
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 1205776,
+    "maxChannelDelta": 226,
+    "differentPercent": 38.132,
+    "diff": {
+      "path": "diffs/operations-public-blog-list-empty-diff.png",
+      "sha256": "ad39fa904d5c3a6590fdd44cfadf0f99f8e80ca72c2abaccf5ff621e54573b9f",
+      "rendering": "autocontrasted absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": null,
+    "flow": "Operations public blog list, detail, Back and retry",
+    "variant": "page body",
+    "native": {
+      "archiveMember": "blog-list.png",
+      "artifactPath": "results/2026-11-26_142457/Operations public blog list, detail, Back and retry/takeScreenshot/blog-list.png",
+      "sha256": "44c77ad54e2e99828eb2ffecece2f8679cd8ad678fb5b5ed13a126cc4275b29d"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/references/blog-list-light-402-dpr3.png",
+      "sha256": "54e27f4932552935d5e0942f6973759dc469db3024bbfdec25a225c08da0bcd4",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "description": "Earlier Chromium page-body fixture with local substitutes and sRGB",
+      "provenance": "tests/visual/native-parallel/operations/README.md",
+      "workingTreeBase": "f4ed84dc1b65047e4f6f91984f7604231e974a97"
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 1955560,
+    "maxChannelDelta": 255,
+    "differentPercent": 61.843,
+    "diff": {
+      "path": "diffs/blog-list-diff.png",
+      "sha256": "9fb71483a0580f010a57f37dc9c151ff59044d0c33c6d58719aa38419e616970",
+      "rendering": "autocontrasted absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": null,
+    "flow": "Operations public blog list, detail, Back and retry",
+    "variant": "page body",
+    "native": {
+      "archiveMember": "blog-detail.png",
+      "artifactPath": "results/2026-11-26_142457/Operations public blog list, detail, Back and retry/takeScreenshot/blog-detail.png",
+      "sha256": "818f7493f11a808ab3773543a0e0ef33a5671e69bfb36d15d193c66949084ea7"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/references/blog-detail-light-402-dpr3.png",
+      "sha256": "353c60d02f8ba19e011ae4b1038f95ae49849e46ac03aadc989460de12b0cfb3",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "description": "Earlier Chromium page-body fixture with local substitutes and sRGB",
+      "provenance": "tests/visual/native-parallel/operations/README.md",
+      "workingTreeBase": "f4ed84dc1b65047e4f6f91984f7604231e974a97"
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 563643,
+    "maxChannelDelta": 255,
+    "differentPercent": 17.825,
+    "diff": {
+      "path": "diffs/blog-detail-diff.png",
+      "sha256": "103f7ea4326f4d7d7e2f578878789eb86c2e25189e09784003b0b4de183e9276",
+      "rendering": "autocontrasted absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": null,
+    "flow": "Operations public blog list, detail, Back and retry",
+    "variant": "page body",
+    "native": {
+      "archiveMember": "blog-empty-dark.png",
+      "artifactPath": "results/2026-11-26_142457/Operations public blog list, detail, Back and retry/takeScreenshot/blog-empty-dark.png",
+      "sha256": "88627676be36698d00dd6a33ca1cd02ecd5c2a136bf8c2b4eaad3c8d084c5c4b"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/references/blog-empty-dark-402-dpr3.png",
+      "sha256": "c2648f061d372be33a17be276beeb6b271c802481ca6f5baa8676f24a7297e90",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "description": "Earlier Chromium page-body fixture with local substitutes and sRGB",
+      "provenance": "tests/visual/native-parallel/operations/README.md",
+      "workingTreeBase": "f4ed84dc1b65047e4f6f91984f7604231e974a97"
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 1209617,
+    "maxChannelDelta": 226,
+    "differentPercent": 38.253,
+    "diff": {
+      "path": "diffs/blog-empty-dark-diff.png",
+      "sha256": "bae4d2be73e98d61d4d957b3eaa9d72d92931d6e03ce3a473abc369fc2d68e24",
+      "rendering": "autocontrasted absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": {
+      "path": "/blog",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "flow": "operations-public-blog-list-open-back",
+    "variant": "full-shell",
+    "native": {
+      "archiveMember": "cases/operations-public-blog-list-open-back.png",
+      "artifactPath": "results/2026-11-26_142457/operations-public-blog-list-open-back/takeScreenshot/operations-public-blog-list-open-back.png",
+      "sha256": "269d9f98f9ae70be1b89f6bee670f7519a199c4ea56162052d871ca9f29dd953"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/references/blog-shell-list-id-light-402-dpr3.png",
+      "sha256": "2b7eea875dd110821230fea412e9dd44448f1153bb708e673fed41a187fc40f9",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "manifest": "tests/visual/native-parallel/operations/references/manifest-blog-shell.json",
+      "manifestSha256": "1136ee69a652cc694361b4185b5d9d0d43d80df6451b973feb42ea891001ca44",
+      "sourceCommit": "79b3229fb1d8bf4ca910f02d6f1dec18390edaac",
+      "capture": {
+        "name": "list",
+        "locale": "id",
+        "theme": "light",
+        "path": "/id/blog",
+        "width": 402,
+        "height": 874,
+        "dpr": 3,
+        "file": "blog-shell-list-id-light-402-dpr3.png",
+        "viewport": {
+          "width": 402,
+          "header": 56,
+          "mainTop": 56,
+          "dark": false
+        }
+      }
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 1807846,
+    "maxChannelDelta": 255,
+    "differentPercent": 57.172,
+    "diff": {
+      "path": "diffs/operations-public-blog-list-open-back-full-shell-diff.png",
+      "sha256": "58fb7f195de57c56a8512ed924a8d7ecbe7b652ecadd4f76fddf381bcd5d92c1",
+      "rendering": "absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": {
+      "path": "/blog/belajar-dengan-latihan-terarah",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "flow": "operations-public-blog-detail-content",
+    "variant": "full-shell",
+    "native": {
+      "archiveMember": "cases/operations-public-blog-detail-content.png",
+      "artifactPath": "results/2026-11-26_142457/operations-public-blog-detail-content/takeScreenshot/operations-public-blog-detail-content.png",
+      "sha256": "ffa35726ec5537cc35f35fc967e92527298c13435726c224ce5b4f2b2b771b81"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/references/blog-shell-detail-id-light-402-dpr3.png",
+      "sha256": "6626a08d3c62591d34d74f1e0aae5550f27a5074c20cbd7da399e6ce5aca85f7",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "manifest": "tests/visual/native-parallel/operations/references/manifest-blog-shell.json",
+      "manifestSha256": "1136ee69a652cc694361b4185b5d9d0d43d80df6451b973feb42ea891001ca44",
+      "sourceCommit": "79b3229fb1d8bf4ca910f02d6f1dec18390edaac",
+      "capture": {
+        "name": "detail",
+        "locale": "id",
+        "theme": "light",
+        "path": "/id/blog/belajar-dengan-latihan-terarah",
+        "width": 402,
+        "height": 874,
+        "dpr": 3,
+        "file": "blog-shell-detail-id-light-402-dpr3.png",
+        "viewport": {
+          "width": 402,
+          "header": 56,
+          "mainTop": 56,
+          "dark": false
+        }
+      }
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 564284,
+    "maxChannelDelta": 255,
+    "differentPercent": 17.845,
+    "diff": {
+      "path": "diffs/operations-public-blog-detail-content-full-shell-diff.png",
+      "sha256": "2d04c61a21349f8b3466687bc66ac649cdcd5281b2edfc959a46fb4cf24c9f61",
+      "rendering": "absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": {
+      "path": "/blog?category=kegiatan_zyx",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "flow": "operations-public-blog-list-empty",
+    "variant": "full-shell",
+    "native": {
+      "archiveMember": "cases/operations-public-blog-list-empty.png",
+      "artifactPath": "results/2026-11-26_142457/operations-public-blog-list-empty/takeScreenshot/operations-public-blog-list-empty.png",
+      "sha256": "d410f24f86385831d369273f61fef255c7b5cc7817becc1e84a11277cf041e16"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/references/blog-shell-empty-en-dark-402-dpr3.png",
+      "sha256": "7f451f0320cd1a4160d663d27c91b1235afa09904373c8075712f3b8174e8ea5",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "manifest": "tests/visual/native-parallel/operations/references/manifest-blog-shell.json",
+      "manifestSha256": "1136ee69a652cc694361b4185b5d9d0d43d80df6451b973feb42ea891001ca44",
+      "sourceCommit": "79b3229fb1d8bf4ca910f02d6f1dec18390edaac",
+      "capture": {
+        "name": "empty",
+        "locale": "en",
+        "theme": "dark",
+        "path": "/en/blog?category=kegiatan_zyx",
+        "width": 402,
+        "height": 874,
+        "dpr": 3,
+        "file": "blog-shell-empty-en-dark-402-dpr3.png",
+        "viewport": {
+          "width": 402,
+          "header": 56,
+          "mainTop": 56,
+          "dark": true
+        }
+      }
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 1289835,
+    "maxChannelDelta": 255,
+    "differentPercent": 40.79,
+    "diff": {
+      "path": "diffs/operations-public-blog-list-empty-full-shell-diff.png",
+      "sha256": "52c17397d6ff74623605b7dd6ca748d1f548c861029e0f52b3bef7ceff55ccc9",
+      "rendering": "absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": {
+      "path": "/admin",
+      "state": "populated",
+      "locale": "id",
+      "theme": "light"
+    },
+    "flow": "operations-monitoring-admin-populated",
+    "variant": "same viewport fixture",
+    "native": {
+      "archiveMember": "cases/operations-monitoring-admin-populated.png",
+      "artifactPath": "results/2026-11-26_142457/operations-monitoring-admin-populated/takeScreenshot/operations-monitoring-admin-populated.png",
+      "sha256": "1ad58918344ff458fcd002f105386b24495a53f0fc3d8e08fcb7f9b64fec873f"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/references/monitoring/home-populated-light-402-dpr3.png",
+      "sha256": "221139b52f18a57231a70f6cb1f48c9a76048ec2f29539a2dbd9d0f9e103d6d7",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "manifest": "tests/visual/native-parallel/operations/references/monitoring/cases-402-dpr3.json",
+      "manifestSha256": "362fd943b5ef0fbf54aa889063166f2b2113ee96dff0a52042a3c9cf8abb5c57",
+      "sourceCommit": "06b00165073af67fa581f5a7a7407b2fd3b3b16a",
+      "capture": {
+        "id": "home-populated",
+        "screen": "home",
+        "theme": "light",
+        "viewport": {
+          "width": 402,
+          "height": 874
+        },
+        "dpr": 3,
+        "viewportScreenshot": "home-populated-light-402-dpr3.png",
+        "url": "http://localhost:3211/monitoring?screen=home&mode=populated&theme=light"
+      }
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 554108,
+    "maxChannelDelta": 249,
+    "differentPercent": 17.523,
+    "diff": {
+      "path": "diffs/operations-monitoring-admin-populated-diff.png",
+      "sha256": "2d85ca5a8bb80125f0536e6907b84d79e41102be803ab027d81f151060a61aa0",
+      "rendering": "absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": {
+      "path": "/admin/ops/web-analytics",
+      "state": "populated 30-day period",
+      "locale": "id",
+      "theme": "light"
+    },
+    "flow": "operations-monitoring-admin-ops-web-analytics-populated",
+    "variant": "same viewport fixture",
+    "native": {
+      "archiveMember": "cases/operations-monitoring-admin-ops-web-analytics-populated.png",
+      "artifactPath": "results/2026-11-26_142457/operations-monitoring-admin-ops-web-analytics-populated/takeScreenshot/operations-monitoring-admin-ops-web-analytics-populated.png",
+      "sha256": "ae84bfeedfa9878b4ef51c461238971afe3547ffd091c3ab86e58d317fe1c404"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/references/monitoring/web-populated-light-402-dpr3.png",
+      "sha256": "e8d391707ec5a51724956d7a0917fa1e2de3804600123d4c309223880b6360dc",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "manifest": "tests/visual/native-parallel/operations/references/monitoring/cases-402-dpr3.json",
+      "manifestSha256": "362fd943b5ef0fbf54aa889063166f2b2113ee96dff0a52042a3c9cf8abb5c57",
+      "sourceCommit": "06b00165073af67fa581f5a7a7407b2fd3b3b16a",
+      "capture": {
+        "id": "web-populated",
+        "screen": "web",
+        "theme": "light",
+        "viewport": {
+          "width": 402,
+          "height": 874
+        },
+        "dpr": 3,
+        "viewportScreenshot": "web-populated-light-402-dpr3.png",
+        "url": "http://localhost:3211/monitoring?screen=web&mode=populated&theme=light"
+      }
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 293273,
+    "maxChannelDelta": 255,
+    "differentPercent": 9.275,
+    "diff": {
+      "path": "diffs/operations-monitoring-admin-ops-web-analytics-populated-diff.png",
+      "sha256": "63c8eb868f6ebbddde20c50f2621351879d9941e6664b054c18384f93f532e70",
+      "rendering": "absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": {
+      "path": "/admin/ops/feature-usage",
+      "state": "populated 30-day period",
+      "locale": "id",
+      "theme": "light"
+    },
+    "flow": "operations-monitoring-admin-ops-feature-usage-populated",
+    "variant": "same viewport fixture",
+    "native": {
+      "archiveMember": "cases/operations-monitoring-admin-ops-feature-usage-populated.png",
+      "artifactPath": "results/2026-11-26_142457/operations-monitoring-admin-ops-feature-usage-populated/takeScreenshot/operations-monitoring-admin-ops-feature-usage-populated.png",
+      "sha256": "93fc966d621894e91dbf18f741ed9986f7211fe2ef746ef851e5e482795ad407"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/references/monitoring/features-30-days-light-402-dpr3.png",
+      "sha256": "cd593d44de9d06dfdfcec0fd272c8d9729d9d5d95474b6f5be4bda0882086da6",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "manifest": "tests/visual/native-parallel/operations/references/monitoring/cases-402-dpr3.json",
+      "manifestSha256": "362fd943b5ef0fbf54aa889063166f2b2113ee96dff0a52042a3c9cf8abb5c57",
+      "sourceCommit": "06b00165073af67fa581f5a7a7407b2fd3b3b16a",
+      "capture": {
+        "id": "features-30-days",
+        "screen": "features",
+        "theme": "light",
+        "viewport": {
+          "width": 402,
+          "height": 874
+        },
+        "dpr": 3,
+        "viewportScreenshot": "features-30-days-light-402-dpr3.png",
+        "url": "http://localhost:3211/monitoring?screen=features&mode=populated&theme=light"
+      }
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 495854,
+    "maxChannelDelta": 255,
+    "differentPercent": 15.681,
+    "diff": {
+      "path": "diffs/operations-monitoring-admin-ops-feature-usage-populated-diff.png",
+      "sha256": "ccf0f1d345c7c8a35138a4c1ffc6afe6482f8ce572a9f0a8f52e5954d13e6d1d",
+      "rendering": "absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": {
+      "path": "/forms-playground",
+      "state": "initial fields",
+      "locale": "en",
+      "theme": "light"
+    },
+    "flow": "operations-public-form-empty",
+    "variant": "same viewport fixture",
+    "native": {
+      "archiveMember": "cases/operations-public-form-empty.png",
+      "artifactPath": "results/2026-11-26_142457/operations-public-form-empty/takeScreenshot/operations-public-form-empty.png",
+      "sha256": "b2cdaaf78de662c9653b5ac0fa8c0349dd6785c0209abe6be423dedf04cdb731"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/public-pages/references/form-empty-402-dpr3.png",
+      "sha256": "f446a3d0e49d8617f2c39dc9fd8681e4f7ccc02762a6133385cf3588d099a358",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "manifest": "tests/visual/native-parallel/operations/public-pages/references/manifest-402-dpr3.json",
+      "manifestSha256": "98ea580d480737ecaa3d4275fedac91078caceafae2e2922648c0d36bf89c6e5",
+      "sourceCommit": "06b00165",
+      "capture": {
+        "file": "form-empty-402-dpr3.png",
+        "path": "/forms-playground",
+        "locale": "en",
+        "theme": "light",
+        "width": 402,
+        "height": 874,
+        "dpr": 3,
+        "status": 200,
+        "scrollWidth": 402,
+        "layout": "fits",
+        "runtimeIssues": []
+      }
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 1379552,
+    "maxChannelDelta": 255,
+    "differentPercent": 43.627,
+    "diff": {
+      "path": "diffs/operations-public-form-empty-diff.png",
+      "sha256": "7347c98f591119584eafe910d4037cb61d53400b3a3523bdc1be071922d92ff2",
+      "rendering": "absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": {
+      "path": "/",
+      "state": "populated hero",
+      "locale": "id",
+      "theme": "light"
+    },
+    "flow": "operations-public-hero-id",
+    "variant": "same viewport fixture",
+    "native": {
+      "archiveMember": "cases/operations-public-hero-id.png",
+      "artifactPath": "results/2026-11-26_142457/operations-public-hero-id/takeScreenshot/operations-public-hero-id.png",
+      "sha256": "cc71703d5c225c3f9c572f653937675d6af4b751e3441c80aca7310f58578f30"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/public-pages/references/hero-id-402-dpr3.png",
+      "sha256": "17b2aca636cd34806e78a6023059129288190a90ec66bc0c43043465f0df1307",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "manifest": "tests/visual/native-parallel/operations/public-pages/references/manifest-402-dpr3.json",
+      "manifestSha256": "98ea580d480737ecaa3d4275fedac91078caceafae2e2922648c0d36bf89c6e5",
+      "sourceCommit": "06b00165",
+      "capture": {
+        "file": "hero-id-402-dpr3.png",
+        "path": "/",
+        "locale": "id",
+        "theme": "light",
+        "width": 402,
+        "height": 874,
+        "dpr": 3,
+        "status": 200,
+        "scrollWidth": 410,
+        "layout": "overflow",
+        "runtimeIssues": []
+      }
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 1534412,
+    "maxChannelDelta": 253,
+    "differentPercent": 48.525,
+    "diff": {
+      "path": "diffs/operations-public-hero-id-diff.png",
+      "sha256": "53abfad7e0dd0a5c8fc58f8d49e9985e618d6710485e281988e0155b74f7611a",
+      "rendering": "absolute RGB channel difference"
+    }
+  },
+  {
+    "fixture": {
+      "path": "/demo",
+      "state": "empty dashboard",
+      "locale": "en",
+      "theme": "dark"
+    },
+    "flow": "operations-public-demo-empty",
+    "variant": "same viewport fixture",
+    "native": {
+      "archiveMember": "cases/operations-public-demo-empty.png",
+      "artifactPath": "results/2026-11-26_142457/operations-public-demo-empty/takeScreenshot/operations-public-demo-empty.png",
+      "sha256": "0deec78ea0b272ce8c503ab426a739dcb1095d824ba9bcce5a1ddf8afea5e55f"
+    },
+    "chromium": {
+      "path": "tests/visual/native-parallel/operations/public-pages/references/demo-empty-402-dpr3.png",
+      "sha256": "4bc00b72478c63770c33382ae662e19703be2e18392d0a43db251b596770740c",
+      "viewportCssPixels": [
+        402,
+        874
+      ],
+      "deviceScaleFactor": 3,
+      "manifest": "tests/visual/native-parallel/operations/public-pages/references/manifest-402-dpr3.json",
+      "manifestSha256": "98ea580d480737ecaa3d4275fedac91078caceafae2e2922648c0d36bf89c6e5",
+      "sourceCommit": "06b00165",
+      "capture": {
+        "file": "demo-empty-402-dpr3.png",
+        "path": "/demo",
+        "locale": "en",
+        "theme": "dark",
+        "width": 402,
+        "height": 874,
+        "dpr": 3,
+        "status": 200,
+        "scrollWidth": 402,
+        "layout": "fits",
+        "runtimeIssues": [],
+        "observation": "Dashboard empty state visible with zero fixture course summaries."
+      }
+    },
+    "totalPixels": 3162132,
+    "differentPixels": 1959025,
+    "maxChannelDelta": 226,
+    "differentPercent": 61.953,
+    "diff": {
+      "path": "diffs/operations-public-demo-empty-diff.png",
+      "sha256": "9e31c278703302d764d2c5fddd78f6d8a801b77038a233ec38921edce055d7e3",
+      "rendering": "absolute RGB channel difference"
+    }
+  }
+]

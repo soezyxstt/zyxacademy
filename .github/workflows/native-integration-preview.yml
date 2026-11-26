@@ -24,13 +24,18 @@ on:
       - '.github/workflows/native-integration-preview.yml'
       - '.github/workflows/native-authenticated-preview.yml'
   workflow_dispatch:
+    inputs:
+      include_pending_student:
+        description: Include the current head of Student PR 515 in the preview
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
 jobs:
   authenticated-session:
-    if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
+    if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo' && inputs.include_pending_student)
     needs: combined-native
     uses: ./.github/workflows/native-authenticated-preview.yml
     with:
@@ -39,7 +44,7 @@ jobs:
   combined-native:
     if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
     concurrency:
-      group: native-combined-preview
+      group: native-combined-preview-${{ github.event_name == 'workflow_dispatch' && !inputs.include_pending_student && 'merged' || 'student' }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -50,14 +55,22 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - run: bash scripts/native-readiness/preview-lanes.sh
+        if: github.event_name != 'workflow_dispatch' || inputs.include_pending_student
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.3.14'
       - run: |
           python3 scripts/native-readiness/test_merge_reviewed_preview.py
+          python3 scripts/native-readiness/test_product_mount.py
           bun test tests/unit/expo-academic-intent.test.ts tests/gamification/question-disclosure-calls.test.ts
       - name: Mount canonical Expo product routes
+        if: github.event_name != 'workflow_dispatch' || inputs.include_pending_student
         run: python3 scripts/native-readiness/product/mount.py
+      - name: Verify canonical product routes are committed on the merged parent
+        if: github.event_name == 'workflow_dispatch' && !inputs.include_pending_student
+        run: |
+          python3 scripts/native-readiness/product/mount.py --without-student
+          test -z "$(git status --porcelain -- apps/mobile-native)"
       - name: Record the mounted product sources for the device jobs
         env:
           HOST_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -104,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     concurrency:
-      group: native-combined-backend
+      group: native-combined-backend-${{ github.event_name == 'workflow_dispatch' && !inputs.include_pending_student && 'merged' || 'student' }}
       cancel-in-progress: true
     env:
       DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
@@ -124,7 +137,7 @@ jobs:
           path: ${{ runner.temp }}/product-source
       - name: Restore the exact source tree checked by Metro
         run: |
-          gzip -dc "$RUNNER_TEMP/product-source/changes.patch.gz" | git apply --binary --index --whitespace=nowarn
+          gzip -dc "$RUNNER_TEMP/product-source/changes.patch.gz" | git apply --allow-empty --binary --index --whitespace=nowarn
           test "$(git write-tree)" = "$(cat "$RUNNER_TEMP/product-source/tree")"
       - uses: oven-sh/setup-bun@v2
         with:
@@ -138,7 +151,7 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun scripts/test-contracts.ts tests/contracts/offline-server-sync.test.ts
       - name: Student learning and live-session operations
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.include_pending_student) }}
         run: bun scripts/test-contracts.ts tests/contracts/native-student-learning-postgres.test.ts
       - name: Academic scheduling and tryout operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
@@ -165,15 +178,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: android
-            runner: ubuntu-latest
-          - platform: ios
-            runner: macos-26
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && !inputs.include_pending_student && '[{"platform":"android","runner":"ubuntu-latest"}]' || '[{"platform":"android","runner":"ubuntu-latest"},{"platform":"ios","runner":"macos-26"}]') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 65
     concurrency:
-      group: native-combined-entry-${{ matrix.platform }}
+      group: native-combined-entry-${{ matrix.platform }}-${{ github.event_name == 'workflow_dispatch' && !inputs.include_pending_student && 'merged' || 'student' }}
       cancel-in-progress: false
     env:
       EXPO_NO_TELEMETRY: '1'
@@ -188,7 +197,7 @@ jobs:
           path: ${{ runner.temp }}/product-source
       - name: Restore the exact source tree checked by Metro
         run: |
-          gzip -dc "$RUNNER_TEMP/product-source/changes.patch.gz" | git apply --binary --index --whitespace=nowarn
+          gzip -dc "$RUNNER_TEMP/product-source/changes.patch.gz" | git apply --allow-empty --binary --index --whitespace=nowarn
           test "$(git write-tree)" = "$(cat "$RUNNER_TEMP/product-source/tree")"
       - uses: actions/setup-node@v4
         with:

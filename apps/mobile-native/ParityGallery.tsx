@@ -27,7 +27,7 @@ function ParityCaseFrame({ id, theme, height, children }: ParityCaseFrameProps) 
   return (
     <View>
       <View style={styles.marker} />
-      <View testID={id} style={{ width: parityFrame.width, height, backgroundColor: nativeColors[theme].background }}>
+      <View testID={id} style={[styles.specimen, { height, backgroundColor: nativeColors[theme].background }]}>
         {children}
       </View>
     </View>
@@ -118,6 +118,8 @@ const styles = StyleSheet.create({
   label: { color: nativeColors.light.foreground },
   screen: { flex: 1, backgroundColor: nativeColors.light.background },
   gallery: { alignItems: "center", gap: parityFrame.gap, paddingVertical: parityFrame.gap },
+  // Isolate the capture rectangle so a panel's shadow cannot cover its sibling crop marker.
+  specimen: { width: parityFrame.width, overflow: "hidden" },
   marker: {
     width: parityFrame.width,
     height: parityFrame.markerHeight,

@@ -1,0 +1,14 @@
+[
+  {
+    "flow": "operations-public-plans-retry",
+    "artifactPath": "results/2026-11-26_170707/operations-public-plans-retry/screenshots/step-008-assertCondition-public-retry.png",
+    "path": "failures/plans-retry-still-visible.png",
+    "sha256": "f69fc3e5232086ca3e5b3a1621b8b57456ad25284c7aab0faf59349e9c95dfae"
+  },
+  {
+    "flow": "operations-public-plans-retry",
+    "artifactPath": "results/2026-11-26_170707/operations-public-plans-retry/screen-hierarchy/step-008-assertCondition-public-retry.json",
+    "path": "failures/plans-retry-still-visible.json",
+    "sha256": "d7c136afed4b109dac0d0b54fed89a1db02cf31646deb0f23eda3e71f4a6d6c0"
+  }
+]

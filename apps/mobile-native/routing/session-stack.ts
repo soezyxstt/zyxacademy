@@ -1,20 +1,59 @@
 import type { NativeSessionState } from "../auth/session-controller";
 import type { NativeSessionTransport } from "../network/transport";
 
-export function canNavigateNativeSession(
+export function nativeSessionNavigationStatus(
   state: NativeSessionState,
   transport: NativeSessionTransport | null,
   current: { state: NativeSessionState; transport: NativeSessionTransport | null; revalidating: boolean },
   now = Date.now(),
-) {
-  if (current.transport !== transport || current.revalidating) return false;
+): "ready" | "revalidating" | "blocked" {
+  if (current.transport !== transport) return "blocked";
   if (state.status === "signed-in") {
     // A successful refresh may renew expiry while an assessment submission is in flight.
     const live = current.state;
-    return live.status === "signed-in" && live.accountId === state.accountId && live.sessionId === state.sessionId
-      && live.expiresAt > now && transport?.isCurrent() === true;
+    if (live.status !== "signed-in" || live.accountId !== state.accountId || live.sessionId !== state.sessionId ||
+      live.expiresAt <= now || !transport?.isCurrent()) return "blocked";
+    return current.revalidating ? "revalidating" : "ready";
   }
-  return current.state === state && state.status === "unavailable" && !!state.offlineIdentity && state.offlineIdentity.expiresAt > now;
+  return current.state === state && !current.revalidating && state.status === "unavailable" &&
+    state.offlineIdentity && state.offlineIdentity.expiresAt > now ? "ready" : "blocked";
+}
+
+export function canNavigateNativeSession(...args: Parameters<typeof nativeSessionNavigationStatus>) {
+  return nativeSessionNavigationStatus(...args) === "ready";
+}
+
+export function createDeferredSessionNavigation() {
+  let pending: (() => void) | undefined;
+
+  return {
+    cancel() { pending = undefined; },
+    run(
+      action: () => void,
+      status: () => ReturnType<typeof nativeSessionNavigationStatus>,
+      getPendingRefresh?: () => Promise<void> | null,
+    ) {
+      const current = status();
+      if (current === "ready") {
+        pending = undefined;
+        action();
+        return;
+      }
+      if (current !== "revalidating") return;
+      const refresh = getPendingRefresh?.();
+      if (!refresh) return;
+
+      const complete = () => {
+        if (pending !== complete) return;
+        pending = undefined;
+        if (status() === "ready") action();
+      };
+      pending = complete;
+      void refresh.then(complete, () => {
+        if (pending === complete) pending = undefined;
+      });
+    },
+  };
 }
 
 export function navigationSessionKey(state: NativeSessionState): string | null | undefined {

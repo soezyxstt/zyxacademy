@@ -1,4 +1,4 @@
-import type { DemoProductSelection } from "@/app/(marketing)/demo/demo-data";
+export type DemoProductSelection = { articleId?: string; diktatId?: string; flashcardSetId?: string; quizOffset?: number; collectionOffset?: number; flashcardOffset?: number };
 
 export type DemoSearchParams = Record<string, string | string[] | undefined>;
 export type ParsedDemoSelection = { course?: string; selection: DemoProductSelection };

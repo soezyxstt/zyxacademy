@@ -1,0 +1,176 @@
+{
+  "locale": "id-ID",
+  "timeZone": "Asia/Jakarta",
+  "dpr": 1,
+  "captures": [
+    {
+      "id": "ast-preview",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "screenshot": "ast-preview-light-380.png"
+    },
+    {
+      "id": "ast-preview",
+      "theme": "light",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "ast-preview-light-1536.png"
+    },
+    {
+      "id": "ast-diagnostics",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "screenshot": "ast-diagnostics-light-380.png"
+    },
+    {
+      "id": "ast-diagnostics",
+      "theme": "light",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "ast-diagnostics-light-1536.png"
+    },
+    {
+      "id": "ast-json",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "screenshot": "ast-json-light-380.png"
+    },
+    {
+      "id": "ast-json",
+      "theme": "light",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "ast-json-light-1536.png"
+    },
+    {
+      "id": "jobs-empty",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "screenshot": "jobs-empty-light-380.png"
+    },
+    {
+      "id": "jobs-empty",
+      "theme": "light",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "jobs-empty-light-1536.png"
+    },
+    {
+      "id": "jobs-completed",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "screenshot": "jobs-completed-light-380.png"
+    },
+    {
+      "id": "jobs-completed",
+      "theme": "light",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "jobs-completed-light-1536.png"
+    },
+    {
+      "id": "jobs-form",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "screenshot": "jobs-form-light-380.png"
+    },
+    {
+      "id": "jobs-form",
+      "theme": "light",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "jobs-form-light-1536.png"
+    },
+    {
+      "id": "ast-preview",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "screenshot": "ast-preview-dark-380.png"
+    },
+    {
+      "id": "ast-preview",
+      "theme": "dark",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "ast-preview-dark-1536.png"
+    },
+    {
+      "id": "ast-diagnostics",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "screenshot": "ast-diagnostics-dark-380.png"
+    },
+    {
+      "id": "ast-diagnostics",
+      "theme": "dark",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "ast-diagnostics-dark-1536.png"
+    },
+    {
+      "id": "ast-json",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "screenshot": "ast-json-dark-380.png"
+    },
+    {
+      "id": "ast-json",
+      "theme": "dark",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "ast-json-dark-1536.png"
+    },
+    {
+      "id": "jobs-empty",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "screenshot": "jobs-empty-dark-380.png"
+    },
+    {
+      "id": "jobs-empty",
+      "theme": "dark",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "jobs-empty-dark-1536.png"
+    },
+    {
+      "id": "jobs-completed",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "screenshot": "jobs-completed-dark-380.png"
+    },
+    {
+      "id": "jobs-completed",
+      "theme": "dark",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "jobs-completed-dark-1536.png"
+    },
+    {
+      "id": "jobs-form",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "screenshot": "jobs-form-dark-380.png"
+    },
+    {
+      "id": "jobs-form",
+      "theme": "dark",
+      "width": 1536,
+      "height": 864,
+      "screenshot": "jobs-form-dark-1536.png"
+    }
+  ],
+  "errors": []
+}

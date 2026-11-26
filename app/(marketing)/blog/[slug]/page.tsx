@@ -1,9 +1,6 @@
-import { cache } from "react";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { db } from "@/db";
-import { blogArticles } from "@/db/schema";
-import { eq, and, ne, desc } from "drizzle-orm";
+import { readPublishedBlogArticle, readRelatedPublishedBlogArticles, readStaffBlogArticle } from "@/lib/blog/marketing-repository";
 import { auth } from "@/lib/auth";
 import { hasAnyPeran } from "@/lib/auth/request-cache";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
@@ -14,13 +11,6 @@ import { getAppLocale, getTranslations } from "@/lib/i18n/server";
 import { LocalizedPublicLink } from "@/components/localized-public-link";
 import { storage } from "@/lib/storage";
 
-const getArticleBySlug = cache(async (slug: string) => {
-  return db.query.blogArticles.findFirst({
-    where: eq(blogArticles.slug, slug),
-    with: { author: true },
-  });
-});
-
 import { createMetadata, siteOgImage } from "@/lib/site";
 import type { Metadata } from "next";
 
@@ -28,8 +18,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const locale = await getAppLocale();
   const t = await getTranslations("marketing");
   const { slug } = await params;
-  const article = await getArticleBySlug(slug);
-  if (!article || article.status !== "published") {
+  const article = await readPublishedBlogArticle(slug);
+  if (!article) {
     return createMetadata({
       title: t("blog.articleNotFoundTitle"),
       description: t("blog.articleNotFoundDescription"),
@@ -53,12 +43,9 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
   const t = await getTranslations("marketing");
   const locale = await getAppLocale();
   const { slug } = await params;
-  const article = await getArticleBySlug(slug);
+  let article = await readPublishedBlogArticle(slug);
 
-  if (!article) notFound();
-
-  // Draft Leakage Guard
-  if (article.status !== "published") {
+  if (!article) {
     const h = await headers();
     const session = await auth.api.getSession({ headers: h });
     const userRole = session?.user?.role;
@@ -68,20 +55,12 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
         userRole === "admin" ||
         userRole === "teacher");
 
-    if (!isStaff) {
-      notFound();
-    }
+    if (!isStaff) notFound();
+    article = await readStaffBlogArticle(slug);
+    if (!article) notFound();
   }
 
-  // Fetch other published articles for the sidebar
-  const otherArticles = await db.query.blogArticles.findMany({
-    where: and(
-      eq(blogArticles.status, "published"),
-      ne(blogArticles.id, article.id)
-    ),
-    orderBy: [desc(blogArticles.publishedAt)],
-    limit: 5,
-  });
+  const otherArticles = await readRelatedPublishedBlogArticles(article.id);
 
   return (
     <article className="min-h-screen bg-background pb-20">

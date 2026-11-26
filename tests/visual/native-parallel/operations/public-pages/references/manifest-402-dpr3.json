@@ -1,0 +1,48 @@
+{
+  "fixedTime": "2026-09-20T05:00:00.000Z",
+  "cases": [
+    {
+      "file": "demo-empty-402-dpr3.png",
+      "path": "/demo",
+      "locale": "en",
+      "theme": "dark",
+      "width": 402,
+      "height": 874,
+      "dpr": 3,
+      "status": 200,
+      "scrollWidth": 402,
+      "layout": "fits",
+      "runtimeIssues": [],
+      "observation": "Dashboard empty state visible with zero fixture course summaries."
+    },
+    {
+      "file": "form-empty-402-dpr3.png",
+      "path": "/forms-playground",
+      "locale": "en",
+      "theme": "light",
+      "width": 402,
+      "height": 874,
+      "dpr": 3,
+      "status": 200,
+      "scrollWidth": 402,
+      "layout": "fits",
+      "runtimeIssues": []
+    },
+    {
+      "file": "hero-id-402-dpr3.png",
+      "path": "/",
+      "locale": "id",
+      "theme": "light",
+      "width": 402,
+      "height": 874,
+      "dpr": 3,
+      "status": 200,
+      "scrollWidth": 410,
+      "layout": "overflow",
+      "runtimeIssues": []
+    }
+  ],
+  "failures": [],
+  "sha": "06b00165",
+  "browser": "Chromium"
+}

@@ -1,0 +1,188 @@
+{
+  "revision": "bea0bf4c97e098f01cd19be42a79e616e91031a2",
+  "origin": "http://127.0.0.1:3314",
+  "fixtureStoragePort": 3318,
+  "observedAt": "2026-11-26T14:17:58.621Z",
+  "results": [
+    {
+      "id": "admin-quiz-edit",
+      "accountId": "academic-admin",
+      "roles": [
+        "admin"
+      ],
+      "path": "/admin/courses/biologi-dasar/quizzes/academic-web-quiz-1/edit",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/quizzes/academic-web-quiz-1/edit",
+          "status": 200
+        }
+      ],
+      "landedPath": "/admin/courses/biologi-dasar/quizzes/academic-web-quiz-1/edit",
+      "finalStatus": 200,
+      "fixtureMarkerInDocument": true,
+      "fixtureMarkerRendered": true,
+      "verdict": "authorized-content"
+    },
+    {
+      "id": "admin-idea-detail",
+      "accountId": "academic-admin",
+      "roles": [
+        "admin"
+      ],
+      "path": "/admin/courses/fisika-dasar/review/idea/academic-web-idea-1",
+      "navigation": [
+        {
+          "path": "/admin/courses/fisika-dasar/review/idea/academic-web-idea-1",
+          "status": 200
+        }
+      ],
+      "landedPath": "/admin/courses/fisika-dasar/review/idea/academic-web-idea-1",
+      "finalStatus": 200,
+      "fixtureMarkerInDocument": true,
+      "fixtureMarkerRendered": true,
+      "verdict": "authorized-content"
+    },
+    {
+      "id": "tutor-quiz-edit",
+      "accountId": "academic-tutor",
+      "roles": [
+        "tutor"
+      ],
+      "path": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/edit",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/edit",
+          "status": 200
+        }
+      ],
+      "landedPath": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/edit",
+      "finalStatus": 200,
+      "fixtureMarkerInDocument": true,
+      "fixtureMarkerRendered": true,
+      "verdict": "authorized-content"
+    },
+    {
+      "id": "admin-quiz-edit",
+      "accountId": "academic-student",
+      "roles": [
+        "murid"
+      ],
+      "path": "/admin/courses/biologi-dasar/quizzes/academic-web-quiz-1/edit",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/quizzes/academic-web-quiz-1/edit",
+          "status": 307
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "landedPath": "/",
+      "finalStatus": 200,
+      "fixtureMarkerInDocument": false,
+      "fixtureMarkerRendered": false,
+      "verdict": "redirected"
+    },
+    {
+      "id": "admin-idea-detail",
+      "accountId": "academic-student",
+      "roles": [
+        "murid"
+      ],
+      "path": "/admin/courses/fisika-dasar/review/idea/academic-web-idea-1",
+      "navigation": [
+        {
+          "path": "/admin/courses/fisika-dasar/review/idea/academic-web-idea-1",
+          "status": 307
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "landedPath": "/",
+      "finalStatus": 200,
+      "fixtureMarkerInDocument": false,
+      "fixtureMarkerRendered": false,
+      "verdict": "redirected"
+    },
+    {
+      "id": "tutor-quiz-edit",
+      "accountId": "academic-student",
+      "roles": [
+        "murid"
+      ],
+      "path": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/edit",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/edit",
+          "status": 307
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "landedPath": "/",
+      "finalStatus": 200,
+      "fixtureMarkerInDocument": false,
+      "fixtureMarkerRendered": false,
+      "verdict": "redirected"
+    },
+    {
+      "id": "admin-product-detail",
+      "accountId": "academic-admin",
+      "roles": [
+        "admin"
+      ],
+      "path": "/admin/courses/biologi-dasar/review/product/academic-web-product-1",
+      "observedAt": "2026-11-26T14:17:41.649Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/review/product/academic-web-product-1",
+          "status": 200
+        }
+      ],
+      "requiredReads": [
+        {
+          "path": "/api/admin/bundles/product/academic-web-product-1",
+          "status": 200
+        },
+        {
+          "path": "/api/admin/bundles/product/academic-web-product-1/review",
+          "status": 200
+        }
+      ],
+      "landedPath": "/admin/courses/biologi-dasar/review/product/academic-web-product-1",
+      "finalStatus": 200,
+      "fixtureMarkerInDocument": true,
+      "fixtureMarkerRendered": true,
+      "verdict": "authorized-content"
+    },
+    {
+      "id": "admin-product-detail",
+      "accountId": "academic-student",
+      "roles": [
+        "murid"
+      ],
+      "path": "/admin/courses/biologi-dasar/review/product/academic-web-product-1",
+      "observedAt": "2026-11-26T14:17:51.388Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/review/product/academic-web-product-1",
+          "status": 307
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "landedPath": "/",
+      "finalStatus": 200,
+      "fixtureMarkerInDocument": false,
+      "fixtureMarkerRendered": false,
+      "verdict": "redirected"
+    }
+  ]
+}

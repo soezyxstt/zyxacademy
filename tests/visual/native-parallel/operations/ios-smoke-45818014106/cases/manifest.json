@@ -1,0 +1,29 @@
+[
+  {
+    "id": "operations-public-blog-list-open-back",
+    "path": "/blog",
+    "component": "BlogList",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-blog-list-open-back.png"
+  },
+  {
+    "id": "operations-public-blog-list-empty",
+    "path": "/blog?category=kegiatan_zyx",
+    "component": "BlogList",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-blog-list-empty.png"
+  },
+  {
+    "id": "operations-public-blog-detail-content",
+    "path": "/blog/belajar-dengan-latihan-terarah",
+    "component": "BlogArticle",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-blog-detail-content.png"
+  }
+]

@@ -44,8 +44,18 @@ keep_reviewed_host_files() {
 }
 
 for lane in shared-ui student academic operations; do
-  ref="refs/remotes/origin/native-migration/$lane"
+  # Closed PR branches may be deleted. Their accepted commits are in the parent.
+  case "$lane" in
+    shared-ui) ref=a38de31423ef9fdc5590d3626d76ec6181d853b7 ;;
+    academic) ref=5b16638c889a6a548f977ee373c3c5a7c8cd33a8 ;;
+    operations) ref=455fc4284145b09b2a068a2619c83b83a748b701 ;;
+    student) ref="refs/remotes/origin/native-migration/$lane" ;;
+  esac
   revision=$(git rev-parse --verify "$ref^{commit}")
+  if git merge-base --is-ancestor "$revision" HEAD; then
+    printf '| %s | `%s` | Already integrated |\n' "$lane" "$revision" >> "$GITHUB_STEP_SUMMARY"
+    continue
+  fi
   merge_status=0
   git merge --no-edit --no-ff --no-commit "$revision" || merge_status=$?
   result=clean
@@ -64,6 +74,7 @@ for lane in shared-ui student academic operations; do
         apps/mobile-native/features/shared-ui/CONTRACTS.md:07d120b9bbf20d88d30ece1798f11ff0212e7e86|\
         apps/mobile-native/features/shared-ui/navigation.tsx:9fe43b66774fed56322a60cda0f4650e110773d0|\
         apps/mobile-native/features/shared-ui/overlays.tsx:8b17d7b02028b2d4f447bda0c0314502b00ca3a2|\
+        apps/mobile-native/components/RadioGroup.tsx:bb687484889c27d5ffdc0bcfb9a1767e4c00865d|\
         apps/mobile-native/components/Button.tsx:01801dfc2800e441f4da1ba2b271c4f2853fe964|\
         apps/mobile-native/features/shared-ui/navigation.tsx:cd67360dee7f027b33e69d40aa7762cdf6e6b4cb|\
         scripts/native-parity/generate-tokens.ts:48201541ace3914cba4222eacd53aa04c6cad878|\
@@ -93,6 +104,7 @@ for lane in shared-ui student academic operations; do
           git add -- "$conflict"
           ;;
         app/actions/tutor-management.ts:cc4f3739af8158d6348c1dc3f91404c1d4d8cad3|\
+        app/actions/tutor-management.ts:fa7dbf5c667cf6c09d6d11605d009fc87836ab7b|\
         tests/gamification/question-disclosure-calls.test.ts:4885627aaf0124bedf92991befcc551bf05fbb58|\
         apps/mobile-native/offline/library-view.tsx:e5effb595b5d85823a8ac9973d6c1549b9a64b35|\
         tests/contracts/admin-mcp-catalog.test.ts:*)

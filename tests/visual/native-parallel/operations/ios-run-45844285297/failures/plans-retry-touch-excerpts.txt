@@ -1,0 +1,44 @@
+Passing XCTest dispatch | run 45818014106 | artifact 15130240909
+results/2026-11-26_142457/operations-public-plans-retry/logs/device-xctest.log
+205: 2026-11-26 14:25:39.730610+0000 maestro-driver-iosUITests-Runner[4572:256583] Tapping 72.0, 535.0
+206:     t =    10.37s Getting device orientation
+207: 2026-11-26 14:25:40.084167+0000 maestro-driver-iosUITests-Runner[4572:256583] Tapping took 0.34545397758483887
+
+Passing UIKit event | run 45818014106 | artifact 15130240909
+results/2026-11-26_142457/operations-public-plans-retry/logs/device-simulator.log
+5545: 2026-11-26 14:25:39.875463+0000  localhost backboardd[2062]: [com.apple.BackBoard:TouchEvents] contact 2 presence: none
+5548: 2026-11-26 14:25:39.882263+0000  localhost ZyxAcademyNative[90315]: (UIKitCore) [com.apple.UIKit:EventDispatch] Evaluating dispatch of UIEvent: 0x600003d3bb10; type: 0; subtype: 0; backing type: 11; shouldSend: 1; ignoreInteractionEvents: 0, systemGestureStateChange: 0
+5549: 2026-11-26 14:25:39.882323+0000  localhost ZyxAcademyNative[90315]: (UIKitCore) [com.apple.UIKit:EventDispatch] Sending UIEvent type: 0; subtype: 0; to windows: 1
+5550: 2026-11-26 14:25:39.882440+0000  localhost ZyxAcademyNative[90315]: (UIKitCore) [com.apple.UIKit:EventDispatch] Sending UIEvent type: 0; subtype: 0; to window: <UIWindow: 0x102d0cd60>; contextId: 0xB9736AE9
+5551: 2026-11-26 14:25:39.884251+0000  localhost ZyxAcademyNative[90315]: (UIKitCore) [com.apple.UIKit:EventDispatch] Evaluating dispatch of UIEvent: 0x600003d3bb10; type: 0; subtype: 0; backing type: 11; shouldSend: 0; ignoreInteractionEvents: 0, systemGestureStateChange: 1
+
+Passing Maestro retry assertion | run 45818014106 | artifact 15130240909
+results/2026-11-26_142457/operations-public-plans-retry/logs/maestro.log
+19: 14:25:38.572 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: public-retry RUNNING
+20: 14:25:38.905 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={accessibilityText=Coba lagi, title=, value=, text=, hintText=, resource-id=public-retry, bounds=[24,513][121,557], enabled=true, focused=false, selected=false, checked=false}, children=[], clickable=null, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=24, y=513, width=97, height=44))
+21: 14:25:39.159 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via trusted pre-wait hierarchy (null settle, no recent scroll)
+22: 14:25:39.163 [ INFO] maestro.Maestro.screenshotBasedTap-ogj28Uc: Try tapping at (72, 535) using hierarchy based logic for wait
+23: 14:25:39.169 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to byte array
+24: 14:25:39.169 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+25: 14:25:40.451 [ INFO] maestro.Maestro.screenshotBasedTap-ogj28Uc: Something have changed in the UI judging by view hierarchy. Proceed.
+26: 14:25:40.452 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: public-retry COMPLETED
+27: 14:25:40.452 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that id: public-retry is not visible RUNNING
+28: 14:25:41.368 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that id: public-retry is not visible COMPLETED
+
+Failing XCTest dispatch | run 45844285297 | artifact 15142415580
+results/2026-11-26_170707/operations-public-plans-retry/logs/device-xctest.log
+206: 2026-11-26 17:07:39.944672+0000 maestro-driver-iosUITests-Runner[47939:348481] Tapping 72.0, 535.0
+207:     t =     9.73s Getting device orientation
+208: 2026-11-26 17:07:40.308637+0000 maestro-driver-iosUITests-Runner[47939:348481] Tapping took 0.35557103157043457
+
+Failing BackBoard touch handling | run 45844285297 | artifact 15142415580
+results/2026-11-26_170707/operations-public-plans-retry/logs/device-simulator.log
+13853: 2026-11-26 17:07:39.992420+0000  localhost backboardd[1880]: [com.apple.BackBoard:TouchEvents] didn't see a previous touch down or range-in event for pathIndex:2; skipping event
+13854: 2026-11-26 17:07:39.992493+0000  localhost backboardd[1880]: [com.apple.BackBoard:TouchEvents] didn't see a previous touch down or range-in event for pathIndex:2; skipping event
+13857: 2026-11-26 17:07:39.999684+0000  localhost backboardd[1880]: [com.apple.BackBoard:TouchEvents] didn't see a previous touch down or range-in event for pathIndex:2; skipping event
+13864: 2026-11-26 17:07:40.014914+0000  localhost backboardd[1880]: [com.apple.BackBoard:TouchEvents] didn't see a previous touch down or range-in event for pathIndex:2; skipping event
+13865: 2026-11-26 17:07:40.032398+0000  localhost backboardd[1880]: [com.apple.BackBoard:TouchEvents] didn't see a previous touch down or range-in event for pathIndex:2; skipping event
+13866: 2026-11-26 17:07:40.050092+0000  localhost backboardd[1880]: [com.apple.BackBoard:TouchEvents] didn't see a previous touch down or range-in event for pathIndex:2; skipping event
+14168: 2026-11-26 17:07:40.212953+0000  localhost backboardd[1880]: [com.apple.BackBoard:TouchEvents] cancel -- digitizer did disappear:<BKDirectTouchState: 0x600003b0a840; touchScreen; builtin; senderID: 0x100D215D00001; contacts: contacts: [pathIndex: 2; touchIdentifier: 2; touching; locked; destinations: ((hitTest); contextID: 0x2210F4D2; clientPort: 0x1A1E3; inheritedSceneHostSettings: <identifier: sceneID:com.zyx.academy.nativeparity-default; touchBehavior: foreground>, (touchStream|filterDetachedTouches); contextID: 0x9B8D42C9; clientPort: 0x970B)]; destinations: [<BKTouchDestination: 0x600000c4d2c0; (hitTest); contextID: 0x7689D64E; clientPort: 0x970B; externalReferences: 1>, <BKTouchDestination: 0x600000c4d4a0; (hitTest); contextID: 0xF08E904B; clientPort: 0x970B; externalReferences: 1>, <BKTouchDestination: 0x600000c4e040; (hitTest); contextID: 0x2210F4D2; clientPort: 0x1A1E3; inheritedSceneHostSettings: <identifier: sceneID:com.zyx.academy.nativeparity-default; touchBehavior: foreground>; externalReferences: 1>]; latentSystemGestureDestinations: ()>
+14169: 2026-11-26 17:07:40.213334+0000  localhost backboardd[1880]: [com.apple.BackBoard:TouchEvents] invalidate: <BKDirectTouchState: 0x600003b0a840; touchScreen; builtin; senderID: 0x100D215D00001; contacts: contacts: [pathIndex: 2; touchIdentifier: 2; touching; locked; destinations: ((hitTest); contextID: 0x2210F4D2; clientPort: 0x1A1E3; inheritedSceneHostSettings: <identifier: sceneID:com.zyx.academy.nativeparity-default; touchBehavior: foreground>, (touchStream|filterDetachedTouches); contextID: 0x9B8D42C9; clientPort: 0x970B)]; destinations: [<BKTouchDestination: 0x600000c4d2c0; (hitTest); contextID: 0x7689D64E; clientPort: 0x970B; externalReferences: 1>, <BKTouchDestination: 0x600000c4d4a0; (hitTest); contextID: 0xF08E904B; clientPort: 0x970B; externalReferences: 1>, <BKTouchDestination: 0x600000c4e040; (hitTest); contextID: 0x2210F4D2; clientPort: 0x1A1E3; inheritedSceneHostSettings: <identifier: sceneID:com.zyx.academy.nativeparity-default; touchBehavior: foreground>; externalReferences: 1>]; latentSystemGestureDestinations: ()>
+14170: 2026-11-26 17:07:40.213592+0000  localhost backboardd[1880]: [com.apple.BackBoard:TouchEvents] canceling paths contacts: [pathIndex: 2; touchIdentifier: 2; touching; locked; destinations: ((hitTest); contextID: 0x2210F4D2; clientPort: 0x1A1E3; inheritedSceneHostSettings: <identifier: sceneID:com.zyx.academy.nativeparity-default; touchBehavior: foreground>, (touchStream|filterDetachedTouches); contextID: 0x9B8D42C9; clientPort: 0x970B)] -- HID (ts:(null))

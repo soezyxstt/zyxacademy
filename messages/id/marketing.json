@@ -596,6 +596,9 @@
       "zyra": "Zyra",
       "courses": "Mata kuliah",
       "progress": "Progres",
+      "mastery": "Penguasaan",
+      "path": "Jalur belajar",
+      "tryout-list": "Daftar tryout",
       "history": "Riwayat",
       "tryout": "Tryout"
     },

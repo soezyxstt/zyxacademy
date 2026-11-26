@@ -16,6 +16,7 @@ import { Copy, Check, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SiLine } from "react-icons/si";
 import { useTranslations } from "@/lib/i18n/client";
+import { blogShareDestinations } from "@/lib/blog-share-destinations";
 import { canUseNativeShare, shareLink } from "@/lib/native/share";
 
 // Custom SVG Brand Icons
@@ -113,32 +114,33 @@ export function ShareBlock({ slug, title, description, inline = false, locale }:
     }
   };
 
+  const links = blogShareDestinations(title, shareUrl);
   const socialShares = [
     {
       name: "WhatsApp",
       icon: WhatsAppIcon,
-      href: `https://api.whatsapp.com/send?text=${encodeURIComponent(title + " " + shareUrl)}`,
+      href: links["WhatsApp"],
       color: "hover:bg-[#25D366]/10 hover:text-[#25D366] hover:border-[#25D366]/30",
       sizeClass: "size-5",
     },
     {
       name: "Line",
       icon: SiLine,
-      href: `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(shareUrl)}`,
+      href: links["Line"],
       color: "hover:bg-[#06C755]/10 hover:text-[#06C755] hover:border-[#06C755]/30",
       sizeClass: "size-5.5", // SiLine looks best slightly larger to be readable
     },
     {
       name: "X (Twitter)",
       icon: XIcon,
-      href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(title)}`,
+      href: links["X (Twitter)"],
       color: "hover:bg-foreground/10 hover:text-foreground hover:border-foreground/30",
       sizeClass: "size-4.5",
     },
     {
       name: "Facebook",
       icon: FacebookIcon,
-      href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+      href: links["Facebook"],
       color: "hover:bg-[#1877F2]/10 hover:text-[#1877F2] hover:border-[#1877F2]/30",
       sizeClass: "size-5",
     },

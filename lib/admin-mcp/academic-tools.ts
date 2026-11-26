@@ -5,8 +5,9 @@ import { and, asc, count, eq, getTableName, is } from "drizzle-orm";
 import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import * as schema from "@/db/schema";
-import { courses, chapters, courseMaterials, courseVideos, courseVideoPlaylists, mataKuliah, bab, sumberMateri } from "@/db/schema";
+import { courses, chapters, courseMaterials, courseVideos, courseVideoPlaylists, mataKuliah, bab } from "@/db/schema";
 import { saveCourseWithCanonicalProjection, saveChapterWithCanonicalProjection, archiveCourseWithLegacyDeletion, archiveChapterWithLegacyDeletion, reorderChaptersWithCanonicalProjection } from "@/lib/academic/course-canonical-sync";
+import { writeCourseMaterialMetadata } from "@/lib/academic/course-material-metadata";
 import { allowedCategories } from "@/app/(admin)/admin/(academic)/courses/constants";
 import type { McpPrincipal } from "@/lib/authoring/mcp-auth";
 import { adminToolkit, adminId, adminRevision, adminPagination } from "./toolkit";
@@ -127,9 +128,8 @@ export function registerAcademicTools(server: McpServer, principal: McpPrincipal
     const old = await material(id, tx); expectRevision(old, expectedRevision);
     if (new Set(input.chapterIds).size !== input.chapterIds.length) throw new AdminMcpError("DUPLICATE_CHAPTER");
     for (const chapterId of input.chapterIds) if ((await chapter(chapterId, tx)).courseId !== old.courseId) throw new AdminMcpError("CHAPTER_COURSE_MISMATCH");
-    const [row] = await tx.update(courseMaterials).set(input).where(eq(courseMaterials.id, id)).returning();
-    await tx.update(sumberMateri).set({ title: input.title, updatedAt: new Date() }).where(eq(sumberMateri.id, `sm-legacy-${id}`));
-    await recordOfflineChange(tx, { kind: "course", courseId: old.courseId, action: "invalidate" });
+    const row = await writeCourseMaterialMetadata(tx, id, old.courseId, input);
+    if (!row) throw new AdminMcpError("NOT_FOUND");
     return materialView(row);
   });
 }

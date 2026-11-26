@@ -31,7 +31,7 @@ def check_device(report, component, case_ids, platform, commit, build_commit, re
     return "Pass"
 
 
-def check_page(report, manifest, platform):
+def check_page(report, manifest, platform, reference_engine="chromium"):
     scale = SCALES[platform]
     viewport = [manifest["width"], manifest["height"]]
     case_ids = manifest["cases"]
@@ -39,7 +39,7 @@ def check_page(report, manifest, platform):
     if not isinstance(report, dict) or (
         report.get("route"), report.get("platform"), report.get("scale"), report.get("viewport"),
         report.get("referenceEngine"), report.get("commit"), report.get("buildCommit"),
-    ) != (manifest["route"], platform, scale, viewport, "chromium", manifest["commit"], manifest["buildCommit"]):
+    ) != (manifest["route"], platform, scale, viewport, reference_engine, manifest["commit"], manifest["buildCommit"]):
         return missing
     results = report.get("cases")
     if not isinstance(results, list) or not all(isinstance(item, dict) for item in results):
@@ -54,9 +54,13 @@ def check_page(report, manifest, platform):
         if status == "invalid-reference" or item.get("blankReference") is True:
             states.append("Invalid reference")
         elif status == "missing-stable-frame":
-            states.append("Missing stable frame")
+            states.append({
+                "native": "Missing stable native frame", "webview": "Missing stable WebView frame",
+            }.get(str(item.get("surface")), "Missing stable frame"))
         elif status == "navigation-failed":
             states.append("Fixture navigation failed")
+        elif status == "invalid-native-frame":
+            states.append("Invalid native frame")
         elif item["case"] in behavior_cases:
             key = behavior_cases[item["case"]]
             required_status, label = PAGE_BEHAVIORS[key]
@@ -81,9 +85,13 @@ def platform_label(platforms):
     return "both platforms" if len(platforms) == 2 else {"android": "Android", "ios": "iOS"}[platforms[0]]
 
 
-def page_summary(artifacts, commit, build_commit, group, selected=("android", "ios")):
+def page_summary(artifacts, commit, build_commit, group, selected=("android", "ios"), reference_engine="chromium"):
     route, _ = PAGE_CAPTURES[group]
-    title = f"#### `{route}` route vs Chromium"
+    engine_name, measurement_prefix = {
+        "chromium": ("Chromium", ""),
+        "android-webview": ("Android WebView", "native-vs-webview/"),
+    }[reference_engine]
+    title = f"#### `{route}` route vs {engine_name}"
     try:
         manifests = [load_page_manifest(artifacts / f"reference-manifests/dpr{SCALES[platform]}/{group}.json", group)
                      for platform in selected]
@@ -96,11 +104,11 @@ def page_summary(artifacts, commit, build_commit, group, selected=("android", "i
     platforms = []
     for platform in selected:
         try:
-            path = artifacts / f"{platform}-measurements/{group}/result.json"
+            path = artifacts / f"{platform}-measurements/{measurement_prefix}{group}/result.json"
             report = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             report = None
-        platforms.append(check_page(report, manifest, platform))
+        platforms.append(check_page(report, manifest, platform, reference_engine))
     rows = [table_row(row) for row in zip(manifest["cases"], *platforms)]
     behaviors = page_behavior_cases(manifest)
     comparable = len(rows) - len(behaviors)
@@ -144,6 +152,8 @@ def main():
         passed += all(state == "Pass" for state in states)
         rows.append(f"| {component} | {' | '.join(states)} |")
     pages = [page_summary(args.artifacts, args.commit, args.build_commit, group, selected) for group in PAGE_CAPTURES]
+    if "android" in selected:
+        pages.append(page_summary(args.artifacts, args.commit, args.build_commit, "directory", ("android",), "android-webview"))
     output = "\n".join([
         f"### Native pixel parity for `{args.commit}`", "", f"Tested checkout: `{args.build_commit}`.", "",
         f"{passed}/{len(groups)} components matched all three cases against Chromium and the same-device WebView on {platform_label(selected)}.", "",

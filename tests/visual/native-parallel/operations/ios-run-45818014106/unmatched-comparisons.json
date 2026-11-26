@@ -1,0 +1,1833 @@
+[
+  {
+    "flow": "Operations Admin home to Web Analytics and access denial",
+    "fixture": null,
+    "nativeArchiveSlot": "web-analytics.png",
+    "status": "missing native capture",
+    "reason": "Full suite Admin navigation stopped before a device capture. The directly opened populated case is paired separately."
+  },
+  {
+    "flow": "Operations Admin home to Web Analytics and access denial",
+    "fixture": null,
+    "nativeArchiveSlot": "web-analytics-empty-dark.png",
+    "status": "missing native capture",
+    "reason": "Full suite Admin navigation stopped before a device capture. A matching dark empty Chromium reference exists."
+  },
+  {
+    "flow": "Operations Admin home to Web Analytics and access denial",
+    "fixture": null,
+    "nativeArchiveSlot": "web-analytics-denied.png",
+    "status": "missing native capture",
+    "reason": "Full suite Admin navigation stopped before a device capture."
+  },
+  {
+    "flow": "Operations Admin home to Web Analytics and access denial",
+    "fixture": null,
+    "nativeArchiveSlot": "feature-usage.png",
+    "status": "missing native capture",
+    "reason": "Full suite Admin navigation stopped before a device capture. The directly opened 30-day populated case is paired separately."
+  },
+  {
+    "flow": "Operations Admin home to Web Analytics and access denial",
+    "fixture": null,
+    "nativeArchiveSlot": "feature-usage-empty-range.png",
+    "status": "missing native capture",
+    "reason": "Full suite Admin navigation stopped before a device capture. A matching 7-day empty Chromium reference exists."
+  },
+  {
+    "flow": "Operations admin authoring, recovery and confirmation",
+    "fixture": null,
+    "nativeArchiveSlot": "management-blog-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations admin authoring, recovery and confirmation",
+    "fixture": null,
+    "nativeArchiveSlot": "management-blog-preview.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations admin authoring, recovery and confirmation",
+    "fixture": null,
+    "nativeArchiveSlot": "management-blog-invalid.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations admin authoring, recovery and confirmation",
+    "fixture": null,
+    "nativeArchiveSlot": "management-form-summary.png",
+    "status": "no matched reference",
+    "reason": "No 402 × 874 DPR 3 summary reference. The 402 px browser attempt stopped before capture."
+  },
+  {
+    "flow": "Operations admin authoring, recovery and confirmation",
+    "fixture": null,
+    "nativeArchiveSlot": "management-link-confirmation.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations admin authoring, recovery and confirmation",
+    "fixture": null,
+    "nativeArchiveSlot": "management-denied.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations evaluation question and generation recovery",
+    "fixture": null,
+    "nativeArchiveSlot": "evaluation-active.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations evaluation question and generation recovery",
+    "fixture": null,
+    "nativeArchiveSlot": "evaluation-historical.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations evaluation question and generation recovery",
+    "fixture": null,
+    "nativeArchiveSlot": "evaluation-jobs.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations evaluation question and generation recovery",
+    "fixture": null,
+    "nativeArchiveSlot": "evaluation-distractors-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations evaluation question and generation recovery",
+    "fixture": null,
+    "nativeArchiveSlot": "evaluation-ast-denied.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations public demo completion, study planning and tryout list",
+    "fixture": null,
+    "nativeArchiveSlot": "demo-progress.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations public demo completion, study planning and tryout list",
+    "fixture": null,
+    "nativeArchiveSlot": "demo-mastery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations public demo completion, study planning and tryout list",
+    "fixture": null,
+    "nativeArchiveSlot": "demo-path-planned.png",
+    "status": "missing native capture",
+    "reason": "The flow stopped at the iOS numeric keyboard before it created a plan."
+  },
+  {
+    "flow": "Operations public demo completion, study planning and tryout list",
+    "fixture": null,
+    "nativeArchiveSlot": "demo-tryout-list.png",
+    "status": "missing native capture",
+    "reason": "The numeric-keyboard failure stopped the preceding demo step."
+  },
+  {
+    "flow": "Operations public homepage learning interactions",
+    "fixture": null,
+    "nativeArchiveSlot": "landing-quiz-feedback.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations public homepage learning interactions",
+    "fixture": null,
+    "nativeArchiveSlot": "landing-flashcard-reviewed.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations public homepage learning interactions",
+    "fixture": null,
+    "nativeArchiveSlot": "landing-mastery-profile.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations question Idea weights and draft revision",
+    "fixture": null,
+    "nativeArchiveSlot": "evaluation-idea-weights.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "Operations short link copy and QR",
+    "fixture": null,
+    "nativeArchiveSlot": "short-links-qr.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-assessment-detail-alternate",
+    "fixture": {
+      "path": "/admin/assessments/asesmen-lama",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-assessment-detail-alternate.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-assessment-detail-populated",
+    "fixture": {
+      "path": "/admin/assessments/asesmen-lama",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-assessment-detail-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-assessment-detail-recovery",
+    "fixture": {
+      "path": "/admin/assessments/asesmen-lama",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-assessment-detail-recovery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-assessments-alternate",
+    "fixture": {
+      "path": "/admin/assessments",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-assessments-alternate.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-assessments-populated",
+    "fixture": {
+      "path": "/admin/assessments",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-assessments-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-assessments-recovery",
+    "fixture": {
+      "path": "/admin/assessments",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-assessments-recovery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-ast-inspector-alternate",
+    "fixture": {
+      "path": "/admin/ast-inspector?tab=diagnostics",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-ast-inspector-alternate.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-ast-inspector-populated",
+    "fixture": {
+      "path": "/admin/ast-inspector",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-ast-inspector-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-ast-inspector-recovery",
+    "fixture": {
+      "path": "/admin/ast-inspector",
+      "mode": "recoverable",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-ast-inspector-recovery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-diktats-alternate",
+    "fixture": {
+      "path": "/admin/diktats",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-diktats-alternate.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-diktats-populated",
+    "fixture": {
+      "path": "/admin/diktats",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-diktats-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-diktats-recovery",
+    "fixture": {
+      "path": "/admin/diktats",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-diktats-recovery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-distractors-alternate",
+    "fixture": {
+      "path": "/admin/distractors",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-distractors-alternate.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-distractors-populated",
+    "fixture": {
+      "path": "/admin/distractors",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-distractors-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-distractors-recovery",
+    "fixture": {
+      "path": "/admin/distractors",
+      "mode": "recoverable",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-distractors-recovery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-jobs-alternate",
+    "fixture": {
+      "path": "/admin/jobs",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-jobs-alternate.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-jobs-populated",
+    "fixture": {
+      "path": "/admin/jobs",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-jobs-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-jobs-recovery",
+    "fixture": {
+      "path": "/admin/jobs",
+      "mode": "recoverable",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-jobs-recovery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-leaderboard-alternate",
+    "fixture": {
+      "path": "/admin/leaderboard",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-leaderboard-alternate.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-leaderboard-populated",
+    "fixture": {
+      "path": "/admin/leaderboard?courseId=mekanika-legacy",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-leaderboard-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-leaderboard-recovery",
+    "fixture": {
+      "path": "/admin/leaderboard",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-leaderboard-recovery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-questions-alternate",
+    "fixture": {
+      "path": "/admin/questions?tab=historical",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-questions-alternate.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-questions-populated",
+    "fixture": {
+      "path": "/admin/questions",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-questions-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-questions-recovery",
+    "fixture": {
+      "path": "/admin/questions",
+      "mode": "recoverable",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-questions-recovery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quiz-edit-alternate",
+    "fixture": {
+      "path": "/admin/quizzes/kuis-tidak-ada/edit",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quiz-edit-alternate.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quiz-edit-populated",
+    "fixture": {
+      "path": "/admin/quizzes/kuis-energi/edit",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quiz-edit-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quiz-edit-recovery",
+    "fixture": {
+      "path": "/admin/quizzes/kuis-energi/edit",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quiz-edit-recovery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quiz-insight-alternate",
+    "fixture": {
+      "path": "/admin/quiz-insights/kuis-tidak-ada",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quiz-insight-alternate.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quiz-insight-populated",
+    "fixture": {
+      "path": "/admin/quiz-insights/kuis-energi",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quiz-insight-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quiz-insight-recovery",
+    "fixture": {
+      "path": "/admin/quiz-insights/kuis-energi",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quiz-insight-recovery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quiz-insights-alternate",
+    "fixture": {
+      "path": "/admin/quiz-insights",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quiz-insights-alternate.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quiz-insights-populated",
+    "fixture": {
+      "path": "/admin/quiz-insights?courseId=mekanika-legacy",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quiz-insights-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quiz-insights-recovery",
+    "fixture": {
+      "path": "/admin/quiz-insights",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quiz-insights-recovery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quiz-new-alternate",
+    "fixture": {
+      "path": "/admin/quizzes/new",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quiz-new-alternate.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quiz-new-populated",
+    "fixture": {
+      "path": "/admin/quizzes/new?courseSlug=mekanika-legacy&tags=energi%2Ckinetik",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quiz-new-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quiz-new-recovery",
+    "fixture": {
+      "path": "/admin/quizzes/new",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quiz-new-recovery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quizzes-alternate",
+    "fixture": {
+      "path": "/admin/quizzes",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quizzes-alternate.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quizzes-populated",
+    "fixture": {
+      "path": "/admin/quizzes?courseId=mekanika-legacy",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quizzes-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-evaluation-quizzes-recovery",
+    "fixture": {
+      "path": "/admin/quizzes",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-evaluation-quizzes-recovery.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-blog-empty",
+    "fixture": {
+      "path": "/admin/blog",
+      "mode": "empty",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-blog-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-blog-id-edit-empty",
+    "fixture": {
+      "path": "/admin/blog/article-local/edit",
+      "mode": "empty",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-blog-id-edit-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-blog-id-edit-populated",
+    "fixture": {
+      "path": "/admin/blog/article-local/edit",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-blog-id-edit-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-blog-id-edit-recoverable-error",
+    "fixture": {
+      "path": "/admin/blog/article-local/edit",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-blog-id-edit-recoverable-error.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-blog-new-empty",
+    "fixture": {
+      "path": "/admin/blog/new",
+      "mode": "empty",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-blog-new-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-blog-new-populated",
+    "fixture": {
+      "path": "/admin/blog/new",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-blog-new-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-blog-new-recoverable-error",
+    "fixture": {
+      "path": "/admin/blog/new",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-blog-new-recoverable-error.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-blog-populated",
+    "fixture": {
+      "path": "/admin/blog",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-blog-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-blog-recoverable-error",
+    "fixture": {
+      "path": "/admin/blog",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-blog-recoverable-error.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-discussions-empty",
+    "fixture": {
+      "path": "/admin/discussions",
+      "mode": "empty",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-discussions-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-discussions-populated",
+    "fixture": {
+      "path": "/admin/discussions",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-discussions-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-discussions-recoverable-error",
+    "fixture": {
+      "path": "/admin/discussions",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-discussions-recoverable-error.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-docs-empty",
+    "fixture": {
+      "path": "/admin/docs",
+      "mode": "empty",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-docs-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-docs-populated",
+    "fixture": {
+      "path": "/admin/docs",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-docs-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-docs-recoverable-error",
+    "fixture": {
+      "path": "/admin/docs",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-docs-recoverable-error.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-docs-slug-empty",
+    "fixture": {
+      "path": "/admin/docs/blog-dan-tautan",
+      "mode": "empty",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-docs-slug-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-docs-slug-populated",
+    "fixture": {
+      "path": "/admin/docs/blog-dan-tautan",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-docs-slug-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-docs-slug-recoverable-error",
+    "fixture": {
+      "path": "/admin/docs/blog-dan-tautan",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-docs-slug-recoverable-error.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-forms-empty",
+    "fixture": {
+      "path": "/admin/forms",
+      "mode": "empty",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-forms-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-forms-id-empty",
+    "fixture": {
+      "path": "/admin/forms/form-local",
+      "mode": "empty",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-forms-id-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-forms-id-populated",
+    "fixture": {
+      "path": "/admin/forms/form-local",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-forms-id-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-forms-id-recoverable-error",
+    "fixture": {
+      "path": "/admin/forms/form-local",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-forms-id-recoverable-error.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-forms-populated",
+    "fixture": {
+      "path": "/admin/forms",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-forms-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-forms-recoverable-error",
+    "fixture": {
+      "path": "/admin/forms",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-forms-recoverable-error.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-media-empty",
+    "fixture": {
+      "path": "/admin/media",
+      "mode": "empty",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-media-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-media-populated",
+    "fixture": {
+      "path": "/admin/media",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-media-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-media-recoverable-error",
+    "fixture": {
+      "path": "/admin/media",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-media-recoverable-error.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-meet-empty",
+    "fixture": {
+      "path": "/admin/meet",
+      "mode": "empty",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-meet-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-meet-id-empty",
+    "fixture": {
+      "path": "/admin/meet/record-local",
+      "mode": "empty",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-meet-id-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-meet-id-populated",
+    "fixture": {
+      "path": "/admin/meet/record-local",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-meet-id-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-meet-id-recoverable-error",
+    "fixture": {
+      "path": "/admin/meet/record-local",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-meet-id-recoverable-error.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-meet-populated",
+    "fixture": {
+      "path": "/admin/meet",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-meet-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-meet-recoverable-error",
+    "fixture": {
+      "path": "/admin/meet",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-meet-recoverable-error.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-pricing-empty",
+    "fixture": {
+      "path": "/admin/pricing",
+      "mode": "empty",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-pricing-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-pricing-populated",
+    "fixture": {
+      "path": "/admin/pricing",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-pricing-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-pricing-recoverable-error",
+    "fixture": {
+      "path": "/admin/pricing",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-pricing-recoverable-error.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-tautan-empty",
+    "fixture": {
+      "path": "/admin/tautan",
+      "mode": "empty",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-tautan-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-tautan-populated",
+    "fixture": {
+      "path": "/admin/tautan",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-tautan-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-management-tautan-recoverable-error",
+    "fixture": {
+      "path": "/admin/tautan",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-management-tautan-recoverable-error.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-denied",
+    "fixture": {
+      "path": "/admin",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-denied.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-analytics-denied",
+    "fixture": {
+      "path": "/admin/ops/analytics",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-analytics-denied.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-analytics-populated",
+    "fixture": {
+      "path": "/admin/ops/analytics",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-analytics-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-analytics-retry",
+    "fixture": {
+      "path": "/admin/ops/analytics",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-analytics-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-denied",
+    "fixture": {
+      "path": "/admin/ops",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-denied.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-feature-usage-denied",
+    "fixture": {
+      "path": "/admin/ops/feature-usage",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-feature-usage-denied.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-feature-usage-retry",
+    "fixture": {
+      "path": "/admin/ops/feature-usage",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-feature-usage-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-keys-denied",
+    "fixture": {
+      "path": "/admin/ops/keys",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-keys-denied.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-keys-populated",
+    "fixture": {
+      "path": "/admin/ops/keys",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-keys-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-keys-retry",
+    "fixture": {
+      "path": "/admin/ops/keys",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-keys-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-models-denied",
+    "fixture": {
+      "path": "/admin/ops/models",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-models-denied.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-models-populated",
+    "fixture": {
+      "path": "/admin/ops/models",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-models-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-models-retry",
+    "fixture": {
+      "path": "/admin/ops/models",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-models-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-offline-denied",
+    "fixture": {
+      "path": "/admin/ops/offline",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-offline-denied.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-offline-populated",
+    "fixture": {
+      "path": "/admin/ops/offline",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-offline-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-offline-retry",
+    "fixture": {
+      "path": "/admin/ops/offline",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-offline-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-populated",
+    "fixture": {
+      "path": "/admin/ops",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-retry",
+    "fixture": {
+      "path": "/admin/ops",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-short-links-denied",
+    "fixture": {
+      "path": "/admin/ops/short-links",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-short-links-denied.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-short-links-populated",
+    "fixture": {
+      "path": "/admin/ops/short-links",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-short-links-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-short-links-retry",
+    "fixture": {
+      "path": "/admin/ops/short-links",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-short-links-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-tutor-activity-denied",
+    "fixture": {
+      "path": "/admin/ops/tutor-activity",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-tutor-activity-denied.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-tutor-activity-populated",
+    "fixture": {
+      "path": "/admin/ops/tutor-activity",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-tutor-activity-populated.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-tutor-activity-retry",
+    "fixture": {
+      "path": "/admin/ops/tutor-activity",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-tutor-activity-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-web-analytics-denied",
+    "fixture": {
+      "path": "/admin/ops/web-analytics",
+      "mode": "denied",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-web-analytics-denied.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-web-analytics-retry",
+    "fixture": {
+      "path": "/admin/ops/web-analytics",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-ops-web-analytics-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-monitoring-admin-retry",
+    "fixture": {
+      "path": "/admin",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-monitoring-admin-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-blog-detail-missing",
+    "fixture": {
+      "path": "/blog/artikel-tidak-tersedia",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "nativeArchiveSlot": "cases/operations-public-blog-detail-missing.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-blog-detail-retry",
+    "fixture": {
+      "path": "/blog/belajar-dengan-latihan-terarah",
+      "mode": "recoverable",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-blog-detail-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-blog-list-retry",
+    "fixture": {
+      "path": "/blog?category=tips_kuliah",
+      "mode": "recoverable",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-blog-list-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-demo-course-article",
+    "fixture": {
+      "path": "/demo",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-demo-course-article.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-demo-link",
+    "fixture": {
+      "path": "/",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-demo-link.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-demo-retry",
+    "fixture": {
+      "path": "/demo",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-demo-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-demo-view-article",
+    "fixture": {
+      "path": "/demo/article?course=demo-kalkulus&articleId=demo-integral",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-demo-view-article.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-demo-view-missing",
+    "fixture": {
+      "path": "/demo/flashcards?course=unknown",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "nativeArchiveSlot": "cases/operations-public-demo-view-missing.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-demo-view-quiz",
+    "fixture": {
+      "path": "/demo/quiz?course=demo-kalkulus",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "nativeArchiveSlot": "cases/operations-public-demo-view-quiz.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-download-empty",
+    "fixture": {
+      "path": "/download",
+      "mode": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "nativeArchiveSlot": "cases/operations-public-download-empty.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-download-platforms",
+    "fixture": {
+      "path": "/download",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-download-platforms.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-download-retry",
+    "fixture": {
+      "path": "/download",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-download-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-english-faq",
+    "fixture": {
+      "path": "/",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "nativeArchiveSlot": "cases/operations-public-english-faq.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-form-local-submit",
+    "fixture": {
+      "path": "/forms-playground",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "nativeArchiveSlot": "cases/operations-public-form-local-submit.png",
+    "status": "missing native capture",
+    "reason": "The flow stopped at the iOS numeric keyboard before it submitted the local form."
+  },
+  {
+    "flow": "operations-public-form-validation",
+    "fixture": {
+      "path": "/forms-playground",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "nativeArchiveSlot": "cases/operations-public-form-validation.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-founders-id",
+    "fixture": {
+      "path": "/about",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-founders-id.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-long-copy-en",
+    "fixture": {
+      "path": "/about",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "nativeArchiveSlot": "cases/operations-public-long-copy-en.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-plans-course-limits",
+    "fixture": {
+      "path": "/plans",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "nativeArchiveSlot": "cases/operations-public-plans-course-limits.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-plans-default",
+    "fixture": {
+      "path": "/plans",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-plans-default.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-plans-retry",
+    "fixture": {
+      "path": "/plans",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-plans-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-portfolio",
+    "fixture": {
+      "path": "/about",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-portfolio.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-privacy-en-anchor",
+    "fixture": {
+      "path": "/privacy",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "nativeArchiveSlot": "cases/operations-public-privacy-en-anchor.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-privacy-id",
+    "fixture": {
+      "path": "/privacy",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-privacy-id.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-privacy-terms-link",
+    "fixture": {
+      "path": "/privacy",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-privacy-terms-link.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-terms-en-anchor",
+    "fixture": {
+      "path": "/terms",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "nativeArchiveSlot": "cases/operations-public-terms-en-anchor.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-terms-id",
+    "fixture": {
+      "path": "/terms",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-terms-id.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-terms-privacy-link",
+    "fixture": {
+      "path": "/terms",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-terms-privacy-link.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-testimonial-dark-en",
+    "fixture": {
+      "path": "/testimonial",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "nativeArchiveSlot": "cases/operations-public-testimonial-dark-en.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-testimonial-list",
+    "fixture": {
+      "path": "/testimonial",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-testimonial-list.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-testimonial-plans",
+    "fixture": {
+      "path": "/testimonial",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-testimonial-plans.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-unsubscribe-confirm",
+    "fixture": {
+      "path": "/unsubscribe?token=fixture-course-updates",
+      "mode": "populated",
+      "theme": "light",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-unsubscribe-confirm.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-unsubscribe-invalid",
+    "fixture": {
+      "path": "/unsubscribe?token=invalid",
+      "mode": "populated",
+      "theme": "dark",
+      "locale": "en"
+    },
+    "nativeArchiveSlot": "cases/operations-public-unsubscribe-invalid.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  },
+  {
+    "flow": "operations-public-unsubscribe-retry",
+    "fixture": {
+      "path": "/unsubscribe?token=fixture-course-updates",
+      "mode": "recoverable",
+      "theme": "dark",
+      "locale": "id"
+    },
+    "nativeArchiveSlot": "cases/operations-public-unsubscribe-retry.png",
+    "status": "no matched reference",
+    "reason": "No verified whole Chromium viewport for the same route, state, locale, theme and DPR."
+  }
+]

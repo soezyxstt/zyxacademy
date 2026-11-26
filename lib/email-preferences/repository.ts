@@ -4,6 +4,7 @@ import { emailNotificationPreferences, pkaRegistrations } from "@/db/schema";
 import {
   applyCategoryUnsubscribe,
   DEFAULT_EMAIL_NOTIFICATION_PREFERENCES,
+  emailCategoryPreference,
   type EmailNotificationCategory,
   type EmailNotificationPreferences,
 } from "./contracts";
@@ -61,5 +62,14 @@ export async function unsubscribeEmailCategory(
   category: EmailNotificationCategory,
 ): Promise<EmailNotificationPreferences> {
   const current = await getEmailNotificationPreferences(userId);
-  return saveEmailNotificationPreferences(userId, applyCategoryUnsubscribe(current, category));
+  const now = new Date();
+  const [stored] = await db
+    .insert(emailNotificationPreferences)
+    .values({ userId, ...applyCategoryUnsubscribe(current, category), createdAt: now, updatedAt: now })
+    .onConflictDoUpdate({
+      target: emailNotificationPreferences.userId,
+      set: { [emailCategoryPreference[category]]: false, updatedAt: now },
+    })
+    .returning();
+  return fromRow(stored);
 }

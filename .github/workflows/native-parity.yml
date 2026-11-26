@@ -168,7 +168,9 @@ jobs:
           if-no-files-found: error
 
       - name: Export the mobile WebView reference
-        run: PARITY_WEBVIEW_EXPORT=1 node node_modules/next/dist/bin/next build tests/visual/ui-parity-web
+        run: |
+          PARITY_WEBVIEW_EXPORT=1 node node_modules/next/dist/bin/next build tests/visual/ui-parity-web
+          node -e 'require("node:fs").writeFileSync("tests/visual/ui-parity-web/out/parity-build.json", JSON.stringify({ commit: process.env.PARITY_HEAD_SHA, buildCommit: process.env.GITHUB_SHA }))'
       - uses: actions/upload-artifact@v4
         with:
           name: next-mobile-webview-site
@@ -252,6 +254,7 @@ jobs:
           path: |
             artifacts/native-parity/${{ matrix.platform }}/result-*.json
             artifacts/native-parity/${{ matrix.platform }}/native-vs-webview/result-*.json
+            artifacts/native-parity/${{ matrix.platform }}/native-vs-webview/directory/result.json
             artifacts/native-parity/${{ matrix.platform }}/directory/result.json
             artifacts/native-parity/${{ matrix.platform }}/forms/result.json
             artifacts/native-parity/${{ matrix.platform }}/short-forms/result.json

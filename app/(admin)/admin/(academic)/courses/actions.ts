@@ -41,6 +41,8 @@ import {
 } from "@/lib/academic/course-canonical-sync";
 import { PREMIUM_PRICING, parseCoursePricingInput, type CoursePricing } from "@/lib/student/course-pricing";
 import { getDemoCourseEligibility } from "@/app/(marketing)/demo/demo-data";
+import { courseChapterRevision } from "@/lib/academic/course-chapter-revision";
+import { revalidateChapterPaths } from "@/lib/academic/revalidate-chapter-paths";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 
 export async function getCourses() {
@@ -578,6 +580,10 @@ export async function getCourseDetailData(courseId: string, includeQuestions = f
       demoEligibility,
     },
     chapters: chaptersList,
+    chapterEdit: canonicalCourse ? {
+      revision: courseChapterRevision(canonicalCourse.id, canonicalCourse.legacyCourseId, allBab, legacyChapters),
+      allowsDescription: Boolean(legacyCourse),
+    } : null,
     materials: materialsList,
     quizzes: quizzesWithMetrics,
     questions: includeQuestions ? rawQuestions : [],
@@ -660,19 +666,6 @@ export async function getAllChapters() {
     .select()
     .from(chapters)
     .orderBy(asc(chapters.orderIndex));
-}
-
-function revalidateChapterPaths(courseIds: string[]) {
-  revalidatePath("/admin/courses");
-  // shortcut: layout patterns also invalidate other courses, narrow this when per-course tags cover nested reads.
-  revalidatePath("/(admin)/admin/(academic)/courses/[slug]", "layout");
-  revalidatePath("/(student)/courses/[id]", "layout");
-  for (const id of new Set(courseIds)) {
-    revalidatePath(`/admin/courses/${id}`);
-    revalidatePath(`/courses/${id}`);
-    revalidatePath(`/courses/${id}/material`);
-  }
-  revalidatePath("/dashboard");
 }
 
 export async function saveChapter(

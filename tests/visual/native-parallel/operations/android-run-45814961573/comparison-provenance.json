@@ -1,0 +1,401 @@
+[
+  {
+    "device": "cases/operations-public-blog-list-open-back.png",
+    "reference": "blog-list-light-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 203391,
+    "maxChannelDelta": 213,
+    "status": "different",
+    "deviceSha256": "ed7986de57ec30c05ed64a5ded8534e927ae15848fdcfa3a8e67d5d1a2ee355d",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/blog-list-light-380-dpr1.png",
+    "webReferenceSha256": "0e9e0915f3330683724e8a671dd6584505f9ae8a80942fb84ede5d1fbc10f790",
+    "diff": "cases/operations-public-blog-list-open-back-diff.png",
+    "diffSha256": "5dbddd3c9f9c00160c6ba3050097ab5b3c7f7da903f475edf1739636de4d1199"
+  },
+  {
+    "device": "cases/operations-public-blog-detail-content.png",
+    "reference": "blog-detail-light-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 73158,
+    "maxChannelDelta": 213,
+    "status": "different",
+    "deviceSha256": "94d95f38a2d7de0ae55bdf9e43f190deca4ded84b95ca1d2a852125e15444c83",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/blog-detail-light-380-dpr1.png",
+    "webReferenceSha256": "197ff8549d07046e2c26a0aa2d1b3b31751e8179cad92864ac86ba9fa7e6a688",
+    "diff": "cases/operations-public-blog-detail-content-diff.png",
+    "diffSha256": "ad0ce0d8b815de07bfca55e0d65fd22cd864ed4b5bc332acc110e71dab49f142"
+  },
+  {
+    "device": "cases/operations-public-blog-list-empty.png",
+    "reference": "blog-empty-dark-en-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 131380,
+    "maxChannelDelta": 226,
+    "status": "different",
+    "deviceSha256": "de2756cfc2ff9d0b3666862a370d592083a78b260e29e6f8b066eaae09f2f6be",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/blog-empty-dark-en-380-dpr1.png",
+    "webReferenceSha256": "97b5c13232db77ecb1cd246bc4fd913c65b00bd83ac36f91f06ecf8bf4a6eee3",
+    "diff": "cases/operations-public-blog-list-empty-diff.png",
+    "diffSha256": "a451087be7a80e945f074b9858f752aa2c8271ad82ec40baaa9c3510e1dd3fd1"
+  },
+  {
+    "device": "blog-list.png",
+    "reference": "blog-list-light-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 203393,
+    "maxChannelDelta": 213,
+    "status": "different",
+    "deviceSha256": "6586f1c162903b7c80109db587e93a2cac7f35965a58a71dc8e39f1b13bf41f2",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/blog-list-light-380-dpr1.png",
+    "webReferenceSha256": "0e9e0915f3330683724e8a671dd6584505f9ae8a80942fb84ede5d1fbc10f790",
+    "diff": "blog-list-diff.png",
+    "diffSha256": "281de9ae1281ca568bcc7f8fda3c0720556fe80294e591e9f632f95be1ab8c74"
+  },
+  {
+    "device": "blog-detail.png",
+    "reference": "blog-detail-light-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 73160,
+    "maxChannelDelta": 213,
+    "status": "different",
+    "deviceSha256": "433f7a561c0cd3bf9f22fb1c1a90a5cf9194efcbd068a63044d13d6a64c897b2",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/blog-detail-light-380-dpr1.png",
+    "webReferenceSha256": "197ff8549d07046e2c26a0aa2d1b3b31751e8179cad92864ac86ba9fa7e6a688",
+    "diff": "blog-detail-diff.png",
+    "diffSha256": "505575ac19eae64488b77d0bb73c4cb79f5c7f208b280851ba4fcbe7d69b7bd6"
+  },
+  {
+    "device": "blog-empty-dark.png",
+    "reference": "blog-empty-dark-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 131785,
+    "maxChannelDelta": 226,
+    "status": "different",
+    "deviceSha256": "f53a09d7219eb86b6ba38febd841f17613e3289c732dcee08ef2b288183aab35",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/blog-empty-dark-380-dpr1.png",
+    "webReferenceSha256": "171e1b3385cb10b4237d69612f8bc482589ff467ebb1f0c312275ab17b1de25c",
+    "diff": "blog-empty-dark-diff.png",
+    "diffSha256": "3fdf377cabc1cbe218dea869699925f2d1f86a6443f48440f4ebfd40834e82f7"
+  },
+  {
+    "device": "management-form-summary.png",
+    "reference": "management-form-summary-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 40280,
+    "maxChannelDelta": 213,
+    "status": "different",
+    "deviceSha256": "d0d67de19f76fa6721af351443438576907f671a20bc54aace9e452a4c128d8d",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/management-form-summary-380-dpr1.png",
+    "webReferenceSha256": "d6fa412d836ad142f8ea9e09065e7a014695e52d69de7a3fbd2655efb1c6166b",
+    "diff": "management-form-summary-diff.png",
+    "diffSha256": "2d30ae0015853c9123937f2c41738188dd5c145d83be994713c800302b2cfd34"
+  },
+  {
+    "device": "cases/operations-evaluation-jobs-populated.png",
+    "reference": "evaluation/jobs-completed-light-380-viewport-utc.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 46066,
+    "maxChannelDelta": 216,
+    "status": "different",
+    "deviceSha256": "a841bf3f5ca1f854583d146afcb851b14bc2bf59ff96703d6664c4e6cf9f2ae0",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/evaluation/jobs-completed-light-380-viewport-utc.png",
+    "webReferenceSha256": "e6ed42ddf4e3f34982643faef10e0dc1588912d2c0ada42ccebd38d32a47621e",
+    "diff": "cases/operations-evaluation-jobs-populated-diff.png",
+    "diffSha256": "b78119b0ce47803b8ae7c1915597f3b57d404dcd1c048b271a4f3882c19b49c5"
+  },
+  {
+    "device": "cases/operations-evaluation-jobs-alternate.png",
+    "reference": "evaluation/jobs-empty-dark-380.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 10815,
+    "maxChannelDelta": 226,
+    "status": "different",
+    "deviceSha256": "fe6ba619d6bfddd5617b8fb06cc9128764678624bfe6dc8fe508e477d72f0798",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/evaluation/jobs-empty-dark-380.png",
+    "webReferenceSha256": "8a418805792390aeeaba24e65f7c27f3b85d429a5292e059ac7692740021e971",
+    "diff": "cases/operations-evaluation-jobs-alternate-diff.png",
+    "diffSha256": "4bcb26019dc7d91a769841a0f3cfbc34d31ddcf2ce51bfb02c1517ee862bd758"
+  },
+  {
+    "device": "cases/operations-monitoring-admin-populated.png",
+    "reference": "monitoring/home-populated-light-380.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      1692
+    ],
+    "status": "viewport mismatch",
+    "deviceSha256": "433cbd2a79dd65468c1cd07560f7989e49aad6a47588c7e41d90aa286331acdd",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/monitoring/home-populated-light-380.png",
+    "webReferenceSha256": "556edcb928fccfcc3ed0a3de6ae023d988519ef1787e9568e76f7e6ac58f2e1c"
+  },
+  {
+    "device": "cases/operations-monitoring-admin-ops-web-analytics-populated.png",
+    "reference": "monitoring/web-analytics-populated-light-380-viewport.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 46387,
+    "maxChannelDelta": 213,
+    "status": "different",
+    "deviceSha256": "168ab434e9ba7919c701845652e26b4b007ec0f0ab28610a602cd76f4124bacd",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/monitoring/web-analytics-populated-light-380-viewport.png",
+    "webReferenceSha256": "11730a3c35a1876937eafa4b66b207cd43a52bfc80338d9c4d03b2d6d8f46697",
+    "diff": "cases/operations-monitoring-admin-ops-web-analytics-populated-diff.png",
+    "diffSha256": "85604399098f125ea019bf4b75cb89390e7217da0479ebfc0d4d152a394be714"
+  },
+  {
+    "device": "cases/operations-monitoring-admin-ops-feature-usage-populated.png",
+    "reference": "monitoring/features-30-days-light-380-viewport.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 64570,
+    "maxChannelDelta": 221,
+    "status": "different",
+    "deviceSha256": "bd2766401ee75c96f93deeb6aff37d2dab4330ec0734e27ad0f8d7d6e1481ae2",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/monitoring/features-30-days-light-380-viewport.png",
+    "webReferenceSha256": "7ac91d866e9b53e7d5c840ad1fd28cde8ab1945c8222fbc9cbdcdca0ad779b90",
+    "diff": "cases/operations-monitoring-admin-ops-feature-usage-populated-diff.png",
+    "diffSha256": "6e1440be8e6454becba7aab55d3f3daff1327f9c62a2055b52fff628387e72a7"
+  },
+  {
+    "device": "feature-usage.png",
+    "reference": "monitoring/features-30-days-light-380-viewport.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 64531,
+    "maxChannelDelta": 221,
+    "status": "different",
+    "deviceSha256": "62ae1e9acfdd6a4e711b4ed058412baeaa57462090525392887677eaa887b847",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/monitoring/features-30-days-light-380-viewport.png",
+    "webReferenceSha256": "7ac91d866e9b53e7d5c840ad1fd28cde8ab1945c8222fbc9cbdcdca0ad779b90",
+    "diff": "feature-usage-diff.png",
+    "diffSha256": "4a2828b6919e51d718516182dcd5662ad393e2c97fd9971a214787cf8099d304"
+  },
+  {
+    "device": "feature-usage-empty-range.png",
+    "reference": "monitoring/features-7-days-light-380-viewport.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 43440,
+    "maxChannelDelta": 204,
+    "status": "different",
+    "deviceSha256": "0c51ef97f314c60b111977e5d76757741a73cf569e68785e5286d866700257a6",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/monitoring/features-7-days-light-380-viewport.png",
+    "webReferenceSha256": "2066d39c56c7d5af44f6d76f0c0d03f26bfb4e3d08ceb954341b2c7896a71dcd",
+    "diff": "feature-usage-empty-range-diff.png",
+    "diffSha256": "1ddeacde5844c8b2ac74e2a4c0e48b8cf4a9a50ddb986193f338b0316307b478"
+  },
+  {
+    "device": "cases/operations-public-hero-id.png",
+    "reference": "../public-pages/references/hero-id-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 175537,
+    "maxChannelDelta": 229,
+    "status": "different",
+    "deviceSha256": "f0224ca8ecc6885bf5291d0756cc30da28615ce0826a1ba348253b9cef04a56e",
+    "webSourcePath": "tests/visual/native-parallel/operations/public-pages/references/hero-id-380-dpr1.png",
+    "webReferenceSha256": "20828ff798e838478bb84589d4bfece24a0b01b8b9348bfd8259206da7667ce6",
+    "diff": "cases/operations-public-hero-id-diff.png",
+    "diffSha256": "78293660127f5c9d5f050d73cd22e1c924150d870c9ec48ac5c2fdfe19349df2"
+  },
+  {
+    "device": "cases/operations-public-form-empty.png",
+    "reference": "../public-pages/references/form-empty-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 142646,
+    "maxChannelDelta": 204,
+    "status": "different",
+    "deviceSha256": "7a44442c5a8f913e58e68b938de31396f5d7090c8ffa780e013100898afcab96",
+    "webSourcePath": "tests/visual/native-parallel/operations/public-pages/references/form-empty-380-dpr1.png",
+    "webReferenceSha256": "406cd00896d3d255422e12af8191dd32347a25a1e05cb8f4f0514cd235e1c5a4",
+    "diff": "cases/operations-public-form-empty-diff.png",
+    "diffSha256": "1225fa31c922628b8dd55504f2e8ecaac6113ab3300b47c0b7d726d99346620e"
+  },
+  {
+    "device": "web-analytics.png",
+    "reference": "monitoring/web-analytics-populated-light-380-viewport.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 46379,
+    "maxChannelDelta": 213,
+    "status": "different",
+    "deviceSha256": "3728a1592ab13a38a727b03aa9a5140c73c91cc05b96a5c54254b0d1367ea505",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/monitoring/web-analytics-populated-light-380-viewport.png",
+    "webReferenceSha256": "11730a3c35a1876937eafa4b66b207cd43a52bfc80338d9c4d03b2d6d8f46697",
+    "diff": "web-analytics-diff.png",
+    "diffSha256": "a2e6b11fe6c9b6a54cd232e4a994735a20f180df37b3a3bc72d3a36abea1d0ca"
+  },
+  {
+    "device": "cases/operations-public-blog-list-open-back.png",
+    "reference": "blog-shell-list-id-light-380-dpr1.png",
+    "variant": "full-shell",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 180527,
+    "maxChannelDelta": 250,
+    "status": "different",
+    "diff": "cases/operations-public-blog-list-open-back-full-shell-diff.png",
+    "deviceSha256": "ed7986de57ec30c05ed64a5ded8534e927ae15848fdcfa3a8e67d5d1a2ee355d",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/blog-shell-list-id-light-380-dpr1.png",
+    "webReferenceSha256": "7e9302f91e1d8e3101185ffbc25bb7564da36fd855f20ef5e30426e70108f744",
+    "diffSha256": "d21f6cd950060b958b805a322a438c899f3b07fdf91b0166b11a109a1da4ccc6"
+  },
+  {
+    "device": "cases/operations-public-blog-detail-content.png",
+    "reference": "blog-shell-detail-id-light-380-dpr1.png",
+    "variant": "full-shell",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 71972,
+    "maxChannelDelta": 250,
+    "status": "different",
+    "diff": "cases/operations-public-blog-detail-content-full-shell-diff.png",
+    "deviceSha256": "94d95f38a2d7de0ae55bdf9e43f190deca4ded84b95ca1d2a852125e15444c83",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/blog-shell-detail-id-light-380-dpr1.png",
+    "webReferenceSha256": "4b1298e345fc8210eb8eee420749f7f103ea8e3b527a59f2de50b7f119e297ef",
+    "diffSha256": "65a887fba95fdd09d40ea4019b9deb9d63ef9585029cc71992ebf4d72ec47b2b"
+  },
+  {
+    "device": "cases/operations-public-blog-list-empty.png",
+    "reference": "blog-shell-empty-en-dark-380-dpr1.png",
+    "variant": "full-shell",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 141112,
+    "maxChannelDelta": 226,
+    "status": "different",
+    "diff": "cases/operations-public-blog-list-empty-full-shell-diff.png",
+    "deviceSha256": "de2756cfc2ff9d0b3666862a370d592083a78b260e29e6f8b066eaae09f2f6be",
+    "webSourcePath": "tests/visual/native-parallel/operations/references/blog-shell-empty-en-dark-380-dpr1.png",
+    "webReferenceSha256": "7b5460eefa952baa027f3d2246d166b0dce5a981deb8d2c7322b968f9c55651f",
+    "diffSha256": "dbb5981867d0a21de23502b9b2343e62d7d28bf326b203a062a95398e8cb00f3"
+  }
+]

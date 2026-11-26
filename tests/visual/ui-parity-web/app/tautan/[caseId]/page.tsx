@@ -9,9 +9,10 @@ export function generateStaticParams() {
 }
 
 export default async function DirectoryFixture({ params }: { params: Promise<{ caseId: string }> }) {
-  const item = getDirectoryCase((await params).caseId);
+  const { caseId } = await params;
+  const item = getDirectoryCase(caseId);
   if (!item) notFound();
-  return <div className={`directory-reference ${item.theme}`} lang={item.locale}>
+  return <div className={`directory-reference ${item.theme}`} lang={item.locale} data-directory-case={caseId}>
     <PublicLinksDirectory links={item.links} copy={(item.locale === "en" ? en : id).tautan} />
   </div>;
 }

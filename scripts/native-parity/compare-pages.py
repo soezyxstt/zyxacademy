@@ -4,31 +4,11 @@ import os
 from pathlib import Path
 from subprocess import SubprocessError
 import sys
-import time
 
-from PIL import ImageChops, ImageOps
 from case_manifest import PAGE_BEHAVIORS, PAGE_CAPTURES, load_page_manifest, page_behavior_cases
-from compare import MARKER, load_frame
-from device_capture import open_route, screenshot
-
-
-def page_crop(frame, logical_width, logical_height, index, scale):
-    width, height = logical_width * scale, logical_height * scale
-    marker_width = (logical_width - index) * scale
-    strip = bytes(MARKER) * marker_width
-    for y in range(frame.height - height - scale):
-        line = frame.crop((0, y, frame.width, y + 1)).tobytes()
-        offset = line.find(strip)
-        if offset < 0 or offset % 3 or line.count(bytes(MARKER)) != marker_width:
-            continue
-        left = offset // 3
-        top = y + scale
-        if left + width > frame.width:
-            continue
-        end = frame.crop((left, top + height, left + marker_width, top + height + 1)).tobytes()
-        if end == strip:
-            return frame.crop((left, top, left + width, top + height))
-    return None
+from compare import load_frame
+from device_capture import open_route
+from page_frames import blank_frame, capture_stable_page, compare_page_frames
 
 
 def capture_page(platform, device, group):
@@ -51,20 +31,13 @@ def capture_page(platform, device, group):
             rows.append({"case": case, "status": "navigation-failed"})
             continue
         shot = output / f"frame-{case}.png"
-        previous = None
-        for _ in range(20):
-            screenshot(platform, device, shot)
-            crop = page_crop(load_frame(shot), manifest["width"], manifest["height"], index, scale)
-            if crop and previous and not ImageChops.difference(previous, crop).getbbox():
-                break
-            previous = crop
-            time.sleep(0.5)
-        else:
+        crop = capture_stable_page(platform, device, shot, manifest["width"], manifest["height"], index, scale)
+        if crop is None:
             rows.append({"case": case, "status": "missing-stable-frame"})
             continue
         crop.save(output / f"{case}.png")
         if key := behaviors.get(case):
-            blank = not any(lo < hi for lo, hi in crop.getextrema())
+            blank = blank_frame(crop)
             rows.append({"case": case, "status": "invalid-native-fallback" if blank else PAGE_BEHAVIORS[key][0],
                          "framePixels": list(crop.size), key: manifest[key]})
             continue
@@ -73,16 +46,7 @@ def capture_page(platform, device, group):
         except OSError:
             rows.append({"case": case, "status": "invalid-reference"})
             continue
-        blank = not any(lo < hi for lo, hi in reference.getextrema())
-        if crop.size != reference.size or blank:
-            rows.append({"case": case, "status": "invalid-reference"})
-            continue
-        diff = ImageChops.difference(reference, crop)
-        changed = sum(pixel != (0, 0, 0) for pixel in diff.get_flattened_data())
-        ImageOps.autocontrast(diff).save(output / f"{case}-diff.png")
-        rows.append({"case": case, "differentPixels": changed, "bounds": diff.getbbox(),
-                     "blankReference": blank, "framePixels": list(crop.size),
-                     "status": "fail" if changed else "pass"})
+        rows.append({"case": case, **compare_page_frames(reference, crop, output / f"{case}-diff.png")})
     evidence = {"route": manifest["route"], "platform": platform, "scale": scale, "viewport": [manifest["width"], manifest["height"]],
                 "referenceEngine": "chromium", "commit": commit, "buildCommit": build_commit, "cases": rows}
     (output / "result.json").write_text(json.dumps(evidence, indent=2) + "\n")

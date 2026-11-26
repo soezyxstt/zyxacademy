@@ -5,7 +5,8 @@ name: Shared toolbar actions, wrapping and pending state
 - extendedWaitUntil:
     visible: separator
     timeout: 20000
-- openLink: zyx-native-parity://shared-ui/shared-ui-toolbar-compact
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-toolbar-compact
+- runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: shared-ui-toolbar-compact-channel
 - assertVisible: Kanal Fisika
@@ -13,7 +14,21 @@ name: Shared toolbar actions, wrapping and pending state
     id: shared-ui-toolbar-compact-search-trigger
 - assertVisible:
     id: shared-ui-toolbar-compact-search-input
-    focused: true
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: shared-ui-toolbar-compact-search-input
+          focused: true
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - inputText: Mekanika
+      - assertVisible:
+          id: shared-ui-toolbar-compact-search-input
+          text: '^Mekanika$'
 - assertNotVisible:
     id: shared-ui-toolbar-compact-create
 - tapOn:
@@ -21,7 +36,8 @@ name: Shared toolbar actions, wrapping and pending state
 - tapOn:
     id: shared-ui-toolbar-compact-create
 - assertVisible: Siap membuat pertanyaan
-- openLink: zyx-native-parity://shared-ui/shared-ui-toolbar-wrap
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-toolbar-wrap
+- runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: shared-ui-toolbar-wrap-level
 - assertVisible: Tingkat menengah
@@ -31,7 +47,8 @@ name: Shared toolbar actions, wrapping and pending state
 - tapOn:
     id: shared-ui-toolbar-wrap-export
 - assertVisible: Laporan siap diekspor
-- openLink: zyx-native-parity://shared-ui/shared-ui-toolbar-pending
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-toolbar-pending
+- runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     id: shared-ui-toolbar-pending-refresh
     enabled: false

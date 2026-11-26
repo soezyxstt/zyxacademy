@@ -16,13 +16,15 @@ export type PhotoDraftRequest = {
   session: PhotoSession;
   target: PhotoDraftTarget;
   output?: PhotoOutputPolicy;
+  discardOnRestore?: true;
   isDraftCurrent(): boolean;
 };
 
 type PhotoBinding = Readonly<{ scope: NativeSessionScope; target: PhotoDraftTarget }>;
 
-type PendingPhoto = PhotoBinding & { version: 1; createdAt: number; id: string; recoverable: boolean };
+type PendingPhoto = PhotoBinding & { version: 1; createdAt: number; id: string; recoverable: boolean; discardOnRestore?: true };
 const orphanedRecord = JSON.stringify({ version: 0 });
+const orphanedFormRecord = JSON.stringify({ version: 0, kind: "form-camera" });
 
 export type DraftPhoto = PreparedPhoto & PhotoBinding & {
   name: string;
@@ -105,16 +107,27 @@ function isFresh(createdAt: unknown, now: number): createdAt is number {
     && createdAt <= now + 60_000 && now - createdAt <= DRAFT_PHOTO_RECOVERY_TTL_MS;
 }
 
-function readPending(value: string | null, now: number): PendingPhoto | null {
+function parsePending(value: string | null): PendingPhoto | null {
   if (!value) return null;
   try {
     const pending = JSON.parse(value) as Partial<PendingPhoto> | null;
     return pending?.version === 1 && typeof pending.recoverable === "boolean"
-      && isIdentity(pending.id) && isFresh(pending.createdAt, now)
+      && isIdentity(pending.id) && typeof pending.createdAt === "number" && Number.isSafeInteger(pending.createdAt)
       && isScope(pending.scope) && isTarget(pending.target) ? pending as PendingPhoto : null;
   } catch {
     return null;
   }
+}
+
+function discardOnRestore(pending: PendingPhoto): boolean {
+  // Existing versions identified form uploads by the canonical route and question draft ID.
+  return pending.discardOnRestore === true ||
+    (/^\/(?:forms|f)\/[^/?]+$/.test(pending.target.route) && /:q[1-9]\d*$/.test(pending.target.draftId));
+}
+
+function readPending(value: string | null, now: number): PendingPhoto | null {
+  const pending = parsePending(value);
+  return pending && isFresh(pending.createdAt, now) ? pending : null;
 }
 
 export function createDraftPhotoController({
@@ -129,18 +142,53 @@ export function createDraftPhotoController({
   now?(): number;
 }) {
   let busy = false;
+  let cleanup: Promise<void> | null = null;
+  let cleanAfterPicker = false;
 
   function draftRequest(request: PhotoDraftRequest): PendingPhoto | null {
     const { session, target } = request;
     if (!session.isCurrent() || !request.isDraftCurrent() || !isScope(session.scope) || !isTarget(target)) return null;
     return {
       version: 1, scope: { ...session.scope }, target: { ...target },
-      id: createId(), createdAt: now(), recoverable: true,
+      id: createId(), createdAt: now(), recoverable: true, discardOnRestore: request.discardOnRestore,
     };
   }
 
   function discardResult(result: PhotoPickerResult | null) {
     if (result?.status === "selected") device.discard(result.asset.uri);
+  }
+
+  function discardOrphanedFormCapture(): Promise<void> {
+    if (!device.available || !device.supportsRecovery) return Promise.resolve();
+    if (busy) {
+      cleanAfterPicker = true;
+      return Promise.resolve();
+    }
+    if (cleanup) return cleanup;
+    cleanup = (async () => {
+      const raw = await store.read();
+      const pending = parsePending(raw);
+      if (raw !== orphanedFormRecord && (!pending || !discardOnRestore(pending))) return;
+      // This draft cannot be recovered, so the discard marker needs no account or draft identity.
+      if (raw !== orphanedFormRecord) await store.write(orphanedFormRecord);
+      const result = await device.getPending();
+      // An activity can deliver its result after the first foreground read.
+      // Keep the scoped record so the next attempt can discard that result.
+      if (result === null) return;
+      discardResult(result);
+      await store.remove();
+    })().catch(() => {
+      // Keep the record for a later foreground attempt when storage or the SDK fails.
+    }).finally(() => { cleanup = null; });
+    return cleanup;
+  }
+
+  function finishPicker() {
+    busy = false;
+    if (cleanAfterPicker) {
+      cleanAfterPicker = false;
+      void discardOrphanedFormCapture();
+    }
   }
 
   async function finalize(
@@ -184,6 +232,7 @@ export function createDraftPhotoController({
 
   async function pick(source: PhotoSource, request: PhotoDraftRequest): Promise<PhotoOutcome> {
     if (!device.available) return { status: "unavailable" };
+    while (cleanup) await cleanup;
     if (busy) return { status: "busy" };
     const binding = draftRequest(request);
     if (!binding) return { status: "stale" };
@@ -224,6 +273,11 @@ export function createDraftPhotoController({
 
       const result = await device.launch(source).catch((): PhotoPickerResult => ({ status: "error" }));
       if (device.supportsRecovery) {
+        if (result.status === "error" && discardOnRestore(binding)) {
+          // The Android contract may still deliver a result after a failed launch promise.
+          cleanAfterPicker = true;
+          return await finalize(result, binding, request, false);
+        }
         try {
           await store.remove();
         } catch {
@@ -235,12 +289,13 @@ export function createDraftPhotoController({
     } catch {
       return { status: "error", issue: "picker" };
     } finally {
-      busy = false;
+      finishPicker();
     }
   }
 
   async function recover(request: PhotoDraftRequest): Promise<PhotoOutcome> {
     if (!device.available || !device.supportsRecovery) return { status: "unavailable" };
+    while (cleanup) await cleanup;
     if (busy) return { status: "busy" };
     const binding = draftRequest(request);
     if (!binding) return { status: "stale" };
@@ -248,8 +303,10 @@ export function createDraftPhotoController({
     try {
       const raw = await store.read();
       if (!isCurrent(binding, request)) return { status: "stale" };
-      if (raw === null) return { status: "no-pending" };
-      const pending = readPending(raw, now());
+      if (raw === null || raw === orphanedFormRecord) return { status: "no-pending" };
+      const stored = parsePending(raw);
+      if (stored && discardOnRestore(stored)) return { status: "no-pending" };
+      const pending = stored && isFresh(stored.createdAt, now()) ? stored : null;
       if (pending?.recoverable && sameScope(pending.scope, binding.scope) && !sameTarget(pending.target, binding.target)) {
         return { status: "no-pending" };
       }
@@ -272,18 +329,20 @@ export function createDraftPhotoController({
     } catch {
       return { status: "error", issue: "storage" };
     } finally {
-      busy = false;
+      finishPicker();
     }
   }
 
   return {
     pick,
     recover,
+    discardOrphanedFormCapture,
     async getPendingTarget(session: PhotoSession): Promise<PhotoDraftTarget | null> {
       if (!device.available || !device.supportsRecovery || busy || !session.isCurrent()) return null;
       try {
         const pending = readPending(await store.read(), now());
-        return pending?.recoverable && session.isCurrent() && sameScope(pending.scope, session.scope) ? pending.target : null;
+        return pending?.recoverable && !discardOnRestore(pending) && session.isCurrent() && sameScope(pending.scope, session.scope)
+          ? pending.target : null;
       } catch {
         return null;
       }
