@@ -8,6 +8,18 @@ export function getAvailabilityReminderWeek(now: Date) {
   return { dateKey, start, end: addCalendarDays(start, 6), saturday: day === 6 };
 }
 
+/** A deferred Saturday notification retains its original week, even after midnight. */
+export function getDeferredAvailabilityReminderWeek(dedupeKey: string, now: Date) {
+  const match = /^tutor_availability:(\d{4}-\d{2}-\d{2})$/.exec(dedupeKey);
+  if (!match) return null;
+  const dateKey = match[1];
+  const original = new Date(dateKey + "T01:00:00Z");
+  if (!Number.isFinite(original.getTime()) || formatJakartaDateKey(original) !== dateKey) return null;
+  const week = getAvailabilityReminderWeek(original);
+  const today = formatJakartaDateKey(now);
+  return week.saturday && today >= dateKey && today <= week.end ? week : null;
+}
+
 /** Queue the exact H-30 instant; allow one extra sweep for late bookings. */
 export function getTutorialEmailDispatchAt(date: string, time: string, tick: Date, now = tick): number | null {
   const starts = parseJakartaSessionStart(date, time);
