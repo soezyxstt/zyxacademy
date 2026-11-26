@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { buildFormSteps } from "../../../../packages/forms/presentation";
@@ -50,7 +50,7 @@ export function PublicFormResponse({ form, locale, signedIn, onSubmit, onUpload,
   const occupied = useRef(false);
   const confirming = useRef(false);
   const locked = useRef(false);
-  const scroller = useRef<ScrollView>(null);
+  const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
   const positions = useRef<Record<string, number>>({});
   const [focus, setFocus] = useState<{ key: string } | null>(null);
   const { indices, email, cover } = fieldsOnStep(steps[cursor]);

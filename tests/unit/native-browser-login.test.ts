@@ -303,7 +303,7 @@ describe("native login destination", () => {
   });
   const sitemap = (...children: RouteNode[]) => leaf("/", { contextKey: "./_layout.tsx", children });
 
-  test("captures the raw sign-in destination before Expo Router can decode it", () => {
+  test("captures the raw sign-in destination before Expo Router can decode it", async () => {
     const params = new URLSearchParams({ next: nestedNext, locale: "en", error: "access_denied" });
     const links = [
       ["/sign-in", "/sign-in"],
@@ -313,7 +313,7 @@ describe("native login destination", () => {
       ["zyx-native-parity:///sign-in", "/sign-in"],
     ];
     for (const [input, screen] of links) {
-      const rewritten = redirectSystemPath({ path: `${input}?${params}#outer`, initial: true });
+      const rewritten = await redirectSystemPath({ path: `${input}?${params}#outer`, initial: true });
       const [pathname, query] = decodeURIComponent(rewritten).split("?");
       const routerParams = new URLSearchParams(query);
       const returnTo = routerParams.get("returnTo") ?? "";

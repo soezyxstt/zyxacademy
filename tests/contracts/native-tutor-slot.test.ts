@@ -30,13 +30,15 @@ beforeAll(async () => {
   const { testDb } = database;
   await testDb.insert(schema.peran).values({ id: "slot-peran-tutor", code: "tutor" }).onConflictDoNothing();
   const [role] = await testDb.select({ id: schema.peran.id }).from(schema.peran).where(eq(schema.peran.code, "tutor"));
-  await testDb.insert(schema.user).values([tutor, secondTutor, student].map((id) => ({ id, name: id, email: id + "@example.test", role: id === student ? "student" : "teacher" })));
+  await testDb.insert(schema.user).values([tutor, secondTutor, student].map((id): typeof schema.user.$inferInsert => ({
+    id, name: id, email: id + "@example.test", role: id === student ? "student" : "teacher",
+  })));
   await testDb.insert(schema.pengguna).values([tutor, secondTutor, student].map((id) => ({ id, status: "active" as const })));
   await testDb.insert(schema.penggunaPeran).values([tutor, secondTutor].map((id) => ({ id: id + "-membership", penggunaId: id, peranId: role.id, source: "seed" })));
   await testDb.insert(schema.session).values([tutor, secondTutor, student, tutor + "-second"].map((id) => ({
     id: id + "-session", userId: id === tutor + "-second" ? tutor : id, token: "slot-test-" + id, expiresAt: new Date(Date.now() + 300_000),
   })));
-  await testDb.insert(schema.courses).values({ id: "slot-course", title: "Biologi", category: "Sains" });
+  await testDb.insert(schema.courses).values({ id: "slot-course", title: "Biologi", category: "Biologi" });
   await testDb.insert(schema.groups).values({ id: "slot-group", name: "Kelompok", status: "active" });
 }, 60_000);
 

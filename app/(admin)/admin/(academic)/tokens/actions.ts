@@ -5,7 +5,6 @@ import { db } from "@/db";
 import { enrollmentTokens, courses, groups } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { eq, desc, inArray } from "drizzle-orm";
-import { issueEnrollmentTokenWithGroup } from "@/lib/groups/enrollment-token-lifecycle";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
 
 /**
@@ -139,6 +138,7 @@ export async function generateEnrollmentToken(
   }
 
   try {
+    const { issueEnrollmentTokenWithGroup } = await import("@/lib/groups/enrollment-token-lifecycle");
     const { token, groupId } = await db.transaction((tx) => issueEnrollmentTokenWithGroup(tx, {
       courseIds,
       capacity,
