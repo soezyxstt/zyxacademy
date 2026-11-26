@@ -3,6 +3,11 @@ import { previewMedia } from "../../../../../packages/native-parity/operations/a
 import { inlineAssessmentRaster, publicAssessmentRasterUrl } from "../../../device/assessment-raster";
 import { parseEmbeddedVisual } from "../../../../../lib/materials/embedded-visuals";
 
+export function assessmentVideo(raw: string, origin: string) {
+  const media = previewMedia(raw, origin, "course");
+  return media?.kind === "video" || media?.kind === "youtube" ? media.url : null;
+}
+
 export function assessmentMedia(raw: string, origin: string) {
   const media = previewMedia(raw, origin, "course", true);
   if (media?.kind === "storage-image") return media;

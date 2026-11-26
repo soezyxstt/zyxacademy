@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import { useColorScheme, View } from "react-native";
 import { parseEmbeddedVisual } from "../../../../../lib/materials/embedded-visuals";
 import type { InteractiveDocumentScope } from "../../../../../lib/materials/interactive-document-path";
@@ -14,11 +14,37 @@ import { CanvasPlot } from "../zyra/CanvasPlot";
 import { InteractiveVisual } from "../InteractiveDocument";
 import { AssessmentImage } from "./AssessmentImage";
 import { Body, Heading, Markdown, useAssessment, useAssessmentCopy } from "./ui";
-import { assessmentMarkdownBlocks } from "./visual-markdown";
+import { Button } from "../../../components/Button";
+import { CourseVideoDialog } from "../../course-video/CourseVideoDialog";
+import type { MarkdownPreviewBlock } from "../../../../../packages/native-parity/operations/admin-markdown-preview";
+import { previewExternalHref } from "../../../../../packages/native-parity/operations/admin-markdown-media";
+import { assessmentMarkdownBlocks, assessmentVideo } from "./visual-markdown";
 
 const previewImage = ({ url, altText }: { url: string; altText: string }) => <AssessmentImage key={url} raw={url} alt={altText} />;
 export function AssessmentText({ value, allowLinks }: { value: string; allowLinks?: boolean }) {
   return <Markdown value={value} allowLinks={allowLinks} renderPreviewImage={previewImage} />;
+}
+
+function AssessmentMediaBlock({ media, theme, current }: {
+  media: Extract<MarkdownPreviewBlock, { type: "media" }>["media"]; theme: "light" | "dark"; current(): boolean;
+}) {
+  const { session, openExternal } = useAssessment();
+  const { tx } = useAssessmentCopy();
+  const video = assessmentVideo(media.src, session.origin);
+  const [playing, setPlaying] = useState(false);
+  const load = useCallback(async () => ({ url: video }), [video]);
+  const source = media.sourceUrl && previewExternalHref(media.sourceUrl, session.origin);
+  const title = media.caption || tx("Video soal", "Question video");
+  return <View style={{ gap: 4 }}>
+    {video ? <Button theme={theme} variant="outline" onPress={() => { if (current()) setPlaying(true); }}>
+      {tx("Putar video", "Play video")}
+    </Button> : <AssessmentImage raw={media.src} alt={media.caption ?? ""} />}
+    {media.caption && <AssessmentText value={media.caption} />}
+    {media.sourceLabel && (source && openExternal ? <Button theme={theme} variant="link" wrapLabel
+      onPress={() => { if (current()) openExternal(source); }}>{media.sourceLabel}</Button> : <Body tone="muted">{media.sourceLabel}</Body>)}
+    {playing && video && current() && <CourseVideoDialog title={title} locale={session.locale} theme={theme} origin={session.origin} load={load}
+      close={() => setPlaying(false)} />}
+  </View>;
 }
 
 export function InteractiveAssessmentMarkdown({ value, scope, visualsOnly = false, disabled }: {
@@ -45,7 +71,7 @@ export function InteractiveAssessmentMarkdown({ value, scope, visualsOnly = fals
         case "markdown":
         case "code": content = markdown(block.source); break;
         case "media":
-          content = <AssessmentImage raw={block.media.src} alt={block.media.caption ?? ""} />;
+          content = <AssessmentMediaBlock key={block.media.src} media={block.media} theme={theme} current={current} />;
           break;
         case "diagram":
           content = block.diagram ? <>

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { assessmentChoiceText, assessmentMarkdownBlocks, assessmentMedia } from "../../apps/mobile-native/features/student/assessment/visual-markdown";
+import { assessmentChoiceText, assessmentMarkdownBlocks, assessmentMedia, assessmentVideo } from "../../apps/mobile-native/features/student/assessment/visual-markdown";
 import { reviewQuizQuestion } from "../../lib/student/assessment-projection";
 
 const origin = "https://staging.zyxacademy.com";
@@ -49,4 +49,15 @@ test("released essay review projects only the attachment label and retains autho
   });
   expect(JSON.stringify(reviewQuizQuestion(question, file))).not.toContain(file.fileKey);
   expect(reviewQuizQuestion({ ...question, question_type: "short_answer" }, file).attachment).toBeUndefined();
+});
+
+test("authored assessment video embeds reach the existing video player without weakening image or protected storage admission", () => {
+  expect(assessmentVideo("https://youtu.be/dQw4w9WgXcQ", origin)).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+  const stored = fileRoot + "courses/physics/trajectory.mp4";
+  expect(assessmentVideo(stored, origin)).toBe(stored);
+  expect(assessmentVideo("https://media.school.edu/lab.webm", origin)).toBe("https://media.school.edu/lab.webm");
+  expect(assessmentMedia(stored, origin)).toBeNull();
+  for (const value of [fileRoot + "forms/private.mp4", stored + "?token=private", "/api/native/private.mp4", "https://youtu.be/invalid"]) {
+    expect(assessmentVideo(value, origin)).toBeNull();
+  }
 });
