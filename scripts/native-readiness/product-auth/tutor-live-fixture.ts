@@ -79,6 +79,10 @@ export function createTutorLiveFixture() {
       const [row] = await db.select().from(liveQuizSessions).where(eq(liveQuizSessions.id, room.id)).limit(1);
       return row?.state === "ended" && row.tutorId === owner && row.courseId === legacyId && row.templateId === templateId;
     },
+    closeSockets() {
+      for (const socket of sockets) socket.close(1001, "fixture completed");
+      sockets.clear();
+    },
     async worker(request: Request, listener: Server<SocketData>) {
       const url = new URL(request.url);
       const [, id, operation] = /^\/room\/([a-f0-9-]{36})\/(init|control|websocket)$/.exec(url.pathname) ?? [];

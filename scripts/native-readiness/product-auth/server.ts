@@ -373,6 +373,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     },
     async stop() {
       previewReading?.stop();
+      tutorLive?.closeSockets();
       await server.stop(true);
       await pool.end();
     },

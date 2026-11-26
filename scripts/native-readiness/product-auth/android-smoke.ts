@@ -221,5 +221,21 @@ try {
   if (fixture?.readingProgress()) console.error("Reading fixture: " + fixture.readingProgress());
   process.exitCode = 1;
 } finally {
-  await fixture?.stop();
+  if (fixture) {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([fixture.stop(), new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error("Fixture shutdown timed out")), 8_000);
+      })]);
+      console.log("Closed the loopback listener and PostgreSQL pool");
+    } catch {
+      console.error("Authenticated Android fixture could not close its listener and PostgreSQL pool");
+      process.exitCode = 1;
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
+  }
 }
+// A completed fixture cannot hold the next Android role open through an idle
+// SDK handle. This script runs as an isolated process for each role.
+process.exit(process.exitCode ?? 0);
