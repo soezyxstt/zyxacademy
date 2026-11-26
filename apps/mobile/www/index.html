@@ -375,9 +375,7 @@
         font-size: 14px;
         font-weight: 600;
         color: var(--foreground);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        overflow-wrap: anywhere;
         margin-bottom: 1px;
       }
 
@@ -385,9 +383,7 @@
         display: block;
         font-size: 12px;
         color: var(--muted-foreground);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        overflow-wrap: anywhere;
       }
 
       .icon-btn {
@@ -883,6 +879,7 @@
         var cachedItems = [];
         var cachedTotalBytes = 0;
         var activeReading = null;
+        var stayInLibrary = false;
         var scrollSaveTimer = null;
 
         function getTargetOrigin() {
@@ -1120,13 +1117,14 @@
               }, 4500)
             : null;
           try {
-            await fetch(getTargetOrigin() + "/brand/zyx-favicon-32.png", {
+            var response = await fetch(getTargetOrigin() + "/favicon.ico?zyx-connect=" + Date.now(), {
               method: "HEAD",
               mode: "no-cors",
               cache: "no-store",
+              credentials: "omit",
               signal: controller ? controller.signal : undefined,
             });
-            return true;
+            return response.type === "opaque" || response.ok;
           } catch {
             return false;
           } finally {
@@ -1135,6 +1133,7 @@
         }
 
         async function handleReturnOnline() {
+          stayInLibrary = true;
           persistActiveReadingPosition();
           var t = COPY[currentLang];
           retryBtn.disabled = true;
@@ -1152,7 +1151,7 @@
             updateConnectionUI();
             return;
           }
-          window.location.replace(getTargetOrigin() + "/");
+          openOnlineApp();
         }
 
         function renderMarkdownInto(container, markdown) {
@@ -1238,6 +1237,7 @@
         }
 
         function openReadingView(reading) {
+          window.dispatchEvent(new CustomEvent("zyx:offline-reader-opened", { detail: { key: reading.key, version: reading.contentVersion } }));
           activeReading = reading;
           var t = COPY[currentLang];
           var metaParts = [];
@@ -1358,6 +1358,7 @@
               openBtn.addEventListener("click", function () {
                 var store = getOfflineStorePlugin();
                 if (!store || !store.getReading) return;
+                stayInLibrary = true;
                 store
                   .getReading({ key: item.key })
                   .then(function (res) {
@@ -1456,23 +1457,25 @@
           var key = event.detail && event.detail.key;
           var store = getOfflineStorePlugin();
           if (!key || !store) return;
+          stayInLibrary = true;
           persistActiveReadingPosition();
           void store.getReading({ key: key }).then(function (result) {
             if (result && result.reading) openReadingView(result.reading);
           });
         });
-        if (window.zyxOfflineShell) {
-          void window.zyxOfflineShell.ready.then(async function () {
-            if (window.zyxOfflineShell.hasIdentity || navigator.onLine === false) return;
-            try {
-              var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-              var timer = controller ? setTimeout(function () { controller.abort(); }, 3500) : null;
-              var response = await fetch(DEFAULT_ORIGIN + "/favicon.ico", { method: "HEAD", cache: "no-store", credentials: "omit", mode: "no-cors", signal: controller ? controller.signal : undefined });
-              if (timer) clearTimeout(timer);
-              if (response.ok || response.type === "opaque") window.location.replace(DEFAULT_ORIGIN + "/");
-            } catch { /* The local library remains usable. */ }
+        function openOnlineApp() {
+          window.location.replace(getTargetOrigin() + "/");
+        }
+
+        // Only the cold launch probes automatically. Capacitor's main-frame
+        // error URL loads the same document with the recovery marker.
+        var isRecovery = new URLSearchParams(window.location.search).has("zyx-recovery");
+        if (navigator.onLine !== false && !isRecovery) {
+          void probeServerReachable().then(function (reachable) {
+            if (reachable && navigator.onLine !== false && !stayInLibrary) openOnlineApp();
           });
         }
+        window.addEventListener("zyx:offline-library-refreshed", function () { void loadLibrary(); });
         window.addEventListener("zyx:offline-lock-reader", function () {
           closeReadingView();
           readerTitleEl.textContent = "";
@@ -1497,6 +1500,7 @@
         });
 
         window.addEventListener("offline", function () {
+          stayInLibrary = true;
           updateConnectionUI();
         });
 

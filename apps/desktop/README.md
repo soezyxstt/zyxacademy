@@ -29,11 +29,11 @@ Only `http` and `https` origins are accepted. Invalid values fall back to `https
 
 ## Startup and offline fallback
 
-The bundled shell shows saved courses, article and diktat packages, video metadata
-and achievement definitions before a server response. A saved account keeps the
-local library open while the shared sync controller checks versions and access in
-the background. Its native transport only accepts the fixed offline API routes on
-the configured server and keeps WebView session cookies out of JavaScript.
+The bundled shell probes the configured origin independently of the saved cache.
+The recovery library opens to saved readings with the course catalog, video
+metadata, achievement definitions and storage controls under library management.
+Its native transport only accepts the fixed offline API routes on the configured
+server and keeps WebView session cookies out of JavaScript.
 
 The store scopes packages to the account, server and language. A reading must have
 an active lease and a current course/chapter grant. Expired data stays hidden until
@@ -41,9 +41,11 @@ a server check succeeds. Atomic package replacement preserves complete images an
 reading position, and a new version waits for the reader's confirmation before it
 replaces the open text. Logout or revoked access closes the reader and clears data.
 
-An empty install probes `HEAD /favicon.ico` without credentials or cached responses
-and opens the configured app for sign-in. When the server cannot be reached, the
-bundled retry view stays available. Reconnection keeps an open reader in place.
+Startup probes `HEAD /favicon.ico` without credentials or cached responses and
+uses the existing native entry route to restore the last authorized page, open the
+role dashboard, or show sign-in. The probe times out after
+3.5 seconds. The bundled retry view opens when the probe fails. Reconnection
+keeps an open reader in place.
 
 This shell ships inside the desktop installer. Merging a web change does not
 replace it in an installed app. Run **Release Apps (Desktop & Mobile)** manually

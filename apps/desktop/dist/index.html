@@ -433,9 +433,7 @@
         font-size: 14px;
         font-weight: 600;
         color: var(--foreground);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        overflow-wrap: anywhere;
         margin-bottom: 1px;
       }
 
@@ -443,9 +441,7 @@
         display: block;
         font-size: 12px;
         color: var(--muted-foreground);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        overflow-wrap: anywhere;
       }
 
       .reading-metrics {
@@ -1285,13 +1281,25 @@
             generation: connectionGeneration,
             controller: typeof AbortController !== "undefined" ? new AbortController() : null,
             timer: null,
+            stopped: false,
+            stop: null,
             promise: null,
           };
           pendingProbe = probe;
-          probe.promise = checkServerReachable(probe);
+          var deadline = new Promise(function (resolve) {
+            probe.stop = function () {
+              probe.stopped = true;
+              window.clearTimeout(probe.timer);
+              if (probe.controller) probe.controller.abort();
+              resolve(false);
+            };
+            probe.timer = window.setTimeout(probe.stop, 3500);
+          });
+          probe.promise = Promise.race([checkServerReachable(probe), deadline]);
           try {
             return await probe.promise;
           } finally {
+            window.clearTimeout(probe.timer);
             if (pendingProbe === probe) pendingProbe = null;
           }
         }
@@ -1301,19 +1309,13 @@
           var probe = pendingProbe;
           pendingProbe = null;
           if (!probe) return;
-          if (probe.timer !== null) window.clearTimeout(probe.timer);
-          if (probe.controller) probe.controller.abort();
+          probe.stop();
         }
 
         async function checkServerReachable(probe) {
           var origin = await resolveOrigin();
-          if (probe.generation !== connectionGeneration) return false;
+          if (probe.stopped || probe.generation !== connectionGeneration) return false;
           var controller = probe.controller;
-          probe.timer = controller
-            ? window.setTimeout(function () {
-                controller.abort();
-              }, 3500)
-            : null;
           try {
             // Static HEAD avoids session/database startup work. This is not a
             // navigation, so the service worker cannot serve its offline page.
@@ -1324,14 +1326,19 @@
               credentials: "omit",
               signal: controller ? controller.signal : undefined,
             });
-            return probe.generation === connectionGeneration
+            return !probe.stopped
+              && probe.generation === connectionGeneration
               && navigator.onLine !== false
               && (response.type === "opaque" || response.ok);
           } catch {
             return false;
-          } finally {
-            if (probe.timer !== null) window.clearTimeout(probe.timer);
           }
+        }
+
+        function openOnlineApp() {
+          // Tauri uses the platform WebView user agent. Explicitly enter the
+          // native session and route restoration flow used by the web proxy.
+          window.location.replace(targetOrigin + "/api/entry-redirect?native=1");
         }
 
         async function handleReturnOnline() {
@@ -1349,7 +1356,7 @@
           }
           connectionState = "online";
           updateConnectionUI();
-          window.location.replace(targetOrigin + "/");
+          openOnlineApp();
         }
 
         function renderMarkdownInto(container, markdown) {
@@ -1447,6 +1454,7 @@
         }
 
         function openReadingView(reading) {
+          window.dispatchEvent(new CustomEvent("zyx:offline-reader-opened", { detail: { key: reading.key, version: reading.contentVersion } }));
           enteredOfflineMode = true;
           activeReading = reading;
           var t = COPY[currentLang];
@@ -1742,6 +1750,7 @@
             if (result && result.reading) openReadingView(result.reading);
           });
         });
+        window.addEventListener("zyx:offline-library-refreshed", function () { void loadLibrary(); });
         window.addEventListener("zyx:offline-lock-reader", function () {
           closeReadingView();
           readerTitleEl.textContent = "";
@@ -1793,13 +1802,8 @@
 
         renderLang(currentLang);
 
-        // A saved account opens the local library before probing the server.
-        // Empty installs keep the upstream splash and fast static reachability check.
+        // Probe the configured app independently of local cache availability.
         void (async function initialConnect() {
-          if (window.zyxOfflineShell) {
-            await window.zyxOfflineShell.ready;
-            if (window.zyxOfflineShell.hasIdentity) showOfflineShell();
-          }
           var generation = connectionGeneration;
           if (navigator.onLine === false) {
             connectionState = "offline";
@@ -1811,7 +1815,7 @@
           connectionState = reachable ? "online" : navigator.onLine === false ? "offline" : "unreachable";
           if (reachable && !activeReading && !enteredOfflineMode) {
             updateConnectionUI();
-            window.location.replace(targetOrigin + "/");
+            openOnlineApp();
           } else {
             showOfflineShell();
           }

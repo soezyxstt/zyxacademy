@@ -13,7 +13,8 @@ type Scenario = "populated" | "empty" | "expired" | "unsupported";
 
 test.beforeAll(() => { execFileSync(process.execPath, ["scripts/build-native-offline.mjs"], { cwd: process.cwd(), stdio: "pipe", env: { ...process.env, ZYX_APP_CHANNEL: "nightly" } }); });
 
-async function launch(page: Page, platform: Platform, theme: "light" | "dark", locale: "id" | "en" = "id", scenario: Scenario = "populated", stalledOnline = false) {
+async function launch(page: Page, platform: Platform, theme: "light" | "dark", locale: "id" | "en" = "id", scenario: Scenario = "populated", connection: "offline" | "online" | "stalled" | "recovery" = "offline") {
+  const stalledOnline = connection === "stalled";
   const now = Date.now(); const scopeKey = JSON.stringify([environment, "fixture-student", locale]);
   const library = {
     schemaVersion: 2, scopeKey, environment, userId: "fixture-student", sessionId: "fixture-session", locale,
@@ -51,8 +52,8 @@ async function launch(page: Page, platform: Platform, theme: "light" | "dark", l
   page.on("console", message => { if (message.type() === "error") failures.push(message.text()); });
   page.on("response", response => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
   await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
-  await page.addInitScript(({ platform, library, records, scenario, environment, stalledOnline }) => {
-    const state = { library: scenario === "empty" ? null : library, records: scenario === "empty" ? [] : records, online: stalledOnline, requests: [] as unknown[], mode: stalledOnline ? "stalled" : "network" };
+  await page.addInitScript(({ platform, library, records, scenario, environment, connection }) => {
+    const state = { library: scenario === "empty" ? null : library, records: scenario === "empty" ? [] : records, online: connection !== "offline", requests: [] as unknown[], mode: connection === "stalled" || connection === "online" ? "stalled" : "network" };
     Object.defineProperty(navigator, "onLine", { configurable: true, get: () => state.online });
     Object.defineProperty(navigator, "userAgent", { configurable: true, get: () => platform === "desktop" ? "Mozilla/5.0 Windows WebView2" : "ZyxMobileApp/1 (nightly)" });
     const summary = (record: Record<string, unknown>) => { const { sections: _sections, ...meta } = record; return meta; };
@@ -60,7 +61,7 @@ async function launch(page: Page, platform: Platform, theme: "light" | "dark", l
       async getLibrarySnapshot() { const valid = Boolean(state.library && state.library.accessValidUntil > Date.now()); return { snapshot: valid ? state.library : null, expired: Boolean(state.library && !valid), identity: state.library ? { userId: state.library.userId, scopeKey: state.library.scopeKey, environment: state.library.environment, locale: state.library.locale } : undefined }; },
       async saveLibrarySnapshot({ payloadJson }: { payloadJson: string }) { state.library = JSON.parse(payloadJson); return { saved: true }; },
       async clearLibrarySnapshot() { state.library = null; state.records = []; },
-      async listReadings(options?: { includeExpired?: boolean }) { const visible = state.records.filter(r => options?.includeExpired || r.accessValidUntil > Date.now()); return { items: visible.map(summary), totalBytes: visible.reduce((sum, r) => sum + r.sizeBytes, 0), count: visible.length }; },
+      async listReadings(options?: { includeExpired?: boolean }) { const visible = !state.library || state.library.accessValidUntil <= Date.now() ? [] : state.records.filter(r => options?.includeExpired || r.accessValidUntil > Date.now()); return { items: visible.map(summary), totalBytes: visible.reduce((sum, r) => sum + r.sizeBytes, 0), count: visible.length }; },
       async getReading({ key }: { key: string }) { return { reading: state.records.find(record => record.key === key && record.accessValidUntil > Date.now()) ?? null }; },
       async saveReading({ key, payloadJson }: { key: string; payloadJson: string }) { const record = JSON.parse(payloadJson); state.records = [...state.records.filter(item => item.key !== key), record]; return { saved: true }; },
       async removeReading({ key }: { key: string }) { state.records = state.records.filter(record => record.key !== key); },
@@ -78,13 +79,25 @@ async function launch(page: Page, platform: Platform, theme: "light" | "dark", l
       return (store[map[command]] as (args?: unknown) => unknown)(args);
     } } };
     global.__offlineNativeFixture = state;
-  }, { platform, library, records, scenario, environment, stalledOnline });
+  }, { platform, library, records, scenario, environment, connection });
+  let probes = 0;
   let releaseProbe: (() => Promise<void>) | undefined;
   await page.route("**/*", async route => {
     const url = new URL(route.request().url());
     if (url.origin === environment && url.pathname === "/favicon.ico" && url.searchParams.has("zyx-connect") && route.request().method() === "HEAD") {
+      probes++;
       if (stalledOnline) return new Promise<void>(resolve => { releaseProbe = async () => { await route.fulfill({ status: 200, body: "" }); resolve(); }; });
       return route.fulfill({ status: 200, body: "" });
+    }
+    if (url.origin === environment) {
+      const entry = platform === "desktop" ? "/api/entry-redirect?native=1" : "/";
+      const landing = scenario === "empty" ? "/sign-in" : "/dashboard";
+      // Use a document navigation so both fixture requests are intercepted.
+      if (url.pathname + url.search === entry) return route.fulfill({
+        contentType: "text/html",
+        body: `<script>location.replace(${JSON.stringify(landing)})</script>`,
+      });
+      if (url.pathname === landing) return route.fulfill({ contentType: "text/html", body: "<h1>Zyx online app</h1>" });
     }
     if (url.origin !== origin) { failures.push(`Unexpected external request: ${url.href}`); return route.abort(); }
     const prefix = `/native-offline/${platform}/`;
@@ -96,14 +109,19 @@ async function launch(page: Page, platform: Platform, theme: "light" | "dark", l
     try { return route.fulfill({ body: readFileSync(path), contentType: mime[extname(path)] ?? "application/octet-stream" }); }
     catch { failures.push(`Missing native asset: ${file}`); return route.fulfill({ status: 404 }); }
   });
-  await page.goto(`${origin}/native-offline/${platform}/index.html`);
+  await page.goto(`${origin}/native-offline/${platform}/index.html${connection === "recovery" ? "?zyx-recovery=1" : ""}`);
+  if (connection === "online") {
+    await expect(page).toHaveURL(`${environment}${scenario === "empty" ? "/sign-in" : "/dashboard"}`);
+    await expect(page.getByRole("heading", { name: "Zyx online app" })).toBeVisible();
+    return { failures, records, probes: () => probes, releaseProbe: async () => {} };
+  }
   await page.waitForFunction(async () => {
     const shell = (window as Window & { zyxOfflineShell?: { ready: Promise<void> } }).zyxOfflineShell;
     await shell?.ready;
     return Boolean(shell);
   });
   if (scenario !== "unsupported") await expect(page.locator("#offline-library-v2")).toBeVisible();
-  return { failures, records, hasPendingProbe: () => Boolean(releaseProbe), releaseProbe: async () => { await releaseProbe?.(); } };
+  return { failures, records, probes: () => probes, releaseProbe: async () => { await releaseProbe?.(); } };
 }
 
 async function capture(page: Page, info: TestInfo, name: string, failures: string[]) {
@@ -114,18 +132,21 @@ async function capture(page: Page, info: TestInfo, name: string, failures: strin
 }
 
 async function selectSection(page: Page, section: string) {
-  const button = page.locator(`[data-section="${section}"]`);
-  if (!await button.isVisible()) await page.locator(".offline-v2-more summary").click();
-  await button.click();
+  const selector = page.locator(".offline-v2-more select");
+  if (!await selector.isVisible()) await page.locator(".offline-v2-more summary").click();
+  await selector.selectOption(section);
 }
 
 for (const platform of ["desktop", "android"] as const) for (const theme of ["light", "dark"] as const) {
   test(`${platform} bundled library, course, reader and storage in ${theme}`, async ({ page }, info) => {
     const { failures } = await launch(page, platform, theme);
-    await expect(page.getByRole("heading", { name: "Materi di perangkat" })).toBeVisible();
+    await expect(page.locator("#library-heading")).toBeVisible();
+    await expect(page.locator("#reading-list .reading-row")).toHaveCount(3);
+    await expect(page.locator(".offline-v2-more select")).toBeHidden();
     await expect(page.getByText("Offline", { exact: true })).toHaveCount(1);
     await expect(page.locator("#offline-indicator")).toHaveText("Offline");
-    await capture(page, info, `offline-${platform}-courses-${theme}`, failures);
+    await capture(page, info, `offline-${platform}-readings-${theme}`, failures);
+    await selectSection(page, "courses");
     await page.locator(".offline-v2-row-main").filter({ hasText: "Matematika I" }).click();
     await expect(page.locator(".offline-v2-content")).toContainText("Limit fungsi");
     await capture(page, info, `offline-${platform}-course-${theme}`, failures);
@@ -153,7 +174,7 @@ for (const platform of ["desktop", "android"] as const) test(`${platform} Englis
   await expect(page.locator("#reader-back-label")).toHaveText("Back");
   await selectSection(page, "achievements");
   await capture(page, info, "offline-native-achievements-en", failures);
-  await page.locator('[data-section="videos"]').click();
+  await selectSection(page, "videos");
   await expect(page.getByRole("button", { name: "Open", exact: true }).first()).toBeDisabled();
   await capture(page, info, "offline-native-videos-en", failures);
   await page.evaluate(() => { const state = (window as unknown as { __offlineNativeFixture: { online: boolean } }).__offlineNativeFixture; state.online = true; window.dispatchEvent(new Event("online")); });
@@ -161,15 +182,14 @@ for (const platform of ["desktop", "android"] as const) test(`${platform} Englis
   await expect(page.locator("#offline-indicator")).toBeHidden();
   await expect(page.locator(".offline-v2-head-actions").getByText(/^(Online|Saved|Connected)$/)).toHaveCount(0);
   await expect(page.getByText("Connection restored", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Open app", exact: true })).toBeVisible();
+  await expect(page.locator(platform === "desktop" ? "#retry-button" : "#retry-btn")).toBeVisible();
   for (const lang of ["id", "en"]) {
     await page.locator(`#lang-${lang}`).click();
     await expect(page.locator("#offline-indicator")).toBeHidden();
     await expect(page.locator("#channel-badge, #conn-pill, #reconnect-banner")).toHaveCount(0);
   }
   expect(page.url()).toContain(`${origin}/native-offline/${platform}/`);
-  await page.locator('[data-section="readings"]').click();
-  await expect(page.locator(".offline-v2-row")).toHaveCount(3);
+  await expect(page.locator("#reading-list .reading-row")).toHaveCount(3);
   await capture(page, info, "offline-native-sync-error-en", failures);
 });
 
@@ -182,8 +202,7 @@ for (const scenario of ["empty", "expired"] as const) test(`native ${scenario} s
 
 test("native reader waits for the user before replacing an updated version", async ({ page }, info) => {
   const { failures, records } = await launch(page, "desktop", "light");
-  await page.locator('[data-section="readings"]').click();
-  await page.locator(".offline-v2-row").filter({ hasText: records[0].title }).getByRole("button", { name: "Buka", exact: true }).click();
+  await page.locator("#reading-list .reading-open").filter({ hasText: records[0].title }).click();
   await page.evaluate(() => { const state = (window as unknown as { __offlineNativeFixture: { records: Array<{contentVersion: string; sections: Array<{bodyHtml: string}>}> } }).__offlineNativeFixture; state.records[0].contentVersion = "v9"; state.records[0].sections[0].bodyHtml = "<p>Penjelasan versi terbaru.</p>"; window.dispatchEvent(new Event("zyx:offline-cache-changed")); });
   await expect(page.locator("#offline-reader-update")).toBeVisible();
   await expect(page.locator("#reader-body")).not.toContainText("Penjelasan versi terbaru");
@@ -192,12 +211,21 @@ test("native reader waits for the user before replacing an updated version", asy
   await expect(page.locator("#reader-body")).toContainText("Penjelasan versi terbaru");
 });
 
-test("empty Nightly desktop opens the configured staging app", async ({ page }) => {
-  await launch(page, "desktop", "light", "en", "empty");
-  await page.route(`${environment}/dashboard`, route => route.fulfill({ contentType: "text/html", body: "<h1>Online app</h1>" }));
-  await page.locator("#lang-en").click();
-  await page.getByRole("button", { name: "Open app", exact: true }).click();
-  await expect(page).toHaveURL(`${environment}/dashboard`);
+for (const platform of ["desktop", "android"] as const) {
+  for (const scenario of ["empty", "populated"] as const) {
+    test(`${platform} ${scenario} online launch opens the configured app automatically`, async ({ page }) => {
+      const { failures, probes } = await launch(page, platform, "light", "en", scenario, "online");
+      expect(probes()).toBe(1);
+      expect(failures).toEqual([]);
+    });
+  }
+}
+
+test("Android main-frame recovery keeps the library open without another startup probe", async ({ page }) => {
+  const { failures, probes } = await launch(page, "android", "light", "en", "populated", "recovery");
+  await expect(page.locator("#reading-list .reading-row")).toHaveCount(3);
+  expect(probes()).toBe(0);
+  expect(failures).toEqual([]);
 });
 
 test("a native platform without the storage bridge keeps the bundled recovery view", async ({ page }, info) => {
@@ -208,22 +236,21 @@ test("a native platform without the storage bridge keeps the bundled recovery vi
   await capture(page, info, "offline-native-unsupported-recovery", failures);
 });
 
-for (const platform of ["desktop", "android"] as const) test(`${platform} cached online launch opens local content while server requests are stalled`, async ({ page }, info) => {
-  const { failures, hasPendingProbe, releaseProbe } = await launch(page, platform, "light", "id", "populated", true);
-  await expect(page.getByRole("heading", { name: "Materi di perangkat", exact: true })).toBeVisible();
-  if (platform === "desktop") {
-    await expect(page.locator("#startup-splash")).toBeHidden();
-    await expect.poll(hasPendingProbe).toBe(true);
-  }
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __offlineNativeFixture: { requests: unknown[] } }).__offlineNativeFixture.requests.length)).toBeGreaterThan(0);
-  await page.locator('[data-section="readings"]').click();
-  await page.locator(".offline-v2-row").filter({ hasText: "Limit fungsi" }).getByRole("button", { name: "Buka", exact: true }).click();
+test("desktop opens cached readings after the startup probe times out", async ({ page }, info) => {
+  const { failures, probes } = await launch(page, "desktop", "light", "id", "populated", "stalled");
+  await expect(page.locator("#startup-splash")).toBeHidden({ timeout: 5000 });
+  await expect(page.locator("#reading-list .reading-row")).toHaveCount(3);
+  expect(probes()).toBe(1);
+  await capture(page, info, "offline-desktop-launch-timeout", failures);
+});
+
+test("Android startup probe completion does not redirect an open reader", async ({ page }, info) => {
+  const { failures, probes, releaseProbe } = await launch(page, "android", "light", "id", "populated", "stalled");
+  await expect.poll(probes).toBe(1);
+  await page.locator("#reading-list .reading-open").filter({ hasText: "Limit fungsi" }).click();
   await expect(page.locator("#reader-body .katex")).toBeVisible();
-  await expect(page.locator("#offline-indicator")).toBeHidden();
-  await expect(page.locator("#reader-reconnect-btn")).toHaveText("Buka aplikasi");
-  await capture(page, info, `offline-${platform}-cold-online-stalled`, failures);
   await releaseProbe();
-  await expect(page).toHaveURL(`${origin}/native-offline/${platform}/index.html`);
+  await expect(page).toHaveURL(`${origin}/native-offline/android/index.html`);
   await expect(page.locator("#reader-view")).toBeVisible();
-  expect(failures).toEqual([]);
+  await capture(page, info, "offline-android-reader-during-launch", failures);
 });

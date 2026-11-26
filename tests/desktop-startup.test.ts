@@ -44,6 +44,7 @@ function deferred<T>() {
 
 function startShell(options: {
   online?: boolean;
+  resolveOrigin?: () => Promise<string>;
   fetch?: (url: string, init: RequestInit) => Promise<ProbeResponse>;
 } = {}) {
   const elements = new Map<string, ElementStub>();
@@ -61,7 +62,7 @@ function startShell(options: {
   let nextTimer = 0;
   const window = {
     __TAURI__: { core: { invoke: async (command: string) => {
-      if (command === "get_desktop_server_origin") return "https://staging.zyxacademy.com";
+      if (command === "get_desktop_server_origin") return options.resolveOrigin?.() ?? "https://staging.zyxacademy.com";
       return { items: [], totalBytes: 0 };
     } } },
     addEventListener: (name: string, callback: () => unknown) => listeners.set(name, callback),
@@ -117,7 +118,7 @@ describe("desktop launch connection state", () => {
     expect(app.requests[0].init).toMatchObject({ method: "HEAD", mode: "no-cors", cache: "no-store", credentials: "omit" });
     probe.resolve({ type: "opaque", ok: false });
     await settle();
-    expect(app.navigations).toEqual(["https://staging.zyxacademy.com/"]);
+    expect(app.navigations).toEqual(["https://staging.zyxacademy.com/api/entry-redirect?native=1"]);
     expect(app.timers.size).toBe(0);
   });
 
@@ -145,7 +146,7 @@ describe("desktop launch connection state", () => {
     app.click("retry-button");
     await settle();
     expect(attempts).toBe(2);
-    expect(app.navigations).toEqual(["https://staging.zyxacademy.com/"]);
+    expect(app.navigations).toEqual(["https://staging.zyxacademy.com/api/entry-redirect?native=1"]);
   });
 
   test("an expired probe aborts, reveals saved readings, and re-enables retry", async () => {
@@ -162,6 +163,22 @@ describe("desktop launch connection state", () => {
     expect(app.element("library-section").classList.contains("hidden")).toBe(false);
     expect(app.element("retry-button").disabled).toBe(false);
     expect(app.timers.size).toBe(0);
+  });
+
+  test("startup falls back within the deadline when native origin lookup stalls", async () => {
+    const origin = deferred<string>();
+    const app = startShell({ resolveOrigin: () => origin.promise });
+    await settle();
+    expect(app.requests).toHaveLength(0);
+    const deadline = [...app.timers.values()].find(timer => timer.delay === 3500);
+    expect(deadline).toBeDefined();
+    deadline!.callback();
+    await settle();
+    expect(app.element("library-section").classList.contains("hidden")).toBe(false);
+    origin.resolve("https://staging.zyxacademy.com");
+    await settle();
+    expect(app.requests).toHaveLength(0);
+    expect(app.navigations).toEqual([]);
   });
 
   test("choosing saved readings during launch prevents automatic navigation", async () => {

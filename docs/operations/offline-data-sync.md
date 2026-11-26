@@ -4,7 +4,9 @@ Status: `ACTIVE` source contract, 2026-11-26. Proposed as a draft against `stagi
 
 ## Scope
 
-The native library opens from bundled files. It shows the last authorized course list, material catalog, downloaded Article/Diktat readings, video links and thumbnails, achievement definitions and storage controls without waiting for a remote page. The online application remains available for account changes, video playback and interactive work.
+Android and desktop start from bundled files and probe the configured origin before opening the normal app, including for returning accounts with cached data. The static probe has a 4.5-second limit on Android and a 3.5-second limit on desktop. Android shows the saved list while the probe runs and keeps it open if the learner starts reading. The Android main-frame error page stays in recovery mode until the learner retries. Desktop opens the existing native sign-in and role-dashboard entry route on success, and shows saved readings when it is disconnected or its probe fails. Connectivity changes do not automatically navigate away from a reader.
+
+The bundled library and browser `/offline` put downloaded Article/Diktat readings first. The library management control exposes the last authorized course and material lists, video links and thumbnails, achievement definitions, refresh and storage controls.
 
 Shared metadata excludes achievement ownership, scores, private formative evaluators and assessment answers. Video entries contain links and optional thumbnails, not the video stream. The bundled reader uses local fonts and math styles. Remote interactive documents and server actions still need a connection.
 

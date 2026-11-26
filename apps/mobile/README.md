@@ -112,9 +112,11 @@ The web app gives each open dialog, sheet, modal popover and mobile sidebar a te
 
 ## Offline startup
 
-Capacitor starts the bundled `www/index.html`. Android can show the saved course
-catalog, article and diktat packages, video metadata and achievement definitions
-before a server response. The reader, fonts and math styles ship in the APK.
+Capacitor starts the bundled `www/index.html`. A successful reachability probe
+opens the configured online app, including when the user has saved readings.
+The bundled fallback shows saved readings first. Its library management control
+provides the course catalog, video metadata, achievement definitions and storage
+controls. The reader, fonts and math styles ship in the APK.
 The same version and access checks used by the web client run in the local shell
 through the native offline API transport. HttpOnly session cookies stay native.
 
@@ -123,9 +125,11 @@ its access lease and current course/chapter grant before returning a reading.
 Logout and access revocation clear the matching data; expired content stays hidden
 until a successful server check. Native writes replace complete packages atomically.
 
-An empty install can open the configured online app to sign in. Platforms without
-`ZyxOfflineStore`, including the current iOS wrapper, keep the bundled retry view
-and online flow. The remote error path also returns to this local document.
+The startup probe times out after 4.5 seconds. If a learner opens a cached reading
+while it runs, the reader stays open. The Android main-frame error path returns
+to this document in recovery mode and waits for a manual retry. Platforms without
+`ZyxOfflineStore`, including the current iOS wrapper, retain the bundled retry view
+and online flow.
 Changing this shell or its bridge requires a new APK or installer; a web deploy
 alone cannot update an installed native binary. Release Apps builds the shared
 bundle before packaging either native app.

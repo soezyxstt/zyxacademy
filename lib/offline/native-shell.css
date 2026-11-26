@@ -1,20 +1,13 @@
 @font-face{font-family:Inter;src:url("vendor/fonts/inter-latin.woff2") format("woff2");font-style:normal;font-weight:100 900;font-display:swap}
 @font-face{font-family:Lexend;src:url("vendor/fonts/lexend-latin.woff2") format("woff2");font-style:normal;font-weight:100 900;font-display:swap}
-.offline-v2-ready .hero,.offline-v2-ready .offline-header,.offline-v2-ready #library-section{display:none!important}
-.offline-v2-ready .page{max-width:1120px;width:100%;padding-top:28px}
-.offline-v2-ready .navbar-inner{max-width:1120px}
 .offline-v2{color:var(--foreground);font-family:Inter,system-ui,sans-serif;min-width:0}
 .offline-v2 h1,.offline-v2 h2{font-family:Lexend,Inter,system-ui,sans-serif;font-weight:600;letter-spacing:-.025em}
 .offline-v2 h1{font-size:24px;line-height:1.35;margin:0}.offline-v2 h2{font-size:18px;line-height:1.4;margin:0}
 .offline-v2 p{margin:0}.offline-v2 button,.offline-v2 input{font:inherit}
 .offline-v2 button{cursor:pointer}.offline-v2 button:disabled{cursor:default;opacity:.5}
 .offline-v2 button:focus-visible,.offline-v2 input:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
-.offline-v2-head{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-bottom:20px;border-bottom:1px solid var(--border)}
 .offline-v2-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.offline-v2-meta{font-size:12px;line-height:1.55;color:var(--muted-foreground);margin-top:6px!important}
 .offline-v2-sync-status{font-size:12px;color:var(--muted-foreground)}
-.offline-v2-layout{display:grid;grid-template-columns:180px minmax(0,1fr);gap:32px;padding-top:22px}
-.offline-v2-nav{display:flex;flex-direction:column;gap:4px}.offline-v2-nav button{border:0;background:transparent;color:var(--muted-foreground);text-align:left;padding:11px 12px;border-radius:6px;font-size:13px;min-height:44px;white-space:nowrap}
-.offline-v2-nav button[aria-current=page]{background:var(--surface);color:var(--foreground);font-weight:600}
 .offline-v2-content{min-width:0}.offline-v2-content-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;min-height:38px}
 .offline-v2-count{color:var(--muted-foreground);font-size:12px;font-variant-numeric:tabular-nums}
 .offline-v2-list{list-style:none;margin:0;padding:0}.offline-v2-row{display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);padding:16px 0;min-width:0}.offline-v2-row:first-child{padding-top:8px}
@@ -31,8 +24,20 @@
 .offline-v2-dialog::backdrop{background:#0006}.offline-v2-dialog h2{font-size:18px;margin:0 0 12px}.offline-v2-dialog p{color:var(--muted-foreground);font-size:13px;line-height:1.6;margin:0 0 24px}.offline-v2-dialog-actions{display:flex;justify-content:flex-end;gap:8px}
 #offline-reader-update{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--border);padding:10px 0;margin-bottom:20px;font-size:13px;color:var(--muted-foreground)}
 #offline-reader-update[hidden]{display:none}.offline-v2 button,.offline-v2-row{transition:background-color .16s ease}
-.offline-v2-more{position:relative;flex:1}.offline-v2-more summary{list-style:none;min-height:44px;display:flex;align-items:center;justify-content:center;padding:10px 12px;font-size:12px;color:var(--muted-foreground);cursor:pointer;border-radius:6px;white-space:nowrap}.offline-v2-more summary::-webkit-details-marker{display:none}.offline-v2-more summary[data-current=true]{background:var(--surface);color:var(--foreground);font-weight:600}.offline-v2-more summary:focus-visible{outline:2px solid var(--primary);outline-offset:2px}.offline-v2-more-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:40;min-width:175px;padding:5px;border:1px solid var(--border);border-radius:8px;background:var(--background);box-shadow:0 8px 24px #0002;display:flex;flex-direction:column}.offline-v2-more-menu button{width:100%;text-align:left!important}
 #reader-body table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14px;line-height:1.6;font-variant-numeric:tabular-nums}#reader-body th,#reader-body td{padding:10px 14px;border-bottom:1px solid var(--border);text-align:left}#reader-body th{font-weight:600;background:var(--surface)}#reader-body .katex-display{padding:12px 0;overflow-x:auto;overflow-y:hidden}#reader-body>section{min-width:0}
-@media(max-width:640px){.offline-v2-ready .page{padding:20px 20px 36px}.offline-v2 h1{font-size:21px}.offline-v2-head{align-items:flex-start;flex-direction:column;gap:12px;padding-bottom:16px}.offline-v2-head-actions{justify-content:space-between;width:100%;gap:8px}.offline-v2-head-actions .btn{padding:8px 11px;min-height:40px;font-size:12px}.offline-v2-layout{display:block;padding-top:0}.offline-v2-nav{flex-direction:row;overflow-x:auto;gap:0;padding:10px 0 12px;margin-bottom:14px;border-bottom:1px solid var(--border);scrollbar-width:none}.offline-v2-nav button{padding:10px 12px;min-height:42px;font-size:12px;flex-shrink:0}.offline-v2-row{gap:10px;padding:15px 0}.offline-v2-row-title{font-size:13px}.offline-v2-row-actions{gap:1px;max-width:98px}.offline-v2-text-button{padding:7px 6px;max-width:88px}.offline-v2-thumb{width:86px}.offline-v2-content-head{margin-bottom:9px}.offline-v2-content-head h2{font-size:16px}.offline-v2-symbol{width:32px;height:32px}.offline-v2-empty{padding-top:22px}}
 @media(prefers-reduced-motion:reduce){.offline-v2 button,.offline-v2-row{transition:none}}
-@media(max-width:640px){.offline-v2-nav{overflow:visible}.offline-v2-nav>button{flex:1;padding:10px 8px}.offline-v2-more summary{padding:10px 8px}#reader-body th,#reader-body td{padding:9px 12px}}
+.offline-v2 { margin-top: 20px; }
+.offline-v2-more summary { cursor: pointer; width: fit-content; padding: 10px 0; font-size: 14px; }
+.offline-v2-head-actions { margin: 8px 0 16px; }
+.offline-v2-head-actions select {
+  min-height: 40px;
+  max-width: 100%;
+  padding: 5px 8px;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+.offline-v2 select:focus-visible, .offline-v2 summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.offline-v2-row-actions { flex-wrap: wrap; justify-content: end; max-width: 45%; }

@@ -7,18 +7,15 @@ import { OFFLINE_LIBRARY_COPY } from "./library-copy";
 import { visibleOfflineLibrary } from "./library-access";
 
 type Summary = { key: string; materialId?: string; courseId?: string; title: string; courseTitle?: string; sizeBytes: number; estimatedMinutes?: number; pinned?: boolean; contentVersion?: string; accessValidUntil?: number };
-type Section = "courses" | "readings" | "videos" | "achievements" | "storage";
+type Section = "courses" | "videos" | "achievements" | "storage";
 type NativeResult = { snapshot?: NativeOfflineLibrarySnapshot | null; expired?: boolean; identity?: OfflineCacheScope };
 type ShellBridge = {
   getLibrary(): Promise<NativeResult>;
   listReadings(): Promise<{ items?: Summary[]; totalBytes?: number }>;
-  getReading(key: string): Promise<{ reading?: Record<string, unknown> | null }>;
-  clear(): Promise<unknown>;
 };
 declare global {
   interface Window {
-    __ZYX_NATIVE_SERVER_ORIGIN__?: string;
-    zyxOfflineShell?: { ready: Promise<void>; hasSnapshot: boolean; hasIdentity: boolean; refresh: () => Promise<void> };
+    zyxOfflineShell?: { ready: Promise<void>; refresh: () => Promise<void> };
   }
 }
 
@@ -27,13 +24,9 @@ const invoke = getTauri()?.core?.invoke;
 const bridge: ShellBridge | null = cap?.getLibrarySnapshot ? {
   getLibrary: () => cap.getLibrarySnapshot!() as Promise<NativeResult>,
   listReadings: () => cap.listReadings() as Promise<{ items?: Summary[]; totalBytes?: number }>,
-  getReading: key => cap.getReading({ key }),
-  clear: () => cap.clearLibrarySnapshot!(),
 } : invoke ? {
   getLibrary: () => invoke("get_offline_library_snapshot") as Promise<NativeResult>,
   listReadings: () => invoke("list_offline_readings") as Promise<{ items?: Summary[]; totalBytes?: number }>,
-  getReading: key => invoke("get_offline_reading", { key }) as Promise<{ reading?: Record<string, unknown> | null }>,
-  clear: () => invoke("clear_offline_library_snapshot"),
 } : null;
 
 function nativeFetcher(scope: OfflineCacheScope): typeof fetch {
@@ -66,7 +59,7 @@ let items: Summary[] = [];
 let bytes = 0;
 let locale: "id" | "en" = document.documentElement.lang === "en" ? "en" : "id";
 let localeChosenByUser = false;
-let section: Section = "courses";
+let section: Section | null = null;
 let selectedCourse: string | null = null;
 let expired = false;
 let syncing = false;
@@ -75,7 +68,6 @@ let activeKey: string | null = null;
 let activeVersion: string | null = null;
 let controller: ReturnType<typeof createOfflineSyncController> | null = null;
 let currentScope: OfflineCacheScope | null = null;
-let configuredOrigin: string | null = null;
 let lastCheck = 0;
 let isRendering = false;
 let expiryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -83,7 +75,7 @@ let expiryTimer: ReturnType<typeof setTimeout> | undefined;
 const root = document.createElement("section");
 root.className = "offline-v2";
 root.id = "offline-library-v2";
-document.getElementById("home-view")?.prepend(root);
+document.getElementById("library-section")?.after(root);
 function node<K extends keyof HTMLElementTagNameMap>(tag: K, className = "", text?: string): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag); el.className = className; if (text) el.textContent = text; return el;
 }
@@ -100,17 +92,6 @@ function openReading(item: Summary): void {
   activeKey = item.key; activeVersion = item.contentVersion ?? null;
   window.dispatchEvent(new CustomEvent("zyx:offline-open-reading", { detail: { key: item.key } }));
 }
-function trustedOrigin(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  try { const url = new URL(raw); return url.protocol === "https:" && ["staging.zyxacademy.com", "www.zyxacademy.com", "zyxacademy.com"].includes(url.hostname) ? url.origin : null; } catch { return null; }
-}
-function showOnline(): void {
-  const origin = configuredOrigin;
-  if (!origin) { error = "network"; render(); return; }
-  // This is a bundled native document, outside the Next router and its origin.
-  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-  window.location.assign(`${origin}/dashboard`);
-}
 async function refreshNative(): Promise<void> {
   if (!bridge || isRendering) return;
   isRendering = true;
@@ -125,7 +106,7 @@ async function refreshNative(): Promise<void> {
       const leases = [snapshot.accessValidUntil, ...snapshot.courses.map(course => course.accessValidUntil), ...snapshot.materials.map(material => material.accessValidUntil), ...items.map(item => item.accessValidUntil)].filter((value): value is number => typeof value === "number" && value > Date.now());
       expiryTimer = setTimeout(() => { void refreshNative(); }, Math.max(1, Math.min(...leases) - Date.now() + 1));
     }
-    if (window.zyxOfflineShell) window.zyxOfflineShell.hasSnapshot = Boolean(snapshot);
+    window.dispatchEvent(new Event("zyx:offline-library-refreshed"));
     if (activeKey) {
       const updated = items.find(item => item.key === activeKey);
       if (!updated) { window.dispatchEvent(new Event("zyx:offline-lock-reader")); activeKey = null; activeVersion = null; }
@@ -157,15 +138,23 @@ async function saveMaterial(material: NativeOfflineLibrarySnapshot["materials"][
   } catch { error = "storage"; }
   finally { syncing = false; render(); }
 }
-function readingRow(item: Summary, storage = false): HTMLElement {
+function storageRow(item: Summary): HTMLElement {
   const copy = OFFLINE_LIBRARY_COPY[locale];
   const row = node("li", "offline-v2-row");
   row.append(node("span", "offline-v2-symbol", item.pinned ? "↓" : "Aa"));
   const main = action("", () => openReading(item), "offline-v2-row-main");
   main.append(node("p", "offline-v2-row-title", item.title), node("p", "offline-v2-row-meta", [item.courseTitle, formatBytes(item.sizeBytes), item.estimatedMinutes ? `${item.estimatedMinutes} ${copy.minutes}` : "", item.pinned ? copy.pinned : ""].filter(Boolean).join(" · ")));
   const controls = node("div", "offline-v2-row-actions");
-  if (storage) controls.append(action(item.pinned ? copy.unpin : copy.pin, async () => { await setOfflineReadingPinned(item.key, !item.pinned); await refreshNative(); }));
-  controls.append(action(storage ? copy.remove : copy.open, async () => { if (storage) { await removeOfflineReadingByKey(item.key); await refreshNative(); } else openReading(item); }));
+  controls.append(
+    action(item.pinned ? copy.unpin : copy.pin, async () => {
+      await setOfflineReadingPinned(item.key, !item.pinned);
+      await refreshNative();
+    }),
+    action(copy.remove, async () => {
+      await removeOfflineReadingByKey(item.key);
+      await refreshNative();
+    }),
+  );
   row.append(main, controls); return row;
 }
 function clearDialog(): void {
@@ -185,67 +174,49 @@ function clearDialog(): void {
 function render(): void {
   if (!bridge) return;
   const copy = OFFLINE_LIBRARY_COPY[locale];
-  document.body.classList.add("offline-v2-ready");
-  if (window.zyxOfflineShell?.hasIdentity) {
-    document.getElementById("startup-splash")?.classList.add("hidden");
-    document.getElementById("offline-shell")?.classList.remove("hidden");
-  }
+  const wasOpen = root.querySelector("details")?.open ?? false;
   root.replaceChildren();
-  const head = node("div", "offline-v2-head");
-  const title = node("div"); title.append(node("h1", "", copy.title));
-  if (snapshot?.lastVerifiedAt) title.append(node("p", "offline-v2-meta", `${copy.lastChecked} ${date(snapshot.lastVerifiedAt)}`));
+  const panel = node("details", "offline-v2-more");
+  panel.open = wasOpen;
+  panel.append(node("summary", "", copy.manage));
   const controls = node("div", "offline-v2-head-actions");
-  if (syncing) {
-    const status = node("span", "offline-v2-sync-status", copy.syncing);
+  const select = node("select");
+  select.setAttribute("aria-label", copy.manage);
+  select.append(node("option", "", copy.manage));
+  select.options[0].value = "";
+  for (const key of ["courses", "videos", "achievements", "storage"] as const) {
+    const option = node("option", "", copy[key]);
+    option.value = key;
+    select.append(option);
+  }
+  select.value = section ?? "";
+  select.addEventListener("change", () => {
+    section = (select.value || null) as Section | null;
+    selectedCourse = null;
+    render();
+    root.querySelector("select")?.focus();
+  });
+  controls.append(select);
+  const syncButton = action(copy.sync, sync, "btn btn-outline");
+  syncButton.disabled = syncing || !controller || navigator.onLine === false;
+  controls.append(syncButton);
+  panel.append(controls);
+  root.append(panel);
+  if (syncing || expired || error) {
+    const status = node("p", "offline-v2-notice", syncing ? copy.syncing : expired ? copy.expired : error === "storage" ? copy.storageFailed : error === "access" ? copy.unavailable : copy.syncFailed);
     status.setAttribute("role", "status");
-    controls.append(status);
+    root.prepend(status);
   }
-  const syncButton = action(copy.sync, sync, "btn btn-outline"); syncButton.disabled = syncing || !controller; controls.append(syncButton);
-  if (navigator.onLine !== false) controls.append(action(copy.openOnline, showOnline, "btn btn-ghost"));
-  head.append(title, controls); root.append(head);
-  const layout = node("div", "offline-v2-layout");
-  const nav = node("nav", "offline-v2-nav"); nav.setAttribute("aria-label", copy.title);
-  const narrow = window.matchMedia("(max-width: 640px)").matches;
-  for (const key of (narrow ? ["courses", "readings", "videos"] : ["courses", "readings", "videos", "achievements", "storage"]) as Section[]) {
-    const button = action(copy[key], () => { section = key; selectedCourse = null; render(); }, "");
-    button.dataset.section = key; button.setAttribute("aria-current", key === section ? "page" : "false"); nav.append(button);
-  }
-  if (narrow) {
-    const more = node("details", "offline-v2-more");
-    const trigger = node("summary", "", `${copy.more} ▾`);
-    trigger.setAttribute("aria-haspopup", "menu");
-    trigger.setAttribute("aria-expanded", "false");
-    trigger.dataset.current = String(section === "achievements" || section === "storage");
-    const menu = node("div", "offline-v2-more-menu"); menu.setAttribute("role", "menu");
-    for (const key of ["achievements", "storage"] as Section[]) {
-      const item = action(copy[key], () => { section = key; selectedCourse = null; render(); document.querySelector<HTMLElement>(".offline-v2-more summary")?.focus(); }, "");
-      item.dataset.section = key; item.setAttribute("role", "menuitem"); item.setAttribute("aria-current", section === key ? "page" : "false"); menu.append(item);
-    }
-    more.append(trigger, menu); nav.append(more);
-    more.addEventListener("toggle", () => trigger.setAttribute("aria-expanded", String(more.open)));
-    more.addEventListener("keydown", event => {
-      if (event.key === "Escape") { more.open = false; trigger.focus(); event.preventDefault(); }
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault(); more.open = true;
-        const buttons = Array.from(menu.querySelectorAll("button")); const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
-        buttons[(current + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length]?.focus();
-      }
-    });
-  }
-  layout.append(nav);
+  if (!section) return;
   const content = node("div", "offline-v2-content");
-  if (expired || error) {
-    const notice = node("p", "offline-v2-notice", expired ? copy.expired : error === "storage" ? copy.storageFailed : error === "access" ? copy.unavailable : copy.syncFailed);
-    notice.setAttribute("role", "status"); content.append(notice);
-  }
   const contentHead = node("div", "offline-v2-content-head");
   const chosen = snapshot?.courses.find(course => course.id === selectedCourse);
   contentHead.append(node("h2", "", chosen?.title ?? copy[section]));
   if (selectedCourse) contentHead.append(action(copy.allCourses, () => { selectedCourse = null; render(); }));
-  else contentHead.append(node("span", "offline-v2-count", section === "courses" ? String(snapshot?.courses.length ?? 0) : section === "readings" ? String(items.length) : ""));
+  else contentHead.append(node("span", "offline-v2-count", section === "courses" ? String(snapshot?.courses.length ?? 0) : ""));
   content.append(contentHead);
   if (!snapshot && section !== "storage") {
-    content.append(empty(copy.emptyTitle, expired ? copy.expired : copy.emptyBody), action(copy.openOnline, showOnline, "btn btn-primary"));
+    content.append(empty(copy.emptyTitle, copy.emptyBody));
   } else if (section === "courses") {
     const list = node("ul", "offline-v2-list");
     if (selectedCourse) {
@@ -272,8 +243,6 @@ function render(): void {
       if (!snapshot!.courses.length) content.append(empty(copy.noCourses, copy.emptyBody));
     }
     content.append(list);
-  } else if (section === "readings") {
-    const list = node("ul", "offline-v2-list"); for (const item of items) list.append(readingRow(item)); content.append(items.length ? list : empty(copy.emptyReadings, copy.emptyReadingsBody));
   } else if (section === "videos") {
     const videos = snapshot!.materials.filter(item => item.kind === "video");
     if (videos.length) content.append(node("p", "offline-v2-meta", copy.videoNeedsConnection));
@@ -295,17 +264,13 @@ function render(): void {
     const storage = node("div", "offline-v2-storage"); const values = node("div", "offline-v2-storage-meta"); values.append(node("strong", "", formatBytes(bytes)), node("span", "", `${copy.of} ${formatBytes(snapshot?.policy.maxBytes ?? 100 * 1024 * 1024)}`)); storage.append(values);
     const meter = node("meter"); meter.min = 0; meter.max = snapshot?.policy.maxBytes ?? 100 * 1024 * 1024; meter.value = bytes; meter.setAttribute("aria-label", copy.usage); storage.append(meter, node("p", "offline-v2-meta", copy.pinnedHelp));
     if (snapshot?.accessValidUntil) storage.append(node("p", "offline-v2-meta", `${copy.accessUntil} ${date(snapshot.accessValidUntil)}`));
-    content.append(storage); const list = node("ul", "offline-v2-list"); for (const item of items) list.append(readingRow(item, true)); content.append(list);
+    content.append(storage); const list = node("ul", "offline-v2-list"); for (const item of items) list.append(storageRow(item)); content.append(list);
     if (snapshot || items.length) content.append(action(copy.clear, clearDialog)); else content.append(empty(copy.emptyReadings));
   }
-  layout.append(content); root.append(layout);
+  panel.append(content);
 }
 
 async function initialize(): Promise<void> {
-  configuredOrigin = trustedOrigin(window.__ZYX_NATIVE_SERVER_ORIGIN__);
-  if (invoke) {
-    try { configuredOrigin = trustedOrigin(await invoke("get_desktop_server_origin")) ?? configuredOrigin; } catch { /* Keep the bundled channel configuration. */ }
-  }
   if (!bridge) return;
   try {
     const initial = await bridge.getLibrary(); snapshot = initial.snapshot ?? null; expired = Boolean(initial.expired);
@@ -316,7 +281,6 @@ async function initialize(): Promise<void> {
         locale = identity.locale;
         document.getElementById(locale === "id" ? "lang-id" : "lang-en")?.click();
       }
-      window.zyxOfflineShell!.hasIdentity = true;
       await refreshNative();
       await hydrateNativeOfflineReadings(currentScope);
       controller = createOfflineSyncController({ scope: currentScope, fetcher: nativeFetcher(currentScope), initialSnapshot: snapshot ?? undefined, onSnapshot: next => { snapshot = next; error = next.syncError ?? null; void refreshNative(); } });
@@ -327,7 +291,7 @@ async function initialize(): Promise<void> {
 }
 
 let resolveReady!: () => void;
-window.zyxOfflineShell = { ready: new Promise(resolve => { resolveReady = resolve; }), hasSnapshot: false, hasIdentity: false, refresh: refreshNative };
+window.zyxOfflineShell = { ready: new Promise(resolve => { resolveReady = resolve; }), refresh: refreshNative };
 // The inline shell installs its locale and reader handlers after this bundle.
 // Wait for those handlers, while keeping server work outside the launch gate.
 const start = () => {
@@ -337,14 +301,14 @@ const start = () => {
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
 else start();
 window.addEventListener(OFFLINE_CACHE_CHANGED_EVENT, () => { void refreshNative(); });
+window.addEventListener("zyx:offline-reader-opened", event => {
+  const { key, version } = (event as CustomEvent<{ key: string; version?: string }>).detail;
+  activeKey = key;
+  activeVersion = version ?? null;
+});
 window.addEventListener("zyx:offline-reader-closed", () => { activeKey = null; activeVersion = null; document.getElementById("offline-reader-update")?.setAttribute("hidden", ""); });
 window.addEventListener("online", () => { void sync(); });
 window.addEventListener("offline", render);
-window.matchMedia("(max-width: 640px)").addEventListener("change", render);
-document.addEventListener("click", event => {
-  const menu = document.querySelector<HTMLDetailsElement>(".offline-v2-more[open]");
-  if (menu && !menu.contains(event.target as Node)) menu.open = false;
-});
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { void refreshNative(); if (Date.now() - lastCheck > 15_000) void sync(); } });
 for (const lang of ["id", "en"] as const) document.getElementById(`lang-${lang}`)?.addEventListener("click", event => { if (event.isTrusted) localeChosenByUser = true; locale = lang; render(); });
 setInterval(() => {

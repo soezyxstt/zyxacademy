@@ -89,7 +89,7 @@ const config: CapacitorConfig = {
     allowNavigation: isNightly
       ? ["staging.zyxacademy.com", "accounts.google.com"]
       : ["www.zyxacademy.com", "zyxacademy.com", "zyx.academy", "accounts.google.com"],
-    errorPath: "index.html",
+    errorPath: "index.html?zyx-recovery=1",
   },
   plugins: {
     ZyxOfflineStore: { serverOrigin: serverUrl },

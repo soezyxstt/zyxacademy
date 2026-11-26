@@ -29,7 +29,7 @@ async function openFixture(page: Page, theme: "light" | "dark", locale: "id" | "
     failures.push(`Unexpected ${route.request().method()} ${url.href}`); return route.abort();
   });
   await page.goto(`${origin}/offline?locale=${locale}&mode=${mode}`);
-  if (mode === "library") await expect(page.getByRole("heading", { name: locale === "id" ? "Materi di perangkat" : "Materials on this device", exact: true })).toBeVisible();
+  if (mode === "library") await expect(page.getByRole("heading", { name: locale === "id" ? "Bacaan offline" : "Offline readings", exact: true })).toBeVisible();
   else await expect(page.getByRole("button", { name: locale === "id" ? "Simpan offline" : "Save offline", exact: true })).toBeVisible();
   return failures;
 }
@@ -43,17 +43,17 @@ async function capture(page: Page, info: TestInfo, name: string, failures: strin
 }
 
 async function selectSection(page: Page, label: string, locale: "id" | "en" = "id") {
-  const nav = page.getByRole("navigation", { name: locale === "id" ? "Materi di perangkat" : "Materials on this device" });
-  const button = nav.getByRole("button", { name: label, exact: true });
-  if (await button.isVisible()) await button.click();
-  else { await nav.getByRole("button", { name: locale === "id" ? "Lebih" : "More", exact: true }).click(); await page.getByRole("menuitem", { name: label, exact: true }).click(); }
+  await page.getByRole("button", { name: locale === "id" ? "Kelola materi di perangkat" : "Manage materials on this device" }).click();
+  await page.getByRole("menuitem", { name: label, exact: true }).click();
 }
 
 for (const theme of ["light", "dark"] as const) test(`web offline library, reader and storage in ${theme}`, async ({ page }, info) => {
   const failures = await openFixture(page, theme);
   const offlineIndicator = page.getByText("Offline", { exact: true });
   await expect(offlineIndicator).toHaveCount(1);
-  await capture(page, info, `offline-web-courses-${theme}`, failures);
+  await expect(page.getByRole("button", { name: /^Limit fungsi/ })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Mata kuliah" })).toHaveCount(0);
+  await capture(page, info, `offline-web-readings-${theme}`, failures);
   await page.evaluate(() => {
     window.__offlineWebConfig.online = true;
     window.dispatchEvent(new Event("online"));
@@ -61,11 +61,12 @@ for (const theme of ["light", "dark"] as const) test(`web offline library, reade
   await expect(offlineIndicator).toHaveCount(0);
   await expect(page.getByText("Online", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Buka aplikasi" })).toHaveAttribute("href", "/dashboard");
-  await capture(page, info, `offline-web-courses-online-${theme}`, failures);
+  await capture(page, info, `offline-web-readings-online-${theme}`, failures);
   await page.evaluate(() => {
     window.__offlineWebConfig.online = false;
     window.dispatchEvent(new Event("offline"));
   });
+  await selectSection(page, "Mata kuliah");
   await page.getByRole("button", { name: /^Matematika I/ }).click();
   await capture(page, info, `offline-web-course-${theme}`, failures);
   await page.locator("li").filter({ hasText: "Limit fungsi" }).getByRole("button", { name: "Buka", exact: true }).click();

@@ -1,6 +1,6 @@
 export const OFFLINE_LIBRARY_COPY = {
   id: {
-    title: "Materi di perangkat", courses: "Mata kuliah", readings: "Bacaan", videos: "Video", achievements: "Pencapaian", storage: "Penyimpanan", more: "Lebih",
+    title: "Bacaan offline", manage: "Kelola materi di perangkat", courses: "Mata kuliah", readings: "Bacaan", videos: "Video", achievements: "Pencapaian", storage: "Penyimpanan", more: "Lebih",
     offline: "Offline", syncing: "Memperbarui", sync: "Periksa pembaruan", syncFailed: "Pembaruan belum berhasil. Materi tersimpan tetap dapat dibuka.",
     storageFailed: "Penyimpanan penuh. Hapus beberapa materi lalu coba lagi.", expired: "Hubungkan ke internet untuk memeriksa akses materi Anda.",
     emptyTitle: "Belum ada materi tersimpan", emptyBody: "Buka mata kuliah saat online untuk menyimpan daftar materi di perangkat ini.",
@@ -13,7 +13,7 @@ export const OFFLINE_LIBRARY_COPY = {
     updateAvailable: "Versi baru tersedia", updateNow: "Buka versi baru", unavailable: "Materi ini tidak lagi tersedia. Periksa akses saat online.", search: "Cari materi", noResults: "Materi tidak ditemukan",
   },
   en: {
-    title: "Materials on this device", courses: "Courses", readings: "Readings", videos: "Videos", achievements: "Achievements", storage: "Storage", more: "More",
+    title: "Offline readings", manage: "Manage materials on this device", courses: "Courses", readings: "Readings", videos: "Videos", achievements: "Achievements", storage: "Storage", more: "More",
     offline: "Offline", syncing: "Updating", sync: "Check for updates", syncFailed: "Could not update. You can still open saved materials.",
     storageFailed: "Storage is full. Remove some materials and try again.", expired: "Connect to the internet to check your access to these materials.",
     emptyTitle: "No saved materials yet", emptyBody: "Open a course while online to save its material list on this device.",

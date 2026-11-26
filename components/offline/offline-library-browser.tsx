@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { BookOpen, Download, GraduationCap, HardDrive, Pin, Play, RefreshCw, Trash2, Trophy } from "lucide-react";
+import { BookOpen, Download, Ellipsis, GraduationCap, HardDrive, Pin, Play, RefreshCw, Trash2, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -35,7 +35,7 @@ export interface OfflineLibraryBrowserProps {
 export function OfflineLibraryBrowser({ locale, snapshot: storedSnapshot, items, stats, online, loading, expired, onOpen, onRemove, onPin, onSync, onSave, onClear }: OfflineLibraryBrowserProps) {
   const snapshot = visibleOfflineLibrary(storedSnapshot);
   const copy = OFFLINE_LIBRARY_COPY[locale];
-  const [section, setSection] = useState<Section>("courses");
+  const [section, setSection] = useState<Section>("readings");
   const [courseId, setCourseId] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [working, setWorking] = useState<string | null>(null);
@@ -47,44 +47,56 @@ export function OfflineLibraryBrowser({ locale, snapshot: storedSnapshot, items,
   };
   const date = (value: number) => new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "id-ID", { dateStyle: "medium", timeStyle: "short" }).format(value);
   const activeCourse = snapshot?.courses.find(course => course.id === courseId);
-  const tabs = [
-    { value: "courses", icon: GraduationCap }, { value: "readings", icon: BookOpen }, { value: "videos", icon: Play }, { value: "achievements", icon: Trophy }, { value: "storage", icon: HardDrive },
+  const destinations = [
+    { value: "readings", icon: BookOpen }, { value: "courses", icon: GraduationCap }, { value: "videos", icon: Play }, { value: "achievements", icon: Trophy }, { value: "storage", icon: HardDrive },
   ] as const;
   const empty = (title: string, description?: string) => <div className="py-(--section-gap)"><p className="text-body-sm font-medium">{title}</p>{description && <p className="mt-1 max-w-md text-body-xs leading-relaxed text-muted-foreground">{description}</p>}</div>;
   const reading = (item: OfflineReadingSummary, storage = false) => <li key={item.key} className="flex items-center gap-(--compact-gap) border-b border-border/60 py-(--row-padding)">
-    <BookOpen className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-    <button type="button" onClick={() => void onOpen(item.key)} className="min-h-11 min-w-0 flex-1 rounded-sm text-left focus-visible:outline-2 focus-visible:outline-ring">
+    <button type="button" onClick={() => void onOpen(item.key)} className="min-h-11 min-w-0 flex-1 rounded-sm text-left hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring">
       <span className="block wrap-anywhere text-body-sm font-medium">{item.title}</span>
-      <span className="mt-1 block wrap-anywhere text-body-xs text-muted-foreground">{[item.courseTitle, formatOfflineBytes(item.sizeBytes), item.pinned ? copy.pinned : ""].filter(Boolean).join(" · ")}</span>
+      <span className="mt-1 block wrap-anywhere text-body-xs text-muted-foreground">{[item.courseTitle, formatOfflineBytes(item.sizeBytes), item.estimatedMinutes ? `${item.estimatedMinutes} ${copy.minutes}` : "", item.pinned ? copy.pinned : ""].filter(Boolean).join(" · ")}</span>
     </button>
-    {storage ? <div className="flex shrink-0 items-center gap-1">
-      <Tooltip><TooltipTrigger asChild><Button type="button" size="icon-lg" variant="ghost" disabled={Boolean(working)} aria-label={item.pinned ? copy.unpin : copy.pin} onClick={() => void run(item.key, () => onPin(item.key, !item.pinned))}><Pin className={cn("size-4", item.pinned && "fill-current")} /></Button></TooltipTrigger><TooltipContent>{item.pinned ? copy.unpin : copy.pin}</TooltipContent></Tooltip>
+    <div className="flex shrink-0 items-center gap-1">
+      {storage && <Tooltip><TooltipTrigger asChild><Button type="button" size="icon-lg" variant="ghost" disabled={Boolean(working)} aria-label={item.pinned ? copy.unpin : copy.pin} onClick={() => void run(item.key, () => onPin(item.key, !item.pinned))}><Pin className={cn("size-4", item.pinned && "fill-current")} /></Button></TooltipTrigger><TooltipContent>{item.pinned ? copy.unpin : copy.pin}</TooltipContent></Tooltip>}
       <Tooltip><TooltipTrigger asChild><Button type="button" size="icon-lg" variant="ghost" disabled={Boolean(working)} aria-label={`${copy.remove} ${item.title}`} onClick={() => void run(item.key, () => onRemove(item.key))}><Trash2 className="size-4" /></Button></TooltipTrigger><TooltipContent>{copy.remove}</TooltipContent></Tooltip>
-    </div> : <Button type="button" variant="ghost" onClick={() => void onOpen(item.key)}>{copy.open}</Button>}
+    </div>
   </li>;
 
-  return <div className="mx-auto max-w-6xl px-(--page-gutter) py-(--section-gap)">
+  return <div className="mx-auto max-w-4xl px-(--page-gutter) py-(--section-gap)">
     <header className="flex flex-wrap items-start justify-between gap-(--related-gap) border-b border-border/60 pb-(--related-gap)">
-      <div><h1 className="font-heading text-h5 font-bold">{copy.title}</h1>{snapshot?.lastVerifiedAt ? <p className="mt-1 text-body-xs text-muted-foreground">{copy.lastChecked} {date(snapshot.lastVerifiedAt)}</p> : null}</div>
+      <h1 className="font-heading text-h5 font-bold">{copy.title}</h1>
       <div className="flex flex-wrap items-center gap-2">
         <span role="status" className="text-body-xs text-muted-foreground empty:sr-only">{!online ? copy.offline : ""}</span>
         <span role="status" className="text-body-xs text-muted-foreground empty:sr-only">{syncing ? copy.syncing : ""}</span>
-        <Button type="button" variant="outline" disabled={!online || syncing} onClick={() => void run("sync", onSync)}><RefreshCw className={cn("size-3.5", syncing && "animate-spin motion-reduce:animate-none")} />{copy.sync}</Button>
+
         {online && <Button asChild variant="ghost"><Link href="/dashboard">{copy.openOnline}</Link></Button>}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-lg" aria-label={copy.manage}><Ellipsis className="size-4" /></Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {destinations.filter(destination => destination.value !== section).map(destination => (
+              <DropdownMenuItem key={destination.value} onSelect={() => { setSection(destination.value); setCourseId(null); }}>
+                <destination.icon className="size-4" />{copy[destination.value]}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuItem disabled={!online || syncing} onSelect={() => void run("sync", onSync)}><RefreshCw className={cn("size-4", syncing && "animate-spin motion-reduce:animate-none")} />{copy.sync}</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
 
-    <div className="grid gap-(--section-gap) pt-(--related-gap) md:grid-cols-[11rem_minmax(0,1fr)]">
-      <nav aria-label={copy.title} className="flex max-w-full gap-1 border-b border-border/60 pb-(--compact-gap) md:flex-col md:border-0 md:pb-0">
-        {tabs.map((tab, index) => <Button key={tab.value} type="button" variant={section === tab.value ? "secondary" : "ghost"} className={cn("min-w-0 flex-1 justify-center px-2 md:justify-start md:px-3", index >= 3 && "hidden md:inline-flex")} aria-current={section === tab.value ? "page" : undefined} onClick={() => { setSection(tab.value); setCourseId(null); }}><tab.icon className="hidden size-4 md:block" />{copy[tab.value]}</Button>)}
-        <DropdownMenu><DropdownMenuTrigger asChild><Button className="min-w-0 flex-1 px-2 md:hidden" variant={section === "achievements" || section === "storage" ? "secondary" : "ghost"}>{copy.more}</Button></DropdownMenuTrigger><DropdownMenuContent align="end">{tabs.slice(3).map(tab => <DropdownMenuItem key={tab.value} onSelect={() => { setSection(tab.value); setCourseId(null); }}><tab.icon className="size-4" />{copy[tab.value]}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>
-      </nav>
+    <div className="pt-(--related-gap)">
       <section className="min-w-0" aria-label={activeCourse?.title ?? copy[section]}>
         {(expired || snapshot?.syncError || operationError) && <p role="status" className="mb-(--related-gap) border-l-2 border-status-warning bg-status-warning/5 px-3 py-2 text-body-xs leading-relaxed">{expired ? copy.expired : operationError || snapshot?.syncError === "storage" ? copy.storageFailed : snapshot?.syncError === "access" ? copy.unavailable : copy.syncFailed}</p>}
-        <div className="mb-(--compact-gap) flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-heading text-body-base font-semibold">{activeCourse?.title ?? copy[section]}</h2>
-          {courseId ? <Button variant="ghost" onClick={() => setCourseId(null)}>{copy.allCourses}</Button> : <span className="text-body-xs tabular-nums text-muted-foreground">{section === "courses" ? snapshot?.courses.length ?? 0 : section === "readings" ? items.length : ""}</span>}
-        </div>
+        {section === "readings" ? (items.length > 0 && stats && (
+          <p className="border-b border-border/60 pb-(--compact-gap) text-body-xs tabular-nums text-muted-foreground">
+            {items.length} / {stats.maxEntries} {copy.readings.toLowerCase()} · {formatOfflineBytes(stats.totalBytes)} / {formatOfflineBytes(stats.maxBytes)}
+          </p>
+        )) : (
+          <div className="mb-(--compact-gap) flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-heading text-body-base font-semibold">{activeCourse?.title ?? copy[section]}</h2>
+            {courseId && <Button variant="ghost" onClick={() => setCourseId(null)}>{copy.allCourses}</Button>}
+          </div>
+        )}
         {loading && !snapshot && !items.length ? <p role="status" className="py-(--related-gap) text-body-sm text-muted-foreground">{copy.syncing}</p> :
           !snapshot && section !== "storage" && section !== "readings" ? empty(copy.emptyTitle, expired ? copy.expired : copy.emptyBody) :
           section === "courses" ? <>
@@ -94,7 +106,7 @@ export function OfflineLibraryBrowser({ locale, snapshot: storedSnapshot, items,
           </> : section === "readings" ? items.length ? <ul>{items.map(item => reading(item))}</ul> : empty(copy.emptyReadings, copy.emptyReadingsBody) :
           section === "videos" ? snapshot?.materials.some(item => item.kind === "video") ? <><p className="text-body-xs text-muted-foreground">{copy.videoNeedsConnection}</p><ul>{snapshot.materials.filter(item => item.kind === "video").map(video => <li key={video.id} className="flex items-center gap-(--compact-gap) border-b border-border/60 py-(--row-padding)"><>{video.thumbnailUrl?.startsWith("data:image/") ? <Image src={video.thumbnailUrl} alt="" width={96} height={54} className="aspect-video w-20 shrink-0 rounded-sm object-cover sm:w-24" /> : <Play className="size-5 shrink-0 text-muted-foreground" />}</><div className="min-w-0 flex-1"><p className="wrap-anywhere text-body-sm font-medium">{video.title}</p><p className="mt-1 text-body-xs text-muted-foreground">{snapshot.courses.find(course => course.id === video.courseId)?.title}</p></div><Button variant="ghost" disabled={!online} onClick={() => { try { const url = new URL(video.videoUrl ?? ""); if (url.protocol === "https:") window.open(url.href, "_blank", "noopener,noreferrer"); } catch { /* Invalid URLs never open. */ } }}>{copy.open}</Button></li>)}</ul></> : empty(copy.noVideos) :
           section === "achievements" ? snapshot?.achievements.length ? <ul>{snapshot.achievements.map(item => <li key={item.id} className="flex items-start gap-(--compact-gap) border-b border-border/60 py-(--row-padding)"><Trophy className="mt-1 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><p className="text-body-sm font-medium">{item.title}</p><p className="mt-1 text-body-xs leading-relaxed text-muted-foreground">{item.description}</p></div></li>)}</ul> : empty(copy.noAchievements) : <>
-            <div className="border-b border-border/60 pb-(--related-gap)"><div className="mb-2 flex items-baseline justify-between gap-2"><strong className="text-h5 font-semibold tabular-nums">{formatOfflineBytes(stats?.totalBytes ?? 0)}</strong><span className="text-body-xs text-muted-foreground">{copy.of} {formatOfflineBytes(snapshot?.policy.maxBytes ?? stats?.maxBytes ?? 100 * 1024 * 1024)}</span></div><meter className="block h-2 w-full accent-primary" min={0} max={snapshot?.policy.maxBytes ?? stats?.maxBytes ?? 100 * 1024 * 1024} value={stats?.totalBytes ?? 0} aria-label={copy.usage} /><p className="mt-2 text-body-xs text-muted-foreground">{copy.pinnedHelp}</p>{snapshot?.accessValidUntil && <p className="mt-1 text-body-xs text-muted-foreground">{copy.accessUntil} {date(snapshot.accessValidUntil)}</p>}</div>
+            <div className="border-b border-border/60 pb-(--related-gap)">{snapshot?.lastVerifiedAt ? <p className="mb-2 text-body-xs text-muted-foreground">{copy.lastChecked} {date(snapshot.lastVerifiedAt)}</p> : null}<div className="mb-2 flex items-baseline justify-between gap-2"><strong className="text-h5 font-semibold tabular-nums">{formatOfflineBytes(stats?.totalBytes ?? 0)}</strong><span className="text-body-xs text-muted-foreground">{copy.of} {formatOfflineBytes(snapshot?.policy.maxBytes ?? stats?.maxBytes ?? 100 * 1024 * 1024)}</span></div><meter className="block h-2 w-full accent-primary" min={0} max={snapshot?.policy.maxBytes ?? stats?.maxBytes ?? 100 * 1024 * 1024} value={stats?.totalBytes ?? 0} aria-label={copy.usage} /><p className="mt-2 text-body-xs text-muted-foreground">{copy.pinnedHelp}</p>{snapshot?.accessValidUntil && <p className="mt-1 text-body-xs text-muted-foreground">{copy.accessUntil} {date(snapshot.accessValidUntil)}</p>}</div>
             {items.length ? <ul>{items.map(item => reading(item, true))}</ul> : empty(copy.emptyReadings)}
             {(snapshot || items.length > 0) && <Button variant="ghost" className="mt-(--compact-gap)" disabled={Boolean(working)} onClick={() => setConfirmClear(true)}><Trash2 className="size-4" />{copy.clear}</Button>}
           </>}
