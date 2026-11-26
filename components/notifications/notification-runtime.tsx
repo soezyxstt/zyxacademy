@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { toast } from "@/components/ui/toast";
+import { createForegroundNotificationToasts } from "@/lib/notifications/foreground-toast";
 import { getDefaultHomeLinkForRole } from "@/lib/notifications/catalog";
 import { notificationMatchesVisibleDiscussion } from "@/lib/notifications/quiet-hours";
 import { isAccountTransitionPending, subscribeAccountTransition } from "@/lib/auth/account-transition-state";
@@ -31,6 +32,7 @@ export function NotificationRuntimeForAccount({ account }: { account: StudentAcc
   useEffect(() => {
     if (!userId || transitioning) return;
     let disposed = false;
+    const notificationToasts = createForegroundNotificationToasts(toast);
     let unsubscribe: (() => void) | undefined;
     const isCurrent = () => !disposed && !isAccountTransitionPending() && latest.current.userId === userId;
     const refresh = () => window.dispatchEvent(new CustomEvent(ZYX_NOTIFICATIONS_CHANGED));
@@ -44,7 +46,9 @@ export function NotificationRuntimeForAccount({ account }: { account: StudentAcc
         isCurrent,
         onForeground: ({ title, body, url }) => {
           if (!isCurrent()) return;
-          if (title && !notificationMatchesVisibleDiscussion(url, window.location, document.visibilityState === "visible")) toast(title, { description: body ?? undefined });
+          if (title && !notificationMatchesVisibleDiscussion(url, window.location, document.visibilityState === "visible")) {
+            notificationToasts.show(title, body ?? undefined);
+          }
           refresh();
         },
         onNavigate: (url, notificationId) => {
@@ -70,6 +74,7 @@ export function NotificationRuntimeForAccount({ account }: { account: StudentAcc
     });
     return () => {
       disposed = true;
+      notificationToasts.dispose();
       unsubscribe?.();
     };
   }, [userId, transitioning]);
