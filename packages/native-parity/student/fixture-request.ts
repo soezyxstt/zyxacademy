@@ -1,5 +1,6 @@
 import { calendarFixtureForScenario } from "./community/calendar-fixture";
 import { createAssessmentFixtureRequest, assessmentFixtureScenarios } from "./assessment/fixtures";
+import { quizPlayerEvidence, quizPlayerFixtureRequest } from "./assessment/quiz-player-fixture";
 import { isCommunityFixturePath, createCommunityFixtureRequest } from "./community/fixtures";
 import { createCourseFixtureRequest, courseFixtureScenarios } from "./courses/fixtures";
 import { createLearningFixtureRequest, isPkaLearningFixturePath, type LearningFixtureScenario } from "./learning/fixtures";
@@ -7,6 +8,7 @@ import { flashcardEvidence } from "./learning/flashcard-fixture";
 import { dashboardFixtureState, readDashboardFixture } from "./dashboard/fixtures";
 
 export function createStudentFixtureRequest(scenario: string) {
+  if (scenario === quizPlayerEvidence.scenario) return quizPlayerFixtureRequest;
   const dashboardState = dashboardFixtureState(scenario);
   const courses = createCourseFixtureRequest(dashboardState ? `course-material-${dashboardState}`
     : courseFixtureScenarios.find(value => value === scenario) ?? "enrolled");
