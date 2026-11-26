@@ -4,6 +4,8 @@ import { createOfflineMetadataLifecycle, visibleCourseMetadata } from "../../off
 import type { NativeOfflineMetadataSnapshot } from "../../offline/metadata-store";
 import type { OfflineReadingPackage, OfflineReadingTarget } from "../../offline/reading-contract";
 import type { NativeOfflineLocale, NativeOfflineResourceDescriptor, NativeOfflineScope } from "../../offline/sync-contract";
+import { materialPath, type MaterialDetailData } from "../../../../packages/native-parity/student/courses/contract";
+import type { StudentRoute } from "./contracts";
 import { matchStudentRoute } from "./routes";
 
 export type OfflineCourseTarget =
@@ -31,6 +33,34 @@ export function offlineCourseTarget(path: string): OfflineCourseTarget {
 
 export function offlineLibraryHref(locale: NativeOfflineLocale, target?: OfflineLibraryTarget) {
   return { pathname: "/offline" as const, params: { locale, ...target } };
+}
+
+export function canonicalStudentArticleHref(route: StudentRoute, { course, material }: MaterialDetailData): string | undefined {
+  if (route.pattern !== "/courses/[id]/material/[materialId]" || route.params.id !== course.id
+    || material.locked || material.kind !== "article" || material.group !== "materi" || route.params.materialId === material.id) return;
+
+  try {
+    const pathname = materialPath(course.id, material.id);
+    if (matchStudentRoute(pathname)?.params.materialId !== material.id) return;
+    const suffix = route.path.search(/[?#]/u);
+    return suffix === -1 ? pathname : pathname + route.path.slice(suffix);
+  } catch {
+    return undefined;
+  }
+}
+
+function findOfflineCourseMaterial<Material extends { id: string }>(materials: readonly Material[], materialId: string): Material | undefined {
+  const matches = materials.filter(material => material.id === materialId);
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+export function offlineMaterialRecovery<Material extends { id: string }>(
+  course: { id: string; materials: readonly Material[] },
+  materialId: string,
+): { material: Material | undefined; libraryTarget: OfflineLibraryTarget } {
+  const material = findOfflineCourseMaterial(course.materials, materialId);
+  const libraryTarget = material ? { courseId: course.id, materialId: material.id } : { courseId: course.id };
+  return { material, libraryTarget };
 }
 
 export type OfflineCourseMetadata = NativeOfflineMetadataSnapshot["courses"][number];
@@ -65,10 +95,9 @@ export function selectAuthorizedOfflineMaterial({
 }): AuthorizedOfflineMaterial | null {
   if (verifiedUntil <= now) return null;
   const course = studentOfflineCourses(snapshot, now).find(({ id }) => id === target.courseId);
-  const matches = course?.materials.filter(resource => resource.id === target.materialId && resource.courseId === target.courseId) ?? [];
-  const resource = matches[0];
-  if (!course || !course.manifestLeaseExpiresAt || matches.length !== 1
-    || resource.courseId !== target.courseId || (resource.kind !== "article" && resource.kind !== "diktat")) return null;
+  if (!course?.manifestLeaseExpiresAt) return null;
+  const resource = findOfflineCourseMaterial(course.materials, target.materialId);
+  if (!resource || resource.courseId !== target.courseId || (resource.kind !== "article" && resource.kind !== "diktat")) return null;
   return {
     scope,
     resource: { ...resource, courseId: resource.courseId, kind: resource.kind },

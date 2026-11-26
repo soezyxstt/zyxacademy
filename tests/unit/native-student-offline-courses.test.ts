@@ -4,7 +4,9 @@ import { focusOfflineLibrary, offlineLibraryTarget, type OfflineLibraryRow } fro
 import type { OfflineReadingPackage } from "@/apps/mobile-native/offline/reading-contract";
 import type { NativeOfflineMetadataSnapshot } from "@/apps/mobile-native/offline/metadata-store";
 import type { NativeOfflineResourceDescriptor } from "@/apps/mobile-native/offline/sync-contract";
-import { attachAuthorizedOfflinePackage, createStudentOfflineCourseLifecycle, offlineCourseTarget, offlineLibraryHref, selectAuthorizedOfflineMaterial, studentOfflineCourses } from "@/apps/mobile-native/features/student/offline-courses";
+import { attachAuthorizedOfflinePackage, canonicalStudentArticleHref, createStudentOfflineCourseLifecycle, offlineCourseTarget, offlineLibraryHref, offlineMaterialRecovery, selectAuthorizedOfflineMaterial, studentOfflineCourses } from "@/apps/mobile-native/features/student/offline-courses";
+import { matchStudentRoute } from "@/apps/mobile-native/features/student/routes";
+import type { MaterialDetailData } from "@/packages/native-parity/student/courses/contract";
 
 const scope = { origin: "https://student.example", accountId: "student-a", sessionId: "session-a", locale: "en" } as const;
 const article = {
@@ -31,6 +33,35 @@ test("matches ordinary course and reading paths without falling back to generic 
   for (const path of ["/settings", "/courses/math/quiz/1", "/courses/tutorial-pka/material/limits", "/courses/math/material/.."]) {
     expect(offlineCourseTarget(path)).toEqual({ kind: "unavailable" });
   }
+});
+
+test("canonicalizes the authorized article using the server's exact course and material IDs", () => {
+  const route = matchStudentRoute("/courses/math/material/limit-functions?section=theorem%20one&page=3&tag=a&tag=b#proof");
+  if (!route) throw new Error("Expected a Student reading route");
+  const data: MaterialDetailData = {
+    view: "material-detail",
+    course: { id: "math", title: "Math", category: "", description: "", hasFullContentAccess: true },
+    material: { id: "limits", title: "Limits", kind: "article", group: "materi", completed: false, locked: false },
+  };
+  const canonical = canonicalStudentArticleHref(route, data);
+  expect(canonical).toBe("/courses/math/material/limits?section=theorem%20one&page=3&tag=a&tag=b#proof");
+  expect(offlineCourseTarget(canonical!)).toEqual({ kind: "material", courseId: "math", materialId: "limits", section: "theorem one", page: 3 });
+  expect(canonicalStudentArticleHref(matchStudentRoute(canonical!)!, data)).toBeUndefined();
+  expect(canonicalStudentArticleHref(route, { ...data, course: { ...data.course, id: "other" } })).toBeUndefined();
+  expect(canonicalStudentArticleHref(route, { ...data, material: { ...data.material, locked: true } })).toBeUndefined();
+  expect(canonicalStudentArticleHref(route, { ...data, material: { ...data.material, kind: "pdf" } })).toBeUndefined();
+  expect(canonicalStudentArticleHref(route, { ...data, material: { ...data.material, id: "../other" } })).toBeUndefined();
+});
+
+test("a cold offline slug falls back to the verified course library without guessing a document", () => {
+  const courses = studentOfflineCourses(snapshot, 100);
+  const [course] = courses;
+  expect(offlineMaterialRecovery(course, "limits")).toEqual({ material: article, libraryTarget: { courseId: "math", materialId: "limits" } });
+  const fallback = { material: undefined, libraryTarget: { courseId: "math" } };
+  expect(offlineMaterialRecovery(course, "limit-functions")).toEqual(fallback);
+  expect(offlineMaterialRecovery(course, article.title)).toEqual(fallback);
+  expect(offlineMaterialRecovery({ ...course, materials: [article, { ...article, kind: "diktat" }] }, "limits")).toEqual(fallback);
+  expect(studentOfflineCourses(snapshot, 250)).toEqual([]);
 });
 
 test("the handoff requires a unique matching leased descriptor and caps the reader deadline", () => {

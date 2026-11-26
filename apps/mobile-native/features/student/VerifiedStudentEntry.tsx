@@ -39,7 +39,8 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
     if (route?.params.id) return [route.params.id];
     return route?.pattern.startsWith("/courses/tutorial-pka") ? ["tutorial-pka"] : [];
   }, [props.path]);
-  const locale = context?.locale ?? offlineLocale ?? authLocale();
+  const storedLocale = state.status === "unavailable" ? state.offlineIdentity?.locale : undefined;
+  const locale = context?.locale ?? storedLocale ?? offlineLocale ?? authLocale();
   const metadata = useOfflineCourseMetadata(courseIds, locale);
   const reading = useOfflineReadingSession(locale);
   const packages = useOfflineReadingPackages(locale);

@@ -13,7 +13,7 @@ import { nativeTypography } from "../../../typography";
 import type { StudentScreenProps } from "../contracts";
 import { StudentListRow } from "../ListRow";
 import { matchStudentRoute } from "../routes";
-import type { OfflineCourseMetadata, OfflineCourseTarget } from "../offline-courses";
+import { canonicalStudentArticleHref, offlineMaterialRecovery, type OfflineCourseMetadata, type OfflineCourseTarget } from "../offline-courses";
 import { DashboardBottom, DashboardTop, useDashboardExtras } from "./dashboard-extra";
 import { courseCopy, type CourseCopy } from "./copy";
 
@@ -429,10 +429,12 @@ function Documents({ data, route, replace, navigate, request, reload, openOfflin
   );
 }
 
-function Document({ data, request, reload, renderMaterial, route, openOfflineLibrary }: { data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader; route: StudentScreenProps["route"]; openOfflineLibrary?: StudentScreenProps["openOfflineLibrary"] }) {
+function Document({ data, request, reload, renderMaterial, route, replace, openOfflineLibrary }: { data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader } & Pick<StudentScreenProps, "route" | "replace" | "openOfflineLibrary">) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const { course, material } = data;
+  const canonicalHref = canonicalStudentArticleHref(route, data);
+  useEffect(() => { if (canonicalHref) replace(canonicalHref); }, [canonicalHref, replace]);
   const requestedPage = Number(route.query.page);
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : undefined;
   return (
@@ -463,8 +465,8 @@ function OfflineDocuments({ data, query, route, replace, navigate, retry, openOf
 } & Pick<StudentScreenProps, "navigate" | "replace" | "route" | "openOfflineMaterial" | "openOfflineLibrary">) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
-  const matching = query.view === "material-detail" ? data.materials.filter(item => item.id === query.materialId) : [];
-  const selected = matching.length === 1 ? matching[0] : undefined;
+  const recovery = query.view === "material-detail" ? offlineMaterialRecovery(data, query.materialId) : undefined;
+  const selected = recovery?.material;
   const tab = normalizeMaterialTab(route.query.tab);
   const records = tab === "all" ? data.materials : data.materials.filter(row => row.kind === (tab === "materi" ? "article" : tab));
   return <>
@@ -472,16 +474,20 @@ function OfflineDocuments({ data, query, route, replace, navigate, retry, openOf
     <Notice title={copy.offline} detail={copy.offlineMetadata}>
       <Button theme={theme} variant="outline" testID="student-learning-retry" onPress={retry}>{copy.retry}</Button>
     </Notice>
-    {query.view === "material-detail" ? selected ? (
+    {recovery ? selected ? (
       <Section title={selected.title}>
         {openOfflineMaterial
           ? <Button theme={theme} onPress={() => openOfflineMaterial(data.id, selected.id)}>{copy.readMaterials}</Button>
           : null}
         {openOfflineLibrary
-          ? <Button theme={theme} variant="outline" onPress={() => openOfflineLibrary({ courseId: data.id, materialId: selected.id })}>{copy.savedCourses}</Button>
+          ? <Button theme={theme} variant="outline" onPress={() => openOfflineLibrary(recovery.libraryTarget)}>{copy.savedCourses}</Button>
           : !openOfflineMaterial ? <LearningText role="meta">{copy.offlineReaderPending}</LearningText> : null}
       </Section>
-    ) : <LearningText>{copy.noDocuments}</LearningText> : <>
+    ) : <>
+      <LearningText>{copy.offlineMaterialUnavailable}</LearningText>
+      {openOfflineLibrary ? <Button theme={theme} variant="outline" testID="student-offline-course-library"
+        onPress={() => openOfflineLibrary(recovery.libraryTarget)}>{copy.savedCourses}</Button> : null}
+    </> : <>
       <View style={styles.toggles} accessibilityRole="tablist">
         {materialTabs.map(key => <Toggle key={key} label={copy[key]} selected={key === tab}
           onPress={() => updateListQuery(route, replace, { tab: key === "all" ? undefined : key })} />)}
@@ -617,7 +623,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
       case "catalog": content = <Catalog data={resource.data} navigate={navigate} route={route} replace={replace} openExternal={openExternal} locale={locale} />; break;
       case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
       case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} openOfflineLibrary={props.openOfflineLibrary} />; break;
-      case "material-detail": content = <Document data={resource.data} request={request} reload={reload} renderMaterial={renderMaterial} route={route} openOfflineLibrary={props.openOfflineLibrary} />; break;
+      case "material-detail": content = <Document data={resource.data} request={request} reload={reload} renderMaterial={renderMaterial} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} />; break;
     }
   }
 
