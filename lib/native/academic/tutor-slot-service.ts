@@ -2,16 +2,19 @@ import { createHash } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { executeAddTutorSlot, executeUpdateTutorSlot } from "@/app/(tutor)/tutor/schedule/actions";
 import { db } from "@/db";
-import { tutorSlotNotes } from "@/db/schedule-extras";
+import { tutorSlotCourses, tutorSlotNotes } from "@/db/schedule-extras";
 import { auditMutasi, bookings, session, tutorSlots } from "@/db/schema";
 import { buildTutorMutationAuditRow, recordTutorMutationAudit } from "@/lib/audit/mutasi";
 import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
-import { isCalendarDate } from "@/lib/date-utils";
+import { listTutorAccessibleCourses } from "@/lib/auth/tutor-access";
+import { writeTutorSlotCourses } from "@/lib/schedule/replace-slot-courses";
+import { normalizeSlotCourseIds } from "@/lib/schedule/slot-courses";
+import { addCalendarDays, isCalendarDate } from "@/lib/date-utils";
 import { getIndonesianDayFromDate } from "@/lib/schedule/tutor-policy";
 import { lockScheduleEntity } from "@/lib/schedule/transaction-lock";
 import { timeToMinutes } from "@/lib/schedule-lock";
 import { stableStringify } from "@/lib/staging/migration-ledger";
-import type { TutorSlotFields, TutorSlotTarget } from "@/packages/academic/tutor-slot";
+import type { TutorSlotFields, TutorSlotReceipt, TutorSlotTarget } from "@/packages/academic/tutor-slot";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -41,10 +44,18 @@ export async function tutorSlotDetails(userId: string, slotIds: readonly string[
   const rows = await client.select(slotColumns).from(tutorSlots)
     .leftJoin(tutorSlotNotes, eq(tutorSlotNotes.slotId, tutorSlots.id))
     .where(and(eq(tutorSlots.tutorId, userId), inArray(tutorSlots.id, [...slotIds])));
-  return rows.map(({ successfulChanges, tutorId, ...slot }) => ({
-    ...slot,
-    revision: digest([tutorId, successfulChanges, slot]),
-  }));
+  const restrictions = rows.length ? await client.select({ id: tutorSlotCourses.slotId, courseId: tutorSlotCourses.courseId }).from(tutorSlotCourses)
+    .where(inArray(tutorSlotCourses.slotId, rows.map(row => row.id))).orderBy(tutorSlotCourses.courseId) : [];
+  const bySlot = new Map<string, string[]>();
+  for (const row of restrictions) {
+    const list = bySlot.get(row.id) ?? [];
+    list.push(row.courseId);
+    bySlot.set(row.id, list);
+  }
+  return rows.map(({ successfulChanges, tutorId, ...slot }) => {
+    const courseIds = bySlot.get(slot.id) ?? [];
+    return { ...slot, courseIds, revision: digest([tutorId, successfulChanges, slot, ...(courseIds.length ? [courseIds] : [])]) };
+  });
 }
 
 type FailureStatus = 400 | 401 | 403 | 404 | 409 | 500;
@@ -55,12 +66,13 @@ export class TutorSlotWriteError extends Error {
   }
 }
 
+type SlotOutcome = Omit<TutorSlotReceipt, "requestId">;
 type Failure = { status: FailureStatus; code: string };
 export type TutorSlotWriteService = (
   actor: { id: string; sessionId: string; requestId: string },
   fields: TutorSlotFields,
   target?: TutorSlotTarget,
-) => Promise<{ slotId: string; date: string }>;
+) => Promise<SlotOutcome>;
 
 export const saveTutorSlot: TutorSlotWriteService = async (actor, fields, target) => {
   const start = timeToMinutes(fields.start);
@@ -77,7 +89,10 @@ export const saveTutorSlot: TutorSlotWriteService = async (actor, fields, target
     location: fields.mode === "offline" ? fields.location.trim() : undefined,
   };
   const normalizedNotes = fields.notes.trim();
-  const fingerprint = digest([command, normalizedNotes, target?.expectedRevision ?? null]);
+  const weeks = fields.weeks ?? 1;
+  if (!Number.isInteger(weeks) || weeks < 1 || weeks > 4 || (target && weeks !== 1)) throw new TutorSlotWriteError(400, "INVALID_SLOT");
+  const chosen = fields.courseIds && normalizeSlotCourseIds(fields.courseIds).sort();
+  const fingerprint = digest([command, normalizedNotes, target?.expectedRevision ?? null, ...(chosen ? [chosen] : []), ...(weeks > 1 ? [weeks] : [])]);
   const receipt = {
     actorId: actor.id, actorRoles: ["tutor"], courseId: "global", entityType: "native_command",
     entityId: target?.slotId ?? "tutor-slot-create", entityVersion: 1, action: "native.tutor.slot.command",
@@ -86,7 +101,7 @@ export const saveTutorSlot: TutorSlotWriteService = async (actor, fields, target
   } as const;
   const receiptId = buildTutorMutationAuditRow(receipt).id;
 
-  const result = await db.transaction(async (tx): Promise<{ slotId: string; date: string } | Failure> => {
+  const result = await db.transaction(async (tx): Promise<SlotOutcome | Failure> => {
     await lockScheduleEntity(tx, "tutor", actor.id);
     try {
       await assertAuthoringActor(tx, actor.id, { roles: ["tutor"], error: "TUTOR_FORBIDDEN", lock: true });
@@ -101,11 +116,11 @@ export const saveTutorSlot: TutorSlotWriteService = async (actor, fields, target
     const [saved] = await tx.select({ owner: auditMutasi.actorId, after: auditMutasi.afterSnapshot })
       .from(auditMutasi).where(eq(auditMutasi.id, receiptId)).limit(1);
     if (saved) {
-      const value = saved.after?.snapshot as { slotId?: unknown; date?: unknown; fingerprint?: unknown } | undefined;
+      const value = saved.after?.snapshot as { slotId?: unknown; date?: unknown; fingerprint?: unknown; created?: number; skipped?: number } | undefined;
       if (saved.owner !== actor.id || value?.fingerprint !== fingerprint || typeof value.slotId !== "string" || typeof value.date !== "string") {
         throw new TutorSlotWriteError(409, "REQUEST_CONFLICT");
       }
-      return { slotId: value.slotId, date: value.date };
+      return { slotId: value.slotId, date: value.date, ...(weeks > 1 ? { created: value.created, skipped: value.skipped } : {}) };
     }
 
     if (target) {
@@ -117,23 +132,37 @@ export const saveTutorSlot: TutorSlotWriteService = async (actor, fields, target
       if (!current || current.revision !== target.expectedRevision) throw new TutorSlotWriteError(409, "SLOT_CHANGED");
     }
 
-    // The server actions take the same transaction-level schedule lock. Their
-    // nested transactions are savepoints so the write and receipt commit together.
+    if (chosen?.length) {
+      const assigned = await listTutorAccessibleCourses(actor.id, { allowAdmin: false }, tx);
+      const allowed = new Set(assigned.flatMap(course => [course.courseId, course.legacyCourseId]));
+      if (chosen.some(id => !allowed.has(id))) return { status: 400, code: "INVALID_SLOT_COURSE" };
+    }
     const options = { actorId: actor.id, executor: tx };
-    const mutation = target
-      ? await executeUpdateTutorSlot({ ...command, slotId: target.slotId }, options, normalizedNotes)
-      : await executeAddTutorSlot(command, options);
-    if (!mutation.success || !mutation.slotId) {
-      const code = mutation.reason ?? "SLOT_WRITE_FAILED";
-      if (["DUPLICATE_TUTOR_SLOT", "TUTOR_SLOT_OVERLAP", "CANNOT_EDIT_BOOKED_SLOT"].includes(code)) return { status: 409, code };
-      if (code === "SLOT_NOT_FOUND") return { status: 404, code };
-      if (code === "AUTH_FAILED" || code === "SLOT_NOT_OWNED_BY_TUTOR") return { status: 403, code };
-      return { status: code === "DATABASE_ERROR" || code === "SLOT_WRITE_FAILED" ? 500 : 400, code };
+    let first: SlotOutcome | undefined;
+    let skipped = 0;
+    for (let index = 0; index < weeks; index++) {
+      const date = index ? addCalendarDays(fields.date, index * 7) : fields.date;
+      const mutation = target
+        ? await executeUpdateTutorSlot({ ...command, slotId: target.slotId }, options, normalizedNotes)
+        : await executeAddTutorSlot({ ...command, sessionDate: date }, options);
+      if (!mutation.success || !mutation.slotId) {
+        const code = mutation.reason ?? "SLOT_WRITE_FAILED";
+        if (code === "DUPLICATE_TUTOR_SLOT" || code === "TUTOR_SLOT_OVERLAP") {
+          if (weeks === 1) return { status: 409, code };
+          skipped++;
+          continue;
+        }
+        if (code === "CANNOT_EDIT_BOOKED_SLOT") return { status: 409, code };
+        if (code === "SLOT_NOT_FOUND") return { status: 404, code };
+        if (code === "AUTH_FAILED" || code === "SLOT_NOT_OWNED_BY_TUTOR") throw new TutorSlotWriteError(403, code);
+        throw new TutorSlotWriteError(code === "DATABASE_ERROR" || code === "SLOT_WRITE_FAILED" ? 500 : 400, code);
+      }
+      if (!target && normalizedNotes) await tx.insert(tutorSlotNotes).values({ slotId: mutation.slotId, notes: normalizedNotes });
+      if (chosen) await writeTutorSlotCourses(tx, mutation.slotId, chosen);
+      first ??= { slotId: mutation.slotId, date };
     }
-    if (!target && normalizedNotes) {
-      await tx.insert(tutorSlotNotes).values({ slotId: mutation.slotId, notes: normalizedNotes });
-    }
-    const outcome = { slotId: mutation.slotId, date: fields.date };
+    if (!first) return { status: 409, code: "TUTOR_SLOT_OVERLAP" };
+    const outcome = { ...first, ...(weeks > 1 ? { created: weeks - skipped, skipped } : {}) };
     await recordTutorMutationAudit({ ...receipt, after: { ...outcome, fingerprint } }, tx);
     return outcome;
   });

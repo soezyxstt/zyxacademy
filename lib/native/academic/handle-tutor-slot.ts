@@ -18,8 +18,10 @@ const fields = z.object({
   mode: z.enum(["online", "offline"]),
   location: safeText(500),
   notes: safeText(4000),
+  courseIds: z.array(z.string().trim().min(1).max(256)).max(50).optional(),
+  weeks: z.number().int().min(1).max(4).optional(),
 }).strict();
-const editFields = fields.extend({ expectedRevision: z.string().regex(tryoutGradeRevisionPattern) });
+const editFields = fields.extend({ weeks: z.literal(1).optional(), expectedRevision: z.string().regex(tryoutGradeRevisionPattern) });
 
 function respond(status: number, value: unknown) {
   return Response.json(value, { status, headers: { "Cache-Control": "private, no-store" } });

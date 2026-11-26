@@ -1,3 +1,4 @@
+import { toggleSlotCourseSelection } from "../../../../../lib/schedule/slot-courses";
 import { discussionDestination, discussionWorkspaceHref } from "../../../../../packages/native-parity/discussion-destination";
 import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from "react";
@@ -129,7 +130,7 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
       if (result.status === "saved") {
         const date = result.receipt.date;
         setDraft(null);
-        setNotice("Slot tersimpan.");
+        setNotice(result.receipt.created ? `${result.receipt.created} slot ditambah, ${result.receipt.skipped} dilewati.` : "Slot tersimpan.");
         const targetWeek = week + Math.floor((Date.parse(date) - Date.parse(schedule.from)) / (7 * 86_400_000));
         if (targetWeek !== week && targetWeek >= -520 && targetWeek <= 520) replace(`/tutor/schedule?week=${targetWeek}&date=${date}`);
         else {
@@ -167,6 +168,9 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
   const term = search.trim().toLowerCase();
   const matches = (values: (string | null)[]) => values.some((value) => value?.toLowerCase().includes(term));
   const slots = data.slots.filter((slot) => !term || matches([slot.date, slot.start, slot.location]));
+  const assigned = data.courses ?? [];
+  const existingIds = data.slots.find(item => item.id === draft?.target?.slotId)?.courseIds ?? [];
+  const selectedIds = draft?.fields.courseIds ?? existingIds.map(id => assigned.find(course => course.legacyId === id)?.id ?? id);
   const sessions = data.sessions.filter((session) => !term || matches([session.date, session.groupName, session.courseTitle, session.topic]));
   const sessionStatus = (status: string) => status === "completed" ? "Selesai" : status === "cancelled" ? "Dibatalkan" : "Terjadwal";
   const events = [
@@ -271,6 +275,20 @@ function LoadFailure({ theme, error, retry }: { theme: Navigation["theme"]; erro
 
 function accessEnded(error: unknown) {
   return error instanceof TutorDataError && [401, 403, 404].includes(error.status);
+      {!draft.target ? <Choices theme={theme} label="Jumlah minggu" value={String(draft.fields.weeks ?? 1)}
+        options={[["1", "1 minggu"], ["2", "2 minggu"], ["3", "3 minggu"], ["4", "4 minggu"]]} disabled={saving || awaiting || blocked}
+        change={weeks => setDraft({ ...draft, fields: { ...draft.fields, weeks: Number(weeks) } })} /> : null}
+      {assigned.length || existingIds.length ? <View style={tutorLayout.group}>
+        <Label theme={theme} tone="strong">Mata kuliah</Label>
+        <Button theme={theme} variant={selectedIds.length ? "ghost" : "outline"}
+          accessibilityState={{ selected: !selectedIds.length }} disabled={saving || awaiting || blocked}
+          onPress={() => setDraft({ ...draft, fields: { ...draft.fields, courseIds: [] } })}>Semua mata kuliah yang diampu</Button>
+        {assigned.map(course => <Button key={course.id} theme={theme} variant={selectedIds.includes(course.id) ? "outline" : "ghost"}
+          accessibilityState={{ selected: selectedIds.includes(course.id) }} disabled={saving || awaiting || blocked}
+          onPress={() => setDraft({ ...draft, fields: { ...draft.fields, courseIds: toggleSlotCourseSelection(
+            selectedIds.filter(id => assigned.some(option => option.id === id)), course.id, assigned.map(option => option.id)) } })}>{course.title}</Button>)}
+        {selectedIds.filter(id => !assigned.some(course => course.id === id)).map(id => <Label key={id} theme={theme}>{id}</Label>)}
+      </View> : null}
 }
 
 export function ConnectedDiscussions({ theme, back, replace, query, courseId, service }: Navigation & {

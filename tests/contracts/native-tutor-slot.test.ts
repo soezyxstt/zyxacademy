@@ -214,3 +214,26 @@ test("calendar deletion and week copy preserve ownership, slot revision and retr
   expect((await writeTutorCalendar(actor, { ...remove, expectedRevision: future.revision })).outcome).toEqual({ action: "delete" });
   expect(await testDb.select().from(schema.tutorSlots)).toHaveLength(1);
 });
+
+test("weekly slots retain selected courses, skip occupied weeks and replay the series", async () => {
+  const { testDb } = database;
+  await testDb.insert(schema.tutorCourses).values({ id: "native-availability-assignment", tutorId: tutor, courseId: "slot-course" });
+  const future = addCalendarDays(date, 35);
+  await write({ ...fields, date: addCalendarDays(future, 7) }, { requestId: "existing-slot-second-week" });
+  expect((await write({ ...fields, date: future, weeks: 3, courseIds: ["foreign"] }, { requestId: "foreign-slot-restrictions" })).status).toBe(400);
+  const repeat = { ...fields, date: future, courseIds: ["slot-course"], weeks: 3 };
+  const send = () => write(repeat, { requestId: "native-three-week-availability" });
+  const response = await send();
+  expect(response.status).toBe(200);
+  const receipt = await response.json();
+  expect(receipt).toMatchObject({ created: 2, skipped: 1, date: future });
+  expect(await (await send()).json()).toEqual(receipt);
+  const created = await testDb.select().from(schema.tutorSlots);
+  expect(created).toHaveLength(3);
+  const slots = await tutorSlotDetails(tutor, created.map(row => row.id));
+  expect(slots.filter(row => row.courseIds.includes("slot-course"))).toHaveLength(2);
+  const slot = slots.find(row => row.id === receipt.slotId)!;
+  expect((await write({ ...fields, date: future, courseIds: [] }, { requestId: "native-clear-course-selection",
+    target: { slotId: slot.id, expectedRevision: slot.revision } })).status).toBe(200);
+  expect((await tutorSlotDetails(tutor, [slot.id]))[0].courseIds).toEqual([]);
+});

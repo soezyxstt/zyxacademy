@@ -6,6 +6,7 @@ import type { TutorSlotEditor } from "./tutor-slot";
 export type TutorScheduleData = {
   from: string;
   to: string;
+  courses?: { id: string; title: string; legacyId: string | null }[];
   slots: {
     id: string;
     date: string;
@@ -17,6 +18,7 @@ export type TutorScheduleData = {
     hasBookingHistory?: boolean;
     notes?: string | null;
     revision?: string;
+    courseIds?: string[];
   }[];
   sessions: { id: string; slotId?: string; date: string | null; start: string | null; end: string | null; courseTitle: string | null; groupName: string | null; topic: string | null; status: string }[];
   tickets: { id: string; type: "reschedule" | "cancellation"; status: "approved" | "rejected" | "pending"; reason: string; proposedDate: string | null; groupName?: string | null; decisionNotes?: string | null;

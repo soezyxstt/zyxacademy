@@ -56,12 +56,12 @@ export const tutorSupportServices = {
     const groupNames = new Map(schedule.eligibleGroups.map(group => [group.id, group.name]));
     const details = new Map((await tutorSlotDetails(userId, schedule.ownedSlots.map((slot) => slot.id))).map((slot) => [slot.id, slot]));
     return {
-      from, to,
+      from, to, courses: schedule.assignedActiveCourses.map(course => ({ id: course.courseId, title: course.title, legacyId: course.legacyCourseId })),
       slots: schedule.ownedSlots.flatMap(({ id, booking }) => {
         const slot = details.get(id);
         if (!slot?.date || slot.date < from || slot.date > to) return [];
         return [{ id, date: slot.date, start: slot.start, end: slot.end, mode: slot.mode, location: slot.location,
-          notes: slot.notes, booked: Boolean(booking), hasBookingHistory: slot.booked, revision: slot.booked ? undefined : slot.revision }];
+          notes: slot.notes, courseIds: slot.courseIds, booked: Boolean(booking), hasBookingHistory: slot.booked, revision: slot.booked ? undefined : slot.revision }];
       }),
       sessions: schedule.ownedBookings.map(({ id, slotId, sessionDate, startTime, endTime, course, group, topic, status }) => ({
         id, slotId, date: sessionDate, start: startTime, end: endTime, courseTitle: course?.title ?? null, groupName: group?.name ?? null, topic, status,

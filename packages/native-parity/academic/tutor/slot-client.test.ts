@@ -52,3 +52,18 @@ test("slot edit releases pending requests after definitive failures", async () =
     expect(editor.pending()).toEqual([]);
   }
 });
+
+test("a repeated weekly slot requires an in-series date and complete created/skipped counts", async () => {
+  const repeated = { ...fields, weeks: 3, courseIds: ["math"] };
+  let calls = 0;
+  const editor = createTutorSlotEditor({ ...scope, async command(_path, input) {
+    expect(input.body).toEqual(repeated);
+    calls++;
+    return Response.json({ slotId: "slot-2", requestId: input.requestId, date: "2026-12-05", created: calls === 1 ? 3 : 2, skipped: 1 });
+  } })!;
+  expect(await editor.save(undefined, repeated, "repeat-request", signal)).toEqual({ status: "unknown" });
+  expect(await editor.save(undefined, { ...repeated, courseIds: [] }, "repeat-request", signal)).toEqual({ status: "unknown" });
+  expect(await editor.save(undefined, repeated, "repeat-request", signal)).toMatchObject({ status: "saved",
+    receipt: { date: "2026-12-05", created: 2, skipped: 1 } });
+  expect(calls).toBe(2);
+});

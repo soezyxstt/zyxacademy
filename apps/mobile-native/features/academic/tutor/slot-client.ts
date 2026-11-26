@@ -1,3 +1,4 @@
+import { addCalendarDays, isCalendarDate } from "../../../../../lib/date-utils";
 import type { TutorSlotEditor, TutorSlotPending, TutorSlotResult } from "../../../../../packages/academic/tutor-slot";
 import { NativeRequestNotDispatched } from "../../../network/transport";
 import type { AcademicTransport } from "../client";
@@ -15,7 +16,8 @@ export function createTutorSlotEditor(transport: AcademicTransport): TutorSlotEd
       const prior = pending.get(key);
       if (prior && (prior.target?.expectedRevision !== target?.expectedRevision ||
         prior.fields.date !== fields.date || prior.fields.start !== fields.start || prior.fields.mode !== fields.mode ||
-        prior.fields.location !== fields.location || prior.fields.notes !== fields.notes)) return { status: "unknown" };
+        prior.fields.location !== fields.location || prior.fields.notes !== fields.notes || prior.fields.weeks !== fields.weeks ||
+        JSON.stringify(prior.fields.courseIds) !== JSON.stringify(fields.courseIds))) return { status: "unknown" };
       if (prior?.operation) return prior.operation;
       const attempt = prior ?? { target, fields, requestId };
       pending.set(key, attempt);
@@ -41,13 +43,22 @@ export function createTutorSlotEditor(transport: AcademicTransport): TutorSlotEd
             return { status: response.status === 404 ? "missing" : "invalid" };
           }
           const data = await response.json();
+          const weeks = fields.weeks ?? 1;
+          const allowedDates = isCalendarDate(fields.date) ? Array.from({ length: weeks }, (_, index) => addCalendarDays(fields.date, index * 7)) : [];
           if (!data || typeof data !== "object" || !("requestId" in data) || data.requestId !== attempt.requestId ||
             !("slotId" in data) || typeof data.slotId !== "string" || !data.slotId ||
-            (target && data.slotId !== target.slotId) || !("date" in data) || data.date !== fields.date) {
+            (target && data.slotId !== target.slotId) || !("date" in data) || typeof data.date !== "string" || !allowedDates.includes(data.date)) {
             return { status: "unknown" };
           }
+          let counts: { created: number; skipped: number } | undefined;
+          if (weeks > 1) {
+            if (!("created" in data) || typeof data.created !== "number" || !Number.isInteger(data.created) || data.created < 1 ||
+              !("skipped" in data) || typeof data.skipped !== "number" || !Number.isInteger(data.skipped) || data.skipped < 0 ||
+              data.created + data.skipped !== weeks) return { status: "unknown" };
+            counts = { created: data.created, skipped: data.skipped };
+          }
           pending.delete(key);
-          return { status: "saved", receipt: { requestId: attempt.requestId, slotId: data.slotId, date: fields.date } };
+          return { status: "saved", receipt: { requestId: attempt.requestId, slotId: data.slotId, date: data.date, ...counts } };
         } catch (error) {
           if (error instanceof NativeRequestNotDispatched && !prior) {
             pending.delete(key);
