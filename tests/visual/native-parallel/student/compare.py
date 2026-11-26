@@ -64,22 +64,38 @@ def describe(path):
         return {'path': str(path), 'width': im.width, 'height': im.height,
                 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
 
-def native_capture_problem(native, testcase):
+def native_capture_problem(native, testcase, markers=()):
     try:
         pieces = native.relative_to(standalone.folder(testcase)).parts
         if len(pieces) != 5 or pieces[0] != 'results' or pieces[2:4] != (testcase, 'takeScreenshot'):
             return 'The screenshot is outside the expected Maestro testcase.'
         commands = json.loads((native.parents[1] / 'commands.json').read_text())
         relative_image = '/'.join(pieces[-2:])
+        seen = set()
         for item in commands:
             result = item['metadata']
             if result['status'] == 'FAILED':
                 break
-            capture = item.get('command', {}).get('takeScreenshotCommand')
+            command = item.get('command', {})
+            if result['status'] != 'COMPLETED':
+                continue
+            if 'launchAppCommand' in command or 'openLinkCommand' in command:
+                seen.clear()
+            check = command.get('assertConditionCommand', {})
+            visible = check.get('condition', {}).get('visible', {})
+            if visible and not check.get('optional') and not visible.get('optional'):
+                for i, marker in enumerate(markers):
+                    if all(visible.get({'text': 'textRegex', 'id': 'idRegex'}.get(key, key)) == value for key, value in marker.items()):
+                        seen.add(i)
+            capture = command.get('takeScreenshotCommand')
             if capture and capture.get('path') == native.stem and result['status'] == 'COMPLETED':
                 recorded = {'type': 'TAKE_SCREENSHOT', 'path': relative_image}
                 if recorded in result.get('artifacts', []):
+                    if len(seen) != len(markers):
+                        return 'The expected state assertions did not complete before this screenshot.'
                     return None
+            if capture:
+                seen.clear()
         return 'The device trace did not record this screenshot after its state assertions.'
     except (KeyError, OSError, ValueError, TypeError):
         return 'Missing or unreadable Maestro screenshot trace.'
@@ -107,16 +123,22 @@ def verify_state(group, state, web, native):
         if not reference['states'][state] or any(manifest.get(key) != value for key, value in inputs.items()):
             return f'The {group} capture inputs differ from those linked to the device fixture.'
         root = Path(__file__).resolve().parents[4]
+        sources = dict(reference.get('sourceDigests', {}))
+        required = config.get('sourcePaths')
+        markers = ()
+        if required is not None:
+            if not required or set(required) != set(sources):
+                return f'The {group} reference is missing its exact source files.'
+            markers = reference['states'][state].get('nativeMarkers')
+            if not isinstance(markers, list) or not markers or any(
+                not isinstance(m, dict) or not (isinstance(m.get('id'), str) or isinstance(m.get('text'), str))
+                or not set(m).issubset({'text', 'id', 'selected', 'checked'}) for m in markers
+            ):
+                return f'The {group} state lacks required device assertions.'
         if 'productFixture' in config:
-            sources = {
-                config['productFixture']: reference['fixtureSha256'],
-                'tests/visual/native-parallel/student/product/seed.ts': reference['seedSha256'],
-            }
-        elif group == 'calendar':
-            sources = dict(reference['sourceDigests'])
-            sources.update({f'apps/mobile-native/assets/fonts/{name}.ttf': sha for name, sha in reference['fontDigests'].items()})
-        else:
-            sources = {}
+            sources[config['productFixture']] = reference['fixtureSha256']
+            sources['tests/visual/native-parallel/student/product/seed.ts'] = reference['seedSha256']
+        sources.update({f'apps/mobile-native/assets/fonts/{name}.ttf': sha for name, sha in reference.get('fontDigests', {}).items()})
         for source, expected in sources.items():
             file = (root / source).resolve()
             if not file.is_relative_to(root) or hashlib.sha256(file.read_bytes()).hexdigest() != expected:
@@ -129,7 +151,7 @@ def verify_state(group, state, web, native):
         with Image.open(web) as image:
             if image.size != (viewport['width'] * scale, viewport['height'] * scale):
                 return f'The {group} web capture dimensions differ from the target extent.'
-        if problem := native_capture_problem(native, testcase):
+        if problem := native_capture_problem(native, testcase, markers):
             return problem
         if standalone.status(testcase) != 'SUCCESS':
             return f'Maestro did not verify the {group} inputs and visible states.'

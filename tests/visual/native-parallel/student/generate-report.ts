@@ -66,14 +66,15 @@ const webRoot = "tests/visual/native-parallel/student/product/web";
 const output = process.argv.find(arg => arg.startsWith("--output="))?.slice(9) ?? base;
 const ciHistory = JSON.parse(readFileSync(`${base}/ci-history.json`, "utf8"));
 const webRun = ciHistory.runs.findLast((run: any) => run.web?.status === "passed" && run.web.artifact);
-const matchedGroups: Record<string, { route: string; productFixture?: string }> =
+const matchedGroups: Record<string, { route: string; productFixture?: string; states: string[]; testcase: string }> =
   JSON.parse(readFileSync("tests/visual/native-parallel/student/matched-reference-groups.json", "utf8"));
-const pairedReferenceGroups: Record<string, { directory: string; prefix: string; product?: boolean }> = {
-  "/courses/[id]/flashcard": { directory: "learning", prefix: "flashcard" },
-  ...Object.fromEntries(Object.entries(matchedGroups).map(([prefix, config]) => [
-    config.route, { directory: prefix, prefix, product: Boolean(config.productFixture) },
-  ])),
-};
+const referenceGroups = [
+  { route: "/courses", directory: "", prefix: "catalog", product: false, states: ["all", "tpb", "pka"] },
+  { route: "/courses/[id]/flashcard", directory: "learning", prefix: "flashcard", product: false, states: ["question", "review-pending", "review-failed"] },
+  ...Object.entries(matchedGroups).map(([prefix, config]) => ({
+    route: config.route, directory: prefix, prefix, product: Boolean(config.productFixture), states: config.states,
+  })),
+];
 const retainedRuns = readdirSync(deviceRuns).filter(run => /^\d+$/.test(run)).sort((a, b) => Number(b) - Number(a));
 // The selected summary owns the case counts and may report attempted but unmeasured comparisons.
 function comparisonSourcesFor(platform: Platform): ComparisonSource[] {
@@ -108,16 +109,14 @@ const additionalComparisons = retainedRuns.flatMap(run =>
     const evidence = JSON.parse(readFileSync(report, "utf8"));
     if (evidence.route !== config.route || !evidence.checkoutSha || !evidence.pullRequestHead) throw new Error(`Wrong supplemental evidence: ${report}`);
     return (evidence.pairs as { state: string; status: string; differingPixels: number }[])
-      .filter(pair => isMeasurement(pair.status, pair.differingPixels)).map(pair => ({
+      .filter(pair => config.states.includes(pair.state) && evidence.maestro?.testcase === config.testcase.replace("{state}", pair.state) && isMeasurement(pair.status, pair.differingPixels)).map(pair => ({
         pattern: config.route, platform, id: `${group}-${pair.state}`, status: pair.status, differingPixels: pair.differingPixels,
         standaloneScenario: { name: evidence.maestro.testcase, status: evidence.maestro.status }, report,
         sourceHead: evidence.pullRequestHead as string, checkoutSha: evidence.checkoutSha as string,
         workflowRun: evidence.workflowRun as string, artifact: evidence.androidArtifact?.url ?? null, primary: false,
       }));
   })));
-function deviceSizedWebReferences(pattern: string) {
-  const group = pairedReferenceGroups[pattern];
-  if (!group) return [];
+function deviceSizedWebReferences(group: typeof referenceGroups[number]) {
   return ["android", "ios"].flatMap(target => {
     const directory = `tests/visual/native-parallel/student/${group.directory}/web/${target}`;
     const manifest = `${directory}/${group.prefix}-reference.json`;
@@ -131,7 +130,9 @@ function deviceSizedWebReferences(pattern: string) {
       return { id: `${target}-${name.replace(/\.png$/, "")}`, file, sha256, manifest, referenceCommit,
         serverSha: reference.serverSha ?? null,
         evidence: group.product ? "authenticated product web" : "web component fixture; target label is viewport only", viewport: reference.viewport,
-        dpr: reference.deviceScaleFactor, theme: reference.theme, locale: reference.locale };
+        dpr: reference.deviceScaleFactor,
+        theme: reference.states?.[name.slice(group.prefix.length + 1, -4)]?.theme ?? reference.theme,
+        locale: reference.states?.[name.slice(group.prefix.length + 1, -4)]?.locale ?? reference.locale };
     });
   });
 }
@@ -295,17 +296,18 @@ const rows = manifest.routes.map(route => {
       viewport: `${web.width}x${web.height}`, dpr: web.dpr, theme: web.theme, locale: web.locale,
       visibleContent: entry.visibleContent ?? [], hydrationWarnings: entry.hydrationWarnings ?? [] };
   });
+  const groups = referenceGroups.filter(group => group.route === pattern);
   const componentCaptures = pattern === "/courses" ? ["android", "ios"].flatMap(target => ["all", "tpb", "pka"].map(state => ({
     id: `catalog-${target}-${state}`, file: `${base}/web-reference/${target}/catalog-${state}.png`, evidence: "web fixture; target label is viewport only",
-  }))) : deviceSizedWebReferences(pattern);
-  const group = pattern === "/courses" ? "catalog" : pairedReferenceGroups[pattern]?.prefix;
-  const deviceComparisons = group ? platforms.flatMap(platform =>
-    comparisonSources[platform].flatMap(source =>
-      source.rows.filter(row => row.id.startsWith(group + "-") && !row.id.includes("-versus-"))
-        .map(row => ({ platform, id: row.id, status: row.status, differingPixels: row.differing_pixels ?? null,
-          standaloneScenario: row.native_scenario ?? source.provenance.matchedScenarioResults?.[group] ?? null,
-          report: source.report, sourceHead: source.provenance.sourceHead ?? null, checkoutSha: source.provenance.checkoutSha ?? null,
-          workflowRun: source.provenance.workflowRun ?? null, artifact: source.provenance.artifact ?? null, primary: source.primary })))) : [];
+  }))) : groups.flatMap(deviceSizedWebReferences);
+  const groupForId = new Map<string, string>(groups.flatMap(group => group.states.map(state => [`${group.prefix}-${state}`, group.prefix] as const)));
+  const deviceComparisons = platforms.flatMap(platform => comparisonSources[platform].flatMap(source =>
+    source.rows.filter(row => groupForId.has(row.id)).map(row => ({
+      platform, id: row.id, status: row.status, differingPixels: row.differing_pixels ?? null,
+      standaloneScenario: row.native_scenario ?? source.provenance.matchedScenarioResults?.[groupForId.get(row.id)!] ?? null,
+      report: source.report, sourceHead: source.provenance.sourceHead ?? null, checkoutSha: source.provenance.checkoutSha ?? null,
+      workflowRun: source.provenance.workflowRun ?? null, artifact: source.provenance.artifact ?? null, primary: source.primary,
+    }))));
   const attempts = optionalAttempts.filter(item => item.pattern === pattern);
   const optionalCaptures = attempts.filter(item => item.status === "passed").flatMap(item => item.files.map((file: any) => ({
     id: `${item.id}-${basename(file.file)}`, file: file.file, evidence: "authenticated product web", sourceHead: item.sourceHead,
@@ -351,7 +353,7 @@ const rows = manifest.routes.map(route => {
       "See device_comparisons for measured runs of the question, pending review and explicit rejection. The web component composition, native title, system safe area and math rendering differ. See tests/visual/native-parallel/student/learning/README.md for the reference version." :
       pattern.endsWith("/material/[materialId]") ? "The enrolled fixture shows the authorized fallback until the host supplies the shared reader. For preview and revoked states, see device_comparisons for measured pairs at their own source commits." :
       pattern === "/pet" ? "Expo uses catalog posters; GLB animation and equipped visuals require the shared renderer. Device pixel diff is not measured." :
-      pattern === "/settings" ? "Some web display settings are not mapped to native. Device pixel diff is not measured." :
+      pattern === "/settings" ? "The language controls can be compared within settings. Other web display settings and the surrounding chrome have separate platform behavior." :
       comparisons.some(item => Number.isFinite(item.differingPixels)) ? "Per-platform outcomes are recorded in device_comparisons at their own source commits." : "Per-case pixel diff has not been established by this report.",
     pending: ["Signed-in end-to-end product flow on the integrated host", "Remaining Android and iOS captures, interactions, accessibility and matching pixel comparisons", ...(cases.some((x: any) => x.blocked_reason) ? ["Resolve named fixture or device blockers in fixture_cases"] : []),
       ...(pattern.includes("/material/[materialId]") ? ["Integrate and test authorized article, diktat and PDF renderers"] : []),

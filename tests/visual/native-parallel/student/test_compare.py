@@ -1,4 +1,5 @@
 """Exercise rejection and pixel counting using synthetic Maestro output."""
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -65,6 +66,36 @@ class MatchedReferenceTest(unittest.TestCase):
         data = json.loads(file.read_text())
         data['states']['new']['assessment']['questionCount'] += 1
         file.write_text(json.dumps(data))
+        self.assertEqual(self.compare()['status'], 'not_comparable')
+
+    def test_requires_current_source_bytes_and_this_captures_state_assertion(self):
+        repo = self.root / 'source'
+        scripts = repo / 'tests/visual/native-parallel/student'
+        scripts.mkdir(parents=True)
+        for name in ('compare.py', 'standalone_evidence.py'):
+            shutil.copyfile(self.script.parent / name, scripts / name)
+        self.script = scripts / 'compare.py'
+        source = repo / 'fixture-input.json'
+        source.write_text('fixture bytes')
+        reference = json.loads((self.web / 'quiz-gateway-reference.json').read_text())
+        reference['sourceDigests'] = {source.name: hashlib.sha256(source.read_bytes()).hexdigest()}
+        reference['states']['new']['nativeMarkers'] = [{'id': 'quiz-start', 'selected': False}]
+        group = {'states': list(reference['states']), 'testcase': self.case, 'sourcePaths': [source.name]}
+        (scripts / 'matched-reference-groups.json').write_text(json.dumps({'quiz-gateway': group}))
+        pinned = scripts / 'quiz-gateway/web/android'
+        pinned.mkdir(parents=True)
+        for directory in (self.web, pinned):
+            (directory / 'quiz-gateway-reference.json').write_text(json.dumps(reference))
+        trace = self.flow / 'commands.json'
+        capture, = json.loads(trace.read_text())
+        check = {'command': {'assertConditionCommand': {'condition': {'visible': {'idRegex': 'quiz-start', 'selected': False}}}},
+                 'metadata': {'status': 'COMPLETED'}}
+        self.assertEqual(self.compare()['status'], 'not_comparable')
+        trace.write_text(json.dumps([check, {'command': {'takeScreenshotCommand': {'path': 'prior'}}, 'metadata': {'status': 'COMPLETED'}}, capture]))
+        self.assertEqual(self.compare()['status'], 'not_comparable')
+        trace.write_text(json.dumps([check, capture]))
+        self.assertEqual(self.compare()['status'], 'pass')
+        source.write_text('different fixture bytes')
         self.assertEqual(self.compare()['status'], 'not_comparable')
 
     def test_uses_only_the_selected_retry_junit_and_capture(self):
