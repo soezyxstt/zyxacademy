@@ -9,10 +9,12 @@ from case_manifest import load_case_groups
 SCALES = {"android": 1, "ios": 3}
 
 
-def check_device(report, component, case_ids, platform, commit, build_commit):
+def check_device(report, component, case_ids, platform, commit, build_commit, reference_engine=None):
     if not isinstance(report, dict) or (
         report.get("platform"), report.get("scale"), report.get("component"), report.get("commit"), report.get("buildCommit")
     ) != (platform, SCALES[platform], component, commit, build_commit):
+        return "Missing"
+    if report.get("referenceEngine") != reference_engine:
         return "Missing"
     results = report.get("cases")
     if not isinstance(results, list) or not all(isinstance(item, dict) for item in results):
@@ -44,15 +46,18 @@ def main():
     for component, case_ids in groups.items():
         states = []
         for platform in SCALES:
-            path = args.artifacts / f"{platform}-measurements/result-{component}.json"
-            result = json.loads(path.read_text()) if path.exists() else None
-            states.append(check_device(result, component, case_ids, platform, args.commit, args.build_commit))
+            directory = args.artifacts / f"{platform}-measurements"
+            engine = "android-webview" if platform == "android" else "ios-wkwebview"
+            for root, reference in ((directory, None), (directory / "native-vs-webview", engine)):
+                path = root / f"result-{component}.json"
+                result = json.loads(path.read_text()) if path.exists() else None
+                states.append(check_device(result, component, case_ids, platform, args.commit, args.build_commit, reference))
         passed += all(state == "Pass" for state in states)
         rows.append(f"| {component} | {' | '.join(states)} |")
     output = "\n".join([
         f"### Native pixel parity for `{args.commit}`", "", f"Tested checkout: `{args.build_commit}`.", "",
-        f"{passed}/{len(groups)} components matched all three cases on both platforms.", "",
-        "| Component | Android | iOS |", "| --- | --- | --- |", *rows, "",
+        f"{passed}/{len(groups)} components matched all three cases against Chromium and the same-device WebView on both platforms.", "",
+        "| Component | Android vs Chromium | Android vs WebView | iOS vs Chromium | iOS vs WKWebView |", "| --- | --- | --- | --- | --- |", *rows, "",
         "Interaction and accessibility checks are reported by each device job.", "",
     ])
     print(output)

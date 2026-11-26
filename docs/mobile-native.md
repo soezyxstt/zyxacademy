@@ -8,6 +8,10 @@ Pada branch integrasi, `zyx-native-parity://internal/session` membuka pemeriksaa
 
 Produk native dapat menggunakan `useNativeSession()` dari `apps/mobile-native/auth/session-provider.tsx` untuk memperoleh transport yang telah memeriksa identitas pengguna. Pengujian runtime membutuhkan server dengan perubahan yang sama, build Android/iOS yang mengenali skema internal, serta Google OAuth untuk origin staging. Halaman pemeriksaan akun adalah alat integrasi. Bukti paritas visual untuk halaman login produk dilacak terpisah.
 
+## Metadata kursus offline
+
+Provider Expo menyinkronkan metadata saat ada layar yang meminta kursus. Respons sync dan manifest harus cocok dengan akun, sesi, origin, bahasa dan hak akses saat ini. SQLite menyimpan metadata per akun, origin dan bahasa. Setiap rekonsiliasi menyelesaikan manifest lebih dahulu, kemudian mengakui cursor. Revisi penyimpanan mencegah respons lama menghidupkan kembali entri yang dicabut. Logout membersihkan metadata dua bahasa. Unduhan isi artikel, aset dan reader tetap memiliki tahap verifikasi tersendiri. [Kontrak sync](operations/offline-data-sync.md), [provider Expo](../apps/mobile-native/offline/lifecycle-provider.tsx).
+
 ## Kondisi yang ada
 
 - `apps/mobile` adalah Capacitor 7 alpha yang memuat origin Next.js jarak jauh dalam WebView. Konfigurasi memisahkan aplikasi dan origin nightly/staging dan stable/production. `www/index.html` menguji koneksi lalu membuka aplikasi online. Saat offline, Android menampilkan pustaka dan reader lokal. iOS menyediakan tampilan coba lagi. Paket bacaan mengikat akun, origin, bahasa, masa akses, dan hak bab. Klien Expo perlu menggunakan [kontrak sinkronisasi yang sudah ada](operations/offline-data-sync.md).

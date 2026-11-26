@@ -2,7 +2,7 @@ import { type ComponentRef, forwardRef } from "react";
 import { StyleSheet, Text, useColorScheme, type TextProps } from "react-native";
 
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
-import { nativeTypography } from "../typography";
+import { nativeControlLabelPosition, nativeTypography } from "../typography";
 
 type LabelProps = TextProps & {
   disabled?: boolean;
@@ -24,7 +24,10 @@ export const Label = forwardRef<ComponentRef<typeof Text>, LabelProps>(function 
       {...props}
       ref={ref}
       onPress={disabled ? undefined : onPress}
-      style={[styles.label, nativeTypography.bodyMedium, { color: colors.foreground }, disabled && styles.disabled, style]}
+      style={[
+        styles.label, nativeTypography.bodyMedium, nativeControlLabelPosition,
+        { color: colors.foreground }, disabled && styles.disabled, style,
+      ]}
     />
   );
 });

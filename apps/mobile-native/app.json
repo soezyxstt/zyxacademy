@@ -25,6 +25,14 @@
           "defaultChannel": "zyx_updates",
           "enableRemoteNotifications": false
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Izinkan Zyx mengambil foto untuk lampiran belajar.",
+          "photosPermission": "Izinkan Zyx memilih foto untuk lampiran belajar.",
+          "microphonePermission": false
+        }
       ]
     ]
   }

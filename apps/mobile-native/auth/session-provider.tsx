@@ -57,5 +57,6 @@ export function useNativeSession() {
     logout: controller.logout,
     refresh: controller.refresh,
     subscribeBeforeLogout: controller.subscribeBeforeLogout,
+    subscribeBeforeLocalLogout: controller.subscribeBeforeLocalLogout,
   };
 }

@@ -96,7 +96,7 @@ describe("Expo staging session", () => {
     expect(activeTransport?.scope).toEqual({ origin, accountId: identity.accountId, sessionId: identity.sessionId });
     harness.setServerSession({ ...sessionResponse(), session: { ...sessionResponse().session, id: "another-session" } });
     await restored.refresh();
-    expect(restored.getSnapshot()).toEqual({ state: { status: "signed-out" }, transport: null });
+    expect(restored.getSnapshot()).toEqual({ state: { status: "signed-out" }, transport: null, revalidating: false });
     expect(activeTransport?.isCurrent()).toBe(false);
     expect(harness.readStored()).toBeNull();
   });
@@ -119,9 +119,10 @@ describe("Expo staging session", () => {
     await session.refresh();
     await session.acceptLogin(loginHeaders, identity.accountId);
     const activeTransport = session.getSnapshot().transport;
+    if (!activeTransport) throw new Error("Expected the verified transport");
     let unregisterUsesOutgoing = false;
     session.subscribeBeforeLogout(async transport => {
-      expect(transport.scope).toEqual(activeTransport?.scope);
+      expect(transport.scope).toEqual(activeTransport.scope);
       expect(transport.isCurrent()).toBe(true);
       expect(activeTransport?.isCurrent()).toBe(false);
       expect(session.getSnapshot().transport).toBeNull();
@@ -136,17 +137,17 @@ describe("Expo staging session", () => {
     await session.logout();
     expect(unregisterUsesOutgoing).toBe(true);
     expect(activeTransport?.isCurrent()).toBe(false);
-    expect(session.getSnapshot()).toEqual({ state: { status: "logout-pending", retry: true }, transport: null });
+    expect(session.getSnapshot()).toEqual({ state: { status: "logout-pending", retry: true }, transport: null, revalidating: false });
     expect(harness.requests.at(-1)?.url).toBe(`${origin}/api/auth/get-session?disableCookieCache=true&disableRefresh=true`);
 
     const restarted = harness.controller();
     harness.setOffline(true);
     await restarted.refresh();
-    expect(restarted.getSnapshot()).toEqual({ state: { status: "logout-pending", retry: true }, transport: null });
+    expect(restarted.getSnapshot()).toEqual({ state: { status: "logout-pending", retry: true }, transport: null, revalidating: false });
     harness.setOffline(false);
     harness.setCanDelete(true);
     await restarted.logout();
-    expect(restarted.getSnapshot()).toEqual({ state: { status: "signed-out" }, transport: null });
+    expect(restarted.getSnapshot()).toEqual({ state: { status: "signed-out" }, transport: null, revalidating: false });
     expect(harness.readStored()).toBeNull();
   });
 
@@ -184,12 +185,53 @@ describe("Expo staging session", () => {
     await session.acceptLogin(loginHeaders, identity.accountId);
     const activeTransport = session.getSnapshot().transport;
     harness.setOffline(true);
-    await session.refresh();
-    expect(session.getSnapshot()).toEqual({ state: { status: "unavailable" }, transport: null });
+    const validating = session.refresh();
+    expect(session.getSnapshot().revalidating).toBe(true);
+    await validating;
+    expect(session.getSnapshot()).toEqual({ state: { status: "unavailable" }, transport: null, revalidating: false });
     expect(activeTransport?.isCurrent()).toBe(false);
     expect(harness.readStored()).toBeTruthy();
     harness.setOffline(false);
     await session.refresh();
     expect(session.getSnapshot().state).toEqual({ status: "signed-in", ...identity });
+  });
+
+  test("purges offline scope during logout without a transport and retries a failed purge", async () => {
+    const harness = createHarness();
+    const session = harness.controller();
+    await session.refresh();
+    await session.acceptLogin(loginHeaders, identity.accountId);
+    harness.setOffline(true);
+    await session.refresh();
+    expect(session.getSnapshot().transport).toBeNull();
+
+    let attempts = 0;
+    session.subscribeBeforeLocalLogout(scope => {
+      expect(scope).toEqual({ origin, accountId: identity.accountId, sessionId: identity.sessionId });
+      expect(session.getSnapshot().transport).toBeNull();
+      if (++attempts === 1) throw new Error("SQLite unavailable");
+    });
+    harness.setOffline(false);
+    await session.logout();
+    expect(session.getSnapshot().state).toEqual({ status: "logout-pending", retry: true });
+    expect(harness.requests.some(request => request.url.endsWith("/sign-out"))).toBe(true);
+    await session.refresh();
+    expect(attempts).toBe(2);
+    expect(session.getSnapshot().state).toEqual({ status: "signed-out" });
+  });
+
+  test("purges expired or server-revoked sessions without exposing their former transport", async () => {
+    for (const expired of [true, false]) {
+      const harness = createHarness();
+      harness.setStored({ ...identity, expiresAt: expired ? now : identity.expiresAt, origin, cookie, status: "active" });
+      if (!expired) harness.setServerSession(null);
+      const session = harness.controller();
+      const purged: unknown[] = [];
+      session.subscribeBeforeLocalLogout(scope => { purged.push(scope); });
+      await session.refresh();
+      expect(purged).toEqual([{ origin, accountId: identity.accountId, sessionId: identity.sessionId }]);
+      expect(session.getSnapshot()).toEqual({ state: { status: "signed-out" }, transport: null, revalidating: false });
+      expect(harness.readStored()).toBeNull();
+    }
   });
 });
