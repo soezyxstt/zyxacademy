@@ -59,7 +59,7 @@ export type OfflineReadingDownload = { status: OfflineReadingDownloadStatus };
 export type OfflineReadingRevalidation = { attempted: number; restored: number };
 
 export class OfflineReadingError extends Error {
-  constructor(readonly code: OfflineReadingDownloadStatus | "revoked", readonly invalidatesSaved = false) {
+  constructor(readonly code: OfflineReadingDownloadStatus | "revoked" | "course-denied", readonly invalidatesSaved = false) {
     super("The offline reading operation could not be completed.");
     this.name = "OfflineReadingError";
   }

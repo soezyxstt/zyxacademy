@@ -40,3 +40,9 @@ The Expo native-intent entry captures the raw consent request before Expo Router
 When Expo verifies a different account or session, or begins logout, it removes the previous stack entries and preloads. An active login, form, public link, or browser handoff keeps its route and parameters. Foreground checks and temporary connection failures preserve the stack for the same session. Academic details reload their protected resource on return. The Admin course list keeps its filters and refreshes on focus.
 
 The stack uses Expo's staging session identity and leaves MCP tools, authorization scopes, consent, discovery, playbooks, packaged skills, host prompts, and browser OAuth bindings as documented above. Local tests cover the reset inputs and focus policy. Android and iOS execution still needs device evidence.
+
+### Student navigation
+
+The mounted Student routes use the shared mobile navbar and five Student destinations with the same Indonesian and English labels as the web. The bar follows the current URL and stays out of active assessment and flashcard sessions, reader and playground routes, live sessions, and individual discussion threads. Course and document filters update the existing entry so typing and scroll position can continue across query changes. Search, notifications, account menu, unread badges, and course switching in the web shell remain separate from this mount.
+
+This navigation only connects existing UI routes. It introduces no new HTTP operation or MCP capability. Focused checks cover route targets, selection, visibility, and query patches. Device and visual verification remain pending.

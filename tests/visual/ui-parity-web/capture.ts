@@ -43,8 +43,10 @@ if (dpr !== 1 && dpr !== 3) throw new Error("PARITY_DPR must be 1 or 3");
 
 const outputDirectory = new URL(`../../../artifacts/native-parity/web/dpr${dpr}/`, import.meta.url);
 const manifest = new URL("cases.json", outputDirectory);
+const directoryManifestPath = new URL("directory.json", outputDirectory);
 await mkdir(outputDirectory, { recursive: true });
 await rm(manifest, { force: true });
+await rm(directoryManifestPath, { force: true });
 
 const browser = await chromium.launch({
   args: ["--force-color-profile=srgb"],
@@ -196,8 +198,8 @@ try {
   await expect(standard).not.toBeChecked();
   await expect(control("radio-group-disabled-dark").getByRole("radio").first()).toBeDisabled();
   await page.setViewportSize(directoryFrame);
-  const directoryManifest = { ...directoryFrame, cases: Object.keys(directoryCases) };
-  await writeFile(new URL("directory.json", outputDirectory), JSON.stringify(directoryManifest));
+  const directoryManifest = { ...directoryFrame, route: "/tautan", cases: Object.keys(directoryCases),
+    commit: process.env.PARITY_HEAD_SHA, buildCommit: process.env.GITHUB_SHA };
   for (const [caseId, item] of Object.entries(directoryCases)) {
     const response = await page.goto(`${url}/tautan/${caseId}`);
     if (!response?.ok()) throw new Error(`Public directory fixture returned HTTP ${response?.status()}`);
@@ -210,6 +212,7 @@ try {
     await page.screenshot({ path: fileURLToPath(new URL(`directory-${caseId}.png`, outputDirectory)), scale: "device" });
   }
   if (errors.length > 0) throw new Error(errors.join("\n"));
+  await writeFile(directoryManifestPath, JSON.stringify(directoryManifest));
   const cases = galleryCases.map(({ id, component }) => ({ id, component }));
   await writeFile(manifest, `${JSON.stringify(cases, null, 2)}\n`);
 } finally {
