@@ -9,6 +9,8 @@ import {
 import { Button } from "../../../components/Button";
 import { Skeleton } from "../../../components/Skeleton";
 import { nativeTypography } from "../../../typography";
+import { NativeListRow } from "../../shared-ui/layout";
+import { NavigationIcon } from "../../shared-ui/navigation-icons";
 import { monotonePath, webAnalyticsDateTicks, webAnalyticsTicks } from "./web-chart";
 
 export type Theme = keyof typeof nativeColors;
@@ -140,7 +142,7 @@ export function Options<T extends string | number>({ label, items, value, onSele
       <Dialog title={label} visible={open} onClose={() => setOpen(false)}>
         <List>
           {items.map(item => (
-            <ActionRow key={item.value} label={item.label} value={item.value === value ? "✓" : undefined}
+            <ActionRow key={item.value} label={item.label}
               selected={item.value === value} onPress={() => { onSelect(item.value); setOpen(false); }} />
           ))}
         </List>
@@ -185,30 +187,23 @@ export function ActionRow({ label, detail, value, icon, rank, selected, onPress,
   label: string; detail?: string | null; value?: string | number; icon?: string;
   rank?: number; selected?: boolean; onPress?: () => void; testID?: string;
 }) {
-  const { colors } = useMonitoringUi();
-  const content = <>
-    {icon ? (
-      <View style={[styles.iconTile, { backgroundColor: colors.muted + "aa" }]}>
-        <MonitoringIcon icon={icon} color={colors.primary} />
-      </View>
-    ) : null}
-    {rank === undefined ? null : <Body small muted>{rank}</Body>}
-    <View style={styles.rowLabel}>
-      <Body strong>{label}</Body>
-      {detail ? <Body small muted>{detail}</Body> : null}
+  const { colors, theme, t } = useMonitoringUi();
+  const rankLabel = rank !== undefined ? t(`Peringkat ${rank}`, `Rank ${rank}`) : undefined;
+  const leading = icon ? (
+    <View style={[styles.iconTile, { backgroundColor: colors.muted + "aa" }]}>
+      <MonitoringIcon icon={icon} color={colors.primary} />
     </View>
-    {value !== undefined ? <Body small>{value}</Body> : null}
-    {onPress && !icon && value === undefined ? <Body muted>›</Body> : null}
-  </>;
-  if (!onPress) return <View style={[styles.row, rank !== undefined && styles.rankedRow, { borderColor: colors.border }]}>{content}</View>;
+  ) : rank !== undefined ? <Body small muted>{rank}</Body> : undefined;
+  const trailing = value !== undefined ? <Text style={[styles.rowValue, { color: colors.foreground }]}>{value}</Text>
+      : selected ? <NavigationIcon name="check" size={16} color={colors.primary} />
+    : onPress && !icon ? <NavigationIcon name="chevron-right" size={16} color={colors.mutedForeground} /> : undefined;
   return (
-    <Pressable accessibilityRole={icon ? "link" : "button"}
-      testID={testID}
-      accessibilityLabel={[label, detail].filter(Boolean).join(". ")}
-      accessibilityState={selected === undefined ? undefined : { selected }}
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, { borderColor: colors.border, backgroundColor: pressed ? colors.muted : "transparent" }]}
-    >{content}</Pressable>
+    <View style={[styles.rowDivider, { borderColor: colors.border }]}>
+      <NativeListRow layout="compact" density="dense" theme={theme} title={label} subtitle={detail ?? undefined}
+        leading={leading} leadingAccessibilityLabel={onPress ? undefined : rankLabel} trailing={trailing} testID={testID}
+        primary={onPress && { onPress, role: icon ? "link" : "button", selected,
+          label: [rankLabel, label, detail, value].filter(item => item !== undefined && item !== null && item !== "").join(". ") }} />
+    </View>
   );
 }
 
@@ -401,9 +396,8 @@ export const styles = StyleSheet.create({
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
   button: { minHeight: 44, flexShrink: 1 },
   list: { borderTopWidth: StyleSheet.hairlineWidth },
-  row: { paddingVertical: 10, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: StyleSheet.hairlineWidth },
-  rankedRow: { alignItems: "flex-start" },
-  rowLabel: { flex: 1, minWidth: 0, gap: 2 },
+  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth },
+  rowValue: { ...nativeTypography.bodyMedium, fontSize: 14, lineHeight: 20, fontVariant: ["tabular-nums"], maxWidth: "45%", textAlign: "right" },
   iconTile: { width: 32, height: 32, borderRadius: nativeRadii.md, alignItems: "center", justifyContent: "center" },
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 12 },
   stat: { flexGrow: 1, flexBasis: 100, gap: 3, paddingVertical: 5 },

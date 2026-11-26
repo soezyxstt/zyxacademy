@@ -265,8 +265,11 @@ export type NativeListRowProps<Id extends string = string> = SharedUiActionGroup
   subtitle?: string;
   titleRole?: "header";
   leading?: ReactNode;
+  leadingAccessibilityLabel?: string;
+  trailing?: ReactNode;
+  density?: "default" | "dense";
   metadata?: readonly { id: string; label: string; value: string }[];
-  primary?: { onPress: () => void; label?: string; role?: "button" | "link"; disabled?: boolean; testID?: string };
+  primary?: { onPress: () => void; label?: string; role?: "button" | "link"; disabled?: boolean; selected?: boolean; testID?: string };
   theme?: SharedUiTheme;
   /** Identifies the primary control when it has no test ID of its own. */
   testID?: string;
@@ -278,6 +281,9 @@ export function NativeListRow<Id extends string>({
   subtitle,
   titleRole,
   leading,
+  leadingAccessibilityLabel,
+  trailing,
+  density = "default",
   primary,
   metadata,
   actions,
@@ -291,21 +297,25 @@ export function NativeListRow<Id extends string>({
   const [focused, setFocused] = useState(false);
   const identity = (
     <>
-      {leading && <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{leading}</View>}
+      {leading && <View accessible={Boolean(leadingAccessibilityLabel)} accessibilityLabel={leadingAccessibilityLabel}
+        accessibilityElementsHidden={!leadingAccessibilityLabel} importantForAccessibility={leadingAccessibilityLabel ? "yes" : "no-hide-descendants"}>
+        {leading}
+      </View>}
       <View style={styles.rowText}>
-        <Text accessibilityRole={titleRole} style={[styles.rowTitle, { color: colors.foreground }]}>{title}</Text>
+        <Text accessibilityRole={titleRole} style={[styles.rowTitle, density === "dense" && nativeTypography.bodySemibold, { color: colors.foreground }]}>{title}</Text>
         {subtitle && <Text style={[styles.supportingText, { color: colors.mutedForeground }]}>{subtitle}</Text>}
       </View>
+      {trailing}
     </>
   );
 
   return (
-    <View style={[styles.row, layout === "wide" && styles.wideRow]} testID={primary && primary.testID === undefined ? undefined : testID}>
+    <View style={[styles.row, density === "dense" && styles.denseRow, layout === "wide" && styles.wideRow]} testID={primary && primary.testID === undefined ? undefined : testID}>
       {primary ? (
         <Pressable
           accessibilityLabel={primary.label ?? (subtitle ? `${title}. ${subtitle}` : title)}
           accessibilityRole={primary.role ?? "button"}
-          accessibilityState={{ disabled: primary.disabled }}
+          accessibilityState={{ disabled: primary.disabled, selected: primary.selected }}
           disabled={primary.disabled}
           onBlur={() => setFocused(false)}
           onFocus={() => setFocused(true)}
@@ -314,13 +324,14 @@ export function NativeListRow<Id extends string>({
           style={({ pressed }) => [
             styles.identity,
             styles.rowPress,
+            density === "dense" && styles.denseIdentity,
             pressed && { backgroundColor: `${colors.primary}14` },
             focused && { outlineColor: colors.accent, outlineWidth: 2, outlineOffset: 2 },
           ]}
         >
           {identity}
         </Pressable>
-      ) : <View style={styles.identity}>{identity}</View>}
+      ) : <View style={[styles.identity, density === "dense" && [styles.denseIdentity, styles.staticIdentity]]}>{identity}</View>}
       {!!metadata?.length && (
         <View style={styles.metadata}>
           {metadata.map((field) => (
@@ -357,6 +368,9 @@ const styles = StyleSheet.create({
   noticeMessage: { textAlign: "center" },
   list: { flex: 1 },
   row: { gap: 8, paddingVertical: 12 },
+  denseRow: { paddingVertical: 0 },
+  denseIdentity: { paddingVertical: 8 },
+  staticIdentity: { alignItems: "flex-start" },
   wideRow: { flexDirection: "row", alignItems: "center", gap: 16 },
   identity: { flexDirection: "row", alignItems: "center", flexGrow: 1, flexShrink: 1, gap: 10 },
   rowPress: { minHeight: 44, borderRadius: nativeRadii.md },
