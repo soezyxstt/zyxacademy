@@ -1,0 +1,17 @@
+[
+  {
+    "device": "blog-list.png",
+    "reference": "blog-list-light-380-dpr1.png",
+    "status": "awaiting capture"
+  },
+  {
+    "device": "blog-detail.png",
+    "reference": "blog-detail-light-380-dpr1.png",
+    "status": "awaiting capture"
+  },
+  {
+    "device": "blog-empty-dark.png",
+    "reference": "blog-empty-dark-380-dpr1.png",
+    "status": "awaiting capture"
+  }
+]
