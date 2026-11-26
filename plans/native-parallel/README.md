@@ -18,6 +18,8 @@ Inventaris [routes.tsv](routes.tsv) berisi setiap berkas halaman dan pemilik tun
 
 - `useNativeSession()` di `apps/mobile-native/auth/session-provider.tsx` menyediakan `transport` hanya untuk sesi terverifikasi. Pemanggil menangkap transport ketika operasi dimulai. `request("/api/…", { method, body, headers, signal })` mendukung JSON dan stream. Setelah menunggu operasi lain dan sebelum menyimpan hasil, panggil `assertCurrent()`. Untuk operasi streaming atau respons dengan body yang tidak dibaca, panggil `dispose()` saat selesai.
 - `useNativeAccountContext()` di `apps/mobile-native/auth/use-account-context.ts` menyediakan konteks navigasi. Backend memakai keanggotaan aktif kanonik `murid`, `tutor`, `admin`, identitas akun/sesi dan locale. Integrator memetakan `murid` ke prop tampilan `student`. Tiap handler tetap memeriksa izin domain dan akses objek.
+- `useOfflineCourseMetadata([courseId], locale)` dari `apps/mobile-native/offline/lifecycle-provider.tsx` menyediakan status, snapshot metadata yang masih diizinkan dan `retry()`. Kirim hanya ID kursus yang dibutuhkan layar. Judul dan deskriptor yang tersimpan belum membuktikan bahwa isi bacaan atau gambar tersedia offline.
+- Untuk Zyra, `streamNativeZyra(transport, request, signal)` di `apps/mobile-native/network/zyra.ts` memakai endpoint dan event SSE yang sama dengan web. Teruskan `requestId` dari aksi pengguna dan lepaskan stream ketika layar atau sesi ditutup.
 - Shell integrasi memakai Expo Router. Ekspor screen melalui direktori fitur masing-masing dan dokumentasikan nama ekspor, parameter, serta callback navigasi di PR. Integrator memasang route entry serta service adapter. Dalam fixture lokal, inject data sintetis melalui kontrak yang sama.
 
 ## Cara bekerja

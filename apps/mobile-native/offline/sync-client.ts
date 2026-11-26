@@ -279,7 +279,7 @@ export function createNativeOfflineSyncController({ session, locale, repository,
       return result;
     } catch (error) {
       assertCurrent();
-      if (error instanceof NativeOfflineSyncError && error.code === "revoked") await repository.clear(scope, assertCurrent);
+      if (error instanceof NativeOfflineSyncError && error.code === "revoked") await repository.clear(scope, assertCurrent).catch(() => {});
       throw error;
     }
   }

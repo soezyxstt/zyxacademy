@@ -131,6 +131,7 @@ describe("native browser login", () => {
       openBrowser: async () => ({ type: "dismiss" }),
       preserveAttemptOnDismiss: true,
     });
+    warm.queued = { ...callback, state: "02".repeat(24) };
     await warm.controller.signIn(warm.acceptLogin);
     expect(warm.stored).toBe(storedAttempt());
     expect(warm.controller.getStatus()).toBe("idle");
@@ -153,6 +154,22 @@ describe("native browser login", () => {
     await fixture.controller.signIn(fixture.acceptLogin);
     expect(fixture.stored).toBe(storedAttempt());
     fixture.controller.cancel();
+    fixture.queued = callback;
+    expect(await fixture.controller.completePending(fixture.acceptLogin)).toBe(false);
+    expect(fixture.stored).toBeNull();
+    expect(fixture.requests).toHaveLength(0);
+  });
+
+  test("starting another Android login retires the prior dismissed verifier", async () => {
+    let opens = 0;
+    const fixture = setup({
+      randomBytes: async count => new Uint8Array(count).fill(opens + 1),
+      openBrowser: async () => ({ type: ++opens === 1 ? "dismiss" : "cancel" }),
+      preserveAttemptOnDismiss: true,
+    });
+    await fixture.controller.signIn(fixture.acceptLogin);
+    expect(fixture.stored).toBe(storedAttempt());
+    await fixture.controller.signIn(fixture.acceptLogin);
     fixture.queued = callback;
     expect(await fixture.controller.completePending(fixture.acceptLogin)).toBe(false);
     expect(fixture.stored).toBeNull();

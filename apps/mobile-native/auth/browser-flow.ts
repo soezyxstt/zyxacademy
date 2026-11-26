@@ -203,9 +203,8 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
         const queued = deps.takeCallback();
         if (signal.aborted) return;
 
-        const callback = browser.type === "success" && browser.url
-          ? parseNativeBrowserCallback(browser.url)
-          : queued?.state === state ? queued : null;
+        const matching = queued?.state === state ? queued : null;
+        const callback = browser.type === "success" && browser.url ? parseNativeBrowserCallback(browser.url) : matching;
         const result = run.completion ?? (callback ? complete(run, callback, acceptLogin) : null);
         failed = result ? !await result && !signal.aborted : browser.type === "success";
         // Android can report the app's foreground return before Linking has

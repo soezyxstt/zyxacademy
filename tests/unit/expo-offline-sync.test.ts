@@ -108,6 +108,17 @@ function setup(...responses: Array<Response | Respond>) {
 }
 
 describe("Expo offline metadata synchronization", () => {
+  test("still reports a revoked session if clearing local metadata fails", async () => {
+    const fixture = setup(new Response(null, { status: 401 }));
+    let purgeAttempted = false;
+    fixture.repository.clear = async () => {
+      purgeAttempted = true;
+      throw new Error("SQLite unavailable");
+    };
+    await expect(fixture.controller.sync(["course-1"])).rejects.toMatchObject({ code: "revoked" });
+    expect(purgeAttempted).toBe(true);
+  });
+
   test("uses the deployed endpoint envelopes, stores only manifest descriptors and resumes from a precise cursor", async () => {
     const extraFields = { ...descriptor, body: "not authorized for metadata persistence" };
     const fixture = setup(
@@ -119,7 +130,9 @@ describe("Expo offline metadata synchronization", () => {
     expect(snapshot).toEqual({
       cursor: firstCursor,
       knownCourseIds: ["course-1"],
-      courses: [{ id: "course-1", title: "Statistika", leaseExpiresAt, manifestCheckedAt: verifiedAt, materials: [descriptor] }],
+      activeCheckIntervalMs: 60_000,
+      courses: [{ id: "course-1", title: "Statistika", leaseExpiresAt, manifestCheckedAt: verifiedAt,
+        manifestLeaseExpiresAt: leaseExpiresAt, materials: [descriptor] }],
     });
     expect(await fixture.controller.resume()).toEqual(snapshot);
     expect(fixture.observed).toEqual([
@@ -253,5 +266,17 @@ describe("Expo offline metadata synchronization", () => {
     await expect(first).rejects.toMatchObject({ name: "AbortError" });
     resolve(authorized(page()));
     expect(await fixture.repository.read(scope, verifiedAt)).toBeNull();
+  });
+
+  test("only a caller-triggered reconnect replays an unsuccessful sync request", async () => {
+    const fixture = setup(
+      new Response(null, { status: 503 }),
+      authorized(page()),
+      authorized(manifest()),
+    );
+    await expect(fixture.controller.sync(["course-1"])).rejects.toMatchObject({ code: "http", status: 503 });
+    expect(fixture.observed).toHaveLength(1);
+    expect((await fixture.controller.reconnect())?.cursor).toBe(firstCursor);
+    expect(fixture.observed).toHaveLength(3);
   });
 });

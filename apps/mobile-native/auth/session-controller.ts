@@ -1,4 +1,4 @@
-import type { NativeSessionTransport, createNativeTransport } from "../network/transport";
+import type { NativeSessionScope, NativeSessionTransport, createNativeTransport } from "../network/transport";
 import {
   isSignedSessionCookie,
   readSignedSessionCookie,
@@ -10,6 +10,7 @@ import {
 type StoredSession = SessionIdentity & { origin: string; cookie: string; status: "active" | "revoking" };
 type SessionStore = { read(): Promise<string | null>; write(value: string): Promise<void>; remove(): Promise<void> };
 type BeforeLogout = (transport: NativeSessionTransport) => void | Promise<void>;
+type BeforeLocalLogout = (scope: NativeSessionScope) => void | Promise<void>;
 const PUSH_CLEANUP_PATH = "/api/notifications/register-token";
 
 export type NativeSessionState =
@@ -51,6 +52,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
   let logoutOperation: Promise<void> | null = null;
   const subscriptions = new Set<() => void>();
   const beforeLogout = new Set<BeforeLogout>();
+  const beforeLocalLogout = new Set<BeforeLocalLogout>();
 
   function publish(state: NativeSessionState, transport: NativeSessionTransport | null = null, revalidating = false) {
     snapshot = { state, transport, revalidating };
@@ -72,8 +74,14 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
     return record;
   }
 
-  async function clear() {
+  async function purgeLocalSession({ origin, accountId, sessionId }: NativeSessionScope) {
+    const results = await Promise.allSettled([...beforeLocalLogout].map(async handler => handler({ origin, accountId, sessionId })));
+    if (results.some(result => result.status === "rejected")) throw new Error("Data sesi lokal belum dapat dihapus.");
+  }
+
+  async function clear(current?: StoredSession) {
     dataTransport.clearSession();
+    if (current) await purgeLocalSession(current);
     await store.remove();
     record = null;
   }
@@ -123,7 +131,8 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
       await Promise.allSettled([...beforeLogout].map(async handler => handler(cleanupTransport)));
       dataTransport.clearSession();
     }
-    await api.revoke(pending.cookie);
+    const results = await Promise.allSettled([purgeLocalSession(current), api.revoke(pending.cookie)]);
+    if (results.some(result => result.status === "rejected")) throw new Error("Sesi belum dapat dihapus.");
     await clear();
     publish({ status: "signed-out" });
   }
@@ -147,7 +156,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
           return;
         }
         if (current.expiresAt <= now()) {
-          await clear();
+          await clear(current);
           if (revision === expectedRevision) publish({ status: "signed-out" });
           return;
         }
@@ -158,7 +167,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
         if (revision !== expectedRevision) return;
         if (!identity || identity.accountId !== current.accountId || identity.sessionId !== current.sessionId
           || identity.expiresAt <= now()) {
-          await clear();
+          await clear(current);
           if (revision === expectedRevision) publish({ status: "signed-out" });
           return;
         }
@@ -253,6 +262,10 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
     subscribeBeforeLogout(handler: BeforeLogout) {
       beforeLogout.add(handler);
       return () => { beforeLogout.delete(handler); };
+    },
+    subscribeBeforeLocalLogout(handler: BeforeLocalLogout) {
+      beforeLocalLogout.add(handler);
+      return () => { beforeLocalLogout.delete(handler); };
     },
     acceptLogin,
     logout,

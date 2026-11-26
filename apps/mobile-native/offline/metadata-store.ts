@@ -8,6 +8,7 @@ import {
   type NativeOfflineScope,
   type NativeOfflineSyncResponse,
 } from "./sync-contract";
+import type { NativeSessionScope } from "../network/transport";
 
 // These storage bounds mirror lib/offline/metadata-cache.ts and sync-contract.ts.
 const maxManifestEntries = 10_000;
@@ -44,6 +45,7 @@ type StoredSnapshot = {
   cursor: string | null;
   lastVerifiedAt: number;
   leaseExpiresAt: number;
+  activeCheckIntervalMs?: number;
   pending?: { cursor: string; reset: boolean };
   courses: StoredCourse[];
 };
@@ -54,11 +56,13 @@ type WriterGuard = () => void;
 export type NativeOfflineMetadataSnapshot = {
   cursor: string | null;
   knownCourseIds: string[];
+  activeCheckIntervalMs?: number;
   courses: Array<{
     id: string;
     title: string;
     leaseExpiresAt: number;
     manifestCheckedAt?: number;
+    manifestLeaseExpiresAt?: number;
     materials: NativeOfflineResourceDescriptor[];
   }>;
 };
@@ -147,7 +151,8 @@ function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflin
   // Keep freshly checked courses ahead of scopes omitted by the bounded sync request.
   authorized.sort((a, b) => Number(grants.has(b.courseId)) - Number(grants.has(a.courseId)));
   return { sessionId: response.sessionId, cursor: previous?.cursor ?? null, lastVerifiedAt: response.serverTime,
-    leaseExpiresAt: response.leaseExpiresAt, pending: { cursor: response.cursor, reset: response.reset },
+    leaseExpiresAt: response.leaseExpiresAt, activeCheckIntervalMs: response.policy.activeCheckIntervalMs,
+    pending: { cursor: response.cursor, reset: response.reset },
     courses: authorized.slice(0, NATIVE_OFFLINE_COURSE_LIMIT) };
 }
 
@@ -228,11 +233,13 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
       const snapshot = readSnapshot(await load(scope));
       if (!snapshot || snapshot.sessionId !== scope.sessionId) return null;
       return { cursor: snapshot.cursor, knownCourseIds: snapshot.courses.map(course => course.courseId),
+        activeCheckIntervalMs: snapshot.activeCheckIntervalMs,
         courses: snapshot.courses.filter(course => Math.min(course.leaseExpiresAt, snapshot.leaseExpiresAt) > now).map(course => {
           const { manifest } = course;
           const useManifest = manifest && Math.min(course.leaseExpiresAt, snapshot.leaseExpiresAt, manifest.leaseExpiresAt) > now;
           return { id: course.courseId, title: course.title, leaseExpiresAt: Math.min(course.leaseExpiresAt, snapshot.leaseExpiresAt),
             manifestCheckedAt: useManifest ? manifest.checkedAt ?? undefined : undefined,
+            manifestLeaseExpiresAt: useManifest ? manifest.leaseExpiresAt : undefined,
             materials: useManifest ? manifest.materials : [] };
         }) };
     },
@@ -293,6 +300,17 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
         WHERE offline_reading_metadata_v1.session_id = excluded.session_id
       `, ...keys(scope), scope.sessionId);
       return changes === 1;
+    },
+
+    async clearSession({ origin, accountId, sessionId }: NativeSessionScope): Promise<void> {
+      await initialize();
+      await db.runAsync(`
+        INSERT INTO offline_reading_metadata_v1 (origin, account_id, locale, session_id, revision, snapshot)
+        VALUES (?, ?, 'id', ?, 1, NULL), (?, ?, 'en', ?, 1, NULL)
+        ON CONFLICT (origin, account_id, locale) DO UPDATE SET
+          snapshot = NULL, revision = offline_reading_metadata_v1.revision + 1
+        WHERE offline_reading_metadata_v1.session_id = excluded.session_id
+      `, origin, accountId, sessionId, origin, accountId, sessionId);
     },
   };
 }

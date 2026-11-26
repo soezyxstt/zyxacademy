@@ -132,7 +132,7 @@ describe("Expo SQLite reading metadata", () => {
     expect(await commit(store, "1", later, [])).toBe(true);
     expect((await store.read(scope, now + 4_999))?.courses[0].materials).toEqual([reading]);
     expect((await store.read(scope, now + 5_000))?.courses[0]).toMatchObject({ manifestCheckedAt: undefined, materials: [] });
-    expect(await store.read(scope, now + 40_000)).toEqual({ cursor: "1", knownCourseIds: ["course-1"], courses: [] });
+    expect(await store.read(scope, now + 40_000)).toEqual({ cursor: "1", knownCourseIds: ["course-1"], activeCheckIntervalMs: 60_000, courses: [] });
   });
 
   test("rejects stale cursor acknowledgements, preserves large integer order, and supports a server reset", async () => {
@@ -187,5 +187,22 @@ describe("Expo SQLite reading metadata", () => {
       if (!current) throw new Error("cancelled");
     })).rejects.toThrow("cancelled");
     expect(await store.read(scope, now)).toBeNull();
+  });
+
+  test("purges both locales in the same SQLite operation while preserving a replacement session", async () => {
+    const { store } = openTestStore();
+    const first = response("1", { reset: true });
+    expect(await commit(store, null, first, [manifest(first, grant(), [descriptor("id", "chapter-1")])])).toBe(true);
+    const english = { ...scope, locale: "en" as const };
+    const firstEnglish = { ...first, locale: english.locale };
+    expect(await store.applyAccess(english, { expectedCursor: null, response: firstEnglish })).toBeNumber();
+    await store.clearSession(scope);
+    expect(await store.read(scope, now)).toBeNull();
+    expect(await store.read(english, now)).toBeNull();
+
+    const next = { ...english, sessionId: "session-2" };
+    expect(await store.applyAccess(next, { expectedCursor: null, response: { ...firstEnglish, sessionId: next.sessionId } })).toBeNumber();
+    await store.clearSession(scope);
+    expect(await store.read(next, now)).not.toBeNull();
   });
 });
