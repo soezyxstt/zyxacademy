@@ -131,6 +131,10 @@ if __name__ == "__main__":
         sys.exit(0)
     combine, expected = REVIEWED[path]
     blobs = tuple(subprocess.check_output(["git", "rev-parse", stage], text=True).strip() for stage in stages)
+    if blobs == (expected[0], expected[2], expected[1]):
+        # The same reviewed inputs can arrive in reverse order once a lane lands.
+        stages = (stages[0], stages[2], stages[1])
+        blobs = (blobs[0], blobs[2], blobs[1])
     if blobs != expected:
         raise SystemExit(f"{path} needs review for these three input blobs: {', '.join(blobs)}")
     ours, theirs = (subprocess.check_output(["git", "show", stage], text=True) for stage in stages[1:])
