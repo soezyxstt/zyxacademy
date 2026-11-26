@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { View } from "react-native";
 import { Input } from "../../../components/Input";
 import {
   activityOutcomes,
   type ActivityCursor, type ActivityFilters, type ActivityOutcome, type MonitoringReader,
 } from "../../../../../packages/native-parity/operations/monitoring-contract";
-import { ActionRow, Body, Control, Dialog, List, Options, ReadState, Section, Stats, styles, useMonitoringRead, useMonitoringUi } from "./ui";
+import { ActionRow, Body, Control, Dialog, List, Options, ReadState, Section, Stats, styles, useMonitoringDialog, useMonitoringRead, useMonitoringUi } from "./ui";
 import { Pagination } from "./analytics";
 
 function useOutcomeLabels(): Record<ActivityOutcome, string> {
@@ -22,8 +22,9 @@ export function TutorActivityScreen({ reader }: { reader: MonitoringReader }) {
   const [filters, setFilters] = useState<ActivityFilters>(defaultFilters);
   const [draft, setDraft] = useState<ActivityFilters>(defaultFilters);
   const [cursorHistory, setCursorHistory] = useState<ActivityCursor[]>([]);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string>();
+  const filterDialog = useMonitoringDialog<void>();
+  const submittedFilters = useRef<ActivityFilters | null>(null);
+  const detail = useMonitoringDialog<string>();
   const view = useMonitoringRead(reader, { view: "tutor", filters, cursor: cursorHistory.at(-1) ?? null });
   const { t, date, n, theme } = useMonitoringUi();
   const outcomes = useOutcomeLabels();
@@ -41,13 +42,16 @@ export function TutorActivityScreen({ reader }: { reader: MonitoringReader }) {
     setCursorHistory([]);
     setFilters(next);
     setDraft(next);
-    setFilterOpen(false);
+  };
+  const closeWithFilters = (next: ActivityFilters) => {
+    if (filterDialog.close()) submittedFilters.current = next;
   };
 
   return <>
     <View style={styles.actions}>
       <Control label={activeFilterCount ? t(`Filter, ${activeFilterCount} aktif`, `Filter, ${activeFilterCount} active`) : t("Filter", "Filter")}
-        disabled={!options} onPress={() => { setDraft(filters); setFilterOpen(true); }} testID="operations-tutor-filters" />
+        disabled={!options} onPress={() => { if (filterDialog.open(undefined, "filters")) setDraft(filters); }}
+        testID="operations-tutor-filters" focusRef={filterDialog.trigger("filters")} />
       {activeFilterCount > 0 && <Control label={t("Reset", "Reset")} onPress={() => apply(defaultFilters)} />}
     </View>
     {view.loading || view.error ? <ReadState {...view} retry={view.reload} /> : value && <>
@@ -61,7 +65,7 @@ export function TutorActivityScreen({ reader }: { reader: MonitoringReader }) {
         <List>
           {value.page.items.map(item => <ActionRow key={item.id} label={item.actorName ?? item.actorEmail ?? t("Sistem / Anonim", "System / Anonymous")}
             detail={`${item.courseTitle ?? t("Lintas kursus", "Cross-course")} · ${item.entityType} · ${item.action} · ${date(item.createdAt)}`}
-            value={outcomes[item.outcome]} onPress={() => setDetailId(item.id)} />)}
+            value={outcomes[item.outcome]} onPress={() => detail.open(item.id, item.id)} focusRef={detail.trigger(item.id)} />)}
         </List>
         <Body small muted>{t(`Menampilkan ${n(value.page.items.length)} aktivitas`, `Showing ${n(value.page.items.length)} activities`)}</Body>
       </> : <Section title={t("Tidak ada log aktivitas", "No activity logs")}>
@@ -71,51 +75,61 @@ export function TutorActivityScreen({ reader }: { reader: MonitoringReader }) {
         previous={cursorHistory.length ? () => setCursorHistory(history => history.slice(0, -1)) : undefined}
         next={value.page.nextCursor ? () => { const next = value.page.nextCursor!; setCursorHistory(history => [...history, next]); } : undefined} />
     </>}
-    {options && <Dialog title={t("Filter aktivitas tutor", "Filter tutor activity")} visible={filterOpen} onClose={() => setFilterOpen(false)}>
-      <Options label={t("Tutor", "Tutor")} value={draft.actorId ?? ""}
-        items={[{ value: "", label: t("Semua tutor", "All tutors") }, ...options.tutors.map(item => ({ value: item.id, label: item.name || item.email }))]}
-        onSelect={value => updating("actorId", value || undefined)} />
-      <Options label={t("Mata kuliah", "Course")} value={draft.courseId ?? ""}
-        items={[{ value: "", label: t("Semua kelas", "All courses") }, ...options.courses.map(item => ({ value: item.id, label: item.title }))]}
-        onSelect={value => updating("courseId", value || undefined)} />
-      <Options label={t("Entitas", "Entity")} value={draft.entityType ?? ""}
-        items={[{ value: "", label: t("Semua entitas", "All entities") }, ...options.entityTypes.map(value => ({ value, label: value }))]}
-        onSelect={value => updating("entityType", value || undefined)} />
-      <Options label={t("Aksi", "Action")} value={draft.action ?? ""}
-        items={[{ value: "", label: t("Semua aksi", "All actions") }, ...options.actions.map(value => ({ value, label: value }))]}
-        onSelect={value => updating("action", value || undefined)} />
-      <Options label={t("Status", "Status")} value={draft.outcome ?? "all"}
-        items={activityOutcomes.map(value => ({ value, label: outcomes[value] }))}
-        onSelect={value => updating("outcome", value === "all" ? undefined : value)} />
-      <Options label={t("Per halaman", "Per page")} value={draft.limit ?? 25}
-        items={[10, 25, 50, 100].map(value => ({ value, label: String(value) }))}
-        onSelect={value => updating("limit", value)} />
-      <Body>{t("ID korelasi", "Correlation ID")}</Body>
-      <Input accessibilityLabel={t("ID korelasi", "Correlation ID")} value={draft.correlationId ?? ""} autoCapitalize="none" maxLength={256}
-        onChangeText={value => updating("correlationId", value)} theme={theme} />
-      <Body>{t("Tanggal mulai", "Start date")}</Body>
-      <Input accessibilityLabel={t("Tanggal mulai", "Start date")} value={draft.startDate ?? ""} placeholder="YYYY-MM-DD" maxLength={10}
-        onChangeText={value => updating("startDate", value || undefined)} theme={theme} />
-      <Body>{t("Tanggal selesai", "End date")}</Body>
-      <Input accessibilityLabel={t("Tanggal selesai", "End date")} value={draft.endDate ?? ""} placeholder="YYYY-MM-DD" maxLength={10}
-        onChangeText={value => updating("endDate", value || undefined)} theme={theme} />
-      {invalidDates && <Body error>{t("Gunakan tanggal YYYY-MM-DD dengan rentang yang valid.", "Enter a valid date range in YYYY-MM-DD format.")}</Body>}
-      <View style={styles.actions}>
+    <Dialog title={t("Filter aktivitas tutor", "Filter tutor activity")} visible={filterDialog.selection?.visible ?? false} onClose={filterDialog.close}
+      onAfterClose={() => {
+        filterDialog.clear();
+        const next = submittedFilters.current;
+        submittedFilters.current = null;
+        if (next) apply(next);
+      }}
+      returnFocusRef={filterDialog.returnFocusRef} testID="operations-tutor-filter-dialog" footer={<View style={styles.actions}>
         <Control label={t("Terapkan filter", "Apply filters")} primary disabled={invalidDates}
-          onPress={() => apply({ ...draft, correlationId: draft.correlationId?.trim() || undefined })} />
-        <Control label={t("Reset", "Reset")} onPress={() => apply(defaultFilters)} />
-      </View>
-    </Dialog>}
-    {detailId && <ActivityDetail key={detailId} id={detailId} reader={reader} onClose={() => setDetailId(undefined)} />}
+          onPress={() => closeWithFilters({ ...draft, correlationId: draft.correlationId?.trim() || undefined })} />
+        <Control label={t("Reset", "Reset")} onPress={() => closeWithFilters(defaultFilters)} />
+      </View>}>
+      {options && <>
+        <Options label={t("Tutor", "Tutor")} value={draft.actorId ?? ""}
+          items={[{ value: "", label: t("Semua tutor", "All tutors") }, ...options.tutors.map(item => ({ value: item.id, label: item.name || item.email }))]}
+          onSelect={value => updating("actorId", value || undefined)} />
+        <Options label={t("Mata kuliah", "Course")} value={draft.courseId ?? ""}
+          items={[{ value: "", label: t("Semua kelas", "All courses") }, ...options.courses.map(item => ({ value: item.id, label: item.title }))]}
+          onSelect={value => updating("courseId", value || undefined)} />
+        <Options label={t("Entitas", "Entity")} value={draft.entityType ?? ""}
+          items={[{ value: "", label: t("Semua entitas", "All entities") }, ...options.entityTypes.map(value => ({ value, label: value }))]}
+          onSelect={value => updating("entityType", value || undefined)} />
+        <Options label={t("Aksi", "Action")} value={draft.action ?? ""}
+          items={[{ value: "", label: t("Semua aksi", "All actions") }, ...options.actions.map(value => ({ value, label: value }))]}
+          onSelect={value => updating("action", value || undefined)} />
+        <Options label={t("Status", "Status")} value={draft.outcome ?? "all"}
+          items={activityOutcomes.map(value => ({ value, label: outcomes[value] }))}
+          onSelect={value => updating("outcome", value === "all" ? undefined : value)} />
+        <Options label={t("Per halaman", "Per page")} value={draft.limit ?? 25} testID="operations-tutor-page-size"
+          items={[10, 25, 50, 100].map(value => ({ value, label: String(value) }))}
+          onSelect={value => updating("limit", value)} />
+        <Body>{t("ID korelasi", "Correlation ID")}</Body>
+        <Input accessibilityLabel={t("ID korelasi", "Correlation ID")} value={draft.correlationId ?? ""} autoCapitalize="none" maxLength={256}
+          onChangeText={value => updating("correlationId", value)} theme={theme} />
+        <Body>{t("Tanggal mulai", "Start date")}</Body>
+        <Input accessibilityLabel={t("Tanggal mulai", "Start date")} value={draft.startDate ?? ""} placeholder="YYYY-MM-DD" maxLength={10}
+          onChangeText={value => updating("startDate", value || undefined)} theme={theme} />
+        <Body>{t("Tanggal selesai", "End date")}</Body>
+        <Input accessibilityLabel={t("Tanggal selesai", "End date")} value={draft.endDate ?? ""} placeholder="YYYY-MM-DD" maxLength={10}
+          onChangeText={value => updating("endDate", value || undefined)} theme={theme} />
+        {invalidDates && <Body error>{t("Gunakan tanggal YYYY-MM-DD dengan rentang yang valid.", "Enter a valid date range in YYYY-MM-DD format.")}</Body>}
+      </>}
+    </Dialog>
+    {detail.selection && <ActivityDetail key={detail.selection.value} id={detail.selection.value} reader={reader}
+      visible={detail.selection.visible} onClose={detail.close} onAfterClose={detail.clear} returnFocusRef={detail.returnFocusRef} />}
   </>;
 }
 
-function ActivityDetail({ id, reader, onClose }: { id: string; reader: MonitoringReader; onClose: () => void }) {
+function ActivityDetail({ id, reader, ...dialog }: { id: string; reader: MonitoringReader } &
+  Pick<Parameters<typeof Dialog>[0], "visible" | "onClose" | "onAfterClose" | "returnFocusRef">) {
   const view = useMonitoringRead(reader, { view: "tutorDetail", id });
   const item = view.data;
   const { t, date } = useMonitoringUi();
   const outcome = useOutcomeLabels();
-  return <Dialog title={t("Detail log mutasi", "Activity log details")} visible onClose={onClose}>
+  return <Dialog {...dialog} title={t("Detail log mutasi", "Activity log details")}>
     {view.loading || view.error ? <ReadState {...view} retry={view.reload} /> : item ? <>
       <List>
         <ActionRow label={t("Waktu kejadian", "Event time")} detail={date(item.createdAt)} />

@@ -4,7 +4,7 @@ import { Input } from "../../../components/Input";
 import {
   swapModelPriority, type ModelSetting, type MonitoringActions, type MonitoringReader, type OpsProposals,
 } from "../../../../../packages/native-parity/operations/monitoring-contract";
-import { ActionRow, Body, Control, Dialog, List, Options, ReadState, Section, Stats, styles, useMonitoringRead, useMonitoringUi, isMonitoringAccessError } from "./ui";
+import { ActionRow, Body, Control, Dialog, List, Options, ReadState, Section, Stats, styles, useMonitoringDialog, useMonitoringRead, useMonitoringUi, isMonitoringAccessError } from "./ui";
 import { useMonitoringAction } from "./mutation";
 
 type ActionProps = { reader: MonitoringReader; actions?: MonitoringActions };
@@ -88,7 +88,8 @@ function ZyraOpsSection({ reader }: { reader: MonitoringReader }) {
 function ProposalsSection({ reader, actions }: ActionProps) {
   const view = useMonitoringRead(reader, { view: "proposals" });
   const mutation = useMonitoringAction();
-  const [target, setTarget] = useState<{ proposal: OpsProposals["proposals"][number]; action: "review" | "confirm" }>();
+  const review = useMonitoringDialog<{ proposal: OpsProposals["proposals"][number]; action: "review" | "confirm" }>();
+  const target = review.selection?.value;
   const { t } = useMonitoringUi();
   return <Section title={t("Proposal Zyra", "Zyra proposals")}>
     {actions?.createProposal && <View style={styles.actions}>
@@ -101,16 +102,18 @@ function ProposalsSection({ reader, actions }: ActionProps) {
         const action = proposal.status === "validated" ? "review" : proposal.status === "reviewed" ? "confirm" : null;
         return <ActionRow key={proposal.id} label={proposal.proposalType} value={proposal.status}
           detail={`${proposal.diffHash.slice(0, 12)} · v${proposal.preconditionVersion}`}
-          onPress={actions?.transitionProposal && action ? () => setTarget({ proposal, action }) : undefined} />;
+          onPress={actions?.transitionProposal && action ? () => review.open({ proposal, action }, proposal.id) : undefined}
+          focusRef={review.trigger(proposal.id)} />;
       })}</List> :
       <Body muted>{t("Belum ada proposal.", "No proposals yet.")}</Body>}
     {target && <Dialog title={target.action === "review" ? t("Tinjau proposal", "Review proposal") : t("Konfirmasi proposal", "Confirm proposal")}
-      visible onClose={() => setTarget(undefined)}>
+      visible={review.selection!.visible} onClose={review.close} onAfterClose={review.clear}
+      returnFocusRef={review.returnFocusRef} dismissDisabled={mutation.busy}>
       <Body>{`${target.proposal.proposalType} · v${target.proposal.preconditionVersion}`}</Body>
       <Control primary label={t("Lanjutkan", "Continue")} busy={mutation.busy} onPress={() => {
         const { id, preconditionVersion } = target.proposal;
         void mutation.run(() => actions!.transitionProposal!({ id, preconditionVersion, action: target.action }), () => {
-          setTarget(undefined);
+          review.close();
           view.reload();
         });
       }} />
@@ -159,7 +162,7 @@ export function ModelsScreen({ reader, actions }: ActionProps) {
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState("");
   const [status, setStatus] = useState("");
-  const [editing, setEditing] = useState<ModelSetting>();
+  const editDialog = useMonitoringDialog<ModelSetting>();
   const [notice, setNotice] = useState(false);
   const choices = [
     { value: "all", label: t("Fitur", "Features") },
@@ -209,10 +212,11 @@ export function ModelsScreen({ reader, actions }: ActionProps) {
       {models.map(model => <ActionRow key={model.feature} label={model.label}
         detail={model.models.map(value => model.modelLabels?.[value] ?? value).join(" · ")}
         value={model.isCustom && model.updatedAt ? date(model.updatedAt, true) : undefined}
-        onPress={() => setEditing(model)} />)}
+        onPress={() => editDialog.open(model, model.feature)} focusRef={editDialog.trigger(model.feature)} />)}
     </List> : <Body muted>{t("Belum ada konfigurasi model untuk filter ini.", "No model settings match this filter.")}</Body>}
-    {editing && <ModelEditor key={editing.feature} model={editing} actions={actions}
-      onClose={() => setEditing(undefined)} reload={() => { setEditing(undefined); view.reload(); }} />}
+    {editDialog.selection && <ModelEditor key={editDialog.selection.value.feature} model={editDialog.selection.value} actions={actions}
+      visible={editDialog.selection.visible} onClose={editDialog.close} onAfterClose={editDialog.clear}
+      returnFocusRef={editDialog.returnFocusRef} reload={() => { editDialog.close(); view.reload(); }} />}
   </>;
 }
 
@@ -229,9 +233,9 @@ function EmbeddingSection({ reader }: { reader: MonitoringReader }) {
   </Section>;
 }
 
-function ModelEditor({ model, actions, onClose, reload }: {
-  model: ModelSetting; actions?: MonitoringActions; onClose: () => void; reload: () => void;
-}) {
+function ModelEditor({ model, actions, reload, ...dialog }: {
+  model: ModelSetting; actions?: MonitoringActions; reload: () => void;
+} & Pick<Parameters<typeof Dialog>[0], "visible" | "onClose" | "onAfterClose" | "returnFocusRef">) {
   const { t } = useMonitoringUi();
   const [draft, setDraft] = useState<[string, string, string]>([...model.models]);
   const [confirm, setConfirm] = useState<"save" | "reset">();
@@ -241,7 +245,7 @@ function ModelEditor({ model, actions, onClose, reload }: {
   const label = (index: number) => index === 0 ? t("Model utama", "Primary model") : t(`Cadangan ${index}`, `Fallback ${index}`);
   const name = (id: string) => model.modelLabels?.[id] ?? id;
   const policyInput = { feature: model.feature, expectedUpdatedAt: model.updatedAt };
-  return <Dialog title={model.label} visible onClose={onClose}>
+  return <Dialog {...dialog} title={model.label} dismissDisabled={mutation.busy}>
     <Body muted>{model.description}</Body>
     {([0, 1, 2] as const).map(index => actions?.saveModel
       ? <Options key={index} label={label(index)} value={draft[index]}

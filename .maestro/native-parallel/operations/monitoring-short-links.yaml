@@ -28,5 +28,22 @@ name: Operations short link copy and QR
 - assertVisible: Kode QR untuk /s/kelas-kalkulus
 - assertVisible: Bagikan PNG
 - takeScreenshot: short-links-qr
-- tapOn: Tutup
+- tapOn:
+    id: operations-link-qr-dialog-close
 - assertVisible: Kelas Kalkulus
+- tapOn: Kode QR
+- assertVisible:
+    id: operations-link-qr-dialog
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - pressKey: Back
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: operations-link-qr-dialog-close
+- assertNotVisible:
+    id: operations-link-qr-dialog

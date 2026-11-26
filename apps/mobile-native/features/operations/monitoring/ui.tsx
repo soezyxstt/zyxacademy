@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { AppState, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { createContext, useContext, useEffect, useRef, useState, type ComponentRef, type ReactNode, type Ref, type RefObject } from "react";
+import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Line, Path, Rect, Text as SvgText } from "react-native-svg";
 import { nativeColors, nativeLinkInks, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import {
@@ -11,6 +11,7 @@ import { Skeleton } from "../../../components/Skeleton";
 import { nativeTypography } from "../../../typography";
 import { NativeListRow } from "../../shared-ui/layout";
 import { NavigationIcon } from "../../shared-ui/navigation-icons";
+import { SharedDialog } from "../../shared-ui/overlays";
 import { monotonePath, webAnalyticsDateTicks, webAnalyticsTicks } from "./web-chart";
 
 export type Theme = keyof typeof nativeColors;
@@ -110,13 +111,16 @@ export function Section({ title, children }: { title?: string; children: ReactNo
   return <View style={styles.section}>{title ? <Heading section>{title}</Heading> : null}{children}</View>;
 }
 
-export function Control({ label, onPress, selected, disabled, busy, primary, link, testID }: {
+type DialogControl = ComponentRef<typeof Pressable>;
+
+export function Control({ label, onPress, selected, disabled, busy, primary, link, testID, focusRef }: {
   label: string; onPress: () => void; selected?: boolean; disabled?: boolean; busy?: boolean;
-  primary?: boolean; link?: boolean; testID?: string;
+  primary?: boolean; link?: boolean; testID?: string; focusRef?: Ref<DialogControl>;
 }) {
   const { theme } = useMonitoringUi();
   return (
     <Button
+      ref={focusRef}
       theme={theme}
       size="lg"
       variant={primary || selected ? "default" : link ? "link" : "outline"}
@@ -131,19 +135,21 @@ export function Control({ label, onPress, selected, disabled, busy, primary, lin
   );
 }
 
-export function Options<T extends string | number>({ label, items, value, onSelect, placeholder }: {
-  label: string; items: { value: T; label: string }[]; value?: T; onSelect: (value: T) => void; placeholder?: string;
+export function Options<T extends string | number>({ label, items, value, onSelect, placeholder, testID }: {
+  label: string; items: { value: T; label: string }[]; value?: T; onSelect: (value: T) => void; placeholder?: string; testID?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const picker = useMonitoringDialog<void>();
   const selected = items.find(item => item.value === value);
   return (
     <View style={styles.section}>
-      <ActionRow label={`${label}: ${selected?.label ?? placeholder ?? label}`} onPress={() => setOpen(true)} />
-      <Dialog title={label} visible={open} onClose={() => setOpen(false)}>
+      <ActionRow label={`${label}: ${selected?.label ?? placeholder ?? label}`} onPress={() => picker.open(undefined, "options")}
+        focusRef={picker.trigger("options")} testID={testID ? `${testID}-trigger` : undefined} />
+      <Dialog title={label} visible={picker.selection?.visible ?? false} onClose={picker.close} onAfterClose={picker.clear}
+        returnFocusRef={picker.returnFocusRef} testID={testID}>
         <List>
           {items.map(item => (
             <ActionRow key={item.value} label={item.label}
-              selected={item.value === value} onPress={() => { onSelect(item.value); setOpen(false); }} />
+              selected={item.value === value} onPress={() => { if (picker.close()) onSelect(item.value); }} />
           ))}
         </List>
       </Dialog>
@@ -161,21 +167,50 @@ export function RangeSelect({ value, onChange }: { value: MonitoringRange; onCha
   />;
 }
 
-export function Dialog({ title, visible, onClose, children }: {
+export function Dialog({ title, visible, onClose, onAfterClose, returnFocusRef, dismissDisabled, footer, children, testID }: {
   title: string; visible: boolean; onClose: () => void; children: ReactNode;
+  onAfterClose?(): void; returnFocusRef?: RefObject<DialogControl | null>; dismissDisabled?: boolean; footer?: ReactNode; testID?: string;
 }) {
-  const { colors, t } = useMonitoringUi();
-  return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View accessibilityViewIsModal style={[styles.dialog, { backgroundColor: colors.background, borderColor: colors.border }]}>
-          <Heading section>{title}</Heading>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.dialogBody}>{children}</ScrollView>
-          <View style={styles.actions}><Control label={t("Tutup", "Close")} onPress={onClose} /></View>
-        </View>
-      </View>
-    </Modal>
-  );
+  const { theme, t } = useMonitoringUi();
+  return <SharedDialog open={visible} onDismiss={onClose} onAfterDismiss={onAfterClose} returnFocusRef={returnFocusRef}
+    title={title} closeLabel={t("Tutup", "Close")} theme={theme} dismissDisabled={dismissDisabled} footer={footer} testID={testID}>
+    {children}
+  </SharedDialog>;
+}
+
+/** Retain the selected row until dismissal has restored the trigger's focus. */
+export function useMonitoringDialog<T>() {
+  const [selection, setSelection] = useState<{ value: T; visible: boolean }>();
+  const triggers = useRef(new Map<string, DialogControl>());
+  const active = useRef<{ key: string; closing: boolean } | null>(null);
+  const returnFocusRef = useRef<DialogControl>(null);
+  return {
+    selection, returnFocusRef,
+    trigger: (key: string): Ref<DialogControl> => node => {
+      if (node) triggers.current.set(key, node);
+      else triggers.current.delete(key);
+      if (active.current?.key === key) returnFocusRef.current = node;
+    },
+    open(value: T, key: string) {
+      if (active.current) return false;
+      active.current = { key, closing: false };
+      returnFocusRef.current = triggers.current.get(key) ?? null;
+      setSelection({ value, visible: true });
+      return true;
+    },
+    close() {
+      if (!active.current || active.current.closing) return false;
+      active.current.closing = true;
+      setSelection(current => current && { ...current, visible: false });
+      return true;
+    },
+    clear() {
+      if (!active.current?.closing) return;
+      active.current = null;
+      returnFocusRef.current = null;
+      setSelection(undefined);
+    },
+  };
 }
 
 export function List({ children }: { children: ReactNode }) {
@@ -183,9 +218,9 @@ export function List({ children }: { children: ReactNode }) {
   return <View style={[styles.list, { borderColor: colors.border }]}>{children}</View>;
 }
 
-export function ActionRow({ label, detail, value, icon, rank, selected, onPress, testID }: {
+export function ActionRow({ label, detail, value, icon, rank, selected, onPress, testID, focusRef }: {
   label: string; detail?: string | null; value?: string | number; icon?: string;
-  rank?: number; selected?: boolean; onPress?: () => void; testID?: string;
+  rank?: number; selected?: boolean; onPress?: () => void; testID?: string; focusRef?: Ref<DialogControl>;
 }) {
   const { colors, theme, t } = useMonitoringUi();
   const rankLabel = rank !== undefined ? t(`Peringkat ${rank}`, `Rank ${rank}`) : undefined;
@@ -200,7 +235,7 @@ export function ActionRow({ label, detail, value, icon, rank, selected, onPress,
   return (
     <View style={[styles.rowDivider, { borderColor: colors.border }]}>
       <NativeListRow layout="compact" density="dense" theme={theme} title={label} subtitle={detail ?? undefined}
-        leading={leading} leadingAccessibilityLabel={onPress ? undefined : rankLabel} trailing={trailing} testID={testID}
+        leading={leading} leadingAccessibilityLabel={onPress ? undefined : rankLabel} trailing={trailing} testID={testID} primaryRef={focusRef}
         primary={onPress && { onPress, role: icon ? "link" : "button", selected,
           label: [rankLabel, label, detail, value].filter(item => item !== undefined && item !== null && item !== "").join(". ") }} />
     </View>
@@ -402,9 +437,6 @@ export const styles = StyleSheet.create({
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 12 },
   stat: { flexGrow: 1, flexBasis: 100, gap: 3, paddingVertical: 5 },
   statValue: { fontSize: 20, lineHeight: 27, fontVariant: ["tabular-nums"], includeFontPadding: false },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.58)", justifyContent: "center", padding: 16 },
-  dialog: { maxHeight: "85%", borderRadius: nativeRadii.lg, borderWidth: 1, padding: 16, gap: 12 },
-  dialogBody: { gap: 12 },
   legend: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   swatch: { width: 8, height: 8, borderRadius: 4 },

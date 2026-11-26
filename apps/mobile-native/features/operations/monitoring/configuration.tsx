@@ -6,7 +6,7 @@ import {
 } from "../../../../../packages/native-parity/operations/monitoring-contract";
 import { Input } from "../../../components/Input";
 import { Switch } from "../../../components/Switch";
-import { ActionRow, Body, Control, Dialog, List, Options, ReadState, Section, styles, useMonitoringRead, useMonitoringUi } from "./ui";
+import { ActionRow, Body, Control, Dialog, List, Options, ReadState, Section, styles, useMonitoringDialog, useMonitoringRead, useMonitoringUi } from "./ui";
 import { useMonitoringAction } from "./mutation";
 import { ShortLinkQr } from "./link-qr";
 
@@ -24,7 +24,8 @@ export function ShortLinksScreen({ reader, actions, links }: ActionProps & { lin
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [formError, setFormError] = useState<string>();
-  const [qr, setQr] = useState<ShortLink>();
+  const qrDialog = useMonitoringDialog<ShortLink>();
+  const qr = qrDialog.selection?.value;
   const [copied, setCopied] = useState<string>();
   const mutation = useMonitoringAction();
   const copying = useMonitoringAction();
@@ -87,10 +88,11 @@ export function ShortLinksScreen({ reader, actions, links }: ActionProps & { lin
         {links && <View style={styles.actions}>
           <Control label={t("Salin tautan", "Copy link")} disabled={copying.busy}
             onPress={async () => { if (await copying.run(() => copy(shortUrl(link)))) setCopied(`/s/${link.slug}`); }} />
-          <Control label={t("Kode QR", "QR code")} onPress={() => setQr(link)} />
+          <Control label={t("Kode QR", "QR code")} onPress={() => qrDialog.open(link, link.id)} focusRef={qrDialog.trigger(link.id)} />
         </View>}
       </Section>)}</List> : <Body muted>{t("Belum ada tautan singkat.", "No short links yet.")}</Body>}
-    {qr && <Dialog title={t(`Kode QR untuk /s/${qr.slug}`, `QR code for /s/${qr.slug}`)} visible onClose={() => setQr(undefined)}>
+    {qr && <Dialog title={t(`Kode QR untuk /s/${qr.slug}`, `QR code for /s/${qr.slug}`)} visible={qrDialog.selection!.visible}
+      onClose={qrDialog.close} onAfterClose={qrDialog.clear} returnFocusRef={qrDialog.returnFocusRef} testID="operations-link-qr-dialog">
       {links?.renderQr?.(shortUrl(qr)) ?? <ShortLinkQr url={shortUrl(qr)} fileName={`qrcode-${qr.id.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 100)}.png`}
         label={t("Kode QR tautan", "Link QR code")} />}
       <Body muted>{shortUrl(qr)}</Body>
@@ -134,7 +136,7 @@ function OfflinePolicyEditor({ initial, action, reload }: {
   const fields = [...schedulingFields, ...storageFields];
   const [numbers, setNumbers] = useState<Record<string, string>>(() =>
     Object.fromEntries(fields.map(field => [field.key, String(initial.policy[field.key] / field.unit)])));
-  const [confirm, setConfirm] = useState(false);
+  const confirm = useMonitoringDialog<void>();
   const [notice, setNotice] = useState(false);
   const mutation = useMonitoringAction();
   const conflict = (mutation.error as { status?: number } | undefined)?.status === 409;
@@ -191,15 +193,17 @@ function OfflinePolicyEditor({ initial, action, reload }: {
     {notice && <View accessibilityLiveRegion="polite"><Body>{t("Kebijakan disimpan.", "Policy saved.")}</Body></View>}
     {!valid && <View accessibilityRole="alert"><Body error>{t("Periksa rentang nilai kebijakan.", "Check the policy value ranges.")}</Body></View>}
     {action && <View style={styles.actions}><Control primary label={t("Simpan kebijakan", "Save policy")}
-      disabled={!valid || !dirty || conflict || Boolean(mutation.error)} busy={mutation.busy} onPress={() => setConfirm(true)} /></View>}
-    <Dialog title={t("Simpan perubahan kebijakan?", "Save policy changes?")} visible={confirm} onClose={() => setConfirm(false)}>
+      disabled={!valid || !dirty || conflict || Boolean(mutation.error)} busy={mutation.busy}
+      onPress={() => confirm.open(undefined, "policy")} focusRef={confirm.trigger("policy")} /></View>}
+    <Dialog title={t("Simpan perubahan kebijakan?", "Save policy changes?")} visible={confirm.selection?.visible ?? false} onClose={confirm.close}
+      onAfterClose={confirm.clear} returnFocusRef={confirm.returnFocusRef} dismissDisabled={mutation.busy}>
       <Body>{t("Perubahan berlaku untuk penyimpanan offline pengguna.", "Changes apply to users' offline storage.")}</Body>
       <Control primary label={t("Konfirmasi", "Confirm")} busy={mutation.busy} onPress={async () => {
         if (!action || !valid) return;
         const policy = { ...draft };
         for (const field of fields) policy[field.key] = numberValue(field) * field.unit;
         setNotice(await mutation.run(() => action({ policy, expectedRevision: initial.revision }), reload));
-        setConfirm(false);
+        confirm.close();
       }} />
     </Dialog>
   </>;
@@ -209,7 +213,7 @@ function OfflineRefresh({ reader, action }: { reader: MonitoringReader; action: 
   const [scope, setScope] = useState<OfflineScope["scope"]>("all");
   const [course, setCourse] = useState("");
   const [resource, setResource] = useState("");
-  const [confirm, setConfirm] = useState(false);
+  const confirm = useMonitoringDialog<void>();
   const [queued, setQueued] = useState(false);
   const mutation = useMonitoringAction();
   const { t } = useMonitoringUi();
@@ -227,8 +231,9 @@ function OfflineRefresh({ reader, action }: { reader: MonitoringReader; action: 
     {queued && <View accessibilityLiveRegion="polite"><Body>{t("Pemutakhiran dijadwalkan.", "Revalidation scheduled.")}</Body></View>}
     <View style={styles.actions}><Control label={t("Jadwalkan pemutakhiran", "Schedule revalidation")}
       busy={mutation.busy} disabled={scope === "course" ? !course : scope === "resource" ? !course || !resource : false}
-      onPress={() => setConfirm(true)} /></View>
-    <Dialog title={t("Jadwalkan pemutakhiran?", "Schedule revalidation?")} visible={confirm} onClose={() => setConfirm(false)}>
+      onPress={() => confirm.open(undefined, "refresh")} focusRef={confirm.trigger("refresh")} /></View>
+    <Dialog title={t("Jadwalkan pemutakhiran?", "Schedule revalidation?")} visible={confirm.selection?.visible ?? false} onClose={confirm.close}
+      onAfterClose={confirm.clear} returnFocusRef={confirm.returnFocusRef} dismissDisabled={mutation.busy}>
       <Body>{scope === "all" ? t("Semua data offline", "All offline data") : course}</Body>
       <Control primary label={t("Konfirmasi", "Confirm")} busy={mutation.busy} onPress={async () => {
         const [kind, resourceId] = resource.split("|");
@@ -236,7 +241,7 @@ function OfflineRefresh({ reader, action }: { reader: MonitoringReader; action: 
           : scope === "course" ? { scope, courseId: course }
           : { scope, courseId: course, kind, resourceId };
         setQueued(await mutation.run(() => action(input)));
-        setConfirm(false);
+        confirm.close();
       }} />
     </Dialog>
   </Section>;

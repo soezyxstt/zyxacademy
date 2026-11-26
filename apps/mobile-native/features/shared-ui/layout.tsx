@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ComponentRef, type ReactNode, type Ref, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -270,6 +270,7 @@ export type NativeListRowProps<Id extends string = string> = SharedUiActionGroup
   density?: "default" | "dense";
   metadata?: readonly { id: string; label: string; value: string }[];
   primary?: { onPress: () => void; label?: string; role?: "button" | "link"; disabled?: boolean; selected?: boolean; testID?: string };
+  primaryRef?: Ref<ComponentRef<typeof Pressable>>;
   theme?: SharedUiTheme;
   /** Identifies the primary control when it has no test ID of its own. */
   testID?: string;
@@ -285,6 +286,7 @@ export function NativeListRow<Id extends string>({
   trailing,
   density = "default",
   primary,
+  primaryRef,
   metadata,
   actions,
   onAction,
@@ -313,6 +315,7 @@ export function NativeListRow<Id extends string>({
     <View style={[styles.row, density === "dense" && styles.denseRow, layout === "wide" && styles.wideRow]} testID={primary && primary.testID === undefined ? undefined : testID}>
       {primary ? (
         <Pressable
+          ref={primaryRef}
           accessibilityLabel={primary.label ?? (subtitle ? `${title}. ${subtitle}` : title)}
           accessibilityRole={primary.role ?? "button"}
           accessibilityState={{ disabled: primary.disabled, selected: primary.selected }}
