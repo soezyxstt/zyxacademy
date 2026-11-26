@@ -33,6 +33,8 @@ name: Student quiz player answer and draft states
           id: student-assessment-option-1
           text: radio button, unchecked
 - assertVisible: 0/3 Sudah diisi
+- assertVisible:
+    id: student-fixture-id-light
 - takeScreenshot: student-quiz-player-unanswered
 - tapOn:
     id: student-assessment-option-1
@@ -53,6 +55,8 @@ name: Student quiz player answer and draft states
           id: student-assessment-option-1
           text: radio button, checked
 - assertVisible: 1/3 Sudah diisi
+- assertVisible:
+    id: student-fixture-id-light
 - takeScreenshot: student-quiz-player-answered
 - tapOn: Tandai ragu-ragu
 - assertVisible: Hapus tanda ragu-ragu
@@ -87,4 +91,6 @@ name: Student quiz player answer and draft states
           id: student-assessment-option-1
           text: radio button, checked
 - assertVisible: Hapus tanda ragu-ragu
+- assertVisible:
+    id: student-fixture-id-light
 - takeScreenshot: student-quiz-player-flagged-restored

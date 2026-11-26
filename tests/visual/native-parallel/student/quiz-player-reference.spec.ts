@@ -18,19 +18,27 @@ const sourceFiles = [fixtureFile, "components/course/quiz-player.tsx", "componen
   "tests/visual/native-parallel/student/quiz-player-reference.spec.ts", "tests/visual/fixtures/interactive-document-build.ts",
   "hooks/use-quiz-player.ts", "lib/quiz/player-state.ts", "packages/native-parity/student/assessment/quiz-player-fixture.ts",
   "packages/native-parity/student/fixture-request.ts", "apps/mobile-native/features/student/assessment/player.tsx",
-  "apps/mobile-native/features/student/assessment-draft-store.ts", ".maestro/native-parallel/student/quiz-player.yaml"];
+  "apps/mobile-native/features/student/assessment-draft-store.ts", "apps/mobile-native/features/student/StudentFixtureRoute.tsx",
+  ".maestro/native-parallel/student/quiz-player.yaml"];
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const { attemptId, path: route, locale, theme } = quizPlayerEvidence;
 const [first, second] = quizPlayerFixture.player.questions;
 const keys = quizStorageKeys(attemptId);
 type State = (typeof quizPlayerEvidence.states)[number];
 
-const states = {
-  unanswered: { answers: {}, flags: {}, index: 0, nativeMarkers: [{ text: "0/3 Sudah diisi" }] },
-  answered: { answers: { [first.id]: 1 }, flags: {}, index: 0, nativeMarkers: [{ text: "1/3 Sudah diisi" }] },
-  "flagged-restored": { answers: { [first.id]: 1 }, flags: { [first.id]: true }, index: 0,
-    nativeMarkers: [{ text: "Hapus tanda ragu-ragu" }] },
-} satisfies Record<State, unknown>;
+function referenceStates(platform: (typeof targets)[number]["platform"]) {
+  const fixtureMarker = { id: `student-fixture-${locale}-${theme}` };
+  const option = { id: "student-assessment-option-1" };
+  const checkedOption = platform === "android"
+    ? { ...option, checked: true }
+    : { ...option, text: "radio button, checked" };
+  return {
+    unanswered: { answers: {}, flags: {}, index: 0, nativeMarkers: [{ text: "0/3 Sudah diisi" }, fixtureMarker] },
+    answered: { answers: { [first.id]: 1 }, flags: {}, index: 0, nativeMarkers: [{ text: "1/3 Sudah diisi" }, fixtureMarker] },
+    "flagged-restored": { answers: { [first.id]: 1 }, flags: { [first.id]: true }, index: 0,
+      nativeMarkers: [{ text: "1/3 Sudah diisi" }, checkedOption, { text: "Hapus tanda ragu-ragu" }, fixtureMarker] },
+  } satisfies Record<State, unknown>;
+}
 
 test("quiz player captures answer selection and real draft recovery at both device extents", async ({ browser }, info) => {
   test.skip(info.project.name !== "mobile-380", "The comparison captures both device extents directly.");
@@ -46,6 +54,7 @@ test("quiz player captures answer selection and real draft recovery at both devi
   const styles = fixture.styles + fonts.map(font => font.css).join("\n") + "\n:root{--font-inter:FixtureInter,sans-serif;--font-lexend:FixtureLexend,sans-serif}";
 
   for (const target of targets) {
+    const states = referenceStates(target.platform);
     const context = await browser.newContext({ viewport: target.viewport, deviceScaleFactor: target.deviceScaleFactor,
       hasTouch: true, isMobile: true, colorScheme: theme, locale: "id-ID", timezoneId: "Asia/Jakarta", reducedMotion: "reduce" });
     try {
