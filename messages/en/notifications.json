@@ -22,6 +22,9 @@
   "bell": "Notifications",
   "title": "Notifications",
   "markAllRead": "Mark all as read",
+  "close": "Close notifications",
+  "unread": "Unread",
+  "loading": "Loading notifications…",
   "empty": "No notifications yet.",
   "relative": {
     "justNow": "Just now",

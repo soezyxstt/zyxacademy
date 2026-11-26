@@ -155,7 +155,13 @@ try {
     }
     if (item.family === "notification-inbox") {
       const copy = notificationInboxCopy[item.locale];
+      const panel = frame.locator("[data-notification-inbox-panel]");
+      const [frameBox, panelBox] = await Promise.all([frame.boundingBox(), panel.boundingBox()]);
+      if (!frameBox || !panelBox || panelBox.y + panelBox.height > frameBox.y + frameBox.height) {
+        throw new Error(`${item.id}: notification panel exceeds its capture frame`);
+      }
       await expect(frame.getByRole("heading", { name: copy.title })).toBeVisible();
+      await expect(frame.getByRole("button", { name: copy.close, exact: true })).toBeVisible();
       await expect(frame.getByRole("button", { name: copy.markAllRead, exact: true })).toHaveCount(item.rows.some(row => !row.read) ? 1 : 0);
       if (!item.rows.length) await expect(specimen).toHaveText(copy.empty);
       else {
@@ -220,7 +226,10 @@ try {
     await expect(control(`${component}-disabled-dark`)).toBeDisabled();
   }
 
-  const [, unreadInbox, mixedInbox] = notificationInboxCases;
+  const [emptyInbox, unreadInbox, mixedInbox] = notificationInboxCases;
+  const emptyFrame = page.locator(`[data-parity-case="${emptyInbox.id}"]`);
+  await emptyFrame.getByRole("button", { name: notificationInboxCopy.id.close, exact: true }).click();
+  await expect(emptyFrame.locator("[data-notification-inbox-panel]")).toHaveCount(0);
   const unreadFrame = page.locator(`[data-parity-case="${unreadInbox.id}"]`);
   const markAll = unreadFrame.getByRole("button", { name: notificationInboxCopy.en.markAllRead, exact: true });
   await markAll.click();

@@ -7,6 +7,8 @@ import {
   useColorScheme,
   View,
   type PressableProps,
+  type StyleProp,
+  type TextStyle,
 } from "react-native";
 
 import { nativeColors, nativeRadii } from "../../../packages/design-tokens/native-colors";
@@ -22,6 +24,7 @@ type ButtonProps = Omit<PressableProps, "children"> & {
   isLoading?: boolean;
   renderIcon?: (color: string, size: number) => ReactNode;
   iconPosition?: "start" | "end";
+  labelStyle?: StyleProp<TextStyle>;
 };
 
 const buttonSizes = {
@@ -47,6 +50,7 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
   hitSlop,
   iconPosition = "start",
   isLoading = false,
+  labelStyle,
   needsOffscreenAlphaCompositing,
   onBlur,
   onFocus,
@@ -149,6 +153,7 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
                   nativeTypography.bodyMedium,
                   nativeControlLabelPosition,
                   { color: palette.ink },
+                  labelStyle,
                 ]}>
                   {children}
                 </Text>

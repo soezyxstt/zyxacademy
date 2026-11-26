@@ -16,9 +16,13 @@ import {
   BookOpen,
   CalendarClock,
   ShieldAlert,
+  X,
 } from "lucide-react";
 import { formatNotificationTime, type NotificationRelativeCopy } from "@/lib/date-utils/notification-display";
 import { cn } from "@/lib/utils";
+import { notificationAppearance } from "@/packages/ui-primitives/notification-appearance";
+
+export const notificationInboxPanelSurface = "rounded-md border border-border bg-popover text-popover-foreground shadow-md";
 
 export interface NotificationInboxRow {
   id: string;
@@ -30,68 +34,67 @@ export interface NotificationInboxRow {
   createdAt: string;
 }
 
-const TYPE_ICONS: Record<string, typeof Bell> = {
-  quiz_published: ClipboardList,
-  quiz_graded: GraduationCap,
-  flashcard_reminder: Brain,
-  tutor_reminder: Calendar,
-  tutor_booking: CalendarClock,
-  tutor_digest: ClipboardList,
-  payment_success: CreditCard,
-  weekly_progress: TrendingUp,
-  study_reengagement: BookOpen,
-  admin_broadcast: Megaphone,
-  admin_alert: ShieldAlert,
-  announcement: BellRing,
-  discussion: MessagesSquare,
-};
+const TYPE_ICONS = {
+  bell: Bell,
+  "clipboard-list": ClipboardList,
+  "graduation-cap": GraduationCap,
+  brain: Brain,
+  calendar: Calendar,
+  "calendar-clock": CalendarClock,
+  "credit-card": CreditCard,
+  "trending-up": TrendingUp,
+  "book-open": BookOpen,
+  megaphone: Megaphone,
+  "shield-alert": ShieldAlert,
+  "bell-ring": BellRing,
+  "messages-square": MessagesSquare,
+} satisfies Record<ReturnType<typeof notificationAppearance>["icon"], typeof Bell>;
 
-const TYPE_COLORS: Record<string, string> = {
-  quiz_published: "text-brand-primary",
-  quiz_graded: "text-status-success",
-  flashcard_reminder: "text-tertiary-2",
-  tutor_reminder: "text-tertiary-3",
-  tutor_booking: "text-brand-primary",
-  tutor_digest: "text-brand-secondary",
-  payment_success: "text-status-success",
-  weekly_progress: "text-status-success",
-  study_reengagement: "text-brand-primary",
-  admin_broadcast: "text-brand-secondary",
-  admin_alert: "text-status-error",
-  announcement: "text-status-warning",
-  discussion: "text-brand-primary",
-};
+const TYPE_COLORS = {
+  "brand-primary": "text-brand-primary",
+  "brand-secondary": "text-brand-secondary",
+  "tertiary-2": "text-tertiary-2",
+  "tertiary-3": "text-tertiary-3",
+  success: "text-status-success",
+  error: "text-status-error",
+  warning: "text-status-warning",
+  muted: "text-muted-foreground",
+} satisfies Record<ReturnType<typeof notificationAppearance>["tone"], string>;
 
 export function NotificationInboxPanel({
-  locale, copy, unread, rows, loading, onMarkAllRead, onSelect, now,
+  locale, copy, unread, rows, loading, onMarkAllRead, onSelect, onClose, now,
 }: {
   locale: "id" | "en";
-  copy: { title: string; markAllRead: string; empty: string; relative: NotificationRelativeCopy };
+  copy: { title: string; markAllRead: string; close: string; unread: string; empty: string; loading: string; relative: NotificationRelativeCopy };
   unread: number;
   rows: readonly NotificationInboxRow[];
   loading?: boolean;
   onMarkAllRead(): void;
   onSelect(row: NotificationInboxRow): void;
+  onClose(): void;
   now?: number;
 }) {
   return (
     <>
-      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
         <h3 className="font-heading text-body-base font-semibold text-foreground">{copy.title}</h3>
-        {unread > 0 ? (
-          <button
-            type="button"
-            onClick={onMarkAllRead}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-body-xs font-medium text-brand-primary transition-colors hover:bg-brand-primary/10 cursor-pointer"
-          >
-            <CheckCheck className="size-3.5" aria-hidden />
-            {copy.markAllRead}
+        <div className="flex shrink-0 items-center gap-2">
+          {unread > 0 ? (
+            <button type="button" onClick={onMarkAllRead}
+              className="inline-flex cursor-pointer items-center gap-1 rounded-sm px-2 py-1 text-body-sm font-medium text-brand-primary transition-colors hover:bg-brand-primary/10 focus-visible:outline-2 focus-visible:outline-zx-accent">
+              <CheckCheck className="size-3.5" aria-hidden />
+              {copy.markAllRead}
+            </button>
+          ) : null}
+          <button type="button" onClick={onClose} aria-label={copy.close}
+            className="relative inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-muted-foreground after:absolute after:-inset-1.5 hover:bg-muted focus-visible:outline-2 focus-visible:outline-zx-accent">
+            <X className="size-4" aria-hidden />
           </button>
-        ) : null}
+        </div>
       </div>
 
       {loading ? (
-        <div className="space-y-2 p-4">
+        <div className="space-y-2 p-4" role="status" aria-label={copy.loading}>
           <div className="h-12 rounded-lg bg-muted animate-pulse" />
           <div className="h-12 rounded-lg bg-muted animate-pulse" />
           <div className="h-12 rounded-lg bg-muted animate-pulse" />
@@ -106,8 +109,9 @@ export function NotificationInboxPanel({
       ) : (
         <ul className="max-h-[24rem] divide-y divide-border/60 zebra-no-rows overflow-y-auto">
           {rows.map((row) => {
-            const TypeIcon = TYPE_ICONS[row.type] ?? Bell;
-            const iconColor = TYPE_COLORS[row.type] ?? "text-muted-foreground";
+            const appearance = notificationAppearance(row.type);
+            const TypeIcon = TYPE_ICONS[appearance.icon];
+            const iconColor = TYPE_COLORS[appearance.tone];
             return (
               <li key={row.id} className="p-0">
                 <button
@@ -148,7 +152,10 @@ export function NotificationInboxPanel({
                     ) : null}
                   </span>
                   {!row.read ? (
-                    <span className="mt-2 size-2 shrink-0 rounded-full bg-brand-primary" aria-hidden />
+                    <>
+                      <span className="mt-2 size-2 shrink-0 rounded-full bg-brand-primary" aria-hidden />
+                      <span className="sr-only">{copy.unread}</span>
+                    </>
                   ) : null}
                 </button>
               </li>

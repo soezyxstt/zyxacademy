@@ -24,7 +24,7 @@ import { NotificationRuntimeForAccount, ZYX_NOTIFICATIONS_CHANGED } from "./noti
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 import { getDefaultHomeLinkForRole } from "@/lib/notifications/catalog";
 
-import { NotificationInboxPanel, type NotificationInboxRow } from "./notification-inbox-panel";
+import { NotificationInboxPanel, notificationInboxPanelSurface, type NotificationInboxRow } from "./notification-inbox-panel";
 
 export { ZYX_NOTIFICATIONS_CHANGED } from "./notification-runtime";
 
@@ -193,12 +193,16 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
           ) : null}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-[min(22rem,calc(100vw-2rem))] p-0">
+      <PopoverContent aria-label={t("title")} align="end" sideOffset={8}
+        className={`${notificationInboxPanelSurface} w-[min(22rem,calc(100vw-2rem))] overflow-hidden p-0`}>
         <NotificationInboxPanel
           locale={locale}
           copy={{
             title: t("title"),
             markAllRead: t("markAllRead"),
+            close: t("close"),
+            unread: t("unread"),
+            loading: t("loading"),
             empty: t("empty"),
             relative: (unit, count) => t(`relative.${unit}`, { count }),
           }}
@@ -207,6 +211,7 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
           loading={loading}
           onMarkAllRead={handleMarkAllRead}
           onSelect={row => void handleClickRow(row)}
+          onClose={() => setOpen(false)}
         />
       </PopoverContent>
     </Popover>

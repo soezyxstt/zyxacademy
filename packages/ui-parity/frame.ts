@@ -7,5 +7,5 @@ export const parityFrame = {
 } as const;
 
 export function getParityFrameHeight(component: string) {
-  return component === "notification-inbox" ? 200 : parityFrame.height;
+  return component === "notification-inbox" ? 216 : parityFrame.height;
 }

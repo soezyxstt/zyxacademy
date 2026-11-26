@@ -42,13 +42,13 @@ class CaseManifestTests(unittest.TestCase):
 
     def test_retains_case_heights_and_defaults_to_the_original_crop(self):
         groups, heights = self.load([
-            {"id": "inbox-empty", "component": "inbox", "height": 200},
+            {"id": "inbox-empty", "component": "inbox", "height": 216},
             {"id": "inbox-unread", "component": "inbox", "height": 180},
             {"id": "inbox-mixed", "component": "inbox"},
         ], include_heights=True)
         self.assertEqual(groups, {"inbox": ["inbox-empty", "inbox-unread", "inbox-mixed"]})
-        self.assertEqual(heights, {"inbox-empty": 200, "inbox-unread": 180, "inbox-mixed": 100})
+        self.assertEqual(heights, {"inbox-empty": 216, "inbox-unread": 180, "inbox-mixed": 100})
 
     def test_rejects_capture_heights_too_tall_for_the_gallery(self):
         with self.assertRaisesRegex(ValueError, "Invalid capture height"):
-            self.load([{"id": "inbox-empty", "component": "inbox", "height": 201}])
+            self.load([{"id": "inbox-empty", "component": "inbox", "height": 217}])
