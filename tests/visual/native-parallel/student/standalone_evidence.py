@@ -40,12 +40,18 @@ class StandaloneEvidence:
         return None
 
     def status(self, testcase):
+        record = self.cases.get(testcase) if self.cases is not None else None
+        if isinstance(record, dict) and record.get('effective') == 'incomplete':
+            return 'incomplete'
         folder = self.folder(testcase)
         if folder is not None:
             try:
                 cases = [case for case in ElementTree.parse(folder / 'report.xml').iter('testcase')
                          if case.get('name') == testcase]
                 if len(cases) == 1:
+                    if record is not None and (not record.get('flow')
+                            or Path(cases[0].get('file', '')).name != record['flow']):
+                        return 'not_recorded'
                     if cases[0].find('failure') is not None or cases[0].find('error') is not None:
                         return 'ERROR'
                     if cases[0].find('skipped') is not None:

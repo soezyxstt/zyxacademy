@@ -70,10 +70,11 @@ class MatchedReferenceTest(unittest.TestCase):
     def test_uses_only_the_selected_retry_junit_and_capture(self):
         retry = self.native / 'standalone-retry' / '001'
         shutil.copytree(self.native / 'results', retry / 'results')
-        shutil.copyfile(self.native / 'report.xml', retry / 'report.xml')
-        failure = f'<testsuite><testcase name="{self.case}" status="ERROR"><failure>device offline</failure></testcase></testsuite>'
+        success = f'<testsuite><testcase name="{self.case}" file="quiz-gateway.yaml" status="SUCCESS"/></testsuite>'
+        (retry / 'report.xml').write_text(success)
+        failure = f'<testsuite><testcase name="{self.case}" file="quiz-gateway.yaml" status="ERROR"><failure>device offline</failure></testcase></testsuite>'
         (self.native / 'report.xml').write_text(failure)
-        index = {'version': 1, 'cases': {self.case: {'initial': 'transport_failure', 'effective': 'standalone-retry/001',
+        index = {'version': 1, 'cases': {self.case: {'flow': 'quiz-gateway.yaml', 'initial': 'transport_failure', 'effective': 'standalone-retry/001',
             'retry': {'directory': 'standalone-retry/001', 'result': 'passed'}}}}
         (self.native / 'standalone-attempts.json').write_text(json.dumps(index))
         result = self.compare()
@@ -85,6 +86,10 @@ class MatchedReferenceTest(unittest.TestCase):
         shutil.rmtree(retry / 'results' / 'duplicate')
         (retry / 'report.xml').write_text(failure)
         self.assertEqual(self.compare()['status'], 'not_comparable')
+        (retry / 'report.xml').write_text(success.replace('quiz-gateway.yaml', 'unrelated.yaml'))
+        mismatch = self.compare()
+        self.assertEqual(mismatch['status'], 'not_comparable')
+        self.assertEqual(mismatch['native_scenario']['status'], 'not_recorded')
 
 
 if __name__ == '__main__':

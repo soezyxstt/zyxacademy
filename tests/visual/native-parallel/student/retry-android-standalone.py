@@ -33,19 +33,31 @@ def write_index(directory, provenance):
     temporary.replace(directory / ATTEMPTS_FILE)
 
 
-def retry(maestro, device, directory, flow_paths):
+def credible_failure(tests):
+    return any(test.get('status') != 'SUCCESS' and test.find('skipped') is None and failure_message(test)
+               for test in tests.values())
+
+
+def retry(maestro, device, directory, flow_paths, initial_status=1):
     flows = {path.name: path for path in flow_paths}
     initial = read_cases(directory / 'report.xml')
     files = validate_flows(initial, flows)
-    complete = bool(files) and len(files) == len(flow_paths)
+    all_reported = bool(files) and len(files) == len(flow_paths)
     records = {
         name: {'flow': filename, 'initial': result(name, initial[name], directory), 'effective': '.'}
         for name, filename in files.items()
     }
-    selected = [name for name, record in records.items() if record['initial'] == 'transport_failure']
+    initial_ok = (all(record['initial'] == 'passed' for record in records.values()) if initial_status == 0
+                  else credible_failure(initial))
+    complete = all_reported and initial_ok
+    if not complete:
+        for record in records.values():
+            record['effective'] = 'incomplete'
+    selected = [name for name, record in records.items()
+                if initial_status != 0 and record['initial'] == 'transport_failure']
     batches = []
     provenance = {'version': 1, 'initialReport': 'report.xml', 'initialComplete': complete,
-                  'cases': records, 'batches': batches}
+                  'initialExitCode': initial_status, 'cases': records, 'batches': batches}
     # Keep comparison readers on the original attempt until a replay report is validated.
     write_index(directory, provenance)
     device_ready = True
@@ -65,7 +77,7 @@ def retry(maestro, device, directory, flow_paths):
             expected_files = {name: files[name] for name in observed}
             if validate_flows(observed, flows) != expected_files:
                 observed = {}
-            batch_ok = observed.keys() == set(names) and (code == 0 or any(failure_message(test) is not None for test in observed.values()))
+            batch_ok = observed.keys() == set(names) and (code == 0 or credible_failure(observed))
             batch.update(status='complete' if batch_ok else 'incomplete', exitCode=code)
         else:
             observed = {}
@@ -76,16 +88,25 @@ def retry(maestro, device, directory, flow_paths):
             outcome = result(name, observed.get(name), target)
             record = records[name]
             record['retry'] = {'directory': folder.as_posix(), 'result': outcome}
-            if outcome != 'not_recorded':
+            if not batch_ok:
+                record['effective'] = 'incomplete'
+            elif outcome != 'not_recorded':
                 record['effective'] = folder.as_posix()
         write_index(directory, provenance)
 
-    return int(not selected or not complete or any(
-        (record['initial'] if record['effective'] == '.' else record['retry']['result']) != 'passed'
+    return int(not complete or (initial_status != 0 and not selected) or any(
+        (record['initial'] if record['effective'] == '.' else record.get('retry', {}).get('result')) != 'passed'
         for record in records.values()
     ))
 
 
+def run_initial(maestro, device, directory, paths):
+    # Fail closed if the reporter exits or is interrupted before validation.
+    write_index(directory, {'version': 1, 'initialReport': 'report.xml', 'initialComplete': False, 'cases': {}, 'batches': []})
+    code = run_maestro(maestro, device, paths, directory)
+    return retry(maestro, device, directory, paths, code)
+
+
 if __name__ == '__main__':
     maestro, device, root, *flows = sys.argv[1:]
-    sys.exit(retry(maestro, device, Path(root).resolve(), [Path(path).resolve() for path in flows]))
+    sys.exit(run_initial(maestro, device, Path(root).resolve(), [Path(path).resolve() for path in flows]))

@@ -25,15 +25,19 @@ def write_report(directory, tests):
 class AndroidStandaloneTest(unittest.TestCase):
     def setUp(self):
         self.root = Path(self.enterContext(TemporaryDirectory()))
-        self.recover = runpy.run_path(Path(__file__).with_name('retry-android-standalone.py'))['retry']
+        runner = runpy.run_path(Path(__file__).with_name('retry-android-standalone.py'))
+        self.recover = runner['retry']
+        self.run_initial = runner['run_initial']
         self.flows = [self.root / name for name in ('retryable.yaml', 'assertion.yaml')]
         self.transport = 'DeviceServerDiedException: device offline'
 
-    def run_retry(self, retry_tests, *, device_ready=True):
+    def run_retry(self, retry_tests, *, device_ready=True, exit_code=None):
         def attempt(maestro, device, files, directory):
             existing = json.loads((self.root / ATTEMPTS_FILE).read_text())
-            self.assertEqual(existing['cases']['retryable']['effective'], '.')
+            self.assertIn(existing['cases']['retryable']['effective'], ('.', 'incomplete'))
             write_report(directory, retry_tests)
+            if exit_code is not None:
+                return exit_code
             return 0 if all(test[2] is None for test in retry_tests) else 1
 
         run = Mock(side_effect=attempt)
@@ -63,9 +67,9 @@ class AndroidStandaloneTest(unittest.TestCase):
                 status, run, provenance = self.run_retry(retry_tests)
                 self.assertEqual(status, 1)
                 run.assert_called_once()
-                self.assertEqual(provenance['cases']['retryable']['effective'], '.')
+                self.assertEqual(provenance['cases']['retryable']['effective'], 'incomplete')
                 self.assertEqual(provenance['cases']['retryable']['retry']['result'], 'not_recorded')
-                self.assertEqual(StandaloneEvidence(self.root).status('retryable'), 'ERROR')
+                self.assertEqual(StandaloneEvidence(self.root).status('retryable'), 'incomplete')
                 (self.root / 'standalone-retry/001/report.xml').unlink()
                 (self.root / 'standalone-retry/001').rmdir()
 
@@ -86,6 +90,45 @@ class AndroidStandaloneTest(unittest.TestCase):
         run.assert_called_once()
         self.assertEqual(provenance['cases']['retryable']['retry']['result'], 'transport_failure')
         self.assertEqual(StandaloneEvidence(self.root).status('retryable'), 'ERROR')
+
+    def test_incomplete_retry_never_promotes_an_observed_success(self):
+        tests = [('retryable', self.flows[0].name, None), ('assertion', self.flows[1].name, None)]
+        for returned, code in ((tests[:1], 0), (tests, 1)):
+            with self.subTest(reported=len(returned), code=code):
+                write_report(self.root, [(name, file, self.transport) for name, file, _ in tests])
+                status, run, provenance = self.run_retry(returned, exit_code=code)
+                self.assertEqual(status, 1)
+                run.assert_called_once()
+                self.assertEqual(provenance['cases']['retryable']['retry']['result'], 'passed')
+                self.assertEqual(StandaloneEvidence(self.root).status('retryable'), 'incomplete')
+                self.assertIsNone(StandaloneEvidence(self.root).folder('retryable'))
+                (self.root / 'standalone-retry/001/report.xml').unlink()
+                (self.root / 'standalone-retry/001').rmdir()
+
+    def test_zero_exit_always_writes_or_invalidates_initial_attempt_index(self):
+        tests = [('retryable', self.flows[0].name, None), ('assertion', self.flows[1].name, None)]
+        for reported, expected in ((tests, 0), (tests[:1], 1), (tests + tests[:1], 1), (None, 1)):
+            with self.subTest(reported=reported):
+                report = self.root / 'report.xml'
+                report.unlink(missing_ok=True)
+
+                def initial(maestro, device, paths, directory):
+                    self.assertIsNone(StandaloneEvidence(directory).folder('retryable'))
+                    if reported is not None:
+                        write_report(directory, reported)
+                    return 0
+
+                run = Mock(side_effect=initial)
+                with patch.dict(self.run_initial.__globals__, {'run_maestro': run}):
+                    code = self.run_initial('maestro', 'device', self.root, self.flows)
+                self.assertEqual(code, expected)
+                run.assert_called_once()
+                evidence = StandaloneEvidence(self.root)
+                if expected:
+                    self.assertIsNone(evidence.folder('retryable'))
+                    self.assertNotEqual(evidence.status('retryable'), 'SUCCESS')
+                else:
+                    self.assertEqual(evidence.status('retryable'), 'SUCCESS')
 
     def test_duplicate_initial_cannot_trigger_retry(self):
         write_report(self.root, [('retryable', self.flows[0].name, self.transport)] * 2)
@@ -124,7 +167,7 @@ class AndroidStandaloneTest(unittest.TestCase):
         image.save(initial_capture)
         image.save(retry_capture.with_name(f'{capture_name}-restored.png'))
         write_report(retry, [(testcase, 'long-content.yaml', None)])
-        index = {'version': 1, 'cases': {testcase: {'initial': 'transport_failure', 'effective': 'standalone-retry/001',
+        index = {'version': 1, 'cases': {testcase: {'flow': 'long-content.yaml', 'initial': 'transport_failure', 'effective': 'standalone-retry/001',
             'retry': {'directory': 'standalone-retry/001', 'result': 'passed'}}}}
         (self.root / ATTEMPTS_FILE).write_text(json.dumps(index))
         compare = runpy.run_path(Path(__file__).with_name('check-scroll-restoration.py'))['compare']
