@@ -20,7 +20,7 @@
     "apps/mobile-native/features/student/community/ui.tsx": "4a63a9b1a4173a4dd931e2d629b3c60fdd0f065796be28f1ba0cdac12a0d9f99",
     "packages/design-tokens/native-colors.ts": "6c0c10749bec30e43417c658e0b995f9a4b35b0c44e17e21182b29455fabcbc6",
     "packages/native-parity/student/community/fixtures.ts": "27a7e52a38ac47fb1960b983d65a3fcfb231673d7f876b9959b168bc6520c305",
-    "packages/native-parity/student/fixture-request.ts": "0d3cb6ff191a057fbdf73f638a3c6af054f13ee99c089ea6aaa6ae0743c16c7b",
+    "packages/native-parity/student/fixture-request.ts": "dd4c36db26586b294cac067e5d062c8e5d7e2ac0b78fac09eafa1ee406192ae9",
     "tests/visual/fixtures/settings-preferences.tsx": "b5d8d143d971edf3b8dfd71ebf81712cc7e7886b9ee473fc612dfd50f974354c",
     "tests/visual/fixtures/settings-preferences-build.ts": "810af5768d64ca130446fc5e568ac232d20fd90c1a758709ee4fc26b3798edda",
     "tests/visual/fixtures/fonts/inter-latin.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",

@@ -151,7 +151,7 @@
     "components/enrollment-form.tsx": "2c8f4e1edfeb086ab7c16138e2bf4fd03b828a7a5420a06a2815c9c471ef3c77",
     "components/ui/reveal.tsx": "8d095c462ab16029d852b4b7917881501eeaa03604ca2438ccdf824c4fd267a8",
     "components/navigation/mobile-top-navbar.tsx": "80bc1dc3904f662bff0b39ff07f108339b69ce4b68672a836b738e8db50beda6",
-    "packages/native-parity/student/fixture-request.ts": "0d3cb6ff191a057fbdf73f638a3c6af054f13ee99c089ea6aaa6ae0743c16c7b",
+    "packages/native-parity/student/fixture-request.ts": "dd4c36db26586b294cac067e5d062c8e5d7e2ac0b78fac09eafa1ee406192ae9",
     "packages/native-parity/student/learning/contracts.ts": "2a1cf81df56c117429678fbb197edeb74bcef6344461757859e4674e346de3eb",
     "packages/native-parity/student/learning/fixtures.ts": "ebadf962b505c8ff90a63ee9e0a3809c99e021b11af4760b2e877588a9483f6c",
     "packages/native-parity/student/learning/messages-id.json": "31b159634be1bc9bbf4264d7eeb4f9642d3a6ce1af6f6d72f42e04316ab5b9b6",

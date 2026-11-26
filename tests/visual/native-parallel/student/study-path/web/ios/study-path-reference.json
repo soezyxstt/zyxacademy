@@ -184,16 +184,16 @@
   "captures": {
     "study-path-roadmap.png": "47dd44bff505e43b175c1097d2f9e450e9cb9a4fee8573bf51d8ed93fee7d89a",
     "study-path-plan.png": "010185e2f537058b6819034624257ecdc17c7fb428184750bc149979f2f7137d",
-    "study-path-empty.png": "d3b2588a49a5202b53a9bb75509a9d2b9e7041d7e88062e8d950b27bacc2ae67"
+    "study-path-empty.png": "10f660025a5c3c69e6e464639cd45023bba5e0c35368ebbb72551e123643aaa9"
   },
   "sourceDigests": {
     "tests/visual/fixtures/student-learning-reference.tsx": "7da7472fdc812a5e306dbb7b3ed2d7885ada05cbf29670efbb1fdaaac10397f7",
-    "tests/visual/native-parallel/student/learning-reference.spec.ts": "689b69cc1486d855f404a51546b89b3806671c4aca1f0b83c058495242192dfb",
+    "tests/visual/native-parallel/student/learning-reference.spec.ts": "1c7e94b445eb8363c53812ce8e740b04543c9eda72c628f51a2207ff06baa999",
     "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
     "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
     "components/course/course-page-shell.tsx": "e4171dee451d6ca3e9049e0fafb61061392cfa23d3d2fb8c1451dd7f75f05aa6",
     "components/navigation/mobile-top-navbar.tsx": "80bc1dc3904f662bff0b39ff07f108339b69ce4b68672a836b738e8db50beda6",
-    "packages/native-parity/student/fixture-request.ts": "0d3cb6ff191a057fbdf73f638a3c6af054f13ee99c089ea6aaa6ae0743c16c7b",
+    "packages/native-parity/student/fixture-request.ts": "dd4c36db26586b294cac067e5d062c8e5d7e2ac0b78fac09eafa1ee406192ae9",
     "packages/native-parity/student/learning/contracts.ts": "2a1cf81df56c117429678fbb197edeb74bcef6344461757859e4674e346de3eb",
     "packages/native-parity/student/learning/fixtures.ts": "ebadf962b505c8ff90a63ee9e0a3809c99e021b11af4760b2e877588a9483f6c",
     "packages/native-parity/student/learning/messages-id.json": "31b159634be1bc9bbf4264d7eeb4f9642d3a6ce1af6f6d72f42e04316ab5b9b6",

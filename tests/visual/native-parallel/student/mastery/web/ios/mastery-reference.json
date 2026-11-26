@@ -165,7 +165,7 @@
     "components/course/concept-map.tsx": "22748b45161cec8b85723f77fa9347b13f9ade25454d8e55bdcafeee25d4ee28",
     "components/course/course-page-shell.tsx": "e4171dee451d6ca3e9049e0fafb61061392cfa23d3d2fb8c1451dd7f75f05aa6",
     "components/navigation/mobile-top-navbar.tsx": "80bc1dc3904f662bff0b39ff07f108339b69ce4b68672a836b738e8db50beda6",
-    "packages/native-parity/student/fixture-request.ts": "0d3cb6ff191a057fbdf73f638a3c6af054f13ee99c089ea6aaa6ae0743c16c7b",
+    "packages/native-parity/student/fixture-request.ts": "dd4c36db26586b294cac067e5d062c8e5d7e2ac0b78fac09eafa1ee406192ae9",
     "packages/native-parity/student/learning/contracts.ts": "2a1cf81df56c117429678fbb197edeb74bcef6344461757859e4674e346de3eb",
     "packages/native-parity/student/learning/fixtures.ts": "ebadf962b505c8ff90a63ee9e0a3809c99e021b11af4760b2e877588a9483f6c",
     "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",

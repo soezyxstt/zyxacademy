@@ -16,7 +16,7 @@
     "apps/mobile-native/features/student/community/profile.tsx": "19709749e477eed0887d1ee42c8d58ea7a2c39deb1d5362299c2462fc0e5318d",
     "apps/mobile-native/features/student/community/ui.tsx": "4a63a9b1a4173a4dd931e2d629b3c60fdd0f065796be28f1ba0cdac12a0d9f99",
     "packages/native-parity/student/community/fixtures.ts": "27a7e52a38ac47fb1960b983d65a3fcfb231673d7f876b9959b168bc6520c305",
-    "packages/native-parity/student/fixture-request.ts": "0d3cb6ff191a057fbdf73f638a3c6af054f13ee99c089ea6aaa6ae0743c16c7b",
+    "packages/native-parity/student/fixture-request.ts": "dd4c36db26586b294cac067e5d062c8e5d7e2ac0b78fac09eafa1ee406192ae9",
     "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
     "tests/visual/fixtures/student-profile-reference.tsx": "bb8894663a250a30d22217beafc8b230926a2505d62a2563b2cca537b4cd86e8",
     "tests/visual/fixtures/student-profile-reference-build.ts": "ec4fae9051f6a0de34c02f449bb27f1e12239cb0fd9a5cebd9eb7b638cf1b87d",

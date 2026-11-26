@@ -90,7 +90,7 @@
     "hooks/use-quiz-player.ts": "60b533d2d2323ef29b2ef0d74169b798bcb95ebcb18b3c035ea6039a3a6534cc",
     "lib/quiz/player-state.ts": "15f314d9a9dce3a0aa695938b4dac357f1cc334a208f6dc1e48c99138a5022ff",
     "packages/native-parity/student/assessment/quiz-player-fixture.ts": "972d8b53788a22cc6338c74ead25a10ba00643223d1d209c7cc3e05bdf265743",
-    "packages/native-parity/student/fixture-request.ts": "0d3cb6ff191a057fbdf73f638a3c6af054f13ee99c089ea6aaa6ae0743c16c7b",
+    "packages/native-parity/student/fixture-request.ts": "dd4c36db26586b294cac067e5d062c8e5d7e2ac0b78fac09eafa1ee406192ae9",
     "apps/mobile-native/features/student/assessment/player.tsx": "ed526d5cff6fdadf712f4e173e0d8ed269b674a5d7719f64594c91abdbc3c45c",
     "apps/mobile-native/features/student/assessment-draft-store.ts": "9bb77a412fb9ed6b7527d0c9592c51ee0c4b03ddb323280722d600c5fe2af438",
     "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",

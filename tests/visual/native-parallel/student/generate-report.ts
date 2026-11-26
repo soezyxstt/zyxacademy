@@ -68,6 +68,8 @@ const ciHistory = JSON.parse(readFileSync(`${base}/ci-history.json`, "utf8"));
 const webRun = ciHistory.runs.findLast((run: any) => run.web?.status === "passed" && run.web.artifact);
 const matchedGroups: Record<string, { route: string; productFixture?: string; scope?: string; states: string[]; testcase: string }> =
   JSON.parse(readFileSync("tests/visual/native-parallel/student/matched-reference-groups.json", "utf8"));
+const signedAndroidReview: { group: string; route: string; platform: "android"; states: Record<string, unknown> } =
+  JSON.parse(readFileSync("tests/visual/native-parallel/student/signed-assessment-review.json", "utf8"));
 const referenceGroups = [
   { route: "/courses", directory: "", prefix: "catalog", scope: undefined, product: false, states: ["all", "tpb", "pka"] },
   { route: "/courses/[id]/flashcard", directory: "learning", prefix: "flashcard", scope: undefined, product: false, states: ["question", "review-pending", "review-failed"] },
@@ -141,13 +143,21 @@ function deviceSizedWebReferences(group: typeof referenceGroups[number]) {
 const sha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const optionalManifests = ["tests/visual/native-parallel/student/product/assessment-web/web.json",
   "tests/visual/native-parallel/student/learning/product/web.json"];
+const assessmentResultCaptures = "tests/visual/native-parallel/student/product/assessment-results-web/android/manifest.json";
+optionalManifests.push(assessmentResultCaptures);
 const communityDirectory = "tests/visual/native-parallel/student/references/community";
 if (existsSync(communityDirectory)) optionalManifests.push(...readdirSync(communityDirectory)
   .filter(name => /^manifest-.*\.json$/.test(name)).sort().map(name => `${communityDirectory}/${name}`));
 const optionalAttempts: any[] = [];
 for (const manifestFile of optionalManifests.filter(existsSync)) {
   const input = JSON.parse(readFileSync(manifestFile, "utf8"));
-  for (const entry of input.results ?? input.entries ?? []) {
+  const entries = manifestFile === assessmentResultCaptures
+    ? Object.entries(input.captures).map(([file, capture]) => {
+      const result = capture as { path: string; status: number; serverSha: string; sha256: string };
+      return { ...result, id: basename(file, ".png"), screenshot: file, screenshotSha256: result.sha256,
+        viewport: input.viewport, deviceScale: input.deviceScaleFactor };
+    }) : input.results ?? input.entries ?? [];
+  for (const entry of entries) {
     const pattern = entry.pattern ?? matchStudentRoute(entry.path ?? "")?.pattern;
     if (!pattern) continue;
     const error = entry.error ?? null;
@@ -155,7 +165,7 @@ for (const manifestFile of optionalManifests.filter(existsSync)) {
     const files = verifyWebCaptures(entry, dirname(manifestFile), passed);
     const status = error || !passed ? "failed" : files.length && files.every((file: any) => file.status === "available") ? "passed" : "capture_missing_or_invalid";
     optionalAttempts.push({ pattern, id: entry.id, path: entry.path, status, error, files, manifest: manifestFile,
-      sourceHead: input.serverSha ?? null, project: input.project ?? null, viewport: entry.viewport ?? (input.width && input.height ? { width: input.width, height: input.height } : null),
+      sourceHead: entry.serverSha ?? input.serverSha ?? null, project: input.project ?? null, viewport: entry.viewport ?? (input.width && input.height ? { width: input.width, height: input.height } : null),
       dpr: entry.deviceScale ?? input.dpr ?? null, theme: entry.theme ?? input.theme ?? null, locale: input.locale ?? null,
       browser: entry.browser ?? input.browser ?? null, terminal: entry.terminal ?? entry.actualPath ?? null,
       coursePickerLoading: entry.coursePickerLoading ?? null, runtimeErrors: entry.runtimeErrors ?? [], failedRequests: entry.failedRequests ?? [] });
@@ -304,6 +314,12 @@ const rows = manifest.routes.map(route => {
     id: `catalog-${target}-${state}`, file: `${base}/web-reference/${target}/catalog-${state}.png`, evidence: "web fixture; target label is viewport only",
   }))) : groups.flatMap(deviceSizedWebReferences);
   const groupForId = new Map<string, string>(groups.flatMap(group => group.states.map(state => [`${group.prefix}-${state}`, group.prefix] as const)));
+  const routeGroups = groups.map(({ prefix, states }) => ({ id: prefix, states, platforms: [...platforms] }));
+  if (pattern === signedAndroidReview.route) {
+    const states = Object.keys(signedAndroidReview.states);
+    routeGroups.push({ id: signedAndroidReview.group, states, platforms: [signedAndroidReview.platform] });
+    for (const state of states) groupForId.set(`${signedAndroidReview.group}-${state}`, signedAndroidReview.group);
+  }
   const deviceComparisons = platforms.flatMap(platform => comparisonSources[platform].flatMap(source =>
     source.rows.filter(row => groupForId.has(row.id)).map(row => ({
       platform, id: row.id, status: row.status, differingPixels: row.differing_pixels ?? null, comparisonScope: row.comparison_scope,
@@ -349,7 +365,7 @@ const rows = manifest.routes.map(route => {
     web_ci_evidence: ciCase && webRun ? { case: ciCase, status: webRun.web.status, sourceHead: webRun.sourceHead,
       run: webRun.url, artifact: webRun.web.artifact, kind: "synthetic web component fixture" } : null,
     fixture_cases: cases,
-    matched_reference_groups: groups.map(({ prefix, states }) => ({ id: prefix, states })),
+    matched_reference_groups: routeGroups,
     device_comparisons: comparisons,
     fixture_device_summary: { android: countDeviceCases(cases, "android"), ios: countDeviceCases(cases, "ios") },
     device_status: { android: summaries.android ? `see ${summaries.android.path}` : "not_recorded", ios: summaries.ios ? `see ${summaries.ios.path}` : "not_recorded" },
@@ -386,7 +402,7 @@ const lines = ["# Laporan rute Student", "", `Dihasilkan dari HEAD \`${sha}\`; w
 const webCoverage = rows.filter(row => row.web_evidence.some(item => item.evidence === "authenticated product web")).length;
 const hydrationWarnings = web.results.filter((entry: any) => entry.hydrationWarnings?.length).length;
 lines.push(`Referensi web produk tersedia untuk ${webCoverage} dari ${rows.length} pola rute. ${hydrationWarnings} capture kursus mencatat peringatan hidrasi. Tujuan redirect dan detail peringatan tersimpan di [routes.json](routes.json).`, "");
-lines.push(`Tersedia ${referenceGroups.length} kelompok referensi dengan tiga keadaan masukan yang sepadan pada ${rows.filter(row => row.matched_reference_groups.length > 0).length} pola rute. Hasil perbandingan perangkat tercatat per run.`, "");
+lines.push(`Tersedia ${referenceGroups.length} kelompok dengan tiga keadaan sepadan pada ${new Set(referenceGroups.map(group => group.route)).size} pola rute di kedua ukuran perangkat. Satu kelompok tambahan mencakup tiga keadaan review hasil pada ukuran Android. Hasil perbandingan perangkat tercatat per run.`, "");
 for (const [platform, label] of [["android", "Android"], ["ios", "iOS"]] as const) {
   const summary = summaries[platform];
   if (!summary) {

@@ -20,7 +20,7 @@
     "apps/mobile-native/features/student/community/ui.tsx": "4a63a9b1a4173a4dd931e2d629b3c60fdd0f065796be28f1ba0cdac12a0d9f99",
     "packages/design-tokens/native-colors.ts": "6c0c10749bec30e43417c658e0b995f9a4b35b0c44e17e21182b29455fabcbc6",
     "packages/native-parity/student/community/fixtures.ts": "27a7e52a38ac47fb1960b983d65a3fcfb231673d7f876b9959b168bc6520c305",
-    "packages/native-parity/student/fixture-request.ts": "0d3cb6ff191a057fbdf73f638a3c6af054f13ee99c089ea6aaa6ae0743c16c7b",
+    "packages/native-parity/student/fixture-request.ts": "dd4c36db26586b294cac067e5d062c8e5d7e2ac0b78fac09eafa1ee406192ae9",
     "tests/visual/fixtures/settings-preferences.tsx": "b5d8d143d971edf3b8dfd71ebf81712cc7e7886b9ee473fc612dfd50f974354c",
     "tests/visual/fixtures/settings-preferences-build.ts": "810af5768d64ca130446fc5e568ac232d20fd90c1a758709ee4fc26b3798edda",
     "tests/visual/fixtures/fonts/inter-latin.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
@@ -181,7 +181,7 @@
   },
   "captures": {
     "settings-id-light.png": "baa38fca5e5850ba44cf9631d944a9e651e24c813da82e584804a4cd2fba41c5",
-    "settings-en-light.png": "0e0d8d1b7a43b4c12a8cce22ed385bc5b8e4802a54362461763e634c7ce39542",
-    "settings-id-dark.png": "64be83a6e6a86ed70e5f28bef5611715c1d2c9d9b0d6fe1bf9829fddafe3b4c8"
+    "settings-en-light.png": "63b40d0fb4c73894f1a43f8fdfab7b94078d2e95ca1b08b885215d30e5fff364",
+    "settings-id-dark.png": "a9950d3d73a1762818bf4d2a560443172ea7cd5a55212b0924949265c69cfceb"
   }
 }
