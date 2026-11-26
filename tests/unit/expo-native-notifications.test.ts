@@ -271,6 +271,25 @@ test("dispatches registration and retirement with the cookies of their respectiv
   ]);
 });
 
+test("an explicit OS permission failure reaches the action while a concurrent foreground sync stays silent", async () => {
+  const fixture = createFixture();
+  const started = deferred<void>();
+  const gate = deferred<void>();
+  fixture.device.requestPermission = async () => {
+    started.resolve();
+    await gate.result;
+    throw new Error("OS permission error");
+  };
+  await fixture.controller.setAccount(fixture.session("staff").client);
+  const request = fixture.controller.requestPermission(() => true);
+  await started.result;
+  const foreground = fixture.controller.sync();
+  gate.resolve();
+  await expect(request).rejects.toThrow("Device notification permission could not be requested.");
+  expect((await foreground)?.registered).toBe(false);
+  expect(fixture.calls).toEqual([]);
+});
+
 test("a permission reply after logout cannot register a token", async () => {
   const fixture = createFixture();
   const promptStarted = deferred<void>();

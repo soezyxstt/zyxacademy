@@ -163,6 +163,7 @@ export function createNativePushController(
   }
 
   async function syncAccount(candidate: ActiveAccount, canPrompt?: () => boolean) {
+    let permissionObserved = false;
     try {
       const permission = await device.getPermission();
       if (!current(candidate)) return null;
@@ -172,6 +173,7 @@ export function createNativePushController(
         : permission;
       if (!current(candidate)) return null;
       candidate.permission = resolved;
+      permissionObserved = true;
       onStatusChange?.(getStatus());
       if (resolved.status !== "granted") {
         candidate.stopTokenListener?.();
@@ -202,6 +204,9 @@ export function createNativePushController(
         await registerToken(candidate, token);
       }
     } catch {
+      if (!permissionObserved && current(candidate) && canPrompt?.()) {
+        throw new Error("Device notification permission could not be requested.");
+      }
       // Native credentials or the OS service may be unavailable on this build.
       candidate.permission ??= unsupportedPermission;
       if (current(candidate)) onStatusChange?.(getStatus());
@@ -212,7 +217,10 @@ export function createNativePushController(
   function sync(canPrompt?: () => boolean): Promise<NativePushStatus | null> {
     const candidate = account;
     if (!candidate || !current(candidate) || !device.registration) return Promise.resolve(getStatus());
-    if (candidate.pending && (!canPrompt || candidate.requestingPermission)) return candidate.pending;
+    if (candidate.pending && !canPrompt) {
+      return candidate.pending.catch(() => current(candidate) ? getStatus() : null);
+    }
+    if (candidate.pending && candidate.requestingPermission) return candidate.pending;
 
     const previous = candidate.pending;
     candidate.requestingPermission = canPrompt !== undefined;
