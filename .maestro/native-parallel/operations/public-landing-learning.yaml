@@ -58,6 +58,7 @@ name: Operations public homepage learning interactions
 - scrollUntilVisible:
     element:
       id: landing-flashcards-grade-good
+    centerElement: true
 - tapOn:
     id: landing-flashcards-grade-good
 - assertVisible: "Bagus → diulang 6 hari lagi"
@@ -69,6 +70,7 @@ name: Operations public homepage learning interactions
 - scrollUntilVisible:
     element:
       id: landing-path-profile-b
+    centerElement: true
 - tapOn:
     id: landing-path-profile-b
 - scrollUntilVisible:
