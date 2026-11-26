@@ -123,7 +123,7 @@ export function isStudentRootHub(pathname: string): boolean {
   return STUDENT_ROOT_HUBS.has(normalizePath(pathname));
 }
 
-export function getStudentMobileRouteTitle(pathname: string, translate?: (key: string) => string): string | undefined {
+export function getStudentMobileRouteTitle(pathname: string, translate?: (key: string) => string | undefined): string | undefined {
   const t = (key: string, fallback: string) => translate?.(`routeTitles.${key}`) ?? fallback;
   if (pathname === "/dashboard/schedule") return t("schedule", "Jadwal Belajar");
   if (pathname.startsWith("/dashboard/groups")) return t("groups", "Kelompok Belajar");

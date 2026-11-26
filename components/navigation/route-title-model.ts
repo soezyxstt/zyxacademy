@@ -3,7 +3,7 @@ import { getStudentMobileRouteTitle } from "./student/student-nav-model";
 export function getRouteTitle(
   pathname: string,
   surface?: "admin" | "student" | "tutor",
-  translate?: (key: string) => string
+  translate?: (key: string) => string | undefined
 ): string {
   const roleTitle = (namespace: "admin" | "tutor", key: string, fallback: string) =>
     translate?.(`${namespace}.routeTitles.${key}`) ?? fallback;

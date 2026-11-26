@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import type { NativeRouteNode } from "../../apps/mobile-native/auth/login-intent";
 import { adminMoreSections, adminOtherRoleEntries, staffNavigation, tutorClassEntries } from "../../apps/mobile-native/routing/staff-navigation";
+import { getRouteTitle } from "../../components/navigation/route-title-model";
 
 function sitemap(...paths: string[]): NativeRouteNode {
   return {
@@ -39,6 +40,15 @@ test("staff editors hide bottom navigation and preserve localized titles and saf
   expect(staffNavigation("tutor", "/tutor/physics/quizzes/template/attempts", "en"))
     .toMatchObject({ title: "Student attempts", hideBottom: false });
   expect(staffNavigation("tutor", "/tutor/physics", "en").backTo).toBe("/tutor");
+});
+
+test("route titles use the canonical fallback when a translation key is missing", () => {
+  const translations = new Map([["admin.routeTitles.webAnalytics", "Analitik web"]]);
+  const translate = (key: string) => translations.get(key);
+  expect(getRouteTitle("/admin/ops/web-analytics", "admin", translate)).toBe("Analitik web");
+  expect(getRouteTitle("/admin/docs", "admin", translate)).toBe("Documentation");
+  expect(getRouteTitle("/tutor/discussions", "tutor", translate)).toBe("Diskusi");
+  expect(getRouteTitle("/dashboard/schedule", "student", translate)).toBe("Jadwal Belajar");
 });
 
 test("Admin More exposes only mounted modules of the caller's role and gates role switching", () => {
