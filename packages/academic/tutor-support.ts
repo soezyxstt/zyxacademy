@@ -107,6 +107,7 @@ export type TutorLiveAction = "start" | "reveal" | "next" | "end";
 export type TutorLiveRoom = { id: string; code: string; questionCount: number; wsUrl: string; hostToken: string; kind?: "coding" };
 
 export type TutorLiveHost = {
+  locale?: "id" | "en";
   resume(courseId: string, sessionId: string | undefined, signal: AbortSignal): Promise<TutorLiveRoom | null>;
   create(courseId: string, selection: string | TutorLiveSelection, requestId: string, signal: AbortSignal): Promise<TutorLiveRoom>;
   control(courseId: string, sessionId: string, action: TutorLiveAction, requestId: string, signal: AbortSignal): Promise<void>;

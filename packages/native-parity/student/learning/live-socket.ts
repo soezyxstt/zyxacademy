@@ -1,3 +1,4 @@
+import { QUESTION_ORIGINS, type QuestionOrigin } from "../../../../lib/asesmen/question-provenance";
 
 export type SessionState = "lobby" | "question" | "reveal" | "ended";
 export type ConnectionStatus = "connecting" | "connected" | "disconnected";
@@ -15,7 +16,7 @@ export interface LiveQuizState<Coding = unknown> {
   // lobby
   participantCount: number;
   // question
-  currentQuestion: { coding?: Coding; prompt: string; options: string[]; deadline: number; total: number; questionIndex: number; origin?: "zyx_original" | "itb_example"; sourceEventName?: string | null; sourceReferenceId?: string | null } | null;
+  currentQuestion: { coding?: Coding; prompt: string; options: string[]; deadline: number; total: number; questionIndex: number; origin?: QuestionOrigin; sourceEventName?: string | null; sourceReferenceId?: string | null } | null;
   myAnswer: number | null;
   countdown: number;
   // host-only: answer counts during question
@@ -48,6 +49,26 @@ const INITIAL_STATE: LiveQuizState = {
   finalBoard: [],
 };
 
+function answerCount(value: unknown) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
+
+function optionCounts(value: unknown) {
+  return Array.isArray(value) ? value.map(count => answerCount(count) ?? 0) : undefined;
+}
+
+function provenanceOrigin(value: unknown) {
+  return QUESTION_ORIGINS.find(origin => origin === value);
+}
+
+export function liveOptionDistribution(counts: readonly number[], totalAnswered: number, optionCount: number) {
+  const total = Math.max(1, answerCount(totalAnswered) ?? 0);
+  return Array.from({ length: optionCount }, (_, index) => {
+    const count = answerCount(counts[index]) ?? 0;
+    return { count, percent: Math.min(100, Math.round(count / total * 100)) };
+  });
+}
+
 /** The worker can sync a reveal without a timer or total, for example on a reconnect. */
 export function applyLiveStateSync<Coding>(previous: LiveQuizState<Coding>, message: Record<string, unknown>): LiveQuizState<Coding> {
   const phase = message.sessionState;
@@ -63,10 +84,13 @@ export function applyLiveStateSync<Coding>(previous: LiveQuizState<Coding>, mess
       total: typeof message.total === "number" ? message.total : sameQuestion?.total ?? 0,
       questionIndex: index,
       coding: message.coding as Coding | undefined,
-      origin: message.origin === "zyx_original" || message.origin === "itb_example" ? message.origin : undefined,
+      origin: provenanceOrigin(message.origin),
       sourceEventName: typeof message.sourceEventName === "string" ? message.sourceEventName : null,
       sourceReferenceId: typeof message.sourceReferenceId === "string" ? message.sourceReferenceId : null,
     } satisfies LiveQuizState<Coding>["currentQuestion"] : null;
+  const counts = optionCounts(message.perOptionCounts);
+  const totalAnswered = answerCount(message.totalAnswered) ?? (counts && !question?.coding
+    ? counts.reduce((sum, count) => sum + count, 0) : sameQuestion ? previous.totalAnswered : 0);
   return {
     ...previous,
     sessionState: phase,
@@ -78,7 +102,10 @@ export function applyLiveStateSync<Coding>(previous: LiveQuizState<Coding>, mess
     yourRank: typeof message.yourRank === "number" ? message.yourRank : previous.yourRank,
     yourScore: typeof message.yourScore === "number" ? message.yourScore : previous.yourScore,
     finalBoard: phase === "ended" && Array.isArray(message.finalBoard) ? message.finalBoard as LeaderboardEntry[] : previous.finalBoard,
-    answerCounts: Array.isArray(message.perOptionCounts) ? message.perOptionCounts as number[] : previous.answerCounts,
+    answerCounts: counts ?? (sameQuestion ? previous.answerCounts : []),
+    totalAnswered,
+    totalParticipants: answerCount(message.totalParticipants) ??
+      (sameQuestion ? previous.totalParticipants : answerCount(message.participantCount) ?? previous.participantCount),
   };
 }
 
@@ -185,7 +212,7 @@ export function createLiveQuizSocketHook({ useCallback, useEffect, useRef, useSt
                 deadline: msg.deadline as number,
                 total: msg.total as number,
                 questionIndex: msg.questionIndex as number,
-                origin: msg.origin as "zyx_original" | "itb_example" | undefined,
+                origin: provenanceOrigin(msg.origin),
                 sourceEventName: typeof msg.sourceEventName === "string" ? msg.sourceEventName : null,
                 sourceReferenceId: typeof msg.sourceReferenceId === "string" ? msg.sourceReferenceId : null,
               },
@@ -195,24 +222,19 @@ export function createLiveQuizSocketHook({ useCallback, useEffect, useRef, useSt
               yourRank: null,
               answerCounts: new Array(opts.length).fill(0),
               totalAnswered: 0,
+              totalParticipants: s.currentQuestion ? s.totalParticipants : s.participantCount,
             }));
             startCountdown(msg.deadline as number);
             break;
           }
 
           case "answer_counts":
-            setState((s) => ({
-              ...s,
-              answerCounts: Array.isArray(msg.perOptionCounts)
-                ? (msg.perOptionCounts as number[])
-                : s.answerCounts,
-              totalAnswered:
-                typeof msg.totalAnswered === "number" ? msg.totalAnswered : s.totalAnswered,
-              totalParticipants:
-                typeof msg.totalParticipants === "number"
-                  ? msg.totalParticipants
-                  : s.totalParticipants,
-            }));
+            setState((s) => {
+              if (typeof msg.questionIndex === "number" && msg.questionIndex !== s.currentQuestion?.questionIndex) return s;
+              return { ...s, answerCounts: optionCounts(msg.perOptionCounts) ?? s.answerCounts,
+                totalAnswered: answerCount(msg.totalAnswered) ?? s.totalAnswered,
+                totalParticipants: answerCount(msg.totalParticipants) ?? s.totalParticipants };
+            });
             break;
 
           case "reveal":

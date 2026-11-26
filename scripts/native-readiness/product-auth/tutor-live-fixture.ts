@@ -9,7 +9,7 @@ const legacyId = courseId + "-legacy";
 const templateId = courseId + "-quiz";
 const commands: TutorLiveAction[] = ["start", "reveal", "next", "end"];
 type SocketData = { roomId: string };
-type Question = { prompt: string; options: string[]; correctIndex: number };
+type Question = { prompt: string; options: string[]; correctIndex: number; origin?: string; sourceEventName?: string };
 
 export function createTutorLiveFixture() {
   assertFixtureRunner();
@@ -32,7 +32,8 @@ export function createTutorLiveFixture() {
     ws.send(JSON.stringify({
       type: "state_sync", sessionState: room.phase, currentQuestionIndex: room.index,
       ...(room.phase === "lobby" && { participantCount: 1 }),
-      ...(room.phase === "question" && { ...question, correctIndex: undefined, total: room.questions.length, deadline: Date.now() + 45_000 }),
+      ...(room.phase === "question" && { ...question, correctIndex: undefined, total: room.questions.length, deadline: Date.now() + 45_000,
+        perOptionCounts: room.index === 0 ? [1, 0] : [0, 0], totalAnswered: room.index === 0 ? 1 : 0, totalParticipants: 1 }),
       ...(room.phase === "reveal" && question),
       ...(room.phase === "ended" && { finalBoard: [{ userId: "preview-learner", name: "Murid Preview", rank: 1, score: 100 }] }),
     }));
@@ -60,6 +61,8 @@ export function createTutorLiveFixture() {
         await tx.insert(aiQuestionBank).values(questionIds.map((id, index) => ({
           id, courseId: legacyId, prompt: "Soal Live Preview " + (index + 1), options: ["Pilihan A", "Pilihan B"],
           correctIndices: [0], explanation: "Penjelasan soal Live Preview.", reviewStatus: "published" as const,
+          ...(index === 0 ? { origin: "historical_reference" as const, sourceEventName: "Seleksi Preview",
+            sourceReferenceId: legacyId + "-reference" } : {}),
         }))).onConflictDoNothing();
         await tx.insert(quizTemplates).values({
           id: templateId, title: "Kuis Live Preview", courseId: legacyId, category: "weekly", status: "published",

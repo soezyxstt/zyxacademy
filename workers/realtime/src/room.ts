@@ -36,7 +36,7 @@ export interface Question {
   prompt: string;
   options: string[];
   correctIndex: number;
-  origin?: "zyx_original" | "itb_example";
+  origin?: "zyx_original" | "historical_reference" | "itb_example";
   sourceEventName?: string | null;
   sourceReferenceId?: string | null;
 }
@@ -303,6 +303,8 @@ export class LiveQuizRoom {
 
     if (this.roomState.sessionState === "lobby") {
       this.broadcastLobbyUpdate();
+    } else if (!isHost && this.roomState.sessionState === "question") {
+      this.sendAnswerCountsToHosts(this.roomState.currentQuestionIndex);
     }
 
     return new Response(null, { status: 101, webSocket: client } as ResponseInit);
@@ -326,13 +328,14 @@ export class LiveQuizRoom {
 
   async webSocketClose(ws: WebSocket): Promise<void> {
     const userId = this.getUserId(ws);
-    if (!userId) return;
-    if (this.roomState.participants[userId]) {
-      this.roomState.participants[userId].connected = false;
-    }
-    if (this.roomState.sessionState === "lobby") {
-      this.broadcastLobbyUpdate();
-    }
+    const participant = userId && this.roomState.participants[userId];
+    if (!userId || !participant || !this.ctx.getTags(ws).includes("role:student")) return;
+    if (this.ctx.getWebSockets("role:student").some(other => other !== ws && this.getUserId(other) === userId)) return;
+    const participants = { ...this.roomState.participants, [userId]: { ...participant, connected: false } };
+    await this.ctx.storage.put("roomState", { ...this.roomState, participants });
+    this.roomState.participants = participants;
+    if (this.roomState.sessionState === "lobby") this.broadcastLobbyUpdate();
+    else if (this.roomState.sessionState === "question") this.sendAnswerCountsToHosts(this.roomState.currentQuestionIndex);
   }
 
   async webSocketError(_ws: WebSocket, _error: unknown): Promise<void> {
@@ -558,7 +561,7 @@ export class LiveQuizRoom {
     this.broadcast({ type: "lobby_update", participantCount });
   }
 
-  private sendAnswerCountsToHosts(questionIndex: number): void {
+  private answerCounts(questionIndex: number) {
     const q = this.questions[questionIndex];
     if (!q) return;
     const answersForQ = this.roomState.answersByQuestion[questionIndex] ?? {};
@@ -567,13 +570,13 @@ export class LiveQuizRoom {
     const totalParticipants = Object.values(this.roomState.participants).filter(
       (p) => p.connected
     ).length;
-    const msg = JSON.stringify({
-      type: "answer_counts",
-      questionIndex,
-      perOptionCounts,
-      totalAnswered,
-      totalParticipants,
-    });
+    return { perOptionCounts, totalAnswered, totalParticipants };
+  }
+
+  private sendAnswerCountsToHosts(questionIndex: number): void {
+    const counts = this.answerCounts(questionIndex);
+    if (!counts) return;
+    const msg = JSON.stringify({ type: "answer_counts", questionIndex, ...counts });
     for (const ws of this.ctx.getWebSockets("role:host")) {
       try {
         ws.send(msg);
@@ -618,9 +621,7 @@ export class LiveQuizRoom {
           deadline: deadlineTs,
           myAnswer,
           total: this.questions.length,
-          ...(isHost && {
-            perOptionCounts: [...this.currentOptionCounts],
-          }),
+          ...(isHost ? this.answerCounts(currentQuestionIndex) : {}),
         })
       );
       return;

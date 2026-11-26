@@ -30,6 +30,7 @@ export function createTutorLiveHost(transport: AcademicTransport): TutorLiveHost
   const command = transport.command?.bind(transport);
   if (!command) return undefined;
   return {
+    locale: transport.locale === "en" ? "en" : "id",
     async resume(courseId, sessionId, signal) {
       const search = sessionId ? `?${new URLSearchParams({ sessionId })}` : "";
       return readRoom(await transport.get(hostPath(courseId) + search, signal), sessionId);

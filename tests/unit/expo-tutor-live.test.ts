@@ -1,3 +1,5 @@
+import { applyLiveStateSync, liveOptionDistribution, type LiveQuizState } from "../../packages/native-parity/student/learning/live-socket";
+import { formatQuestionSourceCitation } from "../../lib/asesmen/question-provenance";
 import { expect, test } from "bun:test";
 import { createTutorLiveHost, tutorLiveSocketUrl } from "../../apps/mobile-native/features/academic/tutor/live-client";
 import type { AcademicCommand } from "../../apps/mobile-native/features/academic/client";
@@ -166,4 +168,28 @@ test("the mobile coding command sends no untrusted policy and retains the web ad
   expect(await host.create("course-id", { codingProblem }, "open-python", signal)).toEqual(codingRoom);
   expect(await host.resume("course-id", room.id, signal)).toEqual(codingRoom);
   expect(seen).toEqual([[path, { method: "POST", body: { codingProblem }, requestId: "open-python" }]]);
+});
+
+test("standard Tutor live reconnect restores exact totals and published source provenance", () => {
+  const previous: LiveQuizState = {
+    connectionStatus: "connected", sessionState: "lobby", participantCount: 7, currentQuestion: null, myAnswer: null,
+    countdown: 0, answerCounts: [], totalAnswered: 0, totalParticipants: 0, revealCorrectIndex: null,
+    top10: [], yourRank: null, yourScore: 0, finalBoard: [],
+  };
+  const question = { sessionState: "question", currentQuestionIndex: 1, prompt: "Compute $x^2$", options: ["$1$", "$2$"],
+    origin: "historical_reference", sourceEventName: "  ITB archival example  ", sourceReferenceId: "reference", total: 3 };
+  const synced = applyLiveStateSync(previous, { ...question, perOptionCounts: [2, 1], totalAnswered: 3, totalParticipants: 4 });
+  expect(synced).toMatchObject({ totalAnswered: 3, totalParticipants: 4,
+    currentQuestion: { prompt: question.prompt, options: question.options, origin: "historical_reference", total: 3 } });
+  expect(liveOptionDistribution(synced.answerCounts, synced.totalAnswered, 3)).toEqual([
+    { count: 2, percent: 67 }, { count: 1, percent: 33 }, { count: 0, percent: 0 },
+  ]);
+  expect(formatQuestionSourceCitation(synced.currentQuestion?.origin, synced.currentQuestion?.sourceEventName, "en"))
+    .toBe("Reference: ITB archival example");
+  expect(formatQuestionSourceCitation("zyx_original", "Private note")).toBeNull();
+  expect(applyLiveStateSync(previous, { ...question, perOptionCounts: [0, 3] })).toMatchObject({
+    totalAnswered: 3, totalParticipants: 7,
+  });
+  expect(applyLiveStateSync(synced, { ...question, currentQuestionIndex: 2, totalParticipants: 0 }))
+    .toMatchObject({ totalAnswered: 0, totalParticipants: 0, answerCounts: [] });
 });

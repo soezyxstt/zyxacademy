@@ -16,6 +16,9 @@ name: Tutor creates, resumes and controls a published live quiz
 - extendedWaitUntil:
     visible: Soal Live Preview 1
     timeout: 30000
+- assertVisible: "1 dari 1 menjawab"
+- assertVisible: '1 \(100%\)'
+- assertVisible: "Referensi: Seleksi Preview"
 - openLink: "zyx-native-parity://tutor"
 - extendedWaitUntil:
     visible: ".*Preview Tutor Course.*"
@@ -24,6 +27,7 @@ name: Tutor creates, resumes and controls a published live quiz
 - extendedWaitUntil:
     visible: Soal Live Preview 1
     timeout: 30000
+- assertVisible: "1 dari 1 menjawab"
 - tapOn:
     text: Tampilkan jawaban
     enabled: true

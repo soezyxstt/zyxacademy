@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { randomUUID } from "expo-crypto";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import enTutor from "../../../../../messages/en/tutor.json";
+import idTutor from "../../../../../messages/id/tutor.json";
+import { formatQuestionSourceCitation } from "../../../../../lib/asesmen/question-provenance";
+import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
+import { CourseMarkdown } from "../../student/CourseMarkdown";
 import type { TutorLiveAction, TutorLiveData, TutorLiveHost, TutorLiveRoom, TutorLiveSelection } from "../../../../../packages/academic/tutor-support";
 import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
-import { createLiveQuizSocketHook } from "../../../../../packages/native-parity/student/learning/live-socket";
+import { createLiveQuizSocketHook, liveOptionDistribution, type LiveQuizState } from "../../../../../packages/native-parity/student/learning/live-socket";
 import { Button } from "../../../components/Button";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
@@ -220,16 +225,8 @@ function HostRoom({ host, courseId, theme, room, recheck, lostAccess, finished }
     {phase !== "ended" ? <Row theme={theme} title="Kode gabung" meta={room.code} /> : null}
     {unavailable ? <Label theme={theme} tone="muted">Sesi tidak lagi aktif.</Label> : null}
     {phase !== "ended" && !connected && !unavailable ? <Label theme={theme} tone="muted">Menghubungkan ke sesi</Label> : null}
-    {round && phase !== "ended" && connected ? <View style={tutorLayout.group}>
-      <Heading theme={theme} title={`Soal ${round.questionIndex + 1} dari ${room.questionCount}`} count={phase === "question" ? `${state.countdown} dtk` : undefined} />
-      <Label theme={theme}>{round.prompt}</Label>
-      {coding && phase === "question" ? <Label theme={theme} tone="muted">
-        {`${state.totalAnswered} dari ${state.totalParticipants || state.participantCount} peserta mengumpulkan`}
-      </Label> : null}
-      {round.options.map((option, index) => <Row key={index} theme={theme} title={option}
-        meta={phase === "reveal" && index === state.revealCorrectIndex ? "Jawaban benar"
-          : phase === "question" && state.answerCounts[index] !== undefined ? String(state.answerCounts[index]) : undefined} />)}
-    </View> : null}
+    {round && phase !== "ended" && connected ? <HostRound theme={theme} locale={host.locale ?? "id"} round={round}
+      questionCount={room.questionCount} coding={coding} state={state} /> : null}
     {(connected || phase === "ended") && board.length ? <View>
       <Heading theme={theme} title="Peringkat" />
       {board.map((entry) => <Row key={entry.userId} theme={theme} title={`${entry.rank}. ${entry.name}`} meta={String(entry.score)} />)}
@@ -246,3 +243,50 @@ function HostRoom({ host, courseId, theme, room, recheck, lostAccess, finished }
     </SharedDialog>
   </>;
 }
+
+function HostRound({ theme, locale, round, questionCount, coding, state }: {
+  theme: TutorTheme;
+  locale: "id" | "en";
+  round: NonNullable<LiveQuizState["currentQuestion"]>;
+  questionCount: number;
+  coding: boolean;
+  state: LiveQuizState;
+}) {
+  const colors = nativeColors[theme];
+  const copy = (locale === "en" ? enTutor : idTutor).live;
+  const services = { session: { origin: "", locale } };
+  const active = state.sessionState === "question";
+  const citation = formatQuestionSourceCitation(round.origin, round.sourceEventName, locale);
+  const total = round.total || questionCount;
+  const distribution = liveOptionDistribution(state.answerCounts, state.totalAnswered, round.options.length);
+  const answered = copy.answeredProgress.replace("{answered}", String(state.totalAnswered)).replace("{total}", String(state.totalParticipants));
+  return <View style={tutorLayout.group}>
+    <Heading theme={theme} title={copy.questionProgress.replace("{current}", String(round.questionIndex + 1)).replace("{total}", String(total))}
+      count={active ? `${state.countdown} ${locale === "en" ? "sec" : "dtk"}` : undefined} />
+    {active ? <View testID="tutor-live-answered"><Label theme={theme} tone="muted">{coding
+      ? locale === "en" ? `${state.totalAnswered} of ${state.totalParticipants} submitted`
+        : `${state.totalAnswered} dari ${state.totalParticipants} peserta mengumpulkan`
+      : answered}</Label></View> : null}
+    <CourseMarkdown theme={theme} source={round.prompt} services={services} allowLinks={false} />
+    {round.options.map((option, index) => <View key={index} style={[styles.option, { borderColor: colors.border }]} testID={`tutor-live-option-${index}`}>
+      <View style={styles.optionLine}>
+        <Label theme={theme} tone="muted">{String.fromCharCode(65 + index)}.</Label>
+        <View style={{ flex: 1 }}>
+          <CourseMarkdown theme={theme} source={option} services={services} allowLinks={false} />
+        </View>
+        {active ? <Label theme={theme} tone="muted">{`${distribution[index].count} (${distribution[index].percent}%)`}</Label>
+          : index === state.revealCorrectIndex ? <Label theme={theme} tone="strong">{locale === "en" ? "Correct answer" : "Jawaban benar"}</Label> : null}
+      </View>
+      {active ? <View style={[styles.bar, { backgroundColor: colors.muted }]} accessible={false}>
+        <View style={[styles.bar, { backgroundColor: colors.primary, width: `${distribution[index].percent}%` }]} />
+      </View> : null}
+    </View>)}
+    {citation ? <View testID="tutor-live-source"><Label theme={theme} tone="muted">{citation}</Label></View> : null}
+  </View>;
+}
+
+const styles = StyleSheet.create({
+  option: { paddingVertical: 8, gap: 4, borderBottomWidth: StyleSheet.hairlineWidth },
+  optionLine: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  bar: { height: 4, overflow: "hidden", borderRadius: 4 },
+});

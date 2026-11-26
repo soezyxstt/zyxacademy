@@ -44,6 +44,8 @@ on:
       - 'lib/live-host-token.ts'
       - 'tests/contracts/tutor-live-access.test.ts'
       - 'tests/unit/expo-tutor-live.test.ts'
+      - 'tests/contracts/coding-live-room.test.ts'
+      - 'workers/realtime/src/room.ts'
       - 'app/api/notifications/**'
       - 'app/api/offline/**'
       - 'lib/auth.ts'
@@ -363,7 +365,7 @@ jobs:
       - name: Tutor Live ownership, client and Worker contracts
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
-          bun test tests/unit/expo-tutor-live.test.ts
+          bun test tests/unit/expo-tutor-live.test.ts tests/contracts/coding-live-room.test.ts
           bun scripts/test-contracts.ts tests/contracts/tutor-live-access.test.ts
       - name: Operations authorization and native handlers
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
