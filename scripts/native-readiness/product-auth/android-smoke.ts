@@ -91,6 +91,18 @@ async function reportDeviceState() {
   const failed = logs.includes("ZYX_AUTH_PREVIEW_BROWSER_FAILED");
   console.error("Android diagnostic: " + screen + " foreground, native browser " +
     (failed ? "reported failure" : opened ? "requested" : "not requested"));
+  if (screen === "Chrome") {
+    const hierarchy = await shellOutput("exec-out", "uiautomator", "dump", "/dev/tty");
+    // Chrome's hierarchy can contain the URL, handoff or claim. Report only
+    // known static UI and control presence. Never write or upload the raw tree.
+    const visible = [
+      ["Native Preview Sign-in", "preview document"], ["Runner code", "runner label"],
+      ["android.widget.EditText", "text editor"], ["password=\"true\"", "password field"],
+      ["focused=\"true\"", "focus"], ["Continue as preview", "preview submit"],
+      ["Use without an account", "Chrome setup"], ["Your connection is not private", "TLS warning"],
+    ].filter(([needle]) => hierarchy.includes(needle)).map(([, label]) => label);
+    console.error("Chrome accessibility snapshot: " + (visible.join(", ") || "no recognized controls"));
+  }
 }
 
 try {

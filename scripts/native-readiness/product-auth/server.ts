@@ -46,7 +46,8 @@ function browserFixturePage(query: URLSearchParams, staff?: StaffRole) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Native Preview Sign-in</title><main><h1>Native Preview Sign-in</h1>
     <form method="post" action="${action}">
-    <input aria-label="Runner code" placeholder="Runner code" type="password" name="claim" inputmode="none" required autocomplete="off" autofocus>
+    <label for="runner-code">Runner code</label>
+    <input id="runner-code" type="password" name="claim" inputmode="none" required autocomplete="off" autofocus>
     <button>Continue as preview ${staff ?? "student"}</button></form></main></html>`, {
     headers: { ...noStore, "Content-Type": "text/html; charset=utf-8",
       "Content-Security-Policy": "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" },

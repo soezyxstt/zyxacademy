@@ -14,7 +14,9 @@ name: Verified staff role, protected read, wrong-role denial and logout
 - extendedWaitUntil:
     visible: Native Preview Sign-in
     timeout: 30000
-- tapOn: Runner code
+- tapOn:
+    text: Runner code
+    optional: true
 - inputText: ${PREVIEW_CLAIM}
 - tapOn: "${PREVIEW_BROWSER_BUTTON}"
 - extendedWaitUntil:

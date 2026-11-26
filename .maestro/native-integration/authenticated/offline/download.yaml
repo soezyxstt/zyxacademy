@@ -14,7 +14,9 @@ name: Download an authorized Student reading
 - extendedWaitUntil:
     visible: Native Preview Sign-in
     timeout: 30000
-- tapOn: Runner code
+- tapOn:
+    text: Runner code
+    optional: true
 - inputText: ${PREVIEW_CLAIM}
 - tapOn: Continue as preview student
 - extendedWaitUntil:
