@@ -3,10 +3,14 @@ name: Operations public blog list, detail, Back and retry
 ---
 - launchApp
 - openLink: "zyx-native-parity://operations-fixture?path=%2Fblog&mode=populated"
+- assertVisible:
+    id: public-blog
+- assertNotVisible:
+    id: operations-loading
+- takeScreenshot: ${SCREENSHOT_DIR}/blog-list
 - scrollUntilVisible:
     element:
       id: public-blog-article-belajar-dengan-latihan-terarah
-- takeScreenshot: ${SCREENSHOT_DIR}/blog-list
 - tapOn:
     id: public-blog-article-belajar-dengan-latihan-terarah
 - assertVisible:
@@ -16,12 +20,14 @@ name: Operations public blog list, detail, Back and retry
     id: public-blog-back
 - assertVisible:
     id: public-blog
-- openLink: "zyx-native-parity://operations-fixture?path=%2Fblog&mode=empty&theme=dark"
+- openLink: "zyx-native-parity://operations-fixture?path=%2Fblog%3Fcategory%3Dkegiatan_zyx&mode=empty&theme=dark"
 - assertVisible: Belum ada artikel
 - takeScreenshot: ${SCREENSHOT_DIR}/blog-empty-dark
 - openLink: "zyx-native-parity://operations-fixture?path=%2Fblog&mode=recoverable"
-- assertVisible: Coba lagi
-- tapOn: Coba lagi
+- assertVisible:
+    id: public-retry
+- tapOn:
+    id: public-retry
 - scrollUntilVisible:
     element:
       id: public-blog-article-belajar-dengan-latihan-terarah

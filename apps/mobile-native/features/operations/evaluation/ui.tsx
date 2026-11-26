@@ -122,7 +122,7 @@ export function useRead<T>(request: EvaluationRequest, endpoint?: string): Resou
 
 export function Load<T>({ resource, presentation, children }: { resource: Resource<T>; presentation: Presentation; children: (data: T) => ReactNode }) {
   if (resource.error) return <Failure error={resource.error} presentation={presentation} retry={resource.retry} />;
-  if (resource.data === undefined) return <ActivityIndicator accessibilityLabel={language(presentation.locale, "Memuat", "Loading")} color={nativeColors[presentation.theme].primary} />;
+  if (resource.data === undefined) return <ActivityIndicator testID="operations-loading" accessibilityLabel={language(presentation.locale, "Memuat", "Loading")} color={nativeColors[presentation.theme].primary} />;
   return <>{children(resource.data)}</>;
 }
 

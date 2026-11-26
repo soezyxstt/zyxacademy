@@ -194,7 +194,7 @@ export function StatePanel({ kind, title, description, retry }: {
   const { colors, copy, locale } = usePublic();
   const localized = locale === "id";
   return <View style={[styles.state, { borderColor: colors.border }]} accessibilityState={{ busy: kind === "loading" }}>
-    {kind === "loading" && <ActivityIndicator color={colors.primary} />}
+    {kind === "loading" && <ActivityIndicator testID="operations-loading" color={colors.primary} />}
     <Label tone={kind === "loading" ? "meta" : "subheading"} live={kind === "error" ? "assertive" : "polite"}>
       {title ?? (kind === "loading" ? (localized ? "Memuat…" : "Loading…") : localized ? "Halaman belum tersedia." : "This page is unavailable.")}
     </Label>

@@ -260,7 +260,7 @@ export function ReadState({ loading, error, retry, message }: {
     <Body strong>{t("Akses ditolak", "Access denied")}</Body>
     <Body muted>{t("Halaman ini memerlukan akses admin.", "This page requires admin access.")}</Body>
   </View>;
-  if (loading) return <View accessibilityRole="progressbar" accessibilityLabel={t("Memuat", "Loading")} style={styles.section}>
+  if (loading) return <View testID="operations-loading" accessibilityRole="progressbar" accessibilityLabel={t("Memuat", "Loading")} style={styles.section}>
     <Skeleton theme={theme} style={{ width: "45%", height: 18 }} />
     <Skeleton theme={theme} style={{ width: "100%", height: 54 }} />
     <Skeleton theme={theme} style={{ width: "100%", height: 54 }} />
