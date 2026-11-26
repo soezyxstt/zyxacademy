@@ -11,6 +11,7 @@ export type OfflineLibraryRow = {
   courseTitle: string;
   availableUntil: number;
   savedUntil: number | null;
+  pinned?: boolean;
 };
 
 export type OfflineLibraryTarget = { courseId: string; materialId?: string };
@@ -61,7 +62,8 @@ export function projectOfflineLibrary({ metadata, saved }: OfflineLibraryData, n
       const savedUntil = matchingPackage ? Math.min(entry.leaseExpiresAt, expiresAt) : 0;
       if (savedUntil > now) expires = Math.min(expires, savedUntil);
       rows.push({ key: item.key, revision: item.revision, target: { kind: item.kind, courseId: course.id, id: item.id },
-        title: item.title, courseTitle: course.title, availableUntil: expiresAt, savedUntil: savedUntil > now ? savedUntil : null });
+        title: item.title, courseTitle: course.title, availableUntil: expiresAt, savedUntil: savedUntil > now ? savedUntil : null,
+        ...(savedUntil > now && matchingPackage ? { pinned: entry.pinned !== false } : {}) });
     }
   }
   expired ||= metadata.knownCourseIds.length > metadata.courses.length;

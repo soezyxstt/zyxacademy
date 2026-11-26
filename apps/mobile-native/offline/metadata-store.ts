@@ -434,6 +434,19 @@ export async function writeOfflineReadingSnapshot(db: Pick<OfflineMetadataDataba
   return changes === 1;
 }
 
+/** Retire work started before a local download clear without discarding the authorized catalog. */
+export async function retireOfflineReadingDownloads(tx: Pick<OfflineMetadataDatabase, "getFirstAsync" | "runAsync">,
+  scope: NativeOfflineScope, assertCurrent: WriterGuard) {
+  const row = await readAuthorityRow(tx, scope);
+  const snapshot = readSnapshot(row);
+  if (!row || snapshot?.sessionId !== scope.sessionId || !snapshot.readingValidation) return;
+  assertCurrent();
+  const next = { ...snapshot, readingValidation: { ...snapshot.readingValidation, generation: row.revision + 1 } };
+  if (!await writeOfflineReadingSnapshot(tx, scope, row.revision, JSON.stringify(next))) {
+    throw new Error("Offline reading authority changed.");
+  }
+}
+
 export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
   let ready: Promise<void> | undefined;
   function initialize() {

@@ -31,17 +31,19 @@ const serverRevision = () => 0;
 const blank: OfflineLibraryData = { metadata: null, saved: [] };
 
 type Observation = ReturnType<typeof createInvalidation>;
+export type OfflineLibraryStorage = { unavailableCount: number; count: number; bytes: number; pinnedCount: number; maxBytes: number };
+
 type ReadResult = {
   observation: Observation;
   revision: number;
-  data: (OfflineLibraryData & { unavailableCount: number }) | null;
+  data: (OfflineLibraryData & { storage: OfflineLibraryStorage }) | null;
 };
 
 export function useOfflineLibraryData({ scope, verifiedUntil, list, storage, subscribe }: {
   scope: NativeOfflineScope | null;
   verifiedUntil: number;
   list: () => Promise<OfflineReadingSummary[]>;
-  storage: () => Promise<{ unavailableCount: number }>;
+  storage: () => Promise<OfflineLibraryStorage>;
   subscribe: Subscribe;
 }) {
   const now = Date.now();
@@ -61,7 +63,7 @@ export function useOfflineLibraryData({ scope, verifiedUntil, list, storage, sub
       openExpoOfflineMetadataStore().then(repository => repository.read(scope)),
       list(),
       storage(),
-    ]).then(([metadata, saved, { unavailableCount }]) => finish({ metadata, saved, unavailableCount }), () => finish(null));
+    ]).then(([metadata, saved, storageUsage]) => finish({ metadata, saved, storage: storageUsage }), () => finish(null));
     return () => { active = false; };
   }, [list, observation, revision, scope, scopeKey, storage]);
 
@@ -77,7 +79,8 @@ export function useOfflineLibraryData({ scope, verifiedUntil, list, storage, sub
 
   return {
     ...visible, observation, revision,
-    unavailableCount: current?.data?.unavailableCount ?? 0,
+    unavailableCount: current?.data?.storage.unavailableCount ?? 0,
+    storageUsage: current?.data?.storage,
     loaded: current !== null,
     failed: current?.data === null,
     retry: observation.refresh,

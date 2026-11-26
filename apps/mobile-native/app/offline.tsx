@@ -45,7 +45,7 @@ export default function OfflineRoute() {
   const activeObservation = useRef<typeof observation | null>(null);
   const working = useRef<{ observation: typeof observation; key: string } | null>(null);
   const [pending, setPending] = useState<{ observation: typeof observation; key: string; action: OfflineLibraryAction } | null>(null);
-  const [maintenance, setMaintenance] = useState<{ observation: typeof observation; action: "sync" | "purge" } | null>(null);
+  const [maintenance, setMaintenance] = useState<{ observation: typeof observation; action: "sync" | "purge" | "clear" } | null>(null);
   const [feedback, setFeedback] = useState<{ observation: typeof observation; revision: number; notice: OfflineLibraryNotice } | null>(null);
 
   const canRead = scope !== null;
@@ -59,18 +59,19 @@ export default function OfflineRoute() {
 
   async function runAction(row: OfflineLibraryRow, action: OfflineLibraryAction) {
     const now = Date.now();
-    if (activeObservation.current !== observation || revision !== observation.getRevision() || working.current
+    if (!focused || activeObservation.current !== observation || revision !== observation.getRevision() || working.current
       || row.availableUntil <= now || readingSession.verifiedUntil <= now
-      || (action === "remove" && (!row.savedUntil || row.savedUntil <= now))
+      || (action !== "download" && (!row.savedUntil || row.savedUntil <= now))
       || (action === "download" && !packages.canDownload)) return;
     const operation = { observation, key: row.key, action };
     working.current = operation;
     setPending(operation);
     setFeedback(null);
-    let status: OfflineReadingDownloadStatus | "removed" = "retry";
+    let status: OfflineReadingDownloadStatus | "removed" | "pin-updated" = "retry";
     try {
-      status = action === "download" ? (await packages.download(row.target)).status
-        : await packages.forget(row.target) ? "removed" : "unavailable";
+      if (action === "download") status = (await packages.download(row.target)).status;
+      else if (action === "remove") status = await packages.forget(row.target) ? "removed" : "unavailable";
+      else status = await packages.setPinned(row.target, action === "pin") ? "pin-updated" : "unavailable";
     } catch {
       // Native storage and network details may include private paths. Keep the in-app error fixed.
     } finally {
@@ -80,13 +81,13 @@ export default function OfflineRoute() {
       }
     }
     if (activeObservation.current !== observation) return;
-    const notice = offlineLibraryFeedback(locale, status);
+    const notice = status === "pin-updated" ? null : offlineLibraryFeedback(locale, status);
     if (status !== "cancelled") library.retry();
     if (notice) setFeedback({ observation, revision: observation.getRevision(), notice });
   }
 
-  async function runMaintenance(action: "sync" | "purge") {
-    if (activeObservation.current !== observation || working.current
+  async function runMaintenance(action: "sync" | "purge" | "clear") {
+    if (!focused || activeObservation.current !== observation || working.current
       || readingSession.verifiedUntil <= Date.now() || (action === "sync" && !packages.canDownload)) return;
     const operation = { observation, key: action };
     working.current = operation;
@@ -94,8 +95,9 @@ export default function OfflineRoute() {
     setFeedback(null);
     let notice: OfflineLibraryNotice | null = null;
     try {
-      if (action === "purge") {
-        if (await packages.purgeUnavailable()) notice = offlineLibraryFeedback(locale, "removed");
+      if (action === "purge" || action === "clear") {
+        const removed = action === "clear" ? await packages.clearDownloads() : await packages.purgeUnavailable();
+        if (removed) notice = offlineLibraryFeedback(locale, "removed");
       } else {
         await metadata.retry();
         if (activeObservation.current !== observation) return;
@@ -174,11 +176,13 @@ export default function OfflineRoute() {
     }}
     canDownload={Boolean(scope && packages.canDownload)} notices={notices}
     syncing={metadata.status === "syncing" || currentMaintenance === "sync"}
-    purging={currentMaintenance === "purge"}
+    purging={currentMaintenance === "purge"} clearing={currentMaintenance === "clear"}
+    storageUsage={scope ? library.storageUsage : undefined}
     unavailableCount={library.unavailableCount}
     pending={pending?.observation === observation ? pending : null}
     onRefresh={scope && !offline ? retry : undefined} onAction={(row, action) => void runAction(row, action)}
     onPurgeUnavailable={scope ? () => void runMaintenance("purge") : undefined}
+    onClearDownloads={scope ? () => void runMaintenance("clear") : undefined}
     onBack={router.canGoBack() ? () => router.back() : undefined}
   />;
 }

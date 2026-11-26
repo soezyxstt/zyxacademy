@@ -954,9 +954,9 @@ test("pins complete packages and releases quota by forgetting unavailable bytes"
   expect(db.query("SELECT MAX(length(data)) AS size FROM expo_reading_parts_v2").get()).toEqual({ size: 256 * 1024 });
   expect((await readingStore.read(scope, { ...target, id: "reading-0" }, guard))?.data).toMatchObject({ body: "x".repeat(600_000) });
   time(now + 5);
-  expect(await controller.storage()).toEqual({ unavailableCount: 1 });
+  expect(await controller.storage()).toMatchObject({ unavailableCount: 1 });
   expect(await controller.purgeUnavailable()).toBe(1);
-  expect(await controller.storage()).toEqual({ unavailableCount: 0 });
+  expect(await controller.storage()).toMatchObject({ unavailableCount: 0 });
   await readingStore.store(scope, next, guard);
   expect(await readingStore.list(scope, guard)).toHaveLength(25);
   expect(db.query("SELECT MAX(length(data)) AS size FROM expo_reading_parts_v2").get()).not.toEqual({ size: 256 * 1024 });
@@ -966,6 +966,7 @@ test("prunes past-retention bytes even when a different download still exceeds q
   const { controller, readingStore, commit, guard, db, time } = await setup(resource());
   const next = { ...target, id: "reading-next" };
   expect(await controller.download(target)).toEqual({ status: "saved" });
+  expect(await controller.setPinned(target, false)).toBe(true);
   time(now + 1_000);
   const maxBytes = 8 * 1024;
   const policy = { ...page().policy, retentionMs: 500, maxBytes };
@@ -977,7 +978,7 @@ test("prunes past-retention bytes even when a different download still exceeds q
     body: new TextEncoder().encode(JSON.stringify({ ...data, id: next.id, body: "x".repeat(maxBytes) })),
   };
   await expect(readingStore.store(scope, candidate, guard)).rejects.toMatchObject({ code: "storage-full" });
-  expect(await controller.storage()).toEqual({ unavailableCount: 0 });
+  expect(await controller.storage()).toMatchObject({ unavailableCount: 0 });
   expect(db.query("SELECT COUNT(*) AS count FROM expo_reading_parts_v2").get()).toEqual({ count: 0 });
   await readingStore.store(scope, { ...candidate, body: new TextEncoder().encode(JSON.stringify({ ...data, id: next.id })) }, guard);
   expect((await controller.list()).map(item => item.id)).toEqual([next.id]);
@@ -996,14 +997,14 @@ test("a refresh revalidates only three saved candidates and verifies their exist
       assetLeaseExpiresAt: null, leaseExpiresAt: now + 1, validatedAt: now }, guard);
   }
   time(now + 1);
-  expect(await controller.storage()).toEqual({ unavailableCount: 4 });
+  expect(await controller.storage()).toMatchObject({ unavailableCount: 4 });
   expect(await controller.revalidateSaved()).toEqual({ attempted: 3, restored: 2 });
   expect(observed).toHaveLength(3);
   expect(await controller.list()).toHaveLength(2);
-  expect(await controller.storage()).toEqual({ unavailableCount: 2 });
+  expect(await controller.storage()).toMatchObject({ unavailableCount: 2 });
   expect(await controller.revalidateSaved()).toEqual({ attempted: 2, restored: 2 });
   expect(observed).toHaveLength(5);
-  expect(await controller.storage()).toEqual({ unavailableCount: 0 });
+  expect(await controller.storage()).toMatchObject({ unavailableCount: 0 });
 });
 
 test("concurrent refresh calls share one budget and elapsed time stops later requests", async () => {
@@ -1027,7 +1028,7 @@ test("concurrent refresh calls share one budget and elapsed time stops later req
   respond(new Response(null, { status: 500 }));
   expect(await refreshing).toEqual({ attempted: 1, restored: 0 });
   expect(observed).toHaveLength(3);
-  expect(await controller.storage()).toEqual({ unavailableCount: 2 });
+  expect(await controller.storage()).toMatchObject({ unavailableCount: 2 });
 });
 
 test("a saved package purged during refresh does not reappear when its response arrives", async () => {
@@ -1044,7 +1045,7 @@ test("a saved package purged during refresh does not reappear when its response 
   respond(resource({ validatedAt: now + 1 }));
   expect(await renewing).toEqual({ attempted: 1, restored: 0 });
   expect(await controller.list()).toEqual([]);
-  expect(await controller.storage()).toEqual({ unavailableCount: 0 });
+  expect(await controller.storage()).toMatchObject({ unavailableCount: 0 });
 });
 
 test("forget and logout reject late network completions without resurrecting a saved reading", async () => {
@@ -1073,4 +1074,43 @@ test("a server account denial purges the current session's readings", async () =
   expect((await controller.download(target)).status).toBe("unavailable");
   expect(revocations()).toBe(1);
   expect(await readingStore.list(scope, guard)).toEqual([]);
+});
+
+test("pins take precedence within the storage budget and follow the reading across verified replacements", async () => {
+  const { controller, readingStore, commit, guard } = await setup(resource(), resource());
+  expect(await controller.download(target)).toEqual({ status: "saved" });
+  expect(await controller.storage()).toMatchObject({ count: 1, pinnedCount: 1, bytes: expect.any(Number) });
+  expect(await controller.setPinned(target, false)).toBe(true);
+  expect(await controller.download(target)).toEqual({ status: "saved" });
+  expect(await controller.list()).toMatchObject([{ id: target.id, pinned: false }]);
+  expect(await controller.storage()).toMatchObject({ count: 1, pinnedCount: 0 });
+  const next = { ...target, id: "reading-next" };
+  const policy = { ...page().policy, maxEntries: 1 };
+  await commit(page("5", { reset: false, policy }), [descriptor(), descriptor(next)], "4");
+  const permit = await readingStore.authorize(scope, next, guard);
+  await readingStore.store(scope, {
+    target: next, body: new TextEncoder().encode(JSON.stringify({ ...data, id: next.id })), assets: [],
+    revision, cursor: "5", resetGeneration: permit!.resetGeneration, assetLeaseExpiresAt: null, leaseExpiresAt: lease, validatedAt: now,
+  }, guard);
+  expect(await controller.list()).toMatchObject([{ id: next.id, pinned: true }]);
+  expect(await controller.storage()).toMatchObject({ count: 1, pinnedCount: 1 });
+});
+
+test("clear removes complete downloads, preserves matched course manifests and fences another controller's pending save", async () => {
+  let respond!: (response: Response) => void;
+  let observed!: () => void;
+  const requestStarted = new Promise<void>(start => { observed = start; });
+  const delayed = new Promise<Response>(finish => { respond = finish; });
+  const { controller, metadata, options } = await setup(resource(), () => { observed(); return delayed; });
+  expect(await controller.download(target)).toEqual({ status: "saved" });
+  const another = createOfflineReadingController(options);
+  const pending = another.download(target);
+  await requestStarted;
+  expect(await controller.clearDownloads()).toBe(1);
+  expect(await controller.storage()).toMatchObject({ count: 0, bytes: 0, pinnedCount: 0 });
+  expect((await metadata.read(scope, now))?.courses[0]?.materials).toMatchObject([descriptor()]);
+  respond(resource());
+  expect((await pending).status).toBe("changed");
+  expect(await controller.list()).toEqual([]);
+  another.dispose();
 });

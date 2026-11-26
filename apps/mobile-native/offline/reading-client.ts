@@ -92,6 +92,7 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
   const flights = new Map<string, { operation: AbortController; promise: Promise<OfflineReadingDownload> }>();
   const forgetting = new Set<string>();
   let revoked = false;
+  let clearing: Promise<number> | undefined;
   let lastRevalidatedEntry: number | undefined;
   let revalidation: Promise<OfflineReadingRevalidation> | undefined;
 
@@ -210,7 +211,7 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
   function startDownload(target: OfflineReadingTarget, requiredEntry?: number, timeoutMs?: number): Promise<OfflineReadingDownload> {
     if (!session || revoked) return Promise.resolve({ status: "unavailable" });
     const key = readingKey(target);
-    if (forgetting.has(key) || lifetime.signal.aborted || session.signal.aborted || verifiedUntil <= now()) {
+    if (clearing || forgetting.has(key) || lifetime.signal.aborted || session.signal.aborted || verifiedUntil <= now()) {
       return Promise.resolve({ status: "cancelled" });
     }
     const pending = flights.get(key);
@@ -255,6 +256,17 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
     async purgeUnavailable() {
       assertCurrent();
       return (await repository()).purgeUnavailable(scope, guard);
+    },
+    async setPinned(target: OfflineReadingTarget, pinned: boolean) {
+      assertCurrent();
+      if (clearing) return false;
+      return (await repository()).setPinned(scope, target, pinned, guard);
+    },
+    clearDownloads() {
+      assertCurrent();
+      for (const { operation } of flights.values()) operation.abort();
+      clearing ??= repository().then(store => store.clearDownloads(scope, guard)).finally(() => { clearing = undefined; });
+      return clearing;
     },
     revalidateSaved() {
       revalidation ??= revalidateSaved().finally(() => { revalidation = undefined; });

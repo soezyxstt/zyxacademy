@@ -7,6 +7,7 @@ import {
   readOfflineReadingAuthorities,
   readOfflineReadingAuthority,
   readOfflineReadingAuthorityVersions,
+  retireOfflineReadingDownloads,
   restrictOfflineReadingAuthority,
   withdrawOfflineReadingCourses,
   writeOfflineReadingSnapshot,
@@ -69,6 +70,13 @@ const schema = `
     data BLOB NOT NULL,
     PRIMARY KEY (entry, part, chunk)
   );
+  CREATE TABLE IF NOT EXISTS expo_reading_unpinned_v2 (
+    entry INTEGER PRIMARY KEY
+  );
+  CREATE TRIGGER IF NOT EXISTS expo_reading_unpinned_delete_v2 AFTER DELETE ON expo_reading_packages_v2
+    BEGIN
+      DELETE FROM expo_reading_unpinned_v2 WHERE entry = OLD.entry;
+    END;
   CREATE TRIGGER IF NOT EXISTS expo_reading_package_delete_v2 AFTER DELETE ON expo_reading_packages_v2
     BEGIN
       DELETE FROM expo_reading_parts_v2 WHERE entry = OLD.entry;
@@ -100,7 +108,7 @@ type Authority = NonNullable<Awaited<ReturnType<typeof readOfflineReadingAuthori
 type Guard = { verifiedUntil: number; assertCurrent(): void };
 type EntryRow = {
   entry: number; resource_key: string; course_id: string; revision: string; chapter_ids: string;
-  validated_at: number; bytes: number; saved_at: number;
+  validated_at: number; bytes: number; saved_at: number; pinned: number;
   verified_at: number; verified_until: number; verified_cursor: string;
   reset_generation: number; asset_lease_expires_at: number | null;
 };
@@ -137,7 +145,8 @@ export type ReadingCandidate = {
 const keys = (scope: NativeOfflineScope) => [scope.origin, scope.accountId, scope.sessionId, scope.locale] as const;
 const scopeFilter = "origin = ? AND account_id = ? AND session_id = ? AND locale = ?";
 const entryColumns = `entry, resource_key, course_id, revision, chapter_ids, validated_at, bytes, saved_at,
-  verified_at, verified_until, verified_cursor, reset_generation, asset_lease_expires_at`;
+  verified_at, verified_until, verified_cursor, reset_generation, asset_lease_expires_at,
+  NOT EXISTS (SELECT 1 FROM expo_reading_unpinned_v2 WHERE entry = expo_reading_packages_v2.entry) AS pinned`;
 const readColumns = `SELECT ${entryColumns} FROM expo_reading_packages_v2`;
 
 function entryTarget(key: string): OfflineReadingTarget | null {
@@ -194,7 +203,7 @@ function verifiedEntry(authority: Authority, entry: EntryRow, access: NonNullabl
     || !isNativeOfflineCursor(cursor) || !Number.isSafeInteger(verifiedAt) || !Number.isSafeInteger(packageLease)
     || (access.invalidation && compareNativeOfflineCursors(cursor, access.invalidation) < 0)
     || (access.checkedAt !== null && access.checkedAt > verifiedAt && compareNativeOfflineCursors(access.manifestCursor, cursor) < 0)) return null;
-  const lease = Math.min(verifiedUntil, access.leaseExpiresAt, entry.saved_at + policy.retentionMs,
+  const lease = Math.min(verifiedUntil, access.leaseExpiresAt, entry.pinned ? Infinity : entry.saved_at + policy.retentionMs,
     verifiedAt + policy.contentMaxAgeMs, packageLease, entry.asset_lease_expires_at ?? Infinity);
   return Number.isFinite(lease) && lease > now ? lease : null;
 }
@@ -206,7 +215,7 @@ function readyEntry(authority: Authority, entry: EntryRow, verifiedUntil: number
   const leaseExpiresAt = access && verifiedEntry(authority, entry, access, verifiedUntil, now);
   if (!leaseExpiresAt) return null;
   return { ...target, key: entry.resource_key, title: access.descriptor.title,
-    revision: entry.revision, bytes: entry.bytes, savedAt: entry.saved_at, leaseExpiresAt };
+    revision: entry.revision, bytes: entry.bytes, savedAt: entry.saved_at, leaseExpiresAt, pinned: Boolean(entry.pinned) };
 }
 
 export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date.now) {
@@ -327,7 +336,7 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
       const chapters = decodeChapterIds(row.chapter_ids);
       const course = authority.courses.find(item => item.courseId === row.course_id);
       const withdrawn = course?.manifest && !authority.pending && !course.manifest.materials.some(item => item.key === row.resource_key);
-      const expired = authority.readingPolicy && now() - row.saved_at >= authority.readingPolicy.retentionMs;
+      const expired = !row.pinned && authority.readingPolicy && now() - row.saved_at >= authority.readingPolicy.retentionMs;
       if (!chapters.length || !course?.allowed || !chapters.every(chapter => course.chapterIds.includes(chapter)) || withdrawn || expired) {
         changes += await remove(row.entry, tx);
         continue;
@@ -421,16 +430,32 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
           && (Math.max(previous.validated_at, previous.verified_at) > candidate.validatedAt
             || compareNativeOfflineCursors(candidate.cursor, previous.verified_cursor) < 0)) throw new OfflineReadingError("changed");
         await tx.runAsync(purgeRetiredScopes);
-        const totals = await tx.getFirstAsync<{ count: number; bytes: number }>(
-          `SELECT COUNT(*) AS count, COALESCE(SUM(bytes), 0) AS bytes FROM expo_reading_packages_v2 WHERE ${scopeFilter}`, ...keys(scope),
-        );
+        const existingRows = await rows(tx, scope);
         const device = await tx.getFirstAsync<{ bytes: number }>("SELECT COALESCE(SUM(bytes), 0) AS bytes FROM expo_reading_packages_v2");
         const previousBytes = previous?.bytes ?? 0;
+        const maxEntries = Math.min(authority.readingPolicy.maxEntries, READING_ENTRY_LIMIT);
+        const maxBytes = Math.min(authority.readingPolicy.maxBytes, READING_STORAGE_LIMIT);
+        let count = existingRows.length + Number(!previous);
+        let bytes = existingRows.reduce((sum, row) => sum + row.bytes, 0) - previousBytes + size;
+        let deviceBytes = (device?.bytes ?? 0) - previousBytes + size;
+        const fits = () => count <= maxEntries && bytes <= maxBytes && deviceBytes <= DEVICE_BYTES;
+        const evict: number[] = [];
+        // The ordered query is newest first. Reclaim only this scope's unpinned entries, oldest first.
+        for (const row of existingRows.reverse()) {
+          if (fits()) break;
+          if (row.pinned || row.entry === previous?.entry) continue;
+          evict.push(row.entry);
+          count--;
+          bytes -= row.bytes;
+          deviceBytes -= row.bytes;
+        }
         assertGrant(guard);
-        // Commit reconciliation even if this package cannot fit.
-        if ((totals?.count ?? 0) + Number(!previous) > Math.min(authority.readingPolicy.maxEntries, READING_ENTRY_LIMIT)
-          || (totals?.bytes ?? 0) - previousBytes + size > Math.min(authority.readingPolicy.maxBytes, READING_STORAGE_LIMIT)
-          || (device?.bytes ?? 0) - previousBytes + size > DEVICE_BYTES) return { changes, entry: undefined };
+        // Commit reconciliation even if this package cannot fit. Keep opt-in eviction all or nothing.
+        if (!fits()) return { changes, entry: undefined };
+        for (const id of evict) {
+          assertGrant(guard);
+          await remove(id, tx);
+        }
         if (previous) await remove(previous.entry, tx);
         const { lastInsertRowId } = await tx.runAsync(`
           INSERT INTO expo_reading_packages_v2 (
@@ -441,6 +466,9 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
         `, ...keys(scope), key, candidate.target.courseId, candidate.revision, chapters, candidate.validatedAt,
         candidate.validatedAt, Math.min(candidate.leaseExpiresAt, access.leaseExpiresAt),
         candidate.cursor, candidate.resetGeneration, candidate.assetLeaseExpiresAt, info, size, now());
+        if (previous?.pinned === 0) {
+          await tx.runAsync("INSERT INTO expo_reading_unpinned_v2 (entry) VALUES (?)", lastInsertRowId);
+        }
         const parts = [candidate.body, ...candidate.assets.map(asset => asset.bytes)];
         for (const [part, bytes] of parts.entries()) {
           for (let offset = 0; offset < bytes.length; offset += CHUNK_BYTES) {
@@ -472,7 +500,41 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
     store,
     async storage(scope: NativeOfflineScope, guard: Guard) {
       const { entries, authority } = await inspect(scope, guard);
-      return { unavailableCount: unavailableRows(entries, authority, guard).length };
+      return {
+        unavailableCount: unavailableRows(entries, authority, guard).length,
+        count: entries.length,
+        bytes: entries.reduce((sum, item) => sum + item.bytes, 0),
+        pinnedCount: entries.filter(item => item.pinned).length,
+        maxBytes: Math.min(authority?.readingPolicy?.maxBytes ?? READING_STORAGE_LIMIT, READING_STORAGE_LIMIT),
+      };
+    },
+    async setPinned(scope: NativeOfflineScope, target: OfflineReadingTarget, pinned: boolean, guard: Guard) {
+      const changed = await transaction(async tx => {
+        assertGrant(guard);
+        const current = await entry(tx, scope, target);
+        const authority = await readOfflineReadingAuthority(tx, scope);
+        if (!current || !authority || !readyEntry(authority, current, guard.verifiedUntil, now())) return false;
+        assertGrant(guard);
+        if (pinned) await tx.runAsync("DELETE FROM expo_reading_unpinned_v2 WHERE entry = ?", current.entry);
+        else await tx.runAsync("INSERT OR IGNORE INTO expo_reading_unpinned_v2 (entry) VALUES (?)", current.entry);
+        return true;
+      });
+      if (changed) notifyOfflineReadingChanges();
+      return changed;
+    },
+    async clearDownloads(scope: NativeOfflineScope, guard: Guard) {
+      const removed = await transaction(async tx => {
+        assertGrant(guard);
+        await retireOfflineReadingDownloads(tx, scope, () => assertGrant(guard));
+        const total = await tx.getFirstAsync<{ count: number }>(
+          `SELECT COUNT(*) AS count FROM expo_reading_packages_v2 WHERE ${scopeFilter}`, ...keys(scope),
+        );
+        await tx.runAsync(`DELETE FROM expo_reading_packages_v2 WHERE ${scopeFilter}`, ...keys(scope));
+        assertGrant(guard);
+        return total?.count ?? 0;
+      });
+      notifyOfflineReadingChanges();
+      return removed;
     },
     async purgeUnavailable(scope: NativeOfflineScope, guard: Guard) {
       const changed = await transaction(async tx => {

@@ -43,6 +43,7 @@ export type OfflineReadingSummary = OfflineReadingTarget & {
   bytes: number;
   leaseExpiresAt: number;
   savedAt: number;
+  pinned?: boolean;
 };
 export type OfflineReadingAsset = {
   url: string;
