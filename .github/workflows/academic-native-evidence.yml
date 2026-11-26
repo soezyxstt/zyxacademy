@@ -59,7 +59,7 @@ jobs:
           - platform: android
             runner: ubuntu-latest
           - platform: ios
-            runner: macos-15
+            runner: macos-26
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 100
     env:
@@ -128,7 +128,6 @@ jobs:
         timeout-minutes: 85
         shell: bash
         env:
-          DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
           ACADEMIC_RUNNER: ${{ matrix.runner }}
         run: |
           root="$PWD"

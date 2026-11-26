@@ -133,10 +133,13 @@ def references(pattern):
 
 device_indexes = P.parent.glob('device/*/index.json')
 device_reports = [(path, json.loads(path.read_text())) for path in device_indexes]
-device_path, device_report = max(device_reports, key=lambda item: int(item[1]['runId']), default=(None, {}))
+latest_device_reports = {}
+for device_path, device_report in sorted(device_reports, key=lambda item: int(item[1]['runId'])):
+ for platform, report in device_report.get('platforms', {}).items():
+  latest_device_reports[platform] = (device_path, device_report['revision'], report)
 device_platforms = {}
 device_interactions = {}
-for platform, report in device_report.get('platforms', {}).items():
+for platform, (device_path, _, report) in latest_device_reports.items():
  route_evidence = report.get('routeEvidence')
  if route_evidence:
   evidence_path = device_path.parent/route_evidence
@@ -158,17 +161,23 @@ def device_observation(pattern, markdown=False):
  parts=[]
  for platform, name in (('android', 'Android'), ('ios', 'iOS')):
   if platform not in device_platforms:
-   observed = 'no device captures' if platform in device_report.get('platforms', {}) else 'no archived observation for this run'
-   parts.append(f'{name}: {observed}')
+   archive = latest_device_reports.get(platform)
+   if archive:
+    device_path, _, report = archive
+    observed = report.get('observation', 'no device captures')
+    link = f'../device/{device_path.parent.name}/index.json'
+    parts.append(f'[{name}]({link}): {observed}' if markdown else f'{name}: {observed} ({device_path.as_posix()})')
+   else:
+    parts.append(f'{name}: no archived observation')
    continue
   evidence_path, statuses = device_platforms[platform]
   outcomes = {scenario: statuses.get(case['id'], 'absent') for scenario, case in case_index[pattern].items()}
   states = ', '.join(f'{scenario} {status}' for scenario, status in outcomes.items())
-  link = f'../device/{device_path.parent.name}/{platform}/{evidence_path.name}'
+  link = f'../device/{evidence_path.parent.parent.name}/{platform}/{evidence_path.name}'
   parts.append(f'[{name}]({link}): {states}' if markdown else f'{name}: {states} ({evidence_path.as_posix()})')
   for source_platform, entry, outcome_path in device_interactions.get(pattern, []):
    if source_platform == platform:
-    relative = f'../device/{device_path.parent.name}/{platform}/{outcome_path.name}'
+    relative = f'../device/{outcome_path.parent.parent.name}/{platform}/{outcome_path.name}'
     parts.append(f'[Direct fixture entries]({relative}): {entry}' if markdown else f'{entry} ({outcome_path.as_posix()})')
  return '; '.join(parts)
 
@@ -179,7 +188,7 @@ with (P/'coverage.tsv').open('w',newline='') as f:
   fam=family[route];live,fixture=native(route,fam); readme=f'packages/native-parity/academic/{fam}/README.md';implementation=f'apps/mobile-native/features/academic/{fam}/index.tsx'
   assert (R/source).is_file() and (R/readme).is_file() and (R/implementation).is_file()
   w.writerow(dict(route=route,family=fam,case_populated_id=case_index[route]['populated']['id'],case_empty_id=case_index[route]['empty']['id'],case_denied_id=case_index[route]['denied']['id'],web_source=source,verified_protected_web_cases=references(route),native_live_code_paths=live,native_fixture_or_dependency=fixture,native_implementation_source=implementation,native_device_scenarios_planned='; '.join(flows.get(route,[])) or 'No direct fixture entry matched; indirect navigation unassessed',native_device_executed_evidence=device_observation(route),domain_readme=readme))
-meta={'generated_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'scope':'Web and implementation observations are from a changing local worktree. Device observations refer to the archived fixture run.','route_count':len(routes),'capture_manifest':'tests/visual/native-parallel/academic/pages/results.json','device_evidence_index':device_path.as_posix() if device_path else None,'device_evidence_revision':device_report.get('revision')}
+meta={'generated_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'scope':'Web and implementation observations are from a changing local worktree. Device observations refer to the latest archived run for each platform.','route_count':len(routes),'capture_manifest':'tests/visual/native-parallel/academic/pages/results.json','device_evidence_by_platform':{platform: {'index': path.as_posix(), 'revision': revision} for platform, (path, revision, _) in latest_device_reports.items()}}
 (P/'coverage-meta.json').write_text(json.dumps(meta,indent=2)+'\n')
 print('wrote',len(routes),'route rows; sources and referenced screenshots verified')
 
@@ -198,7 +207,7 @@ lines=['# Protected web route evidence', '',
  f"Index generated {meta['generated_utc']}; HEAD then was `{meta['head']}` with local uncommitted changes. Captures span a changing worktree and are not attributable to one verified commit.",
  f"Current capture manifest records {counts['new_pass']} passing browser cases, {counts['missing_ui']} unseeded/missing cases with a rendered 404, {counts['shell_only']} shell-only or loading cases, and {counts['unpassed']} other unsuccessful or interrupted cases. Interaction manifest records {counts['interaction_pass']} passing and {counts['interaction_unpassed']} unsuccessful cases. The six earlier protected smoke records are listed separately. Counts are cases, not parity credit.",
  '', '[Route crosswalk and three registry case IDs](coverage.tsv) · [Protected page results](results.json) · [Interaction results](interactions-results.json) · [Original smoke manifest](../web/local-routes/manifest.json)', '',
- 'Web links identify passing screenshots, shell-only/loading outcomes, or rendered 404s. Screenshots are listed under the route that rendered them. The requested route records the redirect destination. Initial HTTP 200 with a rendered 404 is identified explicitly. Device route statuses come from stamped captures. Interaction statuses are assigned to direct fixture entries. Live device operations remain unverified.', f"[Device run index](../device/{device_path.parent.name}/index.json) · [GitHub Actions run]({device_report['runUrl']})" if device_path else 'Device evidence index unavailable.', '', '| Route | Screen family | Recorded original protected web cases | Device fixture observations |', '|---|---|---|---|']
+ 'Web links identify passing screenshots, shell-only/loading outcomes, or rendered 404s. Screenshots are listed under the route that rendered them. The requested route records the redirect destination. Initial HTTP 200 with a rendered 404 is identified explicitly. Device route statuses come from stamped captures. Interaction statuses are assigned to direct fixture entries. Live device operations remain unverified.', ' · '.join(f'[{platform} evidence index](../device/{path.parent.name}/index.json)' for platform, (path, _, _) in latest_device_reports.items()) or 'Device evidence index unavailable.' , '', '| Route | Screen family | Recorded original protected web cases | Device fixture observations |', '|---|---|---|---|']
 for route,source in routes.items():
  links=[]
  for e,c in page_cases(route):

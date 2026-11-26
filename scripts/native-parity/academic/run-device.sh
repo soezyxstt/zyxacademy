@@ -45,6 +45,22 @@ case "$platform" in
     xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
     xcrun simctl list devices booted > "$output/device.txt"
     xcrun simctl status_bar "$device" override --time '09:41' --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState unplugged --batteryLevel 100
+    bundle="$(xcrun simctl get_app_container "$device" "$app_id" app)"
+    python - "$bundle/Info.plist" > "$output/compiled-fixture.json" <<'PY'
+import json
+import plistlib
+import sys
+
+with open(sys.argv[1], "rb") as plist:
+    app = plistlib.load(plist)
+print(json.dumps({
+    "bundleIdentifier": app["CFBundleIdentifier"],
+    "version": app["CFBundleShortVersionString"],
+    "buildNumber": app["CFBundleVersion"],
+    "sdk": app.get("DTSDKName"),
+    "xcodeBuild": app.get("DTXcodeBuild"),
+}, indent=2))
+PY
     xcrun simctl launch "$device" "$app_id" 2>&1 | tee "$output/install.log"
     ;;
   *)

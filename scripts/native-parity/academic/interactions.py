@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from capture import APP_ID, open_url, run
+from capture import APP_ID, open_url, run, wait_for_android
 
 
 def fixture_segments(flow):
@@ -44,7 +44,7 @@ def preopen_fixture(platform, device, url, output):
         log.write(f"{url}\n".encode())
         try:
             if platform == "android":
-                run(["adb", "-s", device, "wait-for-device"])
+                wait_for_android(device)
             log.write(run(restart))
             opened = open_url(platform, device, url)
             log.write(opened)

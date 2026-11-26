@@ -32,6 +32,10 @@ def run(args):
     return completed.stdout
 
 
+def wait_for_android(device):
+    run(["adb", "-s", device, "wait-for-device"])
+
+
 def open_url(platform, device, url):
     if platform == "ios":
         return run(["xcrun", "simctl", "openurl", device, url])
@@ -85,6 +89,8 @@ def capture_case(platform, device, case, ordinal, dpr, scratch):
         url = f"{case['href']}&evidence={ordinal}&evidenceNonce={ordinal}-{attempt}"
         bounds = previous_content = None
         try:
+            if platform == "android":
+                wait_for_android(device)
             open_url(platform, device, url)
             deadline = time.monotonic() + 8
             while time.monotonic() < deadline:
