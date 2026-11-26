@@ -5,6 +5,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Modal, Pressable, StyleSheet, View } from "react-native";
 import { randomUUID } from "expo-crypto";
 import { File } from "expo-file-system";
+import { interactiveMarkdown, interactiveMarkdownFallback } from "../../../../../lib/materials/interactive-document-display";
+import { InteractiveVisual } from "../InteractiveDocument";
+import { InteractiveAssessmentMarkdown } from "./InteractiveAssessmentMarkdown";
 import type { Answer, AssessmentKind, AssessmentPlayer, AssessmentQuestion, AssessmentRow } from "../../../../../packages/native-parity/student/assessment/contract";
 import { Input } from "../../../components/Input";
 import { hapticSelection } from "../../../device/haptics";
@@ -27,7 +30,7 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
   const props = useAssessment();
   useStudentChromeVisibility({ hideBottom: true });
   const { suspended, canInteract } = useProtectedInteraction();
-  const { request, drafts, route, replace, pickAssessmentFile, assessmentPhotos } = props;
+  const { request, session, drafts, route, replace, pickAssessmentFile, assessmentPhotos } = props;
   const { messages, tx, tryout } = useAssessmentCopy();
   const colors = useAssessmentColors();
   const course = assessmentCoursePath(route);
@@ -299,6 +302,9 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
     setConfirm(true);
   }
 
+  const visualScope = player.documentCourseId ? kind === "quiz"
+    ? attemptId ? { courseId: player.documentCourseId, attemptId, questionId: question.id } : null
+    : { courseId: player.documentCourseId, examId: assessment.id, questionId: question.id } : null;
   return <Frame title={assessment.title} subtitle={kind === "tryout" ? tryout.examSimulation : undefined}>
     <ButtonRow>
       <Body>{fill(tryout.questionProgress, { current: draft.index + 1, total: player.questions.length })}</Body>
@@ -307,20 +313,26 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
     </ButtonRow>
     <Section border>
       {question.sourceEventName ? <Body tone="muted">{question.sourceEventName}</Body> : null}
-      <Markdown value={question.prompt} />
+      <InteractiveAssessmentMarkdown key={question.id} value={question.prompt} scope={visualScope && { ...visualScope, field: "prompt" }} />
       {question.options.length && (question.type === "multiple_choice" || question.type === "multiple_choices") ? <>
         <Body tone="muted">{question.type === "multiple_choices" ? tryout.chooseAll : tryout.chooseOne}</Body>
         {question.options.map((option, index) => {
           const selected = value === index || (Array.isArray(value) && value.includes(index));
-          return <Pressable key={index} testID={`student-assessment-option-${index}`} accessibilityRole={question.type === "multiple_choice" ? "radio" : "checkbox"}
-            accessibilityLabel={`${String.fromCharCode(65 + index)}. ${option}`} accessibilityState={{ checked: selected, disabled: blocked }}
+          const optionText = interactiveMarkdownFallback(option);
+          const visuals = interactiveMarkdown(option).filter(part => typeof part !== "string");
+          return <View key={`${question.id}:${index}`} style={{ gap: 6 }}><Pressable testID={`student-assessment-option-${index}`} accessibilityRole={question.type === "multiple_choice" ? "radio" : "checkbox"}
+            accessibilityLabel={`${String.fromCharCode(65 + index)}. ${optionText}`} accessibilityState={{ checked: selected, disabled: blocked }}
             disabled={blocked} style={[styles.option, { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? `${colors.primary}16` : colors.background }]}
             onPress={() => {
               void hapticSelection();
               changeAnswer(question.id, choice(state.current?.answers[question.id], index, question.type === "multiple_choices"));
             }}>
-            <Body tone={selected ? "primary" : "normal"}>{String.fromCharCode(65 + index)}</Body><View style={styles.rowText}><Markdown value={option} allowLinks={false} /></View>
-          </Pressable>;
+            <Body tone={selected ? "primary" : "normal"}>{String.fromCharCode(65 + index)}</Body><View style={styles.rowText}><Markdown value={optionText} allowLinks={false} /></View>
+          </Pressable>
+            {visuals.map((spec, visualIndex) => <InteractiveVisual key={`${spec.id}:${visualIndex}`}
+              source={{ spec, scope: visualScope && { ...visualScope, field: "option", option: index } }}
+              request={request} locale={session.locale} disabled={blocked} showFallback={false} />)}
+          </View>;
         })}
       </> : question.type === "short_answer" || question.type === "essay" ? <>
         <Body>{answerLabel}</Body>

@@ -1,3 +1,6 @@
+import { interactiveMarkdown } from "../materials/interactive-document-display";
+import type { InteractiveDocumentSpec } from "../materials/interactive-document";
+import type { ArticleField } from "../materials/interactive-document-path";
 import { articleCaseLatex, type ArticlePart } from "../materials/article-parts";
 import type { PublicArticleReadModel, PublicVisualSpec } from "../articles/structured-read-model";
 import {
@@ -47,11 +50,19 @@ type ReadingSource = {
   locale?: "id" | "en";
 };
 
+export type ReadingVisualLocation = Pick<ArticleField, "sectionId" | "blockId" | "partId" | "field">;
+export type RenderReadingVisualAction = (spec: InteractiveDocumentSpec, location: ReadingVisualLocation) => string;
+
 /** Shared by the browser, Capacitor snapshot and Expo's local-only reading surface. */
 export function buildOfflineReadingSections(record: ReadingSource, options?: OfflineRenderOptions, section?: string,
-  renderCodingAction?: (partId: string) => string): NativeOfflineSection[] {
+  renderCodingAction?: (partId: string) => string, renderVisualAction?: RenderReadingVisualAction): NativeOfflineSection[] {
   const markdown = (value: string) => renderOfflineMarkdownHtml(value, options);
-  const visualHtml = (visual: PublicVisualSpec) => renderOfflineVisualHtml(visual, options);
+  const visualHtml = (visual: PublicVisualSpec, location?: ReadingVisualLocation) =>
+    renderOfflineVisualHtml(visual, options) +
+    (location && visual.kind === "interactive_document" ? renderVisualAction?.(visual, location) ?? "" : "");
+  const locatedMarkdown = (value: string, location: ReadingVisualLocation) => renderVisualAction
+    ? interactiveMarkdown(value).map(part => typeof part === "string" ? markdown(part) : visualHtml(part, location)).join("")
+    : markdown(value);
   const sections: NativeOfflineSection[] = [];
 
   function renderMathUnit(part: Extract<ArticlePart, { kind: "math_unit" }>) {
@@ -88,7 +99,10 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
       const hasBlockParts = (sec.blocks ?? []).some((b) => Boolean(b.parts?.length));
       if (!hasBlockParts && sec.visuals?.length) {
         for (const visual of sec.visuals) {
-          htmlParts.push(visualHtml(visual));
+          const requirement = sec.pedagogy?.visualRequirement;
+          const location = requirement?.status === "required" && requirement.visualIds?.includes(visual.id)
+            ? { sectionId: sec.id, field: "section_visual" as const } : undefined;
+          htmlParts.push(visualHtml(visual, location));
         }
       }
 
@@ -107,7 +121,7 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
               const vis = visualMap.get(part.visualId);
               if (vis) {
                 renderedVisualIds.add(vis.id);
-                htmlParts.push(visualHtml(vis));
+                htmlParts.push(visualHtml(vis, { sectionId: sec.id, blockId: block.id, partId: part.id, field: "visual_ref" }));
               }
             } else if (part.kind === "math_unit") {
               htmlParts.push(renderMathUnit(part));
@@ -117,9 +131,9 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
                 htmlParts.push(markdown(step.operationMarkdown), markdown(step.reasonMarkdown));
                 if (step.conditionsMarkdown) htmlParts.push(markdown(step.conditionsMarkdown));
                 for (const leaf of step.parts) {
-                  if (leaf.kind === "markdown") htmlParts.push(markdown(leaf.markdown));
+                  if (leaf.kind === "markdown") htmlParts.push(locatedMarkdown(leaf.markdown, { sectionId: sec.id, blockId: block.id, partId: leaf.id, field: "markdown" }));
                   if (leaf.kind === "math_unit") htmlParts.push(renderMathUnit(leaf));
-                  if (leaf.kind === "visual_ref") { const vis = visualMap.get(leaf.visualId); if (vis) { renderedVisualIds.add(vis.id); htmlParts.push(visualHtml(vis)); } }
+                  if (leaf.kind === "visual_ref") { const vis = visualMap.get(leaf.visualId); if (vis) { renderedVisualIds.add(vis.id); htmlParts.push(visualHtml(vis, { sectionId: sec.id, blockId: block.id, partId: leaf.id, field: "visual_ref" })); } }
                 }
               }
               htmlParts.push(markdown(part.verificationMarkdown));
@@ -139,7 +153,8 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
               const cleanedPart = cleanOfflineMarkdown(part.markdown);
               if (cleanedPart) {
                 parts.push(cleanedPart);
-                htmlParts.push(markdown(cleanedPart));
+                htmlParts.push(part.kind === "markdown" ? locatedMarkdown(cleanedPart, { sectionId: sec.id, blockId: block.id, partId: part.id, field: "markdown" })
+                  : markdown(cleanedPart));
               }
             }
           }
@@ -147,7 +162,7 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
           const cleaned = cleanOfflineMarkdown(block.content ?? "");
           if (cleaned) {
             parts.push(cleaned);
-            htmlParts.push(markdown(cleaned));
+            htmlParts.push(locatedMarkdown(cleaned, { sectionId: sec.id, blockId: block.id, field: "content" }));
           }
         }
 

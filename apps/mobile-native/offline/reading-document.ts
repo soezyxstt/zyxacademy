@@ -1,3 +1,4 @@
+import type { RenderReadingVisualAction } from "../../../lib/offline/reading-sections";
 import { DEFAULT_APPEARANCE_PREFERENCES, type AppearancePreferences } from "../../../lib/appearance-preferences";
 import { readingDensityScales, readingFontScales } from "../device/reading-scales";
 import type { PublicArticleReadModel } from "../../../lib/articles/structured-read-model";
@@ -106,7 +107,7 @@ export function readerCodingAction(url: string, approved?: ReadonlyMap<string, s
 
 export function buildReadingContentHtml({ data, kind, title, locale, resolveImage, section }: ReadingContent, katexCss: string, theme: keyof typeof nativeColors,
   appearance: Pick<AppearancePreferences, "fontSize" | "density"> = DEFAULT_APPEARANCE_PREFERENCES,
-  codingActions?: ReadonlyMap<string, string>) {
+  codingActions?: ReadonlyMap<string, string>, renderVisualAction?: RenderReadingVisualAction) {
   const options = { allowLinks: false, resolveImage };
   const article = kind === "article" && "sections" in data
     ? data as unknown as Pick<PublicArticleReadModel, "sections" | "visuals"> : undefined;
@@ -117,7 +118,7 @@ export function buildReadingContentHtml({ data, kind, title, locale, resolveImag
   });
   const sections = buildOfflineReadingSections({
     kind: article ? "structured_article" : "course_material", article, material: { body: diktat }, locale,
-  }, options, section, renderCodingAction);
+  }, options, section, renderCodingAction, renderVisualAction);
   if (!sections.length) return null;
   const content = sections.map(({ headingHtml, bodyHtml }) =>
     `<section>${headingHtml ? `<h2>${headingHtml}</h2>` : ""}${bodyHtml ?? ""}</section>`).join("");

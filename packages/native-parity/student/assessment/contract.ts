@@ -68,6 +68,7 @@ export type AssessmentResult = {
 };
 
 export type AssessmentPlayer = {
+  documentCourseId?: string;
   questions: AssessmentQuestion[];
   answers: Answers;
   startAt: string | null;
@@ -95,6 +96,7 @@ export type AssessmentPage = { courseTitle: string } & (
 );
 
 export type Review = {
+  documentCourseId?: string;
   result: AssessmentResult | null;
   discussionAvailable: boolean;
   items: ReviewedQuestion[];

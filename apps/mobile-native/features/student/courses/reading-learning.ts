@@ -13,7 +13,11 @@ const checked = z.object({ ok: z.literal(true), result: z.object({
   criteria: z.array(z.object({ criterionId: z.string(), status: z.enum(["met", "partial", "missed"]) })).optional(),
   misconceptions: z.array(z.string()).optional(),
 }) });
-const revealed = z.object({ answer: z.string(), explanation: z.string() });
+const revealed = z.object({
+  answer: z.string(), explanation: z.string(),
+  visualAccess: z.object({ answer: z.string().optional(), explanation: z.string().optional() }).optional(),
+});
+export type CheckReveal = z.infer<typeof revealed>;
 export type ReadProgress = z.infer<typeof articleProgressSchema> | z.infer<typeof materialStatus>;
 export type CheckResult = z.infer<typeof checked>["result"];
 const publicCheck = z.object({

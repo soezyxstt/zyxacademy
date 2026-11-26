@@ -168,7 +168,7 @@ async function quizReview(ctx: Context, template: Quiz, attempt: Attempt | null,
   }
   const answers = objectRecord(attempt?.answersSnapshot);
   const feedbackByIndex = new Map(feedback.map(({ index, payload }) => [index, objectRecord(payload)]));
-  return { result, discussionAvailable: true,
+  return { result, discussionAvailable: true, documentCourseId: template.courseId,
     items: snapshot.map((question, index) => {
       const notes = feedbackByIndex.get(index);
       const note = notes?.feedback ?? notes?.overview ?? notes?.teacherNote;
@@ -187,7 +187,7 @@ function quizPlayer(attempt: Attempt, template: Quiz): AssessmentPlayer {
   const rules = objectRecord(template.selectionRules);
   const timers = objectRecord(rules.perQuestionTimers);
   return {
-    questions: projected, answers: readQuizAnswers(attempt.answersSnapshot, rows), startAt: iso(attempt.startedAt),
+    documentCourseId: template.courseId, questions: projected, answers: readQuizAnswers(attempt.answersSnapshot, rows), startAt: iso(attempt.startedAt),
     durationSeconds: template.timeLimitSeconds, closeAt: iso(template.closeAt), canGoBack: rules.canGoBack !== false,
     requireAllAnswered: rules.requireAllAnswered === true,
     perQuestionSeconds: rules.perQuestionTimerEnabled === true ? Object.fromEntries(projected.map(({ id }) => [id, positiveInt(timers[id]) ?? positiveInt(rules.defaultQuestionTimerSeconds) ?? 60])) : null,
@@ -258,7 +258,7 @@ export async function readTryoutDetail(ctx: Context, examId: string): Promise<As
   const assessment = { ...base, attempts: attempts.length, questionCount: base.availability === "open" ? questionRows.length : null };
   const reachedLimit = assessment.maxAttempts !== null && assessment.attempts >= assessment.maxAttempts;
   const player: AssessmentPlayer | null = base.availability === "open" && !reachedLimit && questionRows.length
-    ? { questions: questionRows.map((row) => projectQuestion({ ...objectRecord(row.content), id: row.id, type: row.type })), answers: {}, startAt: null,
+    ? { documentCourseId: exam.courseId, questions: questionRows.map((row) => projectQuestion({ ...objectRecord(row.content), id: row.id, type: row.type })), answers: {}, startAt: null,
         durationSeconds: base.durationSeconds, closeAt: base.closeAt, canGoBack: true, requireAllAnswered: false, perQuestionSeconds: null }
     : null;
   return { kind: "tryout-detail", courseTitle: ctx.courseTitle, assessment, player, priorResult: attempts[0] ? tryoutResult(attempts[0], exam) : undefined };

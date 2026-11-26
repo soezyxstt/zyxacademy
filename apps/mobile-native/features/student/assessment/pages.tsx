@@ -1,3 +1,5 @@
+import { InteractiveAssessmentMarkdown } from "./InteractiveAssessmentMarkdown";
+import { interactiveMarkdownFallback } from "../../../../../lib/materials/interactive-document-display";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { randomUUID } from "expo-crypto";
@@ -220,16 +222,23 @@ export function TryoutDetail({ data }: { data: Extract<AssessmentPage, { kind: "
   </Frame>;
 }
 
-function ReviewQuestion({ item, index, showAnswer }: { item: ReviewedQuestion; index: number; showAnswer: boolean }) {
+function ReviewQuestion({ item, index, showAnswer, visualContext }: {
+  item: ReviewedQuestion; index: number; showAnswer: boolean;
+  visualContext?: { courseId: string; attemptId: string };
+}) {
   const { messages, tx } = useAssessmentCopy();
+  const scope = visualContext ? { ...visualContext, questionId: item.id } : null;
   return <Section border>
     <Heading level={3}>{fill(messages.quiz.questionNumber, { number: index + 1 })}{item.correct === null ? "" : ` · ${item.correct ? messages.review.correct : messages.review.incorrect}`}</Heading>
     {item.sourceEventName ? <Body tone="muted">{item.sourceEventName}</Body> : null}
-    <Markdown value={item.prompt} />
-    {item.options.map((option, optionIndex) => <Markdown key={optionIndex} value={`${String.fromCharCode(65 + optionIndex)}. ${option}`} />)}
-    {showAnswer ? <><Body tone="muted">{messages.review.yourAnswer}</Body><Markdown value={item.selected ?? tx("Belum diisi", "Unanswered")} /></> : null}
-    {item.expected ? <><Body tone="muted">{messages.review.correctAnswer}</Body><Markdown value={item.expected} /></> : null}
-    {item.explanation ? <><Heading level={3}>{messages.review.explanation}</Heading><Markdown value={item.explanation} /></> : null}
+    <InteractiveAssessmentMarkdown value={item.prompt} scope={scope && { ...scope, field: "prompt" }} />
+    {item.options.map((option, optionIndex) => <View key={optionIndex} style={{ gap: 4 }}>
+      <Body tone="muted">{String.fromCharCode(65 + optionIndex)}</Body>
+      <InteractiveAssessmentMarkdown value={option} scope={scope && { ...scope, field: "option", option: optionIndex }} />
+    </View>)}
+    {showAnswer ? <><Body tone="muted">{messages.review.yourAnswer}</Body><Markdown value={item.selected ? interactiveMarkdownFallback(item.selected) : tx("Belum diisi", "Unanswered")} /></> : null}
+    {item.expected ? <><Body tone="muted">{messages.review.correctAnswer}</Body><Markdown value={interactiveMarkdownFallback(item.expected)} /></> : null}
+    {item.explanation ? <><Heading level={3}>{messages.review.explanation}</Heading><InteractiveAssessmentMarkdown value={item.explanation} scope={scope && { ...scope, field: "explanation" }} /></> : null}
     {item.feedback ? <><Body tone="muted">{messages.review.teacherNote}</Body><Markdown value={item.feedback} /></> : null}
   </Section>;
 }
@@ -240,6 +249,8 @@ export function ReviewPage({ review, title, quizRoute = false }: { review: Revie
   const { messages, tx, date } = useAssessmentCopy();
   const { score, status } = useResultCopy();
   const result = review.result;
+  const visualContext = review.documentCourseId && result?.kind === "quiz"
+    ? { courseId: review.documentCourseId, attemptId: result.id } : undefined;
   const [showMore, setShowMore] = useState(false);
   const quizPath = result ? `${course}/quiz/${encodeURIComponent(result.assessmentId)}` : `${course}/quiz`;
   return <Frame title={title ?? result?.assessmentTitle ?? messages.reviewPage.answerTitle} subtitle={messages.reviewPage.answerTitle}>
@@ -257,7 +268,7 @@ export function ReviewPage({ review, title, quizRoute = false }: { review: Revie
       </ButtonRow>
     </Section> : null}
     {!review.discussionAvailable ? <Message title={tx("Pembahasan belum tersedia", "Discussion unavailable")} /> : null}
-    {review.items.map((item, index) => <ReviewQuestion key={item.id} item={item} index={index} showAnswer />)}
+    {review.items.map((item, index) => <ReviewQuestion key={item.id} item={item} index={index} showAnswer visualContext={visualContext} />)}
     {review.additionalItems?.length ? <Section border>
       <Button variant="outline" accessibilityState={{ expanded: showMore }} onPress={() => setShowMore(!showMore)}>{messages.quizTake.fullDiscussion}</Button>
       {showMore ? review.additionalItems.map((item, index) => <ReviewQuestion key={item.id} item={item} index={index} showAnswer={false} />) : null}

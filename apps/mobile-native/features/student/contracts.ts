@@ -19,7 +19,7 @@ export interface StudentRoute {
   query: Readonly<Record<string, string>>;
 }
 
-export type StudentResponse = Pick<NativeResponse, "ok" | "status" | "headers" | "json" | "text" | "arrayBuffer"> & { dispose?(): void };
+export type StudentResponse = Pick<NativeResponse, "ok" | "status" | "headers" | "json" | "text" | "arrayBuffer"> & Partial<Pick<NativeResponse, "body">> & { dispose?(): void };
 export type StudentRequest = (path: string, init?: RequestInit) => Promise<StudentResponse>;
 
 export type StudentMaterialReaderTarget = {
