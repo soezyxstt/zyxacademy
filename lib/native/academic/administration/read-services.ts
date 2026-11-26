@@ -14,6 +14,7 @@ import { getIdeaBundleImport } from "@/lib/bundle/staging";
 import { academicEventView } from "@/lib/schedule/academic-event";
 import { formatJakartaDatetimeLocal, getJakartaCalendarDate, toIsoTimestamp } from "@/lib/date-utils";
 import { listAdminNotificationHistory } from "@/lib/notifications/admin-history";
+import { matchesPkaSearch } from "@/packages/academic/pka-registrations";
 import { pkaScheduleRevision } from "@/lib/pka/schedule-update";
 import { pkaAnnouncementState } from "@/lib/pka/lifecycle";
 import { readPkaDeliveryStatuses } from "@/lib/pka/native-delivery-queue";
@@ -137,6 +138,11 @@ export const administrationReadServices: AdministrationReadServices = {
     return hasPeran(id, "admin");
   },
   bundle: readBundle,
+  async registrationsForExport(search) {
+    const entries = await getPkaRegistrationsAction();
+    return { search, records: entries.filter(entry => matchesPkaSearch(entry, search)).map(({ id, fullName, faculty, email, instagramUsername, proofUrl, receiveAnnouncements, createdAt }) =>
+      ({ id, fullName, faculty, email, instagramUsername, proofUrl, receiveAnnouncements, createdAt: toIsoTimestamp(createdAt) })) };
+  },
   groupEditor: readNativeStudyGroupEditor,
   groupMembers: readNativeStudyGroupMembers,
   tokenEditor: readNativeEnrollmentToken,
@@ -217,8 +223,8 @@ export const administrationReadServices: AdministrationReadServices = {
       }
       case "registrations": {
         const entries = await getPkaRegistrationsAction();
-        return paginate(entries.filter((entry) => matches(query.search, [entry.fullName, entry.email, entry.faculty, entry.instagramUsername])).map((entry) => ({
-          id: entry.id, title: entry.fullName, subtitle: entry.faculty, detail: jakDateTime(entry.createdAt),
+        return paginate(entries.filter((entry) => matchesPkaSearch(entry, query.search)).map((entry) => ({
+          id: entry.id, title: entry.fullName, subtitle: entry.faculty, detail: jakDateTime(entry.createdAt), pkaProof: entry.proofUrl,
           fields: [field("Email", entry.email), field("Instagram", entry.instagramUsername),
             field("Nama akun", entry.accountName), field("Pengumuman", entry.receiveAnnouncements ? "Aktif" : "Nonaktif")],
         })), query.page);

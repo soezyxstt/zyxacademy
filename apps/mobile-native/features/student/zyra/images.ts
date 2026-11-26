@@ -1,4 +1,5 @@
 import { ZYRA_IMAGE_MAX_SANITIZED_BYTES, ZyraImageMimeSchema, ZyraMessageAttachmentSchema, type ZyraMessageAttachment } from "../../../../../lib/zyra/images/contracts";
+import { inlineImage } from "../../../network/inline-image";
 import type { NativeSessionTransport } from "../../../network/transport";
 
 const endpoint = "/api/zyra/attachments";
@@ -45,26 +46,9 @@ export async function readZyraImage(session: NativeSessionTransport, courseId: s
   const response = await session.request(imagePath(courseId, sessionId, id), { signal, headers: { "x-student-id": session.scope.accountId } });
   try {
     const mime = ZyraImageMimeSchema.safeParse(response.headers.get("content-type"));
-    if (!response.ok || !mime.success || Number(response.headers.get("content-length")) > ZYRA_IMAGE_MAX_SANITIZED_BYTES) throw new Error("Image unavailable");
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error("Image unavailable");
-    const chunks: Uint8Array[] = [];
-    let length = 0;
-    try {
-      while (true) {
-        const chunk = await reader.read();
-        if (chunk.done) break;
-        length += chunk.value.length;
-        if (length > ZYRA_IMAGE_MAX_SANITIZED_BYTES) throw new Error("Image unavailable");
-        chunks.push(chunk.value);
-      }
-    } finally { reader.releaseLock(); }
-    if (!length) throw new Error("Image unavailable");
+    if (!mime.success) throw new Error("Image unavailable");
+    const uri = await inlineImage(response, mime.data, ZYRA_IMAGE_MAX_SANITIZED_BYTES);
     session.assertCurrent();
-    const text: string[] = [];
-    for (const chunk of chunks) {
-      for (let offset = 0; offset < chunk.length; offset += 4096) text.push(String.fromCharCode(...chunk.subarray(offset, offset + 4096)));
-    }
-    return `data:${mime.data};base64,${btoa(text.join(""))}`;
+    return uri;
   } finally { response.dispose(); }
 }

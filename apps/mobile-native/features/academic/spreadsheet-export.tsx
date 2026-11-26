@@ -14,7 +14,7 @@ type Pending = { payload: SpreadsheetExportPayload; revision?: string; issues?: 
 
 export function NativeSpreadsheetExport({ transport, entityType, entityId, count, filtered, build }: {
   transport: AcademicTransport; entityType: "quiz" | "pka"; entityId: string;
-  count: number; filtered: boolean; build(): SpreadsheetExportPayload;
+  count: number; filtered: boolean; build(signal: AbortSignal): SpreadsheetExportPayload | Promise<SpreadsheetExportPayload>;
 }) {
   const { canInteract, suspended } = useProtectedInteraction();
   const [pending, setPending] = useState<Pending>();
@@ -61,16 +61,29 @@ export function NativeSpreadsheetExport({ transport, entityType, entityId, count
       if (!task.signal.aborted && canInteract()) { setNotice("Ekspor belum terkonfirmasi. Periksa spreadsheet sebelum mencoba lagi."); setLookup(n => n + 1); }
     } finally { if (flight.current === task) { flight.current = null; setBusy(false); } }
   }
+  async function prepare() {
+    if (!canInteract() || flight.current) return;
+    const task = new AbortController();
+    flight.current = task;
+    setNotice("");
+    setBusy(true);
+    let payload: SpreadsheetExportPayload;
+    try {
+      payload = await build(task.signal);
+      if (task.signal.aborted || !canInteract()) return;
+      if (!payload.rows.length) { setNotice("Tidak ada data untuk diekspor."); return; }
+    } catch {
+      if (!task.signal.aborted && canInteract()) setNotice("Data ekspor gagal dimuat. Coba lagi.");
+      return;
+    } finally { if (flight.current === task) { flight.current = null; setBusy(false); } }
+    if (filtered) setPending({ payload });
+    else await submit({ payload });
+  }
   return <View style={layout.group}>
     <View style={layout.row}>
       {url && <Action label="Buka Google Sheets" disabled={suspended || busy} onPress={() => { if (canInteract()) void openBrowserAsync(url).catch(() => setNotice("Spreadsheet tidak dapat dibuka.")); }} />}
       <Action label={busy ? "Mengekspor…" : url ? "Perbarui spreadsheet" : "Ekspor ke Google Sheets"} disabled={busy || !count || suspended || !transport.command}
-        onPress={() => {
-          if (!canInteract()) return;
-          const payload = build();
-          if (filtered) setPending({ payload });
-          else void submit({ payload });
-        }} />
+        onPress={() => void prepare()} />
     </View>
     {notice ? <Ink kind="meta">{notice}</Ink> : null}
     {pending ? <CourseDialog title={pending.revision ? "Timpa perubahan spreadsheet?" : "Ekspor hasil filter?"} onClose={() => setPending(undefined)}>

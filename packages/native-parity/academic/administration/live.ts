@@ -12,7 +12,7 @@ export type LiveField = { label: string; value: string };
 export type DiktatPdfTarget = { importId: string; productId: string; expectedRevision: string };
 export type DiktatEvidenceStatus = "ready" | "pending" | "failed" | "stale" | "unavailable";
 export type DiktatPdfRequest = DiktatPdfTarget & { requestId: string };
-export type LiveRow = { academicEvent?: AcademicEventView; id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; ideaReviewId?: string; announcementEdit?: PkaAnnouncementRevision; announcementState?: PkaAnnouncementState; pkaDelivery?: PkaDeliveryStatus; pkaScheduleEdit?: PkaScheduleRevision; dateId?: string; groupEditable?: boolean; tokenActive?: boolean; userRolesEdit?: AdminUserRolesRevision; userStatusEdit?: AdminUserStatusRevision };
+export type LiveRow = { pkaProof?: string; academicEvent?: AcademicEventView; id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; ideaReviewId?: string; announcementEdit?: PkaAnnouncementRevision; announcementState?: PkaAnnouncementState; pkaDelivery?: PkaDeliveryStatus; pkaScheduleEdit?: PkaScheduleRevision; dateId?: string; groupEditable?: boolean; tokenActive?: boolean; userRolesEdit?: AdminUserRolesRevision; userStatusEdit?: AdminUserStatusRevision };
 export type LiveProductBundle = { id: string; courseId: string; checksum: string };
 export type LiveIdeaBundle = LiveProductBundle;
 export type LivePage = { ideaBundle?: LiveIdeaBundle; productBundle?: LiveProductBundle; scheduleTutorials?: AdminTutorialSchedule; scheduleCourses?: { id: string; label: string }[]; type: "page"; rows: LiveRow[]; nextPage: boolean; summary?: LiveField[]; week?: { start: string; today: string } };
@@ -70,6 +70,7 @@ function row(value: unknown): value is LiveRow {
     && (value.subtitle === undefined || typeof value.subtitle === "string")
     && (value.detail === undefined || typeof value.detail === "string")
     && (value.fields === undefined || fields(value.fields))
+    && (value.pkaProof === undefined || typeof value.pkaProof === "string")
     && (value.tokenActive === undefined || typeof value.tokenActive === "boolean")
     && (value.groupEditable === undefined || typeof value.groupEditable === "boolean")
     && (value.userRolesEdit === undefined || isAdminUserRolesRevision(value.userRolesEdit))

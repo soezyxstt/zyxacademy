@@ -17,6 +17,7 @@ import type { EnrollmentTokenUnavailable } from "./enrollment-token-client";
 import { LiveStudyGroupEditor } from "./study-group-editor";
 import { StudyGroupMembersEditor } from "./study-group-members-editor";
 import { CopyActivationToken, GroupDeletionControl } from "./group-deletion";
+import { PkaRegistrationExport, RegistrationProof } from "./pka-registrations";
 import { PkaAnnouncementEditor } from "./pka-edit";
 import { clearPkaLifecycle, PkaLifecycleDialog, recoverPkaLifecycle, type PkaLifecycleTarget } from "./pka-lifecycle";
 import { clearPkaScheduleRecovery, PkaScheduleEditor } from "./pka-schedule-editor";
@@ -166,7 +167,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const tokenRow = tokenEditor?.id ? data?.rows.find((row) => row.id === tokenEditor.id) : undefined;
   const pkaSchedule = pkaSchedulePage && pkaScheduleDraft?.actorTransport === transport
     ? data?.rows.find((row) => row.id === pkaScheduleDraft.id) : undefined;
-  const visibleSelection = (tokenPage || pkaSchedulePage || ideaReviewPage) && selected ? data?.rows.find((row) => row.id === selected.id) : selected;
+  const visibleSelection = (tokenPage || pkaSchedulePage || ideaReviewPage || pattern === "/admin/tutorial-pka/registrations") && selected ? data?.rows.find((row) => row.id === selected.id) : selected;
   const tokenAccessEnded = tokenPage && (state.status === "denied" || state.status === "missing");
   const clearTokenContext = useCallback(() => {
     setSelected(undefined);
@@ -265,6 +266,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       }} /> : null}
       <Picker label="Status" options={groupsStatus} selected={filters.status ?? ""} onSelect={(id) => filter("status", id)} />
     </View> : null}
+    {pkaTab === "registrations" && data && <PkaRegistrationExport key={filters.search ?? ""} transport={transport} search={filters.search ?? ""} count={data.rows.length} />}
     {pkaAnnouncementPage ? <View style={layout.row}>
       <Action selected={filters.status !== "archived"} label="Aktif" onPress={() => filter("status", "")} />
       <Action selected={filters.status === "archived"} label="Arsip" onPress={() => filter("status", "archived")} />
@@ -455,6 +457,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         retry();
       }} /> : null}
     {visibleSelection ? <CourseDialog title={tokenPage ? "Token pendaftaran" : visibleSelection.title} onClose={() => setSelected(undefined)}>
+      {pkaTab === "registrations" && <RegistrationProof key={visibleSelection.id} row={visibleSelection} transport={transport} />}
       {visibleSelection.academicEvent && data?.scheduleCourses && transport.command ? <Action label="Kelola agenda" onPress={() => {
         setSelected(undefined); setEventDraft({ transport, row: visibleSelection });
       }} /> : null}

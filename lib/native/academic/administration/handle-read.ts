@@ -1,3 +1,4 @@
+import { pkaExportRead } from "../../../../packages/academic/pka-registrations";
 import { isEnrollmentTokenEditor, type EnrollmentTokenEditor } from "../../../../packages/academic/enrollment-token-admin";
 import { isStudyGroupEditorRead, type StudyGroupEditorRead } from "../../../../packages/academic/study-group-edit";
 import { isStudyGroupMembersRead, type StudyGroupMemberRecovery, type StudyGroupMembersRead } from "../../../../packages/academic/study-group-members";
@@ -26,6 +27,7 @@ export type AdministrationReadServices = {
   session(): Promise<{ user: { id: string }; session?: { id: string } } | null>;
   hasAdmin(id: string): Promise<boolean>;
   list(section: LiveListSection, query: AdministrationQuery): Promise<LivePage>;
+  registrationsForExport?(search: string): Promise<unknown>;
   groupEditor?(id?: string): Promise<StudyGroupEditorRead | null>;
   groupMembers?(id: string, page: number, search: string, recovery?: { request: StudyGroupMemberRecovery; viewer: NativeAdminViewer }): Promise<StudyGroupMembersRead | null>;
   tokenEditor?(id?: string): Promise<EnrollmentTokenEditor | null>;
@@ -68,6 +70,10 @@ export async function handleAdministrationRead(parts: string[], search: URLSearc
     const query = options(search);
     if (parts.length === 1 && sections.includes(section as LiveListSection)) {
       return output(await services.list(section as LiveListSection, query));
+    }
+    if (section === "registrations" && kind === "export" && parts.length === 2 && services.registrationsForExport) {
+      const result = pkaExportRead.safeParse(await services.registrationsForExport(query.search));
+      return result.success && result.data.search === query.search ? Response.json(result.data, { headers }) : problem(500, "READ_FAILED");
     }
     if (section === "group-editor" && parts.length <= 2 && services.groupEditor) {
       const result = await services.groupEditor(kind);
