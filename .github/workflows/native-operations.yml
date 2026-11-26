@@ -15,9 +15,6 @@ on:
       - '.github/workflows/native-operations.yml'
 permissions:
   contents: read
-concurrency:
-  group: operations-device-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
 jobs:
   contracts:
     if: github.head_ref == 'native-migration/operations'
@@ -53,6 +50,9 @@ jobs:
             runner: macos-26
             width: 402
             density: 3
+    concurrency:
+      group: operations-device-${{ github.event.pull_request.number }}-${{ matrix.platform }}
+      cancel-in-progress: false
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     env:

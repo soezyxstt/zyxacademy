@@ -10,6 +10,7 @@ let current = null,
   googleCalls = 0;
 mock.module("server-only", () => ({}));
 mock.module("@/db", () => ({ db: testDb }));
+mock.module("@/lib/db", () => ({ db: testDb }));
 mock.module("@/lib/auth-session", () => ({
   getAuthSession: async () => current && { user: current },
 }));
