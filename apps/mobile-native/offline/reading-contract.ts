@@ -56,9 +56,10 @@ export type OfflineReadingPackage = {
 };
 export type OfflineReadingDownloadStatus = "saved" | "unavailable" | "changed" | "storage-full" | "unsupported" | "too-large" | "cancelled" | "retry";
 export type OfflineReadingDownload = { status: OfflineReadingDownloadStatus };
+export type OfflineReadingRevalidation = { attempted: number; restored: number };
 
 export class OfflineReadingError extends Error {
-  constructor(readonly code: OfflineReadingDownloadStatus | "revoked") {
+  constructor(readonly code: OfflineReadingDownloadStatus | "revoked", readonly invalidatesSaved = false) {
     super("The offline reading operation could not be completed.");
     this.name = "OfflineReadingError";
   }

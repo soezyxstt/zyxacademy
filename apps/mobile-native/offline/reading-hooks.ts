@@ -16,6 +16,9 @@ const noRead = async (): Promise<OfflineReadingPackage | null> => null;
 const noList = async (): Promise<OfflineReadingSummary[]> => [];
 const noForget = async () => false;
 const noDownload = async (): Promise<OfflineReadingDownload> => ({ status: "unavailable" });
+const noStorage = async () => ({ unavailableCount: 0 });
+const noPurge = async () => 0;
+const noRevalidation = async () => ({ attempted: 0, restored: 0 });
 
 export function useOfflineReadingPackages(locale: NativeOfflineLocale) {
   const { refresh } = useNativeSession();
@@ -54,6 +57,9 @@ export function useOfflineReadingPackages(locale: NativeOfflineLocale) {
     read: current?.read ?? noRead,
     forget: current?.forget ?? noForget,
     download: current?.download ?? noDownload,
+    storage: current?.storage ?? noStorage,
+    purgeUnavailable: current?.purgeUnavailable ?? noPurge,
+    revalidateSaved: current?.revalidateSaved ?? noRevalidation,
     subscribe: subscribeOfflineReadingChanges,
   }), [access.offline, current, transport]);
 }

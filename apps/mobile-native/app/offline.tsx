@@ -33,7 +33,8 @@ export default function OfflineRoute() {
   const offline = readingSession.offline;
   const metadata = useOfflineCourseMetadata(readingSession.transport ? null : noCourses, locale);
   const scope = metadata.status === "revoked" ? null : access;
-  const library = useOfflineLibraryData({ scope, verifiedUntil: readingSession.verifiedUntil, list: packages.list, subscribe: packages.subscribe });
+  const library = useOfflineLibraryData({ scope, verifiedUntil: readingSession.verifiedUntil, list: packages.list,
+    storage: packages.storage, subscribe: packages.subscribe });
   const { observation, revision } = library;
   const [search, setSearch] = useState<{ observation: typeof observation; query: string } | null>(null);
   const query = search?.observation === observation ? search.query : "";
@@ -41,6 +42,7 @@ export default function OfflineRoute() {
   const activeObservation = useRef<typeof observation | null>(null);
   const working = useRef<{ observation: typeof observation; key: string } | null>(null);
   const [pending, setPending] = useState<{ observation: typeof observation; key: string; action: OfflineLibraryAction } | null>(null);
+  const [maintenance, setMaintenance] = useState<{ observation: typeof observation; action: "sync" | "purge" } | null>(null);
   const [feedback, setFeedback] = useState<{ observation: typeof observation; revision: number; notice: OfflineLibraryNotice } | null>(null);
 
   const canRead = scope !== null;
@@ -80,10 +82,39 @@ export default function OfflineRoute() {
     if (notice) setFeedback({ observation, revision: observation.getRevision(), notice });
   }
 
-  function retry() {
+  async function runMaintenance(action: "sync" | "purge") {
+    if (activeObservation.current !== observation || working.current
+      || readingSession.verifiedUntil <= Date.now() || (action === "sync" && !packages.canDownload)) return;
+    const operation = { observation, key: action };
+    working.current = operation;
+    setMaintenance({ observation, action });
     setFeedback(null);
+    let notice: OfflineLibraryNotice | null = null;
+    try {
+      if (action === "purge") {
+        if (await packages.purgeUnavailable()) notice = offlineLibraryFeedback(locale, "removed");
+      } else {
+        await metadata.retry();
+        if (activeObservation.current !== observation) return;
+        const { attempted, restored } = await packages.revalidateSaved();
+        if (restored < attempted) notice = { message: copy.revalidationFailed, error: true };
+      }
+    } catch {
+      notice = offlineLibraryFeedback(locale, "retry");
+    } finally {
+      if (working.current === operation) {
+        working.current = null;
+        setMaintenance(null);
+      }
+    }
+    if (activeObservation.current !== observation) return;
     library.retry();
-    if (!offline) void metadata.retry();
+    if (notice) setFeedback({ observation, revision: observation.getRevision(), notice });
+  }
+
+  function retry() {
+    if (offline) library.retry();
+    else void runMaintenance("sync");
   }
 
   let blocked;
@@ -110,6 +141,7 @@ export default function OfflineRoute() {
   }
 
   const notices: OfflineLibraryNotice[] = [];
+  const currentMaintenance = maintenance?.observation === observation ? maintenance.action : null;
   if (scope) {
     if (feedback?.observation === observation && feedback.revision === revision) notices.push(feedback.notice);
     if (metadata.status === "error" && !library.failed) notices.push({ message: copy.syncFailed, error: true });
@@ -121,9 +153,12 @@ export default function OfflineRoute() {
     locale={locale} offline={supported && offline} loading={loading} blocked={blocked}
     rows={scope ? rows : []} query={query} onQuery={value => setSearch({ observation, query: value })}
     canDownload={Boolean(scope && packages.canDownload)} notices={notices}
-    syncing={metadata.status === "syncing"}
+    syncing={metadata.status === "syncing" || currentMaintenance === "sync"}
+    purging={currentMaintenance === "purge"}
+    unavailableCount={library.unavailableCount}
     pending={pending?.observation === observation ? pending : null}
     onRefresh={scope && !offline ? retry : undefined} onAction={(row, action) => void runAction(row, action)}
+    onPurgeUnavailable={scope ? () => void runMaintenance("purge") : undefined}
     onBack={router.canGoBack() ? () => router.back() : undefined}
   />;
 }
