@@ -1,10 +1,11 @@
 import { randomUUID } from "expo-crypto";
-import { getStringAsync } from "expo-clipboard";
+import { getStringAsync, setStringAsync } from "expo-clipboard";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Platform, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
 import { Button } from "../../../components/Button";
+import { normalizeReadingSelection, readingSelectionKeys, type ReadingSelectionKey } from "../../../offline/reading-selection";
 import type { ReadingContent } from "../../../offline/reading-document";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import type { StudentRequest, StudentServices, StudentSession } from "../contracts";
@@ -65,6 +66,7 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
   const { canInteract } = useProtectedInteraction();
   const [state, setState] = useState<{ content: OnlineReadingContent } | { status: number } | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [copyFailed, setCopyFailed] = useState(false);
   const [emptyClipboard, setEmptyClipboard] = useState(false);
   const alive = useRef(true);
   const [visitId] = useState(randomUUID);
@@ -88,6 +90,17 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
     void recordOfflineReadingVisit({ kind, courseId, id: materialId }, visitId).catch(() => {});
   }, [canInteract, courseId, hasContent, kind, materialId, recordOfflineReadingVisit, visitId]);
 
+  function onSelection(key: ReadingSelectionKey, selected: unknown, sectionTitle?: string) {
+    if (!canInteract() || !alive.current) return;
+    const snippet = normalizeReadingSelection(selected, key === readingSelectionKeys.copy ? 64_000 : undefined);
+    if (!snippet) { setEmptyClipboard(true); return; }
+    if (key === readingSelectionKeys.ask) ask?.(snippet, sectionTitle);
+    else {
+      setCopyFailed(false);
+      void setStringAsync(snippet).catch(() => { if (alive.current && canInteract()) setCopyFailed(true); });
+    }
+  }
+
   const status = state && "status" in state ? state.status : null;
   const forbidden = status === 401 || status === 403;
   const web = !forbidden && (status === 404 || status === 413);
@@ -97,12 +110,15 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
       <Button theme={theme} variant="outline" onPress={close}>{id ? "Kembali" : "Back"}</Button>
       <Text accessibilityRole="header" numberOfLines={2} style={{ color: colors.foreground, fontSize: 16, fontWeight: "600", flex: 1 }}>{title}</Text>
     </View>
-    {state && "content" in state && ask ? <View style={{ paddingHorizontal: 12, paddingVertical: 4 }}>
+    {copyFailed && <Text accessibilityRole="alert" style={{ color: colors.mutedForeground, paddingHorizontal: 12 }}>
+      {id ? "Teks belum dapat disalin." : "Could not copy the text."}
+    </Text>}
+    {state && "content" in state && ask && ((Platform.OS !== "ios" && Platform.OS !== "android") || emptyClipboard) ? <View style={{ paddingHorizontal: 12, paddingVertical: 4 }}>
       <Button theme={theme} variant="ghost" style={{ alignSelf: "flex-start" }} onPress={() => {
         if (!canInteract()) return;
         void getStringAsync().then(value => {
           if (!alive.current || !canInteract()) return;
-          const snippet = value.trim().slice(0, 1200);
+          const snippet = normalizeReadingSelection(value);
           if (snippet) ask(snippet);
           else setEmptyClipboard(true);
         }).catch(() => { if (alive.current && canInteract()) setEmptyClipboard(true); });
@@ -112,7 +128,7 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
       </Text> : null}
     </View> : null}
     {state && "content" in state ? <ReadingStudy key={state.content.revision} content={state.content} courseId={courseId} request={request}
-      session={session} theme={theme} drafts={drafts} openWeb={openWeb} onCompleted={onCompleted} reload={reload} />
+      session={session} theme={theme} drafts={drafts} openWeb={openWeb} onSelection={ask ? onSelection : undefined} onCompleted={onCompleted} reload={reload} />
       : !state ? <ActivityIndicator style={{ margin: 20 }} accessibilityLabel={id ? "Memuat bacaan" : "Loading reading"} />
       : <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
         <Text accessibilityRole="alert" style={{ color: colors.foreground }}>

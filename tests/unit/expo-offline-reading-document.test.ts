@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { dirname } from "node:path";
 import { buildReadingContentHtml, buildReadingDocumentHtml, readerCodingAction, savedReadingContent } from "../../apps/mobile-native/offline/reading-document";
 import type { OfflineReadingArticle, OfflineReadingPackage, OfflineReadingSummary } from "../../apps/mobile-native/offline/reading-contract";
+import { normalizeReadingSelection, readerSelectionUsesContentEngine } from "../../apps/mobile-native/offline/reading-selection";
 import { buildReadingKatexCss } from "../../apps/mobile-native/offline/prepare-reading-katex.cjs";
 import type { PublicArticleReadModel } from "../../lib/articles/structured-read-model";
 import { buildOfflineReadingSections } from "../../lib/offline/reading-sections";
@@ -128,9 +129,10 @@ test("the generated document permits only inline styles, local images and local 
   expect([...katexCss.matchAll(/url\(([^)]+)\)/g)].length).toBeGreaterThan(10);
   expect(katexCss).not.toMatch(/url\((?!["']data:font\/woff2;base64,)|@import/);
   const wrapper = await Bun.file("apps/mobile-native/offline/ReadingDocument.tsx").text();
-  for (const option of ["javaScriptEnabled", "domStorageEnabled", "allowFileAccess", "allowUniversalAccessFromFileURLs", "thirdPartyCookiesEnabled"]) {
+  for (const option of ["domStorageEnabled", "allowFileAccess", "allowUniversalAccessFromFileURLs", "thirdPartyCookiesEnabled"]) {
     expect(wrapper).toContain(`${option}={false}`);
   }
+  expect(wrapper).toContain("javaScriptEnabled={readerSelectionUsesContentEngine(Platform.OS, nativeSelection)}");
   expect(wrapper).toContain('const initialPage = "about:blank"');
   expect(wrapper).toContain("request.url === initialPage");
 });
@@ -157,4 +159,14 @@ test("only authorized local typed parts can open a native coding workspace from 
     expect(readerCodingAction(url, actions)).toBeUndefined();
   }
   expect(readerCodingAction("https://reader.invalid/coding/exercise-1")).toBeUndefined();
+});
+
+test("native selection keeps host extraction Android-online-only and bounds the explicit text handoff", () => {
+  expect(readerSelectionUsesContentEngine("android", true)).toBe(true);
+  expect(readerSelectionUsesContentEngine("android", false)).toBe(false);
+  expect(readerSelectionUsesContentEngine("ios", true)).toBe(false);
+  expect(readerSelectionUsesContentEngine("web", true)).toBe(false);
+  expect(normalizeReadingSelection("  Flux\u0000\ngradient ")).toBe("Flux\ngradient");
+  expect(normalizeReadingSelection("x".repeat(2_000))).toHaveLength(1200);
+  expect(normalizeReadingSelection({ snippet: "spoofed" })).toBe("");
 });

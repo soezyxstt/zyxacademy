@@ -2,10 +2,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { mergeArticleSectionProgress, type ArticleProgressUpdate } from "../../../../../lib/articles/progress-contract";
+import { interactiveMarkdown, interactiveMarkdownFallback } from "../../../../../lib/materials/interactive-document-display";
+import type { ArticleField, InteractiveDocumentAssetKind, InteractiveDocumentScope } from "../../../../../lib/materials/interactive-document-path";
+import { InteractiveDocumentModal, InteractiveVisual } from "../InteractiveDocument";
+import type { VisualSource } from "../interactive-document";
 import type { FormativeLearnerResponse } from "../../../../../lib/materials/formative-evaluation";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
+import type { ReadingSelectionKey } from "../../../offline/reading-selection";
 import { ReadingContentDocument } from "../../../offline/ReadingDocument";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { CourseMarkdown } from "../CourseMarkdown";
@@ -15,12 +20,12 @@ import { ArticleCoding, type CodingItem } from "./ArticleCoding";
 import { ReadingNavigation } from "./ReadingNavigation";
 import { diktatReadingSections, readingNavigationItems } from "./reading-search";
 import { OnlineReadingError, type OnlineReadingContent } from "./online-reading";
-import { readingLearning, readingStudySections, resumeReadingSection, type CheckResult, type ReadProgress, type StudyBlock, type StudySection } from "./reading-learning";
+import { readingLearning, readingStudySections, resumeReadingSection, type CheckResult, type CheckReveal, type ReadProgress, type StudyBlock, type StudySection } from "./reading-learning";
 
 type Theme = keyof typeof nativeColors;
 type Study = ReturnType<typeof readingLearning>;
 type Props = { content: OnlineReadingContent; courseId: string; request: StudentRequest; session: StudentSession;
-  theme: Theme; drafts?: StudentServices["drafts"]; openWeb?: () => void; onCompleted(): void; reload(): void };
+  theme: Theme; drafts?: StudentServices["drafts"]; openWeb?: () => void; onSelection?: (key: ReadingSelectionKey, text: unknown, sectionTitle?: string) => void; onCompleted(): void; reload(): void };
 
 const toolbar = { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 8 };
 const stale = (error: unknown) => error instanceof OnlineReadingError && [401, 403, 404, 409].includes(error.status);
@@ -33,7 +38,7 @@ function takeVisit(visit: Visit) {
   return elapsed;
 }
 
-export function ReadingStudy({ content, courseId, request, session, theme, drafts, openWeb, onCompleted, reload }: Props) {
+export function ReadingStudy({ content, courseId, request, session, theme, drafts, openWeb, onSelection, onCompleted, reload }: Props) {
   const { canInteract } = useProtectedInteraction();
   const study = useMemo(() => readingLearning(request, courseId, content), [request, courseId, content]);
   const sections = useMemo(() => readingStudySections(content), [content]);
@@ -47,6 +52,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
   const [busy, setBusy] = useState(false);
   const [showCoding, setShowCoding] = useState(false);
   const [coding, setCoding] = useState<CodingItem>();
+  const [selectedVisual, setSelectedVisual] = useState<VisualSource & { kind: InteractiveDocumentAssetKind }>();
   const [check, setCheck] = useState<StudyBlock>();
   const pending = useRef<AbortController | null>(null);
   const visit = useRef<Visit | undefined>(undefined);
@@ -56,6 +62,8 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
   const active = sections.find(section => section.id === selected) ?? sections.find(section => section.slug === content.section) ?? sections[0];
   const codingSection = content.structured && active && "sections" in content.data
     ? content.data.sections.find(section => section.id === active.id) : undefined;
+  const visualArticle = content.structured && "version" in content.data
+    ? { articleId: content.data.id, articleVersion: content.data.version, courseId: content.data.courseId } : undefined;
   const codingParts = useMemo(() => sectionCodingParts(codingSection?.blocks ?? [], codingSection?.id), [codingSection]);
   const canUseNativeCoding = content.codingMode === "native" && Boolean(session.sessionId);
   const codingList = canUseNativeCoding ? codingParts.filter(item => item.namespace) : codingParts;
@@ -188,7 +196,13 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
     </View>}
     {error !== "stale" ? <ReadingContentDocument key={active?.id ?? unstructuredSection ?? content.data.id} content={selectedContent}
       testID="student-online-reading-document" onProgress={active ? scroll : undefined}
-      codingActions={codingActions} onCodingAction={openCoding} /> : <View style={{ flex: 1 }} />}
+      codingActions={codingActions} onCodingAction={openCoding}
+      onSelectedText={onSelection ? (key, text) => {
+        if (!canInteract() || showCoding || check) return;
+        onSelection(key, text, typeof codingSection?.title === "string" ? codingSection.title : diktatSection?.title);
+      } : undefined} onVisualAction={visualArticle ? action => {
+        if (canInteract()) setSelectedVisual({ spec: action.spec, scope: { ...visualArticle, ...action.location }, kind: action.kind });
+      } : undefined} /> : <View style={{ flex: 1 }} />}
     <View style={{ gap: 6, padding: 8, borderTopWidth: 1, borderColor: colors.border }}>
       {error && <Text accessibilityRole="alert" style={{ color: colors.destructive }}>{error === "stale"
         ? id ? "Bacaan atau akses berubah. Muat ulang." : "The reading or access changed. Reload."
@@ -215,6 +229,8 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
         </>}
       </View>
     </View>
+    {selectedVisual && error !== "stale" && <InteractiveDocumentModal selection={selectedVisual}
+      request={request} locale={locale} onClose={() => setSelectedVisual(undefined)} />}
     {codingSection && "version" in content.data && <Modal visible={showCoding && error !== "stale"}
       onRequestClose={() => { setShowCoding(false); setCoding(undefined); }} animationType="none">
       {showCoding && <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -232,14 +248,15 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
       </SafeAreaView>}
     </Modal>}
     {active && <Modal visible={Boolean(check)} onRequestClose={() => setCheck(undefined)} animationType="none">
-      {check && <ReadingCheck key={check.id} block={check} blocks={checks} study={study} locale={locale}
+      {check && <ReadingCheck key={check.id} block={check} blocks={checks} study={study} request={request} article={visualArticle} locale={locale}
         sectionId={active.id} select={setCheck} close={() => setCheck(undefined)} theme={theme} session={session} />}
     </Modal>}
   </>;
 }
 
-function ReadingCheck({ block, blocks, sectionId, study, session, locale, theme, select, close }: {
+function ReadingCheck({ block, blocks, sectionId, study, request, article, session, locale, theme, select, close }: {
   block: StudyBlock; blocks: StudyBlock[]; sectionId: string; study: Study; theme: Theme;
+  request: StudentRequest; article?: Pick<ArticleField, "articleId" | "articleVersion" | "courseId">;
   session: StudentSession; locale: "id" | "en"; select(block: StudyBlock): void; close(): void;
 }) {
   const { canInteract } = useProtectedInteraction();
@@ -247,7 +264,7 @@ function ReadingCheck({ block, blocks, sectionId, study, session, locale, theme,
   const [answer, setAnswer] = useState("");
   const [hint, setHint] = useState(0);
   const [result, setResult] = useState<CheckResult>();
-  const [reveal, setReveal] = useState<{ answer: string; explanation: string }>();
+  const [reveal, setReveal] = useState<CheckReveal>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<boolean | "stale">(false);
   const pending = useRef<AbortController | null>(null);
@@ -260,7 +277,14 @@ function ReadingCheck({ block, blocks, sectionId, study, session, locale, theme,
   const response: FormativeLearnerResponse | undefined = check.checkKind === "multiple_choice" ? choice ? { kind: "choice", optionId: choice } : undefined
     : text ? check.checkKind === "short_answer" ? { kind: "text", text }
       : check.checkKind === "numeric_answer" ? { kind: "numeric", value: text } : { kind: "conceptual", text } : undefined;
-  const markdown = (source: string) => <CourseMarkdown allowLinks={false} source={source} theme={theme} services={{ session }} />;
+  const markdown = (source: string, scope: InteractiveDocumentScope | null = null) =>
+    interactiveMarkdown(source).map((part, index) => typeof part === "string"
+      ? <CourseMarkdown key={index} allowLinks={false} source={part} theme={theme} services={{ session }} />
+      : <InteractiveVisual key={`${part.id}:${index}`} source={{ spec: part, scope }} request={request} locale={locale} />);
+  const grantScope = (field: "answer" | "explanation") => {
+    const grant = reveal?.visualAccess?.[field];
+    return grant ? { grant } : null;
+  };
   const report = async (operation: "evaluate" | "reveal") => {
     if (!canInteract() || pending.current || error === "stale" || (operation === "evaluate" && !response)) return;
     const controller = new AbortController();
@@ -293,11 +317,11 @@ function ReadingCheck({ block, blocks, sectionId, study, session, locale, theme,
     </View>
     <ScrollView contentContainerStyle={{ gap: 8, padding: 12 }} keyboardShouldPersistTaps="handled">
       {block.title ? <Text style={{ color: colors.foreground, fontWeight: "600" }}>{block.title}</Text> : null}
-      {markdown(block.content)}
+      {markdown(block.content, article ? { ...article, sectionId, blockId: block.id, field: "content" } : null)}
       {check.options?.map(option => <View key={option.id} style={toolbar}>
         <Button theme={theme} variant={choice === option.id ? "default" : "outline"} disabled={locked}
-          accessibilityLabel={option.text} onPress={() => setChoice(option.id)}>{String.fromCharCode(65 + (check.options?.indexOf(option) ?? 0))}</Button>
-        {markdown(option.text)}
+          accessibilityLabel={interactiveMarkdownFallback(option.text)} onPress={() => setChoice(option.id)}>{String.fromCharCode(65 + (check.options?.indexOf(option) ?? 0))}</Button>
+        {markdown(option.text, article ? { ...article, sectionId, blockId: block.id, optionId: option.id } : null)}
       </View>)}
       {!check.options?.length && check.evaluationMode && <Input theme={theme} accessibilityLabel={id ? "Jawaban" : "Answer"}
         value={answer} onChangeText={setAnswer} editable={!locked} multiline={check.checkKind === "conceptual_explanation"}
@@ -311,8 +335,8 @@ function ReadingCheck({ block, blocks, sectionId, study, session, locale, theme,
       </>}
       {reveal && <>
         <Text accessibilityRole="header" style={{ color: colors.foreground }}>{id ? "Pembahasan" : "Explanation"}</Text>
-        {markdown(reveal.answer)}
-        {markdown(reveal.explanation)}
+        {markdown(reveal.answer, grantScope("answer"))}
+        {markdown(reveal.explanation, grantScope("explanation"))}
       </>}
       {error && <Text accessibilityRole="alert" style={{ color: colors.destructive }}>{error === "stale"
         ? id ? "Bacaan atau akses berubah." : "The reading or access changed."

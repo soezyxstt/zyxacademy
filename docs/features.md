@@ -39,7 +39,7 @@ This catalog documents the active user-facing and operational capabilities of Zy
 - **Weekly Reflections**: Student reflection journal (`/profile/reflections`) with optional reminder emails (`FEATURE_REFLECTION_EMAIL`).
 
 ### Python Learning and Playground
-- Editable Python blocks in Student Articles and a Playground (`/courses/[id]/playground`). The Expo Playground saves multiline program input with the learner draft, sends it when the protected terminal starts, and accepts more lines while the program runs.
+- Editable Python blocks in Student Articles and a Playground (`/courses/[id]/playground`). The Expo reader can attach a selected Article or Diktat excerpt to the existing Zyra composer. The Expo Playground saves multiline program input with the learner draft, sends it when the protected terminal starts, and accepts more lines while the program runs.
 - Browser Pyodide execution, staging WASI terminal support, explicit Submit grading, guarded code insertion from Zyra, and beginner-friendly Python coaching. See [coding-foundation.md](coding-foundation.md).
 
 ## 3. Assessments, Quizzes, Tryouts, and Live Classroom
