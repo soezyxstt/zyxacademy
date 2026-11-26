@@ -8,6 +8,7 @@ and scale are independently verified. A skipped pair is not a passing diff.
 import argparse
 import glob
 import json
+import sys
 from pathlib import Path
 from PIL import Image, ImageChops
 
@@ -75,3 +76,8 @@ for pair in pairs:
     report.append(item)
 (out / 'comparison.json').write_text(json.dumps(report, indent=2) + '\n')
 print(json.dumps(report, indent=2))
+# An evidence run is incomplete if any intended matched capture is missing,
+# unverified, or has incompatible dimensions. A nonzero diff is recorded as
+# "different" and is not a parity pass, even though producing the diff succeeded.
+if any(item['status'] not in ('pass', 'different') for item in report[:3]):
+    sys.exit(1)
