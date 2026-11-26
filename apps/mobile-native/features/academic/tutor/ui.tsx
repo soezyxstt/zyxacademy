@@ -190,7 +190,8 @@ export function TutorDetail({ theme, title, subtitle, onBack, children, footer, 
         <Header theme={theme} title={title} subtitle={subtitle} onBack={close} />
       </View>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView ref={viewport?.scroller.ref} {...viewport?.scrollProps} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page} style={{ flex: 1 }}>
+        <ScrollView ref={viewport?.scroller.ref} {...viewport?.scrollProps} maintainVisibleContentPosition={viewport ? { minIndexForVisible: 0 } : undefined}
+          keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page} style={{ flex: 1 }}>
           {children}
         </ScrollView>
         {footer ? <View style={[styles.footer, { borderColor: colors.border }]}>{footer}</View> : null}

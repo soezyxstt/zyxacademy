@@ -75,6 +75,7 @@ export type TutorDiscussionDetail = {
     }[];
     nextCursor: string | null;
     previousCursor?: string;
+    startCursor?: string;
   };
   observed?: { receipt: string; throughSeq: number; items: { id: string; seq: number }[] };
   aiStatuses?: { messageId: string; status: string; reason: string | null }[];

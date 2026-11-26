@@ -107,7 +107,7 @@ export const tutorSupportServices = {
           body, attachments, attachmentCount: attachments.length, messageType, replyTo, reactions, canReply, canReact,
           revision, bodyKind, canEdit, canDelete, canReport, canForward: canForward && forwardingAllowed,
         })),
-        nextCursor: messages.nextCursor, previousCursor: messages.previousCursor,
+        nextCursor: messages.nextCursor, previousCursor: messages.previousCursor, startCursor: messages.startCursor,
       },
       aiStatuses,
       observed: { receipt: messages.observationReceipt, throughSeq: readThroughSeq, items: messages.items.map(({ id, seq }) => ({ id, seq })) },

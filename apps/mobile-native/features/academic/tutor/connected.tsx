@@ -1,17 +1,14 @@
 import { toggleSlotCourseSelection } from "../../../../../lib/schedule/slot-courses";
 import { discussionDestination, discussionWorkspaceHref } from "../../../../../packages/native-parity/discussion-destination";
 import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
-import { useCallback, useContext, useEffect, useRef, useState, type ComponentRef, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode } from "react";
 import { randomUUID } from "expo-crypto";
-import { useIsFocused } from "expo-router";
 import { openBrowserAsync } from "expo-web-browser";
-import { AccessibilityInfo, ActivityIndicator, AppState, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, AppState, ScrollView, View } from "react-native";
 import type {
   TutorDiscussionChange,
   TutorDiscussionComposerDraft,
-  TutorDiscussionDetail,
   TutorDiscussThread,
-  TutorDiscussionList,
   TutorLiveData,
   TutorLiveHost,
   TutorMaterialsData,
@@ -22,10 +19,12 @@ import type {
 import { DISCUSSION_REACTIONS, discussionMentionTokens } from "../../../../../lib/discussions/policy";
 import type { DiscussionChannelMetadata, DiscussionMention } from "../../../../../lib/discussions/contracts";
 import { activeTutorMentions, insertTutorMention, tutorMentionSubmission } from "../../../../../packages/academic/tutor-discussion-mentions";
-import { discussionAiMessage, threadRefreshDelay } from "../../student/community/discussion-refresh";
+import { discussionAiMessage, listRefreshDelay, threadRefreshDelay } from "../../student/community/discussion-refresh";
 import { TutorDiscussionMessageActions } from "./discussion-message-actions";
 import { useDiscussionViewport, useVisibleDiscussionRead } from "../../discussions/read-viewport";
-import type { ReadPage } from "../../discussions/read-batches";
+import { useTutorDiscussionForeground, useTutorDiscussionPoll } from "./discussion-poll";
+import { appendTutorList, extendTutorThread, initialTutorThread, readbackTutorThread, refreshTutorList, refreshTutorThread,
+  tutorListView, tutorThreadView, type TutorListWindow, type TutorThreadWindow } from "./discussion-window";
 import { TutorDiscussionChannels } from "./discussion-channels";
 import { TutorDiscussionQuestion } from "./discussion-question";
 import { TutorDiscussionMentionPicker, TutorDiscussionPerson } from "./discussion-mentions";
@@ -346,10 +345,12 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
   const [search, setSearch] = useState("");
   const [term, setTerm] = useState("");
   const [attempt, setAttempt] = useState(0);
-  const [page, setPage] = useState<TutorDiscussionList>();
+  const [listWindow, setListWindow] = useState<TutorListWindow>();
+  const page = useMemo(() => listWindow ? tutorListView(listWindow) : undefined, [listWindow]);
   const [listError, setListError] = useState("");
   const [listUnavailable, setListUnavailable] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const listScroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const pageRequest = useRef<AbortController | null>(null);
   const target = discussionDestination(new URLSearchParams(query));
   const [active, setActive] = useState<string | null>(target?.thread ?? null);
@@ -358,83 +359,79 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
   const [submittedMessage, setSubmittedMessage] = useState<{ threadId: string; messageId: string }>();
   const [discussionStatus, setDiscussionStatus] = useState<"open" | "resolved">("open");
   const listChannel = courseId ? undefined : channel?.id;
-  const focused = useIsFocused();
+  const foreground = useTutorDiscussionForeground();
   const { canInteract, suspended } = useProtectedInteraction();
-  const [loadedCursors, setLoadedCursors] = useState<(string | undefined)[]>([undefined]);
+  const listScope = JSON.stringify([discussionSessionKey(service), courseId, term, listChannel, discussionStatus, attempt]);
+  const listRead = useCallback((cursor: string | undefined, signal: AbortSignal) => service.discussions(courseId, term, cursor, signal,
+    service.discussionWorkspace ? { channelId: listChannel, status: discussionStatus } : undefined),
+  [courseId, discussionStatus, listChannel, service, term]);
+  useEffect(() => { listScroll.current?.scrollTo({ y: 0, animated: false }); }, [listScope, listWindow?.start]);
 
   useEffect(() => {
     const controller = new AbortController();
-    const { signal } = controller;
-    setPage(undefined);
+    setListWindow(undefined);
     setListError("");
     setListUnavailable(false);
-    setLoadedCursors([undefined]);
     setLoadingMore(false);
-    service.discussions(courseId, term, undefined, signal, service.discussionWorkspace ? { channelId: listChannel, status: discussionStatus } : undefined)
-      .then((data) => { if (!signal.aborted) setPage(data); })
+    listRead(undefined, controller.signal)
+      .then(data => { if (!controller.signal.aborted) setListWindow({ pages: [data] }); })
       .catch((error: unknown) => {
-        if (signal.aborted) return;
+        if (controller.signal.aborted) return;
         if (accessEnded(error)) setListUnavailable(true);
         else setListError("Diskusi gagal dimuat.");
       });
     return () => {
       controller.abort();
       pageRequest.current?.abort();
+      pageRequest.current = null;
     };
-  }, [service, courseId, term, attempt, listChannel, discussionStatus]);
+  }, [listRead, attempt]);
 
-  useEffect(() => {
-    if (!focused || suspended || active || creating) return;
-    const controller = new AbortController();
-    let pageIndex = 0;
-    let timer: ReturnType<typeof setTimeout>;
-    const refresh = async () => {
-      if (AppState.currentState === "active" && canInteract()) {
-        try {
-          const result = await service.discussions(courseId, term, loadedCursors[pageIndex], controller.signal,
-            service.discussionWorkspace ? { channelId: listChannel, status: discussionStatus } : undefined);
-          if (controller.signal.aborted) return;
-          const updates = new Map(result.items.map(item => [item.id, item]));
-          setPage(previous => previous && { ...previous, items: previous.items.map(item => updates.get(item.id) ?? item) });
-          pageIndex = (pageIndex + 1) % loadedCursors.length;
-        } catch (error) {
-          if (!controller.signal.aborted && accessEnded(error)) { setPage(undefined); setListUnavailable(true); return; }
-        }
+  useTutorDiscussionPoll(Boolean(foreground && !suspended && !active && !creating && listWindow && !listUnavailable),
+    listRefreshDelay(), listScope, async signal => {
+      if (!listWindow || pageRequest.current || !canInteract()) return;
+      try {
+        const result = await refreshTutorList(listWindow, listRead, signal);
+        if (signal.aborted || pageRequest.current || !canInteract()) return;
+        setListWindow(previous => previous === listWindow ? result : previous);
+        setListError("");
+      } catch (error) {
+        if (signal.aborted || !canInteract()) return;
+        if (accessEnded(error)) { setListWindow(undefined); setListUnavailable(true); }
       }
-      if (!controller.signal.aborted) timer = setTimeout(() => void refresh(), 60_000);
-    };
-    timer = setTimeout(() => void refresh(), 60_000);
-    return () => { clearTimeout(timer); controller.abort(); };
-  }, [active, creating, focused, suspended, canInteract, loadedCursors, service, courseId, term, listChannel, discussionStatus]);
+    });
 
   async function more() {
-    if (!page?.nextCursor || loadingMore) return;
+    const cursor = page?.nextCursor;
+    if (!cursor || pageRequest.current || !canInteract()) return;
     const controller = new AbortController();
     pageRequest.current = controller;
     setLoadingMore(true);
     setListError("");
     try {
-      const next = await service.discussions(courseId, term, page.nextCursor, controller.signal, service.discussionWorkspace ? { channelId: listChannel, status: discussionStatus } : undefined);
-      if (!controller.signal.aborted) {
-        setPage({ items: [...page.items, ...next.items], nextCursor: next.nextCursor });
-        setLoadedCursors(previous => [...new Set([...previous, page.nextCursor ?? undefined])]);
+      const next = await listRead(cursor, controller.signal);
+      if (!controller.signal.aborted && canInteract()) {
+        setListWindow(previous => previous ? appendTutorList(previous, cursor, next) : previous);
       }
     } catch (error) {
       if (!controller.signal.aborted) {
         if (accessEnded(error)) {
-          setPage(undefined);
+          setListWindow(undefined);
           setListUnavailable(true);
         } else {
           setListError("Diskusi berikutnya gagal dimuat.");
         }
       }
     } finally {
-      if (!controller.signal.aborted) setLoadingMore(false);
+      if (pageRequest.current === controller) {
+        pageRequest.current = null;
+        if (!controller.signal.aborted) setLoadingMore(false);
+      }
     }
   }
 
   return <>
-    <TutorPage title="Diskusi" subtitle={subtitle} theme={theme} onBack={back} header={header}>
+    <TutorPage title="Diskusi" subtitle={subtitle} theme={theme} onBack={back} header={header} scrollRef={listScroll}>
       {service.discussionWorkspace ? <>
         <TutorDiscussionChannels client={service.discussionWorkspace} {...{ courseId, theme }} selected={channel}
           active={!active && !creating} choose={setChannel} create={setCreating} />
@@ -454,6 +451,8 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
           subtitle={[!courseId && thread.channelLabel, thread.status === "resolved" && "Terselesaikan"].filter(Boolean).join(" · ") || undefined} meta={`${thread.answerCount} jawaban`}
           onPress={() => setActive(thread.id)} />)}
         {page.items.length === 0 ? <Empty theme={theme} title={term ? "Diskusi tidak ditemukan" : "Belum ada diskusi"} /> : null}
+        {listWindow?.start ? <Button theme={theme} variant="outline" style={tutorLayout.action}
+          disabled={loadingMore} onPress={() => setAttempt(value => value + 1)}>Diskusi terbaru</Button> : null}
         {page.nextCursor && !listError ? <Button theme={theme} variant="outline" style={tutorLayout.action}
           isLoading={loadingMore} onPress={more}>Tampilkan lebih banyak</Button> : null}
       </View> : null}
@@ -470,42 +469,18 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
       }}
       close={() => {
         setActive(null);
-        setAttempt(value => value + 1);
         setSubmittedMessage(undefined);
         if (active === target?.thread) {
           const path = workspacePath ?? (courseId ? `/tutor/${encodeURIComponent(courseId)}/discussions` : "/tutor/discussions");
           replace(discussionWorkspaceHref(path, new URLSearchParams(query)));
         }
-      }} onThread={(thread) => setPage((previous) => previous && ({
-        ...previous, items: previous.items.map((item) => item.id === thread.id ? { ...item, ...thread } : item),
+      }} onThread={thread => setListWindow(previous => previous && ({
+        ...previous, pages: previous.pages.map(page => ({ ...page, items: page.items.flatMap(item => {
+          if (item.id !== thread.id) return [item];
+          return !service.discussionWorkspace || thread.status === discussionStatus ? [{ ...item, ...thread }] : [];
+        }) })),
       }))} /> : null}
   </>;
-}
-
-type DiscussionPages = TutorDiscussionDetail & { readPages?: ReadPage[] };
-function observedPages(data?: DiscussionPages): ReadPage[] {
-  if (data?.readPages) return data.readPages;
-  if (!data?.observed) return [];
-  const messages = new Map(data.messages.items.map(item => [item.id, item]));
-  return [{ ...data.observed, status: data.thread.status, items: data.observed.items.map(item =>
-    ({ ...item, revision: messages.get(item.id)?.revision })) }];
-}
-
-function mergeDiscussionMessages(previous: DiscussionPages | undefined, next: TutorDiscussionDetail, keepCursor = false) {
-  const unique = new Map([...previous?.messages.items ?? [], ...next.messages.items].map((message) => [message.id, message]));
-  const refreshedIds = new Set(next.messages.items.map(message => message.id));
-  return {
-    thread: next.thread,
-    observed: next.observed,
-    readPages: [...observedPages(previous).map(page => ({ ...page, items: page.items.filter(item => !refreshedIds.has(item.id)) }))
-      .filter(page => page.items.length > 0), ...observedPages(next)],
-    aiStatuses: [...(previous?.aiStatuses ?? []).filter(status => !refreshedIds.has(status.messageId)), ...(next.aiStatuses ?? [])],
-    messages: {
-      items: [...unique.values()].sort((left, right) => left.seq - right.seq),
-      nextCursor: keepCursor && previous ? previous.messages.nextCursor : next.messages.nextCursor,
-      previousCursor: previous ? previous.messages.previousCursor : next.messages.previousCursor,
-    },
-  };
 }
 
 function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, service, close, onThread, openTarget }: {
@@ -518,12 +493,20 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
   onThread(thread: TutorDiscussThread): void;
   openTarget(target: { threadId: string; messageId: string }): void;
 }) {
-  const { canInteract } = useProtectedInteraction();
+  const { canInteract, suspended } = useProtectedInteraction();
+  const foreground = useTutorDiscussionForeground();
   const imageActions = useContext(TutorDiscussionImages);
-  const [data, setData] = useState<DiscussionPages>();
+  const [window, setWindow] = useState<TutorThreadWindow>();
+  const data = useMemo(() => window ? tutorThreadView(window) : undefined, [window]);
+  const [liveError, setLiveError] = useState(false);
+  const latestThread = useRef(onThread);
+  latestThread.current = onThread;
+  const windowEpoch = useRef(0);
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState("");
   const [unavailable, setUnavailable] = useState(false);
+  const currentThread = unavailable ? undefined : data?.thread;
+  useEffect(() => { if (currentThread) latestThread.current(currentThread); }, [currentThread]);
   const [loadingMore, setLoadingMore] = useState(false);
   const pageRequest = useRef<AbortController | null>(null);
   const earlierPage = useRef(false);
@@ -560,32 +543,27 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
   const [reactionMenu, setReactionMenu] = useState<string>();
   const askingZyra = discussionMentionTokens(draft).has("zyra");
   const aiStatuses = data?.aiStatuses ?? [];
-  const pendingAi = aiStatuses.find(status => status.status === "pending" || status.status === "processing")?.messageId;
   const aiPollDelay = threadRefreshDelay({ aiStatuses });
+  const refreshScope = JSON.stringify([discussionSessionKey(service), courseId, threadId, targetMessage, attempt]);
 
   useEffect(() => { service.rememberDiscussionDraft?.(threadId, composer); }, [service, threadId, composer]);
 
-  useEffect(() => {
-    if (!pendingAi || unavailable) return;
-    const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
-    const schedule = () => {
-      timer = setTimeout(async () => {
-        if (controller.signal.aborted) return;
-        if (AppState.currentState === "active" && canInteract()) {
-          try {
-            const next = await service.discussion(courseId, threadId, undefined, controller.signal, pendingAi);
-            if (!controller.signal.aborted) setData(previous => mergeDiscussionMessages(previous, next, true));
-          } catch (failure) {
-            if (!controller.signal.aborted && accessEnded(failure)) setUnavailable(true);
-          }
-        }
-        if (!controller.signal.aborted) schedule();
-      }, aiPollDelay);
-    };
-    schedule();
-    return () => { clearTimeout(timer); controller.abort(); };
-  }, [aiPollDelay, canInteract, courseId, pendingAi, service, threadId, unavailable]);
+  useTutorDiscussionPoll(Boolean(foreground && !suspended && window && !unavailable && !picking),
+    aiPollDelay, refreshScope, async signal => {
+      if (!window || pageRequest.current || sendRequest.current || changeRequest.current || !canInteract()) return;
+      const version = windowEpoch.current;
+      try {
+        const next = await refreshTutorThread(window, (locator, requestSignal) =>
+          service.discussion(courseId, threadId, locator.cursor, requestSignal, locator.target), signal);
+        if (signal.aborted || version !== windowEpoch.current || !canInteract()) return;
+        setWindow(previous => previous === window ? next : previous);
+        setLiveError(false);
+      } catch (failure) {
+        if (signal.aborted || version !== windowEpoch.current || !canInteract()) return;
+        if (accessEnded(failure)) { setWindow(undefined); setUnavailable(true); }
+        else setLiveError(true);
+      }
+    });
 
   useEffect(() => () => {
     sendRequest.current?.abort();
@@ -596,10 +574,17 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
   useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
+    windowEpoch.current++;
     setError("");
+    setLiveError(false);
     setUnavailable(false);
+    setLoadingMore(false);
+    setWindow(undefined);
     service.discussion(courseId, threadId, undefined, signal, targetMessage)
-      .then((result) => { if (!signal.aborted) setData(result); })
+      .then(result => {
+        if (signal.aborted) return;
+        setWindow(initialTutorThread(result, { target: targetMessage }));
+      })
       .catch((failure: unknown) => {
         if (signal.aborted) return;
         if (accessEnded(failure)) setUnavailable(true);
@@ -608,45 +593,49 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     return () => {
       controller.abort();
       pageRequest.current?.abort();
+      pageRequest.current = null;
     };
   }, [service, courseId, threadId, targetMessage, attempt]);
 
   async function more(earlier = false) {
     const cursor = earlier ? data?.messages.previousCursor : data?.messages.nextCursor;
-    if (!cursor || loadingMore) return;
+    if (!cursor || pageRequest.current || sendRequest.current || changeRequest.current || !canInteract()) return;
     earlierPage.current = earlier;
+    windowEpoch.current++;
     const controller = new AbortController();
     pageRequest.current = controller;
     setLoadingMore(true);
     setError("");
     try {
       const next = await service.discussion(courseId, threadId, cursor, controller.signal);
-      if (!controller.signal.aborted) setData(previous => {
-        const merged = mergeDiscussionMessages(previous, next, earlier);
-        if (earlier) merged.messages.previousCursor = next.messages.previousCursor;
-        return merged;
-      });
+      if (!controller.signal.aborted && canInteract()) {
+        setWindow(previous => previous ? extendTutorThread(previous, cursor, next, earlier) : previous);
+      }
     } catch (error) {
       if (!controller.signal.aborted) {
-        if (accessEnded(error)) setUnavailable(true);
+        if (accessEnded(error)) { setWindow(undefined); setUnavailable(true); }
         else setError(earlier ? "Pesan sebelumnya gagal dimuat." : "Pesan berikutnya gagal dimuat.");
       }
     } finally {
-      if (!controller.signal.aborted) setLoadingMore(false);
+      if (pageRequest.current === controller) {
+        pageRequest.current = null;
+        if (!controller.signal.aborted) setLoadingMore(false);
+      }
     }
   }
 
   async function receiveMessage(messageId: string, signal: AbortSignal) {
+    const version = ++windowEpoch.current;
     try {
       const result = await service.discussion(courseId, threadId, undefined, signal, messageId);
-      if (signal.aborted) return;
-      setData((previous) => mergeDiscussionMessages(previous, result, true));
-      onThread(result.thread);
+      if (signal.aborted || version !== windowEpoch.current || !canInteract()) return;
+      setWindow(previous => readbackTutorThread(previous, result, messageId));
       setReadback(undefined);
       return result.messages.items.find(message => message.id === messageId);
     } catch (error) {
-      if (!signal.aborted) {
+      if (!signal.aborted && version === windowEpoch.current) {
         if (accessEnded(error)) {
+          setWindow(undefined);
           setReadback(undefined);
           setUnavailable(true);
         } else {
@@ -725,19 +714,24 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     if (!service.changeDiscussion || changeRequest.current || !canInteract()) return;
     const controller = new AbortController();
     changeRequest.current = controller;
+    const version = ++windowEpoch.current;
     setChanging(true); setSendMessage("");
     try {
       await service.changeDiscussion(courseId, threadId, value, randomUUID(), controller.signal);
-      const next = await service.discussion(courseId, threadId, undefined, controller.signal,
-        value.action === "reaction" ? value.messageId : targetMessage);
-      if (!controller.signal.aborted) {
-        setReactionMenu(undefined);
-        setData(previous => mergeDiscussionMessages(previous, next, true));
-        onThread(next.thread);
+      const usable = () => !controller.signal.aborted && version === windowEpoch.current && canInteract();
+      if (value.action === "resolve" && window) {
+        const next = await refreshTutorThread(window, (locator, signal) =>
+          service.discussion(courseId, threadId, locator.cursor, signal, locator.target), controller.signal);
+        if (usable()) setWindow(next);
+      } else {
+        const target = value.action === "reaction" ? value.messageId : targetMessage;
+        const next = await service.discussion(courseId, threadId, undefined, controller.signal, target);
+        if (usable()) setWindow(previous => readbackTutorThread(previous, next, target));
       }
+      if (usable()) setReactionMenu(undefined);
     } catch (error) {
-      if (!controller.signal.aborted) {
-        if (accessEnded(error)) setUnavailable(true);
+      if (!controller.signal.aborted && version === windowEpoch.current) {
+        if (accessEnded(error)) { setWindow(undefined); setUnavailable(true); }
         else setSendMessage("Perubahan belum dapat diperiksa. Muat ulang diskusi.");
       }
     } finally {
@@ -763,8 +757,8 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
   const viewport = useDiscussionViewport();
   const visibleRead = useVisibleDiscussionRead({
     scroller: viewport.scroller,
-    pages: observedPages(data),
-    enabled: Boolean(service.changeDiscussion && data && !unavailable && !picking),
+    pages: data?.readPages ?? [],
+    enabled: Boolean(service.changeDiscussion && data && foreground && !suspended && !unavailable && !picking),
     submit: async (batch, signal) => {
       if (!service.changeDiscussion || !canInteract()) throw new Error("Discussion unavailable");
       await service.changeDiscussion(courseId, threadId, { action: "read", ...batch }, randomUUID(), signal);
@@ -824,6 +818,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     {unavailable ? <Empty theme={theme} title="Diskusi tidak tersedia" /> : null}
     {!data && !error && !unavailable ? <ActivityIndicator accessibilityLabel="Memuat pesan" /> : null}
     {sendMessage && !unavailable ? <Label theme={theme}>{sendMessage}</Label> : null}
+    {liveError && !unavailable ? <Label theme={theme} tone="error">Pembaruan pesan belum dapat dimuat.</Label> : null}
     {!unavailable && data && service.changeDiscussion ? <View style={tutorLayout.cluster}>
       <Button theme={theme} variant="outline" disabled={changing} onPress={() => setAttempt(value => value + 1)}>Muat ulang diskusi</Button>
       {visibleRead.failed ? <Button theme={theme} variant="outline" onPress={visibleRead.retry}>Coba perbarui status baca</Button> : null}
