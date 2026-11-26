@@ -120,6 +120,13 @@ export const operationsCatalog = [
     "reason": "Learner Article and Diktat progress, completion and formative responses require an active Student session, exact course and current published revision. Tutorial PKA still checks registration. These operations reuse learner web evidence and feedback rules. MCP authoring grants do not expose learner progress, answers or formative submissions."
   },
   {
+    "source": "app/api/admin/quiz-insights/[id]/analyze/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Web and Expo Admin course analytics generate the existing quiz performance analysis from completed attempts. The Expo action checks the selected course before invoking the same provider and disclosure path. This interactive workflow has no MCP tool."
+  },
+  {
     "source": "app/api/account/sessions/route.ts",
     "actions": ["GET", "DELETE"],
     "tools": [],

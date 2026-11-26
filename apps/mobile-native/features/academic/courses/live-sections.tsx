@@ -6,6 +6,7 @@ import type { AdminCourseLiveRead } from "../../../../../packages/native-parity/
 import type { AdminCourseSectionResult } from "../../../../../packages/native-parity/academic/courses/sections";
 import { CourseLeaderboard } from "./leaderboard";
 import { CourseDeleteDialog } from "./live-delete";
+import { QuizAnalysisAction, QuizInsightDetails } from "./live-quiz-insight";
 import { LiveFlashcards } from "./live-flashcards";
 import { LiveVideos } from "./live-videos";
 import { AdminCoursePdfPreview } from "./admin-pdf-preview";
@@ -47,7 +48,7 @@ export function LiveCourseSection({ data, query, navigate, updateSettings, updat
     case "results":
       return <LiveAnalytics data={data} navigate={navigate} />;
     case "quiz-insight":
-      return <LiveQuizInsight data={data} initialTab={query.tab} />;
+      return <LiveQuizInsight data={data} initialTab={query.tab} refresh={refresh} />;
     case "documents":
       return <LiveDocuments data={data} query={query} navigate={navigate} />;
     case "document": {
@@ -136,7 +137,7 @@ const insightTabs = [
   { id: "attempts-sheet", label: "Pengerjaan" },
 ] as const;
 
-function LiveQuizInsight({ data, initialTab }: { data: SectionOf<"quiz-insight">; initialTab?: string }) {
+function LiveQuizInsight({ data, initialTab, refresh }: { data: SectionOf<"quiz-insight">; initialTab?: string; refresh(): void }) {
   const [tab, setTab] = useState(() => insightTabs.find(({ id }) => id === initialTab)?.id ?? "ai-insights");
   const [selected, setSelected] = useState<string | null>(null);
   const ranges = ["0 sampai 20", "21 sampai 40", "41 sampai 60", "61 sampai 80", "81 sampai 100"];
@@ -154,9 +155,11 @@ function LiveQuizInsight({ data, initialTab }: { data: SectionOf<"quiz-insight">
       <Tabs<(typeof insightTabs)[number]["id"]> selected={tab} options={insightTabs} onSelect={setTab} testID="course-analytics-tab" />
       {tab === "ai-insights" ? (
         <Panel title="Analisis performa">
+          {data.quiz.courseId ? <QuizAnalysisAction quizId={data.quiz.id} courseId={data.quiz.courseId} totalCompleted={summary.totalCompleted} refresh={refresh} /> : null}
           {data.latestInsight ? (
             <>
-              {data.latestInsight.summary ? <Ink>{data.latestInsight.summary}</Ink> : null}
+              <Ink>{data.latestInsight.summary || data.latestInsight.report?.summaryOverview}</Ink>
+              {data.latestInsight.report ? <QuizInsightDetails report={data.latestInsight.report} /> : null}
               <Ink kind="meta" tone="muted">{data.latestInsight.sampleSize} pengerjaan dianalisis</Ink>
             </>
           ) : <CourseStatus label="Belum ada analisis tersimpan." />}

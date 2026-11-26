@@ -1,3 +1,4 @@
+import type { QuizInsightReport } from "../../../academic/quiz-insight";
 import type { AdminFlashcardStatus, AdminMaterialTitleEdit } from "./edit-contract";
 import type { AdminCourse } from "./model";
 
@@ -46,11 +47,11 @@ export type CourseLeaderboardAttempt = {
 export type CourseSectionPayload =
   | { type: "analytics" | "results"; quizzes: CourseQuizRow[];
       stats: { totalAttempts: number; avgScore: number; passRate: number } }
-  | { type: "quiz-insight"; quiz: { id: string; title: string; category: string; status: string };
+  | { type: "quiz-insight"; quiz: { id: string; courseId?: string; title: string; category: string; status: string };
       summary: { totalStarted: number; totalCompleted: number; completionRate: number; avgScore: number;
         minScore: number; maxScore: number; medianScore: number; avgDurationSeconds: number; scoreRanges: number[] };
       questions: QuizInsightItem[]; attempts: { id: string; name: string | null; status: string; score: number | null;
-        durationSeconds: number | null; startedAt: string; submittedAt: string | null }[]; latestInsight: { summary: string | null; sampleSize: number } | null }
+        durationSeconds: number | null; startedAt: string; submittedAt: string | null }[]; latestInsight: { summary: string | null; sampleSize: number; report?: QuizInsightReport } | null }
   | { type: "documents"; chapters: CourseChapterLabel[]; documents: CourseDocumentRow[] }
   | { type: "document"; document: CourseDocumentRow; chapters: CourseChapterLabel[]; titleEdit?: AdminMaterialTitleEdit | null; pdfPreview?: boolean }
   | { type: "review"; bundles: CourseReviewRow[] }

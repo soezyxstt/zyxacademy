@@ -10,6 +10,7 @@ import { getCourseVideosData } from "@/app/actions/video-actions";
 import { matchesCourseIdentity, resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { readAdminCourseLeaderboard } from "@/lib/admin/leaderboard-course-read-model";
 import { listAdminCourseMaterials } from "@/lib/admin/course-material-preview";
+import { parseQuizInsight } from "@/packages/academic/quiz-insight";
 import { readAdminQuizInsight } from "@/lib/admin/quiz-insight-read-model";
 import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
@@ -61,14 +62,14 @@ export async function readAdminCourseSection(slug: string, section: string, item
     return {
       type: "quiz-insight",
       course,
-      quiz: { id: template.id, title: template.title, category: quizCategories[template.category], status: template.status },
+      quiz: { id: template.id, courseId: template.courseId, title: template.title, category: quizCategories[template.category], status: template.status },
       summary: { ...metrics, scoreRanges: Object.values(scoreRanges) },
       questions: questionAnalysis.map((row) => ({
         questionId: row.questionId, prompt: row.prompt, options: strings(row.options), correctIndices: indices(row.correctIndices),
         totalAnswers: row.totalAnswers, accuracyRate: row.accuracyRate, optionCounts: row.optionCounts,
       })),
       attempts: attemptHeaders ?? [],
-      latestInsight: latestAiInsight ? { summary: latestAiInsight.summary, sampleSize: latestAiInsight.sampleSize } : null,
+      latestInsight: latestAiInsight ? { summary: latestAiInsight.summary, sampleSize: latestAiInsight.sampleSize, report: parseQuizInsight(latestAiInsight.insights) } : null,
     };
   }
 
