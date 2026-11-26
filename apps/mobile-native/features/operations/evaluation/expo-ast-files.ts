@@ -14,21 +14,28 @@ export function connectAstFiles(session: NativeSessionTransport, locale: "id" | 
     session, signal, isDraftCurrent: () => !signal.aborted && session.isCurrent(),
   });
 
+  async function pickText(signal: AbortSignal, markdown: boolean) {
+    const policy = markdown ? { mimeTypes: ["text/markdown", "text/x-markdown", "text/plain", "application/octet-stream"], maxBytes: jsonPolicy.maxBytes } : jsonPolicy;
+    const request = { ...scope(signal), policy, target: { route: markdown ? "/admin/questions" : "/admin/ast-inspector", locale, draftId: randomUUID() } };
+    const result = await scopedFiles.pickDocument(request);
+    if (result.status === "cancelled" || result.status === "stale") return null;
+    if (result.status !== "ready") throw new Error("Document could not be opened.");
+    const { document } = result;
+    try {
+      if (!scopedFiles.belongsToDocumentDraft(document, request)) return null;
+      if (markdown && (document.mimeType !== "text/markdown" || !/\.md$/i.test(document.name))) throw new Error("Invalid Markdown file.");
+      const bytes = await new File(document.uri).bytes();
+      const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      if (markdown && text.includes("\0")) throw new Error("Invalid Markdown text.");
+      return scopedFiles.belongsToDocumentDraft(document, request) ? text : null;
+    } finally {
+      document.release();
+    }
+  }
+
   return {
-    async importJson(signal) {
-      const request = { ...scope(signal), policy: jsonPolicy, target: { route: "/admin/ast-inspector", locale, draftId: randomUUID() } };
-      const result = await scopedFiles.pickDocument(request);
-      if (result.status === "cancelled" || result.status === "stale") return null;
-      if (result.status !== "ready") throw new Error("JSON could not be opened.");
-      const { document } = result;
-      try {
-        if (!scopedFiles.belongsToDocumentDraft(document, request)) return null;
-        const text = await new File(document.uri).text();
-        return scopedFiles.belongsToDocumentDraft(document, request) ? text : null;
-      } finally {
-        document.release();
-      }
-    },
+    importJson: signal => pickText(signal, false),
+    importMarkdown: signal => pickText(signal, true),
     async exportJson(name, text, signal) {
       const result = await scopedFiles.shareGeneratedJson({
         ...scope(signal), name, text, maxBytes: jsonPolicy.maxBytes,

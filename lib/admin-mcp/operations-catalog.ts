@@ -2146,7 +2146,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST", "PUT", "DELETE"],
     "tools": [],
     "status": "excluded",
-    "reason": "Signed native Evaluation uses existing interactive Admin services for question authoring, review and queued generation. MCP authoring and jobs operations keep their registered scopes, consent and environment bindings."
+    "reason": "Signed native Evaluation uses existing interactive Admin services for question authoring, review and queued generation. Picking a local Markdown file only fills the question import draft, which still requires explicit submission. MCP authoring and jobs operations keep their registered scopes, consent and environment bindings."
   },
   {
     "source": "app/api/admin/ops-ai/execute/route.ts",

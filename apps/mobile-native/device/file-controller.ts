@@ -385,8 +385,11 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
         }
         const jsonFromFiles = permitted.includes("application/json") && /\.json$/i.test(asset.name) &&
           [reported, observedMime].every(type => !type || ["application/json", "application/octet-stream", "text/plain"].includes(type));
+        const markdownFromFiles = permitted.includes("text/markdown") && /\.md$/i.test(asset.name) &&
+          [reported, observedMime].every(type => !type || ["text/markdown", "text/x-markdown", "text/plain", "application/octet-stream"].includes(type));
         if (jsonFromFiles) mimeType = "application/json";
-        if (!permitted.includes(mimeType) || (!jsonFromFiles && observedMime && observedMime !== "application/octet-stream" && observedMime !== mimeType)) {
+        if (markdownFromFiles) mimeType = "text/markdown";
+        if (!permitted.includes(mimeType) || (!jsonFromFiles && !markdownFromFiles && observedMime && observedMime !== "application/octet-stream" && observedMime !== mimeType)) {
           return { status: "error", issue: "type" };
         }
         const limit = Math.min(maxBytes, remaining);

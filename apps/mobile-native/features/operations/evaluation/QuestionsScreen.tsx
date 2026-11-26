@@ -24,7 +24,7 @@ export function QuestionsScreen({ request, presentation, navigate, initialSearch
   presentation: Presentation;
   navigate: (href: string) => void;
   initialSearch: URLSearchParams;
-  importMarkdown?: () => Promise<string | null>;
+  importMarkdown?: (signal: AbortSignal) => Promise<string | null>;
 }) {
   const { theme, locale } = presentation;
   const { routes, questionBank: t, historicalQuestions: h } = strings(locale);

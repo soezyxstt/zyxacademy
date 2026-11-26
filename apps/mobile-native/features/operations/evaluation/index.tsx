@@ -21,7 +21,7 @@ export type EvaluationScreenProps = {
   theme?: Presentation["theme"];
   renderText?: Presentation["renderText"];
   renderAst?: (ast: WebsiteMaterialAST) => ReactNode;
-  files?: EvaluationFiles & { importMarkdown?: () => Promise<string | null> };
+  files?: EvaluationFiles;
 };
 
 export function EvaluationScreen({ theme, ...props }: EvaluationScreenProps) {

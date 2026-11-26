@@ -135,7 +135,7 @@ route	action_family	source_status	web_entry	native_entry
 /admin/pricing	Calculate Student pricing and Tutor fees	connected	app/(admin)/admin/pricing/page.tsx	apps/mobile-native/features/operations/management/pricing.tsx
 /admin/pricing	Create, enable and remove vouchers	connected	app/(admin)/admin/pricing/page.tsx	apps/mobile-native/features/operations/management/pricing.tsx
 /admin/pricing	Edit pricing discounts and save checked changes	connected	app/(admin)/admin/pricing/page.tsx	apps/mobile-native/features/operations/management/pricing.tsx
-/admin/questions	Create, edit or delete a question; import Markdown; validate Idea assignments	connected	app/(admin)/admin/(eval)/questions/questions-client.tsx	apps/mobile-native/features/operations/evaluation/QuestionEditor.tsx
+/admin/questions	Create, edit or delete a question; import pasted Markdown or a local .md file; validate Idea assignments	connected	app/(admin)/admin/(eval)/questions/questions-client.tsx	apps/mobile-native/features/operations/evaluation/QuestionEditor.tsx
 /admin/questions	Filter and page active and historical questions; read formatted prompts, answer choices and explanations	connected	app/(admin)/admin/(eval)/questions/questions-client.tsx	apps/mobile-native/features/operations/evaluation/QuestionsScreen.tsx
 /admin/questions	Select items and apply an eligible historical review transition	connected	app/(admin)/admin/(eval)/questions/historical-questions-client.tsx	apps/mobile-native/features/operations/evaluation/QuestionsScreen.tsx
 /admin/quiz-insights	Resolve an eligible course and replace with its quiz analytics or the course catalog	alias	app/(admin)/admin/(eval)/quiz-insights/page.tsx	apps/mobile-native/features/operations/evaluation/index.tsx

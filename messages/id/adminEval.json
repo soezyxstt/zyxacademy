@@ -208,6 +208,7 @@
     "confirmDelete": "Ya, hapus",
     "importMarkdownTitle": "Impor soal dari Markdown",
     "importMarkdownDescription": "Impor beberapa soal pilihan ganda, isian singkat, atau uraian sekaligus menggunakan file Markdown (.md).",
+    "markdownFileReadFailed": "Pilih berkas .md berisi teks UTF-8, maksimal 2 MiB.",
     "markdownFileOptional": "Pilih file Markdown (.md) (opsional)",
     "markdownContentRequired": "Konten Markdown *",
     "markdownFormatHelp": "Pisahkan soal dengan ## Soal 1, ## Soal 2, dan seterusnya.",

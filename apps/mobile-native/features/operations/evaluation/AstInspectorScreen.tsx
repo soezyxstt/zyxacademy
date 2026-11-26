@@ -9,6 +9,7 @@ import { DEMO_TEMPLATES } from "../../../../../packages/native-parity/operations
 import { Copy, Field, Heading, inspectorStrings, interpolate, language, Row, Section, type Presentation } from "./ui";
 
 export type EvaluationFiles = {
+  importMarkdown?: (signal: AbortSignal) => Promise<string | null>;
   importJson: (signal: AbortSignal) => Promise<string | null>;
   exportJson: (name: string, text: string, signal: AbortSignal) => Promise<void>;
   copyText?: (text: string, signal: AbortSignal) => Promise<void>;

@@ -716,3 +716,21 @@ test("public quiz image follows the active session lifetime without sending the 
   fixture.transport.clearSession();
   expect(fixture.files.has(asset.uri)).toBe(false);
 });
+
+test("admits UTF-8 Markdown from a generic Android Documents provider under the current question import draft", async () => {
+  const bytes = new TextEncoder().encode("# Gerak\n\nΔv");
+  const fixture = setup({
+    pick: async () => [{ uri: "content://documents/18", name: "Gerak.md", mimeType: "application/octet-stream", size: bytes.length }],
+    open: () => stream(bytes),
+  });
+  const request: DocumentDraftRequest = { ...fixture.request, target: { ...target, route: "/admin/questions" },
+    policy: { mimeTypes: ["text/markdown"], maxBytes: 256 } };
+  const result = await fixture.controller.pickDocument(request);
+  if (result.status !== "ready") throw new Error("Expected Markdown");
+  expect(result.document.mimeType).toBe("text/markdown");
+  expect(result.document.name).toBe("Gerak.md");
+  expect(fixture.controller.belongsToDocumentDraft(result.document, request)).toBe(true);
+  expect(fixture.controller.belongsToDocumentDraft(result.document, { ...request, target: { ...request.target, draftId: "another" } })).toBe(false);
+  result.document.release();
+  expect(fixture.files.size).toBe(0);
+});

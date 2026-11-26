@@ -1,4 +1,6 @@
-import { useRef, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useProtectedInteraction } from "../../../routing/protected-interaction";
+import { useCallback, useRef, useState } from "react";
 import { Keyboard, View } from "react-native";
 import { Button } from "../../../components/Button";
 import type { CognitiveLevel, Difficulty, IdeaRole, QuestionAuthoringInput, QuestionIdeaLink, QuestionType } from "../../../../../lib/question-authoring-contract";
@@ -24,7 +26,7 @@ export function QuestionEditor({ action, courses, request, presentation, importM
   courses: Course[];
   request: EvaluationRequest;
   presentation: Presentation;
-  importMarkdown?: () => Promise<string | null>;
+  importMarkdown?: (signal: AbortSignal) => Promise<string | null>;
   onClose: () => void;
   onSaved: (message: string) => void;
 }) {
@@ -53,6 +55,29 @@ export function QuestionEditor({ action, courses, request, presentation, importM
   const [submitting, setSubmitting] = useState(false);
   const [uncertain, setUncertain] = useState(false);
   const busy = useRef(false);
+  const { canInteract } = useProtectedInteraction();
+  const importRequest = useRef<AbortController | null>(null);
+  const [picking, setPicking] = useState(false);
+  useFocusEffect(useCallback(() => {
+    setPicking(false);
+    return () => { importRequest.current?.abort(); importRequest.current = null; };
+  }, []));
+
+  async function pickMarkdown() {
+    if (!importMarkdown || !canInteract() || busy.current || importRequest.current) return;
+    const controller = new AbortController();
+    importRequest.current = controller;
+    setPicking(true);
+    try {
+      const source = await importMarkdown(controller.signal);
+      if (source !== null && !controller.signal.aborted && canInteract() && !busy.current) { setMarkdown(source); setValidation(undefined); }
+    } catch {
+      if (!controller.signal.aborted && canInteract()) setValidation(t.markdownFileReadFailed);
+    } finally {
+      if (importRequest.current === controller) { importRequest.current = null; setPicking(false); }
+    }
+  }
+
 
   const chapters = useRead<Chapter[]>(request, courseId ? chapterOptions(courseId) : undefined);
   const ideas = useRead<Idea[]>(request, courseId && ideasOpen ? ideaOptions(courseId, chapterId) : undefined);
@@ -170,9 +195,7 @@ export function QuestionEditor({ action, courses, request, presentation, importM
       })}</Load>}
     </Section>}
     {importing ? <>
-      {importMarkdown && <Row><Button theme={theme} variant="outline" disabled={submitting} onPress={edit(() => {
-        void importMarkdown().then(edit((source: string | null) => { if (source !== null) setMarkdown(source); }), edit(() => setValidation(t.connectionError)));
-      })}>{t.markdownFile}</Button></Row>}
+      {importMarkdown && <Row><Button theme={theme} variant="outline" disabled={submitting || picking} onPress={() => void pickMarkdown()}>{t.markdownFileOptional}</Button></Row>}
       <Field theme={theme} disabled={submitting} label={t.markdownContent} value={markdown} onChangeText={edit(setMarkdown)} placeholder={t.markdownImportPlaceholder} multiline autoCapitalize="none" />
       <Copy theme={theme} tone="muted">{t.markdownFormatHelp}</Copy>
     </> : <>
