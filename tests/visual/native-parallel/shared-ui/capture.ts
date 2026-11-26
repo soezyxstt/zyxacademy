@@ -1,6 +1,7 @@
 import { chromium, type Page } from "playwright-core";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { preparePendingPagination } from "./PendingPagination";
 import { sharedUiCases } from "../../../../packages/native-parity/shared-ui/cases";
 
 const origin = process.env.SHARED_UI_REFERENCE_URL ?? "http://127.0.0.1:3217";
@@ -17,6 +18,9 @@ const output = resolve(
     "tests/visual/native-parallel/shared-ui/references",
   `dpr${scale}`,
 );
+const selected = process.argv.slice(2);
+if (selected.some(id => !sharedUiCases.some(fixture => fixture.id === id))) throw new Error("Unknown case ID");
+if (selected.length && !process.env.SHARED_UI_REFERENCES) throw new Error("Use a separate SHARED_UI_REFERENCES directory for partial captures.");
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH,
 });
@@ -29,7 +33,7 @@ async function waitForState(page: Page, id: string) {
       (el) => Number(getComputedStyle(el).opacity) >= 0.999,
     ),
   );
-  if (id.includes("-pagination-")) {
+  if (id.includes("-pagination-") && !id.endsWith("-pending")) {
     await page.getByRole("tab", { name: "Soal", exact: true }).click();
     const nav = page.getByRole("navigation", { name: "Halaman bank soal" });
     if (!id.endsWith("-first"))
@@ -75,6 +79,7 @@ async function waitForState(page: Page, id: string) {
 const results = [];
 try {
   for (const fixture of sharedUiCases) {
+    if (selected.length && !selected.includes(fixture.id)) continue;
     if (deviceSize && fixture.width !== baseWidth) continue;
     const { id, theme } = fixture;
     const width = deviceSize ? Number(deviceSize[1]) : fixture.width;
@@ -111,6 +116,7 @@ try {
       captured: false,
     };
     results.push(row);
+    let release: (() => void) | undefined;
     try {
       await page.route("**/*", (route) => {
         const url = new URL(route.request().url());
@@ -131,6 +137,10 @@ try {
       await page.locator(`[data-reference="${id}"]`).waitFor();
       await page.evaluate(() => document.fonts.ready);
       await waitForState(page, id);
+      if (id === "shared-ui-pagination-pending") {
+        release = await preparePendingPagination(page);
+        await page.getByRole("button", { name: "Berikutnya", exact: true }).scrollIntoViewIfNeeded();
+      }
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - innerWidth,
       );
@@ -159,6 +169,7 @@ try {
       errors.push(String(error).slice(0, 1200));
     } finally {
       await context.close();
+      release?.();
     }
     console.log(id, row.captured ? "PNG" : "MISSING", ...errors);
   }

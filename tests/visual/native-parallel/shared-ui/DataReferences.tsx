@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DocumentListClient } from "@/app/(student)/courses/[id]/material/document-list-client";
+import { UsersDashboard } from "@/components/admin/users-dashboard";
 import TutorQuizPaginationFixture from "@/app/visual-fixtures/tutor-quiz-pagination/page";
 import dynamic from "next/dynamic";
 
@@ -39,7 +40,7 @@ export const dataReferenceActions: Record<string, string[]> = {
     "Click Soal tab, then Berikutnya, then capture nav[aria-label='Halaman bank soal']",
   ],
   "shared-ui-pagination-pending": [
-    "Click Soal tab, then Berikutnya; pending has no isolated real caller state",
+    "Hold the dashboard request with preparePendingPagination, then click Berikutnya",
   ],
   "shared-ui-calendar-available": ["March 4 tab is clicked on mount"],
   "shared-ui-calendar-selected": [
@@ -138,7 +139,10 @@ export function DataReferences({ id }: { id: string }) {
     );
   if (fixture.component === "grid")
     return <DocumentGridReference cards={fixture.cards} />;
-  if (fixture.component === "pagination") return <TutorQuizPaginationFixture />;
+  if (fixture.component === "pagination") {
+    if (fixture.pending) return <UsersDashboard currentUserId="fixture" initialTotal={150} initialUsers={[]} initialStats={{ totalUsers: 150, adminCount: 0, tutorCount: 0, muridCount: 150, activeCount: 150, suspendedCount: 0 }} />;
+    return <TutorQuizPaginationFixture />;
+  }
   if (fixture.component === "table") {
     const students = fixture.rows.map((row) => ({
       studentId: row.id,
