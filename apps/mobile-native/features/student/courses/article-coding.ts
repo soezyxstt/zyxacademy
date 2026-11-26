@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { codingProblemPublicSchema, codingSubmissionRequestSchema, executionResultSchema, codingLocatorSchema } from "../../../../../lib/coding/contracts";
-import { nativeArticleCodingHeader, type NativeArticleCodingScope } from "../../../../../lib/coding/native-article-contract";
-import { personalAccountSessionHeader } from "../../../../../packages/student-community/account-access";
+import { nativeArticleCodingHeaders, type NativeArticleCodingScope } from "../../../../../lib/coding/native-article-contract";
 import type { StudentRequest, StudentServices, StudentSession } from "../contracts";
 
 const feedbackSchema = z.object({
@@ -29,8 +28,7 @@ export function articleCodingRequest(request: StudentRequest, session: StudentSe
   return (path, init) => {
     if (!session.sessionId || session.role !== "student") throw new Error("Article coding requires an active Student session.");
     const headers = new Headers(init?.headers);
-    headers.set(nativeArticleCodingHeader, encodeURIComponent(JSON.stringify(scope)));
-    headers.set(personalAccountSessionHeader, session.sessionId);
+    for (const [name, value] of Object.entries(nativeArticleCodingHeaders(scope, session.sessionId))) headers.set(name, value);
     headers.set("x-student-id", session.userId);
     return request(path, { ...init, headers });
   };

@@ -139,3 +139,21 @@ test("Zyra photos stay bound to the verified account and exact owned conversatio
   await deleteZyraImage(session, "calculus", upload, signal);
   expect(calls).toEqual(["POST /api/zyra/attachments", `GET ${pathname}`, `DELETE ${pathname}`]);
 });
+
+test("Article exercise help binds the verified session and exact revision without changing the Zyra body", async () => {
+  const scope = { materialId: "article", sectionId: "section", partId: "exercise", revision: "b".repeat(64) };
+  const exercise = { ...request, codingContext: { kind: "exercise", intent: "review" } };
+  let writes = 0;
+  const session = sessionFor(async (_path, init) => {
+    writes++;
+    const headers = new Headers(init.headers);
+    expect(headers.get("x-student-id")).toBe("signed-student");
+    expect(headers.get("x-native-account-session-id")).toBe("verified-session");
+    expect(JSON.parse(decodeURIComponent(headers.get("x-native-article-coding")!))).toEqual(scope);
+    expect(JSON.parse(String(init.body))).toEqual(exercise);
+    return new Response("data: [DONE]\n\n", { headers: { "Content-Type": "text/event-stream" } });
+  });
+  expect((await streamNativeZyra(session, exercise, undefined, scope).next()).value).toEqual({ type: "done" });
+  await expect(streamNativeZyra(session, { ...exercise, persistHistory: undefined }, undefined, scope).next()).rejects.toBeInstanceOf(TypeError);
+  expect(writes).toBe(1);
+});

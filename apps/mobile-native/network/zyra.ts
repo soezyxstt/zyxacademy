@@ -1,3 +1,4 @@
+import { nativeArticleCodingHeaders, type NativeArticleCodingScope } from "../../../lib/coding/native-article-contract";
 import { readZyraStream, type ZyraWireEvent } from "../../../packages/zyra/stream";
 import type { NativeResponse, NativeSessionTransport } from "./transport";
 
@@ -44,10 +45,12 @@ export async function* streamNativeZyra(
   session: NativeSessionTransport,
   request: NativeZyraRequest,
   signal?: AbortSignal,
+  articleScope?: NativeArticleCodingScope,
 ): AsyncGenerator<ZyraWireEvent, void, unknown> {
   if (!/^[A-Za-z0-9._:-]{1,96}$/.test(request.requestId)) {
     throw new TypeError("A valid Zyra request ID is required.");
   }
+  if (articleScope && !request.persistHistory) throw new TypeError("Article exercise help requires Student history authorization.");
   const controller = new AbortController();
   const cancel = () => controller.abort();
   const assertCurrent = () => {
@@ -72,7 +75,8 @@ export async function* streamNativeZyra(
     response = await session.request("/api/zyra/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "text/event-stream",
-        ...(request.persistHistory ? { "x-student-id": session.scope.accountId } : {}) },
+        ...(request.persistHistory ? { "x-student-id": session.scope.accountId } : {}),
+        ...(articleScope ? nativeArticleCodingHeaders(articleScope, session.scope.sessionId) : {}) },
       requiredRole: request.persistHistory ? "murid" : undefined,
       body: JSON.stringify(request),
       signal: controller.signal,

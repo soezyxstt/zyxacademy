@@ -19,7 +19,7 @@ export const operationsCatalog = [
     "actions": ["POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "Course tutoring streams use the learner's own session, active course policy and usage limits. Native clients request history persistence with the verified Student identity. The separate administrative Zyra tooling keeps its own authorization."
+    "reason": "Course tutoring streams use the learner's own session, active course policy and usage limits. Native clients request history persistence with the verified Student identity. Native Article exercise help also checks the current Article, revision, section and exact exercise. Administrative Zyra tooling keeps its own authorization."
   },
   {
     "source": "app/api/zyra/attachments/route.ts",

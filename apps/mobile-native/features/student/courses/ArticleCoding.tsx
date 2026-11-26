@@ -6,6 +6,8 @@ import { articleCodingDraftKey, type NativeArticleCodingScope, type sectionCodin
 import { createRemotePythonRuntime } from "../../../../../lib/coding/remote-runtime";
 import { executePython } from "../../../../../lib/coding/runtime";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
+import { useNativeSession } from "../../../auth/session-provider";
+import { streamNativeZyra, type NativeZyraRequest } from "../../../network/zyra";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
@@ -26,6 +28,8 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
   request: StudentRequest; session: StudentSession; drafts?: StudentServices["drafts"]; theme: keyof typeof nativeColors; close(): void;
 }) {
   const { canInteract } = useProtectedInteraction();
+  const { transport, revalidating } = useNativeSession();
+  const canAsk = transport && !revalidating && transport.scope.accountId === session.userId && transport.scope.sessionId === session.sessionId && transport.scope.origin === session.origin;
   const { part } = item;
   const scoped = useMemo(() => articleCodingRequest(request, session, scope),
     [request, session.sessionId, session.role, session.userId, scope.materialId, scope.revision, scope.sectionId, scope.partId]);
@@ -36,8 +40,10 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
   const [draft, setDraft] = useState<PlaygroundDraft>();
   const [problem, setProblem] = useState<CodingProblemPublic>();
   const [conflict, setConflict] = useState(false);
-  const [operation, setOperation] = useState<"run" | "save" | "submit" | "history">();
+  const [operation, setOperation] = useState<"run" | "save" | "submit" | "history" | "help">();
   const [history, setHistory] = useState<History>();
+  const [help, setHelp] = useState("");
+  const [helpTurn, setHelpTurn] = useState<NativeZyraRequest>();
   const [output, setOutput] = useState("");
   const [line, setLine] = useState("");
   const [running, setRunning] = useState(false);
@@ -96,6 +102,23 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
           setDraft({ ...draft, revision: saved.revision });
           setNotice(id ? "Draf tersimpan." : "Draft saved.");
         }
+      } else if (action === "help" && problem && canAsk && transport) {
+        const turn: NativeZyraRequest = helpTurn ?? { courseId, requestId: randomUUID(), persistHistory: true,
+          pathname: `/courses/${encodeURIComponent(courseId)}/material/${encodeURIComponent(articleId)}`,
+          responseLanguage: id ? "id" : "en",
+          question: id ? "Tinjau kode untuk latihan ini." : "Review my code for this exercise.",
+          codingContext: { kind: "exercise", problem: { problemId: problem.problemId, version: problem.version },
+            code: draft.code, stdin: draft.stdin, intent: "review", surface: { kind: "article", articleId, articleVersion: version, partId: part.id } } };
+        setHelpTurn(turn);
+        let text = "";
+        for await (const event of streamNativeZyra(transport, turn, controller.signal, scope)) {
+          if (!current()) return;
+          if (event.type === "data-error") throw new Error("Coding help unavailable.");
+          if (event.type === "text-delta" && typeof event.textDelta === "string") text = (text + event.textDelta).slice(0, 8000);
+          if (event.type === "chunk" && typeof event.text === "string") text = (text + event.text).slice(0, 8000);
+          if (event.type === "text-replace" && typeof event.text === "string") text = event.text.slice(0, 8000);
+        }
+        if (current()) { setHelp(text); setHelpTurn(undefined); }
       } else if (action === "history" && problem) {
         const attempts = await api.history(problem, controller.signal);
         if (current()) setHistory(attempts);
@@ -154,7 +177,10 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
         {problem && <Button theme={theme} variant="outline" disabled={Boolean(operation)}
           onPress={() => history ? setHistory(undefined) : void act("history")}>
           {history ? id ? "Sembunyikan riwayat" : "Hide history" : id ? "Riwayat percobaan" : "Attempt history"}</Button>}
+        {problem && canAsk && <Button theme={theme} variant="ghost" disabled={Boolean(operation) || !draft.code.trim()}
+          onPress={() => void act("help")}>{helpTurn ? id ? "Periksa bantuan Zyra" : "Check Zyra help" : id ? "Tanya Zyra" : "Ask Zyra"}</Button>}
       </View>
+      {help ? <CourseMarkdown source={help} services={{ session }} theme={theme} allowLinks={false} /> : null}
       {running && <View style={row}>
         <Input accessibilityLabel={id ? "Masukan terminal" : "Terminal input"} value={line} onChangeText={setLine}
           autoCapitalize="none" maxLength={8000} style={{ flex: 1 }} />

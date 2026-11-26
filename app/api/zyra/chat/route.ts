@@ -1,6 +1,7 @@
 import { zyraLiveProgress, zyraLiveTextStream } from "@/lib/zyra/live-progress";
 import { JsonFieldStreamExtractor } from "@/lib/zyra/json-field-stream";
 import { followupEvent, parseFollowupAnswer } from "@/lib/zyra/followups";
+import { nativeArticleCodingHeader } from "@/lib/coding/native-article-contract";
 import { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
 import { after } from "next/server";
 import { headers } from "next/headers";
@@ -112,6 +113,19 @@ export async function POST(req: Request) {
       if (typeof requestId !== "string" || !/^[A-Za-z0-9._:-]{1,96}$/.test(requestId) || normalizedQuestion.length > 4_000) {
         return Response.json({ code: "INVALID_ZYRA_TURN" }, { status: 400 });
       }
+    }
+    if (req.headers.has(nativeArticleCodingHeader)) {
+      if (!nativeHistory || !coding?.success || coding.data.kind !== "exercise" || coding.data.surface.kind !== "article") {
+        return Response.json({ code: "INVALID_ZYRA_TURN" }, { status: 400 });
+      }
+      const { requireCodingAccess, codingErrorResponse } = await import("@/lib/coding/server-access");
+      const { requireNativeArticleCoding, assertNativeArticleProblem } = await import("@/lib/coding/native-article-access");
+      try {
+        const actor = await requireCodingAccess(req, normalizedCourseId, true);
+        if (actor.userId !== userId) return Response.json({ code: "ACCOUNT_CHANGED" }, { status: 409 });
+        const article = await requireNativeArticleCoding(req, actor.userId, normalizedCourseId);
+        assertNativeArticleProblem(article, coding.data.problem, coding.data.surface);
+      } catch (error) { return codingErrorResponse(error); }
     }
     const sanitizedSelectionContext = selectionContext && typeof selectionContext === "object"
       ? {

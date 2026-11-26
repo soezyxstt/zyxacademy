@@ -1,3 +1,4 @@
+import { personalAccountSessionHeader } from "../../packages/student-community/account-access";
 import { z } from "zod";
 import { articlePartsSchema, flattenArticleParts, type ArticlePart } from "../materials/article-parts";
 
@@ -10,6 +11,13 @@ export const nativeArticleCodingScope = z.object({
 }).strict();
 
 export type NativeArticleCodingScope = z.infer<typeof nativeArticleCodingScope>;
+export function nativeArticleCodingHeaders(scope: NativeArticleCodingScope, sessionId: string) {
+  return {
+    [nativeArticleCodingHeader]: encodeURIComponent(JSON.stringify(scope)),
+    [personalAccountSessionHeader]: sessionId,
+  };
+}
+
 type CodingPart = Extract<ArticlePart, { kind: "code_example" | "coding_exercise" }>;
 
 export function sectionCodingParts(blocks: readonly ({ id: string; parts?: unknown; title?: unknown })[]) {
