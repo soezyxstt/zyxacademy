@@ -44,18 +44,18 @@ export function QuestionEditor(props: QuestionEditorProps) {
 
   return (
     <View style={layout.group}>
-      <Field label="Pertanyaan" value={fields.prompt} onChangeText={(prompt) => setFields({ ...fields, prompt })} multiline testID="academic-question-prompt" />
-      <SelectField label="Jenis soal" value={fields.type} options={questionTypes}
+      <Field label="Pertanyaan" value={fields.prompt} editable={!busy} onChangeText={(prompt) => setFields({ ...fields, prompt })} multiline testID="academic-question-prompt" />
+      <SelectField label="Jenis soal" value={fields.type} options={questionTypes} disabled={busy}
         change={(type) => setFields({ ...fields, type, correctIndices: [] })} />
       {choice ? <>
         {(fields.options.length ? fields.options : ["", "", "", ""]).map((option, index) => (
           <SectionRow key={index}>
-            <Field label={`Opsi ${index + 1}`} value={option} onChangeText={(value) => {
+            <Field label={`Opsi ${index + 1}`} value={option} editable={!busy} onChangeText={(value) => {
               const options = fields.options.length ? [...fields.options] : ["", "", "", ""];
               options[index] = value;
               setFields({ ...fields, options });
             }} />
-            <ChoiceCheck label={`Opsi ${index + 1} benar`} checked={fields.correctIndices.includes(index)} change={() => {
+            <ChoiceCheck label={`Opsi ${index + 1} benar`} checked={fields.correctIndices.includes(index)} disabled={busy} change={() => {
               const marked = fields.correctIndices.includes(index);
               const correctIndices = marked ? fields.correctIndices.filter((item) => item !== index)
                 : fields.type === "multiple_choice" ? [index] : [...fields.correctIndices, index];
@@ -63,15 +63,15 @@ export function QuestionEditor(props: QuestionEditorProps) {
             }} />
           </SectionRow>
         ))}
-        <View style={layout.row}><Action label="Tambah opsi" onPress={() => setFields({
+        <View style={layout.row}><Action label="Tambah opsi" disabled={busy} onPress={() => setFields({
           ...fields, options: [...(fields.options.length ? fields.options : ["", "", "", ""]), ""],
         })} /></View>
       </> : null}
-      {fields.type === "short_answer" ? <Field label="Jawaban yang diterima, pisahkan dengan koma" value={accepted} onChangeText={setAccepted} /> : null}
+      {fields.type === "short_answer" ? <Field label="Jawaban yang diterima, pisahkan dengan koma" value={accepted} editable={!busy} onChangeText={setAccepted} /> : null}
       {bank ? <>
-        <SelectField<Difficulty> label="Tingkat kesulitan" value={difficulty} options={difficulties} change={setDifficulty} />
-        <Field label="Pembahasan" value={explanation} onChangeText={setExplanation} multiline />
-        <Field label="Tag, pisahkan dengan koma" value={tags} onChangeText={setTags} />
+        <SelectField<Difficulty> label="Tingkat kesulitan" value={difficulty} options={difficulties} disabled={busy} change={setDifficulty} />
+        <Field label="Pembahasan" value={explanation} editable={!busy} onChangeText={setExplanation} multiline />
+        <Field label="Tag, pisahkan dengan koma" value={tags} editable={!busy} onChangeText={setTags} />
       </> : <>
         <Field label="Urutan soal" value={order} onChangeText={setOrder} keyboardType="number-pad" />
         {fields.type === "essay" ? <FlagField label="Izinkan lampiran" value={acceptsFile} change={setAcceptsFile} /> : null}

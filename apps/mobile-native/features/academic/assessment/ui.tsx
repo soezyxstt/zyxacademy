@@ -83,10 +83,10 @@ export function FlagField({ label, value, change }: { label: string; value: bool
   return <View style={styles.switchRow}><Ink>{label}</Ink><Switch theme={theme} checked={value} onCheckedChange={change} accessibilityLabel={label} hitSlop={10} /></View>;
 }
 
-export function ChoiceCheck({ label, checked, change, testID }: { label: string; checked: boolean; change(): void; testID?: string }) {
+export function ChoiceCheck({ label, checked, change, testID, disabled }: { label: string; checked: boolean; change(): void; testID?: string; disabled?: boolean }) {
   const theme = useContext(CourseTheme);
   return <View style={styles.checkRow}>
-    <Checkbox theme={theme} checked={checked} onCheckedChange={change} accessibilityLabel={label} hitSlop={12} testID={testID} />
+    <Checkbox theme={theme} checked={checked} onCheckedChange={change} accessibilityLabel={label} hitSlop={12} testID={testID} disabled={disabled} />
     <View style={layout.flex}><Ink>{label}</Ink></View>
   </View>;
 }

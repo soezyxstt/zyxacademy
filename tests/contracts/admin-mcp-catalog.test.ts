@@ -120,6 +120,14 @@ test("native tryout lifecycle and submission use interactive academic authority"
   expect(learner.reason).toContain("same exam lock");
 });
 
+test("native Tutor bank changes require interactive course authority", () => {
+  const entry = operationsCatalog.find(item => item.source === "app/api/native/academic-assessment/[...resource]/route.ts")!;
+  expect(entry.actions).toEqual(["GET", "POST", "PATCH", "DELETE"]);
+  expect(entry.tools).toEqual([]);
+  expect(entry.reason).toContain("an assigned course");
+  expect(entry.reason).toContain("Source references remain immutable");
+});
+
 test("native course commands reuse administrative projections with session authorization", () => {
   const entry = operationsCatalog.find(item => item.source === "app/api/native/academic/[...resource]/route.ts")!;
   expect(entry.actions).toEqual(["GET", "POST", "PATCH", "DELETE"]);

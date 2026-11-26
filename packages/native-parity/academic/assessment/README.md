@@ -7,6 +7,7 @@
 | Operasi | Transport dan izin | Hasil dan pemulihan |
 | --- | --- | --- |
 | Daftar kuis dan bank, pratinjau | `GET /api/native/academic-assessment/{role}/{course}/quizzes` dan `preview/{quizId}`. Admin atau Tutor yang ditugaskan, dengan identitas dan kuis dalam kursus tersebut. | Memakai read model dan aksi pratinjau web. Pencatatan pengungkapan soal dilakukan sebelum respons. |
+| Buat, edit, dan hapus soal bank Tutor | `POST /api/native/academic-assessment/tutor/{courseId}/bank`, atau `PATCH/DELETE .../bank/{questionId}`. Tutor aktif pada kursus yang ditugaskan. | Web dan Expo memakai operasi simpan bank yang sama. Edit dan hapus memerlukan revisi soal. Retry memakai sesi, kursus, target dan isi awal. Soal historis dan contoh ITB tetap dapat ditinjau. |
 | Buat kuis | `POST /api/quiz/templates`. Sesi dan peran aktif, akses kursus diperiksa lagi di dalam transaksi. Tutor dibatasi pada kuis non-simulasi. | `Idempotency-Key` tetap saat diulang. Input yang sama membaca receipt yang dicatat atomik dengan proyeksi kuis. Input berbeda untuk kunci yang sama menghasilkan konflik. |
 | Edit kuis dan status | `PATCH /api/quiz/templates/{id}`. Sama, serta wajib menyertakan kursus asal dan `expectedRevision` dari template yang dibaca. | Row lock melindungi pemeriksaan revisi dan receipt. Data cabang dan pengaturan tambahan tetap tersimpan. Publikasi melanjutkan jalur notifikasi server yang sudah digunakan web. |
 | Hasil kuis | `GET /api/native/academic-assessment/tutor/{courseId}/attempts/{quizId}`. Tutor ditugaskan dan template cocok dengan kursus. | Menampilkan status dan jawaban dari snapshot percobaan, termasuk pengungkapan yang dicatat server. |
@@ -17,11 +18,11 @@
 | Buat atau edit metadata draf tryout | `POST /api/native/academic-assessment/admin/{slug}/tryouts` atau `PATCH .../tryouts/{examId}`. Admin aktif dengan sesi dan kursus yang diperiksa di transaksi. | Menyimpan judul, durasi, batas percobaan, waktu buka dan waktu tutup ke exam draf. Edit memakai revisi metadata, mempertahankan pengaturan lain, dan mencatat receipt atomik. |
 | Impor dan hapus soal impor pada draf | `POST /api/native/academic-assessment/admin/{slug}/tryouts/{examId}/questions`. Admin aktif, sesi, kursus dan revisi draf diperiksa dalam transaksi. | Impor menambahkan hingga 100 soal dalam urutan pilihan dan melewati soal yang sudah ada. Snapshot menyimpan kunci, pembahasan dan asal soal, dengan verifikasi aset sesuai alur web. Penghapusan melepas snapshot dari draf. Perubahan soal hanya tersedia untuk draf yang belum memiliki pengumpulan. Mutasi dan receipt dicatat secara atomik. |
 | Publikasi, kembali ke draf, dan akhiri tryout | `POST .../tryouts/metadata` atau `PATCH .../tryouts/{examId}/metadata`. Pilihan status tersedia melalui editor Admin saat server mengiklankan kemampuan ini. | Status wajib eksplisit. Edit memerlukan revisi metadata. Receipt dicatat bersama mutasi dan terikat ke sesi asal. Perubahan status mempertahankan soal serta pengumpulan. |
-| Edit isi soal, penghapusan tryout, dan mutasi bank | Gateway fixture. | Penyimpanan berakun untuk aksi ini masih perlu adapter server. |
+| Edit isi soal tryout dan penghapusan tryout | Gateway fixture. | Penyimpanan berakun untuk aksi ini masih perlu adapter server. |
 
 Perintah kuis native menyertakan `actingRole` dari ruang Tutor atau Admin yang sedang aktif. Server memeriksa peran kanonis serta penugasan Tutor dalam transaksi. Percobaan ulang dengan kunci yang sama menggunakan peran, kursus dan isi perintah awal.
 
-Gateway menyimpan perubahan kuis dan tryout yang sedang menunggu kepastian selama sesi native yang sama. Ketika layar dibuka lagi, upaya pemulihan menggunakan isi dan identitas permintaan awal. Pesan sukses daftar dikonsumsi dari hasil yang dimiliki sesi.
+Gateway menyimpan perubahan kuis, bank soal, dan tryout yang sedang menunggu kepastian selama sesi native yang sama. Ketika layar dibuka lagi, upaya pemulihan menggunakan isi dan identitas permintaan awal. Pesan sukses daftar dikonsumsi dari hasil yang dimiliki sesi.
 
 Web Admin memakai `saveTryoutAction`, dan Web serta Expo menyimpan metadata melalui proyeksi tryout yang sama. Pengumpulan Murid yang baru memeriksa status, jadwal, pengaturan, dan soal di bawah kunci baca pada baris tryout yang sama. Publikasi serta perubahan status memakai kunci tulis. Pengumpulan yang sudah tercatat dapat dipulihkan dengan identitas awal setelah status berubah. Penyuntingan bank soal native tetap terbatas pada draf tanpa pengumpulan. Kontrak endpoint draf lama tetap menerima payload draf dan tidak menyediakan perubahan status. [Aksi Admin dan Murid](../../../../app/actions/tutor-management.ts), [layanan pengumpulan](../../../../lib/student/tryout-submit.ts).
 
@@ -30,7 +31,7 @@ Perakitan kuis dan revisi bank melalui MCP tetap memakai alat, scope dan playboo
 ```sh
 node_modules/.bin/tsx --test packages/native-parity/academic/assessment/*.test.ts
 bun scripts/test-contracts.ts tests/contracts/tutor-quiz-native.test.ts tests/contracts/tutor-quiz-api-access.test.ts tests/contracts/tutor-quiz-manual-grading.test.ts
-bun scripts/test-contracts.ts tests/contracts/native-tryout-draft.test.ts tests/contracts/tryout-question-visual-import.test.ts
+bun scripts/test-contracts.ts tests/contracts/native-tutor-question-bank.test.ts tests/contracts/native-tryout-draft.test.ts tests/contracts/tryout-question-visual-import.test.ts
 bun test tests/gamification/question-disclosure-calls.test.ts
 ```
 

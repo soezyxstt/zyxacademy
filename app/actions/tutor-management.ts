@@ -44,6 +44,7 @@ import {
   recordTutorMutationAuditSafe,
 } from "@/lib/tutor/assessment-policy";
 import { recordTutorMutationAudit } from "@/lib/audit/mutasi";
+import { questionBankInputSchema, QuestionBankWriteError, writeQuestionBankRecord, type QuestionBankFields } from "@/lib/tutor/question-bank-write";
 import { gradeTryoutSubmission } from "@/lib/tutor/tryout-grading";
 
 function publishedQuizQuestionCondition() {
@@ -74,48 +75,6 @@ const quizTemplateInputSchema = z.object({
   status: z.enum(["draft", "published"]).optional(),
   showDiscussion: z.boolean().optional(),
 });
-
-const questionBankInputSchema = z
-  .object({
-    prompt: z.string().min(1).max(4000),
-    options: z.array(z.string().max(2000)),
-    correctIndices: z.array(z.number().int()),
-    acceptableAnswers: z.array(z.string().max(2000)).optional(),
-    difficulty: z.enum(["easy", "medium", "hard"]),
-    questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]),
-    explanation: z.string().max(8000),
-    tags: z.array(z.string().max(64)).max(50),
-  })
-  .superRefine((val, ctx) => {
-    const isChoiceType =
-      val.questionType === "multiple_choice" || val.questionType === "multiple_choices";
-    if (isChoiceType) {
-      if (val.options.length < 2 || val.options.some((o) => !o.trim())) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["options"],
-          message: "Pilihan jawaban wajib diisi minimal dua opsi.",
-        });
-      }
-      if (val.correctIndices.length < 1) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["correctIndices"],
-          message: "Minimal satu kunci jawaban wajib dipilih.",
-        });
-      }
-    }
-    if (val.questionType === "short_answer") {
-      const accepted = val.acceptableAnswers ?? [];
-      if (accepted.length < 1 || accepted.some((a) => !a.trim())) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["acceptableAnswers"],
-          message: "Minimal satu kunci jawaban diterima wajib diisi.",
-        });
-      }
-    }
-  });
 
 function formatValidationIssues(error: z.ZodError): string {
   return error.issues
@@ -1011,271 +970,61 @@ export async function getQuizTemplatePreviewAction(courseId: string, templateId:
   return { success: true, questions: mappedQuestions };
 }
 
-export async function saveQuestionBankAction(
-  courseId: string,
-  questionId: string | null,
-  data: {
-    prompt: string;
-    options: string[];
-    correctIndices: number[];
-    acceptableAnswers?: string[];
-    difficulty: "easy" | "medium" | "hard";
-    questionType: "multiple_choice" | "multiple_choices" | "short_answer" | "essay";
-    explanation: string;
-    tags: string[];
-  },
-) {
-  const { session, access } = await verifyTutorAccess(courseId);
+export async function saveQuestionBankAction(courseId: string, questionId: string | null, data: QuestionBankFields) {
+  const context = await verifyTutorAccess(courseId);
   rejectQuestionVisualReferences([{ prompt: typeof data?.prompt === "string" ? data.prompt : "", options: Array.isArray(data?.options) ? data.options.filter((value): value is string => typeof value === "string") : [], explanation: typeof data?.explanation === "string" ? data.explanation : "" }]);
-  const { roles, isAdmin } = await resolveActorRoles(
-    session.user.id,
-    (session.user as { role?: string | null }).role,
-  );
-
-  const parsedInput = questionBankInputSchema.safeParse(data);
-  if (!parsedInput.success) {
-    const validationError = `Validasi gagal: ${formatValidationIssues(parsedInput.error)}`;
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "question_bank",
-      entityId: questionId || "new",
-      entityVersion: 1,
-      action: questionId ? "question_bank:update" : "question_bank:create",
-      outcome: "rejected",
-      reason: validationError,
-    });
-    throw new Error(validationError);
-  }
-
-  const targetCourseId = access.legacyCourseId ?? courseId;
-  const targetId = questionId || `qbk-tutor-${randomUUID()}`;
-  const acceptableAnswers = data.acceptableAnswers || [];
-
-  if (questionId) {
-    const [existing] = await db
-      .select()
-      .from(aiQuestionBank)
-      .where(eq(aiQuestionBank.id, questionId))
-      .limit(1);
-
-    if (!existing) {
-      await recordTutorMutationAuditSafe({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "question_bank",
-        entityId: questionId,
-        entityVersion: 1,
-        action: "question_bank:update",
-        outcome: "rejected",
-        reason: "QUESTION_BANK_NOT_FOUND",
-      });
-      throw new Error("Soal bank tidak ditemukan.");
-    }
-
-    if (!isAdmin && !checkCourseMatch(existing.courseId, access.courseId!, access.legacyCourseId)) {
-      await recordTutorMutationAuditSafe({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "question_bank",
-        entityId: questionId,
-        entityVersion: 1,
-        action: "question_bank:update",
-        outcome: "rejected",
-        reason: TUTOR_CAPABILITY_ERRORS.CROSS_COURSE_MUTATION_FORBIDDEN,
-      });
-      throw new Error(TUTOR_CAPABILITY_ERRORS.CROSS_COURSE_MUTATION_FORBIDDEN);
-    }
-
-    if (existing.origin !== "zyx_original") {
-      await recordTutorMutationAuditSafe({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "question_bank",
-        entityId: questionId,
-        entityVersion: 1,
-        action: "question_bank:update",
-        outcome: "rejected",
-        reason: "HISTORICAL_QUESTION_IMMUTABLE",
-      });
-      throw new Error("Soal referensi historis hanya dapat ditinjau, bukan diedit.");
-    }
-  }
-
-  const requestId = newAuditRequestId();
-  try {
-    await db.transaction(async (tx) => {
-      if (questionId) {
-        await tx
-          .update(aiQuestionBank)
-          .set({
-            prompt: data.prompt,
-            options: data.options,
-            correctIndices: data.correctIndices,
-            acceptableAnswers: acceptableAnswers,
-            difficulty: data.difficulty,
-            questionType: data.questionType,
-            explanation: data.explanation,
-            tags: data.tags,
-          })
-          .where(eq(aiQuestionBank.id, questionId));
-      } else {
-        await tx.insert(aiQuestionBank).values({
-          id: targetId,
-          courseId: targetCourseId,
-          prompt: data.prompt,
-          options: data.options,
-          correctIndices: data.correctIndices,
-          acceptableAnswers: acceptableAnswers,
-          difficulty: data.difficulty,
-          questionType: data.questionType,
-          explanation: data.explanation,
-          tags: data.tags,
-          status: "active",
-          reviewStatus: "published",
-        });
-      }
-
-      await recordTutorMutationAudit({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "question_bank",
-        entityId: targetId,
-        entityVersion: 1,
-        requestId,
-        action: questionId ? "question_bank:update" : "question_bank:create",
-        outcome: "success",
-        reason: questionId ? "Question bank item updated" : "Question bank item created",
-        after: {
-          prompt: data.prompt,
-          difficulty: data.difficulty,
-          questionType: data.questionType,
-        },
-      }, tx);
-    });
-  } catch (err: any) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "question_bank",
-      entityId: targetId,
-      entityVersion: 1,
-      requestId,
-      action: questionId ? "question_bank:update" : "question_bank:create",
-      outcome: "failed",
-      reason: err?.message || "Failed to persist question bank item",
-    });
-    throw err;
-  }
-
-  revalidatePath(`/tutor/${courseId}/quizzes`);
-  return { success: true, id: targetId };
+  const parsed = questionBankInputSchema.safeParse(data);
+  const id = questionId || `qbk-tutor-${randomUUID()}`;
+  const mutation = questionId ? "update" : "create";
+  await writeWebQuestionBank(courseId, context, mutation, id, parsed.success ? parsed.data : null,
+    parsed.success ? undefined : `Validasi gagal: ${formatValidationIssues(parsed.error)}`);
+  return { success: true, id };
 }
 
 export async function deleteQuestionBankAction(courseId: string, questionId: string) {
-  const { session, access } = await verifyTutorAccess(courseId);
-  const { roles, isAdmin } = await resolveActorRoles(
-    session.user.id,
-    (session.user as { role?: string | null }).role,
-  );
+  await writeWebQuestionBank(courseId, await verifyTutorAccess(courseId), "delete", questionId, null);
+  return { success: true };
+}
 
-  const [existing] = await db
-    .select()
-    .from(aiQuestionBank)
-    .where(eq(aiQuestionBank.id, questionId))
-    .limit(1);
+async function writeWebQuestionBank(courseId: string, { session, access }: Awaited<ReturnType<typeof verifyTutorAccess>>,
+  kind: "create" | "update" | "delete", id: string, data: QuestionBankFields | null, validationError?: string) {
+  const { roles, isAdmin } = await resolveActorRoles(session.user.id, (session.user as { role?: string | null }).role);
+  const audit = {
+    actorId: session.user.id, actorRoles: roles, courseId: access.courseId ?? courseId,
+    entityType: "question_bank", entityId: kind === "create" && validationError ? "new" : id,
+    entityVersion: 1, action: `question_bank:${kind}`, requestId: newAuditRequestId(),
+  } as const;
 
-  if (!existing) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "question_bank",
-      entityId: questionId,
-      entityVersion: 1,
-      action: "question_bank:delete",
-      outcome: "rejected",
-      reason: "QUESTION_BANK_NOT_FOUND",
-    });
-    throw new Error("Soal bank tidak ditemukan.");
+  if (validationError) {
+    await recordTutorMutationAuditSafe({ ...audit, outcome: "rejected", reason: validationError });
+    throw new Error(validationError);
   }
-
-  if (!isAdmin && !checkCourseMatch(existing.courseId, access.courseId!, access.legacyCourseId)) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "question_bank",
-      entityId: questionId,
-      entityVersion: 1,
-      action: "question_bank:delete",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.CROSS_COURSE_MUTATION_FORBIDDEN,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.CROSS_COURSE_MUTATION_FORBIDDEN);
-  }
-
-  if (existing.origin !== "zyx_original") {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "question_bank",
-      entityId: questionId,
-      entityVersion: 1,
-      action: "question_bank:delete",
-      outcome: "rejected",
-      reason: "HISTORICAL_QUESTION_IMMUTABLE",
-    });
-    throw new Error("Soal referensi historis hanya dapat ditinjau, bukan dihapus.");
-  }
-
-  const requestId = newAuditRequestId();
+  const targetCourse = access.legacyCourseId ?? courseId;
   try {
     await db.transaction(async (tx) => {
-      await tx.delete(aiQuestionBank).where(eq(aiQuestionBank.id, questionId));
-
+      const { previous, current } = await writeQuestionBankRecord(tx, {
+        id, courseId: targetCourse, allowedCourseIds: isAdmin ? undefined : [access.courseId!, targetCourse],
+      }, kind === "delete" ? { kind } : { kind, data: data! });
       await recordTutorMutationAudit({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "question_bank",
-        entityId: questionId,
-        entityVersion: 1,
-        requestId,
-        action: "question_bank:delete",
-        outcome: "success",
-        reason: "Question bank item deleted",
-        before: {
-          id: questionId,
-          prompt: existing.prompt,
-        },
+        ...audit, outcome: "success",
+        reason: { create: "Question bank item created", update: "Question bank item updated", delete: "Question bank item deleted" }[kind],
+        ...(kind === "delete" && previous ? { before: { id, prompt: previous.prompt } } : {}),
+        ...(current ? { after: { prompt: current.prompt, difficulty: current.difficulty, questionType: current.questionType } } : {}),
       }, tx);
     });
-  } catch (err: any) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "question_bank",
-      entityId: questionId,
-      entityVersion: 1,
-      requestId,
-      action: "question_bank:delete",
-      outcome: "failed",
-      reason: err?.message || "Failed to delete question bank item",
-    });
-    throw err;
+  } catch (error) {
+    const code = error instanceof QuestionBankWriteError ? error.code : null;
+    const reason = code === "QUESTION_BANK_WRONG_COURSE" ? TUTOR_CAPABILITY_ERRORS.CROSS_COURSE_MUTATION_FORBIDDEN
+      : code ?? (error instanceof Error ? error.message : "Failed to persist question bank item");
+    await recordTutorMutationAuditSafe({ ...audit, outcome: code ? "rejected" : "failed", reason });
+    if (code === "QUESTION_BANK_NOT_FOUND") throw new Error("Soal bank tidak ditemukan.");
+    if (code === "QUESTION_BANK_WRONG_COURSE") throw new Error(reason);
+    if (code === "HISTORICAL_QUESTION_IMMUTABLE") {
+      throw new Error(`Soal referensi historis hanya dapat ditinjau, bukan ${kind === "delete" ? "dihapus" : "diedit"}.`);
+    }
+    throw error;
   }
-
   revalidatePath(`/tutor/${courseId}/quizzes`);
-  return { success: true };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

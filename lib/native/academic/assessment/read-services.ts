@@ -16,6 +16,7 @@ import { parseSelectionRulesInput, resolveEffectiveAssessmentType } from "@/lib/
 import { quizTemplateRevision } from "@/lib/asesmen/quiz-template-write";
 import { defaultQuiz, questionTypes, type AssessmentCourse, type AssessmentQuiz, type AssessmentTryout, type BankQuestion, type QuestionType } from "@/packages/native-parity/academic/assessment/model";
 import { selectableTryoutBankCondition, tryoutBankQuestionId, tryoutMetadataRevision, tryoutQuestionSetRevision } from "@/lib/tutor/tryout-authoring";
+import { questionBankRevision } from "@/lib/tutor/question-bank-write";
 import { tryoutCorrectIndices } from "./tryout-answer";
 import type { AssessmentReadScope, AssessmentReadServices } from "./handle-read";
 
@@ -60,13 +61,18 @@ function iso(value: Date | string | null | undefined): string | null {
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
-function bankQuestion(row: typeof aiQuestionBank.$inferSelect): BankQuestion {
+function bankQuestion(row: typeof aiQuestionBank.$inferSelect, canWrite: boolean): BankQuestion {
   const { id, prompt, questionType, difficulty, options, correctIndices, acceptableAnswers, tags, explanation, origin, sourceEventName, reviewStatus, quizEligible } = row;
   return {
     id, revision: 0, prompt, type: type(questionType), difficulty, origin,
-    options: strings(options), correctIndices: integers(correctIndices), acceptableAnswers: strings(acceptableAnswers),
+    options: array(options).map((option) => {
+      const text = object(option).text;
+      return typeof option === "string" ? option : typeof text === "string" ? text : "";
+    }),
+    correctIndices: integers(correctIndices), acceptableAnswers: strings(acceptableAnswers),
     tags: strings(tags), explanation, sourceEventName: sourceEventName ?? undefined,
     quizSelectable: reviewStatus === "published" && (origin !== "historical_reference" || quizEligible),
+    ...(canWrite && origin === "zyx_original" ? { bankRevision: questionBankRevision(row) } : {}),
   };
 }
 
@@ -160,7 +166,8 @@ export const assessmentReadServices: AssessmentReadServices = {
         userId: scope.actorId, questions: bankRows.map((row) => ({ questionId: row.id, courseId: row.courseId })), requestId,
       }));
     }
-    return { course, quizzes: rows.map((row) => quizRow(row, scope.role)), bank: bankRows.map(bankQuestion) };
+    const canWriteBank = scope.role === "tutor" && Boolean(resolved.legacyId);
+    return { course, quizzes: rows.map((row) => quizRow(row, scope.role)), bank: bankRows.map(row => bankQuestion(row, canWriteBank)), canWriteBank };
   },
 
   async preview(scope, quizId) {

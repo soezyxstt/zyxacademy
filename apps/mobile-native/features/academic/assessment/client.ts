@@ -1,5 +1,5 @@
 import type {
-  AssessmentContext, AssessmentErrorCode, AssessmentGateway, AssessmentResult, MutationEffect, OutstandingQuizSave, QuizGradeCommand, TryoutDraftCommand,
+  AssessmentContext, AssessmentErrorCode, AssessmentGateway, AssessmentResult, BankWriteCommand, MutationEffect, OutstandingQuizSave, QuizGradeCommand, TryoutDraftCommand,
 } from "../../../../../packages/native-parity/academic/assessment/model";
 import { quizAuthoringPayload } from "../../../../../packages/native-parity/academic/assessment/quiz-payload";
 import type { TryoutDraftWrite, TryoutMetadataWrite, TryoutQuestionSetWrite } from "../../../../../packages/native-parity/academic/assessment/tryout-draft";
@@ -49,6 +49,7 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
   if (existing) return existing;
   const outstanding = new Map<string, SaveEntry>();
   const tryoutDrafts = new Map<string, PendingAssessmentWrite>();
+  const bankWrites = new Map<string, PendingAssessmentWrite>();
   const quizGrades = new Map<string, PendingAssessmentWrite>();
   const scopeKey = (context: AssessmentContext) => JSON.stringify([context.actor.id, context.scope]);
   const quizKey = (context: AssessmentContext, quizId: string | null) => JSON.stringify([scopeKey(context), quizId]);
@@ -229,12 +230,84 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     }
   }
 
+  async function writeBank(context: AssessmentContext, requestId: string, command: BankWriteCommand, signal?: AbortSignal): Promise<SaveResult> {
+    const send = transport.command?.bind(transport);
+    const { courseId, target } = command;
+    if (!send || context.scope.kind !== "tutor" || !courseId || (target && !target.bankRevision)) return forbidden;
+    const key = scopeKey(context);
+    if ([...bankWrites].some(([scope, entry]) => scope !== key && entry.requestId === requestId)) {
+      return { ok: false, code: "conflict", message: "Lanjutkan dari kursus asal." };
+    }
+    const fingerprint = JSON.stringify(command);
+    const previous = bankWrites.get(key);
+    if (previous && (previous.requestId !== requestId || previous.fingerprint !== fingerprint)) return uncertain;
+    if (previous?.effect) return { ok: true, value: previous.effect };
+    if (previous?.inFlight) return previous.inFlight;
+    const entry = previous ?? { requestId, fingerprint };
+    bankWrites.set(key, entry);
+
+    const method = command.kind === "bank.delete" ? "DELETE" : target ? "PATCH" : "POST";
+    const fields = {
+      courseId,
+      ...(target ? { expectedRevision: target.bankRevision } : {}),
+    };
+    let body: unknown = fields;
+    if (command.kind === "bank.save") {
+      const { prompt, type, options, correctIndices, acceptableAnswers, difficulty, explanation, tags } = command.input;
+      body = { ...fields, input: { prompt, questionType: type, options, correctIndices, acceptableAnswers, difficulty, explanation,
+        tags: tags.map(tag => tag.toLowerCase()) } };
+    }
+    const resource = target ? `bank/${encodeURIComponent(target.id)}` : "bank";
+    const operation: Promise<SaveResult> = (async () => {
+      try {
+        const response = await send(endpoint(context, resource), { method, requestId, body }, signal ?? new AbortController().signal);
+        if (!response.ok) {
+          if (response.status >= 500 || response.status === 429) return uncertain;
+          bankWrites.delete(key);
+          const data = await response.json().catch(() => null);
+          const code = data && typeof data === "object" && "error" in data ? data.error : null;
+          const error = responseError(response.status);
+          if (code === "HISTORICAL_QUESTION_IMMUTABLE") return { ...error, code: "conflict", message: "Soal referensi hanya dapat ditinjau. Muat versi terbaru." };
+          if (code === "BANK_QUESTION_VISUAL_UNSUPPORTED") return { ...error, message: "Soal dengan aset visual perlu disunting melalui alur authoring." };
+          if (error.code === "invalid") return { ...error, message: "Periksa pertanyaan, opsi, dan kunci jawaban." };
+          if (error.code === "conflict") return { ...error, message: "Soal atau kursus telah berubah. Muat versi terbaru." };
+          return error;
+        }
+        const receipt = await response.json() as { requestId?: unknown; questionId?: unknown; revision?: unknown } | null;
+        if (!receipt || receipt.requestId !== requestId || typeof receipt.questionId !== "string" ||
+          (target && receipt.questionId !== target.id) || (method === "DELETE" ? receipt.revision !== null
+            : typeof receipt.revision !== "string" || !/^[a-f0-9]{64}$/.test(receipt.revision))) return uncertain;
+        entry.effect = { id: receipt.questionId, message: method === "DELETE" ? "Soal dihapus dari bank." : "Soal tersimpan di bank." };
+        return { ok: true, value: entry.effect };
+      } catch {
+        return uncertain;
+      }
+    })();
+    entry.inFlight = operation;
+    try {
+      return await operation;
+    } finally {
+      entry.inFlight = undefined;
+    }
+  }
+
   const gateway: AssessmentGateway = {
     canMutate: false,
     canGrade: Boolean(transport.command),
     canSaveQuiz: Boolean(transport.command),
     canSaveTryoutDraft: Boolean(transport.command),
     canSaveTryoutMetadata: Boolean(transport.command),
+    canWriteBank: Boolean(transport.command),
+    pendingBankWrite(context) {
+      const entry = accountMatches(context) ? bankWrites.get(scopeKey(context)) : undefined;
+      return entry ? { requestId: entry.requestId, command: JSON.parse(entry.fingerprint) as BankWriteCommand, confirmed: Boolean(entry.effect) } : null;
+    },
+    confirmBankWrite(context, requestId) {
+      if (!accountMatches(context)) return;
+      const key = scopeKey(context);
+      const entry = bankWrites.get(key);
+      if (entry?.requestId === requestId && entry.effect) bankWrites.delete(key);
+    },
     pendingQuizGrade(context) {
       const entry = accountMatches(context) ? quizGrades.get(scopeKey(context)) : undefined;
       return entry ? { requestId: entry.requestId, command: JSON.parse(entry.fingerprint) as QuizGradeCommand } : null;
@@ -281,6 +354,7 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     listTryouts: (context, signal) => read(context, "tryouts", signal),
     async mutate(context, requestId, command, signal) {
       if (!accountMatches(context) || !transport.command) return forbidden;
+      if (command.kind === "bank.save" || command.kind === "bank.delete") return writeBank(context, requestId, command, signal);
       if (command.kind === "quiz.save") return saveQuiz(context, requestId, command, signal);
       if (command.kind === "tryout.save" || command.kind === "tryout.metadata.save" || command.kind === "tryout.question.import" || command.kind === "tryout.question.delete") {
         return saveTryoutDraft(context, requestId, command, signal);

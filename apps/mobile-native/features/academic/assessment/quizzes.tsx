@@ -47,6 +47,21 @@ export function Quizzes({ mode, gateway, context, base, params, query, navigate,
   const [bankAction, setBankAction] = useState<BankAction | null>(null);
   const [bankSearch, setBankSearch] = useState("");
   const [bankPage, setBankPage] = useState(0);
+  const bankRecovery = gateway.pendingBankWrite?.(context);
+  const recoveringBank = Boolean(bankRecovery) && mutation.problem?.code === "unavailable";
+
+  function finishBank(effect: MutationEffect, requestId: string) {
+    gateway.confirmBankWrite?.(context, requestId);
+    setBankAction(null);
+    setTab("bank");
+    refreshed(effect);
+  }
+
+  function closeBank() {
+    if (mutation.pending) return;
+    mutation.reset();
+    setBankAction(null);
+  }
 
   function reload() {
     mutation.reset();
@@ -56,6 +71,8 @@ export function Quizzes({ mode, gateway, context, base, params, query, navigate,
   }
 
   function list(data: QuizCollection) {
+    const canWriteBank = isTutor && (gateway.canMutate || (gateway.canWriteBank && data.canWriteBank));
+    const bankTarget = (question: BankQuestion) => ({ ...targetVersion(question), bankRevision: question.bankRevision });
     const filtered = data.quizzes.filter((entry) => (category === "all" || category === entry.category)
       && `${entry.title} ${entry.creatorName}`.toLowerCase().includes(search.trim().toLowerCase()));
     const shownPage = Math.min(page, Math.max(0, Math.ceil(filtered.length / pageSize) - 1));
@@ -63,6 +80,12 @@ export function Quizzes({ mode, gateway, context, base, params, query, navigate,
     const displayedBankPage = Math.min(bankPage, Math.max(0, Math.ceil(bank.length / pageSize) - 1));
     return <>
       {isTutor ? <Tabs<(typeof tabs)[number]["id"]> options={tabs} selected={tab} onSelect={setTab} testID="academic-quizzes-tab" /> : null}
+      {bankRecovery && !bankAction && !mutation.pending ? <AssessmentNotice
+        message={bankRecovery.confirmed ? "Perubahan bank soal tersimpan." : "Hasil perubahan bank soal belum diketahui."}
+        error={!bankRecovery.confirmed}
+        action={<Action label={bankRecovery.confirmed ? "Muat bank soal" : "Coba lagi"}
+          onPress={() => mutation.resume(bankRecovery.requestId, bankRecovery.command, finishBank)} testID="academic-bank-recover" />}
+      /> : null}
       {tab === "quizzes" || !isTutor ? <>
         <View style={layout.row}>
           {gateway.canSaveQuiz ? <Action label="Buat kuis" variation="default" testID="academic-quiz-new" onPress={() => navigate(`${quizPath}/new`)} /> : null}
@@ -96,8 +119,8 @@ export function Quizzes({ mode, gateway, context, base, params, query, navigate,
         })}
         <Pagination page={shownPage} count={filtered.length} size={pageSize} change={setPage} />
       </> : <>
-        {gateway.canMutate ? <View style={layout.row}>
-          <Action label="Tambah soal" variation="default" testID="academic-bank-add" onPress={() => { mutation.reset(); setBankAction({ kind: "edit" }); }} />
+        {canWriteBank ? <View style={layout.row}>
+          <Action label="Tambah soal" variation="default" testID="academic-bank-add" disabled={Boolean(bankRecovery) || mutation.pending} onPress={() => { mutation.reset(); setBankAction({ kind: "edit" }); }} />
         </View> : null}
         <SearchBox label="Cari di bank soal" value={bankSearch} onChange={(value) => { setBankSearch(value); setBankPage(0); }} />
         {!bank.length ? <AssessmentNotice message={bankSearch ? "Soal yang cocok tidak ditemukan." : "Bank soal masih kosong."} /> : null}
@@ -106,9 +129,11 @@ export function Quizzes({ mode, gateway, context, base, params, query, navigate,
             <DataRow title={question.prompt} description={`${questionTypes[question.type]} · ${difficulties[question.difficulty]}`}
               onPress={() => setBankAction({ kind: "view", question })} />
             <View style={layout.row}>
-              {question.origin === "zyx_original" && gateway.canMutate ? <>
-                <Action label="Edit" onPress={() => { mutation.reset(); setBankAction({ kind: "edit", question }); }} />
-                <Action label="Hapus" variation="ghost" onPress={() => { mutation.reset(); setBankAction({ kind: "delete", question }); }} />
+              {question.origin === "zyx_original" && canWriteBank && (gateway.canMutate || question.bankRevision) ? <>
+                <Action label="Edit" disabled={Boolean(bankRecovery) || mutation.pending} testID={`academic-bank-edit-${question.id}`}
+                  onPress={() => { mutation.reset(); setBankAction({ kind: "edit", question }); }} />
+                <Action label="Hapus" variation="ghost" disabled={Boolean(bankRecovery) || mutation.pending} testID={`academic-bank-delete-${question.id}`}
+                  onPress={() => { mutation.reset(); setBankAction({ kind: "delete", question }); }} />
               </> : question.origin !== "zyx_original" ? <Ink kind="meta" tone="muted">Referensi historis</Ink> : null}
             </View>
           </SectionRow>
@@ -122,25 +147,23 @@ export function Quizzes({ mode, gateway, context, base, params, query, navigate,
         <MutationProblem mutation={mutation} reload={reload} />
       </ConfirmAction> : null}
       {bankAction ? <CourseDialog title={bankAction.kind === "view" ? "Detail soal" : bankAction.kind === "delete" ? "Hapus soal" : bankAction.question ? "Edit soal" : "Tambah soal"}
-        onClose={() => { if (!mutation.pending) { mutation.reset(); setBankAction(null); } }}>
+        onClose={closeBank}>
         {bankAction.kind === "view" ? <QuestionContent question={bankAction.question} /> : null}
-        {bankAction.kind === "edit" ? <QuestionEditor bank initial={bankAction.question} busy={mutation.pending}
+        {bankAction.kind === "edit" ? <QuestionEditor bank initial={bankAction.question} busy={mutation.pending || recoveringBank}
           feedback={<MutationProblem mutation={mutation} reload={reload} />}
-          cancel={() => { mutation.reset(); setBankAction(null); }}
-          save={(input) => mutation.send({ kind: "bank.save", target: bankAction.question ? targetVersion(bankAction.question) : null, input },
-            (effect) => { setBankAction(null); refreshed(effect); })} /> : null}
+          cancel={closeBank}
+          save={(input) => mutation.send({ kind: "bank.save", target: bankAction.question ? bankTarget(bankAction.question) : null,
+            input, courseId: data.course.id }, finishBank)} /> : null}
         {bankAction.kind === "delete" ? <>
           <Ink>Hapus soal ini dari bank?</Ink>
           <Ink>{bankAction.question.prompt}</Ink>
           <MutationProblem mutation={mutation} reload={reload} />
-          <View style={layout.row}><Action label="Hapus soal" variation="destructive" disabled={mutation.pending}
-            onPress={() => mutation.send({ kind: "bank.delete", target: targetVersion(bankAction.question) }, (effect) => {
-              setBankAction(null);
-              refreshed(effect);
-            })} /></View>
+          <View style={layout.row}><Action label="Hapus soal" variation="destructive" disabled={mutation.pending || recoveringBank}
+            testID="academic-bank-delete-confirm"
+            onPress={() => mutation.send({ kind: "bank.delete", target: bankTarget(bankAction.question), courseId: data.course.id }, finishBank)} /></View>
         </> : null}
       </CourseDialog> : null}
-      {!selected && !bankAction ? <MutationProblem mutation={mutation} reload={reload} /> : null}
+      {!selected && !bankAction && !bankRecovery ? <MutationProblem mutation={mutation} reload={reload} /> : null}
     </>;
   }
 

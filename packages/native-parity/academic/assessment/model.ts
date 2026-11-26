@@ -71,6 +71,7 @@ export type BankQuestion = BankQuestionInput & Versioned & {
   origin: "zyx_original" | "itb_example" | "historical_reference";
   sourceEventName?: string;
   quizSelectable?: boolean;
+  bankRevision?: string;
 };
 
 export interface TryoutInput {
@@ -121,7 +122,7 @@ export type QuizAttemptsSheet = {
 };
 export type GradeItem = { questionId: string; score: number; reviewNotes: string | null; expectedRevision: number };
 
-export type QuizCollection = { course: AssessmentCourse; quizzes: AssessmentQuiz[]; bank: BankQuestion[] };
+export type QuizCollection = { course: AssessmentCourse; quizzes: AssessmentQuiz[]; bank: BankQuestion[]; canWriteBank?: boolean };
 export type QuizPreviewQuestion = QuestionInput & Versioned & { explanation?: string };
 export type TryoutCollection = { course: AssessmentCourse; tryouts: AssessmentTryout[]; bank: TryoutBankChoice[]; canSaveDraft?: boolean; canSaveMetadata?: boolean };
 
@@ -130,14 +131,16 @@ export type AssessmentResult<T> =
   | { ok: true; value: T }
   | { ok: false; code: AssessmentErrorCode; message: string };
 
+type BankVersionRef = VersionRef & { bankRevision?: string };
+
 type TryoutMetadataCommand = { target: (VersionRef & { metadataRevision?: string }) | null; input: TryoutInput; courseId?: string };
 
 export type AssessmentCommand =
   | { kind: "quiz.save"; target: VersionRef | null; input: QuizInput; courseId?: string }
   | { kind: "quiz.status"; target: VersionRef; status: QuizStatus; courseId?: string }
   | { kind: "quiz.delete"; target: VersionRef; courseId?: string }
-  | { kind: "bank.save"; target: VersionRef | null; input: BankQuestionInput }
-  | { kind: "bank.delete"; target: VersionRef }
+  | { kind: "bank.save"; target: BankVersionRef | null; input: BankQuestionInput; courseId?: string }
+  | { kind: "bank.delete"; target: BankVersionRef; courseId?: string }
   | (TryoutMetadataCommand & { kind: "tryout.save" })
   | (TryoutMetadataCommand & { kind: "tryout.metadata.save" })
   | { kind: "tryout.delete"; target: VersionRef }
@@ -145,6 +148,9 @@ export type AssessmentCommand =
   | { kind: "tryout.question.delete"; examId: string; target: VersionRef; courseId?: string; questionSetRevision?: string }
   | { kind: "tryout.question.import"; exam: VersionRef; bankIds: string[]; courseId?: string; questionSetRevision?: string }
   | { kind: "grading.save"; attemptId: string; items: GradeItem[]; finalize: boolean };
+
+export type BankWriteCommand = Extract<AssessmentCommand, { kind: "bank.save" | "bank.delete" }>;
+export type OutstandingBankWrite = { requestId: string; command: BankWriteCommand; confirmed: boolean };
 
 export type OutstandingQuizSave = {
   requestId: string;
@@ -169,6 +175,9 @@ export interface AssessmentGateway {
   readonly canSaveQuiz: boolean;
   readonly canSaveTryoutDraft: boolean;
   readonly canSaveTryoutMetadata?: boolean;
+  readonly canWriteBank?: boolean;
+  pendingBankWrite?(context: AssessmentContext): OutstandingBankWrite | null;
+  confirmBankWrite?(context: AssessmentContext, requestId: string): void;
   pendingTryoutDraft?(context: AssessmentContext): { requestId: string; command: TryoutDraftCommand; confirmed: boolean } | null;
   confirmTryoutDraft?(context: AssessmentContext, requestId: string): void;
   takeQuizSaveNotice?(context: AssessmentContext, requestId: string): string | null;

@@ -100,10 +100,10 @@ export const operationsCatalog = [
   },
   {
     "source": "app/api/native/academic-assessment/[...resource]/route.ts",
-    "actions": ["GET", "POST", "PATCH"],
+    "actions": ["GET", "POST", "PATCH", "DELETE"],
     "tools": [],
     "status": "excluded",
-    "reason": "Interactive assessment reads and manual grading use the signed-in role, disclosure checks and course access. Tutor attachment downloads resolve the exact submitted answer and use protected storage. Grading retries are bound to the active Tutor session. Tryout drafts, explicit metadata and lifecycle saves, and bank selection require active Admin authority and course-scoped revisions. The status-aware route binds retry receipts to the original Admin session. Existing MCP authoring tools keep their registered scopes, consent and service contracts."
+    "reason": "Interactive assessment reads and manual grading use the signed-in role, disclosure checks and course access. Tutor attachment downloads resolve the exact submitted answer and use protected storage. Grading retries are bound to the active Tutor session. Tryout drafts, explicit metadata and lifecycle saves, and bank selection require active Admin authority and course-scoped revisions. The status-aware route binds retry receipts to the original Admin session. Tutor bank edits require the active Tutor session and an assigned course. Source references remain immutable. Existing MCP authoring tools keep their registered scopes, consent and service contracts."
   },
   {
     "source": "app/api/native/academic-administration/[...resource]/route.ts",

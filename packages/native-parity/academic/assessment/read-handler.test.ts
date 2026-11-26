@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { handleAssessmentRead, type AssessmentReadServices } from "../../../../lib/native/academic/assessment/handle-read";
 import { tryoutCorrectIndices } from "../../../../lib/native/academic/assessment/tryout-answer";
 import { createAssessmentReadGateway } from "../../../../apps/mobile-native/features/academic/assessment/client";
-import type { AcademicTransport } from "../../../../apps/mobile-native/features/academic/client";
+import type { AcademicCommand, AcademicTransport } from "../../../../apps/mobile-native/features/academic/client";
 import { handleGradeAttachment } from "../../../../lib/native/academic/assessment/grade-attachment";
 
 function services(override: Partial<AssessmentReadServices> = {}): AssessmentReadServices {
@@ -400,4 +400,49 @@ test("explicit Admin tryout status saves retry the same revision and require a m
     path: "/api/native/academic-assessment/admin/biologi/tryouts/metadata",
     init: { method: "POST", requestId: "publish-on-create", body: { courseId: "mk-bio", expectedRevision: null, ...input } },
   });
+});
+
+test("Tutor bank writes keep the original course, revision and request across a lost response", async () => {
+  const calls: Array<{ path: string; init: AcademicCommand }> = [];
+  const transport: AcademicTransport = {
+    accountId: "tutor", origin: "https://example.test", locale: "id",
+    get: async () => Response.json(null, { status: 404 }),
+    command: async (path, init) => {
+      calls.push({ path, init });
+      if (calls.length === 1) throw new Error("Lost response");
+      return Response.json({ requestId: init.requestId, questionId: "bank-question", revision: init.method === "DELETE" ? null : "b".repeat(64) });
+    },
+  };
+  const context = { actor: { id: "tutor", role: "tutor" }, scope: { kind: "tutor", courseId: "physics" }, scenario: "populated" } as const;
+  const target = { id: "bank-question", expectedRevision: 0, bankRevision: "a".repeat(64) };
+  const edit = { kind: "bank.save", target, courseId: "mk-physics",
+    input: { prompt: "Question", options: ["A", "B"], correctIndices: [0], acceptableAnswers: [],
+      type: "multiple_choice", difficulty: "easy", explanation: "Explanation", tags: ["Momentum"] } } as const;
+  const command = { ...edit, input: { ...edit.input, options: [...edit.input.options], correctIndices: [...edit.input.correctIndices],
+    acceptableAnswers: [...edit.input.acceptableAnswers], tags: [...edit.input.tags] } };
+  const key = "tutor-bank-edit-recovery";
+  const gateway = createAssessmentReadGateway(transport);
+  assert.equal(gateway.canWriteBank, true);
+  assert.equal((await gateway.mutate(context, key, command)).ok, false);
+  const remounted = createAssessmentReadGateway(transport);
+  const pending = remounted.pendingBankWrite?.(context);
+  assert.ok(pending);
+  assert.equal(pending.confirmed, false);
+  assert.equal((await remounted.mutate({ ...context, scope: { kind: "tutor", courseId: "other" } }, key, pending.command)).ok, false);
+  assert.equal((await remounted.mutate(context, "different-bank-key", { ...command, target: null })).ok, false);
+  assert.equal(calls.length, 1);
+  assert.equal((await remounted.mutate(context, pending.requestId, pending.command)).ok, true);
+  assert.deepEqual(calls[0], calls[1]);
+  const { type, ...input } = command.input;
+  assert.deepEqual(calls[0], {
+    path: "/api/native/academic-assessment/tutor/physics/bank/bank-question",
+    init: { method: "PATCH", requestId: key, body: { courseId: "mk-physics", expectedRevision: target.bankRevision,
+      input: { ...input, questionType: type, tags: ["momentum"] } } },
+  });
+  remounted.confirmBankWrite?.(context, key);
+  assert.equal(remounted.pendingBankWrite?.(context), null);
+  const remove = { kind: "bank.delete", target, courseId: "mk-physics" } as const;
+  assert.equal((await remounted.mutate(context, "tutor-bank-delete-recovery", remove)).ok, true);
+  assert.deepEqual(calls[2], { path: calls[0].path, init: { method: "DELETE", requestId: "tutor-bank-delete-recovery",
+    body: { courseId: "mk-physics", expectedRevision: target.bankRevision } } });
 });
