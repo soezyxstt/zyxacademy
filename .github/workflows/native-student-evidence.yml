@@ -156,6 +156,9 @@ jobs:
         if: always()
         run: |
           python tests/visual/native-parallel/student/compare.py --platform ${{ matrix.platform }} --web artifacts/student-evidence/web --native artifacts/student-evidence/${{ matrix.platform }} --output artifacts/student-evidence/${{ matrix.platform }}/comparison
+      - name: Check the material list position after Back
+        if: always()
+        run: python tests/visual/native-parallel/student/check-scroll-restoration.py artifacts/student-evidence/${{ matrix.platform }}
       - name: Report executed and blocked route cases
         if: always()
         run: |
