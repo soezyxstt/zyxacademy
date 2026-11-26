@@ -33,7 +33,7 @@
     "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
     "tests/visual/fixtures/fonts/inter-latin.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
     "tests/visual/fixtures/fonts/lexend-latin.woff2": "52dcdaa127bac4a5ea4c39ee17a3f454ceacc18d9f2a45cc453eeab68d378588",
-    "tests/visual/fixtures/student-discussions-reference.tsx": "3ad8fda8e6e2d0a599f725667f41688f8a88020fbcc02c2bcf6cded9183b91d1",
+    "tests/visual/fixtures/student-discussions-reference.tsx": "56038d29836b0f84f8ef71c515cde67e9e46f689afcfd6e58ac1a51f17fd2a63",
     "tests/visual/fixtures/student-discussions-reference-build.ts": "c752cab6c34f529c2c57af3d2c99711368badbc7688df052844345a7ad1d16f5",
     "tests/visual/native-parallel/student/discussions-reference.spec.ts": "e0c7886226c38ad7b295cc716780e1e24d1829a76096d54e489a1a1686665ef1",
     ".maestro/native-parallel/student/course-discussions-parity.yaml": "deaeb1bddc9e306d7f4c3717a35f3058c0f87b0ba6955bf0dfcfdb704152813f"

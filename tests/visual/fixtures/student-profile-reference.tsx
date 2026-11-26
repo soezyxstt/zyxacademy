@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { NextIntlClientProvider } from "next-intl";
+import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { ProfileEditForm } from "@/app/(student)/profile/edit/profile-edit-form";
 import { StudentReflectionsView } from "@/components/student-reflections-view";
 import { ApplicationPage } from "@/components/application-page";
@@ -14,18 +14,20 @@ async function mount() {
   const query = new URLSearchParams(search);
   const locale = query.get("locale") === "en" ? "en" : "id";
   const messages = await loadMessages(locale);
+  const t = createTranslator({ locale, messages, namespace: "student" });
   const editor = pathname === "/profile/edit";
   if (!editor && pathname !== "/profile/reflections") throw new Error(`Unknown profile reference ${pathname}`);
+  const title = editor ? t("profile.editTitle") : t("reflections.title");
   const operation = editor ? "profile?view=edit" : "reflections";
   const response = await fetch(`/api/native/student/community/${operation}`);
   if (!response.ok) throw new Error("Unable to load owned profile reference");
   const content = editor
-    ? <ApplicationPage><PageHeader title={messages.student.profile.editTitle} /><ProfileEditForm user={{ id: "student-fixture", ...(await response.json() as Profile).account }} /></ApplicationPage>
+    ? <ApplicationPage><PageHeader title={title} /><ProfileEditForm user={{ id: "student-fixture", ...(await response.json() as Profile).account }} /></ApplicationPage>
     : <StudentReflectionsView reflections={(await response.json() as ReflectionPage).entries} />;
   createRoot(document.getElementById("root")!).render(
     <NextIntlClientProvider locale={locale} timeZone="Asia/Jakarta" messages={messages}>
       <MobileChromeProvider>
-        <MobileTopNavbar title={editor ? messages.student.profile.editTitle : messages.student.reflections.title} />
+        <MobileTopNavbar title={title} />
         <main>{content}</main>
       </MobileChromeProvider>
     </NextIntlClientProvider>,

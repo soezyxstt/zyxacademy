@@ -18,7 +18,7 @@
     "packages/native-parity/student/community/fixtures.ts": "27a7e52a38ac47fb1960b983d65a3fcfb231673d7f876b9959b168bc6520c305",
     "packages/native-parity/student/fixture-request.ts": "dd4c36db26586b294cac067e5d062c8e5d7e2ac0b78fac09eafa1ee406192ae9",
     "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
-    "tests/visual/fixtures/student-profile-reference.tsx": "bb8894663a250a30d22217beafc8b230926a2505d62a2563b2cca537b4cd86e8",
+    "tests/visual/fixtures/student-profile-reference.tsx": "189bc72b236f054432344acf3d1522bacd92e123f31bca1e98a11d92bc1fb55b",
     "tests/visual/fixtures/student-profile-reference-build.ts": "ec4fae9051f6a0de34c02f449bb27f1e12239cb0fd9a5cebd9eb7b638cf1b87d",
     "tests/visual/fixtures/fonts/inter-latin.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
     "tests/visual/fixtures/fonts/lexend-latin.woff2": "52dcdaa127bac4a5ea4c39ee17a3f454ceacc18d9f2a45cc453eeab68d378588",
