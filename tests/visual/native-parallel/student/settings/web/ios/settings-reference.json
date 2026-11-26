@@ -16,7 +16,7 @@
     ".maestro/native-parallel/student/settings-parity.yaml": "7d34efaa41c4b52028c627571bd09f78bd91221bfdc48be66d16318d54bb7c9a",
     "app/(student)/settings/settings-client.tsx": "bc9c61e77aabab3ffcd1cc0aa6adc88f231033621cd985ac5bf5f6c9b25459ed",
     "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",
-    "apps/mobile-native/features/student/community/settings.tsx": "f20754a7da23e64d4f63a7ceb6cf3c8d6bee8cb621873f78528a7298d4407cda",
+    "apps/mobile-native/features/student/community/settings.tsx": "71331d6fabcd17766bda6968606bd69fde464df4c36d8891155fd81a8ac6e8cd",
     "apps/mobile-native/features/student/community/ui.tsx": "4a63a9b1a4173a4dd931e2d629b3c60fdd0f065796be28f1ba0cdac12a0d9f99",
     "packages/design-tokens/native-colors.ts": "6c0c10749bec30e43417c658e0b995f9a4b35b0c44e17e21182b29455fabcbc6",
     "packages/native-parity/student/community/fixtures.ts": "27a7e52a38ac47fb1960b983d65a3fcfb231673d7f876b9959b168bc6520c305",
