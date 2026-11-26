@@ -1,0 +1,21 @@
+appId: com.zyx.academy.nativeparity
+name: Nama kontrol bahasa Indonesia pada ukuran teks besar
+---
+- openLink: zyx-native-parity://shared-ui/shared-ui-toolbar-compact
+- extendedWaitUntil:
+    visible:
+      id: shared-ui-case-shared-ui-toolbar-compact
+    timeout: 20000
+- assertVisible: "^Semua kanal$"
+- tapOn: "^Semua kanal$"
+- assertVisible: "^Kanal Fisika$"
+- tapOn: "^Cari pertanyaan$"
+- assertVisible:
+    id: shared-ui-toolbar-compact-search-input
+- tapOn: "^Tutup pencarian$"
+- assertVisible:
+    id: shared-ui-toolbar-compact-search-trigger
+- tapOn: "^Pertanyaan baru$"
+- assertVisible: "^Siap membuat pertanyaan$"
+- assertVisible: "^Cari pertanyaan$"
+- assertVisible: "^Pertanyaan baru$"
