@@ -30,3 +30,15 @@ export function formWriteAccess({ state, transport, revalidating }: FormSession,
   return state.status === "signed-in" && sameIdentity(owner, state) && transport?.scope.origin === owner.origin
     && sameIdentity(owner, transport.scope) && transport.isCurrent() ? transport : null;
 }
+
+export async function recoverFormWriteSession(
+  session: { getSnapshot(): FormSession; refresh(): Promise<void> },
+  owner: NativeSessionScope,
+  signal: AbortSignal,
+): Promise<{ status: "session-pending" | "session-retry" }> {
+  const currentDraft = () => !signal.aborted && formDraftOwner(session.getSnapshot(), owner) === owner;
+  if (!currentDraft()) return { status: "session-pending" };
+  await session.refresh();
+  if (!currentDraft() || !formWriteAccess(session.getSnapshot(), owner)) return { status: "session-pending" };
+  return { status: "session-retry" };
+}

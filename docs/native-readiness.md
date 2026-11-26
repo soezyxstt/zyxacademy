@@ -26,6 +26,14 @@ Penilaian 95% masih terbuka untuk ketiga sumbu. Hasil review ini berlaku pada SH
 
 Run 45784124155 membandingkan separator horizontal terang, vertikal terang dan horizontal gelap. Masing-masing mencatat 0 piksel berbeda pada emulator Android dan simulator iOS. Implementasi web juga menerima `decorative={false}`, sementara komponen Expo di commit tersebut selalu tersembunyi dari pembaca layar. Belum ada bukti semantik untuk varian itu atau pengujian perangkat fisik. Skeleton yang tersedia di working tree saat audit belum tercakup dalam run ini. [Hasil Android](https://github.com/soezyxstt/zyxacademy/actions/runs/45784124155/job/139786898021), [hasil iOS](https://github.com/soezyxstt/zyxacademy/actions/runs/45784124155/job/139786897915), [kontrak Separator web](https://github.com/soezyxstt/zyxacademy/blob/fa3ce04ed78181810b31ff1b3bf5852c24f6ec5f/components/ui/separator.tsx), [implementasi Expo saat diuji](https://github.com/soezyxstt/zyxacademy/blob/fa3ce04ed78181810b31ff1b3bf5852c24f6ec5f/apps/mobile-native/components/Separator.tsx).
 
+### Hasil pengujian gabungan berikutnya
+
+Pada induk `a6c60e56`, CI memasang 153 rute dari empat jalur, meluluskan typecheck Expo dan menghasilkan bundle Android 6.960.978 byte serta iOS 6.957.402 byte. Job perangkat memakai salinan sumber yang cocok dengan Git tree hasil pemasangan. Pengujian tamu membuka `/murid`, `/tutor` dan `/admin` melalui tautan kanonik dan memeriksa tindakan masuk. Gerbang halaman juga membutuhkan sesi terautentikasi, operasi data dan tiga kasus visual. [Job integrasi](https://github.com/soezyxstt/zyxacademy/actions/runs/45812972858/job/139885305251).
+
+Reviewer GPT-6.2 Sol High memeriksa artefak Android dan iOS pada `f4ed84dc`. Android menghasilkan tiga kecocokan piksel untuk Separator. Delapan kontrol lain yang diukur memiliki perbedaan. Tangkapan iOS tidak menghasilkan tiga area pembanding yang valid, sehingga tidak ada tambahan komponen yang lulus pada pasangan ini. Bukti historis Separator pada `fa3ce04e` tetap tercatat di baseline. [Artefak berpasangan](https://github.com/soezyxstt/zyxacademy/actions/runs/45796391363).
+
+Reviewer juga memeriksa transport kotak masuk Student, pembatasan akun dan peran, serta pencabutan bacaan offline. Pada `ed469032`, penolakan eksplisit dari manifest, resource, dan aset mengunci kedua bahasa. Saat itu respons sukses sinkronisasi yang memuat `allowed: false` masih dapat menyisakan akses dalam bahasa lain. Verifikasi berikutnya perlu menguji respons ini pada dua bahasa dan dua kursus, serta menguji pergantian akun saat kotak masuk sedang dibuka. [Revisi offline yang diperiksa](https://github.com/soezyxstt/zyxacademy/commit/ed469032).
+
 ## Inventaris per permukaan
 
 | Permukaan web | Jumlah | Bukti yang diperlukan untuk lulus |

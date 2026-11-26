@@ -1,6 +1,7 @@
 @import "../../../../app/globals.css";
 
 @source "../../../../components/ui/*.tsx";
+@source "../../../../components/notifications/notification-inbox-panel.tsx";
 @source "./";
 @source "../../../../app/tautan/directory.tsx";
 @source "../../../../components/logo.tsx";
@@ -16,7 +17,20 @@
   src: url("../../fixtures/fonts/lexend-latin.woff2") format("woff2");
   font-weight: 100 900;
 }
+@font-face {
+  font-family: "Directory Lexend";
+  src: url("../../fixtures/fonts/lexend-semibold-latin.woff2") format("woff2");
+  font-weight: 600;
+}
+@font-face {
+  font-family: "Directory Lexend";
+  src: url("../../fixtures/fonts/lexend-latin.woff2") format("woff2");
+  font-weight: 700;
+}
 :root {
   --font-inter: "Parity Inter";
   --font-lexend: "Parity Lexend";
+}
+.directory-reference {
+  --font-lexend: "Directory Lexend";
 }

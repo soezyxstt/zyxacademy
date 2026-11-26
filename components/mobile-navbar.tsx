@@ -10,6 +10,7 @@ import { useCommandMenu } from "@/components/command-menu";
 import { useTranslations } from "@/lib/i18n/client";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { AppUpdateControl } from "@/components/native/app-update-control";
+import { getStudentMobileRouteTitle } from "@/components/navigation/student/student-nav-model";
 
 export function getRouteTitle(
   pathname: string,
@@ -91,34 +92,11 @@ export function getRouteTitle(
     return roleTitle("tutor", "overview", "Overview");
   }
 
-  const t = (key: string, fallback: string) => translate?.(`routeTitles.${key}`) ?? fallback;
-  if (pathname === "/dashboard/schedule") return t("schedule", "Jadwal Belajar");
-  if (pathname.startsWith("/dashboard/groups")) return t("groups", "Kelompok Belajar");
-  if (pathname === "/dashboard") return t("dashboard", "Dashboard Siswa");
-  if (pathname.startsWith("/courses/tutorial-pka")) return "Tutorial PKA";
-  if (pathname.startsWith("/courses")) {
-    if (pathname.includes("/video")) return t("video", "Video");
-    if (pathname.includes("/material")) return t("documents", "Dokumen");
-    if (pathname.includes("/quiz")) return t("quiz", "Kuis");
-    if (pathname.includes("/flashcard")) return t("flashcard", "Flashcard");
-    if (pathname.includes("/tryout")) return t("tryout", "Tryout");
-    if (pathname.includes("/progress")) return t("progress", "Progres");
-    if (pathname.includes("/mastery")) return t("mastery", "Penguasaan");
-    if (pathname.includes("/path")) return t("studyPath", "Alur Belajar");
-    if (pathname.includes("/my-results")) return t("examResults", "Hasil Ujian");
-    if (pathname.includes("/live")) return t("liveQuiz", "Kuis Langsung");
-    return t("course", "Kelas");
-  }
-  if (pathname.startsWith("/leaderboard")) return t("leaderboard", "Papan Peringkat");
-  if (pathname.startsWith("/calendar")) return t("calendar", "Agenda");
-  if (pathname.startsWith("/feedback")) return t("feedback", "Umpan Balik");
-  if (pathname.startsWith("/profile")) return t("profile", "Profil");
-  if (pathname === "/settings") return t("preferences", "Preferensi");
-  if (pathname.startsWith("/settings/")) return t("settings", "Pengaturan");
-
+  const studentTitle = getStudentMobileRouteTitle(pathname, translate);
+  if (studentTitle !== undefined) return studentTitle;
   if (surface === "admin") return "Panel Admin";
   if (surface === "tutor") return "Panel Pengajar";
-  return t("dashboard", "Dashboard Siswa");
+  return translate?.("routeTitles.dashboard") ?? "Dashboard Siswa";
 }
 
 export function setMobileNavTitle(title: string) {

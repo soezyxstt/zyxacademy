@@ -71,6 +71,20 @@ export const operationsCatalog = [
     "reason": "Personal interface language and device display, vibration and alert choices require the signed-in UI or local device. Preference grouping and reset do not change MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
   },
   {
+    "source": "apps/mobile-native/device/preferences.ts",
+    "actions": ["setTheme", "setHaptics"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Expo appearance and haptics are personal device preferences. The host uses the existing verified account locale, session and origin for app copy. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
+  },
+  {
+    "source": "apps/mobile-native/routing/route-history.ts",
+    "actions": ["remember", "restore", "clear"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The app remembers a local navigation destination for the verified session. Installed routes, roles and product authorization still apply. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
+  },
+  {
     "source": "components/onboarding/guided-tour.tsx",
     "actions": ["start", "progress", "skip", "restart"],
     "tools": [],
@@ -106,6 +120,13 @@ export const operationsCatalog = [
     "reason": "The app opens the staging Next consent, account connections or meeting URL in the system browser. The browser owns the session. Consent, registration, scopes, redirect validation, revocation and environment binding stay on their existing server paths."
   },
   {
+    "source": "apps/mobile-native/features/notification-inbox/client.ts",
+    "actions": ["loadInbox", "markInboxRead"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The account holder opens their own notification history and acknowledges visible notifications through their interactive session. Administrative notification history and sending retain their existing MCP authorization."
+  },
+  {
     "source": "apps/mobile-native/device/reminder-controller.ts",
     "actions": ["updateSettings", "refreshTutorSessions"],
     "tools": [],
@@ -121,7 +142,7 @@ export const operationsCatalog = [
   },
   {
     "source": "apps/mobile-native/device/audio-controller.ts",
-    "actions": ["play", "pause"],
+    "actions": ["play", "pause", "seekBy", "seekTo"],
     "tools": [],
     "status": "excluded",
     "reason": "Playback controls operate on local media on the device, with no server mutation, recording permission or MCP operation."

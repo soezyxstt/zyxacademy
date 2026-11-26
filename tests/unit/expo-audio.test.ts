@@ -130,6 +130,28 @@ test("seek is bounded, finish releases the player, and explicit replay starts at
   detach();
 });
 
+test("scrubbing seeks to the committed absolute position without duplicate native seeks", async () => {
+  const { controller, instances, holdSeek, detach } = fixture();
+  await controller.seekTo(1.25);
+  expect(controller.getSnapshot().position).toBe(1.25);
+  await controller.play();
+  const player = instances[0];
+  player.emit({ isLoaded: true });
+  await player.started;
+  player.emit({ playing: true, currentTime: 2 });
+  const remaining = deferred();
+  holdSeek(remaining.promise);
+  const committing = controller.seekTo(6.75);
+  expect(controller.getSnapshot()).toMatchObject({ position: 2, seeking: true });
+  await controller.seekTo(7);
+  remaining.resolve();
+  await committing;
+  await controller.seekTo(6.75);
+  expect(player.calls).toEqual([1.25, "play", 6.75]);
+  expect(controller.getSnapshot()).toMatchObject({ position: 6.75, seeking: false });
+  detach();
+});
+
 test("backgrounding and audio focus loss both require another explicit play", async () => {
   const { controller, instances, detach } = fixture();
   await controller.play();

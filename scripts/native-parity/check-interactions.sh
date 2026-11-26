@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# != 2 || ( "$1" != android && "$1" != ios ) || -z "$2" ]]; then
-  echo "Usage: $0 <android|ios> <device-id>" >&2
+if [[ $# -lt 2 || $# -gt 3 || ( "$1" != android && "$1" != ios ) || -z "$2" ]]; then
+  echo "Usage: $0 <android|ios> <device-id> [product]" >&2
   exit 2
 fi
 
@@ -10,6 +10,15 @@ platform=$1
 device=$2
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 output="$root/artifacts/native-parity/$platform/interactions"
+flows="$root/.maestro/native-parity"
+case ${3:-parity} in
+  parity) ;;
+  product)
+    flows="$root/.maestro/native-integration"
+    output="$root/artifacts/native-integration/$platform"
+    ;;
+  *) exit 2 ;;
+esac
 mkdir -p "$output"
 
 # Use the official release archive without modifying the runner's shell profiles.
@@ -32,7 +41,20 @@ if [[ $platform == ios ]]; then
   "$install_dir/maestro/bin/maestro" --platform ios --device "$device" test \
     "$root/.maestro/native-parity/helpers/confirm-ios-gallery.yaml"
 fi
+if [[ ${3:-parity} == product ]]; then
+  app=com.zyx.academy.nativeparity
+  if [[ $platform == ios ]]; then
+    xcrun simctl terminate "$device" "$app"
+    xcrun simctl openurl "$device" zyx-native-parity://admin
+  else
+    adb -s "$device" shell am force-stop "$app"
+    adb -s "$device" shell am start -W -a android.intent.action.VIEW -d zyx-native-parity://admin "$app"
+  fi
+  "$install_dir/maestro/bin/maestro" --platform "$platform" --device "$device" test \
+    --format junit --output "$output/cold-entry.xml" --test-output-dir "$output/cold-results" \
+    --debug-output "$output/cold-logs" "$flows/helpers/cold-private-entry.yaml"
+fi
 "$install_dir/maestro/bin/maestro" --platform "$platform" --device "$device" test \
   --format junit --output "$output/report.xml" \
   --test-output-dir "$output/results" --debug-output "$output/logs" \
-  "$root"/.maestro/native-parity/*.yaml
+  "$flows"/*.yaml

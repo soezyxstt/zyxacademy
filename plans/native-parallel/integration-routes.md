@@ -34,3 +34,15 @@ Code inventory for the 15 `integration` entries in `routes.tsv`. Dispositions be
 The Expo routes for `/mcp/authorize`, `/mcp/connections` and `/meet/[slug]` now open the corresponding staging Next route on explicit activation. The server handles consent and meeting resolution in the browser session. The URL builder preserves supported OAuth parameters, rejects ambiguous repeated values and encodes the exact meeting slug as one path segment. Focused tests cover URI construction. Browser return, server responses and Back still need Android and iOS evidence.
 
 The Expo native-intent entry captures the raw consent request before Expo Router parses its query. The router receives an in-memory locator with a five-minute expiry. This preserves nested redirect URIs and opaque OAuth state across navigation inside the running app.
+
+### Session-bound navigation
+
+When Expo verifies a different account or session, or begins logout, it removes the previous stack entries and preloads. An active login, form, public link, or browser handoff keeps its route and parameters. Foreground checks and temporary connection failures preserve the stack for the same session. Academic details reload their protected resource on return. The Admin course list keeps its filters and refreshes on focus.
+
+The stack uses Expo's staging session identity and leaves MCP tools, authorization scopes, consent, discovery, playbooks, packaged skills, host prompts, and browser OAuth bindings as documented above. Local tests cover the reset inputs and focus policy. Android and iOS execution still needs device evidence.
+
+### Student navigation
+
+The mounted Student routes use the shared mobile navbar and five Student destinations with the same Indonesian and English labels as the web. The bar follows the current URL and stays out of active assessment and flashcard sessions, reader and playground routes, live sessions, and individual discussion threads. Course and document filters update the existing entry so typing and scroll position can continue across query changes. The Student bell reads the verified account’s unread count and latest 20 visible notifications. The popover supports acknowledging one or all visible notifications. Navigation checks the active role and installed route. Search, the account menu, and course switching still need wiring.
+
+This navigation only connects existing UI routes. It introduces no new HTTP operation or MCP capability. Focused checks cover route targets, selection, visibility, and query patches. Device and visual verification remain pending.

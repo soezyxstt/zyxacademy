@@ -9,6 +9,9 @@ xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotion
 cd apps/mobile-native
 npx --no-install expo run:ios --configuration Release --device "$device" --no-bundler
 cd ../..
+if [[ ${1:-} == product ]]; then
+  exec bash scripts/native-parity/check-interactions.sh ios "$device" product
+fi
 status=0
 bash scripts/native-parity/check-interactions.sh ios "$device" || status=1
 python scripts/native-parity/capture-gallery.py ios "$device" || status=1

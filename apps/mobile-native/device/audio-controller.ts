@@ -157,8 +157,13 @@ export function createLocalAudioController({ configure, open, startupTimeoutMs =
   }
 
   async function seekBy(seconds: number) {
+    return seekTo(snapshot.position + seconds);
+  }
+
+  async function seekTo(seconds: number) {
     if (!snapshot.active || snapshot.phase === "starting" || snapshot.seeking || !Number.isFinite(seconds)) return;
-    const position = clampPosition(snapshot.position + seconds, snapshot.duration);
+    const position = clampPosition(seconds, snapshot.duration);
+    if (position === snapshot.position) return;
     const current = playback;
     if (!current?.player) {
       publish({ position, phase: snapshot.phase === "ended" ? "paused" : snapshot.phase });
@@ -210,5 +215,6 @@ export function createLocalAudioController({ configure, open, startupTimeoutMs =
       if (playback) stop("paused", pausePosition());
     },
     seekBy,
+    seekTo,
   };
 }

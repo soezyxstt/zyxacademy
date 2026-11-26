@@ -1,5 +1,15 @@
 import type { NativeSessionScope } from "../network/transport";
-import { offlineMetadataSchema, readOfflineReadingAuthority } from "./metadata-store";
+import {
+  offlineMetadataSchema,
+  prepareOfflineReadingAccess,
+  readOfflineReadingAuthorities,
+  readOfflineReadingAuthority,
+  readOfflineReadingAuthorityVersions,
+  withdrawOfflineReadingCourses,
+  writeOfflineReadingSnapshot,
+  type OfflineReadingCourseVersion,
+  type OfflineMetadataAccessPage,
+} from "./metadata-store";
 import {
   OfflineReadingError,
   READING_ASSET_COUNT_LIMIT,
@@ -57,6 +67,16 @@ const schema = `
     BEGIN
       DELETE FROM expo_reading_parts_v2 WHERE entry = OLD.entry;
     END;
+`;
+const purgeRetiredScopes = `
+  DELETE FROM expo_reading_packages_v2
+  WHERE EXISTS (
+    SELECT 1 FROM offline_reading_metadata_v1 AS authority
+    WHERE authority.origin = expo_reading_packages_v2.origin
+      AND authority.account_id = expo_reading_packages_v2.account_id
+      AND authority.locale = expo_reading_packages_v2.locale
+      AND (authority.session_id <> expo_reading_packages_v2.session_id OR authority.snapshot IS NULL)
+  )
 `;
 
 type Bind = string | number | null | Uint8Array;
@@ -191,7 +211,11 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
   }
   function initialize() {
     // A downgraded client can recreate the old tables, so clear them on every new repository open.
-    ready ??= exclusive(tx => tx.execAsync(offlineMetadataSchema + schema)).catch(error => {
+    ready ??= exclusive(async tx => {
+      await tx.execAsync(offlineMetadataSchema + schema);
+      // Older builds clear authority but have no access to the v2 package tables.
+      await tx.runAsync(purgeRetiredScopes);
+    }).catch(error => {
       ready = undefined;
       throw error;
     });
@@ -228,6 +252,25 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
   async function remove(entryId: number, tx: Connection) {
     const { changes } = await tx.runAsync("DELETE FROM expo_reading_packages_v2 WHERE entry = ?", entryId);
     return Number(changes > 0);
+  }
+
+  async function removeCourses(tx: Connection, scope: NativeOfflineScope, courseIds: readonly string[]) {
+    if (!courseIds.length) return;
+    const placeholders = courseIds.map(() => "?").join(", ");
+    await tx.runAsync(`DELETE FROM expo_reading_packages_v2 WHERE ${scopeFilter} AND course_id IN (${placeholders})`,
+      ...keys(scope), ...courseIds);
+  }
+
+  async function withdrawCourses(tx: Connection, session: NativeSessionScope, courseIds: readonly string[],
+    versions: readonly OfflineReadingCourseVersion[], assertCurrent: () => void) {
+    let changed = false;
+    for (const version of versions) {
+      const withdrawn = await withdrawOfflineReadingCourses(tx, session, courseIds, version, assertCurrent);
+      if (!withdrawn.length) continue;
+      await removeCourses(tx, { ...session, locale: version.locale }, withdrawn);
+      changed = true;
+    }
+    return changed;
   }
 
   async function inspect(scope: NativeOfflineScope, guard: Guard) {
@@ -344,6 +387,7 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
         if (previous?.reset_generation === candidate.resetGeneration
           && (Math.max(previous.validated_at, previous.verified_at) > candidate.validatedAt
             || compareNativeOfflineCursors(candidate.cursor, previous.verified_cursor) < 0)) throw new OfflineReadingError("changed");
+        await tx.runAsync(purgeRetiredScopes);
         const totals = await tx.getFirstAsync<{ count: number; bytes: number }>(
           `SELECT COUNT(*) AS count, COALESCE(SUM(bytes), 0) AS bytes FROM expo_reading_packages_v2 WHERE ${scopeFilter}`, ...keys(scope),
         );
@@ -428,7 +472,8 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
       assertGrant(guard);
       await initialize();
       const existing = await savedVersion(db, scope, target);
-      const authority = await readOfflineReadingAuthority(db, scope);
+      const authorities = await readOfflineReadingAuthorities(db, scope);
+      const authority = authorities.find(item => item.locale === scope.locale)?.snapshot;
       assertGrant(guard);
       const access = authority?.readingPolicy && proof(authority, target, now());
       if (!access || Math.min(access.leaseExpiresAt, guard.verifiedUntil) <= now()
@@ -439,7 +484,34 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
         checkedAt: access.checkedAt,
         generation: access.resetGeneration,
       } : null;
-      return { ...access, requestVersion };
+      return { ...access, requestVersion, courseVersions: authorities.map(({ locale, revision }) => ({ locale, revision })) };
+    },
+    async captureCourseVersions(session: NativeSessionScope) {
+      await initialize();
+      return readOfflineReadingAuthorityVersions(db, session);
+    },
+    async applyAccessWithCourseDenials(scope: NativeOfflineScope, page: OfflineMetadataAccessPage & { expectedRevision: number }, courseIds: readonly string[],
+      versions: readonly OfflineReadingCourseVersion[], assertCurrent: () => void) {
+      const revision = await transaction(async tx => {
+        assertCurrent();
+        const update = await prepareOfflineReadingAccess(tx, scope, page);
+        if (!update || !await writeOfflineReadingSnapshot(tx, scope, update.revision, update.encoded)) return null;
+        await removeCourses(tx, scope, courseIds);
+        await withdrawCourses(tx, scope, courseIds, versions.filter(version => version.locale !== scope.locale), assertCurrent);
+        assertCurrent();
+        return update.revision + 1;
+      });
+      if (revision !== null) notifyOfflineReadingChanges();
+      return revision;
+    },
+    async withdrawCourse(session: NativeSessionScope, courseId: string, versions: OfflineReadingCourseVersion[], assertCurrent: () => void) {
+      const changed = await transaction(async tx => {
+        assertCurrent();
+        const changed = await withdrawCourses(tx, session, [courseId], versions, assertCurrent);
+        assertCurrent();
+        return changed;
+      });
+      if (changed) notifyOfflineReadingChanges();
     },
     async invalidate(scope: NativeOfflineScope, target: OfflineReadingTarget, version: OfflineReadingRequestVersion, guard: Guard) {
       const changed = await transaction(async tx => {

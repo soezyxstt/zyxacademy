@@ -178,8 +178,9 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
     } else if (outcome.status === "login" || outcome.status === "verify-email" || outcome.status === "denied" || outcome.status === "missing") {
       if (outcome.status === "missing") locked.current = true;
       setResult(outcome.status);
-    } else if (outcome.status !== "cancelled") {
-      const message = outcome.status === "type" ? copy.fileWrongType : outcome.status === "size" ? copy.fileTooLarge : copy.fileFailed;
+    } else if (outcome.status !== "cancelled" && outcome.status !== "session-pending") {
+      const message = outcome.status === "session-retry" ? copy.uploadSessionRejected
+        : outcome.status === "type" ? copy.fileWrongType : outcome.status === "size" ? copy.fileTooLarge : copy.fileFailed;
       setUploadErrors(previous => ({ ...previous, [index]: message }));
     }
   }
@@ -209,6 +210,7 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
       case "missing": return <NativeStatusPanel title={copy.notFoundTitle} message={copy.notFoundDescription} />;
       case "login": return <NativeStatusPanel tone="error" title={copy.loginRequired} message={copy.loginDescription}
         action={{ id: "login", label: copy.loginAction }} onAction={onLogin} />;
+      case "session-retry": return sessionStatus ? null : <NativeStatusPanel tone="error" title={copy.submitSessionRejected} />;
       case "verify-email": return <NativeStatusPanel tone="error" title={copy.verifiedEmail}
         action={{ id: "web", label: copy.openWeb }} onAction={onWeb} />;
       case "denied": return <NativeStatusPanel tone="error" title={copy.denied}

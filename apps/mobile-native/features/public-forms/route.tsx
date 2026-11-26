@@ -13,7 +13,7 @@ import { pickAndUploadFormFile, requestPublicForm } from "./expo-client";
 import { formIdentifier, formUploadPolicy, publicFormPath, type FormEntry, type FormLocale, type PublicForm, type PublicFormLoad } from "./model";
 import { PublicFormResponse } from "./response";
 import { PublicFormScreen } from "./screen";
-import { formDraftOwner, formWriteAccess } from "./session";
+import { formDraftOwner, formWriteAccess, recoverFormWriteSession } from "./session";
 
 type WebStatus = "idle" | "opening" | "error";
 
@@ -78,7 +78,9 @@ function PublicFormLocation({ id, entry, locale }: { id: string | null; entry: F
   }
 
   function login() {
-    if (route) router.push(authEntryHref({ entry: "sign-in", locale, next: route }));
+    if (route && session.getSnapshot().state.status === "signed-out") {
+      router.push(authEntryHref({ entry: "sign-in", locale, next: route }));
+    }
   }
 
   async function open(url: string | null) {
@@ -132,35 +134,42 @@ function FormSession({ form, locale, route, owner, session, access, onLogin, onW
     };
   }, []);
 
+  const isDraftCurrent = (local: AbortController) => !local.signal.aborted
+    && formDraftOwner(session.getSnapshot(), owner) === owner;
+  const recover = (signal: AbortSignal) => owner === "anonymous"
+    ? { status: "session-pending" as const } : recoverFormWriteSession(session, owner, signal);
+
   return <PublicFormResponse form={form} locale={locale} signedIn={owner !== "anonymous"}
     sessionStatus={access === "waiting" || access === "unavailable" ? access : undefined}
     onSessionRetry={() => void session.refresh()} onUploadWeb={onUploadWeb}
     onLogin={onLogin} onWeb={onWeb} onCheck={onCheck} onDone={onDone} statusCheck={statusCheck} checking={checking} checkFailed={checkFailed}
     onRepeat={() => submissionGate.fillAgain(submissionKey)}
-    onSubmit={draft => {
+    onSubmit={async draft => {
       const local = lifetime.current;
       const current = formWriteAccess(session.getSnapshot(), owner);
-      if (!local || !current) return Promise.resolve({ status: "session-pending" });
+      if (!local || !current) return { status: "session-pending" };
       const request = current === "anonymous" ? requestPublicForm : current.request;
       const identity = current === "anonymous" ? undefined : current.scope;
-      return submissionGate.send(submissionKey, () => {
+      const result = await submissionGate.send(submissionKey, async () => {
         if (local.signal.aborted || formWriteAccess(session.getSnapshot(), owner) !== current) {
-          return Promise.resolve({ status: "session-pending" });
+          return { status: "session-pending" };
         }
-        return submitPublicForm(request, form, draft, local.signal, identity);
+        const outcome = await submitPublicForm(request, form, draft, local.signal, identity);
+        return outcome.status === "credential-rejected" ? recover(local.signal) : outcome;
       });
+      return isDraftCurrent(local) ? result : { status: "session-pending" };
     }}
-    onUpload={index => {
+    onUpload={async index => {
       const local = lifetime.current;
       const question = form.questions[index];
       const current = formWriteAccess(session.getSnapshot(), owner);
-      if (!local || !current || question?.type !== "FILE_UPLOAD") return Promise.resolve({ status: "cancelled" });
-      const isDraftCurrent = () => !local.signal.aborted && formDraftOwner(session.getSnapshot(), owner) === owner;
+      if (!local || !current || question?.type !== "FILE_UPLOAD") return { status: "cancelled" };
+      const isUploadCurrent = () => isDraftCurrent(local);
       const policy = formUploadPolicy(question);
-      return pickAndUploadFormFile(async () => {
+      const result = await pickAndUploadFormFile(async () => {
         // The system picker can return before the foreground refresh notification reaches React.
         if (owner !== "anonymous") await session.refresh();
-        if (!isDraftCurrent()) return null;
+        if (!isUploadCurrent()) return null;
         const verified = formWriteAccess(session.getSnapshot(), owner);
         if (!verified) return null;
         return verified === "anonymous" ? { request: requestPublicForm }
@@ -169,9 +178,11 @@ function FormSession({ form, locale, route, owner, session, access, onLogin, onW
         // The draft stays alive while credentials are being checked. Every write uses current credentials.
         session: {
           scope: owner === "anonymous" ? { origin: NATIVE_STAGING_ORIGIN, sessionId: draftId, accountId: "anonymous-public-form" } : owner,
-          signal: local.signal, isCurrent: isDraftCurrent,
+          signal: local.signal, isCurrent: isUploadCurrent,
         },
-        signal: local.signal, target: { route, locale, draftId }, isDraftCurrent, policy,
+        signal: local.signal, target: { route, locale, draftId }, isDraftCurrent: isUploadCurrent, policy,
       }, form.id, index);
+      const outcome = result.status === "credential-rejected" ? await recover(local.signal) : result;
+      return isUploadCurrent() ? outcome : { status: "cancelled" };
     }} />;
 }

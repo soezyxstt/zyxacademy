@@ -6,6 +6,7 @@ import sys
 import time
 
 from PIL import ImageChops, ImageOps
+from case_manifest import load_directory_manifest
 from compare import MARKER, load_frame
 from device_capture import open_route, screenshot
 
@@ -35,7 +36,10 @@ def main(platform, device):
     output = root / platform / "directory"
     output.mkdir(parents=True, exist_ok=True)
     web = root / "web" / f"dpr{scale}"
-    manifest = json.loads((web / "directory.json").read_text())
+    manifest = load_directory_manifest(web / "directory.json")
+    commit, build_commit = os.environ.get("PARITY_HEAD_SHA"), os.environ.get("GITHUB_SHA")
+    if (manifest["commit"], manifest["buildCommit"]) != (commit, build_commit):
+        raise ValueError("Directory reference revisions differ from the tested build")
     rows = []
     for index, case in enumerate(manifest["cases"]):
         open_route(platform, device, f"internal/public-links/{case}")
@@ -52,16 +56,23 @@ def main(platform, device):
             rows.append({"case": case, "status": "missing-stable-frame"})
             continue
         crop.save(output / f"{case}.png")
-        reference = load_frame(web / f"directory-{case}.png")
-        if crop.size != reference.size or not any(lo < hi for lo, hi in reference.getextrema()):
-            raise ValueError(f"Invalid reference size or empty content in {case}")
+        try:
+            reference = load_frame(web / f"directory-{case}.png")
+        except OSError:
+            rows.append({"case": case, "status": "invalid-reference"})
+            continue
+        blank = not any(lo < hi for lo, hi in reference.getextrema())
+        if crop.size != reference.size or blank:
+            rows.append({"case": case, "status": "invalid-reference"})
+            continue
         diff = ImageChops.difference(reference, crop)
         changed = sum(pixel != (0, 0, 0) for pixel in diff.get_flattened_data())
         ImageOps.autocontrast(diff).save(output / f"{case}-diff.png")
         rows.append({"case": case, "differentPixels": changed, "bounds": diff.getbbox(),
+                     "blankReference": blank, "framePixels": list(crop.size),
                      "status": "fail" if changed else "pass"})
     evidence = {"route": "/tautan", "platform": platform, "scale": scale, "viewport": [manifest["width"], manifest["height"]],
-                "commit": os.environ.get("PARITY_HEAD_SHA"), "cases": rows}
+                "referenceEngine": "chromium", "commit": commit, "buildCommit": build_commit, "cases": rows}
     (output / "result.json").write_text(json.dumps(evidence, indent=2) + "\n")
     print(json.dumps(evidence))
     return all(row["status"] == "pass" for row in rows) and len(rows) == 3

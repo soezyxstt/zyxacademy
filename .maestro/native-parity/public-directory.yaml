@@ -2,6 +2,9 @@ appId: com.zyx.academy.nativeparity
 name: Published link directory in Indonesian and English
 ---
 - launchApp
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
 - openLink: zyx-native-parity://internal/public-links/empty
 - assertVisible: "Belum ada tautan"
 - takeScreenshot: directory-empty

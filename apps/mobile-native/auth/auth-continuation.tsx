@@ -2,6 +2,8 @@ import { useFocusEffect, useRouter, useSitemap, type Href } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 
 import { Button } from "../components/Button";
+import { resolveExpoEntryRoute } from "../routing/route-history";
+import { expoRouteHistory } from "../routing/route-history-expo";
 import { authCopy } from "./auth-copy";
 import { AuthPage, AuthStatus } from "./auth-page";
 import { resolveNativeLoginReturn, type NativeAuthLocale } from "./login-intent";
@@ -32,7 +34,7 @@ export function AuthSessionStatus({ locale }: { locale: NativeAuthLocale }) {
 }
 
 export function AuthContinuation({ fallbackLocale, next }: { fallbackLocale: NativeAuthLocale; next?: string }) {
-  const { state, transport, loginIntent, clearLoginIntent } = useNativeSession();
+  const { state, transport, loginIntent, clearLoginIntent, getSnapshot } = useNativeSession();
   const { context, failed, denied, retry } = useNativeAccountContext();
   const sitemap = useSitemap();
   const router = useRouter();
@@ -41,15 +43,24 @@ export function AuthContinuation({ fallbackLocale, next }: { fallbackLocale: Nat
   const [dashboardFailed, setDashboardFailed] = useState(false);
   const currentAccount = state.status === "signed-in" && context?.accountId === state.accountId &&
     context.sessionId === state.sessionId ? context : null;
-  const destination = currentAccount ? resolveNativeLoginReturn(next ?? loginIntent?.next, currentAccount, sitemap) : null;
-  const readyHref = destination?.status === "ready" ? destination.href : null;
+  const explicit = next ?? loginIntent?.next;
+  const destination = currentAccount && sitemap ? resolveNativeLoginReturn(explicit, currentAccount, sitemap) : null;
 
   useFocusEffect(useCallback(() => {
-    if (!readyHref || state.status !== "signed-in" || !transport?.isCurrent() || navigating.current) return;
+    if (state.status !== "signed-in" || !transport || !currentAccount || !sitemap || navigating.current) return;
+    const isCurrent = () => {
+      const snapshot = getSnapshot();
+      return snapshot.state === state && snapshot.transport === transport && !snapshot.revalidating
+        && transport.isCurrent() && state.expiresAt > Date.now();
+    };
+    if (!isCurrent()) return;
+    const target = resolveExpoEntryRoute(explicit, currentAccount, sitemap,
+      () => expoRouteHistory.restore(transport.scope, currentAccount, sitemap, isCurrent));
+    if (target.status !== "ready" || !isCurrent()) return;
     navigating.current = true;
-    router.replace(readyHref as Href);
+    router.replace(target.href as Href);
     void clearLoginIntent(state).catch(() => {});
-  }, [clearLoginIntent, readyHref, router, state, transport]));
+  }, [clearLoginIntent, currentAccount, explicit, getSnapshot, router, sitemap, state, transport]));
 
   if (state.status !== "signed-in") return null;
   const locale = loginIntent?.locale ?? currentAccount?.locale ?? fallbackLocale;

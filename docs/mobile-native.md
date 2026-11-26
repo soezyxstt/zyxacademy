@@ -8,6 +8,10 @@ Pada branch integrasi, `zyx-native-parity://internal/session` membuka pemeriksaa
 
 Produk native dapat menggunakan `useNativeSession()` dari `apps/mobile-native/auth/session-provider.tsx` untuk memperoleh transport yang telah memeriksa identitas pengguna. Pengujian runtime membutuhkan server dengan perubahan yang sama, build Android/iOS yang mengenali skema internal, serta Google OAuth untuk origin staging. Halaman pemeriksaan akun adalah alat integrasi. Bukti paritas visual untuk halaman login produk dilacak terpisah.
 
+Pengaturan Murid memakai preferensi perangkat Expo untuk tema sistem, terang atau gelap dan umpan balik getar. Pilihan mengikuti instalasi aplikasi saat akun berganti. Shell produk dan handoff browser memakai bahasa akun yang telah diperiksa, bahasa sesi offline yang tersimpan, atau bahasa perangkat. Penyiapan kanal push memakai pilihan bahasa yang sama. Kotak masuk notifikasi masih menjadi celah pada shell Expo. [Preferensi perangkat](../apps/mobile-native/device/preferences-provider.tsx), [kontrak notifikasi](notifications.md), [katalog operasi MCP](../lib/admin-mcp/operations-catalog.ts).
+
+Build produk Expo mengutamakan tujuan dari tautan langsung atau login. Jika tujuan tidak diberikan, aplikasi mencoba membuka rute produk terakhir yang difokuskan dalam 24 jam untuk origin, akun, dan sesi yang sama. Rute harus terpasang dan sesuai peran saat ini. Pemeriksaan akses data tetap dilakukan oleh layar dan API masing-masing. Rute publik, auth, MCP, API, pengelolaan kredensial, fragmen, dan parameter di luar daftar yang didukung tidak disimpan. Keluar atau pencabutan akses akun membersihkan riwayat sesi. Dashboard peran dipakai ketika riwayat tidak bisa dibuka. [Riwayat rute Expo](../apps/mobile-native/routing/route-history.ts).
+
 ## Metadata dan paket bacaan offline
 
 Provider Expo menyinkronkan metadata saat ada layar yang meminta kursus. Respons sync dan manifest harus cocok dengan akun, sesi, origin, bahasa dan hak akses saat ini. SQLite menyimpan metadata per akun, origin dan bahasa. Setiap rekonsiliasi menyelesaikan manifest lebih dahulu, kemudian mengakui cursor. Revisi penyimpanan mencegah respons lama menghidupkan kembali entri yang dicabut. [Kontrak sync](operations/offline-data-sync.md), [provider Expo](../apps/mobile-native/offline/lifecycle-provider.tsx).
@@ -65,7 +69,7 @@ Urutan ini adalah backlog, bukan bukti implementasi atau paritas. Setiap kotak m
 | P0 | [ ] `progress`, diadaptasi dari jalur indikator `components/gamification/mission-list.tsx` dan `badge-list.tsx` | Kosong tema terang; 3 dari 8 tema gelap; penuh tema terang. |
 | P0 | [ ] `card`, `components/admin/bundle-importer-tab.tsx` | Default; varian alternatif; konten panjang. |
 | P0 | [ ] `alert`, `features/admin-home/ui/mobile/admin-home-mobile.tsx` | Default; destructive; deskripsi panjang. |
-| P0 | [ ] `formatted-date`, `components/student-reflections-view.tsx` | Tanggal valid Indonesia; tanggal valid Inggris; tanggal tidak valid. |
+| P0 | [ ] `formatted-date`, `components/student-reflections-view.tsx`, `components/admin/offline-cache-settings.tsx` | Tanggal refleksi Indonesia dari epoch detik, waktu revisi Inggris dalam zona Asia/Jakarta, dan teks cadangan ketika tanggal refleksi tidak valid. Ketiga kasus terdaftar di galeri dan perlu verifikasi perangkat. |
 | P1 | [ ] `slider`, `components/course/interactive-scene-renderer.tsx` | Nilai minimum; tengah; maksimum. |
 | P1 | [ ] `toggle-group`, `components/landing/landing-subject-showcase.tsx` | Tanpa pilihan; satu pilihan aktif; kontrol disabled. |
 | P1 | [ ] `clamped-marquee`, `components/admin/material-review-detail.tsx` | Teks muat; teks melampaui lebar; reduced motion saat aktif. |

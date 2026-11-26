@@ -6,6 +6,10 @@ on:
       - 'apps/mobile-native/**'
       - 'packages/**'
       - 'scripts/native-readiness/**'
+      - 'scripts/native-parity/check-interactions.sh'
+      - 'scripts/native-parity/prepare-android-emulator.sh'
+      - 'scripts/native-parity/capture-*.sh'
+      - '.maestro/native-integration/**'
       - '.github/workflows/native-integration-preview.yml'
   workflow_dispatch:
 
@@ -35,6 +39,20 @@ jobs:
           bun test tests/unit/expo-academic-intent.test.ts tests/gamification/question-disclosure-calls.test.ts
       - name: Mount canonical Expo product routes
         run: python3 scripts/native-readiness/product/mount.py
+      - name: Record the mounted product sources for the device jobs
+        env:
+          HOST_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/product-source"
+          git add -- apps/mobile-native
+          git write-tree > "$RUNNER_TEMP/product-source/tree"
+          git diff --cached --binary --no-renames "$HOST_COMMIT" | gzip > "$RUNNER_TEMP/product-source/changes.patch.gz"
+          git log -5 --format='%H %P' > "$RUNNER_TEMP/product-source/commits"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mounted-product-sources
+          path: ${{ runner.temp }}/product-source
+          retention-days: 1
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -61,3 +79,74 @@ jobs:
                   raise SystemExit(f"Empty {platform} bundle")
               print(f"{platform}: {size:,} bytes")
           CHECK
+
+  product-entry:
+    needs: combined-native
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            runner: ubuntu-latest
+          - platform: ios
+            runner: macos-26
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 65
+    concurrency:
+      group: native-combined-entry-${{ matrix.platform }}
+      cancel-in-progress: false
+    env:
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: mounted-product-sources
+          path: ${{ runner.temp }}/product-source
+      - name: Restore the exact source tree checked by Metro
+        run: |
+          gzip -dc "$RUNNER_TEMP/product-source/changes.patch.gz" | git apply --binary --index --whitespace=nowarn
+          test "$(git write-tree)" = "$(cat "$RUNNER_TEMP/product-source/tree")"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+        working-directory: apps/mobile-native
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - if: matrix.platform == 'ios'
+        run: bash scripts/native-parity/capture-ios.sh product
+      - if: matrix.platform == 'android'
+        name: Build combined product APK for emulator
+        working-directory: apps/mobile-native
+        run: |
+          npx --no-install expo prebuild --platform android --no-install
+          cd android
+          ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
+      - if: matrix.platform == 'android'
+        name: Prepare the Android emulator image after compilation
+        run: bash scripts/native-parity/prepare-android-emulator.sh
+      - if: matrix.platform == 'android'
+        run: sudo chmod a+rw /dev/kvm
+      - if: matrix.platform == 'android'
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: bash scripts/native-parity/capture-android.sh product
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-entry-${{ matrix.platform }}
+          path: |
+            artifacts/native-integration/${{ matrix.platform }}
+            ${{ runner.temp }}/product-source/tree
+            ${{ runner.temp }}/product-source/commits
+          retention-days: 7

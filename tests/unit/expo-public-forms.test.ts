@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { formDraftOwner, formWriteAccess } from "../../apps/mobile-native/features/public-forms/session";
+import { createNativeSessionApi } from "../../apps/mobile-native/auth/session-api";
+import { createNativeSessionController } from "../../apps/mobile-native/auth/session-controller";
+import { formDraftOwner, formWriteAccess, recoverFormWriteSession } from "../../apps/mobile-native/features/public-forms/session";
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
 import { buildFormSteps, formScaleValues } from "../../packages/forms/presentation";
 import { publicFormCases, publicFormFixtureEnvelope } from "../../packages/forms/parity-cases";
@@ -19,6 +21,54 @@ const form = formResult.form;
 function reply(value: unknown, status = 200) {
   const response = Response.json(value, { status });
   return { status, headers: response.headers, body: response.body, dispose: () => { void response.body?.cancel(); } };
+}
+
+async function formSessionHarness() {
+  const initialTime = Date.parse("2026-11-26T09:00:00Z");
+  let now = initialTime;
+  const identity = { accountId: "student", sessionId: "session", expiresAt: initialTime + 60_000 };
+  const cookie = `__Secure-better-auth.session_token=opaque.${"A".repeat(43)}%3D`;
+  const headers = new Headers({ "Set-Cookie": `${cookie}; Path=/; Secure; HttpOnly; SameSite=Lax` });
+  let current = identity;
+  let stored: string | null = JSON.stringify({ origin, cookie, status: "active", ...identity });
+  let reads = 0;
+  let writes = 0;
+  let availability: "active" | "revoked" | "offline" = "active";
+  const api = createNativeSessionApi(origin, async (_url, init) => {
+    if (init.method === "POST") {
+      availability = "revoked";
+      return Response.json({ success: true });
+    }
+    reads++;
+    if (availability === "offline") throw new TypeError("Network unavailable");
+    if (availability === "revoked") return Response.json(null);
+    const { accountId, sessionId, expiresAt } = current;
+    return Response.json({ user: { id: accountId }, session: { id: sessionId, userId: accountId, expiresAt: new Date(expiresAt).toISOString() } });
+  });
+  const dataTransport = createNativeTransport({ origin, fetcher: async () => {
+    writes++;
+    return Response.json({ error: "Session required" }, { status: 401 });
+  } });
+  const session = createNativeSessionController({ origin, api, dataTransport, now: () => now, store: {
+    read: async () => stored,
+    write: async value => { stored = value; },
+    remove: async () => { stored = null; },
+  } });
+  await session.refresh();
+  const transport = session.getSnapshot().transport;
+  if (!transport) throw new Error("Expected a verified session");
+  return {
+    session, transport,
+    counts: () => ({ reads, writes }),
+    expire: () => { now = identity.expiresAt; },
+    setAvailability: (value: typeof availability) => { availability = value; },
+    switchAccount: async () => {
+      await session.logout();
+      current = { ...identity, accountId: "other-student", sessionId: "other-session" };
+      availability = "active";
+      await session.acceptLogin(headers, current.accountId);
+    },
+  };
 }
 
 describe("Public Expo forms", () => {
@@ -150,6 +200,54 @@ describe("Public Expo forms", () => {
     expect(formDraftOwner(signedOut, owner)).toBe("anonymous");
     expect(formWriteAccess(signedOut, owner)).toBeNull();
     expect(formWriteAccess(signedOut, "anonymous")).toBe("anonymous");
+  });
+
+  test("signed submit and upload 401s recheck the authoritative session once per attempt without resending", async () => {
+    const { session, transport, counts, setAvailability } = await formSessionHarness();
+    const owner = transport.scope;
+    const draft = { answers: { 0: "Keep my answer" }, other: {}, email: "" };
+    expect(await submitPublicForm(transport.request, form, draft, signal, owner)).toEqual({ status: "credential-rejected" });
+    expect(await recoverFormWriteSession(session, owner, signal)).toEqual({ status: "session-retry" });
+    expect(formDraftOwner(session.getSnapshot(), owner)).toBe(owner);
+    expect(counts()).toEqual({ reads: 2, writes: 1 });
+
+    expect(await uploadPublicForm(transport.request, new FormData(), signal, origin, owner))
+      .toEqual({ status: "credential-rejected" });
+    setAvailability("offline");
+    expect(await recoverFormWriteSession(session, owner, signal)).toEqual({ status: "session-pending" });
+    expect(session.getSnapshot().state.status).toBe("unavailable");
+    expect(formDraftOwner(session.getSnapshot(), owner)).toBe(owner);
+    expect(counts()).toEqual({ reads: 3, writes: 2 });
+  });
+
+  test("rejected credentials enter signed-out only when the session is revoked or expires", async () => {
+    for (const expired of [false, true]) {
+      const { session, transport, counts, expire, setAvailability } = await formSessionHarness();
+      const owner = transport.scope;
+      if (expired) expire();
+      expect(await submitPublicForm(transport.request, form, { answers: {}, other: {}, email: "" }, signal, owner))
+        .toEqual({ status: "credential-rejected" });
+      setAvailability("revoked");
+      expect(await recoverFormWriteSession(session, owner, signal)).toEqual({ status: "session-pending" });
+      expect(session.getSnapshot().state.status).toBe("signed-out");
+      expect(formDraftOwner(session.getSnapshot(), owner)).toBe("anonymous");
+      expect(counts()).toEqual(expired ? { reads: 1, writes: 0 } : { reads: 2, writes: 1 });
+    }
+  });
+
+  test("late credential rejection from a retired or closed draft leaves the next account alone", async () => {
+    const { session, transport, counts, switchAccount } = await formSessionHarness();
+    const owner = transport.scope;
+    expect(await uploadPublicForm(transport.request, new FormData(), signal, origin, owner))
+      .toEqual({ status: "credential-rejected" });
+    const closed = new AbortController();
+    closed.abort();
+    expect(await recoverFormWriteSession(session, owner, closed.signal)).toEqual({ status: "session-pending" });
+    expect(counts()).toEqual({ reads: 1, writes: 1 });
+    await switchAccount();
+    expect(await recoverFormWriteSession(session, owner, signal)).toEqual({ status: "session-pending" });
+    expect(session.getSnapshot().state).toMatchObject({ status: "signed-in", accountId: "other-student" });
+    expect(counts()).toEqual({ reads: 3, writes: 1 });
   });
 
   test("preserves authored scale endpoints while retaining the five-level default", () => {

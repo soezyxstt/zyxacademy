@@ -30,10 +30,10 @@ export function NavigationIcon({ name, color, size }: { name: NavigationIconName
   );
 }
 
-export function BrandSymbol({ color }: { color: string }) {
+export function BrandSymbol({ color, width = 34, height = 20 }: { color: string; width?: number; height?: number }) {
   // Paths from public/brand/zyx-logo-symbol-color.svg and its reversed variant.
   return (
-    <Svg width={34} height={20} viewBox="0 0 370 216" accessible={false}>
+    <Svg width={width} height={height} viewBox="0 0 370 216" accessible={false}>
       <Path d="M262.25 66.0576L309.5 0H369.5L292.25 108L369.5 216H309.5L268.486 158.661C275.133 144.348 279 126.43 279 104C279 56 293.001 32 302.001 26C274.001 37 270.21 75.5 263.5 92.5C259.39 102.914 253.201 114.236 244.281 124.821L155 0H215L262.25 66.0576Z" fill="#cc542b" />
       <Path d="M139 0L176.75 52.7764L95.0488 167H133C206.5 167 239.65 125.559 252.5 93C259.21 76 273.5 37 301.5 26C292.5 32 278.786 43 270.5 105C256.067 213 172.5 216 114.5 216H0L119.451 49H0V0H139Z" fill={color} />
     </Svg>
