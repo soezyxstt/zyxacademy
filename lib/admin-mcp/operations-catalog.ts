@@ -61,7 +61,7 @@ export const operationsCatalog = [
     "actions": ["readStudentAssessment", "startQuizAttempt", "submitQuizAttempt", "submitTryout", "manageAssessmentAttachment", "regenerateQuizAnalytics", "completeSolutionCollection"],
     "tools": [],
     "status": "excluded",
-    "reason": "Learner assessment requires the native Student session, course eligibility and attempt ownership. It uses the existing academic services through app HTTPS and does not accept MCP credentials."
+    "reason": "Learner assessment requires the native Student session, course eligibility and attempt ownership. Tryout submission checks publication under the same exam lock as Admin lifecycle writes. The learner API uses existing academic services through app HTTPS and does not accept MCP credentials."
   },
   {
     "source": "app/api/native/academic/[...resource]/route.ts",
@@ -89,7 +89,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST", "PATCH"],
     "tools": [],
     "status": "excluded",
-    "reason": "Interactive assessment reads and manual grading use the signed-in role, disclosure checks and course access. Tutor attachment downloads resolve the exact submitted answer and use protected storage. Grading retries are bound to the active Tutor session. Tryout drafts and bank selection require active Admin authority and course-scoped revisions. Existing MCP authoring tools keep their registered scopes, consent and service contracts."
+    "reason": "Interactive assessment reads and manual grading use the signed-in role, disclosure checks and course access. Tutor attachment downloads resolve the exact submitted answer and use protected storage. Grading retries are bound to the active Tutor session. Tryout drafts, explicit metadata and lifecycle saves, and bank selection require active Admin authority and course-scoped revisions. The status-aware route binds retry receipts to the original Admin session. Existing MCP authoring tools keep their registered scopes, consent and service contracts."
   },
   {
     "source": "app/api/native/academic-administration/[...resource]/route.ts",

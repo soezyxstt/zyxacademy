@@ -108,6 +108,18 @@ test("native academic transports use interactive sessions", () => {
   }
 });
 
+test("native tryout lifecycle and submission use interactive academic authority", () => {
+  const admin = operationsCatalog.find(item => item.source === "app/api/native/academic-assessment/[...resource]/route.ts")!;
+  const learner = operationsCatalog.find(item => item.source === "app/api/native/student/assessment/[courseId]/[...segments]/route.ts")!;
+  expect(admin.status).toBe("excluded");
+  expect(admin.tools).toEqual([]);
+  expect(admin.reason).toContain("lifecycle saves");
+  expect(admin.reason).toContain("original Admin session");
+  expect(learner.status).toBe("excluded");
+  expect(learner.tools).toEqual([]);
+  expect(learner.reason).toContain("same exam lock");
+});
+
 test("native course commands reuse administrative projections with session authorization", () => {
   const entry = operationsCatalog.find(item => item.source === "app/api/native/academic/[...resource]/route.ts")!;
   expect(entry.actions).toEqual(["GET", "POST", "PATCH", "DELETE"]);
