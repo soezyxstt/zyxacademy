@@ -1,0 +1,7 @@
+2026-11-26T16:09:26.5112660Z HEAD is now at af8f5e2 Merge 332a4d0a34d9349a6d4e255669d85832a8257247 into 14e95ce3b19f98db79d42724a15bc3bad11c03ca
+2026-11-26T16:09:26.5326150Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2026-11-26T16:09:26.5417490Z af8f5e2f762f5249396671203521abc20542a44e
+2026-11-26T17:08:04.4178040Z [Failed] operations-public-plans-retry (33s) (Assertion is false: id: public-retry is not visible)
+2026-11-26T17:34:37.4053570Z 1/155 Flow Failed
+2026-11-26T17:34:46.4653340Z Maestro did not save 1 of 175 expected named captures
+2026-11-26T17:34:47.5127660Z Maestro did not save 1 of 175 expected named captures
