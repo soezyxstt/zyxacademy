@@ -3,7 +3,8 @@ import { View } from "react-native";
 import { PKA_PATH, courseHref, learningApi, type LearningData, type PkaAnnouncement, type PkaSchedule, type PkaSubject } from "../../../../../packages/native-parity/student/learning/contracts";
 import { Button } from "../../../components/Button";
 import type { StudentScreenProps } from "../contracts";
-import { Body, Copy, Message, Row, Section, english, formatDate, launchWeb, postJson, readJson, styles, type Translate } from "./ui";
+import { CourseMarkdown } from "../CourseMarkdown";
+import { Copy, Message, Row, Section, english, formatDate, launchWeb, postJson, readJson, styles, type Translate } from "./ui";
 
 type Ready<View extends LearningData["view"]> = Extract<LearningData, { state: "ready"; view: View }>;
 
@@ -53,7 +54,7 @@ function Announcement({ announcement, props, t, dismiss }: { announcement: PkaAn
     }
   }
   return <Row title={announcement.title} detail={formatDate(announcement.createdAt, props.session.locale)} value={announcement.isPinned ? t(pka + "pinned") : undefined}>
-    {props.renderAssessmentMarkdown?.(announcement.body, "tutorial-pka") ?? <Body source={announcement.body} />}
+    {props.renderAssessmentMarkdown?.(announcement.body, "tutorial-pka") ?? <CourseMarkdown source={announcement.body} services={props} />}
     {!announcement.isPinned ? <Button variant="ghost" style={styles.action} isLoading={pending} onPress={() => void mark()}>{t(pka + "markRead")}</Button> : null}
     {failed ? <Message>{t(pka + "markReadFailed")}</Message> : null}
   </Row>;

@@ -82,17 +82,6 @@ export function Copy({ children, heading = false, muted = false, level, style }:
   );
 }
 
-export function Body({ source, centered = false, muted = false, paragraphStyle }: {
-  source: string; centered?: boolean; muted?: boolean; paragraphStyle?: TextStyle;
-}) {
-  return (
-    <View style={styles.body}>
-      {source.split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => <Copy key={index} muted={muted}
-        style={{ lineHeight: 23, textAlign: centered ? "center" : undefined, ...paragraphStyle }}>{paragraph}</Copy>)}
-    </View>
-  );
-}
-
 export function Section({ title, children }: { title?: string; children: ReactNode }) {
   return <View style={styles.section}>{title ? <Copy heading>{title}</Copy> : null}{children}</View>;
 }
@@ -174,7 +163,6 @@ export const styles = StyleSheet.create({
   heading: { fontSize: 16, lineHeight: 23 },
   title: { fontSize: 23, lineHeight: 30 },
   section: { gap: 10 },
-  body: { gap: 12 },
   row: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 11, gap: 8, minHeight: 44 },
   rowMain: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },

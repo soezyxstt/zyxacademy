@@ -4,6 +4,7 @@ import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens
 import { nativeTypography } from "../../../typography";
 import { useHasStudentCourseNavbar } from "../../../routing/student-course-chrome-context";
 import { Button } from "../../../components/Button";
+import { CourseMarkdown } from "../CourseMarkdown";
 import type { StudentScreenProps } from "../contracts";
 import { StudentListRow } from "../ListRow";
 import id from "../../../../../messages/id/learning.json";
@@ -96,9 +97,10 @@ export function Busy() {
   return <ActivityIndicator accessibilityLabel={tx("Memuat", "Loading")} style={styles.busy} color={colors.primary} />;
 }
 
-export function Markdown({ value }: { value: string }) {
-  const { renderAssessmentMarkdown, route } = useAssessment();
-  return renderAssessmentMarkdown ? <>{renderAssessmentMarkdown(value, route.params.id)}</> : <Body>{value}</Body>;
+export function Markdown({ value, allowLinks }: { value: string; allowLinks?: boolean }) {
+  const props = useAssessment();
+  return props.renderAssessmentMarkdown?.(value, props.route.params.id) ??
+    <CourseMarkdown source={value} services={props} paragraphStyle={styles.body} allowLinks={allowLinks} />;
 }
 
 export const styles = StyleSheet.create({

@@ -319,7 +319,7 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
               void hapticSelection();
               changeAnswer(question.id, choice(state.current?.answers[question.id], index, question.type === "multiple_choices"));
             }}>
-            <Body tone={selected ? "primary" : "normal"}>{String.fromCharCode(65 + index)}</Body><View style={styles.rowText}><Markdown value={option} /></View>
+            <Body tone={selected ? "primary" : "normal"}>{String.fromCharCode(65 + index)}</Body><View style={styles.rowText}><Markdown value={option} allowLinks={false} /></View>
           </Pressable>;
         })}
       </> : question.type === "short_answer" || question.type === "essay" ? <>

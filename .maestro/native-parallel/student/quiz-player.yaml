@@ -62,6 +62,12 @@ name: Student quiz player answer and draft states
 - assertVisible: Hapus tanda ragu-ragu
 - tapOn: Lanjut
 - assertVisible: 'Berapa hasil penjumlahan 7 dan 5\?'
+- tapOn: Lanjut
+- assertVisible: Soal 3 dari 3
+- assertVisible:
+    id: student-rich-markdown
+- takeScreenshot: student-quiz-player-math
+- tapOn: Sebelumnya
 - tapOn: Sebelumnya
 - assertVisible: Hapus tanda ragu-ragu
 - stopApp

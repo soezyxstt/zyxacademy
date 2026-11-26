@@ -15,7 +15,7 @@ const player: AssessmentPlayer = {
   questions: [
     { id: "even-number", type: "multiple_choice", prompt: "Bilangan manakah yang termasuk bilangan genap?", options: ["3", "4", "5"] },
     { id: "addition", type: "multiple_choice", prompt: "Berapa hasil penjumlahan 7 dan 5?", options: ["12", "13", "14"] },
-    { id: "product", type: "multiple_choice", prompt: "Berapa hasil perkalian 3 dan 6?", options: ["9", "12", "18"] },
+    { id: "product", type: "multiple_choice", prompt: "Sederhanakan hasil perkalian berikut.\n\n$$3 \\times 6$$", options: ["$3^2$", "12", "$2 \\times 9$"] },
   ],
   answers: {}, startAt: "2026-10-05T12:00:00.000Z", durationSeconds: null, closeAt: null,
   canGoBack: true, requireAllAnswered: false, perQuestionSeconds: null,

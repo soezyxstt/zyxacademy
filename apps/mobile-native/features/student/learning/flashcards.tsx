@@ -1,4 +1,4 @@
-import { useStudentChromeVisibility } from "../../../routing/student-chrome";
+import { useStudentChromeVisibility } from "../../../routing/student-course-chrome-context";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions, type TextStyle } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -10,9 +10,11 @@ import { Progress } from "../../../components/Progress";
 import { RadioGroup, RadioGroupItem } from "../../../components/RadioGroup";
 import { hapticSelection } from "../../../device/haptics";
 import { useReducedMotion } from "../../../device/reduced-motion";
+import { NavigationIcon } from "../../shared-ui/navigation-icons";
 import { nativeTypography } from "../../../typography";
+import { CourseMarkdown } from "../CourseMarkdown";
 import type { StudentScreenProps } from "../contracts";
-import { Body, Copy, LearningPage, Message, Section, english, postJson, readJson, RequestError, styles, useLearningColors, type Translate } from "./ui";
+import { Copy, LearningPage, Message, Section, english, postJson, readJson, RequestError, styles, useLearningColors, type Translate } from "./ui";
 
 const batchSize = 10;
 const cardHeight = 256;
@@ -117,7 +119,8 @@ export function FlashcardsPage({ cards, props, title, t, reload }: {
     setAnswer(""); setFlipped(false); setChecked(null); setFailure(null);
   };
   const render = (source: string, centered: boolean, paragraphStyle: TextStyle, muted = false) =>
-    props.renderAssessmentMarkdown?.(source, courseId) ?? <Body source={source} centered={centered} muted={muted} paragraphStyle={paragraphStyle} />;
+    props.renderAssessmentMarkdown?.(source, courseId) ??
+      <CourseMarkdown source={source} services={props} centered={centered} muted={muted} paragraphStyle={paragraphStyle} allowLinks={false} />;
   const check = () => {
     const normalize = (value: string) => value.toLowerCase().trim().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
     if (!card || !answer.trim()) { setFailure("answer"); return; }
@@ -233,11 +236,14 @@ export function FlashcardsPage({ cards, props, title, t, reload }: {
       {isEnglish ? "The review may have been saved. Refresh the queue to continue." : "Ulasan mungkin sudah tersimpan. Muat ulang antrean untuk melanjutkan."}
     </Message> : null}
     </LearningPage>
-    {failure === "review" && <View pointerEvents="none" style={[flashcardStyles.reviewNotice,
+    {failure === "review" && <View style={[flashcardStyles.reviewNotice,
       { backgroundColor: colors.card, borderColor: `${nativeLinkInks.error}80` }]}>
       <View style={[flashcardStyles.reviewNoticeTint, { backgroundColor: `${nativeLinkInks.error}1f` }]}>
         <Text accessibilityRole="alert" accessibilityLiveRegion="polite"
           style={[flashcardStyles.noticeText, { color: colors.foreground }]}>{label("saveReviewFailed")}</Text>
+        <Button variant="ghost" size="icon" testID="student.flashcard.dismiss-review-failure"
+          accessibilityLabel={isEnglish ? "Dismiss notice" : "Tutup pemberitahuan"} onPress={() => setFailure(null)}
+          renderIcon={(color, size) => <NavigationIcon name="close" color={color} size={size} />} />
       </View>
     </View>}
   </View>;
@@ -268,6 +274,6 @@ const flashcardStyles = StyleSheet.create({
   wideGrade: { flexBasis: "45%" },
   reviewNotice: { position: "absolute", top: 8, right: 12, width: 248, maxWidth: "90%", borderWidth: 1,
     borderRadius: nativeRadii.xl, overflow: "hidden", elevation: 4, boxShadow: "0 4px 8px #0000001f" },
-  reviewNoticeTint: { padding: 14 },
-  noticeText: { ...nativeTypography.bodySemibold, fontSize: 14, lineHeight: 20, includeFontPadding: false },
+  reviewNoticeTint: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10 },
+  noticeText: { ...nativeTypography.bodySemibold, flex: 1, fontSize: 14, lineHeight: 20, includeFontPadding: false },
 });

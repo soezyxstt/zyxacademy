@@ -7,7 +7,8 @@ import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import { studentLiveBrowserPath } from "../browser-handoff";
 import type { StudentScreenProps } from "../contracts";
-import { Body, Copy, Message, Row, Section, english, launchWeb, postJson, readJson, RequestError, styles, useLearningColors, type Translate } from "./ui";
+import { CourseMarkdown } from "../CourseMarkdown";
+import { Copy, Message, Row, Section, english, launchWeb, postJson, readJson, RequestError, styles, useLearningColors, type Translate } from "./ui";
 
 const useLiveQuizSocket = createLiveQuizSocketHook({ useCallback, useEffect, useRef, useState });
 
@@ -143,7 +144,8 @@ function ConnectedLive({ data, props, t, code, initialEndpoint, leave }: {
   const colors = useLearningColors();
   const question = state.currentQuestion;
   const phase = state.sessionState;
-  const render = (source: string) => props.renderAssessmentMarkdown?.(source, props.route.params.id) ?? <Body source={source} />;
+  const render = (source: string, allowLinks = true) => props.renderAssessmentMarkdown?.(source, props.route.params.id) ??
+    <CourseMarkdown source={source} services={props} allowLinks={allowLinks} />;
   return <>
     <Copy muted>{t(`live.${state.connectionStatus}`)}</Copy>
     {state.connectionStatus === "disconnected" && phase !== "ended" ? <Message action={t("live.join")} onAction={leave}>{t("live.connectionRetry")}</Message> : null}
@@ -163,7 +165,7 @@ function ConnectedLive({ data, props, t, code, initialEndpoint, leave }: {
             style={{ borderColor: correct || selected ? colors.primary : colors.border, borderWidth: 1, borderRadius: 8, minHeight: 44, padding: 10, gap: 5 }}
             onPress={() => sendAnswer(question.questionIndex, index)}>
             <Copy muted>{`${String.fromCharCode(65 + index)}${correct ? ` · ${t("live.correct")}` : ""}`}</Copy>
-            {render(option)}
+            {render(option, false)}
           </Pressable>;
         })}
       </View>

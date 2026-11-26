@@ -13,6 +13,8 @@ name: Learning flashcard flip and grade
 - assertNotVisible:
     id: student.flashcard.grade-dock
 - assertVisible: "Kapan lim x.*"
+- assertVisible:
+    id: student-rich-markdown
 - assertVisible: "Standar"
 - takeScreenshot: student-flashcard-question
 - tapOn: "Ketuk untuk membalik kartu"
@@ -33,6 +35,10 @@ name: Learning flashcard flip and grade
 - assertNotVisible:
     id: student.flashcard.grade-pending
 - takeScreenshot: student-flashcard-review-failed
+- tapOn:
+    id: student.flashcard.dismiss-review-failure
+- assertNotVisible: "Ulasan kartu tidak dapat disimpan."
+- assertVisible: "Ketika limit dari kiri dan kanan sama."
 - tapOn: "Paham"
 - assertVisible: "Apa makna limit dari kiri?"
 - assertNotVisible:

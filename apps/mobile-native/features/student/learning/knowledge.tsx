@@ -8,7 +8,8 @@ import { courseHref, type ConceptKind, type LearningData, type StudentMasteryGro
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import type { StudentScreenProps } from "../contracts";
-import { Body, Copy, Message, Progress, Row, Section, english, formatDate, readJson, styles, useLearningColors, type Translate } from "./ui";
+import { CourseMarkdown } from "../CourseMarkdown";
+import { Copy, Message, Progress, Row, Section, english, formatDate, readJson, styles, useLearningColors, type Translate } from "./ui";
 
 type Ready<View extends LearningData["view"]> = Extract<LearningData, { state: "ready"; view: View }>;
 const conceptKinds: ConceptKind[] = ["concept_overview", "definition", "formula", "example", "misconception", "exercise", "objective", "summary"];
@@ -32,7 +33,7 @@ export function ConceptContent({ data, props, t }: { data: Ready<"concept">; pro
         return objects?.length ? (
           <Section key={kind} title={t(`learning.conceptPage.types.${kind === "concept_overview" ? "conceptOverview" : kind}`)}>
             {objects.map((item) => <Row key={item.id} title={item.title}>
-              {props.renderAssessmentMarkdown?.(item.content, props.route.params.id) ?? <Body source={item.content} />}
+              {props.renderAssessmentMarkdown?.(item.content, props.route.params.id) ?? <CourseMarkdown source={item.content} services={props} />}
             </Row>)}
           </Section>
         ) : null;
