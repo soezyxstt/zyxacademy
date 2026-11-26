@@ -50,7 +50,7 @@ name: Catalog comparable fixture all TPB and PKA
 - tapOn: contact us on WhatsApp
 - assertVisible: 'https://wa\.me/620000000000'
 - tapOn: OK
-- openLink: "zyx-native-parity://student-fixture?scenario=catalog-parity&path=%2Fcourses%3Fjurusan%3Dtpb%26q%3Dno-match"
+- openLink: "zyx-native-parity://student-fixture?scenario=catalog-parity&path=/courses&query_jurusan=tpb&query_q=no-match"
 - extendedWaitUntil:
     visible: No courses found
     timeout: 30000

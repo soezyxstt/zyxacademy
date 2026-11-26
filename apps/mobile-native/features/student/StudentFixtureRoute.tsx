@@ -12,7 +12,7 @@ import { Button } from "../../components/Button";
 import { RoleBottomNavigation } from "../shared-ui/navigation";
 import { StudentEntry } from "./StudentEntry";
 import type { StudentSession } from "./contracts";
-import { matchStudentRoute } from "./routes";
+import { studentFixturePath } from "./fixture-location";
 
 // Keep device evidence separate from product drafts, including garbage collection.
 const fixtureRepository = createAssessmentDraftRepository(() => openDatabaseAsync("student-fixture-answers.db"));
@@ -79,9 +79,9 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
 
 /** Mounted in a local checkout or Student CI only. This entry never uses a network transport. */
 export default function StudentFixtureRoute() {
-  const params = useLocalSearchParams<{ scenario?: string; path?: string; theme?: string; locale?: string; store?: string }>();
+  const params = useLocalSearchParams();
   const scenario = typeof params.scenario === "string" ? params.scenario : "enrolled";
-  const path = typeof params.path === "string" && matchStudentRoute(params.path) ? params.path : scenario === "catalog-parity" ? "/courses" : "/dashboard";
+  const path = studentFixturePath(params, scenario);
   const theme = params.theme === "light" || params.theme === "dark" ? params.theme : scenario === "catalog-parity" ? "dark" : undefined;
   const locale = params.locale === "en" || scenario === "catalog-parity" ? "en" : "id";
   return <Fixture key={JSON.stringify([scenario, path, theme, locale])} initialPath={path} scenario={scenario} theme={theme} locale={locale} persistent={params.store === "disk"} />;

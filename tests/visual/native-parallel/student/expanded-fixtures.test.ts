@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { studentFixturePath } from "../../../../apps/mobile-native/features/student/fixture-location";
+import { matchStudentRoute } from "../../../../apps/mobile-native/features/student/routes";
 import { assessmentApiPath } from "../../../../packages/native-parity/student/assessment/contract";
 import { assessmentFixturePaths, createAssessmentFixtureRequest } from "../../../../packages/native-parity/student/assessment/fixtures";
 import { createCommunityFixtureRequest } from "../../../../packages/native-parity/student/community/fixtures";
@@ -8,6 +10,17 @@ import { createLearningFixtureRequest } from "../../../../packages/native-parity
 const longText = "Jelaskan hubungan koefisien dengan perubahan gradien";
 
 describe("Student smoke fixture behavior", () => {
+  test("fixture links preserve flat discussion and catalog selectors after reading the outer URI", () => {
+    const discussion = new URL("zyx-native-parity://student-fixture?scenario=loaded&path=/discussions&query_channel=channel-math&query_thread=thread-limit&query_message=message-limit");
+    const catalog = new URL("zyx-native-parity://student-fixture?scenario=catalog-parity&path=/courses&query_jurusan=tpb&query_q=no-match");
+    expect(matchStudentRoute(studentFixturePath(Object.fromEntries(discussion.searchParams), "loaded"))?.query)
+      .toEqual({ channel: "channel-math", thread: "thread-limit", message: "message-limit" });
+    expect(matchStudentRoute(studentFixturePath(Object.fromEntries(catalog.searchParams), "catalog-parity"))?.query)
+      .toEqual({ jurusan: "tpb", q: "no-match" });
+    expect(studentFixturePath({ path: "/courses/matematika-1/quiz/latihan?attemptId=attempt-1" }, "loaded"))
+      .toBe("/courses/matematika-1/quiz/latihan?attemptId=attempt-1");
+  });
+
   test("locked assessment gateways deny a player and result paths fail closed", async () => {
     const request = createAssessmentFixtureRequest("locked");
     for (const path of [assessmentFixturePaths.quiz, assessmentFixturePaths.quizPlayer, assessmentFixturePaths.quizReview, assessmentFixturePaths.tryout]) {
