@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { catalogCopy, getCatalogGroups, getCatalogOffer, getCatalogOfferWindow, getCatalogRow, nextCatalogOfferChange } from "../../apps/mobile-native/features/student/courses/catalog-model";
+import { matchStudentRoute, studentPathWithQuery } from "../../apps/mobile-native/features/student/routes";
 import { learningEndpoint, type CatalogData, type CourseData } from "../../packages/native-parity/student/courses/contract";
 import { createCourseFixtureRequest } from "../../packages/native-parity/student/courses/fixtures";
 
@@ -19,6 +20,17 @@ test("catalog uses the same groups and addressable tabs as the web fixture", asy
   expect(getCatalogGroups(data.courses, { jurusan: "pka" }).visible.map(group => group.courses[0].id)).toEqual(["tutorial-pka"]);
   expect(getCatalogGroups(data.courses, { category: "TPB", q: "lanjut" }).visible[0].courses.map(course => course.id)).toEqual(["ma1102"]);
   expect(getCatalogGroups(data.courses, { jurusan: "pka", q: "lanjut" }).visible).toEqual([]);
+});
+
+test("clearing a legacy catalog search keeps the selected major and other link parameters", async () => {
+  const { data } = await catalogFixture();
+  const path = "/courses?jurusan=tpb&source=first&source=second&q=no-match#catalog";
+  const route = matchStudentRoute(path)!;
+  expect(getCatalogGroups(data.courses, route.query).visible).toEqual([]);
+  const cleared = studentPathWithQuery(route.path, { q: undefined });
+  expect(cleared).toBe("/courses?jurusan=tpb&source=first&source=second#catalog");
+  expect(getCatalogGroups(data.courses, matchStudentRoute(cleared)!.query).visible.map(group => group.id)).toEqual(["tpb"]);
+  expect(studentPathWithQuery("/courses?q=", { q: undefined })).toBe("/courses");
 });
 
 test("catalog formats badge, counts, special PKA copy and locks from fixture metadata", async () => {

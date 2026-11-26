@@ -51,6 +51,21 @@ export function matchStudentRoute(path: string): (StudentRoute & { area: Student
   return null;
 }
 
+export function studentPathWithQuery(path: string, updates: Readonly<Record<string, string | undefined>>) {
+  const fragmentIndex = path.indexOf("#");
+  const fragment = fragmentIndex < 0 ? "" : path.slice(fragmentIndex);
+  const target = fragmentIndex < 0 ? path : path.slice(0, fragmentIndex);
+  const queryIndex = target.indexOf("?");
+  const pathname = queryIndex < 0 ? target : target.slice(0, queryIndex);
+  const query = new URLSearchParams(queryIndex < 0 ? "" : target.slice(queryIndex + 1));
+  for (const [key, value] of Object.entries(updates)) {
+    if (value) query.set(key, value);
+    else query.delete(key);
+  }
+  const search = query.toString();
+  return `${pathname}${search ? `?${search}` : ""}${fragment}`;
+}
+
 export function studentMaterialReaderTarget(route: StudentRoute, { course, material }: MaterialDetailData): StudentMaterialReaderTarget | null {
   if (material.locked || route.pattern !== "/courses/[id]/material/[materialId]") return null;
   const requestedPage = Number(route.query.page);

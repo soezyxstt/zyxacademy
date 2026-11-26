@@ -13,14 +13,48 @@ name: Student quiz saves and restores its draft
     timeout: 30000
 - tapOn:
     id: student-assessment-native-quiz
+- assertNotVisible:
+    id: student-assessment-option-1
 - tapOn:
     id: student-assessment-start
 - extendedWaitUntil:
     visible:
       id: student-assessment-option-1
     timeout: 30000
+- assertVisible:
+    id: student-assessment-option-1
+    text: 'B\. 2'
+    enabled: true
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          checked: false
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          text: radio button, unchecked
 - tapOn:
     id: student-assessment-option-1
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          checked: true
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          text: radio button, checked
 - assertVisible: "1/3 Sudah diisi"
 - tapOn:
     id: student.back

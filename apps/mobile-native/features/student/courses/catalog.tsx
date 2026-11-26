@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { nativeColors, nativeLinkInks, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import { coursePath, type CatalogData, type CourseCard } from "../../../../../packages/native-parity/student/courses/contract";
+import { Button } from "../../../components/Button";
 import { nativeTypography } from "../../../typography";
 import { NavigationTabs } from "../../shared-ui/navigation";
 import { NavigationIcon } from "../../shared-ui/navigation-icons";
@@ -70,14 +71,28 @@ function CatalogRow({ course, copy, locale, now, theme, navigate }: {
   );
 }
 
-export function Catalog({ data, navigate, query, onSelectGroup, openExternal, locale, theme }: {
-  data: CatalogData; locale: string; theme: Theme; query: StudentScreenProps["route"]["query"]; onSelectGroup: (id: string) => void;
+function CatalogFooterLink({ label, onPress, theme }: { label: string; onPress: () => void; theme: Theme }) {
+  const colors = nativeColors[theme];
+  const [focused, setFocused] = useState(false);
+  return <Pressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress}
+    onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={({ pressed }) => [
+      styles.helpAction, pressed && { backgroundColor: `${colors.muted}66` },
+      focused && { outlineColor: colors.accent, outlineWidth: 2, outlineOffset: -2 },
+    ]}>
+    <Text style={[styles.meta, styles.helpLink, { color: colors.mutedForeground }]}>{label}</Text>
+  </Pressable>;
+}
+
+export function Catalog({ data, navigate, query, onSelectGroup, onClearSearch, openExternal, locale, theme }: {
+  data: CatalogData; locale: string; theme: Theme; query: StudentScreenProps["route"]["query"];
+  onSelectGroup: (id: string) => void; onClearSearch: () => void;
 } & Pick<StudentScreenProps, "navigate" | "openExternal">) {
   const copy = catalogCopy(locale);
   const colors = nativeColors[theme];
   const now = useCatalogTime(data);
   const { groups, active, visible } = getCatalogGroups(data.courses, query);
   const hasSearch = Boolean(query.q?.trim());
+  const { supportUrl } = data;
   const muted = { color: colors.mutedForeground };
   return (
     <View style={styles.catalog}>
@@ -87,6 +102,8 @@ export function Catalog({ data, navigate, query, onSelectGroup, openExternal, lo
           activeIndicatorColor={colors.foreground} moreLabel={locale.startsWith("en") ? "More" : "Lainnya"}
           closeLabel={locale.startsWith("en") ? "Close" : "Tutup"} testID="student-catalog-tab" />
       </View>}
+      {query.q !== undefined && <Button variant="outline" theme={theme} testID="student-catalog-clear-search"
+        style={styles.clearSearch} onPress={onClearSearch}>{copy.catalog.clearSearch}</Button>}
       <View style={styles.sections}>
         {visible.map(group => <View key={group.id} style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -105,15 +122,14 @@ export function Catalog({ data, navigate, query, onSelectGroup, openExternal, lo
           {!hasSearch && <Text style={[styles.meta, muted]}>{copy.catalog.emptyDescription}</Text>}
         </View>}
       </View>
-      {openExternal && <Text style={[styles.meta, styles.help, muted]}>
-        {`${copy.catalog.needMoreAccess} `}
-        <Text accessibilityRole="link" style={styles.helpLink} onPress={() => openExternal("/plans")}>{copy.catalog.viewPlans}</Text>
-        {data.supportUrl && <>
-          {` ${copy.catalog.or} `}
-          <Text accessibilityRole="link" style={styles.helpLink} onPress={() => openExternal(data.supportUrl!)}>{copy.catalog.contactWhatsApp}</Text>
+      {openExternal && <View style={styles.help}>
+        <Text style={[styles.meta, muted]}>{copy.catalog.needMoreAccess}</Text>
+        <CatalogFooterLink label={copy.catalog.viewPlans} theme={theme} onPress={() => openExternal("/plans")} />
+        {supportUrl && <>
+          <Text style={[styles.meta, muted]}>{copy.catalog.or}</Text>
+          <CatalogFooterLink label={copy.catalog.contactWhatsApp} theme={theme} onPress={() => openExternal(supportUrl)} />
         </>}
-        {"."}
-      </Text>}
+      </View>}
     </View>
   );
 }
@@ -121,6 +137,7 @@ export function Catalog({ data, navigate, query, onSelectGroup, openExternal, lo
 const styles = StyleSheet.create({
   catalog: { gap: 16 },
   tabs: { marginHorizontal: -16 },
+  clearSearch: { alignSelf: "flex-start", minHeight: 44 },
   sections: { gap: 24 },
   section: { gap: 4 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, paddingBottom: 4 },
@@ -134,6 +151,7 @@ const styles = StyleSheet.create({
   meta: { ...nativeTypography.bodyRegular, fontSize: 12, lineHeight: 18, includeFontPadding: false },
   lock: { alignSelf: "center" },
   empty: { alignItems: "center", gap: 4, paddingVertical: 48 },
-  help: { marginTop: 24 },
+  help: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 2 },
+  helpAction: { minHeight: 44, maxWidth: "100%", paddingHorizontal: 2, justifyContent: "center", borderRadius: nativeRadii.sm },
   helpLink: { textDecorationLine: "underline" },
 });

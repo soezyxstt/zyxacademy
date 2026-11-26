@@ -12,7 +12,7 @@ import { Skeleton } from "../../../components/Skeleton";
 import { nativeTypography } from "../../../typography";
 import type { StudentScreenProps } from "../contracts";
 import { StudentListRow } from "../ListRow";
-import { matchStudentRoute, studentMaterialReaderTarget } from "../routes";
+import { matchStudentRoute, studentMaterialReaderTarget, studentPathWithQuery } from "../routes";
 import { canonicalStudentArticleHref, offlineMaterialRecovery, type OfflineCourseMetadata, type OfflineCourseTarget } from "../offline-courses";
 import { DashboardBottom, DashboardTop, useDashboardExtras } from "./dashboard-extra";
 import { Catalog } from "./catalog";
@@ -24,13 +24,7 @@ type Navigate = StudentScreenProps["navigate"];
 type ListQueryState = { [key: string]: string | undefined };
 
 function updateListQuery(route: StudentScreenProps["route"], replace: Navigate, updates: ListQueryState) {
-  const next = new URLSearchParams({ ...route.query });
-  for (const [key, value] of Object.entries(updates)) {
-    if (value) next.set(key, value);
-    else next.delete(key);
-  }
-  const query = next.toString();
-  replace(`${route.path.split("?")[0]}${query ? `?${query}` : ""}`);
+  replace(studentPathWithQuery(route.path, updates));
 }
 type Request = StudentScreenProps["request"];
 type ResourceState =
@@ -568,6 +562,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
       case "dashboard": content = <Dashboard data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
       case "dashboard-extras": content = null; break;
       case "catalog": content = <Catalog data={resource.data} navigate={navigate} query={route.query} openExternal={openExternal} locale={locale} theme={theme}
+        onClearSearch={() => updateListQuery(route, replace, { q: undefined })}
         onSelectGroup={id => updateListQuery(route, replace, { jurusan: id === "all" ? undefined : id, category: undefined })} />; break;
       case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
       case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} openOfflineLibrary={props.openOfflineLibrary} />; break;
