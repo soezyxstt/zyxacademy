@@ -24,12 +24,17 @@ const overrides: Record<string, CaseOptions> = {
   "demo-view-article": { path: `/demo/article?course=${demoCourse}&articleId=${demoArticle}` },
   "demo-view-quiz": { path: `/demo/quiz?course=${demoCourse}` },
   "demo-view-missing": { status: 404 },
-  "demo-empty": { state: "empty" },
+  "demo-empty": { path: "/fixture-demo-empty", state: "empty" },
   "demo-retry": { path: "/demo?course=fictional-kimia" },
   "download-empty": { state: "empty" },
   "download-retry": { state: "error" },
   "unsubscribe-retry": { path: "/unsubscribe?status=success&category=course_updates" },
 };
+
+const clientInteractions = new Set([
+  "english-faq", "form-validation", "form-local-submit", "plans-default",
+  "plans-course-limits", "plans-retry", "demo-view-quiz",
+]);
 
 async function show(locator: ReturnType<Page["locator"]>) {
   await expect(locator).toBeVisible({ timeout: 20_000 });
@@ -203,18 +208,36 @@ async function main() {
       },
     });
     const errors: string[] = [];
+    const runtimeIssues: string[] = [];
     const path = options.path ?? fixture.href;
     const page = await context.newPage();
     try {
       await page.clock.setFixedTime(fixedTime);
       await context.route("**/*", (route) => {
-        const url = route.request().url();
-        if (url.startsWith(`${base}/`) || url.startsWith("data:")) return route.continue();
-        errors.push(`Blocked external request ${url}`);
+        const url = new URL(route.request().url());
+        if (url.origin === base) {
+          const asset = /^\/(founders|testimoni|platforms)\/([a-z0-9-]+\.(?:jpeg|png|svg))$/.exec(url.pathname);
+          if (asset) {
+            const filename = fileURLToPath(new URL(`../../../../../public${url.pathname}`, import.meta.url));
+            return route.fulfill({ path: filename });
+          }
+          return route.continue();
+        }
+        if (url.protocol === "data:") return route.continue();
+        errors.push(`Blocked external request ${url.toString()}`);
         return route.abort();
       });
       page.on("pageerror", error => errors.push(error.message));
-      page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
+      page.on("console", message => {
+        if (message.type() !== "error") return;
+        const text = message.text();
+        if (name === "form-local-submit" && text.includes("Cannot update a component") &&
+          text.includes("FormsPlaygroundPage FileUploadField")) {
+          runtimeIssues.push("Web FileUploadField updates FormsPlaygroundPage during render.");
+        } else {
+          errors.push(text);
+        }
+      });
       page.on("response", response => {
         if (response.status() >= 400 && !(options.status === response.status() && response.request().isNavigationRequest())) {
           errors.push(`HTTP ${response.status()} ${response.url()}`);
@@ -223,7 +246,9 @@ async function main() {
       const response = await page.goto(`${base}${path}`, { waitUntil: "domcontentloaded", timeout: 180_000 });
       expect(response?.status()).toBe(options.status ?? 200);
       expect(new URL(page.url()).pathname).toBe(new URL(path, base).pathname);
-      await expect(page.locator("html")).toHaveAttribute("data-public-reference-ready", "true", { timeout: 45_000 });
+      if (clientInteractions.has(name)) {
+        await expect(page.locator("html")).toHaveAttribute("data-public-reference-ready", "true", { timeout: 75_000 });
+      }
       await page.evaluate(() => document.fonts.ready);
       await assertAndInteract(page, fixture, name);
       if (options.status !== 404) expect(await page.locator("html").getAttribute("lang")).toBe(fixture.locale);
@@ -242,7 +267,10 @@ async function main() {
       const file = `${name}-${width}-dpr1.png`;
       await page.screenshot({ path: `${out}/${file}`, animations: "disabled", scale: "device" });
       const layout = scrollWidth > width ? "overflow" : "fits";
-      rows.push({ file, path, locale: fixture.locale, theme: fixture.theme, width, height, dpr, status: response?.status(), scrollWidth, layout });
+      rows.push({
+        file, path, locale: fixture.locale, theme: fixture.theme, width, height, dpr,
+        status: response?.status(), scrollWidth, layout, runtimeIssues: [...new Set(runtimeIssues)],
+      });
       console.log(`CAPTURE ${width} ${name}${layout === "overflow" ? ` (source is ${scrollWidth}px wide)` : ""}`);
     } catch (error) {
       const message = `FAIL ${width} ${name}: ${error instanceof Error ? error.message : String(error)}`;

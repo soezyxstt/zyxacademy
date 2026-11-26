@@ -20,3 +20,9 @@ Each route re-exports its original Next.js page body. The isolated root provides
 Captures use Chromium with UTC, reduced motion, sRGB and a fixed browser date. The viewports are 380 × 844 px and 1536 × 864 px, both at DPR 1. The capture records horizontal overflow from the original web markup at the declared viewport. It rejects unexpected HTTP errors, redirects, blocked requests, page errors and console errors. Result manifests record the interaction outcome, locale, theme, dimensions and source width.
 
 The course data in the existing web demo fixture differ from the Expo demo fixture. The original app calculates web pricing using fixture discount settings. The native gallery supplies its own deterministic numeric quotes. These images establish browser states and source layout. Android and iOS screenshots and cross-platform pixel comparisons are separate evidence.
+
+## Captured checkpoint
+
+The [live manifest](references/manifest-live.json) indexes verified browser interactions and source layouts. The [SSR manifest](references/manifest-ssr.json) indexes initial states rendered from actual Next route HTML and local application assets with application JavaScript disabled. To repeat the SSR checkpoint, keep the fixture server running and run `PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium node --import tsx tests/visual/native-parallel/operations/public-pages/capture-ssr.ts`.
+
+All checkpoint PNGs use the 380 × 844 viewport at DPR 1. Chromium measured 388 px for the landing document. The quiz section's decorative dots extend 8 px past the viewport, and the images preserve the declared crop. The browser form confirmed validation. During successful attachment submission, React reported that FileUploadField updates FormsPlaygroundPage during render. Reproduction uses the actual controls and the local file fixture. Those observations are source differences to account for during native comparison.
