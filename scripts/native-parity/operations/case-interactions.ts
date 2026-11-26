@@ -5,9 +5,9 @@ import notices from "../../../messages/id/notifications.json";
 
 type Selector = { id: string } | { text: string };
 
-function tap(selector: Selector) {
+function tap(selector: Selector, centerElement = false) {
   return [
-    { scrollUntilVisible: { element: selector, timeout: 20000, speed: 65 } },
+    { scrollUntilVisible: { element: selector, timeout: 20000, speed: 65, centerElement } },
     { tapOn: selector },
   ];
 }
@@ -36,8 +36,8 @@ export function caseInteractions(caseId: string): unknown[] {
         ...fill("password", "Practice2026"),
         ...tap({ text: "Select subject" }),
         ...tap({ text: "TPB Kalkulus I" }),
-        ...tap({ text: "Choose files" }),
-        { assertVisible: "latihan.pdf" },
+        ...tap({ id: "public-form-choose-files" }, true),
+        { scrollUntilVisible: { element: { text: "latihan\\.pdf" }, timeout: 20000 } },
         ...tap({ id: "public-form-agreement" }),
         ...tap(submit),
         { extendedWaitUntil: { visible: "Profile registration successful.", timeout: 10000 } },

@@ -152,7 +152,7 @@ export function FormsPlayground() {
     <View style={layout.item}>
       <Label style={{ fontWeight: "600" }}>Upload assignment</Label>
       <Label tone="meta">PDF or PNG files, up to 5 MB each.</Label>
-      <Action onPress={() => void selectFiles()} disabled={busy} loading={picking}>Choose files</Action>
+      <Action id="public-form-choose-files" onPress={() => void selectFiles()} disabled={busy} loading={picking}>Choose files</Action>
       {values.files.map((file, index) => <View key={`${file.name}-${index}`} style={layout.between}>
         <Label>{file.name}</Label>
         <Action accessibilityLabel={`Remove ${file.name}`} variant="ghost" disabled={busy}
