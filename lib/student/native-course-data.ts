@@ -3,11 +3,12 @@ import { aiMaterialInstances, artikel, courseMaterials, diktatMateri, diktats, p
 import { and, eq, notLike, or } from "drizzle-orm";
 import { getCourse, getCourseChapterOutline, getStudentCourseAccess, normalizeChapterIds } from "@/lib/course-utils";
 import { getMaterialArticleSummaries } from "@/app/(student)/courses/[id]/material/canonical-summaries";
+import { env } from "@/lib/env";
 import { getCourseOverviewData } from "@/lib/learning-analytics";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { isPkaEnrolled } from "@/lib/pka-enrollment";
 import { canAccessCourseContent, hasChapterScopeWithin } from "@/lib/student/course-access";
-import { listStudentEnrollments } from "@/lib/student/course-catalog";
+import { listStudentEnrollments, type StudentEnrollmentRecord } from "@/lib/student/course-catalog";
 import { loadStudentCourseCatalog } from "@/lib/student/course-catalog-view-data";
 import { getDashboardCourseMaterialsBatch } from "@/lib/student/dashboard-materials";
 import { loadCourseMaterialData } from "@/lib/student/course-material-list";
@@ -34,6 +35,16 @@ function projectCourse(course: Pick<Course, "id" | "title" | "category" | "descr
   };
 }
 
+function serializePricing(pricing: Access["policy"]["pricing"]): CourseCard["pricing"] {
+  const serialize = (date: Date | null) => date && Number.isFinite(date.getTime()) ? date.toISOString() : null;
+  return { category: pricing.category, startsAt: serialize(pricing.startsAt), endsAt: serialize(pricing.endsAt) };
+}
+
+async function findActiveDashboardCourses(studentId: string, enrollments: StudentEnrollmentRecord[]) {
+  const checks = await Promise.all(enrollments.map(async (course) => ({ course, access: await getStudentCourseAccess(studentId, course.id) })));
+  return checks.filter(({ access }) => access?.hasFullContentAccess && access.isEnrolled);
+}
+
 async function loadDashboard(studentId: string): Promise<LearningData> {
   const [enrollments, [profile]] = await Promise.all([
     listStudentEnrollments(studentId),
@@ -55,8 +66,7 @@ async function loadDashboard(studentId: string): Promise<LearningData> {
   }
 
   // Re-read the same course policies before returning personal learning rows.
-  const checks = await Promise.all(enrollments.map(async (course) => ({ course, access: await getStudentCourseAccess(studentId, course.id) })));
-  const active = checks.filter(({ access }) => access?.hasFullContentAccess && access.isEnrolled);
+  const active = await findActiveDashboardCourses(studentId, enrollments);
   const activeCourses = active.map(({ course }) => course);
   const activeCourseIds = activeCourses.map(({ id }) => id);
   const [primary, { recommendedCourses }] = await Promise.all([
@@ -177,6 +187,11 @@ async function findLegacyDetail(
 
 export async function loadNativeCourseData(studentId: string, query: LearningQuery): Promise<NativeLearningResult> {
   if (query.view === "dashboard") return loadDashboard(studentId);
+  if (query.view === "dashboard-extras") {
+    const { loadNativeDashboardExtras } = await import("./native-dashboard-extras");
+    const active = await findActiveDashboardCourses(studentId, await listStudentEnrollments(studentId));
+    return loadNativeDashboardExtras(studentId, active.map(({ course }) => course));
+  }
   if (query.view === "catalog") {
     const { groups, studentTargetCategory } = await loadStudentCourseCatalog(studentId);
     return {
@@ -190,11 +205,7 @@ export async function loadNativeCourseData(studentId: string, query: LearningQue
         materialsCount: course.materialsCount,
         quizzesCount: course.quizzesCount,
         tryoutsCount: course.tryoutsCount,
-        pricing: course.pricing ? {
-          category: course.pricing.category,
-          startsAt: course.pricing.startsAt?.toISOString() ?? null,
-          endsAt: course.pricing.endsAt?.toISOString() ?? null,
-        } : undefined,
+        pricing: course.pricing ? serializePricing(course.pricing) : undefined,
       }))),
     };
   }
@@ -204,7 +215,10 @@ export async function loadNativeCourseData(studentId: string, query: LearningQue
   if (!course) return { status: 404 };
   if (!access) return { status: 403 };
   if (course.id === PKA_COURSE_ID && !(await isPkaEnrolled(studentId))) return { status: 403 };
-  const courseCard = projectCourse({ ...course, description: course.description.split(" - ")[0] ?? "" }, access.hasFullContentAccess);
+  const courseCard = {
+    ...projectCourse({ ...course, description: course.description.split(" - ")[0] ?? "" }, access.hasFullContentAccess),
+    pricing: serializePricing(access.policy.pricing),
+  };
 
   if (query.view === "course") {
     const chapters = await getCourseChapterOutline(id, studentId);
@@ -216,6 +230,14 @@ export async function loadNativeCourseData(studentId: string, query: LearningQue
       actions: overview ? (["reading", "quiz", "schedule"] as const).map((key) => ({
         key, title: overview[key].title, meta: overview[key].meta, path: overview[key].href,
       })) : [],
+      attention: overview?.attention?.items.map((item) => ({
+        kind: item.kind,
+        title: item.conceptName ?? item.label,
+        path: item.href,
+        count: item.count,
+        masteryScore: item.masteryScore,
+      })),
+      liveEnabled: env.FEATURE_LIVE === "1",
     };
   }
 

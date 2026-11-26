@@ -79,6 +79,7 @@ mock.module("@/app/(student)/dashboard/dashboard-sections", () => ({
   loadPrimaryLearningData: mock(),
   loadRecommendedCoursesData: mock(),
 }));
+mock.module("@/lib/env", () => ({ env: { FEATURE_LIVE: "0" } }));
 mock.module("@/lib/whatsapp-admin", () => ({ getWhatsAppAdminChatHref: () => null }));
 
 const { loadNativeCourseData } = await import("@/lib/student/native-course-data");

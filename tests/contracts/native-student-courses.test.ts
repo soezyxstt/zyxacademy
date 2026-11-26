@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
-  coursesEndpoint, learningEndpoint, materialPath, materialRowPath, normalizeMaterialTab,
+  canShowOfflineCourse, coursesEndpoint, learningEndpoint, materialPath, materialRowPath, normalizeMaterialTab,
   type LearningQuery, type MaterialListData, type MaterialDetailData,
 } from "@/packages/native-parity/student/courses/contract";
 import { createCourseFixtureRequest } from "@/packages/native-parity/student/courses/fixtures";
@@ -33,7 +33,7 @@ describe("native Student course routes", () => {
     expect((await POST(request(coursesEndpoint))).status).toBe(403);
     expect(redeem).not.toHaveBeenCalled();
 
-    const result = await POST(request(coursesEndpoint, { method: "POST", body: JSON.stringify({ token: " Zyx-example " }) }));
+    const result = await POST(request(coursesEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: " Zyx-example " }) }));
     expect(result.status).toBe(200);
     expect(redeem).toHaveBeenCalledWith("Zyx-example", "learner-a", "dashboard");
   });
@@ -43,7 +43,8 @@ describe("native Student course routes", () => {
     expect((await GET(request(`${coursesEndpoint}?view=catalog&view=dashboard`))).status).toBe(400);
     expect((await GET(request(`${coursesEndpoint}?view=course&courseId=c%2Fprivate`))).status).toBe(400);
     expect((await GET(request(`${coursesEndpoint}?view=dashboard&studentId=learner-b`))).status).toBe(400);
-    expect((await POST(request(coursesEndpoint, { method: "POST", body: JSON.stringify({ token: "valid", studentId: "learner-b" }) }))).status).toBe(400);
+    expect((await POST(request(coursesEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: "valid", studentId: "learner-b" }) }))).status).toBe(400);
+    expect((await POST(request(coursesEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: "a".repeat(2500) }) }))).status).toBe(400);
     expect(loadCourse).not.toHaveBeenCalled();
     expect(redeem).not.toHaveBeenCalled();
   });
@@ -101,6 +102,15 @@ describe("native Student course fixtures", () => {
     const data: MaterialListData = await (await long(materialList)).json();
     expect(data.materials.length).toBeGreaterThan(30);
     expect(data.materials.findIndex(({ id }) => id === "bab-24")).toBeGreaterThan(20);
+  });
+
+  test("shows still-leased metadata on transport failure and excludes authoritative access denials", () => {
+    expect(canShowOfflineCourse("material-list", "course-a", "course-a", "offline", { kind: "loading" })).toBeTrue();
+    expect(canShowOfflineCourse("material-detail", "course-a", "course-a", "ready", { kind: "error", status: 503 })).toBeTrue();
+    expect(canShowOfflineCourse("material-detail", "course-a", "course-a", "offline", { kind: "ready" })).toBeFalse();
+    for (const status of [400, 401, 403, 404, 409]) expect(canShowOfflineCourse("material-detail", "course-a", "course-a", "offline", { kind: "error", status })).toBeFalse();
+    expect(canShowOfflineCourse("material-list", "course-a", "course-a", "revoked", { kind: "error", status: 0 })).toBeFalse();
+    expect(canShowOfflineCourse("material-list", "course-a", "course-b", "offline", { kind: "error", status: 0 })).toBeFalse();
   });
 
   test("encodes navigation identifiers and reading positions while honoring the question bank alias", () => {

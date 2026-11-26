@@ -105,6 +105,7 @@ export function createCourseFixtureRequest(scenario: CourseFixtureScenario): (pa
     }
 
     const view = url.searchParams.get("view");
+    if (view === "dashboard-extras") return json({ view });
     if (scenario === "catalog-parity" && view === "catalog") {
       return json({ view, targetCategory: null, asOf: "2030-01-02T00:00:00Z", supportUrl: "https://wa.me/620000000000", courses: catalogParityCourses });
     }

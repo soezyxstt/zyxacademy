@@ -8,7 +8,7 @@ Impor dari `apps/mobile-native/features/shared-ui`. Komponen menerima data, labe
 | `NativePageHeader<Id>` | `title` opsional memberi heading pembaca layar ketika judul belum tersedia melalui navigasi. `actions` menerima `SharedUiAction<Id>[]` dan memerlukan `onAction(id)`. Bilah kontrol hanya memerlukan ruang ketika ada aksi. |
 | `SharedUiAction<Id>` | `id` berupa union string milik halaman. `label` untuk teks, `accessibilityLabel` opsional, dan `pending` atau `disabled` mencegah aktivasi. Aksi `iconOnly` memerlukan `renderIcon`. `variant` memakai varian `Button` native. |
 | `SharedUiActionButton<Id>` | Menghubungkan `action` ke `onAction(id)` dengan `theme` dan `testID` opsional. |
-| `NativeResponsiveList<Row, Id>` | `label` menamai daftar. `state` menerima `{ status: "ready", rows }`, `{ status: "loading", label }`, atau `{ status: "error", title, message?, action?, onAction? }`. `empty` memasok teks dan aksi ketika data siap dengan 0 baris. Sediakan `getRowKey(row)` yang stabil dan `renderRow(row, layout)`. `layout` menggunakan lebar kontainer dan skala teks. Daftar menggunakan `FlatList`, tempatkan dalam induk yang memiliki tinggi dan letakkan kontrol di sekelilingnya. |
+| `NativeResponsiveList<Row, Id>` | `label` menamai daftar. `state` menerima `{ status: "ready", rows }`, `{ status: "loading", label }`, atau `{ status: "error", title, message?, action?, onAction? }`. `empty` memasok teks dan aksi ketika data siap dengan 0 baris. Sediakan `getRowKey(row)` yang stabil dan `renderRow(row, layout)`. `layout` beralih ke `wide` saat lebar daftar setelah gutter mencapai 768 dp dikalikan skala teks (minimum 1). Daftar menggunakan `FlatList`, tempatkan dalam induk yang memiliki tinggi dan letakkan kontrol di sekelilingnya. |
 | `NativeListRow<Id>` | `layout`, `title`, `subtitle`, `leading`, `metadata` berlabel, dan `primary` opsional untuk navigasi baris. `actions` terpisah menerima `onAction(id)`, sehingga aksi baris dapat diakses mandiri. |
 | `NativeStatusPanel<Id>` | Teks `title` dan `message` opsional dengan `tone` `empty` atau `error`. Jika memasok `action`, sambungkan `onAction(id)`. Bisa digunakan di luar daftar. |
 
@@ -16,9 +16,9 @@ Impor dari `apps/mobile-native/features/shared-ui`. Komponen menerima data, labe
 
 ## Kasus yang dapat dijalankan
 
-`FirstSliceExample` menerima `caseId` dari `packages/native-parity/shared-ui/layout-cases.ts`. Kasus awal `shared-ui-shell-back-light` menampilkan dokumen, membuka baris dokumen, dan kembali ke kelas. Panggilan `FirstSliceExample` tanpa `caseId` membuka kasus ini. Di harness galeri, buka `zyx-native-parity://shared-ui/shared-ui-shell-back-light`. Untuk entry lokal, pasang `<FirstSliceExample />` di dalam `SafeAreaProvider` setelah font dimuat.
+`FirstSliceExample` menerima `caseId` dari `packages/native-parity/shared-ui/layout-cases.ts`. Kasus awal `shared-ui-shell-back-light` menampilkan dokumen, membuka baris dokumen, dan kembali ke kelas. Panggilan `FirstSliceExample` tanpa `caseId` membuka kasus ini. Di harness galeri, buka `zyx-native-parity://shared-ui/shared-ui-shell-back-light`. Untuk entry lokal, pasang `<FirstSliceExample />` di dalam `SafeAreaProvider` setelah font dimuat. Jalankan `maestro test .maestro/native-parallel/shared-ui/first-slice.yaml` pada build galeri untuk memeriksa Back, aksi header, reset filter, dan retry.
 
-Contoh mengikat aksi ke halaman berdasarkan ID:
+Halaman dapat mengikat aksi berdasarkan ID.
 
 ```tsx
 type MaterialAction = "filter" | "upload";

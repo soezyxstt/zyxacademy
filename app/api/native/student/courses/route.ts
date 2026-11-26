@@ -3,10 +3,12 @@ import { redeemGroupToken } from "@/lib/groups/redeem-token";
 import { loadNativeCourseData } from "@/lib/student/native-course-data";
 import type { EnrollmentResponse } from "@/packages/native-parity/student/courses/contract";
 import { requireNativeStudent } from "../_session";
+import { readNativeStudentJson } from "../_request";
 
 const resourceId = z.string().min(1).max(160).regex(/^[^/?#\\\s\u0000-\u001f\u007f]+$/u);
 const querySchema = z.discriminatedUnion("view", [
   z.object({ view: z.literal("dashboard") }).strict(),
+  z.object({ view: z.literal("dashboard-extras") }).strict(),
   z.object({ view: z.literal("catalog") }).strict(),
   z.object({ view: z.literal("course"), courseId: resourceId }).strict(),
   z.object({ view: z.literal("material-list"), courseId: resourceId }).strict(),
@@ -39,7 +41,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const actor = await requireNativeStudent(request);
   if (actor instanceof Response) return actor;
-  const body = enrollmentSchema.safeParse(await request.json().catch(() => null));
+  const body = enrollmentSchema.safeParse(await readNativeStudentJson(request, 2 * 1024).catch(() => null));
   if (!body.success) return reply({ success: false, errorCode: "invalid" } satisfies EnrollmentResponse, 400);
   try {
     const result: EnrollmentResponse = await redeemGroupToken(body.data.token, actor.userId, "dashboard");

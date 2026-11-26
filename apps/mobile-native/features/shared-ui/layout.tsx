@@ -105,6 +105,7 @@ export function SharedUiActionButton<Id extends string>({
     <Button
       accessibilityLabel={action.accessibilityLabel ?? action.label}
       disabled={action.disabled}
+      hitSlop={0}
       isLoading={action.pending}
       onPress={() => onAction(action.id)}
       renderIcon={action.renderIcon}
@@ -181,7 +182,13 @@ export function NativeStatusPanel<Id extends string>({
 
   return (
     <View style={styles.notice}>
-      <View accessible accessibilityLabel={message ? `${title}. ${message}` : title} accessibilityLiveRegion="polite" style={styles.noticeCopy}>
+      <View
+        accessible
+        accessibilityLabel={message ? `${title}. ${message}` : title}
+        accessibilityLiveRegion="polite"
+        accessibilityRole={tone === "error" ? "alert" : undefined}
+        style={styles.noticeCopy}
+      >
         <Text style={[styles.noticeTitle, { color: tone === "error" ? colors.destructive : colors.foreground }]}>
           {title}
         </Text>
@@ -262,6 +269,7 @@ export type NativeListRowProps<Id extends string = string> = SharedUiActionGroup
   metadata?: readonly { id: string; label: string; value: string }[];
   primary?: { onPress: () => void; label?: string; role?: "button" | "link"; disabled?: boolean };
   theme?: SharedUiTheme;
+  testID?: string;
 };
 
 export function NativeListRow<Id extends string>({
@@ -276,6 +284,7 @@ export function NativeListRow<Id extends string>({
   actions,
   onAction,
   theme,
+  testID,
 }: NativeListRowProps<Id>) {
   const systemTheme = useColorScheme();
   const resolvedTheme = theme ?? systemTheme ?? "light";

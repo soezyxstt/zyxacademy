@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ComponentR
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useColorScheme, type TextStyle } from "react-native";
 import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import {
-  coursePath, coursesEndpoint, learningEndpoint, materialPath, materialRowPath, materialTabs, normalizeMaterialTab,
+  canShowOfflineCourse, coursePath, coursesEndpoint, learningEndpoint, materialPath, materialRowPath, materialTabs, normalizeMaterialTab,
   type CourseCard, type CourseData, type DashboardData, type CatalogData, type EnrollmentFailureCode, type EnrollmentResponse,
   type LearningData, type LearningQuery, type MaterialDetailData, type MaterialListData, type MaterialRow,
 } from "../../../../../packages/native-parity/student/courses/contract";
@@ -12,6 +12,8 @@ import { Skeleton } from "../../../components/Skeleton";
 import { nativeTypography } from "../../../typography";
 import type { StudentScreenProps } from "../contracts";
 import { StudentListRow } from "../ListRow";
+import { matchStudentRoute } from "../routes";
+import { DashboardBottom, DashboardTop, useDashboardExtras } from "./dashboard-extra";
 import { courseCopy, type CourseCopy } from "./copy";
 
 type Theme = keyof typeof nativeColors;
@@ -66,14 +68,15 @@ function validResponse(data: unknown, expectedView: LearningQuery["view"]): data
   }
 }
 
-function useLearningData(request: Request, url: string, view: LearningQuery["view"]) {
+function useLearningData(request: Request, url: string, view: LearningQuery["view"], enabled: boolean) {
   const [revision, setRevision] = useState(0);
   const [resource, setResource] = useState<ResourceState>(loading);
 
   useEffect(() => {
+    setResource(loading);
+    if (!enabled) return;
     let current = true;
     const controller = new AbortController();
-    setResource(loading);
     async function load() {
       try {
         const reply = await request(url, { signal: controller.signal });
@@ -97,7 +100,7 @@ function useLearningData(request: Request, url: string, view: LearningQuery["vie
       current = false;
       controller.abort();
     };
-  }, [request, url, view, revision]);
+  }, [request, url, view, enabled, revision]);
 
   return { resource, reload: () => setRevision((revision) => revision + 1) };
 }
@@ -250,12 +253,14 @@ function CourseRows({ courses, navigate, catalog = false, asOf, locale = "id-ID"
   });
 }
 
-function Dashboard({ data, navigate, request, reload }: { data: DashboardData } & Pick<StudentScreenProps, "navigate" | "request"> & { reload: () => void }) {
+function Dashboard({ data, navigate, request, reload, locale }: { data: DashboardData; locale: string } & Pick<StudentScreenProps, "navigate" | "request"> & { reload: () => void }) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
+  const extra = useDashboardExtras(request, data.enrolled.length > 0);
   return (
     <>
       {data.firstName ? <LearningText role="title">{`${copy.greeting}, ${data.firstName}`}</LearningText> : null}
+      <DashboardTop data={extra.data} request={request} navigate={navigate} copy={copy} theme={theme} locale={locale} />
       {data.continueReading.length > 0 && (
         <Section title={copy.continue}>
           {data.continueReading.map((item) => (
@@ -272,6 +277,7 @@ function Dashboard({ data, navigate, request, reload }: { data: DashboardData } 
         </>
       )}
       {data.recommended.length > 0 ? <Section title={copy.recommended}><CourseRows courses={data.recommended} navigate={navigate} /></Section> : null}
+      <DashboardBottom state={extra} navigate={navigate} copy={copy} theme={theme} locale={locale} />
       <Button theme={theme} variant="outline" size="lg" onPress={() => navigate("/courses")}>{copy.browse}</Button>
     </>
   );
@@ -340,16 +346,24 @@ const courseLinks = [
   ["discussions", "discussions"], ["playground", "playground"],
 ] as const;
 
-function CourseOverview({ data, navigate, request, reload }: { data: CourseData } & Pick<StudentScreenProps, "navigate" | "request"> & { reload: () => void }) {
+function CourseOverview({ data, navigate, request, reload, locale }: { data: CourseData; locale: string } & Pick<StudentScreenProps, "navigate" | "request"> & { reload: () => void }) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
-  const { course, chapters } = data;
+  const { course, chapters, attention } = data;
+  const pricing = course.pricing ? getOffer(course, undefined, locale, copy) ?? (course.pricing.category === "free" ? copy.free : copy.premium) : undefined;
   return (
     <>
       <LearningText role="title">{course.title}</LearningText>
       {course.description ? <LearningText>{course.description}</LearningText> : null}
+      {pricing ? <LearningText role="meta">{pricing}</LearningText> : null}
       {!course.hasFullContentAccess ? <Enrollment request={request} reload={reload} /> : null}
-      {data.actions.length > 0 ? <Section>{data.actions.map(({ key, title, meta, path }) => <Row key={key} title={title} meta={meta} onPress={() => navigate(path)} />)}</Section> : null}
+      {data.actions.length > 0 ? <Section>{data.actions.map(({ key, title, meta, path }) => <Row key={key} title={title} meta={meta} onPress={matchStudentRoute(path) ? () => navigate(path) : undefined} />)}</Section> : null}
+      {attention?.length ? <Section title={copy.attention}>
+        {attention.map(({ kind, title, path, count, masteryScore }) => <Row key={kind}
+          title={kind === "flashcard" && count !== undefined ? `${count} ${copy.reviewDue}` : title}
+          meta={masteryScore !== undefined ? `${masteryScore}%` : undefined}
+          onPress={matchStudentRoute(path) ? () => navigate(path) : undefined} />)}
+      </Section> : null}
       <Button theme={theme} size="lg" testID="student-course-open-materials" onPress={() => navigate(materialPath(course.id))}>{copy.openDocuments}</Button>
       <Section title={copy.chapters}>
         {chapters.length > 0 ? chapters.map(({ id, title, completed, completionPercent, materialId }) => (
@@ -359,6 +373,7 @@ function CourseOverview({ data, navigate, request, reload }: { data: CourseData 
       {course.hasFullContentAccess && (
         <Section>
           {courseLinks.map(([segment, label]) => <Row key={segment} title={copy[label]} onPress={() => navigate(`${coursePath(course.id)}/${segment}`)} />)}
+          {data.liveEnabled ? <Row title={copy.live} onPress={() => navigate(`${coursePath(course.id)}/live`)} /> : null}
         </Section>
       )}
     </>
@@ -435,6 +450,38 @@ function Document({ data, request, reload, renderMaterial, route }: { data: Mate
   );
 }
 
+function OfflineDocuments({ data, query, route, replace, navigate, retry, openOfflineMaterial }: {
+  data: NonNullable<NonNullable<StudentScreenProps["offlineCourse"]>["course"]>;
+  query: LearningQuery;
+  retry(): void;
+} & Pick<StudentScreenProps, "navigate" | "replace" | "route" | "openOfflineMaterial">) {
+  const copy = useContext(CopyContext);
+  const theme = useContext(ThemeContext);
+  const selected = query.view === "material-detail" ? data.materials.find(item => item.id === query.materialId) : undefined;
+  const tab = normalizeMaterialTab(route.query.tab);
+  const records = tab === "all" ? data.materials : data.materials.filter(row => row.kind === (tab === "materi" ? "article" : tab));
+  return <>
+    <LearningText role="title">{data.title}</LearningText>
+    <Notice title={copy.offline} detail={copy.offlineMetadata}>
+      <Button theme={theme} variant="outline" testID="student-learning-retry" onPress={retry}>{copy.retry}</Button>
+    </Notice>
+    {query.view === "material-detail" ? selected ? (
+      <Section title={selected.title}>
+        {openOfflineMaterial ? <Button theme={theme} onPress={() => openOfflineMaterial(data.id, selected.id)}>{copy.readMaterials}</Button> : null}
+      </Section>
+    ) : <LearningText>{copy.noDocuments}</LearningText> : <>
+      <View style={styles.toggles} accessibilityRole="tablist">
+        {materialTabs.map(key => <Toggle key={key} label={copy[key]} selected={key === tab}
+          onPress={() => updateListQuery(route, replace, { tab: key === "all" ? undefined : key })} />)}
+      </View>
+      {records.length === 0 ? <LearningText>{copy.noDocuments}</LearningText> : <Section>
+        {records.map(item => <Row key={item.id} title={item.title} testID={`student-material-${item.id}`}
+          onPress={() => navigate(materialPath(data.id, item.id))} />)}
+      </Section>}
+    </>}
+  </>;
+}
+
 function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
   const { route, query, request, navigate, replace, back, initialScrollY, onScrollY, renderMaterial, openExternal, devicePreferences, session } = props;
   const systemTheme = useColorScheme() === "dark" ? "dark" : "light";
@@ -442,13 +489,19 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
   const theme = preference && preference !== "system" ? preference : systemTheme;
   const colors = nativeColors[theme];
   const copy = courseCopy(session.locale);
-  const { resource, reload: loadAgain } = useLearningData(request, learningEndpoint(query), query.view);
+  const locale = session.locale.startsWith("en") ? "en-GB" : "id-ID";
+  const offline = props.offlineCourse;
+  const isCourseRoute = "courseId" in query;
+  const revoked = isCourseRoute && offline?.status === "revoked";
+  const { resource, reload: loadAgain } = useLearningData(request, learningEndpoint(query), query.view, !revoked);
+  const cached = offline?.course;
+  const useOfflineMetadata = canShowOfflineCourse(query.view, "courseId" in query ? query.courseId : undefined, cached?.id, offline?.status, resource);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const restoreOffset = useRef(initialScrollY);
   const lastOffset = useRef(initialScrollY);
   const viewportHeight = useRef(0);
   const contentHeight = useRef(0);
-  const isReady = resource.kind === "ready";
+  const isReady = !revoked && (resource.kind === "ready" || Boolean(useOfflineMetadata));
   const reload = () => {
     restoreOffset.current = lastOffset.current;
     contentHeight.current = 0;
@@ -463,7 +516,14 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
   }
 
   let content: ReactNode;
-  if (resource.kind === "loading") {
+  if (revoked) {
+    content = <Notice title={copy.noAccess} detail={copy.noAccessHint} testID="student-course-revoked">
+      <Button theme={theme} variant="outline" onPress={() => navigate("/courses")}>{copy.catalog}</Button>
+    </Notice>;
+  } else if (useOfflineMetadata && cached && offline) {
+    content = <OfflineDocuments data={cached} query={query} route={route} replace={replace} navigate={navigate} openOfflineMaterial={props.openOfflineMaterial}
+      retry={() => { offline.retry(); reload(); }} />;
+  } else if (resource.kind === "loading") {
     content = (
       <View accessible accessibilityLabel={copy.loading} accessibilityState={{ busy: true }} style={styles.section}>
         <Skeleton theme={theme} style={styles.skeletonTitle} />
@@ -483,9 +543,10 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
     );
   } else {
     switch (resource.data.view) {
-      case "dashboard": content = <Dashboard data={resource.data} navigate={navigate} request={request} reload={reload} />; break;
-      case "catalog": content = <Catalog data={resource.data} navigate={navigate} route={route} replace={replace} openExternal={openExternal} locale={session.locale === "en" ? "en-GB" : "id-ID"} />; break;
-      case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} />; break;
+      case "dashboard": content = <Dashboard data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
+      case "dashboard-extras": content = null; break;
+      case "catalog": content = <Catalog data={resource.data} navigate={navigate} route={route} replace={replace} openExternal={openExternal} locale={locale} />; break;
+      case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
       case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} />; break;
       case "material-detail": content = <Document data={resource.data} request={request} reload={reload} renderMaterial={renderMaterial} route={route} />; break;
     }
