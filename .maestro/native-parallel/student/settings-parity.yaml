@@ -8,8 +8,11 @@ name: Student settings language selection states
     timeout: 30000
 - openLink: "zyx-native-parity://student-fixture?scenario=loaded&theme=light&locale=id&path=%2Fsettings"
 - extendedWaitUntil:
-    visible: Pengaturan
+    visible:
+      id: student-fixture-id-light
     timeout: 30000
+- assertVisible:
+    id: student-fixture-id-light
 - assertVisible: '^Pengaturan$'
 - assertVisible:
     text: '^Umum$'
@@ -31,8 +34,11 @@ name: Student settings language selection states
     selected: true
 - openLink: "zyx-native-parity://student-fixture?scenario=loaded&theme=light&locale=en&path=%2Fsettings"
 - extendedWaitUntil:
-    visible: '^Settings$'
+    visible:
+      id: student-fixture-en-light
     timeout: 30000
+- assertVisible:
+    id: student-fixture-en-light
 - assertVisible: '^Settings$'
 - assertVisible:
     text: '^General$'
@@ -54,8 +60,11 @@ name: Student settings language selection states
     selected: true
 - openLink: "zyx-native-parity://student-fixture?scenario=loaded&theme=dark&locale=id&path=%2Fsettings"
 - extendedWaitUntil:
-    visible: Pengaturan
+    visible:
+      id: student-fixture-id-dark
     timeout: 30000
+- assertVisible:
+    id: student-fixture-id-dark
 - assertVisible: '^Pengaturan$'
 - assertVisible:
     text: '^Umum$'

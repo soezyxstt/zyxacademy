@@ -70,7 +70,10 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
     const listener = BackHandler.addEventListener("hardwareBackPress", () => { back(); return true; });
     return () => listener.remove();
   }, [back, stack.length]);
-  const colors = nativeColors[useColorScheme() ?? "light"];
+  const observedTheme = useColorScheme() ?? "light";
+  const colors = nativeColors[observedTheme];
+  const fixtureId = dashboardState ? `student-dashboard-case-${dashboardState}`
+    : `student-fixture-${session.locale}-${observedTheme}`;
   const isCatalogFixture = scenario === "catalog-parity";
   const messages = locale === "en" ? studentEn : studentId;
   const mobile = messages.mobile;
@@ -93,7 +96,7 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
     />
   );
 
-  return <SafeAreaView testID={dashboardState ? `student-dashboard-case-${dashboardState}` : undefined}
+  return <SafeAreaView testID={fixtureId}
     style={{ flex: 1, backgroundColor: colors.background }}>
     {dashboardState && active.path === "/dashboard" && <MobileNavbar role="student" title={messages.routeTitles.dashboard}
       home={{ label: mobile.home }} includeSafeArea={false} onAction={() => {}} />}

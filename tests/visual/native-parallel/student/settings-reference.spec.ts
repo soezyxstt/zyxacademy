@@ -120,6 +120,7 @@ test("Student settings language controls use the same locale and theme as the na
         const pixels = await page.screenshot({ path: info.outputPath(target.platform, filename), animations: "disabled", scale: "device" });
         captures[filename] = createHash("sha256").update(pixels).digest("hex");
         const nativeMarkers = [
+          { id: `student-fixture-${locale}-${theme}` },
           { text: `^${nativeTitle}$` }, { text: `^${tab}$`, selected: true }, { text: `^${label}$` },
           ...options.map(option => ({ text: `^${option}$`, selected: option === selected })),
         ];
