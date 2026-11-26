@@ -24,7 +24,7 @@ function BlogCard({ card, featured = false, related = false }: {
 }) {
   const { colors, copy: { blog } } = usePublic();
   const date = card.publishedAt && new Intl.DateTimeFormat(blog.dateLocale, {
-    month: "short", day: "numeric", year: "numeric", timeZone: "UTC",
+    month: "short", day: "numeric", year: "numeric",
   }).format(new Date(card.publishedAt));
   const minutes = textWith(related ? blog.minutesShort : blog.minutes, { count: card.readMinutes });
   return (
