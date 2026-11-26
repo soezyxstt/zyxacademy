@@ -1,3 +1,6 @@
+import { planTiers } from "../../../lib/plan-tiers";
+import { getPlanPriceQuote, getPlanPricingPhase } from "../../../lib/pricing-calculations";
+import { DEFAULT_PRICING_DISCOUNTS } from "../../../lib/pricing-discounts";
 import {
   blogCategories, blogCategoryPreviewCount, blogFeaturedCount, blogPageSize,
   type PublicBlogCard, type PublicBlogDetail, type PublicClient, type PublicLocale, type PublicTheme,
@@ -222,14 +225,13 @@ export function createFixturePublicClient(scenario: PublicScenario = "populated"
     },
     async plans({ people, subjects, otherSubjects }, signal) {
       before("plans", signal);
-      const unit = (subjects.length + otherSubjects) * people;
-      return { quotes: [
-        { key: "minimal", price: 155000 * unit, regularPrice: 155000 * unit, discountPercent: 0, isIntroductory: false, contactUrl: null },
-        { key: "essential", price: 500000 * unit, regularPrice: 500000 * unit, discountPercent: 0, isIntroductory: false, contactUrl: null },
-        { key: "premium", price: 925000 * unit, regularPrice: 925000 * unit, discountPercent: 0, isIntroductory: false, contactUrl: null },
-        { key: "free", price: 0, regularPrice: 0, discountPercent: 0, isIntroductory: false, contactUrl: null },
-        { key: "custom", price: 0, regularPrice: 0, discountPercent: 0, isIntroductory: false, contactUrl: null },
-      ] };
+      const at = new Date("2026-09-20T05:00:00.000Z");
+      const courses = subjects.length + otherSubjects;
+      return { quotes: planTiers.map(({ key }) => ({
+        key,
+        ...getPlanPriceQuote(key, people, courses, getPlanPricingPhase(at), DEFAULT_PRICING_DISCOUNTS, at),
+        contactUrl: key === "free" ? null : "https://example.test/plan/" + key,
+      })) };
     },
     async release(signal) {
       before("release", signal);
