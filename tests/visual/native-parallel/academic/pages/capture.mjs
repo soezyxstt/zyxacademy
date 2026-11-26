@@ -80,6 +80,7 @@ const strictContentIds = new Set(['admin-analytics','admin-groups','tutor-quiz-g
 const selected = new Set(process.argv.slice(2));
 const requiredReads = {
  'admin-analytics': '/api/admin/quiz-insights',
+ 'admin-course-leaderboard': '/api/admin/leaderboard',
  'admin-quiz-analytics': `/api/admin/quiz-insights/${quizId}`,
  'tutor-quiz-attempts': `/api/admin/quiz-insights/${quizId}/attempts`,
  'admin-idea-bundle': `/api/admin/bundles/idea/${ideaId}`,
@@ -87,20 +88,40 @@ const requiredReads = {
  'admin-product-bundle': `/api/admin/bundles/product/${productId}`,
  'admin-product-bundle-alias': `/api/admin/bundles/product/${productId}`,
 };
+const manifestPath = resolve(root, 'results.json');
 let entries = [];
 let previous = {};
 if (selected.size) {
- try { const data = JSON.parse(await readFile(resolve(root, 'results.json'), 'utf8')).entries; previous = Object.fromEntries(data.filter(item => selected.has(item.id)).map(item => [item.id, item])); entries = data.filter(item => !selected.has(item.id)); } catch {}
+ try {
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const previousEntries = manifest.entries.map(({ origin: entryOrigin, cases, ...entry }) => ({
+   ...entry,
+   cases: cases.map(caseResult => ({
+    ...caseResult,
+    origin: caseResult.origin ?? entryOrigin ?? manifest.origin,
+   })),
+  }));
+  previous = Object.fromEntries(previousEntries.filter(item => selected.has(item.id)).map(item => [item.id, item]));
+  entries = previousEntries.filter(item => !selected.has(item.id));
+ } catch (error) {
+  if (error.code !== 'ENOENT') throw error;
+ }
 }
 await mkdir(out, {recursive:true});
 const browser = await chromium.launch({executablePath:process.env.PARITY_CHROMIUM_EXECUTABLE ?? '/usr/bin/chromium',headless:true});
-async function save(){await writeFile(resolve(root,'results.json'),JSON.stringify({origin,observedAt:new Date().toISOString(),viewport:{width:380,height:844,dpr:1},entries},null,2)+'\n');}
+
+async function save() {
+ const origins = [...new Set(entries.flatMap(entry => entry.cases.map(caseResult => caseResult.origin)))].sort();
+ const manifest = { origins, observedAt: new Date().toISOString(), viewport: {width:380,height:844,dpr:1}, entries };
+ await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+}
+
 try {
  for (const [id,role,path,expectedPath,label] of defs) {
   if (selected.size && !selected.has(id)) continue;
-  const entry={id,role,path,expectedPath,expectedLabel:label,origin,cases:[],...(previous[id] ? {previousAttempts: [...(previous[id].previousAttempts ?? []), previous[id].cases]} : {})}; entries.push(entry); await save();
+  const entry={id,role,path,expectedPath,expectedLabel:label,cases:[],...(previous[id] ? {previousAttempts: [...(previous[id].previousAttempts ?? []), previous[id].cases]} : {})}; entries.push(entry); await save();
   for (const theme of ['light','dark']) {
-   const item={theme};entry.cases.push(item);let ctx;
+   const item={theme,origin};entry.cases.push(item);let ctx;
    try {
     ctx=await browser.newContext({viewport:{width:380,height:844},deviceScaleFactor:1,locale:'id-ID',timezoneId:'Asia/Jakarta',colorScheme:theme,reducedMotion:'reduce',serviceWorkers:'block'});
     const [name,value]=fixtureCookie(role).split('=');await ctx.addCookies([{name,value,url:origin}]);

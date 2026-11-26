@@ -1,6 +1,9 @@
 {
-  "origin": "http://127.0.0.1:3314",
-  "observedAt": "2026-11-26T13:26:43.193Z",
+  "origins": [
+    "http://127.0.0.1:3314",
+    "http://127.0.0.1:3315"
+  ],
+  "observedAt": "2026-11-26T13:30:17.159Z",
   "viewport": {
     "width": 380,
     "height": 844,
@@ -23,7 +26,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nJadwal umum\nCari di seluruh Zyx\nTarik untuk memuat ulang\nJadwal & Kalender Akademik\n0/1\nWIB\nGMT+7\nSen\n23\nSel\n24\nRab\n25\nKam\n26\nJum\n27\nSab\n28\nMin\n29\n07:00\n08:00\n09:00\n10:00\n11:00\n12:00\n13:00\n14:00\n15:00\n16:00\n17:00\n18:00\n19:00\n20:00\n21:00\n22:00\n23:00\n24:00\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-schedules-light.png"
+          "screenshot": "captures/admin-schedules-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -34,7 +38,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nJadwal umum\nCari di seluruh Zyx\nTarik untuk memuat ulang\nJadwal & Kalender Akademik\n0/1\nWIB\nGMT+7\nSen\n23\nSel\n24\nRab\n25\nKam\n26\nJum\n27\nSab\n28\nMin\n29\n07:00\n08:00\n09:00\n10:00\n11:00\n12:00\n13:00\n14:00\n15:00\n16:00\n17:00\n18:00\n19:00\n20:00\n21:00\n22:00\n23:00\n24:00\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-schedules-dark.png"
+          "screenshot": "captures/admin-schedules-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -54,7 +59,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nPengguna\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nPengguna\nMenampilkan 3 dari 3 pengguna\nA\nAdmin Akademik\nAnda\n\nadmin@academic.test\n\nADMIN\n26 Nov 2026\nN\nNadia Lestari\n\nnadia@academic.test\n\n26 Nov 2026\nT\nTutor Akademik\n\ntutor@academic.test\n\nTUTOR\n26 Nov 2026\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-users-light.png"
+          "screenshot": "captures/admin-users-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -65,7 +71,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nPengguna\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nPengguna\nMenampilkan 3 dari 3 pengguna\nA\nAdmin Akademik\nAnda\n\nadmin@academic.test\n\nADMIN\n26 Nov 2026\nN\nNadia Lestari\n\nnadia@academic.test\n\n26 Nov 2026\nT\nTutor Akademik\n\ntutor@academic.test\n\nTUTOR\n26 Nov 2026\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-users-dark.png"
+          "screenshot": "captures/admin-users-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -85,7 +92,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nToken aktivasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nToken Aktivasi\n0 dari 0 token\n\nBelum ada token\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-tokens-light.png"
+          "screenshot": "captures/admin-tokens-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -96,7 +104,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nToken aktivasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nToken Aktivasi\n0 dari 0 token\n\nBelum ada token\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-tokens-dark.png"
+          "screenshot": "captures/admin-tokens-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -116,7 +125,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nNotifikasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nNotifikasi\nKirim Notifikasi\nTarget penerima\nJudul (0/100)\nPesan (0/500)\n\nPesan hanya diterima pengguna yang mengizinkan notifikasi browser.\n\nLink (opsional)\nKirim notifikasi\nRiwayat Notifikasi\n\nBelum ada notifikasi\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-notifications-light.png"
+          "screenshot": "captures/admin-notifications-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -127,7 +137,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nNotifikasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nNotifikasi\nKirim Notifikasi\nTarget penerima\nJudul (0/100)\nPesan (0/500)\n\nPesan hanya diterima pengguna yang mengizinkan notifikasi browser.\n\nLink (opsional)\nKirim notifikasi\nRiwayat Notifikasi\n\nBelum ada notifikasi\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-notifications-dark.png"
+          "screenshot": "captures/admin-notifications-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -147,7 +158,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nPendaftar PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPendaftar Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\n\nBelum ada pendaftar\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-pka-registrations-light.png"
+          "screenshot": "captures/admin-pka-registrations-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -158,7 +170,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nPendaftar PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPendaftar Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\n\nBelum ada pendaftar\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-pka-registrations-dark.png"
+          "screenshot": "captures/admin-pka-registrations-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -178,7 +191,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nPengumuman PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengumuman Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\nBuat Pengumuman\nJudul (0/100)\nPesan (Markdown, 0/4000)\n\nDikirim lewat notifikasi dan email ke peserta Tutorial PKA.\n\nKirim pengumuman\nRiwayat Pengumuman\n\nBelum ada pengumuman\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-pka-announcements-light.png"
+          "screenshot": "captures/admin-pka-announcements-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -189,7 +203,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nPengumuman PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengumuman Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\nBuat Pengumuman\nJudul (0/100)\nPesan (Markdown, 0/4000)\n\nDikirim lewat notifikasi dan email ke peserta Tutorial PKA.\n\nKirim pengumuman\nRiwayat Pengumuman\n\nBelum ada pengumuman\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-pka-announcements-dark.png"
+          "screenshot": "captures/admin-pka-announcements-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -209,7 +224,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nJadwal Live PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nJadwal Live Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\n\n0 sesi total, 0 akan datang.\n\nBelum ada jadwal live\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-pka-schedules-light.png"
+          "screenshot": "captures/admin-pka-schedules-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -220,7 +236,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nJadwal Live PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nJadwal Live Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\n\n0 sesi total, 0 akan datang.\n\nBelum ada jadwal live\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-pka-schedules-dark.png"
+          "screenshot": "captures/admin-pka-schedules-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -240,7 +257,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nPendaftar PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPendaftar Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\n\nBelum ada pendaftar\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-pka-alias-light.png"
+          "screenshot": "captures/admin-pka-alias-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -251,7 +269,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nPendaftar PKA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPendaftar Tutorial PKA\nPendaftar\nPengumuman\nJadwal Live\n\nBelum ada pendaftar\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-pka-alias-dark.png"
+          "screenshot": "captures/admin-pka-alias-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -271,7 +290,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-materials-alias-light.png"
+          "screenshot": "captures/admin-materials-alias-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -282,7 +302,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-materials-alias-dark.png"
+          "screenshot": "captures/admin-materials-alias-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -302,7 +323,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nJadwal mengajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nJadwal tutorial\nKalender\n0/0\nWIB\nGMT+7\nSen\n23\nSel\n24\nRab\n25\nKam\n26\nJum\n27\nSab\n28\nMin\n29\n07:00\n08:00\n09:00\n10:00\n11:00\n12:00\n13:00\n14:00\n15:00\n16:00\n17:00\n18:00\n19:00\n20:00\n21:00\n22:00\n23:00\n24:00\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-schedule-light.png"
+          "screenshot": "captures/tutor-schedule-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -313,7 +335,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nJadwal mengajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nJadwal tutorial\nKalender\n0/0\nWIB\nGMT+7\nSen\n23\nSel\n24\nRab\n25\nKam\n26\nJum\n27\nSab\n28\nMin\n29\n07:00\n08:00\n09:00\n10:00\n11:00\n12:00\n13:00\n14:00\n15:00\n16:00\n17:00\n18:00\n19:00\n20:00\n21:00\n22:00\n23:00\n24:00\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-schedule-dark.png"
+          "screenshot": "captures/tutor-schedule-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -333,7 +356,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nLebih\nKelola kuis dan bank soal: Biologi Dasar\nKuis\nBank Soal\nKuis (0)\n\nBelum Ada Kuis\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-quizzes-light.png"
+          "screenshot": "captures/tutor-quizzes-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -344,7 +368,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nKelola kuis dan bank soal: Biologi Dasar\nKuis\nBank Soal\nKuis (0)\n\nBelum Ada Kuis\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-quizzes-dark.png"
+          "screenshot": "captures/tutor-quizzes-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -364,7 +389,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBuat kuis baru\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBuat kuis: Biologi Dasar\nPengaturan\n0\nJudul kuis\nMata kuliah\nJudul kuis\nKategori\nAkses\nJadwal\nTerjadwal\nOtomatis buka dan tutup sesuai waktu\nManual\nBuka atau tutup kuis kapan saja\nStatus kuis\nDurasi dan percobaan\nBatas waktu pengerjaan\nMaksimal percobaan\nAturan dan pembahasan\nNavigasi bebas\nSiswa boleh kembali ke soal sebelumnya\nWajib menjawab semua\nSemua soal harus diisi sebelum dikirim\nAcak urutan soal\nSetiap siswa mendapat urutan soal berbeda\nAcak opsi jawaban\nUrutan pilihan jawaban diacak\nTampilkan pembahasan\nSimpan draf\nTerbitkan kuis\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-quiz-new-light.png"
+          "screenshot": "captures/tutor-quiz-new-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -375,7 +401,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBuat kuis baru\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBuat kuis: Biologi Dasar\nPengaturan\n0\nJudul kuis\nMata kuliah\nJudul kuis\nKategori\nAkses\nJadwal\nTerjadwal\nOtomatis buka dan tutup sesuai waktu\nManual\nBuka atau tutup kuis kapan saja\nStatus kuis\nDurasi dan percobaan\nBatas waktu pengerjaan\nMaksimal percobaan\nAturan dan pembahasan\nNavigasi bebas\nSiswa boleh kembali ke soal sebelumnya\nWajib menjawab semua\nSemua soal harus diisi sebelum dikirim\nAcak urutan soal\nSetiap siswa mendapat urutan soal berbeda\nAcak opsi jawaban\nUrutan pilihan jawaban diacak\nTampilkan pembahasan\nSimpan draf\nTerbitkan kuis\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-quiz-new-dark.png"
+          "screenshot": "captures/tutor-quiz-new-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -395,7 +422,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nDokumentasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nDokumentasi tutor\nMulai mengajar\nMengenal ruang kerja tutor\nPahami alur kerja harian tutor mulai dari dashboard, jadwal mengajar, diskusi kelas, hingga ruang mata kuliah.\nJadwal dan sesi tutorial\nMengelola jadwal, slot 90 menit, dan tiket\nBuka ketersediaan bertanggal, salin pola pekan lalu, tangani tiket perubahan jadwal, dan unggah catatan sesi.\nMenjawab diskusi dan memantau peserta\nTangani pertanyaan murid lintas kelas dengan cepat dan pantau keaktifan kelompok belajar di setiap mata kuliah.\nMateri dan penilaian\nMelihat dokumen dan mengelola video kelas\nLihat dokumen mata kuliah dan susun video pembelajaran dalam playlist.\nMembuat kuis dan menilai jawaban esai\nSusun kuis per bab, pahami perbedaan kuis dan tryout, serta selesaikan antrean penilaian esai murid.\nMemandu kuis langsung (Live Qui",
-          "screenshot": "captures/tutor-docs-light.png"
+          "screenshot": "captures/tutor-docs-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -406,7 +434,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nDokumentasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nDokumentasi tutor\nMulai mengajar\nMengenal ruang kerja tutor\nPahami alur kerja harian tutor mulai dari dashboard, jadwal mengajar, diskusi kelas, hingga ruang mata kuliah.\nJadwal dan sesi tutorial\nMengelola jadwal, slot 90 menit, dan tiket\nBuka ketersediaan bertanggal, salin pola pekan lalu, tangani tiket perubahan jadwal, dan unggah catatan sesi.\nMenjawab diskusi dan memantau peserta\nTangani pertanyaan murid lintas kelas dengan cepat dan pantau keaktifan kelompok belajar di setiap mata kuliah.\nMateri dan penilaian\nMelihat dokumen dan mengelola video kelas\nLihat dokumen mata kuliah dan susun video pembelajaran dalam playlist.\nMembuat kuis dan menilai jawaban esai\nSusun kuis per bab, pahami perbedaan kuis dan tryout, serta selesaikan antrean penilaian esai murid.\nMemandu kuis langsung (Live Qui",
-          "screenshot": "captures/tutor-docs-dark.png"
+          "screenshot": "captures/tutor-docs-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -426,7 +455,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nDokumentasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nSemua panduan\nMulai mengajar\nMengenal ruang kerja tutor\n\nPahami alur kerja harian tutor mulai dari dashboard, jadwal mengajar, diskusi kelas, hingga ruang mata kuliah.\n\nAkses cepat\nDashboard pengajar\nJadwal mengajar\nDiskusi\nPeta alur kerja pengajar\n\nLINTAS KELAS\n\nJadwal & slot 90 menit\nKotak masuk diskusi\n\nDI DALAM MATA KULIAH\n\nDokumen, Video & Peserta\nKuis, Penilaian Esai & Kuis Langsung\nPeta ruang kerja tutor: berpindah antara operasional lintas kelas dan alat khusus per mata kuliah dari sidebar kiri.\n\nPanel pengajar Zyx membagi pekerjaan Anda menjadi dua tingkat: operasional lintas kelas (Dashboard, Jadwal, dan Diskusi) serta workspace mata kuliah (Dokumen, Video, Peserta, Kuis, Penilaian Esai, dan Kuis Langsung).\n\nDaftar mata kuliah di menu Pengajaran mengikuti penugasan yang diatur oleh ",
-          "screenshot": "captures/tutor-doc-detail-light.png"
+          "screenshot": "captures/tutor-doc-detail-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -437,7 +467,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nDokumentasi\nCari di seluruh Zyx\nTarik untuk memuat ulang\nSemua panduan\nMulai mengajar\nMengenal ruang kerja tutor\n\nPahami alur kerja harian tutor mulai dari dashboard, jadwal mengajar, diskusi kelas, hingga ruang mata kuliah.\n\nAkses cepat\nDashboard pengajar\nJadwal mengajar\nDiskusi\nPeta alur kerja pengajar\n\nLINTAS KELAS\n\nJadwal & slot 90 menit\nKotak masuk diskusi\n\nDI DALAM MATA KULIAH\n\nDokumen, Video & Peserta\nKuis, Penilaian Esai & Kuis Langsung\nPeta ruang kerja tutor: berpindah antara operasional lintas kelas dan alat khusus per mata kuliah dari sidebar kiri.\n\nPanel pengajar Zyx membagi pekerjaan Anda menjadi dua tingkat: operasional lintas kelas (Dashboard, Jadwal, dan Diskusi) serta workspace mata kuliah (Dokumen, Video, Peserta, Kuis, Penilaian Esai, dan Kuis Langsung).\n\nDaftar mata kuliah di menu Pengajaran mengikuti penugasan yang diatur oleh ",
-          "screenshot": "captures/tutor-doc-detail-dark.png"
+          "screenshot": "captures/tutor-doc-detail-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -457,7 +488,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nDokumen: Biologi Dasar\nMateri (0)\n\nBelum ada materi\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-materials-light.png"
+          "screenshot": "captures/tutor-materials-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -468,7 +500,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nDokumen: Biologi Dasar\nMateri (0)\n\nBelum ada materi\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-materials-dark.png"
+          "screenshot": "captures/tutor-materials-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -488,7 +521,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nVideo: Biologi Dasar\nBelum ada playlist video\n\nBuat playlist terlebih dahulu, lalu tambahkan video YouTube ke dalamnya.\n\nBuat playlist pertama\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-videos-light.png"
+          "screenshot": "captures/tutor-videos-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -499,7 +533,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nVideo: Biologi Dasar\nBelum ada playlist video\n\nBuat playlist terlebih dahulu, lalu tambahkan video YouTube ke dalamnya.\n\nBuat playlist pertama\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-videos-dark.png"
+          "screenshot": "captures/tutor-videos-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -519,7 +554,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-review-alias-light.png"
+          "screenshot": "captures/admin-review-alias-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -530,7 +566,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-review-alias-dark.png"
+          "screenshot": "captures/admin-review-alias-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -570,7 +607,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-authoring-alias-light.png"
+          "screenshot": "captures/admin-authoring-alias-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -581,7 +619,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-authoring-alias-dark.png"
+          "screenshot": "captures/admin-authoring-alias-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -610,7 +649,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSource Pack + Idea\nProduk\n\nBelum ada Source Pack + Idea.\n\nUpload ZIP bundle dari workflow MCP.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-review-light.png"
+          "screenshot": "captures/admin-review-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -621,7 +661,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSource Pack + Idea\nProduk\n\nBelum ada Source Pack + Idea.\n\nUpload ZIP bundle dari workflow MCP.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-review-dark.png"
+          "screenshot": "captures/admin-review-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -650,7 +691,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSemua\nMateri\nDiktat\nSoal\nMateri PDF\nBelum ada dokumen\n\nDokumen mata kuliah ini belum tersedia.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-documents-light.png"
+          "screenshot": "captures/admin-documents-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -661,7 +703,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSemua\nMateri\nDiktat\nSoal\nMateri PDF\nBelum ada dokumen\n\nDokumen mata kuliah ini belum tersedia.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-documents-dark.png"
+          "screenshot": "captures/admin-documents-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -690,7 +733,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBiologi Dasar\nTerdaftar\n1\nAktif minggu ini\n0\nBelum dihitung\nKonsep prioritas\n\nData siswa belum cukup untuk mengurutkan konsep.\n\nMiskonsepsi umum\n\nBelum dihitung\n\nPerlu perhatian\n\nPerbarui analitik untuk melihat siswa yang perlu perhatian.\n\nIntervensi aktif\n\nBelum ada intervensi\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-tryout-alias-light.png"
+          "screenshot": "captures/tutor-tryout-alias-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -701,7 +745,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBiologi Dasar\nTerdaftar\n1\nAktif minggu ini\n0\nBelum dihitung\nKonsep prioritas\n\nData siswa belum cukup untuk mengurutkan konsep.\n\nMiskonsepsi umum\n\nBelum dihitung\n\nPerlu perhatian\n\nPerbarui analitik untuk melihat siswa yang perlu perhatian.\n\nIntervensi aktif\n\nBelum ada intervensi\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-tryout-alias-dark.png"
+          "screenshot": "captures/tutor-tryout-alias-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -742,7 +787,8 @@
           "notFoundVisible": true,
           "classification": "unseeded/missing: streamed HTTP 200 and 404 UI",
           "textExcerpt": "Langsung ke isi utama\nDokumen\nCari di seluruh Zyx\nTarik untuk memuat ulang\n∑\n×\n∂\n∇\nλ\nσ\nθ\n404\nPeriksa alamat halaman atau kembali ke beranda.\n\nHalaman tidak ditemukan\n\nKe beranda\nKembali",
-          "screenshot": "captures/missing-admin-document-light-404.png"
+          "screenshot": "captures/missing-admin-document-light-404.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -789,7 +835,8 @@
           "notFoundVisible": true,
           "classification": "unseeded/missing: streamed HTTP 200 and 404 UI",
           "textExcerpt": "Langsung ke isi utama\nReview ide\nCari di seluruh Zyx\nTarik untuk memuat ulang\n∑\n×\n∂\n∇\nλ\nσ\nθ\n404\nPeriksa alamat halaman atau kembali ke beranda.\n\nHalaman tidak ditemukan\n\nKe beranda\nKembali",
-          "screenshot": "captures/missing-idea-bundle-light-404.png"
+          "screenshot": "captures/missing-idea-bundle-light-404.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -836,7 +883,8 @@
           "notFoundVisible": true,
           "classification": "unseeded/missing: streamed HTTP 200 and 404 UI",
           "textExcerpt": "Langsung ke isi utama\nReview produk\nCari di seluruh Zyx\nTarik untuk memuat ulang\n∑\n×\n∂\n∇\nλ\nσ\nθ\n404\nPeriksa alamat halaman atau kembali ke beranda.\n\nHalaman tidak ditemukan\n\nKe beranda\nKembali",
-          "screenshot": "captures/missing-product-bundle-light-404.png"
+          "screenshot": "captures/missing-product-bundle-light-404.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -883,7 +931,8 @@
           "notFoundVisible": true,
           "classification": "unseeded/missing: streamed HTTP 200 and 404 UI",
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nEdit kuis\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\n∑\n×\n∂\n∇\nλ\nσ\nθ\n404\nPeriksa alamat halaman atau kembali ke beranda.\n\nHalaman tidak ditemukan\n\nKe beranda\nKembali\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/missing-tutor-quiz-light-404.png"
+          "screenshot": "captures/missing-tutor-quiz-light-404.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -930,7 +979,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSemua soal (0)\nSoal asli Zyx (0)\nReferensi historis (0)\nBank soal (0)\nMenampilkan 0–0 dari 0\n\nTidak ada butir soal yang sesuai\n\nUbah pencarian atau filter kesulitan.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-questions-light.png"
+          "screenshot": "captures/admin-questions-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -941,7 +991,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSemua soal (0)\nSoal asli Zyx (0)\nReferensi historis (0)\nBank soal (0)\nMenampilkan 0–0 dari 0\n\nTidak ada butir soal yang sesuai\n\nUbah pencarian atau filter kesulitan.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-questions-dark.png"
+          "screenshot": "captures/admin-questions-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -977,7 +1028,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\n\nBelum ada kartu hafalan\n\nKelas ini belum memiliki set kartu hafalan. Buat set untuk menambahkan kartu konsep.\n\nBuat set\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-flashcards-light.png"
+          "screenshot": "captures/admin-flashcards-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -988,7 +1040,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\n\nBelum ada kartu hafalan\n\nKelas ini belum memiliki set kartu hafalan. Buat set untuk menambahkan kartu konsep.\n\nBuat set\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-flashcards-dark.png"
+          "screenshot": "captures/admin-flashcards-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1024,7 +1077,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\n0 dari 0 kuis\n\nBelum ada kuis yang dibuat untuk kelas ini\n\nGunakan tombol tambah untuk menyusun kuis mandiri atau simulasi ujian pada kelas ini.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-quizzes-light.png"
+          "screenshot": "captures/admin-quizzes-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1035,7 +1089,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\n0 dari 0 kuis\n\nBelum ada kuis yang dibuat untuk kelas ini\n\nGunakan tombol tambah untuk menyusun kuis mandiri atau simulasi ujian pada kelas ini.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-quizzes-dark.png"
+          "screenshot": "captures/admin-quizzes-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1071,7 +1126,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal pengerjaan siswa\n0\n(Pada 0 kuis)\nRata-rata nilai\n0 / 100\n(Nilai pengerjaan siswa)\nTingkat kelulusan\n0%\n(Siswa dengan nilai ≥ 70)\nDianalisis\n0 / 0\n(Kuis dengan laporan insight)\nEvaluasi hasil per kuis dan simulasi\n\nBelum ada kuis untuk dianalisis\n\nBuat kuis pada tab Kuis & Asesmen untuk mulai mengumpulkan data pengerjaan siswa.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-results-light.png"
+          "screenshot": "captures/admin-results-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1082,7 +1138,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal pengerjaan siswa\n0\n(Pada 0 kuis)\nRata-rata nilai\n0 / 100\n(Nilai pengerjaan siswa)\nTingkat kelulusan\n0%\n(Siswa dengan nilai ≥ 70)\nDianalisis\n0 / 0\n(Kuis dengan laporan insight)\nEvaluasi hasil per kuis dan simulasi\n\nBelum ada kuis untuk dianalisis\n\nBuat kuis pada tab Kuis & Asesmen untuk mulai mengumpulkan data pengerjaan siswa.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-results-dark.png"
+          "screenshot": "captures/admin-results-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1118,7 +1175,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nInformasi mata kuliah\nID / slug permanen\nNama mata kuliah\nProgram studi / kategori\nKategori akses\nDeskripsi mata kuliah (opsional)\nSimpan perubahan\nDemo publik\n\nDemo dapat dibuka tanpa login. Konten harus terbit dan lengkap.\n\nBelum dipilih\n\nArtikel terbit dengan struktur lengkap\n\n0 tersedia\n\nDiktat terbit dengan dua bagian\n\n0 tersedia\n\nSedikitnya lima flashcard terbit\n\n0 tersedia\n\nSedikitnya tiga soal kuis terbit\n\n0 tersedia\n\nLengkapi dan terbitkan konten yang diperlukan sebelum memilih mata kuliah ini.\n\nJadikan demo publik\nZona bahaya\n\nMenghapus mata kuliah ini juga menghapus seluruh bab, materi PDF, kuis, dan riwayat pengerjaan siswa yang terhubung.\n\nHapus mata kuliah\nBeranda\nKela",
-          "screenshot": "captures/admin-settings-light.png"
+          "screenshot": "captures/admin-settings-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1129,7 +1187,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nInformasi mata kuliah\nID / slug permanen\nNama mata kuliah\nProgram studi / kategori\nKategori akses\nDeskripsi mata kuliah (opsional)\nSimpan perubahan\nDemo publik\n\nDemo dapat dibuka tanpa login. Konten harus terbit dan lengkap.\n\nBelum dipilih\n\nArtikel terbit dengan struktur lengkap\n\n0 tersedia\n\nDiktat terbit dengan dua bagian\n\n0 tersedia\n\nSedikitnya lima flashcard terbit\n\n0 tersedia\n\nSedikitnya tiga soal kuis terbit\n\n0 tersedia\n\nLengkapi dan terbitkan konten yang diperlukan sebelum memilih mata kuliah ini.\n\nJadikan demo publik\nZona bahaya\n\nMenghapus mata kuliah ini juga menghapus seluruh bab, materi PDF, kuis, dan riwayat pengerjaan siswa yang terhubung.\n\nHapus mata kuliah\nBeranda\nKela",
-          "screenshot": "captures/admin-settings-dark.png"
+          "screenshot": "captures/admin-settings-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1167,7 +1226,8 @@
           "contentState": "empty",
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nKelompok belajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nKelompok Belajar\nTidak ada kelompok belajar yang sesuai dengan filter.\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-groups-light.png"
+          "screenshot": "captures/admin-groups-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1180,7 +1240,8 @@
           "contentState": "empty",
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nKelompok belajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nKelompok Belajar\nTidak ada kelompok belajar yang sesuai dengan filter.\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-groups-dark.png"
+          "screenshot": "captures/admin-groups-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1232,7 +1293,8 @@
           "contentState": "empty",
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nBiologi Dasar\nA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nLebih\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal kuis dan simulasi\n0\nTotal pengerjaan\n0\n(Pengerjaan selesai oleh siswa)\nRata-rata nilai\n0 / 100\n(Rata-rata dari kuis terpilih)\nDianalisis\n0 / 0\nSemua kategori\nPerbarui\n\nTidak ada kuis yang ditemukan\n\nBelum ada kuis untuk mata kuliah ini atau kuis tidak cocok dengan filter.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-analytics-light.png"
+          "screenshot": "captures/admin-analytics-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1249,7 +1311,8 @@
           "contentState": "empty",
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nBiologi Dasar\nA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nLebih\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal kuis dan simulasi\n0\nTotal pengerjaan\n0\n(Pengerjaan selesai oleh siswa)\nRata-rata nilai\n0 / 100\n(Rata-rata dari kuis terpilih)\nDianalisis\n0 / 0\nSemua kategori\nPerbarui\n\nTidak ada kuis yang ditemukan\n\nBelum ada kuis untuk mata kuliah ini atau kuis tidak cocok dengan filter.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-analytics-dark.png"
+          "screenshot": "captures/admin-analytics-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1304,7 +1367,8 @@
           "contentState": "empty",
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nLebih\nMenampilkan 0 antrean\n\nTidak ada kuis yang menunggu penilaian\n\nTidak ada esai yang menunggu penilaian.\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-quiz-grading-light.png"
+          "screenshot": "captures/tutor-quiz-grading-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1317,7 +1381,8 @@
           "contentState": "empty",
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nLebih\nMenampilkan 0 antrean\n\nTidak ada kuis yang menunggu penilaian\n\nTidak ada esai yang menunggu penilaian.\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-quiz-grading-dark.png"
+          "screenshot": "captures/tutor-quiz-grading-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1365,7 +1430,8 @@
           "contentState": "empty",
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nLebih\nPenilaian tryout: Biologi Dasar\nPerlu dinilai\n0\nLebih\n\nSemua tugas telah dinilai\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-tryout-grading-light.png"
+          "screenshot": "captures/tutor-tryout-grading-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1378,7 +1444,8 @@
           "contentState": "empty",
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nLebih\nPenilaian tryout: Biologi Dasar\nPerlu dinilai\n0\nLebih\n\nSemua tugas telah dinilai\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-tryout-grading-dark.png"
+          "screenshot": "captures/tutor-tryout-grading-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1424,7 +1491,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 1 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-bundles-idea-alias-light.png"
+          "screenshot": "captures/admin-bundles-idea-alias-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1435,7 +1503,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 1 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-bundles-idea-alias-dark.png"
+          "screenshot": "captures/admin-bundles-idea-alias-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -1455,7 +1524,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 1 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-bundles-product-alias-light.png"
+          "screenshot": "captures/admin-bundles-product-alias-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1466,7 +1536,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 1 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-bundles-product-alias-dark.png"
+          "screenshot": "captures/admin-bundles-product-alias-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -1486,7 +1557,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 1 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-materials-manual-alias-light.png"
+          "screenshot": "captures/admin-materials-manual-alias-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1497,7 +1569,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nMata kuliah\nCari di seluruh Zyx\nTarik untuk memuat ulang\nMata kuliah\nBiologi Dasar\nacademic-course-1\nBiologi\nPremium\n\n0 bab · 0 PDF · 1 kuis\n\nFisika Dasar\nacademic-course-2\nFisika\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nKimia Dasar\nacademic-course-3\nKimia\nPremium\n\n0 bab · 0 PDF · 0 kuis\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-materials-manual-alias-dark.png"
+          "screenshot": "captures/admin-materials-manual-alias-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -1522,7 +1595,8 @@
           "redirectObserved": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nacademic-course-1\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSource Pack + Idea\nProduk\nSource Pack + Idea\nMENUNGGU REVIEW\nBIO101 · Biologi Dasar\n\nDiunggah 21 Nov 2026, 03.00\n\nAdmin Akademik · Ringkasan belum tersedia\n\nDetail teknis\nBuka review\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-review-scoped-alias-light.png"
+          "screenshot": "captures/admin-review-scoped-alias-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1538,7 +1612,8 @@
           "redirectObserved": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nacademic-course-1\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSource Pack + Idea\nProduk\nSource Pack + Idea\nMENUNGGU REVIEW\nBIO101 · Biologi Dasar\n\nDiunggah 21 Nov 2026, 03.00\n\nAdmin Akademik · Ringkasan belum tersedia\n\nDetail teknis\nBuka review\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-review-scoped-alias-dark.png"
+          "screenshot": "captures/admin-review-scoped-alias-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1581,7 +1656,8 @@
           "contentReady": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nAnalitik kuis\nCari di seluruh Zyx\nTarik untuk memuat ulang\nKuis Struktur Sel\n\nKuis Struktur Sel\n\nBiologi Dasar · Kuis per bab · ID kuis: academic-web-quiz-1 · Batas waktu: Tanpa batas · Dibuat pada 21 Nov 2026\n\nTotal peserta selesai\n0\n(Tingkat penyelesaian 0% dari 0 mulai)\nRata-rata skor\n0 / 100\n(Median: 0 | Min: 0 | Max: 0)\nRata-rata waktu\n0 detik\nStatus evaluasi AI\nBelum dianalisis\nEvaluasi AI\nBETA\nLebih\n\nBelum ada analisis AI\n\nButuh minimal 1 pengerjaan siswa\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-quiz-analytics-light.png"
+          "screenshot": "captures/admin-quiz-analytics-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1601,7 +1677,8 @@
           "contentReady": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nAnalitik kuis\nCari di seluruh Zyx\nTarik untuk memuat ulang\nKuis Struktur Sel\n\nKuis Struktur Sel\n\nBiologi Dasar · Kuis per bab · ID kuis: academic-web-quiz-1 · Batas waktu: Tanpa batas · Dibuat pada 21 Nov 2026\n\nTotal peserta selesai\n0\n(Tingkat penyelesaian 0% dari 0 mulai)\nRata-rata skor\n0 / 100\n(Median: 0 | Min: 0 | Max: 0)\nRata-rata waktu\n0 detik\nStatus evaluasi AI\nBelum dianalisis\nEvaluasi AI\nBETA\nLebih\n\nBelum ada analisis AI\n\nButuh minimal 1 pengerjaan siswa\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-quiz-analytics-dark.png"
+          "screenshot": "captures/admin-quiz-analytics-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1620,7 +1697,6 @@
       "path": "/admin/courses/biologi-dasar/leaderboard",
       "expectedPath": "/admin/courses/biologi-dasar/leaderboard",
       "expectedLabel": "Tidak ada data peringkat",
-      "origin": "http://127.0.0.1:3314",
       "cases": [
         {
           "theme": "light",
@@ -1632,12 +1708,28 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nLebih\nBiologi Dasar\nacademic-course-1\nBiologi\nSiswa dinilai:\n0\nTotal pengerjaan:\n0\nRata-rata nilai:\n0%\nSkor tertinggi:\n0\nSemua tipe\nPerbarui\n\nTidak ada data peringkat\n\nBelum ada pengerjaan kuis yang cocok dengan filter atau kata kunci saat ini.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-course-leaderboard-light.png"
+          "screenshot": "captures/admin-course-leaderboard-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
-          "pass": false,
-          "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:3314/admin/courses/biologi-dasar/leaderboard\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:3314/admin/courses/biologi-dasar/leaderboard\", waiting until \"commit\"\u001b[22m\n"
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/leaderboard",
+          "offOriginBlocked": [],
+          "redirectChain": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "requiredRead": {
+            "path": "/api/admin/leaderboard",
+            "statuses": [
+              200
+            ]
+          },
+          "contentReady": true,
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nBiologi Dasar\nA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nLebih\nBiologi Dasar\nacademic-course-1\nBiologi\nSiswa dinilai:\n0\nTotal pengerjaan:\n0\nRata-rata nilai:\n0%\nSkor tertinggi:\n0\nSemua tipe\nPerbarui\n\nTidak ada data peringkat\n\nBelum ada pengerjaan kuis yang cocok dengan filter atau kata kunci saat ini.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-course-leaderboard-dark.png",
+          "origin": "http://127.0.0.1:3315"
         }
       ],
       "previousAttempts": [
@@ -1724,7 +1816,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nKuis baru\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBuat kuis: Biologi Dasar\nPengaturan kuis\n0\nPublikasikan kuis\nInformasi kuis\nJudul kuis\nKategori kuis\nAkses siswa\nJadwal akses kuis\nTerjadwal\nOtomatis buka dan tutup sesuai waktu\nManual\nBuka atau tutup kuis kapan saja secara instan\nWaktu buka kuis\nWaktu tutup kuis\nStatus override manual\nPembahasan & Penilaian\nWaktu Rilis Pembahasan Kuis\nTampilkan Skor Instan\n\nSiswa langsung melihat nilai total setelah submit\n\nPassing Grade (%)\nDurasi & Timer\nBatas Waktu Keseluruhan\nMenit total\nTimer Per Butir Soal\n\nSetiap soal memiliki timer mundur tersendiri\n\nAturan pengerjaan dan navigasi\nNavigasi mundur (kembali)\n\nSiswa bebas kembali ke nomor sebelumnya\n\nWajib jawab semua soal\n\nBoleh mengirim meski ada soal kosong\n\nBatas maksimal percobaan\nBebas\nAcak urutan soal\nAcak opsi pilihan ganda",
-          "screenshot": "captures/admin-quiz-new-light.png"
+          "screenshot": "captures/admin-quiz-new-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1736,7 +1829,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nKuis baru\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBuat kuis: Biologi Dasar\nPengaturan kuis\n0\nPublikasikan kuis\nInformasi kuis\nJudul kuis\nKategori kuis\nAkses siswa\nJadwal akses kuis\nTerjadwal\nOtomatis buka dan tutup sesuai waktu\nManual\nBuka atau tutup kuis kapan saja secara instan\nWaktu buka kuis\nWaktu tutup kuis\nStatus override manual\nPembahasan & Penilaian\nWaktu Rilis Pembahasan Kuis\nTampilkan Skor Instan\n\nSiswa langsung melihat nilai total setelah submit\n\nPassing Grade (%)\nDurasi & Timer\nBatas Waktu Keseluruhan\nMenit total\nTimer Per Butir Soal\n\nSetiap soal memiliki timer mundur tersendiri\n\nAturan pengerjaan dan navigasi\nNavigasi mundur (kembali)\n\nSiswa bebas kembali ke nomor sebelumnya\n\nWajib jawab semua soal\n\nBoleh mengirim meski ada soal kosong\n\nBatas maksimal percobaan\nBebas\nAcak urutan soal\nAcak opsi pilihan ganda",
-          "screenshot": "captures/admin-quiz-new-dark.png"
+          "screenshot": "captures/admin-quiz-new-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1766,7 +1860,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nEdit kuis\nCari di seluruh Zyx\nTarik untuk memuat ulang\nEdit kuis: Kuis Struktur Sel\nPengaturan kuis\n0\nSimpan & publikasikan\nInformasi kuis\nJudul kuis\nKategori kuis\nAkses siswa\nJadwal akses kuis\nTerjadwal\nOtomatis buka dan tutup sesuai waktu\nManual\nBuka atau tutup kuis kapan saja secara instan\nWaktu buka kuis\nWaktu tutup kuis\nStatus override manual\nPembahasan & Penilaian\nWaktu Rilis Pembahasan Kuis\nTampilkan Skor Instan\n\nSiswa langsung melihat nilai total setelah submit\n\nPassing Grade (%)\nDurasi & Timer\nBatas Waktu Keseluruhan\n\nKuis tidak memiliki batas waktu keseluruhan.\n\nTimer Per Butir Soal\n\nSetiap soal memiliki timer mundur tersendiri\n\nAturan pengerjaan dan navigasi\nNavigasi mundur (kembali)\n\nSiswa bebas kembali ke nomor sebelumnya\n\nWajib jawab semua soal\n\nBoleh mengirim meski ada soal kosong\n\nBatas maksimal percobaan\nBebas\nAcak urutan soal\nAcak opsi pilihan gand",
-          "screenshot": "captures/admin-quiz-edit-light.png"
+          "screenshot": "captures/admin-quiz-edit-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1778,7 +1873,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nEdit kuis\nCari di seluruh Zyx\nTarik untuk memuat ulang\nEdit kuis: Kuis Struktur Sel\nPengaturan kuis\n0\nSimpan & publikasikan\nInformasi kuis\nJudul kuis\nKategori kuis\nAkses siswa\nJadwal akses kuis\nTerjadwal\nOtomatis buka dan tutup sesuai waktu\nManual\nBuka atau tutup kuis kapan saja secara instan\nWaktu buka kuis\nWaktu tutup kuis\nStatus override manual\nPembahasan & Penilaian\nWaktu Rilis Pembahasan Kuis\nTampilkan Skor Instan\n\nSiswa langsung melihat nilai total setelah submit\n\nPassing Grade (%)\nDurasi & Timer\nBatas Waktu Keseluruhan\n\nKuis tidak memiliki batas waktu keseluruhan.\n\nTimer Per Butir Soal\n\nSetiap soal memiliki timer mundur tersendiri\n\nAturan pengerjaan dan navigasi\nNavigasi mundur (kembali)\n\nSiswa bebas kembali ke nomor sebelumnya\n\nWajib jawab semua soal\n\nBoleh mengirim meski ada soal kosong\n\nBatas maksimal percobaan\nBebas\nAcak urutan soal\nAcak opsi pilihan gand",
-          "screenshot": "captures/admin-quiz-edit-dark.png"
+          "screenshot": "captures/admin-quiz-edit-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1808,7 +1904,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nTryout (0)\n\nBelum ada tryout\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-tryouts-light.png"
+          "screenshot": "captures/admin-tryouts-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1820,7 +1917,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nTryout (1)\nnative-tryout-smoke-37da8737-fd2f-4af5-b0a4-d3b8f93f7d8a\nDraf (disembunyikan)\n\n90 menit\n0 soal\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-tryouts-dark.png"
+          "screenshot": "captures/admin-tryouts-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1850,7 +1948,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nbiologi-dasar\nBiologi\nBelum ada playlist video\n\nBuat playlist terlebih dahulu, lalu tambahkan video YouTube ke dalamnya.\n\nBuat playlist pertama\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-videos-light.png"
+          "screenshot": "captures/admin-videos-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1862,7 +1961,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nbiologi-dasar\nBiologi\nBelum ada playlist video\n\nBuat playlist terlebih dahulu, lalu tambahkan video YouTube ke dalamnya.\n\nBuat playlist pertama\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-videos-dark.png"
+          "screenshot": "captures/admin-videos-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1881,7 +1981,6 @@
       "path": "/tutor/academic-course-1/discussions",
       "expectedPath": "/tutor/academic-course-1/discussions",
       "expectedLabel": "Belum ada pertanyaan",
-      "origin": "http://127.0.0.1:3314",
       "cases": [
         {
           "theme": "light",
@@ -1893,7 +1992,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nLebih\nDiskusi\n\nBelum ada pertanyaan\n\nBuat pertanyaan\nSelesai\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-course-discussions-light.png"
+          "screenshot": "captures/tutor-course-discussions-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -1905,7 +2005,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nLebih\nDiskusi\n\nBelum ada pertanyaan\n\nBuat pertanyaan\nSelesai\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-course-discussions-dark.png"
+          "screenshot": "captures/tutor-course-discussions-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -1937,7 +2038,6 @@
       "path": "/tutor/discussions",
       "expectedPath": "/tutor/discussions",
       "expectedLabel": "Belum ada pertanyaan",
-      "origin": "http://127.0.0.1:3315",
       "cases": [
         {
           "theme": "light",
@@ -1949,7 +2049,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nSemua kanal\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nDiskusi\n\nBelum ada pertanyaan\n\nBuat pertanyaan\nSelesai\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-discussions-light.png"
+          "screenshot": "captures/tutor-discussions-light.png",
+          "origin": "http://127.0.0.1:3315"
         },
         {
           "theme": "dark",
@@ -1961,7 +2062,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nSemua kanal\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nDiskusi\n\nBelum ada pertanyaan\n\nSelesai\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-discussions-dark.png"
+          "screenshot": "captures/tutor-discussions-dark.png",
+          "origin": "http://127.0.0.1:3315"
         }
       ],
       "previousAttempts": [
@@ -2033,7 +2135,6 @@
       "path": "/tutor/academic-course-1/live",
       "expectedPath": "/tutor/academic-course-1/live",
       "expectedLabel": "Kuis langsung",
-      "origin": "http://127.0.0.1:3315",
       "cases": [
         {
           "theme": "light",
@@ -2045,7 +2146,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nKuis langsung: Biologi Dasar\n\nKuis langsung belum dikonfigurasi di lingkungan ini.\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-live-quiz-light.png"
+          "screenshot": "captures/tutor-live-quiz-light.png",
+          "origin": "http://127.0.0.1:3315"
         },
         {
           "theme": "dark",
@@ -2057,7 +2159,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nKuis langsung: Biologi Dasar\n\nKuis langsung belum dikonfigurasi di lingkungan ini.\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-live-quiz-dark.png"
+          "screenshot": "captures/tutor-live-quiz-dark.png",
+          "origin": "http://127.0.0.1:3315"
         }
       ],
       "previousAttempts": [
@@ -2101,7 +2204,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nEdit kuis\nCari di seluruh Zyx\nTarik untuk memuat ulang\nEdit kuis: Kuis Struktur Sel\nPengaturan\n0\nJudul kuis\nPembuat:\nSistem\nAtribusi pembuat bersifat tetap dan tidak berubah saat kuis diedit.\nMata kuliah\nJudul kuis\nKategori\nAkses\nJadwal\nTerjadwal\nOtomatis buka dan tutup sesuai waktu\nManual\nBuka atau tutup kuis kapan saja\nWaktu buka kuis\nWaktu tutup kuis\nDurasi dan percobaan\nBatas waktu pengerjaan\nMaksimal percobaan\nAturan dan pembahasan\nNavigasi bebas\nSiswa boleh kembali ke soal sebelumnya\nWajib menjawab semua\nSemua soal harus diisi sebelum dikirim\nAcak urutan soal\nSetiap siswa mendapat urutan soal berbeda\nAcak opsi jawaban\nUrutan pilihan jawaban diacak\nTampilkan pembahasan\nSimpan perubahan\nSimpan dan terbitkan\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-quiz-edit-light.png"
+          "screenshot": "captures/tutor-quiz-edit-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -2113,7 +2217,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nEdit kuis\nCari di seluruh Zyx\nTarik untuk memuat ulang\nEdit kuis: Kuis Struktur Sel\nPengaturan\n0\nJudul kuis\nPembuat:\nSistem\nAtribusi pembuat bersifat tetap dan tidak berubah saat kuis diedit.\nMata kuliah\nJudul kuis\nKategori\nAkses\nJadwal\nTerjadwal\nOtomatis buka dan tutup sesuai waktu\nManual\nBuka atau tutup kuis kapan saja\nWaktu buka kuis\nWaktu tutup kuis\nDurasi dan percobaan\nBatas waktu pengerjaan\nMaksimal percobaan\nAturan dan pembahasan\nNavigasi bebas\nSiswa boleh kembali ke soal sebelumnya\nWajib menjawab semua\nSemua soal harus diisi sebelum dikirim\nAcak urutan soal\nSetiap siswa mendapat urutan soal berbeda\nAcak opsi jawaban\nUrutan pilihan jawaban diacak\nTampilkan pembahasan\nSimpan perubahan\nSimpan dan terbitkan\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-quiz-edit-dark.png"
+          "screenshot": "captures/tutor-quiz-edit-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ],
       "previousAttempts": [
@@ -2132,7 +2237,6 @@
       "path": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/attempts",
       "expectedPath": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/attempts",
       "expectedLabel": "Belum ada data pengerjaan untuk kuis ini",
-      "origin": "http://127.0.0.1:3315",
       "cases": [
         {
           "theme": "light",
@@ -2154,7 +2258,8 @@
           "contentReady": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nPercobaan siswa\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPercobaan siswa: Kuis Struktur Sel\nKuis Struktur Sel\n\nBiologi Dasar\n\nPengerjaan 0\n\nBelum ada data pengerjaan untuk kuis ini.\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-quiz-attempts-light.png"
+          "screenshot": "captures/tutor-quiz-attempts-light.png",
+          "origin": "http://127.0.0.1:3315"
         },
         {
           "theme": "dark",
@@ -2176,7 +2281,8 @@
           "contentReady": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nPercobaan siswa\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPercobaan siswa: Kuis Struktur Sel\nKuis Struktur Sel\n\nBiologi Dasar\n\nPengerjaan 0\n\nBelum ada data pengerjaan untuk kuis ini.\n\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-quiz-attempts-dark.png"
+          "screenshot": "captures/tutor-quiz-attempts-dark.png",
+          "origin": "http://127.0.0.1:3315"
         }
       ],
       "previousAttempts": [
@@ -2246,7 +2352,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nDokumen\nCari di seluruh Zyx\nTarik untuk memuat ulang\nCatatan Struktur Sel\nDRAFT\nPublikasikan\nKelola siklus konten\nPratinjau\nEdit\n01\nMateri\n\nMembran sel memisahkan isi sel dari lingkungannya. Inti sel menyimpan informasi genetik.\n\nAkhir bab",
-          "screenshot": "captures/admin-document-detail-light.png"
+          "screenshot": "captures/admin-document-detail-light.png",
+          "origin": "http://127.0.0.1:3314"
         },
         {
           "theme": "dark",
@@ -2258,7 +2365,8 @@
           "labelVisible": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nDokumen\nCari di seluruh Zyx\nTarik untuk memuat ulang\nCatatan Struktur Sel\nDRAFT\nPublikasikan\nKelola siklus konten\nPratinjau\nEdit\n01\nMateri\n\nMembran sel memisahkan isi sel dari lingkungannya. Inti sel menyimpan informasi genetik.\n\nAkhir bab",
-          "screenshot": "captures/admin-document-detail-dark.png"
+          "screenshot": "captures/admin-document-detail-dark.png",
+          "origin": "http://127.0.0.1:3314"
         }
       ]
     },
@@ -2268,7 +2376,6 @@
       "path": "/admin/courses/fisika-dasar/review/idea/academic-web-idea-1",
       "expectedPath": "/admin/courses/fisika-dasar/review/idea/academic-web-idea-1",
       "expectedLabel": "Kecepatan adalah perubahan posisi terhadap waktu",
-      "origin": "http://127.0.0.1:3315",
       "cases": [
         {
           "theme": "light",
@@ -2288,7 +2395,8 @@
           "contentReady": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nReview ide\nCari di seluruh Zyx\nTarik untuk memuat ulang\nFisika Dasar\nacademic-course-2\nFisika\n1 / 1\nSemua status\nDaftar Idea (1)\nDefinisi\nKonsep inti\nBab chapter-kinematics\nVELOCITY\n1 bukti sumber\nEdit isi\nPERNYATAAN UTAMA\nKecepatan adalah perubahan posisi terhadap waktu.\nPENJELASAN RINGKAS\nKecepatan mengukur laju perubahan posisi.\n1 BUKTI SUMBER\n\nKinematika\n\nKecepatan adalah perubahan posisi terhadap waktu.\n\nCatatan review Idea\nSetujui dan lanjut\nPerlu perbaikan\nCatatan review\nSHA-256: 3d8b800cb2d6b94b4f6e68c7563a8815ac4aa965fb35da172f069f1ba5b30c0e\n\nReview setiap Idea sebelum menyimpan keputusan.\n\nSetujui\nTolak\nAksi lainnya",
-          "screenshot": "captures/admin-idea-bundle-light.png"
+          "screenshot": "captures/admin-idea-bundle-light.png",
+          "origin": "http://127.0.0.1:3315"
         },
         {
           "theme": "dark",
@@ -2308,7 +2416,8 @@
           "contentReady": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nReview ide\nCari di seluruh Zyx\nTarik untuk memuat ulang\nFisika Dasar\nacademic-course-2\nFisika\n1 / 1\nSemua status\nDaftar Idea (1)\nDefinisi\nKonsep inti\nBab chapter-kinematics\nVELOCITY\n1 bukti sumber\nEdit isi\nPERNYATAAN UTAMA\nKecepatan adalah perubahan posisi terhadap waktu.\nPENJELASAN RINGKAS\nKecepatan mengukur laju perubahan posisi.\n1 BUKTI SUMBER\n\nKinematika\n\nKecepatan adalah perubahan posisi terhadap waktu.\n\nCatatan review Idea\nSetujui dan lanjut\nPerlu perbaikan\nCatatan review\nSHA-256: 3d8b800cb2d6b94b4f6e68c7563a8815ac4aa965fb35da172f069f1ba5b30c0e\n\nReview setiap Idea sebelum menyimpan keputusan.\n\nSetujui\nTolak\nAksi lainnya",
-          "screenshot": "captures/admin-idea-bundle-dark.png"
+          "screenshot": "captures/admin-idea-bundle-dark.png",
+          "origin": "http://127.0.0.1:3315"
         }
       ],
       "previousAttempts": [
@@ -2402,7 +2511,6 @@
       "path": "/admin/courses/biologi-dasar/review/product/academic-web-product-1",
       "expectedPath": "/admin/courses/biologi-dasar/review/product/academic-web-product-1",
       "expectedLabel": "Struktur dan Fungsi Membran Sel",
-      "origin": "http://127.0.0.1:3315",
       "cases": [
         {
           "theme": "light",
@@ -2426,7 +2534,8 @@
           "contentReady": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nReview produk\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBiologi Dasar\nacademic-course-1\nBiologi\nSemua\nArtikel\nMetadata\n1/1\nStruktur dan Fungsi Membran Sel\n1\nTampilan Siswa\nMode Blok (12)\nStruktur dan Fungsi Membran Sel\n\nPermukaan sel membatasi bagian dalam sel dari lingkungan.\n\nBagaimana zat dapat masuk tanpa membuat isi sel keluar seluruhnya?\n\nMembran terdiri atas lapisan ganda fosfolipid yang mengandung protein.\n\nKepala fosfolipid menghadap air, sementara ekornya saling berhadapan.\n\nGradien konsentrasi dapat ditulis sebagai selisih konsentrasi per jarak.\n\nMembran menyerupai batas yang menyediakan jalur tertentu bagi molekul.\n\nOksigen dapat bergerak melintasi lapisan lipid mengikuti gradien konsentrasi.\n\nMembran bersifat selektif dan dapat dilalui beberapa jenis molekul.\n\nProtein kanal membantu ion melewati membran.\n\nBagian fosfolipid manakah yang menghadap air?",
-          "screenshot": "captures/admin-product-bundle-light.png"
+          "screenshot": "captures/admin-product-bundle-light.png",
+          "origin": "http://127.0.0.1:3315"
         },
         {
           "theme": "dark",
@@ -2450,7 +2559,8 @@
           "contentReady": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nReview produk\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBiologi Dasar\nacademic-course-1\nBiologi\nSemua\nArtikel\nMetadata\n1/1\nStruktur dan Fungsi Membran Sel\n1\nTampilan Siswa\nMode Blok (12)\nStruktur dan Fungsi Membran Sel\n\nPermukaan sel membatasi bagian dalam sel dari lingkungan.\n\nBagaimana zat dapat masuk tanpa membuat isi sel keluar seluruhnya?\n\nMembran terdiri atas lapisan ganda fosfolipid yang mengandung protein.\n\nKepala fosfolipid menghadap air, sementara ekornya saling berhadapan.\n\nGradien konsentrasi dapat ditulis sebagai selisih konsentrasi per jarak.\n\nMembran menyerupai batas yang menyediakan jalur tertentu bagi molekul.\n\nOksigen dapat bergerak melintasi lapisan lipid mengikuti gradien konsentrasi.\n\nMembran bersifat selektif dan dapat dilalui beberapa jenis molekul.\n\nProtein kanal membantu ion melewati membran.\n\nBagian fosfolipid manakah yang menghadap air?",
-          "screenshot": "captures/admin-product-bundle-dark.png"
+          "screenshot": "captures/admin-product-bundle-dark.png",
+          "origin": "http://127.0.0.1:3315"
         }
       ],
       "previousAttempts": [
@@ -2498,7 +2608,6 @@
       "path": "/admin/materials/review/idea/academic-web-idea-1",
       "expectedPath": "/admin/courses/academic-course-2/review/idea/academic-web-idea-1",
       "expectedLabel": "Kecepatan adalah perubahan posisi terhadap waktu",
-      "origin": "http://127.0.0.1:3315",
       "cases": [
         {
           "theme": "light",
@@ -2521,7 +2630,8 @@
           "contentReady": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nReview ide\nCari di seluruh Zyx\nTarik untuk memuat ulang\nFisika Dasar\nacademic-course-2\nFisika\n1 / 1\nSemua status\nDaftar Idea (1)\nDefinisi\nKonsep inti\nBab chapter-kinematics\nVELOCITY\n1 bukti sumber\nEdit isi\nPERNYATAAN UTAMA\nKecepatan adalah perubahan posisi terhadap waktu.\nPENJELASAN RINGKAS\nKecepatan mengukur laju perubahan posisi.\n1 BUKTI SUMBER\n\nKinematika\n\nKecepatan adalah perubahan posisi terhadap waktu.\n\nCatatan review Idea\nSetujui dan lanjut\nPerlu perbaikan\nCatatan review\nSHA-256: 3d8b800cb2d6b94b4f6e68c7563a8815ac4aa965fb35da172f069f1ba5b30c0e\n\nReview setiap Idea sebelum menyimpan keputusan.\n\nSetujui\nTolak\nAksi lainnya",
-          "screenshot": "captures/admin-idea-bundle-alias-light.png"
+          "screenshot": "captures/admin-idea-bundle-alias-light.png",
+          "origin": "http://127.0.0.1:3315"
         },
         {
           "theme": "dark",
@@ -2544,7 +2654,8 @@
           "contentReady": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nReview ide\nCari di seluruh Zyx\nTarik untuk memuat ulang\nFisika Dasar\nacademic-course-2\nFisika\n1 / 1\nSemua status\nDaftar Idea (1)\nDefinisi\nKonsep inti\nBab chapter-kinematics\nVELOCITY\n1 bukti sumber\nEdit isi\nPERNYATAAN UTAMA\nKecepatan adalah perubahan posisi terhadap waktu.\nPENJELASAN RINGKAS\nKecepatan mengukur laju perubahan posisi.\n1 BUKTI SUMBER\n\nKinematika\n\nKecepatan adalah perubahan posisi terhadap waktu.\n\nCatatan review Idea\nSetujui dan lanjut\nPerlu perbaikan\nCatatan review\nSHA-256: 3d8b800cb2d6b94b4f6e68c7563a8815ac4aa965fb35da172f069f1ba5b30c0e\n\nReview setiap Idea sebelum menyimpan keputusan.\n\nSetujui\nTolak\nAksi lainnya",
-          "screenshot": "captures/admin-idea-bundle-alias-dark.png"
+          "screenshot": "captures/admin-idea-bundle-alias-dark.png",
+          "origin": "http://127.0.0.1:3315"
         }
       ],
       "previousAttempts": [
@@ -2595,7 +2706,6 @@
       "path": "/admin/materials/review/product/academic-web-product-1",
       "expectedPath": "/admin/courses/academic-course-1/review/product/academic-web-product-1",
       "expectedLabel": "Struktur dan Fungsi Membran Sel",
-      "origin": "http://127.0.0.1:3315",
       "cases": [
         {
           "theme": "light",
@@ -2622,7 +2732,8 @@
           "contentReady": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nReview produk\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBiologi Dasar\nacademic-course-1\nBiologi\nSemua\nArtikel\nMetadata\n1/1\nStruktur dan Fungsi Membran Sel\n1\nTampilan Siswa\nMode Blok (12)\nStruktur dan Fungsi Membran Sel\n\nPermukaan sel membatasi bagian dalam sel dari lingkungan.\n\nBagaimana zat dapat masuk tanpa membuat isi sel keluar seluruhnya?\n\nMembran terdiri atas lapisan ganda fosfolipid yang mengandung protein.\n\nKepala fosfolipid menghadap air, sementara ekornya saling berhadapan.\n\nGradien konsentrasi dapat ditulis sebagai selisih konsentrasi per jarak.\n\nMembran menyerupai batas yang menyediakan jalur tertentu bagi molekul.\n\nOksigen dapat bergerak melintasi lapisan lipid mengikuti gradien konsentrasi.\n\nMembran bersifat selektif dan dapat dilalui beberapa jenis molekul.\n\nProtein kanal membantu ion melewati membran.\n\nBagian fosfolipid manakah yang menghadap air?",
-          "screenshot": "captures/admin-product-bundle-alias-light.png"
+          "screenshot": "captures/admin-product-bundle-alias-light.png",
+          "origin": "http://127.0.0.1:3315"
         },
         {
           "theme": "dark",
@@ -2649,7 +2760,8 @@
           "contentReady": true,
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nReview produk\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBiologi Dasar\nacademic-course-1\nBiologi\nSemua\nArtikel\nMetadata\n1/1\nStruktur dan Fungsi Membran Sel\n1\nTampilan Siswa\nMode Blok (12)\nStruktur dan Fungsi Membran Sel\n\nPermukaan sel membatasi bagian dalam sel dari lingkungan.\n\nBagaimana zat dapat masuk tanpa membuat isi sel keluar seluruhnya?\n\nMembran terdiri atas lapisan ganda fosfolipid yang mengandung protein.\n\nKepala fosfolipid menghadap air, sementara ekornya saling berhadapan.\n\nGradien konsentrasi dapat ditulis sebagai selisih konsentrasi per jarak.\n\nMembran menyerupai batas yang menyediakan jalur tertentu bagi molekul.\n\nOksigen dapat bergerak melintasi lapisan lipid mengikuti gradien konsentrasi.\n\nMembran bersifat selektif dan dapat dilalui beberapa jenis molekul.\n\nProtein kanal membantu ion melewati membran.\n\nBagian fosfolipid manakah yang menghadap air?",
-          "screenshot": "captures/admin-product-bundle-alias-dark.png"
+          "screenshot": "captures/admin-product-bundle-alias-dark.png",
+          "origin": "http://127.0.0.1:3315"
         }
       ],
       "previousAttempts": [

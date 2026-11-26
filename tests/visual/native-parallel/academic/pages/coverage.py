@@ -1,5 +1,6 @@
 """Regenerate route crosswalk from local source and recorded web and device captures."""
 import csv,json,re,pathlib,urllib.parse,subprocess,datetime
+from hashlib import sha256
 R=pathlib.Path('.');P=R/'tests/visual/native-parallel/academic/pages'
 rows=list(csv.DictReader((R/'plans/native-parallel/routes.tsv').open(),delimiter='\t'))
 paths=[x['web_source'] for x in rows if x['owner']=='academic']
@@ -132,16 +133,25 @@ def references(pattern):
   out.append(f"{entry['id']}:{case['theme']} redirect to {landed}")
  return '; '.join(out) or 'No protected page capture recorded'
 
-device_indexes = P.parent.glob('device/*/index.json')
-device_reports = [(path, json.loads(path.read_text())) for path in device_indexes]
+device_reports = []
+for device_path in P.parent.glob('device/*/index.json'):
+ source = json.loads(device_path.read_text())
+ for platform, report in source.get('platforms', {}).items():
+  artifact = re.search(r'/artifacts/(\d+)$', report.get('artifactUrl', ''))
+  rank = (int(artifact[1]) if artifact else 0, int(source['runId']))
+  device_reports.append((rank, platform, device_path, source['revision'], report))
+
+# A queued job can upload its artifact after a newer workflow started.
 latest_device_reports = {}
 latest_rendered_reports = {}
-for device_path, device_report in sorted(device_reports, key=lambda item: int(item[1]['runId'])):
- for platform, report in device_report.get('platforms', {}).items():
-  observation = (device_path, device_report['revision'], report)
-  latest_device_reports[platform] = observation
-  if report.get('routeEvidence') and report.get('routeCaptureCounts', {}).get('captured'):
-   latest_rendered_reports[platform] = observation
+prior_ios_report = None
+for _, platform, device_path, revision, report in sorted(device_reports):
+ observation = (device_path, revision, report)
+ if platform == 'ios':
+  prior_ios_report = latest_device_reports.get(platform)
+ latest_device_reports[platform] = observation
+ if report.get('routeEvidence') and report.get('routeCaptureCounts', {}).get('captured'):
+  latest_rendered_reports[platform] = observation
 device_platforms = {}
 device_interactions = {}
 for platform, (device_path, _, report) in latest_rendered_reports.items():
@@ -163,9 +173,11 @@ for platform, (device_path, _, report) in latest_rendered_reports.items():
      device_interactions.setdefault(pattern, []).append((platform, entry, outcome_path))
 
 
-def device_observation(pattern, markdown=False):
+def device_observation(pattern, markdown=False, platform_filter=None):
  parts=[]
  for platform, name in (('android', 'Android'), ('ios', 'iOS')):
+  if platform_filter and platform_filter != platform:
+   continue
   if platform not in device_platforms:
    archive = latest_device_reports.get(platform)
    if archive:
@@ -192,14 +204,47 @@ def device_observation(pattern, markdown=False):
     parts.append(f'[Direct fixture entries]({relative}): {entry}' if markdown else f'{entry} ({outcome_path.as_posix()})')
  return '; '.join(parts)
 
+denied_manifest = P/'denied/manifest.json'
+denied_entries = {}
+if denied_manifest.is_file():
+ for entry in json.loads(denied_manifest.read_text())['entries']:
+  pattern = entry['pattern']
+  assert pattern in routes and pattern not in denied_entries
+  assert resolve_route(entry['requestedPath']) == pattern
+  denied_entries[pattern] = entry
+
+def verified_denial(entry):
+ if not entry or entry['status'] != 'pass' or entry['classification'] not in ('redirected', 'forbidden'):
+  return False
+ identity = entry.get('identity', {})
+ return (identity.get('status') == 200 and identity.get('accountId') == 'academic-student'
+  and identity.get('roles') == ['murid'] and entry.get('successfulProtectedReads') == [])
+
+def denied_reference(pattern, markdown=False):
+ entry = denied_entries.get(pattern)
+ if not entry:
+  return 'No Student case recorded'
+ if not verified_denial(entry):
+  return '[Unverified](denied/manifest.json)' if markdown else f'Unverified ({denied_manifest.as_posix()})'
+ label = 'Forbidden'
+ if entry['classification'] == 'redirected':
+  label = f"Redirected to {entry['landedPath']}"
+ screenshot = entry.get('screenshot')
+ if not screenshot:
+  return f'[{label}](denied/manifest.json)' if markdown else f'{label} ({denied_manifest.as_posix()})'
+ image = denied_manifest.parent/screenshot
+ assert image.resolve().is_relative_to(denied_manifest.parent.resolve()) and image.is_file(), image
+ assert sha256(image.read_bytes()).hexdigest() == entry['screenshotSha256'], image
+ return f'[{label}](denied/{screenshot})' if markdown else f'{label} ({image.as_posix()})'
+
 with (P/'coverage.tsv').open('w',newline='') as f:
- fields=['route','family','case_populated_id','case_empty_id','case_denied_id','web_source','verified_protected_web_cases','native_live_code_paths','native_fixture_or_dependency','native_implementation_source','native_device_scenarios_planned','native_device_executed_evidence','domain_readme']
+ fields=['route','family','case_populated_id','case_empty_id','case_denied_id','web_source','verified_protected_web_cases','verified_student_denied_web_case','native_live_code_paths','native_fixture_or_dependency','native_implementation_source','native_device_scenarios_planned','native_device_executed_evidence','domain_readme']
  w=csv.DictWriter(f,fieldnames=fields,delimiter='\t',lineterminator='\n');w.writeheader()
  for route,source in routes.items():
   fam=family[route];live,fixture=native(route,fam); readme=f'packages/native-parity/academic/{fam}/README.md';implementation=f'apps/mobile-native/features/academic/{fam}/index.tsx'
   assert (R/source).is_file() and (R/readme).is_file() and (R/implementation).is_file()
-  w.writerow(dict(route=route,family=fam,case_populated_id=case_index[route]['populated']['id'],case_empty_id=case_index[route]['empty']['id'],case_denied_id=case_index[route]['denied']['id'],web_source=source,verified_protected_web_cases=references(route),native_live_code_paths=live,native_fixture_or_dependency=fixture,native_implementation_source=implementation,native_device_scenarios_planned='; '.join(flows.get(route,[])) or 'No direct fixture entry matched; indirect navigation unassessed',native_device_executed_evidence=device_observation(route),domain_readme=readme))
-meta={'generated_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'scope':'Web and implementation observations are from a changing local worktree. Device observations refer to the latest archived run for each platform.','route_count':len(routes),'capture_manifest':'tests/visual/native-parallel/academic/pages/results.json','device_evidence_by_platform':{platform: {'index': path.as_posix(), 'revision': revision,
+  w.writerow(dict(route=route,family=fam,case_populated_id=case_index[route]['populated']['id'],case_empty_id=case_index[route]['empty']['id'],case_denied_id=case_index[route]['denied']['id'],web_source=source,verified_protected_web_cases=references(route),verified_student_denied_web_case=denied_reference(route),native_live_code_paths=live,native_fixture_or_dependency=fixture,native_implementation_source=implementation,native_device_scenarios_planned='; '.join(flows.get(route,[])) or 'No direct fixture entry matched; indirect navigation unassessed',native_device_executed_evidence=device_observation(route),domain_readme=readme))
+meta={'generated_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'scope':'Web and implementation observations are from a changing local worktree. Device observations refer to the latest published artifact for each platform.','route_count':len(routes),'capture_manifest':'tests/visual/native-parallel/academic/pages/results.json','student_denied_manifest':denied_manifest.as_posix() if denied_manifest.is_file() else None,'earlier_ios_evidence_index':prior_ios_report[0].as_posix() if prior_ios_report else None,'device_evidence_by_platform':{platform: {'index': path.as_posix(), 'revision': revision,
     **({'capture_index': latest_rendered_reports[platform][0].as_posix()} if platform in latest_rendered_reports else {})}
     for platform, (path, revision, _) in latest_device_reports.items()}}
 (P/'coverage-meta.json').write_text(json.dumps(meta,indent=2)+'\n')
@@ -216,11 +261,14 @@ for e in results['entries']:
   else:counts['unpassed']+=1
 for e in interactions['entries']:
  counts['interaction_pass' if e.get('pass') else 'interaction_unpassed']+=1
+device_links = list(latest_device_reports.items())
+if prior_ios_report:
+ device_links.append(('Earlier iOS', prior_ios_report))
 lines=['# Protected web route evidence', '',
  f"Index generated {meta['generated_utc']}; HEAD then was `{meta['head']}` with local uncommitted changes. Captures span a changing worktree and are not attributable to one verified commit.",
  f"Current capture manifest records {counts['new_pass']} passing browser cases, {counts['missing_ui']} unseeded/missing cases with a rendered 404, {counts['shell_only']} shell-only or loading cases, and {counts['unpassed']} other unsuccessful or interrupted cases. Interaction manifest records {counts['interaction_pass']} passing and {counts['interaction_unpassed']} unsuccessful cases. The six earlier protected smoke records are listed separately. Counts are cases, not parity credit.",
  '', '[Route crosswalk and three registry case IDs](coverage.tsv) · [Protected page results](results.json) · [Interaction results](interactions-results.json) · [Original smoke manifest](../web/local-routes/manifest.json)', '',
- 'Web links identify passing screenshots, shell-only/loading outcomes, or rendered 404s. Screenshots are listed under the route that rendered them. The requested route records the redirect destination. Initial HTTP 200 with a rendered 404 is identified explicitly. Device route statuses come from stamped captures. Interaction statuses are assigned to direct fixture entries. Live device operations remain unverified.', ' · '.join(f'[{platform} evidence index](../device/{path.parent.name}/index.json)' for platform, (path, _, _) in latest_device_reports.items()) or 'Device evidence index unavailable.' , '', '| Route | Screen family | Recorded original protected web cases | Device fixture observations |', '|---|---|---|---|']
+ 'Web links identify passing screenshots, shell-only/loading outcomes, or rendered 404s. Screenshots are listed under the route that rendered them. The requested route records the redirect destination. Initial HTTP 200 with a rendered 404 is identified explicitly. Device route statuses come from stamped captures. Interaction statuses are assigned to direct fixture entries. Live device operations remain unverified.', ' · '.join(f'[{platform_label} evidence index](../device/{path.parent.name}/index.json)' for platform_label, (path, _, _) in device_links), '', '| Route | Screen family | Recorded original protected web cases | Signed-in Student page denial | Android fixture observations | iOS fixture observations |', '|---|---|---|---|---|---|']
 rendered_routes=[]
 redirect_only=[]
 for route,source in routes.items():
@@ -246,7 +294,7 @@ for route,source in routes.items():
  elif redirects:redirect_only.append(route)
  for entry,case,landed in redirects:
   links.append(f"{entry['id']} {case['theme']} redirected to `{landed}`")
- lines.append('| `'+route+'` | '+family[route]+' | '+('; '.join(links) if links else 'Not captured or no passing screenshot')+' | '+device_observation(route, markdown=True)+' |')
+ lines.append('| `'+route+'` | '+family[route]+' | '+('; '.join(links) if links else 'Not captured or no passing screenshot')+' | '+denied_reference(route, markdown=True)+' | '+device_observation(route, markdown=True, platform_filter='android')+' | '+device_observation(route, markdown=True, platform_filter='ios')+' |')
 unmatched=[route for route in routes if route not in rendered_routes and route not in redirect_only]
 lines.extend(['', '## Protected route coverage', '',
  f'Protected screenshots show route content for {len(rendered_routes)} of {len(routes)} routes. '
@@ -256,4 +304,8 @@ lines.extend(['', '## Protected route coverage', '',
  '',
  ('No passing content or redirect evidence was recorded for ' + ', '.join(f'`{route}`' for route in unmatched) + '.') if unmatched else 'Every route has passing content or a verified redirect.',
 ])
+if denied_entries:
+ denied_count=sum(bool(verified_denial(entry)) for entry in denied_entries.values())
+ lines.extend(['', f'Signed-in Student page denial is verified for {denied_count} of {len(routes)} routes. '
+  'The browser observer tracks same-origin 2xx responses only under `/api/admin` and `/api/tutor`. [Student manifest](denied/manifest.json)'])
 (P/'summary.md').write_text('\n'.join(lines)+'\n')

@@ -1,18 +1,20 @@
 {
-  "generated_utc": "2026-11-26T13:27:24.797380+00:00",
-  "head": "487af8fa98b2b978d0d8336dd4a552c4bb049838",
-  "scope": "Web and implementation observations are from a changing local worktree. Device observations refer to the latest archived run for each platform.",
+  "generated_utc": "2026-11-26T13:48:26.963428+00:00",
+  "head": "12f710d63f6219948389ad5d5fe88ae1f8af92b0",
+  "scope": "Web and implementation observations are from a changing local worktree. Device observations refer to the latest published artifact for each platform.",
   "route_count": 54,
   "capture_manifest": "tests/visual/native-parallel/academic/pages/results.json",
+  "student_denied_manifest": "tests/visual/native-parallel/academic/pages/denied/manifest.json",
+  "earlier_ios_evidence_index": "tests/visual/native-parallel/academic/device/f75e0496914edd53c4bc24487ca58f6ac47a3769/index.json",
   "device_evidence_by_platform": {
     "android": {
-      "index": "tests/visual/native-parallel/academic/device/11ff56c8d841d9f2129aa8a14993bfefbeb5dde3/index.json",
-      "revision": "11ff56c8d841d9f2129aa8a14993bfefbeb5dde3",
-      "capture_index": "tests/visual/native-parallel/academic/device/11ff56c8d841d9f2129aa8a14993bfefbeb5dde3/index.json"
+      "index": "tests/visual/native-parallel/academic/device/156028b75a4d6fda0accea8e940ced7d9b9ab9da/index.json",
+      "revision": "156028b75a4d6fda0accea8e940ced7d9b9ab9da",
+      "capture_index": "tests/visual/native-parallel/academic/device/156028b75a4d6fda0accea8e940ced7d9b9ab9da/index.json"
     },
     "ios": {
-      "index": "tests/visual/native-parallel/academic/device/f75e0496914edd53c4bc24487ca58f6ac47a3769/index.json",
-      "revision": "f75e0496914edd53c4bc24487ca58f6ac47a3769"
+      "index": "tests/visual/native-parallel/academic/device/c60041d6d2cb98513c8232e41838b35c604b3577/index.json",
+      "revision": "c60041d6d2cb98513c8232e41838b35c604b3577"
     }
   }
 }
