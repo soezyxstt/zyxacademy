@@ -1,7 +1,7 @@
 import { isEnrollmentTokenEditor, type EnrollmentTokenEditor } from "../../../../packages/academic/enrollment-token-admin";
 import { isStudyGroupEditorRead, type StudyGroupEditorRead } from "../../../../packages/academic/study-group-edit";
 import { isStudyGroupMembersRead, type StudyGroupMemberRecovery, type StudyGroupMembersRead } from "../../../../packages/academic/study-group-members";
-import { studyGroupTokensRead, type StudyGroupTokensRead } from "../../../../packages/academic/study-group-tokens";
+import { parseStudyGroupTokens, type StudyGroupTokensRead } from "../../../../packages/academic/study-group-tokens";
 import type { NativeAdminViewer } from "./admin-transaction";
 import {
   isLiveAdministrationRead, type DiktatEvidenceStatus, type DiktatPdfTarget, type LiveAdministrationRead, type LiveListSection, type LivePage,
@@ -86,8 +86,8 @@ export async function handleAdministrationRead(parts: string[], search: URLSearc
       if (!session.session?.id) return problem(401, "UNAUTHENTICATED");
       const result = await services.groupTokens(kind);
       if (!result) return notFound();
-      const parsed = studyGroupTokensRead.safeParse(result);
-      return parsed.success && parsed.data.groupId === kind ? Response.json(parsed.data, { headers }) : problem(500, "READ_FAILED");
+      const parsed = parseStudyGroupTokens(result);
+      return parsed?.groupId === kind ? Response.json(parsed, { headers }) : problem(500, "READ_FAILED");
     }
     if (section === "groups" && id === "members" && parts.length === 3 && services.groupMembers) {
       const [userId, action, expectedRevision, requestId] = ["retryUserId", "retryAction", "retryRevision", "retryRequestId"].map((field) => search.get(field));
