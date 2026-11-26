@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
+import { recordOfflineChange } from "@/lib/offline/server-events";
 import { diktatMateri, mataKuliah } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { storage } from "@/lib/storage";
@@ -107,13 +108,15 @@ export async function POST(
     });
 
     // 4. Update fileKey in database
-    await db
-      .update(diktatMateri)
-      .set({
-        fileKey: objectKey,
-        updatedAt: new Date(),
-      })
-      .where(eq(diktatMateri.id, id));
+    await db.transaction(async tx => {
+      const [updated] = await tx.update(diktatMateri)
+        .set({ fileKey: objectKey, updatedAt: new Date() })
+        .where(eq(diktatMateri.id, id))
+        .returning({ courseId: diktatMateri.mataKuliahId, status: diktatMateri.status });
+      if (updated?.status === "published") {
+        await recordOfflineChange(tx, { kind: "diktat", courseId: updated.courseId, resourceId: id, action: "upsert" });
+      }
+    });
 
     return NextResponse.json({
       ok: true,

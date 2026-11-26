@@ -1,3 +1,4 @@
+import { createOnlineReadMemo } from "@/lib/online-read-memo";
 import { db } from "@/db";
 import {
   aiMaterialInstances,
@@ -394,13 +395,22 @@ export async function getCourseCatalogStatsMap(
   return statsMap;
 }
 
+const readCatalogStats = createOnlineReadMemo<Map<string, CourseCatalogStats>>(60_000, 8);
+
+/** Shared display counts. Course identities and access are resolved by the caller. */
+export function getStudentCatalogDisplayStats(courses: readonly CourseCatalogStatsTarget[]) {
+  const targets = courses.map(({ id, canonicalId, legacyId }) => ({ id, canonicalId, legacyId }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  return readCatalogStats(JSON.stringify(targets), () => getCourseCatalogStatsMap(targets));
+}
+
 /**
  * Attaches materialsCount, quizzesCount, and tryoutsCount to a list of course items in batch.
  */
 export async function attachCourseCatalogStats<T extends CourseCatalogStatsTarget>(
   courses: readonly T[],
 ): Promise<(T & CourseCatalogStats)[]> {
-  const statsMap = await getCourseCatalogStatsMap(courses);
+  const statsMap = await getStudentCatalogDisplayStats(courses);
   return courses.map((course) => {
     const stats = statsMap.get(course.id) ?? {
       materialsCount: 0,

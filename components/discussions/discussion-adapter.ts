@@ -1,20 +1,26 @@
+import type { QueryClient } from "@tanstack/react-query";
+import { readCachedDiscussionThreads, type DiscussionListScope } from "@/lib/discussions/workspace-query";
 import type { DiscussionChannel, DiscussionChannelMetadata, DiscussionPage, DiscussionMessage, DiscussionThread } from "@/lib/discussions/contracts";
 import type { DiscussionChannel as UiChannel, DiscussionQuestion, DiscussionUploadError, DiscussionWorkspaceProps } from "./view-model";
 
 type Actions = typeof import("@/lib/discussions/actions");
+type ThreadListInput = Exclude<Parameters<Actions["listThreadsAcrossChannels"]>[0], string | undefined>;
 
 type ChannelReads = {
   getChannelsByIds: (...args: Parameters<Actions["getChannelsByIds"]>) => Promise<DiscussionChannelMetadata[]>;
   listChannelsPage: (...args: Parameters<Actions["listChannelsPage"]>) => Promise<DiscussionPage<DiscussionChannelMetadata> & { repairedAliases?: true }>;
 };
 
-export function discussionWorkspaceReads(viewerId: string): ChannelReads & Pick<Actions, "getThread" | "listThreadsAcrossChannels"> {
-  async function read<T>(view: string, input: Record<string, string | string[] | undefined>, method = "GET"): Promise<T> {
+export function discussionWorkspaceReads(viewerId: string, cache?: { client: QueryClient; scope: DiscussionListScope; locale: string }): ChannelReads & Pick<Actions, "getThread" | "listThreadsAcrossChannels"> {
+  function readParams(view: string, input: Record<string, string | string[] | undefined>) {
     const params = new URLSearchParams({ view });
     for (const [key, value] of Object.entries(input)) {
       if (Array.isArray(value)) value.forEach(item => params.append(key, item));
       else if (value !== undefined) params.set(key, value);
     }
+    return params;
+  }
+  async function read<T>(params: URLSearchParams, method = "GET"): Promise<T> {
     const response = await fetch(`/api/discussions/workspace?${params}`, {
       method, cache: "no-store", headers: { "x-student-id": viewerId },
     });
@@ -22,11 +28,20 @@ export function discussionWorkspaceReads(viewerId: string): ChannelReads & Pick<
     return response.json();
   }
   return {
-    getThread: (threadId, cursor, messageId) => read("thread", { threadId, cursor, messageId }, "POST"),
-    getChannelsByIds: (channelId) => read("channels", { channelId }),
+    getThread: (threadId, cursor, messageId) => read(readParams("thread", { threadId, cursor, messageId }), "POST"),
+    getChannelsByIds: (channelId) => read(readParams("channels", { channelId })),
     listChannelsPage: ({ courseId, cursor, search, kind, kinds } = {}) =>
-      read("catalog", { courseId, cursor, search, kind, kindFilter: kinds?.join(",") }, "POST"),
-    listThreadsAcrossChannels: (input = {}) => read("threads", typeof input === "string" ? { cursor: input } : input),
+      read(readParams("catalog", { courseId, cursor, search, kind, kindFilter: kinds?.join(",") }), "POST"),
+    listThreadsAcrossChannels: (input = {}) => {
+      const filters: ThreadListInput = typeof input === "string" ? { cursor: input } : input;
+      const params = readParams("threads", filters);
+      if (cache && (typeof navigator === "undefined" || navigator.onLine !== false)
+        && !filters.cursor && !filters.search && filters.status
+        && (!filters.channelId || cache.scope.channelIds.includes(filters.channelId))) {
+        return readCachedDiscussionThreads(cache.client, viewerId, cache.scope, cache.locale, params);
+      }
+      return read(params);
+    },
   };
 }
 

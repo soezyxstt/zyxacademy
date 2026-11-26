@@ -121,3 +121,7 @@ Canonical course catalog table storing course code, title, slug, access category
 | `queue_task_checkpoints` | Durable step checkpoints for Cloud Tasks / queue provider execution (`0035_queue_task_checkpoints.sql`). |
 | `admin_operation_jobs` | Async MCP admin operation receipts and media upload jobs. |
 | `migration_runs`, `migration_checkpoints`, `legacy_backfill_exceptions` | Guarded migration and backfill audit records. |
+
+## Offline data synchronization
+
+Migration `0048_offline_content_sync.sql` adds `offline_sync_state` (committed cursor), `offline_content_changes` (account/course-scoped durable invalidations and tombstones), and `offline_cache_policy` (revision, rules and last editor). The cursor row lock lasts until the content transaction commits. These additive tables contain no cached student reading bodies or personal achievement progress. See the [offline data contract](operations/offline-data-sync.md) for access and rollout rules.

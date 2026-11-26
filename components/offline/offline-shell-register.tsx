@@ -1,5 +1,6 @@
 "use client";
 
+import { OfflineSyncRuntime } from "./offline-sync-runtime";
 import { useEffect } from "react";
 import { registerOfflineServiceWorker } from "@/lib/offline/register-sw";
 
@@ -8,5 +9,5 @@ export function OfflineShellRegister() {
     void registerOfflineServiceWorker();
   }, []);
 
-  return null;
+  return <OfflineSyncRuntime />;
 }

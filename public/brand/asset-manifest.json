@@ -523,6 +523,46 @@
         "/brand/zyx-favicon-48.png"
       ],
       "derivation": "PNG frames embedded without re-encoding"
+    },
+    {
+      "path": "/brand/zyx-notif-icon.svg",
+      "format": "image/svg+xml",
+      "widthPx": 192,
+      "heightPx": 192,
+      "sourcePaths": [
+        "/brand/zyx-logo-symbol-color.svg"
+      ],
+      "derivation": "Brand symbol paths with a circular notification border"
+    },
+    {
+      "path": "/brand/zyx-notif-icon-192.png",
+      "format": "image/png",
+      "widthPx": 192,
+      "heightPx": 192,
+      "sourcePaths": [
+        "/brand/zyx-notif-icon.svg"
+      ],
+      "derivation": "Raster export of the notification SVG"
+    },
+    {
+      "path": "/brand/zyx-notif-badge.svg",
+      "format": "image/svg+xml",
+      "widthPx": 96,
+      "heightPx": 96,
+      "sourcePaths": [
+        "/brand/zyx-logo-symbol-white.svg"
+      ],
+      "derivation": "Brand symbol paths with a circular notification border"
+    },
+    {
+      "path": "/brand/zyx-notif-badge-96.png",
+      "format": "image/png",
+      "widthPx": 96,
+      "heightPx": 96,
+      "sourcePaths": [
+        "/brand/zyx-notif-badge.svg"
+      ],
+      "derivation": "Raster export of the notification SVG"
     }
   ]
 }

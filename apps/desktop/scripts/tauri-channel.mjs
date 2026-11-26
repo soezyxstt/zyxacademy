@@ -34,6 +34,8 @@ function resolveChannel(explicitArg) {
 
 const [command = "dev", channelArg = "auto", ...rest] = process.argv.slice(2);
 const channel = resolveChannel(channelArg === "auto" ? "" : channelArg);
+const defaultOrigin = channel === "nightly" ? "https://staging.zyxacademy.com" : "https://www.zyxacademy.com";
+writeFileSync(new URL("../dist/offline-origin.js", import.meta.url), `window.__ZYX_NATIVE_SERVER_ORIGIN__=${JSON.stringify(defaultOrigin)};\n`);
 
 const tauriArgs = [command];
 if (channel === "nightly") {

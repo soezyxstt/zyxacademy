@@ -125,3 +125,7 @@ Gamification and social features are student-only (admin gamification pages were
 - `proxy.ts` handles finite public locale rewrites while preserving canonical origins.
 - Preference precedence: authenticated `account_locale_preferences` -> cookie/browser locale -> default `id`.
 - Background email and notification templates are worker-safe (no React/Next.js imports).
+
+## Versioned offline data
+
+The [offline data contract](operations/offline-data-sync.md) defines the app-managed cache and native library. PostgreSQL mutations write a durable scoped change log in the same transaction using a commit-ordered cursor. The shared client reconciles manifests, authenticates conditional reads, stages complete packages and isolates account, environment and language. The event stream is only a hint; startup, resume, reconnect and periodic checks recover missed changes. Native transport uses fixed offline routes with internal WebView cookies.

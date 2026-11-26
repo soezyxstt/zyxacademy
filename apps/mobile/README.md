@@ -16,7 +16,14 @@ Install dependencies inside `apps/mobile`:
 npm install
 ```
 
-Sync web assets and native Capacitor plugins:
+Build the bundled offline UI from the repository root after installing the root
+dependencies. This needs no server or production secrets:
+
+```bash
+bun run build:native-offline
+```
+
+Then sync web assets and native Capacitor plugins from `apps/mobile`:
 
 ```bash
 npm run sync
@@ -103,9 +110,29 @@ Deploying the web app enables saved-session switching. Installing a new APK enab
 
 The web app gives each open dialog, sheet, modal popover and mobile sidebar a temporary history entry. Android Back uses WebView history and dismisses the top overlay before leaving the current page. Backdrop dismissal returns to the same underlying URL.
 
-## Offline Fallback
+## Offline startup
 
-When the remote Zyx Academy URL cannot be reached, Capacitor loads `www/index.html` (`server.errorPath`). It provides an Indonesian and English retry screen and a direct link to `/offline` for saved readings.
+Capacitor starts the bundled `www/index.html`. A successful reachability probe
+opens the configured online app, including when the user has saved readings.
+The bundled fallback shows saved readings first. Its library management control
+provides the course catalog, video metadata, achievement definitions and storage
+controls. The reader, fonts and math styles ship in the APK.
+The same version and access checks used by the web client run in the local shell
+through the native offline API transport. HttpOnly session cookies stay native.
+
+Each package belongs to one account, server and language. The native store checks
+its access lease and current course/chapter grant before returning a reading.
+Logout and access revocation clear the matching data; expired content stays hidden
+until a successful server check. Native writes replace complete packages atomically.
+
+The startup probe times out after 4.5 seconds. If a learner opens a cached reading
+while it runs, the reader stays open. The Android main-frame error path returns
+to this document in recovery mode and waits for a manual retry. Platforms without
+`ZyxOfflineStore`, including the current iOS wrapper, retain the bundled retry view
+and online flow.
+Changing this shell or its bridge requires a new APK or installer; a web deploy
+alone cannot update an installed native binary. Release Apps builds the shared
+bundle before packaging either native app.
 
 ## Android App Links
 

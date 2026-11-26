@@ -4,13 +4,6 @@ import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  BookOpen,
-  CalendarRange,
-  Home,
-  MessageSquareText,
-  UserRound,
-} from "lucide-react";
-import {
   MobileBottomNav,
   type MobileBottomNavItem,
 } from "@/components/navigation";
@@ -21,6 +14,8 @@ import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { discussionCountsQuery } from "@/lib/discussions/counts-query";
 import { useTranslations } from "@/lib/i18n/client";
 import { queryKeys } from "@/lib/query/keys";
+import { STUDENT_MOBILE_DESTINATIONS } from "./student-mobile-destinations";
+import { useStudentTabLinkOptions } from "./student-tab-reuse";
 import { getActiveStudentBottomTab } from "./student-nav-model";
 
 export function StudentMobileBottomNav() {
@@ -54,53 +49,28 @@ export function StudentMobileBottomNav() {
   }, [client, countsEnabled, userId]);
 
   const unreadDiscussions = discussionCounts?.total.unreadThreads ?? 0;
+  const optionsFor = useStudentTabLinkOptions();
   const activeTab = getActiveStudentBottomTab(pathname);
 
   const items = useMemo<MobileBottomNavItem[]>(() => {
     const toHref = (path: string) => (resolveHref ? resolveHref(path) : path);
-    return [
-      {
-        id: "home",
-        label: t("home"),
-        icon: Home,
-        href: toHref("/dashboard"),
-        active: activeTab === "home",
-      },
-      {
-        id: "courses",
-        label: t("courses"),
-        icon: BookOpen,
-        href: toHref("/courses"),
-        active: activeTab === "courses",
-      },
-      {
-        id: "schedule",
-        label: t("schedule"),
-        icon: CalendarRange,
-        href: toHref("/dashboard/schedule"),
-        active: activeTab === "schedule",
-      },
-      {
-        id: "discuss",
-        label: t("discuss"),
-        icon: MessageSquareText,
-        href: toHref("/dashboard/discussions"),
-        active: activeTab === "discuss",
-        badgeCount: demo ? undefined : unreadDiscussions,
+    return STUDENT_MOBILE_DESTINATIONS.map(({ id, href, icon }) => {
+      const resolvedHref = toHref(href);
+      return {
+        id,
+        label: t(id),
+        icon,
+        href: resolvedHref,
+        ...optionsFor(resolvedHref),
+        active: activeTab === id,
+        badgeCount: !demo && id === "discuss" ? unreadDiscussions : undefined,
         badgeLabel:
-          !demo && unreadDiscussions > 0
+          !demo && id === "discuss" && unreadDiscussions > 0
             ? tDiscussions("unreadQuestions", { count: unreadDiscussions })
             : undefined,
-      },
-      {
-        id: "me",
-        label: t("me"),
-        icon: UserRound,
-        href: toHref("/profile"),
-        active: activeTab === "me",
-      },
-    ];
-  }, [activeTab, demo, resolveHref, t, tDiscussions, unreadDiscussions]);
+      };
+    });
+  }, [activeTab, demo, optionsFor, resolveHref, t, tDiscussions, unreadDiscussions]);
 
   if (viewportMode === "desktop") {
     return null;

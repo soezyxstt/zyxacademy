@@ -1,6 +1,13 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "components/admin/offline-cache-settings.tsx",
+    "actions": ["save", "refresh"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Offline cache policy and manual invalidation currently use the authenticated admin UI with origin checks and revision conflicts. Existing publication, revision, withdrawal, enrollment, course and video services record durable offline changes for their existing Admin and MCP callers. This adds no MCP tools or changes to scopes, consent, discovery, skills, host prompts or staging/production bindings. Device download and storage choices remain local to the signed-in user."
+  },
+  {
     "source": "app/(student)/feedback/feedback-form.tsx",
     "actions": ["handleSubmit"],
     "tools": [],

@@ -17,6 +17,7 @@ import { randomUUID } from "node:crypto";
 import { membershipIdFor, type PeranCode } from "@/lib/auth/peran";
 import { sendAdminBroadcast } from "@/lib/notifications/send";
 import { lockAuthoringIdentityChange } from "@/lib/auth/authoring-actor";
+import { recordOfflineChange } from "@/lib/offline/server-events";
 import { BlogServiceError, createBlogArticle, searchBlogArticles, setBlogPublication, type BlogFields } from "@/lib/blog/service";
 
 // ─── 1. Users & Permissions ──────────────────────────────────────────────────
@@ -68,6 +69,7 @@ export async function executeUpdateUserRole(input: UpdateUserRoleInput, actorId?
       : "student";
 
     await tx.update(user).set({ role: primaryRole as any }).where(eq(user.id, userId));
+    await recordOfflineChange(tx, { kind: "access", userId, action: "invalidate" });
   });
 
   return {
@@ -89,13 +91,17 @@ export async function executeToggleUserStatus(input: ToggleUserStatusInput, _act
   const targetUser = await db.query.user.findFirst({ where: eq(user.id, userId) });
   if (!targetUser) throw new Error(`Pengguna dengan ID '${userId}' tidak ditemukan.`);
 
-  await db
+  await db.transaction(async tx => {
+    if (!(await lockAuthoringIdentityChange(tx, userId))) throw new Error("Pengguna tidak ditemukan.");
+    await tx
     .insert(pengguna)
     .values({ id: userId, status: input.status })
     .onConflictDoUpdate({
       target: pengguna.id,
       set: { status: input.status, updatedAt: new Date() },
     });
+    await recordOfflineChange(tx, { kind: "access", userId, action: "invalidate" });
+  });
 
   return {
     summary: `Status akun '${targetUser.name}' (${targetUser.email}) berhasil diubah menjadi '${input.status}'.`,

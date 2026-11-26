@@ -20,6 +20,7 @@ import {
   type PeranCode,
 } from "@/lib/auth/peran";
 import { toIsoTimestamp } from "@/lib/date-utils";
+import { recordOfflineChange } from "@/lib/offline/server-events";
 
 export type AdminUserItem = {
   id: string;
@@ -198,6 +199,7 @@ export async function updateUserRolesAction(
           updatedAt: now,
         })
         .where(eq(user.id, targetUserId));
+      await recordOfflineChange(tx, { kind: "access", userId: targetUserId, action: "invalidate" });
     });
 
     revalidatePath("/admin/users");
@@ -220,29 +222,33 @@ export async function updateUserStatusAction(
   }
 
   try {
-    const existing = await db
-      .select({ id: pengguna.id })
-      .from(pengguna)
-      .where(eq(pengguna.id, targetUserId))
-      .limit(1);
+    await db.transaction(async tx => {
+      if (!(await lockAuthoringIdentityChange(tx, targetUserId))) throw new Error("Pengguna tidak ditemukan.");
+      const existing = await tx
+        .select({ id: pengguna.id })
+        .from(pengguna)
+        .where(eq(pengguna.id, targetUserId))
+        .limit(1);
 
-    const now = new Date();
-    if (existing.length === 0) {
-      await db.insert(pengguna).values({
-        id: targetUserId,
-        status,
-        createdAt: now,
-        updatedAt: now,
-      });
-    } else {
-      await db
-        .update(pengguna)
-        .set({
+      const now = new Date();
+      if (existing.length === 0) {
+        await tx.insert(pengguna).values({
+          id: targetUserId,
           status,
+          createdAt: now,
           updatedAt: now,
-        })
-        .where(eq(pengguna.id, targetUserId));
-    }
+        });
+      } else {
+        await tx
+          .update(pengguna)
+          .set({
+            status,
+            updatedAt: now,
+          })
+          .where(eq(pengguna.id, targetUserId));
+      }
+      await recordOfflineChange(tx, { kind: "access", userId: targetUserId, action: "invalidate" });
+    });
 
     revalidatePath("/admin/users");
     return { success: true };

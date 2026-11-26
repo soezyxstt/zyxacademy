@@ -140,3 +140,7 @@ Saved account switching (up to 5 Zyx accounts in the sidebar account menu) requi
 
 - Configure `ANDROID_APP_LINKS_SHA256_FINGERPRINTS` (stable) and `ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS` (nightly) separately for `/.well-known/assetlinks.json` App Links verification.
 - See [apps/mobile/README.md](../apps/mobile/README.md) and [apps/desktop/README.md](../apps/desktop/README.md) for local build and device verification instructions.
+
+## Offline library rollout
+
+The [offline data contract](operations/offline-data-sync.md#rollout-and-evidence) requires additive migration `0048_offline_content_sync.sql` before the matching web routes, followed by native Nightly builds from the same source revision. The draft PR does not deploy either environment or apply a remote migration. Preserve the change log on rollback; old cursors recover with a full authorized manifest. Native cookie transport and cold launch still require installed Android and desktop acceptance.

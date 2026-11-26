@@ -16,7 +16,11 @@
           "list_offline_readings",
           "get_offline_reading",
           "remove_offline_reading",
-          "clear_other_offline_users"
+          "clear_other_offline_users",
+          "save_offline_library_snapshot",
+          "get_offline_library_snapshot",
+          "clear_offline_library_snapshot",
+          "offline_request"
         ]
       }
     }

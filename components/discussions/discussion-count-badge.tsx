@@ -19,7 +19,7 @@ export function DiscussionCountBadge({ courseId, enabled = true }: { courseId?: 
   });
   useEffect(() => {
     if (!enabled || !userId) return;
-    const refresh = () => { void client.invalidateQueries({ queryKey: queryKeys.discussions.all(userId) }); };
+    const refresh = () => { void client.invalidateQueries({ queryKey: queryKeys.discussions.countsAll(userId) }); };
     window.addEventListener(DISCUSSION_COUNTS_CHANGED, refresh);
     return () => window.removeEventListener(DISCUSSION_COUNTS_CHANGED, refresh);
   }, [client, userId, enabled]);

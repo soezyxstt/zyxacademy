@@ -268,6 +268,7 @@ export async function getCanonicalPublishedArticle(
   articleIdOrSlug: string,
   userId?: string,
   fetchShared: (courseId: string, articleIdOrSlug: string) => Promise<SharedCanonicalArticle | null> = fetchSharedCanonicalArticle,
+  options: { includeProgress?: boolean } = {},
 ): Promise<PublicArticleReadModel | null> {
   try {
     const normalizedCourseId = courseId?.trim() ?? "";
@@ -290,7 +291,7 @@ export async function getCanonicalPublishedArticle(
     // Fetch user progress if userId provided
     let progressRecords: any = null;
     const normalizedUserId = userId?.trim();
-    if (normalizedUserId) {
+    if (normalizedUserId && options.includeProgress !== false) {
       progressRecords = await db
         .select()
         .from(kemajuanBacaArtikel)

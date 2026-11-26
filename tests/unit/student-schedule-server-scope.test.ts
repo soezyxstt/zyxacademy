@@ -11,7 +11,7 @@ test("the schedule action scopes queries to the resolved course and the current 
   const source = readFileSync("app/(student)/dashboard/schedule/actions.ts", "utf8");
   const section = source.slice(source.indexOf("export async function getScheduleData"), source.indexOf("export interface CollaborativeBookSlotOptions"));
   const table = (name: string) => new Proxy({ name }, { get: (target, key) => key === "name" ? target.name : { table: name, key } });
-  const groupMembers = table("groupMembers"), groupCourses = table("groupCourses"), enrollmentTokens = table("enrollmentTokens"), enrollmentTokenCourses = table("enrollmentTokenCourses"), tutorSlots = table("tutorSlots"), tutorSlotCourses = table("tutorSlotCourses"), tutorCourses = table("tutorCourses"), penugasanTutor = table("penugasanTutor"), bookings = table("bookings"), academicSchedules = table("academicSchedules");
+  const groupMembers = table("groupMembers"), groupCourses = table("groupCourses"), enrollmentTokens = table("enrollmentTokens"), enrollmentTokenCourses = table("enrollmentTokenCourses"), tutorSlots = table("tutorSlots"), tutorSlotCourses = table("tutorSlotCourses"), tutorCourses = table("tutorCourses"), penugasanTutor = table("penugasanTutor"), bookings = table("bookings");
   const pengguna = table("pengguna"), penggunaPeran = table("penggunaPeran"), peran = table("peran");
   const courses = [{ groupId: "mine", courseId: "legacy-a" }, { groupId: "mine", courseId: "b" }, { groupId: "other", courseId: "legacy-a" }];
   const tokenCourseRows = [{ tokenId: "tok-1", groupId: "token-only", courseId: "legacy-a" }];
@@ -86,7 +86,6 @@ test("the schedule action scopes queries to the resolved course and the current 
     } }),
     query: {
       user: { findFirst: async () => ({ id: "me", role: "admin" }) },
-      academicSchedules: { findMany: async ({ where }: any) => schedules.filter((row) => evalWhere(where, row)) },
       groupMembers: { findMany: async ({ where, with: relations }: any) => memberships.filter((row) => evalWhere(where, row)).map((row) => ({ ...row, group: { ...row.group, courses: row.group.courses.filter((course) => evalWhere(relations.group.with.courses.where, course)), tokens: (row.group.tokens ?? []).map((tok: any) => ({ ...tok, tokenCourses: tok.tokenCourses.filter((tc: any) => evalWhere(relations.group.with.tokens.with.tokenCourses.where, tc)) })) } })) },
       tutorSlots: { findMany: async ({ where, with: relations }: any) => slots.filter((row) => evalWhere(where, row)).map((row) => ({ ...row, bookings: row.bookings.map((booking: any) => relations.bookings.columns.id ? { id: booking.id } : booking), tutor: { ...row.tutor, tutorCourses: row.tutor.tutorCourses.filter((course) => evalWhere(relations.tutor.with.tutorCourses.where, course)) } })) },
       bookings: { findMany: async ({ where }: any) => bookingRows.filter((row) => evalWhere(where, row)) },
@@ -95,7 +94,7 @@ test("the schedule action scopes queries to the resolved course and the current 
   const module = { exports: {} as any };
   const predicate = (op: string) => (...args: any[]) => ({ op, args });
   runInNewContext(transformSync(section, { loader: "ts", format: "cjs" }).code, {
-    module, exports: module.exports, db, groupMembers, groupCourses, enrollmentTokens, enrollmentTokenCourses, tutorSlots, tutorSlotCourses, tutorCourses, penugasanTutor, mataKuliah: table("mataKuliah"), pengguna, penggunaPeran, peran, bookings, academicSchedules,
+    module, exports: module.exports, db, groupMembers, groupCourses, enrollmentTokens, enrollmentTokenCourses, tutorSlots, tutorSlotCourses, tutorCourses, penugasanTutor, mataKuliah: table("mataKuliah"), pengguna, penggunaPeran, peran, bookings,
     user: table("user"), bookingAuditLogs: table("bookingAuditLogs"), bookingRescheduleTickets: table("bookingRescheduleTickets"), bookingTicketMessages: table("bookingTicketMessages"),
     eq: (column: any, value: any) => ({ op: "eq", column, value }), inArray: (column: any, values: any) => ({ op: "in", column, values }), notInArray: (column: any, values: any) => ({ op: "notIn", column, values }), and: predicate("and"), or: predicate("or"),
     gte: () => ({}), lte: () => ({}), isNull: () => ({}), isNotNull: () => ({}), desc: () => ({}),
@@ -103,6 +102,8 @@ test("the schedule action scopes queries to the resolved course and the current 
     filterCourseIdsBySlotRestriction, isMissingTutorSlotCoursesTable,
     getJakartaNow: () => new Date("2026-11-14T00:00:00Z"), daysFrom: (_offset: number, date: Date) => date,
     getWeekScheduleDays: () => ({ days: [{ dateIso: "2026-11-09" }] }), getIsoWeekRange: () => ({ startIso: "2026-11-09", endIso: "2026-11-15" }),
+    getStudentAcademicCalendar: async (_start: string, _end: string, courseIds?: string[]) =>
+      schedules.filter(row => row.status === "published" && (!courseIds || (row.courseId !== null && courseIds.includes(row.courseId)))),
     getGroupWeeklyUsage: async () => new Map(), listStudentEnrollments: async () => [{ id: "legacy-a" }, { id: "b" }], occupiesTutorSlot: () => ({}),
   });
   for (const alias of ["canonical-a", "legacy-a"]) {

@@ -1,4 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
+import type { OfflineChangeInput } from "@/lib/offline/server-events";
 
 type Row = Record<string, any>;
 type Column = { table: string; key: string };
@@ -11,6 +12,8 @@ const auditMutasi = table("audit", []);
 const knowledgeObjects = table("knowledgeObjects", ["id", "chapterId", "version"]);
 const vectorSyncQueue = table("vectorSyncQueue", ["koId", "payload"]);
 const dispatched: string[] = [];
+const offlineChanges: OfflineChangeInput[] = [];
+const activeTransactions = new WeakSet<object>();
 type Predicate = (row: Row) => boolean;
 const eq = (col: Column, value: unknown): Predicate => (row) => row[col.key] === value;
 const and = (...predicates: Predicate[]): Predicate => (row) => predicates.every((p) => p(row));
@@ -34,6 +37,7 @@ function reset() {
   data.knowledgeObjects = [];
   data.vectorSyncQueue = [];
   dispatched.length = 0;
+  offlineChanges.length = 0;
   locks = 0; maxLocks = 0; lockCalls = 0; selectCalls = 0; lockTail = Promise.resolve();
 }
 function fakeTransaction() {
@@ -97,13 +101,19 @@ function fakeTransaction() {
 }
 const db = { async transaction<T>(fn: (tx: ReturnType<typeof fakeTransaction>) => Promise<T>) {
   const tx = fakeTransaction();
-  try { return await fn(tx); } finally { tx.finish(); }
+  activeTransactions.add(tx);
+  try { return await fn(tx); } finally { activeTransactions.delete(tx); tx.finish(); }
 } };
 mock.module("drizzle-orm", () => ({ and, desc, eq, inArray, or, sql }));
 mock.module("@/db/schema", () => ({ auditMutasi, bab, chapters, courses, mataKuliah, knowledgeObjects, vectorSyncQueue }));
 mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: async (courseId: string) => { dispatched.push(courseId); } }));
 mock.module("@/db", () => ({ db }));
 mock.module("@/lib/student/course-pricing", () => ({ validateCoursePricing: (x: unknown) => x }));
+mock.module("@/lib/offline/server-events", () => ({ recordOfflineChange: async (tx: object, input: OfflineChangeInput) => {
+  expect(activeTransactions.has(tx)).toBe(true);
+  offlineChanges.push(structuredClone(input));
+  return String(offlineChanges.length);
+} }));
 const { saveChapterWithCanonicalProjection: save, archiveChapterWithLegacyDeletion: archive, reorderChaptersWithCanonicalProjection: reorder } = await import("@/lib/academic/course-canonical-sync");
 
 function fixtures() {
@@ -128,6 +138,10 @@ describe("chapter identity and ordering with a fake transaction", () => {
     expect(projection?.courseId).toBe("legacy-course");
     expect(data.bab.find((row) => row.id === "only-b")?.legacyChapterId).toBe(projection?.id);
     expect(data.audit.at(-1)?.afterSnapshot.legacyCourseId).toBe("legacy-course");
+    expect(offlineChanges).toEqual([
+      { kind: "course", courseId: "legacy-course", action: "invalidate" },
+      { kind: "course", courseId: "legacy-course", action: "invalidate" },
+    ]);
   });
   it("serializes simultaneous appends and reserves archived positions", async () => {
     fixtures();
@@ -153,7 +167,9 @@ describe("chapter identity and ordering with a fake transaction", () => {
     expect(data.bab.find((row) => row.id === "archived")?.orderIndex).toBeGreaterThan(4);
     expect(data.bab.find((row) => row.id === "archived-high")?.orderIndex).toBe(4);
     expect(data.bab.filter((row) => row.status === "archived")).toHaveLength(2);
+    expect(offlineChanges).toEqual([{ kind: "course", courseId: "legacy-course", action: "invalidate" }]);
     await expect(reorder("canonical-course", ["canonical-a", "legacy-a"])).rejects.toThrow("CHAPTER_ORDER_SCOPE_MISMATCH");
+    expect(offlineChanges).toHaveLength(1);
   });
   it("resolves all chapter identities with a fixed number of reads during reorder", async () => {
     reset();
@@ -194,6 +210,10 @@ describe("chapter identity and ordering with a fake transaction", () => {
     expect(data.bab.filter((row) => row.status === "archived")).toHaveLength(4);
     expect(data.chapters).toHaveLength(0);
     expect(data.audit.at(-1)?.actorId).toBe("admin");
+    expect(offlineChanges).toEqual([
+      { kind: "course", courseId: "legacy-course", action: "invalidate" },
+      { kind: "course", courseId: "legacy-course", action: "invalidate" },
+    ]);
   });
   it("preserves legacy KO vector deletion identity before the chapter cascade", async () => {
     fixtures();
@@ -229,6 +249,8 @@ describe("chapter identity and ordering with a fake transaction", () => {
     await reorder("canonical-only", [created.canonicalChapterId]);
     await archive(created.canonicalChapterId);
     expect(data.bab[0].status).toBe("archived");
+    expect(offlineChanges).toHaveLength(4);
+    expect(offlineChanges.every(change => change.courseId === "canonical-only")).toBe(true);
   });
   it("fails closed for ambiguous course and chapter aliases", async () => {
     fixtures();
