@@ -52,6 +52,53 @@ describe("Student smoke fixture behavior", () => {
     expect(JSON.stringify(await player.json())).toContain(longText);
   });
 
+  test("quiz gateway reserves distinct attempts and replays each request even at capacity", async () => {
+    const request = createAssessmentFixtureRequest("quiz-gateway-new");
+    const path = assessmentApiPath(assessmentFixturePaths.quiz);
+    const post = (url: string, body: unknown) => request(url, { method: "POST", body: JSON.stringify(body) });
+    const start = (requestId: string) => post(path, { requestId });
+    const firstKey = "b2ac5a39-1390-43e0-a32c-169488a5d239";
+    const secondKey = "163e7e8e-beae-459f-b832-a8a3db725972";
+    const thirdKey = "952c0004-7e07-400a-a393-403182ea4277";
+    const first = await start(firstKey);
+    expect(first.status).toBe(201);
+    const firstId: string = (await first.json()).attemptId;
+    const detail = async (id?: string) => (await request(id ? `${path}?attemptId=${id}` : path)).json();
+    const finish = (id: string) => post(`${path}/attempt/${id}`, { answers: {} });
+    const replay = async (key: string, id: string) => {
+      const response = await start(key);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ attemptId: id, replayed: true });
+    };
+
+    const active = await detail(firstId);
+    expect(active.player?.startAt).toBeTruthy();
+    expect((await detail(firstId)).player.startAt).toBe(active.player.startAt);
+    expect(await (await finish(firstId)).json()).toEqual({ status: "completed", attemptId: firstId });
+    expect(await (await finish(firstId)).json()).toEqual({ status: "completed", attemptId: firstId });
+    expect(await detail(firstId)).toMatchObject({ player: null, review: { result: { id: firstId }, discussionAvailable: false, items: [] } });
+    expect(await detail()).toMatchObject({ assessment: { attempts: 1, maxAttempts: 2 }, history: [{ id: firstId }] });
+
+    const second = await start(secondKey);
+    expect(second.status).toBe(201);
+    const secondId: string = (await second.json()).attemptId;
+    expect(secondId).not.toBe(firstId);
+    expect(await detail()).toMatchObject({ assessment: { activeAttemptId: secondId, attempts: 2 } });
+    expect(await detail(secondId)).toMatchObject({ player: { questions: expect.any(Array) }, review: null });
+    await replay(firstKey, firstId);
+    await replay(secondKey, secondId);
+    expect((await start(thirdKey)).status).toBe(409);
+    expect(await (await finish(secondId)).json()).toEqual({ status: "completed", attemptId: secondId });
+    await replay(secondKey, secondId);
+    expect((await start(thirdKey)).status).toBe(409);
+    expect(await detail()).toMatchObject({ assessment: { attempts: 2 }, history: [{ id: secondId }, { id: firstId }] });
+    expect(await detail(secondId)).toMatchObject({ player: null, review: { result: { id: secondId }, discussionAvailable: false, items: [] } });
+    expect((await finish("unknown-attempt")).status).toBe(404);
+
+    const exhausted = createAssessmentFixtureRequest("quiz-gateway-exhausted");
+    expect((await exhausted(path, { method: "POST", body: JSON.stringify({ requestId: firstKey }) })).status).toBe(409);
+  });
+
   test("offline assessment remains unavailable after a read retry", async () => {
     const request = createAssessmentFixtureRequest("offline");
     const path = assessmentApiPath(assessmentFixturePaths.quiz);

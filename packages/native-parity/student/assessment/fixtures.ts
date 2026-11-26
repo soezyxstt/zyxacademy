@@ -60,11 +60,16 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
   const gatewayEvidence = newGateway || resumableGateway || exhaustedGateway;
   let loseResponse = scenario === "retry";
   const questions = long ? baseQuestions.map((question) => ({ ...question, prompt: `${question.prompt} Jelaskan hubungan koefisien dengan perubahan gradien ketika nilai variabel bertambah. `.repeat(3) })) : baseQuestions;
-  const activeByKey = new Map<string, string>();
+  const quizByKey = new Map<string, string>();
   const tryoutByKey = new Map<string, string>();
-  const completed = new Set(newGateway ? [] : [attemptId]);
+  const fixtureStartAt = new Date(Date.now() - 1000).toISOString();
+  const activeAttempts = new Map<string, string>(resumableGateway ? [[activeAttemptId, fixtureStartAt]] : []);
   const priorQuiz = gatewayEvidence ? { ...fixtureQuiz, submittedAt: "2026-10-05T12:00:00.000Z" } : fixtureQuiz;
   const results = empty || newGateway ? [] : [priorQuiz, fixtureTryout];
+  const quizHistory = () => results.filter(row => row.kind === "quiz");
+  const quizResult = (id: string) => quizHistory().find(row => row.id === id);
+  // Existing player fixtures can open the first attempt directly, including after an app restart.
+  const directFixtureAttempt = (id: string) => !gatewayEvidence && !empty && id === activeAttemptId;
   const quiz: AssessmentRow = { id: quizId, title: fixtureQuiz.assessmentTitle, availability: locked ? "locked" : "open", durationSeconds: 900,
     questionCount: questions.length, openAt: null, closeAt: null, maxAttempts: exhaustedGateway ? 1 : gatewayEvidence ? 2 : 3,
     attempts: empty || newGateway ? 0 : 1, bestScore: empty || newGateway ? undefined : 80, visibility: "free",
@@ -72,10 +77,10 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
   const tryout: AssessmentRow = { id: tryoutId, title: fixtureTryout.assessmentTitle, availability: locked ? "locked" : "open", durationSeconds: 3600,
     questionCount: questions.length, openAt: null, closeAt: null, maxAttempts: 3, attempts: empty ? 0 : 1 };
   const simulatedQuiz = () => {
-    const active = (resumableGateway || activeByKey.size > 0) && !completed.has(activeAttemptId);
-    return { ...quiz, attempts: gatewayEvidence ? completed.size + Number(active) : quiz.attempts, activeAttemptId: active ? activeAttemptId : undefined };
+    const history = quizHistory();
+    return { ...quiz, attempts: history.length + activeAttempts.size, activeAttemptId: Array.from(activeAttempts.keys()).at(-1), bestScore: history[0]?.score ?? undefined };
   };
-  const player = (kind: "quiz" | "tryout"): AssessmentPlayer => ({ questions, answers: {}, startAt: kind === "quiz" ? new Date(Date.now() - 1000).toISOString() : null,
+  const player = (kind: "quiz" | "tryout", startAt: string | null = null): AssessmentPlayer => ({ questions, answers: {}, startAt,
     durationSeconds: kind === "quiz" ? 900 : 3600, closeAt: null, canGoBack: true, requireAllAnswered: false, perQuestionSeconds: null });
   const reviewQuestions: ReviewedQuestion[] = questions.map((question, i) => ({ ...question,
     selected: i === 0 ? "B. 2" : "", expected: i === 0 ? "B. 2" : i === 1 ? "A, C" : "2x", correct: i === 0,
@@ -83,9 +88,9 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
   const json = (payload: unknown, status = 200) => new Response(JSON.stringify(payload), { status, headers: { "Content-Type": "application/json" } });
   const ok = (page: AssessmentPage) => json(page);
   const missing = () => json({ error: "Asesmen tidak tersedia." }, 404);
-  function commitReceipt(body: unknown) {
+  function commitReceipt(body: unknown, status = 200) {
     if (loseResponse) { loseResponse = false; throw new TypeError("Fixture response lost"); }
-    return json(body);
+    return json(body, status);
   }
 
   return async (path: string, init?: RequestInit): Promise<Response> => {
@@ -100,14 +105,24 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
       if ((family === "quiz" || family === "my-results") && action === "summary") return json({ status: "processing" });
       const body = typeof init.body === "string" ? JSON.parse(init.body) : {};
       if (family === "quiz" && id === quizId && action === "attempt" && selected) {
-        if (!completed.has(selected)) { completed.add(selected); results.unshift({ ...fixtureQuiz, id: selected }); }
+        if (!quizResult(selected)) {
+          if (!activeAttempts.delete(selected) && !directFixtureAttempt(selected)) return missing();
+          results.unshift({ ...priorQuiz, id: selected });
+        }
         return commitReceipt({ status: "completed", attemptId: selected });
       }
-      if (family === "quiz" && id === quizId) {
-        if (exhaustedGateway) return json({ error: "Batas percobaan kuis tercapai" }, 409);
-        const attempt = activeByKey.get(body.requestId) ?? activeAttemptId;
-        activeByKey.set(body.requestId, attempt);
-        return commitReceipt({ attemptId: attempt, templateId: quizId });
+      if (family === "quiz" && id === quizId && !action) {
+        const prior = quizByKey.get(body.requestId);
+        if (prior) return commitReceipt({ attemptId: prior, templateId: quizId, replayed: true });
+        if (empty) return json({ error: "Soal belum tersedia." }, 422);
+        if (quiz.maxAttempts !== null && simulatedQuiz().attempts >= quiz.maxAttempts) {
+          return json({ error: "Batas percobaan kuis tercapai" }, 409);
+        }
+        const numberedAttempts = activeAttempts.size + quizHistory().filter(row => row.id !== attemptId).length;
+        const attempt = numberedAttempts === 0 ? activeAttemptId : `${activeAttemptId}-${numberedAttempts + 1}`;
+        activeAttempts.set(attempt, new Date().toISOString());
+        quizByKey.set(body.requestId, attempt);
+        return commitReceipt({ attemptId: attempt, templateId: quizId }, 201);
       }
       if (family === "tryout" && id === tryoutId) {
         let submissionId = tryoutByKey.get(body.requestId);
@@ -125,21 +140,24 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
     if (family === "my-results" && !id) return ok({ kind: "results", courseTitle, fullAccess: !locked, results: locked ? [] : results });
     if (family === "quiz" && id === quizId && !action) {
       const target = url.searchParams.get("attemptId");
-      const isReview = target !== null && completed.has(target);
       const assessment = empty ? { ...quiz, questionCount: 0 } : simulatedQuiz();
-      const review = !locked && (isReview || (!gatewayEvidence && url.searchParams.get("viewDiscussion") === "true"))
-        ? { result: target ? { ...priorQuiz, id: target } : null, discussionAvailable: !gatewayEvidence, items: gatewayEvidence ? [] : reviewQuestions } : null;
-      const mayPlay = !locked && !empty && target === activeAttemptId && !isReview && (!gatewayEvidence || target === assessment.activeAttemptId);
+      const result = target ? quizResult(target) ?? null : null;
+      const start = target && (activeAttempts.get(target) ?? (directFixtureAttempt(target) ? fixtureStartAt : null));
+      if (gatewayEvidence && target && !result && !start) return missing();
+      const review = !locked && (result || (!gatewayEvidence && url.searchParams.get("viewDiscussion") === "true"))
+        ? { result, discussionAvailable: !gatewayEvidence, items: gatewayEvidence ? [] : reviewQuestions } : null;
       return ok({ kind: "quiz-detail", courseTitle, assessment,
-        history: empty || locked ? [] : results.filter((row) => row.kind === "quiz"),
-        player: mayPlay ? player("quiz") : null, review });
+        history: empty || locked ? [] : quizHistory(),
+        player: !locked && !result && start ? player("quiz", start) : null, review });
     }
     if (family === "tryout" && id === tryoutId) return ok({ kind: "tryout-detail", courseTitle, assessment: empty ? { ...tryout, questionCount: 0 } : tryout, player: !locked && !empty ? player("tryout") : null });
     if (locked) return missing();
-    if (action === "summary" && ((family === "my-results" && id === attemptId) || (family === "quiz" && id === quizId && selected && completed.has(selected)))) {
-      return ok({ kind: "summary", courseTitle, result: { ...fixtureQuiz, id: selected ?? id }, discussionAvailable: true,
+    const summaryId = action === "summary" ? (family === "my-results" ? id : family === "quiz" && id === quizId ? selected : undefined) : undefined;
+    const summaryQuiz = summaryId === attemptId && empty ? fixtureQuiz : summaryId && quizResult(summaryId);
+    if (summaryQuiz) {
+      return ok({ kind: "summary", courseTitle, result: summaryQuiz, discussionAvailable: !gatewayEvidence,
         analytics: { status: empty ? "processing" : "completed", aiDiagnosis: null, computedMetrics: empty ? null : {
-          quizTitle: quiz.title, courseId, templateId: quizId, attemptId: selected ?? id, score: 80, correctCount: 2, incorrectCount: 1,
+          quizTitle: quiz.title, courseId, templateId: quizId, attemptId: summaryQuiz.id, score: 80, correctCount: 2, incorrectCount: 1,
           unansweredCount: 0, totalQuestions: 3, durationSeconds: 301, conceptMastery: [], cognitiveSkills: [], difficultyBreakdown: [],
           timeAnalysis: { totalDurationSeconds: 301, avgTimePerQuestionSeconds: 100, fastAnswerCount: 0, fastIncorrectCount: 0, slowAnswerCount: 0 },
           historicalComparison: { totalAttemptsAnalyzed: 1, scoreTrend: [80], overallImprovementDelta: 0, consistentlyWeakConcepts: [], improvedConcepts: [] },
@@ -147,7 +165,8 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
     }
     if (family === "my-results" && id) {
       const result = results.find((item) => item.id === id);
-      return result ? ok({ kind: "review", courseTitle, review: { result, discussionAvailable: true, items: reviewQuestions } }) : missing();
+      const disclosure = !gatewayEvidence || result?.kind !== "quiz";
+      return result ? ok({ kind: "review", courseTitle, review: { result, discussionAvailable: disclosure, items: disclosure ? reviewQuestions : [] } }) : missing();
     }
     if (family === "solutions" && id === solutionId) return ok({ kind: "solutions", courseTitle, id, version: 1, canComplete: true,
       collection: { title: "Pembahasan turunan fungsi", chapter: { title: "Turunan" }, items: empty ? [] : [{
