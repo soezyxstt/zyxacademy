@@ -55,6 +55,16 @@ test("community fixture recovery is scoped to its own transport and retry keeps 
   expect(isolated.items).toHaveLength(0);
 });
 
+test("schedule recovery fails the primary read even when sync status starts first", async () => {
+  const request = createCommunityFixtureRequest("unavailable");
+  const [sync, schedule] = await Promise.allSettled([
+    request(base + "calendar-status"), request(base + "schedule?offset=0"),
+  ]);
+  expect(sync.status).toBe("fulfilled");
+  expect(schedule.status).toBe("rejected");
+  expect((await request(base + "schedule?offset=0")).status).toBe(200);
+});
+
 test("learner community operations have an explicit MCP catalog exclusion", () => {
   const entry = operationsCatalog.find(item => item.source === "app/api/native/student/community/[operation]/route.ts");
   expect(entry).toMatchObject({ actions: ["GET", "POST"], tools: [], status: "excluded" });

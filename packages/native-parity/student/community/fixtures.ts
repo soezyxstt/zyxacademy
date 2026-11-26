@@ -121,7 +121,7 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
     const query = url.searchParams;
     if (url.origin !== origin || !isCommunityFixturePath(url.pathname)) return response({ code: "unavailable" }, 404);
     if (init?.signal?.aborted) throw new Error("ABORTED");
-    if (firstFailure) {
+    if (firstFailure && url.pathname !== endpoint + "calendar-status") {
       firstFailure = false;
       throw new TypeError("Network request failed");
     }
