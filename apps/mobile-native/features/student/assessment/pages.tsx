@@ -4,6 +4,7 @@ import { randomUUID } from "expo-crypto";
 import type { AssessmentPage, AssessmentResult, AssessmentRow, Review, ReviewedQuestion } from "../../../../../packages/native-parity/student/assessment/contract";
 import { assessmentCoursePath, assessmentRequest, AssessmentRequestError, assessmentRoutePath, draftKey, isAssessmentRequestId, jsonBody, pkaReturnPath, quizAttemptPath } from "./client";
 import { AssessmentPlay } from "./player";
+import { ResultsHistory } from "./results-history";
 import { QuizGatewayHistory, QuizGatewayIcon, QuizGatewayInstructions, quizGatewayStyles } from "./quiz-gateway-layout";
 import { Body, Button, ButtonRow, Fact, fill, Frame, Heading, Markdown, Message, Row, Section, styles, useAssessment, useAssessmentColors, useAssessmentCopy } from "./ui";
 
@@ -57,14 +58,12 @@ export function AssessmentList({ data }: { data: Extract<AssessmentPage, { rows:
 export function ResultsPage({ data }: { data: Extract<AssessmentPage, { kind: "results" }> }) {
   const { navigate } = useAssessment();
   const course = useCourse();
-  const { messages, date } = useAssessmentCopy();
-  const { score, status } = useResultCopy();
+  const { messages } = useAssessmentCopy();
+  const { status } = useResultCopy();
   return <Frame title={fill(messages.results.title, { course: data.courseTitle })}>
-    {!data.fullAccess ? <Activation detail={messages.results.activateToView} /> : data.results.length === 0 ?
-      <Message title={messages.results.emptyTitle} detail={messages.results.emptyDescription} action={messages.results.startPractice} onPress={() => navigate(`${course}/quiz`)} /> :
-      <View>{data.results.map((result) => <Row key={result.id} testID={`student-assessment-${result.id}`} title={result.assessmentTitle} trailing={score(result)}
-        description={[messages.results[result.kind], date(result.submittedAt), result.score == null ? "" : status(result)].filter(Boolean).join(" · ")}
-        onPress={() => navigate(`${course}/my-results/${encodeURIComponent(result.id)}`)} />)}</View>}
+    {data.fullAccess ? <ResultsHistory results={data.results} status={status}
+      openResult={id => navigate(`${course}/my-results/${encodeURIComponent(id)}`)}
+      startPractice={() => navigate(`${course}/quiz`)} /> : <Activation detail={messages.results.activateToView} />}
   </Frame>;
 }
 

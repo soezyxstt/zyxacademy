@@ -8,8 +8,17 @@ export const quizGatewayEvidence = {
 export type QuizGatewayState = (typeof quizGatewayEvidence.states)[number];
 export const quizGatewayScenario = <T extends QuizGatewayState>(state: T) => `quiz-gateway-${state}` as const;
 
+export const resultsEvidence = {
+  states: ["mixed", "empty", "graded"],
+  locale: "id",
+  theme: "light",
+  timeZone: "UTC",
+} as const;
+export type ResultsEvidenceState = (typeof resultsEvidence.states)[number];
+export const resultsScenario = <T extends ResultsEvidenceState>(state: T) => `results-${state}` as const;
+
 export const assessmentFixtureScenarios = ["populated", "empty", "locked", "offline", "long", "retry",
-  ...quizGatewayEvidence.states.map(quizGatewayScenario)] as const;
+  ...quizGatewayEvidence.states.map(quizGatewayScenario), ...resultsEvidence.states.map(resultsScenario)] as const;
 export type AssessmentFixtureScenario = (typeof assessmentFixtureScenarios)[number];
 
 const courseId = "native-assessment-course";
@@ -46,6 +55,15 @@ const baseQuestions: AssessmentQuestion[] = [
 ];
 const fixtureQuiz: AssessmentResult = { id: attemptId, assessmentId: quizId, assessmentTitle: "Fungsi, limit, dan turunan", kind: "quiz", status: "completed", score: 80, submittedAt, durationSeconds: 301 };
 const fixtureTryout: AssessmentResult = { id: tryoutSubmissionId, assessmentId: tryoutId, assessmentTitle: "Simulasi Ujian Tengah Semester", kind: "tryout", status: "pending_review", score: null, submittedAt };
+const mixedResults: AssessmentResult[] = [
+  { ...fixtureTryout, assessmentTitle: "Simulasi turunan untuk sains dan rekayasa", submittedAt: "2026-10-06T13:30:00.000Z" },
+  { ...fixtureQuiz, submittedAt: "2026-10-05T12:00:00.000Z" },
+];
+const gradedResults: AssessmentResult[] = [
+  { ...fixtureTryout, assessmentTitle: "Simulasi Ujian Tengah Semester", status: "graded", score: 0, submittedAt: "2026-10-06T14:05:00.000Z" },
+  { ...fixtureTryout, id: "native-late-tryout-submission", assessmentId: "native-late-tryout", assessmentTitle: "Simulasi limit fungsi",
+    status: "late", submittedAt: "2026-10-05T12:00:00.000Z" },
+];
 const md = (id: string, markdown: string) => [{ id, kind: "markdown" as const, markdown }];
 const provenance = { attribution: "Disusun oleh Zyx Academy", sources: [] };
 
@@ -65,7 +83,10 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
   const fixtureStartAt = new Date(Date.now() - 1000).toISOString();
   const activeAttempts = new Map<string, string>(resumableGateway ? [[activeAttemptId, fixtureStartAt]] : []);
   const priorQuiz = gatewayEvidence ? { ...fixtureQuiz, submittedAt: "2026-10-05T12:00:00.000Z" } : fixtureQuiz;
-  const results = empty || newGateway ? [] : [priorQuiz, fixtureTryout];
+  const resultsState = resultsEvidence.states.find(state => resultsScenario(state) === scenario);
+  const results = empty || newGateway || resultsState === "empty" ? []
+    : resultsState === "mixed" ? [...mixedResults] : resultsState === "graded" ? [...gradedResults] : [priorQuiz, fixtureTryout];
+  const quizDiscussionSealed = gatewayEvidence || resultsState !== undefined;
   const quizHistory = () => results.filter(row => row.kind === "quiz");
   const quizResult = (id: string) => quizHistory().find(row => row.id === id);
   // Existing player fixtures can open the first attempt directly, including after an app restart.
@@ -73,7 +94,7 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
   const quiz: AssessmentRow = { id: quizId, title: fixtureQuiz.assessmentTitle, availability: locked ? "locked" : "open", durationSeconds: 900,
     questionCount: questions.length, openAt: null, closeAt: null, maxAttempts: exhaustedGateway ? 1 : gatewayEvidence ? 2 : 3,
     attempts: empty || newGateway ? 0 : 1, bestScore: empty || newGateway ? undefined : 80, visibility: "free",
-    discussionAvailable: !empty && !locked && !gatewayEvidence };
+    discussionAvailable: !empty && !locked && !quizDiscussionSealed };
   const tryout: AssessmentRow = { id: tryoutId, title: fixtureTryout.assessmentTitle, availability: locked ? "locked" : "open", durationSeconds: 3600,
     questionCount: questions.length, openAt: null, closeAt: null, maxAttempts: 3, attempts: empty ? 0 : 1 };
   const simulatedQuiz = () => {
@@ -144,8 +165,8 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
       const result = target ? quizResult(target) ?? null : null;
       const start = target && (activeAttempts.get(target) ?? (directFixtureAttempt(target) ? fixtureStartAt : null));
       if (gatewayEvidence && target && !result && !start) return missing();
-      const review = !locked && (result || (!gatewayEvidence && url.searchParams.get("viewDiscussion") === "true"))
-        ? { result, discussionAvailable: !gatewayEvidence, items: gatewayEvidence ? [] : reviewQuestions } : null;
+      const review = !locked && (result || (!quizDiscussionSealed && url.searchParams.get("viewDiscussion") === "true"))
+        ? { result, discussionAvailable: !quizDiscussionSealed, items: quizDiscussionSealed ? [] : reviewQuestions } : null;
       return ok({ kind: "quiz-detail", courseTitle, assessment,
         history: empty || locked ? [] : quizHistory(),
         player: !locked && !result && start ? player("quiz", start) : null, review });
@@ -155,7 +176,9 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
     const summaryId = action === "summary" ? (family === "my-results" ? id : family === "quiz" && id === quizId ? selected : undefined) : undefined;
     const summaryQuiz = summaryId === attemptId && empty ? fixtureQuiz : summaryId && quizResult(summaryId);
     if (summaryQuiz) {
-      return ok({ kind: "summary", courseTitle, result: summaryQuiz, discussionAvailable: !gatewayEvidence,
+      if (resultsState) return ok({ kind: "summary", courseTitle, result: summaryQuiz, discussionAvailable: false,
+        analytics: { status: "not_available", aiDiagnosis: null, computedMetrics: null } });
+      return ok({ kind: "summary", courseTitle, result: summaryQuiz, discussionAvailable: !quizDiscussionSealed,
         analytics: { status: empty ? "processing" : "completed", aiDiagnosis: null, computedMetrics: empty ? null : {
           quizTitle: quiz.title, courseId, templateId: quizId, attemptId: summaryQuiz.id, score: 80, correctCount: 2, incorrectCount: 1,
           unansweredCount: 0, totalQuestions: 3, durationSeconds: 301, conceptMastery: [], cognitiveSkills: [], difficultyBreakdown: [],
@@ -165,7 +188,7 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
     }
     if (family === "my-results" && id) {
       const result = results.find((item) => item.id === id);
-      const disclosure = !gatewayEvidence || result?.kind !== "quiz";
+      const disclosure = !quizDiscussionSealed || result?.kind !== "quiz";
       return result ? ok({ kind: "review", courseTitle, review: { result, discussionAvailable: disclosure, items: disclosure ? reviewQuestions : [] } }) : missing();
     }
     if (family === "solutions" && id === solutionId) return ok({ kind: "solutions", courseTitle, id, version: 1, canComplete: true,

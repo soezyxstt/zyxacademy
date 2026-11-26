@@ -1,0 +1,85 @@
+appId: com.zyx.academy.nativeparity
+name: Student course results history states
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=results-mixed&theme=light&locale=id&path=%2Fcourses%2Fnative-assessment-course%2Fmy-results"
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-native-completed-attempt
+    timeout: 30000
+- assertVisible: "Hasil ujian: Kalkulus dasar"
+- assertVisible:
+    id: student-assessment-native-tryout-submission
+    text: 'Simulasi turunan untuk sains dan rekayasa, Tryout, 6 Okt 2026, .*, Menunggu penilaian'
+    enabled: true
+- assertVisible:
+    id: student-assessment-native-completed-attempt
+    text: 'Fungsi, limit, dan turunan, Kuis, 5 Okt 2026, .*, Selesai, 80%'
+    enabled: true
+- assertNotVisible:
+    id: student-assessment-start-practice
+- takeScreenshot: student-results-mixed
+- tapOn:
+    id: student-assessment-native-completed-attempt
+- extendedWaitUntil:
+    visible: "Pembahasan belum tersedia"
+    timeout: 30000
+- assertVisible: "Skor akhir"
+- assertVisible: "80%"
+- assertNotVisible: "Lihat diagnosis dan rencana belajar"
+- assertNotVisible: "Jawaban Anda:"
+- assertNotVisible: "Jawaban benar:"
+- tapOn:
+    id: 'student\.back'
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-native-tryout-submission
+    timeout: 30000
+- tapOn:
+    id: student-assessment-native-tryout-submission
+- extendedWaitUntil:
+    visible: "Simulasi turunan untuk sains dan rekayasa"
+    timeout: 30000
+- assertVisible: "Skor akhir"
+
+- openLink: "zyx-native-parity://student-fixture?scenario=results-empty&theme=light&locale=id&path=%2Fcourses%2Fnative-assessment-course%2Fmy-results"
+- extendedWaitUntil:
+    visible: "Belum ada riwayat ujian"
+    timeout: 30000
+- assertVisible: "Hasil ujian: Kalkulus dasar"
+- assertVisible: 'Selesaikan kuis atau tryout untuk melihat hasil\.'
+- assertNotVisible:
+    id: student-assessment-native-completed-attempt
+- assertVisible:
+    id: student-assessment-start-practice
+    text: "Mulai latihan kuis"
+    enabled: true
+- takeScreenshot: student-results-empty
+- tapOn:
+    id: student-assessment-start-practice
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-native-quiz
+    timeout: 30000
+
+- openLink: "zyx-native-parity://student-fixture?scenario=results-graded&theme=light&locale=id&path=%2Fcourses%2Fnative-assessment-course%2Fmy-results"
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-native-late-tryout-submission
+    timeout: 30000
+- assertVisible: "Hasil ujian: Kalkulus dasar"
+- assertVisible:
+    id: student-assessment-native-tryout-submission
+    text: 'Simulasi Ujian Tengah Semester, Tryout, 6 Okt 2026, .*, Sudah dinilai, 0%'
+    enabled: true
+- assertVisible:
+    id: student-assessment-native-late-tryout-submission
+    text: 'Simulasi limit fungsi, Tryout, 5 Okt 2026, .*, Terlambat, Menunggu'
+    enabled: true
+- assertNotVisible:
+    id: student-assessment-start-practice
+- takeScreenshot: student-results-graded
