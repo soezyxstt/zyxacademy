@@ -753,7 +753,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
       {service.discussionProfile && message.mentionedPeople?.length ? <View style={tutorLayout.cluster}>
         {message.mentionedPeople.map(recipient => <Button theme={theme} key={recipient.id} variant="outline"
           accessibilityLabel={`Lihat profil ${recipient.name}`}
-          onPress={() => { if (canInteract()) setPerson({ id: recipient.id, messageId: message.id }); }}>@{recipient.name}</Button>)}
+          onPress={() => { if (canInteract()) setPerson({ id: recipient.id, messageId: message.id }); }}>{`@${recipient.name}`}</Button>)}
       </View> : null}
       {person?.messageId === message.id ? <TutorDiscussionPerson key={person.id} {...{ service, courseId, threadId, theme }}
         personId={person.id} close={() => setPerson(undefined)} /> : null}
