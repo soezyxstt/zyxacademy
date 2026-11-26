@@ -84,7 +84,7 @@ export async function searchDiscussionForwardTargets(actions: Pick<Actions, "lis
 
 export function discussionUploadError(message: unknown): DiscussionUploadError {
   switch (message) {
-    case "pixels": case "size": case "format": case "rate_limited": case "login": case "access": return message;
+    case "pixels": case "size": case "format": case "origin": case "rate_limited": case "login": case "access": return message;
     case "Dimensi gambar maksimal 4096 piksel per sisi dan 16 juta piksel.": return "pixels";
     case "Ukuran gambar maksimal 8 MiB.": return "size";
     case "Gunakan gambar JPEG, PNG, atau WebP yang valid dan tidak bergerak.": return "format";
