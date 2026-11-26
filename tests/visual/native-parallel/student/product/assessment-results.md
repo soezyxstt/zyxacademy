@@ -30,3 +30,9 @@ STUDENT_SERVER_SHA=$(git rev-parse HEAD) \
 ```
 
 Jalankan dengan `STUDENT_ASSESSMENT_RESULTS_HTTP_ONLY=1` untuk memeriksa kontrak saja. Profil bawaan Android. Gunakan `STUDENT_ASSESSMENT_RESULTS_PROFILES=android,ios` untuk kedua profil dan `STUDENT_ASSESSMENT_RESULTS_CASES` untuk daftar ID kasus browser yang diulang. Arahkan `STUDENT_CAPTURE_DIR` ke direktori baru untuk menyimpan manifest, snapshot, dan tangkapan dari setiap pengujian.
+
+## Bukti Android dari browser
+
+Tiga keadaan review menghasilkan PNG dengan dimensi 380 × 820. Tangkapan awal tryout yang menunggu penilaian terhenti karena ketidakcocokan hidrasi pada bilah akun. Pengulangan dengan konteks browser baru lulus. Dua keadaan diagnosis riwayat menghasilkan PNG. Pada diagnosis riwayat dengan penilaian tertunda, renderer web tidak memakai pesan penilaian khusus dari ringkasan kuis. [Review kuis rilis](assessment-results-web/android/review-released-quiz.png) · [Review tryout menunggu](assessment-results-web/android/review-pending-tryout.png) · [Review tryout sudah dinilai](assessment-results-web/android/review-graded-tryout.png) · [Diagnosis riwayat rilis](assessment-results-web/android/results-summary-released.png) · [Diagnosis riwayat belum tersedia](assessment-results-web/android/results-summary-analytics-unavailable.png)
+
+Pengujian terpisah menghasilkan 28 respons yang mencakup pemilik hasil, peserta lain dengan enrollment aktif, dan permintaan anonim. Saat nilai esai tertunda, permintaan analisis ulang di kedua endpoint mendapat 409. Saat pembahasan belum dirilis, kedua endpoint mendapat 403 untuk analisis ulang. PNG web dan snapshot GET native dicatat dengan SHA-256. [Manifest tangkapan](assessment-results-web/android/manifest.json) · [Bukti HTTP](assessment-results-web/http.json)

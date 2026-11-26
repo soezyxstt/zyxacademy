@@ -37,13 +37,13 @@ async function save() {
   await writeFile(join(output, "authorization.json"), JSON.stringify({ serverSha, ...evidence }, null, 2) + "\n");
 }
 
-async function readJson(path: string, status: number, student: Student | null = owner) {
+async function readJson(path: string, status: number, student: Student | null = owner, method: "GET" | "POST" = "GET") {
   const headers: HeadersInit = student ? { cookie: `${student.cookie.name}=${student.cookie.value}`, "x-student-id": student.id } : {};
-  const response = await fetch(new URL(path, origin), { headers, redirect: "manual", signal: AbortSignal.timeout(timeout) });
+  const response = await fetch(new URL(path, origin), { headers, method, redirect: "manual", signal: AbortSignal.timeout(timeout) });
   assert.equal(response.status, status, path);
   if (path.startsWith(native)) assert.equal(response.headers.get("cache-control"), "private, no-store", path);
   const payload = await response.json();
-  evidence.http.push({ path, account: student ? student === owner ? "owner" : "enrolled-peer" : "anonymous", status, cacheControl: response.headers.get("cache-control") });
+  evidence.http.push({ method, path, account: student ? student === owner ? "owner" : "enrolled-peer" : "anonymous", status, cacheControl: response.headers.get("cache-control") });
   return payload;
 }
 
@@ -85,6 +85,7 @@ async function verifyAuthorization() {
     const waiting = await nativeRead(summaryPath(cases.pendingQuiz));
     assert.equal(waiting.result.status, "pending_review");
     assert.deepEqual(waiting.analytics, { status: "not_available", aiDiagnosis: null, computedMetrics: null });
+    await readJson(native + summaryPath(cases.pendingQuiz), 409, owner, "POST");
     const failed = await nativeRead(summaryPath(cases.missingAnalytics));
     assert.equal(failed.analytics.status, "failed");
     assert.equal(failed.analytics.computedMetrics, null);
@@ -92,6 +93,7 @@ async function verifyAuthorization() {
     assert.deepEqual(await nativeRead(summaryPath(cases.completed), 404, peer), { error: "Asesmen tidak tersedia." });
   }
   for (const path of [`/my-results/${cases.heldQuiz}/summary`, `/quiz/${cases.heldTemplate}/summary/${cases.heldQuiz}`]) {
+    await readJson(native + path, 403, owner, "POST");
     const response = await nativeRead(path);
     assert.equal(response.discussionAvailable, false);
     assert.deepEqual(response.analytics, { status: "not_available", aiDiagnosis: null, computedMetrics: null });
@@ -226,7 +228,7 @@ async function verifyBrowser() {
         });
         await check(peer, `${family}-foreign-denied`, summary(cases.completed), async (page, status) => {
           expect([200, 404]).toContain(status);
-          await expect(page.getByText("404", { exact: true })).toBeVisible({ timeout });
+          await expect(page.getByRole("heading", { name: "404", exact: true })).toBeVisible({ timeout });
           await expect(analytics(page)).toHaveCount(0);
           for (const text of privateText) await expect(page.getByText(text, { exact: typeof text === "string" })).toHaveCount(0);
         });
@@ -237,13 +239,15 @@ async function verifyBrowser() {
       });
       await check(owner, "quiz-summary-unreleased-redirect", `${held}/summary/${cases.heldQuiz}`, async page => {
         await expect(page).toHaveURL(new URL(`${held}?attemptId=${cases.heldQuiz}`, origin).href, { timeout });
+        await expect(page.getByText("60%", { exact: true })).toBeVisible({ timeout });
+        await expect(page.getByText("Pembahasan tidak tersedia saat ini.", { exact: true })).toBeVisible({ timeout });
         await expect(analytics(page)).toHaveCount(0);
         await expect(page.getByText(cases.heldExplanation, { exact: true })).toHaveCount(0);
       });
       for (const [id, target] of [["released-quiz", cases.completed], ["pending-tryout", cases.pendingTryout], ["graded-tryout", cases.gradedTryout]] as const) {
         await check(peer, `review-${id}-foreign-denied`, `${results}/${target}`, async (page, status) => {
           expect([200, 404]).toContain(status);
-          await expect(page.getByText("404", { exact: true })).toBeVisible({ timeout });
+          await expect(page.getByRole("heading", { name: "404", exact: true })).toBeVisible({ timeout });
           for (const text of privateText) await expect(page.getByText(text, { exact: typeof text === "string" })).toHaveCount(0);
         });
       }
