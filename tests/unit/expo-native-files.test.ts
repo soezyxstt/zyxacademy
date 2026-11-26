@@ -5,6 +5,7 @@ import {
   type DocumentDraftRequest,
   type PickerDocument,
 } from "../../apps/mobile-native/device/file-controller";
+import { adminMediaDownloadPolicy, adminMediaFilePath } from "../../packages/native-parity/operations/media-content";
 import { createPublicLinkSharer } from "../../apps/mobile-native/device/share-links";
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
 import { SCHEDULE_ACCOUNT, SCHEDULE_SESSION, scheduleFilePolicy } from "../../packages/native-parity/schedule/resources";
@@ -640,4 +641,33 @@ test("manual PDF export only shares a protected attachment response under the cu
   disposition = "attachment";
   expect(await fixture.controller.shareAuthorizedDownload(request)).toEqual({ status: "finished" });
   expect(fixture.shares).toHaveLength(1);
+});
+
+
+test("Admin media previews and downloads use the exact storage key and release private files", async () => {
+  const requests: string[] = [];
+  const fixture = setup({}, async (url, init) => {
+    requests.push(url);
+    expect(new Headers(init.headers).get("cookie")).toBe("session=fixture");
+    return new Response(stream(fixturePdf), { headers: { "Content-Type": "application/pdf" } });
+  });
+  const key = "media/admin dokumen/report.pdf";
+  const controller = new AbortController();
+  const preview = await fixture.controller.prepareAdminMedia(fixture.session, key, controller.signal, () => true);
+  expect(fixture.files.size).toBe(1);
+  controller.abort();
+  expect(fixture.files.size).toBe(0);
+  await expect(fixture.controller.shareAuthorizedDownload({
+    session: fixture.session, target: { kind: "admin-media", key }, policy: adminMediaDownloadPolicy,
+  })).resolves.toEqual({ status: "finished" });
+  expect(requests).toEqual([
+    `${origin}/api/storage/file/media/admin%20dokumen/report.pdf`,
+    `${origin}/api/storage/file/media/admin%20dokumen/report.pdf?download=1`,
+  ]);
+  expect(fixture.files.size).toBe(0);
+  for (const invalid of ["../media/file.pdf", "media/a%2Ffile.pdf", "media/file.pdf?download=1", "//evil.example/file.pdf"]) {
+    expect(adminMediaFilePath(invalid)).toBeNull();
+    await expect(fixture.controller.prepareAdminMedia(fixture.session, invalid, new AbortController().signal, () => true)).rejects.toThrow();
+  }
+  expect(requests).toHaveLength(2);
 });

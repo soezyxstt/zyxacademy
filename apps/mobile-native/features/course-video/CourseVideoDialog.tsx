@@ -24,7 +24,7 @@ type Props = {
   returnFocusRef?: RefObject<ComponentRef<typeof View> | null>;
 };
 
-function VideoSurface({ uri, title, fail }: { uri: string; title: string; fail(): void }) {
+export function VideoSurface({ uri, title, fail }: { uri: string; title: string; fail(): void }) {
   const [rendered, setRendered] = useState(false);
   const player = useVideoPlayer({ uri, useCaching: false }, p => {
     p.staysActiveInBackground = false;

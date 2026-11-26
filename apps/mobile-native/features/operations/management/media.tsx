@@ -2,9 +2,10 @@ import { randomUUID } from "expo-crypto";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import { ManagementFailure, type MediaLocation } from "../../../../../packages/native-parity/operations/management-contract";
+import { ManagementFailure, type MediaFile, type MediaLocation } from "../../../../../packages/native-parity/operations/management-contract";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { mediaDestination, mediaSelection, runMediaBatch, type MediaItem, type MediaMutation } from "./media-batch";
+import { MediaContentPreview } from "./media-preview";
 import type { PickMediaFile } from "./media-upload";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Item, LoadState, Screen, Section, Sections, styles,
   useAction, useManagement, useRead, type Confirmation } from "./ui";
@@ -15,7 +16,7 @@ type BatchAction = { type: "media.delete" } | { type: "media.move" | "media.copy
 type Prepared = Extract<Awaited<ReturnType<PickMediaFile>>, { status: "ready" }>["file"];
 
 export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
-  const { client, retries, locale, openExternal, pickMediaFile } = useManagement();
+  const { client, retries, locale, pickMediaFile } = useManagement();
   const { canInteract } = useProtectedInteraction();
   const activeRoute = useRef<symbol | null>(null);
   useFocusEffect(useCallback(() => {
@@ -25,6 +26,7 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
   const [location, setLocation] = useState<MediaLocation>({ space: initialSpace === "storage" ? "storage" : "media", folder: "" });
   const { space, folder } = location;
   const [editor, setEditor] = useState<Editor>();
+  const [preview, setPreview] = useState<MediaFile>();
   const [selected, setSelected] = useState<MediaItem[] | null>(null);
   const [moving, setMoving] = useState<MediaItem[]>();
   const [copying, setCopying] = useState<CopySelection>();
@@ -52,7 +54,7 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
   function browse(next: MediaLocation) {
     if (busy) return;
     discardUpload();
-    setEditor(undefined); setSelected(null); setMoving(undefined); setCopying(undefined); setError(undefined); setMessage("");
+    setPreview(undefined); setEditor(undefined); setSelected(null); setMoving(undefined); setCopying(undefined); setError(undefined); setMessage("");
     setLocation(next);
   }
 
@@ -263,8 +265,10 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
         return <Item key={key} title={title} meta="Folder" onPress={() => browse({ space, folder: key })} actions={rowActions({ key, folder: true }, title)} />;
       })}
       {read.data.files.map(file => <Item key={file.key} title={file.name} meta={`${Math.ceil(file.size / 1024)} KB`}
-        onPress={file.url && openExternal ? () => openExternal(file.url!) : undefined} actions={rowActions({ key: file.key, folder: false }, file.name)} />)}
+        onPress={!busy && !selected ? () => { if (canInteract()) setPreview(file); } : undefined}
+        actions={rowActions({ key: file.key, folder: false }, file.name)} />)}
     </Section>}
+    {preview && <MediaContentPreview key={preview.key} file={preview} close={() => setPreview(undefined)} />}
     <Confirm value={confirm} onClose={() => setConfirm(null)} />
   </Screen>;
 }

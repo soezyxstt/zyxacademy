@@ -8,6 +8,7 @@ import { formQuestionImageProxyPath } from "../../../lib/forms/attachment";
 import { FORM_FILE_MIMES, FORM_IMAGE_MIMES } from "../../../packages/forms/file-types";
 import { PUBLIC_FORM_MAX_FILE_SIZE_MB } from "../../../packages/forms/presentation";
 import { blogUploadMaxBytes } from "../../../lib/blog/upload-policy";
+import { adminMediaDownloadPolicy, adminMediaFilePath, adminMediaPreviewPolicy } from "../../../packages/native-parity/operations/media-content";
 import { previewStoragePath, type MarkdownPreviewAudience } from "../../../packages/native-parity/operations/admin-markdown-media";
 import { TRYOUT_GRADE_ATTACHMENT_ACCOUNT, TRYOUT_GRADE_ATTACHMENT_SESSION, tryoutGradeAttachmentPath, tryoutGradeAttachmentPolicy,
   type TryoutGradeAttachment } from "../../../packages/academic/tryout-grade-attachment";
@@ -33,6 +34,7 @@ export type DraftDocument = Readonly<{
 }>;
 
 export type NativeDownloadTarget =
+  | { kind: "admin-media"; key: string }
   | { kind: "diktat-pdf"; courseId: string; diktatId: string }
   | ({ kind: "course-material-pdf" } & MaterialPdfTarget)
   | { kind: "quiz-grade-attachment"; courseId: string; attemptId: string; questionId: string }
@@ -159,6 +161,7 @@ function dispositionName(disposition: string | null): string | undefined {
 }
 
 function downloadPath(target: NativeDownloadTarget): string | null {
+  if (target.kind === "admin-media") return adminMediaFilePath(target.key, true);
   const id = (value: string) => /^[A-Za-z0-9:_-][A-Za-z0-9._:-]{0,255}$/.test(value);
   if (target.kind === "schedule-resource") return scheduleResourcePath(target.role, target.bookingId, target.attachmentId);
   if (target.kind === "tryout-grade-attachment") return tryoutGradeAttachmentPath(target);
@@ -510,10 +513,11 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     const quiz = request.target.kind === "quiz-grade-attachment";
     const tryout = request.target.kind === "tryout-grade-attachment";
     const form = request.target.kind === "form-response-attachment";
+    const media = request.target.kind === "admin-media";
     const schedule = request.target.kind === "schedule-resource" ? request.target : null;
     // The existing discussion API authorizes only these three image types and caps each at 8 MiB.
     const imageTypes = ["image/jpeg", "image/png", "image/webp"];
-    const domainTypes: readonly string[] = schedule ? scheduleFilePolicy.mimeTypes : form ? FORM_FILE_MIMES :
+    const domainTypes: readonly string[] = schedule ? scheduleFilePolicy.mimeTypes : form ? FORM_FILE_MIMES : media ? adminMediaDownloadPolicy.mimeTypes :
       tryout ? tryoutGradeAttachmentPolicy.mimeTypes :
       quiz ? [...imageTypes, "application/pdf"] : diskImages ? imageTypes : ["application/pdf"];
     const permitted = request.policy.mimeTypes.filter(mimeType => domainTypes.includes(mimeType));
@@ -523,7 +527,7 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       : diskImages ? Math.min(request.policy.maxBytes, 8 * 1024 * 1024)
       : form ? Math.min(request.policy.maxBytes, PUBLIC_FORM_MAX_FILE_SIZE_MB * 1024 * 1024)
       : schedule ? Math.min(request.policy.maxBytes, scheduleFilePolicy.maxBytes)
-      : materialPdf ? Math.min(request.policy.maxBytes, MATERIAL_PDF_MAX_BYTES) : request.policy.maxBytes;
+      : materialPdf ? Math.min(request.policy.maxBytes, MATERIAL_PDF_MAX_BYTES) : media ? Math.min(request.policy.maxBytes, adminMediaDownloadPolicy.maxBytes) : request.policy.maxBytes;
     const assertCurrent = () => { if (current()) throw new FileIssue("fetch"); };
     sharing = true;
     let response: Awaited<ReturnType<NativeSessionTransport["request"]>> | undefined;
@@ -535,7 +539,7 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       if (!await device.canShare()) return { status: "unavailable" };
       assertCurrent();
       errorStage = "fetch";
-      response = await request.session.request(path, { signal: request.signal, requiredRole: schedule?.role ?? (form ? "admin" : (quiz || tryout) ? "tutor" : materialPdf ? "murid" : undefined),
+      response = await request.session.request(path, { signal: request.signal, requiredRole: schedule?.role ?? (form || media ? "admin" : (quiz || tryout) ? "tutor" : materialPdf ? "murid" : undefined),
         headers: {
           Accept: permitted.join(", "),
           ...(materialPdf ? { "x-student-id": request.session.scope.accountId } : {}),
@@ -564,7 +568,8 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
         [request.session.signal, request.signal]);
       assertCurrent();
       errorStage = "share";
-      await device.share(file.uri, mimeType, request.title?.trim() || name);
+      await device.share(file.uri, media && (mimeType === "text/html" || mimeType === "image/svg+xml") ? "application/octet-stream" : mimeType,
+        request.title?.trim() || name);
       const afterShare = current();
       if (afterShare) return afterShare;
       staged.retain();
@@ -580,28 +585,35 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
 
   async function prepareFormQuestionImage(session: NativeSessionTransport, url: string, signal: AbortSignal, isCurrent?: () => boolean) {
     const path = formQuestionImageProxyPath(url, session.scope.origin);
-    return prepareAdminImage(session, path, "form-question-image", PUBLIC_FORM_MAX_FILE_SIZE_MB * 1024 * 1024, signal, isCurrent);
+    return prepareAdminAsset(session, path, "form-question-image", PUBLIC_FORM_MAX_FILE_SIZE_MB * 1024 * 1024, signal, isCurrent);
   }
 
   async function prepareAdminMarkdownImage(session: NativeSessionTransport, url: string, audience: MarkdownPreviewAudience, signal: AbortSignal, isCurrent: () => boolean) {
     const path = previewStoragePath(url, session.scope.origin, audience);
-    return prepareAdminImage(session, path, "document-image", blogUploadMaxBytes, signal, isCurrent);
+    return prepareAdminAsset(session, path, "document-image", blogUploadMaxBytes, signal, isCurrent);
   }
 
-  async function prepareAdminImage(session: NativeSessionTransport, path: string | null, name: string, limit: number, signal: AbortSignal, isCurrent?: () => boolean) {
-    if (!device.available || !path) throw new FileIssue("invalid-target");
+  async function prepareAdminMedia(session: NativeSessionTransport, key: string, signal: AbortSignal, isCurrent: () => boolean) {
+    const path = adminMediaFilePath(key);
+    const policy = adminMediaPreviewPolicy(key);
+    return prepareAdminAsset(session, path, key.split("/").at(-1) ?? "media", policy.maxBytes, signal, isCurrent, policy.mimeTypes);
+  }
+
+  async function prepareAdminAsset(session: NativeSessionTransport, path: string | null, name: string, limit: number, signal: AbortSignal, isCurrent?: () => boolean,
+    mimeTypes: readonly string[] = FORM_IMAGE_MIMES) {
+    if (!device.available || !path || !mimeTypes.length) throw new FileIssue("invalid-target");
     const current = () => {
       session.assertCurrent();
       if (signal.aborted || isCurrent?.() === false) throw new FileIssue("fetch");
     };
     current();
     initialize();
-    const response = await session.request(path, { signal, requiredRole: "admin", headers: { Accept: FORM_IMAGE_MIMES.join(", ") } });
+    const response = await session.request(path, { signal, requiredRole: "admin", headers: { Accept: mimeTypes.join(", ") } });
     const staged = stageExport({ session, signal });
     try {
       current();
       const mime = normalizeMimeType(response.headers.get("Content-Type"));
-      if (response.status !== 200 || !response.body || !FORM_IMAGE_MIMES.some(allowed => allowed === mime)) throw new FileIssue("type");
+      if (response.status !== 200 || !response.body || !mimeTypes.includes(mime)) throw new FileIssue("type");
       const length = response.headers.get("Content-Length");
       const encoding = response.headers.get("Content-Encoding");
       if (length !== null && !/^\d+$/.test(length)) throw new FileIssue("incomplete");
@@ -744,5 +756,5 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
   }
 
   return { initialize, expireExports, pickDocument, pickDocuments, belongsToDocumentDraft, shareDocument, shareGeneratedJson, shareAuthorizedDownload,
-    prepareFormQuestionImage, prepareAdminMarkdownImage, prepareCourseVideo, prepareMaterialPdf, renewMaterialPdf };
+    prepareFormQuestionImage, prepareAdminMarkdownImage, prepareAdminMedia, prepareCourseVideo, prepareMaterialPdf, renewMaterialPdf };
 }
