@@ -43,6 +43,9 @@ on:
       - 'drizzle-postgres/**'
       - 'tests/contracts/notifications-history.test.ts'
       - 'tests/contracts/offline-server-sync.test.ts'
+      - 'tests/contracts/native-admin-user-roles.test.ts'
+      - 'lib/admin/user-roles.ts'
+      - 'lib/native/academic/administration/user-*.ts'
       - 'tests/contracts/native-admin-course-management.test.ts'
       - 'tests/contracts/native-admin-text-document.test.ts'
       - 'tests/unit/expo-native-text-document.test.ts'
@@ -237,6 +240,7 @@ jobs:
       - name: Academic courses, scheduling and tryout operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
+          bun scripts/test-contracts.ts tests/contracts/native-admin-user-roles.test.ts tests/contracts/authoring-role-lock-order.test.ts
           bun scripts/test-contracts.ts tests/contracts/native-admin-course-management.test.ts tests/contracts/native-tutor-slot.test.ts tests/contracts/native-tryout-draft.test.ts
           bun test packages/native-parity/academic/assessment/read-handler.test.ts
       - name: Admin native text document edits and publication
