@@ -1,0 +1,269 @@
+{
+  "platform": "ios",
+  "simulator": "iPhone 17 Pro",
+  "gitSha": "72be4055d944352f6bbd67f1f3113e1a66d742d9",
+  "gitHubRun": 45806987342,
+  "gitHubJob": 139864730287,
+  "gitHubArtifact": 15115168375,
+  "gitHubArtifactDigest": "sha256:8679f4641c8a4ff770233e4883512605302fbd81aeb0e96aa409e200431d0322",
+  "gitHubArtifactSizeBytes": 18580203,
+  "status": "cancelled",
+  "junitReportPresent": false,
+  "namedScreens": [
+    {
+      "flow": "Operations Admin home to Web Analytics and access denial",
+      "caseId": null,
+      "route": null,
+      "locale": null,
+      "theme": null,
+      "state": null,
+      "artifactPath": "results/2026-11-26_120403/Operations Admin home to Web Analytics and access denial/takeScreenshot/feature-usage-empty-range.png",
+      "path": "screens/feature-usage-empty-range.png",
+      "sha256": "fbde17642cfe915f2f504277b74644980b75cba509fd5f1665cba8f16f93aa43",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/Operations Admin home to Web Analytics and access denial/commands.json"
+    },
+    {
+      "flow": "Operations Admin home to Web Analytics and access denial",
+      "caseId": null,
+      "route": null,
+      "locale": null,
+      "theme": null,
+      "state": null,
+      "artifactPath": "results/2026-11-26_120403/Operations Admin home to Web Analytics and access denial/takeScreenshot/feature-usage.png",
+      "path": "screens/feature-usage.png",
+      "sha256": "f646d23217fdf4c152605d5200313490ad0ba4af53a3d4dfcd57f3523ec7392a",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/Operations Admin home to Web Analytics and access denial/commands.json"
+    },
+    {
+      "flow": "Operations Admin home to Web Analytics and access denial",
+      "caseId": null,
+      "route": null,
+      "locale": null,
+      "theme": null,
+      "state": null,
+      "artifactPath": "results/2026-11-26_120403/Operations Admin home to Web Analytics and access denial/takeScreenshot/web-analytics-denied.png",
+      "path": "screens/web-analytics-denied.png",
+      "sha256": "4d76afe8a6a20a674fab47044e117cab930977d482dcdba671a0b5e355af4991",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/Operations Admin home to Web Analytics and access denial/commands.json"
+    },
+    {
+      "flow": "Operations Admin home to Web Analytics and access denial",
+      "caseId": null,
+      "route": null,
+      "locale": null,
+      "theme": null,
+      "state": null,
+      "artifactPath": "results/2026-11-26_120403/Operations Admin home to Web Analytics and access denial/takeScreenshot/web-analytics-empty-dark.png",
+      "path": "screens/web-analytics-empty-dark.png",
+      "sha256": "be835be0b68d7f88cf7fa40dc5836c086a123ca58791c5d984ef9d171d462a04",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/Operations Admin home to Web Analytics and access denial/commands.json"
+    },
+    {
+      "flow": "Operations Admin home to Web Analytics and access denial",
+      "caseId": null,
+      "route": null,
+      "locale": null,
+      "theme": null,
+      "state": null,
+      "artifactPath": "results/2026-11-26_120403/Operations Admin home to Web Analytics and access denial/takeScreenshot/web-analytics.png",
+      "path": "screens/web-analytics.png",
+      "sha256": "f9b76fd3211641511a7117a3fb71a2ab13a0bc02e3567d81d201a5ae1920b3a4",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/Operations Admin home to Web Analytics and access denial/commands.json"
+    },
+    {
+      "flow": "operations-evaluation-assessment-detail-recovery",
+      "caseId": "operations-evaluation-assessment-detail-recovery",
+      "route": "/admin/assessments/asesmen-lama",
+      "locale": "id",
+      "theme": "light",
+      "state": "denied",
+      "artifactPath": "results/2026-11-26_120403/operations-evaluation-assessment-detail-recovery/takeScreenshot/operations-evaluation-assessment-detail-recovery.png",
+      "path": "screens/operations-evaluation-assessment-detail-recovery.png",
+      "sha256": "5d1197abc2dbf64f402342f34f3c5185428694157f5ec443dbf886cb1fde526f",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/operations-evaluation-assessment-detail-recovery/commands.json"
+    },
+    {
+      "flow": "operations-evaluation-assessments-populated",
+      "caseId": "operations-evaluation-assessments-populated",
+      "route": "/admin/assessments",
+      "locale": "id",
+      "theme": "light",
+      "state": "populated",
+      "artifactPath": "results/2026-11-26_120403/operations-evaluation-assessments-populated/takeScreenshot/operations-evaluation-assessments-populated.png",
+      "path": "screens/operations-evaluation-assessments-populated.png",
+      "sha256": "df5dea5f74f574c304f52ebeb2437ec1fe8a2d2adb8f771142965e039307d349",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/operations-evaluation-assessments-populated/commands.json"
+    },
+    {
+      "flow": "operations-management-blog-id-edit-populated",
+      "caseId": "operations-management-blog-id-edit-populated",
+      "route": "/admin/blog/article-local/edit",
+      "locale": "id",
+      "theme": "light",
+      "state": "populated",
+      "artifactPath": "results/2026-11-26_120403/operations-management-blog-id-edit-populated/takeScreenshot/operations-management-blog-id-edit-populated.png",
+      "path": "screens/operations-management-blog-id-edit-populated.png",
+      "sha256": "14b00c8e0103507104454537090ee510621d772033d46835c2ec5c1e5a0ad165",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/operations-management-blog-id-edit-populated/commands.json"
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-models-populated",
+      "caseId": "operations-monitoring-admin-ops-models-populated",
+      "route": "/admin/ops/models",
+      "locale": "id",
+      "theme": "light",
+      "state": "populated",
+      "artifactPath": "results/2026-11-26_120403/operations-monitoring-admin-ops-models-populated/takeScreenshot/operations-monitoring-admin-ops-models-populated.png",
+      "path": "screens/operations-monitoring-admin-ops-models-populated.png",
+      "sha256": "0f4dc0c0d29d51fdfac228fc2717979b981d83a2823c3b042120439ee943211c",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/operations-monitoring-admin-ops-models-populated/commands.json"
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-tutor-activity-denied",
+      "caseId": "operations-monitoring-admin-ops-tutor-activity-denied",
+      "route": "/admin/ops/tutor-activity",
+      "locale": "id",
+      "theme": "light",
+      "state": "denied",
+      "artifactPath": "results/2026-11-26_120403/operations-monitoring-admin-ops-tutor-activity-denied/takeScreenshot/operations-monitoring-admin-ops-tutor-activity-denied.png",
+      "path": "screens/operations-monitoring-admin-ops-tutor-activity-denied.png",
+      "sha256": "00b667e1e9d28b0f3760ab82fed43c3098dfdf85fff572a2fc4ee05d3f7f7e56",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/operations-monitoring-admin-ops-tutor-activity-denied/commands.json"
+    },
+    {
+      "flow": "operations-public-blog-detail-content",
+      "caseId": "operations-public-blog-detail-content",
+      "route": "/blog/belajar-dengan-latihan-terarah",
+      "locale": "id",
+      "theme": "light",
+      "state": "populated",
+      "artifactPath": "results/2026-11-26_120403/operations-public-blog-detail-content/takeScreenshot/operations-public-blog-detail-content.png",
+      "path": "screens/operations-public-blog-detail-content.png",
+      "sha256": "e78953ef377857e44cfdf90370fb32861366f61a118afce6e275adce8284cbca",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/operations-public-blog-detail-content/commands.json"
+    },
+    {
+      "flow": "operations-public-demo-course-article",
+      "caseId": "operations-public-demo-course-article",
+      "route": "/demo",
+      "locale": "id",
+      "theme": "light",
+      "state": "populated",
+      "artifactPath": "results/2026-11-26_120403/operations-public-demo-course-article/takeScreenshot/operations-public-demo-course-article.png",
+      "path": "screens/operations-public-demo-course-article.png",
+      "sha256": "3e232432ebcfaedc023d3e0dfd574acb089766d804332614c6a3f7d6e20b57e0",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/operations-public-demo-course-article/commands.json"
+    },
+    {
+      "flow": "operations-public-demo-view-article",
+      "caseId": "operations-public-demo-view-article",
+      "route": "/demo/article?course=demo-kalkulus&articleId=demo-integral",
+      "locale": "id",
+      "theme": "light",
+      "state": "populated",
+      "artifactPath": "results/2026-11-26_120403/operations-public-demo-view-article/takeScreenshot/operations-public-demo-view-article.png",
+      "path": "screens/operations-public-demo-view-article.png",
+      "sha256": "5393fd2e629bb3dfbe33bbd6764cef6cd5c2046efb2d47426227ec027feefe0c",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/operations-public-demo-view-article/commands.json"
+    },
+    {
+      "flow": "operations-public-form-empty",
+      "caseId": "operations-public-form-empty",
+      "route": "/forms-playground",
+      "locale": "en",
+      "theme": "light",
+      "state": "populated",
+      "artifactPath": "results/2026-11-26_120403/operations-public-form-empty/takeScreenshot/operations-public-form-empty.png",
+      "path": "screens/operations-public-form-empty.png",
+      "sha256": "cb2b6114446c3a948a3462db6db4b93a0f742378054f9a96537d975d6a9906fb",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/operations-public-form-empty/commands.json"
+    },
+    {
+      "flow": "operations-public-plans-retry",
+      "caseId": "operations-public-plans-retry",
+      "route": "/plans",
+      "locale": "id",
+      "theme": "dark",
+      "state": "recoverable",
+      "artifactPath": "results/2026-11-26_120403/operations-public-plans-retry/takeScreenshot/operations-public-plans-retry.png",
+      "path": "screens/operations-public-plans-retry.png",
+      "sha256": "ac54d2a70d7c15a7b321999ce70148055dab688073970e507d2e464ccff7b653",
+      "pixels": [
+        1206,
+        2622
+      ],
+      "commandStatus": "COMPLETED",
+      "commandTrace": "traces/operations-public-plans-retry/commands.json"
+    }
+  ]
+}
