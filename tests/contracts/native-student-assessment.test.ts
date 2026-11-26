@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import { PERAN_SEEDS, membershipIdFor } from "@/lib/auth/peran";
+import { projectQuestion, readQuizAnswers } from "@/lib/student/assessment-projection";
 import { choice, playerDeadline, restoreAssessmentDraft, toTryoutAnswers } from "../../apps/mobile-native/features/student/assessment/client";
 import { assessmentApiPath, type AssessmentPage, type AssessmentPlayer } from "../../packages/native-parity/student/assessment/contract";
 import { assessmentFixturePaths, createAssessmentFixtureRequest } from "../../packages/native-parity/student/assessment/fixtures";
@@ -34,6 +35,7 @@ mock.module("next/cache", () => ({ revalidatePath: () => {}, revalidateTag: () =
 mock.module("@/lib/inngest", () => ({ inngest: { send: async () => ({ ids: [] }) } }));
 
 import { GET, POST } from "@/app/api/native/student/assessment/[courseId]/[...segments]/route";
+import { signTryoutAttachment, verifyTryoutAttachment } from "@/lib/student/tryout-attachment-receipt";
 
 beforeAll(async () => {
   database = await createPostgresTestDb();
@@ -161,4 +163,26 @@ test("fixture lost-response retry recovers the same committed submission", async
   expect(await (await fixture(path, write)).json()).toEqual(committed);
   const updated = await (await fixture(assessmentApiPath(assessmentFixturePaths.results))).json();
   expect(updated.results.filter((result: { id: string }) => result.id === committed.submissionId)).toHaveLength(1);
+});
+
+test("legacy type inference preserves old short and multiple-choice inputs without exposing grading keys", () => {
+  const short = { id: "short", prompt: "Type an expression", acceptableAnswers: ["2x"], explanation: "Power rule" };
+  const multi = { id: "multi", prompt: "Choose two", options: ["a", "b", "c"], correct_indices: [0, 2], stable_option_ids: ["a0", "b1", "c2"] };
+  expect(projectQuestion(short)).toMatchObject({ type: "short_answer", options: [] });
+  expect(projectQuestion(multi)).toMatchObject({ type: "multiple_choices", options: ["a", "b", "c"] });
+  const redacted = JSON.stringify([projectQuestion(short), projectQuestion(multi)]);
+  expect(redacted).not.toContain("acceptableAnswers");
+  expect(redacted).not.toContain("correct_indices");
+  expect(redacted).not.toContain("Power rule");
+  expect(readQuizAnswers({ short: "2x", multi: ["a0", "c2"] }, [short, multi])).toEqual({ short: "2x", multi: [0, 2] });
+});
+
+test("a tryout upload receipt binds the file to the account, question and draft", () => {
+  const claim = { userId: learner, examId: tryoutId, questionId: tryoutQuestion, requestId: tryoutKey, fileKey: "exams/signed/attachment.pdf", fileName: "attachment.pdf" };
+  const receipt = signTryoutAttachment(claim);
+  expect(verifyTryoutAttachment(claim, receipt)).toBe(true);
+  expect(verifyTryoutAttachment({ ...claim, userId: other }, receipt)).toBe(false);
+  expect(verifyTryoutAttachment({ ...claim, questionId: quizQuestion }, receipt)).toBe(false);
+  expect(verifyTryoutAttachment({ ...claim, requestId: quizKey }, receipt)).toBe(false);
+  expect(verifyTryoutAttachment({ ...claim, fileKey: "exams/unrelated/secret.pdf" }, receipt)).toBe(false);
 });

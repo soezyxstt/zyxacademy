@@ -1,0 +1,38 @@
+# Asesmen Student di Expo
+
+Ekspor integrasi `AssessmentScreen` dari `apps/mobile-native/features/student/assessment/index.tsx`. Ada sembilan pola rute hasil inventaris Student. Router dan transport bersama mengikat akun, origin, sesi dan bahasa. Renderer produk, penyimpanan draf dan pemilih berkas diteruskan lewat `StudentScreenProps`.
+
+## Operasi dan izin
+
+Basis adapter HTTPS adalah `/api/native/student/assessment/[courseId]`. Identitas peserta diambil dari sesi oleh `requireNativeStudent`, dicocokkan dengan `x-student-id`, lalu setiap operasi memeriksa kursus, rekaman, dan lisensi konten terkait. Semua respons adapter bersifat `private, no-store`.
+
+| Operasi | Rute dan pemanggil web | Layanan dan batas akses | Pemulihan |
+| --- | --- | --- | --- |
+| Katalog kuis | `GET /quiz`, `StudentQuizListView` | `getStudentVisibleCourseQuizzes`, resolver akses kursus, dan kebijakan kuis bebas. Filter `access` menerima `free` atau `premium`. | Muat ulang dengan filter yang sama. |
+| Petunjuk, soal, pembahasan kuis | `GET /quiz/[quizId]`, `CourseQuizTakePage` | `findQuizAttempt` mengikat kursus, template dan peserta. Proyeksi soal aktif berisi tampilan soal dan jawaban peserta. Pembahasan menggunakan release policy dan pencatatan disclosure. PKA mengecek status tahap untuk kuis simulasi terpetakan. | Draf rehidrasi per percobaan. Coba lagi pada kegagalan baca. |
+| Mulai kuis | `POST /quiz/[quizId]`, `QuizStartButton` | Delegasi ke `POST /api/quiz/attempts` untuk izin, jadwal, kuota dan pemilihan soal. Input tambahan `requestId` UUID opsional pada kontrak lama. | UUID yang tersimpan mengembalikan reservasi yang sama, termasuk jika dua permintaan berbarengan atau respons hilang. |
+| Kumpulkan kuis | `POST /quiz/[quizId]/attempt/[attemptId]`, `QuizPlayer` | Delegasi ke `POST /api/quiz/attempts/[id]` untuk penilaian, batas percobaan, transaksi bukti, dan peristiwa belajar. Pemeriksaan identitas dan keanggotaan ID soal dilakukan sebelum delegasi. | Respons untuk percobaan milik peserta yang sudah selesai mengakui pengumpulan yang sama. Draf dibersihkan setelah konfirmasi. |
+| Katalog dan soal tryout | `GET /tryout`, `GET /tryout/[tryoutId]`, `StudentTryoutsView` dan `TryoutForm` | Tryout terbit, kursus yang cocok, akses penuh dan jadwal aktif untuk membuka soal. Kuota dicocokkan dengan jumlah pengumpulan peserta dari database. | Muat ulang dan pulihkan draf untuk tryout yang sama. |
+| Kumpulkan tryout | `POST /tryout/[tryoutId]`, `submitTryoutAction` | `submitStudentTryout` dipakai oleh adapter dan Server Action. Input native memvalidasi set soal, tipe jawaban, indeks pilihan dan bukti lampiran. Audit dan mutasi penilaian Tutor tetap terpisah. | Draf menyimpan UUID dan jawaban pengumpulan sebelum pengiriman pertama. Retry membaca kembali hasil yang sama dan tidak mengurangi kuota lagi. |
+| Lampiran jawaban | `POST /quiz/[quizId]/attachment`, `POST /tryout/[tryoutId]/attachment`, dan `DELETE /quiz/[quizId]/attachment` | Adapter mengecek soal, izin, ukuran aktual dan tipe, lalu mendelegasikan pengunggahan ke endpoint quiz/exam yang sudah ada. Tryout menggunakan bukti yang terikat peserta, soal, berkas, dan UUID draf. | Unggah lagi jika gagal. Penghapusan lampiran kuis memeriksa percobaan aktif dan file key terdaftar. Untuk tryout, melepas lampiran dari jawaban mengikuti alur web. |
+| Riwayat dan review | `GET /my-results`, `GET /my-results/[submissionId]`, `StudentCourseResultsList` dan `StudentSubmissionReviewView` | Join hasil dengan kursus dan pemilik. Daftar dan hasil tryout memerlukan akses penuh. Kuis memakai otorisasi template dan soal serta kebijakan pembahasan. | Muat ulang hasil ketika akses berubah. |
+| Diagnosis | `GET` dan `POST /quiz/[quizId]/summary/[attemptId]`, `GET` dan `POST /my-results/[submissionId]/summary`, `QuizAnalyticsView` | Kuis harus dimiliki peserta, selesai, pembahasan telah dibuka, dan esai telah dinilai. Delegasi ke analytics handler kuis dengan validasi bentuk dan identitas hasil. | Refresh status saat diproses. Hitung ulang via POST. |
+| Pembahasan terbit | `GET` dan `POST /solutions/[collectionId]`, `SolutionCollectionReader` | `getPublishedSolutionCollection` memeriksa publikasi, kursus, bab dan konten. `completeGamificationExplanation` memerlukan enrollment penuh, versi sesuai, dan seluruh ID soal yang dirilis. | Muat ulang bila versi berubah. Jalankan ulang penyelesaian dengan versi sama jika penyimpanan belum terkonfirmasi. |
+
+Seluruh operasi di tabel dimiliki jalur Student. Operasi penulisan, moderasi, dan penilaian Tutor/Admin tetap dimiliki jalur akademik atau operasi. Katalog MCP menandai adapter peserta sebagai `excluded`. Scope, consent, discovery, tool, playbook, skill terkemas, host prompt, klien dan binding lingkungan MCP tidak memerlukan perubahan.
+
+## Fixture dan bukti
+
+- `fixtures.ts` mengekspor `assessmentFixturePaths`, `assessmentFixtureCases` dan `createAssessmentFixtureRequest`. Fixture menggunakan namespace `student.assessment.*` dan data sintetis. Skenario `retry` menyimpan pengumpulan pada fixture sebelum mensimulasikan respons terputus.
+- `.maestro/native-parallel/student/assessment-*.yaml` mencakup kuis yang dipulihkan setelah kembali dari daftar, tryout dengan retry dan hasil, serta pembukaan pembahasan dan penyelesaian koleksi. Runner Android dan iOS memakai daftar skenario ini. Eksekusi simulator dan screenshot device menunggu hasil CI.
+- `tests/contracts/native-student-assessment.test.ts` menguji route handler di atas PGlite dengan autentikasi sintetis, tabel dan constraint PostgreSQL terpakai, tanpa database eksternal. Tes mencakup akun salah, sesi kedaluwarsa, kursus silang, pencabutan akses, pengulangan quiz dan tryout, kuota, proyeksi jawaban aktif, release, dan pemulihan draf.
+- `tests/visual/student-assessment-layout.spec.ts` dan `tests/visual/tryout-submission.spec.ts` memakai komponen web produksi dengan fixture sintetis. Chromium lokal lulus 5 skenario pada 380 × 844, DPR 1, bahasa Indonesia dan tema terang. Capture gateway kuis, hasil, dialog, dan pemulihan tryout disimpan di `artifacts/student-evidence/assessment-web/`. Harness fixture memakai font fallback saat memuat komponen ini.
+- Run kontrak lokal meluluskan 34 tes dari empat suite termasuk regresi kuis dan Tutor yang sudah ada. Pengujian ulang suite asesmen dan katalog MCP meluluskan 12 tes termasuk proyeksi soal historis dan bukti kepemilikan lampiran. Pemeriksaan tipe paket Expo lulus.
+
+```sh
+bun scripts/test-contracts.ts tests/contracts/native-student-assessment.test.ts tests/contracts/free-quiz-attempt-access.test.ts tests/contracts/quiz-timeout-submission.test.ts tests/contracts/tutor-grading-scope.test.ts tests/contracts/admin-mcp-catalog.test.ts
+npm run typecheck --prefix apps/mobile-native
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:9 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium bunx playwright test tests/visual/student-assessment-layout.spec.ts tests/visual/tryout-submission.spec.ts --project=mobile-380 --output=artifacts/student-evidence/assessment-web
+```
+
+Draf memakai store terikat akun dan origin. Bila store yang dikonfigurasi melaporkan gagal membaca atau menyimpan identitas pengiriman, UI memberi tindakan ulang sebelum mutasi berjalan. `pickAssessmentFile`, `renderAssessmentMarkdown`, dan `renderAssessmentParts` bergantung pada host native. Dengan renderer default, soal dan rumus tampak sebagai teks, dan visual interaktif menggunakan keterangan yang tersedia. Integrasi picker, rumus/visual, pemulihan setelah proses mati, kombinasi tema dan skala font, dan perbandingan nol piksel berbeda belum diverifikasi. Fixture tiga kasus per komposisi adalah input untuk capture, dan hasil perangkat menjadi dasar klaim paritas.

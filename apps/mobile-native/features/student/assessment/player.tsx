@@ -35,6 +35,7 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
   const [draft, setDraft] = useState<AssessmentDraft | null>(null);
   const [storageError, setStorageError] = useState(false);
   const [readError, setReadError] = useState(false);
+  const [accessLost, setAccessLost] = useState(false);
   const [readRevision, setReadRevision] = useState(0);
   const [submitError, setSubmitError] = useState("");
   const [notice, setNotice] = useState("");
@@ -104,7 +105,9 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
       if (alive.current) replace(destination);
     } catch (error) {
       if (!alive.current) return;
-      if (error instanceof AssessmentRequestError && (error.status === 400 || error.status === 422)) {
+      if (error instanceof AssessmentRequestError && [401, 403, 404].includes(error.status)) {
+        setAccessLost(true);
+      } else if (error instanceof AssessmentRequestError && (error.status === 400 || error.status === 422)) {
         void update({ ...current, pending: false, frozenAnswers: undefined });
         setSubmitError(error.message || tx("Periksa jawaban dan lampiran.", "Check your answers and attachments."));
       } else {
@@ -140,6 +143,10 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
     }
   }, [confirm, draft, messages.quiz.questionTimeEnded, messages.quiz.questionTimeEndedFinal, player.questions.length, questionLeft, totalLeft, update, uploading]);
 
+  if (accessLost) return <Frame title={tx("Asesmen tidak tersedia", "Assessment unavailable")}>
+    <Message title={tx("Akses asesmen perlu diperiksa kembali", "Assessment access needs to be checked again")}
+      action={tx("Kembali ke daftar", "Back to list")} onPress={() => replace(`${course}/${kind}`)} error />
+  </Frame>;
   if (readError) return <Frame title={assessment.title}><Message title={tx("Draf belum dapat dibuka", "Could not open the draft")}
     action={tx("Coba lagi", "Try again")} onPress={() => setReadRevision((value) => value + 1)} error /></Frame>;
   if (!draft) return <Frame title={assessment.title}><Busy /></Frame>;

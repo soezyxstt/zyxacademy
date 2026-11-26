@@ -35,7 +35,7 @@ export function assessmentRoutePath(route: StudentRoute) {
   if (viewDiscussion === "true") params.set("viewDiscussion", "true");
   if (access === "free" || access === "premium") params.set("access", access);
   const query = params.toString();
-  return `${route.path.split("?")[0]}${query ? `?${query}` : ""}`;
+  return `${route.path.split(/[?#]/, 1)[0]}${query ? `?${query}` : ""}`;
 }
 
 export function pkaReturnPath(value: string | undefined): string | undefined {

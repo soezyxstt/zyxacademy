@@ -2,17 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { randomUUID } from "expo-crypto";
 import type { AssessmentPage, AssessmentResult, AssessmentRow, Review, ReviewedQuestion } from "../../../../../packages/native-parity/student/assessment/contract";
-import { assessmentCoursePath, assessmentRequest, AssessmentRequestError, draftKey, isAssessmentRequestId, jsonBody, pkaReturnPath, quizAttemptPath } from "./client";
+import { assessmentCoursePath, assessmentRequest, AssessmentRequestError, assessmentRoutePath, draftKey, isAssessmentRequestId, jsonBody, pkaReturnPath, quizAttemptPath } from "./client";
 import { AssessmentPlay } from "./player";
 import { Body, Button, ButtonRow, Fact, fill, Frame, Heading, Markdown, Message, Row, Section, styles, useAssessment, useAssessmentCopy } from "./ui";
 
 function useCourse() { return assessmentCoursePath(useAssessment().route); }
 
 function Activation({ detail }: { detail: string }) {
-  const { navigate, openExternal } = useAssessment();
+  const { navigate } = useAssessment();
   const course = useCourse();
   const { messages } = useAssessmentCopy();
-  return <Message title={messages.quizPage.activationTitle} detail={detail} action={messages.documents.activateAccess} onPress={() => (openExternal ?? navigate)(course)} />;
+  return <Message title={messages.quizPage.activationTitle} detail={detail} action={messages.documents.activateAccess} onPress={() => navigate(course)} />;
 }
 
 function useResultCopy() {
@@ -154,7 +154,7 @@ function QuizGateway({ data }: { data: Extract<AssessmentPage, { kind: "quiz-det
     {draftReadError ? <Message title={tx("Percobaan tersimpan belum dapat dibuka", "Could not read the saved attempt")}
       action={tx("Coba lagi", "Try again")} onPress={() => setDraftRevision((value) => value + 1)} error /> : null}
     <ButtonRow>
-      {open && assessment.activeAttemptId && !pending ? <Button testID="student-assessment-resume" onPress={() => navigate(quizAttemptPath(base, assessment.activeAttemptId!, stage))}>{messages.quizList.continue}</Button> : null}
+      {assessment.availability !== "locked" && assessment.activeAttemptId && !pending ? <Button testID="student-assessment-resume" onPress={() => navigate(quizAttemptPath(base, assessment.activeAttemptId!, stage))}>{messages.quizList.continue}</Button> : null}
       {assessment.availability !== "locked" && (pending || (canStart && !assessment.activeAttemptId)) ? <Button testID="student-assessment-start" isLoading={busy || loadingDraft}
         disabled={draftReadError} onPress={() => void begin()}>{pending ? tx("Periksa percobaan", "Check attempt") : messages.quizStart.startQuiz}</Button> : null}
       {assessment.discussionAvailable ? <Button variant="outline" onPress={() => navigate(`${base}?viewDiscussion=true`)}>{messages.quizTake.viewDiscussion}</Button> : null}
@@ -281,7 +281,7 @@ export function SummaryPage({ data, reload }: { data: Extract<AssessmentPage, { 
   async function regenerate() {
     setBusy(true);
     setError(false);
-    try { await assessmentRequest(request, route.path.split("?")[0], { method: "POST" }); reload(); }
+    try { await assessmentRequest(request, assessmentRoutePath(route), { method: "POST" }); reload(); }
     catch { setError(true); }
     finally { setBusy(false); }
   }

@@ -95,7 +95,7 @@ async function read(request: Request, route: Route) {
     const selectedId = quizSummary ? attemptId : id;
     const summary = await readSummary(context, selectedId, quizSummary ? id : undefined);
     if (!summary) return missing();
-    if (!summary.discussionAvailable) return page({ kind: "summary", courseTitle: context.courseTitle, ...summary, analytics: { status: "not_available", aiDiagnosis: null, computedMetrics: null } });
+    if (!summary.discussionAvailable || summary.result.status === "pending_review") return page({ kind: "summary", courseTitle: context.courseTitle, ...summary, analytics: { status: "not_available", aiDiagnosis: null, computedMetrics: null } });
     const response = await getAnalytics(new NextRequest(request), legacyParams(selectedId));
     if (!response.ok) return withoutCache(response);
     const analytics = quizAnalyticsSchema.safeParse(await response.json());
@@ -192,6 +192,7 @@ async function write(request: Request, route: Route) {
     const summary = await readSummary(context, selectedId, quizSummary ? id : undefined);
     if (!summary) return missing();
     if (!summary.discussionAvailable) return forbidden();
+    if (summary.result.status === "pending_review") return json({ error: "Jawaban esai belum dinilai." }, 409);
     return withoutCache(await regenerateAnalytics(new NextRequest(request), legacyParams(selectedId)));
   }
   const body = await boundedJson(request);
@@ -214,7 +215,11 @@ async function write(request: Request, route: Route) {
     if (Object.keys(value.data.answers).some((key) => !known.has(key))) return invalid();
     const response = await submitQuiz(legacyJson(request, value.data), legacyParams(attemptId));
     if (response.ok) return completed();
-    if (response.status === 404 && (await findQuizAttempt(context, attemptId, id))?.attempt.status === "completed") return completed();
+    if (response.status === 404) {
+      const current = await findQuizAttempt(context, attemptId, id);
+      if (current?.attempt.status === "completed") return completed();
+      if (current?.attempt.status === "in_progress") return json({ error: "Sesi kuis berubah. Coba kirim lagi." }, 409);
+    }
     return withoutCache(response);
   }
   if (section === "tryout" && segments.length === 2) {

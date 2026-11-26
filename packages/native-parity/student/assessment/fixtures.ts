@@ -21,9 +21,13 @@ export const assessmentFixturePaths = {
   results: `${course}/my-results`, review: `${course}/my-results/${tryoutSubmissionId}`,
   summary: `${course}/my-results/${attemptId}/summary`, solutions: `${course}/solutions/${solutionId}`,
 };
-export const assessmentFixtureCases = Object.entries(assessmentFixturePaths).flatMap(([component, path]) =>
+const componentNames: Record<keyof typeof assessmentFixturePaths, string> = {
+  quizList: "AssessmentList", quiz: "QuizDetail", quizPlayer: "AssessmentPlay", quizReview: "ReviewPage", quizSummary: "SummaryPage",
+  tryoutList: "AssessmentList", tryout: "TryoutDetail", results: "ResultsPage", review: "ReviewPage", summary: "SummaryPage", solutions: "SolutionReader",
+};
+export const assessmentFixtureCases = (Object.keys(assessmentFixturePaths) as (keyof typeof assessmentFixturePaths)[]).flatMap((fixture) =>
   (["populated", "locked", "long"] as const).flatMap((scenario) => (["light", "dark"] as const).map((theme) => ({
-    id: `student.assessment.${component}.${scenario}.${theme}`, component, path, scenario, theme,
+    id: `student.assessment.${fixture}.${scenario}.${theme}`, component: componentNames[fixture], path: assessmentFixturePaths[fixture], scenario, theme,
   }))));
 
 const baseQuestions: AssessmentQuestion[] = [
