@@ -96,6 +96,11 @@ if [[ "$platform" == android ]]; then
   done
   python3 scripts/native-parity/operations/device-reports.py merge "$output_dir" "$fixture_flows" || status=$?
 else
+  # Approve the shared URL scheme once, rather than waiting for the absent
+  # system prompt on each named case. Journeys handle prompts after their resets.
+  xcrun simctl openurl "$device" zyx-native-parity://gallery/separator
+  run_flows "$output_dir/ios-link-readiness.xml" "$output_dir/readiness-results" "$output_dir/readiness-logs" \
+    .maestro/native-parity/helpers/confirm-ios-gallery.yaml
   run_flows "$output_dir/report.xml" "$output_dir/results" "$output_dir/logs" "$fixture_flows" || status=$?
 fi
 python3 scripts/native-parity/operations/collect.py "$output_dir" "$fixture_flows"

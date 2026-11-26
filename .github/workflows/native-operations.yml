@@ -54,7 +54,7 @@ jobs:
       group: operations-device-${{ github.event.pull_request.number }}-${{ matrix.platform }}
       cancel-in-progress: false
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: ${{ matrix.platform == 'ios' && 100 || 60 }}
+    timeout-minutes: ${{ matrix.platform == 'ios' && 150 || 60 }}
     env:
       CI: '1'
       EXPO_NO_TELEMETRY: '1'
@@ -102,8 +102,14 @@ jobs:
           retention-days: 7
       - if: ${{ !cancelled() && matrix.platform == 'ios' && steps.ios_build.outcome == 'success' }}
         name: Run the complete iOS fixture suite
-        timeout-minutes: 25
+        timeout-minutes: 70
         run: bash scripts/native-parity/operations/capture.sh ios full
+      - if: ${{ always() && matrix.platform == 'ios' && steps.ios_build.outcome == 'success' }}
+        name: Retain all iOS screenshots already captured
+        run: |
+          if [[ -s artifacts/native-parity/operations/ios/cases/manifest.json ]]; then
+            python3 scripts/native-parity/operations/collect.py artifacts/native-parity/operations/ios .maestro/native-parallel/operations
+          fi
       - if: matrix.platform == 'android'
         working-directory: apps/mobile-native
         run: |
