@@ -145,7 +145,10 @@ function revalidateVideoPaths(courseId: string, courseSlug?: string) {
  * Fetches all video playlists and their videos for a course.
  * Requires a valid session and caller entitlement (enrolled student or course manager/staff).
  */
-export async function getCourseVideosData(courseSlugOrId: string) {
+export async function getCourseVideosData(
+  courseSlugOrId: string,
+  { includePlayback = true }: { includePlayback?: boolean } = {},
+) {
   const sessionPromise = auth.api.getSession({ headers: await headers() });
   const identityPromise = resolveCourseIdentity(courseSlugOrId).then(
     (data) => ({ ok: true as const, data }),
@@ -210,7 +213,7 @@ export async function getCourseVideosData(courseSlugOrId: string) {
 
   const mappedVideos: VideoItem[] = await Promise.all(
     visibleVideos.map(async (v) => {
-      const resolvedPlayback = hasFullContentAccess
+      const resolvedPlayback = hasFullContentAccess && includePlayback
         ? await resolveCourseVideoPlaybackUrl(v.videoUrl, storage)
         : { playbackUrl: "", fallbackUrl: "", isPresigned: false };
       const resolvedThumbnailUrl = v.thumbnailUrl ? storage.getUrl(v.thumbnailUrl) : null;
@@ -228,7 +231,7 @@ export async function getCourseVideosData(courseSlugOrId: string) {
           ? resolvedPlayback.fallbackUrl
           : null,
         thumbnailUrl: resolvedThumbnailUrl,
-        videoKey: hasFullContentAccess ? (v.videoUrl || null) : null,
+        videoKey: hasFullContentAccess && includePlayback ? (v.videoUrl || null) : null,
         thumbnailKey: v.thumbnailUrl || null,
         duration: v.duration,
         fileSize: v.fileSize,
