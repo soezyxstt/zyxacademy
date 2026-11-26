@@ -9,11 +9,14 @@ import {
   type NativeOfflineSyncResponse,
 } from "./sync-contract";
 import type { NativeSessionScope } from "../network/transport";
+import type { OfflinePolicy } from "../../../lib/offline/policy-types";
+import { notifyOfflineReadingChanges } from "./reading-events";
 
 // These storage bounds mirror lib/offline/metadata-cache.ts and sync-contract.ts.
 const maxManifestEntries = 10_000;
 const maxMetadataBytes = 8 * 1024 * 1024;
-const schema = `
+export const EXPO_OFFLINE_DATABASE_NAME = "zyx-offline-reading-metadata.db";
+export const offlineMetadataSchema = `
   PRAGMA secure_delete = ON;
   CREATE TABLE IF NOT EXISTS offline_reading_metadata_v1 (
     origin TEXT NOT NULL,
@@ -46,6 +49,7 @@ type StoredSnapshot = {
   lastVerifiedAt: number;
   leaseExpiresAt: number;
   activeCheckIntervalMs?: number;
+  readingPolicy?: Pick<OfflinePolicy, "maxBytes" | "maxEntries" | "retentionMs">;
   pending?: { cursor: string; reset: boolean };
   courses: StoredCourse[];
 };
@@ -83,6 +87,15 @@ function readSnapshot(row: RawRow | null): StoredSnapshot | null {
       && Number.isFinite(value.leaseExpiresAt) && Number.isFinite(value.lastVerifiedAt)) return value;
   } catch { /* Invalid metadata is recovered through a fresh synchronization. */ }
   return null;
+}
+
+export async function readOfflineReadingAuthority(db: Pick<OfflineMetadataDatabase, "getFirstAsync">, scope: NativeOfflineScope) {
+  const row = await db.getFirstAsync<RawRow>(
+    "SELECT revision, session_id, snapshot FROM offline_reading_metadata_v1 WHERE origin = ? AND account_id = ? AND locale = ?",
+    scope.origin, scope.accountId, scope.locale,
+  );
+  const snapshot = readSnapshot(row);
+  return snapshot && snapshot.sessionId === scope.sessionId ? snapshot : null;
 }
 
 function allowedChapters(grant: NativeOfflineCourseAccess, resource: NativeOfflineResourceDescriptor) {
@@ -152,6 +165,7 @@ function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflin
   authorized.sort((a, b) => Number(grants.has(b.courseId)) - Number(grants.has(a.courseId)));
   return { sessionId: response.sessionId, cursor: previous?.cursor ?? null, lastVerifiedAt: response.serverTime,
     leaseExpiresAt: response.leaseExpiresAt, activeCheckIntervalMs: response.policy.activeCheckIntervalMs,
+    readingPolicy: { maxBytes: response.policy.maxBytes, maxEntries: response.policy.maxEntries, retentionMs: response.policy.retentionMs },
     pending: { cursor: response.cursor, reset: response.reset },
     courses: authorized.slice(0, NATIVE_OFFLINE_COURSE_LIMIT) };
 }
@@ -190,7 +204,7 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
   let ready: Promise<void> | undefined;
   const keys = (scope: NativeOfflineScope) => [scope.origin, scope.accountId, scope.locale] as const;
   function initialize() {
-    ready ??= db.execAsync(schema).catch(error => {
+    ready ??= db.execAsync(offlineMetadataSchema).catch(error => {
       ready = undefined;
       throw error;
     });
@@ -219,12 +233,16 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
       assertCurrent?.();
     } catch (error) {
       // Native SQL can finish while the session changes. Do not purge a newer writer's revision.
-      if (changes === 1) await db.runAsync(`
-        UPDATE offline_reading_metadata_v1 SET snapshot = NULL, revision = revision + 1
-        WHERE origin = ? AND account_id = ? AND locale = ? AND session_id = ? AND revision = ?
-      `, ...keys(scope), scope.sessionId, revision + 1);
+      if (changes === 1) {
+        await db.runAsync(`
+          UPDATE offline_reading_metadata_v1 SET snapshot = NULL, revision = revision + 1
+          WHERE origin = ? AND account_id = ? AND locale = ? AND session_id = ? AND revision = ?
+        `, ...keys(scope), scope.sessionId, revision + 1);
+        notifyOfflineReadingChanges();
+      }
       throw error;
     }
+    if (changes === 1) notifyOfflineReadingChanges();
     return changes === 1;
   }
 
@@ -299,6 +317,7 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
           snapshot = NULL, revision = offline_reading_metadata_v1.revision + 1
         WHERE offline_reading_metadata_v1.session_id = excluded.session_id
       `, ...keys(scope), scope.sessionId);
+      if (changes === 1) notifyOfflineReadingChanges();
       return changes === 1;
     },
 
@@ -311,6 +330,7 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
           snapshot = NULL, revision = offline_reading_metadata_v1.revision + 1
         WHERE offline_reading_metadata_v1.session_id = excluded.session_id
       `, origin, accountId, sessionId, origin, accountId, sessionId);
+      notifyOfflineReadingChanges();
     },
   };
 }

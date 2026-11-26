@@ -1,0 +1,11 @@
+appId: com.zyx.academy.nativeparity
+---
+# A fresh simulator asks once before allowing the internal URL scheme.
+- runFlow:
+    when:
+      visible: 'Open in .*Zyx Academy Native.*'
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible: Pemisah bagian
+    timeout: 20000

@@ -27,6 +27,11 @@ trap 'rm -rf "$install_dir"' EXIT
 
 export MAESTRO_CLI_NO_ANALYTICS=true
 export MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true
+if [[ $platform == ios ]]; then
+  xcrun simctl openurl "$device" zyx-native-parity://gallery/separator
+  "$install_dir/maestro/bin/maestro" --platform ios --device "$device" test \
+    "$root/.maestro/native-parity/helpers/confirm-ios-gallery.yaml"
+fi
 "$install_dir/maestro/bin/maestro" --platform "$platform" --device "$device" test \
   --format junit --output "$output/report.xml" \
   --test-output-dir "$output/results" --debug-output "$output/logs" \
