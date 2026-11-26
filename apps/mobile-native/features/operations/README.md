@@ -5,7 +5,7 @@ Import from `apps/mobile-native/features/operations/index.ts`. Call `resolveOper
 ## Mounting product routes
 
 * Mount `AdminOperationsScreen` with `href`, the current `NativeSessionTransport`, its verified `NativeAccountContext`, and `navigate(href, options?)`. The private screens remount on account, session, origin or locale changes. The server checks authorization at its entry points. For an alias, honor the supplied `{ replace: true }` when opening the academic or compatibility destination.
-* Mount `PublicScreen` independently with the public origin, locale, `createPublicClient`, a same-origin anonymous fetch implementation, navigation and Back. Pass a browser handoff, file picker or article renderer as needed. Do not bind the authenticated Admin transport to this entry. See `packages/native-parity/operations/public.md` for the public projection and detailed demo handoffs.
+* Mount `PublicOperationsScreen` independently with the public origin, locale, navigation and Back. It selects the locale from localized URLs and builds an anonymous public client. Use the lower-level `PublicScreen` when injecting an existing client. Pass a browser handoff, file picker or article renderer as needed. Do not bind the authenticated Admin transport to this entry. See `packages/native-parity/operations/public.md` for the public projection and detailed demo handoffs.
 * Individual `EvaluationScreen`, `ManagementScreen` and `MonitoringScreen` exports accept injected transports or capabilities. The Admin entry accepts options for rich content, files, external URLs and device capabilities. See the corresponding reports under `packages/native-parity/operations/`.
 
 ## Running the fixture

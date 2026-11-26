@@ -13,3 +13,4 @@ export { createManagementClient } from "./management";
 export { createSessionMonitoringReader } from "./monitoring";
 export { AdminOperationsScreen, type AdminOperationsScreenProps } from "./AdminOperationsScreen";
 export { createSessionMonitoringActions } from "./monitoring";
+export { PublicOperationsScreen, type PublicOperationsScreenProps } from "./PublicOperationsScreen";
