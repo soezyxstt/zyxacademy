@@ -69,18 +69,18 @@ cd artifacts/visual-quality/demo-harness
 env -i PATH="$PATH" HOME="$HOME" SKIP_ENV_VALIDATION=1 DATABASE_URL=postgresql://localhost:1/fixture BETTER_AUTH_SECRET=fixture-only-secret-not-used-for-auth NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000 bun run dev -- --hostname 127.0.0.1
 ```
 
-From the original checkout in another terminal, run `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 bun run test:visual -- tests/visual/demo-experience.spec.ts`. Stop the server afterwards. The copied resolver provides four fictional course IDs, two products per collection, and four questions in pages of three and one. Fictional quiz tokens bind course, policy, snapshot revision and question page; no private answers appear in initial UI data. The command selects only the new spec; the older `demo-flow.spec.ts` is not part of this run. The spec checks both configured viewports for the populated demo routes, product selection, the final quiz page, article completion and reset, flashcard flip and grade, quiz error and result, corrupt and unavailable storage, English navigation, four-course selection and per-course overlay isolation. Cross-course, revision and cross-page token assertions expect rejection; the zero HTTP error gate applies to the ordinary browser flows. It captures mobile navigation closed and open at 380px. Screenshots are under `artifacts/visual-quality/results/`; the primary agent must inspect each and record the matrix. The selectors now match the shared navigation and grading controls. Current local acceptance is recorded below; production acceptance remains separate.
+From the original checkout in another terminal, run `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 bun run test:visual -- tests/visual/demo-experience.spec.ts`. Stop the server afterwards. The copied resolver provides four fictional course IDs, two products per collection, and four questions in pages of three and one. Fictional quiz tokens bind course, policy, snapshot revision and question page; no private answers appear in initial UI data. The command selects only the new spec; the older `demo-flow.spec.ts` is not part of this run. The spec checks both configured viewports for the populated demo routes, product selection, the final quiz page, article completion and reset, flashcard flip and grade, quiz error and result, corrupt and unavailable storage, English navigation, four-course selection and per-course overlay isolation. Cross-course, revision and cross-page token assertions expect rejection; the zero HTTP error gate applies to the ordinary browser flows. It captures mobile navigation closed and open at 380px. Screenshots are under `artifacts/visual-quality/results/`; the primary agent must inspect each and record the matrix. The selectors now match the shared navigation and grading controls. Production acceptance remains separate.
 
 ## Feature parity inventory
 
-This source inventory records shared component reuse. Local fixture runtime and visual acceptance are recorded below; production and full student feature parity remain separate.
+This source inventory records shared component reuse. Production and full student feature parity remain separate.
 
 | Surface | Source status |
 |---|---|
 | Course catalogue | Demo dashboard imports the student `CourseCatalogClient` and uses `StudentExperienceProvider` for links. Local fixture acceptance passed; production acceptance is pending. |
 | Dashboard course progress | Demo and student dashboards both import `StudentCourseProgressRow` and `StudentDashboardSection`. Local fixture acceptance passed; production acceptance is pending. |
 | Sidebar and layout | Demo uses shared `ApplicationShell`, `SidebarShell`, `StudentNavigationItems` and `ApplicationPage`. This does not establish full student shell parity. |
-| Article, flashcards, quiz | Demo adapters import `StructuredArticleReader`, `FlashcardClient`, and `QuizPlayer`; real product eligibility passed read-only preflight and fixture visuals passed; production serving remains unverified. |
+| Article, flashcards, quiz | Demo adapters import `StructuredArticleReader`, `FlashcardClient`, and `QuizPlayer`; real product eligibility passed read-only preflight; production serving remains unverified. |
 | Diktat | Uses the shared `MaterialViewer` in read-only mode with downloads disabled; fixture behavior passed; production serving remains unverified. |
 | Tryout | `/demo/tryout` uses shared `TryoutForm` with synthetic questions and local completion; real assessment parity is not established. |
 | Zyra | Scripted messages reuse `TutorAssistantLabel` and `TutorStudentMessage`; live tutoring and paid feature parity are not established. |
@@ -106,26 +106,13 @@ Read-only production preflight passed for all four courses, including public Art
 
 ### Local browser acceptance
 
-The primary agent ran `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 node node_modules/@playwright/test/cli.js test --config=playwright.config.ts tests/visual/demo-experience.spec.ts`: 57 passed, one desktop-only mobile-navigation skip, exit 0. Targeted recaptures after hydration synchronization and UI fixes also exited 0. The credential-free harness was copied to `D:/ZYX/zyx-web/artifacts/public-demo-verification-75e7e017` so Turbopack could follow the installed dependency junction on the same drive. It bound only to loopback and was stopped after verification.
+The credential-free browser harness passed 57 checks, with one desktop-only mobile-navigation skip. It bound only to loopback and was stopped after verification.
 
-The primary agent directly inspected all 78 accepted screenshots at 380 by 844 and 1536 by 864. The exact file and viewport matrix is `artifacts/visual-quality/accepted-demo-matrix.json`; screenshots are under `artifacts/visual-quality/results/`. The accepted route/state matrix covers:
-
-| Surface | Inspected states at both viewports |
-|---|---|
-| Dashboard, courses | Populated dashboard, catalogue, four-course selection, course switcher, per-course overlay isolation |
-| Progress, history | Overview, concepts, daily, monthly, reviews, assessments |
-| Article | Initial, collection open, selected product, completed, reset, reload, corrupt and unavailable storage |
-| Diktat | Initial, collection open, selected product, read-only viewer |
-| Flashcards | Initial, collection open, selected set, flipped, graded |
-| Quiz | Initial, submission error, graded result, final one-question page and result |
-| Tryout, Zyra | Initial, question types, confirmation, local completion/reload, scripted tutor |
-| Navigation | English navigation, mobile navigation closed and open at 380px |
-
-Ordinary browser flows passed HTTP, redirect, page error, console error and horizontal-overflow gates. Deliberate invalid-course and token tests assert rejection separately. The local fixes remove a server invocation of a client helper, keep the asynchronous Footer on the server, display completed article progress consistently, and remove the demo quiz's redirect toast. Typecheck and focused ESLint pass. The complete CI workflow passed on implementation commit `45fb51cc`, including both contract shards, typecheck, lint, audits and build. The harness establishes fixture behavior and visual acceptance, not production runtime acceptance or full student feature parity.
+Ordinary browser flows passed HTTP, redirect, page error, console error and horizontal-overflow gates. Deliberate invalid-course and token tests assert rejection separately. The local fixes remove a server invocation of a client helper, keep the asynchronous Footer on the server, display completed article progress consistently, and remove the demo quiz's redirect toast. Typecheck and focused ESLint pass. The complete CI workflow passed on implementation commit `45fb51cc`, including both contract shards, typecheck, lint, audits and build. The harness establishes fixture behavior; production runtime acceptance and full student feature parity require separate checks.
 
 The guarded production migration applied only pending migration 0003 after confirming migrations 0000 through 0002 and no snapshot table. Read-back confirmed the new table was empty before seeding. The authorized seed then saved exactly four baselines in one transaction. A subsequent read-only query validated all four stored V2 rows and their matching course IDs at revision `demo-2026-11-05-v1`. The actual server resolver loaded all four courses, omitted private answer and storage fields, and issued valid scoped quiz tokens. No real product publication or visibility changed.
 
-Production release acceptance additionally requires the deployed commit to match the merged PR and anonymous public route and grading checks to pass. Current deployment and public runtime evidence is maintained in [PR #294](https://github.com/soezyxstt/zyxacademy/pull/294). Local fixture screenshots do not establish production serving or full student feature parity.
+Production release acceptance additionally requires the deployed commit to match the merged PR and anonymous public route and grading checks to pass. Current deployment and public runtime evidence is maintained in [PR #294](https://github.com/soezyxstt/zyxacademy/pull/294).
 
 ## Student-page parity correction
 
@@ -137,23 +124,14 @@ The student lists consume scoped metadata pages of 500 entries and flashcard pag
 
 Article completion follows the student return-to-documents flow. Diktat uses the learner viewer with downloads disabled, local completion and a scripted chapter summary. Source figures, coding locators, paid objects and generic PDFs remain unavailable under the existing sanitizer and access policy. Inline formative evaluation and answer reveal require an account; the demo renders their student controls without calling the private grading service. Zyra replies are scripted, attachment uploads require an account, and playground execution stays in the existing browser runtime. These presentation adapters do not grant content access or spend provider quota.
 
-Focused tests cover shared page renderers, fictional identity isolation, navigation, academic profile validation, complete quiz page aggregation and product collection boundaries. PostgreSQL fixture tests continue to cover published Free product precedence, later-chapter and storage exclusion, initial answer redaction, signed grading scope and ambiguous chapter denial. Desktop and mobile route and interaction acceptance passed against the credential-free harness at 380 by 844 and 1536 by 864. The previous 78-screenshot matrix describes the superseded demo UI and does not establish acceptance of this correction.
+Focused tests cover shared page renderers, fictional identity isolation, navigation, academic profile validation, complete quiz page aggregation and product collection boundaries. PostgreSQL fixture tests continue to cover published Free product precedence, later-chapter and storage exclusion, initial answer redaction, signed grading scope and ambiguous chapter denial.
 
 Shared presentation views remain server-renderable for authenticated students. Demo clients supply only fictional account data. The bare demo locale resolver uses browser preferences without reading the visitor account. Quiz grading returns correct choices only after signed page authorization and valid answer submission, so the shared student review can render its normal post-submission state. Initial payloads remain redacted. New local attempts and fictional baseline results feed the same quiz history, gateway and result list.
 
 ### Correction acceptance, 2026-11-05
 
-The full `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 bun run test:visual -- tests/visual/demo-experience.spec.ts` run passed 104 tests, failed three assertions, and intentionally skipped the desktop mobile-navigation case. After correcting route waits and an ambiguous Diktat button selector, the same affected route, state and viewport set passed all 18 focused tests, exit 0. A final two-test grading run, exit 0, captured recovery after the error toast closed. All 107 applicable cases passed across these runs. The primary agent opened and inspected all 150 accepted screenshots. The ignored evidence matrix is `artifacts/visual-quality/accepted-demo-student-matrix.json`; screenshots are in `results`, `patch-results` and `grade-results` under that directory.
+All 107 applicable functional browser cases passed across the full and focused reruns after correcting route waits and an ambiguous Diktat button selector. These checks used the credential-free local harness.
 
-| Surface | Accepted states at both configured viewports |
-|---|---|
-| Shared shell and navigation | Dashboard, catalogue, course overview, four course selections, local progress isolation, account menu and reset, English profile; mobile navigation closed and open at 380px |
-| Learning | Document list, first and second Article and Diktat, Article completion and return, Diktat summary and completion, flashcard front, flip and grade, progress, path and mastery |
-| Assessment | Quiz list, gateway, all four questions, confirmation, submission error, successful retry, review, diagnosis, new and fabricated history; tryout choice, multiple choice, text, confirmation, local result and pending review |
-| Account | Profile, edit form, validation, selection and local save, reflections, settings, notification preferences enabled, disabled and saved |
-| Supporting student pages | Calendar, groups, global and course leaderboard, empty videos and live quiz, browser playground, Zyra initial and scripted reply, local search and denied attachment upload |
-| Boundaries | Corrupt and unavailable storage; denied generic PDF/download destinations, unknown products, and cross-course, cross-page and obsolete-revision quiz tokens |
-
-Ordinary browser cases passed HTTP, redirect, page-error, console-error and horizontal-overflow guards. Expected rejection tests ran separately. Shared student markup was preserved, including existing reader metadata and floating tutor behavior. No authenticated account screenshots or production credentials were used. Production release and anonymous serving verification remain separate gates for PR #295.
+Ordinary browser cases passed HTTP, redirect, page-error, console-error and horizontal-overflow guards. Expected rejection tests ran separately. Shared student markup was preserved, including existing reader metadata and floating tutor behavior. Production release and anonymous serving verification remain separate gates for PR #295.
 
 The profile and participation leaderboard reuse the current student renderers with fictional, read-only data. The participation view starts with no XP entries; course academic rankings remain available separately through the course rankings link.

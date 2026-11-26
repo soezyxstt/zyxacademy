@@ -14,6 +14,7 @@ const notifications = pgTable("notifications", {
 const enrollments = pgTable("enrollments", { userId: text("user_id"), courseId: text("course_id") });
 const courses = pgTable("courses", { id: text("id") });
 const user = pgTable("user", { id: text("id") });
+const activityNotificationPreferences = pgTable("activity_notification_preferences", { userId: text("user_id").primaryKey(), flashcardsEnabled: boolean("flashcards_enabled").notNull().default(true) });
 const notificationQuietPreferences = pgTable("notification_quiet_preferences", { userId: text("user_id"), enabled: boolean("enabled") });
 let client: PGlite;
 let testDb: ReturnType<typeof drizzle>;
@@ -25,6 +26,7 @@ let rowPresentAtPush = false;
 beforeAll(async () => {
  client = await PGlite.create();
  await client.exec(`
+  create table activity_notification_preferences (user_id text primary key, flashcards_enabled boolean not null default true);
   create table user_push_tokens (user_id text not null, token text not null);
   create table notification_quiet_preferences (user_id text, enabled bool);
   create table notifications (id text primary key, user_id text not null, title text not null, body text not null, type text not null, read boolean not null, metadata jsonb not null, attempted integer not null, succeeded integer not null, failed_count integer not null, sent_at timestamptz, created_at timestamptz not null);
@@ -32,7 +34,7 @@ beforeAll(async () => {
  `);
  testDb = drizzle(client);
  mock.module("@/db", () => ({ db: testDb }));
- mock.module("@/db/schema", () => ({ userPushTokens, notifications, enrollments, courses, user, notificationQuietPreferences }));
+ mock.module("@/db/schema", () => ({ userPushTokens, notifications, enrollments, courses, user, activityNotificationPreferences, notificationQuietPreferences }));
  mock.module("@/lib/i18n/preferences", () => ({ getUserLocalePreference: async () => "en" }));
  // Quiet-hour persistence and release have their own real SQL contract.
  mock.module("@/lib/notifications/quiet-delivery", () => ({

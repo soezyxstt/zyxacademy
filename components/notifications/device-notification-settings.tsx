@@ -10,6 +10,8 @@ import { toast } from "@/components/ui/toast";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { useSession } from "@/lib/auth-client";
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
+import { TourNotificationSetup } from "@/components/notifications/tour-notification-setup";
 import {
   getUnifiedNotificationDeliveryStatus,
   registerUnifiedPushToken,
@@ -39,8 +41,10 @@ function formatTimeValue(hour: number, minute: number): string {
 export function DeviceNotificationSettings() {
   const t = useTranslations("student");
   const { locale } = useAppLocale();
-  const { data: session } = useSession();
+  const { data: session, isPending } = useSession();
   const experience = useStudentExperience();
+  const { notificationStep } = useOnboardingTour();
+  const showingTourSetup = Boolean(notificationStep);
   const isDemo = experience?.mode === "demo";
   const userId = session?.user?.id ?? null;
 
@@ -62,8 +66,17 @@ export function DeviceNotificationSettings() {
   }, [isDemo]);
 
   useEffect(() => {
-    void refreshStatus();
-  }, [refreshStatus]);
+    let cancelled = false;
+    // The tour owns permission changes while its control is visible. Discard
+    // the earlier snapshot so the ordinary panel reads the result when it returns.
+    setStatus(null);
+    if (!isDemo && !showingTourSetup && userId) {
+      void getUnifiedNotificationDeliveryStatus().then(next => {
+        if (!cancelled) setStatus(next);
+      });
+    }
+    return () => { cancelled = true; };
+  }, [isDemo, showingTourSetup, userId]);
 
   useEffect(() => {
     setLocalSupported(isLocalReminderSchedulingSupported());
@@ -200,7 +213,14 @@ export function DeviceNotificationSettings() {
 
   return (
     <div className="space-y-6">
-      <section aria-labelledby={`${baseId}-device-heading`}>
+      {notificationStep ? (
+        <TourNotificationSetup
+          key={userId}
+          userId={userId}
+          disabled={isDemo || isPending}
+          onComplete={notificationStep.complete}
+        />
+      ) : <section aria-labelledby={`${baseId}-device-heading`}>
         <header className="border-b border-border/40 pb-2">
           <h2
             id={`${baseId}-device-heading`}
@@ -222,6 +242,7 @@ export function DeviceNotificationSettings() {
               {permissionText}
             </span>
           </div>
+          {status?.osPermission === "denied" ? <p className="px-3 py-3 text-body-xs text-muted-foreground">{t("notificationPreferences.permissionDeniedHelp")}</p> : null}
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-(--row-padding)">
             <div className="flex min-w-0 items-center gap-3">
@@ -282,7 +303,7 @@ export function DeviceNotificationSettings() {
             }}>{locale === "en" ? "Stop Chrome notifications" : "Hentikan notifikasi Chrome"}</Button>
           </div>
         )}
-      </section>
+      </section>}
 
       <section aria-labelledby={`${baseId}-local-heading`}>
         <header className="border-b border-border/40 pb-2">

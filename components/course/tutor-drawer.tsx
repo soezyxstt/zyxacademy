@@ -16,6 +16,7 @@ import {
 import type { TutorMode } from "./tutor-drawer-view";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
 
 export type { TutorMode };
 
@@ -107,6 +108,7 @@ function ZyraWelcomeCopyGuard({ children }: { children: React.ReactNode }) {
 
 export function TutorProvider({ children }: { children: React.ReactNode }) {
   const realPathname = usePathname();
+  const tour = useOnboardingTour();
   const experience = useStudentExperience();
   const pathname = experience.pathname ?? realPathname;
   const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
@@ -202,6 +204,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setQuotedContext(null);
   }, []);
 
+  React.useEffect(() => {
+    if (tour.active) close();
+  }, [tour.active, close]);
+
   const [hydratedDrawerCourseId, setHydratedDrawerCourseId] = React.useState<string | null>(null);
   const isAssessmentRoute = Boolean(
     pathname &&
@@ -227,22 +233,22 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   }, [isOpen, suppressPet]);
 
   React.useEffect(() => {
-    if (!canPersistDrawerOpen || !courseIdFromPath) return;
+    if (tour.blocking || !canPersistDrawerOpen || !courseIdFromPath) return;
     if (hydratedDrawerCourseId === courseIdFromPath) return;
     if (!isOpen && readPersistedZyraDrawerOpen(courseIdFromPath)) {
       openChat();
     }
     setHydratedDrawerCourseId(courseIdFromPath);
-  }, [canPersistDrawerOpen, courseIdFromPath, hydratedDrawerCourseId, isOpen, openChat]);
+  }, [tour.blocking, canPersistDrawerOpen, courseIdFromPath, hydratedDrawerCourseId, isOpen, openChat]);
 
   React.useEffect(() => {
-    if (!canPersistDrawerOpen || !courseIdFromPath) return;
+    if (tour.blocking || !canPersistDrawerOpen || !courseIdFromPath) return;
     if (hydratedDrawerCourseId !== courseIdFromPath) return;
     savePersistedZyraDrawerOpen(courseIdFromPath, isOpen && activeMode === "chat");
-  }, [activeMode, canPersistDrawerOpen, courseIdFromPath, hydratedDrawerCourseId, isOpen]);
+  }, [tour.blocking, activeMode, canPersistDrawerOpen, courseIdFromPath, hydratedDrawerCourseId, isOpen]);
 
   React.useEffect(() => {
-    if (!courseIdFromPath) return;
+    if (tour.blocking || !courseIdFromPath) return;
     const reopenForRestoredPhoto = () => {
       const pending = peekRestoredCameraPayload(
         (target) => target.surface === "zyra" && target.courseId === courseIdFromPath,
@@ -253,7 +259,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     reopenForRestoredPhoto();
     window.addEventListener(ZYX_CAMERA_RESTORED_EVENT, reopenForRestoredPhoto);
     return () => window.removeEventListener(ZYX_CAMERA_RESTORED_EVENT, reopenForRestoredPhoto);
-  }, [courseIdFromPath, openChat]);
+  }, [tour.blocking, courseIdFromPath, openChat]);
 
   return (
     <TutorContext.Provider
@@ -286,6 +292,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
           ) : (
             <button
               type="button"
+              data-tour="zyra"
               onClick={openChat}
               onPointerEnter={preloadTutorDrawer}
               onPointerDown={preloadTutorDrawer}

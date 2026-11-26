@@ -1,43 +1,17 @@
 "use client";
 
-/**
- * components/notifications/push-permission-init.tsx
- *
- * Client component that initialises FCM push notification permission
- * and token registration for authenticated users.
- *
- * Renders a custom Dialog to ask for consent before triggering the native prompt.
- *
- * Consent persistence strategy:
- * - localStorage "fcm_consent":
- *   - "granted"  -> FCM token is registered; never prompt again.
- *   - "denied"   -> the browser blocked notifications; never prompt again
- *                   (browsers do not allow re-prompting after a deny).
- *   - "later"    -> the user deferred; re-prompt after a cooldown (7 days).
- * - "fcm_later_at" stores the timestamp of the last deferral.
- *
- * Placed in the root layout so it runs on every page for authenticated users.
- */
+/** Register granted device tokens and offer a non-blocking, account-scoped permission reminder. */
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { BellIcon } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { NotificationPermissionDialog } from "./notification-permission-dialog";
+import { shouldOfferNotificationPermission, rememberNotificationPermissionChoice } from "@/lib/notifications/permission-reminder";
 import { useSession } from "@/lib/auth-client";
 import { useAppLocale } from "@/lib/i18n/client";
 import { isAccountTransitionPending } from "@/lib/auth/account-transition-state";
 import { acquirePullToRefreshLock } from "@/lib/pull-to-refresh-lock";
 
 const CONSENT_KEY = "fcm_consent";
-const LATER_AT_KEY = "fcm_later_at";
-const LATER_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
 import {
   getUnifiedNotificationPermission,
@@ -51,14 +25,16 @@ function isPushEnvironmentSupported(): boolean {
 }
 
 export function PushPermissionInit() {
+  const tour = useOnboardingTour();
   const pathname = usePathname();
+  const router = useRouter();
   const { locale } = useAppLocale();
   const localeRef = useRef(locale);
   useEffect(() => {
     localeRef.current = locale;
   }, [locale]);
   const { data: session, isPending } = useSession();
-  const [showPrompt, setShowPrompt] = useState(false);
+  const [prompt, setPrompt] = useState<{ userId: string; blocked: boolean } | null>(null);
 
   const userId = session?.user?.id ?? null;
   const userRole = (session?.user as { role?: string } | undefined)?.role;
@@ -178,110 +154,70 @@ export function PushPermissionInit() {
     };
   }, [isPending, userId, syncGrantedTokenForUser]);
 
-  // 2. Permission prompt scheduling effect: route-aware delay for "default" permission only.
+  // Check on navigation and when returning to the app. Denied browsers need settings guidance, not another OS prompt.
   useEffect(() => {
-    if (isPending || !userId) {
-      setShowPrompt(false);
+    if (isPending || !userId || isAdminSurface || tour.blocking || !isPushEnvironmentSupported()) {
+      setPrompt(null);
       return;
     }
-
-    if (!isPushEnvironmentSupported()) {
-      return;
-    }
-
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    void getUnifiedNotificationPermission().then((currentPermission) => {
-      if (cancelled) return;
-
-      if (currentPermission === "denied") {
-        localStorage.setItem(CONSENT_KEY, "denied");
-        setShowPrompt(false);
-        return;
-      }
-
-      if (currentPermission === "granted") {
-        localStorage.setItem(CONSENT_KEY, "granted");
-        setShowPrompt(false);
-        return;
-      }
-
-      if (currentPermission !== "default") {
-        setShowPrompt(false);
-        return;
-      }
-
-      // Permission is "default": only prompt if not in the "later" cooldown.
-      const storedConsent = localStorage.getItem(CONSENT_KEY);
-      if (storedConsent === "denied") return;
-
-      if (storedConsent === "later") {
-        const lastLater = Number(localStorage.getItem(LATER_AT_KEY) ?? 0);
-        if (Date.now() - lastLater < LATER_COOLDOWN_MS) return;
-      }
-
-      // Delay to avoid interrupting immediate initial task on dashboard (P2-3)
-      const isExplicitPage = pathname.includes("/settings") || pathname.includes("/notifications");
-      const delayMs = isExplicitPage ? 2000 : 15000;
-      timer = setTimeout(() => {
-        setShowPrompt(true);
-      }, delayMs);
-    });
-
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let generation = 0;
+    const check = async () => {
+      const attempt = ++generation;
+      if (timer) clearTimeout(timer);
+      try {
+        const permission = await getUnifiedNotificationPermission();
+        if (cancelled || attempt !== generation || isAccountTransitionPending()) return;
+        if (permission === "granted") {
+          setPrompt(current => current?.userId === userId ? null : current);
+          return;
+        }
+        if (permission !== "default" && permission !== "denied") return;
+        if (!shouldOfferNotificationPermission(localStorage, userId, Date.now())) return;
+        const isExplicitPage = pathname.includes("/settings") || pathname.includes("/notifications");
+        timer = setTimeout(() => {
+          if (cancelled || attempt !== generation || isAccountTransitionPending()) return;
+          if (!shouldOfferNotificationPermission(localStorage, userId, Date.now())) return;
+          rememberNotificationPermissionChoice(localStorage, userId, "later", Date.now());
+          setPrompt({ userId, blocked: permission === "denied" });
+        }, isExplicitPage ? 2000 : 15000);
+      } catch { /* Unavailable permission/storage must not block the application. */ }
+    };
+    const onFocus = () => { if (document.visibilityState === "visible") void check(); };
+    void check();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    const interval = window.setInterval(onFocus, 60 * 60 * 1000);
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
     };
-  }, [isPending, userId, isAdminSurface, pathname]);
+  }, [isPending, userId, isAdminSurface, pathname, tour.blocking]);
 
-  const handleAccept = async () => {
-    setShowPrompt(false);
-    if (!userId || isAdminSurface) return;
-    await syncGrantedTokenForUser(userId, true);
+  const dismiss = (choice: "later" | "never") => {
+    if (prompt?.userId === userId && userId) rememberNotificationPermissionChoice(localStorage, userId, choice, Date.now());
+    setPrompt(null);
   };
 
-  const handleLater = () => {
-    setShowPrompt(false);
-    localStorage.setItem(CONSENT_KEY, "later");
-    localStorage.setItem(LATER_AT_KEY, String(Date.now()));
-  };
-
-  if (!showPrompt || isPending || !userId || isAdminSurface) return null;
-
+  if (tour.blocking || !prompt || prompt.userId !== userId || isPending || !userId || isAdminSurface) return null;
   return (
-    <Dialog
-      open={showPrompt}
-      onOpenChange={(open) => {
-        if (!open) {
-          handleLater();
+    <NotificationPermissionDialog
+      blocked={prompt.blocked}
+      onLater={() => dismiss("later")}
+      onNever={() => dismiss("never")}
+      onEnable={() => {
+        const blocked = prompt.blocked;
+        dismiss("later");
+        if (blocked) {
+          router.push("/settings?tab=notifications");
+          return;
         }
+        void syncGrantedTokenForUser(userId, true);
       }}
-    >
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
-        <DialogHeader className="gap-3 sm:pr-0">
-          <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
-            <BellIcon className="size-6 text-primary" />
-          </div>
-          <DialogTitle>Aktifkan Notifikasi</DialogTitle>
-          <DialogDescription className="space-y-2 text-body-xs">
-            <p>Dapatkan info terbaru seputar belajarmu dengan mengaktifkan notifikasi push. Kami akan memberitahumu tentang:</p>
-            <ul className="list-disc pl-5 space-y-1 text-body-sm text-foreground">
-              <li>Kuis baru yang siap dikerjakan</li>
-              <li>Pengumuman dan jadwal sesi live</li>
-              <li>Pembaruan materi di kelasmu</li>
-            </ul>
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="mt-4 sm:justify-end">
-          <Button variant="ghost" onClick={handleLater}>
-            Nanti Saja
-          </Button>
-          <Button onClick={handleAccept}>
-            Izinkan Notifikasi
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    />
   );
 }

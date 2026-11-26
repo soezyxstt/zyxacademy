@@ -885,7 +885,7 @@ export async function collaborativeBookSlot(
       let notification: TutorScheduleNotification | undefined;
       if (!options?.executor && slot.tutorId) {
         const studentName = currentUser.name || "Siswa";
-        const courseTitle = resolvedCourseId;
+        const courseTitle = (await resolveCourseIdentity(resolvedCourseId, tx))?.title ?? resolvedCourseId;
         notification = {
           tutorId: slot.tutorId,
           payload: tutorBookingCreatedPayload({
@@ -1168,7 +1168,7 @@ export async function collaborativeMoveSlot(
       let notification: TutorScheduleNotification | undefined;
       if (!options?.executor && newSlot.tutorId) {
         const studentName = currentUser.name || "Siswa";
-        const courseTitle = booking.courseId;
+        const courseTitle = (await resolveCourseIdentity(booking.courseId, tx))?.title ?? booking.courseId;
         notification = {
           tutorId: newSlot.tutorId,
           payload: tutorBookingMovedPayload({
@@ -1360,7 +1360,7 @@ export async function collaborativeCancelSlot(bookingId: string) {
       let notification: TutorScheduleNotification | undefined;
       if (booking.slot?.tutorId) {
         const studentName = currentUser.name || "Siswa";
-        const courseTitle = booking.course?.title || booking.courseId;
+        const courseTitle = booking.course?.title || (await resolveCourseIdentity(booking.courseId, tx))?.title || booking.courseId;
         const sessionDate = booking.sessionDate ?? "-";
         const startTime = booking.slot.startTime ?? "-";
         notification = {
@@ -1762,7 +1762,7 @@ export async function submitRescheduleTicket(
       let notification: TutorScheduleNotification | undefined;
       if (booking.slot?.tutorId) {
         const studentName = currentUser.name || "Siswa";
-        const courseTitle = booking.courseId;
+        const courseTitle = (await resolveCourseIdentity(booking.courseId, tx))?.title ?? booking.courseId;
         notification = {
           tutorId: booking.slot.tutorId,
           payload: tutorTicketSubmittedPayload({
@@ -1808,7 +1808,7 @@ export async function sendTicketMessage(ticketId: string, message: string) {
 
     const booking = await db.query.bookings.findFirst({
       where: eq(bookings.id, ticket.bookingId),
-      columns: { groupId: true },
+      columns: { groupId: true, courseId: true },
       with: { slot: { columns: { tutorId: true } } },
     });
 
@@ -1847,8 +1847,9 @@ export async function sendTicketMessage(ticketId: string, message: string) {
 
     try {
       const tutorId = booking.slot?.tutorId;
+      const context = { courseTitle: (await resolveCourseIdentity(booking.courseId).catch(() => null))?.title, senderName: currentUser.name ?? undefined };
       if (tutorId && currentUser.id !== tutorId) {
-        await sendToUser(tutorId, tutorTicketMessagePayload(cleanMessage, "/tutor/schedule"));
+        await sendToUser(tutorId, tutorTicketMessagePayload(cleanMessage, "/tutor/schedule", context));
       } else {
         const members = await db
           .select({ userId: groupMembers.userId })
@@ -1856,7 +1857,7 @@ export async function sendTicketMessage(ticketId: string, message: string) {
           .where(eq(groupMembers.groupId, booking.groupId));
         const recipients = members.map((m) => m.userId).filter((uid) => uid !== currentUser.id);
         if (recipients.length > 0) {
-          await sendToMany(recipients, tutorTicketMessagePayload(cleanMessage, "/dashboard/schedule"));
+          await sendToMany(recipients, tutorTicketMessagePayload(cleanMessage, "/dashboard/schedule", context));
         }
       }
     } catch (notifErr) {

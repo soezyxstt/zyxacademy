@@ -214,7 +214,7 @@ The focused Zyra and course tests are:
 bun test tests/contracts/zyra-chat-language-contract.test.ts tests/unit/zyra-stream-client.test.ts tests/contracts/student-course-overview-refactor.test.tsx
 ```
 
-The account interface locale persists across visits. Conversation-specific Zyra overrides are in memory, limited to 32 sessions, and reset on drawer remount or reload and on account, course, or interface-locale changes. Do not describe that conversation override as durable storage. The final release candidate catalog gate passed 23 namespaces and 6,426 static translation calls, and the public route matrix passed 52 captures. The full role/state matrix remains incomplete; current browser evidence and its boundaries are tracked in `plans/bilingual-web-app.md`.
+The account interface locale persists across visits. Conversation-specific Zyra overrides are in memory, limited to 32 sessions, and reset on drawer remount or reload and on account, course, or interface-locale changes. Do not describe that conversation override as durable storage. The final release candidate catalog gate passed 23 namespaces and 6,426 static translation calls. The full role/state matrix remains incomplete; its verification boundaries are tracked in `plans/bilingual-web-app.md`.
 
 Background dispatch imports must remain server-safe for Deno compute. Do not add Next.js or React imports to worker-consumed message, notification, preference, or email-template modules. `proxy.ts` owns only the finite public locale rewrite map; test origin preservation and `skipProxyUrlNormalize` when changing that request boundary. Full role, locale, state, and visual verification belongs to the bilingual plan's CP7 gate.
 
@@ -702,9 +702,10 @@ The environment loader restricts the base URL to loopback, checks staging agains
 
 Report blocked routes separately and classify router prefetch separately. Interception disables HTTP cache, so these local results are not field or RUM measurements. Browser-context cold does not establish cold database or container behavior. Server RSC spans and actual Cloud Run capacity remain unmeasured. WP4 material and assessment batching is integrated; the streak GET workflow is unchanged. See the audit for remaining gates.
 
-### Navigation visual checks and provenance
+### Navigation visual checks
 
-The primary agent ran and inspected the latest standard route checks and interaction states at 380 x 844 and 1536 x 864. The exact captured-state matrix and limitations are in the [validation audit](audit/navigation-performance-validation.md). Reproduce only against a verified loopback staging production server:
+Run route and interaction checks at 380 x 844 and 1536 x 864 against a verified loopback staging production server:
+
 ```sh
 PLAYWRIGHT_BASE_URL=http://localhost:3100 VISUAL_CHECK_STAGING_SESSION=1 VISUAL_CHECK_STUB_VERCEL=1 VISUAL_CHECK_PATHS=/dashboard,/admin/questions,/admin/forms bun run test:visual -- tests/visual/visual-check.spec.ts
 PLAYWRIGHT_BASE_URL=http://localhost:3100 VISUAL_CHECK_STAGING_SESSION=1 VISUAL_CHECK_STUB_VERCEL=1 VISUAL_CHECK_PATHS=/dashboard,/admin/questions,/admin/forms bun run test:visual -- tests/visual/question-bank-pagination.spec.ts --output artifacts/visual-quality/results/pagination-contract
@@ -712,7 +713,7 @@ PLAYWRIGHT_BASE_URL=http://localhost:3100 VISUAL_CHECK_STAGING_SESSION=1 VISUAL_
 
 `tests/visual/staging-readonly-auth.ts` is opt-in via `VISUAL_CHECK_STAGING_SESSION=1`. It uses the read-only loader, probes the cookie name, and obtains a fresh authentic session for each navigation. Never record real session/database IDs or cookie values. `VISUAL_CHECK_STUB_VERCEL=1` substitutes only Vercel analytics script URLs with empty HTTP 200 responses to avoid local 404s; external analytics delivery is unverified. No database/storage writes were performed; equal sampled counts are limited evidence, not proof that the entire database was unchanged.
 
-The candidate build passed before subsequent test selector and animation changes; application source remained unchanged. A full source manifest would require a different hash if the harness were rerun. Preserve the original manifest. Screenshot directories contain staging PII and must not be embedded or shared.
+Keep staging screenshots in ignored artifacts; they may contain personal data and must not be embedded or shared.
 
 The historical mixed-assessment `scripts/staging/test-product-bundle.ts` probe is retired and fails before environment access. It does not validate the current learning-only authoring, review or publication workflow. Use focused contract suites and the documented scoped operators instead.
 

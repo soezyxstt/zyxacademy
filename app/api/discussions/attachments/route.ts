@@ -10,11 +10,12 @@ export async function POST(request: Request): Promise<Response> {
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session?.user?.id) return Response.json({ code: "login", error: "Masuk untuk mengunggah gambar." }, { status: 401, headers: privateHeaders });
   try {
-    const input = await parseDiscussionImageUpload(request);
+    const input = await parseDiscussionImageUpload(request, process.env.BETTER_AUTH_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim());
     const image = await uploadDiscussionImage({ actorId: session.user.id, ...input });
     return Response.json(image, { status: 201, headers: privateHeaders });
   } catch (error) {
     if (error instanceof DiscussionImageError) {
+      if (error.code === "origin") return Response.json({ code: "origin", error: "Muat ulang halaman, lalu unggah lagi." }, { status: 403, headers: privateHeaders });
       const message = error.code === "size" ? "Ukuran gambar maksimal 8 MiB." : error.code === "pixels" ? "Dimensi gambar maksimal 4096 piksel per sisi dan 16 juta piksel." : "Gunakan gambar JPEG, PNG, atau WebP yang valid dan tidak bergerak.";
       const code = error.code === "size" || error.code === "pixels" ? error.code : "format";
       return Response.json({ code, error: message }, { status: error.code === "size" ? 413 : 400, headers: privateHeaders });

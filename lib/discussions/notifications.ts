@@ -2,10 +2,9 @@ import { createHash } from "node:crypto";
 import { and, asc, eq, gt, inArray, isNull, lt, lte, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
- accountLocalePreferences, discussionChannels, discussionChannelPreferences, discussionEvents, discussionMessageObservations, discussionMessages,
+ accountLocalePreferences, activityNotificationPreferences, discussionChannels, discussionChannelPreferences, discussionEvents, discussionMessageObservations, discussionMessages,
  discussionNotificationDeliveries, discussionThreadParticipants, discussionThreadReads, discussionThreads, notifications, pengguna, penggunaPeran, peran,
 } from "@/db/schema";
-import { getDiscussionCandidateUserIdsPage } from "@/lib/discussions/access";
 import { getDiscussionRecipientAccess } from "@/lib/discussions/recipient-access";
 import { validDiscussionId } from "@/lib/discussions/policy";
 import { DEFAULT_LOCALE, normalizeLocale } from "@/lib/i18n/locale";
@@ -15,6 +14,7 @@ import type { PushPageResult } from "@/lib/notifications/send";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Event = typeof discussionEvents.$inferSelect;
 type Delivery = typeof discussionNotificationDeliveries.$inferSelect;
+type DiscussionContext = { authorId: string; threadTitle: string; preview?: string; privateChannel: boolean };
 type Phase = "direct" | "participants" | "staff" | "push" | "work";
 type Cursor = { phase: Phase; after: string | null; mentions?: string[]; legacyParticipantsRestarted?: true };
 const PAGE_SIZE = 100;
@@ -124,19 +124,27 @@ async function recipientState(client: Pick<Tx, "select">, event: Event, ids: str
   ? await client.select().from(discussionMessageObservations).where(and(
    eq(discussionMessageObservations.messageId, event.messageId), inArray(discussionMessageObservations.userId, ids))) : [];
  const locales = await client.select().from(accountLocalePreferences).where(inArray(accountLocalePreferences.userId, ids));
+ const activity = event.kind === "report" ? [] : await client.select().from(activityNotificationPreferences).where(inArray(activityNotificationPreferences.userId, ids));
+ const participants = event.kind === "report" ? [] : await client.select({ userId: discussionThreadParticipants.userId }).from(discussionThreadParticipants).where(and(
+  eq(discussionThreadParticipants.threadId, event.threadId), inArray(discussionThreadParticipants.userId, ids),
+  event.participantThroughSeq != null ? lte(discussionThreadParticipants.firstSeq, event.participantThroughSeq) : undefined,
+ ));
  return {
   preferences: new Map(preferences.map(row => [row.userId, row])),
+  activity: new Map(activity.map(row => [row.userId, row])),
+  participants: new Set(participants.map(row => row.userId)),
   reads: new Map(reads.map(row => [row.userId, row])),
   observations: new Map(observations.map(row => [row.userId, row.revision])),
   locales: new Map(locales.map(row => [row.userId, normalizeLocale(row.locale) ?? DEFAULT_LOCALE])),
  };
 }
 
-function allowedByState(event: Event, userId: string, seq: number, state: Awaited<ReturnType<typeof recipientState>>) {
+function allowedByState(event: Event, userId: string, seq: number, state: Awaited<ReturnType<typeof recipientState>>, authorId?: string) {
  const preference = state.preferences.get(userId);
  // Event timestamps can predate preference changes that happened before the event acquired its thread lock.
  if (preference?.muted) return false;
  if (event.kind === "report") return true;
+ if (state.activity.get(userId)?.discussionsEnabled === false || (userId !== authorId && !state.participants.has(userId))) return false;
  const read = state.reads.get(userId);
  if (event.kind === "resolved") return !read || read.throughSeq < seq || event.statusRevision == null || read.seenStatusRevision == null || read.seenStatusRevision < event.statusRevision;
  if (event.kind === "question" || event.kind === "message" || event.kind === "edit" || event.kind === "delete") {
@@ -167,12 +175,12 @@ function isPushTransportConfigured(): boolean {
  );
 }
 
-async function deliverBatch(event: Event, rows: Delivery[], seq: number, excludedId: string | null): Promise<void> {
+async function deliverBatch(event: Event, rows: Delivery[], seq: number, excludedId: string | null, context?: DiscussionContext): Promise<void> {
  if (!rows.length) return;
  try {
   await db.transaction(async tx => {
    await ownLease(tx, event);
-   const [thread] = await tx.select({ id: discussionThreads.id }).from(discussionThreads)
+   const [thread] = await tx.select({ id: discussionThreads.id, authorId: discussionThreads.authorId, title: discussionThreads.title }).from(discussionThreads)
     .where(eq(discussionThreads.id, event.threadId)).for("update");
    if (!thread) throw new Error("DISCUSSION_SOURCE_MISSING");
    const ids = rows.map(row => row.userId).filter(id => id !== excludedId);
@@ -182,10 +190,11 @@ async function deliverBatch(event: Event, rows: Delivery[], seq: number, exclude
     const values: Array<typeof notifications.$inferInsert> = [];
     for (const row of rows) {
      const actor = actors.get(row.userId);
-     if (!actor || (event.kind === "report" ? actor.role !== "admin" : row.staffOnly && actor.role === "student")
-      || !allowedByState(event, row.userId, seq, state)) continue;
+     if (!actor || (event.kind === "report" ? actor.role !== "admin" : row.staffOnly)
+      || !allowedByState(event, row.userId, seq, state, thread.authorId ?? context?.authorId)) continue;
      const payload = renderNotificationPayload(discussionPayload({
       role: actor.role, channelId: event.channelId, threadId: event.threadId, messageId: event.messageId, seq, report: event.kind === "report",
+      threadTitle: thread.title ?? context?.threadTitle, preview: context?.preview, eventKind: event.kind,
      }), state.locales.get(row.userId) ?? DEFAULT_LOCALE);
      values.push({
       id: discussionNotificationId(event.id, row.userId), userId: row.userId, type: "discussion",
@@ -204,12 +213,12 @@ async function deliverBatch(event: Event, rows: Delivery[], seq: number, exclude
   if ((error instanceof Error && error.message === "DISCUSSION_LEASE_LOST") || infrastructureFailure(error)) throw error;
   if (rows.length === 1) return failDelivery(event, rows[0]);
   const middle = Math.floor(rows.length / 2);
-  await deliverBatch(event, rows.slice(0, middle), seq, excludedId);
-  await deliverBatch(event, rows.slice(middle), seq, excludedId);
+  await deliverBatch(event, rows.slice(0, middle), seq, excludedId, context);
+  await deliverBatch(event, rows.slice(middle), seq, excludedId, context);
  }
 }
 
-async function queueRecipients(event: Event, ids: string[], staffOnly: boolean, seq: number, excludedId: string | null) {
+async function queueRecipients(event: Event, ids: string[], staffOnly: boolean, seq: number, excludedId: string | null, context?: DiscussionContext) {
  const candidates = [...new Set(ids.filter(id => id !== excludedId && validDiscussionId(id)))];
  if (!candidates.length) return;
  // Commit candidates before the event cursor can advance, including recipients that cannot yet be authorized.
@@ -219,7 +228,7 @@ async function queueRecipients(event: Event, ids: string[], staffOnly: boolean, 
    eventId: event.id, userId, staffOnly,
   }))).onConflictDoNothing().returning();
  });
- await deliverBatch(event, rows, seq, excludedId);
+ await deliverBatch(event, rows, seq, excludedId, context);
 }
 
 type InboxRow = typeof notifications.$inferSelect;
@@ -247,7 +256,7 @@ async function writePushOutcomes(rows: { id: string; result: PushPageResult }[])
 }
 
 /** Push remains at-least-once when the provider acknowledgement is uncertain. */
-async function pushBatch(event: Event, rows: InboxRow[], seq: number, excludedId: string | null): Promise<void> {
+async function pushBatch(event: Event, rows: InboxRow[], seq: number, excludedId: string | null, context?: DiscussionContext): Promise<void> {
  if (!rows.length) return;
  await heartbeat(event);
  try {
@@ -262,8 +271,8 @@ async function pushBatch(event: Event, rows: InboxRow[], seq: number, excludedId
   const eligible = rows.filter(row => {
    const actor = actors.get(row.userId);
    const metadata = row.metadata as Record<string, unknown>;
-   return actor && !row.read && state && allowedByState(event, row.userId, seq, state)
-    && (event.kind === "report" ? actor.role === "admin" : metadata.staffOnly !== true || actor.role !== "student");
+   return actor && !row.read && state && allowedByState(event, row.userId, seq, state, context?.authorId)
+    && (event.kind === "report" ? actor.role === "admin" : metadata.staffOnly !== true);
   });
   const allowed = new Set(eligible.map(row => row.id));
   const dropped = rows.filter(row => !allowed.has(row.id)).map(row => row.id);
@@ -276,6 +285,7 @@ async function pushBatch(event: Event, rows: InboxRow[], seq: number, excludedId
    const metadata = row.metadata as Record<string, unknown>;
    const payload = renderNotificationPayload(discussionPayload({
     role: actor.role, channelId: event.channelId, threadId: event.threadId, messageId: event.messageId, seq, report: event.kind === "report",
+    ...(!context?.privateChannel ? { threadTitle: context?.threadTitle, preview: context?.preview, eventKind: event.kind } : {}),
    }), state!.locales.get(row.userId) ?? DEFAULT_LOCALE);
    return { userId: row.userId, payload: { ...payload, notificationId: row.id }, ...(typeof metadata.pushCursor === "string" ? { after: metadata.pushCursor } : {}) };
   });
@@ -285,8 +295,8 @@ async function pushBatch(event: Event, rows: InboxRow[], seq: number, excludedId
   if ((error instanceof Error && error.message === "DISCUSSION_LEASE_LOST") || infrastructureFailure(error)) throw error;
   if (rows.length === 1) return;
   const middle = Math.floor(rows.length / 2);
-  await pushBatch(event, rows.slice(0, middle), seq, excludedId);
-  await pushBatch(event, rows.slice(middle), seq, excludedId);
+  await pushBatch(event, rows.slice(0, middle), seq, excludedId, context);
+  await pushBatch(event, rows.slice(middle), seq, excludedId, context);
  }
 }
 
@@ -339,10 +349,14 @@ async function processEvent(event: Event): Promise<{ cursor?: Cursor; failed?: b
    : { phase: "participants", after: null, legacyParticipantsRestarted: true }
   : savedCursor;
  const excludedId = excludedSender(event, message);
+ const context: DiscussionContext = {
+  authorId: source.thread.authorId, threadTitle: source.thread.title,
+  privateChannel: source.channel.kind === "technical" || source.channel.kind === "academic",
+  preview: message && !message.deletedAt && (event.kind === "question" || event.kind === "message" || event.kind === "edit")
+   && (event.messageRevision == null ? !message.editedAt : message.revision === event.messageRevision) ? message.body : undefined,
+ };
  await heartbeat(event);
- if (cursor.phase === "direct" && cursor.mentions === undefined && message?.editedAt
-  && (event.kind === "question" || event.kind === "message") && message.editedAt >= event.createdAt)
-  throw new Error("DISCUSSION_MENTION_SNAPSHOT_MISSING");
+ // Direct mentions no longer enroll a recipient. Only the thread author and recorded participants qualify.
  if (cursor.phase === "push") {
   const pending = and(eq(notifications.type, "discussion"), sql`${notifications.metadata}->>'eventId' = ${event.id}`,
    sql`${notifications.metadata}->>'pushState' = 'pending'`);
@@ -350,7 +364,7 @@ async function processEvent(event: Event): Promise<{ cursor?: Cursor; failed?: b
    .orderBy(asc(notifications.userId)).limit(PAGE_SIZE + 1);
   const page = rows.slice(0, PAGE_SIZE);
   const chunk = isPushTransportConfigured() ? 10 : PAGE_SIZE;
-  for (let i = 0; i < page.length; i += chunk) await pushBatch(event, page.slice(i, i + chunk), seq, excludedId);
+  for (let i = 0; i < page.length; i += chunk) await pushBatch(event, page.slice(i, i + chunk), seq, excludedId, context);
   if (rows.length > PAGE_SIZE) return { cursor: { ...cursor, phase: "push", after: rows[PAGE_SIZE - 1].userId } };
   return { cursor: { ...cursor, phase: "work", after: null } };
  }
@@ -359,7 +373,7 @@ async function processEvent(event: Event): Promise<{ cursor?: Cursor; failed?: b
    eq(discussionNotificationDeliveries.eventId, event.id), lte(discussionNotificationDeliveries.retryAt, new Date()),
   )).orderBy(asc(discussionNotificationDeliveries.retryAt), asc(discussionNotificationDeliveries.userId)).limit(PAGE_SIZE);
   if (due.length) {
-   await deliverBatch(event, due, seq, excludedId);
+   await deliverBatch(event, due, seq, excludedId, context);
    return { cursor: { ...cursor, phase: "work", after: null } };
   }
   const [remaining] = await db.select({ userId: discussionNotificationDeliveries.userId }).from(discussionNotificationDeliveries)
@@ -377,15 +391,8 @@ async function processEvent(event: Event): Promise<{ cursor?: Cursor; failed?: b
  }
  let items: string[], nextCursor: string | null;
  if (cursor.phase === "direct") {
-  const mentions = cursor.mentions ?? message?.mentionIds ?? [];
-  if (!Array.isArray(mentions) || mentions.length > 10 || !mentions.every(validDiscussionId)) throw new Error("DISCUSSION_INVALID_MENTIONS");
-  const [reply] = message?.replyToId ? await db.select({ authorId: discussionMessages.authorId }).from(discussionMessages).where(and(
-   eq(discussionMessages.id, message.replyToId), eq(discussionMessages.threadId, event.threadId),
-  )).limit(1) : [];
-  const all = [...new Set([source.thread.authorId, reply?.authorId, ...mentions]
-   .filter((id): id is string => typeof id === "string" && id.length > 0))].sort().filter(id => !cursor.after || id > cursor.after);
-  items = all.slice(0, PAGE_SIZE);
-  nextCursor = all.length > PAGE_SIZE ? items[items.length - 1] : null;
+  items = source.thread.authorId && (!cursor.after || source.thread.authorId > cursor.after) ? [source.thread.authorId] : [];
+  nextCursor = null;
  } else if (cursor.phase === "participants") {
   // A legacy event has no reliable historical boundary, so include current participants.
   const rows = await db.select({ userId: discussionThreadParticipants.userId }).from(discussionThreadParticipants).where(and(
@@ -396,14 +403,12 @@ async function processEvent(event: Event): Promise<{ cursor?: Cursor; failed?: b
   items = rows.slice(0, PAGE_SIZE).map(row => row.userId);
   nextCursor = rows.length > PAGE_SIZE ? items[items.length - 1] : null;
  } else {
-  ({ items, nextCursor } = event.kind === "report" ? await adminPage(cursor.after)
-   : await getDiscussionCandidateUserIdsPage(event.channelId, { cursor: cursor.after, limit: PAGE_SIZE }));
+  // Old staff cursors must not resume a channel-wide fanout. Reports remain a distinct moderation workflow.
+  ({ items, nextCursor } = event.kind === "report" ? await adminPage(cursor.after) : { items: [], nextCursor: null });
  }
- await queueRecipients(event, items, cursor.phase === "staff", seq, excludedId);
+ await queueRecipients(event, items, cursor.phase === "staff", seq, excludedId, context);
  if (nextCursor) return { cursor: { ...cursor, after: nextCursor } };
  if (cursor.phase === "direct") return { cursor: { ...cursor, phase: "participants", after: null } };
- if (cursor.phase === "participants" && event.kind === "question" && (source.channel.kind === "technical" || source.channel.kind === "academic"))
-  return { cursor: { ...cursor, phase: "staff", after: null } };
  return { cursor: { ...cursor, phase: "push", after: null } };
 }
 

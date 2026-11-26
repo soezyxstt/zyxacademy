@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/page-header";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,7 +24,9 @@ import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { isNativeApp } from "@/lib/native/runtime";
 import { isHapticsSupported } from "@/lib/native/haptics";
 import { resolveSettingsTab, type SettingsTab } from "@/lib/settings-tabs";
-import { ArrowRight, Download, HardDriveDownload, RotateCcw } from "lucide-react";
+import { ReplayGuidedTour } from "@/components/onboarding/guided-tour";
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
+import { ArrowRight, ChevronDown, Download, HardDriveDownload, RotateCcw } from "lucide-react";
 import { useHapticsPreference } from "@/hooks/use-haptics-preference";
 import { AccountSessions } from "@/components/settings/account-sessions";
 
@@ -38,6 +41,8 @@ function PreferenceChoice<Value extends string>({
   onChange,
   disabled,
   error,
+  tourTarget,
+  menu = false,
 }: {
   label: string;
   options: readonly Value[];
@@ -46,17 +51,35 @@ function PreferenceChoice<Value extends string>({
   onChange: (value: Value) => void;
   disabled?: boolean;
   error?: string | null;
+  tourTarget?: string;
+  menu?: boolean;
 }) {
   const id = useId();
+  const tour = useOnboardingTour();
+  const changeValue = (next: string) => {
+    const selected = options.find(option => option === next);
+    if (selected) onChange(selected);
+  };
   return (
     <div className="grid min-h-11 grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] items-center gap-x-2 py-1 sm:grid-cols-[minmax(0,1fr)_12rem]">
       <label htmlFor={id} className="text-body-sm font-medium text-foreground">{label}</label>
-      <Select value={value} disabled={disabled} onValueChange={(next) => {
-        const selected = options.find((option) => option === next);
-        if (selected) onChange(selected);
-      }}>
+      {menu ? <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <Button id={id} data-tour={tourTarget} disabled={disabled} variant="ghost" aria-describedby={error ? `${id}-error` : undefined} className="h-auto min-h-9 justify-self-end px-1.5 py-1 text-right font-normal" onKeyDown={event => {
+            if (tour.active && tourTarget && !event.repeat && (event.key === "Enter" || event.key === " ")) event.currentTarget.click();
+          }}>
+            <span className="whitespace-normal">{optionLabel(value)}</span><ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onInteractOutside={event => { if (tour.active) event.preventDefault(); }}>
+          <DropdownMenuRadioGroup value={value} onValueChange={changeValue}>
+            {options.map(option => <DropdownMenuRadioItem key={option} value={option}>{optionLabel(option)}</DropdownMenuRadioItem>)}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu> : <Select value={value} disabled={disabled} onValueChange={changeValue}>
         <SelectTrigger
           id={id}
+          data-tour={tourTarget}
           variant="inline"
           aria-describedby={error ? `${id}-error` : undefined}
           className="h-auto min-h-9 justify-self-end px-1.5 py-1 text-right [&>span]:whitespace-normal"
@@ -66,7 +89,7 @@ function PreferenceChoice<Value extends string>({
         <SelectContent align="end">
           {options.map((option) => <SelectItem key={option} value={option}>{optionLabel(option)}</SelectItem>)}
         </SelectContent>
-      </Select>
+      </Select>}
       {error && <p id={`${id}-error`} role="alert" className="col-span-2 text-body-xs text-destructive">{error}</p>}
     </div>
   );
@@ -132,6 +155,8 @@ function GeneralPreferences() {
       <PreferenceGroup title={t("preferences.account")} description={t("preferences.languageScope")}>
         <PreferenceChoice
           label={common("language.label")}
+          tourTarget="language"
+          menu
           options={LANGUAGES}
           optionLabel={(value) => common(value === "id" ? "language.indonesian" : "language.english")}
           value={locale}
@@ -295,12 +320,12 @@ export function SettingsClient({
       <PageHeader title={common("preferences")} />
       <Tabs value={activeTab} onValueChange={setTab}>
         <TabsList aria-label={common("preferences")}>
-          <TabsTrigger value="general">{t("preferences.general")}</TabsTrigger>
+          <TabsTrigger value="general" data-tour="settings-general">{t("preferences.general")}</TabsTrigger>
           <TabsTrigger value="appearance">{t("preferences.appearance")}</TabsTrigger>
           <TabsTrigger value="notifications">{t("preferences.notifications")}</TabsTrigger>
           <TabsTrigger value="profile">{t("settings.profile")}</TabsTrigger>
         </TabsList>
-        <TabsContent value="general" className="mt-3 sm:mt-6"><GeneralPreferences /></TabsContent>
+        <TabsContent value="general" className="mt-3 space-y-(--section-gap) sm:mt-6"><GeneralPreferences /><ReplayGuidedTour /></TabsContent>
         <TabsContent value="appearance" className="mt-3 sm:mt-6"><DisplayPreferences /></TabsContent>
         <TabsContent value="profile" forceMount className="mt-3 space-y-4 data-[state=inactive]:hidden sm:mt-6">
           {profile ? (

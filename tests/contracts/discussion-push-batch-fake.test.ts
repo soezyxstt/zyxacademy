@@ -40,6 +40,7 @@ function harness(count: number, tokenFor: (index: number) => boolean = () => tru
    const selected = new Set(dialect.sqlToQuery(condition).params);
    return tokenRows.filter(row => selected.has(row.userId));
   }
+  if (name === "discussion_thread_participants") return ids.map(userId => ({ userId }));
   if (name === "discussion_channel_preferences") return [...muted].map(userId => ({ userId, muted: true, updatedAt: new Date("2025-01-01") }));
   return [];
  } }) });

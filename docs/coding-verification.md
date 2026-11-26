@@ -24,7 +24,6 @@ the environment has no global Bun executable.
 | Repository-wide ESLint | Exit 1: one existing render-time `Date.now()` error in `voucher-management-tab.tsx:149`, also reproduced in the original checkout; 257 warnings |
 | Nine contract/regression files below | 52 passed, 0 failed |
 | `tests/contracts/product-v4-publication-integration.test.ts` | Passed |
-| `tests/visual/coding.spec.ts` | 10 passed across two viewport projects |
 | Generated migration applied to `/tmp/zyx-coding.db` | Exit 0 using `bun db/migrate.ts`; the package script's tsx IPC socket was unavailable in the sandbox |
 
 The combined contract command was `bun test` with these files under
@@ -37,9 +36,9 @@ replay and leases, HTTP authorization, Live room scoring, real Python execution,
 and existing article delivery contracts. The full repository test typecheck has
 preexisting errors; the focused result is not a claim that all repository tests pass.
 
-## Browser and screenshot review
+## Browser checks
 
-Command:
+Run the focused browser suite from the repository root:
 
 ```sh
 PLAYWRIGHT_BROWSERS_PATH=/tmp/zyx-playwright \
@@ -47,23 +46,7 @@ PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 \
 node node_modules/@playwright/test/cli.js test tests/visual/coding.spec.ts
 ```
 
-The primary agent personally inspected screenshots at **380×844** and
-**1536×864**. Full-page captures live under
-`artifacts/visual-quality/results/<test>-<project>/screenshots/`; the HTML report
-is in `artifacts/visual-quality/report/`. These are generated local artifacts.
-
-| Surface | Inspected screenshot filenames, in both viewport projects |
-| --- | --- |
-| Playground | `playground-idle`, `playground-loading`, `playground-success`, `playground-input-changed`, `playground-error`, `playground-syntax`, `playground-stopped`, `playground-timeout`, `playground-no-output` |
-| Article and Live learner | `article-ready`, `article-checking`, `article-partial`, `article-correct`, `article-flowchart`, `article-history`, `live-open`, `live-closed` |
-| Tutor setup | `host-setup`, `host-options`, `host-coding-selected` |
-| Draft recovery | `draft-conflict`, `draft-resolved` |
-| Zyra structured canvas | `typed-flowchart`, `typed-flowchart-stale` |
-
-All filenames have `.png` extensions: 24 states per viewport, 48 captures.
-Review confirmed readable editor/output, wrapping controls, visible feedback,
-vertical flowcharts and stale-result notices without horizontal page overflow.
-The browser suite also asserts absence of unexpected console/page/network errors.
+The browser suite asserts absence of unexpected console, page and network errors.
 
 ## Verification limits and release work
 
@@ -108,26 +91,12 @@ The focused `bun test` command includes `flowchart-symbols.test.ts`,
 It checks explicit kinds, compatibility with older diagrams, branch-label
 roundtripping, scientific label rendering and existing coding boundaries.
 
-The browser command is the earlier Playwright command with
-`--grep 'coding consultation|article examples'`. The primary agent personally
-inspected `article-flowchart.png`, `typed-flowchart.png`,
-`typed-flowchart-stale.png`, and `flowchart-symbols.png` at both **380×844** and
-**1536×864**, eight relevant captures. Their directories are:
-
-```text
-artifacts/visual-quality/results/coding-article-examples-re-fe8bd-rt-history-and-live-closure-<project>/screenshots/
-artifacts/visual-quality/results/coding-coding-consultation-28de0-and-reuses-its-chat-session-<project>/screenshots/
-```
-
-`<project>` is `mobile-380` or `laptop-fhd-125`. The focused run replaces the
-generated local report and captures from the earlier full run. Browser assertions
-verify all six node kinds, the actual rendered diamond/parallelogram/ellipse
-elements, labeled branches, and exact arrow attachment points at the decision's
-east/south/north vertices. They also check that a repeated response stays fitted,
-with no unexpected HTTP, console, page errors or horizontal page overflow.
-The screenshot review confirmed the symbols, complete loop path and unoccluded
-controls. The same synthetic AI and remote-service limitations above still apply.
-
+Run the earlier Playwright command with
+`--grep 'coding consultation|article examples'` for the focused flowchart cases.
+Browser assertions verify all six node kinds, the rendered shapes, labeled
+branches and arrow attachment points. They also check that a repeated response
+stays fitted, with no unexpected HTTP, console, page errors or horizontal page
+overflow. The synthetic AI and remote-service limitations above still apply.
 
 ## Recovery and live integration, 2026-10-23
 
@@ -250,58 +219,20 @@ The 13 contract files are `coding-answer-sanitizer`, `coding-pedagogy`,
 The full repository test typecheck was not rerun or claimed clean.
 
 The accepted browser runs use `node node_modules/@playwright/test/cli.js test
- tests/visual/coding-live.spec.ts` with these selectors and output directories:
+ tests/visual/coding-live.spec.ts` with these selectors:
 
-| Selection | Exit and result | Output directory under artifacts/visual-quality/results/ |
-| --- | --- | --- |
-| Main file before the two final focused additions | 0, 5 passed, one mobile duplication skipped | root |
-| `--grep 'real text coaching'`, mobile project | Mobile case passed; the paired desktop attempt hit its synthetic account allowance | text-coaching/ |
-| `--grep 'real text coaching' --project=laptop-fhd-125` with the same synthetic actor as the accepted mobile turn | 0, 1 passed | text-coaching-desktop/ |
-| `--grep 'local Article runs'`, mobile project | Mobile case passed; the paired desktop test initially raced draft restoration | article-live/ |
-| `--grep 'local Article runs' --project=laptop-fhd-125` after waiting for restoration and using real editor keyboard input | 0, 1 passed | article-desktop/ |
+| Selection | Exit and result |
+| --- | --- |
+| Main file before the two final focused additions | 0, 5 passed, one mobile duplication skipped |
+| `--grep 'real text coaching'`, mobile project | Mobile case passed; the paired desktop attempt hit its synthetic account allowance |
+| `--grep 'real text coaching' --project=laptop-fhd-125` with the same synthetic actor as the accepted mobile turn | 0, 1 passed |
+| `--grep 'local Article runs'`, mobile project | Mobile case passed; the paired desktop test initially raced draft restoration |
+| `--grep 'local Article runs' --project=laptop-fhd-125` after waiting for restoration and using real editor keyboard input | 0, 1 passed |
 
 These are nine accepted browser/API cases across the incremental runs, not a
 claim that every exploratory invocation passed. The additional runtime/API
-matrix runs once on desktop to bound provider usage. The selected Article and
-text-coaching reruns preserve the successful mobile evidence in separate output
-folders. Dev hydration and editor assertions were corrected in the test harness;
+matrix runs once on desktop to bound provider usage. Dev hydration and editor assertions were corrected in the test harness;
 no sandbox or application quota was relaxed.
-
-### Personally inspected screenshots
-
-All listed PNGs were opened directly by the primary agent. Viewports are
-**380x844** and **1536x864**. Playground route is
-`/courses/coding-course/playground`; Article synthetic fixture route is
-`/visual-fixtures/coding?tab=article` using the actual local coding APIs.
-
-Under `artifacts/visual-quality/results/`, the exact directory prefixes are:
-
-- `coding-live-real-Zyra-erro-15f39-Run-and-algorithm-flowchart-<project>/screenshots/`
-- `coding-live-real-Zyra-runt-b493f-henticated-context-policies-laptop-fhd-125/screenshots/`
-- `coding-live-simulated-AI-o-78a9f-al-browser-Python-available-<project>/screenshots/`
-- `text-coaching/coding-live-real-text-coac-dff1f-hout-an-unsolicited-diagram-mobile-380/screenshots/`
-- `text-coaching-desktop/coding-live-real-text-coac-dff1f-hout-an-unsolicited-diagram-laptop-fhd-125/screenshots/`
-- `article-live/coding-live-local-Article--0e1a7-ts-correction-before-Submit-mobile-380/screenshots/`
-- `article-desktop/coding-live-local-Article--0e1a7-ts-correction-before-Submit-laptop-fhd-125/screenshots/`
-
-| Inspected state | PNG filenames | Viewports |
-| --- | --- | --- |
-| Initial live error, help and corrected Run | 01-syntax-error, 02-live-zyra-help, 03-corrected-run | both |
-| Continued chat and stale stdin | 04-followup, 05-stale-input | desktop |
-| Requested typed flowchart and symbol detail | 06-live-flowchart, 07-flowchart-detail | both |
-| Runtime error plus real AI help | zero-division, undefined-variable, invalid-input | desktop |
-| Controlled failure and real Run during failure | simulated-ai-outage, run-during-simulated-outage | both |
-| Final text-only coaching after switching the code topic | live-error-help-text | both, in their separate text-coaching folders |
-| Article logic mistake and correction | article-logic-error-run, article-corrected-run | both, in their separate Article folders |
-
-All filenames have `.png` suffixes. Twenty-five selected captures were inspected.
-The final text-coaching images supersede earlier spontaneous diagrams in error
-explanations. Requested algorithm diagrams have proper symbols, readable branch
-labels, a complete loop and available zoom controls. No horizontal page overflow,
-unexpected redirects, HTTP failures, uncaught errors or console errors occurred
-in the accepted browser cases. The intentional forged-context 400 is an API
-negative test, not an unexpected browser failure. Logs and generated reports
-remain under ignored artifacts; none contain a deployment attestation.
 
 ### Remaining external boundary
 
@@ -312,56 +243,25 @@ not the production connector. No trusted Submit result from Cloudflare, deployed
 Worker, remote database migration, push, PR or deployment is claimed. The local
 real room-class harness does not certify production room admission or storage.
 
+### Compact coaching controls
 
-### Compact coaching controls, local visual verification
+The question composer opens on demand. Closing it retains the draft and leaves
+the answer visible. Mobile actions are icons with accessible labels and shared
+tooltips. A current syntax error, runtime error or timeout highlights the error
+explanation action; editing code or stdin returns it to neutral.
 
-The question composer now opens on demand. Closing it retains the draft and
-leaves the answer visible. Mobile actions are icons with accessible labels and
-shared tooltips. A current syntax error, runtime error or timeout highlights the
-error explanation action; editing code or stdin returns it to neutral.
-
-The final runs of both commands exited 0, with two passing cases each. An
-intermediate capture run exited 1 because the Article component remounted during
-hydration. The capture now retries scrolling and verifies the toolbar is inside
-the viewport before taking the screenshot; the same cases then passed.
-
-Commands:
+Run the focused interaction checks:
 
 ```sh
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 python scripts/coding/local-env.py node node_modules/@playwright/test/cli.js test tests/visual/coding.spec.ts --grep 'compact Zyra toolbar' --output artifacts/visual-quality/results/coding-toolbar
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 python scripts/coding/local-env.py node node_modules/@playwright/test/cli.js test tests/visual/coding.spec.ts --grep 'compact Zyra controls' --output artifacts/visual-quality/results/coding-toolbar-surfaces
 ```
 
-The primary agent directly inspected all 21 PNGs at 380 by 844 and 1536 by 864,
-plus one 640 by 864 breakpoint capture. Routes were
-`/visual-fixtures/coding`, `?tab=article` and `?tab=live`. The latter two render
-the shared Article and Live Quiz components with deterministic local data.
-
-| Surface | Captured states at both standard viewports |
-| --- | --- |
-| Playground | toolbar-closed, question-open, execution-error, error-stale, question-busy, answer-composer-closed |
-| Article | article-closed, article-question-open |
-| Live Quiz | live-closed, live-question-open |
-
-PNG paths are under these ignored directories, each in `screenshots/`:
-
-- `artifacts/visual-quality/results/coding-toolbar/coding-compact-Zyra-toolba-3fb83-ts-current-execution-errors-<project>/`
-- `artifacts/visual-quality/results/coding-toolbar-surfaces/coding-compact-Zyra-contro-7ad62-le-in-Article-and-Live-Quiz-<project>/`
-
-The additional laptop-project filename is `toolbar-breakpoint-640.png`.
-The tests check retained question drafts, automatic textarea focus, empty and
-busy send states, error-to-neutral transitions, hidden mobile labels, visible
-desktop labels and answers remaining after closing the composer. There were no
-unexpected redirects, HTTP errors, console errors, uncaught page errors or
-horizontal overflow. Direct inspection found readable controls, visible focus,
-clean wrapping and no clipping or overlap.
-
-Component ESLint and focused TypeScript checks exited 0. Test files are excluded
-by the existing ESLint configuration. Python execution was real in the browser;
-AI responses, authentication and persistence were controlled local fixtures for
-this UI-only check. No new live AI integration, remote service, deployed route or
-database mutation is certified by these screenshots.
-
+These checks cover retained drafts, automatic textarea focus, empty and busy send
+states, error-to-neutral transitions, responsive labels and answers remaining
+after closing the composer. Python execution runs in the browser; AI responses,
+authentication and persistence use controlled local fixtures. Live AI, remote
+services, deployed routes and database writes require separate verification.
 
 ### Staging integration before PR
 
@@ -480,7 +380,6 @@ Provider selection and HTTP failure regression tests use dependency injection;
 they are distinct from the real connector/API tests above. HTTP child fixture
 additionally checks release failure, provider recovery and redaction. Existing
 repository tests check that infrastructure failure does not spend an attempt.
-No UI was changed, so no new visual sign-off is claimed.
 
 Ignored evidence: `artifacts/coding-live/steel-runtime.log`, `api-probe.log`,
 `server-final.log`, `api-probe-final.log`, `contracts-final.log`, `lint.log`, `typecheck-final.log`,
@@ -517,7 +416,7 @@ application behavior or grading results.
 
 ## Guided error-coaching follow-up, 2026-10-23
 
-The missing visual scenario now covers one continuous learning loop: a decimal
+The learning scenario covers one continuous learning loop: a decimal
 input causes `ValueError` in `int(input())`; Zyra explains the observed cause and
 a tentative misconception; the synthetic learner states that they expected `int`
 to drop the decimal portion; Zyra gives a small conversion hint; the learner edits
@@ -544,16 +443,6 @@ local SQLite accounts and course were used; no remote application data was read
 or written. Development used the existing provider, allowance and policy path.
 Private-test canaries were absent in the response assertions.
 
-The ten inspected screenshot artifacts live under
-`/workspace/zyxacademy/artifacts/coding-coaching-screenshots/`, five states at
-380x844 and 1536x864. The UI harness renders the actual components/styles and
-replays the recorded real AI SSE responses to keep both viewports identical.
-Run/error/output are deterministic fixtures. These images do not certify real
-Python execution or successful Steel grading. Steel explicitly released both
-viewer sessions. The provider's injected serviceWorker access in opaque fixture
-iframes remains a capture-environment console diagnostic, not an application
-visual-quality pass. No overflow assertion failed.
-
 Validation commands and final outcomes:
 
 - `bun test tests/contracts/coding-pedagogy.test.ts tests/contracts/coding-foundation.test.ts tests/contracts/coding-answer-sanitizer.test.ts tests/contracts/pedagogy-contract.test.ts tests/contracts/zyra-pedagogy-state.test.ts tests/contracts/tutor-rag.test.ts`: exit 0, 79 tests.
@@ -562,12 +451,10 @@ Validation commands and final outcomes:
 - Local `NODE_ENV=production bun run build` through `scripts/coding/local-env.py`: exit 0.
 - `npm run lint`: exit 1, the existing voucher `Date.now()` render error and 257 warnings.
 - Real three-turn coaching probe and current-error-after-success probe: exit 0.
-- Playwright capture harness: exit 0, ten screenshots. This is component-harness evidence with real AI replay and fixture Run, not an application route sign-off.
 
-Ignored logs and transcripts are in `artifacts/coding-live/coaching-*`; screenshot
-and shareable response artifacts contain only synthetic learner content. Earlier
-Steel Python grading blockers still apply. No PR merge or deployment occurred.
-
+Ignored logs and transcripts are in `artifacts/coding-live/coaching-*` and contain
+only synthetic learner content. Earlier Steel Python grading blockers still apply.
+No PR merge or deployment occurred.
 
 ## Steel Python recovery, 2026-10-24
 
@@ -679,9 +566,7 @@ exited 1; the corrected probe observes its error event. Earlier abort runs exite
 cancellation correction. Initial typecheck found an inferred unknown transfer
 entry, fixed with a typed tuple. Another run overlapped Next dev/build writes and
 read a corrupt generated routes declaration; after stopping dev and moving its
-ignored generated types aside, sequential typecheck passed. A temporary public
-React fixture capture timed out waiting for editor hydration; it is not UI proof.
-Some standalone diagnostic event-handler failures occurred before their finally
+ignored generated types aside, sequential typecheck passed. Some standalone diagnostic event-handler failures occurred before their finally
 cleanup; provider session lifetime was bounded to 120 seconds. A later read-only
 inventory returned HTTP 200 and all 100 most recent sessions were released. All
 accepted probes explicitly confirm their own release.
@@ -750,28 +635,19 @@ hydration. The local wrapper now supplies fictional public Firebase identifiers
 and the UI harness records push consent as denied; it does not register a token.
 This affects only local test processes. No production Firebase setting changed.
 
-The primary agent personally ran and inspected the rebuilt application route
-`/courses/coding-course/playground` at **380x844** and **1536x864**. At both
-viewports the actual editor, Input program and Jalankan button produced 6 from
-input 5, reported the infinite-loop timeout and then produced 7 on the next run.
-Both Steel viewer sessions explicitly released. Screenshots were opened directly:
+The rebuilt application route `/courses/coding-course/playground` exercised the
+actual editor, Input program and Jalankan action at 380x844 and 1536x864. Both
+cases produced 6 from input 5, reported the infinite-loop timeout and then produced
+7 on the next run. Both Steel viewer sessions explicitly released. The shell
+uses its browser-selected locale; full bilingual acceptance remains separate.
 
-- `artifacts/coding-live/screenshots/playground-mobile-success.png`
-- `artifacts/coding-live/screenshots/playground-desktop-success.png`
-
-The success captures show the result scrolled into view. Controls, code and output
-are readable with no overlap, clipping or horizontal page overflow. The shell
-uses its browser-selected locale; this is not a complete bilingual acceptance
-matrix. No layout/style component was redesigned for this fix.
-
-This is functional UI evidence, not a clean visual-quality sign-off: Steel injects
-opaque-frame SecurityError diagnostics, including serviceWorker access, and the
-local app returns expected 404s for Vercel telemetry script endpoints. These were
-recorded separately; runtime/API assertions and all other HTTP checks remained
-active. One intermediate capture exited 1 because a timeout label matched both
-status and stderr; using an exact label resolved the harness ambiguity. Another
-exited 1 solely on the local telemetry 404 assertion after its functional mobile
-cases passed. Neither failure was reported as a successful final command.
+Steel injects opaque-frame SecurityError diagnostics, including serviceWorker
+access, and the local app returns expected 404s for Vercel telemetry script
+endpoints. These were recorded separately; runtime/API assertions and other HTTP
+checks remained active. An intermediate run failed because the timeout label
+matched both status and stderr; an exact label resolved the harness ambiguity.
+Another failed on the local telemetry 404 assertion after its functional mobile
+cases passed. Neither failure was counted as a successful final command.
 
 Post-merge logs: `install-post-merge.log`, `generate-post-merge.log`,
 `migrate-post-merge.log`, `seed-post-merge.log`, `contracts-post-merge-final.log`,

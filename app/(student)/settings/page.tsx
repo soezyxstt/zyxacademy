@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getAuthUser, type AuthUser } from "@/lib/auth-session";
 import { getEmailNotificationPreferences } from "@/lib/email-preferences/repository";
+import { getActivityNotificationPreferences } from "@/lib/notifications/activity-preferences";
 import { getTranslations } from "@/lib/i18n/server";
 import { createMetadata } from "@/lib/site";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,8 +52,10 @@ async function AccountProfile({ account }: { account: AuthUser }) {
 }
 
 async function AccountEmailPreferences({ account }: { account: AuthUser }) {
-  const preferences = await getEmailNotificationPreferences(account.id);
-  return <NotificationPreferencesForm accountEmail={account.email} initialPreferences={preferences} />;
+  const [preferences, activityPreferences] = await Promise.all([
+    getEmailNotificationPreferences(account.id), getActivityNotificationPreferences(account.id),
+  ]);
+  return <NotificationPreferencesForm accountEmail={account.email} initialPreferences={preferences} initialActivityPreferences={activityPreferences} />;
 }
 
 function SettingsPanelSkeleton() {

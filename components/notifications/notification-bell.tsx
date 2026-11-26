@@ -321,10 +321,10 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
                       <TypeIcon className="size-4 shrink-0" aria-hidden />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-center justify-between gap-2">
+                      <span className="flex items-start justify-between gap-2">
                         <span
                           className={cn(
-                            "truncate text-body-sm font-medium",
+                            "min-w-0 flex-1 line-clamp-2 break-words text-body-sm font-medium",
                             row.read ? "text-muted-foreground" : "text-foreground",
                           )}
                         >
@@ -335,7 +335,7 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
                         </span>
                       </span>
                       {row.body ? (
-                        <span className="mt-0.5 block truncate text-body-xs text-muted-foreground">
+                        <span className="mt-0.5 line-clamp-2 break-words text-body-xs text-muted-foreground">
                           {row.body}
                         </span>
                       ) : null}

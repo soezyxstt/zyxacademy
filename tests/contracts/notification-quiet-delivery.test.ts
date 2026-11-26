@@ -44,7 +44,7 @@ beforeAll(async () => {
     insert into "user" values ('owner', 'student'), ('other', 'student');
     insert into discussion_channels values ('channel');
   `);
-  await client.exec(readFileSync("drizzle-postgres/0044_native_notification_delivery.sql", "utf8"));
+  await client.exec(readFileSync("drizzle-postgres/0045_native_notification_delivery.sql", "utf8"));
   testDb = drizzle(client);
   mock.module("@/db", () => ({ db: testDb }));
   mock.module("@/lib/queue/cloud-tasks", () => ({ enqueueTask: async (task: typeof scheduled[number]) => { scheduled.push(task); } }));

@@ -29,7 +29,7 @@ function setup() {
  const cleared: number[] = [];
  const inbox: Array<{ event: any; userId: string; threadId: string; seq: number; read: boolean }> = [];
  const allowed = (event: any, userId: string, seq: number, currentRead: typeof read, currentSeen: Map<string, number>) => policyExports.allowedByState(event, userId, seq, {
-  preferences: new Map(), reads: new Map([["alice", currentRead]]), observations: new Map(currentSeen.has(event.messageId) ? [["alice", currentSeen.get(event.messageId)]] : []),
+  preferences: new Map(), activity: new Map(), participants: new Set(["alice"]), reads: new Map([["alice", currentRead]]), observations: new Map(currentSeen.has(event.messageId) ? [["alice", currentSeen.get(event.messageId)]] : []),
  });
  const op = (name: string) => (field: string, value: unknown) => ({ name, field, value });
  const and = (...parts: unknown[]) => parts;

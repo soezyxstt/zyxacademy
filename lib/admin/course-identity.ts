@@ -22,18 +22,19 @@ export interface LockedCourseInfo {
 }
 
 export async function resolveCourseIdentity(
-  identifier: string
+  identifier: string,
+  executor: Pick<typeof db, "select"> = db,
 ): Promise<ResolvedCourseIdentity | null> {
   const cleanId = identifier.trim().toLowerCase();
   if (!cleanId) return null;
 
   const [canonicalRows, legacyRows] = await Promise.all([
-    db
+    executor
       .select()
       .from(mataKuliah)
       .where(or(eq(mataKuliah.id, cleanId), eq(mataKuliah.legacyCourseId, cleanId)))
       .limit(2),
-    db
+    executor
       .select()
       .from(courses)
       .where(eq(courses.id, cleanId))
@@ -64,7 +65,7 @@ export async function resolveCourseIdentity(
 
   let linkedLegacy = directLegacyCourse;
   if (!linkedLegacy && canonicalCourse?.legacyCourseId) {
-    const linkedLegacyRows = await db
+    const linkedLegacyRows = await executor
       .select()
       .from(courses)
       .where(eq(courses.id, canonicalCourse.legacyCourseId))
@@ -75,7 +76,7 @@ export async function resolveCourseIdentity(
 
   let linkedCanonical = canonicalCourse;
   if (!linkedCanonical && directLegacyCourse) {
-    const linkedCanonicalRows = await db
+    const linkedCanonicalRows = await executor
       .select()
       .from(mataKuliah)
       .where(eq(mataKuliah.legacyCourseId, directLegacyCourse.id))

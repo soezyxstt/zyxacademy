@@ -1810,6 +1810,7 @@ function TutorDrawerContent({
 
             <button
               type="button"
+              data-tour="zyra-close"
               onClick={onClose}
               aria-label={t("tutorDrawer.closeAssistant")}
               title={t("tutorDrawer.closeAssistantEsc")}

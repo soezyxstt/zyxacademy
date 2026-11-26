@@ -65,9 +65,7 @@ This pass compresses accessor data with Meshopt without quantization or topology
 
 The crocodile retains the repaired skinned neck. Future simplification must retain the neck, facial morph targets, weights and bone names, and check arm/jaw clearance across the actual clips. The original source package includes recovered Blender files and the standalone HTML. Those source files are not runtime or build dependencies and are not committed here.
 
-### Poster review
-
-The primary agent inspected a contact sheet of all eight derived Blender renders, including the connected crocodile neck. These are asset renders, not browser screenshots.
+### Poster assets
 
 | Character | Full poster | Head poster |
 | --- | --- | --- |
@@ -86,11 +84,10 @@ The primary agent inspected a contact sheet of all eight derived Blender renders
 | All GLB hashes and embedded dependencies | Passed, exit 0 | 153 shipped files |
 | Decode with the app's exact Three Meshopt decoder | Passed, exit 0 | All 153 assets |
 | Three GLTFLoader and animation checks | Passed, exit 0 | 76 character clips, 11,052 finite posed-vertex checks; image dimensions supplied by a Sharp-backed Node shim |
-| Eight Blender poster renders | Passed, exit 0; primary inspected | Asset appearance only |
 | Production build | Terminated by SIGKILL, exit 137, during Turbopack compilation | Full build not established |
 | Playwright component fixture | Exit 1: Chromium `socket() failed: Operation not permitted` | Browser/GPU, responsive layout and interaction signoff remain open |
 
-The browser fixture compiled after its initial fixture bundling issues were corrected, then failed at browser launch. It defines five scenarios at the repo's 380 x 844 and 1536 x 864 projects: selected model/actions, shop/dialog, profile, invalid-asset retry, and WebGL fallback. No browser screenshot was produced or accepted. The real Node loader checks explicitly record `gpuRender: false` and `browserValidation: false` in `scripts/mascots/three-loader-validation.json`.
+The browser fixture compiled after its initial fixture bundling issues were corrected, then failed at browser launch. It defines five scenarios at the repo's 380 x 844 and 1536 x 864 projects: selected model/actions, shop/dialog, profile, invalid-asset retry, and WebGL fallback. The real Node loader checks explicitly record `gpuRender: false` and `browserValidation: false` in `scripts/mascots/three-loader-validation.json`.
 
 Re-run from the repo root with Bun 1.3.14 and the frozen lockfile:
 
