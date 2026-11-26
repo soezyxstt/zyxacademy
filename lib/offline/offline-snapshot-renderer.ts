@@ -18,11 +18,9 @@ import type {
 import { renderDiktatSceneSvg } from "@/lib/materials/diktat-scene-svg";
 import { deriveEpsilonDelta, sampleEpsilonDeltaCurve } from "@/lib/materials/epsilon-delta";
 import { initialSceneState, sceneValue } from "@/lib/materials/interactive-scene";
-import {
-  evaluateFunctionPlot,
-  safeExpressionToLatex,
-  type FunctionPlotCanvas,
-} from "@/lib/zyra/canvas";
+import type { FunctionPlotCanvas } from "@/lib/zyra/canvas/contracts";
+import { evaluateFunctionPlot } from "@/lib/zyra/canvas/evaluator";
+import { safeExpressionToLatex } from "@/lib/zyra/canvas/expression";
 import { fitNumericRange } from "@/lib/zyra/canvas/viewport";
 
 const PLOT_COLORS = ["#164e87", "#af4510", "#146b43", "#7b3158", "#514900", "#334155"];
@@ -79,7 +77,17 @@ function renderScientificProse(value: string): string {
     .join("");
 }
 
-function renderInlineFormatting(raw: string): string {
+export type OfflineRenderOptions = {
+  resolveImage?: (url: string) => string | undefined;
+  allowLinks?: boolean;
+};
+
+function imageSource(url: string, options?: OfflineRenderOptions) {
+  if (options?.resolveImage) return options.resolveImage(url);
+  return isSafeUrl(url, true) ? url : undefined;
+}
+
+function renderInlineFormatting(raw: string, options?: OfflineRenderOptions): string {
   const tokens: string[] = [];
   const stash = (html: string): string => {
     const idx = tokens.length;
@@ -113,18 +121,19 @@ function renderInlineFormatting(raw: string): string {
 
   // 4. Markdown images ![alt](url)
   text = text.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_m, alt: string, url: string) => {
-    if (!isSafeUrl(url, true)) {
+    const src = imageSource(url, options);
+    if (!src) {
       return stash(`<span class="offline-img-fallback">${escapeHtml(alt || "Gambar")}</span>`);
     }
     return stash(
-      `<img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" loading="lazy" class="offline-img" />`,
+      `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" class="offline-img" />`,
     );
   });
 
   // 5. Markdown links [label](url)
   text = text.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, label: string, url: string) => {
-    if (!isSafeUrl(url, false)) {
-      return escapeHtml(label);
+    if (options?.allowLinks === false || !isSafeUrl(url, false)) {
+      return stash(escapeHtml(label));
     }
     return stash(
       `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`,
@@ -166,7 +175,7 @@ function splitTableCells(line: string): string[] {
     .map((c) => c.trim());
 }
 
-export function renderOfflineMarkdownHtml(markdown: string): string {
+export function renderOfflineMarkdownHtml(markdown: string, options?: OfflineRenderOptions): string {
   const lines = String(markdown ?? "").split(/\r?\n/);
   const out: string[] = [];
   let paragraphLines: string[] = [];
@@ -181,7 +190,7 @@ export function renderOfflineMarkdownHtml(markdown: string): string {
     const joined = paragraphLines.join("\n").trim();
     paragraphLines = [];
     if (!joined) return;
-    out.push(`<p>${renderInlineFormatting(joined).replaceAll("\n", "<br />")}</p>`);
+    out.push(`<p>${renderInlineFormatting(joined, options).replaceAll("\n", "<br />")}</p>`);
   };
 
   const flushList = () => {
@@ -191,7 +200,7 @@ export function renderOfflineMarkdownHtml(markdown: string): string {
       return;
     }
     const tag = listType;
-    out.push(`<${tag}>${listItems.map((item) => `<li>${renderInlineFormatting(item)}</li>`).join("")}</${tag}>`);
+    out.push(`<${tag}>${listItems.map((item) => `<li>${renderInlineFormatting(item, options)}</li>`).join("")}</${tag}>`);
     listType = null;
     listItems = [];
   };
@@ -201,7 +210,7 @@ export function renderOfflineMarkdownHtml(markdown: string): string {
     const content = quoteLines.join("\n").trim();
     quoteLines = [];
     if (!content) return;
-    out.push(`<blockquote>${renderInlineFormatting(content).replaceAll("\n", "<br />")}</blockquote>`);
+    out.push(`<blockquote>${renderInlineFormatting(content, options).replaceAll("\n", "<br />")}</blockquote>`);
   };
 
   const flushAllText = () => {
@@ -277,9 +286,9 @@ export function renderOfflineMarkdownHtml(markdown: string): string {
         i += 1;
         rows.push(splitTableCells(lines[i]));
       }
-      const headHtml = headers.map((cell) => `<th>${renderInlineFormatting(cell)}</th>`).join("");
+      const headHtml = headers.map((cell) => `<th>${renderInlineFormatting(cell, options)}</th>`).join("");
       const bodyHtml = rows
-        .map((row) => `<tr>${row.map((cell) => `<td>${renderInlineFormatting(cell)}</td>`).join("")}</tr>`)
+        .map((row) => `<tr>${row.map((cell) => `<td>${renderInlineFormatting(cell, options)}</td>`).join("")}</tr>`)
         .join("");
       out.push(
         `<div class="offline-table-wrap"><table class="offline-table"><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`,
@@ -299,7 +308,7 @@ export function renderOfflineMarkdownHtml(markdown: string): string {
     if (headingMatch) {
       flushAllText();
       const level = Math.min(4, Math.max(2, headingMatch[1].length));
-      out.push(`<h${level}>${renderInlineFormatting(headingMatch[2])}</h${level}>`);
+      out.push(`<h${level}>${renderInlineFormatting(headingMatch[2], options)}</h${level}>`);
       continue;
     }
 
@@ -481,7 +490,7 @@ function renderStaticFallbackHtml(
   return `<p class="offline-visual-note"><strong>${renderScientificProse(fallback.summary)}</strong></p><p class="offline-visual-note">${renderScientificProse(fallback.content)}</p>`;
 }
 
-export function renderOfflineVisualHtml(visual: PublicVisualSpec): string {
+export function renderOfflineVisualHtml(visual: PublicVisualSpec, options?: OfflineRenderOptions): string {
   const safeId = escapeHtml(visual.id || "visual");
   const safeLabel = renderScientificProse(visual.label || "");
   const safeDesc = visual.description ? `<p class="offline-visual-desc">${renderScientificProse(visual.description)}</p>` : "";
@@ -577,12 +586,12 @@ export function renderOfflineVisualHtml(visual: PublicVisualSpec): string {
         outputsHtml +
         renderStaticFallbackHtml(visual.staticFallback);
     } else if (visual.kind === "source_figure") {
-      const imgUrl = visual.asset?.imageUrl ?? "";
-      if (imgUrl && isSafeUrl(imgUrl, true)) {
+      const imgUrl = imageSource(visual.asset?.imageUrl ?? "", options);
+      if (imgUrl) {
         body += `<img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(visual.description || visual.label)}" loading="lazy" class="offline-img" />`;
       }
       if (visual.captionMarkdown) {
-        body += `<p class="offline-visual-note">${renderInlineFormatting(visual.captionMarkdown)}</p>`;
+        body += `<p class="offline-visual-note">${renderInlineFormatting(visual.captionMarkdown, options)}</p>`;
       }
       if (visual.asset?.attribution) {
         body += `<p class="offline-visual-note">${escapeHtml(visual.asset.attribution)}</p>`;
@@ -758,16 +767,16 @@ export function renderOfflineVisualHtml(visual: PublicVisualSpec): string {
   }
 }
 
-export function renderOfflineWorkedExampleHtml(workedExample: PublicWorkedExamplePayload): string {
+export function renderOfflineWorkedExampleHtml(workedExample: PublicWorkedExamplePayload, options?: OfflineRenderOptions): string {
   if (!workedExample?.steps?.length) return "";
   const stepsHtml = workedExample.steps
     .map(
       (step) =>
-        `<li><strong>${renderInlineFormatting(step.label)}</strong>: ${renderInlineFormatting(step.explanation)}${step.reason ? `<div class="offline-step-reason">${renderInlineFormatting(step.reason)}</div>` : ""}</li>`,
+        `<li><strong>${renderInlineFormatting(step.label, options)}</strong>: ${renderInlineFormatting(step.explanation, options)}${step.reason ? `<div class="offline-step-reason">${renderInlineFormatting(step.reason, options)}</div>` : ""}</li>`,
     )
     .join("");
   const verifyHtml = workedExample.verification?.trim()
-    ? `<p class="offline-worked-verify"><strong>Verifikasi:</strong> ${renderInlineFormatting(workedExample.verification.trim())}</p>`
+    ? `<p class="offline-worked-verify"><strong>Verifikasi:</strong> ${renderInlineFormatting(workedExample.verification.trim(), options)}</p>`
     : "";
   return `<div class="offline-worked-example"><ol>${stepsHtml}</ol>${verifyHtml}</div>`;
 }

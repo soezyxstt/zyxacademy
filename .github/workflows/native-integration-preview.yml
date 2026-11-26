@@ -22,6 +22,11 @@ on:
       - 'drizzle-postgres/**'
       - 'tests/contracts/notifications-history.test.ts'
       - 'tests/contracts/offline-server-sync.test.ts'
+      - 'tests/offline-shell-and-reader.test.ts'
+      - 'tests/unit/expo-offline-reading-document.test.ts'
+      - 'lib/offline/reading-sections.ts'
+      - 'lib/offline/offline-snapshot-renderer.ts'
+      - 'lib/materials/diktat-scene-svg.ts'
       - 'scripts/native-readiness/**'
       - 'scripts/native-parity/check-interactions.sh'
       - 'scripts/native-parity/prepare-android-emulator.sh'
@@ -162,6 +167,9 @@ jobs:
       - name: Offline authorization, cursors and revocation
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun scripts/test-contracts.ts tests/contracts/offline-server-sync.test.ts
+      - name: Offline Article and Diktat rendering
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun test tests/unit/expo-offline-reading-document.test.ts tests/unit/expo-offline-reading-packages.test.ts tests/offline-shell-and-reader.test.ts
       - name: Student learning and live-session operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun scripts/test-contracts.ts tests/contracts/native-student-learning-postgres.test.ts

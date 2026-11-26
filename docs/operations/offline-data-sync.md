@@ -57,6 +57,8 @@ Routine checks use the authorized manifest to refresh verification timestamps an
 
 Expired course outlines and video catalogs are checked even when the manifest is still fresh. An authenticated 304 rebuilds the library entries from the stored body under the current course lease and chapter scope. Cached images whose previous lease does not cover the renewed catalog are omitted until a body and its assets are fetched again.
 
+Expo renders Article sections and Diktat Markdown with the shared snapshot generator. It embeds KaTeX fonts and only images whose saved asset URL matches the package and language. The local document opens in a script-disabled view with external navigation and requests disabled. Interactive material uses its static authored representation where available.
+
 Article/Diktat packages include admitted images. The client downloads a candidate, checks required assets, account generation and space limits, then replaces the active package. The asset proxy admits only an exact URL belonging to the current resource and never forwards private cookies to public thumbnail hosts. Required asset failure prevents replacement.
 
 ## Admin controls
@@ -111,7 +113,7 @@ Resource headers include `x-offline-*` identity, cursor, revision and validation
 
 Existing publication, academic, video and access tools receive invalidation through the same services. The event consumers authorize and translate course IDs under the current server origin and account. The revalidation request uses the same authenticated clients on staging and production. This change adds no MCP tools and does not change OAuth scopes, consent, discovery, packaged skills, playbooks, host prompts or environment bindings. Policy editing and manual revalidation are intentionally admin-UI-only, as recorded in `lib/admin-mcp/operations-catalog.ts`.
 
-The reader admission threshold and the library, reader and native shell connectivity presentation are device-local. The existing desktop recovery and admin policy entries in the operations catalog still cover the affected workflows. Native origin lookup and web API calls use the existing clients and environment bindings.
+The reader admission threshold and the library, reader and native shell connectivity presentation are device-local. The existing desktop recovery and admin policy entries in the operations catalog still cover the affected workflows. Native origin lookup and web API calls use the existing clients and environment bindings. The Expo reading renderer accepts the verified package supplied by the app ledger and has no new tools, remote calls, or authorization rules.
 
 ## Rollout and evidence
 

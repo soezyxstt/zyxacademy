@@ -38,6 +38,7 @@
     "expo-system-ui": "58.0.7",
     "expo-video": "58.0.14",
     "expo-web-browser": "58.1.0",
+    "katex": "0.17.0",
     "qrcode-generator": "2.0.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",

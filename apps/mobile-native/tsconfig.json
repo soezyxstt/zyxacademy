@@ -3,7 +3,9 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
+      "@/*": ["../../*"],
       "date-fns": ["./node_modules/date-fns"],
+      "katex": ["./node_modules/katex"],
       "zod": ["./node_modules/zod"]
     }
   }

@@ -109,13 +109,14 @@ export function readOfflineReadingHeaders(response: NativeResponse, scope: Nativ
   return { cursor, validatedAt, leaseExpiresAt, revision };
 }
 
-function validAssetPath(path: string, target: OfflineReadingTarget, scope: NativeOfflineScope, revision: string) {
-  if (!path.startsWith("/api/offline/asset?") || path.length > 40_000 || path.includes("#")) return false;
-  const query = new URLSearchParams(path.slice("/api/offline/asset?".length));
-  const values = { kind: target.kind, id: target.id, courseId: target.courseId, locale: scope.locale, revision };
+export function offlineReadingAssetSource(path: string, target: OfflineReadingTarget, locale: NativeOfflineScope["locale"], revision: string) {
+  const prefix = "/api/offline/asset?";
+  if (!path.startsWith(prefix) || path.length > 40_000 || path.includes("#")) return null;
+  const query = new URLSearchParams(path.slice(prefix.length));
+  const values = { kind: target.kind, id: target.id, courseId: target.courseId, locale, revision };
   const source = query.get("asset");
   return [...query.keys()].length === 6 && source && source.length <= 4096 && !source.includes("\u0000")
-    && Object.entries(values).every(([key, value]) => query.get(key) === value);
+    && Object.entries(values).every(([key, value]) => query.get(key) === value) ? source : null;
 }
 
 export function parseOfflineReadingResource(value: unknown, target: OfflineReadingTarget, scope: NativeOfflineScope,
@@ -150,7 +151,7 @@ export function parseOfflineReadingResource(value: unknown, target: OfflineReadi
   expectValue(Array.isArray(envelope.assets) && envelope.assets.length <= READING_ASSET_COUNT_LIMIT);
   const assets = envelope.assets.map(value => {
     const asset = row(value);
-    expectValue(typeof asset.url === "string" && asset.required === true && validAssetPath(asset.url, target, scope, metadata.revision));
+    expectValue(typeof asset.url === "string" && asset.required === true && offlineReadingAssetSource(asset.url, target, scope.locale, metadata.revision));
     return asset.url;
   });
   expectValue(new Set(assets).size === assets.length);
