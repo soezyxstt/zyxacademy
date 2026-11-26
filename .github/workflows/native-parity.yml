@@ -136,7 +136,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: reference-manifests
-          path: artifacts/native-parity/web/dpr*/cases.json
+          path: |
+            artifacts/native-parity/web/dpr*/cases.json
+            artifacts/native-parity/web/dpr*/directory.json
           if-no-files-found: error
 
       - name: Export the mobile WebView reference
@@ -225,6 +227,7 @@ jobs:
           path: |
             artifacts/native-parity/${{ matrix.platform }}/result-*.json
             artifacts/native-parity/${{ matrix.platform }}/native-vs-webview/result-*.json
+            artifacts/native-parity/${{ matrix.platform }}/directory/result.json
           retention-days: 7
 
   visual-summary:

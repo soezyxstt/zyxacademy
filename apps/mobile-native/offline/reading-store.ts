@@ -1,5 +1,10 @@
 import type { NativeSessionScope } from "../network/transport";
-import { offlineMetadataSchema, readOfflineReadingAuthority } from "./metadata-store";
+import {
+  offlineMetadataSchema,
+  readOfflineReadingAuthority,
+  withdrawOfflineReadingCourse,
+  type OfflineReadingCourseVersion,
+} from "./metadata-store";
 import {
   OfflineReadingError,
   READING_ASSET_COUNT_LIMIT,
@@ -57,6 +62,16 @@ const schema = `
     BEGIN
       DELETE FROM expo_reading_parts_v2 WHERE entry = OLD.entry;
     END;
+`;
+const purgeRetiredScopes = `
+  DELETE FROM expo_reading_packages_v2
+  WHERE EXISTS (
+    SELECT 1 FROM offline_reading_metadata_v1 AS authority
+    WHERE authority.origin = expo_reading_packages_v2.origin
+      AND authority.account_id = expo_reading_packages_v2.account_id
+      AND authority.locale = expo_reading_packages_v2.locale
+      AND (authority.session_id <> expo_reading_packages_v2.session_id OR authority.snapshot IS NULL)
+  )
 `;
 
 type Bind = string | number | null | Uint8Array;
@@ -153,7 +168,7 @@ function proof(authority: Authority, target: OfflineReadingTarget, cutoff: numbe
   const invalidation = validation.invalidations[descriptor.key];
   const cursor = invalidation && compareNativeOfflineCursors(invalidation, manifest.cursor) > 0 ? invalidation : manifest.cursor;
   return { descriptor, cursor, manifestCursor: manifest.cursor, checkedAt: manifest.checkedAt, leaseExpiresAt,
-    resetGeneration: validation.generation, invalidation };
+    resetGeneration: validation.generation, grantRevision: course.grantRevision, invalidation };
 }
 
 function verifiedEntry(authority: Authority, entry: EntryRow, access: NonNullable<ReturnType<typeof proof>>, verifiedUntil: number, now: number) {
@@ -191,7 +206,11 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
   }
   function initialize() {
     // A downgraded client can recreate the old tables, so clear them on every new repository open.
-    ready ??= exclusive(tx => tx.execAsync(offlineMetadataSchema + schema)).catch(error => {
+    ready ??= exclusive(async tx => {
+      await tx.execAsync(offlineMetadataSchema + schema);
+      // Older builds clear authority but have no access to the v2 package tables.
+      await tx.runAsync(purgeRetiredScopes);
+    }).catch(error => {
       ready = undefined;
       throw error;
     });
@@ -344,6 +363,7 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
         if (previous?.reset_generation === candidate.resetGeneration
           && (Math.max(previous.validated_at, previous.verified_at) > candidate.validatedAt
             || compareNativeOfflineCursors(candidate.cursor, previous.verified_cursor) < 0)) throw new OfflineReadingError("changed");
+        await tx.runAsync(purgeRetiredScopes);
         const totals = await tx.getFirstAsync<{ count: number; bytes: number }>(
           `SELECT COUNT(*) AS count, COALESCE(SUM(bytes), 0) AS bytes FROM expo_reading_packages_v2 WHERE ${scopeFilter}`, ...keys(scope),
         );
@@ -440,6 +460,17 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
         generation: access.resetGeneration,
       } : null;
       return { ...access, requestVersion };
+    },
+    async withdrawCourse(scope: NativeOfflineScope, courseId: string, version: OfflineReadingCourseVersion, guard: Guard) {
+      const assertCurrent = () => assertGrant(guard);
+      const changed = await transaction(async tx => {
+        assertCurrent();
+        if (!await withdrawOfflineReadingCourse(tx, scope, courseId, version, assertCurrent)) return false;
+        await tx.runAsync(`DELETE FROM expo_reading_packages_v2 WHERE ${scopeFilter} AND course_id = ?`, ...keys(scope), courseId);
+        assertCurrent();
+        return true;
+      });
+      if (changed) notifyOfflineReadingChanges();
     },
     async invalidate(scope: NativeOfflineScope, target: OfflineReadingTarget, version: OfflineReadingRequestVersion, guard: Guard) {
       const changed = await transaction(async tx => {
