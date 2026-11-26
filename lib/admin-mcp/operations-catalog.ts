@@ -159,7 +159,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "Live quiz hosting requires a verified Tutor session, active course assignment and current room ownership. HTTPS commands use the web live room service and host state uses its signed realtime socket. MCP credentials cannot open or control a room."
+    "reason": "Live quiz hosting requires a verified Tutor session, active course assignment and current room ownership. HTTPS commands use the web live room service and host state uses its signed realtime socket. Ad hoc Python sessions use a published course problem version and the same web timing, hints and scoring. These are interactive Tutor operations outside MCP."
   },
   {
     "source": "app/api/native/schedule/[role]/[bookingId]/route.ts",

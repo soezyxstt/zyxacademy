@@ -9,7 +9,7 @@
  */
 
 import { liveCodingConfigSchema } from "@/lib/coding/live-server";
-import { loadPublishedCodingProblem } from "@/lib/coding/server-access";
+import { codingErrorResponse, loadPublishedCodingProblem } from "@/lib/coding/server-access";
 import type { z as zType } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -289,8 +289,12 @@ export async function POST(req: NextRequest) {
 
   if (body.data.codingQuestions) {
     for (const coding of body.data.codingQuestions) {
-      const problem = await loadPublishedCodingProblem(effectiveCourseId, coding.problemId, coding.version);
-      questionsSnapshot.push({ prompt: problem.prompt, options: [], correctIndex: 0, origin: "zyx_original", sourceEventName: null, sourceReferenceId: null, coding });
+      try {
+        const problem = await loadPublishedCodingProblem(effectiveCourseId, coding.problemId, coding.version);
+        questionsSnapshot.push({ prompt: problem.prompt, options: [], correctIndex: 0, origin: "zyx_original", sourceEventName: null, sourceReferenceId: null, coding });
+      } catch (error) {
+        return codingErrorResponse(error);
+      }
     }
   } else if (questionIds.length > 0) {
     const rows = await db

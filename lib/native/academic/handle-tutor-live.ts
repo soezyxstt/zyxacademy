@@ -1,9 +1,10 @@
-import type { TutorLiveAction, TutorLiveRoom } from "@/packages/academic/tutor-support";
+import type { TutorLiveAction, TutorLiveRoom, TutorLiveSelection } from "@/packages/academic/tutor-support";
+import { codingLocatorSchema } from "@/lib/coding/contracts";
 import { readTutorCommandBody, type TutorSupportServices } from "./handle-tutor-support";
 
 export type TutorLiveServices = Pick<TutorSupportServices, "session" | "hasTutor" | "authorizeCourse"> & {
   resume(userId: string, courseId: string, sessionId?: string): Promise<TutorLiveRoom | null>;
-  create(courseId: string, templateId: string): Promise<Response>;
+  create(courseId: string, selection: TutorLiveSelection): Promise<Response>;
   control(sessionId: string, action: TutorLiveAction): Promise<Response>;
   ownsRoom(userId: string, courseId: string, sessionId: string): Promise<boolean>;
 };
@@ -45,12 +46,15 @@ export async function handleTutorLive(request: Request, courseId: string, origin
     const body = await readTutorCommandBody(request);
     if (!body || typeof body !== "object") return reply(400, failed);
     const keys = Object.keys(body);
-    if (keys.length === 1 && "templateId" in body && validId(body.templateId)) {
-      const response = await services.create(courseId, body.templateId);
+    const coding = keys.length === 1 && "codingProblem" in body ? codingLocatorSchema.safeParse(body.codingProblem) : undefined;
+    const selection = keys.length === 1 && "templateId" in body && validId(body.templateId) ? { templateId: body.templateId }
+      : coding?.success ? { codingProblem: coding.data } : undefined;
+    if (selection) {
+      const response = await services.create(courseId, selection);
       if (!response.ok) return reply(response.status, failed);
       const result = await response.json();
       const created = room(result, result?.sessionId);
-      return created ? reply(200, created) : reply(502, failed);
+      return created ? reply(200, { ...created, ...("codingProblem" in selection ? { kind: "coding" } : {}) }) : reply(502, failed);
     }
     if (keys.length === 2 && "sessionId" in body && validId(body.sessionId) &&
       "action" in body && typeof body.action === "string" && liveActions.has(body.action)) {

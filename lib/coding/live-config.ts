@@ -10,3 +10,8 @@ export const liveCodingConfigSchema = codingLocatorSchema.extend({
 }).strict();
 
 export type LiveCodingConfig = z.infer<typeof liveCodingConfigSchema>;
+
+/** The ad hoc Tutor flow uses one published problem and a five-minute round. */
+export function adHocLiveCodingQuestion(problem: z.infer<typeof codingLocatorSchema>): LiveCodingConfig {
+  return { ...problem, maxAttempts: null, assistance: "hints", scoring: "best", durationSeconds: 300 };
+}

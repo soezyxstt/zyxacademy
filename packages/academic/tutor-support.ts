@@ -75,18 +75,22 @@ export type TutorVideosData = {
   }[];
 };
 
+export type TutorLiveProblem = { problemId: string; version: number; title: string };
+export type TutorLiveSelection = { templateId: string } | { codingProblem: Omit<TutorLiveProblem, "title"> };
+
 export type TutorLiveData = {
   configured: boolean;
+  codingProblems?: TutorLiveProblem[];
   templates: { id: string; title: string }[];
   active: { id: string; code: string; state: string; participantCount: number } | null;
 };
 
 export type TutorLiveAction = "start" | "reveal" | "next" | "end";
-export type TutorLiveRoom = { id: string; code: string; questionCount: number; wsUrl: string; hostToken: string };
+export type TutorLiveRoom = { id: string; code: string; questionCount: number; wsUrl: string; hostToken: string; kind?: "coding" };
 
 export type TutorLiveHost = {
   resume(courseId: string, sessionId: string | undefined, signal: AbortSignal): Promise<TutorLiveRoom | null>;
-  create(courseId: string, templateId: string, requestId: string, signal: AbortSignal): Promise<TutorLiveRoom>;
+  create(courseId: string, selection: string | TutorLiveSelection, requestId: string, signal: AbortSignal): Promise<TutorLiveRoom>;
   control(courseId: string, sessionId: string, action: TutorLiveAction, requestId: string, signal: AbortSignal): Promise<void>;
 };
 

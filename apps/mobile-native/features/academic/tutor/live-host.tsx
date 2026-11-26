@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { randomUUID } from "expo-crypto";
 import { View } from "react-native";
-import type { TutorLiveAction, TutorLiveData, TutorLiveHost, TutorLiveRoom } from "../../../../../packages/academic/tutor-support";
+import type { TutorLiveAction, TutorLiveData, TutorLiveHost, TutorLiveRoom, TutorLiveSelection } from "../../../../../packages/academic/tutor-support";
 import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
 import { createLiveQuizSocketHook } from "../../../../../packages/native-parity/student/learning/live-socket";
 import { Button } from "../../../components/Button";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
 import { SharedDialog } from "../../shared-ui";
+import { Picker } from "../courses/ui";
 import { tutorLiveSocketUrl } from "./live-client";
 import { Empty, Heading, Label, Row, tutorLayout, type TutorTheme } from "./ui";
 
@@ -25,8 +26,14 @@ export function TutorLiveHostPanel({ data, refresh, ...props }: HostProps & { da
 function HostPanel({ host, courseId, data, theme, refresh }: HostProps & { data: TutorLiveData; refresh(): void }) {
   const { canInteract } = useProtectedInteraction();
   const [room, setRoom] = useState<TutorLiveRoom | null>(null);
-  const [status, setStatus] = useState<"checking" | "ready" | "opening" | "check-error" | "open-error" | "denied">("checking");
-  const [selected, setSelected] = useState<string>();
+  const [status, setStatus] = useState<"checking" | "ready" | "opening" | "check-error" | "open-error" | "source-missing" | "denied">("checking");
+  const [selected, setSelected] = useState<TutorLiveSelection>();
+  const problems = data.codingProblems ?? [];
+  const selectedCoding = selected && "codingProblem" in selected ? selected.codingProblem : undefined;
+  const selectedProblem = selectedCoding && problems.find(problem => problem.problemId === selectedCoding.problemId && problem.version === selectedCoding.version);
+  const selectedTemplate = selected && "templateId" in selected ? data.templates.find(template => template.id === selected.templateId) : undefined;
+  const hasSelection = Boolean(selectedProblem || selectedTemplate);
+  const problemKey = (problem: { problemId: string; version: number }) => JSON.stringify([problem.problemId, problem.version]);
   const request = useRef<AbortController | null>(null);
   useStaffChromeVisibility({ hideBottom: Boolean(room) });
 
@@ -58,7 +65,7 @@ function HostPanel({ host, courseId, data, theme, refresh }: HostProps & { data:
   }, [check]);
 
   async function open() {
-    if (!canInteract() || request.current || status !== "ready" || !selected) return;
+    if (!canInteract() || request.current || status !== "ready" || !selected || !hasSelection) return;
     const controller = new AbortController();
     request.current = controller;
     setStatus("opening");
@@ -68,7 +75,12 @@ function HostPanel({ host, courseId, data, theme, refresh }: HostProps & { data:
       setRoom(active);
       setStatus("ready");
     } catch (error) {
-      if (!controller.signal.aborted) setStatus(accessDenied(error) ? "denied" : "open-error");
+      if (controller.signal.aborted) return;
+      if (accessDenied(error)) setStatus("denied");
+      else if (selectedCoding && error instanceof TutorDataError && [404, 409].includes(error.status)) {
+        setSelected(undefined);
+        setStatus("source-missing");
+      } else setStatus("open-error");
     } finally {
       if (request.current === controller) request.current = null;
     }
@@ -83,13 +95,34 @@ function HostPanel({ host, courseId, data, theme, refresh }: HostProps & { data:
     <Label theme={theme} tone="error">{status === "open-error" ? "Status ruang tunggu belum terkonfirmasi." : "Status sesi gagal dimuat."}</Label>
     <Button theme={theme} variant="outline" style={tutorLayout.action} onPress={() => { if (canInteract()) void check(); }}>Periksa sesi</Button>
   </>;
+  const ready = status === "ready" || status === "source-missing";
   return <>
-    <Heading theme={theme} title="Kuis terbit" count={String(data.templates.length)} />
-    {data.templates.map((template) => <Row key={template.id} theme={theme} title={template.title}
-      meta={selected === template.id ? "Dipilih" : undefined} onPress={() => { if (canInteract() && status === "ready") setSelected(template.id); }} />)}
-    {data.templates.length ? <Button theme={theme} style={tutorLayout.action} onPress={open}
-      disabled={!selected} isLoading={status === "opening"}>Buka ruang tunggu</Button> : <Empty theme={theme} title="Belum ada kuis terbit" />}
-    <Button theme={theme} variant="outline" style={tutorLayout.action} disabled={status === "opening"} onPress={refresh}>Muat ulang</Button>
+    {status === "source-missing" ? <Label theme={theme} tone="error">Versi soal Python tidak tersedia. Muat ulang daftar atau pilih soal lain.</Label> : null}
+    {data.templates.length ? <>
+      <Heading theme={theme} title="Kuis terbit" count={String(data.templates.length)} />
+      {data.templates.map((template) => <Row key={template.id} theme={theme} title={template.title}
+        meta={selectedTemplate?.id === template.id ? "Dipilih" : undefined} onPress={() => {
+          if (!canInteract() || !ready) return;
+          setStatus("ready");
+          setSelected({ templateId: template.id });
+        }} />)}
+    </> : null}
+    {problems.length ? <Picker label="Soal Python terbit" testID="tutor-live-coding-picker" disabled={!ready}
+      selected={selectedProblem ? problemKey(selectedProblem) : ""}
+      options={problems.map(problem => ({ id: problemKey(problem), label: `${problem.title} · Versi ${problem.version}` }))}
+      onSelect={key => {
+        if (!canInteract() || !ready) return;
+        const problem = problems.find(item => problemKey(item) === key);
+        if (!problem) return;
+        setStatus("ready");
+        setSelected({ codingProblem: { problemId: problem.problemId, version: problem.version } });
+      }} /> : null}
+    {selectedProblem ? <Label theme={theme} tone="muted">5 menit, tanpa batas percobaan. Petunjuk tersedia dan skor terbaik dipakai.</Label> : null}
+    {data.templates.length || problems.length ? <Button theme={theme} style={tutorLayout.action} testID="tutor-live-open-room" onPress={open}
+      disabled={!hasSelection || !ready} isLoading={status === "opening"}>Buka ruang tunggu</Button> : <Empty theme={theme} title="Belum ada kuis atau soal Python terbit" />}
+    <Button theme={theme} variant="outline" style={tutorLayout.action} disabled={status === "opening"} onPress={() => {
+      if (canInteract() && !request.current) refresh();
+    }}>Muat ulang</Button>
   </>;
 }
 
@@ -136,6 +169,13 @@ function HostRoom({ host, courseId, theme, room, recheck, lostAccess, finished }
   const { state, synchronized } = useLiveSocket(tutorLiveSocketUrl(room), refreshUrl, false);
   const phase = state.sessionState;
   const round = state.currentQuestion;
+  const coding = room.kind === "coding" || Boolean(round?.coding);
+  const label = (action: TutorLiveAction) => {
+    if (coding && action === "start") return "Mulai sesi Python";
+    if (coding && action === "reveal") return "Tampilkan hasil";
+    if (coding && action === "end") return "Akhiri sesi";
+    return commandLabel[action];
+  };
   const waiting = pending?.phase === phase && pending.index === round?.questionIndex;
   const connected = synchronized && state.connectionStatus === "connected";
   const ready = connected && !waiting && !busy;
@@ -175,7 +215,7 @@ function HostRoom({ host, courseId, theme, room, recheck, lostAccess, finished }
 
   const board = phase === "ended" ? state.finalBoard : state.top10;
   return <>
-    <Heading theme={theme} title={phase === "ended" ? "Kuis selesai" : phase === "lobby" ? "Ruang tunggu" : "Sesi berlangsung"}
+    <Heading theme={theme} title={phase === "ended" ? coding ? "Sesi Python selesai" : "Kuis selesai" : phase === "lobby" ? coding ? "Ruang tunggu Python" : "Ruang tunggu" : "Sesi berlangsung"}
       count={connected && phase === "lobby" ? `${state.participantCount} peserta` : undefined} />
     {phase !== "ended" ? <Row theme={theme} title="Kode gabung" meta={room.code} /> : null}
     {unavailable ? <Label theme={theme} tone="muted">Sesi tidak lagi aktif.</Label> : null}
@@ -183,6 +223,9 @@ function HostRoom({ host, courseId, theme, room, recheck, lostAccess, finished }
     {round && phase !== "ended" && connected ? <View style={tutorLayout.group}>
       <Heading theme={theme} title={`Soal ${round.questionIndex + 1} dari ${room.questionCount}`} count={phase === "question" ? `${state.countdown} dtk` : undefined} />
       <Label theme={theme}>{round.prompt}</Label>
+      {coding && phase === "question" ? <Label theme={theme} tone="muted">
+        {`${state.totalAnswered} dari ${state.totalParticipants || state.participantCount} peserta mengumpulkan`}
+      </Label> : null}
       {round.options.map((option, index) => <Row key={index} theme={theme} title={option}
         meta={phase === "reveal" && index === state.revealCorrectIndex ? "Jawaban benar"
           : phase === "question" && state.answerCounts[index] !== undefined ? String(state.answerCounts[index]) : undefined} />)}
@@ -194,12 +237,12 @@ function HostRoom({ host, courseId, theme, room, recheck, lostAccess, finished }
     {waiting && checkNeeded ? <Label theme={theme} tone="error">Perubahan sesi belum terkonfirmasi.</Label> : null}
     {phase !== "ended" && (!connected || (waiting && checkNeeded)) ? <Button theme={theme} variant="outline"
       style={tutorLayout.action} disabled={busy} onPress={() => { if (canInteract()) recheck(); }}>{unavailable ? "Kembali ke kuis" : "Periksa koneksi"}</Button> : null}
-    {nextAction ? <Button theme={theme} style={tutorLayout.action} disabled={!ready} onPress={() => run(nextAction)}>{commandLabel[nextAction]}</Button> : null}
+    {nextAction ? <Button theme={theme} style={tutorLayout.action} disabled={!ready} onPress={() => run(nextAction)}>{label(nextAction)}</Button> : null}
     {phase !== "ended" ? <Button theme={theme} variant="outline" style={tutorLayout.action} disabled={!ready}
-      onPress={() => { if (canInteract() && ready && !request.current) setConfirmEnd(true); }}>{commandLabel.end}</Button>
+      onPress={() => { if (canInteract() && ready && !request.current) setConfirmEnd(true); }}>{label("end")}</Button>
       : <Button theme={theme} style={tutorLayout.action} onPress={finished}>Kembali ke kuis</Button>}
-    <SharedDialog theme={theme} title="Akhiri kuis?" open={confirmEnd && ready} closeLabel="Batal" onDismiss={() => setConfirmEnd(false)}>
-      <Button theme={theme} style={tutorLayout.action} testID="tutor-live-confirm-end" onPress={() => run("end")}>{commandLabel.end}</Button>
+    <SharedDialog theme={theme} title={`${label("end")}?`} open={confirmEnd && ready} closeLabel="Batal" onDismiss={() => setConfirmEnd(false)}>
+      <Button theme={theme} style={tutorLayout.action} testID="tutor-live-confirm-end" onPress={() => run("end")}>{label("end")}</Button>
     </SharedDialog>
   </>;
 }

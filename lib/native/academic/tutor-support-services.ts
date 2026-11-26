@@ -11,6 +11,7 @@ import { requireDiscussionMessageAccess, requireDiscussionThreadAccess } from "@
 import { reply } from "@/lib/discussions/actions";
 import { getThread, listChannelMetadataPage, listThreadsAcrossChannels, markRead, setReaction, setResolved } from "@/lib/discussions/service";
 import { env } from "@/lib/env";
+import { listPublishedCodingProblems } from "@/lib/coding/published-problems";
 import { addCalendarDays, getCalendarWeekRange, getJakartaCalendarDate } from "@/lib/schedule/calendar-date";
 import { getTutorScheduleReadModel } from "@/lib/schedule/tutor-read-model";
 import { cleanSummary } from "@/lib/utils";
@@ -146,7 +147,7 @@ export const tutorSupportServices = {
       return { configured: false, templates: [], active: null };
     }
     const courseIds = Array.from(new Set([access.courseId, access.legacyCourseId, courseId].filter((id): id is string => Boolean(id))));
-    const [templates, sessions] = await Promise.all([
+    const [templates, sessions, problems] = await Promise.all([
       db.select({ id: quizTemplates.id, title: quizTemplates.title, category: quizTemplates.category, rules: quizTemplates.selectionRules })
         .from(quizTemplates)
         .where(and(inArray(quizTemplates.courseId, courseIds), eq(quizTemplates.status, "published")))
@@ -155,9 +156,11 @@ export const tutorSupportServices = {
         .from(liveQuizSessions)
         .where(and(inArray(liveQuizSessions.courseId, courseIds), eq(liveQuizSessions.tutorId, userId)))
         .orderBy(desc(liveQuizSessions.createdAt)).limit(20),
+      access.courseId ? listPublishedCodingProblems(access.courseId) : [],
     ]);
     return {
       configured: true,
+      codingProblems: problems.map(({ problemId, version, title }) => ({ problemId, version, title })),
       templates: templates.filter((template) => template.category !== "simulation" && !isTryout(template.rules))
         .map(({ id, title }) => ({ id, title })),
       active: sessions.find((session) => session.state !== "ended") ?? null,

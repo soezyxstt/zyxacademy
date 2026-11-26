@@ -22,7 +22,7 @@ async function readRoom(response: AcademicResponse, expected?: string) {
   if (value === null) return null;
   if (!value || typeof value.id !== "string" || (expected && value.id !== expected) ||
     typeof value.code !== "string" || !/^[A-Z0-9]{6}$/.test(value.code) ||
-    !Number.isSafeInteger(value.questionCount) || value.questionCount < 0 || !tutorLiveSocketUrl(value)) throw new TutorDataError(502);
+    !Number.isSafeInteger(value.questionCount) || value.questionCount < 0 || (value.kind !== undefined && value.kind !== "coding") || !tutorLiveSocketUrl(value)) throw new TutorDataError(502);
   return value;
 }
 
@@ -34,8 +34,9 @@ export function createTutorLiveHost(transport: AcademicTransport): TutorLiveHost
       const search = sessionId ? `?${new URLSearchParams({ sessionId })}` : "";
       return readRoom(await transport.get(hostPath(courseId) + search, signal), sessionId);
     },
-    async create(courseId, templateId, requestId, signal) {
-      const room = await readRoom(await command(hostPath(courseId), { method: "POST", body: { templateId }, requestId }, signal));
+    async create(courseId, selection, requestId, signal) {
+      const body = typeof selection === "string" ? { templateId: selection } : selection;
+      const room = await readRoom(await command(hostPath(courseId), { method: "POST", body, requestId }, signal));
       if (!room) throw new TutorDataError(502);
       return room;
     },

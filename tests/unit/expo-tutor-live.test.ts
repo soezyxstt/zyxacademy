@@ -124,3 +124,46 @@ test("Live hosting is scoped to the native Tutor session in the MCP operations c
   expect(operationsCatalog.find(row => row.source.endsWith("/[courseId]/live/host/route.ts")))
     .toMatchObject({ actions: ["GET", "POST"], tools: [], status: "excluded" });
 });
+
+test("the native host opens only one exact published coding locator in the assigned course", async () => {
+  const selections: unknown[] = [];
+  const target = services({ async create(courseId, selection) {
+    selections.push([courseId, selection]);
+    return response({ ...room, sessionId: room.id, questionCount: 1 });
+  } });
+  const codingProblem = { problemId: "py-loop", version: 2 };
+  const accepted = await handleTutorLive(request({ codingProblem }), "course-id", origin, target);
+  expect(await accepted.json()).toEqual({ ...room, questionCount: 1, kind: "coding" });
+  for (const body of [
+    { codingProblem: { ...codingProblem, version: "2" } },
+    { codingProblem: { ...codingProblem, version: 0 } },
+    { codingProblem: { ...codingProblem, assistance: "full" } },
+    { codingProblem, courseId: "elsewhere" },
+    { codingProblem, templateId: "also-template" },
+    { codingQuestions: [codingProblem] },
+  ]) expect((await handleTutorLive(request(body), "course-id", origin, target)).status).toBe(400);
+  expect((await handleTutorLive(request({ codingProblem }), "other-course", origin, services({
+    ...target,
+    async authorizeCourse() { throw new Error("TUTOR_ACCESS_DENIED"); },
+  }))).status).toBe(403);
+  expect(selections).toEqual([["course-id", { codingProblem }]]);
+});
+
+test("the mobile coding command sends no untrusted policy and retains the web ad hoc defaults", async () => {
+  const { adHocLiveCodingQuestion, liveCodingConfigSchema } = await import("../../lib/coding/live-config");
+  const codingProblem = { problemId: "loops", version: 4 };
+  expect(liveCodingConfigSchema.parse(adHocLiveCodingQuestion(codingProblem))).toEqual({
+    ...codingProblem, maxAttempts: null, assistance: "hints", scoring: "best", durationSeconds: 300,
+  });
+  const codingRoom = { ...room, questionCount: 1, kind: "coding" };
+  const seen: Array<[string, AcademicCommand]> = [];
+  const host = createTutorLiveHost({
+    accountId: "tutor", origin, locale: "id",
+    async get() { return response(codingRoom); },
+    async command(path, command) { seen.push([path, command]); return response(codingRoom); },
+  })!;
+  const signal = new AbortController().signal;
+  expect(await host.create("course-id", { codingProblem }, "open-python", signal)).toEqual(codingRoom);
+  expect(await host.resume("course-id", room.id, signal)).toEqual(codingRoom);
+  expect(seen).toEqual([[path, { method: "POST", body: { codingProblem }, requestId: "open-python" }]]);
+});

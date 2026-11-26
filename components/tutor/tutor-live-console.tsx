@@ -1,6 +1,7 @@
 "use client";
 
 import type { CodingProblemPublic } from "@/lib/coding/contracts";
+import { adHocLiveCodingQuestion } from "@/lib/coding/live-config";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/components/ui/toast";
@@ -145,7 +146,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
       const res = await fetch("/api/live/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseId, ...(codingChoice === "none" ? { templateId: selectedTemplateId } : {}), ...(codingChoice !== "none" ? { codingQuestions: [{ problemId: JSON.parse(codingChoice)[0], version: JSON.parse(codingChoice)[1], maxAttempts: null, assistance: "hints", scoring: "best", durationSeconds: 300 }] } : {}) }),
+        body: JSON.stringify({ courseId, ...(codingChoice === "none" ? { templateId: selectedTemplateId } : {}), ...(codingChoice !== "none" ? { codingQuestions: [adHocLiveCodingQuestion({ problemId: JSON.parse(codingChoice)[0], version: JSON.parse(codingChoice)[1] })] } : {}) }),
       });
       if (!res.ok) {
         throw new Error(t("createFailed"));

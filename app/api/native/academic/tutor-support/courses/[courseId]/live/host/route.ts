@@ -7,6 +7,7 @@ import { liveQuizSessions, user } from "@/db/schema";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { requireTutorCourseAccess } from "@/lib/auth/request-cache";
 import { env } from "@/lib/env";
+import { adHocLiveCodingQuestion, liveCodingConfigSchema } from "@/lib/coding/live-config";
 import { makeHostToken } from "@/lib/live-host-token";
 import { handleTutorLive } from "@/lib/native/academic/handle-tutor-live";
 import { tutorSupportServices } from "@/lib/native/academic/tutor-support-services";
@@ -42,14 +43,18 @@ async function handle(request: Request, { params }: { params: Promise<{ courseId
       if (typeof questions === "string") {
         try { questions = JSON.parse(questions) as typeof questions; } catch { questions = []; }
       }
+      const coding = Array.isArray(questions) && questions.length > 0 && questions.every(question =>
+        question && typeof question === "object" && "coding" in question && liveCodingConfigSchema.safeParse(question.coding).success);
       return {
+        ...(coding ? { kind: "coding" as const } : {}),
         id: row.id, code: row.code, questionCount: Array.isArray(questions) ? questions.length : 0,
         wsUrl: `${baseUrl}/room/${row.id}/websocket`, hostToken: makeHostToken(accountId, row.name, row.id, secret),
       };
     },
-    async create(course, templateId) {
+    async create(course, selection) {
       if (!configured) return new Response(null, { status: 503 });
-      return createRoom(web("/api/live/sessions", { courseId: course, templateId }));
+      const source = "codingProblem" in selection ? { codingQuestions: [adHocLiveCodingQuestion(selection.codingProblem)] } : selection;
+      return createRoom(web("/api/live/sessions", { courseId: course, ...source }));
     },
     async control(id, action) {
       if (!configured) return new Response(null, { status: 503 });
