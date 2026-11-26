@@ -20,14 +20,14 @@ function snapshot(): NativeOfflineMetadataSnapshot {
 function harness() {
   let time = current;
   let cached: NativeOfflineMetadataSnapshot | null = snapshot();
-  let synchronize = async () => {};
+  let synchronize: (publishAccess: (stored: NativeOfflineMetadataSnapshot | null) => void) => Promise<void> = async () => {};
   const timers = new Map<() => void, number>();
   const commands: string[][] = [];
   let revokedEvents = 0;
   let cancellations = 0;
   const lifecycle = createOfflineMetadataLifecycle({
     read: async () => cached,
-    async sync(courseIds) { commands.push([...courseIds]); await synchronize(); },
+    async sync(courseIds, publishAccess) { commands.push([...courseIds]); await synchronize(publishAccess); },
     cancelSync() { cancellations++; },
     onRevoked() { revokedEvents++; },
     now: () => time,
@@ -39,7 +39,7 @@ function harness() {
   return {
     lifecycle, commands,
     setCached(value: NativeOfflineMetadataSnapshot | null) { cached = value; },
-    setSync(sync: () => Promise<void>) { synchronize = sync; },
+    setSync(sync: typeof synchronize) { synchronize = sync; },
     getRevokedEvents: () => revokedEvents,
     getCancellations: () => cancellations,
     async until(delta: number) {
@@ -107,11 +107,14 @@ describe("Expo offline metadata lifecycle", () => {
   test("ignores a previous sync result and disk cache after revocation until a fresh check succeeds", async () => {
     const { lifecycle, setSync, setCached, getCancellations, getRevokedEvents } = harness();
     const pending = Promise.withResolvers<void>();
-    setSync(() => pending.promise);
+    let publishAccess: ((snapshot: NativeOfflineMetadataSnapshot | null) => void) | undefined;
+    setSync(publish => { publishAccess = publish; return pending.promise; });
     lifecycle.setEnvironment(active);
     lifecycle.register(["course-1"]);
     await flush();
     lifecycle.markRevoked();
+    expect(lifecycle.getSnapshot()).toEqual({ status: "revoked", snapshot: null });
+    publishAccess?.(snapshot());
     expect(lifecycle.getSnapshot()).toEqual({ status: "revoked", snapshot: null });
     pending.resolve();
     await flush();
