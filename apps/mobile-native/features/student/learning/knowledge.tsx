@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { chooseMasteryFocus } from "../../../../../lib/demo/view-mastery";
+import { nativeLinkInks } from "../../../../../packages/design-tokens/native-colors";
+import { nativeTypography } from "../../../typography";
+import { NavigationIcon } from "../../shared-ui/navigation-icons";
 import { courseHref, type ConceptKind, type LearningData, type StudentMasteryGroup, type StudyPathData, type StudyPathStep } from "../../../../../packages/native-parity/student/learning/contracts";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
@@ -41,22 +45,38 @@ function Disclosure({ title, value, children, initiallyExpanded = false }: { tit
   const [expanded, setExpanded] = useState(initiallyExpanded);
   const colors = useLearningColors();
   return <View>
-    <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)}
-      style={[styles.row, styles.rowMain, { borderColor: colors.border }]}>
-      <Copy>{title}</Copy>{value ? <Copy muted>{value}</Copy> : null}<Copy muted>{expanded ? "▴" : "▾"}</Copy>
+    <Pressable accessibilityRole="button" accessibilityLabel={[title, value].filter(Boolean).join(" ")} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)}
+      style={[styles.row, masteryStyles.row, { borderColor: colors.border }]}>
+      <Copy style={masteryStyles.disclosureTitle}>{title}</Copy>
+      {value ? <Copy muted style={masteryStyles.meta}>{value}</Copy> : null}
+      <View style={expanded && masteryStyles.expanded}><NavigationIcon name="chevron" size={14} color={colors.mutedForeground} /></View>
     </Pressable>
-    {expanded ? <View style={{ paddingStart: 12 }}>{children}</View> : null}
+    {expanded ? <View>{children}</View> : null}
   </View>;
 }
 
 function Topics({ props, t, topics }: { props: StudentScreenProps; t: Translate; topics: StudentMasteryGroup["concepts"] }) {
   const [page, setPage] = useState(0);
+  const colors = useLearningColors();
   const pages = Math.ceil(topics.length / 10);
   return <>
-    {topics.slice(10 * page, 10 * (page + 1)).map((topic, index) => <Row key={`${topic.conceptSlug ?? topic.conceptName}-${index}`}
-      title={topic.conceptName} detail={topic.blockedBy.length ? t("learning.mastery.prerequisite", { topic: topic.blockedBy.join(", ") }) : undefined}
-      value={topic.masteryScore === null ? undefined : `${topic.masteryScore}/100${topic.trend ? ` · ${t(`learning.mastery.${topic.trend}`)}` : ""}`}
-      onPress={topic.conceptSlug ? () => props.navigate(courseHref(props.route.params.id, `/concept/${encodeURIComponent(topic.conceptSlug!)}`)) : undefined} />)}
+    {topics.slice(10 * page, 10 * (page + 1)).map((topic, index) => {
+      const slug = topic.conceptSlug;
+      const label = topic.masteryScore === null ? undefined : `${topic.masteryScore}/100${topic.trend ? ` · ${t(`learning.mastery.${topic.trend}`)}` : ""}`;
+      return <View key={`${slug ?? topic.conceptName}-${index}`} style={[styles.row, masteryStyles.row, { borderColor: colors.border }]}>
+        <View style={masteryStyles.topic}>
+          {slug ? <Text accessibilityRole="link" style={[masteryStyles.link, { color: colors.foreground }]} onPress={() => props.navigate(courseHref(props.route.params.id, `/concept/${encodeURIComponent(slug)}`))}>{topic.conceptName}</Text> : <Copy>{topic.conceptName}</Copy>}
+          {topic.blockedBy.length > 0 && <Copy muted style={masteryStyles.meta}>{t("learning.mastery.prerequisite", { topic: topic.blockedBy.join(", ") })}</Copy>}
+        </View>
+        {label && <View accessible accessibilityLabel={label} style={masteryStyles.score}>
+          {topic.trend === "stable" && <View style={[masteryStyles.stable, { backgroundColor: colors.mutedForeground }]} />}
+          {topic.trend && topic.trend !== "stable" && <View style={topic.trend === "declining" && masteryStyles.declining}>
+            <NavigationIcon name="trending-up" size={14} color={topic.trend === "improving" ? nativeLinkInks.success : colors.destructive} />
+          </View>}
+          <Copy style={masteryStyles.meta}>{topic.masteryScore}/100</Copy>
+        </View>}
+      </View>;
+    })}
     {pages > 1 ? <View style={styles.wrap}>
       <Button variant="ghost" style={styles.action} disabled={page === 0} onPress={() => setPage(page - 1)}>{t("learning.mastery.previous")}</Button>
       <Copy muted>{page + 1}/{pages}</Copy>
@@ -66,22 +86,24 @@ function Topics({ props, t, topics }: { props: StudentScreenProps; t: Translate;
 }
 
 export function MasteryContent({ data, props, t }: { data: Ready<"mastery">; props: StudentScreenProps; t: Translate }) {
+  const colors = useLearningColors();
   const groups = data.groups.map(({ chapter, concepts }) => ({ chapter, assessed: concepts.filter((item) => item.masteryScore !== null), unassessed: concepts.filter((item) => item.masteryScore === null) }));
-  const results = groups.flatMap(({ chapter, assessed }) => assessed.map((topic) => ({ chapter, topic, score: topic.masteryScore!, reliable: (topic.confidence ?? 0) >= 50 })));
-  const reliable = results.filter((item) => item.reliable);
-  const candidates = reliable.length ? reliable : results;
-  const review = candidates.filter((item) => item.score < 70).sort((a, b) => a.score - b.score)[0];
-  const focus = review ?? [...candidates].sort((a, b) => b.score - a.score)[0];
+  const { review, focus } = chooseMasteryFocus(data.groups);
   const reviewSlug = review?.topic.conceptSlug;
-  const action = <Button onPress={() => props.navigate(courseHref(props.route.params.id, reviewSlug ? `/concept/${encodeURIComponent(reviewSlug)}` : "/path"))} style={styles.action}>
+  const action = <Button size="sm" onPress={() => props.navigate(courseHref(props.route.params.id, reviewSlug ? `/concept/${encodeURIComponent(reviewSlug)}` : "/path"))} style={focus ? masteryStyles.action : undefined}>
     {t(reviewSlug ? "learning.mastery.reviewTopic" : "learning.mastery.openPath")}
   </Button>;
   return <>
-    {focus ? <Section title={t(`learning.mastery.${!focus.reliable ? "early" : review ? "review" : "strong"}`)}>
+    {focus ? <View style={masteryStyles.focus}>
+      <Copy muted style={masteryStyles.meta}>{t(`learning.mastery.${!focus.reliable ? "early" : review ? "review" : "strong"}`)}</Copy>
       <Copy heading>{focus.topic.conceptName}</Copy>
-      <Copy muted>{focus.chapter.title} · {t("learning.mastery.score", { score: focus.score })}</Copy>
+      <Copy muted style={masteryStyles.meta}>{focus.chapter.title} · {t("learning.mastery.score", { score: focus.score })}</Copy>
       <Copy>{t(`learning.mastery.${!focus.reliable ? "limited" : review ? "reviewReason" : "strongReason"}`)}</Copy>{action}
-    </Section> : <Section title={t("learning.mastery.emptyTitle")}><Copy muted>{t("learning.mastery.emptyDescription")}</Copy>{action}</Section>}
+    </View> : <View style={masteryStyles.empty}>
+      <NavigationIcon name="target" size={28} color={colors.mutedForeground} />
+      <Copy heading>{t("learning.mastery.emptyTitle")}</Copy>
+      <Copy muted style={masteryStyles.description}>{t("learning.mastery.emptyDescription")}</Copy>{action}
+    </View>}
     {groups.length > 0 ? <Section title={t("learning.mastery.chapters")}>
       {groups.map(({ chapter, assessed, unassessed }) => <Disclosure key={chapter.id} title={chapter.title}
         value={t("learning.mastery.coverage", { count: assessed.length, total: assessed.length + unassessed.length })}>
@@ -93,6 +115,22 @@ export function MasteryContent({ data, props, t }: { data: Ready<"mastery">; pro
     </Section> : null}
   </>;
 }
+
+const masteryStyles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", gap: 8 },
+  topic: { flex: 1, minWidth: 0, gap: 4 },
+  disclosureTitle: { ...nativeTypography.bodySemibold, flex: 1 },
+  meta: { fontSize: 12, lineHeight: 18, fontVariant: ["tabular-nums"] },
+  link: { ...nativeTypography.bodyRegular, fontSize: 14, lineHeight: 21, textDecorationLine: "underline" },
+  score: { flexDirection: "row", alignItems: "center", gap: 8 },
+  expanded: { transform: [{ rotate: "180deg" }] },
+  declining: { transform: [{ scaleY: -1 }] },
+  stable: { width: 12, height: 2 },
+  focus: { gap: 4 },
+  action: { alignSelf: "flex-start", marginTop: 4 },
+  empty: { alignItems: "center", paddingVertical: 16, gap: 8 },
+  description: { textAlign: "center" },
+});
 
 export function ProgressContent({ data, props, t }: { data: Ready<"progress">; props: StudentScreenProps; t: Translate }) {
   const metrics = [

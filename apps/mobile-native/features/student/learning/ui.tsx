@@ -5,6 +5,7 @@ import enMessages from "../../../../../packages/native-parity/student/learning/m
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
 import { Button } from "../../../components/Button";
 import { nativeTypography } from "../../../typography";
+import { useHasStudentCourseNavbar } from "../../../routing/student-course-chrome-context";
 import type { StudentScreenProps } from "../contracts";
 import { StudentListRow } from "../ListRow";
 
@@ -42,6 +43,7 @@ export function LearningPage({ props, title, children, footer, ready = true }: {
   const restored = useRef(initialY.current === 0);
   const colors = useLearningColors();
   const back = english(props.session.locale) ? "Back" : "Kembali";
+  const courseNavbar = useHasStudentCourseNavbar();
   return (
     <View style={[styles.frame, { backgroundColor: colors.background }]}>
       <ScrollView
@@ -58,8 +60,8 @@ export function LearningPage({ props, title, children, footer, ready = true }: {
         scrollEventThrottle={100}
       >
         <View style={styles.header}>
-          <Button onPress={props.back} variant="ghost" size="sm" style={{ alignSelf: "flex-start" }}>{back}</Button>
-          <Copy heading level="title">{title}</Copy>
+          {!courseNavbar && <Button onPress={props.back} variant="ghost" size="sm" style={{ alignSelf: "flex-start" }}>{back}</Button>}
+          <Copy heading level={courseNavbar ? undefined : "title"}>{title}</Copy>
         </View>
         {children}
       </ScrollView>
