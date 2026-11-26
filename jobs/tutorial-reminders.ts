@@ -217,6 +217,8 @@ export const tutorialSessionEmailWorker = defineJob(
           if (!current || current.status !== "scheduled" || current.date !== date || current.slot !== session.slotId ||
               (current.start ?? session.slotStart) !== startTime ||
               !isTutorialEmailDue(preference.tutorialEmailSchedule, startsAt, dispatchAt, new Date())) return false;
+          const latestPreference = await getActivityNotificationPreferences(recipient.id);
+          if (!latestPreference.tutorialSessionEmailEnabled || !isTutorialEmailDue(latestPreference.tutorialEmailSchedule, startsAt, dispatchAt, new Date())) return false;
           const result = await sendOptionalEmail({ userId: recipient.id, category: "events_and_schedules",
             idempotencyKey: `tutorial-email/${session.id}/${date}/${startTime}/${dispatchAt}/${recipient.id}`,
             unsubscribeTokenNowMs: dispatchAt,

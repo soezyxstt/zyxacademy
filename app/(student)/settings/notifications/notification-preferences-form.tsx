@@ -110,8 +110,9 @@ export function NotificationPreferencesForm({
     setLeadMinutes(String(initialSchedule.leadMinutes % 60));
     setInterval(String(initialSchedule.intervalMinutes));
   }, [initialSchedule.mode, initialSchedule.leadMinutes, initialSchedule.intervalMinutes]);
-  const schedule = { mode: emailMode, leadMinutes: Number(leadHours) * 60 + Number(leadMinutes), intervalMinutes: Number(interval) };
-  const validSchedule = leadHours !== "" && leadMinutes !== "" && interval !== "" &&
+  const schedule = { mode: emailMode, leadMinutes: Number(leadHours) * 60 + Number(leadMinutes),
+    intervalMinutes: emailMode === "repeat" ? Number(interval) : activity.tutorialEmailSchedule.intervalMinutes };
+  const validSchedule = leadHours !== "" && leadMinutes !== "" && (emailMode === "once" || interval !== "") &&
     Number.isInteger(Number(leadHours)) && Number(leadHours) >= 0 && Number(leadHours) <= 24 &&
     Number.isInteger(Number(leadMinutes)) && Number(leadMinutes) >= 0 && Number(leadMinutes) <= 59 &&
     isTutorialEmailSchedule(schedule);
@@ -202,7 +203,7 @@ export function NotificationPreferencesForm({
               </p>
               <p className="text-body-xs text-muted-foreground">{t("notificationPreferences.tutorialEmailCategoryNote")}</p>
               <Button type="button" size="sm" variant="outline" disabled={!validSchedule || !scheduleChanged || activityPending}
-                onClick={() => void saveSchedule()}>{t("notificationPreferences.save")}</Button>
+                onClick={() => void saveSchedule()}>{t("notificationPreferences.tutorialEmailSave")}</Button>
             </div>
           )}
         </div>
