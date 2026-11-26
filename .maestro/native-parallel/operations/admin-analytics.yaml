@@ -1,29 +1,78 @@
 appId: com.zyx.academy.nativeparity
 name: Operations Admin home to Web Analytics and access denial
 ---
-- launchApp
-- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin"
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=light&locale=id&path=%2Fadmin"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
 - scrollUntilVisible:
     element:
       text: '.*Web Analytics.*'
 - tapOn: '.*Web Analytics.*'
 - assertVisible: Tampilan halaman
-- takeScreenshot: ${SCREENSHOT_DIR}/web-analytics
-- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fops%2Fweb-analytics&mode=empty&theme=dark"
+- takeScreenshot: web-analytics
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=empty&theme=dark&locale=id&path=%2Fadmin%2Fops%2Fweb-analytics"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
 - assertVisible: Tampilan halaman
-- takeScreenshot: ${SCREENSHOT_DIR}/web-analytics-empty-dark
-- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fops%2Fweb-analytics&mode=denied"
+- takeScreenshot: web-analytics-empty-dark
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=denied&theme=light&locale=id&path=%2Fadmin%2Fops%2Fweb-analytics"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
 - assertVisible: Akses ditolak
 - assertNotVisible: Tampilan halaman
-- takeScreenshot: ${SCREENSHOT_DIR}/web-analytics-denied
-- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fops%2Fweb-analytics&mode=recoverable"
+- takeScreenshot: web-analytics-denied
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=recoverable&theme=light&locale=id&path=%2Fadmin%2Fops%2Fweb-analytics"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
 - assertVisible: Coba lagi
 - tapOn: Coba lagi
 - assertVisible: Tampilan halaman
-- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fops%2Ffeature-usage"
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=light&locale=id&path=%2Fadmin%2Fops%2Ffeature-usage"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
 - assertVisible: Total aktivitas
-- takeScreenshot: ${SCREENSHOT_DIR}/feature-usage
+- takeScreenshot: feature-usage
 - tapOn: 'Rentang waktu: 30 hari terakhir'
 - tapOn: 7 hari terakhir
 - assertVisible: Belum ada aktivitas pada rentang waktu ini.
-- takeScreenshot: ${SCREENSHOT_DIR}/feature-usage-empty-range
+- takeScreenshot: feature-usage-empty-range

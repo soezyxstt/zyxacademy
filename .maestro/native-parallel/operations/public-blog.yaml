@@ -1,29 +1,60 @@
 appId: com.zyx.academy.nativeparity
 name: Operations public blog list, detail, Back and retry
 ---
-- launchApp
-- openLink: "zyx-native-parity://operations-fixture?path=%2Fblog&mode=populated"
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=light&locale=id&path=%2Fblog"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
 - assertVisible:
     id: public-blog
 - assertNotVisible:
     id: operations-loading
-- takeScreenshot: ${SCREENSHOT_DIR}/blog-list
 - scrollUntilVisible:
     element:
       id: public-blog-article-belajar-dengan-latihan-terarah
+- takeScreenshot: blog-list
 - tapOn:
     id: public-blog-article-belajar-dengan-latihan-terarah
 - assertVisible:
     id: public-blog-back
-- takeScreenshot: ${SCREENSHOT_DIR}/blog-detail
+- takeScreenshot: blog-detail
 - tapOn:
     id: public-blog-back
 - assertVisible:
     id: public-blog
-- openLink: "zyx-native-parity://operations-fixture?path=%2Fblog%3Fcategory%3Dkegiatan_zyx&mode=empty&theme=dark"
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=empty&theme=dark&locale=id&path=%2Fblog%3Fcategory%3Dkegiatan_zyx"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
 - assertVisible: Belum ada artikel
-- takeScreenshot: ${SCREENSHOT_DIR}/blog-empty-dark
-- openLink: "zyx-native-parity://operations-fixture?path=%2Fblog&mode=recoverable"
+- takeScreenshot: blog-empty-dark
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=recoverable&theme=light&locale=id&path=%2Fblog"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
 - assertVisible:
     id: public-retry
 - tapOn:
