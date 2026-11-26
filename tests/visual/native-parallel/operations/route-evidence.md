@@ -10,7 +10,7 @@ Web evidence comes from isolated local Chromium harnesses. The table identifies 
 
 At 402 × 874 CSS px and DPR 3, Chromium captured Admin home, Web Analytics, 30-day Feature Usage, the public landing hero, form entry and demo empty state. The source captures and checks are recorded in the [monitoring manifest](references/monitoring/cases-402-dpr3.json) and the [public manifest](public-pages/references/manifest-402-dpr3.json).
 
-Five matched web and Android viewports have measured differences. They cover the [populated blog list and detail](android-run-45801930588/diff/metrics.json) and the [English dark empty blog, Web Analytics and completed generation](android-run-45801930588/supplemental/README.md). The later run also records [seven matched comparisons](android-run-45806987342/README.md#whole-viewport-comparisons). Full interaction coverage, visual parity and iOS rendering remain unverified.
+Five matched web and Android viewports have measured differences. They cover the [populated blog list and detail](android-run-45801930588/diff/metrics.json) and the [English dark empty blog, Web Analytics and completed generation](android-run-45801930588/supplemental/README.md). The later run records [seven matched comparisons](android-run-45806987342/README.md#whole-viewport-comparisons) and [three full-shell blog comparisons](android-run-45806987342/full-shell-blog/README.md). The partial iOS run has [six matched web comparisons](ios-run-45806987342/paired/README.md). Full interaction coverage and cross-platform visual parity remain unverified.
 
 | Owned route | Area | Case suffixes | Historical Android observations | Saved web evidence |
 | --- | --- | --- | --- | --- |

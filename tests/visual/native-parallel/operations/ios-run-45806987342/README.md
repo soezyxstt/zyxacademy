@@ -4,6 +4,8 @@ The iPhone 17 Pro simulator ran commit `72be4055d944352f6bbd67f1f3113e1a66d742d9
 
 The retained PNGs are 15 byte-for-byte copies of Maestro's raw `takeScreenshot` outputs. All 15 named screenshot commands completed. Ten came from individual cases, whose case-ID assertions completed. The other five came from the Admin Analytics journey, whose recorded steps and assertions completed through the final feature-range checkpoint. The original workflow comparison saw no collected files after cancellation. [PNG provenance, hashes and command traces](provenance.json) · [Registered cases](case-manifest.json) · [Original comparison report](comparison.json)
 
+Six captures have matching Chromium fixture states at the same dimensions. [Web comparisons and pixel diffs](paired/README.md)
+
 | Fixture | Simulator captures |
 | --- | --- |
 | Admin dashboard to Web Analytics, retry and denial | [Populated](screens/web-analytics.png) · [Empty dark](screens/web-analytics-empty-dark.png) · [Access denied](screens/web-analytics-denied.png) |
