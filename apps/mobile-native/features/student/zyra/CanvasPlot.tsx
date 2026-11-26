@@ -9,6 +9,7 @@ import { compileSafeExpression } from "../../../../../lib/zyra/canvas/expression
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import { nativeTypography } from "../../../typography";
+import { plotAnnotations } from "../../../../../lib/zyra/canvas/plot-annotations";
 import { zoomNumericRange } from "../../../../../lib/zyra/canvas/viewport";
 import { PlotGestureSurface } from "./PlotGestureSurface";
 import { type PlotBounds, functionValues, inspectPlotPoint, inPlotBounds, plotBounds, plotFrame, plotHeight, plotPath, plotWidth, projectPlotPoint, samplePlot, stepParameter } from "./canvas-plot-model";
@@ -58,6 +59,8 @@ export function CanvasPlot({ spec, locale, theme, renderValues, interactive = tr
     if (x && y) updateView({ x, y });
   }
   const paths = useMemo(() => spec.type === "function_plot" && bounds ? series.map(item => plotPath(item.points, bounds)) : [], [spec.type, series, bounds]);
+  const annotations = useMemo(() => bounds && spec.type === "function_plot"
+    ? plotAnnotations(series.filter(curve => !hidden.has(curve.id)), bounds, true) : null, [bounds, hidden, series, spec.type]);
   const text = [styles.text, { color: colors.foreground }];
   const muted = [styles.text, { color: colors.mutedForeground }];
 
@@ -111,15 +114,33 @@ export function CanvasPlot({ spec, locale, theme, renderValues, interactive = tr
               if (hidden.has(marker.seriesId) || !inPlotBounds(marker.x, marker.y, bounds)) return null;
               const { x, y } = projectPlotPoint(marker.x, marker.y, bounds);
               const color = seriesColor(spec.series.findIndex(item => item.id === marker.seriesId));
-              return <Circle key={index} cx={x} cy={y} r={4} fill={marker.kind === "open" ? colors.background : color} stroke={color} strokeWidth={2} />;
+              return <G key={index}>
+                <Circle cx={x} cy={y} r={4} fill={marker.kind === "open" ? colors.background : color} stroke={color} strokeWidth={2} />
+                <SvgText x={x} y={y - 7} textAnchor="middle" fontSize={10} fill={colors.foreground}>{marker.label}</SvgText>
+              </G>;
             }) : null}
+          {annotations?.roots.map(root => {
+            const point = projectPlotPoint(root.x, 0, bounds);
+            return <Circle key={root.id} cx={point.x} cy={point.y} r={3}
+              fill={seriesColor(spec.series.findIndex(curve => curve.id === root.seriesId))} />;
+          })}
+          {annotations?.intersections.map(crossing => {
+            const point = projectPlotPoint(crossing.x, crossing.y, bounds);
+            return <G key={crossing.id}>
+              <Circle cx={point.x} cy={point.y} r={4} fill={colors.background} stroke={colors.primary} strokeWidth={2} />
+              <SvgText x={point.x} y={point.y - 8} textAnchor="middle" fontSize={10} fill={colors.foreground}>
+                {scientificNumberToText(crossing.x)}{", "}{scientificNumberToText(crossing.y)}
+              </SvgText>
+            </G>;
+          })}
         </> : <>
           <Path d={plotPath(spec.points, bounds)} fill="none" stroke={colors.primary} strokeWidth={2} strokeDasharray="4 4" />
           {spec.points.map((point, index) => {
-          if (!inPlotBounds(point.x, point.y, bounds)) return null;
-          const { x, y } = projectPlotPoint(point.x, point.y, bounds);
-          return <Circle key={index} cx={x} cy={y} r={3.5} fill={colors.primary} />;
-        })}</>}
+            if (!inPlotBounds(point.x, point.y, bounds)) return null;
+            const { x, y } = projectPlotPoint(point.x, point.y, bounds);
+            return <Circle key={index} cx={x} cy={y} r={3.5} fill={colors.primary} />;
+          })}
+        </>}
         {inspected ? <Circle cx={projectPlotPoint(inspected.x, inspected.y, bounds).x} cy={projectPlotPoint(inspected.x, inspected.y, bounds).y}
           r={5} fill={colors.primary} stroke={colors.background} strokeWidth={2} /> : null}
       </G>

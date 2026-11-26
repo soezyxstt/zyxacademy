@@ -6,6 +6,7 @@ import { deleteZyraImage, readZyraImage, uploadZyraImage } from "../../apps/mobi
 import { createNativeTransport, NativeRequestNotDispatched } from "../../apps/mobile-native/network/transport";
 import { NativeZyraStreamError, streamNativeZyra } from "../../apps/mobile-native/network/zyra";
 
+import { plotAnnotations } from "../../lib/zyra/canvas/plot-annotations";
 import { movePlot, plotContact, toPlotCoordinates } from "../../apps/mobile-native/features/student/zyra/plot-gesture";
 
 const origin = "https://staging.zyxacademy.com";
@@ -204,4 +205,17 @@ test("confirmed reader clarification uses the same signed Zyra request as the ph
   for await (const event of streamNativeZyra(session, { ...request, selectionContext: selection })) {
     expect(event.type).toBe("done");
   }
+});
+
+test("graph annotations use shared coordinates across different sample grids and stop at an excluded point", () => {
+  const bounds = { x: { min: -1, max: 1 }, y: { min: -3, max: 3 } };
+  const slope = { id: "s", points: [{ x: -1, y: -1 }, { x: 1, y: 1 }] };
+  const flat = { id: "c", points: [{ x: -1, y: 0.5 }, { x: 0, y: 0.5 }, { x: 1, y: 0.5 }] };
+  expect(plotAnnotations([slope, flat], bounds, true)).toMatchObject({
+    roots: [{ x: 0, seriesId: "s" }], intersections: [{ x: 0.5, y: 0.5 }],
+  });
+  expect(plotAnnotations([slope, flat], bounds, false).intersections).toEqual([]);
+  const gap = { ...flat, points: [flat.points[0], { x: 0.5, y: null }, flat.points[2]] };
+  expect(plotAnnotations([slope, gap], bounds, true).intersections).toEqual([]);
+  expect(plotAnnotations([slope, slope], bounds, true).intersections).toEqual([]);
 });
