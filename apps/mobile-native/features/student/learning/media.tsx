@@ -20,7 +20,7 @@ export function VideoContent({ data, props, t }: { data: Ready<"video">; props: 
   const [search, setSearch] = useState("");
   const [chapterId, setChapterId] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => props.route.query.play === "1" ? props.route.query.video ?? null : null);
   const selected = data.playlists.flatMap(p => p.videos).find(v => v.id === selectedId && !v.locked);
   const { request } = props;
   const buttons = useRef(new Map<string, ComponentRef<typeof View>>());

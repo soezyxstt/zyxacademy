@@ -216,6 +216,10 @@ shared	/offline	murid	offline.package-save	Pins authorized Article/Diktat docume
 shared	/offline	murid	offline.package-open	Opens saved revision for allowed session offline and respects revocation and signed lease.	connected	ci-contract
 shared	/offline	murid	offline.package-update	Refreshes or replaces package from scoped latest manifest with restore after transient failure.	connected	contract
 shared	/offline	murid	offline.package-remove	Confirms removal and releases package bytes.	connected	contract
+shared	/offline	murid	offline.manage-storage	Signed scope lists bytes and pin count, pins or unpins and clears downloads while retaining course manifests.	connected	contract
+shared	/offline	murid	offline.course-catalog	Uses verified offline course grants and per-course material manifests to open or download eligible readings.	connected	contract
+shared	/offline	murid	offline.video-catalog	Persists authorized video summaries and small lease-bound thumbnails. Online opens the exact video through the native player authorization.	connected	contract
+shared	/offline	murid	offline.achievement-definitions	Caches signed localized achievement definitions and thresholds.	connected	contract
 shared	/dashboard	murid	tour.start-resume	Root NativeGuidedTour loads own role state and starts or resumes Student walkthrough via onboarding API.	connected	contract
 shared	/dashboard	murid	tour.progress	Records observed steps, optional skip-step and final completion under active account, role and generation.	connected	contract
 shared	/dashboard	murid	tour.dismiss	Ends or skips current tour with server state and closes device overlay.	connected	contract

@@ -46,6 +46,12 @@ export function projectOfflineLibrary({ metadata, saved }: OfflineLibraryData, n
   let expired = false;
   if (verifiedUntil <= now || !metadata) return { rows, expires, expired };
 
+  for (const catalog of metadata.catalogs ?? []) {
+    if (catalog.leaseExpiresAt > now) expires = Math.min(expires, catalog.leaseExpiresAt);
+    if (catalog.kind === "video_catalog") for (const video of catalog.videos) {
+      if (video.thumbnail && video.thumbnail.leaseExpiresAt > now) expires = Math.min(expires, video.thumbnail.leaseExpiresAt);
+    }
+  }
   const availablePackages = new Map(saved.map(item => [item.key, item]));
   for (const course of metadata.courses) {
     const expiresAt = Math.min(verifiedUntil, course.leaseExpiresAt, course.manifestLeaseExpiresAt ?? 0);

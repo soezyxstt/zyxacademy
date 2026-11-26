@@ -8,6 +8,7 @@ import { useNativeSession } from "../auth/session-provider";
 import { useNativeAccountContext } from "../auth/use-account-context";
 import { NativeCompactShell, NativeStatusPanel } from "../features/shared-ui/layout";
 import { useOfflineLibraryData } from "../offline/library-data";
+import { OfflineCatalogView, type OfflineLibrarySection } from "../offline/catalog-view";
 import { offlineDocumentHref, filterOfflineLibrary, focusOfflineLibrary, offlineLibraryCopy, offlineLibraryFeedback, offlineLibraryTarget, type OfflineLibraryRow } from "../offline/library-model";
 import { OfflineLibraryView, type OfflineLibraryAction, type OfflineLibraryNotice } from "../offline/library-view";
 import { useOfflineCourseMetadata } from "../offline/lifecycle-provider";
@@ -40,7 +41,12 @@ export default function OfflineRoute() {
   const { observation, revision } = library;
   const [search, setSearch] = useState<{ observation: typeof observation; query: string } | null>(null);
   const query = search?.observation === observation ? search.query : "";
-  const target = useMemo(() => offlineLibraryTarget(params.courseId, params.materialId), [params.courseId, params.materialId]);
+  const [management, setManagement] = useState<{ observation: typeof observation; section: OfflineLibrarySection; courseId?: string } | null>(null);
+  const catalog = management?.observation === observation ? management : null;
+  const catalogSection = catalog?.section ?? "readings";
+  const catalogCourseId = catalog?.courseId;
+  const routeTarget = useMemo(() => offlineLibraryTarget(params.courseId, params.materialId), [params.courseId, params.materialId]);
+  const target = catalogCourseId ? { courseId: catalogCourseId } : routeTarget;
   const rows = useMemo(() => filterOfflineLibrary(focusOfflineLibrary(library.rows, target), query, locale), [library.rows, query, locale, target]);
   const activeObservation = useRef<typeof observation | null>(null);
   const working = useRef<{ observation: typeof observation; key: string } | null>(null);
@@ -169,7 +175,30 @@ export default function OfflineRoute() {
   return <OfflineLibraryView
     locale={locale} offline={supported && offline} loading={loading} blocked={blocked}
     rows={scope ? rows : []} query={query} onQuery={value => setSearch({ observation, query: value })}
-    onClearTarget={target ? () => { setSearch(null); router.replace({ pathname: "/offline", params: { locale } }); } : undefined}
+    onClearTarget={target ? () => {
+      setSearch(null);
+      if (catalogCourseId) setManagement({ observation, section: "courses" });
+      else router.replace({ pathname: "/offline", params: { locale } });
+    } : undefined}
+    management={{
+      section: catalogSection,
+      select: section => { setSearch(null); setManagement({ observation, section }); },
+      content: catalogSection !== "readings" && catalogSection !== "storage" && !catalogCourseId
+        ? <OfflineCatalogView key={catalogSection} metadata={library.metadata} section={catalogSection} locale={locale} offline={offline}
+          onCourse={courseId => {
+            if (focused && activeObservation.current === observation && observation.getRevision() === revision) {
+              setSearch(null);
+              setManagement({ observation, section: "courses", courseId });
+            }
+          }}
+          onVideo={(courseId, video) => {
+            if (focused && !offline && readingSession.transport?.isCurrent() && readingSession.verifiedUntil > Date.now() &&
+              activeObservation.current === observation && observation.getRevision() === revision) {
+              router.push({ pathname: "/courses/[id]/video", params: { id: courseId, video: video.id, play: "1" } });
+            }
+          }} />
+        : undefined,
+    }}
     onOpen={row => {
       if (focused && activeObservation.current === observation && revision === observation.getRevision() &&
         row.savedUntil && row.savedUntil > Date.now()) router.push(offlineDocumentHref(locale, row.target));

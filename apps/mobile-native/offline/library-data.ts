@@ -81,6 +81,7 @@ export function useOfflineLibraryData({ scope, verifiedUntil, list, storage, sub
     ...visible, observation, revision,
     unavailableCount: current?.data?.storage.unavailableCount ?? 0,
     storageUsage: current?.data?.storage,
+    metadata: current?.data?.metadata ?? null,
     loaded: current !== null,
     failed: current?.data === null,
     retry: observation.refresh,

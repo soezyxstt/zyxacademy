@@ -88,6 +88,7 @@ on:
       - 'tests/contracts/tutor-quiz-manual-grading.test.ts'
       - 'tests/offline-shell-and-reader.test.ts'
       - 'tests/unit/expo-offline-reading-document.test.ts'
+      - 'tests/unit/expo-offline-catalog.test.ts'
       - 'lib/offline/reading-sections.ts'
       - 'lib/offline/offline-snapshot-renderer.ts'
       - 'lib/materials/diktat-scene-svg.ts'
@@ -261,7 +262,7 @@ jobs:
         run: bun scripts/test-contracts.ts tests/contracts/offline-server-sync.test.ts
       - name: Offline Article and Diktat rendering
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: bun test tests/unit/expo-guided-tour.test.ts tests/unit/expo-device-preferences.test.ts tests/unit/expo-offline-reading-document.test.ts tests/unit/expo-offline-reading-packages.test.ts tests/offline-shell-and-reader.test.ts
+        run: bun test tests/unit/expo-guided-tour.test.ts tests/unit/expo-device-preferences.test.ts tests/unit/expo-offline-reading-document.test.ts tests/unit/expo-offline-reading-packages.test.ts tests/unit/expo-offline-catalog.test.ts tests/offline-shell-and-reader.test.ts
       - name: Online Student Article and Diktat authorization
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

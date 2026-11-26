@@ -1,3 +1,4 @@
+import { catalogGrant, type OfflineLibraryCatalog } from "../../apps/mobile-native/offline/catalog-model";
 import { Database } from "bun:sqlite";
 import { afterEach, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
@@ -1113,4 +1114,27 @@ test("clear removes complete downloads, preserves matched course manifests and f
   expect((await pending).status).toBe("changed");
   expect(await controller.list()).toEqual([]);
   another.dispose();
+});
+
+test("video catalogs are tied to a current session, course grant and invalidation cursor", async () => {
+  const { metadata, commit, controller } = await setup(resource());
+  expect(await controller.download(target)).toEqual({ status: "saved" });
+  const previous = (await metadata.read(scope, now))!;
+  const base = { cursor: "4", revision, validatedAt: now, leaseExpiresAt: lease };
+  const video: OfflineLibraryCatalog = { ...base, kind: "video_catalog", courseId: target.courseId,
+    grant: catalogGrant({ fullContent: true, chapterIds: ["chapter-1"] }), videos: [{ id: "video-id", title: "Video", playable: true }] };
+  const achievements: OfflineLibraryCatalog = { ...base, kind: "achievement_catalog", courseId: null,
+    achievements: [{ id: "award", title: "Award", description: "", thresholds: [5, 15] }] };
+  const expectedRevision = await metadata.accessRevision(scope);
+  expect(previous.courses[0].catalogGrant).toBe(video.grant);
+  expect(await metadata.saveCatalogs(scope, expectedRevision, [video, achievements], [], () => {}, now)).toBe(true);
+  expect((await metadata.read(scope, now))?.catalogs?.map(catalog => catalog.kind)).toEqual(["achievement_catalog", "video_catalog"]);
+  expect((await metadata.read({ ...scope, sessionId: "another-session" }, now))).toBeNull();
+  const changed = { cursor: "5", kind: "video_catalog", courseId: target.courseId, resourceId: null, action: "invalidate", revision: null } as const;
+  await commit(page("5", { reset: false, changes: [changed] }), [descriptor()], "4");
+  expect((await metadata.read(scope, now))?.catalogs?.map(catalog => catalog.kind)).toEqual(["achievement_catalog"]);
+  expect(await metadata.saveCatalogs(scope, expectedRevision, [video], [], () => {}, now)).toBe(false);
+  expect(await controller.clearDownloads()).toBe(1);
+  expect((await metadata.read(scope, now))?.catalogs?.map(catalog => catalog.kind)).toEqual(["achievement_catalog"]);
+  expect((await metadata.read(scope, lease))?.catalogs).toEqual([]);
 });

@@ -223,7 +223,10 @@ describe("Expo offline metadata synchronization", () => {
       cursor: firstCursor,
       knownCourseIds: ["course-1"],
       activeCheckIntervalMs: 60_000,
-      courses: [{ id: "course-1", title: "Statistika", leaseExpiresAt, manifestCheckedAt: verifiedAt,
+      metadataMaxAgeMs: 86_400_000,
+      catalogs: [],
+      courses: [{ id: "course-1", title: "Statistika", catalogGrant: JSON.stringify([true, ["chapter-1", "chapter-2"]]),
+        leaseExpiresAt, manifestCheckedAt: verifiedAt,
         manifestLeaseExpiresAt: leaseExpiresAt, materials: [descriptor] }],
     });
     expect(await fixture.controller.resume()).toEqual(snapshot);

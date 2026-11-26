@@ -1,13 +1,16 @@
-import type { ReactNode } from "react";
+import { useRef, useState, type ComponentRef, type ReactNode } from "react";
 import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { OFFLINE_LIBRARY_COPY } from "../../../packages/offline/library-copy";
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
+import { Button } from "../components/Button";
 import { Input } from "../components/Input";
-import { NativeCompactShell, NativeStatusPanel, SharedUiActionButton } from "../features/shared-ui/layout";
+import { NativeCompactShell, NativeListRow, NativeStatusPanel, SharedUiActionButton } from "../features/shared-ui/layout";
 import { nativeTypography } from "../typography";
 import { offlineLibraryCopy, type OfflineLibraryRow } from "./library-model";
 import type { NativeOfflineLocale } from "./sync-contract";
 import type { OfflineLibraryStorage } from "./library-data";
+import type { OfflineLibrarySection } from "./catalog-view";
+import { SharedSheet } from "../features/shared-ui/overlays";
 
 export type OfflineLibraryAction = "download" | "remove" | "pin" | "unpin";
 export type OfflineLibraryNotice = { message: string; error?: boolean };
@@ -22,6 +25,11 @@ export type OfflineLibraryViewProps = {
   unavailableCount?: number;
   storageUsage?: OfflineLibraryStorage;
   clearing?: boolean;
+  management?: {
+    section: OfflineLibrarySection;
+    content?: ReactNode;
+    select(section: OfflineLibrarySection): void;
+  };
   pending?: { key: string; action: OfflineLibraryAction } | null;
   notices?: OfflineLibraryNotice[];
   blocked?: ReactNode;
@@ -37,10 +45,13 @@ export type OfflineLibraryViewProps = {
 };
 
 export function OfflineLibraryView({
-  locale, offline, rows, query, canDownload, syncing, purging, unavailableCount = 0, pending, notices = [], blocked, loading, storageUsage, clearing,
+  locale, offline, rows, query, canDownload, syncing, purging, unavailableCount = 0, pending, notices = [], blocked, loading, storageUsage, clearing, management,
   onQuery, onOpen, onClearTarget, onRefresh, onPurgeUnavailable, onClearDownloads, onAction, onBack,
 }: OfflineLibraryViewProps) {
-  const colors = nativeColors[useColorScheme() ?? "light"];
+  const theme = useColorScheme() ?? "light";
+  const colors = nativeColors[theme];
+  const [managementOpen, setManagementOpen] = useState(false);
+  const managementButton = useRef<ComponentRef<typeof Button>>(null);
   const shared = OFFLINE_LIBRARY_COPY[locale];
   const copy = offlineLibraryCopy[locale];
   const date = new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "id-ID", { dateStyle: "medium", timeStyle: "short" });
@@ -71,7 +82,10 @@ export function OfflineLibraryView({
   const storageLabel = (bytes: number) => bytes >= 1024 * 1024
     ? `${usageNumber.format(bytes / 1024 / 1024)} MB` : `${usageNumber.format(bytes / 1024)} KB`;
   const maintenance = Boolean(purging || clearing || syncing);
-  const content = blocked ?? (loading && rows.length === 0 ? (
+  const managementSection = management?.section ?? "readings";
+  const showReadings = !management?.content && managementSection !== "storage";
+  const showStorage = !management || managementSection === "storage";
+  const content = blocked ?? management?.content ?? (showReadings && (loading && rows.length === 0 ? (
     <View style={styles.progress} accessible accessibilityLabel={copy.loading} accessibilityLiveRegion="polite">
       <ActivityIndicator color={colors.primary} />
       <Text style={[styles.meta, { color: colors.mutedForeground }]}>{copy.loading}</Text>
@@ -133,14 +147,16 @@ export function OfflineLibraryView({
         );
       }}
     />
-  ));
+  )));
 
   return (
     <NativeCompactShell navigationTitle={shared.title} back={onBack ? { label: copy.back, onPress: onBack } : undefined}>
       {offline && <Text style={[styles.meta, styles.offline, { color: colors.mutedForeground }]}>{shared.offline}</Text>}
       {!blocked && (
         <View style={styles.tools}>
-          <Input
+          {management && <Button ref={managementButton} theme={theme} variant="outline" onPress={() => setManagementOpen(true)}
+            accessibilityLabel={shared.manage} testID="offline-library-management">{shared[managementSection]}</Button>}
+          {showReadings && <Input
             accessibilityLabel={shared.search}
             autoComplete="off"
             autoCorrect={false}
@@ -150,8 +166,8 @@ export function OfflineLibraryView({
             style={styles.search}
             testID="offline-library-search"
             value={query}
-          />
-          {onClearTarget && (
+          />}
+          {showReadings && onClearTarget && (
             <SharedUiActionButton action={{ id: "all-readings", label: copy.allReadings, variant: "outline" }} onAction={onClearTarget} />
           )}
           {onRefresh && (
@@ -163,7 +179,13 @@ export function OfflineLibraryView({
           )}
         </View>
       )}
-      {!blocked && storageUsage && <View style={styles.storageAction}>
+      {!blocked && management && <SharedSheet theme={theme} open={managementOpen} title={shared.manage} closeLabel={shared.cancel}
+        returnFocusRef={managementButton} onDismiss={() => setManagementOpen(false)}>
+        {(["readings", "courses", "videos", "achievements", "storage"] as const).map(section =>
+          <NativeListRow key={section} layout="compact" theme={theme} title={shared[section]} testID={`offline-library-section-${section}`}
+            primary={{ role: "button", onPress: () => { setManagementOpen(false); management.select(section); } }} />)}
+      </SharedSheet>}
+      {!blocked && showStorage && storageUsage && <View style={styles.storageAction}>
         <Text testID="offline-library-storage" style={[styles.meta, { color: colors.mutedForeground }]}>
           {shared.usage} {storageLabel(storageUsage.bytes)} {shared.of} {storageLabel(storageUsage.maxBytes)} · {storageUsage.pinnedCount} {shared.pinned.toLocaleLowerCase(locale)}
         </Text>
@@ -171,7 +193,7 @@ export function OfflineLibraryView({
           action={{ id: "clear", label: clearing ? copy.removing : shared.clear, pending: clearing,
             disabled: Boolean(pending || purging || syncing), variant: "outline" }} onAction={requestClear} />}
       </View>}
-      {onPurgeUnavailable && (unavailableCount > 0 || purging) && (
+      {showStorage && onPurgeUnavailable && (unavailableCount > 0 || purging) && (
         <View style={styles.storageAction}>
           <SharedUiActionButton
             action={{ id: "purge-unavailable", label: purging ? copy.removing : `${copy.removeUnavailable} (${unavailable})`,

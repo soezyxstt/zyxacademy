@@ -411,7 +411,7 @@ export const operationsCatalog = [
     "actions": ["download", "read", "forget", "revalidateSaved", "purgeUnavailable"],
     "tools": [],
     "status": "excluded",
-    "reason": "Expo manages the signed-in learner's local downloads. Refresh reads existing authenticated offline endpoints on the configured app origin. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
+    "reason": "Expo manages the signed-in learner's local downloads, pins and storage. Course, video and achievement catalog reads use the existing authenticated offline endpoints and scoped resource leases on the configured app origin. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
   },
   {
     "source": "app/(student)/feedback/feedback-form.tsx",

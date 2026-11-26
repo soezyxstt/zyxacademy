@@ -8,7 +8,7 @@ Android and desktop start from bundled files and probe the configured origin bef
 
 The bundled library and browser `/offline` put downloaded Article/Diktat readings first. The library management control exposes the last authorized course and material lists, video links and thumbnails, achievement definitions, refresh and storage controls.
 
-Shared metadata excludes achievement ownership, scores, private formative evaluators and assessment answers. Video entries contain links and optional thumbnails, not the video stream. The bundled reader uses local fonts and math styles. Remote interactive documents and server actions still need a connection.
+Expo uses the same scoped course manifests and offline catalog endpoints for the Courses, Videos and Achievements sections. Video rows open the verified native player when connected. The app retains bounded thumbnail bytes with their resource lease. Achievement rows contain definitions and thresholds. Shared metadata excludes achievement ownership, scores, private formative evaluators and assessment answers. Video streams remain online-only. The bundled reader uses local fonts and math styles. Remote interactive documents and server actions still need a connection.
 
 The browser library uses the student application shell. The native recovery document uses the same student destination links and responsive controls. Saved-reading search works locally. Online-only destinations retry the configured server and keep the library open when it cannot be reached. The connection label appears in the content.
 

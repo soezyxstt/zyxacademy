@@ -135,7 +135,7 @@ describe("Expo SQLite reading metadata", () => {
     expect(await commit(store, "1", later, [])).toBe(true);
     expect((await store.read(scope, now + 4_999))?.courses[0].materials).toEqual([reading]);
     expect((await store.read(scope, now + 5_000))?.courses[0]).toMatchObject({ manifestCheckedAt: undefined, materials: [] });
-    expect(await store.read(scope, now + 40_000)).toEqual({ cursor: "1", knownCourseIds: ["course-1"], activeCheckIntervalMs: 60_000, courses: [] });
+    expect(await store.read(scope, now + 40_000)).toEqual({ cursor: "1", knownCourseIds: ["course-1"], activeCheckIntervalMs: 60_000, metadataMaxAgeMs: 86_400_000, catalogs: [], courses: [] });
   });
 
   test("rejects stale cursor acknowledgements, preserves large integer order, and supports a server reset", async () => {

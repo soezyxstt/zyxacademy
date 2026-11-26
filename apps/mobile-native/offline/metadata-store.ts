@@ -13,9 +13,11 @@ import {
 import type { NativeSessionScope } from "../network/transport";
 import type { OfflinePolicy } from "../../../lib/offline/policy-types";
 import { notifyOfflineReadingChanges } from "./reading-events";
+import { catalogGrant, type OfflineCatalogTarget, type OfflineLibraryCatalog } from "./catalog-model";
 
 // These storage bounds mirror lib/offline/metadata-cache.ts and sync-contract.ts.
 const maxMetadataBytes = 8 * 1024 * 1024;
+const maxCatalogBytes = 1536 * 1024;
 const maxReadingInvalidations = 512;
 export const EXPO_OFFLINE_DATABASE_NAME = "zyx-offline-reading-metadata.db";
 export const offlineMetadataSchema = `
@@ -60,6 +62,8 @@ type StoredSnapshot = {
   lastVerifiedAt: number;
   leaseExpiresAt: number;
   activeCheckIntervalMs?: number;
+  metadataMaxAgeMs?: number;
+  catalogs?: OfflineLibraryCatalog[];
   readingPolicy?: Pick<OfflinePolicy, "maxBytes" | "maxEntries" | "retentionMs" | "contentMaxAgeMs">;
   readingValidation?: ReadingValidation;
   pending?: { cursor: string; reset: boolean };
@@ -75,9 +79,12 @@ export type NativeOfflineMetadataSnapshot = {
   cursor: string | null;
   knownCourseIds: string[];
   activeCheckIntervalMs?: number;
+  metadataMaxAgeMs?: number;
+  catalogs?: OfflineLibraryCatalog[];
   courses: Array<{
     id: string;
     title: string;
+    catalogGrant?: string;
     leaseExpiresAt: number;
     manifestCheckedAt?: number;
     manifestLeaseExpiresAt?: number;
@@ -251,6 +258,24 @@ export async function restrictOfflineReadingAuthority(
   return updated ? removal : null;
 }
 
+function usableCatalogs(catalogs: readonly OfflineLibraryCatalog[], courses: readonly StoredCourse[], now: number) {
+  return catalogs.flatMap(catalog => {
+    if (catalog.leaseExpiresAt <= now) return [];
+    if (catalog.kind === "achievement_catalog") return [catalog] as OfflineLibraryCatalog[];
+    const course = courses.find(item => item.courseId === catalog.courseId);
+    if (!course?.allowed || course.leaseExpiresAt <= now || catalog.grant !== catalogGrant(course)) return [];
+    return [{ ...catalog, leaseExpiresAt: Math.min(catalog.leaseExpiresAt, course.leaseExpiresAt), videos: catalog.videos.map(video =>
+      video.thumbnail && video.thumbnail.leaseExpiresAt <= now ? { ...video, thumbnail: undefined } : video) }] as OfflineLibraryCatalog[];
+  });
+}
+
+function invalidatedCatalog(catalog: OfflineLibraryCatalog, response: NativeOfflineSyncResponse) {
+  return response.changes.some(change => compareCursor(change.cursor, catalog.cursor) >= 0 &&
+    (!change.courseId || catalog.courseId === change.courseId) &&
+    (change.kind === "policy" || change.kind === "access" || change.kind === "course" ||
+      change.kind === catalog.kind || catalog.kind === "video_catalog" && change.kind === "course_outline"));
+}
+
 function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflineSyncResponse, nextRevision: number, reapply: boolean): StoredSnapshot {
   const courses = new Map((response.reset ? [] : previous?.courses ?? []).map(course => [course.courseId, course]));
   const previousGrantRevisions = new Map((reapply ? previous?.courses ?? [] : []).map(course => [course.courseId, course.grantRevision]));
@@ -331,6 +356,9 @@ function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflin
   authorized.sort((a, b) => Number(grants.has(b.courseId)) - Number(grants.has(a.courseId)));
   return { sessionId: response.sessionId, cursor: previous?.cursor ?? null, lastVerifiedAt: response.serverTime,
     leaseExpiresAt: response.leaseExpiresAt, activeCheckIntervalMs: response.policy.activeCheckIntervalMs,
+    metadataMaxAgeMs: response.policy.metadataMaxAgeMs,
+    catalogs: response.reset ? undefined : usableCatalogs((previous?.catalogs ?? []).filter(catalog => !invalidatedCatalog(catalog, response)),
+      authorized, response.serverTime),
     readingPolicy: { maxBytes: response.policy.maxBytes, maxEntries: response.policy.maxEntries, retentionMs: response.policy.retentionMs,
       contentMaxAgeMs: response.policy.contentMaxAgeMs },
     readingValidation,
@@ -386,8 +414,9 @@ export async function prepareOfflineReadingAccess(
       || (pending && compareCursor(response.cursor, pending.cursor) < 0)))) return null;
   const updated = applyPageAccess(previous, response, revision + 1, reapply);
   const encoded = encodeSnapshot(updated, maxMetadataBytes)
-    ?? encodeSnapshot({ ...updated, courses: updated.courses.map(course => ({ ...course, manifest: undefined })) }, maxMetadataBytes)
-    ?? JSON.stringify({ ...updated, courses: [] });
+    ?? encodeSnapshot({ ...updated, catalogs: undefined }, maxMetadataBytes)
+    ?? encodeSnapshot({ ...updated, catalogs: undefined, courses: updated.courses.map(course => ({ ...course, manifest: undefined })) }, maxMetadataBytes)
+    ?? JSON.stringify({ ...updated, catalogs: undefined, courses: [] });
   return { revision, encoded, previous };
 }
 
@@ -416,7 +445,8 @@ export async function prepareOfflineReadingPage(
     courses.set(id, { ...reconcileManifest(scope, response, courses.get(id), manifest), grantRevision: accessRevision + 1 });
   }
   const complete = { ...current, cursor: response.cursor, pending: undefined, courses: [...courses.values()] };
-  const encoded = encodeSnapshot(complete, Math.min(maxMetadataBytes, Math.floor(response.policy.maxBytes / 4)));
+  const limit = Math.min(maxMetadataBytes, Math.floor(response.policy.maxBytes / 4));
+  const encoded = encodeSnapshot(complete, limit) ?? encodeSnapshot({ ...complete, catalogs: undefined }, limit);
   if (!encoded) throw new Error("Offline metadata storage limit exceeded.");
   return encoded;
 }
@@ -496,15 +526,43 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
       const snapshot = readSnapshot(await load(scope));
       if (!snapshot || snapshot.sessionId !== scope.sessionId) return null;
       return { cursor: snapshot.cursor, knownCourseIds: snapshot.courses.map(course => course.courseId),
-        activeCheckIntervalMs: snapshot.activeCheckIntervalMs,
+        activeCheckIntervalMs: snapshot.activeCheckIntervalMs, metadataMaxAgeMs: snapshot.metadataMaxAgeMs,
+        catalogs: snapshot.leaseExpiresAt > now ? usableCatalogs(snapshot.catalogs ?? [], snapshot.courses, now) : [],
         courses: snapshot.courses.filter(course => Math.min(course.leaseExpiresAt, snapshot.leaseExpiresAt) > now).map(course => {
           const { manifest } = course;
           const useManifest = manifest && Math.min(course.leaseExpiresAt, snapshot.leaseExpiresAt, manifest.leaseExpiresAt) > now;
-          return { id: course.courseId, title: course.title, leaseExpiresAt: Math.min(course.leaseExpiresAt, snapshot.leaseExpiresAt),
+          return { id: course.courseId, title: course.title, catalogGrant: catalogGrant(course), leaseExpiresAt: Math.min(course.leaseExpiresAt, snapshot.leaseExpiresAt),
             manifestCheckedAt: useManifest ? manifest.checkedAt ?? undefined : undefined,
             manifestLeaseExpiresAt: useManifest ? manifest.leaseExpiresAt : undefined,
             materials: useManifest ? manifest.materials : [] };
         }) };
+    },
+
+    async saveCatalogs(scope: NativeOfflineScope, expectedRevision: number, latest: readonly OfflineLibraryCatalog[],
+      denied: readonly OfflineCatalogTarget[], assertCurrent: WriterGuard, now = Date.now()) {
+      const row = await load(scope);
+      const snapshot = readSnapshot(row);
+      if (!row || row.revision !== expectedRevision || !snapshot?.cursor || snapshot.sessionId !== scope.sessionId ||
+        snapshot.pending || snapshot.leaseExpiresAt <= now) return false;
+      const retained = usableCatalogs(snapshot.catalogs ?? [], snapshot.courses, now).filter(catalog =>
+        !denied.some(target => catalog.kind === target.kind && catalog.courseId === target.courseId));
+      const refreshed = usableCatalogs(latest.filter(catalog => compareCursor(catalog.cursor, snapshot.cursor!) >= 0), snapshot.courses, now);
+      const catalogKey = (catalog: OfflineLibraryCatalog) => JSON.stringify([catalog.kind, catalog.courseId]);
+      const catalogs = new Map(retained.map(catalog => [catalogKey(catalog), catalog]));
+      for (const catalog of refreshed) {
+        const prior = catalogs.get(catalogKey(catalog));
+        if (!prior || compareCursor(prior.cursor, catalog.cursor) <= 0) catalogs.set(catalogKey(catalog), catalog);
+      }
+      const withinBudget: OfflineLibraryCatalog[] = [];
+      let bytes = 0;
+      for (const catalog of [...catalogs.values()].sort((a, b) => Number(b.kind === "achievement_catalog") - Number(a.kind === "achievement_catalog"))) {
+        const size = new TextEncoder().encode(JSON.stringify(catalog)).byteLength;
+        if (bytes + size > maxCatalogBytes) continue;
+        bytes += size;
+        withinBudget.push(catalog);
+      }
+      const encoded = encodeSnapshot({ ...snapshot, catalogs: withinBudget }, maxMetadataBytes);
+      return encoded !== null && save(scope, row.revision, encoded, assertCurrent);
     },
 
     async applyAccess(scope: NativeOfflineScope, page: OfflineMetadataAccessPage, assertCurrent?: WriterGuard): Promise<number | null> {

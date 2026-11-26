@@ -7,6 +7,7 @@ import type { NativeSessionTransport } from "../network/transport";
 import { openExpoOfflineMetadataStore } from "./metadata-expo";
 import { createOfflineMetadataLifecycle, inactiveCourseMetadata, visibleCourseMetadata } from "./lifecycle";
 import { createNativeOfflineSyncController } from "./sync-client";
+import { OfflineCatalogAccessError, syncOfflineCatalogs } from "./catalog-client";
 import { NATIVE_OFFLINE_COURSE_LIMIT, type NativeOfflineLocale } from "./sync-contract";
 import { openExpoOfflineReadingStore } from "./reading-expo";
 import { purgeOfflineReadingSession, unblockOfflineReadingSession, waitForOfflineReadingPurge } from "./reading-session-storage";
@@ -22,6 +23,9 @@ function createDriver(session: NativeSessionTransport, locale: NativeOfflineLoca
   const scope = { ...session.scope, locale };
   let syncController: ReturnType<typeof createNativeOfflineSyncController> | undefined;
   let generation = 0;
+  let catalogAbort: AbortController | undefined;
+  let catalogFlight: Promise<void> | undefined;
+  let catalogOffset = 0;
   return createOfflineMetadataLifecycle({
     read: async () => (await openExpoOfflineMetadataStore()).read(scope),
     async sync(courseIds, publishAccess) {
@@ -38,6 +42,25 @@ function createDriver(session: NativeSessionTransport, locale: NativeOfflineLoca
       });
       try {
         await syncController.sync(courseIds);
+        // Metadata for reading opens first. Catalogs have an independent cancellable, bounded refresh.
+        if (current === generation && session.isCurrent() && !catalogFlight) {
+          const controller = new AbortController();
+          catalogAbort = controller;
+          const stopConnectivity = nativeConnectivity.subscribe(() => {
+            const status = nativeConnectivity.getSnapshot();
+            if (!status.foreground || status.online === false) controller.abort();
+          });
+          catalogFlight = syncOfflineCatalogs({ session, scope, repository, signal: controller.signal, cursorStart: catalogOffset })
+            .then(next => { catalogOffset = next; }).catch(error => {
+              if (error instanceof OfflineCatalogAccessError && error.scope === "session" && !controller.signal.aborted && session.isCurrent()) onRevoked();
+            }).finally(() => {
+              stopConnectivity();
+              if (catalogAbort === controller) {
+                catalogFlight = undefined;
+                catalogAbort = undefined;
+              }
+            });
+        }
       } finally {
         unsubscribe();
         if (current === generation && session.isCurrent()) {
@@ -52,6 +75,9 @@ function createDriver(session: NativeSessionTransport, locale: NativeOfflineLoca
       generation++;
       syncController?.dispose();
       syncController = undefined;
+      catalogAbort?.abort();
+      catalogAbort = undefined;
+      catalogFlight = undefined;
     },
     onRevoked,
   });
