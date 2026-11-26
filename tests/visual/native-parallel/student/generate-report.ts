@@ -44,6 +44,20 @@ const pairedReferenceGroups: Record<string, { directory: string; prefix: string;
     config.route, { directory: prefix, prefix, product: Boolean(config.productFixture) },
   ])),
 };
+// Some older workflows retained a successful device flow before the web job
+// knew its reference group. Keep independently verified pairs at their own SHA.
+const additionalComparisons = readdirSync(`${base}/device-runs`).filter(run => /^\d+$/.test(run)).flatMap(run =>
+  (["android", "ios"] as const).flatMap(platform => Object.entries(matchedGroups).flatMap(([group, config]) => {
+    const report = `${base}/device-runs/${run}/${platform}/${group}/comparison.json`;
+    if (!existsSync(report)) return [];
+    const evidence = JSON.parse(readFileSync(report, "utf8"));
+    if (evidence.route !== config.route || !evidence.checkoutSha || !evidence.pullRequestHead) throw new Error(`Wrong supplemental evidence: ${report}`);
+    return (evidence.pairs as { state: string; status: string; differingPixels: number }[]).map(pair => ({
+      pattern: config.route, platform, id: `${group}-${pair.state}`, status: pair.status, differingPixels: pair.differingPixels,
+      standaloneScenario: { name: evidence.maestro.testcase, status: evidence.maestro.status }, report,
+      sourceHead: evidence.pullRequestHead as string, checkoutSha: evidence.checkoutSha as string,
+    }));
+  })));
 function deviceSizedWebReferences(pattern: string) {
   const group = pairedReferenceGroups[pattern];
   if (!group) return [];
@@ -233,7 +247,7 @@ const rows = manifest.routes.map(route => {
     web_ci_evidence: ciCase && webRun ? { case: ciCase, status: webRun.web.status, sourceHead: webRun.sourceHead,
       run: webRun.url, artifact: webRun.web.artifact, kind: "synthetic web component fixture" } : null,
     fixture_cases: cases,
-    device_comparisons: deviceComparisons,
+    device_comparisons: [...deviceComparisons, ...additionalComparisons.filter(item => item.pattern === pattern)],
     device_status: { android: summaries.android ? `see ${summaries.android.path}` : "not_recorded", ios: summaries.ios ? `see ${summaries.ios.path}` : "not_recorded" },
     interaction_status: "Generated fixture interactions are not device results unless a matching summary records them.",
     parity_status: "not_established", known_differences: pattern === "/courses/[id]/flashcard" ?

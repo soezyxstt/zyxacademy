@@ -292,5 +292,17 @@
     "different_pixels": 0,
     "before": "results/2026-11-26_131656/Student course long material list fixture/takeScreenshot/student-long-content.png",
     "after": "results/2026-11-26_131656/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+  },
+  "matchedScenarioResults": {
+    "catalog": {
+      "name": "Catalog comparable fixture all TPB and PKA",
+      "status": "SUCCESS",
+      "source": "report.xml"
+    },
+    "flashcard": {
+      "name": "Learning flashcard flip and grade",
+      "status": "SUCCESS",
+      "source": "report.xml"
+    }
   }
 }

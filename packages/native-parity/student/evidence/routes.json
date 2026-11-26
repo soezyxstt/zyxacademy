@@ -1,8 +1,8 @@
 {
-  "generated_from_head": "44a40a82b063a648b31e5fca424df700fc3b47bd",
+  "generated_from_head": "f928ddf4563ab98230b5475e9aad09b1581349eb",
   "note": "HEAD identifies the checkout at generation time; an uncommitted working tree may differ. Evidence retains its own provenance. No platform pass or parity is inferred from fixtures.",
   "smoke_manifest": "artifacts/student-evidence/generated/manifest.json",
-  "smoke_generated_from_head": "44a40a82b063a648b31e5fca424df700fc3b47bd",
+  "smoke_generated_from_head": "f928ddf4563ab98230b5475e9aad09b1581349eb",
   "product_capture_manifest": "tests/visual/native-parallel/student/product/web/web.json",
   "ci_history": "packages/native-parity/student/evidence/ci-history.json",
   "routes": [
@@ -706,7 +706,50 @@
           }
         }
       ],
-      "device_comparisons": [],
+      "device_comparisons": [
+        {
+          "pattern": "/calendar",
+          "platform": "android",
+          "id": "calendar-all",
+          "status": "different",
+          "differingPixels": 32176,
+          "standaloneScenario": {
+            "name": "Student calendar reference inputs and category states",
+            "status": "SUCCESS"
+          },
+          "report": "packages/native-parity/student/evidence/device-runs/45824831032/android/calendar/comparison.json",
+          "sourceHead": "bdae1785d8e95d542df36c6b7ee2bbcb500f3859",
+          "checkoutSha": "ccfeb5809bb8da43b2fc2973ad34a6546d9a1d17"
+        },
+        {
+          "pattern": "/calendar",
+          "platform": "android",
+          "id": "calendar-tutorial",
+          "status": "different",
+          "differingPixels": 16870,
+          "standaloneScenario": {
+            "name": "Student calendar reference inputs and category states",
+            "status": "SUCCESS"
+          },
+          "report": "packages/native-parity/student/evidence/device-runs/45824831032/android/calendar/comparison.json",
+          "sourceHead": "bdae1785d8e95d542df36c6b7ee2bbcb500f3859",
+          "checkoutSha": "ccfeb5809bb8da43b2fc2973ad34a6546d9a1d17"
+        },
+        {
+          "pattern": "/calendar",
+          "platform": "android",
+          "id": "calendar-empty-filter",
+          "status": "different",
+          "differingPixels": 14020,
+          "standaloneScenario": {
+            "name": "Student calendar reference inputs and category states",
+            "status": "SUCCESS"
+          },
+          "report": "packages/native-parity/student/evidence/device-runs/45824831032/android/calendar/comparison.json",
+          "sourceHead": "bdae1785d8e95d542df36c6b7ee2bbcb500f3859",
+          "checkoutSha": "ccfeb5809bb8da43b2fc2973ad34a6546d9a1d17"
+        }
+      ],
       "device_status": {
         "android": "see packages/native-parity/student/evidence/device-runs/45824831032/android/smoke-summary.json",
         "ios": "see packages/native-parity/student/evidence/device-runs/45803927675/ios/smoke-summary.json"
@@ -1606,7 +1649,11 @@
           "id": "flashcard-question",
           "status": "different",
           "differingPixels": 23351,
-          "standaloneScenario": null,
+          "standaloneScenario": {
+            "name": "Learning flashcard flip and grade",
+            "status": "SUCCESS",
+            "source": "report.xml"
+          },
           "report": "packages/native-parity/student/evidence/device-runs/45824831032/android/comparison.json",
           "sourceHead": "bdae1785d8e95d542df36c6b7ee2bbcb500f3859",
           "checkoutSha": "ccfeb5809bb8da43b2fc2973ad34a6546d9a1d17"
@@ -1616,7 +1663,11 @@
           "id": "flashcard-review-pending",
           "status": "different",
           "differingPixels": 45757,
-          "standaloneScenario": null,
+          "standaloneScenario": {
+            "name": "Learning flashcard flip and grade",
+            "status": "SUCCESS",
+            "source": "report.xml"
+          },
           "report": "packages/native-parity/student/evidence/device-runs/45824831032/android/comparison.json",
           "sourceHead": "bdae1785d8e95d542df36c6b7ee2bbcb500f3859",
           "checkoutSha": "ccfeb5809bb8da43b2fc2973ad34a6546d9a1d17"
@@ -1626,7 +1677,11 @@
           "id": "flashcard-review-failed",
           "status": "different",
           "differingPixels": 68129,
-          "standaloneScenario": null,
+          "standaloneScenario": {
+            "name": "Learning flashcard flip and grade",
+            "status": "SUCCESS",
+            "source": "report.xml"
+          },
           "report": "packages/native-parity/student/evidence/device-runs/45824831032/android/comparison.json",
           "sourceHead": "bdae1785d8e95d542df36c6b7ee2bbcb500f3859",
           "checkoutSha": "ccfeb5809bb8da43b2fc2973ad34a6546d9a1d17"
@@ -11038,7 +11093,11 @@
           "id": "catalog-all",
           "status": "different",
           "differingPixels": 52809,
-          "standaloneScenario": null,
+          "standaloneScenario": {
+            "name": "Catalog comparable fixture all TPB and PKA",
+            "status": "SUCCESS",
+            "source": "report.xml"
+          },
           "report": "packages/native-parity/student/evidence/device-runs/45824831032/android/comparison.json",
           "sourceHead": "bdae1785d8e95d542df36c6b7ee2bbcb500f3859",
           "checkoutSha": "ccfeb5809bb8da43b2fc2973ad34a6546d9a1d17"
@@ -11048,7 +11107,11 @@
           "id": "catalog-tpb",
           "status": "different",
           "differingPixels": 44768,
-          "standaloneScenario": null,
+          "standaloneScenario": {
+            "name": "Catalog comparable fixture all TPB and PKA",
+            "status": "SUCCESS",
+            "source": "report.xml"
+          },
           "report": "packages/native-parity/student/evidence/device-runs/45824831032/android/comparison.json",
           "sourceHead": "bdae1785d8e95d542df36c6b7ee2bbcb500f3859",
           "checkoutSha": "ccfeb5809bb8da43b2fc2973ad34a6546d9a1d17"
@@ -11058,7 +11121,11 @@
           "id": "catalog-pka",
           "status": "different",
           "differingPixels": 28237,
-          "standaloneScenario": null,
+          "standaloneScenario": {
+            "name": "Catalog comparable fixture all TPB and PKA",
+            "status": "SUCCESS",
+            "source": "report.xml"
+          },
           "report": "packages/native-parity/student/evidence/device-runs/45824831032/android/comparison.json",
           "sourceHead": "bdae1785d8e95d542df36c6b7ee2bbcb500f3859",
           "checkoutSha": "ccfeb5809bb8da43b2fc2973ad34a6546d9a1d17"
