@@ -9,6 +9,7 @@ PAIRS = {
     "blog-list": "blog-list-light",
     "blog-detail": "blog-detail-light",
     "blog-empty-dark": "blog-empty-dark",
+    "management-form-summary": "management-form-summary",
 }
 
 
@@ -20,6 +21,7 @@ def compare(device_dir, reference_dir, width_dp, density):
             "cases/operations-evaluation-jobs-populated": "evaluation/jobs-completed-light-380.png",
             "cases/operations-evaluation-jobs-alternate": "evaluation/jobs-empty-dark-380.png",
             "cases/operations-evaluation-ast-inspector-populated": "evaluation/ast-preview-light-380.png",
+            "cases/operations-monitoring-admin-populated": "monitoring/home-populated-light-380.png",
             "web-analytics": "analytics-data-light.png",
             "web-analytics-empty-dark": "analytics-empty-dark.png",
         })

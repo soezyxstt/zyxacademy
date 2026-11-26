@@ -15,6 +15,7 @@ case "$platform" in
     adb install "$app/android/app/build/outputs/apk/release/app-release.apk"
     ;;
   ios)
+    mkdir -p "$HOME/.expo"
     device=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; print(next(d["udid"] for group in reversed(list(json.load(sys.stdin)["devices"].values())) for d in group if d["name"] == "iPhone 17 Pro"))')
     xcrun simctl boot "$device"
     xcrun simctl bootstatus "$device" -b
