@@ -55,6 +55,44 @@
               "blocked": 66
             }
           }
+        },
+        {
+          "observedAt": "2026-11-26T11:20:00Z",
+          "android": {
+            "jobId": 139855852676,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Emulator booted and Maestro ran. Three generated smoke cases and nine of 18 standalone scenarios failed. Three catalog image pairs were comparable and had pixel differences.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45803927675/artifacts/15111830132",
+            "summaryCounts": {
+              "passed": 122,
+              "blocked": 66,
+              "failed": 3
+            },
+            "standaloneCounts": {
+              "passed": 9,
+              "failed": 9
+            },
+            "comparison": [
+              {
+                "id": "catalog-all",
+                "status": "different",
+                "differing_pixels": 49116,
+                "max_channel_difference": 236
+              },
+              {
+                "id": "catalog-tpb",
+                "status": "different",
+                "differing_pixels": 41892,
+                "max_channel_difference": 236
+              },
+              {
+                "id": "catalog-pka",
+                "status": "different",
+                "differing_pixels": 25560,
+                "max_channel_difference": 226
+              }
+            ]
+          }
         }
       ]
     },
