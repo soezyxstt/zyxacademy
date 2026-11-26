@@ -1,12 +1,15 @@
 import { useMemo } from "react";
 import { NativeStatusPanel } from "../shared-ui/layout";
 import { AdminMarkdownPreview } from "../shared-ui/AdminMarkdownPreview";
+import { connectTutorDiscussionImages, TutorDiscussionImages } from "../academic/tutor/discussion-images";
 import type { NativeAccountContext } from "../../../../packages/native-session/context";
 import type { NativeSessionTransport } from "../../network/transport";
 import { EvaluationScreen, type EvaluationScreenProps } from "./evaluation";
 import { createManagementClient, ManagementScreen, type ManagementScreenProps } from "./management";
 import { connectFormAttachment, connectFormImagePicker } from "./management/form-media";
 import { connectBlogMediaPicker } from "./management/expo-blog-upload";
+import { createAdminDiscussionClient } from "./management/discussion-client";
+import { AdminDiscussionContext } from "./management/discussion-context";
 import { connectMediaFilePicker } from "./management/expo-media-upload";
 import { useManagementLinkActions } from "./management/link-actions";
 import { createSessionMonitoringActions, createSessionMonitoringReader, MonitoringScreen, type MonitoringScreenProps } from "./monitoring";
@@ -61,10 +64,12 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
 function AdminManagement({ session, href, context, management, navigate, theme, accountKey, client, pickBlogMedia, pickMediaFile, openFormAttachment, pickFormImage }: AdminOperationsScreenProps &
   Pick<ManagementScreenProps, "accountKey" | "client" | "pickBlogMedia" | "pickMediaFile" | "openFormAttachment" | "pickFormImage">) {
   const links = useManagementLinkActions(session, href, context.locale, management);
-  return <ManagementScreen
+  const discussion = useMemo(() => createAdminDiscussionClient(session, context.locale), [session, context.locale]);
+  const discussionImages = useMemo(() => connectTutorDiscussionImages(session, context.locale, "admin"), [session, context.locale]);
+  return <AdminDiscussionContext.Provider value={discussion}><TutorDiscussionImages.Provider value={discussionImages}><ManagementScreen
     {...management} {...links} path={href} origin={session.scope.origin} navigate={navigate} accountKey={accountKey} client={client}
     renderMarkdown={management?.renderMarkdown ?? (source => <AdminMarkdownPreview source={source} audience="blog"
       session={session} locale={context.locale} theme={theme ?? "light"} origin={session.scope.origin} openExternal={links.openExternal} />)}
     pickBlogMedia={pickBlogMedia} pickMediaFile={pickMediaFile} openFormAttachment={openFormAttachment} pickFormImage={pickFormImage} access="admin" locale={context.locale} theme={theme}
-  />;
+  /></TutorDiscussionImages.Provider></AdminDiscussionContext.Provider>;
 }

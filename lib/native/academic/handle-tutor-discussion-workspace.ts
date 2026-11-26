@@ -87,7 +87,7 @@ export async function handleTutorDiscussionWorkspace(request: Request, parts: st
     return send(200, await services.create(actorId, courseId, action));
   } catch (error) {
     const code = error instanceof Error ? error.message : "";
-    if (code.startsWith("TUTOR_ACCESS_DENIED") || code === "TUTOR_INACTIVE") return send(403, { error: "unavailable" });
+    if (code.startsWith("TUTOR_ACCESS_DENIED") || code === "TUTOR_INACTIVE" || code === "FORBIDDEN") return send(403, { error: "unavailable" });
     if (code === "DISCUSSION_UNAVAILABLE") return send(404, { error: "unavailable" });
     if (code === "DISCUSSION_INVALID") return invalid();
     if (code === "DISCUSSION_CONFLICT" || code === "DISCUSSION_RESOLVED") return send(409, { error: "conflict" });

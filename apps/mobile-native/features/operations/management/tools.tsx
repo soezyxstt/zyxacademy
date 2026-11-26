@@ -1,9 +1,12 @@
 import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { View } from "react-native";
 import { DEFAULT_ICON, EMOJI_OPTIONS, LINK_COLORS, LINK_CATEGORY_SUGGESTIONS, isValidHttpUrl } from "../../../../../lib/links";
+import type { TutorSupportClient } from "../../../../../packages/academic/tutor-support";
 import { ManagementFailure, managementSlug, type DiscussionThread, type LinkFields, type MeetingSpace, type MeetingTranscript, type PublicLink } from "../../../../../packages/native-parity/operations/management-contract";
 import { meetingLinks } from "./links";
+import { ConnectedDiscussions } from "../../academic/tutor/connected";
+import { AdminDiscussionContext } from "./discussion-context";
 import { discussionDestination, discussionWorkspaceHref } from "../../../../../packages/native-parity/discussion-destination";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, formatTimestamp, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
 
@@ -134,6 +137,47 @@ function TranscriptSection({ recordId, transcript, speakers }: { recordId: strin
 }
 
 export function Discussions({ searchParams }: { searchParams: URLSearchParams }) {
+  const service = useContext(AdminDiscussionContext);
+  return service ? <LiveAdminDiscussions searchParams={searchParams} service={service} /> : <LegacyDiscussions searchParams={searchParams} />;
+}
+
+function LiveAdminDiscussions({ searchParams, service }: {
+  searchParams: URLSearchParams; service: TutorSupportClient;
+}) {
+  const { navigate, locale, theme } = useManagement();
+  const [reportTarget, setReportTarget] = useState<{ thread: string; message: string }>();
+  const reports = searchParams.get("discussionTab") === "reports";
+  const target = discussionDestination(searchParams);
+  const active = target ?? reportTarget;
+  const pages = usePagination();
+  const path = "/admin/discussions";
+  const en = locale === "en";
+  useStaffChromeVisibility({ hideTop: Boolean(active), hideBottom: Boolean(active) });
+  const header = <Sections values={[["questions", en ? "Questions" : "Pertanyaan"], ["reports", en ? "Reports" : "Laporan"]]}
+    current={reports ? "reports" : "questions"} onChange={next => {
+      const href = new URL(discussionWorkspaceHref(path, searchParams), "https://zyx.invalid");
+      if (next === "reports") href.searchParams.set("discussionTab", "reports");
+      else href.searchParams.delete("discussionTab");
+      navigate(href.pathname + href.search);
+    }} />;
+  if (reports && !active) return <Screen title={en ? "Discussions" : "Diskusi"}>
+    {header}<DiscussionReports open={setReportTarget} pages={pages} />
+  </Screen>;
+  const query = new URLSearchParams(searchParams);
+  if (active) {
+    query.set("thread", active.thread);
+    if (active.message) query.set("message", active.message);
+    else query.delete("message");
+  }
+  return <ConnectedDiscussions key={active?.thread ?? "questions"} query={Object.fromEntries(query)} {...{ navigate, header, theme, service }} workspacePath={path}
+    back={() => navigate("/admin")}
+    replace={href => {
+      if (reportTarget && !target) setReportTarget(undefined);
+      else navigate(href);
+    }} />;
+}
+
+function LegacyDiscussions({ searchParams }: { searchParams: URLSearchParams }) {
   const { navigate, locale } = useManagement();
   const en = locale === "en";
   const [search, setSearch] = useState("");

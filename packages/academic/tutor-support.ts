@@ -1,3 +1,5 @@
+import type { TutorLegacyMaterialCommand, TutorLegacyMaterialDraft } from "./tutor-legacy-materials";
+import type { CourseWriteTarget } from "../native-parity/academic/courses/edit-contract";
 import type { TutorDiscussionWorkspaceClient } from "./tutor-discussion-workspace";
 import type { DiscussionMention, DiscussionMessage } from "../../lib/discussions/contracts";
 import type { MentionBinding, TutorDiscussionProfile, TutorMentionInput } from "./tutor-discussion-mentions";
@@ -71,12 +73,15 @@ export type TutorDiscussionDetail = {
       canForward?: boolean;
     }[];
     nextCursor: string | null;
+    previousCursor?: string;
   };
   observed?: { receipt: string; throughSeq: number; items: { id: string; seq: number }[] };
   aiStatuses?: { messageId: string; status: string; reason: string | null }[];
 };
 
-export type TutorMaterialsData = { title: string; items: { id: string; title: string; summary: string }[] };
+export type TutorMaterialsData = {
+  title: string; legacyAdminCourseId?: string; items: { id: string; title: string; summary: string }[];
+};
 
 export type TutorVideosData = {
   title: string;
@@ -136,6 +141,10 @@ export type TutorSupportReads = {
 export type TutorSupportClient = TutorSupportReads & {
   liveHost?: TutorLiveHost;
   discussionWorkspace?: TutorDiscussionWorkspaceClient;
+  legacyMaterials?: {
+    read(courseId: string, legacyCourseId: string, materialId: string, signal: AbortSignal): Promise<TutorLegacyMaterialDraft>;
+    target(courseId: string): CourseWriteTarget<TutorLegacyMaterialCommand>;
+  };
   slotEditor?: TutorSlotEditor;
   ticketEditor?: TutorTicketEditor;
   calendarEditor?: CalendarEditor;

@@ -53,6 +53,9 @@ export const tutorSupportServices = {
   async authorizeCourse(userId, courseId) {
     await readCourse(userId, courseId);
   },
+  async authorizeMaterialsCourse(userId, courseId) {
+    await requireTutorCourseAccess(userId, courseId, { allowAdmin: true });
+  },
   async schedule(userId, week) {
     const { startIso: from, endIso: to } = getCalendarWeekRange(addCalendarDays(getJakartaCalendarDate(), week * 7));
     const schedule = await getTutorScheduleReadModel({ tutorId: userId, allowAdmin: false, fromDate: from, toDate: to }, undefined, listTutorAccessibleCourses);
@@ -99,7 +102,7 @@ export const tutorSupportServices = {
           body, attachments, attachmentCount: attachments.length, messageType, replyTo, reactions, canReply, canReact,
           revision, bodyKind, canEdit, canDelete, canReport, canForward: canForward && forwardingAllowed,
         })),
-        nextCursor: messages.nextCursor,
+        nextCursor: messages.nextCursor, previousCursor: messages.previousCursor,
       },
       aiStatuses,
       observed: { receipt: messages.observationReceipt, throughSeq: readThroughSeq, items: messages.items.map(({ id, seq }) => ({ id, seq })) },
@@ -139,7 +142,7 @@ export const tutorSupportServices = {
     }
   },
   async materials(userId, courseId) {
-    const access = await readCourse(userId, courseId);
+    const access = await requireTutorCourseAccess(userId, courseId, { allowAdmin: true });
     const course = await resolveCourseIdentity(access.courseId ?? courseId);
     if (!course) throw new Error("NOT_FOUND");
     const items = await db

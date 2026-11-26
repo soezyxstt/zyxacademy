@@ -14,10 +14,10 @@ const imagePolicy = { mimeTypes: ["image/jpeg", "image/png", "image/webp"], maxB
 type Images = ReturnType<typeof connectTutorDiscussionImages>;
 export const TutorDiscussionImages = createContext<Images | null>(null);
 
-export function connectTutorDiscussionImages(session: NativeSessionTransport, locale: "id" | "en") {
+export function connectTutorDiscussionImages(session: NativeSessionTransport, locale: "id" | "en", role: "tutor" | "admin" = "tutor") {
   async function pick(channelId: string, threadId: string, signal: AbortSignal): Promise<{ id: string; name: string } | null> {
     const selected = await scopedFiles.pickDocument({
-      session, target: { route: "/tutor/discussions", locale, draftId: threadId + ":" + randomUUID() },
+      session, target: { route: `/${role}/discussions`, locale, draftId: threadId + ":" + randomUUID() },
       policy: imagePolicy, signal, isDraftCurrent: () => !signal.aborted && session.isCurrent(),
     });
     if (selected.status === "cancelled" || selected.status === "stale") return null;
@@ -29,7 +29,7 @@ export function connectTutorDiscussionImages(session: NativeSessionTransport, lo
       form.append("channelId", channelId);
       form.append("file", new File(document.uri));
       response = await session.request("/api/discussions/attachments", {
-        method: "POST", body: form, signal, requiredRole: "tutor", headers: { Origin: session.scope.origin },
+        method: "POST", body: form, signal, requiredRole: role, headers: { Origin: session.scope.origin },
       });
       if (!response.ok) throw new Error(response.status === 413 ? "size" : "unavailable");
       const result = await response.json();
@@ -46,7 +46,7 @@ export function connectTutorDiscussionImages(session: NativeSessionTransport, lo
 
   async function preview(image: DiscussionAttachment, signal: AbortSignal) {
     const path = "/api/discussions/attachments/" + encodeURIComponent(image.id) + (image.previewAvailable ? "?preview=1" : "");
-    const response = await session.request(path, { signal, retry: "transient-read" });
+    const response = await session.request(path, { signal, retry: "transient-read", requiredRole: role });
     try {
       const mime = response.headers.get("content-type")?.split(";")[0] ?? "";
       if (!response.ok || !imagePolicy.mimeTypes.some(type => type === mime) ||
@@ -65,7 +65,8 @@ export function connectTutorDiscussionImages(session: NativeSessionTransport, lo
   return {
     pick, preview,
     share: (attachmentId: string, signal: AbortSignal) => scopedFiles.shareAuthorizedDownload({
-      session, target: { kind: "discussion-image", attachmentId }, policy: imagePolicy, signal,
+      session: { ...session, request: (path, init) => session.request(path, { ...init, requiredRole: role }) },
+      target: { kind: "discussion-image", attachmentId }, policy: imagePolicy, signal,
       isTargetCurrent: () => !signal.aborted && session.isCurrent(),
     }),
   };

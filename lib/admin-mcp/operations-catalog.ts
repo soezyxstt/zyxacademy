@@ -92,6 +92,41 @@ export const operationsCatalog = [
     "reason": "Joining a live room requires an interactive Student session, an active course enrollment and a valid room code. The short-lived token is specific to the learner and room. Tutor hosting remains independently authorized."
   },
   {
+    "source": "app/api/admin/course-materials/batch/check-duplicates/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive Admin PDF intake checks PDF fingerprints against the selected course catalog."
+  },
+  {
+    "source": "app/api/admin/course-materials/batch/presign/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive Admin PDF intake signs bounded uploads using the deployment storage provider. Native grants bind the current Admin session, course and file fingerprint."
+  },
+  {
+    "source": "app/api/admin/course-materials/batch/commit/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive Admin PDF intake commits metadata and chapter relationships. Native batches verify uploaded bytes, revisions and same-session receipts."
+  },
+  {
+    "source": "app/api/admin/bundles/idea/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The interactive Idea ZIP path previews and stages a private review artifact. Native staging requires the same live Admin session, course and archive from preview. Run-scoped authoring tools retain their existing consent."
+  },
+  {
+    "source": "app/api/admin/bundles/product/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The interactive Product ZIP path previews and stages a private review artifact. Native staging requires the same live Admin session, course and archive from preview. Run-scoped authoring tools retain their existing consent."
+  },
+  {
     "source": "app/api/native/academic/material-pdf/route.ts",
     "actions": ["GET", "HEAD"],
     "tools": [],
@@ -1993,6 +2028,13 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Discussion moderation and replies use the Admin UI."
+  },
+  {
+    "source": "app/api/native/operations/management/discussions/[[...operation]]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The native Admin discussion workspace binds the active Admin account and session, and uses existing channel-level discussion authority, signed read observations and canonical mutation identities. Report moderation remains in the Admin UI."
   },
   {
     "source": "app/(admin)/admin/ops/models/page.tsx",

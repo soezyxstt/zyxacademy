@@ -453,6 +453,7 @@ function mergeDiscussionMessages(previous: TutorDiscussionDetail | undefined, ne
     messages: {
       items: [...unique.values()].sort((left, right) => left.seq - right.seq),
       nextCursor: keepCursor && previous ? previous.messages.nextCursor : next.messages.nextCursor,
+      previousCursor: previous ? previous.messages.previousCursor : next.messages.previousCursor,
     },
   };
 }
@@ -475,6 +476,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
   const [unavailable, setUnavailable] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const pageRequest = useRef<AbortController | null>(null);
+  const earlierPage = useRef(false);
   const sendRequest = useRef<AbortController | null>(null);
   const imageRequest = useRef<AbortController | null>(null);
   const changeRequest = useRef<AbortController | null>(null);
@@ -559,19 +561,25 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     };
   }, [service, courseId, threadId, targetMessage, attempt]);
 
-  async function more() {
-    if (!data?.messages.nextCursor || loadingMore) return;
+  async function more(earlier = false) {
+    const cursor = earlier ? data?.messages.previousCursor : data?.messages.nextCursor;
+    if (!cursor || loadingMore) return;
+    earlierPage.current = earlier;
     const controller = new AbortController();
     pageRequest.current = controller;
     setLoadingMore(true);
     setError("");
     try {
-      const next = await service.discussion(courseId, threadId, data.messages.nextCursor, controller.signal);
-      if (!controller.signal.aborted) setData((previous) => mergeDiscussionMessages(previous, next));
+      const next = await service.discussion(courseId, threadId, cursor, controller.signal);
+      if (!controller.signal.aborted) setData(previous => {
+        const merged = mergeDiscussionMessages(previous, next, earlier);
+        if (earlier) merged.messages.previousCursor = next.messages.previousCursor;
+        return merged;
+      });
     } catch (error) {
       if (!controller.signal.aborted) {
         if (accessEnded(error)) setUnavailable(true);
-        else setError("Pesan berikutnya gagal dimuat.");
+        else setError(earlier ? "Pesan sebelumnya gagal dimuat." : "Pesan berikutnya gagal dimuat.");
       }
     } finally {
       if (!controller.signal.aborted) setLoadingMore(false);
@@ -806,9 +814,11 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
         !message.reactions?.some(reaction => reaction.emoji === emoji)).map(emoji => <Button theme={theme} key={emoji} variant="outline" disabled={changing}
           onPress={() => void change({ action: "reaction", messageId: message.id, emoji, selected: true })}>{emoji}</Button>)}</View>}
     </Row>)}
-    {error ? <LoadFailure theme={theme} error={error} retry={data ? more : () => setAttempt((value) => value + 1)} /> : null}
+    {error ? <LoadFailure theme={theme} error={error} retry={data ? () => void more(earlierPage.current) : () => setAttempt((value) => value + 1)} /> : null}
+    {data?.messages.previousCursor && !error && !unavailable ? <Button theme={theme} variant="outline" style={tutorLayout.action}
+      isLoading={loadingMore && earlierPage.current} disabled={loadingMore} onPress={() => void more(true)}>Pesan sebelumnya</Button> : null}
     {data?.messages.nextCursor && !error && !unavailable ? <Button theme={theme} variant="outline" style={tutorLayout.action}
-      isLoading={loadingMore} onPress={more}>Tampilkan lebih banyak</Button> : null}
+      isLoading={loadingMore && !earlierPage.current} disabled={loadingMore} onPress={() => void more()}>Tampilkan lebih banyak</Button> : null}
     {readback ? <LoadFailure theme={theme} error="Jawaban belum dapat ditampilkan." retry={() => void retryReadback()} /> : null}
   </TutorDetail>;
 }
