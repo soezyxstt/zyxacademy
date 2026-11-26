@@ -24,6 +24,7 @@ import { NativeRequestNotDispatched } from "../../../network/transport";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import type { AcademicScreenProps } from "../contracts";
 import { CourseVideoDialog } from "../../course-video/CourseVideoDialog";
+import { ScheduleResources } from "../../schedule/resources";
 import { SharedDialog } from "../../shared-ui";
 import { CalendarActions } from "./calendar-actions";
 import { TicketActions } from "./ticket-actions";
@@ -63,6 +64,7 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
   const [search, setSearch] = useState("");
   const [selectedDate, setSelectedDate] = useState(() => query.date >= initial.from && query.date <= initial.to ? query.date : undefined);
   const [draft, setDraft] = useState<TutorSlotPending | null>(null);
+  const [sessionId, setSessionId] = useState<string>();
   const [slotError, setSlotError] = useState("");
   const [notice, setNotice] = useState("");
   const [needsRefresh, setNeedsRefresh] = useState(false);
@@ -85,6 +87,7 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
   function loseAccess(message: string) {
     setScheduleState({ error: message });
     setDraft(null);
+    setSessionId(undefined);
     setSearch("");
     setSelectedDate(undefined);
     setSlotError("");
@@ -183,12 +186,13 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
     ...sessions.flatMap((session) => session.date ? [{
       id: `session-${session.id}`, dateId: session.date, title: session.topic ?? session.courseTitle ?? "Sesi tutorial",
       caption: [session.groupName, times(session.start, session.end), sessionStatus(session.status)].filter(Boolean).join(" · "),
-      disabled: Boolean(editor),
+      disabled: false,
     }] : []),
   ];
   const today = tutorJakartaToday();
   const defaultDate = !term && today >= data.from && today <= data.to ? today : events[0]?.dateId ?? data.from;
   const undated = sessions.filter((session) => !session.date);
+  const selectedSession = data.sessions.find((session) => session.id === sessionId);
 
   return <><TutorPage title="Jadwal mengajar" theme={theme} onBack={back}>
     <Choices<ScheduleTab> theme={theme} label="Bagian jadwal" value={tab} change={setTab}
@@ -209,19 +213,25 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
       <TutorWeekCalendar theme={theme} start={data.from} week={week} today={today} selectedDate={selectedDate ?? defaultDate}
         events={events} onDateChange={setSelectedDate}
         onWeekChange={(direction) => { if (!saving) replace(`/tutor/schedule?week=${week + direction}`); }}
-        onEventPress={editor ? (id) => {
+        onEventPress={(id) => {
           if (needsRefresh) return;
+          if (id.startsWith("session-")) {
+            const session = sessions.find((candidate) => id === `session-${candidate.id}`);
+            if (session && canInteract()) setSessionId(session.id);
+            return;
+          }
+          if (!editor) return;
           const slot = slots.find((candidate) => id === `slot-${candidate.id}`);
           if (!slot?.revision) return;
           openSlot({ target: { slotId: slot.id, expectedRevision: slot.revision },
             fields: { date: slot.date, start: slot.start, mode: slot.mode, location: slot.location ?? "", notes: slot.notes ?? "" } });
-        } : undefined} />
+        }} />
       {undated.length ? <View>
         <Heading theme={theme} title="Sesi tanpa tanggal" count={String(undated.length)} />
         {undated.map((session) => <Row key={session.id} theme={theme}
           title={session.topic ?? session.courseTitle ?? "Sesi tutorial"}
           subtitle={[session.groupName, times(session.start, session.end)].filter(Boolean).join(" · ")}
-          meta={sessionStatus(session.status)} />)}
+          meta={sessionStatus(session.status)} onPress={() => { if (canInteract()) setSessionId(session.id); }} />)}
       </View> : null}
     </> : null}
     {tab === "tickets" ? <View>
@@ -242,6 +252,12 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
       {data.groups.length === 0 ? <Empty theme={theme} title="Belum ada kelompok aktif" /> : null}
     </View> : null}
   </TutorPage>
+  <SharedDialog open={Boolean(selectedSession)} theme={theme} title={selectedSession?.topic ?? selectedSession?.courseTitle ?? "Sesi tutorial"}
+    description={selectedSession ? [selectedSession.groupName, dated(selectedSession.date), times(selectedSession.start, selectedSession.end),
+      sessionStatus(selectedSession.status)].filter(Boolean).join(" · ") : undefined}
+    closeLabel="Kembali" onDismiss={() => setSessionId(undefined)} testID="tutor-schedule-session-dialog">
+    {selectedSession ? <ScheduleResources key={selectedSession.id} bookingId={selectedSession.id} role="tutor" theme={theme} onUpdated={refreshSchedule} /> : null}
+  </SharedDialog>
   <SharedDialog open={Boolean(draft)} theme={theme} title={draft?.target ? "Edit slot ketersediaan" : "Tambah slot ketersediaan"}
     description="90 menit" closeLabel="Kembali" onDismiss={() => setDraft(null)}
     dismissOnBackdrop={false} dismissDisabled={saving} returnFocusRef={addSlotRef} testID="tutor-connected-slot-dialog"

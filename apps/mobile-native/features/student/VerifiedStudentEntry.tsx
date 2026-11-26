@@ -15,6 +15,7 @@ import { useOfflineReadingPackages } from "../../offline/reading-hooks";
 import { useOfflineReadingSession } from "../../offline/use-reading-session";
 import type { NativeOfflineLocale } from "../../offline/sync-contract";
 import { useOfflineCourseMetadata } from "../../offline/lifecycle-provider";
+import { ScheduleResources } from "../schedule/resources";
 import { studentBrowserNotificationsAction } from "./browser-handoff";
 import { matchStudentRoute } from "./routes";
 import { useAssessmentPhotos } from "./assessment/device";
@@ -28,7 +29,7 @@ const notBlocked = () => false;
 const diktatPdfPolicy = { mimeTypes: ["application/pdf"], maxBytes: 50 * 1024 * 1024 } as const;
 const discussionImagePolicy = { mimeTypes: ["image/jpeg", "image/png", "image/webp"], maxBytes: 8 * 1024 * 1024 } as const;
 
-export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" | "devicePush" | "openOfflineMaterial" | "saveDiktatPdf" | "shareDiscussionImage" | "pdfReader" | "focused" | "resultsTimeZone"> & {
+export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" | "devicePush" | "openOfflineMaterial" | "saveDiktatPdf" | "shareDiscussionImage" | "renderScheduleResources" | "pdfReader" | "focused" | "resultsTimeZone"> & {
   offlineLocale?: NativeOfflineLocale;
   openOfflineMaterial?: (material: VerifiedOfflineMaterial) => void | Promise<void>;
 };
@@ -152,6 +153,7 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
     pdfReader={pdfReader}
     saveDiktatPdf={Platform.OS === "android" || Platform.OS === "ios" ? saveDiktatPdf : undefined}
     shareDiscussionImage={Platform.OS === "android" || Platform.OS === "ios" ? shareDiscussionImage : undefined}
+    renderScheduleResources={(bookingId, theme) => <ScheduleResources key={bookingId} bookingId={bookingId} theme={theme} role="murid" />}
     offlineCourse={{ status: revoked ? "revoked" : metadata.status, course: revoked ? null : metadata.snapshot?.courses.find(course => course.id === courseIds[0]) ?? null, retry: metadata.retry }}
     session={{ role: "student", userId: accountId, origin, sessionId, locale: context.locale }}
     onLocaleChanged={locale => { props.onLocaleChanged?.(locale); retry(); }} />;

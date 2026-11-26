@@ -7,6 +7,7 @@ import {
 } from "../../apps/mobile-native/device/file-controller";
 import { createPublicLinkSharer } from "../../apps/mobile-native/device/share-links";
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
+import { SCHEDULE_ACCOUNT, SCHEDULE_SESSION, scheduleFilePolicy } from "../../packages/native-parity/schedule/resources";
 
 const origin = "https://staging.example.test";
 const fixturePdf = new TextEncoder().encode("%PDF-1.7\nPDF fixture");
@@ -269,6 +270,26 @@ describe("Expo scoped files", () => {
     expect(fixture.files.size).toBe(0);
     dismissed.resolve();
     expect(await pending).toEqual({ status: "stale" });
+  });
+
+  test("shares only a scoped schedule attachment and sends the active account and session", async () => {
+    let hits = 0;
+    const fixture = setup({}, async (url, init) => {
+      hits += 1;
+      const headers = new Headers(init.headers);
+      expect(url).toBe(origin + "/api/native/schedule/tutor/booking-1?download=attachment-1");
+      expect(headers.get(SCHEDULE_ACCOUNT)).toBe("account");
+      expect(headers.get(SCHEDULE_SESSION)).toBe("session");
+      return new Response(stream(fixtureImage), { headers: { "Content-Type": "image/png" } });
+    });
+    const request = { session: fixture.session, policy: scheduleFilePolicy,
+      target: { kind: "schedule-resource", role: "tutor", bookingId: "booking-1", attachmentId: "attachment-1" } } as const;
+    expect(await fixture.controller.shareAuthorizedDownload(request)).toEqual({ status: "finished" });
+    expect(fixture.shares.map(value => value.mimeType)).toEqual(["image/png"]);
+    expect(await fixture.controller.shareAuthorizedDownload({
+      ...request, target: { ...request.target, attachmentId: "../attachment-1" },
+    })).toEqual({ status: "error", issue: "invalid-target" });
+    expect(hits).toBe(1);
   });
 
   test("keeps an Android export readable after chooser return and removes it at lease expiry", async () => {

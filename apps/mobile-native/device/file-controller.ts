@@ -2,6 +2,7 @@ import type { NativeSessionScope, NativeSessionTransport } from "../network/tran
 import { MATERIAL_PDF_HEADERS, MATERIAL_PDF_MAX_BYTES, materialPdfPath, type MaterialPdfTarget } from "../../../packages/native-parity/student/courses/pdf";
 import { adminMaterialPdfPath, ADMIN_PDF_ACCOUNT, ADMIN_PDF_SESSION } from "../../../packages/native-parity/academic/courses/pdf";
 import { courseVideoSource } from "../../../packages/course-video/source";
+import { SCHEDULE_ACCOUNT, SCHEDULE_SESSION, scheduleFilePolicy, scheduleResourcePath, type ScheduleRole } from "../../../packages/native-parity/schedule/resources";
 import type { PhotoDraftTarget } from "./photo-controller";
 
 export type NativeFilePolicy = Readonly<{ mimeTypes: readonly string[]; maxBytes: number }>;
@@ -27,6 +28,7 @@ export type NativeDownloadTarget =
   | { kind: "diktat-pdf"; courseId: string; diktatId: string }
   | { kind: "quiz-grade-attachment"; courseId: string; attemptId: string; questionId: string }
   | { kind: "discussion-image"; attachmentId: string }
+  | { kind: "schedule-resource"; role: ScheduleRole; bookingId: string; attachmentId: string }
   | { kind: "form-response-attachment"; formId: string; responseId: string; index: number };
 
 export type NativeDownloadRequest = {
@@ -138,6 +140,7 @@ function dispositionName(disposition: string | null): string | undefined {
 
 function downloadPath(target: NativeDownloadTarget): string | null {
   const id = (value: string) => /^[A-Za-z0-9:_-][A-Za-z0-9._:-]{0,255}$/.test(value);
+  if (target.kind === "schedule-resource") return scheduleResourcePath(target.role, target.bookingId, target.attachmentId);
   if (target.kind === "diktat-pdf" && id(target.courseId) && id(target.diktatId)) {
     return `/api/courses/${encodeURIComponent(target.courseId)}/diktats/${encodeURIComponent(target.diktatId)}/pdf?download=1`;
   }
@@ -413,14 +416,17 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     const diskImages = request.target.kind === "discussion-image";
     const quiz = request.target.kind === "quiz-grade-attachment";
     const form = request.target.kind === "form-response-attachment";
+    const schedule = request.target.kind === "schedule-resource" ? request.target : null;
     // The existing discussion API authorizes only these three image types and caps each at 8 MiB.
     const imageTypes = ["image/jpeg", "image/png", "image/webp"];
-    const domainTypes = form ? [...imageTypes, "image/gif", "application/pdf"] : quiz ? [...imageTypes, "application/pdf"] : diskImages ? imageTypes : ["application/pdf"];
+    const domainTypes = schedule ? scheduleFilePolicy.mimeTypes : form ? [...imageTypes, "image/gif", "application/pdf"] :
+      quiz ? [...imageTypes, "application/pdf"] : diskImages ? imageTypes : ["application/pdf"];
     const permitted = request.policy.mimeTypes.filter(mimeType => domainTypes.includes(mimeType));
     if (!permitted.length) return { status: "error", issue: "policy" };
     const maxBytes = quiz ? Math.min(request.policy.maxBytes, 4 * 1024 * 1024)
       : diskImages ? Math.min(request.policy.maxBytes, 8 * 1024 * 1024)
-      : form ? Math.min(request.policy.maxBytes, 50 * 1024 * 1024) : request.policy.maxBytes;
+      : form ? Math.min(request.policy.maxBytes, 50 * 1024 * 1024)
+      : schedule ? Math.min(request.policy.maxBytes, scheduleFilePolicy.maxBytes) : request.policy.maxBytes;
     const assertCurrent = () => { if (current()) throw new FileIssue("fetch"); };
     sharing = true;
     let response: Awaited<ReturnType<NativeSessionTransport["request"]>> | undefined;
@@ -432,12 +438,13 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       if (!await device.canShare()) return { status: "unavailable" };
       assertCurrent();
       errorStage = "fetch";
-      response = await request.session.request(path, { signal: request.signal, requiredRole: form ? "admin" : quiz ? "tutor" : undefined,
+      response = await request.session.request(path, { signal: request.signal, requiredRole: schedule?.role ?? (form ? "admin" : quiz ? "tutor" : undefined),
         headers: {
           Accept: permitted.join(", "),
           ...(form ? { "x-native-operations-user-id": request.session.scope.accountId, "x-native-operations-session-id": request.session.scope.sessionId } : {}),
+          ...(schedule ? { [SCHEDULE_ACCOUNT]: request.session.scope.accountId, [SCHEDULE_SESSION]: request.session.scope.sessionId } : {}),
         } });
-      if (response.status === 401 || response.status === 403) return { status: "error", issue: "unauthorized" };
+      if (response.status === 401 || response.status === 403 || (schedule && response.status === 409)) return { status: "error", issue: "unauthorized" };
       if (response.status === 404) return { status: "error", issue: "not-found" };
       if (response.status !== 200 || !response.body) return { status: "error", issue: "fetch" };
       const mimeType = normalizeMimeType(response.headers.get("Content-Type"));

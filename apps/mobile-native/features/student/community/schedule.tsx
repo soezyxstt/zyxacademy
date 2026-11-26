@@ -124,7 +124,7 @@ function TicketDetails({ ticket, apply, pending }: { ticket: Booking["tickets"][
 function BookingDetails({ booking, schedule, apply, pending }: {
   booking: Booking; schedule: Schedule; apply: ScheduleAction; pending: boolean;
 }) {
-  const { tr, openExternal, session } = useCommunity();
+  const { tr, openExternal, session, renderScheduleResources, theme } = useCommunity();
   const [draft, setDraft] = useState<"context" | "move" | "cancel" | "ticket" | "resource" | null>(null);
   const [topic, setTopic] = useState(booking.topic ?? "");
   const [notes, setNotes] = useState(booking.notes ?? "");
@@ -146,17 +146,17 @@ function BookingDetails({ booking, schedule, apply, pending }: {
     {booking.meetUrl && active && isHttps(booking.meetUrl) && openExternal && <Actions>
       <Action label={tr("Gabung Google Meet", "Join Google Meet")} onPress={() => openExternal(booking.meetUrl!)} />
     </Actions>}
-    <Rows>{booking.resources.map(resource => <Row key={resource.id} title={resource.title}
+    {renderScheduleResources ? renderScheduleResources(booking.id, theme) : <Rows>{booking.resources.map(resource => <Row key={resource.id} title={resource.title}
       onPress={isHttps(resource.url) && openExternal ? () => openExternal(resource.url) : undefined}>
       {resource.canDelete && <Actions>{removeResourceId === resource.id ? <>
         <Action label={tr("Konfirmasi hapus", "Confirm deletion")} mode="destructive" busy={pending}
           onPress={() => apply({ action: "delete-resource", resourceId: resource.id }, undefined, () => setRemoveResource(undefined))} />
         <Action label={tr("Batal", "Cancel")} disabled={pending} onPress={() => setRemoveResource(undefined)} />
       </> : <Action label={tr("Hapus tautan", "Remove link")} disabled={pending} onPress={() => setRemoveResource(resource.id)} />}</Actions>}
-    </Row>)}</Rows>
+    </Row>)}</Rows>}
     {active && <Actions>
       <Action label={tr("Topik dan catatan", "Topic and notes")} onPress={() => setDraft("context")} />
-      <Action label={tr("Tambah tautan", "Add link")} onPress={() => setDraft("resource")} />
+      {!renderScheduleResources && <Action label={tr("Tambah tautan", "Add link")} onPress={() => setDraft("resource")} />}
       {!schedule.locked && <><Action label={tr("Pindah slot", "Move slot")} onPress={() => { setNewSlot(""); setDraft("move"); }} />
         <Action label={tr("Batalkan sesi", "Cancel session")} onPress={() => setDraft("cancel")} /></>}
       <Action label={tr("Buat tiket", "Open a ticket")} onPress={() => { setNewSlot(""); setDraft("ticket"); }} />

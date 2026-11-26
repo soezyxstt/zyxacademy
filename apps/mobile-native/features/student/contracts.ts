@@ -51,6 +51,7 @@ export interface StudentServices {
   renderMaterial?: (target: StudentMaterialReaderTarget) => ReactNode;
   saveDiktatPdf?: (courseId: string, diktatId: string, signal: AbortSignal) => Promise<ShareFileResult>;
   shareDiscussionImage?: (attachmentId: string, signal: AbortSignal) => Promise<ShareFileResult>;
+  renderScheduleResources?: (bookingId: string, theme: "light" | "dark") => ReactNode;
   openExternal?: (path: string) => void;
   /** Opens the browser notification settings in an existing browser profile. */
   openBrowserNotifications?: () => void;
