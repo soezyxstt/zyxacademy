@@ -28,12 +28,14 @@ permissions:
 
 concurrency:
   group: native-parity-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  # Let the current device evidence finish while newer revisions share one pending slot.
+  cancel-in-progress: false
 
 env:
   CI: '1'
   EXPO_NO_TELEMETRY: '1'
   NEXT_TELEMETRY_DISABLED: '1'
+  PARITY_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   inventory:
@@ -81,6 +83,12 @@ jobs:
         with:
           name: next-reference
           path: artifacts/native-parity/web
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reference-manifests
+          path: artifacts/native-parity/web/dpr*/cases.json
           if-no-files-found: error
 
   device:
@@ -143,3 +151,25 @@ jobs:
           name: ${{ matrix.platform }}-parity
           path: artifacts/native-parity/${{ matrix.platform }}
           retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.platform }}-measurements
+          path: artifacts/native-parity/${{ matrix.platform }}/result-*.json
+          retention-days: 7
+
+  visual-summary:
+    needs: [reference, device]
+    if: ${{ always() && !cancelled() && needs.reference.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '{reference-manifests,android-measurements,ios-measurements}'
+          path: ${{ runner.temp }}/parity-results
+      - run: python3 scripts/native-parity/summarize.py "$RUNNER_TEMP/parity-results" "$PARITY_HEAD_SHA" "$GITHUB_SHA"
