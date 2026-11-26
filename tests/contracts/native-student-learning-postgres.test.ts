@@ -34,9 +34,9 @@ beforeAll(async () => {
     { id: "other", name: "Other learner", email: "other@example.test" },
   ]);
   await database.insert(schema.courses).values([
-    { id: "legacy-1", title: "Intro", category: "Math" },
-    { id: "legacy-2", title: "Advanced", category: "Math" },
-    { id: "tutorial-pka", title: "PKA", category: "Math" },
+    { id: "legacy-1", title: "Intro", category: "Matematika" },
+    { id: "legacy-2", title: "Advanced", category: "Matematika" },
+    { id: "tutorial-pka", title: "PKA", category: "Matematika" },
   ]);
   await database.insert(schema.liveQuizSessions).values([
     { id: "room1", courseId: "legacy-1", tutorId: "other", code: "LIVE01", questionsSnapshot: [] },
@@ -45,9 +45,9 @@ beforeAll(async () => {
   ]);
   await database.insert(schema.enrollments).values({ id: "pka-learner", userId: "learner", courseId: "tutorial-pka", expiresAt: new Date("2030-01-01T00:00Z") });
   const stages = [1, 2, 3];
-  await database.insert(schema.quizTemplates).values(stages.map((stage) => ({ id: `quiz-${stage}`, title: `Stage ${stage}`, courseId: "tutorial-pka",
+  await database.insert(schema.quizTemplates).values(stages.map((stage): typeof schema.quizTemplates.$inferInsert => ({ id: `quiz-${stage}`, title: `Stage ${stage}`, courseId: "tutorial-pka",
     category: "simulation", status: "published", selectionRules: {} })));
-  await database.insert(schema.pkaSimulationStages).values(stages.map((stage) => ({ id: `stage-${stage}`, subject: "matematika", stage,
+  await database.insert(schema.pkaSimulationStages).values(stages.map((stage): typeof schema.pkaSimulationStages.$inferInsert => ({ id: `stage-${stage}`, subject: "matematika", stage,
     quizTemplateId: `quiz-${stage}`, passScoreThreshold: 70 })));
 }, 60_000);
 
