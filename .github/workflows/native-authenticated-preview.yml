@@ -79,6 +79,18 @@ jobs:
             -subj /CN=127.0.0.1 -addext subjectAltName=IP:127.0.0.1 \
             -keyout "$tls_dir/key.pem" -out "$tls_dir/cert.pem" 2>/dev/null
           bun --no-env-file scripts/native-readiness/product-auth/smoke.ts "$tls_dir/cert.pem" "$tls_dir/key.pem"
+      - name: Verify the protected offline download and revocation protocol
+        if: inputs.offline == 'also'
+        env:
+          AUTH_OFFLINE_PRODUCT: 'true'
+        run: |
+          umask 077
+          tls_dir="$(mktemp -d "${RUNNER_TEMP}/native-offline.XXXXXX")"
+          trap 'rm -rf "$tls_dir"' EXIT
+          openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
+            -subj /CN=127.0.0.1 -addext subjectAltName=IP:127.0.0.1 \
+            -keyout "$tls_dir/key.pem" -out "$tls_dir/cert.pem" 2>/dev/null
+          bun --no-env-file scripts/native-readiness/product-auth/smoke.ts "$tls_dir/cert.pem" "$tls_dir/key.pem"
 
   authenticated-android:
     needs: authenticated-routes

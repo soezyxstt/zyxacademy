@@ -45,7 +45,11 @@ emulator shell wm dismiss-keyguard
 emulator shell settings put system screen_off_timeout 2147483647
 
 # ADB reverse carries fixture traffic. Block app and isolated-process egress
-# while the Android network service can still validate the emulator network.
+# and let Android validate the connected test network without probing the Internet.
+emulator shell settings put global captive_portal_mode 0
+emulator shell cmd connectivity airplane-mode disable
+emulator shell svc wifi enable
+emulator shell svc data enable
 emulator reverse tcp:9443 tcp:9443
 emulator shell iptables -I OUTPUT 1 -m owner --uid-owner 10000-99999 '!' -o lo -j REJECT
 emulator shell ip6tables -I OUTPUT 1 -m owner --uid-owner 10000-99999 '!' -o lo -j REJECT

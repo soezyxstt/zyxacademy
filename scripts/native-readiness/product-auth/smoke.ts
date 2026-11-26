@@ -7,6 +7,7 @@ import { NATIVE_AUTH_HANDOFF_COOKIE } from "@/lib/native/auth-handoff";
 import { EXPO_ANDROID_BROWSER_RETURN, EXPO_ANDROID_BROWSER_RETURN_HEADER, EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
 import { course, video, privateVideoPath } from "./video-fixture";
 import { notificationId } from "./inbox-fixture";
+import { articleId, imagePath, pdfId, pkaCourseId, pkaDiktatId, readingCourseId } from "./reading-fixture";
 import { fixtureOrigin, fixtureSessionSeconds } from "./scope";
 import { startAuthFixture } from "./server";
 
@@ -153,6 +154,29 @@ try {
     try {
       check(playback.ok && (await playback.json() as { url?: string }).url === privateVideoPath, "Private video playback source missing");
     } finally { playback.dispose(); }
+
+    stage = "read authorized Article, image, PKA Diktat and PDF through the native endpoints";
+    const readingHeaders = { "x-student-id": session.accountId, "x-app-locale": context.locale };
+    const reading = (courseId: string, materialId: string, extra = {}) =>
+      binding.request("/api/native/student/reading?" + new URLSearchParams({ courseId, materialId, ...extra }), { headers: readingHeaders });
+    const article = await reading(readingCourseId, articleId);
+    const document = await article.json() as { revision?: string; assets?: string[] };
+    check(article.ok && typeof document.revision === "string" && document.assets?.includes(imagePath), "Canonical Article or admitted image absent");
+    const image = await reading(readingCourseId, articleId, { asset: imagePath, revision: document.revision });
+    check(image.ok && image.headers.get("content-type") === "image/png" && (await image.arrayBuffer()).byteLength > 0,
+      "Admitted image bytes absent");
+    const diktat = await reading(pkaCourseId, pkaDiktatId);
+    check(diktat.ok && (await diktat.json() as { kind?: string }).kind === "diktat", "Registered PKA Diktat absent");
+    const pdf = await binding.request("/api/native/student/material-pdf?" + new URLSearchParams({ courseId: readingCourseId, materialId: pdfId }),
+      { headers: readingHeaders });
+    check(pdf.ok && pdf.headers.get("Content-Type") === "application/pdf" && (await pdf.arrayBuffer()).byteLength > 0, "Authorized PDF bytes absent");
+    stage = "withdraw test enrollments and verify native Article, image, PKA Diktat and PDF are denied";
+    await fixture.revokeOnlineReading();
+    const denied = await binding.request("/api/native/student/courses?" + new URLSearchParams({
+      courseId: readingCourseId, materialId: articleId, view: "material-detail",
+    }), { headers: readingHeaders });
+    denied.dispose();
+    check(fixture.verifiedOnlineReading(), "Withdrawn reading did not lock in the same session");
   }
 
   if (offlineProduct) {
@@ -199,6 +223,7 @@ try {
   console.error("Native authenticated fixture failed to " + stage +
     (error instanceof FixtureCheckError ? ": " + error.message : "") +
     (signOutStatus ? " (sign-out HTTP " + signOutStatus + ")" : ""));
+  if (fixture?.readingProgress()) console.error("Reading fixture: " + fixture.readingProgress());
   process.exitCode = 1;
 } finally {
   await fixture?.stop();

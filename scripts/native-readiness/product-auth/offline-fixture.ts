@@ -21,6 +21,7 @@ export async function createOfflinePreview() {
   let savedResponse = false;
   let withdrawn = false;
   let revocationSeen = false;
+  const observedEndpoints: Record<string, string> = {};
 
   return {
     async seed(accountId: string) {
@@ -61,19 +62,25 @@ export async function createOfflinePreview() {
         : route === "GET /api/offline/manifest" ? manifest.GET
         : route === "GET /api/offline/resource" ? resource.GET : null;
       if (!endpoint) return null;
+      const name = endpoint === sync.POST ? "sync" : endpoint === manifest.GET ? "manifest" : "resource";
       const response = await endpoint(request);
+      observedEndpoints[name] = String(response.status);
       if (!response.ok && response.status !== 304) return response;
       const headers = new Headers(response.headers);
       // The real server has authenticated the canonical origin. Only remap the
       // verified response envelope for the APK bound to private loopback TLS.
       if (headers.get("x-offline-environment") !== EXPO_STAGING_ORIGIN ||
         headers.get("x-offline-account-id") !== identity.accountId || headers.get("x-offline-session-id") !== identity.sessionId) {
+        observedEndpoints[name] = "identity mismatch";
         return new Response(null, { status: 502 });
       }
       headers.set("x-offline-environment", fixtureOrigin);
       if (response.status === 304) return new Response(null, { status: 304, headers });
       const data = await response.json();
-      if (!data || data.environment !== EXPO_STAGING_ORIGIN) return new Response(null, { status: 502 });
+      if (!data || data.environment !== EXPO_STAGING_ORIGIN) {
+        observedEndpoints[name] = "environment mismatch";
+        return new Response(null, { status: 502 });
+      }
       if (endpoint === resource.GET && data.resource?.title === offlineTitle) savedResponse = true;
       if (withdrawn && endpoint === sync.POST && Array.isArray(data.changes) &&
         data.changes.some((entry: { kind?: string; action?: string; courseId?: string }) =>
@@ -84,5 +91,6 @@ export async function createOfflinePreview() {
       return Response.json({ ...data, environment: fixtureOrigin }, { status: response.status, headers });
     },
     sawRevocation: () => revocationSeen,
+    progress: () => `sync ${observedEndpoints.sync ?? "not requested"}, manifest ${observedEndpoints.manifest ?? "not requested"}, resource ${observedEndpoints.resource ?? "not requested"}, saved reading ${savedResponse ? "served" : "missing"}`,
   };
 }

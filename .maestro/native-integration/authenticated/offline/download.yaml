@@ -14,6 +14,10 @@ name: Download an authorized Student reading
 - runFlow: ../browser-claim.yaml
 - runFlow: ../browser-return.yaml
 - extendedWaitUntil:
+    visible:
+      id: offline-library-list
+    timeout: 45000
+- extendedWaitUntil:
     visible: "(Simpan|Save) Diktat verifikasi offline"
     timeout: 45000
 - tapOn: "(Simpan|Save) Diktat verifikasi offline"

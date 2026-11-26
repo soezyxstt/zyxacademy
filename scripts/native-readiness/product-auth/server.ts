@@ -109,7 +109,10 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     import("@/app/api/notifications/quiet-hours/route"),
     import("@/app/api/student/upcoming-sessions/route"),
   ]) : null;
-  const previewReading = studentProduct ? await (await import("./reading-fixture")).createReadingPreview() : null;
+  const previewReading = studentProduct ? await (await import("./reading-fixture")).createReadingPreview((request, handler) => {
+    const upstream = new NextRequest(request);
+    return requestContext.run(upstream, () => handler(upstream));
+  }) : null;
   const previewVideo = studentProduct ? await (await import("./video-fixture")).createVideoPreview() : null;
   const studentNavigation = studentProduct || offlineProduct ? await import("@/app/api/student/navigation/route") : null;
   const staffReads = staff ? await (await import("./staff-fixture")).loadStaffReads() : null;
@@ -340,6 +343,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     verifiedTutorLive: () => tutorLive?.verified(),
     revokeOnlineReading: () => previewReading?.revoke(),
     verifiedOnlineReading: () => previewReading?.verified(),
+    readingProgress: () => previewReading?.progress() ?? offline?.progress(),
     identity: () => browserIdentity && { accountId: browserIdentity.accountId, sessionId: browserIdentity.sessionId },
     progress() {
       if (signedOut) return "sign-out";

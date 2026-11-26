@@ -3,16 +3,17 @@ import { studentNavigationEndpoint } from "@/components/navigation/student/stude
 import { EXPO_STAGING_ORIGIN } from "@/lib/native/expo-auth-config";
 import { assertFixtureRunner } from "./scope";
 
-const courseId = "native-preview-reading-course";
+export const readingCourseId = "native-preview-reading-course";
+const courseId = readingCourseId;
 const canonicalCourse = "native-preview-reading-canonical";
 const enrollmentId = "native-preview-reading-enrollment";
-const articleId = "native-preview-reading-article";
-const pdfId = "native-preview-reading-pdf";
+export const articleId = "native-preview-reading-article";
+export const pdfId = "native-preview-reading-pdf";
 const pdfUrl = "https://native-reading-fixture.ufs.sh/lesson.pdf";
-const pkaCourseId = "tutorial-pka";
-const pkaDiktatId = "native-preview-reading-pka-diktat";
+export const pkaCourseId = "tutorial-pka";
+export const pkaDiktatId = "native-preview-reading-pka-diktat";
 const registrationId = "native-preview-reading-pka-registration";
-const imagePath = "/images/native-reading-preview.png";
+export const imagePath = "/images/native-reading-preview.png";
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAEAAAAAgCAIAAAAt/+nTAAAAjUlEQVR4nO3SsQ2AMAxE0czDDEzE9BSUFCClSUFEHMf2WTrpuqT4T3I5r/tz2368673irBBAAAEEuK+21aUBtNFpAL1oaMBIdPsfAiCNhgBoosMAq6JdARbR5gDraBOAZ/QyQFS0CoAQLQagRQsAmNEqQHjxDCC8ch4Q3vcPGLl15OUHpD8hAggggIDQPZYaL03x06UcAAAAAElFTkSuQmCC", "base64");
 
 function previewPdf() {
@@ -43,7 +44,7 @@ function previewPdf() {
 
 type Identity = { accountId: string; sessionId: string; cookie: string };
 
-export async function createReadingPreview() {
+export async function createReadingPreview(runHandler: (request: Request, handler: (request: Request) => Promise<Response>) => Promise<Response>) {
   assertFixtureRunner();
   const [{ db }, schema, courses, learning, reading, pdf, { auth }, navigation] = await Promise.all([
     import("@/db"), import("@/db/schema"), import("@/app/api/native/student/courses/route"),
@@ -59,6 +60,7 @@ export async function createReadingPreview() {
   let deniedNormal = false;
   let deniedPka = false;
   let revoked = false;
+  let withdrawalStage = "not started";
   let owner: Identity | undefined;
   const previousFetch = globalThis.fetch;
   const privatePreviewUrl = EXPO_STAGING_ORIGIN + imagePath;
@@ -178,9 +180,12 @@ export async function createReadingPreview() {
 
   return {
     handle,
+    progress: () => `Article ${articleRevision ? "verified" : "missing"}, image ${privateImage ? "verified" : "missing"}, PKA Diktat ${pkaReading ? "verified" : "missing"}, PDF ${privatePdf ? "verified" : "missing"}, withdrawal ${withdrawalStage}`,
     async revoke() {
+      withdrawalStage = "prerequisites";
       if (!owner || !articleRevision || !pkaReading || !privateImage || !privatePdf) throw new Error("The Student device did not receive each authorized reading");
       const accountId = owner.accountId;
+      withdrawalStage = "enrollment transaction";
       await db.transaction(async tx => {
         const [withdrawn] = await tx.update(schema.pendaftaranMurid).set({ status: "cancelled" }).where(and(
           eq(schema.pendaftaranMurid.id, enrollmentId), eq(schema.pendaftaranMurid.penggunaId, accountId),
@@ -195,13 +200,18 @@ export async function createReadingPreview() {
       const request = (courseId: string, materialId: string, asset?: { asset: string; revision: string }) =>
         new Request(EXPO_STAGING_ORIGIN + "/api/native/student/reading?" + new URLSearchParams({ courseId, materialId, ...asset }), { headers });
       const [body, image] = await Promise.all([
-        reading.GET(request(courseId, articleId)),
-        reading.GET(request(courseId, articleId, { asset: imagePath, revision: articleRevision })),
+        runHandler(request(courseId, articleId), reading.GET),
+        runHandler(request(courseId, articleId, { asset: imagePath, revision: articleRevision }), reading.GET),
       ]);
+      withdrawalStage = `Article HTTP ${body.status}, image HTTP ${image.status}`;
       if (body.status !== 403 || image.status !== 403) throw new Error("Reading authorization survived withdrawal");
       const manual = new Request(EXPO_STAGING_ORIGIN + "/api/native/student/material-pdf?" + new URLSearchParams({ courseId, materialId: pdfId }), { headers });
-      if ((await pdf.GET(manual)).status !== 403) throw new Error("Manual PDF authorization survived withdrawal");
-      deniedPka = (await reading.GET(request(pkaCourseId, pkaDiktatId))).status === 403;
+      const manualStatus = (await runHandler(manual, pdf.GET)).status;
+      withdrawalStage = `PDF HTTP ${manualStatus}`;
+      if (manualStatus !== 403) throw new Error("Manual PDF authorization survived withdrawal");
+      const pkaStatus = (await runHandler(request(pkaCourseId, pkaDiktatId), reading.GET)).status;
+      withdrawalStage = `PKA HTTP ${pkaStatus}`;
+      deniedPka = pkaStatus === 403;
     },
     verified: () => Boolean(articleRevision) && pkaReading && privateImage && privatePdf && deniedNormal && deniedPka,
     stop() { if (globalThis.fetch === fixtureFetch) globalThis.fetch = previousFetch; },

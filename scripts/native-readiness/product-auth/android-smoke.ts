@@ -30,12 +30,14 @@ async function connectOfflineFixture() {
   await emulator("reverse", "tcp:9443", "tcp:9443");
   await emulator("shell", "cmd", "connectivity", "airplane-mode", "disable");
   await emulator("shell", "svc", "wifi", "enable");
+  await emulator("shell", "svc", "data", "enable");
 }
 
 async function disconnectOfflineFixture() {
   await emulator("reverse", "--remove", "tcp:9443");
   await emulator("shell", "cmd", "connectivity", "airplane-mode", "enable");
   await emulator("shell", "svc", "wifi", "disable");
+  await emulator("shell", "svc", "data", "disable");
 }
 
 async function runFlow(name: string, inputs: string[] = [], label = name) {
@@ -68,7 +70,8 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["artikel kanonis", "canonical Article body"],
       ["diktat PKA", "canonical PKA Diktat body"],
       ["Kuis selesai", "Tutor live conclusion"],
-      ["Diktat verifikasi offline", "saved reading"],
+      ["(Simpan|Save) Diktat verifikasi offline", "offline save action"],
+      ["(Hapus|Remove) Diktat verifikasi offline", "offline saved state"],
       ["offline-library-list", "offline library"],
       ["Akses ditolak", "wrong-role screen"],
       ["Kamu sudah keluar", "sign-out"],
@@ -110,6 +113,16 @@ async function reportDeviceState() {
       ["Use without an account", "Chrome setup"], ["Your connection is not private", "TLS warning"],
     ].filter(([needle]) => hierarchy.includes(needle)).map(([, label]) => label);
     console.error("Chrome accessibility snapshot: " + (visible.join(", ") || "no recognized controls"));
+  } else if (screen === "Expo") {
+    const hierarchy = await shellOutput("exec-out", "uiautomator", "dump", "/dev/tty");
+    const visible = [
+      ["Bacaan offline", "offline library title"], ["Offline readings", "offline library title"],
+      ["Diktat verifikasi offline", "offline Diktat title"], ["Simpan Diktat", "offline save action"],
+      ["Hapus Diktat", "offline saved state"], ["Periksa pembaruan", "online refresh action"],
+      ["Belum ada bacaan", "offline empty state"], ["Pembaruan belum berhasil", "offline sync error"],
+      ["Hubungkan ke internet", "offline verification message"], ["Masuk", "sign-in control"],
+    ].filter(([needle]) => hierarchy.includes(needle)).map(([, label]) => label);
+    console.error("Expo accessibility snapshot: " + ([...new Set(visible)].join(", ") || "no recognized controls"));
   }
 }
 
@@ -140,6 +153,7 @@ try {
     console.log("Chrome reached the real app return page on runner-local HTTPS");
   } else if (offlineProduct) {
     try {
+      await connectOfflineFixture();
       step = "sign in as a Student and save the authorized reading";
       await runFlow("offline/download", ["-e", `PREVIEW_CLAIM=${fixture.claim}`], "offline-download");
       step = "show the saved reading after a disconnected cold start";
@@ -204,6 +218,7 @@ try {
   await reportDeviceState().catch(() => {});
   console.error("Authenticated Android preview could not " + step +
     " (device check: " + lastDeviceCheck + ", last server stage: " + (fixture?.progress() ?? "none") + ")");
+  if (fixture?.readingProgress()) console.error("Reading fixture: " + fixture.readingProgress());
   process.exitCode = 1;
 } finally {
   await fixture?.stop();
