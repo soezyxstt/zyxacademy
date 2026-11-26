@@ -1,24 +1,44 @@
-import { ManagementFailure, type FormDefinition, type FormDetails, type ManagementClient, type ManagementReads, type MediaFile, type MeetingDirectory, type PublicLink } from "../../../../../packages/native-parity/operations/management-contract";
+import { ManagementFailure, type FormDefinition, type FormDetails, type ManagementClient, type ManagementReads, type ManagementReceipt, type MediaFile, type MeetingDirectory, type PublicLink } from "../../../../../packages/native-parity/operations/management-contract";
 
-export type ManagementRequest = (path: string, init: RequestInit) => Promise<Response>;
+import type { NativeRequestInit, NativeResponse, NativeSessionTransport } from "../../../network/transport";
+
+export type ManagementRequest = (path: string, init: NativeRequestInit) => Promise<Pick<NativeResponse, "status" | "ok" | "json" | "dispose">>;
+
+export function createManagementClient(transport: NativeSessionTransport): ManagementClient {
+  return createManagementHttpClient({ request: transport.request, userId: transport.scope.accountId, sessionId: transport.scope.sessionId, assertCurrent: transport.assertCurrent });
+}
 
 type RawForm = Omit<FormDefinition, "revision" | "description" | "totalResponses"> & { revisedAt?: string; updatedAt?: string; createdAt: string; description: string | null; totalResponses?: number; deletedAt?: string | null };
 type RawLink = Omit<PublicLink, "description" | "category" | "icon" | "color"> & { description: string | null; category: string | null; icon: string | null; color: string | null };
-export function createManagementHttpClient({ request, userId }: { request: ManagementRequest; userId: string }): ManagementClient {
+export function createManagementHttpClient({ request, userId, sessionId, assertCurrent }: { request: ManagementRequest; userId: string; sessionId: string; assertCurrent?: () => void }): ManagementClient {
   if (!userId) throw new ManagementFailure("forbidden");
-  async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
-    let response: Response;
+  async function query<T>(path: string, init: NativeRequestInit): Promise<T> {
+    let response: Awaited<ReturnType<ManagementRequest>> | undefined;
     try {
-      response = await request(path, { method: "GET", headers: { Accept: "application/json", "x-native-operations-user-id": userId }, signal });
-    } catch {
+      response = await request(path, { ...init, headers: { Accept: "application/json", "x-native-operations-user-id": userId, "x-native-operations-session-id": sessionId, ...init.headers } });
+      if (response.status === 401 || response.status === 403) throw new ManagementFailure("forbidden");
+      if (response.status === 404) throw new ManagementFailure("not-found");
+      if (response.status === 424) throw new ManagementFailure("uncertain");
+      if (response.status === 425) throw new ManagementFailure("pending");
+      if (response.status === 409) throw new ManagementFailure("conflict");
+      if (response.status === 400 || response.status === 413 || response.status === 415) throw new ManagementFailure("invalid");
+      if (!response.ok) throw new ManagementFailure("unavailable");
+      const data = await response.json();
+      assertCurrent?.();
+      return data as T;
+    } catch (error) {
+      if (error instanceof ManagementFailure) throw error;
       throw new ManagementFailure("unavailable");
+    } finally {
+      response?.dispose();
     }
-    if (response.status === 401 || response.status === 403 || response.status === 409) throw new ManagementFailure("forbidden");
-    if (response.status === 404) throw new ManagementFailure("not-found");
-    if (!response.ok) throw new ManagementFailure("unavailable");
-    try { return await response.json() as T; }
-    catch { throw new ManagementFailure("unavailable"); }
   }
+  const get = <T,>(path: string, signal?: AbortSignal) => query<T>(path, { method: "GET", signal, retry: "transient-read" });
+  const nativeRead = <T,>(view: string, parameters: Record<string, string | undefined>, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ view });
+    for (const [key, value] of Object.entries(parameters)) if (value) query.set(key, value);
+    return get<T>(`/api/native/operations/management?${query}`, signal);
+  };
   const formDefinition = (form: RawForm, responses = form.totalResponses ?? 0): FormDefinition => ({
     id: form.id, slug: form.slug, title: form.title, description: form.description ?? "", category: form.category,
     questions: form.questions, settings: form.settings ?? {}, totalResponses: responses,
@@ -40,15 +60,22 @@ export function createManagementHttpClient({ request, userId }: { request: Manag
         const result = await get<{ folders: { path: string }[]; files: MediaFile[] }>(`${basePath}?folder=${encodeURIComponent(relative)}`, signal);
         return { folders: result.folders.map(item => space === "media" ? `media/${item.path}` : item.path), files: result.files };
       },
-      meetings: () => get(`/api/native/operations/management?view=meetings`, signal),
+      meetings: cursor => nativeRead("meetings", { cursor }, signal),
       meeting: id => get(`/api/native/operations/management?view=meeting&id=${encodeURIComponent(id)}`, signal),
       meetingDirectory: () => get<MeetingDirectory>("/api/admin/meet/users", signal),
-      discussions: () => get(`/api/native/operations/management?view=discussions`, signal),
-      discussion: id => get(`/api/native/operations/management?view=discussion&id=${encodeURIComponent(id)}`, signal),
+      discussions: parameters => nativeRead("discussions", parameters, signal),
+      discussion: parameters => nativeRead("discussion", parameters, signal),
       pricing: () => get(`/api/native/operations/management?view=pricing`, signal),
       links: async () => (await get<{ links: RawLink[] }>("/api/admin/links", signal)).links.map(link => ({ ...link, category: link.category ?? "", description: link.description ?? "", icon: link.icon ?? "🔗", color: link.color ?? "neutral" })),
     };
     return reads[view](input);
   };
-  return { read, mutate: async () => { throw new ManagementFailure("unsupported"); } };
+  return {
+    read,
+    async mutate(action, requestKey) {
+      return query<ManagementReceipt>("/api/native/operations/management", {
+        method: "POST", headers: { "Content-Type": "application/json", "x-native-operations-request-key": requestKey }, body: JSON.stringify(action),
+      });
+    },
+  };
 }

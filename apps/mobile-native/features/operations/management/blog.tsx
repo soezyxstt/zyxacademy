@@ -18,27 +18,29 @@ export function BlogList() {
       {!read.data.length && <Copy muted>Belum ada artikel. Mulai tulis artikel pertamamu.</Copy>}
       {read.data.map(article => <Item key={article.id} title={article.title} meta={`${articleCategories[article.category]} · ${articleStatuses.find(([status]) => status === article.status)?.[1]} · ${article.author}`}
         onPress={() => navigate(`/admin/blog/${encodeURIComponent(article.id)}/edit`)} actions={<>
-          <Action onPress={() => navigate(`/blog/${encodeURIComponent(article.slug)}`)}>Lihat</Action>
-          {share && <Action onPress={() => share(`/blog/${encodeURIComponent(article.slug)}`)}>Bagikan</Action>}
+          {article.status === "published" ? <>
+            <Action onPress={() => navigate(`/blog/${encodeURIComponent(article.slug)}`)}>Lihat</Action>
+            {share && <Action onPress={() => share(`/blog/${encodeURIComponent(article.slug)}`)}>Bagikan</Action>}
+          </> : <Action onPress={() => navigate(`/admin/blog/${encodeURIComponent(article.id)}/edit?tab=preview`)}>Pratinjau</Action>}
         </>} />)}
     </Section>}
   </Screen>;
 }
 
-export function BlogEditorRoute({ id }: { id?: string }) {
+export function BlogEditorRoute({ id, tab }: { id?: string; tab?: string }) {
   const { navigate } = useManagement();
   const read = useRead("article", id ?? "", Boolean(id));
-  if (!id || read.data) return <BlogEditor article={read.data} />;
+  if (!id || read.data) return <BlogEditor article={read.data} initialTab={tab} />;
   return <Screen title="Sunting" back={{ label: "Blog", run: () => navigate("/admin/blog") }}><LoadState {...read} retry={read.reload} /></Screen>;
 }
 
-function BlogEditor({ article }: { article?: Article }) {
+function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: string }) {
   const { client, navigate, renderMarkdown } = useManagement();
   const { id, revision, slug: _slug, author: _author, ...fields } = article ?? { ...emptyArticle, id: undefined, revision: undefined, slug: undefined, author: undefined };
   const draft = useDraft<ArticleFields>(`blog:${id ?? "new"}`, fields, revision);
   const value = draft.value;
   const action = useAction();
-  const [mode, setMode] = useState<"write" | "preview">("write");
+  const [mode, setMode] = useState<"write" | "preview">(initialTab === "preview" ? "preview" : "write");
   const [tag, setTag] = useState("");
   const [media, setMedia] = useState(false);
   const [mediaUrl, setMediaUrl] = useState("");
@@ -48,7 +50,7 @@ function BlogEditor({ article }: { article?: Article }) {
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [latest, setLatest] = useState<Article | null>(null);
   const [checking, setChecking] = useState(false);
-  const edit = <K extends keyof ArticleFields>(key: K, next: ArticleFields[K]) => draft.change({ ...value, [key]: next });
+  const edit = <K extends keyof ArticleFields>(key: K, next: ArticleFields[K]) => { if (!action.busy) draft.change({ ...value, [key]: next }); };
   const leave = () => navigate("/admin/blog");
 
   function submit() {
@@ -56,6 +58,7 @@ function BlogEditor({ article }: { article?: Article }) {
     if (error) return action.setError(new ManagementFailure("invalid", error));
     const save = () => action.run({ type: "article.save", id, revision: draft.revision, fields: value }, () => { draft.clear(); leave(); });
     if (value.status === "published") setConfirmation({ title: "Terbitkan artikel?", description: `Artikel ${articleTitle(value)} akan tampil di blog.`, label: "Terbitkan", run: save });
+    else if (article?.status === "published") setConfirmation({ title: "Tarik artikel dari blog?", description: `Artikel ${articleTitle(value)} akan disimpan sebagai draf.`, label: "Simpan draf", run: save });
     else void save();
   }
 

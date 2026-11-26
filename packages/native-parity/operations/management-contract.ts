@@ -6,7 +6,7 @@ export const managementRoutes = [
 
 export type ManagementRoute = typeof managementRoutes[number];
 export type ManagementMode = "populated" | "empty" | "recoverable-error";
-export type ManagementError = "forbidden" | "not-found" | "conflict" | "invalid" | "unavailable" | "unsupported";
+export type ManagementError = "forbidden" | "not-found" | "conflict" | "invalid" | "unavailable" | "unsupported" | "pending" | "uncertain";
 
 export class ManagementFailure extends Error {
   constructor(readonly code: ManagementError, message?: string) {
@@ -82,7 +82,9 @@ export type MeetingSpace = { name: string; title: string; meetingCode: string; m
 export type MeetingUser = { id: string; name: string; email: string; roles: string[]; courseIds: string[] };
 export type MeetingDirectory = { users: MeetingUser[]; courses: { id: string; title: string }[] };
 export type DiscussionThread = { id: string; title: string; channel: string; status: "open" | "resolved"; messageCount: number; canReply?: boolean; canResolve?: boolean };
-export type DiscussionMessage = { id: string; author: string; body: string };
+export type ManagementPage<T> = { items: T[]; nextCursor?: string };
+export type DiscussionMessage = { id: string; author: string; body: string; seq: number };
+export type DiscussionPage = ManagementPage<DiscussionMessage> & { observationReceipt?: string; throughSeq?: number };
 export type LinkFields = { title: string; url: string; description: string; category: string; icon: string; color: string; isActive: boolean };
 export type PublicLink = LinkFields & { id: string; sortOrder: number };
 export type Voucher = { id: string; code: string; discountPercent: number; maxQuota: number; usedCount: number; expiresAt: string; description: string; isActive: boolean };
@@ -91,8 +93,8 @@ export type PricingData = { vouchers: Voucher[]; discounts: PricingDiscounts; no
 
 export type ManagementReads = {
   articles: [undefined, ArticleSummary[]]; article: [string, Article]; forms: [undefined, FormDefinition[]]; form: [string, FormDetails];
-  media: [MediaLocation, MediaLibrary]; meetings: [undefined, MeetingRecord[]]; meeting: [string, MeetingDetails]; meetingDirectory: [undefined, MeetingDirectory];
-  discussions: [undefined, DiscussionThread[]]; discussion: [string, DiscussionMessage[]]; pricing: [undefined, PricingData]; links: [undefined, PublicLink[]];
+  media: [MediaLocation, MediaLibrary]; meetings: [string | undefined, ManagementPage<MeetingRecord>]; meeting: [string, MeetingDetails]; meetingDirectory: [undefined, MeetingDirectory];
+  discussions: [{ cursor?: string; search?: string; status?: DiscussionThread["status"] }, ManagementPage<DiscussionThread>]; discussion: [{ id: string; cursor?: string }, DiscussionPage]; pricing: [undefined, PricingData]; links: [undefined, PublicLink[]];
 };
 
 export type ManagementAction =
@@ -109,6 +111,7 @@ export type ManagementAction =
   | { type: "meet.delete"; id: string }
   | { type: "discussion.resolve"; id: string; resolved: boolean }
   | { type: "discussion.reply"; id: string; body: string }
+  | { type: "discussion.read"; id: string; throughSeq: number; observationReceipt: string; messageIds: string[] }
   | { type: "link.save"; id?: string; fields: LinkFields }
   | { type: "link.toggle"; id: string; isActive: boolean }
   | { type: "link.move"; id: string; sortOrder: number; direction: "up" | "down" }
@@ -118,7 +121,7 @@ export type ManagementAction =
   | { type: "voucher.delete"; id: string }
   | { type: "pricing.discounts"; discounts: PricingDiscounts };
 
-export type ManagementReceipt = { id?: string; revision?: string; space?: MeetingSpace };
+export type ManagementReceipt = { id?: string; revision?: string; space?: MeetingSpace; warningCount?: number };
 export interface ManagementClient {
   read<K extends keyof ManagementReads>(view: K, input: ManagementReads[K][0], signal?: AbortSignal): Promise<ManagementReads[K][1]>;
   mutate(action: ManagementAction, requestKey: string): Promise<ManagementReceipt>;
@@ -136,8 +139,9 @@ export function validateArticle(fields: ArticleFields): string | undefined {
   if (fields.status === "scheduled") return "Publikasi terjadwal belum tersedia. Pilih draf atau terbit.";
   if (!articleTitle(fields)) return "Isi judul atau awali konten dengan heading judul.";
   const content = fields.content.trim();
-  if (!content || !content.replace(/^#\s+[^\n]+\n?/u, "").trim()) return "Isi artikel tidak boleh kosong.";
-  if (fields.thumbnailUrl && !/^(https:\/\/|\/api\/storage\/)/.test(fields.thumbnailUrl)) return "Gunakan gambar dari sumber yang didukung.";
+  const heading = /^#\s+([^\r\n]+)(?:\r?\n|$)/.exec(content);
+  if (!content || (heading?.[1].trim() === articleTitle(fields) && !content.slice(heading[0].length).trim())) return "Isi artikel tidak boleh kosong.";
+  if (fields.thumbnailUrl && !/^(https:\/\/|\/(api\/storage\/file|images|assets)\/)/.test(fields.thumbnailUrl)) return "Gunakan gambar dari sumber yang didukung.";
 }
 
 export function validateFormSettings(settings: FormSettings): string | undefined {

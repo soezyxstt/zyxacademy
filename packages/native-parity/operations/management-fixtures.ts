@@ -31,8 +31,8 @@ const initialThreads: DiscussionThread[] = [
   { id: "thread-second", title: "Materi latihan pekan ini", channel: "Umum", status: "resolved", messageCount: 1 },
 ];
 const initialMessages: Record<string, DiscussionMessage[]> = {
-  "thread-local": [{ id: "message-one", author: "Murid Contoh", body: "Apa perbedaan perpindahan dan jarak dalam soal ini?" }],
-  "thread-second": [{ id: "message-two", author: "Tutor Contoh", body: "Daftar latihan dibahas pada pertemuan berikutnya." }],
+  "thread-local": [{ id: "message-one", author: "Murid Contoh", seq: 1, body: "Apa perbedaan perpindahan dan jarak dalam soal ini?" }],
+  "thread-second": [{ id: "message-two", author: "Tutor Contoh", seq: 1, body: "Daftar latihan dibahas pada pertemuan berikutnya." }],
 };
 const initialLinks: PublicLink[] = [
   { id: "link-local", title: "Panduan belajar", url: "https://example.invalid/panduan", description: "Panduan sesi latihan", category: "Dokumen", icon: "📚", color: "neutral", isActive: true, sortOrder: 0 },
@@ -79,6 +79,7 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
   const meetings = data ? clone(initialMeetings) : [];
   const threads = data ? clone(initialThreads) : [];
   const messages = data ? clone(initialMessages) : {};
+  const discussionsReadThrough = new Map<string, number>();
   const links = data ? clone(initialLinks) : [];
   const pricing = clone(initialPricing);
   if (!data) pricing.vouchers = [];
@@ -100,11 +101,11 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
       const prefix = folder || (space === "media" ? "media" : "");
       return { folders: (space === "media" ? folders : storageFolders).filter(key => directChild(key, prefix)), files: (space === "media" ? files : storage).filter(file => directChild(file.key, prefix)) };
     },
-    meetings: () => meetings,
+    meetings: () => ({ items: meetings }),
     meeting: id => required(meetings.find(record => record.id === id)),
     meetingDirectory: () => data ? initialDirectory : { users: [], courses: [] },
-    discussions: () => threads,
-    discussion: id => required(messages[id]),
+    discussions: ({ search, status }) => ({ items: threads.filter(thread => (!status || thread.status === status) && (!search || `${thread.title} ${thread.channel}`.toLowerCase().includes(search.toLowerCase()))) }),
+    discussion: ({ id }) => ({ items: required(messages[id]), observationReceipt: `discussion-fixture-${id}`, throughSeq: discussionsReadThrough.get(id) ?? 0 }),
     pricing: () => pricing,
     links: () => links.slice().sort((a, b) => a.sortOrder - b.sortOrder),
   };
@@ -116,9 +117,12 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
         const previous = action.id ? required(articles.find(article => article.id === action.id)) : undefined;
         if (previous) checkRevision(action.revision, previous.revision);
         const title = articleTitle(action.fields);
-        const slug = managementSlug(title);
-        invalid(articles.some(article => article.slug === slug && article.id !== action.id) ? "Alamat artikel sudah dipakai." : undefined);
-        const article = { ...clone(action.fields), title, slug, id: previous?.id ?? nextId("article"), revision: nextId("revision"), author: previous?.author ?? "Admin Zyx" };
+        const baseSlug = managementSlug(title) || "artikel";
+        let slug = previous?.slug ?? baseSlug;
+        for (let suffix = 2; !previous && articles.some(article => article.slug === slug); suffix += 1) slug = `${baseSlug}-${suffix}`;
+        const content = action.fields.content.trim().replace(/^#\s+([^\r\n]+)(?:\r?\n|$)/, (line, heading: string) => heading.trim() === title ? "" : line).trim();
+        const summary = action.fields.summary.trim() || content.slice(0, 150).trim();
+        const article = { ...clone(action.fields), title, content, summary, slug, id: previous?.id ?? nextId("article"), revision: nextId("revision"), author: previous?.author ?? "Admin Zyx" };
         articles.splice(previous ? articles.indexOf(previous) : 0, previous ? 1 : 0, article);
         return { id: article.id, revision: article.revision };
       }
@@ -126,7 +130,7 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
         invalid(validateForm(action.fields));
         const previous = action.id ? required(forms.find(detail => detail.form.id === action.id)) : undefined;
         if (previous) checkRevision(action.revision, previous.form.revision);
-        const slug = action.fields.slug || managementSlug(action.fields.title);
+        const slug = action.fields.slug || previous?.form.slug || nextId("f");
         invalid(forms.some(detail => detail.form.slug === slug && detail.form.id !== action.id) ? "Slug sudah digunakan." : undefined);
         invalid(previous?.responses.length && JSON.stringify(previous.form.questions) !== JSON.stringify(action.fields.questions) ? "Pertanyaan formulir dengan respons harus dipertahankan." : undefined);
         const form = { ...clone(action.fields), title: action.fields.title.trim(), slug, id: previous?.form.id ?? nextId("form"), revision: nextId("revision"), totalResponses: previous?.form.totalResponses ?? 0 };
@@ -214,10 +218,18 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
       case "discussion.reply": {
         const thread = required(threads.find(item => item.id === action.id));
         invalid(!action.body.trim() ? "Tulis balasan terlebih dahulu." : undefined);
+        invalid(thread.status === "resolved" ? "Diskusi sudah selesai." : undefined);
         const id = nextId("message");
-        reads.discussion(thread.id).push({ id, author: "Admin Zyx", body: action.body.trim() });
+        const page = reads.discussion({ id: thread.id });
+        page.items.push({ id, author: "Admin Zyx", seq: page.items.length + 1, body: action.body.trim() });
         thread.messageCount += 1;
         return { id };
+      }
+      case "discussion.read": {
+        const page = reads.discussion({ id: action.id });
+        invalid(action.observationReceipt !== page.observationReceipt || !action.messageIds.every(id => page.items.some(message => message.id === id)) ? "Muat ulang halaman diskusi." : undefined);
+        discussionsReadThrough.set(action.id, Math.max(page.throughSeq ?? 0, action.throughSeq));
+        return { id: action.id };
       }
       case "link.save": {
         invalid(!action.fields.title.trim() || !safeLink(action.fields.url) ? "Isi judul serta URL HTTP atau HTTPS yang valid." : undefined);

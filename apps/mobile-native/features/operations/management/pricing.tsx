@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View } from "react-native";
+import { calendarDateToJakartaInstant, isCalendarDate } from "../../../../../lib/date-utils";
 import { CUSTOM_DEFAULT_MEETINGS, CUSTOM_MEETING_STEP, CUSTOM_MIN_MEETINGS, DEFAULT_COURSES, DEFAULT_PERSONS, formatPlanPrice, getCustomPlanPriceQuote, getTutorFeeQuote } from "../../../../../lib/pricing-calculations";
 import { ManagementFailure, type PricingData, type PricingDiscounts, type Voucher } from "../../../../../packages/native-parity/operations/management-contract";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Item, LoadState, Screen, Section, Sections, formatTimestamp, styles, useAction, useManagement, useRead, type Confirmation } from "./ui";
@@ -78,7 +79,8 @@ function Vouchers({ vouchers, reload }: { vouchers: Voucher[]; reload: () => voi
     const { code, discountPercent, maxQuota, expiresAt, description } = value;
     const percent = integer(discountPercent);
     const quota = integer(maxQuota);
-    const date = new Date(expiresAt);
+    const expiry = expiresAt.trim();
+    const date = isCalendarDate(expiry) ? calendarDateToJakartaInstant(expiry, "23:59:59.999") : new Date(expiry);
     if (!code.trim() || percent === null || percent > 100 || quota === null || !Number.isFinite(date.getTime())) return action.setError(new ManagementFailure("invalid", "Periksa kode, diskon, kuota dan tanggal voucher."));
     void action.run({ type: "voucher.create", voucher: { code: code.trim().toUpperCase(), discountPercent: percent, maxQuota: quota, expiresAt: date.toISOString(), description } }, () => { setValue(null); reload(); });
   }

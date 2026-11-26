@@ -17,6 +17,7 @@ export type ManagementRuntime = {
   openExternal?: (url: string) => void;
   share?: (message: string) => void;
   drafts: ManagementDraftStore;
+  retries: Map<string, string>;
   renderMarkdown?: (markdown: string) => ReactNode;
 };
 
@@ -36,11 +37,13 @@ export function managementErrorMessage(error: unknown): string {
     invalid: "Periksa kembali isian.",
     unavailable: "Data belum dapat dimuat. Coba lagi.",
     unsupported: "Operasi belum tersedia di aplikasi ini.",
+    pending: "Operasi masih diproses. Coba periksa statusnya lagi.",
+    uncertain: "Hasil operasi belum dapat dipastikan. Periksa statusnya di web Admin.",
   };
   return error.code === "invalid" && error.message !== "invalid" ? error.message : messages[error.code];
 }
 
-type LoadState<T> = { key: string; data?: T; error?: unknown };
+type LoadState<T> = { client?: ManagementClient; key: string; data?: T; error?: unknown };
 export function useRead<K extends keyof ManagementReads>(view: K, input: ManagementReads[K][0], enabled = true) {
   const { client } = useManagement();
   const [attempt, setAttempt] = useState(0);
@@ -52,13 +55,14 @@ export function useRead<K extends keyof ManagementReads>(view: K, input: Managem
     if (!enabled) return;
     const controller = new AbortController();
     client.read(view, currentInput.current, controller.signal).then(data => {
-      if (!controller.signal.aborted) setState({ key, data });
+      if (!controller.signal.aborted) setState({ client, key, data });
     }).catch((error: unknown) => {
-      if (!controller.signal.aborted) setState({ key, error });
+      if (!controller.signal.aborted) setState({ client, key, error });
     });
     return () => controller.abort();
   }, [client, view, key, enabled]);
-  return { ...(state.key === key ? state : {}), loading: enabled && state.key !== key, reload: () => setAttempt(value => value + 1) };
+  const current = state.client === client && state.key === key;
+  return { ...(current ? state : {}), loading: enabled && !current, reload: () => setAttempt(value => value + 1) };
 }
 
 let operationSerial = 0;
@@ -68,26 +72,38 @@ function requestKey() {
 }
 
 export function useAction() {
-  const { client } = useManagement();
-  const pending = useRef(false);
+  const { client, retries } = useManagement();
+  const lifetime = useRef<object | null>(null);
+  useEffect(() => {
+    lifetime.current = {};
+    return () => { lifetime.current = null; };
+  }, [client]);
+  const pending = useRef<object | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
   const [status, setStatus] = useState("");
-  const run = async (action: ManagementAction, succeeded?: (result: ManagementReceipt) => void, success = "Perubahan tersimpan.") => {
-    if (pending.current) return;
-    pending.current = true;
+  const run = async (action: ManagementAction, succeeded?: (result: ManagementReceipt) => void, success: string | ((receipt: ManagementReceipt) => string) = "Perubahan tersimpan.") => {
+    const current = lifetime.current;
+    if (!current || pending.current === current) return;
+    pending.current = current;
+    const payload = JSON.stringify(action);
+    const key = retries.get(payload) ?? requestKey();
+    retries.set(payload, key);
     setBusy(true);
     setError(undefined);
     setStatus("");
     try {
-      const result = await client.mutate(action, requestKey());
-      setStatus(success);
+      const result = await client.mutate(action, key);
+      retries.delete(payload);
+      if (lifetime.current !== current) return;
+      setStatus(typeof success === "function" ? success(result) : success);
       succeeded?.(result);
     } catch (failure) {
-      setError(failure);
+      if (failure instanceof ManagementFailure && !["unavailable", "pending", "uncertain"].includes(failure.code)) retries.delete(payload);
+      if (lifetime.current === current) setError(failure);
     } finally {
-      pending.current = false;
-      setBusy(false);
+      if (pending.current === current) pending.current = null;
+      if (lifetime.current === current) setBusy(false);
     }
   };
   return { busy, error, status, setError, run };
@@ -185,7 +201,7 @@ export function Item({ title, meta, actions, onPress }: { title: string; meta?: 
 
 export function LoadState({ loading, error, retry }: { loading: boolean; error?: unknown; retry: () => void }) {
   const { colors } = useManagement();
-  if (loading) return <ActivityIndicator accessibilityLabel="Memuat" style={styles.loader} color={colors.primary} />;
+  if (loading) return <ActivityIndicator testID="operations-loading" accessibilityLabel="Memuat" style={styles.loader} color={colors.primary} />;
   if (!error) return null;
   return <Section><Copy status="error">{managementErrorMessage(error)}</Copy>
     {(!(error instanceof ManagementFailure) || !["forbidden", "not-found", "unsupported"].includes(error.code)) && <View style={styles.row}><Action onPress={retry}>Coba lagi</Action></View>}

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { View } from "react-native";
-import { buildFormSteps } from "../../../../../lib/forms/presentation";
+import { createStandardFormQuestions } from "../../../../../lib/forms/standard-template";
+import { buildFormSteps, isEmptyFormAnswer } from "../../../../../lib/forms/presentation";
 import { summarizeFormResponses, type FormQuestion as ValidatedFormQuestion } from "../../../../../lib/forms/validation";
 import { ManagementFailure, formCategories, newForm, newQuestion, questionTypes, validateForm, validateFormSettings, type FormDefinition, type FormDetails, type FormFields, type FormQuestion, type FormSettings } from "../../../../../packages/native-parity/operations/management-contract";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, formatTimestamp, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
 
-const builderTabs = [["builder", "Pembuat"], ["preview", "Pratinjau"], ["settings", "Setelan"], ["forms", "Daftar formulir"]] as const;
+const builderTabs = [["builder", "Editor pertanyaan"], ["preview", "Pratinjau"], ["settings", "Pengaturan"], ["forms", "Daftar terbit"]] as const;
 const detailTabs = [["summary", "Ringkasan"], ["question", "Pertanyaan"], ["individual", "Individu"], ["settings", "Setelan"]] as const;
 const categories = Object.entries(formCategories) as [FormFields["category"], string][];
 const types = Object.entries(questionTypes) as [FormQuestion["type"], string][];
@@ -31,13 +32,20 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
   const action = useAction();
   const draft = useDraft<FormFields>(`forms:${form?.id ?? "new"}`, form ? { title: form.title, description: form.description, slug: form.slug, category: form.category, questions: form.questions, settings: form.settings } : newForm(), form?.revision);
   const value = draft.value;
-  const edit = <K extends keyof FormFields>(key: K, next: FormFields[K]) => draft.change({ ...value, [key]: next });
+  const edit = <K extends keyof FormFields>(key: K, next: FormFields[K]) => { if (!action.busy) draft.change({ ...value, [key]: next }); };
   const questionEdit = (index: number, changes: Partial<FormQuestion>) => edit("questions", value.questions.map((question, order) => order === index ? { ...question, ...changes } : question));
   const move = (index: number, amount: number) => {
     const items = [...value.questions];
     [items[index], items[index + amount]] = [items[index + amount], items[index]];
     edit("questions", items);
   };
+
+  function applyStandardPreset() {
+    const apply = () => edit("questions", createStandardFormQuestions());
+    const edited = value.questions.length !== 1 || Boolean(value.questions[0].title.trim() || value.questions[0].description?.trim());
+    if (edited) setConfirmation({ title: "Ganti daftar pertanyaan?", description: "Preset 12 jenis soal akan mengganti pertanyaan yang ada di draf.", label: "Muat preset", run: apply });
+    else apply();
+  }
 
   function submit() {
     const error = validateForm(value);
@@ -83,11 +91,14 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
       <Action onPress={() => { draft.reviewRevision(latest.revision); setLatest(null); action.setError(undefined); }}>Lanjutkan dengan perubahan lokal</Action>
     </Section>}
     {tab === "builder" && <>
-      <Field label="Nama formulir" value={value.title} onChangeText={next => edit("title", next)} />
+      <Field label="Judul formulir" value={value.title} onChangeText={next => edit("title", next)} />
       <Field label="Deskripsi" multiline value={value.description} onChangeText={next => edit("description", next)} />
       <Field label="Slug tautan" value={value.slug} onChangeText={next => edit("slug", next)} autoCapitalize="none" />
       <Copy strong>Kategori</Copy><Choices values={categories} current={value.category} onChange={next => edit("category", next)} />
+      {!form?.totalResponses && <View style={styles.row}><Action onPress={applyStandardPreset}>Preset 12 jenis soal</Action></View>}
+      {Boolean(form?.totalResponses) && <Copy muted>Pertanyaan dengan respons tersimpan dipertahankan.</Copy>}
       {value.questions.map((question, index) => <Section key={index} title={`${index + 1}. ${questionTypes[question.type]}`}>
+        {form?.totalResponses ? <Copy>{question.title}</Copy> : <>
         <Field label={nonAnswers(question) ? "Judul" : "Teks pertanyaan"} value={question.title} onChangeText={next => questionEdit(index, { title: next })} />
         <Field label="Deskripsi" value={question.description ?? ""} onChangeText={next => questionEdit(index, { description: next })} multiline />
         {!nonAnswers(question) && <>
@@ -102,12 +113,13 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
           <Action onPress={() => edit("questions", [...value.questions.slice(0, index + 1), { ...question }, ...value.questions.slice(index + 1)])}>Duplikat</Action>
           <Action disabled={value.questions.length === 1} onPress={() => edit("questions", value.questions.filter((_, order) => order !== index))}>Hapus</Action>
         </View>
+        </>}
       </Section>)}
-      <View style={styles.row}>
+      {!form?.totalResponses && <View style={styles.row}>
         <Action onPress={() => edit("questions", [...value.questions, newQuestion()])}>Tambah pertanyaan</Action>
         <Action onPress={() => edit("questions", [...value.questions, { title: "", type: "STATEMENT" }])}>Tambah pernyataan</Action>
-        <Action onPress={() => edit("questions", [...value.questions, { title: "", type: "SECTION" }])}>Tambah bagian</Action>
-      </View>
+        <Action onPress={() => edit("questions", [...value.questions, { title: "Bagian baru", type: "SECTION" }])}>Tambah bagian</Action>
+      </View>}
     </>}
     {tab === "preview" && <FormPreview fields={value} />}
     {tab === "settings" && <Settings settings={value.settings} update={next => edit("settings", next)} />}
@@ -162,20 +174,41 @@ function FormPreview({ fields }: { fields: FormFields }) {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
   const step = steps[Math.min(index, steps.length - 1)];
   const cover = step.kind === "cover" || (step.kind === "page" && step.includeCover);
   const email = step.kind === "email" || (step.kind === "page" && step.includeEmail);
   const shownQuestions = step.kind === "page" ? step.questionIndices : "questionIndex" in step ? [step.questionIndex] : [];
-  const answer = (key: string, value: string) => setAnswers(previous => ({ ...previous, [key]: value }));
+  const answer = (key: string, value: string) => {
+    setError("");
+    setAnswers(previous => ({ ...previous, [key]: value }));
+  };
+  function next() {
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((answers.email ?? "").trim())) return setError("Masukkan alamat email yang valid.");
+    for (const questionIndex of shownQuestions) {
+      const question = fields.questions[questionIndex];
+      if (!question.required || nonAnswers(question)) continue;
+      const key = String(questionIndex);
+      let value: unknown = answers[key];
+      if (question.type.startsWith("GRID_")) {
+        value = Object.fromEntries((question.gridRows ?? []).map((row, order) => [row, answers[`${key}-${order}`]]));
+      }
+      if (isEmptyFormAnswer(question, value)) return setError(`Isi pertanyaan ${question.title || questionTypes[question.type]}.`);
+    }
+    setError("");
+    if (index + 1 < steps.length) setIndex(index + 1);
+    else setDone(true);
+  }
   if (done) return <Section title="Pratinjau selesai"><Copy>{fields.settings.customSuccessMessage || "Terima kasih."}</Copy><Action onPress={() => { setDone(false); setIndex(0); setAnswers({}); }}>Ulangi</Action></Section>;
   return <Section>
+    {error && <Copy status="error">{error}</Copy>}
     {cover && <><Heading>{fields.title || "Formulir tanpa judul"}</Heading>{fields.description && <Copy muted>{fields.description}</Copy>}</>}
     {email && <Field label="Alamat email" value={answers.email ?? ""} onChangeText={next => answer("email", next)} keyboardType="email-address" autoCapitalize="none" />}
     {shownQuestions.map(questionIndex => {
       const question = fields.questions[questionIndex];
       const key = String(questionIndex);
       if (nonAnswers(question)) return <View key={key} style={styles.field}>{question.title && <Heading>{question.title}</Heading>}{question.description && <Copy>{question.description}</Copy>}</View>;
-      if (question.type === "FILE_UPLOAD") return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading><Copy muted>Unggahan dinonaktifkan dalam pratinjau.</Copy></View>;
+      if (question.type === "FILE_UPLOAD") return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading><Action onPress={() => answer(key, "berkas-ujicoba.pdf")}>{answers[key] || "Pilih berkas uji"}</Action></View>;
       if (question.options?.length && optionTypes.has(question.type)) return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading>
         <View style={styles.row}>{question.options.filter(Boolean).map((option, order) => {
           const entries = (answers[key] ?? "").split("\n").filter(Boolean);
@@ -189,7 +222,7 @@ function FormPreview({ fields }: { fields: FormFields }) {
     })}
     <View style={styles.row}>
       {index > 0 && <Action onPress={() => setIndex(index - 1)}>Kembali</Action>}
-      <Action variant="default" onPress={() => index + 1 < steps.length ? setIndex(index + 1) : setDone(true)}>{index + 1 < steps.length ? "Berikutnya" : "Selesaikan pratinjau"}</Action>
+      <Action variant="default" onPress={next}>{index + 1 < steps.length ? "Berikutnya" : "Selesaikan pratinjau"}</Action>
     </View>
   </Section>;
 }
