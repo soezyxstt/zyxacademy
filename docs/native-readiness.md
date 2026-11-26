@@ -5,10 +5,14 @@
 | Sumbu | Cakupan pada baseline | Bukti Expo yang lulus | Ambang |
 |---|---|---|---|
 | Komponen | 668 modul UI TSX di luar halaman dan fixture. Satu modul dapat memuat beberapa komponen. 44 modul di `components/ui` termasuk di dalamnya. | 1/668 modul (0,15%) memiliki tiga kasus visual lulus di kedua platform. 0/668 memiliki bukti seluruh kontrak. | Minimal 635/668 modul pada baseline, dan minimal 95% komponen individual setelah semua ekspor dan komponen lokal dipetakan. |
-| Halaman | 168 pola rute aplikasi, termasuk rute publik, otorisasi dan kompatibilitas. 59 rute `visual-fixtures` dicatat terpisah. | 0/168 (0%). Galeri internal dapat dijalankan oleh CI. | Minimal 160/168 halaman dengan navigasi, data dan state yang telah diverifikasi. |
+| Halaman | 151 dari 168 pola rute awal masuk cakupan Expo. 17 pola publik tetap di browser. 59 rute `visual-fixtures` dicatat terpisah. | Baseline: 0/151 (0%). Galeri internal dapat dijalankan oleh CI. | Minimal 144/151 pola dengan navigasi, data dan state yang telah diverifikasi. |
 | Fungsi backend yang dibutuhkan klien | 222 kandidat metode HTTP setelah pemilahan awal, 246 Server Actions, serta pembacaan langsung dari Server Components dan operasi dinamis. Inventaris fungsi produk masih terbuka. | 0 operasi terintegrasi dan teruji melalui Expo (0%). | Setelah pemetaan dan deduplikasi, minimal `ceil(0.95 × jumlah operasi produk relevan)`. |
 
 Ketiga ambang berlaku sendiri-sendiri. Persentase komponen terhadap jumlah berkas hanya membantu menemukan celah. Modul dengan lima komponen baru mendapat kredit modul ketika kelimanya lulus. Sebelum keputusan akhir, buat entri per komponen dengan ID berkas dan simbol, termasuk komponen di halaman atau renderer, subkomponen, variasi aksesibel dan alias. Catat alasan untuk modul utilitas, ekspor ulang atau implementasi desktop yang dilayani oleh padanan mobile. Laporkan juga item belum dipetakan, sebab item tersebut masih masuk lingkup audit.
+
+## Cakupan pengukuran saat ini
+
+Dari [inventaris awal](../plans/native-parallel/routes.tsv), 151 pola tetap masuk pengukuran Expo. Tiga belas pola marketing dan blog, termasuk demo, serta `/tautan`, `/forms/[id]`, `/f/[slug]`, dan `/meet/[slug]` dilayani di browser. Tiga rute autentikasi di grup marketing tetap masuk cakupan, begitu pula operasi Admin yang mengelola formulir, Meet, dan tautan. Angka pemasangan pada run historis dapat mencakup entri publik. Handoff atau operasi di browser tidak menambah kredit halaman maupun fungsi Expo. Fixture publik historis dikeluarkan dari hasil CI native bawaan.
 
 ## Bukti Android setelah baseline
 

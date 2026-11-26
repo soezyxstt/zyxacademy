@@ -8,11 +8,17 @@ Repo `soezyxstt/zyxacademy`. Semua PR jalur eksternal memakai base **`soezyxst/r
 |---|---|---|
 | `native-migration/student` | Agen 1 | Semua 50 halaman Student, komposit khusus peserta dan operasi domain eksklusifnya |
 | `native-migration/academic` | Agen 2 | Semua 18 halaman Tutor dan 36 halaman Admin di route group academic, beserta operasi akademik terkait |
-| `native-migration/operations` | Agen 3 | 36 halaman Admin di luar grup academic dan 13 halaman marketing di luar tiga rute autentikasi |
+| `native-migration/operations` | Agen 3 | 36 halaman Admin di luar grup academic |
 | `native-migration/shared-ui` | Agen 4 | Layout dan komposit yang digunakan dua atau lebih jalur, termasuk shell, navigasi dan pola interaksi |
-| `soezyxst/react-native-monorepo` | Thread utama | Primitif lintas aplikasi, token/font, router dan pemasangan modul, CI native, sesi dan isolasi akun, transport/offline, kapabilitas perangkat, renderer artikel/diktat/rumus dan Zyra pada tahap akhir, serta 15 halaman lain termasuk tiga rute autentikasi |
+| `soezyxst/react-native-monorepo` | Thread utama | Primitif lintas aplikasi, token/font, router dan pemasangan modul, CI native, sesi dan isolasi akun, transport/offline, kapabilitas perangkat, renderer artikel/diktat/rumus dan Zyra pada tahap akhir, serta 11 pola halaman lain termasuk tiga rute autentikasi |
 
 Inventaris [routes.tsv](routes.tsv) berisi setiap berkas halaman dan pemilik tunggal pada baseline. Jalur pemilik halaman juga memiliki komposisi UI, adapter data domain dan pemulihan halaman itu. Sebagai contoh, Agen 1 memiliki rute Student yang menampilkan artikel, sedangkan renderer konten di dalamnya milik thread utama. Kuis akademik Tutor dan Admin academic dimiliki Agen 2. Halaman Admin eval, meski berisi kuis, milik Agen 3. Versi desktop/mobile atau alias yang memakai satu operasi tidak menambah kredit backend ganda.
+
+## Cakupan native saat ini
+
+Baseline memuat 168 pola. Cakupan Expo berisi 151 pola, terdiri dari 50 Student, 54 Academic, 36 Admin Operations, dan 11 milik integrator. Ambang 95% membutuhkan minimal 144 pola dengan bukti yang memenuhi gerbang. Tiga rute autentikasi di grup marketing tetap masuk cakupan.
+
+Tiga belas pola marketing, termasuk blog dan demo, serta `/tautan`, `/forms/[id]`, `/f/[slug]`, dan `/meet/[slug]` tetap dilayani oleh Next.js di browser. Inventaris menyimpan pemilik awal semua pola untuk menelusuri bukti historis. Pengujian handoff memeriksa tujuan browser. Handoff, fixture publik historis, serta operasi yang berjalan di browser tidak dihitung sebagai implementasi atau kelulusan native. Formulir dan Meet yang dikelola melalui Admin tetap termasuk dalam jalur Operations.
 
 ## Kontrak yang disediakan induk
 

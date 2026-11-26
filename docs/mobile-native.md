@@ -10,7 +10,7 @@ Pada branch integrasi, `zyx-native-parity://internal/session` membuka pemeriksaa
 
 Produk native dapat menggunakan `useNativeSession()` dari `apps/mobile-native/auth/session-provider.tsx` untuk memperoleh transport yang telah memeriksa identitas pengguna. Pengujian runtime membutuhkan server dengan perubahan yang sama, build Android/iOS yang mengenali skema internal, serta Google OAuth untuk origin staging. Halaman pemeriksaan akun adalah alat integrasi. Bukti paritas visual untuk halaman login produk dilacak terpisah.
 
-Pengaturan Murid menyimpan tema dan preferensi getar di perangkat. Pilihan tetap berlaku saat akun berganti. Kontrol pilihan, tombol navigasi atas dan hasil pengiriman formulir publik memakai preferensi yang sama. Formulir memberi getaran sukses setelah server mengonfirmasi penerimaan. Jika koneksi terputus dan hasil kirim belum diketahui, formulir menampilkan status tersebut. [Preferensi perangkat](../apps/mobile-native/device/preferences-provider.tsx), [umpan balik sentuh](../apps/mobile-native/device/haptics.ts).
+Pengaturan Murid menyimpan tema dan preferensi getar di perangkat. Pilihan tetap berlaku saat akun berganti. Kontrol pilihan dan tombol navigasi atas memakai preferensi yang sama. [Preferensi perangkat](../apps/mobile-native/device/preferences-provider.tsx), [umpan balik sentuh](../apps/mobile-native/device/haptics.ts).
 
 Shell produk, handoff browser dan kanal push memakai bahasa akun terverifikasi, bahasa sesi offline yang tersimpan, atau bahasa perangkat. Shell Murid, Tutor dan Admin menampilkan lonceng untuk riwayat notifikasi penerima saat sesi dan perannya terverifikasi. Pengguna dapat membuka tujuan yang diizinkan atau menandai notifikasi sebagai dibaca. Pengujian transport dua akun mencakup pembacaan dan perubahan status melalui handler Next.js serta PostgreSQL uji. [Kotak masuk Expo](../apps/mobile-native/features/notification-inbox/bell.tsx), [pengujian backend](https://github.com/soezyxstt/zyxacademy/actions/runs/45846036130/job/140001017502), [kontrak notifikasi](notifications.md).
 
@@ -18,9 +18,11 @@ Pada build yang mendukung push, Tutor dan Admin dapat memilih **Aktifkan notifik
 
 Build produk Expo mengutamakan tujuan dari tautan langsung atau login. Jika tujuan tidak diberikan, aplikasi mencoba membuka rute produk terakhir yang difokuskan dalam 24 jam untuk origin, akun, dan sesi yang sama. Rute harus terpasang dan sesuai peran saat ini. Pemeriksaan akses data tetap dilakukan oleh layar dan API masing-masing. Rute publik, auth, MCP, API, pengelolaan kredensial, fragmen, dan parameter di luar daftar yang didukung tidak disimpan. Keluar atau pencabutan akses akun membersihkan riwayat sesi. Dashboard peran dipakai ketika riwayat tidak bisa dibuka. [Riwayat rute Expo](../apps/mobile-native/routing/route-history.ts).
 
-## Tautan Google Meet
+## Halaman publik di browser
 
-Expo memeriksa slug sesuai huruf aslinya melalui `GET /api/meet/[slug]` tanpa mengirim kredensial. Tautan yang tersedia menampilkan judul dan tombol **Gabung Google Meet**. Tautan yang hilang atau sudah dihapus menampilkan jalan kembali. Jika pemeriksaan gagal, pengguna dapat mencoba lagi atau membuka tautan resmi di browser. Browser mengunjungi `/meet/[slug]` pada origin aplikasi agar server memeriksa ulang tautan sebelum mengarahkan ke Google Meet. Google tetap menentukan akses ruang. [Rute Next](../app/meet/[slug]/page.tsx), [rute Expo](../apps/mobile-native/app/meet/[slug].tsx).
+Halaman marketing, blog, demo, direktori `/tautan`, formulir `/forms/[id]`, tautan singkat `/f/[slug]`, dan `/meet/[slug]` tetap memakai Next.js. Expo meneruskan tautan yang masuk ke halaman tersebut melalui browser sistem. Pintasan aplikasi membuka entry Expo, sedangkan beranda marketing tetap berada di situs. Login, daftar, keluar, callback akun serta halaman Admin yang mengelola formulir, tautan, dan Meet tetap berada dalam cakupan native.
+
+Browser menangani akses, sesi, unggahan, pengiriman formulir, serta pengalihan Google Meet. Jejak handoff hanya membuktikan aplikasi membuka tujuan yang sesuai. Operasi yang terjadi di browser dan halaman publik yang ditempatkan di luar cakupan tidak menambah kredit native. Inventaris awal memuat 168 pola. Setelah 17 pola publik dikeluarkan, cakupan native adalah 151 pola dengan ambang 95% sebesar 144 pola yang terverifikasi. [Inventaris](../plans/native-parallel/routes.tsv), [audit kesiapan](native-readiness.md).
 
 ## Metadata dan paket bacaan offline
 
@@ -36,21 +38,13 @@ Manifest terbaru dapat memperbarui verifikasi paket yang masih berlaku. Lease ga
 
 Migrasi menghapus tabel paket v1 secara atomik dan menyimpan unduhan baru dalam tabel v2. Setelah kembali ke build lama, daftar unduhan lokal mulai kosong dan paket v2 tetap terisolasi dari pembaca v1. Pengujian Bun memeriksa rollback transaksi, batas kuota dan pembaruan, serta perlindungan paket baru dari respons 409 lama. Fixture Maestro mencakup konfirmasi hapus dan hasil pembaruan pada tampilan pustaka. [Fixture pustaka Expo](../.maestro/native-parallel/offline-library.yaml), [katalog operasi MCP](../lib/admin-mcp/operations-catalog.ts).
 
-## Formulir publik di Expo
-
-Rute `/f/<slug>` mendahulukan slug formulir yang aktif atau ditutup, lalu tautan Google Meet dan alias ID. `/forms/<id>` mengutamakan ID. Formulir yang sudah dimuat menggunakan ID yang sama saat mengirim jawaban atau mengunggah berkas. Penulisan dari pengguna yang masuk memerlukan cookie Better Auth untuk akun dan sesi yang diperiksa Expo. Pemeriksaan saat kembali dari pemilih berkas mempertahankan draf selama identitas tetap sama. Identitas baru atau keluar menghapus draf dalam memori.
-
-Unggahan Expo memakai batas pertanyaan hingga 10 MiB karena SDK menyimpan salinan berkas dan badan multipart di memori JavaScript. Untuk batas pertanyaan di atas 10 MiB, klien menyediakan tautan ke formulir yang sama di browser. Sesi dan draf browser dapat berbeda. Verifikasi Android dan iOS untuk kembali dari pemilih, serta unggahan native di atas 10 MiB, masih terbuka. Admin MCP menggunakan alur simulasi formulir dengan cakupan, persetujuan, discovery, playbook dan paket skill yang sama. Pengiriman responden dan unggahan publik memakai API formulir di origin masing-masing.
-
-Di Android, aplikasi memeriksa hasil kamera formulir yang tertinggal saat mulai, kembali aktif, atau menghapus sesi. Jika draf sudah hilang, aplikasi membuang salinan cache pribadi yang dikembalikan Expo tanpa memulihkan atau mengunggahnya. Pemeriksaan menunggu pemilih aktif dan mempertahankan hasil pemilih dari draf lain. Jika Expo belum mengembalikan hasil, penanda tanpa identitas akun atau draf dipertahankan untuk pemeriksaan berikutnya. Berkas sementara yang tidak dikembalikan Expo tetap mengikuti masa hidup cache SDK dan sistem operasi.
-
 ## Kondisi yang ada
 
 - `apps/mobile` adalah Capacitor 7 alpha yang memuat origin Next.js jarak jauh dalam WebView. Konfigurasi memisahkan aplikasi dan origin nightly/staging dan stable/production. `www/index.html` menguji koneksi lalu membuka aplikasi online. Saat offline, Android menampilkan pustaka dan reader lokal. iOS menyediakan tampilan coba lagi. Paket bacaan mengikat akun, origin, bahasa, masa akses, dan hak bab. Klien Expo perlu menggunakan [kontrak sinkronisasi yang sudah ada](operations/offline-data-sync.md).
 - Bridge dan kode `lib/native/` mencakup notifikasi push dan pengingat lokal, kamera dan pemulihan hasil kamera, share dan berkas, haptik, status jaringan dan lifecycle, refresh, deep link, serta pembaruan. Android memiliki plugin `ZyxGoogleAuth`, `ZyxOfflineStore`, dan `ZyxAppUpdater`. Reader offline menyimpan bacaan berdasarkan akun dan dibersihkan saat keluar atau berganti akun. Kehadiran kode dan dependensi bukan bukti konfigurasi atau keberhasilan perangkat di lingkungan yang berjalan.
 - Android App Links memerlukan fingerprint penandatangan yang cocok; Universal Links iOS memerlukan Apple team ID. Login Android menggunakan Credential Manager saat tersedia dengan fallback browser; iOS menggunakan browser. Akun tersimpan, izin, dan cache perlu dipertahankan perilakunya. Rincian serta batas verifikasi ada di [README mobile](../apps/mobile/README.md).
 - UI web memakai DOM, CSS, Radix dan komponen Next.js. Komponen tersebut tidak otomatis menjadi komponen React Native. Logika domain murni, skema dan token dapat dibagi setelah memisahkan dependensi server dan browser; rendering dan interaksi native perlu implementasi sendiri.
-- `apps/mobile-native` memuat galeri komponen, rute sesi, pustaka offline, formulir publik, direktori tautan dan integrasi perangkat. CI gabungan juga memasang entry dari empat branch eksternal di checkout sementara. Komponen dan halaman mendapat kredit setelah hasil visual serta interaksinya diverifikasi pada Android dan iOS. [Petunjuk build internal](../apps/mobile-native/README.md), [audit dan bukti CI](native-readiness.md).
+- `apps/mobile-native` memuat galeri komponen, rute sesi, pustaka offline, handoff browser dan integrasi perangkat. CI gabungan juga memasang entry dari empat branch eksternal di checkout sementara. Komponen dan halaman mendapat kredit setelah hasil visual serta interaksinya diverifikasi pada Android dan iOS. [Petunjuk build internal](../apps/mobile-native/README.md), [audit dan bukti CI](native-readiness.md).
 - Root memakai Bun dan saat ini tidak mendeklarasikan workspace; scaffold memiliki lockfile npm sendiri. Penambahan workspace bersama merupakan keputusan lanjutan. [Expo mendukung monorepo Bun](https://docs.expo.dev/guides/monorepos/), tetapi versi dan resolusi modul native harus diuji bersama.
 
 Lihat [audit kesiapan Expo](native-readiness.md) untuk cakupan komponen, halaman dan fungsi backend serta bukti per platform.
@@ -123,7 +117,7 @@ Urutan ini adalah backlog, bukan bukti implementasi atau paritas. Setiap kotak m
 - [ ] P1, Tutor: dashboard atau kursus, peserta dan jadwal. Untuk setiap halaman periksa data tersedia, kosong atau loading, dan error atau pemulihan; pertahankan cakupan kursus yang ditugaskan.
 - [ ] P1, Admin: dashboard, pengguna dan kursus. Untuk setiap halaman periksa data tersedia, kosong atau loading, dan error atau pemulihan; pertahankan otorisasi dan konsekuensi aksi.
 - [ ] P1, diskusi bersama peran: daftar kosong, thread aktif, serta pengiriman gagal atau status tidak pasti. Acuan `components/discussions/discussion-workspace.tsx`; uji audiens, akses dan retry.
-- [ ] P2, marketing dan publik: halaman publik, formulir dan blog. Untuk setiap halaman periksa konten tersedia, loading atau kosong, dan error atau tautan tidak tersedia.
+- [ ] P2, handoff browser: uji tautan publik saat aplikasi dibuka dingin dan saat sudah aktif, termasuk parameter tautan dan pemulihan jika browser gagal dibuka.
 
 ### 4. Renderer kompleks, terakhir
 

@@ -22,17 +22,13 @@ Simpan file klien `google-services.json` Firebase untuk `com.zyx.academy.nativep
 
 Jalankan `npx expo prebuild --platform android` lalu bangun ulang APK setelah menambah atau mengganti file. Metadata serta resource Firebase di APK menentukan ketersediaan FCM. Build tanpa file, binary lama, Expo Go, dan iOS tidak mengaktifkan registrasi push melalui jalur ini. Pengguna meminta izin melalui Pengaturan. Pengujian pengiriman tetap memerlukan APK yang dikonfigurasi dan perangkat Android dengan layanan Google Play.
 
-### Lampiran formulir
-
-Pertanyaan unggah yang menerima JPEG menampilkan aksi kamera di samping pemilih berkas. Izin diminta saat pengguna mengetuk kamera. Foto disiapkan dalam cache aplikasi mengikuti batas pertanyaan, lalu dikirim melalui unggahan formulir setelah draf dan sesi diperiksa kembali. Jika sistem menutup aplikasi saat kamera terbuka dan draf hilang, pengguna mengambil foto lagi untuk draf baru.
-
-## Galeri dan bukti paritas
+### Galeri perangkat
 
 Pilih komponen di atas galeri untuk membuka tiga kasusnya. Pada build internal, tautan seperti `zyx-native-parity://gallery/button` membuka komponen yang sama. Galeri memuat Inter dan Lexend dari aset lokal agar capture dapat diulang tanpa akses jaringan.
 
 Workflow `Native component parity` menjalankan referensi Next.js pada skala 1 dan 3. Android WebView dan iOS WKWebView juga merender ekspor Next.js yang sama pada perangkat masing-masing. Android dan iOS membuka setiap komponen Expo pada perangkat virtual, memeriksa identitas galeri, lalu mengambil ketiga crop tanpa resize. Ringkasan job mencatat jumlah piksel berbeda, selisih kanal RGB terbesar dan batas area yang berbeda. Job `visual-summary` menggabungkan hasil tiga kasus pada Android dan iOS serta mencatat commit PR dan commit checkout yang diuji. Artefak perangkat mencakup frame asli, crop dan diff. Satu piksel berbeda menggagalkan kasus tersebut.
 
-Ringkasan yang sama mencatat tiga kasus layar penuh `/tautan` secara terpisah dari hitungan komponen. Referensi Chromium memakai viewport logis 380 × 640 pada DPR perangkat. Di Android, job juga membandingkan tangkapan Expo dengan ekspor Next.js yang dibuka di Android WebView pada emulator yang sama melalui loopback. Marker WebView muncul setelah ukuran viewport, identitas kasus, bahasa, tema, font, dan logo diperiksa. Kedua perbandingan mencatat commit PR dan checkout, menyimpan frame asli, crop dan diff, serta mensyaratkan nol piksel berbeda. Pengukuran Chromium di iOS tersedia saat opsi iOS dipilih.
+Halaman publik memakai Next.js di browser. Pengukuran paritas native bawaan hanya menjalankan komponen dan pemeriksaan interaksi yang masih relevan. Untuk membuka tangkapan historis direktori, formulir, dan Meet, jalankan workflow manual dengan `include_public_fixtures`. Artefak tersebut menyimpan frame, crop, dan selisih tanpa menambah kelulusan halaman native. Aktifkan `include_ios` jika pengukuran iOS juga diperlukan.
 
 Galeri Slider mencakup nilai tengah terkontrol, batas akhir nonaktif, dan kontrol RTL dari nilai awal. Layar audio internal memakai Slider sebagai posisi putar dan melakukan seek setelah pengguna melepas kontrol atau mengubah nilainya lewat aksesibilitas.
 

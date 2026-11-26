@@ -22,7 +22,9 @@ export MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true
 status=0
 python scripts/native-parity/capture-gallery.py ios "$device" || status=1
 xcrun simctl ui "$device" appearance light
-python scripts/native-parity/compare-pages.py ios "$device" || status=1
+if [[ ${NATIVE_PARITY_PUBLIC_FIXTURES:-} == 1 ]]; then
+  python scripts/native-parity/compare-pages.py ios "$device" || status=1
+fi
 if [[ ${EXPO_PUBLIC_PARITY_WEBVIEW:-} == 1 ]]; then
   python scripts/native-parity/capture-webview.py ios "$device" || status=1
 fi

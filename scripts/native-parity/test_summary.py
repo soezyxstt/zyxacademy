@@ -1,5 +1,7 @@
 import json
 from pathlib import Path
+import subprocess
+import sys
 from tempfile import TemporaryDirectory
 import unittest
 
@@ -133,6 +135,34 @@ class PageSummaryTest(unittest.TestCase):
             self.assertIn("| single | 1 differing pixels |", rows)
             self.assertIn("| grouped | Missing stable WebView frame |", rows)
             self.assertTrue(page_summary(root, "fixture", "merge", "directory", ("android",))[1])
+
+    def test_component_rollup_excludes_public_routes_even_if_diagnostics_failed(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifests = root / "reference-manifests/dpr1"
+            manifests.mkdir(parents=True)
+            case_ids = ["first", "second", "third"]
+            (manifests / "cases.json").write_text(json.dumps([
+                {"id": case, "component": "button"} for case in case_ids
+            ]))
+            (manifests / "directory.json").write_text(json.dumps(self.manifest))
+            android = root / "android-measurements"
+            webview = android / "native-vs-webview"
+            webview.mkdir(parents=True)
+            identity = {"platform": "android", "scale": 1, "component": "button", "commit": "fixture", "buildCommit": "merge"}
+            result = {**identity, "cases": [
+                {"id": case, "differentPixels": 0, "blankReference": False} for case in case_ids
+            ]}
+            (android / "result-button.json").write_text(json.dumps(result))
+            (webview / "result-button.json").write_text(json.dumps({**result, "referenceEngine": "android-webview"}))
+            (android / "directory").mkdir()
+            (android / "directory/result.json").write_text("{}")
+            report = subprocess.run(
+                [sys.executable, str(Path(__file__).with_name("summarize.py")), str(root), "fixture", "merge", "--platform", "android"],
+                check=True, capture_output=True, text=True,
+            ).stdout
+            self.assertIn("1/1 components matched", report)
+            self.assertNotIn("/tautan", report)
 
     def test_external_redirect_needs_two_handoff_frames_and_never_counts_as_a_pixel_match(self):
         redirect = {"case": "short-meeting", "status": 307, "location": "https://meet.google.com/abc-defg-hij"}

@@ -5,14 +5,13 @@ from pathlib import Path
 
 from PIL import Image, ImageChops, ImageOps
 
-PAIRS = {
+PUBLIC_PAIRS = {
     "cases/operations-public-blog-list-open-back": "blog-list-light",
     "cases/operations-public-blog-detail-content": "blog-detail-light",
     "cases/operations-public-blog-list-empty": "blog-empty-dark-en",
     "blog-list": "blog-list-light",
     "blog-detail": "blog-detail-light",
     "blog-empty-dark": "blog-empty-dark",
-    "management-form-summary": "management-form-summary",
 }
 
 FULL_SHELL_BLOG_PAIRS = {
@@ -24,11 +23,13 @@ FULL_SHELL_BLOG_PAIRS = {
 UTC_JOBS = "evaluation/jobs-completed-light-380-viewport-utc.png"
 UTC_NAMES = {"UTC", "Etc/UTC", "GMT", "Etc/GMT"}
 
-def compare(device_dir, reference_dir, width_dp, density):
+def compare(device_dir, reference_dir, width_dp, density, include_public_fixtures=False):
     rows = []
     timezone_path = device_dir / "timezone.txt"
     timezone = timezone_path.read_text().strip() if timezone_path.is_file() else None
-    pairs = {capture: f"{reference}-{width_dp}-dpr{density}.png" for capture, reference in PAIRS.items()}
+    pairs = {"management-form-summary": f"management-form-summary-{width_dp}-dpr{density}.png"}
+    if include_public_fixtures:
+        pairs.update({capture: f"{reference}-{width_dp}-dpr{density}.png" for capture, reference in PUBLIC_PAIRS.items()})
     if width_dp == 380 and density == 1:
         pairs.update({
             "cases/operations-evaluation-jobs-populated": UTC_JOBS,
@@ -38,15 +39,19 @@ def compare(device_dir, reference_dir, width_dp, density):
             "cases/operations-monitoring-admin-ops-feature-usage-populated": "monitoring/features-30-days-light-380-viewport.png",
             "feature-usage": "monitoring/features-30-days-light-380-viewport.png",
             "feature-usage-empty-range": "monitoring/features-7-days-light-380-viewport.png",
-            "cases/operations-public-hero-id": "../public-pages/references/hero-id-380-dpr1.png",
-            "cases/operations-public-form-empty": "../public-pages/references/form-empty-380-dpr1.png",
             "web-analytics": "monitoring/web-analytics-populated-light-380-viewport.png",
         })
+        if include_public_fixtures:
+            pairs.update({
+                "cases/operations-public-hero-id": "../public-pages/references/hero-id-380-dpr1.png",
+                "cases/operations-public-form-empty": "../public-pages/references/form-empty-380-dpr1.png",
+            })
     comparisons = [(capture, reference, False) for capture, reference in pairs.items()]
-    comparisons.extend(
-        (capture, f"{reference}-{width_dp}-dpr{density}.png", True)
-        for capture, reference in FULL_SHELL_BLOG_PAIRS.items()
-    )
+    if include_public_fixtures:
+        comparisons.extend(
+            (capture, f"{reference}-{width_dp}-dpr{density}.png", True)
+            for capture, reference in FULL_SHELL_BLOG_PAIRS.items()
+        )
     for capture, reference, full_shell in comparisons:
         device_path = device_dir / f"{capture}.png"
         reference_path = reference_dir / reference
@@ -92,9 +97,10 @@ if __name__ == "__main__":
     parser.add_argument("reference_dir", type=Path)
     parser.add_argument("--width", type=int, required=True)
     parser.add_argument("--density", type=int, required=True)
+    parser.add_argument("--include-public-fixtures", action="store_true", help="Compare historical public page fixtures")
     args = parser.parse_args()
     args.device_dir.mkdir(parents=True, exist_ok=True)
-    rows = compare(args.device_dir, args.reference_dir, args.width, args.density)
+    rows = compare(args.device_dir, args.reference_dir, args.width, args.density, args.include_public_fixtures)
     report = json.dumps(rows, indent=2) + "\n"
     (args.device_dir / "comparison.json").write_text(report)
     print(report)

@@ -158,7 +158,7 @@ def main():
             if android:
                 subprocess.run(["adb", "reverse", f"tcp:{PORT}", f"tcp:{PORT}"], check=True)
             directory_passed = True
-            if android and not args.component:
+            if android and not args.component and os.environ.get("NATIVE_PARITY_PUBLIC_FIXTURES") == "1":
                 try:
                     directory_passed = capture_directory(args.device, site)
                 except (OSError, ValueError) as error:

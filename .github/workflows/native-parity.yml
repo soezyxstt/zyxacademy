@@ -7,25 +7,17 @@ on:
         description: Also measure exact pixel parity on iOS
         type: boolean
         default: false
+      include_public_fixtures:
+        description: Capture historical public page fixtures for diagnostics
+        type: boolean
+        default: false
   pull_request:
     paths:
       - 'apps/mobile-native/**'
       - 'packages/**'
       - 'app/globals.css'
-      - 'app/tautan/**'
-      - 'app/api/tautan/**'
-      - 'app/forms/**'
-      - 'app/f/**'
-      - 'app/api/forms/**'
-      - 'app/meet/**'
-      - 'app/api/meet/**'
-      - 'components/meet/**'
-      - 'components/forms/public-form-viewer.tsx'
-      - 'messages/*/publicForms.json'
       - 'components/logo.tsx'
       - 'lib/links.ts'
-      - 'lib/public-links.ts'
-      - 'messages/*/marketing.json'
       - 'messages/*/notifications.json'
       - 'messages/*/student.json'
       - 'components/navigation/student/student-nav-model.ts'
@@ -65,6 +57,7 @@ env:
   EXPO_NO_TELEMETRY: '1'
   NEXT_TELEMETRY_DISABLED: '1'
   PARITY_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  NATIVE_PARITY_PUBLIC_FIXTURES: ${{ inputs.include_public_fixtures && '1' || '0' }}
 
 jobs:
   inventory:
@@ -159,12 +152,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: reference-manifests
-          path: |
-            artifacts/native-parity/web/dpr*/cases.json
-            artifacts/native-parity/web/dpr*/directory.json
-            artifacts/native-parity/web/dpr*/forms.json
-            artifacts/native-parity/web/dpr*/short-forms.json
-            artifacts/native-parity/web/dpr*/meet.json
+          path: artifacts/native-parity/web/dpr*/cases.json
           if-no-files-found: error
 
       - name: Export the mobile WebView reference
@@ -254,11 +242,6 @@ jobs:
           path: |
             artifacts/native-parity/${{ matrix.platform }}/result-*.json
             artifacts/native-parity/${{ matrix.platform }}/native-vs-webview/result-*.json
-            artifacts/native-parity/${{ matrix.platform }}/native-vs-webview/directory/result.json
-            artifacts/native-parity/${{ matrix.platform }}/directory/result.json
-            artifacts/native-parity/${{ matrix.platform }}/forms/result.json
-            artifacts/native-parity/${{ matrix.platform }}/short-forms/result.json
-            artifacts/native-parity/${{ matrix.platform }}/meet/result.json
           retention-days: 7
 
   visual-summary:

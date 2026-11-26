@@ -2,6 +2,7 @@
 set -euo pipefail
 platform=${1:?Specify android or ios}
 phase=${2:-full}
+if [[ "$phase" != full && "$phase" != build ]]; then exit 2; fi
 output_dir="$PWD/artifacts/native-parity/operations/$platform"
 app=apps/mobile-native
 case "$platform" in
@@ -30,7 +31,6 @@ case "$platform" in
     fi
     if [[ "$phase" == build ]]; then exit 0; fi
     device=$(cat "$device_file")
-    if [[ "$phase" == smoke ]]; then output_dir="$output_dir-smoke"; fi
     ;;
   *) exit 2 ;;
 esac
@@ -46,14 +46,15 @@ trap 'rm -rf "$maestro_dir"' EXIT
   unzip -q maestro.zip
 )
 export MAESTRO_CLI_NO_ANALYTICS=true
-fixture_flows="$maestro_dir/operations"
-if [[ "$phase" == smoke ]]; then
-  bun scripts/native-parity/operations/capture-cases.ts "$fixture_flows" "$output_dir/cases" \
-    operations-public-blog-list-open-back operations-public-blog-detail-content operations-public-blog-list-empty
-else
-  bun scripts/native-parity/operations/capture-cases.ts "$fixture_flows" "$output_dir/cases"
-  cp .maestro/native-parallel/operations/*.yaml "$fixture_flows/"
-fi
+fixture_flows=$(mktemp -d "$output_dir/flows.XXXXXX")
+printf '%s\n' "${fixture_flows##*/}" > "$output_dir/flow-directory.txt"
+fixture_journeys=()
+bun scripts/native-parity/operations/capture-cases.ts "$fixture_flows" "$output_dir/cases"
+for flow in .maestro/native-parallel/operations/*.yaml; do
+  if [[ ${flow##*/} == public-* && ${NATIVE_PARITY_PUBLIC_FIXTURES:-} != 1 ]]; then continue; fi
+  cp "$flow" "$fixture_flows/"
+  fixture_journeys+=("$fixture_flows/${flow##*/}")
+done
 run_flows() {
   local report=$1 results=$2 logs=$3
   shift 3
@@ -85,9 +86,7 @@ status=0
 if [[ "$platform" == android ]]; then
   export LC_ALL=C
   mkdir -p "$output_dir/reports"
-  journeys=()
-  for flow in .maestro/native-parallel/operations/*.yaml; do journeys+=("$fixture_flows/${flow##*/}"); done
-  run_android_batch 00-journeys "${journeys[@]}"
+  run_android_batch 00-journeys "${fixture_journeys[@]}"
   cases=("$fixture_flows"/operations-*.yaml)
   batch_size=36
   for ((offset = 0; offset < ${#cases[@]}; offset += batch_size)); do

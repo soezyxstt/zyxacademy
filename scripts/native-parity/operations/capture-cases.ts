@@ -2,12 +2,16 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { operationsCases } from "../../../packages/native-parity/operations/cases";
+import { publicCases } from "../../../packages/native-parity/operations/public-fixtures";
 
 import { caseInteractions } from "./case-interactions";
 
 const [flowDirectory, screenshotDirectory, ...caseIds] = process.argv.slice(2);
 if (!flowDirectory || !screenshotDirectory) throw new Error("Expected flow directory and screenshot directory");
-const cases = caseIds.length ? operationsCases.filter(item => caseIds.includes(item.id)) : operationsCases;
+const publicIds = new Set(publicCases.map(item => item.id));
+const available = process.env.NATIVE_PARITY_PUBLIC_FIXTURES === "1"
+  ? operationsCases : operationsCases.filter(item => !publicIds.has(item.id));
+const cases = caseIds.length ? available.filter(item => caseIds.includes(item.id)) : available;
 if (caseIds.length && cases.length !== caseIds.length) throw new Error("Expected unique registered case IDs");
 mkdirSync(flowDirectory, { recursive: true });
 mkdirSync(screenshotDirectory, { recursive: true });

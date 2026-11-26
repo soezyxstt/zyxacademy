@@ -1,6 +1,6 @@
-# Operations public route handoff
+# Historical Operations public fixtures
 
-The 13 public route patterns have native entries in `apps/mobile-native/features/operations/public/index.tsx`. The production entry takes an environment origin, locale, public client, and router navigation callbacks. The 39 deterministic fixture cases have three named runs per pattern. Open `zyx-native-parity://operations-fixture?caseId=operations-public-blog-list-open-back` in the operations fixture build for list, detail and Back. The other case IDs and interaction steps are in [public-fixtures.ts](public-fixtures.ts).
+The 13 public route patterns now run on Next.js in the browser. The native implementations and 39 deterministic cases below record earlier experiments. In an Operations fixture build, `zyx-native-parity://operations-fixture?caseId=operations-public-blog-list-open-back` still opens the historical blog case. Set `NATIVE_PARITY_PUBLIC_FIXTURES=1` when running the capture script manually and pass `--include-public-fixtures` to the comparison script to include those diagnostics. The default Operations job measures protected Admin fixtures. Historical public captures and browser handoffs receive no native readiness credit. [Case registry](public-fixtures.ts).
 
 | Pattern | Native flow | Remaining comparison or integration |
 |---|---|---|

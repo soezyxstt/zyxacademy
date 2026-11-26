@@ -151,23 +151,20 @@ def main():
                 states.append(check_device(result, component, case_ids, platform, args.commit, args.build_commit, reference))
         passed += all(state == "Pass" for state in states)
         rows.append(f"| {component} | {' | '.join(states)} |")
-    pages = [page_summary(args.artifacts, args.commit, args.build_commit, group, selected) for group in PAGE_CAPTURES]
-    if "android" in selected:
-        pages.append(page_summary(args.artifacts, args.commit, args.build_commit, "directory", ("android",), "android-webview"))
     output = "\n".join([
         f"### Native pixel parity for `{args.commit}`", "", f"Tested checkout: `{args.build_commit}`.", "",
         f"{passed}/{len(groups)} components matched all three cases against Chromium and the same-device WebView on {platform_label(selected)}.", "",
         table_row(["Component", *(f"{platform_label([platform])} vs {engine}" for platform in selected
                                   for engine in ("Chromium", "WebView" if platform == "android" else "WKWebView"))]),
         table_row(["---"] * (1 + 2 * len(selected))), *rows, "",
-        *(line for section, _ in pages for line in section),
+        "Public page fixture captures are outside native page readiness.", "",
         "Interaction and accessibility checks are reported by each device job.", "",
     ])
     print(output)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary, "a", encoding="utf-8") as stream:
             stream.write(output)
-    if passed != len(groups) or not all(page_passed for _, page_passed in pages):
+    if passed != len(groups):
         raise SystemExit(1)
 
 

@@ -335,24 +335,26 @@ try {
     await page.mouse.up();
   }
   await expect(commit).toHaveText("Nilai 8");
-  await page.setViewportSize(directoryFrame);
-  const directoryManifest = { ...directoryFrame, route: "/tautan", cases: Object.keys(directoryCases),
-    commit: process.env.PARITY_HEAD_SHA, buildCommit: process.env.GITHUB_SHA };
-  for (const [caseId, item] of Object.entries(directoryCases)) {
-    const response = await page.goto(`${url}/tautan/${caseId}`);
-    if (!response?.ok()) throw new Error(`Public directory fixture returned HTTP ${response?.status()}`);
-    const main = page.getByRole("main");
-    await expect(main.getByRole("link")).toHaveCount(item.links.length);
-    await expect(main.getByRole("heading", { level: 1 })).toBeVisible();
-    await page.evaluate(() => document.fonts.ready);
-    await expect.poll(() => main.locator("img:visible").evaluateAll(images =>
-      images.length === 1 && images.every(image => (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
-    await page.screenshot({ path: fileURLToPath(new URL(`directory-${caseId}.png`, outputDirectory)), scale: "device" });
-  }
   if (errors.length > 0) throw new Error(errors.join("\n"));
-  await writeFile(directoryManifestPath, JSON.stringify(directoryManifest));
-  await capturePublicForms(browser, url, dpr, outputDirectory);
-  await captureMeet(browser, url, dpr, outputDirectory);
+  if (process.env.NATIVE_PARITY_PUBLIC_FIXTURES === "1") {
+    await page.setViewportSize(directoryFrame);
+    const directoryManifest = { ...directoryFrame, route: "/tautan", cases: Object.keys(directoryCases),
+      commit: process.env.PARITY_HEAD_SHA, buildCommit: process.env.GITHUB_SHA };
+    for (const [caseId, item] of Object.entries(directoryCases)) {
+      const response = await page.goto(`${url}/tautan/${caseId}`);
+      if (!response?.ok()) throw new Error(`Public directory fixture returned HTTP ${response?.status()}`);
+      const main = page.getByRole("main");
+      await expect(main.getByRole("link")).toHaveCount(item.links.length);
+      await expect(main.getByRole("heading", { level: 1 })).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      await expect.poll(() => main.locator("img:visible").evaluateAll(images =>
+        images.length === 1 && images.every(image => (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
+      await page.screenshot({ path: fileURLToPath(new URL(`directory-${caseId}.png`, outputDirectory)), scale: "device" });
+    }
+    await writeFile(directoryManifestPath, JSON.stringify(directoryManifest));
+    await capturePublicForms(browser, url, dpr, outputDirectory);
+    await captureMeet(browser, url, dpr, outputDirectory);
+  }
   const cases = galleryCases.map(({ id, component }) => ({ id, component, height: getParityFrameHeight(id) }));
   await writeFile(manifest, `${JSON.stringify(cases, null, 2)}\n`);
 } finally {
