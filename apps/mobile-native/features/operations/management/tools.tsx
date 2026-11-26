@@ -6,6 +6,7 @@ import { DEFAULT_ICON, EMOJI_OPTIONS, LINK_COLORS, LINK_CATEGORY_SUGGESTIONS, is
 import type { TutorSupportClient } from "../../../../../packages/academic/tutor-support";
 import { ManagementFailure, managementSlug, type DiscussionThread, type LinkFields, type MeetingSpace, type MeetingTranscript, type PublicLink } from "../../../../../packages/native-parity/operations/management-contract";
 import { meetingLinks } from "./links";
+import { MeetSetupHelp } from "./meet-setup-help";
 import { ConnectedDiscussions } from "../../academic/tutor/connected";
 import { AdminDiscussionContext } from "./discussion-context";
 import { discussionDestination, discussionWorkspaceHref } from "../../../../../packages/native-parity/discussion-destination";
@@ -42,6 +43,7 @@ export function MeetList() {
       <Copy strong>Aksesibilitas</Copy><Choices values={meetAccess} current={accessType} onChange={setAccess} />
       <View style={styles.row}><Action onPress={() => setPicker(!picker)}>{`Undang peserta (${emails.length})`}</Action>
         <Action variant="default" disabled={Boolean(active)} busy={action.busy} onPress={create}>Mulai meeting</Action>
+        <MeetSetupHelp />
       </View>
       {picker && <Section title="Pilih peserta">
         <Field label="Cari nama atau email" value={search} onChangeText={setSearch} />

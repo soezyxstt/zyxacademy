@@ -6,6 +6,7 @@ import { formAttachmentUrl } from "../../../../../lib/forms/attachment";
 import { FormSheets } from "./form-sheets";
 import { FormImagePreview } from "./form-image-preview";
 import { FormAttachment } from "./form-attachment";
+import { useFormPreviewFiles } from "./form-preview-files";
 import { createStandardFormQuestions } from "../../../../../lib/forms/standard-template";
 import { buildFormSteps, formFileSizeLimitMb, formQuestionNumbers, isEmptyFormAnswer } from "../../../../../lib/forms/presentation";
 import { ManagementFailure, formCategories, newForm, newQuestion, questionTypes, validateForm, validateFormSettings, type FormDefinition, type FormDetails, type FormFields, type FormQuestion, type FormSettings } from "../../../../../packages/native-parity/operations/management-contract";
@@ -310,7 +311,8 @@ function Settings({ settings, update }: { settings: FormSettings; update: (setti
 }
 
 function FormPreview({ fields }: { fields: FormFields }) {
-  const { pickFormImage } = useManagement();
+  const { pickFormImage, locale } = useManagement();
+  const attachments = useFormPreviewFiles(locale);
   const steps = buildFormSteps(fields.questions, fields.settings.displayMode, fields.settings.collectEmail === "input");
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -334,7 +336,7 @@ function FormPreview({ fields }: { fields: FormFields }) {
       const question = fields.questions[questionIndex];
       if (nonAnswers(question)) continue;
       const key = String(questionIndex);
-      let value: unknown = answers[key];
+      let value: unknown = question.type === "FILE_UPLOAD" ? attachments.files[questionIndex]?.document.name : answers[key];
       if (optionTypes.has(question.type) && question.otherOption?.enabled &&
         (answers[key] ?? "").split("\n").includes(otherChoice) && !answers[`other-${key}`]?.trim()) {
         return setError(`Isi pilihan ${question.otherOption.label} untuk pertanyaan ${question.title || questionTypes[question.type]}.`);
@@ -346,9 +348,9 @@ function FormPreview({ fields }: { fields: FormFields }) {
     }
     setError("");
     if (index + 1 < steps.length) setIndex(index + 1);
-    else setDone(true);
+    else { attachments.clear(); setDone(true); }
   }
-  if (done) return <Section title="Pratinjau selesai"><Copy>{fields.settings.customSuccessMessage || "Terima kasih."}</Copy><Action onPress={() => { setDone(false); setIndex(0); setAnswers({}); }}>Ulangi</Action></Section>;
+  if (done) return <Section title="Pratinjau selesai"><Copy>{fields.settings.customSuccessMessage || "Terima kasih."}</Copy><Action onPress={() => { setDone(false); setIndex(0); setAnswers({}); attachments.clear(); }}>Ulangi</Action></Section>;
   return <Section>
     {error && <Copy status="error">{error}</Copy>}
     {cover && <><Heading>{fields.title || "Formulir tanpa judul"}</Heading>{fields.description && <Copy muted>{fields.description}</Copy>}</>}
@@ -362,7 +364,18 @@ function FormPreview({ fields }: { fields: FormFields }) {
       if (question.type === "FILE_UPLOAD") return <View key={key} style={styles.field}>
         <Heading>{question.title || questionTypes[question.type]}</Heading>{description}{picture}
         <Copy muted>{`Maksimal ${formFileSizeLimitMb(question.maxFileSizeMb)} MB per berkas`}</Copy>
-        <Action onPress={() => answer(key, "berkas-ujicoba.pdf")}>{answers[key] || "Pilih berkas uji"}</Action>
+        {attachments.files[questionIndex] && <Copy>{attachments.files[questionIndex].document.name}</Copy>}
+        <View style={styles.row}>
+          <Action busy={attachments.busy === questionIndex} disabled={!attachments.available || attachments.busy !== undefined}
+            onPress={() => attachments.choose(questionIndex, question)} testID={`admin-form-preview-file-${questionIndex}`}>
+            {attachments.files[questionIndex] ? "Ganti berkas" : "Pilih berkas"}
+          </Action>
+          {attachments.files[questionIndex] && <>
+            <Action disabled={attachments.busy !== undefined} onPress={() => attachments.share(questionIndex)}>Buka berkas</Action>
+            <Action disabled={attachments.busy !== undefined} onPress={() => attachments.clear(questionIndex)}>Hapus pilihan</Action>
+          </>}
+        </View>
+        {attachments.error?.index === questionIndex && <Copy status="error">{attachments.error.message}</Copy>}
       </View>;
       if (optionTypes.has(question.type)) {
         const entries = (answers[key] ?? "").split("\n").filter(Boolean);
@@ -398,8 +411,8 @@ function FormPreview({ fields }: { fields: FormFields }) {
       </View>;
     })}
     <View style={styles.row}>
-      {index > 0 && <Action onPress={() => setIndex(index - 1)}>Kembali</Action>}
-      <Action variant="default" onPress={next}>{index + 1 < steps.length ? "Berikutnya" : "Selesaikan pratinjau"}</Action>
+      {index > 0 && <Action disabled={attachments.busy !== undefined} onPress={() => setIndex(index - 1)}>Kembali</Action>}
+      <Action variant="default" disabled={attachments.busy !== undefined} onPress={next}>{index + 1 < steps.length ? "Berikutnya" : "Selesaikan pratinjau"}</Action>
     </View>
   </Section>;
 }
