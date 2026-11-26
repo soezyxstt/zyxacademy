@@ -120,7 +120,7 @@ export async function executeCreateCourse(input: CreateCourseInput, actorId?: st
     throw new Error("Kategori mata kuliah tidak boleh kosong.");
   }
 
-  const matchedCategory = (allowedCategories as readonly string[]).find(
+  const matchedCategory = allowedCategories.find(
     (c) => c.toLowerCase() === cleanCategory.toLowerCase()
   ) || "Umum";
 
@@ -179,7 +179,7 @@ export async function executeUpdateCourse(input: UpdateCourseInput, actorId?: st
   const updatedCategory = input.category?.trim() || existing?.category || "Umum";
   const updatedDesc = input.description !== undefined ? input.description.trim() : (existing?.description || null);
 
-  const matchedCategory = (allowedCategories as readonly string[]).find(
+  const matchedCategory = allowedCategories.find(
     (c) => c.toLowerCase() === updatedCategory.toLowerCase()
   ) || "Umum";
 

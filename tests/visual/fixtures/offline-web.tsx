@@ -106,6 +106,7 @@ async function mount() {
   registerOfflineSyncController(scope, {
     sync: async () => { if (config.scenario !== "empty") { snapshot = { ...snapshot, syncState: "ready", syncError: undefined }; await saveSnapshot(); } },
     snapshot: async () => snapshot,
+    courseIds: async () => snapshot.courses.map(course => course.id),
     dispose() {},
     refreshResource: async (resource, options) => {
       window.__offlineWebControls.packageRequests++;
