@@ -121,7 +121,7 @@ jobs:
   combined-native:
     if: ${{ !inputs.browser_probe && (github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')) }}
     concurrency:
-      group: native-combined-preview-committed${{ inputs.offline == 'only' && '-offline' || '' }}
+      group: native-combined-preview-${{ inputs.verification || 'all' }}-committed${{ inputs.offline == 'only' && '-offline' || '' }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 25
