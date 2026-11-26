@@ -54,7 +54,7 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
     const [exit, output] = await Promise.all([child.exited, new Response(child.stdout).text()]);
     if (exit === 0) return;
     // Only emit a fixed label for a failed command, never a secret or future command.
-    const failedCommand = output.split(/\r?\n/).findLast(line => /❌|\bFAILED\b/.test(line)) ?? "";
+    const failedCommand = output.split(/\r?\n/).findLast(line => /❌|\bFAILED\b|Assertion is false|Element not found/i.test(line)) ?? "";
     for (const [needle, label] of [
       ["Preview HTTPS ready", "Chrome health page"],
       ["native-auth-google", "native sign-in button"],
@@ -65,6 +65,12 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["student-dashboard-preview", "Student dashboard"],
       ["student-inbox", "Student inbox"],
       ["PREVIEW_RECORD", "protected staff read"],
+      ["Preview Tutor Course", "protected Tutor read"], ["Preview Admin Form", "protected Admin read"],
+      ["admin-navbar-ops-ai", "Admin Ops AI entry"], ["admin-ops-ai-input", "Admin Ops AI composer"],
+      ["Formulir preview tersedia", "Admin Ops AI Ask response"], ["Izinkan sekali", "Admin Ops AI proposal"],
+      ["Aksi selesai", "Admin Ops AI action outcome"],
+      ["navbar-account", "staff account menu"], ["role-account-preferences", "staff settings shortcut"],
+      ["Profil akademis", "signed staff profile"], ["Academic profile", "signed staff profile"],
       ["Kuis Live Preview", "Tutor live quiz"],
       ["native-reading-screen", "Student native reading"],
       ["pet-scene-rendered", "Pet Studio first rendered 3D frame"], ["Latihan berhitung", "Pet practice"],

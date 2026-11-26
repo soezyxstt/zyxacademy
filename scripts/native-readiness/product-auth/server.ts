@@ -142,6 +142,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
   const studentNavigation = studentProduct || offlineProduct ? await import("@/app/api/student/navigation/route") : null;
   const opsAi = staff === "admin" ? await (await import("./ops-ai-fixture")).loadOpsAiPreview() : null;
   const staffReads = staff ? await (await import("./staff-fixture")).loadStaffReads() : null;
+  const staffProfile = staff ? await import("@/app/api/native/student/community/[operation]/route") : null;
   const offline = offlineProduct ? await (await import("./offline-fixture")).createOfflinePreview() : null;
   const liveRoutes = tutorLive ? await Promise.all([
     import("@/app/api/native/academic/tutor-support/[...resource]/route"),
@@ -165,6 +166,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
   let loadedDashboard = false;
   let acknowledgedInbox = false;
   let verifiedStaffRead = false;
+  let verifiedStaffProfile = false;
   let deniedOppositeRole = false;
   let unauthorizedRead = false;
   let visitedHealth = false;
@@ -293,6 +295,14 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         const response = await requestContext.run(upstream, () => opsAi.handle(upstream));
         if (response) return response;
       }
+      if (staff && staffProfile && route === "GET /api/native/student/community/profile" && url.searchParams.get("view") === "edit") {
+        const response = await requestContext.run(upstream, () => staffProfile.GET(upstream, { params: Promise.resolve({ operation: "profile" }) }));
+        if (response.ok && browserIdentity) {
+          const body = await response.clone().json();
+          verifiedStaffProfile ||= body.account?.name === "Expo Preview " + staffRoles[staff].label && body.customization === null;
+        }
+        return response;
+      }
       if (staff && opposite && staffReads && request.method === "GET") {
         if (url.pathname === staffRoles[staff].apiPath) {
           const response = await requestContext.run(upstream, () => staffReads[staff](upstream));
@@ -396,6 +406,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     identity: () => browserIdentity && { accountId: browserIdentity.accountId, sessionId: browserIdentity.sessionId },
     progress() {
       if (signedOut) return "sign-out";
+      if (verifiedStaffProfile) return "authorized staff profile";
       if (verifiedStaffRead) return "authorized staff read";
       if (acknowledgedInbox) return "inbox acknowledgement";
       if (loadedDashboard) return "Student dashboard";
@@ -413,7 +424,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     verifiedPetScene: () => petRead && petModelLoaded,
     async verifiedAndRevoked() {
       if (!verifiedContext || !signedOut || !browserIdentity) return false;
-      if (staff && (!verifiedStaffRead || !deniedOppositeRole || unauthorizedRead)) return false;
+      if (staff && (!verifiedStaffRead || !verifiedStaffProfile || !deniedOppositeRole || unauthorizedRead)) return false;
       if (studentProduct && (!loadedDashboard || !acknowledgedInbox ||
         !await verifiedInboxAcknowledgement(browserIdentity.accountId))) return false;
       if (offline && !offline.sawRevocation()) return false;
