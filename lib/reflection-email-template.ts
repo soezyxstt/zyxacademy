@@ -2,16 +2,12 @@ import type { Locale } from "@/lib/i18n/locale";
 import idMessages from "../messages/id/notifications.json" with { type: "json" };
 import enMessages from "../messages/en/notifications.json" with { type: "json" };
 
+import { emailColors, emailStyles, escapeEmailHtml as escapeHtml, renderEmailDetails, renderEmailLayout } from "@/lib/notifications/email-layout";
+
 const reflectionMessages = {
   id: idMessages.email.reflection,
   en: enMessages.email.reflection,
 } as const;
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  })[char]!);
-}
 
 export interface ReflectionEmailInput {
   locale: Locale;
@@ -29,28 +25,33 @@ export function renderReflectionEmail(input: ReflectionEmailInput): { subject: s
   const t = reflectionMessages[input.locale];
   const fill = (value: string, params: Record<string, string | number>) =>
     value.replace(/\{(\w+)\}/g, (_, key: string) => escapeHtml(String(params[key] ?? "")));
-  const name = input.name;
-  const weekStart = escapeHtml(input.weekStart);
+  const subject = t.subject.replace("{weekStart}", () => input.weekStart);
   const growth = `${input.masteryGrowth > 0 ? "+" : ""}${input.masteryGrowth}%`;
-  const mostImproved = input.mostImproved
-    ? `<li>${t.mostImproved} <strong>${escapeHtml(input.mostImproved)}</strong></li>`
-    : "";
+  const section = (title: string, rows: Array<{ label: string; value: string }>) => `
+    <h2 style="font-size:16px;line-height:24px;font-weight:600;color:${emailColors.foreground};margin:24px 0 8px;">${escapeHtml(title)}</h2>
+    ${renderEmailDetails(rows.map(row => ({ ...row, label: row.label.replace(/:\s*$/, "") })))}
+  `;
   return {
-    subject: fill(t.subject, { weekStart }),
-    html: `<!DOCTYPE html><html lang="${input.locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Zyx Academy</title></head>
-      <body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #0f172a;">
-        <h1 style="font-size: 24px; margin-top: 0;">${fill(t.greeting, { name })}</h1>
-        <p style="font-size: 16px; line-height: 1.5; color: #475569;">${t.intro} <strong>${weekStart}</strong>.</p>
-        <section style="margin: 24px 0; padding: 16px; background: #f8fafc; border-radius: 8px;"><h2>${t.activity}</h2><ul>
-          <li>${t.quizzes} <strong>${input.completed.quizzes}</strong></li><li>${t.flashcards} <strong>${input.completed.flashcards}</strong></li><li>${t.modules} <strong>${input.completed.modules}</strong></li>
-        </ul></section>
-        <section style="margin: 24px 0; padding: 16px; background: #f8fafc; border-radius: 8px;"><h2>${t.progress}</h2><ul>
-          <li>${t.masteryGrowth} <strong>${escapeHtml(growth)}</strong></li>${mostImproved}
-        </ul></section>
-        <section style="margin: 24px 0; padding: 16px; background: #f8fafc; border-radius: 8px;"><h2>${t.streak}</h2><ul>
-          <li>${t.currentStreak} <strong>${input.currentStreak} ${t.days}</strong></li><li>${t.longestStreak} <strong>${input.longestStreak} ${t.days}</strong></li>
-        </ul></section>
-        <p style="font-size: 14px; color: #64748b; text-align: center;">${t.outro} <strong>Zyx Academy</strong>.</p>
-      </body></html>`,
+    subject,
+    html: renderEmailLayout({
+      locale: input.locale,
+      bodyHtml: `<h1 style="${emailStyles.heading}">${escapeHtml(subject)}</h1>
+        <p style="${emailStyles.paragraph}">${fill(t.greeting, { name: input.name })}</p>
+        <p style="${emailStyles.paragraph}">${t.intro} <strong>${escapeHtml(input.weekStart)}</strong>.</p>
+        ${section(t.activity, [
+          { label: t.quizzes, value: String(input.completed.quizzes) },
+          { label: t.flashcards, value: String(input.completed.flashcards) },
+          { label: t.modules, value: String(input.completed.modules) },
+        ])}
+        ${section(t.progress, [
+          { label: t.masteryGrowth, value: growth },
+          ...(input.mostImproved ? [{ label: t.mostImproved, value: input.mostImproved }] : []),
+        ])}
+        ${section(t.streak, [
+          { label: t.currentStreak, value: `${input.currentStreak} ${t.days}` },
+          { label: t.longestStreak, value: `${input.longestStreak} ${t.days}` },
+        ])}
+        <p style="${emailStyles.paragraph}margin-bottom:0;">${t.outro} <strong>Zyx Academy</strong>.</p>`,
+    }),
   };
 }
