@@ -1,3 +1,7 @@
+import type { QuietHours } from "../../../packages/student-community/quiet-hours";
+
+export { parseQuietHours, type QuietHours } from "../../../packages/student-community/quiet-hours";
+
 export type ReminderLocale = "id" | "en";
 export type StudyReminderConfig = {
   enabled: boolean;
@@ -8,7 +12,6 @@ export type StudyReminderConfig = {
   tutorLeadMinutes: number;
 };
 
-export type QuietHours = { enabled: boolean; startMinute: number; endMinute: number; timeZone: string };
 export type TutorReminderSession = {
   bookingId: string;
   status: string;
@@ -60,19 +63,6 @@ export function normalizeStudyReminderConfig(value: unknown): StudyReminderConfi
     weekdays: weekdays.length ? weekdays : [...base.weekdays],
     tutorLeadMinutes: inRange(raw.tutorLeadMinutes, 5, 180) ? raw.tutorLeadMinutes : base.tutorLeadMinutes,
   };
-}
-
-export function parseQuietHours(value: unknown): QuietHours | null {
-  if (!value || typeof value !== "object") return null;
-  const { enabled, startMinute, endMinute, timeZone } = value as Partial<QuietHours>;
-  if (typeof enabled !== "boolean" || !inRange(startMinute, 0, 1439) || !inRange(endMinute, 0, 1439)
-    || startMinute === endMinute || typeof timeZone !== "string" || !timeZone || timeZone.length > 100) return null;
-  try {
-    new Intl.DateTimeFormat("en", { timeZone });
-    return { enabled, startMinute, endMinute, timeZone };
-  } catch {
-    return null;
-  }
 }
 
 // Scan actual minutes in the preference timezone, including overnight and DST.

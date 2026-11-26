@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { resolveSettingsTab, type SettingsTab } from "../../../../../packages/student-community/settings-tabs";
-import type { QuietHours } from "../../../../../lib/notifications/quiet-hours";
+import { parseQuietHours, type QuietHours } from "../../../../../packages/student-community/quiet-hours";
 import { isTutorialEmailSchedule } from "../../../../../packages/student-community/tutorial-email-schedule";
 import { activityPreferenceKeys, emailPreferenceKeys, feedbackCategories } from "../../../../../packages/native-parity/student/community/contracts";
 import type { ActivityPreferenceKey, FeedbackCategory, NotificationPreferences, TutorialEmailSchedule } from "../../../../../packages/native-parity/student/community/contracts";
@@ -29,7 +29,7 @@ function QuietHoursForm({ initial }: { initial: QuietHours }) {
   const zones = new Set(["Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura", Intl.DateTimeFormat().resolvedOptions().timeZone, initial.timeZone]);
   const startMinute = parseClock(start);
   const endMinute = parseClock(end);
-  const valid = startMinute !== null && endMinute !== null && startMinute !== endMinute;
+  const preference = parseQuietHours({ enabled, startMinute, endMinute, timeZone });
   const dirty = enabled !== saved.enabled || startMinute !== saved.startMinute || endMinute !== saved.endMinute || timeZone !== saved.timeZone;
   return <View style={styles.block}>
     <Toggle label={tr("Aktifkan jam tenang", "Enable quiet hours")} value={enabled} onChange={setEnabled} disabled={action.pending} />
@@ -39,27 +39,32 @@ function QuietHoursForm({ initial }: { initial: QuietHours }) {
       <Copy kind="strong">{tr("Zona waktu", "Time zone")}</Copy>
       <Choices value={timeZone} options={[...zones].filter(Boolean).map(value => ({ value, label: value.replaceAll("_", " ") }))}
         onSelect={setTimeZone} disabled={action.pending} />
-      {!valid && <Copy kind="error">{tr("Pilih jam mulai dan selesai yang berbeda.", "Choose different start and end times.")}</Copy>}
-      {valid && startMinute > endMinute && <Copy kind="muted">{tr("Berakhir keesokan harinya.", "Ends the next morning.")}</Copy>}
+      {!preference && <Copy kind="error">{tr("Pilih jam mulai dan selesai yang berbeda.", "Choose different start and end times.")}</Copy>}
+      {preference && preference.startMinute > preference.endMinute && <Copy kind="muted">{tr("Berakhir keesokan harinya.", "Ends the next morning.")}</Copy>}
     </>}
     <Notice notice={action.notice} />
-    <Actions><Action label={tr("Simpan jam tenang", "Save quiet hours")} disabled={!valid || !dirty} busy={action.pending}
+    <Actions><Action label={tr("Simpan jam tenang", "Save quiet hours")} disabled={!preference || !dirty} busy={action.pending}
       onPress={() => void action.run(async () => {
-        if (!valid) return;
-        setSaved(await readJson<QuietHours>(request, quietHoursEndpoint, {
+        if (!preference) return;
+        const result = parseQuietHours(await readJson<unknown>(request, quietHoursEndpoint, {
           method: "PUT", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ enabled, startMinute, endMinute, timeZone }),
+          body: JSON.stringify(preference),
         }));
+        if (!result) throw new Error("Invalid quiet hours response");
+        setSaved(result);
       }, tr("Jam tenang tersimpan.", "Quiet hours saved."))} /></Actions>
   </View>;
 }
 function QuietHoursPanel() {
-  const state = useRemote<QuietHours>(quietHoursEndpoint);
+  const state = useRemote<unknown>(quietHoursEndpoint);
+  const data = state.data === undefined ? undefined : parseQuietHours(state.data);
   const { tr } = useCommunity();
   return <>
     <Copy kind="heading">{tr("Jam tenang", "Quiet hours")}</Copy>
     <Copy kind="muted">{tr("Jam tenang berlaku di semua perangkat. Ringkasan notifikasi dikirim setelahnya.", "Quiet hours apply across devices. A notification summary is sent afterwards.")}</Copy>
-    <Remote state={state}>{data => <QuietHoursForm initial={data} />}</Remote>
+    <Remote state={{ ...state, data: data ?? undefined, error: data === null ? new Error("Invalid quiet hours response") : state.error }}>
+      {data => <QuietHoursForm initial={data} />}
+    </Remote>
   </>;
 }
 
@@ -211,7 +216,7 @@ export function FeedbackScreen() {
       <Choices value={category} options={feedbackCategories.map(value => ({ value, label: labels[value] }))} onSelect={setCategory} disabled={state.pending} />
       <Copy kind="strong">{tr("Penilaian", "Rating")}</Copy>
       <Choices value={rating} options={["1", "2", "3", "4", "5"].map(value => ({ value, label: value }))} onSelect={setRating} disabled={state.pending} />
-      <Field label={tr("Masukan Anda", "Your feedback")} value={message} onChangeText={setMessage} maxLength={5000} editable={!state.pending} multiline />
+      <Field label={tr("Masukan Anda", "Your feedback")} testID="student-feedback-message" value={message} onChangeText={setMessage} maxLength={5000} editable={!state.pending} multiline />
       <Notice notice={state.notice} />
       <Actions><Action label={tr("Kirim masukan", "Send feedback")} mode="default" busy={state.pending} disabled={message.trim().length < 5}
         onPress={() => void state.run(async () => {

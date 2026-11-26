@@ -1,16 +1,15 @@
 /** Account-wide quiet hours, independent of the device's current time zone. */
 import { z } from "zod";
+import { isTimeZone, type QuietHours } from "../../packages/student-community/quiet-hours";
 
-export function isTimeZone(value: string): boolean {
- try { new Intl.DateTimeFormat("en", { timeZone: value }).format(); return true; } catch { return false; }
-}
+export { isTimeZone, type QuietHours } from "../../packages/student-community/quiet-hours";
+
 export const quietHoursSchema = z.object({
  enabled: z.boolean(),
  startMinute: z.number().int().min(0).max(1439),
  endMinute: z.number().int().min(0).max(1439),
  timeZone: z.string().min(1).max(100).refine(isTimeZone),
-}).strict().refine(value => value.startMinute !== value.endMinute, { message: "Start and end must differ" });
-export type QuietHours = z.infer<typeof quietHoursSchema>;
+}).strict().refine(value => value.startMinute !== value.endMinute, { message: "Start and end must differ" }) satisfies z.ZodType<QuietHours>;
 export const DEFAULT_QUIET_HOURS: QuietHours = { enabled: false, startMinute: 1320, endMinute: 420, timeZone: "Asia/Jakarta" };
 
 function minuteOfDay(formatter: Intl.DateTimeFormat, date: Date) {
