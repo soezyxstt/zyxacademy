@@ -102,3 +102,37 @@ test("the same rendered Article gets actions only at its admitted section and pa
   expect(emitted).toEqual([{ sectionId: "s2", field: "section_visual" }, { sectionId: "s2", blockId: "b2", field: "content" }]);
   expect(buildOfflineReadingSections(reading, undefined, "s1")[0].bodyHtml).not.toContain("<a>Open visual</a>");
 });
+
+test("published Article widgets are reachable from legacy sections, typed references and admitted Markdown, with private figures limited to already resolved bytes", async () => {
+  const { prompt } = await import("../../app/visual-fixtures/content-visuals/content");
+  const { solutionCollectionFixture } = await import("../../app/visual-fixtures/solution-collection/fixture");
+  const { readSolutionVisual } = await import("../../apps/mobile-native/features/solutions/visual-preview-model");
+  const geometry = solutionCollectionFixture.items[0].visuals[0];
+  const figure = { id: "figure", kind: "source_figure", label: "Figure", description: "Details", assetId: "a".repeat(64),
+    asset: { assetId: "a".repeat(64), imageUrl: "/private/figure", attribution: "Author", width: 40, height: 40 },
+    staticFallback: { type: "text", summary: "Summary", content: "The curve doubles." } };
+  const reading = { kind: "structured_article" as const, article: { visuals: [geometry, spec], sections: [
+    { id: "first", title: "Inline", blocks: [{ id: "block", parts: [
+      { kind: "visual_ref", id: "shape", visualId: geometry.id },
+      { kind: "visual_ref", id: "document", visualId: spec.id },
+      { kind: "markdown", id: "plot", markdown: prompt },
+    ] }] },
+    { id: "second", title: "Section", visuals: [figure], blocks: [] },
+  ] } as unknown as Pick<PublicArticleReadModel, "visuals" | "sections"> };
+  const received: string[] = [];
+  const render: NonNullable<Parameters<typeof buildOfflineReadingSections>[6]> = widget => {
+    received.push(widget.kind);
+    if (widget.kind !== "source_figure") expect(readSolutionVisual(widget)?.kind).toBe(widget.kind);
+    return "<button>Explore</button>";
+  };
+  const first = buildOfflineReadingSections(reading, undefined, "first", undefined, undefined, undefined, render)[0];
+  expect(received).toEqual(["geometry_2d", "learning_canvas"]);
+  expect(first.bodyHtml?.match(/<button>Explore/g)).toHaveLength(2);
+  expect(first.bodyHtml).toContain("Apa yang terjadi");
+  expect(buildOfflineReadingSections(reading, undefined, "second", undefined, undefined, undefined, render)[0].bodyHtml).not.toContain("<button>");
+  const fitted = buildOfflineReadingSections(reading, { resolveImage: () => "data:image/png;base64,AQ==" }, "second", undefined, undefined, undefined, render)[0];
+  expect(received.at(-1)).toBe("source_figure");
+  expect(fitted.bodyHtml).toContain("The curve doubles.");
+  expect(fitted.bodyHtml).toContain("<button>Explore");
+  expect(buildOfflineReadingSections(reading, undefined, "first")[0].bodyHtml).not.toContain("<button>");
+});

@@ -2,15 +2,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { mergeArticleSectionProgress, type ArticleProgressUpdate } from "../../../../../lib/articles/progress-contract";
-import { interactiveMarkdown, interactiveMarkdownFallback } from "../../../../../lib/materials/interactive-document-display";
+import { parseEmbeddedVisual } from "../../../../../lib/materials/embedded-visuals";
+import { splitVisualMarkdown } from "../../../../../lib/materials/interactive-document-display";
 import type { ArticleField, InteractiveDocumentAssetKind, InteractiveDocumentScope } from "../../../../../lib/materials/interactive-document-path";
 import { InteractiveDocumentModal, InteractiveVisual } from "../InteractiveDocument";
 import type { VisualSource } from "../interactive-document";
 import type { FormativeLearnerResponse } from "../../../../../lib/materials/formative-evaluation";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
+import { ExpandedImage } from "../../../components/ExpandedImage";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import type { ReadingSelectionKey } from "../../../offline/reading-selection";
+import type { ReadingWidget } from "../../../../../lib/offline/reading-sections";
+import { SolutionVisualPreview } from "../../solutions/SolutionVisualPreview";
 import { ReadingContentDocument } from "../../../offline/ReadingDocument";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { CourseMarkdown } from "../CourseMarkdown";
@@ -55,6 +59,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
   const [busy, setBusy] = useState(false);
   const [showCoding, setShowCoding] = useState(false);
   const [coding, setCoding] = useState<CodingItem>();
+  const [widget, setWidget] = useState<ReadingWidget>();
   const [selectedVisual, setSelectedVisual] = useState<VisualSource & { kind: InteractiveDocumentAssetKind }>();
   const [check, setCheck] = useState<StudyBlock>();
   const pending = useRef<AbortController | null>(null);
@@ -184,6 +189,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
     }
   }
 
+  const figureUri = widget?.kind === "source_figure" && widget.asset ? content.resolveImage(widget.asset.imageUrl) : undefined;
   const page = active ? sections.indexOf(active) : diktatSection ? diktatIndex : -1;
   const pageCount = sections.length || diktatSections.length;
   function move(to: number) {
@@ -212,9 +218,10 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
       codingActions={codingActions} onCodingAction={openCoding}
       selectionLabel={!content.structured ? id ? "Tinjau pilihan" : "Explore selection" : undefined}
       onSelectedText={onSelection ? (key, text) => {
-        if (!canInteract() || showCoding || selectedVisual || check) return;
+        if (!canInteract() || showCoding || selectedVisual || widget || check) return;
         onSelection(key, text, typeof codingSection?.title === "string" ? codingSection.title : diktatSection?.title);
-      } : undefined} onVisualAction={visualArticle ? action => {
+      } : undefined} onWidgetAction={visualArticle ? spec => { if (canInteract()) setWidget(spec); } : undefined}
+      onVisualAction={visualArticle ? action => {
         if (canInteract()) setSelectedVisual({ spec: action.spec, scope: { ...visualArticle, ...action.location }, kind: action.kind });
       } : undefined} /> : <View style={{ flex: 1 }} />}
     <View style={{ gap: 6, padding: 8, borderTopWidth: 1, borderColor: colors.border }}>
@@ -246,6 +253,15 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
         </>}
       </View>
     </View>
+    {widget?.kind === "source_figure" && figureUri && error !== "stale" && <ExpandedImage uri={figureUri} label={widget.label} locale={locale} theme={theme} close={() => setWidget(undefined)} />}
+    {widget && widget.kind !== "source_figure" && error !== "stale" && <Modal visible onRequestClose={() => setWidget(undefined)} animationType="none">
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Button theme={theme} variant="ghost" testID="student-close-article-visual" onPress={() => setWidget(undefined)}>{id ? "Kembali ke artikel" : "Back to article"}</Button>
+        <ScrollView contentContainerStyle={{ padding: 16 }}>
+          <SolutionVisualPreview value={widget} origin={session.origin} locale={locale} theme={theme} />
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>}
     {selectedVisual && error !== "stale" && <InteractiveDocumentModal selection={selectedVisual}
       request={request} locale={locale} onClose={() => setSelectedVisual(undefined)} />}
     {codingSection && coding && "version" in content.data && <Modal visible={showCoding && error !== "stale"}
@@ -288,9 +304,13 @@ function ReadingCheck({ block, blocks, sectionId, study, request, article, sessi
     : text ? check.checkKind === "short_answer" ? { kind: "text", text }
       : check.checkKind === "numeric_answer" ? { kind: "numeric", value: text } : { kind: "conceptual", text } : undefined;
   const markdown = (source: string, scope: InteractiveDocumentScope | null = null) =>
-    interactiveMarkdown(source).map((part, index) => typeof part === "string"
-      ? <CourseMarkdown key={index} allowLinks={false} source={part} theme={theme} services={{ session }} />
-      : <InteractiveVisual key={`${part.id}:${index}`} source={{ spec: part, scope }} request={request} locale={locale} />);
+    splitVisualMarkdown(source, parseEmbeddedVisual).map((part, index) => {
+      if (typeof part === "string") return <CourseMarkdown key={index} allowLinks={false} source={part} theme={theme} services={{ session }} />;
+      if (part.kind === "interactive_document") return <InteractiveVisual key={index} source={{ spec: part, scope }} request={request} locale={locale} />;
+      if (part.kind === "source_figure") return <CourseMarkdown key={index} allowLinks={false} source={part.captionMarkdown ?? part.description}
+        theme={theme} services={{ session }} />;
+      return <SolutionVisualPreview key={index} value={part} origin={session.origin} locale={locale} theme={theme} />;
+    });
   const grantScope = (field: "answer" | "explanation") => {
     const grant = reveal?.visualAccess?.[field];
     return grant ? { grant } : null;
@@ -330,7 +350,7 @@ function ReadingCheck({ block, blocks, sectionId, study, request, article, sessi
       {markdown(block.content, article ? { ...article, sectionId, blockId: block.id, field: "content" } : null)}
       {check.options?.map(option => <View key={option.id} style={toolbar}>
         <Button theme={theme} variant={choice === option.id ? "default" : "outline"} disabled={locked}
-          accessibilityLabel={interactiveMarkdownFallback(option.text)} onPress={() => setChoice(option.id)}>{String.fromCharCode(65 + (check.options?.indexOf(option) ?? 0))}</Button>
+          accessibilityLabel={splitVisualMarkdown(option.text, parseEmbeddedVisual).map(part => typeof part === "string" ? part : part.label).join(" ")} onPress={() => setChoice(option.id)}>{String.fromCharCode(65 + (check.options?.indexOf(option) ?? 0))}</Button>
         {markdown(option.text, article ? { ...article, sectionId, blockId: block.id, optionId: option.id } : null)}
       </View>)}
       {!check.options?.length && check.evaluationMode && <Input theme={theme} accessibilityLabel={id ? "Jawaban" : "Answer"}

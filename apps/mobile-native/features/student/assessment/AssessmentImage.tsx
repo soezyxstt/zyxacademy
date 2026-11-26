@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Image, StyleSheet, Text } from "react-native";
+import { Image, Pressable, StyleSheet, Text } from "react-native";
+import { ExpandedImage } from "../../../components/ExpandedImage";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { useAssessment, useAssessmentColors, useAssessmentCopy } from "./ui";
 import { assessmentMedia } from "./visual-markdown";
@@ -13,10 +14,12 @@ export function AssessmentImage({ raw, alt }: { raw: string; alt: string }) {
   const path = media?.kind === "storage-image" ? media.path : media?.kind === "public-image" ? media.url : undefined;
   const [resolved, setResolved] = useState<{ path: string; uri: string }>();
   const [failed, setFailed] = useState(false);
+  const [expanded, setExpanded] = useState<string>();
 
   useEffect(() => {
     setResolved(undefined);
     setFailed(false);
+    setExpanded(undefined);
     if (!path || !openAssessmentImage || suspended || focused === false || !canInteract()) return;
     const controller = new AbortController();
     let release: (() => void) | undefined;
@@ -32,8 +35,13 @@ export function AssessmentImage({ raw, alt }: { raw: string; alt: string }) {
   const uri = media?.kind === "image" ? media.uri : resolved?.path === path && !suspended && focused !== false ? resolved?.uri : undefined;
   if (failed || !media || (path && !openAssessmentImage)) return <Text style={{ color: colors.mutedForeground }}>{alt ? `${alt}. ${fallback}` : fallback}</Text>;
   if (!uri) return <Text style={{ color: colors.mutedForeground }}>{alt || tx("Memuat gambar", "Loading image")}</Text>;
-  return <Image accessible accessibilityRole="image" accessibilityLabel={alt || tx("Gambar soal", "Question image")}
-    source={{ uri }} resizeMode="contain" onError={() => setFailed(true)} style={styles.image} />;
+  const label = alt || tx("Gambar soal", "Question image");
+  return <><Pressable accessibilityRole="button" accessibilityLabel={tx("Perbesar gambar", "Enlarge image") + ": " + label}
+    disabled={suspended || focused === false} onPress={() => { if (canInteract()) setExpanded(uri); }}>
+    <Image accessible={false} source={{ uri }} resizeMode="contain" onError={() => setFailed(true)} style={styles.image} />
+  </Pressable>
+    {expanded === uri && !suspended && focused !== false && <ExpandedImage uri={uri} label={label} locale={session.locale} close={() => setExpanded(undefined)} />}
+  </>;
 }
 
 const styles = StyleSheet.create({

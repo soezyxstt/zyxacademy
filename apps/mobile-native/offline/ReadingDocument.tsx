@@ -1,7 +1,7 @@
 import type { InteractiveDocumentAssetKind } from "../../../lib/materials/interactive-document-path";
 import type { InteractiveDocumentSpec } from "../../../lib/materials/interactive-document";
 import { escapeHtml } from "../../../lib/offline/offline-snapshot-renderer";
-import { readingFocusAnchor, type ReaderFocus, type ReadingVisualLocation } from "../../../lib/offline/reading-sections";
+import { readingFocusAnchor, type ReaderFocus, type ReadingWidget, type ReadingVisualLocation } from "../../../lib/offline/reading-sections";
 import { useMemo, useRef, type ComponentProps, type ComponentRef } from "react";
 import { Platform, Text, View, useColorScheme } from "react-native";
 import { WebView } from "react-native-webview";
@@ -26,17 +26,19 @@ export function ReadingDocument(props: ReadingDocumentProps) {
   return <ReadingContentDocument key={JSON.stringify([saved.summary.key, saved.summary.revision, section])} content={content} />;
 }
 
-export function ReadingContentDocument({ content, testID = "offline-reading-document", onProgress, codingActions, onCodingAction, onVisualAction, onSelectedText, focus, selectionLabel }: {
+export function ReadingContentDocument({ content, testID = "offline-reading-document", onProgress, codingActions, onCodingAction, onVisualAction, onWidgetAction, onSelectedText, focus, selectionLabel }: {
   content: ReadingContent; testID?: string; onProgress?: (percent: number) => void;
   codingActions?: ReadonlyMap<string, string>; onCodingAction?: (id: string) => void;
   selectionLabel?: string;
   onSelectedText?: (key: ReadingSelectionKey, text: unknown) => void;
+  onWidgetAction?: (spec: ReadingWidget) => void;
   onVisualAction?: (action: VisualAction) => void; focus?: ReaderFocus;
 }) {
   const { title, locale } = content;
   const theme = useColorScheme() === "dark" ? "dark" : "light";
   const { fontSize, density } = useNativeAppearance();
   const canOpenVisuals = Boolean(onVisualAction);
+  const canOpenWidgets = Boolean(onWidgetAction);
   const webView = useRef<ComponentRef<typeof WebView>>(null);
   const nativeSelection = Boolean(onSelectedText) && (Platform.OS === "ios" || Platform.OS === "android");
   const menuItems = nativeSelection ? [
@@ -45,6 +47,7 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
   ] : undefined;
   const document = useMemo(() => {
     const visualActions = new Map<string, VisualAction>();
+    const widgets = new Map<string, ReadingWidget>();
     try {
       const html = buildReadingContentHtml(content, readingKatexCss, theme, { fontSize, density }, codingActions, canOpenVisuals ? (spec, location) => {
         const link = (kind: InteractiveDocumentAssetKind, label: string) => {
@@ -54,10 +57,16 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
         };
         return link("document", locale === "id" ? "Buka visual" : "Open visual") + " " +
           link("print", locale === "id" ? "Lihat gambar" : "View image");
-      } : undefined, focus);
-      return html ? { source: { html, baseUrl: initialPage }, visualActions } : undefined;
+      } : undefined, focus, canOpenWidgets ? spec => {
+        const url = visualActionRoot + "widget/" + widgets.size;
+        widgets.set(url, spec);
+        const label = spec.kind === "source_figure" ? (locale === "en" ? "Enlarge image" : "Perbesar gambar")
+          : locale === "en" ? "Explore visual" : "Jelajahi visual";
+        return `<a class="reader-coding-action" href="${url}" aria-label="${escapeHtml(label + ": " + spec.label)}">${label}</a>`;
+      } : undefined);
+      return html ? { source: { html, baseUrl: initialPage }, visualActions, widgets } : undefined;
     } catch { return undefined; }
-  }, [content, theme, fontSize, density, codingActions, canOpenVisuals, locale, focus]);
+  }, [content, theme, fontSize, density, codingActions, canOpenVisuals, canOpenWidgets, locale, focus]);
   const unavailable = () => <View style={{ flex: 1, padding: 16 }}>
     <Text accessibilityRole="alert" style={{ color: nativeColors[theme].foreground }}>
       {locale === "id" ? "Dokumen tidak dapat ditampilkan." : "This document cannot be displayed."}
@@ -88,6 +97,8 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
     originWhitelist={["*"]}
     onShouldStartLoadWithRequest={request => {
       if (request.url === initialPage) return true;
+      const widget = document.widgets.get(request.url);
+      if (widget) onWidgetAction?.(widget);
       const visualAction = document.visualActions.get(request.url);
       if (visualAction) onVisualAction?.(visualAction);
       const action = readerCodingAction(request.url, codingActions);

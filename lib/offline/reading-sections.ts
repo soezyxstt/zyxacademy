@@ -1,6 +1,7 @@
 import { appendArticleMarkdownScope } from "../coding/article-markdown-scope";
 import { articleBlockContentScope, articleBlockScope, renderMarkdownCodeActions, typedArticleMarkdownScope } from "../coding/native-article-parts";
-import { interactiveMarkdown } from "../materials/interactive-document-display";
+import { parseEmbeddedVisual } from "../materials/embedded-visuals";
+import { interactiveMarkdown, splitVisualMarkdown } from "../materials/interactive-document-display";
 import type { InteractiveDocumentSpec } from "../materials/interactive-document";
 import type { ArticleField } from "../materials/interactive-document-path";
 import { articleCaseLatex, type ArticlePart } from "../materials/article-parts";
@@ -55,25 +56,30 @@ type ReadingSource = {
 export type ReadingVisualLocation = Pick<ArticleField, "sectionId" | "blockId" | "partId" | "field">;
 export type ReaderFocus = { sectionId: string; blockId: string; partId?: string; elementId?: string };
 export const readingFocusAnchor = "reading-search-result";
+export type ReadingWidget = Exclude<PublicVisualSpec, { kind: "interactive_document" }>;
+export type RenderReadingWidgetAction = (spec: ReadingWidget) => string;
 export type RenderReadingVisualAction = (spec: InteractiveDocumentSpec, location: ReadingVisualLocation) => string;
 
 /** Shared by the browser, Capacitor snapshot and Expo's local-only reading surface. */
 export function buildOfflineReadingSections(record: ReadingSource, options?: OfflineRenderOptions, section?: string,
-  renderCodingAction?: (partId: string) => string, renderVisualAction?: RenderReadingVisualAction, focus?: ReaderFocus): NativeOfflineSection[] {
-  const markdown = (value: string) => renderOfflineMarkdownHtml(value, options);
+  renderCodingAction?: (partId: string) => string, renderVisualAction?: RenderReadingVisualAction, focus?: ReaderFocus, renderWidget?: RenderReadingWidgetAction): NativeOfflineSection[] {
+  const markdown = (value: string) => renderMarkdownVisuals(value, options);
   const scopedOptions = (raw: string, scope?: string): OfflineRenderOptions | undefined => renderCodingAction && scope
     ? { ...options, renderCodeAction: renderMarkdownCodeActions(raw, scope, renderCodingAction) } : options;
-  const scopedMarkdown = (raw: string, scope: string) => renderOfflineMarkdownHtml(cleanOfflineMarkdown(raw), scopedOptions(raw, scope));
-  const visualHtml = (visual: PublicVisualSpec, location?: ReadingVisualLocation) =>
-    renderOfflineVisualHtml(visual, options) +
-    (location && visual.kind === "interactive_document" ? renderVisualAction?.(visual, location) ?? "" : "");
-  const locatedMarkdown = (raw: string, location: ReadingVisualLocation, scope: string) => {
-    const value = cleanOfflineMarkdown(raw);
-    const renderOptions = scopedOptions(raw, scope);
-    return renderVisualAction
-      ? interactiveMarkdown(value).map(part => typeof part === "string" ? renderOfflineMarkdownHtml(part, renderOptions) : visualHtml(part, location)).join("")
-      : renderOfflineMarkdownHtml(value, renderOptions);
+  const scopedMarkdown = (raw: string, scope: string) => renderMarkdownVisuals(cleanOfflineMarkdown(raw), scopedOptions(raw, scope));
+  const visualHtml = (visual: PublicVisualSpec, location?: ReadingVisualLocation) => {
+    const fallback = renderOfflineVisualHtml(visual, options);
+    if (visual.kind === "interactive_document") return fallback + (location ? renderVisualAction?.(visual, location) ?? "" : "");
+    if (visual.kind === "source_figure" && (!visual.asset || !options?.resolveImage?.(visual.asset.imageUrl))) return fallback;
+    return fallback + (renderWidget?.(visual) ?? "");
   };
+  function renderMarkdownVisuals(value: string, renderOptions?: OfflineRenderOptions, location?: ReadingVisualLocation) {
+    if (!value.includes("zyx-visual") || (!renderWidget && (!renderVisualAction || !location))) return renderOfflineMarkdownHtml(value, renderOptions);
+    const parts = renderWidget ? splitVisualMarkdown(value, parseEmbeddedVisual) : interactiveMarkdown(value);
+    return parts.map(part => typeof part === "string" ? renderOfflineMarkdownHtml(part, renderOptions) : visualHtml(part, location)).join("");
+  }
+  const locatedMarkdown = (raw: string, location: ReadingVisualLocation, scope: string) =>
+    renderMarkdownVisuals(cleanOfflineMarkdown(raw), scopedOptions(raw, scope), location);
   const sections: NativeOfflineSection[] = [];
   let focused = false;
   function anchor(parts: string[], start: number) {

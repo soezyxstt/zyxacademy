@@ -606,9 +606,7 @@ export function renderOfflineVisualHtml(visual: PublicVisualSpec, options?: Offl
       if (visual.asset?.attribution) {
         body += `<p class="offline-visual-note">${escapeHtml(visual.asset.attribution)}</p>`;
       }
-      if (!imgUrl) {
-        body += renderStaticFallbackHtml(visual.staticFallback);
-      }
+      body += renderStaticFallbackHtml(visual.staticFallback);
     } else if (visual.kind === "interactive_document") {
       body = `<p class="offline-visual-note">${renderScientificProse(visual.printCaption)}</p>`;
       if (visual.staticFallback.content.trim() !== visual.printCaption.trim()) {
