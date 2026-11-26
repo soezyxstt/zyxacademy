@@ -59,7 +59,7 @@ Status Android dan iOS untuk seluruh baris adalah **menunggu pengujian perangkat
 
 ## Hasil verifikasi lokal
 
-Pengujian menggunakan host dari base `840d3f303da55e4b93048c58eb3faea6b8b0a3c0`. Integrator dapat menjalankan fixture melalui galeri atau melalui deep link tanpa memasang launcher sementara.
+Pengujian bundle menggunakan base `840d3f303da55e4b93048c58eb3faea6b8b0a3c0`. Typecheck host dan tes komponen dijalankan kembali sesudah sinkronisasi base `e20b6456389f0352c4ef6a826786160e9b7dca6b`. Integrator dapat menjalankan fixture melalui galeri atau melalui deep link tanpa memasang launcher sementara.
 
 | Pemeriksaan | Hasil pada checkout tugas |
 | --- | --- |
@@ -67,7 +67,8 @@ Pengujian menggunakan host dari base `840d3f303da55e4b93048c58eb3faea6b8b0a3c0`.
 | Interaksi Playwright | 11 lulus. Meliputi validasi dialog dan pemulihan fokus lewat Escape, fokus sheet, judul aksesibel, edit dan hapus pencarian, retry dan reset daftar, pilihan tanggal/tab, nama panjang pada 380 px, pembesaran teks dan input sentuh. [Skenario](../../../tests/visual/native-parallel/shared-ui/interactions.ts) |
 | Kontrak native | 9 tes model Bun dan 4 tes komponen dengan React test renderer lulus. TypeScript untuk seluruh ekspor shared-ui dan TypeScript serta ESLint harness referensi lulus. [Tes](../../../tests/native-parity/shared-ui/) |
 | Collector perangkat | 10 tes Python lulus, mencakup penolakan frame kosong, identitas kasus keliru, metadata build yang hilang dan perbedaan geometri. [Tes collector](../../../tests/visual/native-parallel/shared-ui/device/) |
-| Typecheck host penuh | `npm --prefix apps/mobile-native run typecheck` gagal pada dua pemanggilan `useSyncExternalStore` di `auth/session-provider.tsx`. Snapshot server awal belum memasok boolean `revalidating` yang diminta controller. Integrator perlu menyelaraskan snapshot dan menjalankan ulang typecheck host. |
+| Typecheck host penuh | `npm --prefix apps/mobile-native run typecheck` lulus setelah integrator menambahkan `revalidating` pada snapshot sesi awal di `390c8f59`. |
+| CI native-contracts | Pada merge uji `8e8b074b` langkah TypeScript lulus, sedangkan langkah kontrak device/session/transport/offline gagal. Reproduksi lokal tanpa dependensi web menghasilkan 99 lulus dan satu kegagalan saat Bun mengimpor sintaks Flow `import typeof` milik React Native melalui `tests/unit/native-browser-login.test.ts`. Integrator dapat menjalankan tes tersebut dengan Bun sesudah `npm ci` di aplikasi dan mengisolasi binding platform untuk tes login. [Job CI](https://github.com/soezyxstt/zyxacademy/actions/runs/45803695549/job/139853233025) |
 
 Ekspor Hermes untuk kedua platform berhasil pada host tersebut setelah pengujian lokal memakai `config.transformer.assetRegistryPath = require.resolve("react-native/asset-registry")` di konfigurasi Metro aplikasi. Pada instalasi npm terisolasi, Metro mencoba menyelesaikan modul itu dari luar root aplikasi ketika membundel `public/founders/adi.jpeg`. Integrator dapat mereproduksi dengan `npx --no-install expo export --platform all --clear` dari `apps/mobile-native` dan menetapkan resolusi registry dari root aplikasi. Penyesuaian Metro hanya digunakan saat eksperimen lokal. SHA-256 bundle Android adalah `c49812f4b07ca619b2b8c8c29564a9f2d2f2eaa759f328f9c91d82f746b96ca9`, dan iOS `16e6a6427fad9faf9f1208c9fd13966dfa066c150f1b89d4a18bd10d86b8b927`.
 
