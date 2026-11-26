@@ -1,6 +1,6 @@
 import type { NativeRequestInit, NativeResponse, NativeSessionTransport } from "../network/transport";
-import type { NativeOfflineMetadataSnapshot } from "./metadata-store";
-import type { NativeOfflineReadingStore } from "./reading-store";
+import type { NativeOfflineMetadataSnapshot, OfflineReadingCourseVersion, OfflineReadingDeletion, OfflineReadingRestrictions } from "./metadata-store";
+import type { NativeOfflineReadingStore, OfflineManifestCheck } from "./reading-store";
 import {
   isNativeOfflineCursor,
   NATIVE_OFFLINE_COURSE_LIMIT,
@@ -122,11 +122,22 @@ function restrictManifest(manifest: NativeOfflineManifestResponse, grant: Native
   };
 }
 
+function publicationDeletions(changes: NativeOfflineSyncResponse["changes"]): OfflineReadingDeletion[] {
+  const deleted = new Map<string, OfflineReadingDeletion>();
+  for (const change of changes) {
+    if ((change.kind !== "article" && change.kind !== "diktat") || !change.courseId || !change.resourceId) continue;
+    const key = JSON.stringify([change.kind, change.courseId, change.resourceId]);
+    if (change.action === "delete") deleted.set(key, { key, courseId: change.courseId, cursor: change.cursor });
+    else if (change.action === "upsert") deleted.delete(key);
+  }
+  return [...deleted.values()];
+}
+
 type SyncOptions = {
   session: NativeSessionTransport;
   locale: NativeOfflineLocale;
   repository: NativeOfflineMetadataRepository;
-  readings: () => Promise<Pick<NativeOfflineReadingStore, "applyAccessWithCourseDenials" | "captureCourseVersions" | "withdrawCourse">>;
+  readings: () => Promise<Pick<NativeOfflineReadingStore, "applyAccessWithRestrictions" | "captureCourseVersions" | "commitPageWithManifests" | "withdrawCourse">>;
   now?: () => number;
 };
 
@@ -187,8 +198,10 @@ export function createNativeOfflineSyncController({ session, locale, repository,
     });
     const response = parseNativeOfflineSyncResponse(value, scope, expectedCursor);
     if (response.leaseExpiresAt <= Math.max(now(), response.serverTime)) throw new NativeOfflineSyncError("revoked");
-    // An explicit denial applies to both locales. A grant whose local lease elapsed only applies here.
-    const deniedCourses = response.access.filter(grant => !grant.allowed).map(grant => grant.courseId);
+    // Apply explicit access decisions across locales. Local lease expiry only affects this projection.
+    const reportedGrants = response.access.filter(grant => !grant.allowed
+      || grant.leaseExpiresAt > Math.max(now(), response.serverTime));
+    const deletions = publicationDeletions(response.changes);
     const grants = new Map(response.access.map(item => [item.courseId, {
       ...item,
       leaseExpiresAt: Math.min(item.leaseExpiresAt, response.leaseExpiresAt),
@@ -199,11 +212,16 @@ export function createNativeOfflineSyncController({ session, locale, repository,
     }
     response.access = [...grants.values()];
 
-    async function applyAccess(reapply = false) {
+    async function applyAccess(reapply = false, restriction?: {
+      value: OfflineReadingRestrictions;
+      versions: readonly OfflineReadingCourseVersion[];
+    }) {
       assertCurrent();
       const page = { expectedCursor, expectedRevision: accessRevision, reapply, response };
-      const revision = !reapply && deniedCourses.length
-        ? await readingStore.applyAccessWithCourseDenials(scope, page, deniedCourses, requestedVersions, assertCurrent)
+      const withdrawal = restriction ?? (!reapply && (reportedGrants.length || deletions.length)
+        ? { value: { grants: reportedGrants, deletions }, versions: requestedVersions } : undefined);
+      const revision = withdrawal
+        ? await readingStore.applyAccessWithRestrictions(scope, page, withdrawal.value, withdrawal.versions, assertCurrent)
         : await repository.applyAccess(scope, page, assertCurrent);
       assertCurrent();
       if (revision === null) throw new NativeOfflineSyncError("conflict");
@@ -223,7 +241,7 @@ export function createNativeOfflineSyncController({ session, locale, repository,
 
     const snapshot = await applyAccess();
     const cachedCourses = new Map(snapshot?.courses.map(course => [course.id, course]));
-    const manifests: NativeOfflineManifestResponse[] = [];
+    const checks: OfflineManifestCheck[] = [];
     // Enrollment discovery can start with an empty local database. The same
     // sync response contains the authorized grants for newly found courses.
     const manifestIds = new Set([...courseIds, ...response.enrollments.map(entry => entry.id)]);
@@ -239,10 +257,12 @@ export function createNativeOfflineSyncController({ session, locale, repository,
 
       const path = `/api/offline/manifest?${new URLSearchParams({ courseId, locale })}`;
       let manifest: NativeOfflineManifestResponse;
+      let reported: NativeOfflineManifestResponse;
       const versions = await readingStore.captureCourseVersions(scope);
       try {
         const value = await request(path, { retry: "transient-read" }, true);
-        manifest = restrictManifest(parseNativeOfflineManifestResponse(value, scope, courseId, response.cursor), grant);
+        reported = parseNativeOfflineManifestResponse(value, scope, courseId, response.cursor);
+        manifest = restrictManifest(reported, grant);
         if (manifest.leaseExpiresAt <= Math.max(now(), manifest.serverTime)) throw new NativeOfflineSyncError("courseChanged");
       } catch (error) {
         if (error instanceof NativeOfflineSyncError && error.code === "courseChanged") {
@@ -263,16 +283,23 @@ export function createNativeOfflineSyncController({ session, locale, repository,
         || grant.leaseExpiresAt !== manifest.leaseExpiresAt) {
         grants.set(courseId, manifest.resource);
         response.access = [...grants.values()];
-        await applyAccess(true);
+        await applyAccess(true, {
+          value: { grants: [reported.resource], deletions: [], manifestGrantCursors: new Map([[courseId, reported.cursor]]) },
+          versions,
+        });
       }
-      manifests.push(manifest);
+      checks.push({ accepted: manifest, reported, versions });
     }
 
     assertCurrent();
-    if (response.leaseExpiresAt <= now() || manifests.some(manifest => manifest.leaseExpiresAt <= now())) {
+    if (response.leaseExpiresAt <= now() || checks.some(({ accepted }) => accepted.leaseExpiresAt <= now())) {
       throw new NativeOfflineSyncError("incomplete");
     }
-    if (!await repository.commitPage(scope, { expectedCursor, response, manifests, accessRevision }, assertCurrent)) {
+    const complete = { expectedCursor, response, manifests: checks.map(check => check.accepted), accessRevision };
+    const committed = checks.length
+      ? await readingStore.commitPageWithManifests(scope, complete, checks, assertCurrent)
+      : await repository.commitPage(scope, complete, assertCurrent);
+    if (!committed) {
       throw new NativeOfflineSyncError("conflict");
     }
     return response;

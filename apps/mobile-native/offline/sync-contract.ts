@@ -2,6 +2,7 @@ import type { OfflinePolicy } from "../../../lib/offline/policy-types";
 import type { NativeSessionScope } from "../network/transport";
 
 export const NATIVE_OFFLINE_COURSE_LIMIT = 150;
+export const NATIVE_OFFLINE_MANIFEST_ENTRY_LIMIT = 10_000;
 export const NATIVE_OFFLINE_HEADERS = {
   accountId: "x-offline-account-id",
   sessionId: "x-offline-session-id",
@@ -248,7 +249,9 @@ export function parseNativeOfflineManifestResponse(
     && resource.allowed && resource.courseId === courseId
     && resultIdentity.leaseExpiresAt <= resource.leaseExpiresAt);
   const allowedChapters = new Set(resource.chapterIds);
-  const resources = array(row.resources).map(descriptor);
+  const entries = array(row.resources);
+  expectValue(entries.length <= NATIVE_OFFLINE_MANIFEST_ENTRY_LIMIT);
+  const resources = entries.map(descriptor);
   expectValue(resources.every(item => (item.kind === "article" || item.kind === "diktat") && item.courseId === courseId
     && item.key === JSON.stringify([item.kind, courseId, item.id])
     && item.chapterIds.length && item.chapterIds.every(chapter => allowedChapters.has(chapter))));
