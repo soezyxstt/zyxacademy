@@ -1,8 +1,11 @@
 import type { ReactNode } from "react";
+import type { NativePushStatus } from "../../device/notifications-controller";
+import type { NativeResponse } from "../../network/transport";
 
 export interface StudentSession {
   userId: string;
   role: "student";
+  sessionId?: string;
   origin: string;
   locale: string;
 }
@@ -14,7 +17,8 @@ export interface StudentRoute {
   query: Readonly<Record<string, string>>;
 }
 
-export type StudentRequest = (path: string, init?: RequestInit) => Promise<Response>;
+export type StudentResponse = Pick<NativeResponse, "ok" | "status" | "headers" | "json" | "text" | "arrayBuffer"> & { dispose?(): void };
+export type StudentRequest = (path: string, init?: RequestInit) => Promise<StudentResponse>;
 
 export interface StudentServices {
   session: StudentSession;
@@ -29,6 +33,12 @@ export interface StudentServices {
   renderMaterial?: (props: { courseId: string; materialId: string; section?: string; page?: number }) => ReactNode;
   openExternal?: (path: string) => void;
   nativeAuthScheme?: string;
+  onLocaleChanged?(locale: "id" | "en"): void;
+  devicePush?: {
+    status: NativePushStatus | null;
+    requestPermission(): Promise<NativePushStatus | null>;
+    refresh(): Promise<NativePushStatus | null>;
+  };
   devicePreferences?: {
     theme: "light" | "dark" | "system";
     setTheme(theme: "light" | "dark" | "system"): void;
