@@ -63,6 +63,15 @@ run_cold_entry() {
 }
 
 status=0
+targets=()
+for flow in "$flows"/*.yaml; do
+  if [[ ${3:-parity} == parity && ${NATIVE_PARITY_PUBLIC_FIXTURES:-} != 1 ]]; then
+    case "${flow##*/}" in
+      meet.yaml|public-directory.yaml|public-forms.yaml) continue ;;
+    esac
+  fi
+  targets+=("$flow")
+done
 if [[ ${3:-parity} == product ]]; then
   if [[ $platform == ios ]]; then
     run_cold_entry || status=1
@@ -73,5 +82,5 @@ fi
 "$maestro" --platform "$platform" --device "$device" test \
   --format junit --output "$output/report.xml" \
   --test-output-dir "$output/results" --debug-output "$output/logs" \
-  "$flows"/*.yaml || status=1
+  "${targets[@]}" || status=1
 exit "$status"
