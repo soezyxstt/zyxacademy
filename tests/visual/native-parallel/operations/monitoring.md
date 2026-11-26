@@ -14,7 +14,7 @@ The web fixture uses the Admin dashboard components, Web Analytics projection, F
 | Web reference | Scenarios | Comparable native entry |
 | --- | --- | --- |
 | Admin home | Failed job alert, no failed jobs, first analytics destination and keyboard focus | `/admin` and the failed-jobs and populated dashboard fixtures |
-| Web Analytics | Populated with two curves, empty, provider unavailable | `/admin/ops/web-analytics`, modes populated, empty or unavailable |
+| Web Analytics | Populated with two curves, empty, provider unavailable | `/admin/ops/web-analytics`, populated and empty modes, or provider-null fixture injection |
 | Feature usage | Default 30 days, select 7 days with no activity, select 90 days | `/admin/ops/feature-usage`, range query and range selector |
 | Ops monitor | Populated, synthetic transient read error, successful retry | `/admin/ops`, modes populated or recoverable |
 | AI analytics | Populated, Gateway sample filter, empty sample and usage | `/admin/ops/analytics`, mode populated or empty, Gateway filter |
@@ -31,3 +31,5 @@ The browser fixtures exercise selected interactions and visual states. Canonical
 Four populated dashboard references at 380×844 and 1536×864, DPR 1, passed their link destination and alert checks and were opened for inspection. They show responsive section and row layout, with Web Analytics first in the analytics group. They were captured against the workspace based on `a9f4221549a52442dae9eaccfd78f0abb240a2a5`. [Dashboard PNGs](references/monitoring)
 
 The Web Analytics component has an independently captured populated, empty and unavailable set in both themes at 380 CSS px. That runner verified two populated chart curves and the page width. [Analytics references and reproduction](README.md)
+
+The focused 7-day Feature Usage URL returned HTTP 200 and rendered the selected range, three zero metrics and the empty chart state at 380×844, DPR 1, in light theme. The screenshot was opened for inspection. The complete selector-click matrix did not finish. The shared Next dev runner initially hit an unrelated native dependency import, then intermittent client-mount timeouts during sibling route recompiles. The other scenarios remain reproducible in the harness, with outcomes pending. [Seven-day feature reference](references/monitoring/feature-empty-direct-light-380.png)

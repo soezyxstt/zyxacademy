@@ -12,7 +12,7 @@ const timeZone = "Asia/Jakarta";
 const viewports = [{ width: 380, height: 844 }, { width: 1536, height: 864 }];
 const errors: string[] = [];
 const intentionallyFailed = new Set<string>();
-const scenarios: { screen: string; id: string; mode?: string; verify: (page: Page) => Promise<void> }[] = [
+const scenarios: { screen: string; id: string; mode?: string; query?: Record<string, string>; verify: (page: Page) => Promise<void> }[] = [
   { screen: "home", id: "home-populated", verify: async page => {
     await expect(page.getByText("2 generasi soal gagal").filter({ visible: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Web Analytics" })).toHaveAttribute("href", "/admin/ops/web-analytics");
@@ -42,6 +42,10 @@ const scenarios: { screen: string; id: string; mode?: string; verify: (page: Pag
     await expect(rangeTrigger(page)).toContainText(adminOps.featureUsageUI.range30);
     await expect(page.getByText(adminOps.featureUsageUI.details)).toBeVisible();
     await expect(page.locator(".recharts-bar-rectangle").first()).toBeVisible();
+  } },
+  { screen: "features", id: "features-7-days-direct", query: { range: "7" }, verify: async page => {
+    await expect(rangeTrigger(page)).toContainText(adminOps.featureUsageUI.range7);
+    await expect(page.getByText(adminOps.featureUsageUI.noDailyData)).toBeVisible();
   } },
   { screen: "features", id: "features-7-days-empty", verify: async page => {
     await rangeTrigger(page).click();
@@ -235,7 +239,6 @@ async function main() {
       const page = await browser.newPage({
         viewport: sizes[0], deviceScaleFactor: 1, locale: "id-ID", timezoneId: timeZone, reducedMotion: "reduce", colorScheme: theme,
       });
-      await page.routeWebSocket("**/_next/webpack-hmr", () => {});
       await page.clock.setFixedTime(new Date("2026-11-26T07:00:00.000Z"));
       await page.addInitScript(dark => document.documentElement?.classList.toggle("dark", dark), theme === "dark");
       const name = `${scenario.id}-${theme}`;
@@ -254,7 +257,7 @@ async function main() {
       try {
         await installRoutes(page, scenario);
         const entry = ["home", "features", "web"].includes(scenario.screen) ? "/monitoring" : "/monitoring/secondary";
-        const path = entry + "?" + new URLSearchParams({ screen: scenario.screen, mode: scenario.mode ?? "populated", theme });
+        const path = entry + "?" + new URLSearchParams({ screen: scenario.screen, mode: scenario.mode ?? "populated", theme, ...scenario.query });
         const response = await page.goto(root + path, { waitUntil: "commit", timeout: 180000 });
         expect(response?.status()).toBe(200);
         expect(page.url()).toBe(root + path);
