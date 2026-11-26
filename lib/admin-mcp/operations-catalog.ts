@@ -170,7 +170,7 @@ export const operationsCatalog = [
   },
   {
     "source": "apps/mobile-native/device/audio-controller.ts",
-    "actions": ["play", "pause"],
+    "actions": ["play", "pause", "seekBy", "seekTo"],
     "tools": [],
     "status": "excluded",
     "reason": "Playback controls operate on local media on the device, with no server mutation, recording permission or MCP operation."

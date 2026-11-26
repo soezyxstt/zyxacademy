@@ -24,4 +24,6 @@ Workflow `Native component parity` menjalankan referensi Next.js pada skala 1 da
 
 Ringkasan yang sama mencatat tiga kasus layar penuh `/tautan` secara terpisah dari hitungan komponen. Pengecekan memakai viewport logis 380 × 640 dan DPR yang sama antara Expo dan referensi Chromium. Kredit rute memerlukan manifest dan pengukuran untuk commit PR serta checkout yang sama, dengan nol piksel berbeda pada kedua perangkat.
 
+Galeri Slider mencakup nilai tengah terkontrol, batas akhir nonaktif, dan kontrol RTL dari nilai awal. Layar audio internal memakai Slider sebagai posisi putar dan melakukan seek setelah pengguna melepas kontrol atau mengubah nilainya lewat aksesibilitas.
+
 Hasil visual, pemeriksaan interaksi dan kesiapan produk dilacak terpisah di [audit kesiapan](../../docs/native-readiness.md).

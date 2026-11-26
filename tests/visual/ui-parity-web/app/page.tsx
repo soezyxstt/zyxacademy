@@ -14,6 +14,7 @@ import { ChoiceCase } from "./ChoiceCases";
 import { ControlCase } from "./ControlCases";
 import { FormattedDateCase } from "./FormattedDateCases";
 import { NotificationInboxCase } from "./NotificationInboxCases";
+import { SliderCase } from "./SliderCases";
 import { MobileReference } from "./MobileReference";
 
 type ParityCaseFrameProps = { id: string; theme: "light" | "dark"; height: number; children: ReactNode };
@@ -48,6 +49,8 @@ function Specimen({ item }: { item: GalleryCase }) {
       return <FormattedDateCase item={item} />;
     case "notification-inbox":
       return <NotificationInboxCase item={item} />;
+    case "slider":
+      return <SliderCase item={item} />;
     case "choice":
       return <ChoiceCase id={item.id} />;
     case "skeleton":
