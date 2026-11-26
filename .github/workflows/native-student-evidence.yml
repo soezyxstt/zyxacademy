@@ -172,6 +172,7 @@ jobs:
           printf 'udid=%s\n' "$device" >> "$GITHUB_OUTPUT"
       - if: matrix.platform == 'ios'
         name: Run standalone Student scenarios on iOS
+        id: ios-standalone
         env:
           STUDENT_SIMULATOR_UDID: ${{ steps.ios-simulator.outputs.udid }}
         run: bash tests/visual/native-parallel/student/run-maestro.sh ios "$STUDENT_SIMULATOR_UDID"
@@ -180,11 +181,12 @@ jobs:
         with:
           name: student-ios-standalone
           path: |
+            artifacts/student-evidence/ios/ios-bootstrap
             artifacts/student-evidence/ios/report.xml
             artifacts/student-evidence/ios/results
           if-no-files-found: warn
           retention-days: 7
-      - if: ${{ !cancelled() && matrix.platform == 'ios' && steps.ios-simulator.outcome == 'success' }}
+      - if: ${{ !cancelled() && matrix.platform == 'ios' && steps.ios-standalone.outputs.bootstrap == 'success' }}
         name: Run generated Student smoke cases on iOS
         env:
           STUDENT_SIMULATOR_UDID: ${{ steps.ios-simulator.outputs.udid }}

@@ -15,6 +15,19 @@ printf '%s  %s\n' "$sha256" "$install_dir/maestro.zip" | shasum -a 256 -c -
 unzip -q "$install_dir/maestro.zip" -d "$install_dir"
 export MAESTRO_CLI_NO_ANALYTICS=true MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true
 cd "$output"
-"$install_dir/maestro/bin/maestro" --platform "$platform" --device "$device" test \
+maestro="$install_dir/maestro/bin/maestro"
+if [[ $platform == ios ]]; then
+  # A fresh simulator can require consent before the app opens its own fixture URLs.
+  bootstrap="$output/ios-bootstrap"
+  mkdir -p "$bootstrap"
+  xcrun simctl openurl "$device" zyx-native-parity://gallery/separator
+  "$maestro" --platform ios --device "$device" test \
+    --format junit --output "$bootstrap/report.xml" --test-output-dir "$bootstrap/results" \
+    --debug-output "$bootstrap/logs" "$root/.maestro/native-parity/helpers/confirm-ios-gallery.yaml"
+  if [[ -n ${GITHUB_OUTPUT:-} ]]; then
+    printf '%s\n' 'bootstrap=success' >> "$GITHUB_OUTPUT"
+  fi
+fi
+"$maestro" --platform "$platform" --device "$device" test \
   --format junit --output "$output/report.xml" --test-output-dir "$output/results" \
   --debug-output "$output/logs" "$root"/.maestro/native-parallel/student/*.yaml
