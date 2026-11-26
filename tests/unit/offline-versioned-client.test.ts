@@ -14,6 +14,10 @@ const key = scopedReadingKey(scope, "course", "article");
 const reading = (overrides: Partial<OfflineReadingRecord> = {}): OfflineReadingRecord => ({ key, userId: scope.userId, courseId: "course", materialId: "article", kind: "structured_article", title: "Materi", sizeBytes: 1024, savedAt: now, lastAccessedAt: now, schemaVersion: 2, scopeKey: scope.scopeKey, environment: scope.environment, locale: scope.locale, contentVersion: "v1", contentCursor: "1", lastVerifiedAt: now, accessValidUntil: now + 3600_000, chapterIds: ["chapter"], assetsComplete: true, ...overrides });
 afterEach(() => { setOfflineScope(null); });
 
+function mockFetch(handler: (...args: Parameters<typeof fetch>) => Promise<Response>): typeof fetch {
+  return Object.assign(handler, { preconnect: () => {} });
+}
+
 test("account and locale changes fence already-started cache writes", () => {
   setOfflineScope(scope);
   const token = captureOfflineScope(scope.userId)!;
@@ -73,7 +77,7 @@ test("Friday checks use Jakarta boundaries and catch missed dates and clock regr
 
 test("required image failures reject the new package instead of declaring it offline ready", async () => {
   const resource = { kind: "article" as const, id: "a", courseId: "c" };
-  const fetcher = (async () => new Response("missing", { status: 404 })) as typeof fetch;
+  const fetcher = mockFetch(async () => new Response("missing", { status: 404 }));
   await expect(downloadOfflineImages({ resource, fetcher, assets: [{ url: "/api/offline/asset?asset=figure", required: true }] })).rejects.toThrow();
   expect(await downloadOfflineImages({ resource, fetcher, assets: [{ url: "/api/offline/asset?asset=thumb", required: false }] })).toEqual([]);
 });
@@ -100,7 +104,7 @@ function fixture() {
   };
   const grant = { courseId: "course", allowed: true, fullContent: true, chapterIds: ["chapter"], leaseExpiresAt: now + 3600_000 };
   const delta: OfflineSyncResponse = { ...identity, cursor: "2", reset: false, hasMore: false, serverTime: now, leaseExpiresAt: now + 3600_000, policy: DEFAULT_OFFLINE_POLICY, enrollments: [{ id: "course", title: "Fisika", expiresAt: null }], access: [grant], changes: [{ cursor: "2", kind: "article", resourceId: "article", courseId: "course", action: "upsert", revision: "v2" }] };
-  const fetcher = (async (input: string | URL | Request) => {
+  const fetcher = mockFetch(async input => {
     const url = new URL(String(input), scope.environment);
     if (url.pathname === "/api/offline/sync") return Response.json(delta);
     if (url.pathname === "/api/offline/manifest") return Response.json({ ...identity, cursor: "2", serverTime: now, leaseExpiresAt: grant.leaseExpiresAt, resource: grant, resources: [descriptor("article", "article", "course")] });
@@ -109,7 +113,7 @@ function fixture() {
     const courseId = url.searchParams.get("courseId");
     const content = kind === "article" ? data : kind === "course_outline" ? { id: "course", title: "Fisika", chapters: [], materials: [descriptor("article", "article", "course")] } : kind === "video_catalog" ? { videos: [], playlists: [] } : { achievements: [] };
     return Response.json({ ...identity, resource: descriptor(kind, id, courseId), cursor: "2", validatedAt: now, leaseExpiresAt: grant.leaseExpiresAt, data: content, assets: [] });
-  }) as typeof fetch;
+  });
   return { repository, fetcher, records, delta, data, identity, descriptor, get stored() { return stored; }, get writes() { return writes; }, rejectPackages(value: boolean) { rejectPackage = value; } };
 }
 
@@ -145,14 +149,14 @@ describe("durable sync recovery", () => {
     let started!: () => void;
     const start = new Promise<void>(resolve => { started = resolve; });
     let delay = true;
-    const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+    const fetcher = mockFetch(async (input, init) => {
       if (delay && String(input).includes("kind=article")) {
         delay = false;
         started();
         return new Promise<Response>(resolve => { finish = resolve; });
       }
       return f.fetcher(input, init);
-    }) as typeof fetch;
+    });
     const controller = createOfflineSyncController({ scope, repository: f.repository, fetcher, now: () => now });
     try {
       const token = captureOfflineScope(scope.userId)!;
@@ -210,7 +214,7 @@ describe("durable sync recovery", () => {
     let finish!: (value: Response) => void;
     let started!: () => void;
     const start = new Promise<void>(resolve => { started = resolve; });
-    const fetcher = (async () => new Promise<Response>(resolve => { finish = resolve; started(); })) as typeof fetch;
+    const fetcher = mockFetch(async () => new Promise<Response>(resolve => { finish = resolve; started(); }));
     const controller = createOfflineSyncController({ scope, repository: f.repository, fetcher });
     const task = controller.sync();
     await start;

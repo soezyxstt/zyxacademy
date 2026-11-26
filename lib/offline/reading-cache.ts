@@ -422,7 +422,7 @@ export async function putOfflineReading(record: OfflineReadingRecord, token: Off
         const tx = db.transaction(STORE_NAME, "readwrite"); const store = tx.objectStore(STORE_NAME); const request = store.get(record.key);
         request.onsuccess = () => {
           const latest = request.result as OfflineReadingRecord | undefined;
-          if (latest?.contentVersion === record.contentVersion && latest.contentCursor === record.contentCursor && isOfflineScopeCurrent(token)) store.put({ ...latest, nativeMirrored: mirrored });
+          if (latest && latest.contentVersion === record.contentVersion && latest.contentCursor === record.contentCursor && isOfflineScopeCurrent(token)) store.put({ ...latest, nativeMirrored: mirrored });
         };
         tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
       });
@@ -581,7 +581,7 @@ export async function updateOfflineReadingMetadata(key: string, patch: Pick<Part
         const tx = db.transaction(STORE_NAME, "readwrite"); const store = tx.objectStore(STORE_NAME); const request = store.get(key);
         request.onsuccess = () => {
           const latest = request.result as OfflineReadingRecord | undefined;
-          if (latest?.contentVersion === expected.contentVersion && latest.contentCursor === expected.contentCursor && latest.lastVerifiedAt === expected.lastVerifiedAt && latest.pinned === expected.pinned && isOfflineScopeCurrent(token)) store.put({ ...latest, nativeMirrored: true });
+          if (latest && latest.contentVersion === expected.contentVersion && latest.contentCursor === expected.contentCursor && latest.lastVerifiedAt === expected.lastVerifiedAt && latest.pinned === expected.pinned && isOfflineScopeCurrent(token)) store.put({ ...latest, nativeMirrored: true });
         };
         tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
       });

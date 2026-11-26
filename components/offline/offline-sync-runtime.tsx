@@ -18,7 +18,8 @@ export function OfflineSyncRuntime() {
   const { locale } = useAppLocale();
   const client = useQueryClient();
   const userId = session.data?.user.id;
-  const role = session.data?.user.role;
+  const user = session.data?.user;
+  const role = user && "role" in user && typeof user.role === "string" ? user.role : undefined;
   useEffect(() => {
     // Pending or failed session probes are not a confirmed logout.
     if (session.isPending || session.error) return;

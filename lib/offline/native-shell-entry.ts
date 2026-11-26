@@ -37,7 +37,7 @@ const bridge: ShellBridge | null = cap?.getLibrarySnapshot ? {
 } : null;
 
 function nativeFetcher(scope: OfflineCacheScope): typeof fetch {
-  return async (input, init) => {
+  const nativeFetch = async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]): Promise<Response> => {
     const request = input instanceof Request ? input : null;
     const url = new URL(request?.url ?? String(input), scope.environment);
     if (url.origin !== scope.environment) throw new Error("Offline resource origin is not allowed");
@@ -57,6 +57,8 @@ function nativeFetcher(scope: OfflineCacheScope): typeof fetch {
     const bytes = Uint8Array.from(atob(response.bodyBase64), char => char.charCodeAt(0));
     return new Response(response.status === 304 || response.status === 204 ? null : bytes, { status: response.status, headers: response.headers });
   };
+  // Native HTTP owns connection setup. Bun's optional preconnect API stays inert here.
+  return Object.assign(nativeFetch, { preconnect(): void {} });
 }
 
 let snapshot: NativeOfflineLibrarySnapshot | null = null;

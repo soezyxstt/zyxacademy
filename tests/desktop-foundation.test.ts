@@ -473,7 +473,10 @@ describe("desktop Tauri configuration invariants", () => {
     const capability = JSON.parse(readFileSync(join(DESKTOP_TAURI_DIR, "capabilities", "default.json"), "utf8"));
     const libRs = readFileSync(join(DESKTOP_TAURI_DIR, "src", "lib.rs"), "utf8");
     const handler = /tauri::generate_handler!\[([\s\S]*?)\]/.exec(libRs)![1];
-    const commands = handler.split(",").map(command => command.trim()).filter(Boolean);
+    const registeredPaths = handler.split(",").map(command => command.trim()).filter(Boolean);
+    // Tauri exposes a command's function name, independent of its Rust module path.
+    const commands = registeredPaths.map(command => command.split("::").at(-1)!);
+    expect(new Set(commands).size).toBe(registeredPaths.length);
     expect(permissions.permission).toHaveLength(1);
     expect(permissions.permission[0].identifier).toBe("allow-native-bridge");
     expect(permissions.permission[0].commands.allow.toSorted()).toEqual(commands.toSorted());

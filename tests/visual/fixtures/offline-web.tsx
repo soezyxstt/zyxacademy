@@ -47,7 +47,7 @@ async function mount() {
     courseTitle: en ? "Mathematics I" : "Matematika I", chapterTitle: en ? "Functions and limits" : "Fungsi dan limit", chapterNumber: 1, totalEstimatedReadingMinutes: 8,
     progress: { completed: false, overallPercent: 0, lastSectionSlug: null, sectionProgress: {} },
     sections: [{ id: "definition", slug: "definition", title: en ? "Approaching a value" : "Mendekati suatu nilai", sectionNumber: "1.1", sectionKind: "topic", estimatedReadingMinutes: 8, orderIndex: 0, parentSectionId: null,
-      blocks: [{ id: "explanation", blockKey: "explanation", blockType: "explanation", orderIndex: 0,
+      blocks: [{ id: "explanation", blockKey: "explanation", blockType: "explanation", title: null, orderIndex: 0,
         content: en ? "The output of a function can approach a number as its input approaches the point we are studying.\n\n$$\\lim_{x\\to 2}(3x+1)=7$$\n\nDirect substitution applies because this function is continuous at this point.\n\n| x | f(x) |\n| --- | --- |\n| 1.9 | 6.7 |\n| 1.99 | 6.97 |\n| 2.01 | 7.03 |"
           : "Nilai fungsi dapat mendekati suatu bilangan saat nilai masukan makin dekat ke titik yang kita tinjau.\n\n$$\\lim_{x\\to 2}(3x+1)=7$$\n\nSubstitusi langsung berlaku karena fungsi ini kontinu di titik tersebut.\n\n| x | f(x) |\n| --- | --- |\n| 1.9 | 6.7 |\n| 1.99 | 6.97 |\n| 2.01 | 7.03 |",
       }],

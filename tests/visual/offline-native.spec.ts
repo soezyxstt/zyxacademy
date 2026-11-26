@@ -97,7 +97,11 @@ async function launch(page: Page, platform: Platform, theme: "light" | "dark", l
     catch { failures.push(`Missing native asset: ${file}`); return route.fulfill({ status: 404 }); }
   });
   await page.goto(`${origin}/native-offline/${platform}/index.html`);
-  await page.waitForFunction(async () => { await window.zyxOfflineShell?.ready; return Boolean(window.zyxOfflineShell); });
+  await page.waitForFunction(async () => {
+    const shell = (window as Window & { zyxOfflineShell?: { ready: Promise<void> } }).zyxOfflineShell;
+    await shell?.ready;
+    return Boolean(shell);
+  });
   if (scenario !== "unsupported") await expect(page.locator("#offline-library-v2")).toBeVisible();
   return { failures, records, hasPendingProbe: () => Boolean(releaseProbe), releaseProbe: async () => { await releaseProbe?.(); } };
 }

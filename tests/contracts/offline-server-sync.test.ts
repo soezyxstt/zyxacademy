@@ -47,7 +47,7 @@ await db.insert(schema.pengguna).values({ id: "offline-admin", status: "active" 
 await db.insert(schema.peran).values({ id: "offline-admin-role", code: "admin" });
 await db.insert(schema.penggunaPeran).values({ id: "offline-admin-membership", penggunaId: "offline-admin", peranId: "offline-admin-role", source: "test" });
 await db.insert(schema.session).values({ id: "offline-admin-session", userId: "offline-admin", token: "offline-admin-token", expiresAt: new Date(Date.now() + 7 * 86_400_000) });
-await db.insert(schema.courses).values({ id: "offline-course", title: "Matematika", category: "Math" });
+await db.insert(schema.courses).values({ id: "offline-course", title: "Matematika", category: "Matematika" });
 await db.insert(schema.mataKuliah).values({ id: "offline-mk", code: "OFFLINE", title: "Matematika", legacyCourseId: "offline-course", status: "active" });
 await db.insert(schema.bab).values([
   { id: "offline-first", mataKuliahId: "offline-mk", code: "FIRST", title: "Dasar", orderIndex: 1, status: "active" },
