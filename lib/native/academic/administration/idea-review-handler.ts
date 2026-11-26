@@ -52,7 +52,6 @@ export async function handleNativeIdeaReview(request: Request, parts: string[], 
     if (code === "FORBIDDEN" || code.endsWith("_FORBIDDEN")) return reply(403, { error: code });
     if (code.endsWith("_NOT_FOUND")) return reply(404, { error: "NOT_FOUND" });
     if (/_(?:CONFLICT|STALE_CONTEXT|CHECKSUM_MISMATCH|IMMUTABLE|DRAFT_REQUIRED)$/.test(code)) return reply(409, { error: code });
-    if (code === "IDEA_ITEM_REVIEW_WEB_REQUIRED") return reply(422, { error: code });
     return reply(500, { error: request.method === "GET" ? "READ_FAILED" : "SAVE_FAILED" });
   }
 }

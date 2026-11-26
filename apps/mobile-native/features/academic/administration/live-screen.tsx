@@ -24,6 +24,7 @@ import { UserRolesEditor } from "./user-roles-editor";
 import { UserStatusEditor } from "./user-status-editor";
 import { DiktatPdfControls, readDiktatScope } from "./diktat-controls";
 import { IdeaReviewEditor } from "./idea-review-editor";
+import { IdeaBundleWorkspace } from "./idea-bundle-workspace";
 import type { AcademicTransport } from "../client";
 import type { AcademicScreenProps } from "../contracts";
 import { CourseTheme, PendingCourses, useCourseColors } from "../courses/ui";
@@ -100,6 +101,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const { pattern, title } = route;
   const { params, query, transport, navigate, replace, back } = props;
   const [eventDraft, setEventDraft] = useState<{ transport: AcademicTransport; row?: LiveRow }>();
+  const [ideaBundleEditor, setIdeaBundleEditor] = useState<{ transport: AcademicTransport; id: string; slug: string }>();
   const [productEditor, setProductEditor] = useState<{ transport: AcademicTransport; id: string }>();
   const tokenPage = pattern === "/admin/tokens";
   const pkaSchedulePage = pattern === "/admin/tutorial-pka/schedules";
@@ -211,11 +213,20 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     setFilters((previous) => ({ ...previous, [name]: value, ...(name === "page" ? {} : { page: "1" }) }));
   }
   const filtered = Boolean(filters.search || filters.status || filters.role);
+  if (ideaReviewPage && data?.ideaBundle && ideaBundleEditor?.transport === transport && ideaBundleEditor.id === params.bundleId && ideaBundleEditor.slug === params.slug) {
+    const close = () => setIdeaBundleEditor(undefined);
+    return <IdeaBundleWorkspace key={data.ideaBundle.checksum} scope={data.ideaBundle} slug={params.slug} transport={transport}
+      back={() => { close(); retry(); }}
+      reload={() => { close(); setSelected(undefined); retry(); }}
+      listing={() => replace(`/admin/courses/${encodeURIComponent(params.slug)}/review?tab=idea`)}
+      unavailable={status => { close(); setSelected(undefined); invalidate(status); }} />;
+  }
   if (article && data?.productBundle && !pdfPending && productEditor?.transport === transport && productEditor.id === params.bundleId) {
     return <ProductReviewWorkspace key={params.bundleId} scope={data.productBundle} transport={transport} back={() => setProductEditor(undefined)}
       exit={() => { setProductEditor(undefined); retry(); }} listing={() => replace("/admin/materials/review?section=product")} />;
   }
   return <AdministrationPage title={title} back={back}>
+    {ideaReviewPage && data?.ideaBundle ? <Action label="Kelola Idea Bundle" onPress={() => setIdeaBundleEditor({ transport, id: params.bundleId, slug: params.slug })} /> : null}
     {article && data?.productBundle && !pdfPending && transport.command ? <Action label="Review dan publikasi" onPress={() => setProductEditor({ transport, id: params.bundleId })} /> : null}
     {pkaTab ? <Tabs options={pkaTabs} selected={pkaTab} onSelect={(id) => navigate(`/admin/tutorial-pka/${id}`)} /> : null}
     {pattern === "/admin/schedules" && data?.scheduleCourses && transport.command ? <View style={layout.row}>
@@ -368,7 +379,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
           actions={actions} onAction={onAction} />
       </View>;
     }) : null}
-    {data && idea ? <IdeaReviewEditor key={idea.id} slug={idea.slug} importId={idea.importId} ideaId={idea.id} transport={transport}
+    {data && idea ? <IdeaReviewEditor key={idea.id} slug={idea.slug} importId={idea.importId} ideaId={idea.id} transport={transport} expectedRevision={data.ideaBundle?.checksum}
       close={() => setIdeaDraft(undefined)}
       unavailable={(status) => { setIdeaDraft(undefined); setSelected(undefined); setSuccess(""); invalidate(status); }}
       saved={() => { setIdeaDraft(undefined); setSuccess("Review Idea tersimpan."); retry(); }} /> : null}

@@ -125,8 +125,9 @@ async function readBundle(kind: ReviewKind, slug: string, bundleId: string, page
       } : {}),
     })),
   ], page);
-  return kind === "product" && bundle.courseId
-    ? { ...result, productBundle: { id: bundle.id, courseId: bundle.courseId, checksum: bundle.checksum } } : result;
+  if (!bundle.courseId) return result;
+  const scope = { id: bundle.id, courseId: bundle.courseId, checksum: bundle.checksum };
+  return kind === "idea" ? { ...result, ideaBundle: scope } : { ...result, productBundle: scope };
 }
 
 export const administrationReadServices: AdministrationReadServices = {

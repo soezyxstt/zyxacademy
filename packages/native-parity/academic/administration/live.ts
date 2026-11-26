@@ -14,7 +14,8 @@ export type DiktatEvidenceStatus = "ready" | "pending" | "failed" | "stale" | "u
 export type DiktatPdfRequest = DiktatPdfTarget & { requestId: string };
 export type LiveRow = { academicEvent?: AcademicEventView; id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; ideaReviewId?: string; announcementEdit?: PkaAnnouncementRevision; announcementState?: PkaAnnouncementState; pkaDelivery?: PkaDeliveryStatus; pkaScheduleEdit?: PkaScheduleRevision; dateId?: string; groupEditable?: boolean; tokenActive?: boolean; userRolesEdit?: AdminUserRolesRevision; userStatusEdit?: AdminUserStatusRevision };
 export type LiveProductBundle = { id: string; courseId: string; checksum: string };
-export type LivePage = { productBundle?: LiveProductBundle; scheduleTutorials?: AdminTutorialSchedule; scheduleCourses?: { id: string; label: string }[]; type: "page"; rows: LiveRow[]; nextPage: boolean; summary?: LiveField[]; week?: { start: string; today: string } };
+export type LiveIdeaBundle = LiveProductBundle;
+export type LivePage = { ideaBundle?: LiveIdeaBundle; productBundle?: LiveProductBundle; scheduleTutorials?: AdminTutorialSchedule; scheduleCourses?: { id: string; label: string }[]; type: "page"; rows: LiveRow[]; nextPage: boolean; summary?: LiveField[]; week?: { start: string; today: string } };
 export type LiveRedirect = { type: "redirect"; target: string };
 export type LiveAdministrationRead = LivePage | LiveRedirect;
 export type LiveListSection = "users" | "groups" | "tokens" | "notifications" | "schedules" | "registrations" | "announcements" | "sessions";
@@ -96,6 +97,8 @@ export function isLiveAdministrationRead(value: unknown): value is LiveAdministr
     && (value.scheduleCourses === undefined || (Array.isArray(value.scheduleCourses) && value.scheduleCourses.every(course => object(course) && typeof course.id === "string" && typeof course.label === "string")))
     && (value.productBundle === undefined || (object(value.productBundle) && typeof value.productBundle.id === "string"
       && typeof value.productBundle.courseId === "string" && typeof value.productBundle.checksum === "string" && /^[a-f0-9]{64}$/.test(value.productBundle.checksum)))
+    && (value.ideaBundle === undefined || (object(value.ideaBundle) && typeof value.ideaBundle.id === "string"
+      && typeof value.ideaBundle.courseId === "string" && typeof value.ideaBundle.checksum === "string" && /^[a-f0-9]{64}$/.test(value.ideaBundle.checksum)))
     && (value.summary === undefined || fields(value.summary))
     && (value.week === undefined || (object(value.week) && isDateId(value.week.start) && isDateId(value.week.today)));
 }

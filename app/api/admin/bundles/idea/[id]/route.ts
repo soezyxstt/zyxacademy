@@ -26,7 +26,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const reviewReset = await getIdeaReviewResetState(id, bundle.checksum);
     const currentReview = bundle.reviews.find(review => review.reviewerId === session.user.id);
     const revisionBound = currentReview ? await hasIdeaRevisionReviewEvidence({ importId: id, reviewerId: session.user.id, expectedRevision: bundle.checksum }) : false;
+    if (parsed.manifest.bundleChecksum !== bundle.checksum) {
+      return NextResponse.json({ error: "IDEA_BUNDLE_STALE_CONTEXT" }, { status: 409 });
+    }
     return NextResponse.json({
+      reviewerId: session.user.id,
       bundle: {
         id: bundle.id,
         bundleId: bundle.bundleId,
@@ -45,7 +49,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       itemReviews,
       reviewReset,
       structuredReaderEnabled: isStructuredArticleReaderEnabled(),
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     const code = error instanceof Error ? error.message.split(":", 1)[0] : "IDEA_BUNDLE_DETAIL_FAILED";
     return NextResponse.json({ error: code }, { status: code === "IDEA_BUNDLE_NOT_FOUND" ? 404 : 422 });

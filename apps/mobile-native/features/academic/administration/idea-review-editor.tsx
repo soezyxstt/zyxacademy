@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { ideaReviewNoteLimit, ideaReviewStatuses, isIdeaReviewTarget, type IdeaReviewDraft, type IdeaReviewStatus, type IdeaReviewTarget } from "../../../../../packages/academic/idea-item-review";
 import { ADMINISTRATION_API_PREFIX } from "../../../../../packages/native-parity/academic/administration/live";
+import { CourseMarkdown } from "../../student/CourseMarkdown";
 import type { AcademicTransport } from "../client";
 import { Action, CourseDialog, CourseStatus, Field, Ink, Picker, SaveButtons, layout } from "./ui";
 
@@ -11,16 +12,17 @@ const statusOptions = Object.entries(ideaReviewStatuses).map(([id, label]) => ({
 const pendingReviews = new WeakMap<AcademicTransport, Map<string, Pending>>();
 
 type Props = {
-  slug: string; importId: string; ideaId: string; transport: AcademicTransport;
+  slug: string; importId: string; ideaId: string; expectedRevision?: string; transport: AcademicTransport;
   close(): void; unavailable(status: "denied" | "missing"): void; saved(): void;
 };
 
-export function IdeaReviewEditor({ slug, importId, ideaId, transport, close, unavailable, saved }: Props) {
+export function IdeaReviewEditor({ slug, importId, ideaId, expectedRevision, transport, close, unavailable, saved }: Props) {
   const path = ADMINISTRATION_API_PREFIX + ["bundle", "idea", slug, importId, "item", ideaId].map(encodeURIComponent).join("/");
   const [load, setLoad] = useState(0);
+  const [sourceIndex, setSourceIndex] = useState(0);
   const [target, setTarget] = useState<IdeaReviewTarget>();
   const [draft, setDraft] = useState<IdeaReviewDraft>();
-  const [issue, setIssue] = useState<"failed" | "conflict" | "web" | "invalid">();
+  const [issue, setIssue] = useState<"failed" | "conflict" | "invalid">();
   const [busy, setBusy] = useState(false);
   const [uncertain, setUncertain] = useState<Pending>();
   const activeWrite = useRef<AbortController | null>(null);
@@ -40,11 +42,14 @@ export function IdeaReviewEditor({ slug, importId, ideaId, transport, close, una
         callbacks.current.unavailable(response.status === 404 ? "missing" : "denied");
         return;
       }
-      if (response.status === 422) { setIssue("web"); return; }
       const data = await response.json();
       if (controller.signal.aborted) return;
       if (!response.ok || !isIdeaReviewTarget(data) || data.importId !== importId || data.ideaId !== ideaId) {
         setIssue(response.status === 409 ? "conflict" : "failed");
+        return;
+      }
+      if (expectedRevision && data.review.expectedRevision !== expectedRevision) {
+        setIssue("conflict");
         return;
       }
       const pending = pendingReviews.get(transport)?.get(path);
@@ -52,6 +57,7 @@ export function IdeaReviewEditor({ slug, importId, ideaId, transport, close, una
         pendingReviews.get(transport)?.delete(path);
       }
       const recovered = pendingReviews.get(transport)?.get(path);
+      setSourceIndex(0);
       setTarget(data);
       setDraft(recovered?.draft ?? data.review);
       setUncertain(recovered);
@@ -61,7 +67,7 @@ export function IdeaReviewEditor({ slug, importId, ideaId, transport, close, una
       activeWrite.current?.abort();
       activeWrite.current = null;
     };
-  }, [ideaId, importId, path, transport, load]);
+  }, [ideaId, importId, expectedRevision, path, transport, load]);
 
   async function save(pending: Pending) {
     if (!transport.command || activeWrite.current || !target ||
@@ -112,24 +118,30 @@ export function IdeaReviewEditor({ slug, importId, ideaId, transport, close, una
   }
 
   const editable = Boolean(target?.editable && transport.command);
+  const source = target?.sources[sourceIndex];
+  const markdown = (value: string) => <CourseMarkdown source={value} allowLinks={false} services={{ session: transport }} />;
   return <CourseDialog title="Review Idea" onClose={close} dismissDisabled={busy}>
     {target && draft ? <>
       <Ink kind="heading">{target.code}</Ink>
-      <Ink>{target.statement}</Ink>
-      <Ink>{target.explanation}</Ink>
-      {target.latex ? <Ink>{target.latex}</Ink> : null}
-      {target.sources.map((source, index) => <View key={index} style={layout.compact}>
+      {markdown(target.statement)}
+      {markdown(target.explanation)}
+      {target.latex ? markdown(`$$\n${target.latex}\n$$`) : null}
+      {source ? <View style={layout.compact}>
         <Ink kind="strong">{source.title}</Ink>
         {source.locator ? <Ink kind="meta" tone="muted">{source.locator}</Ink> : null}
-        <Ink>{source.excerpt}</Ink>
-      </View>)}
+        {markdown(source.excerpt)}
+        {target.sources.length > 1 ? <View style={layout.row}>
+          <Action label="Sumber sebelumnya" disabled={sourceIndex === 0} onPress={() => setSourceIndex(sourceIndex - 1)} />
+          <Ink kind="meta">{`${sourceIndex + 1} / ${target.sources.length}`}</Ink>
+          <Action label="Sumber berikutnya" disabled={sourceIndex + 1 === target.sources.length} onPress={() => setSourceIndex(sourceIndex + 1)} />
+        </View> : null}
+      </View> : null}
       {busy || uncertain || issue === "conflict" || !editable ? <Ink>{ideaReviewStatuses[draft.status]}</Ink>
         : <Picker label="Keputusan" options={statusOptions} selected={draft.status}
           onSelect={(id) => setDraft({ ...draft, status: id as IdeaReviewStatus })} />}
       <Field label="Catatan review" value={draft.notes} multiline maxLength={ideaReviewNoteLimit} testID="academic-idea-review-notes"
         editable={editable && !busy && !uncertain && issue !== "conflict"} onChangeText={(notes) => setDraft({ ...draft, notes })} />
     </> : !issue ? <CourseStatus label="Memuat Idea…" /> : null}
-    {issue === "web" ? <CourseStatus label="Buka detail Idea di web untuk meninjau konten ini." error /> : null}
     {issue === "conflict" || issue === "failed" ? <CourseStatus error
       label={issue === "conflict" ? "Idea atau keputusan review telah berubah." : "Detail Idea gagal dimuat."}
       retry={() => setLoad((value) => value + 1)} /> : null}

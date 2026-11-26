@@ -17,10 +17,6 @@ function itemContent(artifact: ValidatedIdeaBundle, ideaId: string) {
     title: entry.sourceTitle, excerpt: entry.excerpt,
     locator: [entry.sectionLocator, entry.pageNumber == null ? null : `Halaman ${entry.pageNumber}`].filter(Boolean).join(" · ") || null,
   }));
-  const size = [idea.code, idea.canonicalStatement, idea.conciseExplanation, idea.latex ?? "",
-    ...sources.flatMap((source) => [source.title, source.excerpt, source.locator ?? ""])]
-    .reduce((total, value) => total + value.length, 0);
-  if (size > 32_000 || sources.length > 20) throw new Error("IDEA_ITEM_REVIEW_WEB_REQUIRED");
   return { code: idea.code, statement: idea.canonicalStatement, explanation: idea.conciseExplanation, latex: idea.latex, sources };
 }
 
@@ -56,7 +52,7 @@ export async function writeNativeIdeaReview(slug: string, importId: string, idea
       requestDigest: revisionOf(draft),
       verifyArtifact(artifact) {
         if (!matchesCourseIdentity(artifact.manifest.courseId, course)) throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
-        itemContent(artifact, ideaId);
+        if (!artifact.entities.ideas.some((idea) => idea.id === ideaId)) throw new Error("IDEA_ITEM_NOT_FOUND");
       },
       async authorize(tx, courseId) {
         await assertNativeAdminTransaction(tx, viewer);

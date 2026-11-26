@@ -893,7 +893,7 @@ export const operationsCatalog = [
       "videos.update"
     ],
     "status": "partial",
-    "reason": "Related MCP operations are implemented; this source may contain additional UI actions. See docs/operations/admin-mcp.md for exact supported boundaries."
+    "reason": "Native Idea Bundle content edits, review reset, final decisions, publication, withdrawal and draft discard reuse the human Admin session and current bundle revision. The existing run-scoped authoring MCP tools retain their separate grants and consent. See docs/operations/admin-mcp.md for exact tool boundaries."
   },
   {
     "source": "app/(admin)/admin/(academic)/courses/[slug]/review/page.tsx",
