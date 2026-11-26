@@ -7,6 +7,7 @@
  * Query params:
  * - page (default: 1)
  * - limit (default: 20, max: 100)
+ * - tapId (own inbox only, returns the visible notification ID and destination)
  * - userId (admin only ; fetch another user's history)
  */
 
@@ -19,6 +20,15 @@ import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { notificationVisibility } from "@/lib/notifications/discussion-history";
 import { discussionNotificationLink } from "@/lib/notifications/templates";
 import { quietHoursEnd } from "@/lib/notifications/quiet-hours";
+
+function notificationUrl(row: Pick<typeof notifications.$inferSelect, "type" | "metadata">): string | null {
+  const metadata = row.metadata;
+  if (row.type === "discussion" && typeof metadata?.threadId === "string") {
+    return discussionNotificationLink(metadata.threadId, metadata.eventKind === "report",
+      typeof metadata.messageId === "string" ? metadata.messageId : undefined);
+  }
+  return typeof metadata?.url === "string" ? metadata.url : null;
+}
 
 export async function GET(req: NextRequest) {
   const reqHeaders = await headers();
@@ -62,6 +72,21 @@ export async function GET(req: NextRequest) {
   };
 
   try {
+    if (searchParams.has("tapId")) {
+      const id = searchParams.get("tapId") ?? "";
+      if (searchParams.getAll("tapId").length !== 1 || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)) {
+        return NextResponse.json({ error: "Invalid notification ID" }, { status: 400, headers: cacheHeaders });
+      }
+      if (targetUserId !== session.user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: cacheHeaders });
+      }
+      const visible = await notificationVisibility(session.user.id, session.user.id, { ids: [id] });
+      const [row] = await db.select({ id: notifications.id, type: notifications.type, metadata: notifications.metadata })
+        .from(notifications).where(and(eq(notifications.userId, session.user.id), eq(notifications.id, id), visible)).limit(1);
+      if (!row) return NextResponse.json({ error: "Not found" }, { status: 404, headers: cacheHeaders });
+      const url = notificationUrl(row);
+      return NextResponse.json({ id: row.id, url }, { headers: cacheHeaders });
+    }
     if (searchParams.get("delivery") === "desktop" && targetUserId === session.user.id) {
       const { getQuietHours } = await import("@/lib/notifications/quiet-delivery");
       if (quietHoursEnd(await getQuietHours(targetUserId))) {
@@ -114,7 +139,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         notifications: rows.map(row => row.type === "discussion" && typeof row.metadata?.threadId === "string"
-          ? { ...row, ...(targetUserId !== session.user.id ? { title: "Discussion update", body: "Discussion activity" } : {}), metadata: { ...row.metadata, url: discussionNotificationLink(row.metadata.threadId, row.metadata.eventKind === "report", typeof row.metadata.messageId === "string" ? row.metadata.messageId : undefined) } }
+          ? { ...row, ...(targetUserId !== session.user.id ? { title: "Discussion update", body: "Discussion activity" } : {}), metadata: { ...row.metadata, url: notificationUrl(row) } }
           : row),
         unreadCount: Number(unreadResult[0]?.count ?? 0),
         page,

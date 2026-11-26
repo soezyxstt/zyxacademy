@@ -46,6 +46,28 @@ describe("GET /api/notifications/history fluid CPU optimizations", () => {
     discussionVisible = false;
   });
 
+  it("resolves a tapped notification only for its current owner and visibility", async () => {
+    const id = "a879e028-7191-42cf-b6a6-4d3816df5535";
+    await client.exec(`
+      INSERT INTO "user" (id, name, email, role) VALUES ('tap-owner', 'Owner', 'owner@example.test', 'student'),
+        ('tap-other', 'Other', 'other@example.test', 'admin');
+      INSERT INTO notifications (id, user_id, title, body, type, metadata)
+        VALUES ('${id}', 'tap-owner', 'Update', 'Details', 'announcement', '{"url":"/dashboard/schedule"}');
+    `);
+    const request = (search: string) => GET(new NextRequest("http://localhost/api/notifications/history?" + search));
+    mockHeaders = new Headers({ cookie: "better-auth.session_token=test" });
+    mockSession = { user: { id: "tap-other", role: "admin" } };
+    expect((await request("tapId=" + id)).status).toBe(404);
+    expect((await request("tapId=" + id + "&userId=tap-owner")).status).toBe(403);
+    mockSession = { user: { id: "tap-owner", role: "student" } };
+    const res = await request("tapId=" + id);
+    expect(await res.json()).toEqual({ id, url: "/dashboard/schedule" });
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+    expect((await request("tapId=bad")).status).toBe(400);
+    await client.exec(`UPDATE notifications SET type='discussion', metadata='{"channelId":"hidden","threadId":"hidden"}' WHERE id='${id}'`);
+    expect((await request("tapId=" + id)).status).toBe(404);
+  });
+
   it("fast-fails with 401 when no cookie or authorization header is present without touching session", async () => {
     mockHeaders = new Headers();
     const req = new NextRequest("http://localhost/api/notifications/history");
