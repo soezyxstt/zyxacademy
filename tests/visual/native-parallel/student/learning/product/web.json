@@ -381,6 +381,22 @@
           "sha256": "3200c91ae5c8c9bca3c3986628f019febf40f87add47d5435fd083e7dfde7e0e"
         }
       ]
+    },
+    {
+      "id": "pka-stage",
+      "pattern": "/courses/tutorial-pka/simulasi/[subject]/[stage]",
+      "path": "/courses/tutorial-pka/simulasi/matematika/1",
+      "text": [
+        "Ambang kelulusan stage ini",
+        "Mulai simulasi"
+      ],
+      "actualPath": "blank",
+      "documents": [],
+      "redirectRequests": [],
+      "visibleHeadings": [],
+      "error": "goto: Timeout 125000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:3140/courses/tutorial-pka/simulasi/matematika/1\", waiting until \"commit\"\u001b[22m\n",
+      "failedRequests": [],
+      "runtimeErrors": []
     }
   ]
 }

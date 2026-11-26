@@ -157,13 +157,14 @@ try {
       results.push({ ...item, terminal: expectedPath, status: response.status(), preflightStatus, documents, redirectRequests, redirectEvidence, screenshots });
       console.log(`${item.id}: captured`);
     } catch (error) {
-      const headings = await page.locator("main h1:visible, main h2:visible, main h3:visible").allTextContents().catch(() => []);
-      results.push({ ...item, actualPath: new URL(page.url()).pathname, preflightStatus, documents, redirectRequests, visibleHeadings: headings.slice(0, 5),
+      const heading = await page.locator("main h1:visible, main h2:visible, main h3:visible").first()
+        .textContent({ timeout: 1_000 }).catch(() => null);
+      results.push({ ...item, actualPath: new URL(page.url()).pathname, preflightStatus, documents, redirectRequests, visibleHeadings: heading ? [heading] : [],
         error: error instanceof Error ? error.message.slice(0, 400) : "Unavailable", failedRequests, runtimeErrors: errors });
       console.log(`${item.id}: unavailable`);
     } finally {
-      await page.close();
       await writeFile(join(out, "web.json"), JSON.stringify({ serverSha, browser: browser.version(), width, height, dpr, theme, locale, timezone, results }, null, 2) + "\n");
+      await page.close();
     }
   }
 } finally { await browser.close(); }
