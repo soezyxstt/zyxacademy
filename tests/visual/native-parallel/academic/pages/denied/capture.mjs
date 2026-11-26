@@ -8,12 +8,14 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import pg from "pg";
 import { fixtureCookie } from "../../../../../../packages/native-parity/academic/local/cookie.mjs";
+import { aclErrorClass, sanitizeAclCase, sanitizeAclPath } from "./acl-record.mjs";
 
 const { academicCases } = createRequire(import.meta.url)("../../../../../../packages/native-parity/academic/cases.ts");
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "../../../../../..");
 const acl = process.argv.includes("--acl");
-const origin = acl ? "http://127.0.0.1:3317" : "http://127.0.0.1:3314";
+const origin = acl ? process.env.PARITY_ACL_WEB_ORIGIN ?? "http://127.0.0.1:3317" : "http://127.0.0.1:3314";
+assert.ok(["http://127.0.0.1:3314", "http://127.0.0.1:3315", "http://127.0.0.1:3317"].includes(origin), "Use a disposable loopback fixture");
 const servingRoot = acl ? resolve(process.env.PARITY_ACL_WEB_ROOT ?? root) : root;
 const viewport = { width: 380, height: 852, dpr: 1 };
 const locale = "id-ID";
@@ -55,7 +57,7 @@ const scopedAcademicEndpoints = ["/api/quiz", "/api/discussions", "/api/live", "
 
 function category(path, method) {
   const hasPrefix = (prefixes) => prefixes.some((prefix) => pathUnder(path, prefix));
-  if (hasPrefix(staffEndpoints) || (method !== "GET" && method !== "HEAD" && pathUnder(path, "/api/quiz/templates"))
+  if (hasPrefix(staffEndpoints) || (["POST", "PUT", "PATCH", "DELETE"].includes(method) && pathUnder(path, "/api/quiz/templates"))
     || /^\/api\/live\/[^/]+\/control$/.test(path)) return "staff-api";
   if (hasPrefix(sessionEndpoints)) return "account-session";
   if (hasPrefix(studentEndpoints)) return "student-service";
@@ -180,7 +182,7 @@ function observe(page, entry) {
       entry.navigation.push({ path, status: response.status(), ...(location ? { location } : {}) });
       if (/^\/(admin|tutor)(\/|$)/.test(url.pathname) && response.status() < 300) documents.push(response);
     } else if (response.ok() && apiObservation.pathPrefixes.some((prefix) => url.pathname === prefix || url.pathname.startsWith(prefix + "/"))) {
-      entry.successfulProtectedReads.push({ path: url.pathname, status: response.status() });
+      entry.successfulProtectedReads.push({ path: acl ? sanitizePath(url.pathname) : url.pathname, status: response.status() });
     }
   });
   return { documents, requests };
@@ -197,6 +199,13 @@ async function evidence(context, test, seed, screenshot = true) {
     entry.identity = await identity(context, "student");
     const response = await page.goto(origin + path, { waitUntil: "domcontentloaded", timeout: requestTimeout });
     assert.ok(response, "No document response");
+    const first = entry.navigation.find((event) => event.path === path);
+    assert.ok(first, "The original Next page request was not observed");
+    entry.initialHttpStatus = first.status;
+    if (first.status >= 400 && first.status !== 403) {
+      if (acl) await page.waitForLoadState("load", { timeout: requestTimeout });
+      assert.fail(`Original document returned HTTP ${first.status} without a verified role response`);
+    }
     await page.waitForFunction(({ expected, destination }) => location.pathname === destination ||
       (location.pathname === expected && Array.from(document.querySelectorAll("main h1, main h2, [role=alert]")).some((heading) =>
         /^(Akses ditolak|Anda tidak memiliki akses|Forbidden|403)$/i.test(heading.textContent.trim()))),
@@ -204,9 +213,6 @@ async function evidence(context, test, seed, screenshot = true) {
     const landed = new URL(page.url());
     assert.equal(landed.origin, origin);
     entry.landedPath = landed.pathname + landed.search;
-    const first = entry.navigation.find((event) => event.path === path);
-    assert.ok(first, "The original Next page request was not observed");
-    entry.initialHttpStatus = first.status;
     assert.ok(entry.navigation.every(({ path }) => !/^\/(sign-in|sign-up|api\/auth)\b/.test(path)), "Navigation entered an authentication route");
     const redirected = entry.landedPath === "/";
     if (redirected) {
@@ -247,23 +253,24 @@ async function evidence(context, test, seed, screenshot = true) {
       await writeFile(resolve(here, entry.screenshot), image);
     }
     if (acl) {
-      entry.sameOriginRequests = [...requests.values()];
+      entry.sameOriginRequests = [...requests.values()].map((request) => ({ ...request }));
       entry.unexpectedStaffResponses = entry.sameOriginRequests.filter(({ category, status }) => category === "staff-api" && status >= 200 && status < 300);
       assert.deepEqual(entry.unexpectedStaffResponses, [], "A staff API returned 2xx during Student navigation");
     }
     entry.classification = redirected ? "redirected" : "forbidden";
     entry.status = "pass";
   } catch (error) {
-    if (acl && !entry.sameOriginRequests) entry.sameOriginRequests = [...requests.values()];
+    if (acl && !entry.sameOriginRequests) entry.sameOriginRequests = [...requests.values()].map((request) => ({ ...request }));
     if (page.url().startsWith(origin)) {
       const url = new URL(page.url());
       entry.landedPath = url.pathname + url.search;
     }
-    entry.error = error instanceof Error ? error.message : String(error);
+    if (acl) entry.errorClass = aclErrorClass(error);
+    else entry.error = error instanceof Error ? error.message : String(error);
   } finally {
     await page.close();
   }
-  return entry;
+  return acl ? sanitizeAclCase(entry, origin, { requestedPath: path, fixturePath: test.path }) : entry;
 }
 
 async function checkpoints(browser, seed) {
@@ -282,7 +289,7 @@ async function checkpoints(browser, seed) {
       assert.equal(response.status(), 307);
       assert.equal(location.pathname, "/sign-in");
       assert.equal(location.searchParams.get("next"), path);
-      anonymous.push({ path, status: response.status(), destination: location.pathname + location.search });
+      anonymous.push({ path, status: response.status(), destination: acl ? sanitizeAclPath(location.href, origin) : location.pathname + location.search });
     } finally { await anonymousContext.close(); }
     const authorizedContext = await contextFor(browser, "light", role);
     try {
@@ -316,7 +323,7 @@ const queue = denied.filter(({ id }) => !selected.size || selected.has(id));
 const entries = new Map((previous?.entries ?? []).map((entry) => [entry.id, entry]));
 try {
   const checkpointResults = await checkpoints(browser, seed);
-  for (const retry of checkpointResults.retries) console.log(`repeat ${retry.status} ${retry.requestedPath} ${retry.error ?? retry.landedPath}`);
+  for (const retry of checkpointResults.retries) console.log(`repeat ${retry.status} ${retry.requestedPath} ${retry.errorClass ?? retry.error ?? retry.landedPath}`);
   const observationScope = acl ? { sameOrigin: true, fields: ["path", "method", "status", "category"], through: "hydrated page load",
     staffEndpoints, staffRules: ["non-read /api/quiz/templates", "/api/live/[sessionId]/control"],
     sessionEndpoints, studentEndpoints, scopedAcademicEndpoints, endpointSource: "packages/native-parity/academic/report/http-contracts.tsv" } : apiObservation;
@@ -325,7 +332,11 @@ try {
   let saving = Promise.resolve();
   function save() {
     saving = saving.then(async () => {
-      manifest.entries = denied.flatMap(({ id }) => entries.has(id) ? [entries.get(id)] : []);
+      manifest.entries = denied.flatMap((test) => {
+        const entry = entries.get(test.id);
+        if (!entry) return [];
+        return [acl ? sanitizeAclCase(entry, origin, { requestedPath: requestedPath(test, seed), fixturePath: test.path }) : entry];
+      });
       manifest.summary = { passed: manifest.entries.filter(({ status }) => status === "pass").length,
         observed: manifest.entries.length, registered: denied.length,
         uniqueScreenshots: new Set(manifest.entries.flatMap(({ screenshot }) => screenshot ? [screenshot] : [])).size };
@@ -348,7 +359,8 @@ try {
         const entry = await evidence(context, test, seed, !acl);
         const prior = entries.get(entry.id);
         if (prior) entry.previousAttempts = [...(prior.previousAttempts ?? []), {
-          status: prior.status, classification: prior.classification, landedPath: prior.landedPath, navigation: prior.navigation, error: prior.error,
+          status: prior.status, classification: prior.classification, landedPath: prior.landedPath, navigation: prior.navigation,
+          ...(acl ? { errorClass: prior.errorClass ?? aclErrorClass(prior.error) } : { error: prior.error }),
         }];
         entries.set(entry.id, entry);
         console.log(`${entry.status} ${entry.id} ${entry.initialHttpStatus ?? "-"} ${entry.landedPath ?? "-"}`);

@@ -60,7 +60,11 @@ def native(pattern, group):
   if pattern in end:
    add='; PATCH announcement text supported' if pattern.endswith('/announcements') else ''
    return ('GET /api/native/academic-administration/'+end[pattern]+add,'Other edits/broadcasts are fixture; review domain README for partial support')
-  if '/review/idea/[bundleId]' in pattern:return ('GET /api/native/academic-administration/bundle/idea/[slug]/[bundleId]','Idea review, revisions and publication are fixture')
+  if '/review/idea/[bundleId]' in pattern:
+   return (
+    'GET /api/native/academic-administration/bundle/idea/[slug]/[importId]; GET and PATCH /api/native/academic-administration/bundle/idea/[slug]/[importId]/item/[ideaId]',
+    'Admin can read one course-scoped Idea and save their own item decision and note. Full-bundle review, finalization, revisions, publication and artifacts beyond native read limits use the web authoring workflow.',
+   )
   if '/review/product/[bundleId]' in pattern:return ('GET /api/native/academic-administration/bundle/product/[slug]/[bundleId]; PDF job/status through bundle routes','Product review and publication fixture; full renderer/download integration pending')
   return ('GET /api/native/academic-administration/alias/... resolves or redirects','Alias destination and selection require screen navigation')
  if group=='courses':
@@ -237,14 +241,67 @@ def denied_reference(pattern, markdown=False):
  assert sha256(image.read_bytes()).hexdigest() == entry['screenshotSha256'], image
  return f'[{label}](denied/{screenshot})' if markdown else f'{label} ({image.as_posix()})'
 
+student_audit_path = P/'denied/api-observations.json'
+student_audit = json.loads(student_audit_path.read_text()) if student_audit_path.is_file() else {}
+audit_entries = {}
+for entry in student_audit.get('entries', []):
+ pattern = entry['pattern']
+ assert pattern in routes and pattern not in audit_entries
+ assert entry['id'] == case_index[pattern]['denied']['id']
+ assert resolve_route(entry['requestedPath']) == pattern
+ audit_entries[pattern] = entry
+
+diagnostic_path = P.parent/'denied-diagnostic/results.json'
+denial_diagnostic = json.loads(diagnostic_path.read_text()) if diagnostic_path.is_file() else {}
+diagnostic_entries = {}
+if denial_diagnostic:
+ assert denial_diagnostic['diagnosticOnly'] is True and denial_diagnostic['parityCredit'] is False
+ for entry in denial_diagnostic['cases']:
+  pattern = entry['pattern']
+  assert pattern in routes and pattern not in diagnostic_entries
+  assert entry['id'] == case_index[pattern]['denied']['id']
+  assert entry['parityCredit'] is False
+  web_path = entry['web']['requestedPath']
+  android_path = entry['android']['requestedPath']
+  assert resolve_route(web_path) == resolve_route(android_path) == pattern
+  if entry['comparison']:
+   assert web_path == android_path and entry['sameNavigationState'] is False
+  diagnostic_entries[pattern] = entry
+
+def audit_reference(pattern, markdown=False):
+ entry = audit_entries.get(pattern)
+ if not entry:
+  return 'No Student request audit recorded'
+ status = 'Rechecked' if verified_denial(entry) and entry.get('unexpectedStaffResponses') == [] else 'Unverified'
+ pathname = entry['requestedPath']
+ return (f'[{status} pathname](denied/api-observations.json) `{pathname}`' if markdown
+  else f'{status} pathname {pathname} ({student_audit_path.as_posix()})')
+
+def diagnostic_reference(pattern, markdown=False):
+ entry = diagnostic_entries.get(pattern)
+ if not entry:
+  return 'No Android Student diagnostic recorded'
+ web_path = entry['web']['requestedPath']
+ android_path = entry['android']['requestedPath']
+ if entry['comparison']:
+  status = f"{entry['comparison']['differentPixels']:,} pixels differ across denial states"
+  paths = f'`{android_path}`' if markdown else android_path
+ else:
+  status = 'Excluded from pixel measurement'
+  paths = f'web `{web_path}`, Android `{android_path}`' if markdown else f'web {web_path}, Android {android_path}'
+ return (f'[{status}](../denied-diagnostic/results.json) {paths}' if markdown
+  else f'{status} {paths} ({diagnostic_path.as_posix()})')
+
 with (P/'coverage.tsv').open('w',newline='') as f:
- fields=['route','family','case_populated_id','case_empty_id','case_denied_id','web_source','verified_protected_web_cases','verified_student_denied_web_case','native_live_code_paths','native_fixture_or_dependency','native_implementation_source','native_device_scenarios_planned','native_device_executed_evidence','domain_readme']
+ fields=['route','family','case_populated_id','case_empty_id','case_denied_id','web_source','verified_protected_web_cases','verified_student_denied_web_case','student_web_request_audit','native_student_denial_diagnostic','native_live_code_paths','native_fixture_or_dependency','native_implementation_source','native_device_scenarios_planned','native_device_executed_evidence','domain_readme']
  w=csv.DictWriter(f,fieldnames=fields,delimiter='\t',lineterminator='\n');w.writeheader()
  for route,source in routes.items():
   fam=family[route];live,fixture=native(route,fam); readme=f'packages/native-parity/academic/{fam}/README.md';implementation=f'apps/mobile-native/features/academic/{fam}/index.tsx'
   assert (R/source).is_file() and (R/readme).is_file() and (R/implementation).is_file()
-  w.writerow(dict(route=route,family=fam,case_populated_id=case_index[route]['populated']['id'],case_empty_id=case_index[route]['empty']['id'],case_denied_id=case_index[route]['denied']['id'],web_source=source,verified_protected_web_cases=references(route),verified_student_denied_web_case=denied_reference(route),native_live_code_paths=live,native_fixture_or_dependency=fixture,native_implementation_source=implementation,native_device_scenarios_planned='; '.join(flows.get(route,[])) or 'No direct fixture entry matched; indirect navigation unassessed',native_device_executed_evidence=device_observation(route),domain_readme=readme))
-meta={'generated_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'scope':'Web and implementation observations are from a changing local worktree. Device observations refer to the latest published artifact for each platform.','route_count':len(routes),'capture_manifest':'tests/visual/native-parallel/academic/pages/results.json','student_denied_manifest':denied_manifest.as_posix() if denied_manifest.is_file() else None,'earlier_ios_evidence_index':prior_ios_report[0].as_posix() if prior_ios_report else None,'device_evidence_by_platform':{platform: {'index': path.as_posix(), 'revision': revision,
+  w.writerow(dict(route=route,family=fam,case_populated_id=case_index[route]['populated']['id'],case_empty_id=case_index[route]['empty']['id'],case_denied_id=case_index[route]['denied']['id'],web_source=source,verified_protected_web_cases=references(route),verified_student_denied_web_case=denied_reference(route),student_web_request_audit=audit_reference(route),native_student_denial_diagnostic=diagnostic_reference(route),native_live_code_paths=live,native_fixture_or_dependency=fixture,native_implementation_source=implementation,native_device_scenarios_planned='; '.join(flows.get(route,[])) or 'No direct fixture entry matched; indirect navigation unassessed',native_device_executed_evidence=device_observation(route),domain_readme=readme))
+meta={'generated_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'scope':'Web and implementation observations are from a changing local worktree. Device observations refer to the latest published artifact for each platform.','route_count':len(routes),'capture_manifest':'tests/visual/native-parallel/academic/pages/results.json','student_denied_manifest':denied_manifest.as_posix() if denied_manifest.is_file() else None,
+ 'student_web_request_audit':{'path':student_audit_path.as_posix(),'revision':student_audit['revision']} if student_audit else None,
+ 'native_student_denial_diagnostic':{'path':diagnostic_path.as_posix(),'android_revision':denial_diagnostic['android']['revision'],'parity_credit':False} if denial_diagnostic else None,'earlier_ios_evidence_index':prior_ios_report[0].as_posix() if prior_ios_report else None,'device_evidence_by_platform':{platform: {'index': path.as_posix(), 'revision': revision,
     **({'capture_index': latest_rendered_reports[platform][0].as_posix()} if platform in latest_rendered_reports else {})}
     for platform, (path, revision, _) in latest_device_reports.items()}}
 (P/'coverage-meta.json').write_text(json.dumps(meta,indent=2)+'\n')
@@ -268,7 +325,7 @@ lines=['# Protected web route evidence', '',
  f"Index generated {meta['generated_utc']}; HEAD then was `{meta['head']}` with local uncommitted changes. Captures span a changing worktree and are not attributable to one verified commit.",
  f"Current capture manifest records {counts['new_pass']} passing browser cases, {counts['missing_ui']} unseeded/missing cases with a rendered 404, {counts['shell_only']} shell-only or loading cases, and {counts['unpassed']} other unsuccessful or interrupted cases. Interaction manifest records {counts['interaction_pass']} passing and {counts['interaction_unpassed']} unsuccessful cases. The six earlier protected smoke records are listed separately. Counts are cases, not parity credit.",
  '', '[Route crosswalk and three registry case IDs](coverage.tsv) · [Protected page results](results.json) · [Interaction results](interactions-results.json) · [Original smoke manifest](../web/local-routes/manifest.json)', '',
- 'Web links identify passing screenshots, shell-only/loading outcomes, or rendered 404s. Screenshots are listed under the route that rendered them. The requested route records the redirect destination. Initial HTTP 200 with a rendered 404 is identified explicitly. Device route statuses come from stamped captures. Interaction statuses are assigned to direct fixture entries. Live device operations remain unverified.', ' · '.join(f'[{platform_label} evidence index](../device/{path.parent.name}/index.json)' for platform_label, (path, _, _) in device_links), '', '| Route | Screen family | Recorded original protected web cases | Signed-in Student page denial | Android fixture observations | iOS fixture observations |', '|---|---|---|---|---|---|']
+ 'Web links identify passing screenshots, shell-only/loading outcomes, or rendered 404s. Screenshots are listed under the route that rendered them. The requested route records the redirect destination. Initial HTTP 200 with a rendered 404 is identified explicitly. Device route statuses come from stamped captures. Interaction statuses are assigned to direct fixture entries. Live device operations remain unverified.', ' · '.join(f'[{platform_label} evidence index](../device/{path.parent.name}/index.json)' for platform_label, (path, _, _) in device_links), '', '| Route | Screen family | Recorded original protected web cases | Signed-in Student page denial | Student web request audit (pathname only) | Android fixture observations | Android Student denial diagnostic | iOS fixture observations |', '|---|---|---|---|---|---|---|---|']
 rendered_routes=[]
 redirect_only=[]
 for route,source in routes.items():
@@ -294,7 +351,7 @@ for route,source in routes.items():
  elif redirects:redirect_only.append(route)
  for entry,case,landed in redirects:
   links.append(f"{entry['id']} {case['theme']} redirected to `{landed}`")
- lines.append('| `'+route+'` | '+family[route]+' | '+('; '.join(links) if links else 'Not captured or no passing screenshot')+' | '+denied_reference(route, markdown=True)+' | '+device_observation(route, markdown=True, platform_filter='android')+' | '+device_observation(route, markdown=True, platform_filter='ios')+' |')
+ lines.append('| `'+route+'` | '+family[route]+' | '+('; '.join(links) if links else 'Not captured or no passing screenshot')+' | '+denied_reference(route, markdown=True)+' | '+audit_reference(route, markdown=True)+' | '+device_observation(route, markdown=True, platform_filter='android')+' | '+diagnostic_reference(route, markdown=True)+' | '+device_observation(route, markdown=True, platform_filter='ios')+' |')
 unmatched=[route for route in routes if route not in rendered_routes and route not in redirect_only]
 lines.extend(['', '## Protected route coverage', '',
  f'Protected screenshots show route content for {len(rendered_routes)} of {len(routes)} routes. '
@@ -308,4 +365,16 @@ if denied_entries:
  denied_count=sum(bool(verified_denial(entry)) for entry in denied_entries.values())
  lines.extend(['', f'Signed-in Student page denial is verified for {denied_count} of {len(routes)} routes. '
   'The browser observer tracks same-origin 2xx responses only under `/api/admin` and `/api/tutor`. [Student manifest](denied/manifest.json)'])
+if student_audit:
+ audit_summary = student_audit['summary']
+ lines.extend(['', f'A separate signed-in Student audit at `{student_audit["revision"][:8]}` rechecked '
+  f'{audit_summary["passed"]} of {len(routes)} routes and recorded {audit_summary["observedRequests"]:,} same-origin requests '
+  f'through hydrated page load. The audit retains pathnames and strips query strings. It recorded {audit_summary["unexpectedStaffResponses"]} unexpected staff responses. '
+  '[Sanitized request audit](denied/api-observations.json)'])
+if denial_diagnostic:
+ totals = denial_diagnostic['totals']
+ lines.extend(['', f'The Android Student diagnostic compared {totals["compared"]} exact requested-path pairs and '
+  f'excluded {totals["excluded"]} with different concrete paths. The browser landed on the public homepage and '
+  'Android displayed its in-app denial. These measurements carry zero parity credit. '
+  '[Student denial diagnostic](../denied-diagnostic/README.md)'])
 (P/'summary.md').write_text('\n'.join(lines)+'\n')
