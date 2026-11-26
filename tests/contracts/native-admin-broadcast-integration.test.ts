@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, mock, test } from "bun:test";
+import { afterAll, beforeAll, beforeEach, expect, mock, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { seedAdminMcpAuthority } from "../helpers/admin-mcp-authority";
@@ -18,7 +18,12 @@ mock.module("@/lib/notifications/send", () => ({
   },
 }));
 
-process.env.BETTER_AUTH_URL = "http://localhost:3100";
+const fixtureOrigin = "http://localhost:3100";
+function setFixtureOrigin(origin: string) {
+  process.env.BETTER_AUTH_URL = origin;
+  process.env.NEXT_PUBLIC_APP_URL = origin;
+}
+setFixtureOrigin(fixtureOrigin);
 process.env.QUEUE_PROVIDER = "noop";
 const {
   collectNativeBroadcasts, prepareNativeBroadcast, processNativeBroadcast, readNativeBroadcast, transitionNativeBroadcast,
@@ -47,6 +52,12 @@ beforeAll(async () => {
   await database.insert(schema.session).values({
     id: learner.session.id, userId: learner.user.id, token: "student-fixture", expiresAt: new Date("2099-01-01"),
   });
+});
+beforeEach(async () => {
+  // A failed assertion must not leave a queued operation or provider call count for a later case.
+  await database.delete(schema.adminOperationJobs);
+  delivered.length = 0;
+  interruptAfterSend = false;
 });
 afterAll(async () => { await client.close(); });
 
@@ -88,7 +99,7 @@ test("audience changes before and after confirmation require new review", async 
     else expect((await processNativeBroadcast(id)).claimed).toBe(false);
     expect((await readNativeBroadcast(actor)).receipt).toMatchObject({ issue: "audience_changed", recipientCount: prepared.recipientCount });
   }
-  expect(delivered).toHaveLength(1);
+  expect(delivered).toHaveLength(0);
 });
 
 test("an interrupted provider result remains uncertain and is never replayed", async () => {
@@ -99,21 +110,20 @@ test("an interrupted provider result remains uncertain and is never replayed", a
   try { await processNativeBroadcast(id); } finally { interruptAfterSend = false; }
   expect((await transitionNativeBroadcast(actor, id, "confirm")).status).toBe("unknown");
   expect((await processNativeBroadcast(id)).claimed).toBe(false);
-  expect(delivered).toHaveLength(2);
+  expect(delivered).toHaveLength(1);
 });
 
 test("the worker fails closed when the origin or Admin session changes", async () => {
   const id = crypto.randomUUID();
   await prepareNativeBroadcast(actor, id, draft);
   await transitionNativeBroadcast(actor, id, "confirm");
-  const origin = process.env.BETTER_AUTH_URL;
   try {
-    process.env.BETTER_AUTH_URL = "http://localhost:3101";
+    setFixtureOrigin("http://localhost:3101");
     expect((await processNativeBroadcast(id)).claimed).toBe(false);
-  } finally { process.env.BETTER_AUTH_URL = origin; }
+  } finally { setFixtureOrigin(fixtureOrigin); }
   await database.delete(schema.session).where(eq(schema.session.id, actor.session.id));
   expect((await processNativeBroadcast(id)).claimed).toBe(false);
   const [stored] = await database.select().from(schema.adminOperationJobs).where(eq(schema.adminOperationJobs.id, id));
   expect(stored).toMatchObject({ status: "failed", errorCode: "authorization_expired" });
-  expect(delivered).toHaveLength(2);
+  expect(delivered).toHaveLength(0);
 });
