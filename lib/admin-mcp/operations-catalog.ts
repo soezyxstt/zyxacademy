@@ -8,6 +8,13 @@ export const operationsCatalog = [
     "reason": "The Expo course views return metadata for the signed-in learner under the existing course policy. Activation is the learner's existing group token redemption flow, with live Student authorization and a bound account. Admin MCP tools retain their own enrollment and group permissions."
   },
   {
+    "source": "app/api/native/context/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Expo client reads the active account's own role memberships and locale for routing. Each product API still enforces object permissions. MCP client identity, consent, scopes, discovery, playbooks, packaged skills and environment bindings are independent."
+  },
+  {
     "source": "app/api/auth/native/expo/exchange/route.ts",
     "actions": ["POST"],
     "tools": [],
@@ -20,6 +27,13 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Offline cache policy and manual invalidation currently use the authenticated admin UI with origin checks and revision conflicts. Existing publication, revision, withdrawal, enrollment, course and video services record durable offline changes for their existing Admin and MCP callers. This adds no MCP tools or changes to scopes, consent, discovery, skills, host prompts or staging/production bindings. Device download and storage choices remain local to the signed-in user."
+  },
+  {
+    "source": "app/api/native/student/community/[operation]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Native Student community requests bind the verified learner session to existing ranking, profile, privacy, schedule, discussion, group, rewards, feedback and personal notification operations. These participant and device choices retain existing authorization and OAuth consent. Administrative MCP scopes, discovery, tools, playbooks, packaged skills, host prompts and environment bindings stay as registered."
   },
   {
     "source": "app/(student)/feedback/feedback-form.tsx",
