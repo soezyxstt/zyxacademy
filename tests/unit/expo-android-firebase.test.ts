@@ -126,7 +126,7 @@ test("the native mods enable the installed capability and can remove it on a cre
 });
 
 test("registration uses the capability of the installed Android binary", async () => {
-  const built = await Bun.build({ entrypoints: ["./apps/mobile-native/device/notifications.ts"], format: "cjs", external: ["*"], write: false });
+  const built = await Bun.build({ entrypoints: ["./apps/mobile-native/device/notifications.ts"], format: "cjs", external: ["*"] });
   const source = await built.outputs[0].text();
   for (const [platform, expoGo, native, expected] of [
     ["android", false, true, true], ["android", false, false, false], ["android", false, null, false],
