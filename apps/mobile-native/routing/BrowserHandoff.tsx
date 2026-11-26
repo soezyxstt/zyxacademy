@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Text, View, useColorScheme } from "react-native";
 
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
+import { useNativeUiLocale } from "../auth/use-account-context";
 import { Button } from "../components/Button";
 import { NativeCompactShell } from "../features/shared-ui/layout";
 import { nativeTypography } from "../typography";
@@ -27,7 +28,7 @@ const copy = {
 
 function OpenDestination({ kind, url, handoff }: { kind: BrowserDestination; url: string | null; handoff?: string }) {
   const router = useRouter();
-  const strings = copy[Intl.DateTimeFormat().resolvedOptions().locale.startsWith("en") ? "en" : "id"];
+  const strings = copy[useNativeUiLocale()];
   const colors = nativeColors[useColorScheme() === "dark" ? "dark" : "light"];
   const opening = useRef(false);
   const [status, setStatus] = useState<"idle" | "opening" | "failed" | "expired">("idle");

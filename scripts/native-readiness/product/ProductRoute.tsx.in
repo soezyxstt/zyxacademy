@@ -10,7 +10,9 @@ import { authEntryHref } from "../auth/login-intent";
 import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
 import { useNativeAccountContext } from "../auth/use-account-context";
 import { useNativeSession } from "../auth/session-provider";
+import { nativeUiLocale } from "../auth/ui-locale";
 import { Button } from "../components/Button";
+import { useDevicePreferences } from "../device/preferences-provider";
 import { AcademicLiveScreen, bindAcademicSession } from "../features/academic";
 import { AdminOperationsScreen, PublicOperationsScreen } from "../features/operations";
 import { VerifiedStudentEntry } from "../features/student/VerifiedStudentEntry";
@@ -37,8 +39,10 @@ function ProductRoute({ href, pattern, owner }: { href: string; pattern: string;
   const isFocused = useIsFocused();
   const { state, transport } = useNativeSession();
   const access = useNativeAccountContext();
-  const theme = useColorScheme() === "dark" ? "dark" : "light";
-  const locale = access.context?.locale ?? (state.status === "unavailable" ? state.offlineIdentity?.locale : undefined) ?? authLocale();
+  const devicePreferences = useDevicePreferences();
+  const scheme = useColorScheme();
+  const theme = devicePreferences.theme === "system" ? (scheme === "dark" ? "dark" : "light") : devicePreferences.theme;
+  const locale = nativeUiLocale(state, access.context, authLocale());
   const navigate = useCallback((path: string, options?: { replace?: boolean }) => {
     if (getSafeRedirectPath(path) !== path) return;
     if (options?.replace) router.replace(path as Href);
@@ -57,6 +61,7 @@ function ProductRoute({ href, pattern, owner }: { href: string; pattern: string;
     const identity = state.status === "signed-in" ? state : state.offlineIdentity;
     return <StudentRoute key={JSON.stringify([identity?.accountId, identity?.sessionId])} href={href} pattern={pattern}
       locale={locale} theme={theme} showChrome={access.context?.roles.includes("murid") === true}
+      devicePreferences={devicePreferences}
       navigate={navigate} replace={replace} back={back} />;
   }
   if (state.status !== "signed-in") return <AuthSessionStatus locale={locale} />;
@@ -99,8 +104,9 @@ function AcademicRoute({ session, locale, accountId, role, ...props }: {
   return <AcademicLiveScreen {...props} transport={transport} actor={{ id: accountId, role }} refresh={refresh} />;
 }
 
-function StudentRoute({ href, pattern, locale, theme, showChrome, navigate, replace, back }: {
+function StudentRoute({ href, pattern, locale, theme, showChrome, devicePreferences, navigate, replace, back }: {
   href: string; pattern: string; locale: "id" | "en"; theme: "light" | "dark"; showChrome: boolean;
+  devicePreferences: ReturnType<typeof useDevicePreferences>;
   navigate(path: string): void; replace(path: string): void; back(fallback?: string): void;
 }) {
   const router = useRouter();
@@ -119,7 +125,7 @@ function StudentRoute({ href, pattern, locale, theme, showChrome, navigate, repl
   };
 
   return <StudentChrome href={href} pattern={pattern} locale={locale} theme={theme} enabled={showChrome} visit={visit} back={back}>
-    <VerifiedStudentEntry path={href} entryKey={entry.current} offlineLocale={locale}
+    <VerifiedStudentEntry path={href} entryKey={entry.current} offlineLocale={locale} devicePreferences={devicePreferences}
       initialScrollY={scroll.current} onScrollY={value => { scroll.current = value; }}
       navigate={navigate} replace={replaceStudent} back={() => back("/dashboard")} />
   </StudentChrome>;

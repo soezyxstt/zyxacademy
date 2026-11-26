@@ -8,6 +8,8 @@ Pada branch integrasi, `zyx-native-parity://internal/session` membuka pemeriksaa
 
 Produk native dapat menggunakan `useNativeSession()` dari `apps/mobile-native/auth/session-provider.tsx` untuk memperoleh transport yang telah memeriksa identitas pengguna. Pengujian runtime membutuhkan server dengan perubahan yang sama, build Android/iOS yang mengenali skema internal, serta Google OAuth untuk origin staging. Halaman pemeriksaan akun adalah alat integrasi. Bukti paritas visual untuk halaman login produk dilacak terpisah.
 
+Pengaturan Murid memakai preferensi perangkat Expo untuk tema sistem, terang atau gelap dan umpan balik getar. Pilihan mengikuti instalasi aplikasi saat akun berganti. Shell produk dan handoff browser memakai bahasa akun yang telah diperiksa, bahasa sesi offline yang tersimpan, atau bahasa perangkat. Penyiapan kanal push memakai pilihan bahasa yang sama. Kotak masuk notifikasi masih menjadi celah pada shell Expo. [Preferensi perangkat](../apps/mobile-native/device/preferences-provider.tsx), [kontrak notifikasi](notifications.md), [katalog operasi MCP](../lib/admin-mcp/operations-catalog.ts).
+
 ## Metadata dan paket bacaan offline
 
 Provider Expo menyinkronkan metadata saat ada layar yang meminta kursus. Respons sync dan manifest harus cocok dengan akun, sesi, origin, bahasa dan hak akses saat ini. SQLite menyimpan metadata per akun, origin dan bahasa. Setiap rekonsiliasi menyelesaikan manifest lebih dahulu, kemudian mengakui cursor. Revisi penyimpanan mencegah respons lama menghidupkan kembali entri yang dicabut. [Kontrak sync](operations/offline-data-sync.md), [provider Expo](../apps/mobile-native/offline/lifecycle-provider.tsx).

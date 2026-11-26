@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { NativeAccountContext } from "../../../packages/native-session/context";
 import { loadNativeAccountContext, NativeAccountAccessDenied } from "../network/account-context";
+import { authLocale } from "./auth-copy";
 import { useNativeSession } from "./session-provider";
+import { nativeUiLocale } from "./ui-locale";
 
 type AccountContextValue = {
   context: NativeAccountContext | null;
@@ -43,4 +45,10 @@ export function useNativeAccountContext() {
   const value = useContext(AccountContext);
   if (!value) throw new Error("Provider akses akun belum dipasang.");
   return value;
+}
+
+export function useNativeUiLocale() {
+  const { state } = useNativeSession();
+  const { context } = useNativeAccountContext();
+  return nativeUiLocale(state, context, authLocale());
 }
