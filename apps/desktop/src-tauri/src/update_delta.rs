@@ -127,7 +127,7 @@ async fn fetch_with_progress<F>(
     mut on_progress: F,
 ) -> Option<Vec<u8>>
 where
-    F: FnMut(usize, Option<u64>),
+    F: FnMut(usize, Option<u64>) + Send,
 {
     let mut response = client
         .get(url)
@@ -204,7 +204,7 @@ pub async fn download<F>(
     on_progress: F,
 ) -> Option<Vec<u8>>
 where
-    F: FnMut(usize, Option<u64>),
+    F: FnMut(usize, Option<u64>) + Send,
 {
     let base_digest = Sha256::digest(base);
     let name = format!("{asset}.from-{base_digest:x}.zyxdelta");
@@ -221,7 +221,7 @@ pub async fn download_installer<F>(
     on_progress: F,
 ) -> Option<Vec<u8>>
 where
-    F: FnMut(usize, Option<u64>),
+    F: FnMut(usize, Option<u64>) + Send,
 {
     let base = read_base(executable)?;
     if base.len() > MAX_INSTALLER_BYTES {
@@ -315,5 +315,17 @@ mod tests {
 
         assert_eq!(apply_installer(&base, &base_digest, &patch), Some(target));
         assert!(apply_installer(&base, &base_digest, &patch[..patch.len() - 1]).is_none());
+    }
+
+    #[test]
+    fn minisign_helper_parses_wrapped_keys_and_rejects_invalid_signatures() {
+        let raw_key = "RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3";
+        let wrapped_key = base64::engine::general_purpose::STANDARD
+            .encode(format!("untrusted comment: minisign public key\n{raw_key}\n"));
+
+        assert!(parse_tauri_pubkey(raw_key).is_some());
+        assert!(parse_tauri_pubkey(&wrapped_key).is_some());
+        assert!(parse_tauri_pubkey("not-a-valid-key").is_none());
+        assert!(!verify_minisign(&wrapped_key, "not-a-signature", b"payload"));
     }
 }

@@ -949,12 +949,12 @@
             description:
               "Periksa koneksi internet Anda lalu muat ulang, atau baca materi yang sudah tersimpan di perangkat ini.",
             retry: "Coba lagi",
-            retrying: "Menghubungkan ke Zyx Academy...",
+            retrying: "Menghubungkan...",
             stillOffline: "Koneksi masih belum tersedia. Periksa jaringan lalu coba lagi.",
-            offlineBtn: "Bacaan offline",
             libraryHeading: "Bacaan tersimpan",
+            emptyTitle: "Belum ada bacaan tersimpan",
             emptyLibrary:
-              "Belum ada bacaan tersimpan di perangkat ini. Buka artikel atau materi teks saat online agar tersimpan otomatis.",
+              "Buka artikel atau materi teks saat online agar tersimpan otomatis di perangkat ini.",
             back: "Kembali",
             reconnect: "Kembali online",
             bannerText: "Koneksi kembali tersedia",
@@ -973,12 +973,12 @@
             description:
               "Check your internet connection and try again, or read materials saved on this device.",
             retry: "Try again",
-            retrying: "Reconnecting to Zyx Academy...",
+            retrying: "Reconnecting...",
             stillOffline: "Still offline. Check your connection and try again.",
-            offlineBtn: "Offline readings",
             libraryHeading: "Saved readings",
+            emptyTitle: "No saved readings yet",
             emptyLibrary:
-              "No saved readings on this device yet. Open text materials while online to cache them automatically.",
+              "Open text materials while online to save them automatically on this device.",
             back: "Back",
             reconnect: "Return online",
             bannerText: "Connection restored",
@@ -996,12 +996,14 @@
           ? "en"
           : "id";
 
+        var offlineIconBox = document.getElementById("offline-icon-box");
         var connPill = document.getElementById("conn-pill");
         var connLabel = document.getElementById("conn-label");
         var titleEl = document.getElementById("title");
         var descEl = document.getElementById("description");
         var retryBtn = document.getElementById("retry-btn");
-        var refreshLibraryBtn = document.getElementById("refresh-library-btn");
+        var retryIcon = document.getElementById("retry-icon");
+        var retryLabel = document.getElementById("retry-label");
         var statusEl = document.getElementById("status");
         var langIdBtn = document.getElementById("lang-id");
         var langEnBtn = document.getElementById("lang-en");
@@ -1284,13 +1286,18 @@
           retryBtn.disabled = true;
           readerReconnectBtn.disabled = true;
           bannerOnlineBtn.disabled = true;
-          statusEl.textContent = t.retrying;
+          if (retryIcon) retryIcon.classList.add("spin");
+          if (retryLabel) retryLabel.textContent = t.retrying;
+          statusEl.textContent = "";
           var reachable = await probeServerReachable();
           if (!reachable) {
             statusEl.textContent = t.stillOffline;
             retryBtn.disabled = false;
             readerReconnectBtn.disabled = false;
             bannerOnlineBtn.disabled = false;
+            if (retryIcon) retryIcon.classList.remove("spin");
+            if (retryLabel) retryLabel.textContent = t.retry;
+            updateConnectionUI(false, true);
             return;
           }
           window.location.replace(getTargetOrigin() + "/");
@@ -1441,7 +1448,7 @@
             libraryMeta.textContent = "";
             var emptyTitleEl = document.getElementById("library-empty-title");
             var emptyDescEl = document.getElementById("library-empty-desc");
-            if (emptyTitleEl) emptyTitleEl.textContent = currentLang === "en" ? "No saved readings yet" : "Belum ada bacaan tersimpan";
+            if (emptyTitleEl) emptyTitleEl.textContent = t.emptyTitle;
             if (emptyDescEl) emptyDescEl.textContent = t.emptyLibrary;
             libraryEmptyEl.classList.remove("hidden");
             readingListEl.classList.add("hidden");
@@ -1552,10 +1559,11 @@
           renderLibrary();
         }
 
-        function updateConnectionUI(showBannerIfOnline) {
+        function updateConnectionUI(showBannerIfOnline, forceOffline) {
           var t = COPY[currentLang];
-          var isOnline = navigator.onLine !== false;
+          var isOnline = !forceOffline && navigator.onLine !== false;
           connPill.classList.toggle("online", isOnline);
+          if (offlineIconBox) offlineIconBox.classList.toggle("online", isOnline);
           connLabel.textContent = isOnline ? t.onlinePill : t.offlinePill;
           if (!isOnline) {
             bannerDismissed = false;

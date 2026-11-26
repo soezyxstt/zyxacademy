@@ -401,6 +401,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
           sudo apt-get install -y bsdiff 7zip
           node --test tests/native-delta.test.mjs
           patch_dir=$(mktemp -d)

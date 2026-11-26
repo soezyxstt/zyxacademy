@@ -586,7 +586,7 @@ fn matches_installed_bundle(update: &tauri_plugin_updater::Update) -> bool {
     true
 }
 
-fn make_progress_reporter(app: &AppHandle) -> impl FnMut(usize, Option<u64>) {
+fn make_progress_reporter(app: &AppHandle) -> impl FnMut(usize, Option<u64>) + Send + 'static {
     let progress_app = app.clone();
     let mut downloaded: u64 = 0;
     let mut last_percent: u8 = 0;

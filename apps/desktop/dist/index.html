@@ -1431,7 +1431,7 @@
             bannerOnlineBtn.disabled = false;
             if (retryIcon) retryIcon.classList.remove("spin");
             if (retryLabel) retryLabel.textContent = t.retry;
-            updateConnectionUI(false);
+            updateConnectionUI(false, true);
             return;
           }
           window.location.replace(targetOrigin + "/");
@@ -1750,9 +1750,9 @@
           renderLibrary();
         }
 
-        function updateConnectionUI(showBannerIfOnline) {
+        function updateConnectionUI(showBannerIfOnline, forceOffline) {
           var t = COPY[currentLang];
-          var isOnline = navigator.onLine !== false;
+          var isOnline = !forceOffline && navigator.onLine !== false;
           connPill.classList.toggle("online", isOnline);
           if (offlineIconBox) offlineIconBox.classList.toggle("online", isOnline);
           connLabel.textContent = isOnline ? t.onlinePill : t.offlinePill;
@@ -1834,11 +1834,11 @@
         });
         window.addEventListener("pagehide", persistActiveReadingPosition);
 
-        function showOfflineShell() {
+        function showOfflineShell(forceOffline) {
           enteredOfflineMode = true;
           if (startupSplash) startupSplash.classList.add("hidden");
           if (offlineShell) offlineShell.classList.remove("hidden");
-          updateConnectionUI(false);
+          updateConnectionUI(false, Boolean(forceOffline));
           void loadLibrary();
         }
 
@@ -1848,7 +1848,7 @@
           updateConnectionUI(true);
         });
         window.addEventListener("offline", function () {
-          showOfflineShell();
+          showOfflineShell(true);
         });
 
         renderLang(currentLang);
@@ -1858,14 +1858,14 @@
         // and only reveal the offline shell if the device is actually offline or unreachable.
         void (async function initialConnect() {
           if (navigator.onLine === false) {
-            showOfflineShell();
+            showOfflineShell(true);
             return;
           }
           var reachable = await probeServerReachable(5000);
           if (reachable && !activeReading && !enteredOfflineMode) {
             window.location.replace(targetOrigin + "/");
-          } else {
-            showOfflineShell();
+          } else if (!enteredOfflineMode) {
+            showOfflineShell(true);
           }
         })();
       })();

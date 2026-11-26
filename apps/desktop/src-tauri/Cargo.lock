@@ -6026,8 +6026,10 @@ dependencies = [
 name = "zyx-academy-desktop"
 version = "0.1.0-alpha.1"
 dependencies = [
+ "base64 0.22.1",
  "flate2",
  "futures-util",
+ "minisign-verify",
  "reqwest 0.12.28",
  "semver",
  "serde",
