@@ -1,10 +1,14 @@
 import { useRef, useState } from "react";
+import { View } from "react-native";
 import { Button } from "../../../components/Button";
 import type { CognitiveLevel, Difficulty, IdeaRole, QuestionAuthoringInput, QuestionIdeaLink, QuestionType } from "../../../../../lib/question-authoring-contract";
 import {
   chapterOptions, evaluationAction, ideaOptions,
   type ActiveQuestion, type Chapter, type Course, type EvaluationRequest, type Idea, type MarkdownImportInput,
 } from "../../../../../packages/native-parity/operations/evaluation-contract";
+import {
+  hasValidIdeaWeights, ideaWeightTotal, isValidIdeaWeight, parseIdeaWeightInput, rebalanceIdeaLinks,
+} from "../../../../../packages/native-parity/operations/evaluation-idea-links";
 import { Choice, choices, Copy, Failure, Field, Heading, httpStatus, interpolate, language, Load, Row, Section, strings, useRead, type Presentation } from "./ui";
 
 export type EditAction = { kind: "create" | "import" } | { kind: "edit"; question: ActiveQuestion };
@@ -31,6 +35,7 @@ export function QuestionEditor({ action, courses, request, presentation, importM
   const [courseId, setCourseId] = useState(question?.courseId ?? courses[0]?.id ?? "");
   const [chapterId, setChapterId] = useState(question?.chapterId ?? "");
   const [ideaLinks, setIdeaLinks] = useState<QuestionIdeaLink[]>(question?.ideaLinks ?? []);
+  const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
   const [ideasOpen, setIdeasOpen] = useState(ideaLinks.length > 0);
   const [prompt, setPrompt] = useState(question?.prompt ?? "");
   const [markdown, setMarkdown] = useState("");
@@ -51,6 +56,7 @@ export function QuestionEditor({ action, courses, request, presentation, importM
 
   const chapters = useRead<Chapter[]>(request, courseId ? chapterOptions(courseId) : undefined);
   const ideas = useRead<Idea[]>(request, courseId && ideasOpen ? ideaOptions(courseId, chapterId) : undefined);
+  const ideaWeightsReady = hasValidIdeaWeights(ideaLinks) && ideaLinks.every((link) => isValidIdeaWeight(link.weight));
   const isChoice = type === "multiple_choice" || type === "multiple_choices";
 
   async function save(reviewStatus: SaveStatus) {
@@ -58,7 +64,7 @@ export function QuestionEditor({ action, courses, request, presentation, importM
     setValidation(undefined);
     setError(undefined);
     if (!courseId) return setValidation(t.chooseCourseFirst);
-    if (ideaLinks.length && (ideaLinks.some((link) => link.weight <= 0) || Math.abs(ideaLinks.reduce((sum, link) => sum + link.weight, 0) - 1) > 0.000001)) return setValidation(t.ideaWeightMustTotal);
+    if (!ideaWeightsReady) return setValidation(t.ideaWeightMustTotal);
     const scope = { courseId, chapterId: chapterId || null, ideaLinks, reviewStatus };
     let body: MarkdownImportInput | QuestionAuthoringInput;
     if (importing) {
@@ -83,8 +89,10 @@ export function QuestionEditor({ action, courses, request, presentation, importM
     try {
       await request(endpoint, { method: question ? "PUT" : "POST", body });
       onSaved(importing
-        ? language(locale, "Soal berhasil diimpor.", "Questions imported.")
-        : reviewStatus === "published" ? t.updatedPublished : t.draftChangesSaved);
+        ? t.importSucceeded
+        : question
+          ? reviewStatus === "published" ? t.updatedPublished : t.draftChangesSaved
+          : reviewStatus === "published" ? t.manualPublished : t.manualDraftSaved);
     } catch (failure) {
       const status = httpStatus(failure);
       if (status === undefined || status >= 500) setUncertain(true);
@@ -95,6 +103,19 @@ export function QuestionEditor({ action, courses, request, presentation, importM
     }
   }
 
+  const dismissWeightError = () => {
+    setValidation((message) => message === t.ideaWeightMustTotal ? undefined : message);
+  };
+  const clearIdeaLinks = () => {
+    setIdeaLinks([]);
+    setWeightDrafts({});
+    dismissWeightError();
+  };
+  const toggleIdea = (id: string) => {
+    setIdeaLinks((current) => rebalanceIdeaLinks(current, id, !current.some((link) => link.ideaId === id)));
+    setWeightDrafts({});
+    dismissWeightError();
+  };
   const updateLink = (id: string, change: Partial<QuestionIdeaLink>) => setIdeaLinks((current) =>
     current.map((link) => link.ideaId === id ? { ...link, ...change } : link));
   const roles: { value: IdeaRole; label: string }[] = [
@@ -106,24 +127,36 @@ export function QuestionEditor({ action, courses, request, presentation, importM
   return <>
     <Heading theme={theme}>{importing ? t.importMarkdownTitle : question ? t.editQuestionAnswerKey : t.manualQuestionTitle}</Heading>
     <Choice theme={theme} label={t.courseLabel} options={choices(courses)} value={courseId} onChange={(next) => {
-      if (next !== courseId) { setCourseId(next); setChapterId(""); setIdeaLinks([]); }
+      if (next !== courseId) { setCourseId(next); setChapterId(""); clearIdeaLinks(); }
     }} />
     {courseId && <Load resource={chapters} presentation={presentation}>{(rows) =>
       <Choice theme={theme} label={t.chapterLabel} options={[{ value: "", label: t.allChaptersLabel }, ...rows.map((row) => ({ value: row.id, label: `${row.code} · ${row.title}` }))]} value={chapterId} onChange={(next) => {
-        if (next !== chapterId) { setChapterId(next); setIdeaLinks([]); }
+        if (next !== chapterId) { setChapterId(next); clearIdeaLinks(); }
       }} />}</Load>}
     {courseId && <Section theme={theme}>
-      <Row><Button theme={theme} variant="outline" accessibilityState={{ expanded: ideasOpen }} onPress={() => setIdeasOpen(!ideasOpen)}>{t.manageIdeas}</Button></Row>
+      <Row>
+        <Copy theme={theme} tone="strong">{t.ideaConnection}</Copy>
+        <Copy theme={theme} tone="muted">{t.optional}</Copy>
+        <Button theme={theme} variant="outline" accessibilityState={{ expanded: ideasOpen }} onPress={() => setIdeasOpen(!ideasOpen)}>{ideasOpen ? t.close : t.manageIdeas}</Button>
+      </Row>
+      <Copy theme={theme} tone="muted">{ideaLinks.length ? interpolate(t.ideaConnectedCount, { count: ideaLinks.length }) : t.ideaCanBeUnlinked}</Copy>
+      {ideasOpen && ideaLinks.length > 0 && <View accessibilityLiveRegion="polite">
+        <Copy theme={theme} tone={ideaWeightsReady ? "strong" : "error"}>
+          {t.totalWeight} {Math.round(ideaWeightTotal(ideaLinks) * 100)}%. {ideaWeightsReady ? t.readyToSave : t.weightMustBe100}
+        </Copy>
+      </View>}
       {ideasOpen && <Load resource={ideas} presentation={presentation}>{(rows) => rows.length === 0 ? <Copy theme={theme} tone="muted">{t.noPublishedIdeas}</Copy> : rows.map((idea) => {
         const link = ideaLinks.find((item) => item.ideaId === idea.id);
         return <Section key={idea.id} theme={theme}>
-          <Button theme={theme} variant={link ? "default" : "outline"} accessibilityRole="checkbox" accessibilityState={{ checked: Boolean(link) }} onPress={() => setIdeaLinks((current) => link
-            ? current.filter((item) => item.ideaId !== idea.id)
-            : [...current, { ideaId: idea.id, role: "supporting", weight: current.length ? 0 : 1 }])}>{idea.code}</Button>
+          <Button theme={theme} variant={link ? "default" : "outline"} accessibilityRole="checkbox" accessibilityState={{ checked: Boolean(link) }} onPress={() => toggleIdea(idea.id)}>{idea.code}</Button>
           <Copy theme={theme}>{idea.statement}</Copy>
           {link && <>
-            <Field theme={theme} label={t.weightLabel} keyboardType="decimal-pad" value={link.weight ? String(link.weight * 100) : ""} onChangeText={(value) => updateLink(idea.id, { weight: Number(value.replace(",", ".")) / 100 || 0 })} />
-            <Choice theme={theme} label={t.roleLabel} value={link.role} options={roles} onChange={(role) => updateLink(idea.id, { role })} />
+            <Field theme={theme} label={t.weightLabel} testID={`evaluation-idea-weight-${idea.id}`} accessibilityLabel={`${t.weightLabel} ${idea.code}`} keyboardType="decimal-pad" value={weightDrafts[idea.id] ?? String(link.weight)} onChangeText={(value) => {
+              setWeightDrafts((draft) => ({ ...draft, [idea.id]: value }));
+              updateLink(idea.id, { weight: parseIdeaWeightInput(value) });
+              dismissWeightError();
+            }} />
+            <Choice theme={theme} label={t.roleLabel} accessibilityLabel={`${t.roleLabel} ${idea.code}`} value={link.role} options={roles} onChange={(role) => updateLink(idea.id, { role })} />
           </>}
         </Section>;
       })}</Load>}

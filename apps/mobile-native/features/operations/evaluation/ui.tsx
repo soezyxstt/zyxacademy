@@ -50,12 +50,13 @@ export function Section({ children, theme }: { children: ReactNode; theme: Theme
   return <View style={[styles.section, { borderColor: nativeColors[theme].border }]}>{children}</View>;
 }
 
-export function Field({ label, theme, ...props }: React.ComponentProps<typeof Input> & { label: string; theme: Theme }) {
-  return <View style={styles.field}><Copy theme={theme} tone="strong">{label}</Copy><Input {...props} theme={theme} accessibilityLabel={label} /></View>;
+export function Field({ label, theme, accessibilityLabel, ...props }: React.ComponentProps<typeof Input> & { label: string; theme: Theme }) {
+  return <View style={styles.field}><Copy theme={theme} tone="strong">{label}</Copy><Input {...props} theme={theme} accessibilityLabel={accessibilityLabel ?? label} /></View>;
 }
 
-export function Choice<T extends string>({ label, options, value, onChange, theme }: {
+export function Choice<T extends string>({ label, accessibilityLabel, options, value, onChange, theme }: {
   label: string;
+  accessibilityLabel?: string;
   options: readonly { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
@@ -66,7 +67,7 @@ export function Choice<T extends string>({ label, options, value, onChange, them
   return (
     <View style={styles.field}>
       <Copy theme={theme} tone="strong">{label}</Copy>
-      <Button theme={theme} variant="outline" disabled={options.length === 0} accessibilityLabel={label} accessibilityValue={{ text: name }} accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)}>{name}</Button>
+      <Button theme={theme} variant="outline" disabled={options.length === 0} accessibilityLabel={accessibilityLabel ?? label} accessibilityValue={{ text: name }} accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)}>{name}</Button>
       {open && <View style={styles.field}>
         {options.map((option) => <Button key={option.value} theme={theme} variant={value === option.value ? "default" : "ghost"} accessibilityState={{ selected: value === option.value }} onPress={() => { onChange(option.value); setOpen(false); }}>{option.label}</Button>)}
       </View>}

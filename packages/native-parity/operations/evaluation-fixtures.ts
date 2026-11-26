@@ -2,11 +2,16 @@ import type { QuestionAuthoringInput } from "../../../lib/question-authoring-con
 import type { ActiveQuestion, Distractors, EvaluationRequest, GenerationJob, GenerationJobs, HistoricalQuestion, MarkdownImportInput, QuestionBank } from "./evaluation-contract";
 import { clampQuestionPage, historicalReviewActionFor, normalizeHistoricalQuery, normalizeQuestionQuery, questionParamsFromUrl } from "./evaluation-question-query";
 import { evaluationRoutes, matchEvaluationRoute, resolveEvaluationAlias } from "./evaluation-routes";
+import { hasValidIdeaWeights, isValidIdeaWeight } from "./evaluation-idea-links";
 
 const timestamp = "2026-05-12T04:30:00.000Z";
 const course = { id: "mekanika-dasar", title: "Mekanika Dasar" };
 const chapter = { id: "bab-usaha", code: "MD03", title: "Usaha dan energi", courseId: course.id, orderIndex: 3 };
 const idea = { id: "ide-usaha", code: "MD03.1", statement: "Usaha total sama dengan perubahan energi kinetik." };
+export const evaluationIdeas = [
+  idea,
+  { id: "ide-energi", code: "MD03.2", statement: "Energi kinetik bergantung pada massa dan kuadrat kelajuan." },
+];
 const ko = { id: "ko-usaha", courseId: course.id, chapterId: chapter.id, title: "Teorema usaha dan energi", conceptName: "Energi kinetik" };
 
 const activeQuestion: ActiveQuestion = {
@@ -102,7 +107,7 @@ export function createEvaluationFixtureRequest(mode: Mode = "populated"): Evalua
       }
       const view = url.searchParams.get("view");
       if (view === "chapters") return answer(match.search.get("courseId") === course.id ? [chapter] : []);
-      if (view === "ideas") return answer(match.search.get("courseId") === course.id && [null, "", chapter.id].includes(match.search.get("chapterId")) ? [idea] : []);
+      if (view === "ideas") return answer(match.search.get("courseId") === course.id && [null, "", chapter.id].includes(match.search.get("chapterId")) ? evaluationIdeas : []);
       const params = questionParamsFromUrl(match.search);
       const query = normalizeQuestionQuery(params);
       const historyQuery = normalizeHistoricalQuery(params);
@@ -168,7 +173,11 @@ export function createEvaluationFixtureRequest(mode: Mode = "populated"): Evalua
       const questionId = id ?? `soal-fixture-${++count}`;
       const input = options?.body as QuestionAuthoringInput;
       if (!input?.prompt.trim() || input.courseId !== course.id) throw new EvaluationFixtureError(400, "Invalid question.");
-      const saved: ActiveQuestion = { ...activeQuestion, ...input, id: questionId, chapterId: input.chapterId ?? null, canonicalStatus: toStatus(input.reviewStatus) };
+      const ideaLinks = input.ideaLinks ?? [];
+      if (!hasValidIdeaWeights(ideaLinks) || ideaLinks.some((link) => !isValidIdeaWeight(link.weight))) {
+        throw new EvaluationFixtureError(400, "Idea weights must total 100%.");
+      }
+      const saved: ActiveQuestion = { ...activeQuestion, ...input, ideaLinks, id: questionId, chapterId: input.chapterId ?? null, canonicalStatus: toStatus(input.reviewStatus) };
       questions = [saved, ...questions.filter((item) => item.id !== questionId)];
       return answer({ id: questionId, success: true });
     }

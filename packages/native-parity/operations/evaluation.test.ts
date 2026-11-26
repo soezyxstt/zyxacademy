@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
 import { compileMarkdown } from "../../../lib/markdown-compiler";
 import { createEvaluationFixtureRequest, evaluationCases } from "./evaluation-fixtures";
-import { evaluationAction, evaluationRead, type GenerationJob, type QuestionBank } from "./evaluation-contract";
+import { evaluationAction, evaluationRead, ideaOptions, type GenerationJob, type QuestionBank } from "./evaluation-contract";
+import { hasValidIdeaWeights, isValidIdeaWeight, parseIdeaWeightInput, rebalanceIdeaLinks } from "./evaluation-idea-links";
 import { DEMO_TEMPLATES } from "./evaluation-ast-templates";
 import { evaluationRoutes, matchEvaluationRoute, type EvaluationRedirect } from "./evaluation-routes";
 
@@ -71,4 +72,37 @@ test("AST Inspector uses the common compiler and all three web templates", () =>
   expect(standard.ast.blocks.length).toBeGreaterThan(0);
   expect(leakage.diagnostics.some((item) => item.code === "FORMULA_IN_CONCEPT")).toBe(true);
   expect(visual.ast.blocks.some((item) => item.type === "visual")).toBe(true);
+});
+
+test("native Idea weights use the web rebalance rule and accept localized decimal input", () => {
+  const first = rebalanceIdeaLinks([], "ide-usaha", true);
+  expect(first).toEqual([{ ideaId: "ide-usaha", weight: 1, role: "primary" }]);
+  const withSecond = rebalanceIdeaLinks([{ ...first[0], role: "required" }], "ide-energi", true);
+  expect(withSecond).toEqual([
+    { ideaId: "ide-usaha", weight: 0.5, role: "required" },
+    { ideaId: "ide-energi", weight: 0.5, role: "supporting" },
+  ]);
+  expect(rebalanceIdeaLinks(withSecond, "ide-usaha", false)).toEqual([{ ideaId: "ide-energi", weight: 1, role: "supporting" }]);
+  expect(rebalanceIdeaLinks(first, "ide-usaha", false)).toEqual([]);
+  expect(parseIdeaWeightInput("0,45")).toBe(0.45);
+  expect(parseIdeaWeightInput(".55")).toBe(0.55);
+  expect(parseIdeaWeightInput("0.")).toBe(0);
+  expect(parseIdeaWeightInput("1e-1")).toBe(0);
+  expect(isValidIdeaWeight(parseIdeaWeightInput("1,10"))).toBe(false);
+});
+
+test("fixture permits a balanced question edit and retains the original after rejecting invalid weights", async () => {
+  const request = createEvaluationFixtureRequest();
+  const bank = evaluationRead("/admin/questions");
+  const original = (await request<QuestionBank>(bank)).questions[0];
+  const ideas = await request<{ id: string }[]>(ideaOptions(original.courseId, "bab-usaha"));
+  expect(ideas).toHaveLength(2);
+  const links = rebalanceIdeaLinks(original.ideaLinks, ideas[1].id, true);
+  const edited = links.map((link, index) => ({ ...link, weight: index === 0 ? 0.45 : 0.5 }));
+  const action = evaluationAction("question", original.id);
+  expect(hasValidIdeaWeights(edited)).toBe(false);
+  await expect(request(action, { method: "PUT", body: { ...original, ideaLinks: edited } })).rejects.toMatchObject({ status: 400 });
+  expect((await request<QuestionBank>(bank)).questions[0].ideaLinks).toEqual(original.ideaLinks);
+  await request(action, { method: "PUT", body: { ...original, ideaLinks: links } });
+  expect((await request<QuestionBank>(bank)).questions[0].ideaLinks).toEqual(links);
 });

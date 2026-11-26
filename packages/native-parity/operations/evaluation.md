@@ -63,3 +63,9 @@ PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium bun tests/visual/native-parallel/op
 The browser command writes `artifacts/native-parity/operations-web/evaluation-aliases/cases.json` with the observed HTTP status, destination, reached URL, browser Back result and native fixture response.
 
 Playwright verified nine source paths at 380 × 844 DPR 1. Eight responded with HTTP 307 followed by the canonical destination, and one unknown quiz responded with HTTP 404. Browser Back reached the original listing in all nine cases. The route functions used synthetic Admin authorization and course identities. See [the observed HTTP and history results](../../../tests/visual/native-parallel/operations/references/evaluation/legacy-browser.json).
+
+## Question Idea assignment
+
+The browser question editor and native draft form share the default Idea weighting rule. Adding or removing an Idea redistributes the total equally and preserves the roles of retained Ideas. Native displays the linked count and total weight, preserves decimal drafting with either separator, and validates the total before submission. The local fixture now includes two published Ideas in the same chapter. The fixture regression checks that an invalid revision preserves the original links and a balanced revision persists both links.
+
+Run the synthetic device flow `.maestro/native-parallel/operations/evaluation-ideas.yaml` from the mounted operations gallery. It edits an existing question, links a second Idea, verifies readiness at 100%, and saves the draft. Render the production web Idea widget with the fixture harness, then run `capture-evaluation-ideas.ts` to compare available, balanced and invalid states. These interactions use synthetic data.
