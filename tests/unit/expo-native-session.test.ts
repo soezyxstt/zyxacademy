@@ -96,7 +96,7 @@ describe("Expo staging session", () => {
     expect(activeTransport?.scope).toEqual({ origin, accountId: identity.accountId, sessionId: identity.sessionId });
     harness.setServerSession({ ...sessionResponse(), session: { ...sessionResponse().session, id: "another-session" } });
     await restored.refresh();
-    expect(restored.getSnapshot()).toEqual({ state: { status: "signed-out" }, transport: null });
+    expect(restored.getSnapshot()).toEqual({ state: { status: "signed-out" }, transport: null, revalidating: false });
     expect(activeTransport?.isCurrent()).toBe(false);
     expect(harness.readStored()).toBeNull();
   });
@@ -136,17 +136,17 @@ describe("Expo staging session", () => {
     await session.logout();
     expect(unregisterUsesOutgoing).toBe(true);
     expect(activeTransport?.isCurrent()).toBe(false);
-    expect(session.getSnapshot()).toEqual({ state: { status: "logout-pending", retry: true }, transport: null });
+    expect(session.getSnapshot()).toEqual({ state: { status: "logout-pending", retry: true }, transport: null, revalidating: false });
     expect(harness.requests.at(-1)?.url).toBe(`${origin}/api/auth/get-session?disableCookieCache=true&disableRefresh=true`);
 
     const restarted = harness.controller();
     harness.setOffline(true);
     await restarted.refresh();
-    expect(restarted.getSnapshot()).toEqual({ state: { status: "logout-pending", retry: true }, transport: null });
+    expect(restarted.getSnapshot()).toEqual({ state: { status: "logout-pending", retry: true }, transport: null, revalidating: false });
     harness.setOffline(false);
     harness.setCanDelete(true);
     await restarted.logout();
-    expect(restarted.getSnapshot()).toEqual({ state: { status: "signed-out" }, transport: null });
+    expect(restarted.getSnapshot()).toEqual({ state: { status: "signed-out" }, transport: null, revalidating: false });
     expect(harness.readStored()).toBeNull();
   });
 
@@ -184,8 +184,10 @@ describe("Expo staging session", () => {
     await session.acceptLogin(loginHeaders, identity.accountId);
     const activeTransport = session.getSnapshot().transport;
     harness.setOffline(true);
-    await session.refresh();
-    expect(session.getSnapshot()).toEqual({ state: { status: "unavailable" }, transport: null });
+    const validating = session.refresh();
+    expect(session.getSnapshot().revalidating).toBe(true);
+    await validating;
+    expect(session.getSnapshot()).toEqual({ state: { status: "unavailable" }, transport: null, revalidating: false });
     expect(activeTransport?.isCurrent()).toBe(false);
     expect(harness.readStored()).toBeTruthy();
     harness.setOffline(false);

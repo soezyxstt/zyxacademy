@@ -126,6 +126,39 @@ describe("native browser login", () => {
     expect(fixture.accepted).toHaveLength(1);
   });
 
+  test("retains an unexpired Android attempt when foreground dismissal beats the Linking callback", async () => {
+    const warm = setup({
+      openBrowser: async () => ({ type: "dismiss" }),
+      preserveAttemptOnDismiss: true,
+    });
+    await warm.controller.signIn(warm.acceptLogin);
+    expect(warm.stored).toBe(storedAttempt());
+    expect(warm.controller.getStatus()).toBe("idle");
+    expect(warm.requests).toHaveLength(0);
+
+    warm.queued = callback;
+    expect(await warm.controller.completePending(warm.acceptLogin)).toBe(true);
+    expect(warm.stored).toBeNull();
+    expect(warm.requests).toHaveLength(1);
+    expect(warm.accepted).toHaveLength(1);
+    warm.queued = callback;
+    expect(await warm.controller.completePending(warm.acceptLogin)).toBe(false);
+  });
+
+  test("explicitly cancels an Android verifier retained after dismissal", async () => {
+    const fixture = setup({
+      openBrowser: async () => ({ type: "dismiss" }),
+      preserveAttemptOnDismiss: true,
+    });
+    await fixture.controller.signIn(fixture.acceptLogin);
+    expect(fixture.stored).toBe(storedAttempt());
+    fixture.controller.cancel();
+    fixture.queued = callback;
+    expect(await fixture.controller.completePending(fixture.acceptLogin)).toBe(false);
+    expect(fixture.stored).toBeNull();
+    expect(fixture.requests).toHaveLength(0);
+  });
+
   test("resumes a cold callback with a persisted attempt and discards expired and mismatched callbacks", async () => {
     const fixture = setup();
     fixture.stored = storedAttempt();
@@ -153,6 +186,7 @@ describe("native browser login", () => {
     const fixture = setup({
       openBrowser: () => { opened.resolve(); return browser.promise; },
       dismissBrowser: () => browser.resolve({ type: "dismiss" }),
+      preserveAttemptOnDismiss: true,
     });
     const login = fixture.controller.signIn(fixture.acceptLogin);
     await opened.promise;

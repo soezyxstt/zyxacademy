@@ -20,6 +20,7 @@ type BrowserLoginDeps = {
   deleteAttempt(): Promise<void>;
   openBrowser(url: string, redirect: string): Promise<{ type: string; url?: string }>;
   dismissBrowser(): void;
+  preserveAttemptOnDismiss?: boolean;
   takeCallback(): NativeBrowserCallback | null;
   fetcher(url: string, init: RequestInit): Promise<Pick<Response, "body" | "headers" | "json" | "ok" | "redirected" | "type" | "url">>;
   now?: () => number;
@@ -68,6 +69,7 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
   let status: NativeBrowserLoginStatus = "idle";
   let active: LoginRun | null = null;
   let retiredState: string | undefined;
+  let dismissedState: string | undefined;
 
   function setStatus(next: NativeBrowserLoginStatus): void {
     if (status === next) return;
@@ -94,16 +96,20 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
     }, Math.max(0, expiresAt - now()));
   }
 
-  async function finish(run: LoginRun, failed: boolean): Promise<void> {
+  async function finish(run: LoginRun, failed: boolean, preserve = false): Promise<void> {
     clearTimeout(run.timer);
-    if (run.ownsAttempt) {
+    if (run.ownsAttempt && !preserve) {
       try {
         await deps.deleteAttempt();
       } catch {
         failed = true;
       }
     }
-    if (run.state) retiredState = run.state;
+    if (preserve) dismissedState = run.state;
+    else if (run.state) {
+      if (dismissedState === run.state) dismissedState = undefined;
+      retiredState = run.state;
+    }
     active = null;
     setStatus(run.expired || failed ? "error" : "idle");
   }
@@ -151,7 +157,15 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
       return () => { listeners.delete(listener); };
     },
     cancel() {
-      if (active) cancelRun(active);
+      if (active) {
+        cancelRun(active);
+      } else if (dismissedState) {
+        const run = begin();
+        run.state = dismissedState;
+        run.ownsAttempt = true;
+        cancelRun(run);
+        void finish(run, false);
+      }
     },
     async signIn(acceptLogin: AcceptNativeBrowserLogin): Promise<void> {
       if (active) return;
@@ -159,7 +173,16 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
       const { signal } = run.controller;
       setStatus("opening");
       let failed = false;
+      let preserveUntil = 0;
       try {
+        // Starting another login retires a verifier left by an earlier browser.
+        retiredState = dismissedState ?? retiredState;
+        dismissedState = undefined;
+        run.ownsAttempt = true;
+        await deps.deleteAttempt();
+        run.ownsAttempt = false;
+        if (signal.aborted) return;
+
         const state = randomHex(await deps.randomBytes(24));
         const verifier = randomHex(await deps.randomBytes(32));
         const challenge = (await deps.sha256Base64(verifier)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
@@ -180,14 +203,19 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
         const queued = deps.takeCallback();
         if (signal.aborted) return;
 
-        const callback = browser.type === "success" && browser.url ? parseNativeBrowserCallback(browser.url) : queued;
+        const callback = browser.type === "success" && browser.url
+          ? parseNativeBrowserCallback(browser.url)
+          : queued?.state === state ? queued : null;
         const result = run.completion ?? (callback ? complete(run, callback, acceptLogin) : null);
         failed = result ? !await result && !signal.aborted : browser.type === "success";
+        // Android can report the app's foreground return before Linking has
+        // delivered the callback. The matching verifier is still single-use.
+        if (!result && browser.type === "dismiss" && deps.preserveAttemptOnDismiss) preserveUntil = expiresAt;
       } catch {
         failed = !signal.aborted;
       } finally {
-        await run.completion;
-        await finish(run, failed);
+        if (run.completion) failed = !await run.completion && !signal.aborted;
+        await finish(run, failed, !signal.aborted && !run.completion && preserveUntil > now());
       }
     },
     async completePending(acceptLogin: AcceptNativeBrowserLogin): Promise<boolean> {

@@ -41,8 +41,8 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
   now?: () => number;
 }) {
   let record: StoredSession | null | undefined;
-  let snapshot: { state: NativeSessionState; transport: NativeSessionTransport | null } = {
-    state: { status: "loading" }, transport: null,
+  let snapshot: { state: NativeSessionState; transport: NativeSessionTransport | null; revalidating: boolean } = {
+    state: { status: "loading" }, transport: null, revalidating: false,
   };
   let queue: Promise<unknown> = Promise.resolve();
   let revision = 0;
@@ -52,8 +52,8 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
   const subscriptions = new Set<() => void>();
   const beforeLogout = new Set<BeforeLogout>();
 
-  function publish(state: NativeSessionState, transport: NativeSessionTransport | null = null) {
-    snapshot = { state, transport };
+  function publish(state: NativeSessionState, transport: NativeSessionTransport | null = null, revalidating = false) {
+    snapshot = { state, transport, revalidating };
     for (const notify of subscriptions) notify();
   }
 
@@ -177,6 +177,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
         validation = null;
       }
     }).finally(() => { refreshOperation = null; });
+    if (snapshot.state.status === "signed-in") publish(snapshot.state, snapshot.transport, true);
     return refreshOperation;
   }
 
