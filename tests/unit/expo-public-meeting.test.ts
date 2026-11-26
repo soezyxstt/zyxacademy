@@ -45,7 +45,7 @@ async function fixture() {
   };
   async function run<T>(path: string) {
     const target = { exports: {} };
-    const transformed = await Bun.build({ entrypoints: [path], format: "cjs", external: ["*"], write: false });
+    const transformed = await Bun.build({ entrypoints: [path], format: "cjs", external: ["*"] });
     runInNewContext(await transformed.outputs[0].text(), {
       module: target, exports: target.exports, require: (name: string) => modules[name] ?? require(name), Response,
     });
