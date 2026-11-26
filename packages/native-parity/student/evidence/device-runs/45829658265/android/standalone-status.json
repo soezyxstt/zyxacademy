@@ -1,0 +1,118 @@
+[
+  {
+    "name": "Student restores a saved answer after process restart",
+    "status": "passed"
+  },
+  {
+    "name": "Student quiz saves and restores its draft",
+    "status": "passed"
+  },
+  {
+    "name": "Student tryout retries the same submission after response loss",
+    "status": "passed"
+  },
+  {
+    "name": "Student reads and completes a solution collection",
+    "status": "passed"
+  },
+  {
+    "name": "Catalog comparable fixture all TPB and PKA",
+    "status": "passed"
+  },
+  {
+    "name": "Community calendar category and history",
+    "status": "passed"
+  },
+  {
+    "name": "Student calendar reference inputs and category states",
+    "status": "passed"
+  },
+  {
+    "name": "Student calendar filters assessments and opens tutorial history",
+    "status": "passed"
+  },
+  {
+    "name": "Student opens a discussion alias and posts a scoped answer",
+    "status": "passed"
+  },
+  {
+    "name": "Community ranking scope and academic class",
+    "status": "passed"
+  },
+  {
+    "name": "Student separates participation from academic scores and recovers a failed load",
+    "status": "passed"
+  },
+  {
+    "name": "Student weekly calendar selects tutor slots and another day",
+    "status": "passed"
+  },
+  {
+    "name": "Student course and material reference enrolled",
+    "status": "passed"
+  },
+  {
+    "name": "Student course and material reference revoked",
+    "status": "passed"
+  },
+  {
+    "name": "Student course and material reference unenrolled",
+    "status": "passed"
+  },
+  {
+    "name": "Student course ranking podium and own rank",
+    "status": "passed"
+  },
+  {
+    "name": "Student dashboard enrollment states",
+    "status": "failed",
+    "category": "application assertion",
+    "message": "Assertion is false: id: student-dashboard-achievements is visible",
+    "logMember": "results/2026-11-26_135022/Student dashboard enrollment states/logs/maestro.log",
+    "evidence": "Assertion is false: id: student-dashboard-achievements is visible"
+  },
+  {
+    "name": "Student course enrolled fixture",
+    "status": "passed"
+  },
+  {
+    "name": "Learning flashcard flip and grade",
+    "status": "passed"
+  },
+  {
+    "name": "PKA enrollment gate redirects to registration",
+    "status": "passed"
+  },
+  {
+    "name": "Student course long material list fixture",
+    "status": "passed"
+  },
+  {
+    "name": "Student course offline recovery fixture",
+    "status": "passed"
+  },
+  {
+    "name": "Student participation ranking global and following filters",
+    "status": "passed"
+  },
+  {
+    "name": "Student quiz gateway attempt states",
+    "status": "failed",
+    "category": "application assertion",
+    "message": "Assertion is false: \"Mulai kuis\", id: student-assessment-start, enabled is visible",
+    "logMember": "results/2026-11-26_135022/Student quiz gateway attempt states/logs/maestro.log",
+    "evidence": "Assertion is false: \"Mulai kuis\", id: student-assessment-start, enabled is visible"
+  },
+  {
+    "name": "Student course results history states",
+    "status": "passed"
+  },
+  {
+    "name": "Student course revoked fixture",
+    "status": "passed"
+  },
+  {
+    "name": "Student course unenrolled fixture",
+    "status": "passed"
+  }
+]
