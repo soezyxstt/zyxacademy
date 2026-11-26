@@ -114,15 +114,16 @@ export function createCourseFixtureRequest(scenario: CourseFixtureScenario): (pa
     }
     const enrolled = activated || (scenario !== "unenrolled" && !accessRevoked);
     const requestedCourseId = url.searchParams.get("courseId");
+    const parityCourse = scenario === "catalog-parity" ? catalogParityCourses.find(item => item.id === requestedCourseId) : undefined;
     const isPka = requestedCourseId === "tutorial-pka";
     const isPhysics = requestedCourseId === physics.id;
     const catalogClass = { ...math, hasFullContentAccess: enrolled, materialsCount: documents.length + (scenario === "long-content" ? longRows.length : 0) };
     const allDocuments = isPhysics
       ? [{ ...documents[0], id: "pengantar-fisika", title: "Satuan dan pengukuran" }]
       : scenario === "long-content" && !isPka ? [...documents, ...longRows] : [...documents];
-    const course = isPka
+    const course = parityCourse ?? (isPka
       ? { ...catalogClass, id: "tutorial-pka", title: "Tutorial PKA", category: "PKA", description: "Materi persiapan PKA.", hasFullContentAccess: true }
-      : isPhysics ? physics : catalogClass;
+      : isPhysics ? physics : catalogClass);
     const rows = allDocuments.map((item) => ({ ...item, locked: !course.hasFullContentAccess && !item.chapterIds.includes("bab-1") }));
     const chapters = [...new Set(rows.flatMap((row) => row.chapterIds))].map((id, index) => ({
       id,

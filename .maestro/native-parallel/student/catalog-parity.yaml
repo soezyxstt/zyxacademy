@@ -11,6 +11,8 @@ name: Catalog comparable fixture all TPB and PKA
     visible:
       id: student-course-ma1101
     timeout: 30000
+- assertVisible: 4 courses
+- assertVisible: 1 course
 - takeScreenshot: student-catalog-all
 - tapOn:
     id: student-catalog-tab-tpb
@@ -18,6 +20,7 @@ name: Catalog comparable fixture all TPB and PKA
     id: student-course-ma1101
 - assertNotVisible:
     id: student-course-tutorial-pka
+- assertVisible: 4 courses
 - takeScreenshot: student-catalog-tpb
 - tapOn:
     id: student-catalog-tab-pka
@@ -25,4 +28,5 @@ name: Catalog comparable fixture all TPB and PKA
     id: student-course-tutorial-pka
 - assertNotVisible:
     id: student-course-ma1101
+- assertVisible: 1 course
 - takeScreenshot: student-catalog-pka

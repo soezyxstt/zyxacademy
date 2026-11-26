@@ -2,11 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { openDatabaseAsync } from "expo-sqlite";
 import { createAssessmentDraftRepository } from "./assessment-draft-store";
 import { useLocalSearchParams } from "expo-router";
-import { Appearance, BackHandler, View, useColorScheme } from "react-native";
+import { Alert, Appearance, BackHandler, View, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { createStudentFixtureRequest } from "../../../../packages/native-parity/student/fixture-request";
+import studentEn from "../../../../messages/en/student.json";
+import studentId from "../../../../messages/id/student.json";
 import { Button } from "../../components/Button";
+import { RoleBottomNavigation } from "../shared-ui/navigation";
 import { StudentEntry } from "./StudentEntry";
 import type { StudentSession } from "./contracts";
 import { matchStudentRoute } from "./routes";
@@ -15,6 +18,7 @@ import { matchStudentRoute } from "./routes";
 const fixtureRepository = createAssessmentDraftRepository(() => openDatabaseAsync("student-fixture-answers.db"));
 
 const baseSession: StudentSession = { userId: "student-fixture", role: "student", locale: "id", origin: "https://student.invalid" };
+const fixtureDestinations = { home: "/dashboard", courses: "/courses", schedule: "/dashboard/schedule", discuss: "/dashboard/discussions", me: "/profile" } as const;
 
 function Fixture({ scenario, initialPath, theme, locale, persistent }: { persistent: boolean; scenario: string; initialPath: string; theme?: "light" | "dark"; locale: "en" | "id" }) {
   const request = useMemo(() => createStudentFixtureRequest(scenario), [scenario]);
@@ -40,12 +44,20 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
   const [stack, setStack] = useState([{ id: 0, path: initialPath }]);
   const active = stack[stack.length - 1];
   const back = useCallback(() => setStack(current => current.length > 1 ? current.slice(0, -1) : current), []);
+  const navigate = useCallback((path: string) => {
+    const id = ++nextId.current;
+    setStack(current => [...current, { id, path }]);
+  }, []);
   useEffect(() => {
     if (stack.length < 2) return;
     const listener = BackHandler.addEventListener("hardwareBackPress", () => { back(); return true; });
     return () => listener.remove();
   }, [back, stack.length]);
   const colors = nativeColors[useColorScheme() ?? "light"];
+  const isCatalogFixture = scenario === "catalog-parity";
+  const mobile = locale === "en" ? studentEn.mobile : studentId.mobile;
+  const activeDestination = (Object.keys(fixtureDestinations) as (keyof typeof fixtureDestinations)[])
+    .find(id => fixtureDestinations[id] === active.path.split("?")[0]);
 
   return <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
     {stack.length > 1 && <View style={{ alignItems: "flex-start", paddingHorizontal: 12 }}>
@@ -54,12 +66,14 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
     <StudentEntry path={active.path} entryKey={String(active.id)} session={session} request={request} drafts={drafts}
       initialScrollY={offsets.current.get(active.id) ?? 0}
       onScrollY={value => offsets.current.set(active.id, value)}
-      back={back} navigate={path => {
-        const id = ++nextId.current;
-        setStack(current => [...current, { id, path }]);
-      }}
+      back={back} navigate={navigate}
+      openExternal={isCatalogFixture ? path => Alert.alert(mobile.courses, new URL(path, session.origin).href) : undefined}
       replace={path => setStack(current => [...current.slice(0, -1), { ...current[current.length - 1], path }])}
     />
+    {isCatalogFixture && activeDestination && <RoleBottomNavigation role="student" labels={mobile} activeId={activeDestination}
+      accessibilityLabel={mobile.bottomNavLabel} includeSafeArea={false} onDestinationPress={id => {
+        if (id !== activeDestination) navigate(fixtureDestinations[id]);
+      }} />}
   </SafeAreaView>;
 }
 

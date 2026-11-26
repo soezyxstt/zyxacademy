@@ -3,7 +3,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useColor
 import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import {
   canShowOfflineCourse, coursePath, coursesEndpoint, learningEndpoint, materialPath, materialRowPath, materialTabs, normalizeMaterialTab,
-  type CourseCard, type CourseData, type DashboardData, type CatalogData, type EnrollmentFailureCode, type EnrollmentResponse,
+  type CourseCard, type CourseData, type DashboardData, type EnrollmentFailureCode, type EnrollmentResponse,
   type LearningData, type LearningQuery, type MaterialDetailData, type MaterialListData, type MaterialRow,
 } from "../../../../../packages/native-parity/student/courses/contract";
 import { Button } from "../../../components/Button";
@@ -15,6 +15,7 @@ import { StudentListRow } from "../ListRow";
 import { matchStudentRoute, studentMaterialReaderTarget } from "../routes";
 import { canonicalStudentArticleHref, offlineMaterialRecovery, type OfflineCourseMetadata, type OfflineCourseTarget } from "../offline-courses";
 import { DashboardBottom, DashboardTop, useDashboardExtras } from "./dashboard-extra";
+import { Catalog } from "./catalog";
 import { courseCopy, type CourseCopy } from "./copy";
 
 type Theme = keyof typeof nativeColors;
@@ -224,19 +225,19 @@ function Enrollment({ request, reload }: { request: Request; reload: () => void 
   );
 }
 
-function getOffer(course: CourseCard, asOf: string | undefined, locale: string, copy: CourseCopy): string | undefined {
+function getOffer(course: CourseCard, locale: string, copy: CourseCopy): string | undefined {
   const pricing = course.pricing;
   if (!pricing || pricing.category !== "limited_time_free" || !pricing.startsAt || !pricing.endsAt) return undefined;
   const start = new Date(pricing.startsAt);
   const end = new Date(pricing.endsAt);
   if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || start >= end) return undefined;
-  const current = asOf ? new Date(asOf) : new Date();
+  const current = new Date();
   const label = current < start ? copy.offerUpcoming : current >= end ? copy.offerEnded : copy.offerActive;
   const format = new Intl.DateTimeFormat(locale, { timeZone: "Asia/Jakarta", dateStyle: "medium", timeStyle: "short" });
   return `${label} · ${format.format(start)} - ${format.format(end)} WIB`;
 }
 
-function CourseRows({ courses, navigate, catalog = false, asOf, locale = "id-ID" }: { courses: CourseCard[]; navigate: Navigate; catalog?: boolean; asOf?: string; locale?: string }) {
+function CourseRows({ courses, navigate }: { courses: CourseCard[]; navigate: Navigate }) {
   const copy = useContext(CopyContext);
   return courses.map((course) => {
     const counts = [
@@ -244,10 +245,7 @@ function CourseRows({ courses, navigate, catalog = false, asOf, locale = "id-ID"
       [course.quizzesCount, copy.quiz],
       [course.tryoutsCount, copy.tryout],
     ].flatMap(([count, label]) => typeof count === "number" && count > 0 ? [`${count} ${String(label).toLocaleLowerCase()}`] : []);
-    const countsOrEmpty = counts.length > 0 ? counts : [copy.noCourseContents];
-    const details = catalog ? countsOrEmpty : [course.description, ...counts];
-    const offer = catalog ? getOffer(course, asOf, locale, copy) : undefined;
-    const meta = [...details, offer ?? (course.hasFullContentAccess ? "" : copy.limitedAccess)].filter(Boolean).join(" · ");
+    const meta = [course.description, ...counts, course.hasFullContentAccess ? "" : copy.limitedAccess].filter(Boolean).join(" · ");
     return (
       <Row key={course.id} title={course.title} meta={meta} testID={`student-course-${course.id}`} onPress={() => navigate(coursePath(course.id))} />
     );
@@ -299,48 +297,6 @@ function Toggle({ label, selected, onPress, testID }: { label: string; selected:
   );
 }
 
-function categorySlug(category: string) {
-  return category.toLowerCase().trim().replace(/[^\w\s-]/gu, "").replace(/\s+/gu, "-");
-}
-
-function Catalog({ data, navigate, route, replace, openExternal, locale }: { data: CatalogData; locale: string } & Pick<StudentScreenProps, "navigate" | "route" | "replace" | "openExternal">) {
-  const copy = useContext(CopyContext);
-  const theme = useContext(ThemeContext);
-  const search = route.query.q ?? "";
-  const searchTerm = search.trim().toLocaleLowerCase();
-  const categories = [...new Set(data.courses.map((course) => course.category))];
-  const legacyCategory = categories.find((category) => categorySlug(category) === route.query.jurusan);
-  const category = route.query.category || legacyCategory || null;
-  const supportUrl = data.supportUrl;
-  const matching = data.courses.filter((course) => (!category || course.category === category)
-    && [course.title, course.description, course.category].some((text) => text.toLocaleLowerCase().includes(searchTerm)));
-
-  return (
-    <>
-      {categories.length > 0 && (
-        <>
-          <Input theme={theme} accessibilityLabel={copy.search} placeholder={copy.search} value={search} onChangeText={(q) => updateListQuery(route, replace, { q })} />
-          {categories.length > 1 && (
-            <View style={styles.toggles} accessibilityRole="tablist">
-              <Toggle testID="student-catalog-tab-all" label={`${copy.all} (${data.courses.length})`} selected={category === null} onPress={() => updateListQuery(route, replace, { category: undefined, jurusan: undefined })} />
-              {categories.map((name) => <Toggle key={name} testID={`student-catalog-tab-${categorySlug(name)}`} label={name} selected={category === name} onPress={() => updateListQuery(route, replace, { category: name, jurusan: undefined })} />)}
-            </View>
-          )}
-        </>
-      )}
-      {matching.length === 0 ? <LearningText>{copy.noCourses}</LearningText> : categories.filter((name) => matching.some((course) => name === course.category)).map((name) => (
-        <Section key={name} title={name}>
-          <CourseRows courses={matching.filter((course) => name === course.category)} navigate={navigate} catalog asOf={data.asOf} locale={locale} />
-        </Section>
-      ))}
-      {openExternal ? <Section>
-        <Row title={copy.plans} onPress={() => openExternal("/plans")} />
-        {supportUrl ? <Row title={copy.contact} onPress={() => openExternal(supportUrl)} /> : null}
-      </Section> : null}
-    </>
-  );
-}
-
 const courseLinks = [
   ["video", "video"], ["flashcard", "flashcard"], ["quiz", "quiz"], ["tryout", "tryout"], ["path", "studyPath"],
   ["mastery", "mastery"], ["progress", "progress"], ["leaderboard", "ranking"], ["my-results", "results"],
@@ -351,7 +307,7 @@ function CourseOverview({ data, navigate, request, reload, locale }: { data: Cou
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const { course, chapters, attention } = data;
-  const pricing = course.pricing ? getOffer(course, undefined, locale, copy) ?? (course.pricing.category === "free" ? copy.free : copy.premium) : undefined;
+  const pricing = course.pricing ? getOffer(course, locale, copy) ?? (course.pricing.category === "free" ? copy.free : copy.premium) : undefined;
   return (
     <>
       <LearningText role="title">{course.title}</LearningText>
@@ -611,7 +567,8 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
     switch (resource.data.view) {
       case "dashboard": content = <Dashboard data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
       case "dashboard-extras": content = null; break;
-      case "catalog": content = <Catalog data={resource.data} navigate={navigate} route={route} replace={replace} openExternal={openExternal} locale={locale} />; break;
+      case "catalog": content = <Catalog data={resource.data} navigate={navigate} query={route.query} openExternal={openExternal} locale={locale} theme={theme}
+        onSelectGroup={id => updateListQuery(route, replace, { jurusan: id === "all" ? undefined : id, category: undefined })} />; break;
       case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
       case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} openOfflineLibrary={props.openOfflineLibrary} />; break;
       case "material-detail": content = <Document data={resource.data} request={request} reload={reload} renderMaterial={renderMaterial} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} openExternal={openExternal} />; break;
@@ -627,7 +584,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
           contentOffset={isReady ? restoreOffset.current : undefined}
           testID={query.view === "catalog" ? "student-courses-list" : query.view === "material-list" ? "student-materials-list" : `student-learning-${query.view}`}
           style={{ backgroundColor: colors.background }}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, isReady && query.view === "catalog" && styles.catalogContent]}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={resource.kind === "loading" && lastOffset.current > 0} onRefresh={reload} tintColor={colors.primary} colors={[colors.primary]} />}
           scrollEventThrottle={16}
@@ -657,6 +614,7 @@ export function CourseScreen(props: StudentScreenProps) {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 36, gap: 14 },
+  catalogContent: { paddingTop: 0 },
   readyContent: { gap: 14 },
   title: { fontSize: 24, lineHeight: 32 },
   heading: { fontSize: 16, lineHeight: 24 },

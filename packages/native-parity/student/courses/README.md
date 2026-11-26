@@ -22,11 +22,12 @@ Alur ini memakai kontrak belajar dan penukaran token UI yang ada. Katalog operas
 
 ## Fixture dan bukti
 
-`fixtures.ts` mengekspor `createCourseFixtureRequest` dan senarai kasus. Skenario `enrolled` menjalankan pemilihan dokumen. `unenrolled` tetap punya bab pratinjau, `revoked` mencabut akses saat dokumen berbayar dibuka, `offline` pulih melalui tombol coba lagi, dan `long-content` mempunyai dokumen ke-24 yang mulai di luar viewport. Skenario tambahan `catalog-parity` memakai lima data kelas, tiga filter, dan tanggal penawaran yang cocok dengan fixture web.
+`fixtures.ts` mengekspor `createCourseFixtureRequest` dan senarai kasus. Skenario `enrolled` menjalankan pemilihan dokumen. `unenrolled` tetap punya bab pratinjau, `revoked` mencabut akses saat dokumen berbayar dibuka, `offline` pulih melalui tombol coba lagi, dan `long-content` mempunyai dokumen ke-24 yang mulai di luar viewport. Skenario `catalog-parity` memakai lima mata kuliah, tiga filter, dan waktu penawaran yang sama dengan fixture web. Shell fixture menyediakan navigasi Student serta menampilkan tujuan tautan bantuan secara lokal.
 
 ```sh
 bun test tests/contracts/native-student-courses.test.ts
 bun test tests/unit/native-student-course-data.test.ts
+bun test tests/unit/native-student-catalog.test.ts
 bun test tests/unit/native-student-dashboard-extras.test.ts
 bun test tests/unit/native-student-offline-courses.test.ts
 bun test tests/unit/native-student-assessment-drafts.test.ts

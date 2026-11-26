@@ -268,6 +268,7 @@ export type NavigationTabsProps<Id extends string> = {
   accessibilityLabel: string;
   moreLabel: string;
   closeLabel: string;
+  activeIndicatorColor?: string;
   trailing?: ReactNode;
   theme?: NavigationTheme;
   testID?: string;
@@ -280,6 +281,7 @@ export function NavigationTabs<Id extends string>({
   accessibilityLabel,
   moreLabel,
   closeLabel,
+  activeIndicatorColor,
   trailing,
   theme,
   testID,
@@ -287,6 +289,7 @@ export function NavigationTabs<Id extends string>({
   const systemTheme = useColorScheme();
   const resolvedTheme = theme ?? systemTheme ?? "light";
   const colors = nativeColors[resolvedTheme];
+  const indicatorColor = activeIndicatorColor ?? colors.primary;
   const moreRef = useRef<ComponentRef<typeof Pressable>>(null);
   const [availableWidth, setAvailableWidth] = useState(0);
   const [trailingWidth, setTrailingWidth] = useState(0);
@@ -353,7 +356,7 @@ export function NavigationTabs<Id extends string>({
             testID={testID ? `${testID}-${tab.id}` : undefined}
             style={({ pressed }) => [
               styles.tabControl,
-              { borderBottomColor: tab.id === activeId ? colors.primary : "transparent",
+              { borderBottomColor: tab.id === activeId ? indicatorColor : "transparent",
                 backgroundColor: pressed ? `${colors.muted}66` : undefined },
               tab.disabled && styles.disabled,
             ]}
@@ -378,7 +381,7 @@ export function NavigationTabs<Id extends string>({
                 styles.tabControl,
                 styles.moreTab,
                 {
-                  borderBottomColor: activeInOverflow ? colors.primary : "transparent",
+                  borderBottomColor: activeInOverflow ? indicatorColor : "transparent",
                   backgroundColor: pressed ? `${colors.muted}66` : undefined,
                 },
               ]}
