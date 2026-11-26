@@ -74,7 +74,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "lib/coding/article-markdown-scope.ts", "lib/coding/runtime-selection.ts", "lib/coding/draft-reconciliation.ts", "lib/coding/contracts.ts", "lib/coding/browser-runtime.ts", "lib/coding/runtime.ts", "lib/coding/runtime-assets.ts", "lib/coding/frame.html", "public/coding/worker.js", "lib/coding/http-contracts.ts", "lib/coding/zyra.ts",
   "components/course/markdown/flowchart-diagram-renderer.tsx", "lib/visual-layout-service.ts",
   "components/course/article-parts.tsx", "components/course/math-text.tsx", "components/course/markdown-renderer.tsx",
-  "lib/markdown-compiler.ts", "lib/materials/embedded-visuals.ts",
+  "lib/markdown-compiler.ts", "lib/ast-validator.ts", "lib/materials/embedded-visuals.ts",
   "components/course/product-learning-visual.tsx", "components/course/epsilon-delta-board.tsx", "components/course/geometry-2d-visual.tsx", "components/course/interactive-scene-renderer.tsx", "components/course/interactive-scene-svg.tsx",
   "components/course/interactive-document-visual.tsx", "components/course/interactive-document-context.tsx", "lib/materials/interactive-document.ts", "lib/materials/interactive-document-server.ts", "lib/materials/interactive-document-png-worker.cjs", "lib/materials/interactive-document-assets.ts", "lib/materials/interactive-document-authorization.ts", "lib/materials/interactive-document-grant.ts", "lib/materials/visual-payload-security.ts",
   "app/api/materials/interactive-document/article/route.ts", "app/api/materials/interactive-document/reveal/route.ts",
@@ -108,6 +108,7 @@ const PRINT_ONLY_RUNTIME_FILES = new Set<string>([
 export const PRODUCT_V4_LOGIC_RUNTIME_FILES = PRODUCT_V4_RUNTIME_FILES.filter(path =>
   !PRINT_ONLY_RUNTIME_FILES.has(path) && (/^lib\/(authoring|materials|math|bundle|ide|sumber|zyra\/canvas)\//.test(path) ||
   path === "lib/question-authoring-contract.ts" || path === "lib/coding/contracts.ts" || path === "lib/tutor/visual-contracts.ts" || path === "lib/flowchart.ts" ||
+  path === "lib/markdown-compiler.ts" || path === "lib/ast-validator.ts" ||
   ["lib/compute/runtime.ts", "lib/compute/product-v4-runtime-binding.ts", "lib/compute/product-v4-execution.ts",
     "lib/compute/product-v4-verification-executor.ts", "lib/compute/product-v4-document-wire.ts",
     "lib/compute/product-v4-http-asset-validation.ts", "lib/compute/product-diktat-worker-assets.ts",
@@ -385,7 +386,7 @@ export async function readProductV4RuntimeFingerprint(): Promise<ProductV4Runtim
   // Git checkouts on Windows use CRLF; bind the same source text on Linux deployments.
   const files = PRODUCT_V4_RUNTIME_FILES.map(path => [path, bytesHash(Buffer.from(readFileSync(resolve(/* turbopackIgnore: true */ process.cwd(), path), "utf8").replace(/\r\n/g, "\n")))] as const);
   // Bun bundling expands Unicode regex escapes; bind contract source, not engine-specific JSON Schema spellings.
-  const contractFiles = files.filter(([path]) => /^lib\/(authoring|materials|bundle|ide|sumber|coding|zyra\/canvas)\//.test(path) || path === "lib/question-authoring-contract.ts");
+  const contractFiles = files.filter(([path]) => /^lib\/(authoring|materials|bundle|ide|sumber|coding|zyra\/canvas)\//.test(path) || path === "lib/question-authoring-contract.ts" || path === "lib/markdown-compiler.ts" || path === "lib/ast-validator.ts");
   return { rendererChecksum: hash({ files, versions, browsers: bytesHash(browsers), chromium: expectedChromiumRuntime() }),
     fontChecksum: hash({ stylesheet: bytesHash(readFileSync(join(katexRoot, "dist/katex.min.css"))), fonts: fonts.map(name => [name, bytesHash(readFileSync(join(katexRoot, "dist/fonts", name)))]) }),
     contractChecksum: hash({ files: contractFiles, policy: PRODUCT_V4_VERIFICATION_POLICY }), playbookChecksum: getStagePlaybookManifest("product").playbookChecksum,
@@ -406,7 +407,7 @@ export async function readProductV4LogicRuntimeFingerprint(): Promise<ProductV4L
   const { getStagePlaybookManifest } = await import("@/lib/authoring/mcp-playbook");
   const versions = ["zod", "mathjs", "katex", "pngjs"].map(name => [name, JSON.parse(readFileSync(runtimePackageManifest(name), "utf8")).version]);
   const files = PRODUCT_V4_LOGIC_RUNTIME_FILES.map(path => [path, bytesHash(Buffer.from(readFileSync(resolve(/* turbopackIgnore: true */ process.cwd(), path), "utf8").replace(/\r\n/g, "\n")))] as const);
-  const contractFiles = files.filter(([path]) => /^lib\/(authoring|materials|bundle|ide|sumber|coding|zyra\/canvas)\//.test(path) || path === "lib/question-authoring-contract.ts");
+  const contractFiles = files.filter(([path]) => /^lib\/(authoring|materials|bundle|ide|sumber|coding|zyra\/canvas)\//.test(path) || path === "lib/question-authoring-contract.ts" || path === "lib/markdown-compiler.ts" || path === "lib/ast-validator.ts");
   return { logicChecksum: hash({ schema: "product-v4-logic-runtime.v1", files, versions, policy: PRODUCT_V4_VERIFICATION_POLICY }),
     contractChecksum: hash({ schema: "product-v4-logic-contract.v1", files: contractFiles, policy: PRODUCT_V4_VERIFICATION_POLICY }),
     playbookChecksum: getStagePlaybookManifest("product").playbookChecksum };

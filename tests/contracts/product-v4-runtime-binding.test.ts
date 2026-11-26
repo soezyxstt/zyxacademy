@@ -41,6 +41,7 @@ const articleReadingRuntimeFiles = [
 const articleReadingPackageManifests = [
   "node_modules/@tanstack/react-query/package.json", "node_modules/@tanstack/query-core/package.json",
 ] as const;
+const markdownValidationRuntimeFiles = ["lib/markdown-compiler.ts", "lib/ast-validator.ts"] as const;
 
 test("extracted article and query runtime dependencies remain in the API source trace", async () => {
   const { default: createConfig } = await import("../../next.config");
@@ -55,13 +56,13 @@ test("extracted article and query runtime dependencies remain in the API source 
     expect(PRODUCT_V4_RUNTIME_FILES).toContain(path);
     expect(includes.some(pattern => new Bun.Glob(pattern).match(`./${path}`)), path).toBe(true);
   }
-  for (const path of ["lib/zyra/canvas/validator.ts", "lib/tutor/visual-contracts.ts", "lib/flowchart.ts"] as const) {
+  for (const path of ["lib/zyra/canvas/validator.ts", "lib/tutor/visual-contracts.ts", "lib/flowchart.ts", ...markdownValidationRuntimeFiles] as const) {
     expect(PRODUCT_V4_LOGIC_RUNTIME_FILES).toContain(path);
     expect(includes.some(pattern => new Bun.Glob(pattern).match(`./${path}`)), path).toBe(true);
   }
 });
 
-test("changing extracted article sources or Query versions invalidates renderer evidence", async () => {
+test("changing article sources, Markdown validation or Query versions invalidates renderer evidence", async () => {
   const webRuntime = process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
   const computeRuntime = process.env.ZYX_COMPUTE_RUNTIME;
   const readFile = fs.readFileSync;
@@ -80,12 +81,13 @@ test("changing extracted article sources or Query versions invalidates renderer 
     delete process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
     delete process.env.ZYX_COMPUTE_RUNTIME;
     const baseline = await readProductV4RuntimeFingerprint();
-    for (const path of [...articleReadingRuntimeFiles, ...articleReadingPackageManifests]) {
+    for (const path of [...articleReadingRuntimeFiles, ...articleReadingPackageManifests, ...markdownValidationRuntimeFiles]) {
       changedPath = resolve(path);
       intercepted = false;
       const changed = await readProductV4RuntimeFingerprint();
       expect(intercepted).toBe(true);
       expect(changed.rendererChecksum).not.toBe(baseline.rendererChecksum);
+      if ((markdownValidationRuntimeFiles as readonly string[]).includes(path)) expect(changed.contractChecksum).not.toBe(baseline.contractChecksum);
       expect(() => assertProductV4RuntimeFingerprint(baseline, changed)).toThrow("RUNTIME_MISMATCH:rendererChecksum");
     }
   } finally {
@@ -237,11 +239,12 @@ test("logic fingerprint changes with validator code but does not read browser or
     delete process.env.ZYX_COMPUTE_RUNTIME;
     const baseline = await readProductV4LogicRuntimeFingerprint();
     expect(baseline.logicChecksum).toMatch(/^[a-f0-9]{64}$/);
-    for (const file of ["lib/zyra/canvas/validator.ts", "lib/zyra/canvas/expression.ts", "lib/materials/epsilon-delta.ts", "lib/compute/product-v4-verification-executor.ts", "lib/materials/quality-gates.ts", "lib/materials/diktat-visual-snapshot.ts"]) {
+    for (const file of ["lib/zyra/canvas/validator.ts", "lib/zyra/canvas/expression.ts", "lib/materials/epsilon-delta.ts", "lib/compute/product-v4-verification-executor.ts", "lib/materials/quality-gates.ts", "lib/materials/diktat-visual-snapshot.ts", ...markdownValidationRuntimeFiles]) {
       changedPath = resolve(file); intercepted = false;
       const changed = await readProductV4LogicRuntimeFingerprint();
       expect(intercepted).toBe(true);
       expect(changed.logicChecksum).not.toBe(baseline.logicChecksum);
+      if ((markdownValidationRuntimeFiles as readonly string[]).includes(file)) expect(changed.contractChecksum).not.toBe(baseline.contractChecksum);
       expect(() => assertProductV4LogicRuntimeFingerprint(baseline, changed)).toThrow("LOGIC_RUNTIME_MISMATCH:logicChecksum");
     }
     for (const file of ["lib/bundle/product-diktat-pdf.ts", "lib/bundle/product-pdf-selection.ts", "lib/materials/diktat-print-readiness.ts", "lib/materials/diktat-renderer-policy.ts", "lib/materials/diktat-static-visual.ts", "lib/materials/diktat-scene-svg.ts", "lib/materials/pdf-artifact-contract.ts"] as const) {
