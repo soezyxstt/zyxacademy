@@ -56,6 +56,7 @@ for lane in shared-ui student academic operations; do
     while IFS= read -r -d '' conflict; do
       theirs=$(git rev-parse ":3:$conflict" 2>/dev/null || true)
       case "$conflict:$theirs" in
+        apps/mobile-native/app/_layout.tsx:8536adcfff81d47112b964c33142a4aead04e368|\
         apps/mobile-native/metro.config.js:37a0da32595bcda45c8d4225e5f460d2be3f9dc0|\
         apps/mobile-native/metro.config.js:716939b01771f080c0a2f83cb166bf5d53eaecc9|\
         apps/mobile-native/metro.config.js:e14f0a444329b687525c5c6c0041828537f0f2fe|\
