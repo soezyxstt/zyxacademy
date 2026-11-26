@@ -13,6 +13,7 @@ import type { EnrollmentTokenUnavailable } from "./enrollment-token-client";
 import { LiveStudyGroupEditor } from "./study-group-editor";
 import { StudyGroupMembersEditor } from "./study-group-members-editor";
 import { PkaAnnouncementEditor } from "./pka-edit";
+import { clearPkaLifecycle, PkaLifecycleDialog, recoverPkaLifecycle, type PkaLifecycleTarget } from "./pka-lifecycle";
 import { clearPkaScheduleRecovery, PkaScheduleEditor } from "./pka-schedule-editor";
 import { UserRolesEditor } from "./user-roles-editor";
 import { UserStatusEditor } from "./user-status-editor";
@@ -91,6 +92,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const { params, query, transport, navigate, replace, back } = props;
   const tokenPage = pattern === "/admin/tokens";
   const pkaSchedulePage = pattern === "/admin/tutorial-pka/schedules";
+  const pkaAnnouncementPage = pattern === "/admin/tutorial-pka/announcements";
   const searchEnabled = pattern === "/admin/users" || pattern === "/admin/groups" || tokenPage
     || pattern === "/admin/tutorial-pka/registrations";
   const [search, setSearch] = useState(query.search ?? "");
@@ -100,6 +102,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const [ideaDraft, setIdeaDraft] = useState<{ actorTransport: AcademicTransport; slug: string; importId: string; id: string }>();
   const [pkaDraft, setPkaDraft] = useState<{ actorTransport: AcademicTransport; row: LiveRow }>();
   const [pkaScheduleDraft, setPkaScheduleDraft] = useState<{ actorTransport: AcademicTransport; id: string }>();
+  const [pkaLifecycle, setPkaLifecycle] = useState<{ actorTransport: AcademicTransport; target: PkaLifecycleTarget }>();
   const [rolesDraft, setRolesDraft] = useState<{ actorTransport: AcademicTransport; row: LiveRow }>();
   const [userStatusDraft, setUserStatusDraft] = useState<{ actorTransport: AcademicTransport; row: LiveRow }>();
   const [groupDraft, setGroupDraft] = useState<{ actorTransport: AcademicTransport; id?: string }>();
@@ -127,6 +130,14 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const page = Math.max(1, Number(filters.page) || 1);
   const week = Number(filters.week) || 0;
   const data = state.status === "ready" && state.data.type === "page" ? state.data : undefined;
+  const recoveredPka = data ? recoverPkaLifecycle(transport) : undefined;
+  const canRecoverPka = Boolean(recoveredPka && (pkaAnnouncementPage
+    ? recoveredPka.attempt.command.action === "announcement-state"
+    : pkaSchedulePage && recoveredPka.attempt.command.action !== "announcement-state"));
+  const startPkaLifecycle = (target: PkaLifecycleTarget) => {
+    setSuccess("");
+    setPkaLifecycle({ actorTransport: transport, target });
+  };
   const tokenRow = tokenEditor?.id ? data?.rows.find((row) => row.id === tokenEditor.id) : undefined;
   const pkaSchedule = pkaSchedulePage && pkaScheduleDraft?.actorTransport === transport
     ? data?.rows.find((row) => row.id === pkaScheduleDraft.id) : undefined;
@@ -157,6 +168,14 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       clearPkaScheduleContext();
     }
   }, [pkaScheduleAccessEnded, state.status, transport, clearPkaScheduleContext]);
+  const pkaRoleEnded = (pkaAnnouncementPage || pkaSchedulePage) && state.status === "denied";
+  useEffect(() => {
+    if (!pkaRoleEnded) return;
+    clearPkaLifecycle(transport);
+    setPkaLifecycle(undefined);
+    setPkaDraft(undefined);
+    setSelected(undefined);
+  }, [pkaRoleEnded, transport]);
   function reloadTokens() {
     setFilters((previous) => ({ ...previous, search: "", page: "1" }));
     retry();
@@ -201,13 +220,18 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       }} /> : null}
       <Picker label="Status" options={groupsStatus} selected={filters.status ?? ""} onSelect={(id) => filter("status", id)} />
     </View> : null}
-    {pattern === "/admin/tutorial-pka/announcements" ? <View style={layout.row}>
+    {pkaAnnouncementPage ? <View style={layout.row}>
       <Action selected={filters.status !== "archived"} label="Aktif" onPress={() => filter("status", "")} />
       <Action selected={filters.status === "archived"} label="Arsip" onPress={() => filter("status", "archived")} />
+      {canRecoverPka && recoveredPka ? <Action label="Periksa perubahan pengumuman" onPress={() => startPkaLifecycle(recoveredPka.target)} /> : null}
     </View> : null}
-    {pattern === "/admin/tutorial-pka/schedules" ? <View style={layout.row}>
+    {pkaSchedulePage ? <View style={layout.row}>
       <Picker label="Periode" options={[{ id: "", label: "Semua sesi" }, { id: "upcoming", label: "Akan datang" }, { id: "past", label: "Riwayat" }]}
         selected={filters.status ?? ""} onSelect={(value) => filter("status", value)} />
+      {data && transport.command ? canRecoverPka && recoveredPka
+        ? <Action label="Periksa perubahan jadwal" onPress={() => startPkaLifecycle(recoveredPka.target)} />
+        : <Action label="Buat jadwal PKA" variation="default" testID="academic-live-pka-create" disabled={Boolean(recoveredPka)}
+          onPress={() => startPkaLifecycle({ action: "create-schedule" })} /> : null}
     </View> : null}
     {pattern === "/admin/schedules" ? <Tabs options={scheduleTabs} selected={scheduleTab} onSelect={(id) => filter("tab", id)} /> : null}
     {data?.week ? <>
@@ -247,7 +271,8 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         { id: "success", label: "Berhasil", renderCell: (row) => row.fields?.find((field) => field.label === "Berhasil")?.value ?? "0" },
         { id: "failure", label: "Gagal", renderCell: (row) => row.fields?.find((field) => field.label === "Gagal")?.value ?? "0" },
       ]} /> : !data?.week ? data?.rows.map((row) => {
-      type ActionId = "pdf" | "review-idea" | "edit" | "edit-pka-schedule" | "edit-group" | "group-members" | "revoke-token" | "user-status" | "user-roles";
+      type ActionId = "pdf" | "review-idea" | "edit" | "edit-pka-schedule" | "edit-group" | "group-members" | "revoke-token" | "user-status" | "user-roles"
+        | "pka-pin" | "pka-archive" | "pka-delete";
       const actions: SharedUiAction<ActionId>[] = [];
       if (row.pdf && transport.command && !pdfPending) actions.push({ id: "pdf", label: "Minta PDF" });
       if (ideaReviewPage && row.ideaReviewId) actions.push({ id: "review-idea", label: "Review Idea" });
@@ -255,6 +280,10 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       if (row.groupEditable && transport.command) actions.push({ id: "edit-group", label: "Edit kelompok" }, { id: "group-members", label: "Kelola anggota" });
       if (row.announcementEdit && transport.command) actions.push({ id: "edit", label: "Edit pengumuman" });
       if (row.pkaScheduleEdit && transport.command) actions.push({ id: "edit-pka-schedule", label: "Edit jadwal" });
+      if (row.announcementState && transport.command && !recoveredPka) actions.push(
+        { id: "pka-pin", label: row.announcementState.pinned ? "Lepas sematan" : "Sematkan" },
+        { id: "pka-archive", label: row.announcementState.archived ? "Pulihkan" : "Arsipkan" });
+      if (row.pkaScheduleEdit && transport.command && !recoveredPka) actions.push({ id: "pka-delete", label: "Hapus jadwal" });
       if (row.userRolesEdit && transport.command) actions.push({ id: "user-roles", label: "Kelola peran" });
       if (row.userStatusEdit && transport.command) actions.push({ id: "user-status", label: "Ubah status" });
       const onAction: SharedUiActionHandler<ActionId> = (id) => {
@@ -270,6 +299,16 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
           else if (id === "user-roles") setRolesDraft({ actorTransport: transport, row });
           else if (id === "user-status") setUserStatusDraft({ actorTransport: transport, row });
           else if (id === "edit-pka-schedule") setPkaScheduleDraft({ actorTransport: transport, id: row.id });
+          else if (id === "pka-delete" && row.pkaScheduleEdit) startPkaLifecycle({ title: row.title, command: {
+            action: "delete-schedule", id: row.id, expectedRevision: row.pkaScheduleEdit.revision,
+          } });
+          else if ((id === "pka-pin" || id === "pka-archive") && row.announcementState) {
+            const field = id === "pka-pin" ? "pinned" : "archived";
+            startPkaLifecycle({ title: row.title, command: {
+              action: "announcement-state", id: row.id, field, value: !row.announcementState[field],
+              expectedRevision: row.announcementState.revision,
+            } });
+          }
           else setPkaDraft({ actorTransport: transport, row });
         }
       };
@@ -296,6 +335,18 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       initial={pkaSchedule.pkaScheduleEdit} transport={transport} close={() => { setPkaScheduleDraft(undefined); retry(); }}
       unavailable={invalidate}
       saved={() => { setPkaScheduleDraft(undefined); setSuccess("Jadwal diperbarui."); retry(); }} /> : null}
+    {data && pkaLifecycle?.actorTransport === transport ? <PkaLifecycleDialog target={pkaLifecycle.target} transport={transport}
+      recovery={recoveredPka?.target === pkaLifecycle.target ? recoveredPka : undefined}
+      close={() => setPkaLifecycle(undefined)}
+      reload={() => { setPkaLifecycle(undefined); setSelected(undefined); retry(); }}
+      denied={() => { clearPkaLifecycle(transport); setPkaLifecycle(undefined); setSelected(undefined); invalidate("denied"); }}
+      saved={(action) => {
+        setPkaLifecycle(undefined);
+        setSelected(undefined);
+        if (action === "create-schedule" && filters.status === "upcoming") filter("status", "past");
+        setSuccess(action === "delete-schedule" ? "Jadwal dihapus." : action === "create-schedule" ? "Jadwal tersimpan." : "Pengumuman diperbarui.");
+        retry();
+      }} /> : null}
     {data && rolesRow?.userRolesEdit && transport.command ? <UserRolesEditor key={rolesRow.id} id={rolesRow.id} name={rolesRow.title}
       email={rolesRow.subtitle} initial={rolesRow.userRolesEdit} transport={transport} send={transport.command}
       close={() => setRolesDraft(undefined)} refresh={() => { setRolesDraft(undefined); retry(); }}

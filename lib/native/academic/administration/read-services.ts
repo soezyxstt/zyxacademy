@@ -14,6 +14,7 @@ import { getIdeaBundleImport } from "@/lib/bundle/staging";
 import { formatJakartaDatetimeLocal, getJakartaCalendarDate, toIsoTimestamp } from "@/lib/date-utils";
 import { listAdminNotificationHistory } from "@/lib/notifications/admin-history";
 import { pkaScheduleRevision } from "@/lib/pka/schedule-update";
+import { pkaAnnouncementState } from "@/lib/pka/lifecycle";
 import type { ReviewKind } from "@/packages/native-parity/academic/administration/fixtures";
 import type { DiktatEvidenceStatus, LiveField, LivePage, LiveRow } from "@/packages/native-parity/academic/administration/live";
 import { readNativeEnrollmentToken } from "./enrollment-token-service";
@@ -217,6 +218,7 @@ export const administrationReadServices: AdministrationReadServices = {
             id: entry.id, title: entry.title, subtitle: jakDateTime(entry.sentAt),
             detail: entry.isPinned ? "Disematkan" : undefined,
             announcementEdit: announcementRevision(entry.id, entry),
+            announcementState: pkaAnnouncementState(entry),
             fields: [field("Isi", entry.body), field("Penerima", entry.recipientCount)],
           })), query.page);
       }

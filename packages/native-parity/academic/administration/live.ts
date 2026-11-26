@@ -1,5 +1,6 @@
 import { isAdminUserRolesRevision, type AdminUserRolesRevision } from "../../../academic/admin-user-roles";
 import { isPkaAnnouncementRevision, type PkaAnnouncementRevision } from "../../../academic/pka-announcement-edit";
+import { isPkaAnnouncementState, type PkaAnnouncementState } from "../../../academic/pka-lifecycle";
 import { isPkaScheduleRevision, type PkaScheduleRevision } from "../../../academic/pka-schedule-edit";
 import { isAdminUserStatusRevision, type AdminUserStatusRevision } from "../../../academic/admin-user-status";
 import type { AdministrationPattern } from "./routes";
@@ -8,7 +9,7 @@ export type LiveField = { label: string; value: string };
 export type DiktatPdfTarget = { importId: string; productId: string; expectedRevision: string };
 export type DiktatEvidenceStatus = "ready" | "pending" | "failed" | "stale" | "unavailable";
 export type DiktatPdfRequest = DiktatPdfTarget & { requestId: string };
-export type LiveRow = { id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; ideaReviewId?: string; announcementEdit?: PkaAnnouncementRevision; pkaScheduleEdit?: PkaScheduleRevision; dateId?: string; groupEditable?: boolean; tokenActive?: boolean; userRolesEdit?: AdminUserRolesRevision; userStatusEdit?: AdminUserStatusRevision };
+export type LiveRow = { id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; ideaReviewId?: string; announcementEdit?: PkaAnnouncementRevision; announcementState?: PkaAnnouncementState; pkaScheduleEdit?: PkaScheduleRevision; dateId?: string; groupEditable?: boolean; tokenActive?: boolean; userRolesEdit?: AdminUserRolesRevision; userStatusEdit?: AdminUserStatusRevision };
 export type LivePage = { type: "page"; rows: LiveRow[]; nextPage: boolean; summary?: LiveField[]; week?: { start: string; today: string } };
 export type LiveRedirect = { type: "redirect"; target: string };
 export type LiveAdministrationRead = LivePage | LiveRedirect;
@@ -71,6 +72,7 @@ function row(value: unknown): value is LiveRow {
     && (value.pdf === undefined || isDiktatPdfTarget(value.pdf))
     && (value.ideaReviewId === undefined || typeof value.ideaReviewId === "string")
     && (value.announcementEdit === undefined || isPkaAnnouncementRevision(value.announcementEdit))
+    && (value.announcementState === undefined || isPkaAnnouncementState(value.announcementState))
     && (value.pkaScheduleEdit === undefined || isPkaScheduleRevision(value.pkaScheduleEdit));
 }
 

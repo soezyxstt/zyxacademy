@@ -14,6 +14,8 @@ import { pkaAnnouncementEmailHtml, pkaAnnouncementEmailSubject, pkaScheduleEmail
 import { sendOptionalEmail } from "@/lib/email-preferences/send";
 import { updatePkaAnnouncementText } from "@/lib/pka/announcement-text";
 import { lockPkaSchedule, pkaScheduleDeliveryRequired, updatePkaSchedule } from "@/lib/pka/schedule-update";
+import { createPkaScheduleRecord, deletePkaScheduleRecord, updatePkaAnnouncementState } from "@/lib/pka/lifecycle";
+import { pkaScheduleCreationNeedsDelivery } from "@/packages/academic/pka-lifecycle";
 import { isValidPkaScheduleText } from "@/packages/academic/pka-schedule-edit";
 
 export interface PkaActionState {
@@ -163,10 +165,7 @@ export async function archivePkaAnnouncementAction(
   try {
     await requireAdmin();
 
-    await db
-      .update(pkaAnnouncements)
-      .set({ isArchived: archive })
-      .where(eq(pkaAnnouncements.id, announcementId));
+    await updatePkaAnnouncementState(db, announcementId, "archived", archive);
 
     return { success: true };
   } catch (err) {
@@ -182,10 +181,7 @@ export async function togglePinPkaAnnouncementAction(
   try {
     await requireAdmin();
 
-    await db
-      .update(pkaAnnouncements)
-      .set({ isPinned: pin })
-      .where(eq(pkaAnnouncements.id, announcementId));
+    await updatePkaAnnouncementState(db, announcementId, "pinned", pin);
 
     return { success: true };
   } catch (err) {
@@ -254,7 +250,7 @@ export async function createPkaScheduleAction(
     const { title, meetLink, sessionAt } = parsed;
 
     const scheduleId = randomUUID();
-    await db.insert(pkaSchedules).values({
+    await createPkaScheduleRecord(db, {
       id: scheduleId,
       title,
       meetLink,
@@ -263,7 +259,7 @@ export async function createPkaScheduleAction(
     });
 
     // Broadcast only for upcoming sessions; backfilling a past session stays silent.
-    const isUpcoming = sessionAt.getTime() > Date.now();
+    const isUpcoming = pkaScheduleCreationNeedsDelivery(sessionAt);
     if (!isUpcoming) {
       return {
         success: true,
@@ -370,7 +366,7 @@ export async function updatePkaScheduleAction(
 export async function deletePkaScheduleAction(scheduleId: string): Promise<{ success: boolean; error?: string }> {
   try {
     await requireAdmin();
-    await db.delete(pkaSchedules).where(eq(pkaSchedules.id, scheduleId));
+    await deletePkaScheduleRecord(db, scheduleId);
     return { success: true };
   } catch (err) {
     console.error("[deletePkaScheduleAction]", err);

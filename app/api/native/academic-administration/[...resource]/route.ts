@@ -4,6 +4,8 @@ import { handlePkaAnnouncementEdit } from "@/lib/native/academic/administration/
 import { updateNativePkaAnnouncement } from "@/lib/native/academic/administration/announcement-edit-service";
 import { handleNativePkaSchedule } from "@/lib/native/academic/administration/pka-schedule-handler";
 import { updateNativePkaSchedule } from "@/lib/native/academic/administration/pka-schedule-service";
+import { handleNativePkaLifecycle } from "@/lib/native/academic/administration/pka-lifecycle-handler";
+import { writeNativePkaLifecycle } from "@/lib/native/academic/administration/pka-lifecycle-service";
 import { handleEnrollmentTokenWrite } from "@/lib/native/academic/administration/enrollment-token-handler";
 import { writeNativeEnrollmentToken } from "@/lib/native/academic/administration/enrollment-token-service";
 import { handleStudyGroupWrite } from "@/lib/native/academic/administration/study-group-handler";
@@ -88,5 +90,8 @@ function enrollmentTokenWrite(request: Request, resource: string[]) {
 export async function POST(request: Request, context: { params: Promise<{ resource: string[] }> }) {
   const { resource } = await context.params;
   if (isBroadcast(resource)) return broadcast(request);
+  if (resource.length === 1 && resource[0] === "pka-lifecycle") return handleNativePkaLifecycle(request, new URL(resolveAuthBaseUrl()).origin, {
+    session: getAuthSession, hasAdmin: administrationReadServices.hasAdmin, write: writeNativePkaLifecycle,
+  });
   return resource[0] === "tokens" ? enrollmentTokenWrite(request, resource) : studyGroupWrite(request, resource);
 }
