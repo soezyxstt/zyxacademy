@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useMobileTopNav } from "@/components/navigation/mobile-chrome-context";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { StructuredArticleSectionContent } from "@/components/course/structured-article-section-content";
@@ -12,6 +13,7 @@ import { OfflineLibraryBrowser } from "@/components/offline/offline-library-brow
 import { OfflineSnapshotContent } from "@/components/offline/offline-snapshot-content";
 import { OFFLINE_LIBRARY_COPY } from "@/lib/offline/library-copy";
 import { OFFLINE_CACHE_CHANGED_EVENT, requestOfflineSync, type NativeOfflineLibrarySnapshot } from "@/lib/offline/library-contract";
+import { visibleOfflineLibrary } from "@/lib/offline/library-access";
 import { readOfflineLibrarySnapshot } from "@/lib/offline/metadata-cache";
 import { downloadOfflineReading } from "@/lib/offline/sync-client";
 import { getOfflineScope, setOfflineAccount } from "@/lib/offline/cache-scope";
@@ -34,10 +36,13 @@ import {
   saveOfflineReadingPosition,
 } from "@/lib/offline/reading-position";
 
-export function OfflineReadingLibrary() {
+export function OfflineReadingLibrary({ onOfflineCoursesChange }: {
+  onOfflineCoursesChange?: (courses: { id: string; title: string }[] | undefined) => void;
+}) {
   const { data: session, isPending, error: sessionError } = useSession();
   const { locale } = useAppLocale();
   const copy = OFFLINE_LIBRARY_COPY[locale];
+  useMobileTopNav({ title: copy.title });
   const [library, setLibrary] = useState<NativeOfflineLibrarySnapshot | null>(null);
   const [expired, setExpired] = useState(false);
   const [updatedRecord, setUpdatedRecord] = useState<OfflineReadingRecord | null>(null);
@@ -151,6 +156,12 @@ export function OfflineReadingLibrary() {
     const timer = setInterval(update, 30_000);
     return () => { window.removeEventListener(OFFLINE_CACHE_CHANGED_EVENT, update); clearInterval(timer); };
   }, [refresh]);
+
+  useEffect(() => {
+    if (!onOfflineCoursesChange) return;
+    const snapshot = online ? null : visibleOfflineLibrary(library);
+    onOfflineCoursesChange(snapshot?.courses.map(({ id, title }) => ({ id, title })));
+  }, [library, online, onOfflineCoursesChange]);
 
   // Restore reading position when opening an offline record and persist on scroll/hide.
   useEffect(() => {

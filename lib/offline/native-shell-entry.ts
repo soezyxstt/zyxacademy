@@ -4,6 +4,7 @@ import { createOfflineSyncController } from "./sync-client";
 import { clearAllOfflineReadings, hydrateNativeOfflineReadings, setOfflineReadingPinned, removeOfflineReadingByKey } from "./reading-cache";
 import { OFFLINE_CACHE_CHANGED_EVENT, type NativeOfflineLibrarySnapshot } from "./library-contract";
 import { OFFLINE_LIBRARY_COPY } from "./library-copy";
+import { mountNativeStudentNavigation } from "./native-student-navigation";
 import { visibleOfflineLibrary } from "./library-access";
 
 type Summary = { key: string; materialId?: string; courseId?: string; title: string; courseTitle?: string; sizeBytes: number; estimatedMinutes?: number; pinned?: boolean; contentVersion?: string; accessValidUntil?: number };
@@ -171,7 +172,16 @@ function clearDialog(): void {
   dialog.append(controls); document.body.append(dialog); dialog.showModal();
   dialog.addEventListener("close", () => dialog.remove(), { once: true });
 }
+const desktopNavigation = matchMedia("(min-width: 768px)");
+let navigationState = "";
 function render(): void {
+  const nextNavigationState = JSON.stringify([locale, desktopNavigation.matches, snapshot?.courses.map(({ id, title }) => [id, title])]);
+  if (nextNavigationState !== navigationState) {
+    navigationState = nextNavigationState;
+    mountNativeStudentNavigation(locale, desktopNavigation.matches, snapshot, (query) => items
+      .filter(item => (item.accessValidUntil ?? 0) > Date.now() && item.title.toLocaleLowerCase(locale).includes(query.trim().toLocaleLowerCase(locale)))
+      .map(item => ({ title: item.title, open: () => openReading(item) })));
+  }
   if (!bridge) return;
   const copy = OFFLINE_LIBRARY_COPY[locale];
   const wasOpen = root.querySelector("details")?.open ?? false;
@@ -296,6 +306,7 @@ window.zyxOfflineShell = { ready: new Promise(resolve => { resolveReady = resolv
 // Wait for those handlers, while keeping server work outside the launch gate.
 const start = () => {
   if (!localeChosenByUser) locale = document.documentElement.lang === "en" ? "en" : "id";
+  render();
   void initialize().finally(resolveReady);
 };
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
@@ -309,6 +320,16 @@ window.addEventListener("zyx:offline-reader-opened", event => {
 window.addEventListener("zyx:offline-reader-closed", () => { activeKey = null; activeVersion = null; document.getElementById("offline-reader-update")?.setAttribute("hidden", ""); });
 window.addEventListener("online", () => { void sync(); });
 window.addEventListener("offline", render);
+desktopNavigation.addEventListener("change", render);
+window.addEventListener("keydown", event => {
+  if (!desktopNavigation.matches || event.isComposing || event.key.toLowerCase() !== "k"
+    || !(event.ctrlKey || event.metaKey) || document.querySelector("dialog[open]")) return;
+  const search = document.querySelector<HTMLButtonElement>("#offline-shell:not(.hidden) [data-native-nav-search]");
+  if (!search) return;
+  event.preventDefault();
+  search.focus();
+  search.click();
+});
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { void refreshNative(); if (Date.now() - lastCheck > 15_000) void sync(); } });
 for (const lang of ["id", "en"] as const) document.getElementById(`lang-${lang}`)?.addEventListener("click", event => { if (event.isTrusted) localeChosenByUser = true; locale = lang; render(); });
 setInterval(() => {

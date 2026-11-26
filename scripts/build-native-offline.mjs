@@ -1,9 +1,25 @@
 import { build } from "esbuild";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import * as lucide from "lucide-react";
+import { STUDENT_MOBILE_DESTINATIONS } from "../components/navigation/student/student-mobile-destinations.ts";
 import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const iconNames = [
+  "ArrowLeft", "Bell", "BookOpen", "CalendarRange", "Home", "LayoutDashboard",
+  "Medal", "MessageSquareText", "PanelLeftClose", "PanelLeftOpen", "PawPrint",
+  "Search", "Trophy", "UserRound", "Users",
+];
+const icons = Object.fromEntries(iconNames.map(name => [
+  name, renderToStaticMarkup(createElement(lucide[name], { size: 16, "aria-hidden": true })),
+]));
+const destinations = STUDENT_MOBILE_DESTINATIONS.map(({ id, href, iconName }) => ({ id, href, icon: iconName }));
+const logos = await Promise.all(["color", "reversed"].map(variant =>
+  readFile(join(root, "public/brand", `zyx-logo-symbol-${variant}.svg`), "utf8"),
+));
 const result = await build({
   absWorkingDir: root,
   entryPoints: ["lib/offline/native-shell-entry.ts"],
@@ -16,7 +32,12 @@ const result = await build({
   legalComments: "none",
   outfile: "offline-shell.js",
   alias: { "@": root },
-  define: { "process.env.NODE_ENV": '"production"' },
+  define: {
+    "process.env.NODE_ENV": '"production"',
+    NATIVE_NAV_LOGOS: JSON.stringify(logos),
+    NATIVE_NAV_ICONS: JSON.stringify(icons),
+    NATIVE_MOBILE_DESTINATIONS: JSON.stringify(destinations),
+  },
 });
 const css = await readFile(join(root, "lib/offline/native-shell.css"), "utf8");
 const bundle = result.outputFiles.find(file => file.path.endsWith(".js"));

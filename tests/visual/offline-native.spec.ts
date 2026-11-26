@@ -97,7 +97,7 @@ async function launch(page: Page, platform: Platform, theme: "light" | "dark", l
         contentType: "text/html",
         body: `<script>location.replace(${JSON.stringify(landing)})</script>`,
       });
-      if (url.pathname === landing) return route.fulfill({ contentType: "text/html", body: "<h1>Zyx online app</h1>" });
+      if (url.pathname === landing || url.pathname === "/dashboard/schedule") return route.fulfill({ contentType: "text/html", body: "<h1>Zyx online app</h1>" });
     }
     if (url.origin !== origin) { failures.push(`Unexpected external request: ${url.href}`); return route.abort(); }
     const prefix = `/native-offline/${platform}/`;
@@ -143,7 +143,7 @@ for (const platform of ["desktop", "android"] as const) for (const theme of ["li
     await expect(page.locator("#library-heading")).toBeVisible();
     await expect(page.locator("#reading-list .reading-row")).toHaveCount(3);
     await expect(page.locator(".offline-v2-more select")).toBeHidden();
-    await expect(page.getByText("Offline", { exact: true })).toHaveCount(1);
+    await expect(page.getByText("Offline", { exact: true }).filter({ visible: true })).toHaveCount(1);
     await expect(page.locator("#offline-indicator")).toHaveText("Offline");
     await capture(page, info, `offline-${platform}-readings-${theme}`, failures);
     await selectSection(page, "courses");
@@ -153,7 +153,7 @@ for (const platform of ["desktop", "android"] as const) for (const theme of ["li
     await page.locator(".offline-v2-row").filter({ hasText: "Limit fungsi" }).getByRole("button", { name: "Buka", exact: true }).click();
     await expect(page.locator("#reader-view")).toBeVisible();
     await expect(page.locator("#reader-body .katex")).toBeVisible();
-    await expect(page.getByText("Offline", { exact: true })).toHaveCount(1);
+    await expect(page.getByText("Offline", { exact: true }).filter({ visible: true })).toHaveCount(1);
     await capture(page, info, `offline-${platform}-reader-${theme}`, failures);
     await page.locator("#reader-back-btn").click();
     await selectSection(page, "storage");
@@ -254,3 +254,47 @@ test("Android startup probe completion does not redirect an open reader", async 
   await expect(page.locator("#reader-view")).toBeVisible();
   await capture(page, info, "offline-android-reader-during-launch", failures);
 });
+
+for (const theme of ["light", "dark"] as const) {
+  test(`native recovery keeps student navigation in ${theme}`, async ({ page }, info) => {
+    const desktop = info.project.name === "laptop-fhd-125";
+    const { failures } = await launch(page, desktop ? "desktop" : "android", theme);
+    const chrome = page.locator("#student-navigation");
+    const menu = page.locator(desktop ? "#student-desktop-nav" : "#student-bottom-nav");
+    await expect(chrome).toBeVisible();
+    await expect(chrome.getByText(/^(?:Offline|Online|Nightly)$/)).toHaveCount(0);
+    await expect(page.locator("main #offline-indicator")).toHaveText("Offline");
+    const route = menu.getByRole("link", { name: "Jadwal", exact: !desktop });
+    await expect(route).toHaveAttribute("href", `${environment}/dashboard/schedule`);
+    await capture(page, info, `student-navigation-${desktop ? "desktop" : "android"}-${theme}`, failures);
+    if (!desktop) {
+      expect(await menu.getByRole("link").evaluateAll(links => links.map(link => new URL((link as HTMLAnchorElement).href).pathname)))
+        .toEqual(["/dashboard", "/courses", "/dashboard/schedule", "/dashboard/discussions", "/profile"]);
+      await expect(chrome.getByRole("link", { name: "Kembali" })).toHaveAttribute("href", `${environment}/dashboard`);
+    } else {
+      await expect(menu.getByRole("link", { name: "Matematika I" })).toHaveAttribute("href", `${environment}/courses/math`);
+      await chrome.getByRole("button", { name: "Tutup sidebar" }).click();
+      await expect(chrome).toHaveCSS("width", "64px");
+      await expect(chrome.getByRole("button", { name: "Cari", exact: true })).toBeVisible();
+      await chrome.getByRole("button", { name: "Buka sidebar" }).click();
+    }
+    const search = chrome.getByRole("button", { name: "Cari", exact: true });
+    await search.focus();
+    await page.keyboard.press("Enter");
+    const searchInput = page.getByRole("dialog").getByRole("searchbox");
+    await expect(searchInput).toBeFocused();
+    await searchInput.fill("turunan");
+    await expect(page.getByRole("dialog").getByRole("button", { name: /Diktat turunan/ })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(search).toBeFocused();
+    await route.click();
+    await expect(page.getByRole("dialog")).toContainText("Sambungkan ke internet");
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => {
+      const state = (window as unknown as { __offlineNativeFixture: { online: boolean } }).__offlineNativeFixture;
+      state.online = true;
+    });
+    await route.click();
+    await expect(page).toHaveURL(`${environment}/dashboard/schedule`);
+  });
+}

@@ -82,53 +82,6 @@
         outline-offset: 2px;
       }
 
-      .navbar {
-        position: sticky;
-        top: 0;
-        z-index: 20;
-        background: var(--nav-bg);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border-bottom: 1px solid var(--border);
-      }
-
-      .navbar-inner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        height: 52px;
-        max-width: 860px;
-        margin: 0 auto;
-        padding: 0 24px;
-      }
-
-      .brand {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 0;
-      }
-
-      .brand-mark {
-        width: 26px;
-        height: 16px;
-        flex-shrink: 0;
-      }
-
-      .brand-name {
-        font-size: 14px;
-        font-weight: 700;
-        letter-spacing: -0.015em;
-        white-space: nowrap;
-      }
-
-      .nav-controls {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-      }
-
       .connection-note {
         color: var(--muted-foreground);
         font-size: 12px;
@@ -139,6 +92,7 @@
       }
 
       .lang-switch {
+        align-self: center;
         display: inline-flex;
         padding: 2px;
         border: 1px solid var(--border);
@@ -573,7 +527,6 @@
       }
 
       @media (max-width: 600px) {
-        .navbar-inner,
         .page {
           padding-left: 16px;
           padding-right: 16px;
@@ -586,7 +539,7 @@
           width: 100%;
         }
         .actions .btn {
-          width: 100%;
+          flex: 1;
         }
         .search-wrap {
           width: 100%;
@@ -835,36 +788,7 @@
     </div>
 
     <div id="offline-shell" class="offline-shell hidden">
-    <header class="navbar">
-      <div class="navbar-inner">
-        <div class="brand">
-          <svg
-            class="brand-mark"
-            viewBox="0 0 370 216"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M262.25 66.0576L309.5 0H369.5L292.25 108L369.5 216H309.5L268.486 158.661C275.133 144.348 279 126.43 279 104C279 56 293.001 32 302.001 26C274.001 37 270.21 75.5 263.5 92.5C259.39 102.914 253.201 114.236 244.281 124.821L155 0H215L262.25 66.0576Z"
-              fill="var(--zx-x-fill)"
-            />
-            <path
-              d="M139 0L176.75 52.7764L95.0488 167H133C206.5 167 239.65 125.559 252.5 93C259.21 76 273.5 37 301.5 26C292.5 32 278.786 43 270.5 105C256.067 213 172.5 216 114.5 216H0L119.451 49H0V0H139Z"
-              fill="var(--zx-z-fill)"
-            />
-          </svg>
-          <span class="brand-name">Zyx Academy</span>
-        </div>
-        <div class="nav-controls">
-          <span class="connection-note" id="offline-indicator" role="status"></span>
-          <div class="lang-switch" role="group" aria-label="Language">
-            <button type="button" class="lang-btn" id="lang-id" aria-pressed="true">ID</button>
-            <button type="button" class="lang-btn" id="lang-en" aria-pressed="false">EN</button>
-          </div>
-        </div>
-      </div>
-    </header>
+    <header id="student-navigation"></header>
 
     <div id="reader-progress" class="reader-progress hidden" aria-hidden="true">
       <div id="reader-progress-bar" class="reader-progress-bar"></div>
@@ -875,12 +799,17 @@
         <section class="offline-header">
           <div class="offline-header-left">
             <div class="offline-header-copy">
+              <span class="connection-note" id="offline-indicator" role="status"></span>
               <h1 id="title">Membuka Zyx Academy</h1>
               <p class="lead hidden" id="message"></p>
               <p class="status" id="status-text" role="status" aria-live="polite"></p>
             </div>
           </div>
           <div class="actions">
+            <div class="lang-switch" role="group" aria-label="Bahasa">
+              <button type="button" class="lang-btn" id="lang-id" aria-pressed="true">ID</button>
+              <button type="button" class="lang-btn" id="lang-en" aria-pressed="false">EN</button>
+            </div>
             <button id="retry-button" class="btn btn-primary" type="button" disabled>
               <svg id="retry-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
@@ -929,6 +858,7 @@
             </svg>
             <span id="reader-back-label">Kembali</span>
           </button>
+          <span class="connection-note" id="reader-offline-indicator" role="status"></span>
           <button type="button" class="btn btn-outline btn-sm" id="reader-reconnect-btn">
             Buka aplikasi
           </button>
@@ -938,6 +868,7 @@
         <div id="reader-body"></div>
       </article>
     </main>
+    <nav id="student-bottom-nav"></nav>
     </div>
 
     <script src="offline-origin.js"></script>
@@ -1335,13 +1266,13 @@
           }
         }
 
-        function openOnlineApp() {
+        function openOnlineApp(path) {
           // Tauri uses the platform WebView user agent. Explicitly enter the
           // native session and route restoration flow used by the web proxy.
-          window.location.replace(targetOrigin + "/api/entry-redirect?native=1");
+          window.location.replace(targetOrigin + (path || "/api/entry-redirect?native=1"));
         }
 
-        async function handleReturnOnline() {
+        async function handleReturnOnline(path, onFailure) {
           persistActiveReadingPosition();
           var generation = connectionGeneration;
           connectionState = "connecting";
@@ -1352,11 +1283,12 @@
             enteredOfflineMode = true;
             connectionState = navigator.onLine === false ? "offline" : "unreachable";
             updateConnectionUI();
+            if (onFailure) onFailure();
             return;
           }
           connectionState = "online";
           updateConnectionUI();
-          openOnlineApp();
+          openOnlineApp(path);
         }
 
         function renderMarkdownInto(container, markdown) {
@@ -1679,6 +1611,8 @@
           var isConnecting = connectionState === "connecting";
           var isOffline = connectionState === "offline";
           offlineIndicator.textContent = isOffline ? t.offline : "";
+          var readerOfflineIndicator = document.getElementById("reader-offline-indicator");
+          if (readerOfflineIndicator) readerOfflineIndicator.textContent = offlineIndicator.textContent;
           retryButton.disabled = isConnecting;
           readerReconnectBtn.disabled = isConnecting;
           if (retryIcon) retryIcon.classList.toggle("spin", isConnecting);
@@ -1711,6 +1645,7 @@
           }
           readerBackLabel.textContent = t.back;
           readerReconnectBtn.textContent = t.reconnect;
+          langIdBtn.parentElement?.setAttribute("aria-label", lang === "id" ? "Bahasa" : "Language");
           langIdBtn.setAttribute("aria-pressed", String(lang === "id"));
           langEnBtn.setAttribute("aria-pressed", String(lang === "en"));
           updateConnectionUI();
@@ -1741,6 +1676,11 @@
             renderLibrary();
           });
         }
+        window.addEventListener("zyx:offline-navigate", function (event) {
+          var path = event.detail.path;
+          if (typeof path !== "string" || !/^\/(?:dashboard|courses|profile|leaderboard|achievements|pet)(?:\/[a-z0-9_%-]+)*$/i.test(path)) return;
+          void handleReturnOnline(path, event.detail.onFailure);
+        });
         window.addEventListener("zyx:offline-open-reading", function (event) {
           var key = event.detail && event.detail.key;
           var invoke = getTauriInvoke();

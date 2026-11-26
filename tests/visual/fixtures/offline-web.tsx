@@ -3,11 +3,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { OfflineReadingLibrary } from "@/components/offline/offline-reading-library";
+import { OfflineStudentShell } from "@/components/offline/offline-student-shell";
+import { StudentApplicationShell } from "@/components/student-application-shell";
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import { MaterialViewer } from "@/components/course/material-viewer";
-import { MobileChromeProvider } from "@/components/navigation/mobile-chrome-context";
-import { MobileTopNavbar } from "@/components/navigation/mobile-top-navbar";
+
 import { loadMessages } from "@/lib/i18n/catalogs";
 import { createOfflineScope, scopedReadingKey, setOfflineScope } from "@/lib/offline/cache-scope";
 import { openOfflineDb, READING_STORE, writeOfflineState } from "@/lib/offline/cache-db";
@@ -117,13 +117,12 @@ async function mount() {
   createRoot(document.getElementById("root")!).render(
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <LocaleProvider initialLocale={config.locale} initialMessages={messages}>
-        <QueryClientProvider client={queryClient}><TooltipProvider><MobileChromeProvider>
-          {config.mode === "library" ? <OfflineReadingLibrary /> : <>
-            <div className="md:hidden"><MobileTopNavbar /></div>
+        <QueryClientProvider client={queryClient}><TooltipProvider>
+          {config.mode === "library" ? <OfflineStudentShell showLive={false} /> : <StudentApplicationShell showLive={false}>
             {config.mode === "article" ? <StructuredArticleReader article={article} studentId={scope.userId} course={{ id: "math", title: article.courseTitle! }} />
               : <MaterialViewer material={material} studentId={scope.userId} course={{ title: article.courseTitle! }} chapterId="chapter" canDownload={false} backHref="/courses/math/material" />}
-          </>}
-        </MobileChromeProvider></TooltipProvider></QueryClientProvider>
+          </StudentApplicationShell>}
+        </TooltipProvider></QueryClientProvider>
       </LocaleProvider>
     </ThemeProvider>,
   );

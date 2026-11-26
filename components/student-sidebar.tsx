@@ -90,8 +90,8 @@ function StudentSidebarContent({
   const userId = session?.user?.id;
   const liveData = useStudentSidebarData({ userId, activeCourseId, pathname, enabled: !demo });
   const enrolledCourses = useMemo(
-    () => (demo ? experience.courses ?? [] : liveData.courses),
-    [demo, experience.courses, liveData.courses]
+    () => (demo ? experience.courses ?? [] : experience.offlineCourses ?? liveData.courses),
+    [demo, experience.courses, experience.offlineCourses, liveData.courses]
   );
   const activeCourseMetadata = demo
     ? enrolledCourses.find((course) => course.id === activeCourseId)

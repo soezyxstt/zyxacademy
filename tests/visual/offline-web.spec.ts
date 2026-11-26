@@ -10,7 +10,7 @@ const thumbnail = `data:image/png;base64,${readFileSync(resolve("tests/visual/fi
 let fixture: Awaited<ReturnType<typeof buildOfflineWebFixture>>;
 test.beforeAll(async () => { fixture = await buildOfflineWebFixture(); });
 
-async function openFixture(page: Page, theme: "light" | "dark", locale: "id" | "en" = "id", scenario: OfflineWebScenario = "populated", mode: OfflineWebMode = "library") {
+async function openFixture(page: Page, theme: "light" | "dark", locale: "id" | "en" = "id", scenario: OfflineWebScenario = "populated", mode: OfflineWebMode = "library", path = "/offline") {
   const failures: string[] = [];
   page.on("pageerror", error => failures.push(error.message));
   page.on("console", message => { if (message.type() === "error") failures.push(message.text()); });
@@ -22,13 +22,14 @@ async function openFixture(page: Page, theme: "light" | "dark", locale: "id" | "
   }, { locale, scenario, mode, thumbnail, online: mode !== "library" });
   await page.route("**/*", async route => {
     const url = new URL(route.request().url());
-    if (url.origin === origin && url.pathname === "/offline") {
+    if (url.origin === origin && url.pathname === path) {
       return route.fulfill({ contentType: "text/html", body: `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${fixture.styles}${fixtureFontStyles()}</style></head><body class="bg-background text-foreground"><div id="root"></div><script>${fixture.script.replace(/<\/script/gi, "<\\/script")}</script></body></html>` });
     }
+    if (url.origin === origin && url.pathname === "/api/notifications/history") return route.fulfill({ json: { notifications: [], unreadCount: 0 } });
     if (url.origin === origin && /^\/brand\/zyx-logo-(?:horizontal|symbol)-(?:color|reversed)\.svg$/.test(url.pathname)) return route.fulfill({ contentType: "image/svg+xml", body: readFileSync(resolve("public", url.pathname.slice(1))) });
     failures.push(`Unexpected ${route.request().method()} ${url.href}`); return route.abort();
   });
-  await page.goto(`${origin}/offline?locale=${locale}&mode=${mode}`);
+  await page.goto(`${origin}${path}?locale=${locale}&mode=${mode}`);
   if (mode === "library") await expect(page.getByRole("heading", { name: locale === "id" ? "Bacaan offline" : "Offline readings", exact: true })).toBeVisible();
   else await expect(page.getByRole("button", { name: locale === "id" ? "Simpan offline" : "Save offline", exact: true })).toBeVisible();
   return failures;
@@ -160,3 +161,26 @@ test("English diktat reader keeps the document available after a failed offline 
   await capture(page, info, "offline-diktat-downloaded-en", failures);
   expect(failures).toEqual([]);
 });
+
+for (const theme of ["light", "dark"] as const) {
+  test(`web service-worker fallback keeps the student shell in ${theme}`, async ({ page }, info) => {
+    const failures = await openFixture(page, theme, "id", "populated", "library", "/courses/math/material");
+    const mobile = info.project.name === "mobile-380";
+    const chrome = page.locator(mobile ? "[data-mobile-navbar]" : "[data-desktop-sidebar]");
+    await expect(chrome).toBeVisible();
+    await expect(chrome.getByText(/^(?:Offline|Online|Nightly)$/)).toHaveCount(0);
+    await expect(page.locator("#main-content").getByText("Offline", { exact: true })).toBeVisible();
+    await expect(chrome.getByRole("button", { name: "Notifikasi" })).toBeVisible();
+    if (mobile) {
+      await expect(chrome.getByRole("link", { name: "Kembali" })).toHaveAttribute("href", "/dashboard");
+      const nav = page.locator("[data-mobile-bottom-nav]");
+      expect(await nav.getByRole("link").evaluateAll(links => links.map(link => link.getAttribute("href"))))
+        .toEqual(["/dashboard", "/courses", "/dashboard/schedule", "/dashboard/discussions", "/profile"]);
+      await expect(nav.locator('[aria-current="page"]')).toHaveCount(0);
+    } else {
+      await expect(chrome.getByRole("link", { name: "Matematika I" })).toHaveAttribute("href", "/courses/math");
+      await expect(chrome.getByRole("button", { name: "Tutup sidebar" })).toBeVisible();
+    }
+    await capture(page, info, `student-navigation-web-${theme}`, failures);
+  });
+}

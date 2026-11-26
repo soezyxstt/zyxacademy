@@ -18,7 +18,6 @@ import {
   Globe,
   GraduationCap,
   KeyRound,
-  HardDriveDownload,
   Layers,
   Library,
   ListChecks,
@@ -70,7 +69,6 @@ const ADMIN_SUB_TAB_ICONS: Record<string, ElementType> = {
   models: Cpu,
   flags: Flag,
   keys: KeyRound,
-  offline: HardDriveDownload,
 };
 
 export function AdminMobileSubTabNav() {
@@ -149,7 +147,6 @@ export function AdminMobileSubTabNav() {
         tutor: tTabs("tutor"),
         models: tTabs("models"),
         keys: tTabs("keys"),
-        offline: tNav("offlineCache"),
       });
       return {
         label: tMobile("opsTabsLabel"),

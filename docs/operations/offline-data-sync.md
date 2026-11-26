@@ -10,6 +10,8 @@ The bundled library and browser `/offline` put downloaded Article/Diktat reading
 
 Shared metadata excludes achievement ownership, scores, private formative evaluators and assessment answers. Video entries contain links and optional thumbnails, not the video stream. The bundled reader uses local fonts and math styles. Remote interactive documents and server actions still need a connection.
 
+The browser library uses the student application shell. The native recovery document uses the same student destination links and responsive controls. Saved-reading search works locally. Online-only destinations retry the configured server and keep the library open when it cannot be reached. The connection label appears in the content.
+
 Browser pages also persist approved small account queries and complete reading packages. Next.js server-rendered navigation still needs the server unless the service worker serves its offline entry page. Browser persistence does not make every route fully offline.
 
 ## Identity and authorization
@@ -46,7 +48,7 @@ Article/Diktat packages include admitted images. The client downloads a candidat
 
 ## Admin controls
 
-Open **Admin > System > Offline data** at `/admin/ops/offline`.
+Open **Offline data** from **Admin > Web Analytics** at `/admin/ops/offline`.
 
 | Setting | Initial value | Effect |
 | --- | --- | --- |

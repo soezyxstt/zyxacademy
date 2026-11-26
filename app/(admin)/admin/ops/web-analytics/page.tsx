@@ -3,6 +3,10 @@ import { assertTutorOrAdmin } from "@/lib/auth/admin-guards-server";
 import { getDashboardMetrics } from "@/lib/analytics-dashboard";
 import { WebAnalyticsOverview } from "@/components/admin/web-analytics-overview";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { hasAdminAuthorization } from "@/lib/auth/admin-guards";
+import { getPeranCodes } from "@/lib/auth/request-cache";
 import { Globe } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { getTranslations } from "@/lib/i18n/server";
@@ -16,16 +20,27 @@ export async function generateMetadata() {
 }
 
 export default async function WebAnalyticsPage() {
-  await assertTutorOrAdmin(); // ensures admin role
-
-  const metrics = await getDashboardMetrics(30);
+  const { user } = await assertTutorOrAdmin();
+  const [metrics, canManageOfflineData] = await Promise.all([
+    getDashboardMetrics(30),
+    hasAdminAuthorization(user.id, user.role, getPeranCodes),
+  ]);
 
   return (
     <div className="space-y-5">
       <AdminPageHeader
         icon={Globe}
         title={<TranslatedText namespace="adminOps" messageKey="webAnalytics.title30" />}
-        actions={<RefreshAnalyticsButton />}
+        actions={<>
+          {canManageOfflineData && (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/ops/offline">
+                <TranslatedText namespace="adminOps" messageKey="offlineCache.title" />
+              </Link>
+            </Button>
+          )}
+          <RefreshAnalyticsButton />
+        </>}
       />
 
       <WebAnalyticsOverview metrics={metrics} />
