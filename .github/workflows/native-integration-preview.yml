@@ -300,6 +300,7 @@ jobs:
           bun test tests/contracts/interactive-document-foundation.test.tsx tests/contracts/interactive-document-grant.test.ts
           bun test tests/contracts/native-student-reading.test.ts
           bun test tests/contracts/native-article-coding-access.test.ts
+          bun test tests/contracts/native-formative-reading-reveal.test.ts
       - name: Student assessment visuals and released attachment authorization
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

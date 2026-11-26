@@ -212,6 +212,7 @@ test("native reading progress and formative feedback remain scoped learner inter
   expect(entry.tools).toEqual([]);
   expect(entry.reason).toContain("current published revision");
   expect(entry.reason).toContain("Tutorial PKA still checks registration");
+  expect(entry.reason).toContain("field attestation after an explicit reveal");
 });
 
 test("confirmed native group deletion is independent of MCP token expiry", () => {

@@ -19,7 +19,7 @@ import { ReadingContentDocument } from "../../../offline/ReadingDocument";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { CourseMarkdown } from "../CourseMarkdown";
 import type { StudentRequest, StudentServices, StudentSession } from "../contracts";
-import { sectionCodingParts } from "../../../../../lib/coding/native-article-parts";
+import { formativeMarkdownCodingParts, sectionCodingParts } from "../../../../../lib/coding/native-article-parts";
 import { ArticleCoding, type CodingItem } from "./ArticleCoding";
 import { ReadingNavigation } from "./ReadingNavigation";
 import { diktatReadingSections, readingNavigationItems, type ReadingSearchTarget } from "./reading-search";
@@ -33,6 +33,7 @@ type Props = { content: OnlineReadingContent; courseId: string; request: Student
 
 const toolbar = { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 8 };
 const stale = (error: unknown) => error instanceof OnlineReadingError && [401, 403, 404, 409].includes(error.status);
+type CheckCodingTarget = { item: CodingItem; revealGrant?: string };
 type Visit = { id: string; start: number; percent: number; autoCompleted: boolean };
 
 function takeVisit(visit: Visit) {
@@ -62,6 +63,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
   const [widget, setWidget] = useState<ReadingWidget>();
   const [selectedVisual, setSelectedVisual] = useState<VisualSource & { kind: InteractiveDocumentAssetKind }>();
   const [check, setCheck] = useState<StudyBlock>();
+  const [checkCoding, setCheckCoding] = useState<CheckCodingTarget>();
   const pending = useRef<AbortController | null>(null);
   const visit = useRef<Visit | undefined>(undefined);
   const locale = content.locale;
@@ -273,17 +275,28 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
           close={() => { setCoding(undefined); setShowCoding(false); }} />
       </SafeAreaView>}
     </Modal>}
-    {active && <Modal visible={Boolean(check)} onRequestClose={() => setCheck(undefined)} animationType="none">
+    {active && <Modal visible={Boolean(check) && error !== "stale"} onRequestClose={() => {
+      if (checkCoding) setCheckCoding(undefined);
+      else setCheck(undefined);
+    }} animationType="none">
       {check && <ReadingCheck key={check.id} block={check} blocks={checks} study={study} request={request} article={visualArticle} locale={locale}
-        sectionId={active.id} select={setCheck} close={() => setCheck(undefined)} theme={theme} session={session} />}
+        sectionId={active.id} select={setCheck} close={() => setCheck(undefined)} theme={theme} session={session}
+        openWeb={content.codingMode === "browser" ? openWeb : undefined}
+        coding={canUseNativeCoding && visualArticle ? {
+          items: codingParts, target: checkCoding, open: setCheckCoding, close: () => setCheckCoding(undefined),
+          drafts, courseId, revision: content.revision,
+        } : undefined} />}
     </Modal>}
   </>;
 }
 
-function ReadingCheck({ block, blocks, sectionId, study, request, article, session, locale, theme, select, close }: {
+function ReadingCheck({ block, blocks, sectionId, study, request, article, session, locale, theme, select, close, coding, openWeb }: {
   block: StudyBlock; blocks: StudyBlock[]; sectionId: string; study: Study; theme: Theme;
   request: StudentRequest; article?: Pick<ArticleField, "articleId" | "articleVersion" | "courseId">;
   session: StudentSession; locale: "id" | "en"; select(block: StudyBlock): void; close(): void;
+  openWeb?: () => void;
+  coding?: { items: CodingItem[]; target?: CheckCodingTarget; open(target: CheckCodingTarget): void; close(): void;
+    courseId: string; revision: string; drafts?: StudentServices["drafts"] };
 }) {
   const { canInteract } = useProtectedInteraction();
   const [choice, setChoice] = useState<string>();
@@ -315,6 +328,21 @@ function ReadingCheck({ block, blocks, sectionId, study, request, article, sessi
     const grant = reveal?.visualAccess?.[field];
     return grant ? { grant } : null;
   };
+  const runActions = (items: CodingItem[], revealGrant?: string) => coding && items.map((item, index) =>
+    <Button key={item.part.id} theme={theme} variant="outline" disabled={busy || error === "stale"}
+      testID="student-formative-run-python" onPress={() => {
+        if (canInteract() && !pending.current) coding.open({ item, revealGrant });
+      }}>{(id ? "Jalankan contoh Python" : "Run Python example") + (items.length > 1 ? ` ${index + 1}` : "")}</Button>,
+  );
+  const revealActions = (field: "answer" | "explanation") => {
+    if (!reveal || (!coding && !openWeb)) return null;
+    const items = formativeMarkdownCodingParts(reveal[field], sectionId, block, field);
+    const grant = reveal.codingAccess?.[field];
+    if (coding && grant) return runActions(items, grant);
+    return openWeb && items.length > 0 ? <Button theme={theme} variant="outline" onPress={() => {
+      if (canInteract()) openWeb();
+    }}>{id ? "Buka Python di web" : "Open Python on the web"}</Button> : null;
+  };
   const report = async (operation: "evaluate" | "reveal") => {
     if (!canInteract() || pending.current || error === "stale" || (operation === "evaluate" && !response)) return;
     const controller = new AbortController();
@@ -340,6 +368,14 @@ function ReadingCheck({ block, blocks, sectionId, study, request, article, sessi
   const index = blocks.indexOf(block);
   const verdicts = id ? { correct: "Benar", partial: "Sebagian benar", incorrect: "Belum tepat", ungradable: "Perlu diperiksa" }
     : { correct: "Correct", partial: "Partly correct", incorrect: "Incorrect", ungradable: "Needs review" };
+  const target = coding?.target;
+  if (coding && target && article) return <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <ArticleCoding key={target.item.part.id} item={target.item} courseId={coding.courseId} articleId={article.articleId}
+      version={article.articleVersion} scope={{ materialId: article.articleId, sectionId, partId: target.item.part.id,
+        revision: coding.revision, revealGrant: target.revealGrant }}
+      request={request} session={session} drafts={coding.drafts} theme={theme} close={coding.close}
+      closeLabel={id ? "Kembali ke cek pemahaman" : "Back to understanding check"} />
+  </SafeAreaView>;
   return <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
     <View style={{ ...toolbar, alignItems: "center", padding: 12 }}>
       <Button theme={theme} variant="outline" onPress={close}>{id ? "Kembali" : "Back"}</Button>
@@ -352,6 +388,7 @@ function ReadingCheck({ block, blocks, sectionId, study, request, article, sessi
         <Button theme={theme} variant={choice === option.id ? "default" : "outline"} disabled={locked}
           accessibilityLabel={splitVisualMarkdown(option.text, parseEmbeddedVisual).map(part => typeof part === "string" ? part : part.label).join(" ")} onPress={() => setChoice(option.id)}>{String.fromCharCode(65 + (check.options?.indexOf(option) ?? 0))}</Button>
         {markdown(option.text, article ? { ...article, sectionId, blockId: block.id, optionId: option.id } : null)}
+        {coding && runActions(coding.items.filter(item => item.formativeOption?.blockId === block.id && item.formativeOption.optionId === option.id))}
       </View>)}
       {!check.options?.length && check.evaluationMode && <Input theme={theme} accessibilityLabel={id ? "Jawaban" : "Answer"}
         value={answer} onChangeText={setAnswer} editable={!locked} multiline={check.checkKind === "conceptual_explanation"}
@@ -366,7 +403,9 @@ function ReadingCheck({ block, blocks, sectionId, study, request, article, sessi
       {reveal && <>
         <Text accessibilityRole="header" style={{ color: colors.foreground }}>{id ? "Pembahasan" : "Explanation"}</Text>
         {markdown(reveal.answer, grantScope("answer"))}
+        {revealActions("answer")}
         {markdown(reveal.explanation, grantScope("explanation"))}
+        {revealActions("explanation")}
       </>}
       {error && <Text accessibilityRole="alert" style={{ color: colors.destructive }}>{error === "stale"
         ? id ? "Bacaan atau akses berubah." : "The reading or access changed."

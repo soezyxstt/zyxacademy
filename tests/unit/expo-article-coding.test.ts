@@ -114,3 +114,28 @@ test("legacy concept and worked-example Markdown fences keep the web's nested dr
   }
   expect(sectionCodingParts([{ id: "legacy", parts: [], content: fence }], "section")).toHaveLength(1);
 });
+
+test("formative Python identities use the exact web option, answer and reveal scopes", async () => {
+  const { appendArticleMarkdownScope, markdownPythonId } = await import("@/lib/coding/article-markdown-scope");
+  const { formativeMarkdownCodingParts } = await import("@/lib/coding/native-article-parts");
+  const fence = "```python\nprint(2)\n```";
+  const block = {
+    id: "check", blockType: "retrieval_prompt", content: "Prompt",
+    formativeCheck: { options: [{ id: "alpha", text: fence }, { id: "beta", text: fence }],
+      answer: fence, explanation: fence },
+  };
+  const parent = appendArticleMarkdownScope(null, JSON.stringify(["section", block.id]));
+  const expected = (field: string) => markdownPythonId(
+    appendArticleMarkdownScope(appendArticleMarkdownScope(parent, field), "md-0-code"), "md-0-code",
+  );
+  const publicParts = sectionCodingParts([block], "section");
+  expect(publicParts.map(item => [item.formativeOption, item.part.id])).toEqual([
+    [{ blockId: "check", optionId: "alpha" }, expected("option:alpha")],
+    [{ blockId: "check", optionId: "beta" }, expected("option:beta")],
+  ]);
+  const answer = formativeMarkdownCodingParts(fence, "section", block, "answer")[0];
+  const explanation = formativeMarkdownCodingParts(fence, "section", block, "explanation")[0];
+  expect(answer.part.id).toBe(expected("answer"));
+  expect(explanation.part.id).toBe(expected("reveal"));
+  expect(articleCodingDraftKey("article", 3, answer.part, answer.namespace)).toBe("markdown-example:article:3:" + expected("answer"));
+});

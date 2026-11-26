@@ -9,6 +9,7 @@ import { db } from "@/db";
 import { progress } from "@/db/schema";
 import { articleProgressUpdateSchema } from "@/lib/articles/progress-contract";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
+import { formativeCodingAccessForReveal } from "@/lib/coding/native-formative-coding-grant";
 import { formativeLearnerResponseSchema } from "@/lib/materials/formative-evaluation";
 import { OfflineHttpError } from "@/lib/offline/server-auth";
 import { loadNativePublishedReading } from "@/lib/student/native-published-reading";
@@ -111,9 +112,20 @@ export async function POST(request: Request) {
     const section = structured.sections.find(value => value.id === input.sectionId);
     if (!section?.blocks.some(block => block.id === input.blockId)) return failure(404);
     const fields = { articleId, articleVersion: structured.version, sectionId: section.id, blockId: input.blockId };
-    return privateResponse(await (input.action === "evaluate"
-      ? evaluateCheck(upstream(request, "/api/materials/formative-check/evaluate", { ...fields, response: input.response }))
-      : revealCheck(upstream(request, "/api/materials/formative-check/reveal", fields))));
+    if (input.action === "evaluate") {
+      return privateResponse(await evaluateCheck(upstream(request, "/api/materials/formative-check/evaluate", { ...fields, response: input.response })));
+    }
+    const revealed = await revealCheck(upstream(request, "/api/materials/formative-check/reveal", fields));
+    if (!revealed.ok || reading.codingMode !== "native") return privateResponse(revealed);
+    const contents = await revealed.json();
+    const { answer, explanation } = z.object({ answer: z.string(), explanation: z.string() }).parse(contents);
+    const current = await requireNativeStudent(request);
+    if (current instanceof Response) return current;
+    if (current.userId !== actor.userId) return failure(409);
+    const codingAccess = formativeCodingAccessForReveal({
+      userId: actor.userId, courseId: input.courseId, revision: reading.revision, ...fields,
+    }, { answer, explanation }, process.env.BETTER_AUTH_SECRET ?? "");
+    return result({ ...contents, codingAccess });
   } catch (error) {
     const code = error instanceof Error ? error.message : "";
     return failure(error instanceof OfflineHttpError ? error.status : code.startsWith("MATERIAL_") ? 403 : 503);

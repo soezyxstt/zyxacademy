@@ -15,7 +15,7 @@ import { useProtectedInteraction } from "../../../routing/protected-interaction"
 import type { StudentRequest, StudentServices, StudentSession } from "../contracts";
 import { CourseMarkdown } from "../CourseMarkdown";
 import { PythonCodeField, PythonOutput } from "../learning/python-editor";
-import { loadPlaygroundDraft, savePlaygroundDraft, type PlaygroundDraft } from "../learning/playground-draft";
+import { loadPlaygroundDraft, savePlaygroundDraft, PlaygroundAccessError, type PlaygroundDraft } from "../learning/playground-draft";
 import { articleCodingApi, ArticleCodingError, articleCodingRequest, releaseArticleSubmission, reserveArticleSubmission, restoreArticleSubmission } from "./article-coding";
 
 export type CodingItem = ReturnType<typeof sectionCodingParts>[number];
@@ -24,16 +24,16 @@ type Api = ReturnType<typeof articleCodingApi>;
 type Result = Awaited<ReturnType<Api["submit"]>>;
 type History = Awaited<ReturnType<Api["history"]>>;
 
-export function ArticleCoding({ item, courseId, articleId, version, scope, request, session, drafts, theme, close }: {
+export function ArticleCoding({ item, courseId, articleId, version, scope, request, session, drafts, theme, close, closeLabel }: {
   item: CodingItem; courseId: string; articleId: string; version: number; scope: NativeArticleCodingScope;
-  request: StudentRequest; session: StudentSession; drafts?: StudentServices["drafts"]; theme: keyof typeof nativeColors; close(): void;
+  request: StudentRequest; session: StudentSession; drafts?: StudentServices["drafts"]; theme: keyof typeof nativeColors; close(): void; closeLabel?: string;
 }) {
   const { canInteract } = useProtectedInteraction();
   const { transport, revalidating } = useNativeSession();
   const canAsk = transport && !revalidating && transport.scope.accountId === session.userId && transport.scope.sessionId === session.sessionId && transport.scope.origin === session.origin;
   const { part } = item;
   const scoped = useMemo(() => articleCodingRequest(request, session, scope),
-    [request, session.sessionId, session.role, session.userId, scope.materialId, scope.revision, scope.sectionId, scope.partId]);
+    [request, session.sessionId, session.role, session.userId, scope.materialId, scope.revision, scope.sectionId, scope.partId, scope.revealGrant]);
   const owner = useMemo(() => ({ courseId, userId: session.userId, draftKey: articleCodingDraftKey(articleId, version, part, item.namespace) }),
     [courseId, session.userId, articleId, version, part, item.namespace]);
   const api = useMemo(() => articleCodingApi(scoped, courseId, articleId, version, part.id), [scoped, courseId, articleId, version, part.id]);
@@ -67,11 +67,16 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
       setPending(submission);
       setDraft(submission ? { code: submission.code, stdin: submission.stdin, revision: stored.revision } : stored.revision ? stored : { ...stored, code: part.kind === "code_example" ? part.code : published?.starterCode ?? "" });
       setProblem(published);
-    }, () => {
-      if (!load.signal.aborted && canInteract()) setNotice(id ? "Ruang kerja belum dapat dibuka." : "The workspace is unavailable.");
+    }, error => {
+      if (load.signal.aborted || !canInteract()) return;
+      if (scope.revealGrant && error instanceof PlaygroundAccessError) {
+        setNotice(id ? "Kembali ke cek pemahaman, lalu buka pembahasan lagi." : "Go back to the check and reveal the explanation again.");
+      } else {
+        setNotice(id ? "Ruang kerja belum dapat dibuka." : "The workspace is unavailable.");
+      }
     });
     return () => { load.abort(); active.current?.abort(); active.current = null; sendInput.current = null; };
-  }, [api, attempt, canInteract, drafts, id, owner, part, pendingKey, scoped]);
+  }, [api, attempt, canInteract, drafts, id, owner, part, pendingKey, scope.revealGrant, scoped]);
 
   async function act(action: NonNullable<typeof operation>) {
     if (!draft || active.current || !canInteract()) return;
@@ -151,7 +156,7 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
 
   return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 12, gap: 10 }} testID="student-article-coding">
     <View style={row}>
-      <Button theme={theme} variant="outline" disabled={Boolean(operation)} onPress={close}>{id ? "Kembali ke bacaan" : "Back to reading"}</Button>
+      <Button theme={theme} variant="outline" disabled={Boolean(operation)} onPress={close}>{closeLabel ?? (id ? "Kembali ke bacaan" : "Back to reading")}</Button>
     </View>
     {notice ? <Text accessibilityLiveRegion="polite" style={{ color: colors.foreground }}>{notice}</Text> : null}
     {!draft ? notice ? <Button theme={theme} onPress={() => { setNotice(""); reload(value => value + 1); }}>{id ? "Coba lagi" : "Try again"}</Button>

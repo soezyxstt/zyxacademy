@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { articleProgressResultSchema, articleProgressSchema, articleProgressUpdateSchema, type ArticleProgressUpdate } from "../../../../../lib/articles/progress-contract";
 import { formativeLearnerResponseSchema, type FormativeLearnerResponse } from "../../../../../lib/materials/formative-evaluation";
+import { formativeCodingAccess } from "../../../../../lib/coding/native-article-contract";
 import { NATIVE_STAGING_ORIGIN } from "../../../auth/session-api";
 import type { StudentRequest } from "../contracts";
 import { OnlineReadingError, type OnlineReadingContent } from "./online-reading";
@@ -16,6 +17,7 @@ const checked = z.object({ ok: z.literal(true), result: z.object({
 const revealed = z.object({
   answer: z.string(), explanation: z.string(),
   visualAccess: z.object({ answer: z.string().optional(), explanation: z.string().optional() }).optional(),
+  codingAccess: formativeCodingAccess.optional(),
 });
 export type CheckReveal = z.infer<typeof revealed>;
 export type ReadProgress = z.infer<typeof articleProgressSchema> | z.infer<typeof materialStatus>;

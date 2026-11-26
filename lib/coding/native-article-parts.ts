@@ -4,7 +4,7 @@ import { appendArticleMarkdownScope, markdownPythonId } from "./article-markdown
 import { articlePartsSchema, flattenArticleParts, type ArticlePart } from "../materials/article-parts";
 
 type CodingPart = Extract<ArticlePart, { kind: "code_example" | "coding_exercise" }>;
-type Entry = { part: CodingPart; title?: string; namespace?: "markdown-example" };
+type Entry = { part: CodingPart; title?: string; namespace?: "markdown-example"; formativeOption?: { blockId: string; optionId: string } };
 type Block = { id: string; parts?: unknown; title?: unknown; content?: string; blockType?: string; workedExample?: unknown; formativeCheck?: unknown };
 
 function nestedMarkdown(block: ASTBlock): [field: string, markdown: string | undefined][] {
@@ -65,6 +65,13 @@ export function renderMarkdownCodeActions(raw: string, scope: string, render: (i
   };
 }
 
+type FormativeMarkdownField = `option:${string}` | "answer" | "explanation";
+
+export function formativeMarkdownCodingParts(source: string, sectionId: string, block: Block, field: FormativeMarkdownField) {
+  const scope = articleBlockScope(sectionId, block, 0);
+  return markdownExamples(source, appendArticleMarkdownScope(scope, field === "explanation" ? "reveal" : field));
+}
+
 export function sectionCodingParts(blocks: readonly Block[], sectionId?: string) {
   const entries = new Map<string, Entry | null>();
   for (const [index, block] of blocks.entries()) {
@@ -106,6 +113,17 @@ export function sectionCodingParts(blocks: readonly Block[], sectionId?: string)
       }
       if ("verification" in example) {
         candidates.push(...markdownExamples(example.verification, appendArticleMarkdownScope(sourceScope, "verification")));
+      }
+    }
+    if (sectionId && block.id && (block.blockType === "retrieval_prompt" || block.blockType === "retrieval_close")) {
+      const check = block.formativeCheck;
+      if (check && typeof check === "object" && "options" in check && Array.isArray(check.options)) {
+        for (const option of check.options) {
+          if (!option || typeof option.id !== "string" || !option.id || typeof option.text !== "string") continue;
+          for (const entry of formativeMarkdownCodingParts(option.text, sectionId, block, `option:${option.id}`)) {
+            candidates.push({ ...entry, formativeOption: { blockId: block.id, optionId: option.id } });
+          }
+        }
       }
     }
     for (const entry of candidates) {

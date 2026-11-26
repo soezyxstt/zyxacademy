@@ -166,7 +166,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "Learner Article and Diktat progress, completion and formative responses require an active Student session, exact course and current published revision. Tutorial PKA still checks registration. These operations reuse learner web evidence and feedback rules. MCP authoring grants do not expose learner progress, answers or formative submissions."
+    "reason": "Learner Article and Diktat progress, completion and formative responses require an active Student session, exact course and current published revision. Tutorial PKA still checks registration. These operations reuse learner web evidence and feedback rules. Formative Python is scoped to published options or to a short-lived field attestation after an explicit reveal. MCP authoring grants do not expose learner progress, answers or formative submissions."
   },
   {
     "source": "app/api/admin/quiz-insights/[id]/attempts/route.ts",
