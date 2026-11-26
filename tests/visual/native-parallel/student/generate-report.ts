@@ -297,7 +297,7 @@ const rows = manifest.routes.map(route => {
     interaction_status: "Current fixture credit requires a device run with the same path, scenario, theme, marker and ordered steps.",
     parity_status: "not_established", known_differences: pattern === "/courses/[id]/flashcard" ?
       "See device_comparisons for measured runs of the question, pending review and explicit rejection. The web component composition, native title, system safe area and math rendering differ. See tests/visual/native-parallel/student/learning/README.md for the reference version." :
-      pattern.endsWith("/material/[materialId]") ? "Fixture shows a reader-unavailable state when the shared renderer is absent; it does not render the web document. Device pixel diff is not measured." :
+      pattern.endsWith("/material/[materialId]") ? "The enrolled fixture shows the authorized fallback until the host supplies the shared reader. For preview and revoked states, see device_comparisons for measured pairs at their own source commits." :
       pattern === "/pet" ? "Expo uses catalog posters; GLB animation and equipped visuals require the shared renderer. Device pixel diff is not measured." :
       pattern === "/settings" ? "Some web display settings are not mapped to native. Device pixel diff is not measured." :
       comparisons.some(item => Number.isFinite(item.differingPixels)) ? "Per-platform outcomes are recorded in device_comparisons at their own source commits." : "Per-case pixel diff has not been established by this report.",

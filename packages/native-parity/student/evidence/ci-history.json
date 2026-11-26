@@ -555,7 +555,54 @@
       "ios": {
         "jobId": 139944816671,
         "status": "cancelled_before_device_flows"
-      }
+      },
+      "checkoutSha": "ae4ceeff7e5bcc75980c511075079810335aa177",
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T14:22:00Z",
+          "android": {
+            "jobId": 139944816133,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Generated smoke: {'passed': 200, 'blocked': 3}. Standalone flows: {'passed': 25, 'failed': 2}. Matched comparison: {'different': 26, 'missing': 6, 'blocked_renderer': 1}.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45829658265/artifacts/15125807531",
+            "summaryCounts": {
+              "passed": 200,
+              "blocked": 3
+            },
+            "standaloneCounts": {
+              "passed": 25,
+              "failed": 2
+            },
+            "matchedComparisonCounts": {
+              "different": 26,
+              "missing": 6,
+              "blocked_renderer": 1
+            },
+            "initialFailureCategories": {
+              "ADB transport": 17
+            },
+            "retryOutcomes": {
+              "passed": 17
+            },
+            "scrollRestoration": {
+              "status": "pass",
+              "region": [
+                38,
+                205,
+                342,
+                615
+              ],
+              "dimensions": [
+                380,
+                820
+              ],
+              "different_pixels": 0,
+              "before": "results/2026-11-26_135022/Student course long material list fixture/takeScreenshot/student-long-content.png",
+              "after": "results/2026-11-26_135022/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+            }
+          }
+        }
+      ]
     },
     {
       "runId": 45831047938,
