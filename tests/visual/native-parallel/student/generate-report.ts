@@ -227,6 +227,7 @@ const areaInfo: Record<StudentArea, { ui: string; symbol: string; doc: string; c
   community: { ui: "apps/mobile-native/features/student/community/index.tsx", symbol: "CommunityScreen", doc: "packages/native-parity/student/community/README.md", checks: ["packages/native-parity/student/community/community.test.ts", "tests/contracts/native-student-community-http.test.ts"] },
 };
 const httpCourses = new Set(["/dashboard", "/courses", "/courses/[id]", "/courses/[id]/material", "/courses/[id]/material/[materialId]"]);
+const httpLearning = new Set(["/courses/[id]/mastery", "/courses/[id]/path", "/courses/[id]/concept/[slug]", "/courses/[id]/video", "/courses/[id]/flashcard", "/courses/tutorial-pka", "/courses/tutorial-pka/jadwal", "/courses/tutorial-pka/laporan", "/courses/tutorial-pka/simulasi/[subject]/[stage]"]);
 const httpCommunity = new Set(["/leaderboard", "/leaderboard/academic", "/courses/[id]/leaderboard", "/calendar", "/dashboard/schedule", "/profile/reflections", "/settings/notifications", "/profile", "/students/[publicId]", "/dashboard/discussions", "/courses/[id]/discussions", "/discussions"]);
 type CaseInputs = {
   id: string;
@@ -342,11 +343,13 @@ const rows = manifest.routes.map(route => {
     http_evidence: httpCourses.has(pattern) ? { source: "tests/visual/native-parallel/student/product/README.md", scope: "Local synthetic HTTP reads for dashboard, extras, catalog, course and material; see per-view assertions." } :
       ["/courses/[id]/quiz/[quizId]", "/courses/[id]/tryout/[tryoutId]", "/courses/[id]/my-results", "/courses/[id]/my-results/[submissionId]"].includes(pattern) ?
       { source: "tests/visual/native-parallel/student/product/assessment-http.ts", scope: "Signed HTTP with a local PostgreSQL database. Checks retries, attempt ownership, release and score for quiz and tryout." } :
+      httpLearning.has(pattern) ? { source: "tests/visual/native-parallel/student/product/learning-http.ts", scope: "Signed HTTP to local Next and PostgreSQL. See per-view assertions for entitlement, previews, and flashcard review persistence." } :
       httpCommunity.has(pattern) ? { source: "packages/native-parity/student/community/README.md", scope: "Local synthetic HTTP tests cover selected guard and community operations; inspect linked test for exact scope." } : null,
     web_evidence: [...productCaptures, ...componentCaptures, ...optionalCaptures], web_attempts: attempts,
     web_ci_evidence: ciCase && webRun ? { case: ciCase, status: webRun.web.status, sourceHead: webRun.sourceHead,
       run: webRun.url, artifact: webRun.web.artifact, kind: "synthetic web component fixture" } : null,
     fixture_cases: cases,
+    matched_reference_groups: groups.map(({ prefix, states }) => ({ id: prefix, states })),
     device_comparisons: comparisons,
     fixture_device_summary: { android: countDeviceCases(cases, "android"), ios: countDeviceCases(cases, "ios") },
     device_status: { android: summaries.android ? `see ${summaries.android.path}` : "not_recorded", ios: summaries.ios ? `see ${summaries.ios.path}` : "not_recorded" },
@@ -383,6 +386,7 @@ const lines = ["# Laporan rute Student", "", `Dihasilkan dari HEAD \`${sha}\`; w
 const webCoverage = rows.filter(row => row.web_evidence.some(item => item.evidence === "authenticated product web")).length;
 const hydrationWarnings = web.results.filter((entry: any) => entry.hydrationWarnings?.length).length;
 lines.push(`Referensi web produk tersedia untuk ${webCoverage} dari ${rows.length} pola rute. ${hydrationWarnings} capture kursus mencatat peringatan hidrasi. Tujuan redirect dan detail peringatan tersimpan di [routes.json](routes.json).`, "");
+lines.push(`Tersedia ${referenceGroups.length} kelompok referensi dengan tiga keadaan masukan yang sepadan pada ${rows.filter(row => row.matched_reference_groups.length > 0).length} pola rute. Hasil perbandingan perangkat tercatat per run.`, "");
 for (const [platform, label] of [["android", "Android"], ["ios", "iOS"]] as const) {
   const summary = summaries[platform];
   if (!summary) {

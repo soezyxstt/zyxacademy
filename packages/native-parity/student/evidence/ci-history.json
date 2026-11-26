@@ -1000,7 +1000,29 @@
       "android": {
         "jobId": 140063863414,
         "status": "in_progress_at_observation"
-      }
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T17:48:13+00:00",
+          "android": {
+            "jobId": 140063863414,
+            "status": "completed",
+            "conclusion": "failure",
+            "counts": {
+              "passed": 200,
+              "blocked": 3
+            },
+            "effectiveStandalone": {
+              "passed": 29,
+              "failed": 1
+            },
+            "description": "All runnable smoke and 29 standalone flows passed on the first attempt. Hermes dashboard preview crash reproduced. 38 of 42 matched targets measured, and the restored list region matched exactly.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45863831357/artifacts/15141523251",
+            "artifactSha256": "814168446f2444fd4f179e844ec8e248cfb4dd86154c05e639c11f64acfedc77",
+            "provenance": "packages/native-parity/student/evidence/device-runs/45863831357/android/provenance.json"
+          }
+        }
+      ]
     }
   ]
 }
